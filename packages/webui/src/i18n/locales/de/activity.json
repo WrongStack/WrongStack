@@ -335,6 +335,7 @@
     "pinned": "Angeheftet",
     "quickSettings": "Schnelleinstellungen",
     "autonomy": "Autonomie",
+    "autonomyTitle": "Automatische nächste Schritte stoppen. Ausschalten, um die autonome Schleife des Agenten anzuhalten",
     "autonomyOptions": {
       "off": "Aus",
       "suggest": "Vorschlagen",
@@ -1909,6 +1910,11 @@
     "breakRoom": "Pausenraum",
     "onBreak": "{{count}} in der Pause",
     "desksEmpty": "Alle machen Pause — die Schreibtische sind bereit für die nächste Aufgabe"
+  },
+  "sageMemory": {
+    "injectedHeading": "SAGE-Speicher eingefügt",
+    "memoriesLabel_one": "{{count}} Erinnerung",
+    "memoriesLabel_other": "{{count}} Erinnerungen"
   },
   "sddhub": {
     "tabProject": "SDD-Projekt",

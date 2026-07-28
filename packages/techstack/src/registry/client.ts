@@ -56,17 +56,41 @@ function getCached(key: string): RegistryEntry | undefined {
   return entry.data;
 }
 
+/**
+ * Cap on distinct (host, path) entries kept in memory. The TTL alone did not
+ * bound this map: expiry was only checked when the SAME key was requested
+ * again, so a scan of a large monorepo inserted one entry per dependency and
+ * every one of them survived for the life of the process.
+ */
+const MAX_CACHE_ENTRIES = 512;
+
+/** Drop expired entries, then oldest-first, until back within the cap. */
+function trimCache(now: number): void {
+  if (registryCache.size <= MAX_CACHE_ENTRIES) return;
+  for (const [key, entry] of registryCache) {
+    if (now > entry.expiresAt) registryCache.delete(key);
+  }
+  // Map iterates in insertion order, so the front is the oldest.
+  while (registryCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = registryCache.keys().next().value;
+    if (oldest === undefined) break;
+    registryCache.delete(oldest);
+  }
+}
+
 function setCache(
   key: string,
   data: RegistryEntry,
   etag?: string,
   ttlMs = DEFAULT_TTL_MS,
 ): void {
+  const now = Date.now();
   registryCache.set(key, {
     data,
     etag,
-    expiresAt: Date.now() + ttlMs,
+    expiresAt: now + ttlMs,
   });
+  trimCache(now);
 }
 
 // ── Concurrency limiter ────────────────────────────────────────────────────

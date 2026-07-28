@@ -347,7 +347,8 @@
     "favoritesHeading": "Modelos favoritos",
     "favoritesEmpty": "Los favoritos se muestran primero y pueden restringir el fallback automático.",
     "addModelToProfile": "Añadir modelo al perfil…",
-    "addFavoriteModel": "Añadir modelo favorito…"
+    "addFavoriteModel": "Añadir modelo favorito…",
+    "inactive": "inactivo"
   },
   "fleet": {
     "heading": "Flota y Streaming",

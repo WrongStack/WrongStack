@@ -91,7 +91,6 @@ export interface HistoryScrollController {
  */
 export interface CopyHit {
   entryId: number;
-  text: string;
   startRow: number;
   endRow: number;
   iconCol: number;
@@ -351,6 +350,8 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // pass from the same measured heights the scroll math uses. Read by the
   // controller's copyAtViewportCell when a left-click lands in the history band.
   const copyHitsRef = useRef<CopyHit[]>([]);
+  const entriesByIdRef = useRef(new Map<number, HistoryEntry>());
+  entriesByIdRef.current = new Map(entries.map((entry) => [entry.id, entry]));
   // Exact global row-to-entry mapping is impossible while arbitrary markdown
   // groups still have heuristic heights. Once per terminal width, mount the
   // retained transcript inside the clipped viewport, measure it in one Yoga
@@ -557,7 +558,11 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       copyAtViewportCell: async (row, col) => {
         const hit = findCopyHit(copyHitsRef.current, row, col);
         if (hit === null) return null;
-        const ok = await writeClipboardText(hit.text);
+        const entry = entriesByIdRef.current.get(hit.entryId);
+        if (!entry) return null;
+        const text = copyableTextForEntry(entry);
+        if (text === null) return null;
+        const ok = await writeClipboardText(text);
         return ok ? hit.entryId : null;
       },
     }),
@@ -720,7 +725,6 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         if (startRow < 0 || startRow >= vp) continue;
         hits.push({
           entryId: group.entry.id,
-          text,
           startRow,
           endRow: startRow + 1,
           iconCol,

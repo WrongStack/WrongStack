@@ -1,12 +1,72 @@
 import * as fs from 'node:fs/promises';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { atomicWrite, color } from '@wrongstack/core/utils';
-import { ConfigError, type SlashCommand } from '@wrongstack/core/types';
-import { smartDefaultFallbackChain } from '@wrongstack/core/agent';
+import {
+  normalizeModelRef,
+  parseModelRef,
+  smartDefaultFallbackChain,
+} from '@wrongstack/core/agent';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import { normalizeModelRef, parseModelRef } from '@wrongstack/core/agent';
-import type { SlashCommandContext } from './command-context.js';
+import { ConfigError, type SlashCommand } from '@wrongstack/core/types';
+import { atomicWrite, color, toErrorMessage } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
+import type { SlashCommandContext } from './command-context.js';
+
+// ── Reference validation helpers ──────────────────────────────────────────────
+
+/**
+ * Reason a ref is invalid for a chain or profile, or undefined when valid.
+ * Mirrors the runtime filter inside FallbackProfileManager.resolve so the
+ * slash command never accepts an entry the runtime will silently drop.
+ *
+ * Checks, in order:
+ *  1. Parses to a non-empty model.
+ *  2. The provider has a `models` allow-list and the model is in it.
+ *  3. The ref is in the user's `favoriteModels` list (skipped when favorites
+ *     are empty — legacy behavior: no favorites ⇒ no enforcement).
+ */
+function refInvalidReason(
+  ref: string,
+  config: {
+    provider: string;
+    providers?: Record<string, { models?: string[] | undefined }> | undefined;
+    favoriteModels?: string[] | undefined;
+  },
+): string | undefined {
+  const parsed = parseModelRef(ref);
+  if (!parsed.model) return 'no model in reference';
+  const providerId = parsed.provider ?? config.provider;
+  const entry = config.providers?.[providerId];
+  if (entry?.models && !entry.models.includes(parsed.model)) {
+    return `"${parsed.model}" not in ${providerId} model list`;
+  }
+  const favorites = config.favoriteModels ?? [];
+  if (favorites.length === 0) return undefined;
+  const canonical = normalizeModelRef(ref, config.provider);
+  const inFavorites = favorites.some((f) => normalizeModelRef(f, config.provider) === canonical);
+  if (!inFavorites) return 'not in favorites';
+  return undefined;
+}
+
+/**
+ * A short, view-only reason a ref will be dropped at runtime. Used by the
+ * `currentView()` renderer so users can see inactive chain/profile entries
+ * before they trip on a 429. Returns undefined when the ref is healthy.
+ */
+function refInactiveReason(
+  ref: string,
+  config: {
+    provider: string;
+    providers?: Record<string, { models?: string[] | undefined }> | undefined;
+  },
+): string | undefined {
+  const parsed = parseModelRef(ref);
+  if (!parsed.model) return 'no model in reference';
+  const providerId = parsed.provider ?? config.provider;
+  const entry = config.providers?.[providerId];
+  if (entry?.models && !entry.models.includes(parsed.model)) {
+    return `"${parsed.model}" not in ${providerId} model list`;
+  }
+  return undefined;
+}
 
 /**
  * Canonicalize a model reference so equivalent spellings dedupe:
@@ -113,17 +173,7 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
     // never silently diverges from the one the agent actually rotates through:
     // an explicit entry is dropped at runtime when it has no model, or when its
     // provider declares a `models` list the model isn't in. Flag those here.
-    const filteredReason = (ref: string): string | undefined => {
-      const parsed = parseModelRef(ref);
-      if (!parsed.model) return 'no model in reference';
-      const providerId = parsed.provider ?? config.provider;
-      const entry = config.providers?.[providerId];
-      if (!entry?.models) return undefined;
-      if (!entry.models.includes(parsed.model)) {
-        return `"${parsed.model}" not in ${providerId} model list`;
-      }
-      return undefined;
-    };
+    const filteredReason = (ref: string): string | undefined => refInactiveReason(ref, config);
 
     const lines = [
       `${color.bold('WrongStack')} ${color.dim('— Fallback chain')}`,
@@ -166,12 +216,30 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
       `  ${color.bold('profiles')} ${Object.keys(profiles).length ? '' : color.dim('(none)')}`,
       ...Object.entries(profiles)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, chain]) => `    ${color.amber(name)} → ${chain.join(' → ')}`),
+        .flatMap(([name, chain]) => {
+          if (!chain || chain.length === 0) {
+            return [`    ${color.amber(name)} → ${color.dim('(empty)')}`];
+          }
+          return [
+            `    ${color.amber(name)} →`,
+            ...chain.map((ref) => {
+              const inactive = filteredReason(ref);
+              const suffix = inactive ? `  ${color.red(`⚠ inactive — ${inactive}`)}` : '';
+              return `      ${color.cyan(ref)}${suffix}`;
+            }),
+          ];
+        }),
       '',
       `  ${color.bold('favorites')} ${favorites.length ? '' : color.dim('(none)')}`,
-      ...favorites.map((ref, i) => `    ${color.amber(String(i + 1).padStart(2))}. ${color.cyan(ref)}`),
+      ...favorites.map((ref, i) => {
+        const inactive = filteredReason(ref);
+        const suffix = inactive ? `  ${color.red(`⚠ inactive — ${inactive}`)}` : '';
+        return `    ${color.amber(String(i + 1).padStart(2))}. ${color.cyan(ref)}${suffix}`;
+      }),
       '',
-      color.dim('  /fallback add <provider/model> · profile set fallback1 a,b · fav add a/b · help'),
+      color.dim(
+        '  /fallback add <provider/model> · profile set fallback1 a,b · fav add a/b · help',
+      ),
     );
     return lines.join('\n');
   }
@@ -204,6 +272,20 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
           }
           if (explicit.some((e) => normalizeRef(e) === ref)) {
             return { message: `${color.amber('Already in chain')}: ${color.cyan(ref)}` };
+          }
+          const invalid = refInvalidReason(ref, config);
+          if (invalid) {
+            return {
+              message:
+                `${color.red('Cannot add')}: "${ref}" — ${invalid}. ` +
+                (invalid === 'not in favorites'
+                  ? `${color.dim('Add it first: /fallback fav add ' + ref)}`
+                  : invalid.startsWith('"') && invalid.includes('not in')
+                    ? color.dim(
+                        'Update the provider models list via provider_manage or pick a different model',
+                      )
+                    : ''),
+            };
           }
           explicit.push(ref);
           const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
@@ -293,6 +375,19 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
                 message: `${color.amber('Usage:')} /fallback profile set ${name} <provider/model,provider/model,...>`,
               };
             }
+            const invalidEntries = chain
+              .map((ref) => ({ ref, reason: refInvalidReason(ref, config) }))
+              .filter((e): e is { ref: string; reason: string } => e.reason !== undefined);
+            if (invalidEntries.length > 0) {
+              const detail = invalidEntries
+                .map((e) => `  ${color.cyan(e.ref)} — ${color.red(e.reason)}`)
+                .join('\n');
+              return {
+                message:
+                  `${color.red('Cannot save profile')}: ${invalidEntries.length} invalid entr${invalidEntries.length === 1 ? 'y' : 'ies'}:\n${detail}\n\n` +
+                  `${color.dim('Add favorites first: /fallback fav add <ref>, or fix provider model lists.')}`,
+              };
+            }
             const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
               const next = { ...((cfg.fallbackProfiles as Record<string, string[]>) ?? {}) };
               next[name] = chain;
@@ -301,7 +396,9 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
             opts.configStore.update({
               fallbackProfiles: decrypted.fallbackProfiles as Record<string, string[]>,
             });
-            return { message: `${color.green('✓')} profile ${color.amber(name)} → ${chain.join(' → ')}` };
+            return {
+              message: `${color.green('✓')} profile ${color.amber(name)} → ${chain.join(' → ')}`,
+            };
           }
           if (!(name in profiles)) {
             return { message: `${color.red('Profile not found')}: ${color.amber(name)}` };
@@ -340,17 +437,39 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
             const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
               cfg.favoriteModelsOnly = next;
             });
-            opts.configStore.update({ favoriteModelsOnly: decrypted.favoriteModelsOnly as boolean });
+            opts.configStore.update({
+              favoriteModelsOnly: decrypted.favoriteModelsOnly as boolean,
+            });
             return {
               message: `${color.green('✓')} favorites-only smart fallback ${next ? color.green('on') : color.dim('off')}`,
             };
           }
           if (action === 'add') {
             const ref = normalizeRef(parts.slice(2).join(' '));
-            if (!ref) return { message: `${color.amber('Usage:')} /fallback fav add <provider/model>` };
+            if (!ref)
+              return { message: `${color.amber('Usage:')} /fallback fav add <provider/model>` };
             const key = normalizeModelRef(ref, config.provider);
             if (favorites.some((e) => normalizeModelRef(e, config.provider) === key)) {
               return { message: `${color.amber('Already favorite')}: ${color.cyan(ref)}` };
+            }
+            // Validate against provider allow-list (favorites is the source of truth, but
+            // a favorite pointing at a model the provider will reject is a dead ring).
+            const providerEntry = (() => {
+              const parsed = parseModelRef(ref);
+              const provId = parsed.provider ?? config.provider;
+              return config.providers?.[provId];
+            })();
+            if (
+              providerEntry?.models &&
+              providerEntry.models.length > 0 &&
+              !providerEntry.models.includes(parseModelRef(ref).model)
+            ) {
+              return {
+                message:
+                  `${color.red('Cannot favorite')}: "${ref}" — ${parseModelRef(ref).model} ` +
+                  `not in ${parseModelRef(ref).provider ?? config.provider} model list ` +
+                  `(${providerEntry.models.join(', ')}). ${color.dim('Pick a model the provider actually exposes.')}`,
+              };
             }
             favorites.push(ref);
             const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
@@ -361,7 +480,8 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
           }
           if (action === 'remove') {
             const target = parts.slice(2).join(' ').trim();
-            if (!target) return { message: `${color.amber('Usage:')} /fallback fav remove <n|ref>` };
+            if (!target)
+              return { message: `${color.amber('Usage:')} /fallback fav remove <n|ref>` };
             let idx = -1;
             const asNum = Number.parseInt(target, 10);
             if (String(asNum) === target && asNum >= 1 && asNum <= favorites.length) {
@@ -376,7 +496,9 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
               cfg.favoriteModels = favorites;
             });
             opts.configStore.update({ favoriteModels: decrypted.favoriteModels as string[] });
-            return { message: `${color.green('✓')} favorite removed ${color.cyan(removed ?? target)}` };
+            return {
+              message: `${color.green('✓')} favorite removed ${color.cyan(removed ?? target)}`,
+            };
           }
           return {
             message: `${color.red('Unknown favorite command')} "${action}". Try ${color.dim('/fallback fav add <provider/model>')}.`,

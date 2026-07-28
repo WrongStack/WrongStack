@@ -447,3 +447,54 @@ describe('reviewer model round-robin', () => {
     expect(primaries.size).toBe(pool.length);
   });
 });
+
+/**
+ * A snapshot pass reads every changed file in the working tree. Overlapping
+ * passes each retain everything they have read so far, which measured 1.28GB of
+ * live strings in a real session (~180 stacked passes over ~90 changed files).
+ * These pin the two bounds that keep that from coming back.
+ */
+describe('auto-review snapshot memory bounds', () => {
+  it('skips a snapshot pass while another is still walking the tree', async () => {
+    const { api, events, log } = makeApi();
+    createAutoReviewPlugin().setup!(api);
+    await events['agent.run.started']!();
+
+    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n');
+
+    // Two iterations that overlap in time — exactly the shape that stacked in
+    // production, where an iteration completed before the previous pass did.
+    const first = events['iteration.completed']!();
+    const second = events['iteration.completed']!();
+    await Promise.all([first, second]);
+
+    // Assert the SKIP, not the emitted-payload count: the claim registry
+    // already dedupes identical content, so a payload count of 1 passes even
+    // with the guard removed. Only the log proves which path ran.
+    expect(log.info).toHaveBeenCalledWith(
+      '[auto-review] snapshot pass already in flight, skipping',
+    );
+  });
+
+  it('does not read files above the per-file snapshot cap', async () => {
+    const { api, events, emitCustom } = makeApi();
+    createAutoReviewPlugin().setup!(api);
+    await events['agent.run.started']!();
+
+    // 300KB > MAX_SNAPSHOT_FILE_BYTES (256KB): the class of file (lockfiles,
+    // changelogs, generated bundles) that dominated the retained heap.
+    await fs.writeFile(path.join(tmp, 'huge.ts'), `// ${'x'.repeat(300 * 1024)}\n`);
+    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n');
+    commitAll(tmp, 'add huge');
+    await fs.writeFile(path.join(tmp, 'huge.ts'), `// ${'y'.repeat(300 * 1024)}\n`);
+    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 3;\n');
+
+    await events['iteration.completed']!();
+
+    const payloads = reviewPayloads(emitCustom);
+    expect(payloads).toHaveLength(1);
+    const paths = payloads[0]!.files.map((file) => file.path);
+    expect(paths).toContain('tracked.ts');
+    expect(paths).not.toContain('huge.ts');
+  });
+});

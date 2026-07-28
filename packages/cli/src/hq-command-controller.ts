@@ -15,7 +15,7 @@
  * @module hq-command-controller
  */
 import type { HqPublisherCommandResult } from '@wrongstack/core/hq';
-import type { GlobalMailbox } from '@wrongstack/core/coordination';
+import type { RemoteMailbox } from '@wrongstack/core/coordination';
 import type { HqCommand } from '@wrongstack/core/hq';
 
 /**
@@ -26,7 +26,7 @@ import type { HqCommand } from '@wrongstack/core/hq';
  */
 export interface HqCommandController {
   /** Project mailbox used to deliver steer/broadcast messages. */
-  steerMailbox?: GlobalMailbox;
+  steerMailbox?: RemoteMailbox | undefined;
   /** Abort the session leader's running Agent.run(). Returns true if a run was aborted. */
   interruptLeader: () => boolean;
   /** Terminate a specific subagent by id. Returns true if terminated. */

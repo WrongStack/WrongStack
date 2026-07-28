@@ -69,16 +69,16 @@ function newSignal(): AbortSignal {
 
 describe('BM25', () => {
   describe('tokenise', () => {
-    it('splits on non-word characters and lowercases', () => {
+    it('splits on non-word characters and lowercases', async () => {
       expect(tokenise('Hello World-Foo bar_baz')).toEqual(['hello', 'world', 'foo', 'bar', 'baz']);
     });
 
-    it('handles empty and whitespace-only strings', () => {
+    it('handles empty and whitespace-only strings', async () => {
       expect(tokenise('')).toEqual([]);
       expect(tokenise('   ')).toEqual([]);
     });
 
-    it('handles unicode letters', () => {
+    it('handles unicode letters', async () => {
       const tokens = tokenise('café résumé');
       expect(tokens).toContain('café');
       expect(tokens).toContain('résumé');
@@ -86,12 +86,12 @@ describe('BM25', () => {
   });
 
   describe('buildBm25Index', () => {
-    it('returns an empty index for empty docs', () => {
+    it('returns an empty index for empty docs', async () => {
       const idx = buildBm25Index([]);
       expect(idx.score('hello')).toEqual([]);
     });
 
-    it('ranks a matching doc higher than a non-matching doc', () => {
+    it('ranks a matching doc higher than a non-matching doc', async () => {
       const docs = [
         { id: 1, text: 'function parseJson(input: string): object' },
         { id: 2, text: 'class TreeNode' },
@@ -103,7 +103,7 @@ describe('BM25', () => {
       expect(top.id).toBe(1);
     });
 
-    it('handles multi-term queries', () => {
+    it('handles multi-term queries', async () => {
       const docs = [
         { id: 1, text: 'async function fetchUserData(id: string): Promise<User>' },
         { id: 2, text: 'function saveUser(data: User): void' },
@@ -113,7 +113,7 @@ describe('BM25', () => {
       expect(results.some((r) => r.id === 1)).toBe(true);
     });
 
-    it('applies IDF — rare terms score higher than common ones', () => {
+    it('applies IDF — rare terms score higher than common ones', async () => {
       const docs = [
         { id: 1, text: 'blorbix widget frobble' },
         { id: 2, text: 'blorbix blorbix blorbix' },
@@ -123,7 +123,7 @@ describe('BM25', () => {
       expect(results[0]?.id).toBe(1);
     });
 
-    it('extractSnippet returns a window around the match', () => {
+    it('extractSnippet returns a window around the match', async () => {
       const docs = [
         { id: 1, text: 'The authentication handler validates JWT tokens and creates sessions' },
       ];
@@ -132,7 +132,7 @@ describe('BM25', () => {
       expect(snippet.toLowerCase()).toContain('jwt');
     });
 
-    it('score accepts a filter function', () => {
+    it('score accepts a filter function', async () => {
       const docs = [
         { id: 1, text: 'function parseJson' },
         { id: 2, text: 'function parseXml' },
@@ -149,7 +149,7 @@ describe('BM25', () => {
 
 describe('ts-parser', () => {
   describe('detectLang', () => {
-    it('maps extensions correctly', () => {
+    it('maps extensions correctly', async () => {
       expect(detectLang('foo.ts')).toBe('ts');
       expect(detectLang('foo.tsx')).toBe('tsx');
       expect(detectLang('foo.js')).toBe('js');
@@ -165,8 +165,8 @@ describe('ts-parser', () => {
   });
 
   describe('parseSymbols', () => {
-    it('extracts class declarations', () => {
-      const result = parseSymbols({
+    it('extracts class declarations', async () => {
+      const result = await parseSymbols({
         file: '/test/Test.ts',
         content: 'class UserService { }',
         lang: 'ts',
@@ -175,8 +175,8 @@ describe('ts-parser', () => {
       expect(result.symbols.find((s) => s.kind === 'class')?.name).toBe('UserService');
     });
 
-    it('extracts function declarations', () => {
-      const result = parseSymbols({
+    it('extracts function declarations', async () => {
+      const result = await parseSymbols({
         file: '/test/utils.ts',
         content: `function greet(name: string): string { return \`Hello \${name}\`; }`,
         lang: 'ts',
@@ -184,8 +184,8 @@ describe('ts-parser', () => {
       expect(result.symbols.some((s) => s.kind === 'function' && s.name === 'greet')).toBe(true);
     });
 
-    it('extracts interface declarations', () => {
-      const result = parseSymbols({
+    it('extracts interface declarations', async () => {
+      const result = await parseSymbols({
         file: '/test/types.ts',
         content: 'interface User { id: string; name: string; }',
         lang: 'ts',
@@ -193,8 +193,8 @@ describe('ts-parser', () => {
       expect(result.symbols.some((s) => s.kind === 'interface' && s.name === 'User')).toBe(true);
     });
 
-    it('extracts type aliases', () => {
-      const result = parseSymbols({
+    it('extracts type aliases', async () => {
+      const result = await parseSymbols({
         file: '/test/types.ts',
         content: 'type Maybe<T> = T | null;',
         lang: 'ts',
@@ -202,8 +202,8 @@ describe('ts-parser', () => {
       expect(result.symbols.some((s) => s.kind === 'type' && s.name === 'Maybe')).toBe(true);
     });
 
-    it('extracts const declarations', () => {
-      const result = parseSymbols({
+    it('extracts const declarations', async () => {
+      const result = await parseSymbols({
         file: '/test/constants.ts',
         content: 'const MAX_RETRIES = 5;',
         lang: 'ts',
@@ -211,8 +211,8 @@ describe('ts-parser', () => {
       expect(result.symbols.some((s) => s.name === 'MAX_RETRIES')).toBe(true);
     });
 
-    it('extracts method declarations inside classes', () => {
-      const result = parseSymbols({
+    it('extracts method declarations inside classes', async () => {
+      const result = await parseSymbols({
         file: '/test/Service.ts',
         content: 'class Service { async fetchAll(): Promise<void> { } }',
         lang: 'ts',
@@ -220,8 +220,8 @@ describe('ts-parser', () => {
       expect(result.symbols.some((s) => s.kind === 'method' && s.name === 'fetchAll')).toBe(true);
     });
 
-    it('extracts enum declarations', () => {
-      const result = parseSymbols({
+    it('extracts enum declarations', async () => {
+      const result = await parseSymbols({
         file: '/test/enums.ts',
         content: 'enum Color { Red, Green, Blue }',
         lang: 'ts',
@@ -229,8 +229,8 @@ describe('ts-parser', () => {
       expect(result.symbols.some((s) => s.kind === 'enum' && s.name === 'Color')).toBe(true);
     });
 
-    it('includes line numbers (1-based)', () => {
-      const result = parseSymbols({
+    it('includes line numbers (1-based)', async () => {
+      const result = await parseSymbols({
         file: '/test/test.ts',
         content: 'class Foo { }\nclass Bar { }',
         lang: 'ts',
@@ -239,8 +239,8 @@ describe('ts-parser', () => {
       expect(barSymbol?.line).toBe(2);
     });
 
-    it('handles invalid source gracefully', () => {
-      const result = parseSymbols({ file: '/test/bad.ts', content: '', lang: 'ts' });
+    it('handles invalid source gracefully', async () => {
+      const result = await parseSymbols({ file: '/test/bad.ts', content: '', lang: 'ts' });
       expect(result.symbols).toEqual([]);
     });
   });
@@ -262,13 +262,13 @@ describe('IndexStore', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('starts empty', () => {
+  it('starts empty', async () => {
     const stats = store.getStats();
     expect(stats.totalSymbols).toBe(0);
     expect(stats.totalFiles).toBe(0);
   });
 
-  it('inserts symbols and returns them with assigned ids', () => {
+  it('inserts symbols and returns them with assigned ids', async () => {
     const inserted = store.insertSymbols(
       [
         {
@@ -304,7 +304,7 @@ describe('IndexStore', () => {
     expect(inserted[1].id).toBe(2);
   });
 
-  it('persists data across store reopens', () => {
+  it('persists data across store reopens', async () => {
     store.insertSymbols(
       [
         {
@@ -330,7 +330,7 @@ describe('IndexStore', () => {
     store2.close();
   });
 
-  it('deletes symbols for a file', () => {
+  it('deletes symbols for a file', async () => {
     store.insertSymbols(
       [
         {
@@ -369,7 +369,7 @@ describe('IndexStore', () => {
     expect(remaining.every((s) => s.file !== '/p/A.ts')).toBe(true);
   });
 
-  it('upsertFile and getFileMeta work', () => {
+  it('upsertFile and getFileMeta work', async () => {
     store.upsertFile({
       file: '/p/test.ts',
       lang: 'ts',
@@ -382,7 +382,7 @@ describe('IndexStore', () => {
     expect(meta?.lang).toBe('ts');
   });
 
-  it('search returns matches filtered by kind', () => {
+  it('search returns matches filtered by kind', async () => {
     store.insertSymbols(
       [
         {
@@ -405,7 +405,7 @@ describe('IndexStore', () => {
     expect(results.length).toBe(1);
   });
 
-  it('search returns matches filtered by lang', () => {
+  it('search returns matches filtered by lang', async () => {
     store.insertSymbols(
       [
         {
@@ -442,7 +442,7 @@ describe('IndexStore', () => {
     expect(results[0].name).toBe('GoClass');
   });
 
-  it('clearAll removes everything', () => {
+  it('clearAll removes everything', async () => {
     store.insertSymbols(
       [
         {
@@ -465,14 +465,14 @@ describe('IndexStore', () => {
     expect(store.getStats().totalSymbols).toBe(0);
   });
 
-  it('setLastIndexed and getStats reflect it', () => {
+  it('setLastIndexed and getStats reflect it', async () => {
     const ts = 1_700_000_000_000;
     store.setLastIndexed(ts);
     const stats = store.getStats();
     expect(stats.lastIndexed).toBe(ts);
   });
 
-  it('sizeBytes returns non-zero after inserts', () => {
+  it('sizeBytes returns non-zero after inserts', async () => {
     store.insertSymbols(
       [
         {
@@ -515,7 +515,7 @@ describe('IndexStore.searchRanked', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('matches camelCase parts of a symbol name with score and snippet', () => {
+  it('matches camelCase parts of a symbol name with score and snippet', async () => {
     store.insertSymbols(
       [sym(0, 'complexOperation', 'function', 'function complexOperation(): Promise<void>'), sym(0, 'TreeNode', 'class', 'class TreeNode')],
       1,
@@ -527,13 +527,13 @@ describe('IndexStore.searchRanked', () => {
     expect(results[0]?.snippet.length).toBeGreaterThan(0);
   });
 
-  it('matches prefixes (old LIKE recall: "user" finds "users")', () => {
+  it('matches prefixes (old LIKE recall: "user" finds "users")', async () => {
     store.insertSymbols([sym(0, 'users', 'function', 'function users(): User[]')], 1);
     const { results } = store.searchRanked('user', undefined, 20);
     expect(results.some((r) => r.name === 'users')).toBe(true);
   });
 
-  it('applies kind/lang filters on top of the match', () => {
+  it('applies kind/lang filters on top of the match', async () => {
     store.insertSymbols(
       [sym(0, 'fooHandler', 'function', 'function fooHandler()'), sym(0, 'FooHandler', 'class', 'class FooHandler')],
       1,
@@ -543,14 +543,14 @@ describe('IndexStore.searchRanked', () => {
     expect(results[0]?.kind).toBe('class');
   });
 
-  it('empty query lists by filter only (legacy search("") semantics)', () => {
+  it('empty query lists by filter only (legacy search("") semantics)', async () => {
     store.insertSymbols([sym(0, 'A', 'class', 'class A'), sym(0, 'b', 'function', 'function b()')], 1);
     const { results, total } = store.searchRanked('', { kind: 'class' }, 20);
     expect(total).toBe(1);
     expect(results[0]?.name).toBe('A');
   });
 
-  it('respects the limit while reporting the full total', () => {
+  it('respects the limit while reporting the full total', async () => {
     store.insertSymbols(
       Array.from({ length: 10 }, (_, i) => sym(0, `widget${i}`, 'function', `function widget${i}()`)),
       1,
@@ -560,14 +560,14 @@ describe('IndexStore.searchRanked', () => {
     expect(total).toBe(10);
   });
 
-  it('FTS rows follow symbol deletion', () => {
+  it('FTS rows follow symbol deletion', async () => {
     store.insertSymbols([sym(0, 'Gone', 'class', 'class Gone')], 1);
     store.deleteSymbolsForFile('/p/Gone.ts');
     const { total } = store.searchRanked('gone', undefined, 20);
     expect(total).toBe(0);
   });
 
-  it('FTS query syntax in input is neutralised, not executed', () => {
+  it('FTS query syntax in input is neutralised, not executed', async () => {
     store.insertSymbols([sym(0, 'Safe', 'class', 'class Safe')], 1);
     // NEAR/AND/parens/quotes must not produce an FTS syntax error.
     expect(() => store.searchRanked('safe" OR (NEAR "x', undefined, 20)).not.toThrow();
@@ -860,59 +860,59 @@ describe('codebase-search tool', () => {
 // ─── LSP Kind Mapping Tests ─────────────────────────────────────────────────────
 
 describe('lspKindToInternalKind', () => {
-  it('maps LSP Class (5) to class', () => {
+  it('maps LSP Class (5) to class', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Class)).toBe('class');
   });
 
-  it('maps LSP Function (12) to function', () => {
+  it('maps LSP Function (12) to function', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Function)).toBe('function');
   });
 
-  it('maps LSP Interface (11) to interface', () => {
+  it('maps LSP Interface (11) to interface', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Interface)).toBe('interface');
   });
 
-  it('maps LSP Enum (10) to enum', () => {
+  it('maps LSP Enum (10) to enum', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Enum)).toBe('enum');
   });
 
-  it('maps LSP Method (6) to method', () => {
+  it('maps LSP Method (6) to method', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Method)).toBe('method');
   });
 
-  it('maps LSP Property (7) to property', () => {
+  it('maps LSP Property (7) to property', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Property)).toBe('property');
   });
 
-  it('maps LSP Field (8) to property', () => {
+  it('maps LSP Field (8) to property', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Field)).toBe('property');
   });
 
-  it('maps LSP Variable (13) to var', () => {
+  it('maps LSP Variable (13) to var', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Variable)).toBe('var');
   });
 
-  it('maps LSP Constant (14) to const', () => {
+  it('maps LSP Constant (14) to const', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Constant)).toBe('const');
   });
 
-  it('maps LSP Namespace (3) to namespace', () => {
+  it('maps LSP Namespace (3) to namespace', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Namespace)).toBe('namespace');
   });
 
-  it('maps LSP TypeParameter (26) to type', () => {
+  it('maps LSP TypeParameter (26) to type', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.TypeParameter)).toBe('type');
   });
 
-  it('maps LSP Constructor (9) to class', () => {
+  it('maps LSP Constructor (9) to class', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Constructor)).toBe('class');
   });
 
-  it('maps LSP EnumMember (22) to enum', () => {
+  it('maps LSP EnumMember (22) to enum', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.EnumMember)).toBe('enum');
   });
 
-  it('returns null for unmapped LSP kinds (String, Number, etc.)', () => {
+  it('returns null for unmapped LSP kinds (String, Number, etc.)', async () => {
     expect(lspKindToInternalKind(LSPSymbolKind.String)).toBeNull();
     expect(lspKindToInternalKind(LSPSymbolKind.Number)).toBeNull();
     expect(lspKindToInternalKind(LSPSymbolKind.Boolean)).toBeNull();
@@ -924,7 +924,7 @@ describe('lspKindToInternalKind', () => {
     expect(lspKindToInternalKind(LSPSymbolKind.Operator)).toBeNull();
   });
 
-  it('returns null for invalid numbers', () => {
+  it('returns null for invalid numbers', async () => {
     expect(lspKindToInternalKind(0)).toBeNull();
     expect(lspKindToInternalKind(-1)).toBeNull();
     expect(lspKindToInternalKind(27)).toBeNull();
@@ -933,70 +933,70 @@ describe('lspKindToInternalKind', () => {
 });
 
 describe('internalKindToLspKind', () => {
-  it('reverses class to Class (5)', () => {
+  it('reverses class to Class (5)', async () => {
     expect(internalKindToLspKind('class')).toBe(LSPSymbolKind.Class);
   });
 
-  it('reverses function to Function (12)', () => {
+  it('reverses function to Function (12)', async () => {
     expect(internalKindToLspKind('function')).toBe(LSPSymbolKind.Function);
   });
 
-  it('reverses interface to Interface (11)', () => {
+  it('reverses interface to Interface (11)', async () => {
     expect(internalKindToLspKind('interface')).toBe(LSPSymbolKind.Interface);
   });
 
-  it('reverses enum to Enum (10)', () => {
+  it('reverses enum to Enum (10)', async () => {
     expect(internalKindToLspKind('enum')).toBe(LSPSymbolKind.Enum);
   });
 
-  it('reverses method to Method (6)', () => {
+  it('reverses method to Method (6)', async () => {
     expect(internalKindToLspKind('method')).toBe(LSPSymbolKind.Method);
   });
 
-  it('reverses property to Property (7)', () => {
+  it('reverses property to Property (7)', async () => {
     expect(internalKindToLspKind('property')).toBe(LSPSymbolKind.Property);
   });
 
-  it('reverses var to Variable (13)', () => {
+  it('reverses var to Variable (13)', async () => {
     expect(internalKindToLspKind('var')).toBe(LSPSymbolKind.Variable);
   });
 
-  it('reverses const to Constant (14)', () => {
+  it('reverses const to Constant (14)', async () => {
     expect(internalKindToLspKind('const')).toBe(LSPSymbolKind.Constant);
   });
 
-  it('reverses let to Variable (13)', () => {
+  it('reverses let to Variable (13)', async () => {
     expect(internalKindToLspKind('let')).toBe(LSPSymbolKind.Variable);
   });
 
-  it('reverses namespace to Namespace (3)', () => {
+  it('reverses namespace to Namespace (3)', async () => {
     expect(internalKindToLspKind('namespace')).toBe(LSPSymbolKind.Namespace);
   });
 
-  it('reverses type to TypeParameter (26)', () => {
+  it('reverses type to TypeParameter (26)', async () => {
     expect(internalKindToLspKind('type')).toBe(LSPSymbolKind.TypeParameter);
   });
 
-  it('returns null for unmapped internal kinds', () => {
+  it('returns null for unmapped internal kinds', async () => {
     expect(internalKindToLspKind('parameter')).toBeNull();
   });
 });
 
 describe('isLspKind', () => {
-  it('returns true for valid LSP kind numbers 1–26', () => {
+  it('returns true for valid LSP kind numbers 1–26', async () => {
     for (let k = 1; k <= 26; k++) {
       expect(isLspKind(k)).toBe(true);
     }
   });
 
-  it('returns false for numbers outside 1–26', () => {
+  it('returns false for numbers outside 1–26', async () => {
     expect(isLspKind(0)).toBe(false);
     expect(isLspKind(-1)).toBe(false);
     expect(isLspKind(27)).toBe(false);
     expect(isLspKind(100)).toBe(false);
   });
 
-  it('returns false for non-integers', () => {
+  it('returns false for non-integers', async () => {
     expect(isLspKind(5.5)).toBe(false);
     expect(isLspKind(Number.NaN)).toBe(false);
     expect(isLspKind(Number.POSITIVE_INFINITY)).toBe(false);
@@ -1017,7 +1017,7 @@ describe('search with lspKind filter', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('filters by LSP kind number (class → 5)', () => {
+  it('filters by LSP kind number (class → 5)', async () => {
     store.insertSymbols(
       [
         {
@@ -1056,7 +1056,7 @@ describe('search with lspKind filter', () => {
     expect(results[0].lspKind).toBe(LSPSymbolKind.Class);
   });
 
-  it('filters by LSP kind number (function → 12)', () => {
+  it('filters by LSP kind number (function → 12)', async () => {
     store.insertSymbols(
       [
         {
@@ -1095,7 +1095,7 @@ describe('search with lspKind filter', () => {
     expect(results[0].lspKind).toBe(LSPSymbolKind.Function);
   });
 
-  it('filters by LSP kind number (enum → 10)', () => {
+  it('filters by LSP kind number (enum → 10)', async () => {
     store.insertSymbols(
       [
         {
@@ -1120,7 +1120,7 @@ describe('search with lspKind filter', () => {
     expect(results[0].kind).toBe('enum');
   });
 
-  it('returns empty array when LSP kind has no internal mapping', () => {
+  it('returns empty array when LSP kind has no internal mapping', async () => {
     store.insertSymbols(
       [
         {
@@ -1144,7 +1144,7 @@ describe('search with lspKind filter', () => {
     expect(results.length).toBe(0);
   });
 
-  it('lspKind is undefined in result when no lspKind filter was applied', () => {
+  it('lspKind is undefined in result when no lspKind filter was applied', async () => {
     store.insertSymbols(
       [
         {

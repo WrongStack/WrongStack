@@ -7,7 +7,7 @@
  * declaration-bundler dependency on TypeScript's private compiler API.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, join, relative } from 'node:path';
 import { build } from 'esbuild';
@@ -55,6 +55,7 @@ const coreEntries = entryMap([
   'src/design/index.ts',
   'src/coordination/index.ts',
   'src/coordination/agents/index.ts',
+  'src/coordination/mailbox-project-server.ts',
   'src/registry/index.ts',
   'src/extension/index.ts',
   'src/plugin/index.ts',
@@ -132,6 +133,7 @@ const toolEntries = entryMap([
   'src/win32.ts',
   'src/e2e.ts',
   'src/codebase-index/index.ts',
+  'src/codebase-index/parser-worker.ts',
   'src/codebase-index/worker.ts',
   'src/codebase-index/project-server.ts',
 ]);
@@ -169,9 +171,24 @@ const profiles = {
     ...standard(['ws']),
     workspaceExternal: true,
     banner: '#!/usr/bin/env node',
+    // The CLI is the one bundle where deferring a workspace package actually
+    // pays: it is loaded by every `wstack` invocation, including ones that only
+    // print a version string. Single entry point, so chunking stays simple.
+    splitting: true,
   },
   '@wrongstack/core': { entries: coreEntries },
-  '@wrongstack/kanban': standard(),
+  // `project-server` must be its own entry: client.ts spawns it via
+  // `new URL('./project-server.js', import.meta.url)`, and `client.ts` is
+  // bundled into `dist/index.js`. The entry key must NOT contain a `/` — esbuild
+  // uses the key (not the source file's directory) for the output path, so the
+  // daemon's spawn target resolves to `dist/project-server.js`.
+  '@wrongstack/kanban': {
+    entries: {
+      index: 'src/index.ts',
+      'project-server': 'src/server/project-server.ts',
+    },
+    external: [],
+  },
   '@wrongstack/persistence': standard(),
   '@wrongstack/mcp': standard(['@wrongstack/core']),
   '@wrongstack/plug-lsp': {
@@ -385,7 +402,13 @@ async function bundle(config, defaults) {
     target: config.target ?? defaults.target ?? 'es2023',
     sourcemap: config.sourcemap ?? defaults.sourcemap ?? true,
     treeShaking: true,
-    splitting: false,
+    // Opt-in per package. With splitting OFF, esbuild inlines every
+    // dynamically-imported in-repo module into the single output file and
+    // HOISTS that module's external imports to the top of the bundle — so an
+    // `await import('./x.js')` where `x.ts` imports a workspace package does
+    // not defer the package at all. Splitting emits real chunks, which is the
+    // only way that boundary survives bundling.
+    splitting: config.splitting ?? defaults.splitting ?? false,
     // Match package-builder semantics: published runtime dependencies stay
     // external and are resolved through the package manager. This also avoids
     // duplicating workspace singletons and embedding native/CJS dependencies.
@@ -400,7 +423,41 @@ async function bundle(config, defaults) {
     assetNames: config.assetNames ?? defaults.assetNames,
     logLevel: 'info',
   });
+  await stripBannerFromChunks(config, defaults, outdir, entries);
   return { entries, outdir };
+}
+
+/**
+ * esbuild applies `banner` to EVERY output file, so with code splitting the
+ * `#!/usr/bin/env node` shebang lands on each shared chunk too. Node tolerates
+ * it, but a shebang is only meaningful on an executable entry point and it
+ * confuses tools that re-read the chunks. Strip it from everything that is not
+ * one of the declared entry outputs.
+ */
+async function stripBannerFromChunks(config, defaults, outdir, entries) {
+  const banner = config.banner ?? defaults.banner;
+  if (!banner || !banner.startsWith('#!')) return;
+  if (!(config.splitting ?? defaults.splitting ?? false)) return;
+
+  const entryBasenames = new Set(
+    Object.keys(entries).map((name) => `${name.split('/').pop()}.js`),
+  );
+  const dir = join(packageRoot, outdir);
+  const walk = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const absolute = join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+        continue;
+      }
+      if (!entry.name.endsWith('.js')) continue;
+      if (entryBasenames.has(entry.name)) continue;
+      const source = readFileSync(absolute, 'utf8');
+      if (!source.startsWith(banner)) continue;
+      writeFileSync(absolute, source.slice(banner.length).replace(/^\r?\n/u, ''));
+    }
+  };
+  walk(dir);
 }
 
 const profile = profiles[packageJson.name];

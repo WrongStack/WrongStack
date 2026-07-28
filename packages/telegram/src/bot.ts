@@ -428,6 +428,10 @@ export class TelegramBot {
       this.conflictStreak = 0;
 
       for (const upd of updates) {
+        // Telegram normally honors `offset`, but a proxy/replay or a test
+        // transport can return an already-processed update. Keep the cursor as
+        // the local idempotency boundary instead of dispatching duplicates.
+        if (upd.update_id < this.offset) continue;
         this.offset = upd.update_id + 1;
         if (upd.callback_query) {
           void this.dispatchCallback(upd.callback_query).catch((err) =>

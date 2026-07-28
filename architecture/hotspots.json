@@ -15,11 +15,11 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1028,
+      "lines": 1033,
       "relativeImports": 42
     },
     "packages/cli/src/execution.ts": {
-      "lines": 1026,
+      "lines": 1031,
       "relativeImports": 36
     },
     "packages/cli/src/fleet/host.ts": {
@@ -31,7 +31,7 @@
       "relativeImports": 1
     },
     "packages/cli/src/hq-server/routes.ts": {
-      "lines": 873,
+      "lines": 878,
       "relativeImports": 11
     },
     "packages/cli/src/picker.ts": {
@@ -75,8 +75,8 @@
       "relativeImports": 2
     },
     "packages/core/src/chronicle/metrics-store.ts": {
-      "lines": 967,
-      "relativeImports": 4
+      "lines": 985,
+      "relativeImports": 5
     },
     "packages/core/src/chronicle/query.ts": {
       "lines": 889,
@@ -103,7 +103,7 @@
       "relativeImports": 13
     },
     "packages/core/src/coordination/global-mailbox.ts": {
-      "lines": 980,
+      "lines": 1003,
       "relativeImports": 26
     },
     "packages/core/src/coordination/mailbox-http-router.ts": {
@@ -121,6 +121,10 @@
     "packages/core/src/coordination/provider-status-tracker.ts": {
       "lines": 915,
       "relativeImports": 2
+    },
+    "packages/core/src/coordination/sqlite-mailbox.ts": {
+      "lines": 1241,
+      "relativeImports": 14
     },
     "packages/core/src/core/agent-loop.ts": {
       "lines": 922,
@@ -175,7 +179,7 @@
       "relativeImports": 149
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
-      "lines": 855,
+      "lines": 899,
       "relativeImports": 9
     },
     "packages/core/src/security/permission-policy.ts": {
@@ -183,7 +187,7 @@
       "relativeImports": 12
     },
     "packages/core/src/session-registry.ts": {
-      "lines": 886,
+      "lines": 976,
       "relativeImports": 1
     },
     "packages/core/src/storage/file-session-writer.ts": {
@@ -239,8 +243,8 @@
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 1000,
-      "relativeImports": 39
+      "lines": 1010,
+      "relativeImports": 41
     },
     "packages/sage/src/types.ts": {
       "lines": 804,
@@ -251,11 +255,11 @@
       "relativeImports": 5
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1088,
+      "lines": 1089,
       "relativeImports": 47
     },
     "packages/telegram/src/bot.ts": {
-      "lines": 817,
+      "lines": 821,
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
@@ -274,8 +278,12 @@
       "lines": 931,
       "relativeImports": 0
     },
+    "packages/tui/src/app-state.ts": {
+      "lines": 801,
+      "relativeImports": 11
+    },
     "packages/tui/src/app.tsx": {
-      "lines": 991,
+      "lines": 1003,
       "relativeImports": 66
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -299,15 +307,15 @@
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {
-      "lines": 877,
+      "lines": 883,
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 909,
+      "lines": 913,
       "relativeImports": 12
     },
     "packages/tui/src/components/status-bar.tsx": {
-      "lines": 1026,
+      "lines": 1042,
       "relativeImports": 16
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
@@ -315,7 +323,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 939,
+      "lines": 941,
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {
@@ -387,8 +395,8 @@
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
-      "lines": 974,
-      "relativeImports": 17
+      "lines": 1089,
+      "relativeImports": 18
     },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
       "lines": 904,
@@ -419,7 +427,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1018,
+      "lines": 1031,
       "relativeImports": 8
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -431,7 +439,7 @@
       "relativeImports": 10
     },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
-      "lines": 955,
+      "lines": 971,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {

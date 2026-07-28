@@ -100,6 +100,8 @@ export class ProjectSageMemoryPort implements MemoryPort {
   };
 
   private readonly serviceCapability: SageServiceLike = {
+    unifiedSearchService: (query, options) =>
+      this.call('unifiedSearch', { query, options }),
     readAll: () => this.readAll(),
     read: (scope) => this.read(scope),
     remember: (text, scope, metadata) => this.remember(text, scope, metadata),

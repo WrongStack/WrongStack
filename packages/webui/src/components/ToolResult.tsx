@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { extractSageBlock } from '@/lib/sage-block';
+import { SageMemoryCard } from './SageMemoryCard.js';
 
 /** When a tool dumps hundreds of lines of output, the chat turns into a
  *  scroll-wall. This threshold gates the auto-collapse: anything longer
@@ -144,7 +146,17 @@ export const ToolResult = memo(function ToolResult({
   className,
   renderMode,
 }: Props) {
-  const shape = useMemo(() => detectShape(toolName, result), [toolName, result]);
+  // The SAGE Memory Injector middleware appends a `--- SAGE: ... ---`
+  // suffix to the tool result. We extract it and render it as a separate
+  // bordered card below the normal body so the injection evidence never
+  // pollutes the tool-result text. The split mirrors the TUI's
+  // `extractSageBlock` so both surfaces agree on what counts as a SAGE
+  // suffix.
+  const { cleanOutput, sageLines } = useMemo(
+    () => extractSageBlock(result),
+    [result],
+  );
+  const shape = useMemo(() => detectShape(toolName, cleanOutput), [toolName, cleanOutput]);
   const { t } = useAppTranslation();
   // `simple` starts the body collapsed so the user sees only the meta
   // (line count / exit code) until they explicitly expand. `extend`
@@ -155,67 +167,79 @@ export const ToolResult = memo(function ToolResult({
 
   if (shape.kind === 'json') {
     return (
-      <JsonResult
-        value={shape.value}
-        isError={isError}
-        className={className}
-        defaultCollapsed={defaultCollapsed}
-      />
+      <>
+        <JsonResult
+          value={shape.value}
+          isError={isError}
+          className={className}
+          defaultCollapsed={defaultCollapsed}
+        />
+        <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+      </>
     );
   }
   if (shape.kind === 'numbered') {
     return (
-      <CollapsibleText
-        text={result}
-        isError={isError}
-        className={className}
-        wrapClass="whitespace-pre"
-        defaultCollapsed={defaultCollapsed}
-      />
+      <>
+        <CollapsibleText
+          text={cleanOutput}
+          isError={isError}
+          className={className}
+          wrapClass="whitespace-pre"
+          defaultCollapsed={defaultCollapsed}
+        />
+        <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+      </>
     );
   }
   if (shape.kind === 'bash') {
     return (
-      <div className={cn('rounded-md border bg-background/40 overflow-hidden', className)}>
-        {shape.stdout && (
-          <CollapsibleText
-            text={shape.stdout}
-            isError={isError}
-            // Nested CollapsibleText already adds border/bg; strip them here
-            // so we get one outer frame, not two.
-            className="border-0 rounded-none bg-transparent"
-            wrapClass="whitespace-pre-wrap break-all"
-            showLineNumbers
-            defaultCollapsed={defaultCollapsed}
-          />
-        )}
-        {(shape.exitCode !== undefined || shape.duration) && (
-          <div
-            className={cn(
-              'flex items-center gap-3 text-[11px] px-2 py-1 border-t bg-muted/30 tabular-nums',
-              shape.exitCode && shape.exitCode !== 0 ? 'text-destructive' : 'text-muted-foreground',
-            )}
-          >
-            {shape.exitCode !== undefined && (
-              <span>
-                {t('activity:toolResult.exitCode')} <span className="font-mono">{shape.exitCode}</span>
-              </span>
-            )}
-            {shape.duration && <span>{shape.duration}</span>}
-          </div>
-        )}
-      </div>
+      <>
+        <div className={cn('rounded-md border bg-background/40 overflow-hidden', className)}>
+          {shape.stdout && (
+            <CollapsibleText
+              text={shape.stdout}
+              isError={isError}
+              // Nested CollapsibleText already adds border/bg; strip them here
+              // so we get one outer frame, not two.
+              className="border-0 rounded-none bg-transparent"
+              wrapClass="whitespace-pre-wrap break-all"
+              showLineNumbers
+              defaultCollapsed={defaultCollapsed}
+            />
+          )}
+          {(shape.exitCode !== undefined || shape.duration) && (
+            <div
+              className={cn(
+                'flex items-center gap-3 text-[11px] px-2 py-1 border-t bg-muted/30 tabular-nums',
+                shape.exitCode && shape.exitCode !== 0 ? 'text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {shape.exitCode !== undefined && (
+                <span>
+                  {t('activity:toolResult.exitCode')} <span className="font-mono">{shape.exitCode}</span>
+                </span>
+              )}
+              {shape.duration && <span>{shape.duration}</span>}
+            </div>
+          )}
+        </div>
+        <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+      </>
     );
   }
   return (
-    <CollapsibleText
-      text={result}
-      isError={isError}
-      className={className}
-      wrapClass="whitespace-pre-wrap break-all"
-      showLineNumbers
-      defaultCollapsed={defaultCollapsed}
-    />
+    <>
+      <CollapsibleText
+        text={cleanOutput}
+        isError={isError}
+        className={className}
+        wrapClass="whitespace-pre-wrap break-all"
+        showLineNumbers
+        defaultCollapsed={defaultCollapsed}
+      />
+      <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+    </>
   );
 });
 

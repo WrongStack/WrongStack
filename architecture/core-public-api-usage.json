@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 216,
-      "typeOnly": 177,
+      "files": 218,
+      "typeOnly": 178,
       "runtimeOrMixed": 53
     },
     "@wrongstack/core/agent-catalog": {
@@ -19,8 +19,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/coordination": {
-      "files": 143,
-      "typeOnly": 64,
+      "files": 145,
+      "typeOnly": 65,
       "runtimeOrMixed": 132
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -74,9 +74,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 182,
+      "files": 183,
       "typeOnly": 98,
-      "runtimeOrMixed": 94
+      "runtimeOrMixed": 95
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -139,8 +139,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 799,
-      "typeOnly": 769,
+      "files": 805,
+      "typeOnly": 775,
       "runtimeOrMixed": 198
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 438,
-      "typeOnly": 40,
-      "runtimeOrMixed": 458
+      "files": 442,
+      "typeOnly": 41,
+      "runtimeOrMixed": 462
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -369,7 +369,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/slash-commands/fallback.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -824,6 +824,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/tests/vision.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage-mcp/src/adapter.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1471,6 +1477,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui/src/lib/fallback-ref.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui/src/stores/auto-submit-streak.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1743,7 +1755,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/hq-server.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2245,6 +2257,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tui/src/mailbox-view-model-types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/tui/src/overlay-key-router.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2278,6 +2296,12 @@
       "file": "packages/tui/tests/agents-monitor.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tui/tests/run-tui-mailbox-integration.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -4582,6 +4606,12 @@
       "file": "packages/tui/tests/helpers/app-journey-harness.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/tui/tests/run-tui-mailbox-integration.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/kernel",
@@ -9967,6 +9997,30 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sage-mcp/src/adapter.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage-mcp/src/policy.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage-mcp/tests/adapter.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage-mcp/tests/policy.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sage/src/memory-port.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10351,6 +10405,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/src/telemetry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/src/tools/telegram-approve.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10376,6 +10436,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/tests/integration/p1-gate.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/tests/integration/p3-fault-injection.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12663,7 +12729,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/fallback.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13657,6 +13723,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage-mcp/src/cli.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/sage/src/project-server-endpoint.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13825,6 +13897,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/techstack/tests/store/sqlite.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/telegram/src/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13927,9 +14005,15 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/project-server.ts",
+      "file": "packages/tools/src/codebase-index/parser-worker-pool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/project-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14308,6 +14392,12 @@
       "file": "packages/tui/tests/context-panel.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/tests/run-tui-mailbox-integration.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

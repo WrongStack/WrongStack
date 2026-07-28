@@ -21,17 +21,11 @@ import {
   indexParallelBatchSize,
   isFrugalPerf,
 } from '@wrongstack/core/utils';
-import { parseSymbols as parseGeneric } from './generic-parser.js';
 import { type IgnoreMatcher, loadGitignoreMatcher } from './gitignore.js';
-import { parseSymbols as parseGo } from './go-parser.js';
-import { parseSymbols as parseJson } from './json-parser.js';
 import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
-import { parseSymbols as parsePy } from './py-parser.js';
-import { parseSymbols as parseRs } from './rs-parser.js';
+import { parseFileContent } from './parser-dispatch.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
-import { parseSymbols as parseTs } from './ts-parser.js';
 import { IndexStore } from './writer.js';
-import { parseSymbols as parseYaml } from './yaml-parser.js';
 
 /** Yield the event loop every N files so the main thread stays responsive. */
 const YIELD_EVERY_N = 50;
@@ -277,41 +271,6 @@ async function findSourceFiles(
   return { files: results, complete, errors };
 }
 
-/**
- * Dispatch to the best available parser for `lang`.
- *
- * First-class AST/toolchain parsers run when available; every other language
- * (and native failures) land in the generic regex extractor so files always
- * contribute searchable symbols when they contain structure.
- */
-async function parseFile(
-  file: string,
-  content: string,
-  lang: string,
-): Promise<ReturnType<typeof parseTs>> {
-  const symbolLang = lang as SymbolLang;
-  switch (symbolLang) {
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-      return parseTs({ file, content, lang: symbolLang });
-    case 'go':
-      return parseGo({ file, content, lang: 'go' });
-    case 'py':
-      return parsePy({ file, content, lang: 'py' });
-    case 'rs':
-      return parseRs({ file, content, lang: 'rs' });
-    case 'json':
-      return parseJson({ file, content, lang: 'json' });
-    case 'yaml':
-      return parseYaml({ file, content, lang: 'yaml' });
-    default:
-      // c, cpp, java, csharp, ruby, shell, md, … and 'other'
-      return parseGeneric({ file, content, lang: symbolLang });
-  }
-}
-
 function assignRefsToSymbols(refs: Ref[], symbols: IndexSymbol[]): Ref[] {
   if (refs.length === 0 || symbols.length === 0) return [];
   const ordered = [...symbols].sort((a, b) => a.line - b.line || a.col - b.col || a.id - b.id);
@@ -482,7 +441,7 @@ export async function runIndexerWithStore(
           file: string;
           stat: Stats;
           lang: string;
-          parsed: Awaited<ReturnType<typeof parseFile>> | null;
+          parsed: Awaited<ReturnType<typeof parseFileContent>> | null;
           content?: string;
           skippedMeta?: FileMeta;
           error?: string;
@@ -537,9 +496,9 @@ export async function runIndexerWithStore(
             };
           }
 
-          let parsed: Awaited<ReturnType<typeof parseFile>>;
+          let parsed: Awaited<ReturnType<typeof parseFileContent>>;
           try {
-            parsed = await parseFile(file, content, lang);
+            parsed = await parseFileContent(file, content, lang as SymbolLang);
           } catch (e) {
             return {
               file,

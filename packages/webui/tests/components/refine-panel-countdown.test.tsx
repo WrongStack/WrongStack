@@ -27,6 +27,7 @@ vi.mock('@/i18n', () => ({
 
 const localPrefsState = {
   enhanceLanguage: 'original' as 'original' | 'english',
+  enhanceCountdownMs: 3_000,
   yolo: false,
 };
 vi.mock('@/stores/local-prefs', () => ({
@@ -46,6 +47,7 @@ import { useUIStore } from '../../src/stores/ui-store.js';
 
 beforeEach(() => {
   localPrefsState.enhanceLanguage = 'original';
+  localPrefsState.enhanceCountdownMs = 3_000;
   localPrefsState.yolo = false;
   updatePrefsMock.mockClear();
   useUIStore.setState({ refinePanel: null });

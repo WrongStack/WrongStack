@@ -69,6 +69,7 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           maxIterations: action.maxIterations,
           autoProceedMaxIterations: action.autoProceedMaxIterations,
           enhanceDelayMs: action.enhanceDelayMs,
+          preRefineSeconds: state.settingsPicker.preRefineSeconds,
           enhanceEnabled: action.enhanceEnabled,
           enhanceLanguage: action.enhanceLanguage,
           debugStream: action.debugStream,

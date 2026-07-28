@@ -73,17 +73,35 @@ export function useAgentRoster(options: UseAgentRosterOptions): UseAgentRosterRe
   const leaderSelected = canComposeForAgent(activeAgentId);
 
   // Periodically prune idle/offline workers that have aged out so the strip
-  // and dropdown don't accumulate agents no longer worth viewing.
+  // and dropdown don't accumulate agents no longer worth viewing. We also
+  // drop the matching `agentTranscripts` keys for pruned agents — without
+  // this, every retired worker would leave its full transcript (up to
+  // `MAX_AGENT_TRANSCRIPT_ENTRIES = 500` entries from agent-model.ts) pinned
+  // in React state forever, leaking tens of KB to several MB per stale agent.
   useEffect(() => {
     if (subagents.length === 0) return;
     const timer = setInterval(() => {
       setSubagents((current) => {
         const pruned = pruneAgents(current, Date.now());
-        return pruned.length === current.length ? current : pruned;
+        if (pruned.length === current.length) return current;
+        const retainedIds = new Set(pruned.map((agent) => agent.id));
+        setAgentTranscripts((transcripts) => {
+          let changed = false;
+          const next: Record<string, AgentTranscriptEntry[]> = {};
+          for (const [id, entries] of Object.entries(transcripts)) {
+            if (retainedIds.has(id) || id === LEADER_AGENT_ID) {
+              next[id] = entries;
+            } else {
+              changed = true;
+            }
+          }
+          return changed ? next : transcripts;
+        });
+        return pruned;
       });
     }, 15_000);
     return () => clearInterval(timer);
-  }, [subagents.length]);
+  }, [subagents.length, setAgentTranscripts]);
 
   return {
     subagents,

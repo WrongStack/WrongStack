@@ -3,7 +3,10 @@ import { allServers } from '@wrongstack/core/infrastructure';
 import type { Config, Logger, MetricsRuntimeStatus, ModelsRegistry, PromptLoader, Provider, ProviderConfig, SecretVault, SessionWriter, SkillLoader } from '@wrongstack/core/types';
 import type { HqPublisher } from '@wrongstack/core/hq';
 import { countShellHooks, HookRegistry, HookRunner, shellHooksEqual } from '@wrongstack/core/hooks';
-import { GlobalMailbox } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  type RemoteMailbox,
+} from '@wrongstack/core/coordination';
 import type { HealthRegistry } from '@wrongstack/core/types';
 import { NotifierImpl } from '@wrongstack/core/notifications';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
@@ -102,7 +105,7 @@ export interface LifecyclePluginsResult {
   mcpRegistry: MCPRegistry;
   slashRegistry: SlashCommandRegistry;
   hqPublisherRef: { current: HqPublisher | undefined };
-  brainMailbox: GlobalMailbox;
+  brainMailbox: RemoteMailbox;
   pluginHost: PluginHostHandle | undefined;
 }
 
@@ -341,7 +344,11 @@ export async function setupLifecycleAndPlugins(
   // ── Slash registry + mailbox + plugins ───────────────────────────────────
   const slashRegistry = new SlashCommandRegistry();
   const hqPublisherRef: { current: HqPublisher | undefined } = { current: undefined };
-  const brainMailbox = new GlobalMailbox(wpaths.projectDir, events, () => hqPublisherRef.current);
+  const brainMailbox = getSharedProjectMailbox(
+    wpaths.projectDir,
+    events,
+    () => hqPublisherRef.current,
+  );
   const notifier = new NotifierImpl();
 
   const pluginHost = await setupPlugins({

@@ -3,7 +3,10 @@ import * as fs from 'node:fs';
 import { hostname } from 'node:os';
 import { basename } from 'node:path';
 import { readProjectIdentitySync } from '../utils/project-identity.js';
-import { GlobalMailbox } from '../coordination/global-mailbox.js';
+import {
+  getSharedProjectMailbox,
+  type RemoteMailbox,
+} from '../coordination/remote-mailbox.js';
 import type { EventBus } from '../kernel/events.js';
 import type { HqClientConfig } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
@@ -266,6 +269,6 @@ export interface CreateGlobalMailboxOptions {
   hqPublisher?: HqPublisher;
 }
 
-export function createGlobalMailbox(options: CreateGlobalMailboxOptions): GlobalMailbox {
-  return new GlobalMailbox(options.projectDir, options.events, options.hqPublisher);
+export function createGlobalMailbox(options: CreateGlobalMailboxOptions): RemoteMailbox {
+  return getSharedProjectMailbox(options.projectDir, options.events, options.hqPublisher);
 }

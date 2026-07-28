@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   dispatchAgent,
   FleetSupervisor,
-  GlobalMailbox,
+  getSharedProjectMailbox,
   mailboxSessionTag,
   type Director,
 } from '@wrongstack/core/coordination';
@@ -36,7 +36,7 @@ export function createHostFleetSupervisor(input: HostFleetSupervisorInput): Flee
   } = input;
   if (!director || !brain || supervisorConfig?.enabled === false) return null;
   const supTag = () => mailboxSessionTag(sessionId);
-  const mailbox = () => new GlobalMailbox(mailboxProjectDir, events);
+  const mailbox = () => getSharedProjectMailbox(mailboxProjectDir, events);
   const supervisor = new FleetSupervisor({
     events,
     fleet: director.fleet,

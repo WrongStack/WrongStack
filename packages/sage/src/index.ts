@@ -72,7 +72,17 @@ export {
   memoryQueryRelevance,
   memoryStructuralRelevance,
 } from './retrieval/relevance.js';
-export type { SageServiceLike, SageSurface } from './service-contract.js';
+export type {
+  SageServiceLike,
+  SageSurface,
+  SearchHit,
+  SearchMatchReason,
+  SearchOptions,
+  SearchQuery,
+  SearchRanking,
+  SearchResult,
+  SearchSuggestionMode,
+} from './service-contract.js';
 export { isSageService } from './service-guard.js';
 export { isSqliteAvailable, SqliteSageStore } from './sqlite-store.js';
 export { normalizeTextKey, tokenize } from './store-helpers.js';

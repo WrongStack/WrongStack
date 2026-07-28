@@ -347,7 +347,8 @@
     "favoritesHeading": "Favori Modeller",
     "favoritesEmpty": "Favoriler önce gösterilir ve otomatik yedeği kısıtlayabilir.",
     "addModelToProfile": "Profile modele ekle…",
-    "addFavoriteModel": "Favori modele ekle…"
+    "addFavoriteModel": "Favori modele ekle…",
+    "inactive": "devre dışı"
   },
   "fleet": {
     "heading": "Filo ve Akış",

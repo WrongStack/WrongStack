@@ -165,6 +165,51 @@ describe('runtime helpers', () => {
     expect(tracker.list()).toEqual([]);
   });
 
+  it('rejects oversized inputs and evicts least-recently-used documents', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-budget-'));
+    const closed = vi.fn();
+    const typescriptServer = {
+      name: 'ts',
+      state: 'ready',
+      config: { languages: ['typescript'] },
+      notifyDidOpen: vi.fn(),
+      notifyDidChange: vi.fn(),
+      notifyDidClose: closed,
+    };
+    const unrelatedServer = {
+      ...typescriptServer,
+      name: 'js',
+      config: { languages: ['javascript'] },
+      notifyDidOpen: vi.fn(),
+      notifyDidClose: vi.fn(),
+    };
+    const tracker = new DocumentTracker(
+      () => ({ list: () => [typescriptServer, unrelatedServer] }) as never,
+      log,
+      root,
+      new EventBus(),
+    );
+
+    await tracker.open('known-too-large.ts', 'x'.repeat(2 * 1024 * 1024 + 1));
+    const diskTooLarge = path.join(root, 'disk-too-large.ts');
+    await fs.writeFile(diskTooLarge, 'x'.repeat(2 * 1024 * 1024 + 1));
+    await tracker.open(diskTooLarge);
+    const directory = path.join(root, 'directory.ts');
+    await fs.mkdir(directory);
+    await tracker.open(directory);
+    expect(tracker.list()).toEqual([]);
+
+    for (let i = 0; i <= 200; i++) {
+      await tracker.open(`tracked-${i}.ts`, `export const n = ${i};`);
+    }
+
+    expect(tracker.list()).toHaveLength(200);
+    expect(tracker.get('tracked-0.ts')).toBeNull();
+    expect(tracker.get('tracked-1.ts')).not.toBeNull();
+    expect(closed).toHaveBeenCalledOnce();
+    expect(unrelatedServer.notifyDidClose).not.toHaveBeenCalled();
+  });
+
   it('keeps registry behavior predictable for missing and disabled servers', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-reg-'));
     const tracker = { reopenForServer: vi.fn() };

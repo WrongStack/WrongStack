@@ -400,11 +400,33 @@ interface ChangedFileSnapshot extends ChangedFile {
   fingerprint: string;
 }
 
+/**
+ * A single file bigger than this is not review material (lockfiles, changelogs,
+ * generated i18n bundles, architecture dumps). Reading them only inflates the
+ * snapshot: the reviewer never gets a useful signal out of them.
+ */
+const MAX_SNAPSHOT_FILE_BYTES = 256 * 1024;
+
+/**
+ * Ceiling on the bytes one snapshot pass may hold at once. Reached only on
+ * unusually large working trees; the remaining files are simply not snapshotted
+ * this pass and get picked up once the earlier ones stop being reported.
+ */
+const MAX_SNAPSHOT_TOTAL_BYTES = 8 * 1024 * 1024;
+
 async function snapshotChangedFiles(cwd: string): Promise<ChangedFileSnapshot[]> {
   const snapshots: ChangedFileSnapshot[] = [];
+  let budget = MAX_SNAPSHOT_TOTAL_BYTES;
   for (const file of await getChangedFiles(cwd)) {
+    // Filter before reading, not after — the caller drops these anyway, and
+    // reading them first is what makes the pass expensive.
+    if (file.path.startsWith('.wrongstack/')) continue;
+    if (budget <= 0) break;
     try {
+      const stat = await fsp.stat(path.join(cwd, file.path));
+      if (!stat.isFile() || stat.size > MAX_SNAPSHOT_FILE_BYTES) continue;
       const content = await fsp.readFile(path.join(cwd, file.path), 'utf8');
+      budget -= content.length;
       snapshots.push({
         ...file,
         content,
@@ -555,16 +577,37 @@ export function createAutoReviewPlugin(): Plugin {
       let lastReviewTs = 0;
       let reviewCounter = 0;
 
+      /**
+       * A snapshot pass reads every changed file in the working tree, so it can
+       * easily outlast one agent iteration. Without this guard the passes
+       * overlap and each in-flight pass retains every file it has read so far —
+       * on a tree with ~90 changed files that measured 1.28GB of live strings
+       * held by ~180 stacked passes. One pass at a time; skip, don't queue,
+       * because the next iteration re-reads the same tree anyway.
+       */
+      let snapshotInFlight = false;
+      const withSnapshotLock = async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+        if (snapshotInFlight) {
+          api.log.info('[auto-review] snapshot pass already in flight, skipping');
+          return undefined;
+        }
+        snapshotInFlight = true;
+        try {
+          return await fn();
+        } finally {
+          snapshotInFlight = false;
+        }
+      };
+
       // Seed current snapshots on session start; only later content changes trigger.
       api.onEvent('agent.run.started', async () => {
         try {
           const cwd = api.config.cwd ?? process.cwd();
           if (!(await isGitRepo(cwd))) return;
-          const snapshots = await snapshotChangedFiles(cwd);
+          const snapshots = await withSnapshotLock(() => snapshotChangedFiles(cwd));
+          if (!snapshots) return;
           for (const file of snapshots) {
-            if (!file.path.startsWith('.wrongstack/')) {
-              knownFingerprints.set(file.path, file.fingerprint);
-            }
+            knownFingerprints.set(file.path, file.fingerprint);
           }
           api.log.info(`[auto-review] seeded ${knownFingerprints.size} known file snapshot(s)`);
         } catch { /* best-effort */ }
@@ -589,7 +632,8 @@ export function createAutoReviewPlugin(): Plugin {
           // iteration.completed payload carries { ctx: Context } which has todos.
           const ctxTodos = payload?.ctx?.todos;
 
-          const snapshots = await snapshotChangedFiles(cwd);
+          const snapshots = await withSnapshotLock(() => snapshotChangedFiles(cwd));
+          if (!snapshots) return; // a pass is already walking the tree
           const now = Date.now();
 
           // Queue the latest content snapshot for every tracked file whose content

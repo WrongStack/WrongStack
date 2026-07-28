@@ -14,6 +14,7 @@
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import * as kanban from '../manager.js';
 import {
@@ -29,12 +30,34 @@ import { emitBoardEvent, subscribeToBoardEvents } from './event-emitter.js';
 
 // ─── Endpoint resolution ────────────────────────────────────────────────────
 
+/**
+ * Canonicalize before hashing, matching `core/src/utils/project-watch.ts`.
+ * Without it `D:\x` and `d:\x` hash differently and each spawns its own daemon
+ * for the same project — two processes, two owners, split state.
+ */
+function canonicalRoot(projectRoot: string): string {
+  const resolved = path.resolve(projectRoot);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+/**
+ * 64-bit djb2 (two independent 32-bit lanes). A single 32-bit lane collides at
+ * roughly 77k distinct roots by the birthday bound, and a collision here is not
+ * cosmetic: two unrelated projects would share one pipe, so one daemon would
+ * serve boards for the wrong root.
+ */
 function projectKey(projectRoot: string): string {
-  let hash = 5381;
-  for (let i = 0; i < projectRoot.length; i++) {
-    hash = ((hash << 5) + hash + projectRoot.charCodeAt(i)) | 0;
+  const canonical = canonicalRoot(projectRoot);
+  let hashA = 5381;
+  let hashB = 52711;
+  for (let i = 0; i < canonical.length; i++) {
+    const code = canonical.charCodeAt(i);
+    hashA = ((hashA << 5) + hashA + code) | 0;
+    hashB = ((hashB << 5) + hashB + (code ^ 0x5f)) | 0;
   }
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return (
+    (hashA >>> 0).toString(16).padStart(8, '0') + (hashB >>> 0).toString(16).padStart(8, '0')
+  );
 }
 
 export function kanbanProjectServerEndpoint(projectRoot: string): string {
@@ -49,6 +72,8 @@ export function kanbanProjectServerEndpoint(projectRoot: string): string {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
+/** How often to confirm the project root still exists (orphan guard). */
+const ROOT_LIVENESS_CHECK_MS = 60_000;
 const MAX_FRAME_CHARS = 8 * 1024 * 1024;
 const MAX_PARALLEL_REQUESTS_PER_CLIENT = 32;
 
@@ -64,6 +89,16 @@ let serverInfo: KanbanProjectServerInfo | null = null;
 let stopping = false;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 const clients = new Set<ClientState>();
+
+/**
+ * Module-scope so `stop()` can actually close it. While this lived as a `const`
+ * inside `main()` it was unreachable from `stop()`, so the listening pipe handle
+ * — a ref'd libuv handle — kept the process alive forever after the idle timer
+ * fired: the daemon set `stopping = true` and then lingered as a ~45MB zombie
+ * that accepted connections only to destroy them. Four such orphans were found
+ * running against deleted temp directories.
+ */
+let server: net.Server | null = null;
 
 // ─── Frame I/O ───────────────────────────────────────────────────────────────
 
@@ -102,6 +137,14 @@ async function stop(reason: string): Promise<void> {
     state.socket.destroy();
   }
   clients.clear();
+  // Close the listener, or the ref'd handle keeps the event loop — and the
+  // process — alive indefinitely. Every sibling daemon (tools, sage, chronicle,
+  // mailbox) does this; kanban was the one that did not.
+  if (server) {
+    const listener = server;
+    server = null;
+    await new Promise<void>((resolve) => listener.close(() => resolve()));
+  }
   if (process.platform !== 'win32' && endpoint) {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
   }
@@ -271,7 +314,9 @@ defineMethod('transferTask', async (params: any) => {
 
 // Lifecycle / orchestration
 defineMethod('transitionTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.status) invalid('transitionTask requires boardId, taskId, and status');
+  if (!params.boardId || !params.taskId || (!params.to && !params.status)) {
+    invalid('transitionTask requires boardId, taskId, and to/status');
+  }
   const board = await kanban.transitionTask(projectRoot, params.boardId, params.taskId, params);
   if (!board) notFound('Board or task not found');
   emitBoardEvent('task.transitioned', params.boardId, params, params.taskId);
@@ -291,13 +336,54 @@ defineMethod('releaseTask', async ({ boardId, taskId }: any) => {
   return await kanban.releaseTaskClaim(projectRoot, boardId, taskId);
 });
 defineMethod('assignTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.assignee) invalid('assignTask requires boardId, taskId, and assignee');
-  return await kanban.assignTask(projectRoot, params.boardId, params.taskId, { assignee: params.assignee });
+  if (!params.boardId || !params.taskId || !params.input) {
+    invalid('assignTask requires boardId, taskId, and input');
+  }
+  return await kanban.assignTask(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params.input,
+    params.eventContext,
+  );
+});
+defineMethod('updateTaskAssignment', async (params: any) => {
+  if (!params.boardId || !params.taskId || !params.patch) {
+    invalid('updateTaskAssignment requires boardId, taskId, and patch');
+  }
+  return await kanban.updateTaskAssignment(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params.patch,
+    params.eventContext,
+  );
+});
+defineMethod('finalizeTaskCompletion', async (params: any) => {
+  if (!params.boardId || !params.taskId) {
+    invalid('finalizeTaskCompletion requires boardId and taskId');
+  }
+  return await kanban.finalizeTaskCompletion(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params.options,
+  );
 });
 defineMethod('heartbeatAssignment', async (params: any) => {
   if (!params.boardId || !params.taskId) invalid('heartbeatAssignment requires boardId and taskId');
   return await kanban.heartbeatTaskAssignment(projectRoot, params.boardId, params.taskId, params);
 });
+const verifyCompletion = async (params: any) => {
+  if (!params.boardId || !params.taskId) {
+    invalid('verifyTaskCompletion requires boardId and taskId');
+  }
+  return await kanban.verifyTaskCompletion(projectRoot, params.boardId, params.taskId, {
+    ...(params.persist !== undefined ? { persist: params.persist } : {}),
+  });
+};
+defineMethod('verifyTaskCompletion', verifyCompletion);
+defineMethod('verifyCompletion', verifyCompletion);
 defineMethod('recoverStaleTaskAssignments', async (params: any) => {
   const boardId = params?.boardId ?? '';
   return await kanban.recoverStaleTaskAssignments(projectRoot, boardId, {});
@@ -307,29 +393,22 @@ defineMethod('reconcileBoard', async ({ boardId }: { boardId: string }) => {
   return await kanban.reconcileKanbanBoard(projectRoot, boardId);
 });
 
-// Chains — currently not publicly exposed; server stores the data on the
-// board directly via a thin board-write path. The kanban tool still calls
-// setChain/getChain directly through its own internal helper.
-defineMethod('setChain', async ({ boardId, taskIds }: any) => {
+defineMethod('setChain', async ({ boardId, taskIds, chainId, enforceDependencies }: any) => {
   if (!boardId || !Array.isArray(taskIds)) invalid('setChain requires boardId and taskIds[]');
-  // The public API doesn't expose setChain; we forward to the manager's
-  // internals via a dynamic import. Tools that need setChain semantics
-  // should still call the internal helper directly.
-  const internal = await import('../manager/_internal.js');
-  const board = await (internal as any).setChainMetadata(
-    await import('../storage.js').then((m) => m.readBoard(projectRoot, boardId)),
-    [],
-    taskIds[0],
-    true,
-  );
-  return board ?? notFound('Chain failed');
+  const result = await kanban.setTaskChain(projectRoot, boardId, {
+    taskIds,
+    ...(chainId !== undefined ? { chainId } : {}),
+    ...(enforceDependencies !== undefined ? { enforceDependencies } : {}),
+  });
+  return result ?? notFound('Chain failed');
 });
 defineMethod('getChain', async (params: any) => {
   if (!params.boardId || (!params.taskId && !params.chainId)) invalid('getChain requires boardId and taskId or chainId');
-  const storage = await import('../storage.js');
-  const board = await storage.readBoard(projectRoot, params.boardId);
-  if (!board) notFound(`Board ${params.boardId} not found`);
-  const chain = (board as any).chains?.[params.chainId ?? ''] ?? null;
+  const chain = await kanban.getTaskChain(
+    projectRoot,
+    params.boardId,
+    params.chainId ?? params.taskId,
+  );
   if (!chain) notFound('Chain not found');
   return chain;
 });
@@ -489,7 +568,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     broadcastEvent({ type: 'event', event: ev.event, data: ev.data });
   });
 
-  const server = net.createServer((socket) => {
+  server = net.createServer((socket) => {
     if (stopping) {
       socket.destroy();
       return;
@@ -516,26 +595,56 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     });
   });
 
-  server.on('error', (err) => {
+  const listener = server;
+  listener.on('error', (err: NodeJS.ErrnoException) => {
+    // EADDRINUSE means another daemon won the bind election for this root —
+    // that is the ownership protocol working, not a failure. Exiting non-zero
+    // there made a normal race look like a crash.
+    if (err.code === 'EADDRINUSE') {
+      process.exit(0);
+    }
     process.stderr.write(`kanban project server error: ${err.message}\n`);
     process.exit(1);
   });
 
   await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(endpoint!, () => {
-      server.off('error', reject);
+    listener.once('error', reject);
+    listener.listen(endpoint!, () => {
+      listener.off('error', reject);
       resolve();
     });
   });
 
   process.stdout.write(`kanban project server listening on ${endpoint}\n`);
 
+  // Arm the idle timer at startup. Previously the only caller was the socket
+  // 'close' handler, so a daemon that was spawned but never connected to had
+  // `idleTimer === undefined` and lived forever. Every sibling daemon arms it
+  // right after listen().
+  scheduleIdleStop();
+
+  // Orphan guard: kanban has no client heartbeat and no lease sweep, so a
+  // half-open socket would pin `clients.size > 0` and defeat the idle timer.
+  // A vanished project root is unambiguous — nothing can ever be served again.
+  const livenessTimer = setInterval(() => {
+    void fsPromises.stat(projectRoot).catch(() => {
+      void stop('project-root-removed').then(() => process.exit(0));
+    });
+  }, ROOT_LIVENESS_CHECK_MS);
+  livenessTimer.unref?.();
+
   process.on('SIGTERM', () => void stop('SIGTERM').then(() => process.exit(0)));
   process.on('SIGINT', () => void stop('SIGINT').then(() => process.exit(0)));
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+/**
+ * `file://${process.argv[1]}` never matches `import.meta.url` on Windows —
+ * argv[1] is a backslash path (`D:\...\project-server.js`) while import.meta.url
+ * is a percent-encoded forward-slash URL (`file:///D:/.../project-server.js`).
+ * The daemon therefore silently did nothing and exited 0 when spawned there.
+ * `pathToFileURL` is the portable comparison.
+ */
+const isMain = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
 if (isMain) {
   main().catch((err) => {
     process.stderr.write(`kanban project server fatal: ${err?.message ?? err}\n`);

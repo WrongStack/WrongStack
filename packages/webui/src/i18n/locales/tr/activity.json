@@ -335,6 +335,7 @@
     "pinned": "Sabitlenen",
     "quickSettings": "Hızlı ayarlar",
     "autonomy": "Otonomi",
+    "autonomyTitle": "Sonraki adımların otomatik çalışmasını durdur. Aracın otonom döngüsünü durdurmak için kapat",
     "autonomyOptions": {
       "off": "Kapalı",
       "suggest": "Öner",
@@ -1909,6 +1910,11 @@
     "breakRoom": "Dinlenme odası",
     "onBreak": "{{count}} molada",
     "desksEmpty": "Herkes molada — masalar bir sonraki görev için hazır"
+  },
+  "sageMemory": {
+    "injectedHeading": "SAGE belleği eklendi",
+    "memoriesLabel_one": "{{count}} anı",
+    "memoriesLabel_other": "{{count}} anı"
   },
   "sddhub": {
     "tabProject": "SDD Projesi",

@@ -24,7 +24,7 @@ import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
 import {
-  GlobalMailbox,
+  getSharedProjectMailbox,
   makeFleetStatusTool,
   makeMailboxTool,
   makeMailInboxTool,
@@ -439,7 +439,7 @@ export async function createPreContextServices(
   // ── System prompt (with online agents from the shared mailbox) ──
   let onlineAgents: import('@wrongstack/core/coordination').MailboxAgentStatus[] = [];
   try {
-    const systemMailbox = new GlobalMailbox(wpaths.projectDir);
+    const systemMailbox = getSharedProjectMailbox(wpaths.projectDir);
     onlineAgents = await systemMailbox.getAgentStatuses();
   } catch {
     /* Non-fatal — mailbox errors should not block prompt building */

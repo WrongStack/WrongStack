@@ -1,20 +1,15 @@
-export interface ParsedRef {
-  provider?: string;
-  model: string;
-}
+/**
+ * Compatibility re-export for the canonical model-reference parser.
+ *
+ * The single source of truth lives in `core/model-ref.ts` (`parseModelRef`).
+ * This module was historically a separate near-duplicate implementation that
+ * caused subtle drift between the LLM tools and the rest of the runtime.
+ *
+ * New code MUST import `parseModelRef` directly from `core/model-ref.js`.
+ * This file is kept only so existing tests and consumers can keep their
+ * `parseRefInternal` import working without churn — both names return the
+ * same `{ provider, model }` shape with identical parsing rules.
+ */
 
-export function parseRefInternal(ref: string): ParsedRef {
-  const trimmed = ref.trim();
-  const slash = trimmed.indexOf('/');
-  if (slash !== -1) {
-    const provider = trimmed.slice(0, slash);
-    const model = trimmed.slice(slash + 1).trim();
-    if (provider) return { provider, model };
-    return { model };
-  }
-  const parts = trimmed.split(/\s+/);
-  if (parts.length >= 2) {
-    return { provider: parts[0]!, model: parts.slice(1).join(' ') };
-  }
-  return { model: trimmed };
-}
+export type { ModelRef as ParsedRef } from '../core/model-ref.js';
+export { parseModelRef as parseRefInternal } from '../core/model-ref.js';

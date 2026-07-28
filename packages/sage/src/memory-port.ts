@@ -103,6 +103,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     importLegacy: (files) => this.importLegacyFiles(files),
   };
   private readonly serviceCapability: SageServiceLike = {
+    unifiedSearchService: (query, options) => super.unifiedSearchService(query, options),
     readAll: () => super.readAll(),
     read: (scope) => super.read(scope),
     remember: (text, scope, metadata) => super.remember(text, scope, metadata),

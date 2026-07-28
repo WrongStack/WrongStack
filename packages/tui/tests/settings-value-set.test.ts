@@ -214,8 +214,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 41 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(41);
+    it('SETTINGS_FIELD_LABELS has 42 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(42);
     });
 
     it('trims whitespace from input', () => {
@@ -282,6 +282,7 @@ describe('getSettingsFieldValue', () => {
     maxIterations: 500,
     autoProceedMaxIterations: 0,
     enhanceDelayMs: 60_000,
+    preRefineSeconds: 3,
     enhanceEnabled: true,
     enhanceLanguage: 'english',
     debugStream: false,
@@ -438,6 +439,7 @@ describe('formatAllSettingsSummary', () => {
     maxIterations: 500,
     autoProceedMaxIterations: 50,
     enhanceDelayMs: 60_000,
+    preRefineSeconds: 3,
     enhanceEnabled: true,
     enhanceLanguage: 'original',
     debugStream: false,
@@ -463,10 +465,10 @@ describe('formatAllSettingsSummary', () => {
     }
   });
 
-  it('renders exactly 41 value lines (one per field)', () => {
+  it('renders exactly 42 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(41);
+    expect(fieldLines).toHaveLength(42);
   });
 
   it('includes the thinking word value', () => {
@@ -545,8 +547,8 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 41 keys', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(41);
+  it('SETTINGS_DEFAULTS has all 42 keys', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(42);
   });
 
   it('every field 0-40 can be reset', () => {

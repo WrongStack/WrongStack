@@ -41,7 +41,7 @@ export interface DepWatcherBridgeOptions {
  * Usage:
  *   const dispose = attachDepWatcherBridge({
  *     events: ctx.events,
- *     mailbox: new DefaultMailbox(sessionDir),
+ *     mailbox: getSharedProjectMailbox(projectDir, ctx.events),
  *     projectRoot: ctx.projectRoot,
  *   });
  *   // ... session runs ...

@@ -121,4 +121,180 @@ describe('/fallback', () => {
     const res = await cmd.run('frobnicate');
     expect(stripAnsi(res?.message ?? '')).toContain('Unknown subcommand');
   });
+
+  describe('favorite validation on add', () => {
+    it('rejects /fallback add for a ref that is not in favorites', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: { anthropic: { apiKey: 'k' } },
+        favoriteModels: ['anthropic/claude-opus-4', 'openai/gpt-4o'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('add openai/gpt-5');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Cannot add');
+      expect(msg).toContain('not in favorites');
+      expect(readFile().fallbackModels ?? []).toEqual([]);
+    });
+
+    it('accepts /fallback add when favorites list is empty (legacy no-enforcement mode)', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: { anthropic: { apiKey: 'k' } },
+        favoriteModels: [],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('add anthropic/claude-opus-4');
+      expect(stripAnsi(res?.message ?? '')).toContain('added');
+      expect(readFile().fallbackModels).toEqual(['anthropic/claude-opus-4']);
+    });
+
+    it('rejects /fallback add when the ref is not in the provider model allow-list', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: {
+          anthropic: { apiKey: 'k', models: ['claude-opus-4', 'claude-sonnet-4'] },
+        },
+        favoriteModels: ['anthropic/claude-opus-4'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('add anthropic/claude-99-not-allowed');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Cannot add');
+      expect(msg).toContain('not in anthropic model list');
+      expect(readFile().fallbackModels ?? []).toEqual([]);
+    });
+  });
+
+  describe('favorite validation on profile set', () => {
+    it('rejects profile set with any non-favorite entry', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: { openai: { apiKey: 'k' } },
+        favoriteModels: ['openai/gpt-4o'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('profile set fast openai/gpt-4o,anthropic/claude-3');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Cannot save profile');
+      expect(msg).toContain('anthropic/claude-3');
+      expect(msg).toContain('not in favorites');
+      expect(readFile().fallbackProfiles ?? {}).toEqual({});
+    });
+
+    it('rejects profile set when an entry is not in the provider model allow-list', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: {
+          openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
+        },
+        favoriteModels: ['openai/gpt-4o', 'openai/gpt-4o-mini'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('profile set fast openai/gpt-4o,openai/not-real');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Cannot save profile');
+      expect(msg).toContain('not in openai model list');
+      expect(readFile().fallbackProfiles ?? {}).toEqual({});
+    });
+
+    it('accepts profile set when every entry is valid (favorite + allow-list)', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: {
+          openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
+        },
+        favoriteModels: ['openai/gpt-4o', 'openai/gpt-4o-mini'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('profile set fast openai/gpt-4o,openai/gpt-4o-mini');
+      expect(stripAnsi(res?.message ?? '')).toContain('profile fast');
+      expect(readFile().fallbackProfiles).toEqual({
+        fast: ['openai/gpt-4o', 'openai/gpt-4o-mini'],
+      });
+    });
+  });
+
+  describe('fav add allow-list validation', () => {
+    it('rejects fav add when model not in provider allow-list', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: {
+          openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
+        },
+        favoriteModels: [],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('fav add openai/gpt-99');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Cannot favorite');
+      expect(msg).toContain('not in openai model list');
+      expect(readFile().favoriteModels ?? []).toEqual([]);
+    });
+
+    it('accepts fav add when model is in provider allow-list', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: {
+          openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
+        },
+        favoriteModels: [],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('fav add openai/gpt-4o-mini');
+      expect(stripAnsi(res?.message ?? '')).toContain('favorite added');
+      expect(readFile().favoriteModels).toEqual(['openai/gpt-4o-mini']);
+    });
+
+    it('accepts fav add when provider has no models allow-list (no enforcement)', async () => {
+      const { ctx, readFile } = makeCtx({
+        providers: { anthropic: { apiKey: 'k' } },
+        favoriteModels: [],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('fav add anthropic/claude-opus-4');
+      expect(stripAnsi(res?.message ?? '')).toContain('favorite added');
+      expect(readFile().favoriteModels).toEqual(['anthropic/claude-opus-4']);
+    });
+  });
+
+  describe('currentView inactive warnings', () => {
+    it('flags a profile entry that is not in the provider model list', async () => {
+      const { ctx } = makeCtx({
+        providers: {
+          openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
+        },
+        fallbackProfiles: {
+          fast: ['openai/gpt-4o', 'openai/not-a-real-model'],
+        },
+        favoriteModels: [],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('fast');
+      expect(msg).toContain('openai/not-a-real-model');
+      expect(msg).toContain('inactive');
+      expect(msg).toContain('not in openai model list');
+    });
+
+    it('flags a favorite entry that is not in the provider model list', async () => {
+      const { ctx } = makeCtx({
+        providers: {
+          openai: { apiKey: 'k', models: ['gpt-4o'] },
+        },
+        favoriteModels: ['openai/gpt-4o', 'openai/gpt-5-not-real'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('inactive');
+      expect(msg).toContain('openai/gpt-5-not-real');
+    });
+
+    it('does not flag entries when the provider has no models allow-list', async () => {
+      const { ctx } = makeCtx({
+        providers: { anthropic: { apiKey: 'k' } },
+        fallbackProfiles: { fast: ['anthropic/claude-opus-4'] },
+        favoriteModels: ['anthropic/claude-opus-4'],
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('anthropic/claude-opus-4');
+      expect(msg).not.toContain('inactive');
+    });
+  });
 });

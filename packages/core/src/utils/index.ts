@@ -69,6 +69,7 @@ export {
   sqliteCachePragmas,
   SageCachePragmas,
   tuiStreamFlushMs,
+  useDaemonPerfDefaults,
 } from './perf-profile.js';
 export { isPidAlive } from './pid.js';
 export * from './project-identity.js';

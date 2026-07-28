@@ -18,7 +18,13 @@ import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstac
 import { createHqPersistence, toAlertMessage, watchHqAuthFile } from '@wrongstack/core/hq';
 import { createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS } from '@wrongstack/core/coordination';
 import { type EnsureHqFirstRunAuthResult, type HqAlert, HqAlertEngine, type HqAlertRuleConfig, type HqCommandAuditEntry, HqCommandAuditLog, type HqEventEnvelope, type HqTranscriptEntry } from '@wrongstack/core/hq';
-import { GlobalMailbox, MailboxEventEmitter, MailboxHttpRateLimiter, type MailboxHttpAccessDecision } from '@wrongstack/core/coordination';
+import {
+  createProjectMailbox,
+  getSharedProjectMailbox,
+  MailboxEventEmitter,
+  MailboxHttpRateLimiter,
+  type MailboxHttpAccessDecision,
+} from '@wrongstack/core/coordination';
 import { HQ_HTML } from './hq-recovery-html.js';
 import * as HqServerAuth from './hq-server/auth.js';
 import * as HqServerSnapshot from './hq-server/snapshot.js';
@@ -215,12 +221,11 @@ function startHqServerWithAuth(
     void (async () => {
       const projectsDir = path.join(path.dirname(dataDir), 'projects');
       const entries = await fs.readdir(projectsDir, { withFileTypes: true }).catch(() => []);
-      const { GlobalMailbox } = await import('@wrongstack/core/coordination');
       await Promise.all(
         entries
           .filter((entry) => entry.isDirectory())
           .map(async (entry) => {
-            const mailbox = new GlobalMailbox(path.join(projectsDir, entry.name));
+            const mailbox = getSharedProjectMailbox(path.join(projectsDir, entry.name));
             await Promise.all([mailbox.getAgentStatuses(), mailbox.purgeClients()]);
           }),
       );
@@ -252,7 +257,7 @@ function startHqServerWithAuth(
       const existing = mailboxGateways.get(projectDir);
       if (existing) return existing;
       const eventEmitter = new MailboxEventEmitter();
-      const mailbox = new GlobalMailbox(projectDir, undefined, undefined, eventEmitter);
+      const mailbox = createProjectMailbox({ projectDir, eventEmitter });
       const router = createMailboxHttpRouter({
         mailbox,
         eventEmitter,

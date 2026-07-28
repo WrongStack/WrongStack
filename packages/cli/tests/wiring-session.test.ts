@@ -6,6 +6,14 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupSession } from '../src/wiring/session.js';
 
+/**
+ * `setupSession` reaches @wrongstack/tools/session-kanban -> @wrongstack/kanban,
+ * which spawns a detached daemon rooted at this temp dir. The daemon outlived
+ * the test and kept running against a deleted directory (the `maxRetries` on
+ * the rm below is the scar tissue from fighting it).
+ */
+process.env['WRONGSTACK_KANBAN_SERVER'] = '0';
+
 let tmp: string;
 
 beforeEach(async () => {

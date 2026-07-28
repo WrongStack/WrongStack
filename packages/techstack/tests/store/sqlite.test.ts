@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, existsSync } from 'node:fs';
+import { SageCachePragmas } from '@wrongstack/core/utils';
 
 // ── Mock node:fs ─────────────────────────────────────────────────────────
 
@@ -23,9 +24,13 @@ vi.mock('node:fs', async (importOriginal) => {
 
 // ── Mock @wrongstack/core/utils ─────────────────────────────────────────
 
-vi.mock('@wrongstack/core/utils', () => ({
-  wstackGlobalRoot: vi.fn(() => '/fake/home/.wrongstack'),
-}));
+vi.mock('@wrongstack/core/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/core/utils')>();
+  return {
+    ...actual,
+    wstackGlobalRoot: vi.fn(() => '/fake/home/.wrongstack'),
+  };
+});
 
 // ── Factory: mock statement ──────────────────────────────────────────────
 
@@ -173,17 +178,32 @@ describe('TechStackStore', () => {
 
   it('runs pragma statements on construction', () => {
     const db = (lastStore as unknown as { db: MockDb }).db;
+    // cache_size / mmap_size come from the shared perf profile rather than
+    // being hardcoded — they used to be pinned at 32 MiB / 128 MiB here, which
+    // is exactly why WRONGSTACK_PERF_PROFILE=frugal had no effect on this store.
+    const cache = SageCachePragmas();
     const pragmas = [
       'PRAGMA journal_mode = WAL;',
       'PRAGMA synchronous = NORMAL;',
       'PRAGMA busy_timeout = 10000;',
       'PRAGMA temp_store = MEMORY;',
-      'PRAGMA cache_size = -32768;',
-      'PRAGMA mmap_size = 134217728;',
+      `PRAGMA cache_size = -${cache.cacheSizeKiB};`,
+      `PRAGMA mmap_size = ${cache.mmapBytes};`,
       'PRAGMA foreign_keys = ON;',
     ];
     for (const pragma of pragmas) {
       expect(db.exec).toHaveBeenCalledWith(pragma);
+    }
+  });
+
+  it('sizes its page cache from the perf profile, not a hardcoded constant', () => {
+    const db = (lastStore as unknown as { db: MockDb }).db;
+    const execCalls = db.exec.mock.calls.map(([sql]: [string]) => sql);
+    const cachePragma = execCalls.find((sql: string) => sql.startsWith('PRAGMA cache_size'));
+    expect(cachePragma).toBeDefined();
+    // The old hardcoded value must not reappear unless the profile says so.
+    if (SageCachePragmas().cacheSizeKiB !== 32_768) {
+      expect(cachePragma).not.toBe('PRAGMA cache_size = -32768;');
     }
   });
 

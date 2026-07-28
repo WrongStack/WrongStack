@@ -392,7 +392,8 @@
     "favoritesHeading": "Favorite Models",
     "favoritesEmpty": "Favorites are shown first and can constrain auto fallback.",
     "addModelToProfile": "Add model to profile…",
-    "addFavoriteModel": "Add favorite model…"
+    "addFavoriteModel": "Add favorite model…",
+    "inactive": "inactive"
   },
   "fleet": {
     "heading": "Fleet & Streaming",

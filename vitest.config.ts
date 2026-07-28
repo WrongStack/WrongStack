@@ -79,6 +79,10 @@ export default defineConfig({
     // dir (WRONGSTACK_HOME) so tests never read the user's real config (live
     // Telegram tokens!) or leak fixture project dirs into the real home.
     setupFiles: ['./vitest.setup.ts'],
+    // Reap detached project-server daemons a suite left bound to a temp dir.
+    // They are spawned `detached` + unref'd, so nothing in the test process
+    // owns them and a forgotten kill switch leaks one per run.
+    globalSetup: ['./vitest.globalTeardown.ts'],
     // `.tsx` is included explicitly: the Ink component tests in tui/ and
     // simpleui/ are .tsx, and a `*.test.ts`-only glob silently skipped all of
     // them — they passed CI by never running.

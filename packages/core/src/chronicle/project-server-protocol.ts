@@ -10,7 +10,7 @@ import type {
 } from './query.js';
 import type { ChronicleEvent, ChronicleEventInput } from './types.js';
 
-export const CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION = 1;
+export const CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION = 2;
 export const CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS = 64 * 1024 * 1024;
 
 export interface ChronicleProjectServerInfo {
@@ -46,6 +46,12 @@ export type ChronicleMetricsView = 'summary' | 'providers' | 'tasks' | 'files';
 
 export interface ChronicleMetricsRequest {
   view: ChronicleMetricsView;
+  /**
+   * When false, serve the current derived projection immediately and refresh
+   * it in the background. Latency-sensitive enrichment must not wait for a
+   * multi-GB historical backlog to be indexed.
+   */
+  refresh?: boolean;
   providers?: { from?: string; to?: string };
   tasks?: {
     runId?: string;
@@ -56,6 +62,8 @@ export interface ChronicleMetricsRequest {
   };
   files?: {
     path?: string;
+    paths?: string[];
+    latestPerPath?: boolean;
     taskId?: string;
     boardId?: string;
     sessionId?: string;

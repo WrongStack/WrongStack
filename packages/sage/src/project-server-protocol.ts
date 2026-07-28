@@ -29,6 +29,7 @@ import type {
   MemoryScope,
   ScoredEntry,
 } from '@wrongstack/core/types';
+import type { SearchOptions, SearchQuery, SearchResult } from './service-contract.js';
 
 export const SAGE_PROJECT_SERVER_PROTOCOL_VERSION = 1;
 
@@ -110,6 +111,10 @@ export interface SageServerOperations {
       options?: { limit?: number; includeStatuses?: SageStatus[] } | undefined;
     };
     result: Sage[];
+  };
+  unifiedSearch: {
+    args: { query: SearchQuery; options?: SearchOptions | undefined };
+    result: SearchResult;
   };
   findRelatedSage: {
     args: {

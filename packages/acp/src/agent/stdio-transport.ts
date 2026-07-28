@@ -317,6 +317,13 @@ export class ClientTransport implements ACPClientTransport {
 
       const waitForMarker = (chunk: string) => {
         this.buffer += chunk;
+        // The framed paths (onData / onChildData) both enforce maxFrameChars;
+        // this handshake path did not, so a child that never emits the marker
+        // grew the buffer without limit until the connect timeout fired.
+        // Keeping the tail is safe: the marker can only be found near the end.
+        if (this.buffer.length > this.maxFrameChars) {
+          this.buffer = this.buffer.slice(-this.maxFrameChars);
+        }
         const idx = this.buffer.indexOf('[wstack-acp]\n');
         if (idx !== -1) {
           this.buffer = this.buffer.slice(idx + '[wstack-acp]\n'.length);

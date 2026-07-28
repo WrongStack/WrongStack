@@ -44,23 +44,44 @@ export interface ChronicleProjectServerCallOptions {
   timeoutMs?: number | undefined;
 }
 
-function resolveProjectServerUrl(): URL | null {
+/**
+ * Locate the detached Chronicle entry from both regular ESM output and the
+ * bundled core entrypoints. In an esbuild bundle `import.meta.url` belongs to
+ * the bundle (for example `dist/plugin/index.js`), not this source module, so
+ * a single relative lookup silently selects the inline fallback.
+ */
+export function resolveChronicleProjectServerUrl(
+  moduleUrl = import.meta.url,
+  exists: (filePath: string) => boolean = fs.existsSync,
+): URL | null {
   if (
     process.env['WRONGSTACK_CHRONICLE_INLINE'] ||
     process.env['WRONGSTACK_CHRONICLE_SERVER'] === '0'
   ) {
     return null;
   }
-  try {
-    const url = new URL('./project-server.js', import.meta.url);
-    return url.protocol === 'file:' && fs.existsSync(fileURLToPath(url)) ? url : null;
-  } catch {
-    return null;
+
+  const candidates = [
+    // Normal unbundled output: dist/chronicle/project-server-client.js.
+    './project-server.js',
+    // Core plugin bundle: dist/plugin/index.js.
+    '../chronicle/project-server.js',
+    // Core root bundle: dist/index.js.
+    './chronicle/project-server.js',
+  ];
+  for (const relativePath of candidates) {
+    try {
+      const url = new URL(relativePath, moduleUrl);
+      if (url.protocol === 'file:' && exists(fileURLToPath(url))) return url;
+    } catch {
+      // Try the next known output layout.
+    }
   }
+  return null;
 }
 
 export function isChronicleProjectServerAvailable(): boolean {
-  return resolveProjectServerUrl() !== null;
+  return resolveChronicleProjectServerUrl() !== null;
 }
 
 function delay(ms: number): Promise<void> {
@@ -285,7 +306,7 @@ export class ChronicleProjectServerClient {
   }
 
   private spawnDetachedServer(): void {
-    const url = resolveProjectServerUrl();
+    const url = resolveChronicleProjectServerUrl();
     if (!url) throw new Error('Built Chronicle project server is unavailable');
     const args = [
       fileURLToPath(url),

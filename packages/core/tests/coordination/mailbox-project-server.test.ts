@@ -1,0 +1,503 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { JsonlCredentialStore } from '../../src/coordination/mailbox-credential-store.js';
+import { MailboxProjectServerConnection } from '../../src/coordination/mailbox-project-server-client.js';
+import {
+  mailboxProjectServerEndpoint,
+  mailboxProjectServerKey,
+  mailboxProjectServerMetadataPath,
+} from '../../src/coordination/mailbox-project-server-endpoint.js';
+import {
+  encodeMailboxProjectServerMessage,
+  isMailboxProjectServerClientMessage,
+  isMailboxProjectServerMessage,
+  MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION,
+} from '../../src/coordination/mailbox-project-server-protocol.js';
+import { getSharedProjectMailbox, RemoteMailbox } from '../../src/coordination/remote-mailbox.js';
+
+let projectDir: string;
+
+beforeEach(async () => {
+  projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-project-server-'));
+});
+
+afterEach(async () => {
+  await fs.rm(projectDir, { recursive: true, force: true }).catch(() => {});
+});
+
+describe('mailbox project server identity and protocol', () => {
+  it('uses one deterministic endpoint for equivalent project state paths', () => {
+    const equivalent = path.join(projectDir, '.', 'nested', '..');
+    expect(mailboxProjectServerKey(equivalent)).toBe(mailboxProjectServerKey(projectDir));
+    expect(mailboxProjectServerEndpoint(equivalent)).toBe(mailboxProjectServerEndpoint(projectDir));
+  });
+
+  it('frames protocol messages as newline-delimited JSON', () => {
+    const encoded = encodeMailboxProjectServerMessage({ type: 'heartbeat' });
+    expect(MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION).toBe(3);
+    expect(encoded.endsWith('\n')).toBe(true);
+    expect(JSON.parse(encoded)).toEqual({ type: 'heartbeat' });
+  });
+
+  it('rejects malformed and unknown IPC client envelopes', () => {
+    expect(isMailboxProjectServerClientMessage({ type: 'heartbeat' })).toBe(true);
+    expect(
+      isMailboxProjectServerClientMessage({
+        type: 'request',
+        id: 1,
+        op: 'query',
+        args: { query: {} },
+      }),
+    ).toBe(true);
+    expect(
+      isMailboxProjectServerClientMessage({
+        type: 'request',
+        id: 2,
+        op: 'deleteDatabase',
+        args: {},
+      }),
+    ).toBe(false);
+    expect(
+      isMailboxProjectServerClientMessage({
+        type: 'request',
+        id: 3,
+        op: 'credentialVerify',
+        args: { credentialId: 'id-only' },
+      }),
+    ).toBe(false);
+    expect(isMailboxProjectServerClientMessage({ type: 'shutdown', id: '2' })).toBe(false);
+    expect(isMailboxProjectServerClientMessage(null)).toBe(false);
+  });
+
+  it('rejects malformed IPC server envelopes', () => {
+    expect(
+      isMailboxProjectServerMessage({
+        type: 'response',
+        id: 1,
+        ok: true,
+        result: { ok: true },
+      }),
+    ).toBe(true);
+    expect(isMailboxProjectServerMessage({ type: 'response', id: '1', ok: true })).toBe(false);
+    expect(isMailboxProjectServerMessage({ type: 'hello', protocolVersion: 3 })).toBe(false);
+  });
+});
+
+describe('RemoteMailbox single-owner IPC', () => {
+  it('evicts an explicitly closed process-shared wrapper before reuse', async () => {
+    const first = getSharedProjectMailbox(projectDir);
+    expect(getSharedProjectMailbox(projectDir)).toBe(first);
+    await first.close();
+    const replacement = getSharedProjectMailbox(projectDir);
+    expect(replacement).not.toBe(first);
+    await replacement.close();
+  });
+
+  it('reference-counts the shared process connection across independent wrappers', async () => {
+    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const first = new RemoteMailbox(projectDir);
+    const second = new RemoteMailbox(projectDir);
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const ownerPid = (await first.status()).pid;
+      await first.close();
+      const sent = await second.send({
+        from: 'leader@refcount',
+        to: 'worker@refcount',
+        type: 'note',
+        subject: 'still-connected',
+        body: 'the second wrapper retains the shared IPC connection',
+      });
+      expect((await second.status()).pid).toBe(ownerPid);
+      expect((await second.query({ to: 'worker@refcount' }))[0]?.id).toBe(sent.id);
+    } finally {
+      await first.close();
+      await second.close();
+      const control = new MailboxProjectServerConnection(projectDir);
+      await control.shutdown('refcount-test-complete').catch(() => undefined);
+      control.close();
+      if (previousForceServer === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  });
+
+  it('elects one owner, shares messages, and keeps leased clients alive with heartbeats', async () => {
+    const previousLease = process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS'];
+    const previousHeartbeat = process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'];
+    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS'] = '300';
+    process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'] = '50';
+    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const first = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    const second = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const firstStatus = await first.status();
+      const sent = await first.send({
+        from: 'leader@test',
+        to: 'worker@test',
+        type: 'note',
+        subject: 'single-owner',
+        body: 'shared over IPC',
+      });
+      const received = await second.query({ to: 'worker@test', limit: 10 });
+      await first.registerAgent({
+        agentId: 'worker@test',
+        sessionId: 'ipc-session',
+        name: 'IPC worker',
+        role: 'worker',
+      });
+      await second.registerClient({
+        clientId: 'tui@test',
+        sessionId: 'ipc-session',
+        name: 'IPC TUI',
+        source: 'tui',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      const secondStatus = await second.status();
+
+      expect(secondStatus.pid).toBe(firstStatus.pid);
+      expect(secondStatus.clients).toBe(2);
+      expect(secondStatus.storageKind).toBe('sqlite');
+      expect(secondStatus.databasePath).toBe(path.join(projectDir, '_mailbox.sqlite'));
+      expect(received.some((message) => message.id === sent.id)).toBe(true);
+      await expect(fs.access(path.join(projectDir, '_mailbox.jsonl'))).rejects.toThrow();
+      await expect(fs.access(path.join(projectDir, '_mailbox.registry.json'))).rejects.toThrow();
+      await expect(fs.access(path.join(projectDir, '_mailbox.clients.json'))).rejects.toThrow();
+    } finally {
+      if (previousLease === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS'] = previousLease;
+      }
+      if (previousHeartbeat === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'] = previousHeartbeat;
+      }
+      if (previousForceServer === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+      }
+      await first.close();
+      await second.close();
+      const control = new MailboxProjectServerConnection(projectDir);
+      await control.shutdown('test-complete').catch(() => undefined);
+      control.close();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  });
+
+  it('keeps fan-out completion actor-scoped until every recipient completes', async () => {
+    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    try {
+      await mailbox.initialize();
+      await mailbox.registerAgent({
+        agentId: 'worker@one',
+        sessionId: 'fanout-session',
+        name: 'Worker one',
+        role: 'worker',
+      });
+      await mailbox.registerAgent({
+        agentId: 'worker@two',
+        sessionId: 'fanout-session',
+        name: 'Worker two',
+        role: 'worker',
+      });
+      const sent = await mailbox.send({
+        from: 'leader@fanout',
+        to: '*',
+        type: 'broadcast',
+        subject: 'actor-scoped completion',
+        body: 'both workers must complete this',
+      });
+
+      await mailbox.ack({
+        messageId: sent.id,
+        readerId: 'worker@one',
+        completed: true,
+        outcome: 'one done',
+      });
+
+      expect((await mailbox.query({ incompleteOnly: true })).map((message) => message.id))
+        .toContain(sent.id);
+      expect((await mailbox.query({ limit: 10 })).find((message) => message.id === sent.id))
+        .toMatchObject({ completed: false });
+      expect(
+        (
+          await mailbox.query({ limit: 10, includeReceiptState: true })
+        ).find((message) => message.id === sent.id),
+      ).toMatchObject({
+        completed: false,
+        recipientState: {
+          'worker@one': {
+            completedBy: 'worker@one',
+            outcome: 'one done',
+          },
+        },
+      });
+      expect(
+        (await mailbox.query({ unreadBy: 'worker@two', incompleteOnly: true }))
+          .map((message) => message.id),
+      ).toContain(sent.id);
+
+      await mailbox.ack({
+        messageId: sent.id,
+        readerId: 'worker@two',
+        completed: true,
+        outcome: 'two done',
+      });
+      expect((await mailbox.query({ incompleteOnly: true })).map((message) => message.id))
+        .not.toContain(sent.id);
+      expect((await mailbox.query({ limit: 10 })).find((message) => message.id === sent.id))
+        .toMatchObject({ completed: true });
+    } finally {
+      await mailbox.close();
+      const control = new MailboxProjectServerConnection(projectDir);
+      await control.shutdown('fanout-test-complete').catch(() => undefined);
+      control.close();
+      if (previousForceServer === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  });
+
+  it('imports legacy JSONL and registries once, then persists every operation in SQLite', async () => {
+    const legacy = new GlobalMailbox(projectDir);
+    const legacyMessage = await legacy.send({
+      from: 'leader@legacy',
+      to: 'worker@legacy',
+      type: 'assign',
+      subject: 'legacy-import',
+      body: 'must survive storage migration',
+    });
+    await legacy.ack({
+      messageId: legacyMessage.id,
+      readerId: 'worker@legacy',
+      completed: true,
+      outcome: 'done before migration',
+    });
+    await legacy.registerAgent({
+      agentId: 'worker@legacy',
+      sessionId: 'legacy-session',
+      name: 'Legacy worker',
+      role: 'worker',
+    });
+    await legacy.registerClient({
+      clientId: 'client@legacy',
+      sessionId: 'legacy-session',
+      name: 'Legacy TUI',
+      source: 'tui',
+    });
+    await legacy.close();
+    const legacyCredentials = new JsonlCredentialStore(projectDir);
+    await legacyCredentials.load();
+    const legacyCredential = await legacyCredentials.issue({
+      principalId: 'worker@legacy',
+      projectId: path.basename(projectDir),
+      kind: 'agent',
+      capabilities: ['mail.read.self'],
+      ttlMs: 60_000,
+    });
+
+    const legacyJsonlPath = path.join(projectDir, '_mailbox.jsonl');
+    const legacyBefore = await fs.readFile(legacyJsonlPath, 'utf8');
+    const legacyCredentialPath = path.join(projectDir, '_mailbox_credentials.json');
+    const credentialsBefore = await fs.readFile(legacyCredentialPath, 'utf8');
+    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    try {
+      await mailbox.initialize();
+      const imported = await mailbox.query({
+        to: 'worker@legacy',
+        includeReceiptState: true,
+      });
+      expect(imported).toHaveLength(1);
+      expect(imported[0]?.readBy['worker@legacy']).toBeDefined();
+      expect(await mailbox.getAgentStatuses()).toEqual([
+        expect.objectContaining({ agentId: 'worker@legacy', online: true }),
+      ]);
+      expect(await mailbox.getClientStatuses()).toEqual([
+        expect.objectContaining({ clientId: 'client@legacy', online: true }),
+      ]);
+      expect(
+        await mailbox.credentialVerify(
+          legacyCredential.credential.credentialId,
+          legacyCredential.secret,
+        ),
+      ).toMatchObject({ valid: true });
+      const sqliteCredential = await mailbox.credentialIssue({
+        principalId: 'worker@sqlite',
+        projectId: path.basename(projectDir),
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      expect(
+        await mailbox.credentialVerify(
+          sqliteCredential.credential.credentialId,
+          sqliteCredential.secret,
+        ),
+      ).toMatchObject({ valid: true });
+
+      const sqliteOnly = await mailbox.send({
+        from: 'leader@sqlite',
+        to: 'worker@sqlite',
+        type: 'note',
+        subject: 'sqlite-only',
+        body: 'must not be appended to JSONL',
+      });
+      await mailbox.ack({
+        messageId: sqliteOnly.id,
+        readerId: 'worker@sqlite',
+        completed: true,
+      });
+    } finally {
+      await mailbox.close();
+      const control = new MailboxProjectServerConnection(projectDir);
+      await control.shutdown('migration-test-complete').catch(() => undefined);
+      control.close();
+      if (previousForceServer === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    expect(await fs.readFile(legacyJsonlPath, 'utf8')).toBe(legacyBefore);
+    expect(await fs.readFile(legacyCredentialPath, 'utf8')).toBe(credentialsBefore);
+    const databasePath = path.join(projectDir, '_mailbox.sqlite');
+    const db = new DatabaseSync(databasePath);
+    try {
+      expect(
+        (db.prepare('SELECT COUNT(*) AS count FROM messages').get() as { count: number }).count,
+      ).toBe(2);
+      expect(
+        (
+          db.prepare('SELECT COUNT(*) AS count FROM message_receipts').get() as {
+            count: number;
+          }
+        ).count,
+      ).toBe(2);
+      expect(
+        (
+          db
+            .prepare("SELECT value FROM mailbox_meta WHERE key = 'legacy_files_imported'")
+            .get() as { value: string }
+        ).value,
+      ).toBeTruthy();
+      expect(
+        (db.prepare('SELECT COUNT(*) AS count FROM credentials').get() as { count: number }).count,
+      ).toBe(2);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('stops the owner after the last client disconnects and idle time elapses', async () => {
+    const previousIdle = process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'];
+    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'] = '150';
+    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    try {
+      await mailbox.initialize();
+      expect((await mailbox.status()).pid).toBeGreaterThan(0);
+      const metadataPath = mailboxProjectServerMetadataPath(projectDir);
+      const readyDeadline = Date.now() + 2_000;
+      let metadataReady = false;
+      while (Date.now() < readyDeadline) {
+        try {
+          await fs.access(metadataPath);
+          metadataReady = true;
+          break;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+      }
+      expect(metadataReady).toBe(true);
+      await mailbox.close();
+      const deadline = Date.now() + 3_000;
+      while (Date.now() < deadline) {
+        try {
+          await fs.access(metadataPath);
+        } catch {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      await expect(fs.access(metadataPath)).rejects.toThrow();
+    } finally {
+      await mailbox.close();
+      if (previousIdle === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'] = previousIdle;
+      }
+      if (previousForceServer === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+      }
+    }
+  });
+
+  it('completes an explicit shutdown while the requesting IPC socket is open', async () => {
+    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    const control = new MailboxProjectServerConnection(projectDir);
+    try {
+      await mailbox.initialize();
+      const metadataPath = mailboxProjectServerMetadataPath(projectDir);
+      const readyDeadline = Date.now() + 2_000;
+      while (Date.now() < readyDeadline) {
+        try {
+          await fs.access(metadataPath);
+          break;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+      }
+      await mailbox.close();
+      const result = await control.shutdown('explicit-shutdown-regression');
+      expect(result.stopped).toBe(true);
+
+      const stoppedDeadline = Date.now() + 3_000;
+      while (Date.now() < stoppedDeadline) {
+        try {
+          await fs.access(metadataPath);
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        } catch {
+          break;
+        }
+      }
+      await expect(fs.access(metadataPath)).rejects.toThrow();
+    } finally {
+      await mailbox.close().catch(() => undefined);
+      control.close();
+      if (previousForceServer === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+      }
+    }
+  });
+});

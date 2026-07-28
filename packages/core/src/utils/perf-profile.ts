@@ -9,15 +9,30 @@
 
 export type PerfProfile = 'balanced' | 'frugal';
 
+/**
+ * Long-lived IPC daemons default to `frugal`.
+ *
+ * The SQLite pragmas below are per *connection*, and a daemon holds its
+ * connections for its whole lifetime — the codebase-index daemon measured
+ * 336MB RSS, essentially all of it the 128MiB page cache plus 512MiB mmap
+ * reservation, while sitting idle. A foreground host pays that cost briefly;
+ * a daemon pays it for hours. An explicit `WRONGSTACK_PERF_PROFILE` from the
+ * operator still wins in both directions.
+ */
+let daemonDefaults = false;
+
+/** Call once from a daemon entry point, before opening any store. */
+export function useDaemonPerfDefaults(): void {
+  daemonDefaults = true;
+}
+
 /** Resolve the active profile from the environment (evaluated each call). */
 export function getPerfProfile(): PerfProfile {
-  const raw = (
-    process.env.WRONGSTACK_PERF_PROFILE ??
-    process.env.WSTACK_PERF_PROFILE ??
-    'balanced'
-  )
-    .trim()
-    .toLowerCase();
+  const explicit = process.env.WRONGSTACK_PERF_PROFILE ?? process.env.WSTACK_PERF_PROFILE;
+  if (explicit === undefined || explicit.trim() === '') {
+    return daemonDefaults ? 'frugal' : 'balanced';
+  }
+  const raw = explicit.trim().toLowerCase();
   if (raw === 'frugal' || raw === 'cimri' || raw === 'low' || raw === 'eco') {
     return 'frugal';
   }

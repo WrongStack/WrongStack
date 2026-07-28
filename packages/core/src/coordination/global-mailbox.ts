@@ -633,6 +633,29 @@ export class GlobalMailbox implements Mailbox {
     return all.filter((a) => a.online);
   }
 
+  /** Explicitly purge agent registrations older than the requested age. */
+  async purgeAgents(maxAgeMs = AGENT_STALE_MS): Promise<number> {
+    await this._ensureRegistry();
+    let removed = 0;
+    await withFileLock(this.registryPath, async () => {
+      const registry = await this._readRegistry({ fresh: true });
+      const cutoff = Date.now() - Math.max(0, maxAgeMs);
+      for (const [agentId, agent] of registry) {
+        const lastSeenAt = Date.parse(agent.lastSeenAt);
+        if (!Number.isFinite(lastSeenAt) || lastSeenAt <= cutoff) {
+          registry.delete(agentId);
+          this._lastHeartbeat.delete(agentId);
+          removed++;
+        }
+      }
+      this._registryCache = registry;
+      this._registryCacheAt = Date.now();
+      await this._writeRegistry(registry);
+    });
+    if (removed > 0) this.publishHqMailboxSnapshot();
+    return removed;
+  }
+
   // ── Client registry ─────────────────────────────────────────────────────
 
   async registerClient(input: ClientRegistrationInput): Promise<void> {

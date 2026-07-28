@@ -6,6 +6,19 @@ import { create } from 'zustand';
 // Central cache of mailbox messages + agent roster. Populated by the
 // ws-handlers ('mailbox.messages' / 'mailbox.agents' responses) so the
 // ActivityBar unread badge works even while MailboxPanel is unmounted.
+//
+// Retention caps live here so every consumer (ActivityBar, MailboxPanel,
+// MailboxDetailView) inherits the same bound. Without these, every distinct
+// message id ever received accumulates forever in long WebUI sessions.
+
+/** Cap on retained mailbox messages (oldest dropped when over). Mirrors TUI `use-mailbox-view-model.ts`. */
+const MAX_MAILBOX_MESSAGES = 100;
+
+/** Cap on retained mailbox agents (oldest dropped when over). */
+const MAX_MAILBOX_AGENTS = 50;
+
+/** Age after which an offline agent entry is pruned from the store. */
+const OFFLINE_AGENT_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /** Mirrors HQ/HqMailboxMessageScope. Derived server-side, but always revalidated client-side. */
 export type MailboxMessageScope = 'project' | 'session' | 'agent';
@@ -100,16 +113,37 @@ export const useMailboxStore = create<MailboxState>()((set) => ({
   lastCompaction: null,
   setMessages: (messages) =>
     set({
-      // Re-classify any message that lacks a server-derived scope, so the
-      // UI can render chips consistently across server versions and stale
-      // WS replies. The server value still wins when present.
-      messages: messages.map((m) => {
-        if (m.scope !== undefined) return m;
-        const classified = classifyMailboxRecipient(m.to);
-        return { ...m, ...classified };
-      }),
+      // Re-classify any message that lacks a server-derived scope, then cap
+      // to the most recent MAX_MAILBOX_MESSAGES so the ActivityBar badge
+      // and MailboxPanel list cannot drift past the cap over a long session.
+      messages: messages
+        .map((m) => {
+          if (m.scope !== undefined) return m;
+          const classified = classifyMailboxRecipient(m.to);
+          return { ...m, ...classified };
+        })
+        .slice(-MAX_MAILBOX_MESSAGES),
     }),
-  setAgents: (agents) => set({ agents }),
+  setAgents: (agents) =>
+    set(() => {
+      // Cap to MAX_MAILBOX_AGENTS; prune agents that have been offline
+      // for longer than OFFLINE_AGENT_TTL_MS so a long-lived WebUI session
+      // does not accumulate every agent it ever saw.
+      const cutoff = Date.now() - OFFLINE_AGENT_TTL_MS;
+      const pruned = agents.filter((agent) => {
+        if (agent.online) return true;
+        const seen = Date.parse(agent.lastSeenAt);
+        return !Number.isFinite(seen) || seen >= cutoff;
+      });
+      if (pruned.length <= MAX_MAILBOX_AGENTS) return { agents: pruned };
+      // Drop oldest by lastSeenAt when still over the cap.
+      const sorted = [...pruned].sort((a, b) => {
+        const aSeen = Date.parse(a.lastSeenAt) || 0;
+        const bSeen = Date.parse(b.lastSeenAt) || 0;
+        return bSeen - aSeen;
+      });
+      return { agents: sorted.slice(0, MAX_MAILBOX_AGENTS) };
+    }),
   setLastCompaction: (lastCompaction) => set({ lastCompaction }),
 }));
 

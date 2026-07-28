@@ -16,7 +16,12 @@ import type { TrustBoundary } from '@wrongstack/core/security';
 import { type createHqPersistence, tokenHasCapability, validateHqCommand } from '@wrongstack/core/hq';
 import type { HqSnapshot, HqAlertEngine, HqCommand, HqCommandAuditEntry, HqCommandAuditLog, HqEventEnvelope, HqQueuedCommand, HqTimeseriesSample, HqTranscriptEntry } from '@wrongstack/core/hq';
 import type { createMailboxHttpRouter } from '@wrongstack/core/coordination';
-import { type GlobalMailbox, type MailboxHttpAccessDecision, type MailboxHttpRateLimiter, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  type Mailbox,
+  type MailboxHttpAccessDecision,
+  type MailboxHttpRateLimiter,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { HQ_HTML } from '../hq-recovery-html.js';
 import { resolveHqDistDir, serveHqStatic } from '../hq-static-serve.js';
 import * as HqServerAuth from './auth.js';
@@ -88,7 +93,7 @@ export type {
 // ── Router dependency interface ────────────────────────────────────────────
 
 export interface HqRouterMailboxGateway {
-  mailbox: GlobalMailbox;
+  mailbox: Mailbox;
   router: ReturnType<typeof createMailboxHttpRouter>;
 }
 

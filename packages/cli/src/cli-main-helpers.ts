@@ -1,4 +1,7 @@
-import { GlobalMailbox } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  type MailboxAgentStatus,
+} from '@wrongstack/core/coordination';
 import type { Logger, ModelsRegistry } from '@wrongstack/core/types';
 import type { Config } from '@wrongstack/core/types';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
@@ -32,10 +35,10 @@ export function createTeardownEventRegistrar(
 export async function loadOnlineAgentsForPrompt(
   projectDir: string,
   skip: boolean,
-): Promise<Awaited<ReturnType<GlobalMailbox['getAgentStatuses']>>> {
+): Promise<MailboxAgentStatus[]> {
   if (skip) return [];
   try {
-    const systemMailbox = new GlobalMailbox(projectDir);
+    const systemMailbox = getSharedProjectMailbox(projectDir);
     return await systemMailbox.getAgentStatuses();
   } catch {
     return [];

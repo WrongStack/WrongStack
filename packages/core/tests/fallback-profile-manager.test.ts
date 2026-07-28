@@ -183,6 +183,67 @@ describe('FallbackProfileManager', () => {
       const chain = mgr.resolveEffective({ fallbackAuto: false });
       expect(chain).toHaveLength(0);
     });
+
+    describe('favoriteModelsOnly contract on smart default', () => {
+      // Contract pinned 2026-07-28. `favoriteModelsOnly` only narrows
+      // the smart-default chain — it does not affect explicit
+      // assignments (`agent_model_assign` model-only mode, profile
+      // lookups, explicit fallbackModels). The asymmetry vs the model-only
+      // matrix mode is intentional: a smart default is a *default*, while
+      // a model-only matrix entry is an *explicit* user choice that is
+      // already at least as strict as the smart default.
+      //
+      // These tests lock the precise semantics so a future refactor cannot
+      // silently tighten or loosen the smart default in either direction.
+
+      it('returns the full chain when favoriteModelsOnly is on but favorites list is empty', () => {
+        // `hasFavorites` is false, so the smart default bypasses the
+        // favorites-only filter — every provider/model pair the
+        // provider declares is included. This is the documented
+        // behavior the toggle's docstring calls out as auto-derivation
+        // gating.
+        const mgr = new FallbackProfileManager(
+          makeConfig({ favoriteModels: [], favoriteModelsOnly: true }),
+        );
+        const chain = mgr.resolveEffective({});
+        // The fixture declares openai/gpt-4o + gpt-4o-mini and anthropic's
+        // two claude models (per the test fixture). The chain must contain
+        // at least the cross-provider entries since the leader is openai.
+        const anthropicEntries = chain.filter((e) => e.providerId === 'anthropic');
+        expect(anthropicEntries.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('restricts the chain to favorites when favoriteModelsOnly is on AND favorites exist', () => {
+        // `hasFavorites` is true, so the smart default drops every
+        // provider/model pair that is not in the favorites list.
+        const mgr = new FallbackProfileManager(
+          makeConfig({
+            favoriteModels: ['openai/gpt-4o-mini'],
+            favoriteModelsOnly: true,
+          }),
+        );
+        const chain = mgr.resolveEffective({});
+        const refs = chain.map((e) => `${e.providerId}/${e.model}`);
+        // Every entry must be a favorite — openai/gpt-4o-mini is the
+        // only favorite, and the leader model (openai/gpt-4o) is excluded
+        // by the default `exclude: { providerId: leaderProvider, model: leaderModel }`.
+        expect(refs).toEqual(['openai/gpt-4o-mini']);
+      });
+
+      it('returns the full chain when favoriteModelsOnly is off, regardless of favorites', () => {
+        // The toggle is OFF, so the smart default never narrows the
+        // chain — even when favorites exist, non-favorites appear.
+        const mgr = new FallbackProfileManager(
+          makeConfig({
+            favoriteModels: ['openai/gpt-4o-mini'],
+            favoriteModelsOnly: false,
+          }),
+        );
+        const chain = mgr.resolveEffective({});
+        const anthropicEntries = chain.filter((e) => e.providerId === 'anthropic');
+        expect(anthropicEntries.length).toBeGreaterThanOrEqual(2);
+      });
+    });
   });
 
   describe('edge cases', () => {

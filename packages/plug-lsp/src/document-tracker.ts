@@ -9,8 +9,30 @@ import type { LSPServer } from './server/lsp-server.js';
 import type { TrackedDocument } from './types.js';
 import { pathToUri } from './utils/uri.js';
 
+/**
+ * A single file larger than this is not tracked. Language servers do not give
+ * useful diagnostics on generated bundles or lockfiles, and one `read` of such
+ * a file used to pin its entire contents for the life of the process.
+ */
+const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
+
+/** Total live document text held by the tracker. */
+const MAX_TRACKED_BYTES = 32 * 1024 * 1024;
+
+/** Hard cap on tracked documents, independent of their size. */
+const MAX_TRACKED_DOCS = 200;
+
 export class DocumentTracker {
   private readonly docs = new Map<string, TrackedDocument>();
+  /**
+   * LRU bookkeeping kept beside `docs` so the shared `TrackedDocument` shape
+   * stays untouched. `docs` previously only ever grew — the sole removal was
+   * `forceCloseAll()` — so every file ever read or written stayed resident in
+   * full for the whole session.
+   */
+  private readonly lastUsed = new Map<string, number>();
+  private clock = 0;
+  private trackedBytes = 0;
   private cwd: string;
 
   constructor(
@@ -36,30 +58,43 @@ export class DocumentTracker {
     else await this.fileWritten(absPath);
   }
 
+  /**
+   * Read a file for tracking, refusing anything over {@link MAX_DOCUMENT_BYTES}.
+   * The `stat` comes first so an oversized file is never materialized at all.
+   */
+  private async readTrackable(absPath: string, label: string): Promise<string | null> {
+    try {
+      const stat = await fs.stat(absPath);
+      if (!stat.isFile() || stat.size > MAX_DOCUMENT_BYTES) return null;
+      return await fs.readFile(absPath, 'utf8');
+    } catch (err) {
+      this.log.debug(`LSP tracker could not read ${label} ${absPath}`, err);
+      return null;
+    }
+  }
+
   async fileWritten(filePath: string): Promise<void> {
     const absPath = this.resolve(filePath);
     const languageId = languageIdFor(absPath);
     if (!languageId) return;
-    let text: string;
-    try {
-      text = await fs.readFile(absPath, 'utf8');
-    } catch (err) {
-      this.log.debug(`LSP tracker could not read changed file ${absPath}`, err);
-      return;
-    }
+    const text = await this.readTrackable(absPath, 'changed file');
+    if (text === null) return;
     const doc = this.docs.get(absPath);
     if (!doc) {
       await this.open(absPath, text);
       return;
     }
     doc.version++;
+    this.accountText(doc.text, text);
     doc.text = text;
+    this.touch(absPath);
     for (const server of this.registry().list()) {
       /* v8 ignore next -- false branch is defensive for mixed registries. */
       if (server.state !== 'ready' || !server.config.languages.includes(languageId)) continue;
       server.notifyDidChange({ uri: doc.uri, version: doc.version }, text);
       doc.serverNames.add(server.name);
     }
+    this.enforceBudget();
   }
 
   async open(filePath: string, knownText?: string): Promise<void> {
@@ -68,14 +103,13 @@ export class DocumentTracker {
     if (!languageId) return;
     let text: string;
     if (knownText !== undefined) {
+      // A caller-supplied body still counts against the per-document cap.
+      if (knownText.length > MAX_DOCUMENT_BYTES) return;
       text = knownText;
     } else {
-      try {
-        text = await fs.readFile(absPath, 'utf8');
-      } catch (err) {
-        this.log.debug(`LSP tracker could not read file ${absPath}`, err);
-        return;
-      }
+      const read = await this.readTrackable(absPath, 'file');
+      if (read === null) return;
+      text = read;
     }
     let doc = this.docs.get(absPath);
     /* v8 ignore next -- both create and existing paths are covered; branch accounting is source-map noisy. */
@@ -89,9 +123,11 @@ export class DocumentTracker {
         serverNames: new Set(),
       };
       this.docs.set(absPath, doc);
+      this.accountText(undefined, text);
       this.events?.emit('lsp.document.opened', { path: absPath, language: languageId });
     } else if (knownText !== undefined && knownText !== doc.text) {
       doc.version++;
+      this.accountText(doc.text, knownText);
       doc.text = knownText;
       for (const server of this.registry().list()) {
         if (server.state !== 'ready' || !server.config.languages.includes(languageId)) continue;
@@ -99,6 +135,7 @@ export class DocumentTracker {
         server.notifyDidChange({ uri: doc.uri, version: doc.version }, knownText);
       }
     }
+    this.touch(absPath);
     for (const server of this.registry().list()) {
       if (server.state !== 'ready' || !server.config.languages.includes(languageId)) continue;
       /* v8 ignore next -- duplicate-open guard is defensive/idempotent. */
@@ -106,6 +143,7 @@ export class DocumentTracker {
       server.notifyDidOpen(toTextDocumentItem(doc));
       doc.serverNames.add(server.name);
     }
+    this.enforceBudget();
   }
 
   async reopenForServer(server: LSPServer): Promise<void> {
@@ -130,6 +168,48 @@ export class DocumentTracker {
       }
     }
     this.docs.clear();
+    this.lastUsed.clear();
+    this.trackedBytes = 0;
+  }
+
+  /** Record a document as most-recently-used. */
+  private touch(absPath: string): void {
+    this.lastUsed.set(absPath, ++this.clock);
+  }
+
+  /** Adjust the running byte total when a document's text is replaced. */
+  private accountText(previous: string | undefined, next: string | undefined): void {
+    this.trackedBytes -= previous?.length ?? 0;
+    this.trackedBytes += next?.length ?? 0;
+  }
+
+  /** Close and forget one document, keeping servers in sync. */
+  private evict(absPath: string): void {
+    const doc = this.docs.get(absPath);
+    /* v8 ignore next -- eviction order is derived directly from docs.keys(). */
+    if (!doc) return;
+    for (const server of this.registry().list()) {
+      if (server.state === 'ready' && doc.serverNames.has(server.name)) {
+        server.notifyDidClose(doc.uri);
+      }
+    }
+    this.events?.emit('lsp.document.closed', { path: doc.path });
+    this.accountText(doc.text, undefined);
+    this.docs.delete(absPath);
+    this.lastUsed.delete(absPath);
+  }
+
+  /** Drop least-recently-used documents until back inside both budgets. */
+  private enforceBudget(): void {
+    if (this.docs.size <= MAX_TRACKED_DOCS && this.trackedBytes <= MAX_TRACKED_BYTES) return;
+    const order = [...this.docs.keys()].sort((a, b) => this.lastUsed.get(a)! - this.lastUsed.get(b)!);
+    for (const absPath of order) {
+      if (this.docs.size <= MAX_TRACKED_DOCS && this.trackedBytes <= MAX_TRACKED_BYTES) break;
+      // Keep at least one document so the most recent read stays usable.
+      /* v8 ignore next -- one trackable document cannot exceed the byte budget. */
+      if (this.docs.size <= 1) break;
+      this.evict(absPath);
+    }
   }
 
   get(filePath: string): TrackedDocument | null {

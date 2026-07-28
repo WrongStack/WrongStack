@@ -3,10 +3,12 @@
  * and ChronicleRemoteJournal batching logic with a mocked client.
  */
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
   ChronicleRemoteJournal,
   isChronicleProjectServerAvailable,
+  resolveChronicleProjectServerUrl,
 } from '../../src/chronicle/project-server-client.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
@@ -16,6 +18,33 @@ describe('isChronicleProjectServerAvailable', () => {
   it('returns a boolean', () => {
     const result = isChronicleProjectServerAvailable();
     expect(typeof result).toBe('boolean');
+  });
+
+  it.each([
+    [
+      'regular chronicle module',
+      'file:///C:/repo/dist/chronicle/project-server-client.js',
+      'file:///C:/repo/dist/chronicle/project-server.js',
+    ],
+    [
+      'plugin bundle',
+      'file:///C:/repo/dist/plugin/index.js',
+      'file:///C:/repo/dist/chronicle/project-server.js',
+    ],
+    [
+      'root bundle',
+      'file:///C:/repo/dist/index.js',
+      'file:///C:/repo/dist/chronicle/project-server.js',
+    ],
+  ])('resolves the detached server from the %s layout', (_label, moduleUrl, expectedUrl) => {
+    const expectedPath = fileURLToPath(expectedUrl);
+    const resolved = resolveChronicleProjectServerUrl(
+      moduleUrl,
+      (candidate) => candidate === expectedPath,
+    );
+
+    expect(resolved).not.toBeNull();
+    expect(fileURLToPath(resolved!)).toBe(expectedPath);
   });
 });
 

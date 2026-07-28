@@ -52,6 +52,41 @@ export function resolveMailboxRetentionState(
   };
 }
 
+/**
+ * Project a stored message's completion state for a project-wide or
+ * actor-scoped query without mutating the authoritative record.
+ */
+export function projectMailboxCompletion(
+  message: MailboxMessage,
+  actorId: string | undefined,
+  agentStatuses: readonly MailboxAgentStatus[] | undefined,
+): MailboxMessageProjection {
+  const projection = message as MailboxMessageProjection;
+  let state: MailboxRetentionState;
+  if (actorId === undefined) {
+    state = resolveMailboxRetentionState(message, agentStatuses);
+  } else if (projection.legacyGlobalCompletion) {
+    state = { completed: true, completedAt: message.completedAt ?? message.timestamp };
+  } else if (projection.recipientState !== undefined) {
+    const completedAt = projection.recipientState[actorId]?.completedAt;
+    state =
+      completedAt === undefined ? { completed: false } : { completed: true, completedAt };
+  } else {
+    state = message.completed
+      ? { completed: true, completedAt: message.completedAt ?? message.timestamp }
+      : { completed: false };
+  }
+
+  const result: MailboxMessageProjection = {
+    ...projection,
+    completed: state.completed,
+    readBy: { ...message.readBy },
+  };
+  if (state.completedAt === undefined) delete result.completedAt;
+  else result.completedAt = state.completedAt;
+  return result;
+}
+
 function resolveRelevantRecipients(
   message: MailboxMessage,
   recipientState: Readonly<Record<string, MailboxRecipientState>>,

@@ -2,16 +2,10 @@ import { randomUUID } from 'node:crypto';
 import type { Context } from '@wrongstack/core/agent';
 import {
   areDependenciesMet,
-  assignTask,
-  finalizeTaskCompletion,
-  getBoard,
+  getServerKanbanStore,
   type KanbanBoard,
   type KanbanEventContext,
   type KanbanTask,
-  listBoards,
-  reconcileKanbanBoard,
-  transitionTask,
-  updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
@@ -113,7 +107,8 @@ export async function handleKanbanTaskDispatch(
     );
     return;
   }
-  const board = await getBoard(ctx.projectRoot, boardId);
+  const store = getServerKanbanStore(ctx.projectRoot);
+  const board = await store.getBoard(boardId);
   const task = board ? findTask(board.tasks, taskId) : undefined;
   if (!board || !task) {
     reply(ws, 'kanban.task.dispatch', false, 'Board or task not found');
@@ -204,8 +199,7 @@ export async function handleKanbanTaskDispatch(
     heartbeatAt: now,
     leaseExpiresAt,
   };
-  const assignedBoard = await assignTask(
-    ctx.projectRoot,
+  const assignedBoard = await store.assignTask(
     boardId,
     task.id,
     assignment,
@@ -230,8 +224,7 @@ export async function handleKanbanTaskDispatch(
         : {}),
       context: { kanban: { boardId, taskId: task.id, projectRoot: ctx.projectRoot, leaseId } },
       onDone: async (result) => {
-        const terminalWrite = await updateTaskAssignment(
-          ctx.projectRoot,
+        const terminalWrite = await store.updateTaskAssignment(
           boardId,
           task.id,
           {
@@ -247,7 +240,7 @@ export async function handleKanbanTaskDispatch(
         // final status before the board is reconciled + broadcast.
         if (result.status === 'completed' && terminalWrite) {
           try {
-            const finalized = await finalizeTaskCompletion(ctx.projectRoot, boardId, task.id, {
+            const finalized = await store.finalizeTaskCompletion(boardId, task.id, {
               eventContext: activityContext(ctx, undefined, leaseId),
             });
             // Evidence bridge: link the verification report into the session's
@@ -266,7 +259,7 @@ export async function handleKanbanTaskDispatch(
           // can verify and accept it.
           if (terminalWrite.lifecycle?.mode === 'managed') {
             const managedTask = terminalWrite.tasks.find(
-              (candidate) => candidate.id === task.id,
+              (candidate: KanbanTask) => candidate.id === task.id,
             );
             if (managedTask && managedTask.lifecycle?.currentStage === 'running') {
               const actor = ctx.context?.agentId ?? 'kanban-agent';
@@ -275,7 +268,7 @@ export async function handleKanbanTaskDispatch(
                   ? result.result.trim().slice(0, 1000)
                   : 'Work completed.';
               try {
-                await transitionTask(ctx.projectRoot, boardId, task.id, {
+                await store.transitionTask(boardId, task.id, {
                   to: 'review',
                   actor,
                   comment,
@@ -295,10 +288,10 @@ export async function handleKanbanTaskDispatch(
             }
           }
         }
-        const reconciled = await reconcileKanbanBoard(ctx.projectRoot, boardId);
-        const completed = reconciled?.board ?? (await getBoard(ctx.projectRoot, boardId));
+        const reconciled = await store.reconcileBoard(boardId);
+        const completed = reconciled?.board ?? (await store.getBoard(boardId));
         const completedTask =
-          completed?.tasks.find((candidate) => candidate.id === task.id) ?? task;
+          completed?.tasks.find((candidate: KanbanTask) => candidate.id === task.id) ?? task;
         ctx.broadcast?.({
           type: 'kanban.task.update',
           payload: { success: true, data: { boardId: board.id, task: completedTask } },
@@ -311,15 +304,14 @@ export async function handleKanbanTaskDispatch(
         }
         ctx.broadcast?.({
           type: 'kanban.list',
-          payload: { success: true, data: await listBoards(ctx.projectRoot) },
+          payload: { success: true, data: await store.listBoards() },
         });
       },
     });
     const subagentId = summary.match(/Spawned subagent\s+([^\s]+)/)?.[1];
     const runTaskId = summary.match(/\bfor task\s+([^\s.]+)/i)?.[1];
     const resolvedRoute = parseResolvedDispatchRoute(summary);
-    const updated = await updateTaskAssignment(
-      ctx.projectRoot,
+    const updated = await store.updateTaskAssignment(
       boardId,
       task.id,
       {
@@ -338,10 +330,10 @@ export async function handleKanbanTaskDispatch(
     // Capture post-transition board so runningTask below uses fresh state.
     let transitionBoard = updated;
     if (updated?.lifecycle?.mode === 'managed') {
-      const managedTask = updated.tasks.find((candidate) => candidate.id === task.id);
+      const managedTask = updated.tasks.find((candidate: KanbanTask) => candidate.id === task.id);
       if (managedTask && managedTask.lifecycle?.currentStage === 'todo') {
         try {
-          const tr = await transitionTask(ctx.projectRoot, boardId, task.id, {
+          const tr = await store.transitionTask(boardId, task.id, {
             to: 'running',
             actor: ctx.context?.agentId ?? 'kanban-agent',
             comment: 'Work started.',
@@ -354,7 +346,8 @@ export async function handleKanbanTaskDispatch(
         }
       }
     }
-    const runningTask = transitionBoard?.tasks.find((candidate) => candidate.id === task.id) ?? task;
+    const runningTask =
+      transitionBoard?.tasks.find((candidate: KanbanTask) => candidate.id === task.id) ?? task;
     ctx.broadcast?.({
       type: 'kanban.task.update',
       payload: { success: true, data: { boardId: board.id, task: runningTask } },
@@ -365,8 +358,7 @@ export async function handleKanbanTaskDispatch(
     reply(ws, 'kanban.task.dispatch', true, { boardId: board.id, task: runningTask, summary });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await updateTaskAssignment(
-      ctx.projectRoot,
+    await store.updateTaskAssignment(
       boardId,
       task.id,
       { ...assignment, status: 'failed', error: message },

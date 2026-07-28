@@ -3,7 +3,7 @@
  *
  * Sub-commands: check, send, ack, query, status, online, unread
  *
- * Uses the project-level GlobalMailbox for cross-session communication.
+ * Uses the server-backed project mailbox for cross-session communication.
  * Agents are auto-registered on first use with heartbeat tracking.
  * Read receipts track who read each message and when.
  *
@@ -17,7 +17,8 @@ import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { toErrorMessage } from '../utils/error.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
-import { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';
+import { resolveProjectDir } from './global-mailbox.js';
+import { getSharedProjectMailbox } from './remote-mailbox.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import {
   isMailboxMessageVisibleTo,
@@ -33,7 +34,7 @@ export type MailboxResolver = (ctx: Context) => Mailbox;
 export interface MailboxToolOptions {
   /**
    * How to obtain a Mailbox instance given the execution Context.
-   * Default: derives project dir from ctx and creates a GlobalMailbox.
+   * Default: derives the project dir and connects to its mailbox owner.
    */
   resolveMailbox?: MailboxResolver | undefined;
   /**
@@ -135,7 +136,7 @@ export function applyMailboxSendPolicy(
 export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
   const resolveMailbox = opts.resolveMailbox ?? ((ctx: Context) => {
     const dir = opts.projectDir ?? defaultResolveProjectDir(ctx);
-    return new GlobalMailbox(dir, opts.events);
+    return getSharedProjectMailbox(dir, opts.events);
   });
   const agentId = opts.agentId ?? 'leader';
   const sessionId = opts.sessionId ?? 'default';

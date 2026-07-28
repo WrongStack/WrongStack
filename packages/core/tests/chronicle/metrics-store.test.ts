@@ -189,6 +189,48 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
     }
   });
 
+  it('queries the latest lineage for many paths in one indexed projection', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-paths-'));
+    dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-24.events.jsonl') });
+    await journal.append(input({
+      eventType: 'file.event',
+      occurredAt: '2026-07-24T10:00:00.000Z',
+      resource: { kind: 'file', id: 'a-old', path: 'src/a.ts' },
+      attributes: { operation: 'update', source: 'tool' },
+    }));
+    await journal.append(input({
+      eventType: 'file.event',
+      occurredAt: '2026-07-24T10:01:00.000Z',
+      resource: { kind: 'file', id: 'b-latest', path: 'SRC\\B.TS' },
+      attributes: { operation: 'create', source: 'tool' },
+    }));
+    await journal.append(input({
+      eventType: 'file.event',
+      occurredAt: '2026-07-24T10:02:00.000Z',
+      resource: { kind: 'file', id: 'a-latest', path: 'src/a.ts' },
+      attributes: { operation: 'delete', source: 'tool' },
+    }));
+    await journal.flush();
+
+    const store = ChronicleMetricsStore.open(dir);
+    try {
+      await store.refresh();
+      const rows = store.fileLineage({
+        paths: ['SRC\\A.TS', 'src/b.ts'],
+        latestPerPath: true,
+        limit: 2,
+      });
+
+      expect(rows.map((row) => [row.path, row.operation])).toEqual([
+        ['src/a.ts', 'delete'],
+        ['SRC/B.TS', 'create'],
+      ]);
+    } finally {
+      store.close();
+    }
+  });
+
   it('attributes fallbacks to the from-provider and never manufactures a blank provider row', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-fb-'));
     dirs.push(dir);

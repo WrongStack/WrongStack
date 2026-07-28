@@ -5,6 +5,7 @@ import type {
   MailboxMessageEntry,
 } from '../components/mailbox-panel.js';
 import type { MailboxStatus } from '../components/status-bar.js';
+import type { TuiMailboxSnapshot } from '../mailbox-view-model-types.js';
 
 /** Owns mailbox status subscriptions and the lightweight panel projection. */
 export function useMailboxViewModel(events: AppProps['events']): {
@@ -72,12 +73,24 @@ export function useMailboxViewModel(events: AppProps['events']): {
         },
       }));
     });
+    const unsubSnapshot = events.onPattern('mailbox.snapshot', (_event, payload) => {
+      const snapshot = payload as TuiMailboxSnapshot;
+      const latest = snapshot.messages[0];
+      setMailboxStatus({
+        unread: snapshot.unread,
+        onlineAgents: snapshot.agents.filter((agent) => agent.online).length,
+        onlineClients: snapshot.clients,
+        lastSubject: latest?.subject ?? null,
+        lastFrom: latest?.from ?? null,
+      });
+    });
     return () => {
       unsubUnread();
       unsubReceived();
       unsubRegistered();
       unsubHeartbeat();
       unsubClients();
+      unsubSnapshot();
     };
   }, [events]);
 
@@ -138,9 +151,46 @@ export function useMailboxViewModel(events: AppProps['events']): {
         ].slice(0, 30);
       });
     });
+    const unsubSnapshot = events.onPattern('mailbox.snapshot', (_event, payload) => {
+      const snapshot = payload as TuiMailboxSnapshot;
+      setMailboxMessages(
+        snapshot.messages.map((message) => ({
+          id: message.id,
+          from: message.from,
+          to: message.to,
+          type: message.type,
+          ...(message.audience !== undefined ? { audience: message.audience } : {}),
+          subject: message.subject,
+          body: message.body,
+          priority: message.priority,
+          timestamp: message.timestamp,
+          readByCount: Object.keys(message.readBy).length,
+          readByMe:
+            snapshot.actorId !== undefined && snapshot.actorId in message.readBy,
+          completed: message.completed,
+          ...(message.completedBy !== undefined ? { completedBy: message.completedBy } : {}),
+          ...(message.outcome !== undefined ? { outcome: message.outcome } : {}),
+        })),
+      );
+      setMailboxAgents(
+        snapshot.agents.map((agent) => ({
+          agentId: agent.agentId,
+          name: agent.name,
+          ...(agent.role !== undefined ? { role: agent.role } : {}),
+          sessionId: agent.sessionId,
+          status: agent.status,
+          ...(agent.currentTool !== undefined ? { currentTool: agent.currentTool } : {}),
+          ...(agent.currentTask !== undefined ? { currentTask: agent.currentTask } : {}),
+          lastSeenAt: agent.lastSeenAt,
+          online: agent.online,
+          ...(agent.source !== undefined ? { source: agent.source } : {}),
+        })),
+      );
+    });
     return () => {
       unsubMessage();
       unsubAgent();
+      unsubSnapshot();
     };
   }, [events]);
 

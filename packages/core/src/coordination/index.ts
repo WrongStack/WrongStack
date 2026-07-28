@@ -253,7 +253,25 @@ export {
   resolveMaxSpawnDepth,
 } from './spawn-budget.js';
 export { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';
-export { JsonlCredentialStore } from './mailbox-credential-store.js';
+export {
+  JsonlCredentialStore,
+  type MailboxCredentialVerifier,
+} from './mailbox-credential-store.js';
+export {
+  createProjectMailbox,
+  getSharedProjectMailbox,
+  type ProjectMailboxOptions,
+  RemoteMailbox,
+} from './remote-mailbox.js';
+export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';
+export {
+  MailboxProjectServerConnection,
+  type MailboxProjectServerConnectionState,
+} from './mailbox-project-server-client.js';
+export type {
+  MailboxProjectServerInfo,
+  MailboxProjectServerStatus,
+} from './mailbox-project-server-protocol.js';
 export { MailboxEventEmitter } from './mailbox-events.js';
 export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';
 export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';

@@ -11,7 +11,10 @@
  */
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
-import { attachDepWatcherBridge, GlobalMailbox } from '@wrongstack/core/coordination';
+import {
+  attachDepWatcherBridge,
+  getSharedProjectMailbox,
+} from '@wrongstack/core/coordination';
 
 export interface SetupDepWatcherBridgeDeps {
   config: { extensions?: Record<string, unknown> };
@@ -39,7 +42,7 @@ export function setupDepWatcherBridge(
   if (dwCfg?.['enabled'] === true) {
     try {
       const projectDir = path.join(wpaths.globalRoot, 'projects', wpaths.projectSlug);
-      const dwMailbox = new GlobalMailbox(projectDir, events);
+      const dwMailbox = getSharedProjectMailbox(projectDir, events);
       depWatcherDispose = attachDepWatcherBridge({
         events,
         mailbox: dwMailbox,

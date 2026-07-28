@@ -25,7 +25,16 @@ const SYSTEM_CONFIG_VIEW_SCHEMA: JSONSchema = {
 };
 
 interface SystemConfigViewInput {
-  section?: 'all' | 'providers' | 'models' | 'fallbacks' | 'matrix' | 'agents' | 'refiner' | 'doctor' | undefined;
+  section?:
+    | 'all'
+    | 'providers'
+    | 'models'
+    | 'fallbacks'
+    | 'matrix'
+    | 'agents'
+    | 'refiner'
+    | 'doctor'
+    | undefined;
 }
 
 interface SystemConfigViewOutput {
@@ -33,7 +42,9 @@ interface SystemConfigViewOutput {
   message: string;
 }
 
-export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Tool<SystemConfigViewInput, SystemConfigViewOutput> {
+export function createSystemConfigViewTool(
+  opts: FallbackManageToolOptions,
+): Tool<SystemConfigViewInput, SystemConfigViewOutput> {
   return {
     name: SYSTEM_CONFIG_VIEW_TOOL_NAME,
     description:
@@ -62,13 +73,13 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
       };
 
       // Always show provider/model header
-      addSection(
-        'Leader',
-        `  ${config.provider}/${config.model}`,
-      );
+      addSection('Leader', `  ${config.provider}/${config.model}`);
 
       if (section === 'all' || section === 'providers') {
-        const providers = (config.providers ?? {}) as unknown as Record<string, Record<string, unknown>>;
+        const providers = (config.providers ?? {}) as unknown as Record<
+          string,
+          Record<string, unknown>
+        >;
         const ids = Object.keys(providers);
         if (ids.length === 0) {
           addSection('Providers', '  (none configured)');
@@ -76,11 +87,16 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
           const lines = ids.sort().map((id) => {
             const e = providers[id] ?? {};
             const type = (e.type as string) ?? '?';
-            const models = Array.isArray(e.models) ? `[${(e.models as string[]).join(', ')}]` : '(all)';
-            const hasKey = e.apiKey || (Array.isArray(e.apiKeys) && e.apiKeys.length > 0) ? '✓' : '✗';
+            const models = Array.isArray(e.models)
+              ? `[${(e.models as string[]).join(', ')}]`
+              : '(all)';
+            const hasKey =
+              e.apiKey || (Array.isArray(e.apiKeys) && e.apiKeys.length > 0) ? '✓' : '✗';
             const baseUrl = e.baseUrl ? ` url:${e.baseUrl}` : '';
             const family = e.family ? ` family:${e.family}` : '';
-            const envVars = Array.isArray(e.envVars) ? ` env:[${(e.envVars as string[]).join(', ')}]` : '';
+            const envVars = Array.isArray(e.envVars)
+              ? ` env:[${(e.envVars as string[]).join(', ')}]`
+              : '';
             return `  ${id === config.provider ? '★' : ' '} ${id} (${type}) key:${hasKey} models:${models}${baseUrl}${family}${envVars}`;
           });
           addSection('Providers', lines.join('\n'));
@@ -98,7 +114,7 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         addSection(
           'Settings',
           `  fallbackAuto: ${config.fallbackAuto !== false ? 'on' : 'off'}\n` +
-          `  favoriteModelsOnly: ${config.favoriteModelsOnly ? 'on' : 'off'}`,
+            `  favoriteModelsOnly: ${config.favoriteModelsOnly ? 'on' : 'off'}`,
         );
       }
 
@@ -115,7 +131,10 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         addSection(
           'Fallback Profiles',
           profileNames.length > 0
-            ? profileNames.sort().map((n) => `  ${n} → ${profiles[n]?.join(' → ') ?? '(empty)'}`).join('\n')
+            ? profileNames
+                .sort()
+                .map((n) => `  ${n} → ${profiles[n]?.join(' → ') ?? '(empty)'}`)
+                .join('\n')
             : '  (none)',
         );
       }
@@ -126,7 +145,10 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         addSection(
           'Model Matrix (role assignments)',
           keys.length > 0
-            ? keys.sort().map((k) => `  ${k} → ${JSON.stringify(matrix[k])}`).join('\n')
+            ? keys
+                .sort()
+                .map((k) => `  ${k} → ${JSON.stringify(matrix[k])}`)
+                .join('\n')
             : '  (empty — all roles use the leader model)',
         );
       }
@@ -158,7 +180,10 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         const issues: string[] = [];
         const warnings: string[] = [];
         const ok: string[] = [];
-        const providers = (config.providers ?? {}) as unknown as Record<string, Record<string, unknown>>;
+        const providers = (config.providers ?? {}) as unknown as Record<
+          string,
+          Record<string, unknown>
+        >;
         const favorites = config.favoriteModels ?? [];
         const profiles = (config.fallbackProfiles ?? {}) as Record<string, string[]>;
         const chain = config.fallbackModels ?? [];
@@ -167,6 +192,10 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         // 1. Check favorites against provider model lists
         for (const fav of favorites) {
           const p = parseRefInternal(fav);
+          if (!p.model) {
+            issues.push(`Favorite "${fav}" has no model (empty or whitespace-only reference)`);
+            continue;
+          }
           const provId = p.provider ?? config.provider;
           const model = p.model;
           const prov = providers[provId];
@@ -176,7 +205,9 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
           }
           const provModels = prov.models as string[] | undefined;
           if (provModels && provModels.length > 0 && !provModels.includes(model)) {
-            warnings.push(`Favorite "${fav}" — model "${model}" not in ${provId} model list (${provModels.join(', ')})`);
+            warnings.push(
+              `Favorite "${fav}" — model "${model}" not in ${provId} model list (${provModels.join(', ')})`,
+            );
           } else {
             ok.push(`Favorite "${fav}" — provider ${provId} is configured`);
           }
@@ -185,6 +216,10 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         // 2. Check fallback chain entries
         for (const entry of chain) {
           const p = parseRefInternal(entry);
+          if (!p.model) {
+            issues.push(`Chain entry "${entry}" has no model (empty or whitespace-only reference)`);
+            continue;
+          }
           const provId = p.provider ?? config.provider;
           if (!providers[provId] && provId !== config.provider) {
             issues.push(`Chain entry "${entry}" references unknown provider "${provId}"`);
@@ -201,9 +236,17 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
           }
           for (const entry of pchain) {
             const p = parseRefInternal(entry);
+            if (!p.model) {
+              issues.push(
+                `Profile "${pname}" entry "${entry}" has no model (empty or whitespace-only reference)`,
+              );
+              continue;
+            }
             const provId = p.provider ?? config.provider;
             if (!providers[provId] && provId !== config.provider) {
-              issues.push(`Profile "${pname}" entry "${entry}" references unknown provider "${provId}"`);
+              issues.push(
+                `Profile "${pname}" entry "${entry}" references unknown provider "${provId}"`,
+              );
             }
           }
         }
@@ -235,7 +278,8 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         }
 
         // 6. Summary
-        const summary = `  ✓ ${ok.length} checks passed\n` +
+        const summary =
+          `  ✓ ${ok.length} checks passed\n` +
           `  ⚠ ${warnings.length} warnings\n` +
           `  ✗ ${issues.length} issues`;
         const lines: string[] = [summary, ''];
@@ -260,8 +304,8 @@ export function createSystemConfigViewTool(opts: FallbackManageToolOptions): Too
         addSection(
           'Goal Refinement',
           `  refinerProvider: ${ref?.refinerProvider ?? '(same as leader)'}\n` +
-          `  refinerModel: ${ref?.refinerModel ?? '(default for provider)'}\n` +
-          `  refinerFallbackProfile: ${ref?.refinerFallbackProfile ?? '(none)'}`,
+            `  refinerModel: ${ref?.refinerModel ?? '(default for provider)'}\n` +
+            `  refinerFallbackProfile: ${ref?.refinerFallbackProfile ?? '(none)'}`,
         );
       }
 

@@ -1,5 +1,5 @@
 import {
-  GlobalMailbox,
+  getSharedProjectMailbox,
   mailboxSessionTag,
   type AgentMonitorService,
   type Director,
@@ -31,7 +31,7 @@ export function createHostStatusBroadcaster(input: {
   const { events, sessionId, mailboxProjectDir, subagentName, config } = input;
   return createFleetStatusBroadcaster({
     events,
-    mailboxFactory: () => new GlobalMailbox(mailboxProjectDir(), events),
+    mailboxFactory: () => getSharedProjectMailbox(mailboxProjectDir(), events),
     sessionTag: () => mailboxSessionTag(sessionId),
     subagentName,
     config,

@@ -300,9 +300,21 @@ function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
+  // Bound the capture like grep.ts and bash.ts already do. A pathological glob
+  // over a huge tree could otherwise accumulate the whole file listing in one
+  // unbounded string before it is ever split.
+  const MAX_BUF_CHARS = 8 * 1024 * 1024;
   let buf = '';
+  let truncated = false;
   child.stdout?.on('data', (chunk: Buffer) => {
+    if (truncated) return;
     buf += chunk.toString();
+    if (buf.length > MAX_BUF_CHARS) {
+      truncated = true;
+      // Drop the partial trailing path so we never emit a half-written name.
+      buf = buf.slice(0, buf.lastIndexOf('\n') + 1);
+      child.kill();
+    }
   });
   return {
     promise: new Promise((resolve, reject) => {

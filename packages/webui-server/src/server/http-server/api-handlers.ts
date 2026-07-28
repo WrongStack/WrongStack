@@ -373,7 +373,7 @@ export async function handleApiSessionMessage(
 
   try {
     const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { GlobalMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const registry = new SessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
@@ -384,7 +384,7 @@ export async function handleApiSessionMessage(
     }
 
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });
-    const mailbox = new GlobalMailbox(paths.projectDir);
+    const mailbox = getSharedProjectMailbox(paths.projectDir);
     // The target session's leader answers to `leader@<sessionTag>` — its
     // agent-loop checker queries exactly this address before each LLM call.
     const to = `leader@${mailboxSessionTag(sessionId)}`;
@@ -421,7 +421,7 @@ export async function handleApiSessionMailbox(
   }
   try {
     const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { GlobalMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const registry = new SessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
@@ -431,7 +431,7 @@ export async function handleApiSessionMailbox(
       return;
     }
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });
-    const mailbox = new GlobalMailbox(paths.projectDir);
+    const mailbox = getSharedProjectMailbox(paths.projectDir);
     const leaderAddr = `leader@${mailboxSessionTag(sessionId)}`;
     // Messages TO the leader (operator → agent) and FROM the leader (replies).
     const [inbound, outbound] = await Promise.all([
@@ -508,7 +508,7 @@ export async function handleApiSessionInterrupt(
       : 'human@webui';
   try {
     const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { GlobalMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const registry = new SessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
@@ -518,7 +518,7 @@ export async function handleApiSessionInterrupt(
       return;
     }
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });
-    const mailbox = new GlobalMailbox(paths.projectDir);
+    const mailbox = getSharedProjectMailbox(paths.projectDir);
     const to = `leader@${mailboxSessionTag(sessionId)}`;
     const sent = await mailbox.sendRuntimeControl({
       from,
@@ -573,7 +573,7 @@ export async function handleApiFleetBroadcast(
       : 'human@webui';
   try {
     const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { GlobalMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const registry = new SessionRegistry(globalRoot);
     const all = await registry.list();
@@ -589,12 +589,17 @@ export async function handleApiFleetBroadcast(
       return;
     }
     // Cache one mailbox per project dir (targets here share a slug).
-    const mbByDir = new Map<string, InstanceType<typeof GlobalMailbox>>();
-    const mailboxFor = (projectRoot: string): InstanceType<typeof GlobalMailbox> => {
+    const mbByDir = new Map<
+      string,
+      ReturnType<typeof getSharedProjectMailbox>
+    >();
+    const mailboxFor = (
+      projectRoot: string,
+    ): ReturnType<typeof getSharedProjectMailbox> => {
       const dir = resolveWstackPaths({ projectRoot, globalRoot }).projectDir;
       let mb = mbByDir.get(dir);
       if (!mb) {
-        mb = new GlobalMailbox(dir);
+        mb = getSharedProjectMailbox(dir);
         mbByDir.set(dir, mb);
       }
       return mb;

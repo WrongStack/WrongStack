@@ -23,6 +23,15 @@ function createMockService(): SageServiceLike {
     async search() {
       return [];
     },
+    async unifiedSearchService() {
+      return {
+        hits: [],
+        suggestions: [],
+        totalCandidates: 0,
+        rankingApplied: 'hybrid',
+        queryEcho: {},
+      };
+    },
     async findRelated() {
       return [];
     },

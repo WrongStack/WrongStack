@@ -343,6 +343,7 @@
     "pinned": "Pinned",
     "quickSettings": "Quick settings",
     "autonomy": "Autonomy",
+    "autonomyTitle": "Stop auto-running next steps. Toggle off to halt the agent's autonomous loop",
     "autonomyOptions": {
       "off": "Off",
       "suggest": "Suggest",
@@ -801,6 +802,11 @@
     "jsonLines": "JSON · {{count}} lines",
     "collapse": "collapse",
     "expand": "expand"
+  },
+  "sageMemory": {
+    "injectedHeading": "SAGE Memory Injected",
+    "memoriesLabel_one": "{{count}} memory",
+    "memoriesLabel_other": "{{count}} memories"
   },
   "design": {
     "heading": "Design Studio — Gallery",

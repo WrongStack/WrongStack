@@ -7,7 +7,7 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
 import type { ScoredEntry } from '@wrongstack/core/types';
-import { canonicalProjectRoot } from '@wrongstack/core/utils';
+import { canonicalProjectRoot, useDaemonPerfDefaults } from '@wrongstack/core/utils';
 import {
   ensureSageProjectServerSocketDirectory,
   resolveProjectSageStorageRoot,
@@ -73,6 +73,10 @@ function parseArgs(argv: string[]): ParsedArgs {
     ...(directory ? { directory } : {}),
   };
 }
+
+// Long-lived daemon: lean SQLite residency unless the operator says
+// otherwise. Must run before any store opens.
+useDaemonPerfDefaults();
 
 const parsed = parseArgs(process.argv.slice(2));
 const projectRoot = canonicalProjectRoot(parsed.projectRoot);
@@ -288,6 +292,10 @@ async function dispatch(
     case 'searchSage': {
       const args = rawArgs as SageServerOperations['searchSage']['args'];
       return store.searchSage(args.query, args.options);
+    }
+    case 'unifiedSearch': {
+      const args = rawArgs as SageServerOperations['unifiedSearch']['args'];
+      return store.unifiedSearchService(args.query, args.options);
     }
     case 'findRelatedSage': {
       const args = rawArgs as SageServerOperations['findRelatedSage']['args'];

@@ -115,6 +115,14 @@ function parseSerializedHeaderFields(header: string): Record<string, string> {
   return fields;
 }
 
+/** Remove context injected after the actual tool result before parsing it. */
+function stripTrailingSageContext(output: string): string {
+  return output.replace(
+    /\r?\n\r?\n--- SAGE: [^\r\n]*\(Memory Injector\) ---[\s\S]*$/u,
+    '',
+  );
+}
+
 /** Extract file edit metadata from a tool call's output/input, if this is a
  *  file-edit tool with a parseable result. */
 export function extractFileEditMeta(toolCall: ToolCallInfo): FileEditMeta | null {
@@ -124,12 +132,13 @@ export function extractFileEditMeta(toolCall: ToolCallInfo): FileEditMeta | null
   // is file content or search results (not a structured JSON result).
   const inputPath = extractPathFromInput(toolCall.name, toolCall.input);
 
-  const output = toolCall.output;
-  if (!output || typeof output !== 'string') {
+  const rawOutput = toolCall.output;
+  if (!rawOutput || typeof rawOutput !== 'string') {
     // No output yet (still running) — show the input path if we have one.
     if (inputPath) return { path: inputPath };
     return null;
   }
+  const output = stripTrailingSageContext(rawOutput);
 
   // ── Path A: structured JSON (legacy / direct result objects) ──
   try {

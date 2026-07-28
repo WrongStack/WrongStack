@@ -222,6 +222,120 @@ describe('agent_model_assign', () => {
     expect(result.status).toBe('error');
     expect(result.message).toContain('not a valid matrix key');
   });
+
+  describe('favoriteModelsOnly contract on model-only mode', () => {
+    // Contract pinned 2026-07-28. `favoriteModelsOnly` is documented as
+    // an *auto-derivation* toggle (config.favoriteModelsOnly): "When
+    // true, auto-derived fallback chains are restricted to favoriteModels.
+    // Explicit fallback profiles/chains are always honored as written."
+    //
+    // The matrix model-only mode (`agent_model_assign` with `model=...`
+    // and no `profile=...`) is an *explicit* assignment. The contract
+    // pins two invariants here so a future refactor cannot silently
+    // invert the toggle's documented scope:
+    //
+    //   1. The toggle does NOT change which models are valid for an
+    //      explicit assignment — that depends only on the favorites
+    //      list, not the toggle.
+    //
+    //   2. An explicit assignment is always at least as strict as the
+    //      smart-default chain: the matrix model-only mode requires
+    //      favorites when favorites exist (regardless of toggle),
+    //      while the smart-default chain only narrows when the toggle
+    //      is on AND favorites exist.
+    //
+    // This is also why the model-only mode does not need a special
+    // `favoriteModelsOnly` branch — adding one would either be a
+    // no-op (when toggle is off) or relax the existing check
+    // (when toggle is on but favorites is empty, which the smart
+    // default accepts but matrix model-only currently rejects via
+    // `isFavoriteRef`'s "empty favorites = no enforcement" semantics).
+    // We deliberately keep the model-only mode strict.
+
+    it('accepts a non-favorite model when favorites list is empty regardless of favoriteModelsOnly', async () => {
+      // Empty favorites: `isFavoriteRef` returns true (legacy no-enforcement
+      // semantics), so an explicit assignment of any model succeeds. The
+      // toggle is irrelevant when there is nothing to enforce against.
+      for (const toggleValue of [false, true]) {
+        const opts = makeOpts({
+          providers: {
+            'test-provider': { type: 'openai', apiKey: 'sk-test', models: ['any-model'] },
+          },
+          favoriteModels: [],
+          favoriteModelsOnly: toggleValue,
+        });
+        const tool = getTool(createFallbackManageTools(opts), AGENT_MODEL_ASSIGN_TOOL_NAME);
+        const result = await run(tool, { role: 'bug-hunter', model: 'any-model' });
+        expect(result.status).toBe('ok');
+        expect(result.message).toContain('any-model');
+      }
+    });
+
+    it('accepts a favorite model whether the toggle is on or off', async () => {
+      // The toggle does not relax or tighten the model-only mode: any
+      // favorite model is accepted in both states. This is what "explicit
+      // assignments are always honored as written" means in practice.
+      for (const toggleValue of [false, true]) {
+        const opts = makeOpts({
+          favoriteModelsOnly: toggleValue,
+        });
+        const tool = getTool(createFallbackManageTools(opts), AGENT_MODEL_ASSIGN_TOOL_NAME);
+        const result = await run(tool, { role: 'bug-hunter', model: 'test-model' });
+        expect(result.status).toBe('ok');
+        expect(result.message).toContain('test-model');
+      }
+    });
+
+    it('rejects a non-favorite model whether the toggle is on or off', async () => {
+      // Even when `favoriteModelsOnly` is OFF, an explicit assignment to a
+      // non-favorite ref is rejected — explicit assignments are *stricter*
+      // than the smart-default chain, not more permissive. This is the
+      // load-bearing parity claim: a non-favorite entry that the smart
+      // default would surface (because favorites list is empty or the
+      // toggle is off) cannot slip through an explicit assignment.
+      for (const toggleValue of [false, true]) {
+        const opts = makeOpts({ favoriteModelsOnly: toggleValue });
+        const tool = getTool(createFallbackManageTools(opts), AGENT_MODEL_ASSIGN_TOOL_NAME);
+        const result = await run(tool, { role: 'bug-hunter', model: 'claude-3' });
+        expect(result.status).toBe('error');
+        expect(result.message).toContain('not in your favorites');
+      }
+    });
+
+    it('accepts a provider-prefixed favorite model regardless of the toggle', async () => {
+      // The matrix model-only mode supports provider overrides via the
+      // `provider` field; the same toggle-irrelevance contract applies.
+      for (const toggleValue of [false, true]) {
+        const opts = makeOpts({
+          favoriteModels: ['test-provider/test-model'],
+          favoriteModelsOnly: toggleValue,
+        });
+        const tool = getTool(createFallbackManageTools(opts), AGENT_MODEL_ASSIGN_TOOL_NAME);
+        const result = await run(tool, {
+          role: 'bug-hunter',
+          provider: 'test-provider',
+          model: 'test-model',
+        });
+        expect(result.status).toBe('ok');
+        expect(result.message).toContain('test-provider/test-model');
+      }
+    });
+
+    it('rejects a provider-prefixed non-favorite model regardless of the toggle', async () => {
+      // Mirror of the above for non-favorites.
+      for (const toggleValue of [false, true]) {
+        const opts = makeOpts({ favoriteModelsOnly: toggleValue });
+        const tool = getTool(createFallbackManageTools(opts), AGENT_MODEL_ASSIGN_TOOL_NAME);
+        const result = await run(tool, {
+          role: 'bug-hunter',
+          provider: 'test-provider',
+          model: 'claude-3',
+        });
+        expect(result.status).toBe('error');
+        expect(result.message).toContain('not in your favorites');
+      }
+    });
+  });
 });
 
 // ── Provider Manage ──────────────────────────────────────────────────────────

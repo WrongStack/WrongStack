@@ -25,6 +25,20 @@ export interface RefineFailureModel {
   label?: string | undefined;
 }
 
+export function filterRefineModels<T extends RefineFailureModel>(
+  models: readonly T[],
+  query: string,
+): readonly T[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return models;
+  return models.filter(
+    (candidate) =>
+      candidate.providerId.toLowerCase().includes(normalized) ||
+      candidate.model.toLowerCase().includes(normalized) ||
+      candidate.label?.toLowerCase().includes(normalized),
+  );
+}
+
 export interface RefineFailurePanelProps {
   /** The user's original message (sent as-is if they decline recovery). */
   original: string;

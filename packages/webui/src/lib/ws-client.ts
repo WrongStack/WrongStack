@@ -108,6 +108,7 @@ class WrongStackWebSocketClientBase {
   private static readonly MAX_QUEUED_MESSAGES = 1000;
   private pendingConfirms: Map<string, PendingConfirm> = new Map();
   private sessionId: string | null = null;
+  private sessionSwapPending = false;
   /** Stored last close reason / error message so the UI can show "what
    *  went wrong" while reconnecting instead of a generic spinner. */
   private lastErrorText: string | undefined;
@@ -346,6 +347,7 @@ class WrongStackWebSocketClientBase {
 
         ws.onclose = (ev) => {
           if (this.socketGeneration !== gen) return; // stale socket
+          this.sessionSwapPending = false;
           if (!established) {
             clearTimeout(connectTimeout);
             const reason = ev.reason || `Closed with code ${ev.code}`;
@@ -474,6 +476,12 @@ class WrongStackWebSocketClientBase {
       this.sessionId = payload.sessionId;
       this.protocolVersion = negotiation.version;
       this.protocolCapabilities = new Set(negotiation.capabilities);
+      this.sessionSwapPending = false;
+    } else if (
+      msg.type === 'error' &&
+      (msg.payload.phase === 'session.new' || msg.payload.phase === 'session.resume')
+    ) {
+      this.sessionSwapPending = false;
     }
 
     this.emit(msg);
@@ -514,6 +522,10 @@ class WrongStackWebSocketClientBase {
       );
       return false;
     }
+    const sessionSwap =
+      message.type === 'session.new' || message.type === 'session.resume';
+    if (sessionSwap && this.sessionSwapPending) return false;
+    if (sessionSwap) this.sessionSwapPending = true;
     if (options.echoToChat === false) {
       const responseType = CHAT_ECHO_RESPONSE_BY_REQUEST[message.type];
       if (responseType) {
@@ -959,6 +971,7 @@ class WrongStackWebSocketClientBase {
     // from before the disconnect would be confusing at best and buggy
     // at worst (e.g. an old 'session.new' overriding the user's new one).
     this.messageQueue.length = 0;
+    this.sessionSwapPending = false;
     this.ws?.close();
     this.ws = null;
     // C-2 fix: no client-side token storage to clear — the token lives

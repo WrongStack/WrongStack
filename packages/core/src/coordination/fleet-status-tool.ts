@@ -20,7 +20,7 @@ import type { Context } from '../core/context.js';
 import type { AgentEntry } from '../session-registry.js';
 import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { GlobalMailbox } from './global-mailbox.js';
+import { getSharedProjectMailbox } from './remote-mailbox.js';
 import {
   defaultResolveProjectDir,
   resolveMailboxIdentity,
@@ -54,7 +54,7 @@ export function makeFleetStatusTool(opts: FleetStatusToolOptions = {}): Tool {
   const resolveMailbox: MailboxResolver =
     opts.resolveMailbox ??
     ((ctx: Context) =>
-      new GlobalMailbox(opts.projectDir ?? defaultResolveProjectDir(ctx), opts.events));
+      getSharedProjectMailbox(opts.projectDir ?? defaultResolveProjectDir(ctx), opts.events));
   return {
     name: 'fleet_status',
     description:

@@ -70,14 +70,13 @@ import * as path from 'node:path';
 import {
   acquireOrJoin,
   authorizeMailboxBearerToken,
-  authorizeMailboxCredential,
+  createProjectMailbox,
   createMailboxHttpRouter,
   finalize,
-  GlobalMailbox,
-  JsonlCredentialStore,
   MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
   MailboxEventEmitter,
   MailboxHttpRateLimiter,
+  type MailboxCredentialVerifier,
   release,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
@@ -177,12 +176,11 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   const tentative = acquireResult.lock;
   const eventEmitter = new MailboxEventEmitter();
   let hqConnection: CliHqConnection | undefined;
-  const mailbox = new GlobalMailbox(
+  const mailbox = createProjectMailbox({
     projectDir,
-    undefined,
-    () => hqConnection?.getPublisher(),
+    hqPublisher: () => hqConnection?.getPublisher(),
     eventEmitter,
-  );
+  });
 
   // Authentication and protocol handling are shared with HQ; this host keeps
   // ownership of the standalone bridge token, rate-limiter lifecycle, and
@@ -191,7 +189,12 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   const rateLimitCleanup = setInterval(() => rateLimiter.cleanup(), 120_000);
   rateLimitCleanup.unref?.();
   const projectId = path.basename(projectDir);
-  const credentialStore = new JsonlCredentialStore(projectDir);
+  const credentialStore: MailboxCredentialVerifier = {
+    load: async () => mailbox.initialize(),
+    verify: (credentialId, secret) => mailbox.credentialVerify(credentialId, secret),
+    verifyPersisted: (credentialId, secret) =>
+      mailbox.credentialVerify(credentialId, secret),
+  };
   // Identity credentials must be ready before the socket starts accepting
   // requests. `verify()` intentionally fails closed while the store is
   // unloaded, so a fire-and-forget load creates a startup race for every
@@ -214,10 +217,12 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     credentialStore,
     projectId,
     authorize: (request) => {
-      const credentialDecision = authorizeMailboxCredential(request, credentialStore);
-      return credentialDecision.allowed
-        ? credentialDecision
-        : authorizeMailboxBearerToken(request, tentative.token);
+      if (/^Credential\s+/i.test(request.headers.authorization ?? '')) {
+        // The shared router performs the authoritative async verification
+        // against the project owner and injects the credential actor.
+        return { allowed: true };
+      }
+      return authorizeMailboxBearerToken(request, tentative.token);
     },
     // Wire the 1h look-back that the router's docs promise at
     // mailbox-http-router.ts:25-32 / :47-62. The router itself is

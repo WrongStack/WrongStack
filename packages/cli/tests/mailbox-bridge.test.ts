@@ -3,8 +3,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
-  GlobalMailbox,
-  JsonlCredentialStore,
+  createProjectMailbox,
+  MailboxProjectServerConnection,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
@@ -21,6 +21,7 @@ import { mailboxServeCmd } from '../src/subcommands/handlers/mailbox-serve.js';
  */
 
 let tmpProject: string;
+let mailboxProjectDir: string;
 let serverPromise: Promise<number>; // resolves to the bound port
 let token: string;
 let credentialAuthorization: string;
@@ -72,15 +73,14 @@ beforeAll(async () => {
   // set it before the handler imports its deps.
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-mailbox-test-home-'));
   process.env['WRONGSTACK_HOME'] = home;
+  process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
   // Per-suite project dir under that home.
   tmpProject = await fs.mkdtemp(path.join(home, 'project-'));
-  // Construct GlobalMailbox against the same project dir so we can
-  // observe writes through the same file the HTTP server reads.
   const projectDir = resolveProjectDir(tmpProject, wstackGlobalRoot());
-  // Pre-create the project mailbox file by issuing a no-op read; the
-  // server's `unreadCount` etc. would still work without it, but writing
-  // a sentinel message ensures the JSONL exists.
-  const mb = new GlobalMailbox(projectDir);
+  mailboxProjectDir = projectDir;
+  // Bootstrap through the same IPC owner the bridge will use.
+  const mb = createProjectMailbox({ projectDir, isolatedConnection: true });
+  await mb.initialize();
   await mb.send({
     from: 'test-bootstrap',
     to: 'test-bootstrap',
@@ -88,14 +88,7 @@ beforeAll(async () => {
     subject: 'bootstrap',
     body: 'pre-suite',
   });
-  await mb.close();
-
-  // Persist an identity-scoped credential before the bridge starts. The first
-  // credential-authenticated request after the startup event proves the CLI
-  // awaited the store load before it began listening.
-  const credentialStore = new JsonlCredentialStore(projectDir);
-  await credentialStore.load();
-  const issued = await credentialStore.issue({
+  const issued = await mb.credentialIssue({
     principalId: 'bridge-test@test-session',
     projectId: path.basename(projectDir),
     kind: 'agent',
@@ -103,6 +96,7 @@ beforeAll(async () => {
     ttlMs: 60_000,
   });
   credentialAuthorization = `Credential ${issued.credential.credentialId}:${issued.secret}`;
+  await mb.close();
 
   // Boot the server via the same handler the CLI uses. We pass
   // --port 0 so the OS picks a free port, and capture it from a side
@@ -173,6 +167,11 @@ afterAll(async () => {
       child.kill('SIGINT');
     });
   }
+  if (mailboxProjectDir) {
+    const connection = new MailboxProjectServerConnection(mailboxProjectDir);
+    await connection.shutdown('mailbox bridge integration test complete').catch(() => undefined);
+    connection.close();
+  }
   if (process.env['WRONGSTACK_HOME']) {
     // maxRetries/retryDelay ride out any lingering Windows file lock.
     await fs.rm(process.env['WRONGSTACK_HOME'], {
@@ -183,6 +182,7 @@ afterAll(async () => {
     });
     delete process.env['WRONGSTACK_HOME'];
   }
+  delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
 });
 
 const auth = (): Record<string, string> => ({ Authorization: `Bearer ${token}` });

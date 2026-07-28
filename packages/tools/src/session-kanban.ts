@@ -1,7 +1,7 @@
 import { type FSWatcher, watch } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import { GlobalMailbox } from '@wrongstack/core/coordination';
+import { getSharedProjectMailbox } from '@wrongstack/core/coordination';
 import {
   loadPlan,
   loadTasks,
@@ -462,7 +462,7 @@ function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]): void
   const sessionId = context.session?.id ?? '';
   if (!context.agentId || !sessionId) return;
   const projectDir = resolveWstackPaths({ projectRoot: context.projectRoot }).projectDir;
-  const mailbox = new GlobalMailbox(projectDir);
+  const mailbox = getSharedProjectMailbox(projectDir);
   void mailbox
     .send({
       from: context.agentId,

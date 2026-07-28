@@ -920,6 +920,31 @@ describe('F5 resilience — chat transcript persistence', () => {
     useChatStore.getState().setBoundSessionId(null);
     expect(useChatStore.getState().boundSessionId).toBeNull();
   });
+
+  it('addMessage caps messages at MAX_CHAT_MESSAGES (1000) and drops oldest', () => {
+    // Seed 1500 messages to exceed the cap.
+    for (let i = 0; i < 1500; i++) {
+      useChatStore.getState().addMessage(makeMsg({ role: 'user', content: `m${i}` }));
+    }
+    const { messages } = useChatStore.getState();
+    expect(messages).toHaveLength(1000);
+    // The 501st message (m500) is the oldest survivor; the first 500 were dropped.
+    expect(messages[0]?.content).toBe('m500');
+    expect(messages[999]?.content).toBe('m1499');
+  });
+
+  it('addMessage prunes executions Map entries for tool_ids no longer in messages', () => {
+    useChatStore.getState().addMessage(
+      makeMsg({ role: 'tool', content: 'old tool result', toolUseId: 'tool-old' }),
+    );
+    expect(useChatStore.getState().toolMessageIdsByUseId.has('tool-old')).toBe(true);
+
+    // Fill past MAX_CHAT_MESSAGES so 'tool-old' is rolled out of the window.
+    for (let i = 0; i < 1005; i++) {
+      useChatStore.getState().addMessage(makeMsg({ role: 'user', content: `fill ${i}` }));
+    }
+    expect(useChatStore.getState().toolMessageIdsByUseId.has('tool-old')).toBe(false);
+  });
 });
 
 function setChatPersisted(value: Record<string, unknown> | null): void {

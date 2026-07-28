@@ -11,6 +11,7 @@
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { useDaemonPerfDefaults } from '@wrongstack/core/utils';
 import {
   DEFAULT_WALK_IGNORE_SET,
   type ProjectWatchSubscription,
@@ -91,6 +92,10 @@ function parseArgs(argv: string[]): { projectRoot: string; indexDir?: string | u
     ...(indexDir ? { indexDir: path.resolve(indexDir) } : {}),
   };
 }
+
+// Long-lived daemon: lean SQLite residency unless the operator says
+// otherwise. Must run before any store opens.
+useDaemonPerfDefaults();
 
 const parsed = parseArgs(process.argv.slice(2));
 const projectRoot = parsed.projectRoot;

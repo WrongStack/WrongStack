@@ -10,7 +10,7 @@
  *
  * Usage:
  *
- *   const mailbox = new GlobalMailbox(projectDir);
+ *   const mailbox = getSharedProjectMailbox(projectDir);
  *   const watchdog = new MailboxHealthWatchdog({
  *     mailbox,
  *     url: 'http://127.0.0.1:7788',
@@ -26,12 +26,11 @@
  * `/mailbox-serve`). The watchdog then reports on what the user did.
  */
 
-import type { GlobalMailbox } from './global-mailbox.js';
-import type { MailboxSendInput } from './mailbox-types.js';
+import type { Mailbox, MailboxSendInput } from './mailbox-types.js';
 
 export interface MailboxHealthWatchdogOptions {
   /** Project mailbox to probe-and-report on. Required. */
-  mailbox: GlobalMailbox;
+  mailbox: Mailbox;
   /** URL of the mailbox bridge (no trailing slash). Required. */
   url: string;
   /** Probe interval in milliseconds. Default: 15_000. */
@@ -67,7 +66,7 @@ export const MAILBOX_HEALTH_DEFAULT_FAILURE_THRESHOLD = 2;
 export const MAILBOX_HEALTH_DEFAULT_FROM = 'mailbox-bridge-watchdog';
 
 export class MailboxHealthWatchdog {
-  private readonly mailbox: GlobalMailbox;
+  private readonly mailbox: Mailbox;
   private readonly url: string;
   private readonly intervalMs: number;
   private readonly timeoutMs: number;

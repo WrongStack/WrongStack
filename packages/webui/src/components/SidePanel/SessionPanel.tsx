@@ -22,7 +22,7 @@ import {
   SlidersHorizontal,
   Square,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { usePagination } from '@/hooks/usePagination';
 import { useAppTranslation } from '@/i18n';
@@ -176,7 +176,7 @@ function QuickToggle({
 // ── Panel ─────────────────────────────────────────────────────────────
 
 export function SessionPanel() {
-  const { client, updatePrefs } = useWebSocket();
+  const { client, updatePrefs, switchAutonomy } = useWebSocket();
   const { t } = useAppTranslation();
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const wsUrl = useConfigStore((s) => s.wsUrl);
@@ -197,6 +197,12 @@ export function SessionPanel() {
   const historyEntries = useHistoryStore((s) => s.entries);
 
   const localPrefs = useLocalPrefs();
+  // Tracks the last non-'off' autonomy mode so the binary toggle can
+  // restore it after a kill-switch. Persisted in module scope so it
+  // survives component remounts but resets on a hard page reload.
+  const lastAutonomyRef = useRef<typeof localPrefs.autonomy>(
+    localPrefs.autonomy === 'off' ? 'auto' : localPrefs.autonomy,
+  );
   const syncPref = useCallback(
     (key: string, value: unknown) => {
       localPrefs.set({ [key]: value } as Parameters<typeof localPrefs.set>[0]);
@@ -463,6 +469,17 @@ export function SessionPanel() {
       {/* ── Quick settings — the mid-session knobs ── */}
       <div className="space-y-1 border-b border-border/70 px-3 py-2.5">
         <SectionHeading icon={<SlidersHorizontal className="h-3 w-3" />} label={t('activity:sessionPanel.quickSettings')} />
+        <QuickToggle
+          label={t('activity:sessionPanel.autonomy')}
+          title={t('activity:sessionPanel.autonomyTitle')}
+          value={localPrefs.autonomy !== 'off'}
+          onChange={() => {
+            const next = localPrefs.autonomy === 'off' ? lastAutonomyRef.current : 'off';
+            if (next !== 'off') lastAutonomyRef.current = next;
+            localPrefs.set({ autonomy: next });
+            switchAutonomy(next);
+          }}
+        />
         <QuickToggle
           label={t('activity:sessionPanel.yolo')}
           title={t('activity:sessionPanel.yoloTitle')}

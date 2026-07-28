@@ -14,7 +14,7 @@ import type {
   AgentFactory,
   BrainArbiter,
   Director,
-  GlobalMailbox,
+  RemoteMailbox,
 } from '@wrongstack/core/coordination';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { JournalEntry } from '@wrongstack/core/goal';
@@ -144,7 +144,7 @@ export interface SessionDeps {
   memoryStore?: MemoryPort | undefined;
   modeStore?: ModeStore | undefined;
   mcpRegistry: MCPRegistry;
-  mailbox: GlobalMailbox;
+  mailbox: RemoteMailbox;
   detachTodosCheckpoint?: (() => void | Promise<void>) | undefined;
   restoredMessages?: Message[] | undefined;
   restoredToolCalls?: RestoredToolCall[] | undefined;

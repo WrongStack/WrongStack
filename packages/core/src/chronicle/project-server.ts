@@ -11,6 +11,7 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import { type ChronicleContext, createChronicleContext } from './context.js';
 import { type ChronicleFileObserver, startChronicleFileObserver } from './file-observer.js';
 import { resolveChronicleRuntimeLocation } from './identity.js';
@@ -83,6 +84,10 @@ function parseArgs(argv: string[]): ParsedArgs {
   };
 }
 
+// Long-lived daemon: lean SQLite residency unless the operator says
+// otherwise. Must run before any store opens.
+useDaemonPerfDefaults();
+
 const parsed = parseArgs(process.argv.slice(2));
 const chronicleDirectory = path.join(parsed.projectDir, 'chronicle');
 const endpoint = chronicleProjectServerEndpoint(parsed.projectDir);
@@ -118,6 +123,37 @@ let metricsRefresh:
   | undefined;
 const pendingMutationHints: Parameters<ChronicleFileObserver['noteToolMutation']>[0][] = [];
 
+/**
+ * Days of journal to keep open. Yesterday stays available because events can
+ * still arrive for it right after midnight; anything older can only accumulate.
+ */
+const MAX_OPEN_JOURNAL_DAYS = 2;
+
+/**
+ * Drop journals for days we will not write to again.
+ *
+ * `journals` was only ever `get`/`set`/iterated — there was no `delete` and no
+ * cap — so a daemon that lived across midnight kept one open `ChronicleJournal`
+ * (with its write buffer and file handle) per day, forever. These daemons
+ * routinely stay up for many hours.
+ */
+function pruneJournals(currentDay: string): void {
+  if (journals.size <= MAX_OPEN_JOURNAL_DAYS) return;
+  const keep = new Set(
+    [...journals.keys()].sort().reverse().slice(0, MAX_OPEN_JOURNAL_DAYS),
+  );
+  keep.add(currentDay);
+  for (const [day, journal] of journals) {
+    if (keep.has(day)) continue;
+    journals.delete(day);
+    // Flush what is still buffered before letting it go. Detached, so a slow
+    // disk cannot stall an append — but never unhandled.
+    void journal.flush().catch(() => {
+      /* best-effort: the daemon is dropping this day either way */
+    });
+  }
+}
+
 function journalForToday(): ChronicleJournal {
   const now = new Date();
   const day = now.toISOString().slice(0, 10);
@@ -134,6 +170,7 @@ function journalForToday(): ChronicleJournal {
       retentionDays: parsed.retentionDays,
     });
     journals.set(day, journal);
+    pruneJournals(day);
   }
   return journal;
 }
@@ -328,7 +365,14 @@ async function dispatch<O extends ChronicleServerOperationName>(
     }
     case 'metrics': {
       const args = rawArgs as ChronicleServerOperations['metrics']['args'];
-      const refreshed = await refreshMetrics();
+      const refreshed = args.refresh === false
+        ? { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 }
+        : await refreshMetrics();
+      if (args.refresh === false) {
+        // Keep the projection converging without putting historical indexing
+        // latency on the caller's critical path.
+        void refreshMetrics().catch(() => {});
+      }
       const store = metrics();
       const data =
         args.view === 'providers'

@@ -47,6 +47,7 @@ import { formatLegacyEntry } from './sqlite-store-pagination.js';
 import { retrieveSqliteSageForPath } from './sqlite-store-retrieve-path.js';
 import { initializeSqliteSageStore } from './sqlite-store-initialize.js';
 import { searchSqliteSage } from './sqlite-store-search-sage.js';
+import { executeUnifiedSearch } from './sqlite-store-search.js';
 import { getSqliteSageStats } from './sqlite-store-stats.js';
 import { updateSqliteSage } from './sqlite-store-update.js';
 import { verifySqliteSage } from './sqlite-store-verify.js';
@@ -75,6 +76,7 @@ import {
 import {
   normalizeTextKey,
 } from './store-helpers.js';
+import type { SearchOptions, SearchQuery, SearchResult } from './service-contract.js';
 import type {
   CandidateDecision,
   CreateCandidateInput,
@@ -899,6 +901,14 @@ export class SqliteSageStore implements MemoryStore {
   }
 
   // ─── Alias methods matching SageStore's public API ──────────
+
+  async unifiedSearchService(
+    query: SearchQuery,
+    _options?: SearchOptions,
+  ): Promise<SearchResult> {
+    await this.initialize();
+    return executeUnifiedSearch(this.adminHost(), query);
+  }
 
   async stats(): Promise<SageStats> {
     return this.getStats();

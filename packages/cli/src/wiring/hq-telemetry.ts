@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import type { Config, SessionWriter } from '@wrongstack/core/types';
 import type { HqPublisher } from '@wrongstack/core/hq';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { GlobalMailbox } from '@wrongstack/core/coordination';
+import type { RemoteMailbox } from '@wrongstack/core/coordination';
 import { startCostTelemetryBridge, startSessionTelemetryBridge, startFleetTelemetryBridge, startBrainTelemetryBridge, startWorktreeTelemetryBridge, startToolTelemetryBridge } from '@wrongstack/core/hq';
 import type { AgentMonitorService } from '@wrongstack/core/coordination';
 import type { MCPRegistry } from '@wrongstack/mcp';
@@ -29,7 +29,7 @@ export interface SetupHqTelemetryDeps {
   // biome-ignore lint/suspicious/noExplicitAny: tracker type from AgentStatusTracker
   tracker: any | undefined;
   agentMonitor: AgentMonitorService | undefined;
-  brainMailbox: GlobalMailbox;
+  brainMailbox: RemoteMailbox;
   teardownHandlers: (() => void)[];
   mailboxSessionTag: (sessionId: string) => string;
   hqPublisherRef: HqPublisherRef;

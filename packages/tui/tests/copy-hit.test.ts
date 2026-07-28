@@ -7,7 +7,7 @@ import {
 
 /** Build a copy hit at a given row range with the icon at `iconCol`. */
 function hit(entryId: number, startRow: number, endRow: number, iconCol: number): CopyHit {
-  return { entryId, text: `text-${entryId}`, startRow, endRow, iconCol };
+  return { entryId, startRow, endRow, iconCol };
 }
 
 describe('copyRegistryVisibleClip', () => {
@@ -69,7 +69,7 @@ describe('findCopyHit', () => {
     const hits = [hit(1, 0, 3, 40)];
     const found = findCopyHit(hits, 1, 40);
     expect(found?.entryId).toBe(1);
-    expect(found?.text).toBe('text-1');
+    expect(found).toEqual({ entryId: 1, startRow: 0, endRow: 3, iconCol: 40 });
   });
 
   it('matches only the single icon row (endRow exclusive)', () => {

@@ -12,6 +12,10 @@
  */
 import * as storage from '../storage.js';
 import * as kanban from '../manager.js';
+import {
+  getKanbanServerConnection,
+  type KanbanServerMethod,
+} from './client.js';
 
 type Mode = 'auto' | 'server' | 'file';
 
@@ -107,8 +111,24 @@ export class ServerKanbanStore {
   releaseTaskClaim(boardId: string, taskId: string) {
     return this.call('releaseTask', { boardId, taskId }, () => kanban.releaseTaskClaim(this.projectRoot, boardId, taskId));
   }
-  assignTask(boardId: string, taskId: string, input: any) {
-    return this.call('assignTask', { boardId, taskId, ...input }, () => kanban.assignTask(this.projectRoot, boardId, taskId, input));
+  assignTask(boardId: string, taskId: string, input: any, eventContext: any = {}) {
+    return this.call('assignTask', { boardId, taskId, input, eventContext }, () =>
+      kanban.assignTask(this.projectRoot, boardId, taskId, input, eventContext),
+    );
+  }
+  updateTaskAssignment(boardId: string, taskId: string, patch: any, eventContext: any = {}) {
+    return this.call(
+      'updateTaskAssignment',
+      { boardId, taskId, patch, eventContext },
+      () => kanban.updateTaskAssignment(this.projectRoot, boardId, taskId, patch, eventContext),
+    );
+  }
+  finalizeTaskCompletion(boardId: string, taskId: string, options: any = {}) {
+    return this.call(
+      'finalizeTaskCompletion',
+      { boardId, taskId, options },
+      () => kanban.finalizeTaskCompletion(this.projectRoot, boardId, taskId, options),
+    );
   }
   heartbeatTaskAssignment(boardId: string, taskId: string, input: any) {
     return this.call('heartbeatAssignment', { boardId, taskId, ...input }, () => kanban.heartbeatTaskAssignment(this.projectRoot, boardId, taskId, input));
@@ -123,19 +143,31 @@ export class ServerKanbanStore {
     return this.call('reconcileBoard', { boardId }, () => kanban.reconcileKanbanBoard(this.projectRoot, boardId));
   }
 
-  // ─── Chains (currently accessed via kanban's internal API; server
-  //          routing for these is a follow-up) ─────────────────────────────
+  // ─── Chains ─────────────────────────────────────────────────────────────
 
-  setChain(boardId: string, taskIds: string[]) {
-    return this.call('setChain', { boardId, taskIds }, () => (kanban as any).setChainMetadata?.(this.projectRoot, boardId, taskIds));
+  setChain(
+    boardId: string,
+    taskIds: string[],
+    options: { chainId?: string; enforceDependencies?: boolean } = {},
+  ) {
+    return this.call('setChain', { boardId, taskIds, ...options }, () =>
+      kanban.setTaskChain(this.projectRoot, boardId, { taskIds, ...options }),
+    );
   }
   getChain(boardId: string, opts: { taskId?: string; chainId?: string }) {
-    return this.call('getChain', { boardId, ...opts }, async () => {
-      const board = await storage.readBoard(this.projectRoot, boardId);
-      if (!board) return null;
-      const chain = (board as any).chains?.[opts.chainId ?? ''] ?? null;
-      return chain;
-    });
+    return this.call('getChain', { boardId, ...opts }, () =>
+      kanban.getTaskChain(this.projectRoot, boardId, opts.chainId ?? opts.taskId ?? ''),
+    );
+  }
+
+  verifyTaskCompletion(
+    boardId: string,
+    taskId: string,
+    options: { persist?: boolean } = {},
+  ) {
+    return this.call('verifyTaskCompletion', { boardId, taskId, ...options }, () =>
+      kanban.verifyTaskCompletion(this.projectRoot, boardId, taskId, options),
+    );
   }
 
   // ─── Search / export / import ───────────────────────────────────────────
@@ -179,21 +211,32 @@ export class ServerKanbanStore {
 
   // ─── Internal: prefer server, fallback to direct call ──────────────────
 
-  private async call<T>(_method: string, _params: any, direct: () => Promise<T> | T): Promise<T> {
-    // The server facade is currently opt-in. The kanban tool's existing
-    // execute() function dispatches actions to direct storage functions;
-    // routing every call through the daemon would require touching all
-    // call sites. Tools that need cross-process coordination can call
-    // `getKanbanServerConnection(projectRoot)` directly and use
-    // `connection.request(method, params)`.
-    //
-    // The infrastructure is in place; per-action routing is a follow-up.
-    // `_method` and `_params` are kept in the signature so the call sites
-    // remain self-documenting and the per-action router can be slotted in
-    // without changing every call shape.
-    void _method;
-    void _params;
-    return direct();
+  private async call<T>(
+    method: KanbanServerMethod,
+    params: any,
+    direct: () => Promise<T> | T,
+  ): Promise<any> {
+    const mode = resolveMode();
+    if (mode === 'file') return direct();
+
+    let connection;
+    try {
+      connection = await getKanbanServerConnection(this.projectRoot);
+    } catch (error) {
+      if (mode === 'server') throw error;
+      return direct();
+    }
+
+    if (!connection) {
+      if (mode === 'server') {
+        throw new Error('Kanban server unavailable (mode=server)');
+      }
+      return direct();
+    }
+
+    // Once a request reaches a daemon, never replay it against the file store:
+    // a lost response may still mean the mutation committed server-side.
+    return connection.request(method, params);
   }
 }
 
@@ -201,12 +244,32 @@ function projectRoot_safe(store: ServerKanbanStore): string {
   return store.projectRoot;
 }
 
+/**
+ * Bounded LRU of per-project stores.
+ *
+ * This was a plain module-scope `Map` that was never evicted, so a long-lived
+ * host (webui-server, HQ) accumulated one store per project root it ever
+ * touched — including every temp directory created by a test run. Mirrors the
+ * 8-project caps in webui-server's `chronicle-routes.ts` and `mailbox-handlers.ts`.
+ */
+const MAX_CACHED_STORES = 8;
 const stores = new Map<string, ServerKanbanStore>();
+
 export function getServerKanbanStore(projectRoot: string): ServerKanbanStore {
   let s = stores.get(projectRoot);
-  if (!s) {
-    s = new ServerKanbanStore(projectRoot);
+  if (s) {
+    // Refresh recency: Map preserves insertion order, so re-inserting moves
+    // this key to the most-recent end.
+    stores.delete(projectRoot);
     stores.set(projectRoot, s);
+    return s;
+  }
+  s = new ServerKanbanStore(projectRoot);
+  stores.set(projectRoot, s);
+  while (stores.size > MAX_CACHED_STORES) {
+    const oldest = stores.keys().next().value;
+    if (oldest === undefined) break;
+    stores.delete(oldest);
   }
   return s;
 }

@@ -1,6 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import type { JsonlCredentialStore } from './mailbox-credential-store.js';
+import type {
+  JsonlCredentialStore,
+  MailboxCredentialVerifier,
+} from './mailbox-credential-store.js';
 import type { MailboxActorContext } from './mailbox-types.js';
 
 export type MailboxHttpAccessDecision =
@@ -52,7 +55,7 @@ export function authorizeMailboxCredential(
 /** Authorize against a fresh persisted snapshot so external revocations apply immediately. */
 export async function authorizePersistedMailboxCredential(
   request: IncomingMessage,
-  store: JsonlCredentialStore,
+  store: MailboxCredentialVerifier,
 ): Promise<MailboxHttpAccessDecision | MailboxHttpCredentialDecision> {
   const parsed = parseCredentialAuthorization(request);
   if (parsed === undefined) return { allowed: false };

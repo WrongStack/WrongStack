@@ -1,0 +1,453 @@
+#!/usr/bin/env node
+/**
+ * One detached mailbox owner per local WrongStack project state directory.
+ *
+ * Only this process opens the project SQLite database. Every CLI/TUI/WebUI/HQ
+ * process talks to it through the deterministic local IPC endpoint.
+ */
+
+import * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
+import * as net from 'node:net';
+import * as path from 'node:path';
+import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
+import { EventBus } from '../kernel/events.js';
+import { MailboxEventEmitter } from './mailbox-events.js';
+import {
+  ensureMailboxProjectServerSocketDirectory,
+  mailboxProjectServerEndpoint,
+  mailboxProjectServerMetadataPath,
+} from './mailbox-project-server-endpoint.js';
+import {
+  encodeMailboxProjectServerMessage,
+  isMailboxProjectServerClientMessage,
+  MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS,
+  MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION,
+  type MailboxProjectServerClientMessage,
+  type MailboxProjectServerInfo,
+  type MailboxProjectServerMessage,
+  type MailboxServerOperationName,
+  type MailboxServerOperations,
+} from './mailbox-project-server-protocol.js';
+import { SQLITE_MAILBOX_FILE, SqliteMailbox } from './sqlite-mailbox.js';
+
+const DEFAULT_IDLE_MS = 5 * 60_000;
+const DEFAULT_CLIENT_LEASE_MS = 45_000;
+
+interface ClientState {
+  socket: net.Socket;
+  buffer: string;
+  lastSeenAt: number;
+}
+
+function parseArgs(argv: string[]): { projectDir: string } {
+  let projectDir: string | undefined;
+  for (let index = 0; index < argv.length; index++) {
+    if (argv[index] === '--project-dir') projectDir = argv[++index];
+  }
+  if (!projectDir) throw new Error('mailbox project server requires --project-dir');
+  return { projectDir: path.resolve(projectDir) };
+}
+
+// Long-lived daemon: lean SQLite residency unless the operator says
+// otherwise. Must run before any store opens.
+useDaemonPerfDefaults();
+
+const { projectDir } = parseArgs(process.argv.slice(2));
+const endpoint = mailboxProjectServerEndpoint(projectDir);
+const metadataPath = mailboxProjectServerMetadataPath(projectDir);
+const idleInput = Number(process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS']);
+const idleMs = Number.isFinite(idleInput) && idleInput >= 100 ? idleInput : DEFAULT_IDLE_MS;
+const leaseInput = Number(process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS']);
+const clientLeaseMs =
+  Number.isFinite(leaseInput) && leaseInput >= 100 ? leaseInput : DEFAULT_CLIENT_LEASE_MS;
+const leaseSweepMs = Math.min(10_000, Math.max(100, Math.floor(clientLeaseMs / 3)));
+const startedAt = new Date().toISOString();
+const events = new EventBus();
+const eventEmitter = new MailboxEventEmitter();
+let mailbox: SqliteMailbox | undefined;
+const clients = new Set<ClientState>();
+let pendingRequests = 0;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
+let stopping = false;
+let stopAutoCompact: (() => void) | undefined;
+
+const serverInfo: MailboxProjectServerInfo = {
+  protocolVersion: MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION,
+  pid: process.pid,
+  projectDir,
+  endpoint,
+  startedAt,
+};
+
+function send(state: ClientState, message: MailboxProjectServerMessage): void {
+  if (!state.socket.destroyed) {
+    state.socket.write(encodeMailboxProjectServerMessage(message));
+  }
+}
+
+function broadcast(message: MailboxProjectServerMessage): void {
+  for (const state of clients) send(state, message);
+}
+
+events.onAny((event, payload) => {
+  if (event.startsWith('mailbox.')) broadcast({ type: 'event', event, payload });
+});
+eventEmitter.subscribe((event) => broadcast({ type: 'mailbox-event', event }));
+
+function serverStatus(): MailboxServerOperations['ping']['result'] {
+  const databasePath = mailbox?.databasePath ?? path.join(projectDir, SQLITE_MAILBOX_FILE);
+  return {
+    ...serverInfo,
+    clients: clients.size,
+    pendingRequests,
+    messagePath: databasePath,
+    databasePath,
+    storageKind: 'sqlite',
+  };
+}
+
+async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promise<unknown> {
+  const activeMailbox = mailbox;
+  if (activeMailbox === undefined) throw new Error('Mailbox SQLite owner is not initialized');
+  switch (op) {
+    case 'ping':
+      return serverStatus();
+    case 'send': {
+      const args = rawArgs as MailboxServerOperations['send']['args'];
+      return activeMailbox.send(args.input);
+    }
+    case 'sendRuntimeControl': {
+      const args = rawArgs as MailboxServerOperations['sendRuntimeControl']['args'];
+      return activeMailbox.sendRuntimeControl(args.input);
+    }
+    case 'query': {
+      const args = rawArgs as MailboxServerOperations['query']['args'];
+      return activeMailbox.query(args.query);
+    }
+    case 'ack': {
+      const args = rawArgs as MailboxServerOperations['ack']['args'];
+      return activeMailbox.ack(args.input);
+    }
+    case 'ackMany': {
+      const args = rawArgs as MailboxServerOperations['ackMany']['args'];
+      return activeMailbox.ackMany(args.input);
+    }
+    case 'unreadCount': {
+      const args = rawArgs as MailboxServerOperations['unreadCount']['args'];
+      return activeMailbox.unreadCount(args.forAgentId, args.sessionId);
+    }
+    case 'softDelete': {
+      const args = rawArgs as MailboxServerOperations['softDelete']['args'];
+      return activeMailbox.softDelete(args.mailId, args.by);
+    }
+    case 'restore': {
+      const args = rawArgs as MailboxServerOperations['restore']['args'];
+      return activeMailbox.restore(args.mailId);
+    }
+    case 'registerAgent': {
+      const args = rawArgs as MailboxServerOperations['registerAgent']['args'];
+      return activeMailbox.registerAgent(args.input);
+    }
+    case 'deregisterAgent': {
+      const args = rawArgs as MailboxServerOperations['deregisterAgent']['args'];
+      return activeMailbox.deregisterAgent(args.agentId);
+    }
+    case 'heartbeat': {
+      const args = rawArgs as MailboxServerOperations['heartbeat']['args'];
+      return activeMailbox.heartbeat(args.input);
+    }
+    case 'getAgentStatuses':
+      return activeMailbox.getAgentStatuses();
+    case 'getOnlineAgents':
+      return activeMailbox.getOnlineAgents();
+    case 'purgeAgents': {
+      const args = rawArgs as MailboxServerOperations['purgeAgents']['args'];
+      return activeMailbox.purgeAgents(args.maxAgeMs);
+    }
+    case 'registerClient': {
+      const args = rawArgs as MailboxServerOperations['registerClient']['args'];
+      return activeMailbox.registerClient(args.input);
+    }
+    case 'deregisterClient': {
+      const args = rawArgs as MailboxServerOperations['deregisterClient']['args'];
+      return activeMailbox.deregisterClient(args.clientId);
+    }
+    case 'clientHeartbeat': {
+      const args = rawArgs as MailboxServerOperations['clientHeartbeat']['args'];
+      return activeMailbox.clientHeartbeat(args.input);
+    }
+    case 'getClientStatuses':
+      return activeMailbox.getClientStatuses();
+    case 'purgeClients':
+      return activeMailbox.purgeClients();
+    case 'clearAll':
+      return activeMailbox.clearAll();
+    case 'purgeStale': {
+      const args = rawArgs as MailboxServerOperations['purgeStale']['args'];
+      return activeMailbox.purgeStale(args.options);
+    }
+    case 'autoCompact': {
+      const args = rawArgs as MailboxServerOperations['autoCompact']['args'];
+      return activeMailbox.autoCompact(args.options);
+    }
+    case 'credentialIssue': {
+      const args = rawArgs as MailboxServerOperations['credentialIssue']['args'];
+      return activeMailbox.credentialIssue(args.options);
+    }
+    case 'credentialVerify': {
+      const args = rawArgs as MailboxServerOperations['credentialVerify']['args'];
+      return activeMailbox.credentialVerify(args.credentialId, args.secret);
+    }
+    case 'credentialRevoke': {
+      const args = rawArgs as MailboxServerOperations['credentialRevoke']['args'];
+      return activeMailbox.credentialRevoke(args.credentialId, args.reason, args.by);
+    }
+    case 'credentialRotate': {
+      const args = rawArgs as MailboxServerOperations['credentialRotate']['args'];
+      return activeMailbox.credentialRotate(args.credentialId, args.options);
+    }
+    case 'credentialGet': {
+      const args = rawArgs as MailboxServerOperations['credentialGet']['args'];
+      return activeMailbox.credentialGet(args.credentialId);
+    }
+    case 'credentialList':
+      return activeMailbox.credentialList();
+    case 'credentialStatusCounts':
+      return activeMailbox.credentialStatusCounts();
+  }
+}
+
+function handleMessage(state: ClientState, message: MailboxProjectServerClientMessage): void {
+  state.lastSeenAt = Date.now();
+  if (message.type === 'heartbeat') return;
+  if (message.type === 'shutdown') {
+    send(state, {
+      type: 'response',
+      id: message.id,
+      ok: true,
+      result: { stopped: true, pid: process.pid, reason: message.reason },
+    });
+    setImmediate(() => void stop(message.reason ?? 'client-request'));
+    return;
+  }
+  pendingRequests++;
+  void dispatch(message.op, message.args)
+    .then((result) => {
+      // JSON.stringify omits `undefined` object properties. Keep successful
+      // void operations structurally valid for the client runtime guard.
+      send(state, { type: 'response', id: message.id, ok: true, result: result ?? null });
+    })
+    .catch((error) => {
+      send(state, {
+        type: 'response',
+        id: message.id,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : undefined,
+      });
+    })
+    .finally(() => {
+      pendingRequests = Math.max(0, pendingRequests - 1);
+      // A client may disconnect while its last request is still settling.
+      // The close handler cannot arm the idle timer while pendingRequests > 0,
+      // so re-check after every request or an owner can remain alive forever.
+      scheduleIdleStop();
+    });
+}
+
+function onData(state: ClientState, chunk: string): void {
+  state.lastSeenAt = Date.now();
+  state.buffer += chunk;
+  while (true) {
+    const newline = state.buffer.indexOf('\n');
+    if (newline < 0) {
+      if (state.buffer.length > MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS) {
+        state.socket.destroy(new Error('Mailbox request frame exceeded maximum size'));
+      }
+      return;
+    }
+    if (newline > MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS) {
+      state.socket.destroy(new Error('Mailbox request frame exceeded maximum size'));
+      return;
+    }
+    const line = state.buffer.slice(0, newline);
+    state.buffer = state.buffer.slice(newline + 1);
+    if (!line) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(line) as unknown;
+    } catch {
+      state.socket.destroy(new Error('Invalid mailbox project server request'));
+      return;
+    }
+    if (!isMailboxProjectServerClientMessage(parsed)) {
+      state.socket.destroy(new Error('Invalid mailbox project server request'));
+      return;
+    }
+    handleMessage(state, parsed);
+  }
+}
+
+function scheduleIdleStop(): void {
+  if (stopping || clients.size > 0 || pendingRequests > 0) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => void stop('idle-timeout'), idleMs);
+  idleTimer.unref?.();
+}
+
+async function writeMetadata(): Promise<void> {
+  await fsPromises.mkdir(projectDir, { recursive: true });
+  const temporary = `${metadataPath}.${process.pid}.tmp`;
+  await fsPromises.writeFile(temporary, `${JSON.stringify(serverStatus(), null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+  try {
+    await fsPromises.rename(temporary, metadataPath);
+  } catch {
+    await fsPromises.rm(metadataPath, { force: true });
+    await fsPromises.rename(temporary, metadataPath);
+  }
+}
+
+async function removeOwnedMetadata(): Promise<void> {
+  try {
+    const current = JSON.parse(await fsPromises.readFile(metadataPath, 'utf8')) as {
+      pid?: number;
+    };
+    if (current.pid === process.pid) await fsPromises.rm(metadataPath, { force: true });
+  } catch {
+    // Missing or replaced metadata does not belong to this process.
+  }
+}
+
+async function stop(_reason: string): Promise<void> {
+  if (stopping) return;
+  stopping = true;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = undefined;
+  clearInterval(leaseSweep);
+  stopAutoCompact?.();
+  // Stop accepting new clients, then actively close the existing sockets.
+  // Waiting for server.close() before closing them deadlocks explicit shutdown:
+  // the requester keeps its IPC socket open while server.close() waits for
+  // that same socket to disappear.
+  const serverClosed = new Promise<void>((resolve) => server.close(() => resolve()));
+  for (const state of clients) state.socket.end();
+  const forceCloseTimer = setTimeout(() => {
+    for (const state of clients) state.socket.destroy();
+  }, 1_000);
+  forceCloseTimer.unref?.();
+  await serverClosed;
+  clearTimeout(forceCloseTimer);
+  for (const state of clients) state.socket.destroy();
+  clients.clear();
+  await mailbox?.close().catch(() => {});
+  mailbox = undefined;
+  await removeOwnedMetadata();
+  if (process.platform !== 'win32') {
+    await fsPromises.rm(endpoint, { force: true }).catch(() => {});
+  }
+}
+
+ensureMailboxProjectServerSocketDirectory(endpoint);
+const server = net.createServer((socket) => {
+  if (stopping) {
+    socket.destroy();
+    return;
+  }
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = undefined;
+  socket.setEncoding('utf8');
+  const state: ClientState = { socket, buffer: '', lastSeenAt: Date.now() };
+  clients.add(state);
+  send(state, { type: 'hello', ...serverInfo });
+  socket.on('data', (chunk: string) => onData(state, chunk));
+  socket.on('error', () => {
+    // Close handling below owns cleanup; socket errors must not crash the owner.
+  });
+  socket.on('close', () => {
+    clients.delete(state);
+    scheduleIdleStop();
+  });
+});
+
+const leaseSweep = setInterval(() => {
+  const cutoff = Date.now() - clientLeaseMs;
+  for (const state of clients) {
+    if (state.lastSeenAt < cutoff) state.socket.destroy();
+  }
+  scheduleIdleStop();
+}, leaseSweepMs);
+leaseSweep.unref?.();
+
+let probingExistingEndpoint = false;
+function listenForOwnership(): void {
+  server.listen(endpoint);
+}
+
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE' && process.platform === 'win32') {
+    process.exitCode = 0;
+    return;
+  }
+  if (error.code === 'EADDRINUSE' && !probingExistingEndpoint) {
+    probingExistingEndpoint = true;
+    const probe = net.createConnection(endpoint);
+    probe.once('connect', () => {
+      probe.destroy();
+      process.exitCode = 0;
+    });
+    probe.once('error', () => {
+      probe.destroy();
+      try {
+        fs.rmSync(endpoint, { force: true });
+      } catch {
+        // Another contender may already have removed the stale socket.
+      }
+      probingExistingEndpoint = false;
+      listenForOwnership();
+    });
+    return;
+  }
+  process.exitCode = 1;
+});
+
+server.on('listening', () => {
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(endpoint, 0o600);
+    } catch {
+      // The containing 0700 directory still restricts access.
+    }
+  }
+  try {
+    // The IPC bind is the ownership election. Open SQLite only after winning
+    // that election so losing detached contenders never become DB owners.
+    mailbox = new SqliteMailbox(projectDir, events, eventEmitter);
+  } catch {
+    void stop('sqlite-initialization-failed').finally(() => {
+      process.exitCode = 1;
+    });
+    return;
+  }
+  stopAutoCompact = mailbox.startAutoCompactTimer();
+  void writeMetadata()
+    .then(() => scheduleIdleStop())
+    .catch(() => {
+      void stop('metadata-write-failed').finally(() => {
+        process.exitCode = 1;
+      });
+    });
+});
+
+listenForOwnership();
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    void stop(signal).finally(() => {
+      process.exitCode = 0;
+    });
+  });
+}

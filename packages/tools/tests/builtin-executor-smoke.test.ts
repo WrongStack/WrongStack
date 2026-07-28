@@ -8,6 +8,14 @@ import { ToolExecutor } from '../../core/src/execution/tool-executor.js';
 import type { ToolResultBlock, ToolUseBlock } from '../../core/src/types/blocks.js';
 import { builtinTools } from '../src/builtin.js';
 
+/**
+ * Never let this suite spawn a detached kanban daemon. `builtinTools` includes
+ * the kanban tool, and the daemon outlives the test — it used to be left
+ * running against a `tmpDir` this file had already deleted, one immortal ~45MB
+ * process per run. The file-backed fallback is what this smoke test wants.
+ */
+process.env['WRONGSTACK_KANBAN_SERVER'] = '0';
+
 let tmpDir: string;
 
 beforeEach(async () => {

@@ -12,6 +12,8 @@ const startCliHqConnection = vi.hoisted(() =>
 );
 const mailboxSend = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const registerClient = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const clientHeartbeat = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const deregisterClient = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('../../src/hq-publisher.js', () => ({ startCliHqConnection }));
 vi.mock('@wrongstack/core/coordination', async (importOriginal) => {
@@ -19,11 +21,12 @@ vi.mock('@wrongstack/core/coordination', async (importOriginal) => {
   return {
     ...actual,
     resolveProjectDir: () => '/tmp/proj-dir',
-    GlobalMailbox: class {
-      send = mailboxSend;
-      registerClient = registerClient;
-      clientHeartbeat = vi.fn().mockResolvedValue(undefined);
-    },
+    getSharedProjectMailbox: vi.fn(() => ({
+      send: mailboxSend,
+      registerClient,
+      clientHeartbeat,
+      deregisterClient,
+    })),
   };
 });
 vi.mock('@wrongstack/core/utils', async (importOriginal) => {

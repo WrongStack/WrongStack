@@ -1,14 +1,15 @@
-import { Cpu, ListPlus, Layers } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { i18n, useAppTranslation } from '@/i18n';
-import { useLocalPrefs } from '@/stores/local-prefs';
-import { toast } from '@/components/Toaster';
+import { Cpu, Layers, ListPlus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FallbackEditor } from '@/components/FallbackEditor';
-import { ModelSelectDialog } from '@/components/ModelSelectDialog';
+import { toast } from '@/components/Toaster';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PreferenceToggle } from './PreferenceToggle';
+import { useProviderModels } from '@/hooks/useProviderModels';
+import { i18n, useAppTranslation } from '@/i18n';
+import { buildKnownModelSet } from '@/lib/fallback-ref';
+import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSModelSwitchResult } from '@/types';
+import { PreferenceToggle } from './PreferenceToggle';
 
 interface FallbacksSectionProps {
   /** Push a pref change locally + to the server. */
@@ -41,6 +42,22 @@ export function FallbacksSection({
   const { t } = useAppTranslation();
   const localPrefs = useLocalPrefs();
   const [newFallbackProfileName, setNewFallbackProfileName] = useState('');
+
+  // Load the provider catalogue so every fallback row can be classified
+  // active/inactive against the live model allow-list. The hook is gated
+  // by `editorOpen` so it only fetches while the settings panel is on
+  // screen — the catalogue is large enough to skip when the panel is
+  // closed elsewhere in the app.
+  const editorOpen = true;
+  const candidatesWithCatalog = useProviderModels(editorOpen);
+  // Reuse the WS-backed candidates when the parent already supplies one;
+  // otherwise fall back to what `useProviderModels` produced. Either way
+  // we only need the provider/model keys for the inactive check, so the
+  // candidate objects carry everything the editor needs.
+  const knownModels = useMemo(
+    () => buildKnownModelSet(candidates ?? candidatesWithCatalog),
+    [candidates, candidatesWithCatalog],
+  );
 
   const setFallbackProfiles = useCallback(
     (next: Record<string, string[]>) => syncPref('fallbackProfiles', next),
@@ -180,6 +197,7 @@ export function FallbacksSection({
         <FallbackEditor
           value={localPrefs.fallbackModels}
           candidates={candidates ?? []}
+          knownModels={knownModels}
           onChange={(next) => syncPref('fallbackModels', next)}
         />
         <div className="mt-3 flex flex-wrap gap-4">
@@ -214,6 +232,7 @@ export function FallbacksSection({
         <FallbackEditor
           value={localPrefs.favoriteModels}
           candidates={candidates ?? []}
+          knownModels={knownModels}
           placeholder={t('settings:fallbacks.addFavoriteModel')}
           emptyHint={t('settings:fallbacks.favoritesEmpty')}
           onChange={(next) => syncPref('favoriteModels', next)}
@@ -295,6 +314,7 @@ export function FallbacksSection({
                   <FallbackEditor
                     value={chain}
                     candidates={candidates ?? []}
+                    knownModels={knownModels}
                     placeholder={t('settings:fallbacks.addModelToProfile')}
                     emptyHint={t('settings:fallbacks.profileEmpty')}
                     onChange={(next) => updateFallbackProfile(name, next)}

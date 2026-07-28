@@ -21,19 +21,19 @@ const t = vi.hoisted(() => {
   const attachDepWatcherBridgeMock = vi.fn(function () {
     return disposeMock;
   });
-  const GlobalMailboxMock = vi.fn(function () {
-    return { /* mailbox stub — passed through to attachDepWatcherBridge */ };
-  });
+  const mailboxStub = {};
+  const getSharedProjectMailboxMock = vi.fn(() => mailboxStub);
   return {
     disposeMock,
     attachDepWatcherBridgeMock,
-    GlobalMailboxMock,
+    getSharedProjectMailboxMock,
+    mailboxStub,
   };
 });
 
 vi.mock('@wrongstack/core/coordination', () => ({
   attachDepWatcherBridge: t.attachDepWatcherBridgeMock,
-  GlobalMailbox: t.GlobalMailboxMock,
+  getSharedProjectMailbox: t.getSharedProjectMailboxMock,
 }));
 
 // ── Module under test ─────────────────────────────────────────────────
@@ -74,9 +74,7 @@ beforeEach(() => {
   t.attachDepWatcherBridgeMock.mockImplementation(function () {
     return t.disposeMock;
   });
-  t.GlobalMailboxMock.mockImplementation(function () {
-    return {};
-  });
+  t.getSharedProjectMailboxMock.mockReturnValue(t.mailboxStub);
 });
 
 describe('setupDepWatcherBridge', () => {
@@ -84,7 +82,7 @@ describe('setupDepWatcherBridge', () => {
     const result = setupDepWatcherBridge(makeDeps());
 
     expect(result.dwCfg).toEqual({ enabled: true });
-    expect(t.GlobalMailboxMock).toHaveBeenCalledWith(
+    expect(t.getSharedProjectMailboxMock).toHaveBeenCalledWith(
       path.join('/tmp/.wrongstack', 'projects', 'my-project'),
       expect.any(Object),
     );
@@ -137,7 +135,7 @@ describe('setupDepWatcherBridge', () => {
     const result = setupDepWatcherBridge(deps);
 
     expect(result.dwCfg).toEqual({ enabled: false });
-    expect(t.GlobalMailboxMock).not.toHaveBeenCalled();
+    expect(t.getSharedProjectMailboxMock).not.toHaveBeenCalled();
     expect(t.attachDepWatcherBridgeMock).not.toHaveBeenCalled();
   });
 
@@ -149,7 +147,7 @@ describe('setupDepWatcherBridge', () => {
     const result = setupDepWatcherBridge(deps);
 
     expect(result.dwCfg).toBeUndefined();
-    expect(t.GlobalMailboxMock).not.toHaveBeenCalled();
+    expect(t.getSharedProjectMailboxMock).not.toHaveBeenCalled();
     expect(t.attachDepWatcherBridgeMock).not.toHaveBeenCalled();
   });
 
@@ -161,7 +159,7 @@ describe('setupDepWatcherBridge', () => {
     const result = setupDepWatcherBridge(deps);
 
     expect(result.dwCfg).toBeUndefined();
-    expect(t.GlobalMailboxMock).not.toHaveBeenCalled();
+    expect(t.getSharedProjectMailboxMock).not.toHaveBeenCalled();
     expect(t.attachDepWatcherBridgeMock).not.toHaveBeenCalled();
   });
 
@@ -220,8 +218,7 @@ describe('setupDepWatcherBridge', () => {
 
     const callArgs = (t.attachDepWatcherBridgeMock.mock.calls as unknown as AttachDepWatcherBridgeArgs[])[0]![0];
     expect(callArgs.mailbox).toBeDefined();
-    // The mailbox is the return value of new GlobalMailboxMock(...)
-    expect(t.GlobalMailboxMock.mock.instances[0]).toBe(callArgs.mailbox);
+    expect(callArgs.mailbox).toBe(t.mailboxStub);
   });
 
   it('returns dwCfg for downstream use by setupDepWatcherConsumers', () => {

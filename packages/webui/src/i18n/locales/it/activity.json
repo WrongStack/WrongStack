@@ -335,6 +335,7 @@
     "pinned": "Fissati",
     "quickSettings": "Impostazioni rapide",
     "autonomy": "Autonomia",
+    "autonomyTitle": "Interrompi l'esecuzione automatica dei passaggi successivi. Disattiva per fermare il ciclo autonomo dell'agente",
     "autonomyOptions": {
       "off": "Off",
       "suggest": "Suggerisci",
@@ -1909,6 +1910,11 @@
     "breakRoom": "Sala relax",
     "onBreak": "{{count}} in pausa",
     "desksEmpty": "Tutti sono in pausa — le scrivanie sono pronte per il prossimo compito"
+  },
+  "sageMemory": {
+    "injectedHeading": "Memoria SAGE inserita",
+    "memoriesLabel_one": "{{count}} ricordo",
+    "memoriesLabel_other": "{{count}} ricordi"
   },
   "sddhub": {
     "tabProject": "Progetto SDD",

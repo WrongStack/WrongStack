@@ -72,7 +72,6 @@ import { resolveActiveApiKey } from './provider-config-utils.js';
 import { runRepl } from './repl.js';
 import type { UpdateInfo } from './update-check.js';
 import { CLI_VERSION } from './version.js';
-import { createKanbanRunMirror } from './webui-server/kanban-run-mirror.js';
 
 export {
   __resetReviewerRoundRobinCursor,
@@ -953,8 +952,14 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
       });
     } else {
+      // Imported here rather than at module scope: this is the ONLY static
+      // path from the always-loaded CLI graph into `@wrongstack/webui-server`
+      // (831KB, +38.7MB heap / +80.2MB RSS standalone). `webui-server.ts`
+      // itself is already loaded lazily from `boot/dispatch-webui.ts`, so this
+      // one import was single-handedly defeating that boundary and making every
+      // `wstack` invocation pay for a WebUI server that is off by default.
       const headlessKanbanMirror = projectRoot
-        ? createKanbanRunMirror({
+        ? (await import('./webui-server/kanban-run-mirror.js')).createKanbanRunMirror({
             projectRoot,
             events,
             broadcast: () => {},

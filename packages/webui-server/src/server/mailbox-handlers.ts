@@ -3,14 +3,15 @@
  *
  * Handles `mailbox.messages` and `mailbox.agents` message types.
  * The frontend sends these to populate the mailbox panel; the server
- * reads from the project-level GlobalMailbox and responds.
+ * reads from the server-backed project mailbox and responds.
  */
 
 import {
-  GlobalMailbox,
+  getSharedProjectMailbox,
   isMailboxMessageVisibleTo,
   MAILBOX_TYPE_PROPERTIES,
   mailboxIdentityBase,
+  type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
@@ -27,43 +28,16 @@ export interface MailboxHandlerDeps {
   events?: EventBus | undefined;
 }
 
-const defaultMailboxCache = new Map<string, GlobalMailbox>();
-const eventMailboxCaches = new WeakMap<EventBus, Map<string, GlobalMailbox>>();
-const MAILBOX_CACHE_MAX_PROJECTS = 8;
-
 function current(value: string | (() => string)): string {
   return typeof value === 'function' ? value() : value;
 }
 
-export function getMailboxForDeps(deps: MailboxHandlerDeps): GlobalMailbox | null {
+export function getMailboxForDeps(deps: MailboxHandlerDeps): RemoteMailbox | null {
   const projectRoot = current(deps.projectRoot);
   const globalRoot = current(deps.globalRoot);
   if (!projectRoot || !globalRoot) return null;
   const dir = resolveProjectDir(projectRoot, globalRoot);
-  const cache = deps.events
-    ? (eventMailboxCaches.get(deps.events) ??
-      (() => {
-        const created = new Map<string, GlobalMailbox>();
-        eventMailboxCaches.set(deps.events as EventBus, created);
-        return created;
-      })())
-    : defaultMailboxCache;
-  let mailbox = cache.get(dir);
-  if (mailbox) {
-    cache.delete(dir);
-    cache.set(dir, mailbox);
-  } else {
-    mailbox = new GlobalMailbox(dir, deps.events);
-    while (cache.size >= MAILBOX_CACHE_MAX_PROJECTS) {
-      const oldest = cache.keys().next().value;
-      if (oldest === undefined) break;
-      const evicted = cache.get(oldest);
-      cache.delete(oldest);
-      void evicted?.close().catch(() => undefined);
-    }
-    cache.set(dir, mailbox);
-  }
-  return mailbox;
+  return getSharedProjectMailbox(dir, deps.events);
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────

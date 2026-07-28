@@ -59,7 +59,7 @@ import {
   collabInjectMiddleware,
   collabPauseMiddleware,
   EscalationRoutingBrainArbiter,
-  GlobalMailbox,
+  getSharedProjectMailbox,
   mailboxSessionTag,
   ObservableBrainArbiter as ObservableBrainArbiterCtor,
 } from '@wrongstack/core/coordination';
@@ -541,7 +541,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // Self-activation: watch for tool-failure streaks / error storms. `session`
   // is read at send time via the getter the caller passes, so the steer
   // always targets the LIVE session's leader identity.
-  const brainMailbox = new GlobalMailbox(wpaths.projectDir, events);
+  const brainMailbox = getSharedProjectMailbox(wpaths.projectDir, events);
   brainMonitor = new BrainMonitor({
     events,
     brain,

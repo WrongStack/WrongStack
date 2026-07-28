@@ -24,15 +24,25 @@
  */
 
 import { color, wstackGlobalRoot } from '@wrongstack/core/utils';
-import { GlobalMailbox, type MailboxAgentStatus, type MailboxAudience, type MailboxMessage, type MailboxMessageType, mailboxSessionTag, resolveMailboxIdentity, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  type MailboxAgentStatus,
+  type MailboxAudience,
+  type MailboxMessage,
+  type MailboxMessageType,
+  type RemoteMailbox,
+  mailboxSessionTag,
+  resolveMailboxIdentity,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
-function buildMailbox(opts: SlashCommandContext): GlobalMailbox | null {
+function buildMailbox(opts: SlashCommandContext): RemoteMailbox | null {
   const projectDir =
     opts.paths?.projectDir ?? resolveProjectDir(opts.projectRoot, wstackGlobalRoot());
   try {
-    return new GlobalMailbox(projectDir);
+    return getSharedProjectMailbox(projectDir);
   } catch {
     return null;
   }

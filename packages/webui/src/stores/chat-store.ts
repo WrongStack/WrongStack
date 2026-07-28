@@ -38,6 +38,16 @@ function dedupeRepeatedBlocks(text: string): string {
 // Chat Store
 // ============================================
 
+/**
+ * Cap on the live chat transcript retained in this store. Older entries are
+ * dropped on the next addMessage when over this count; the full transcript is
+ * still available via session-resume from the server. Without this cap, a
+ * long-running WebUI session can accumulate hundreds of MB of transcript +
+ * tool execution data (each ChatMessage carries full content blocks; tool
+ * messages can be tens of KB each).
+ */
+const MAX_CHAT_MESSAGES = 1000;
+
 function indexToolMessages(messages: readonly ChatMessage[]): Map<string, string> {
   const index = new Map<string, string>();
   for (const m of messages) {
@@ -196,15 +206,48 @@ export const useChatStore = create<ChatState>()(
         const id = `msg_${Date.now()}_${safeId().slice(0, 8)}`;
         const fullMsg: ChatMessage = { ...msg, id, timestamp: msg.timestamp ?? Date.now() };
         set((state) => {
+          // Cap the live chat transcript at MAX_CHAT_MESSAGES so a long-running
+          // session cannot accumulate hundreds of MB of transcript + tool
+          // execution data. Drop the oldest entries (full conversation is still
+          // available via session-resume from the server). The corresponding
+          // `toolMessageIdsByUseId` and `executions` entries are pruned below
+          // so the secondary indexes cannot outlive the messages they point at.
+          let messages: ChatMessage[];
+          if (state.messages.length >= MAX_CHAT_MESSAGES) {
+            messages = [
+              ...state.messages.slice(state.messages.length - MAX_CHAT_MESSAGES + 1),
+              fullMsg,
+            ];
+          } else {
+            messages = [...state.messages, fullMsg];
+          }
+          const toolMessageIdsByUseId = indexToolMessages(messages);
+          let executions: Map<string, ToolExecution> = state.executions;
+          if (executions.size > 0) {
+            const nextExecutions = new Map<string, ToolExecution>();
+            let execChanged = false;
+            for (const [execId, exec] of executions) {
+              if (toolMessageIdsByUseId.has(execId)) {
+                nextExecutions.set(execId, exec);
+              } else {
+                execChanged = true;
+              }
+            }
+            if (execChanged) executions = nextExecutions;
+          }
           const next: Partial<ChatState> = {
-            messages: [...state.messages, fullMsg],
+            messages,
             currentAssistantMessageId:
               msg.role === 'assistant' ? id : state.currentAssistantMessageId,
+            toolMessageIdsByUseId,
           };
           if (fullMsg.role === 'tool' && fullMsg.toolUseId) {
-            const nextIndex = new Map(state.toolMessageIdsByUseId);
+            const nextIndex = new Map(toolMessageIdsByUseId);
             nextIndex.set(fullMsg.toolUseId, id);
             next.toolMessageIdsByUseId = nextIndex;
+          }
+          if (executions !== state.executions) {
+            next.executions = executions;
           }
           return next;
         });

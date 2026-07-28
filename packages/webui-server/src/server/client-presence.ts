@@ -1,7 +1,8 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import {
-  GlobalMailbox,
+  getSharedProjectMailbox,
+  type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import { startSessionTelemetryBridge } from '@wrongstack/core/hq';
@@ -33,7 +34,7 @@ export interface WebuiClientPresenceDeps {
   getSessionId: () => string;
   startHqConnection: (options: WebuiHqConnectionOptions) => WebuiHqConnection;
   createCommandHandler?:
-    | ((mailbox: GlobalMailbox) => NonNullable<CreateHqPublisherOptions['onCommand']>)
+    | ((mailbox: RemoteMailbox) => NonNullable<CreateHqPublisherOptions['onCommand']>)
     | undefined;
 }
 
@@ -44,7 +45,7 @@ export interface WebuiClientPresence {
 
 export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiClientPresence {
   let clientId: string | null = null;
-  let mailbox: GlobalMailbox | undefined;
+  let mailbox: RemoteMailbox | undefined;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let stopTelemetry: (() => void) | undefined;
   let hqConnection: WebuiHqConnection | undefined;
@@ -54,7 +55,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
     try {
       const projectRoot = deps.projectRoot;
       const projectName = path.basename(projectRoot);
-      const nextMailbox = new GlobalMailbox(
+      const nextMailbox = getSharedProjectMailbox(
         resolveProjectDir(projectRoot, wstackGlobalRoot()),
         deps.events,
         () => hqConnection?.getPublisher(),

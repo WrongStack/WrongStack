@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { MailboxEventEmitter } from './mailbox-events.js';
-import type { JsonlCredentialStore } from './mailbox-credential-store.js';
+import type { MailboxCredentialVerifier } from './mailbox-credential-store.js';
 import {
   authorizePersistedMailboxCredential,
   parseCredentialAuthorization,
@@ -81,7 +81,7 @@ export interface MailboxHttpRouterOptions {
     request: IncomingMessage,
   ) => MailboxHttpAccessDecision | Promise<MailboxHttpAccessDecision>;
   /** Identity-scoped credential store for principal-based auth (GM-P0.6). */
-  credentialStore?: JsonlCredentialStore;
+  credentialStore?: MailboxCredentialVerifier;
   /** Project ID for credential-based auth project-scoping (GM-P0.9). */
   projectId?: string;
   rateLimiter?: MailboxHttpRateLimiter;
@@ -299,7 +299,7 @@ async function dispatchMailboxRoute(
   closeSseStreams: Set<() => void>,
   routePath?: string,
   actor?: MailboxActorContext,
-  credentialStore?: JsonlCredentialStore,
+  credentialStore?: MailboxCredentialVerifier,
 ): Promise<void> {
   // The look-back window is a per-route concern — only the routes that
   // return `MailboxMessage` records (query, check, events) care. We
@@ -772,7 +772,7 @@ function isMailboxEventVisibleToActor(event: unknown, actor: MailboxActorContext
 
 function createCredentialRevalidator(
   request: IncomingMessage,
-  store: JsonlCredentialStore,
+  store: MailboxCredentialVerifier,
   actor: MailboxActorContext,
 ): () => Promise<boolean> {
   const parsed = parseCredentialAuthorization(request);

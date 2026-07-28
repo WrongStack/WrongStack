@@ -7,6 +7,8 @@ import type {
   LegacyImportResult,
   ListSagePageOptions,
   ListSagePageResult,
+  MemoryAnchor,
+  MemoryAudienceSelector,
   MemoryCandidate,
   MemoryCandidateResolution,
   MemoryGraphEdge,
@@ -18,10 +20,74 @@ import type {
   SageForPathOptions,
   SageHygieneOptions,
   SageHygieneReport,
+  SageKind,
+  SageScope,
   SageStats,
   SageStatus,
   UpdateSageInput,
 } from './types.js';
+
+export type SearchRanking = 'relevance' | 'recency' | 'importance' | 'hybrid';
+export type SearchSuggestionMode = 'never' | 'empty' | 'always';
+export type SearchMatchReason =
+  | 'lexical'
+  | 'tag'
+  | 'recency'
+  | `anchor:${string}`
+  | `graph:${string}`
+  | `audience:${string}`
+  | `kind:${SageKind}`;
+
+export interface SearchQuery {
+  text?: string | undefined;
+  paths?: string[] | undefined;
+  kinds?: SageKind[] | undefined;
+  scopes?: SageScope[] | undefined;
+  importanceAtLeast?: number | undefined;
+  freshness?: {
+    verifiedAfter?: string | undefined;
+    createdAfter?: string | undefined;
+  } | undefined;
+  audience?: MemoryAudienceSelector | undefined;
+  anchor?: MemoryAnchor | undefined;
+  cursor?: {
+    memoryId: string;
+    direction: 'before' | 'after';
+  } | undefined;
+}
+
+export interface SearchOptions {
+  limit?: number | undefined;
+  includeStatuses?: SageStatus[] | undefined;
+  ranking?: SearchRanking | undefined;
+  suggest?: SearchSuggestionMode | undefined;
+}
+
+export interface SearchHit {
+  id: string;
+  kind: SageKind;
+  scope: SageScope;
+  tags: string[];
+  anchors?: MemoryAnchor[] | undefined;
+  audience?: MemoryAudienceSelector | undefined;
+  text: string;
+  importance: number;
+  confidence: number;
+  status: SageStatus;
+  createdAt: string;
+  updatedAt: string;
+  verifiedAt?: string | undefined;
+  score: number;
+  matchReason: SearchMatchReason;
+}
+
+export interface SearchResult {
+  hits: SearchHit[];
+  suggestions: SearchHit[];
+  totalCandidates: number;
+  rankingApplied: SearchRanking;
+  queryEcho: Partial<SearchQuery>;
+}
 
 /** Capability used by CLI/TUI/WebUI presentation adapters. */
 export interface SageSurface {
@@ -70,6 +136,7 @@ export interface SageSurface {
 
 /** Capabilities required by the complete SAGE tool surface. */
 export interface SageServiceLike extends MemoryStore {
+  unifiedSearchService(query: SearchQuery, options?: SearchOptions): Promise<SearchResult>;
   retrieveForPath(opts: {
     path: string;
     limit?: number;

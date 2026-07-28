@@ -4,8 +4,8 @@
  * refiner, doctor), the doctor health checks, and edge cases.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createSystemConfigViewTool } from '../../src/tools/fallback-system-config-view-tool.js';
 import type { FallbackManageToolOptions } from '../../src/tools/fallback-manage-tool-options.js';
+import { createSystemConfigViewTool } from '../../src/tools/fallback-system-config-view-tool.js';
 
 function makeOpts(overrides: Record<string, unknown> = {}): FallbackManageToolOptions {
   const config: Record<string, unknown> = {
@@ -32,7 +32,9 @@ function makeOpts(overrides: Record<string, unknown> = {}): FallbackManageToolOp
 describe('system_config_view — providers section', () => {
   it('lists configured providers with key status', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'providers' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'providers' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.status).toBe('ok');
     expect(result.message).toContain('test-provider');
     expect(result.message).toContain('backup-provider');
@@ -41,23 +43,36 @@ describe('system_config_view — providers section', () => {
 
   it('shows (none configured) when no providers exist', async () => {
     const tool = createSystemConfigViewTool(makeOpts({ providers: {} }));
-    const result = await tool.execute({ section: 'providers' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'providers' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('(none configured)');
   });
 
   it('marks the leader provider with a star', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'providers' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'providers' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('★ test-provider');
   });
 
   it('shows baseUrl and family when present', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      providers: {
-        custom: { type: 'openai-compatible', baseUrl: 'http://localhost:8080', family: 'openai', apiKey: 'k' },
-      },
-    }));
-    const result = await tool.execute({ section: 'providers' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        providers: {
+          custom: {
+            type: 'openai-compatible',
+            baseUrl: 'http://localhost:8080',
+            family: 'openai',
+            apiKey: 'k',
+          },
+        },
+      }),
+    );
+    const result = await tool.execute({ section: 'providers' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('url:http://localhost:8080');
     expect(result.message).toContain('family:openai');
   });
@@ -66,7 +81,9 @@ describe('system_config_view — providers section', () => {
 describe('system_config_view — models section', () => {
   it('lists favorites and settings', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'models' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'models' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('test-provider/test-model');
     expect(result.message).toContain('fallbackAuto: on');
     expect(result.message).toContain('favoriteModelsOnly: off');
@@ -74,7 +91,9 @@ describe('system_config_view — models section', () => {
 
   it('shows empty favorites message', async () => {
     const tool = createSystemConfigViewTool(makeOpts({ favoriteModels: [] }));
-    const result = await tool.execute({ section: 'models' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'models' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('none');
   });
 });
@@ -82,14 +101,18 @@ describe('system_config_view — models section', () => {
 describe('system_config_view — fallbacks section', () => {
   it('shows chain and profiles', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'fallbacks' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'fallbacks' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('test-provider/other-model');
     expect(result.message).toContain('fast');
   });
 
   it('shows empty chain message', async () => {
     const tool = createSystemConfigViewTool(makeOpts({ fallbackModels: [], fallbackProfiles: {} }));
-    const result = await tool.execute({ section: 'fallbacks' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'fallbacks' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('empty');
     expect(result.message).toContain('(none)');
   });
@@ -97,16 +120,22 @@ describe('system_config_view — fallbacks section', () => {
 
 describe('system_config_view — matrix section', () => {
   it('shows role assignments', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      modelMatrix: { 'bug-hunter': { provider: 'test-provider', model: 'test-model' } },
-    }));
-    const result = await tool.execute({ section: 'matrix' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        modelMatrix: { 'bug-hunter': { provider: 'test-provider', model: 'test-model' } },
+      }),
+    );
+    const result = await tool.execute({ section: 'matrix' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('bug-hunter');
   });
 
   it('shows empty matrix message', async () => {
     const tool = createSystemConfigViewTool(makeOpts({ modelMatrix: {} }));
-    const result = await tool.execute({ section: 'matrix' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'matrix' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('empty');
   });
 });
@@ -114,7 +143,9 @@ describe('system_config_view — matrix section', () => {
 describe('system_config_view — agents section', () => {
   it('lists catalog agents with resolved models', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'agents' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'agents' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('ROLE');
     expect(result.message).toContain('PHASE');
   });
@@ -123,16 +154,26 @@ describe('system_config_view — agents section', () => {
 describe('system_config_view — refiner section', () => {
   it('shows refiner config defaults', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'refiner' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'refiner' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('refinerProvider');
     expect(result.message).toContain('(same as leader)');
   });
 
   it('shows explicit refiner config', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      autonomy: { refinerProvider: 'openai', refinerModel: 'gpt-4o', refinerFallbackProfile: 'fast' },
-    }));
-    const result = await tool.execute({ section: 'refiner' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        autonomy: {
+          refinerProvider: 'openai',
+          refinerModel: 'gpt-4o',
+          refinerFallbackProfile: 'fast',
+        },
+      }),
+    );
+    const result = await tool.execute({ section: 'refiner' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('openai');
     expect(result.message).toContain('gpt-4o');
     expect(result.message).toContain('fast');
@@ -142,74 +183,166 @@ describe('system_config_view — refiner section', () => {
 describe('system_config_view — doctor section', () => {
   it('reports healthy config', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('checks passed');
     expect(result.message).toContain('0 issues');
   });
 
   it('warns about favorite referencing unknown provider', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      favoriteModels: ['unknown-provider/some-model'],
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        favoriteModels: ['unknown-provider/some-model'],
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('unknown provider');
   });
 
   it('warns about favorite model not in provider model list', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      favoriteModels: ['test-provider/nonexistent-model'],
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        favoriteModels: ['test-provider/nonexistent-model'],
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('not in');
     expect(result.message).toContain('model list');
   });
 
   it('reports issue for chain entry with unknown provider', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      fallbackModels: ['ghost-provider/model'],
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        fallbackModels: ['ghost-provider/model'],
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('issues');
   });
 
   it('reports issue for matrix referencing unknown provider', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      modelMatrix: { reviewer: { provider: 'ghost-provider', model: 'x' } },
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        modelMatrix: { reviewer: { provider: 'ghost-provider', model: 'x' } },
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('unknown provider');
   });
 
   it('reports issue for matrix referencing unknown fallback profile', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      modelMatrix: { reviewer: { provider: 'test-provider', model: 'test-model', fallbackProfile: 'nonexistent' } },
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        modelMatrix: {
+          reviewer: {
+            provider: 'test-provider',
+            model: 'test-model',
+            fallbackProfile: 'nonexistent',
+          },
+        },
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('unknown fallback profile');
   });
 
   it('warns about empty profile', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      fallbackProfiles: { empty: [] },
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        fallbackProfiles: { empty: [] },
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('empty');
   });
 
   it('warns when leader provider has no config entry', async () => {
-    const tool = createSystemConfigViewTool(makeOpts({
-      provider: 'unconfigured-provider',
-      providers: { 'other': { type: 'openai', apiKey: 'k' } },
-    }));
-    const result = await tool.execute({ section: 'doctor' }, {} as never, { signal: new AbortController().signal });
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        provider: 'unconfigured-provider',
+        providers: { other: { type: 'openai', apiKey: 'k' } },
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('no explicit config entry');
+  });
+
+  describe('empty-model reference detection', () => {
+    it('reports an issue for a favorite entry with no model', async () => {
+      const tool = createSystemConfigViewTool(
+        makeOpts({
+          favoriteModels: ['test-provider/'],
+        }),
+      );
+      const result = await tool.execute({ section: 'doctor' }, {} as never, {
+        signal: new AbortController().signal,
+      });
+      expect(result.message).toContain('Favorite');
+      expect(result.message).toContain('has no model');
+      expect(result.message).toContain('1 issue');
+    });
+
+    it('reports an issue for a chain entry with no model', async () => {
+      const tool = createSystemConfigViewTool(
+        makeOpts({
+          fallbackModels: ['test-provider/'],
+        }),
+      );
+      const result = await tool.execute({ section: 'doctor' }, {} as never, {
+        signal: new AbortController().signal,
+      });
+      expect(result.message).toContain('Chain entry');
+      expect(result.message).toContain('has no model');
+    });
+
+    it('reports an issue for a profile entry with no model', async () => {
+      const tool = createSystemConfigViewTool(
+        makeOpts({
+          fallbackProfiles: { broken: ['test-provider/'] },
+        }),
+      );
+      const result = await tool.execute({ section: 'doctor' }, {} as never, {
+        signal: new AbortController().signal,
+      });
+      expect(result.message).toContain('Profile "broken"');
+      expect(result.message).toContain('has no model');
+    });
+
+    it('reports an issue for a whitespace-only ref', async () => {
+      const tool = createSystemConfigViewTool(
+        makeOpts({
+          favoriteModels: ['   '],
+        }),
+      );
+      const result = await tool.execute({ section: 'doctor' }, {} as never, {
+        signal: new AbortController().signal,
+      });
+      expect(result.message).toContain('has no model');
+    });
   });
 });
 
 describe('system_config_view — all section', () => {
   it('includes all sections', async () => {
     const tool = createSystemConfigViewTool(makeOpts());
-    const result = await tool.execute({ section: 'all' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ section: 'all' }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(result.message).toContain('Leader');
     expect(result.message).toContain('Providers');
     expect(result.message).toContain('Favorites');

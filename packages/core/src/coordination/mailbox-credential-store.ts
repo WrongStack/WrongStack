@@ -48,6 +48,8 @@ export interface MailboxCredential {
   statusReason?: string | undefined;
   /** Previous credential ID this one supersedes. */
   supersedes?: string | undefined;
+  /** ISO8601 — rotated credentials remain valid until this overlap expires. */
+  rotationValidUntil?: string | undefined;
   /** Auditor: session/agent that performed the last mutation. */
   lastModifiedBy?: string | undefined;
 }
@@ -75,6 +77,16 @@ export interface CredentialValidation {
   reason?: string | undefined;
 }
 
+/** Minimal verification contract shared by file-backed and remote stores. */
+export interface MailboxCredentialVerifier {
+  load(): Promise<void>;
+  verify(
+    credentialId: string,
+    secret: string,
+  ): CredentialValidation | Promise<CredentialValidation>;
+  verifyPersisted(credentialId: string, secret: string): Promise<CredentialValidation>;
+}
+
 // ── Constants ───────────────────────────────────────────────────────
 
 /** Default credential file name. */
@@ -89,6 +101,79 @@ export const MAX_CREDENTIAL_TTL: Record<MailboxCredential['kind'], number> = {
 
 /** Default rotation overlap window (old + new both valid). */
 export const ROTATION_OVERLAP_MS = 60 * 60 * 1000; // 1 hour
+
+/** Create an opaque credential without choosing a persistence backend. */
+export function createMailboxCredential(
+  opts: IssueCredentialOptions,
+  now = Date.now(),
+): { credential: MailboxCredential; secret: string } {
+  const ttlMs = Math.min(opts.ttlMs, MAX_CREDENTIAL_TTL[opts.kind]);
+  const credentialId = crypto.randomUUID();
+  const secret = crypto.randomBytes(32).toString('hex');
+  const verifierKey = crypto.createHash('sha256').update(secret).digest();
+  const verifier = crypto.createHmac('sha256', verifierKey).update(credentialId).digest('hex');
+
+  return {
+    credential: {
+      credentialId,
+      verifier,
+      verifierAlgorithm: 'hmac-sha256',
+      principalId: opts.principalId,
+      projectId: opts.projectId,
+      capabilities: opts.capabilities,
+      kind: opts.kind,
+      issuedAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + ttlMs).toISOString(),
+      notBefore: opts.notBefore?.toISOString(),
+      status: 'active',
+      statusChangedAt: new Date(now).toISOString(),
+      supersedes: opts.supersedes,
+      lastModifiedBy: opts.issuedBy,
+    },
+    secret,
+  };
+}
+
+/** Verify an opaque secret against a stored credential snapshot. */
+export function verifyMailboxCredential(
+  credential: MailboxCredential | undefined,
+  secret: string,
+  now = Date.now(),
+): CredentialValidation {
+  if (credential === undefined) {
+    return { valid: false, reason: 'credential not found' };
+  }
+
+  const rotationStillValid =
+    credential.status === 'rotated_out' &&
+    credential.rotationValidUntil !== undefined &&
+    new Date(credential.rotationValidUntil).getTime() >= now;
+  if (credential.status !== 'active' && !rotationStillValid) {
+    return { valid: false, reason: `credential is ${credential.status}`, credential };
+  }
+  if (new Date(credential.expiresAt).getTime() < now) {
+    return { valid: false, reason: 'credential expired', credential };
+  }
+  if (credential.notBefore !== undefined && new Date(credential.notBefore).getTime() > now) {
+    return { valid: false, reason: 'credential not yet valid', credential };
+  }
+
+  const verifierKey = crypto.createHash('sha256').update(secret).digest();
+  const expected = crypto
+    .createHmac('sha256', verifierKey)
+    .update(credential.credentialId)
+    .digest('hex');
+  const actualBytes = Buffer.from(credential.verifier, 'hex');
+  const expectedBytes = Buffer.from(expected, 'hex');
+  if (
+    actualBytes.length !== expectedBytes.length ||
+    !crypto.timingSafeEqual(actualBytes, expectedBytes)
+  ) {
+    return { valid: false, reason: 'invalid secret', credential };
+  }
+
+  return { valid: true, credential };
+}
 
 // ── Store ───────────────────────────────────────────────────────────
 
@@ -156,40 +241,17 @@ export class JsonlCredentialStore {
     await this._ensureLoaded();
 
     const now = Date.now();
-    const ttlMs = Math.min(opts.ttlMs, MAX_CREDENTIAL_TTL[opts.kind]);
-    const credentialId = crypto.randomUUID();
+    const { credential, secret } = createMailboxCredential(opts, now);
+    const credentialId = credential.credentialId;
 
-    // Generate a cryptographically random 32-byte secret
-    const secretBytes = crypto.randomBytes(32);
-    const secret = secretBytes.toString('hex');
-
-    // Compute the verifier using HMAC-SHA-256
-    const verifierKey = crypto.createHash('sha256').update(secret).digest();
-    const verifier = crypto.createHmac('sha256', verifierKey).update(credentialId).digest('hex');
-
-    const credential: MailboxCredential = {
-      credentialId,
-      verifier,
-      verifierAlgorithm: 'hmac-sha256',
-      principalId: opts.principalId,
-      projectId: opts.projectId,
-      capabilities: opts.capabilities,
-      kind: opts.kind,
-      issuedAt: new Date(now).toISOString(),
-      expiresAt: new Date(now + ttlMs).toISOString(),
-      notBefore: opts.notBefore?.toISOString(),
-      status: 'active',
-      statusChangedAt: new Date(now).toISOString(),
-      supersedes: opts.supersedes,
-    };
-
-    // Revoke the superseded credential
+    // Keep the superseded credential valid only for the documented overlap.
     if (opts.supersedes) {
       const old = this.credentials.get(opts.supersedes);
       if (old && old.status === 'active') {
         old.status = 'rotated_out';
         old.statusChangedAt = new Date(now).toISOString();
         old.statusReason = 'superseded by rotation';
+        old.rotationValidUntil = new Date(now + ROTATION_OVERLAP_MS).toISOString();
       }
     }
 
@@ -207,32 +269,7 @@ export class JsonlCredentialStore {
       return { valid: false, reason: 'store not loaded' };
     }
 
-    const credential = this.credentials.get(credentialId);
-    if (!credential) {
-      return { valid: false, reason: 'credential not found' };
-    }
-
-    if (credential.status !== 'active') {
-      return { valid: false, reason: `credential is ${credential.status}`, credential };
-    }
-
-    const now = Date.now();
-    if (new Date(credential.expiresAt).getTime() < now) {
-      return { valid: false, reason: 'credential expired', credential };
-    }
-    if (credential.notBefore && new Date(credential.notBefore).getTime() > now) {
-      return { valid: false, reason: 'credential not yet valid', credential };
-    }
-
-    // Verify the secret
-    const verifierKey = crypto.createHash('sha256').update(secret).digest();
-    const expected = crypto.createHmac('sha256', verifierKey).update(credentialId).digest('hex');
-
-    if (credential.verifier !== expected) {
-      return { valid: false, reason: 'invalid secret', credential };
-    }
-
-    return { valid: true, credential };
+    return verifyMailboxCredential(this.credentials.get(credentialId), secret);
   }
 
   /** Verify against a fresh persisted snapshot without mutating this store's cache. */

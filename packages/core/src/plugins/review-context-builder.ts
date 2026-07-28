@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { KanbanTask } from '@wrongstack/kanban';
+import type { ChronicleFileLineageRow } from '../chronicle/metrics-store.js';
 import { createChronicleProjectAccess } from '../chronicle/project-access.js';
 import type {
   ResolvedChimeraConfig,
@@ -296,27 +297,47 @@ async function findFileProvenance(
   const access = createChronicleProjectAccess({ projectRoot });
   const provenance: NonNullable<ReviewContextBundle['fileProvenance']> = [];
   try {
-    for (const filePath of filePaths) {
-      try {
-        const result = await access.call('query', {
-          query: { path: filePath, limit: 1, order: 'desc' },
-        });
-        const evt = result.events[0];
-        if (!evt) continue;
-        const scope = evt.scope ?? {};
-        provenance.push({
-          path: filePath,
-          agentId: scope.agentId,
-          taskId: scope.taskId,
-          eventType: evt.eventType,
-          observedAt: evt.observedAt,
-        });
-      } catch {
-        // Skip an individual file on query error.
-      }
+    // Read the derived SQLite lineage projection in one indexed query. The old
+    // loop performed one full reverse scan of every raw Chronicle partition
+    // per file — an 80-file review over a multi-GB journal could pin a CPU
+    // core and allocate Buffers/strings inside the TUI process for minutes.
+    const uniquePaths = [...new Set(filePaths)];
+    const result = await access.call('metrics', {
+      view: 'files',
+      refresh: false,
+      files: {
+        paths: uniquePaths,
+        latestPerPath: true,
+        limit: Math.min(10_000, uniquePaths.length),
+      },
+    });
+    const rows = result.data as ChronicleFileLineageRow[];
+    const byPath = new Map(
+      rows.map((row) => [normalizeReviewPath(row.path), row] as const),
+    );
+    for (const filePath of uniquePaths) {
+      const row = byPath.get(normalizeReviewPath(filePath));
+      if (!row) continue;
+      provenance.push({
+        path: filePath,
+        agentId: row.agentId || undefined,
+        taskId: row.taskId || undefined,
+        eventType: lineageEventType(row),
+        observedAt: row.occurredAt,
+      });
     }
   } finally {
     await access.close();
   }
   return provenance;
+}
+
+function normalizeReviewPath(filePath: string): string {
+  return filePath.replaceAll('\\', '/').toLocaleLowerCase();
+}
+
+function lineageEventType(row: ChronicleFileLineageRow): string {
+  return row.source === 'external'
+    ? `file.external.${row.operation || 'modified'}`
+    : 'file.event';
 }

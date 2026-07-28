@@ -1,6 +1,6 @@
 import {
   formatSubagentStructuredReport,
-  GlobalMailbox,
+  getSharedProjectMailbox,
   mailboxSessionTag,
   type TaskResultNotification,
 } from '@wrongstack/core/coordination';
@@ -23,7 +23,7 @@ export async function reportTaskResultToLeader({
 }: ReportTaskResultToLeaderOptions): Promise<void> {
   try {
     const leaderId = getLeaderMailboxId?.() ?? `leader@${mailboxSessionTag(sessionId)}`;
-    const mailbox = new GlobalMailbox(mailboxProjectDir, events);
+    const mailbox = getSharedProjectMailbox(mailboxProjectDir, events);
     const ok = n.status === 'success';
     const MAX_BODY = 700;
     const failureText = [n.errorText ?? n.status, n.partialText ? `Partial output:\n${n.partialText}` : '']

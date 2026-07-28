@@ -279,6 +279,8 @@ export class ChronicleMetricsStore {
   fileLineage(
     options: {
       path?: string;
+      paths?: string[];
+      latestPerPath?: boolean;
       taskId?: string;
       boardId?: string;
       sessionId?: string;
@@ -290,6 +292,12 @@ export class ChronicleMetricsStore {
     if (options.path) {
       clauses.push('path_key = ?');
       params.push(normalizePathKey(options.path));
+    }
+    if (options.paths) {
+      const pathKeys = [...new Set(options.paths.map(normalizePathKey))];
+      if (pathKeys.length === 0) return [];
+      clauses.push(`path_key IN (${pathKeys.map(() => '?').join(',')})`);
+      params.push(...pathKeys);
     }
     if (options.taskId) {
       clauses.push('task_id = ?');
@@ -305,12 +313,20 @@ export class ChronicleMetricsStore {
     }
     const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
     params.push(clampLimit(options.limit, 200));
+    const projection =
+      `path, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
+       tool_name, provider_id, model_id, source`;
+    const sql = options.latestPerPath
+      ? `SELECT ${projection} FROM (
+           SELECT ${projection}, ROW_NUMBER() OVER (
+             PARTITION BY path_key ORDER BY occurred_at DESC, event_id DESC
+           ) AS path_rank
+           FROM file_lineage${where}
+         ) WHERE path_rank = 1 ORDER BY occurred_at DESC LIMIT ?`
+      : `SELECT ${projection}
+         FROM file_lineage${where} ORDER BY occurred_at DESC LIMIT ?`;
     const rows = this.db
-      .prepare(
-        `SELECT path, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
-        tool_name, provider_id, model_id, source
-       FROM file_lineage${where} ORDER BY occurred_at DESC LIMIT ?`,
-      )
+      .prepare(sql)
       .all(...params) as Array<Record<string, string>>;
     return rows.map((row) => ({
       path: row.path!,

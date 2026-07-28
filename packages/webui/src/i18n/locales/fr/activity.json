@@ -335,6 +335,7 @@
     "pinned": "Épinglés",
     "quickSettings": "Réglages rapides",
     "autonomy": "Autonomie",
+    "autonomyTitle": "Arrêter l'exécution automatique des étapes suivantes. Désactivez pour interrompre la boucle autonome de l'agent",
     "autonomyOptions": {
       "off": "Désactivé",
       "suggest": "Suggérer",
@@ -1909,6 +1910,11 @@
     "breakRoom": "Salle de pause",
     "onBreak": "{{count}} en pause",
     "desksEmpty": "Tout le monde est en pause — les bureaux sont prêts pour la prochaine tâche"
+  },
+  "sageMemory": {
+    "injectedHeading": "Mémoire SAGE injectée",
+    "memoriesLabel_one": "{{count}} souvenir",
+    "memoriesLabel_other": "{{count}} souvenirs"
   },
   "sddhub": {
     "tabProject": "Projet SDD",

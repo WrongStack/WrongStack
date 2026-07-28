@@ -1,24 +1,19 @@
 import { expectDefined } from '@wrongstack/core/utils';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { useChipStalenessGuard, computeTokenFingerprint } from '../hooks/use-chip-staleness-guard.js';
-import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
+import {
+  computeTokenFingerprint,
+  useChipStalenessGuard,
+} from '../hooks/use-chip-staleness-guard.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
+import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation, useStdout } from '../ink.js';
+import { activeMemoryContextCount } from '../memory-context-monitor.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
-import { COLOR_TICK_MS, colorPhaseFromTime, type AnimationStyle } from './animation-style.js';
+import { type AnimationStyle, COLOR_TICK_MS, colorPhaseFromTime } from './animation-style.js';
 import { PowerlineRail } from './powerline-rail.js';
 import { BrainChip, EternalStageChip, ThinkingChip } from './status-bar-chips.js';
-import type { StatuslineItem } from './statusline-picker.js';
-import { activeMemoryContextCount } from '../memory-context-monitor.js';
-import {
-  countdownColor,
-  formatSuggestionLabel,
-  hasMailboxActivity,
-  isStreamChipVisible,
-  modeIcon,
-} from './status-bar-helpers.js';
 import {
   contextBarColor,
   fmtDebugBytes,
@@ -31,7 +26,15 @@ import {
   tokenDisplayTotals,
   truncateChip,
 } from './status-bar-format.js';
+import {
+  countdownColor,
+  formatSuggestionLabel,
+  hasMailboxActivity,
+  isStreamChipVisible,
+  modeIcon,
+} from './status-bar-helpers.js';
 import type { StatusBarProps } from './status-bar-types.js';
+import type { StatuslineItem } from './statusline-picker.js';
 
 export {
   contextBarColor,
@@ -46,9 +49,9 @@ export {
   statusBarAutonomySpan,
   statusBarModelSpan,
   statusBarTodosSpan,
+  type TokenDisplayTotals,
   tokenDisplayTotals,
   truncateChip,
-  type TokenDisplayTotals,
 } from './status-bar-format.js';
 
 export type {
@@ -320,7 +323,17 @@ export function StatusBar({
     ) : null;
   const cpuStatusChip =
     typeof cpuPercent === 'number' && showChip('cpu') ? (
-      <Text color={isNoColor ? undefined : cpuPercent > 80 ? theme.error : cpuPercent > 50 ? theme.warn : theme.success}>
+      <Text
+        color={
+          isNoColor
+            ? undefined
+            : cpuPercent > 80
+              ? theme.error
+              : cpuPercent > 50
+                ? theme.warn
+                : theme.success
+        }
+      >
         {glyphs.cpu} {Math.round(cpuPercent)}%
       </Text>
     ) : null;
@@ -374,8 +387,7 @@ export function StatusBar({
   // ── Background-service detail line (4th row) ──────────────────────────
   const memoryMonitor = memoryContextMonitor;
   const memorySummary = memoryMonitor?.latest;
-  const hasMemoryDetail =
-    (memorySummary != null || Sage != null) && showChip('memory_context');
+  const hasMemoryDetail = (memorySummary != null || Sage != null) && showChip('memory_context');
   const memoryDetailChips: React.ReactElement[] = [];
   if (hasMemoryDetail) {
     const records = memoryMonitor ? Object.values(memoryMonitor.memories) : [];
@@ -429,8 +441,7 @@ export function StatusBar({
             : memorySummary.trigger}
           <Text dimColor={!isNoColor}>
             {' · ctx '}
-            {Math.round(memorySummary.contextPressure * 100)}%
-            {' · +'}
+            {Math.round(memorySummary.contextPressure * 100)}%{' · +'}
             {memorySummary.injectedChars >= 1024
               ? `${(memorySummary.injectedChars / 1024).toFixed(1)}K`
               : memorySummary.injectedChars}
@@ -582,9 +593,7 @@ export function StatusBar({
           return (
             <Text>
               <Text color={chipColor(c, isNoColor)}>
-                {context ? (
-                  <Text dimColor={!isNoColor}>{'ctx '}</Text>
-                ) : null}
+                {context ? <Text dimColor={!isNoColor}>{'ctx '}</Text> : null}
                 {context ? renderMeter(ratio, 6) : ''} {context ? fmtTok(context.used) : ''}
               </Text>
               {hasTokens && context ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
@@ -1009,12 +1018,19 @@ export function StatusBar({
 
       {/* Line 4 — Background-service detail: memory context lifecycle and
           codebase-index server/indexing health. Keeping this operational
-          telemetry off line 1 preserves the primary runtime context. */}
+          telemetry off line 1 preserves the primary runtime context.
+
+          The index chip is right-anchored via `rightAnchor` so its column
+          position is independent of the memory-detail chip widths (which
+          change every heartbeat as matched/injected/filtered counts and
+          `ctx N%` / `+N chars` update). Previously the index chip was the
+          final segment of a single rail and visibly jittered left/right as
+          the memory counters grew or shrank — pinning it to the right edge
+          keeps the index/PID column stable. */}
       {hasMemoryDetail || indexStatusChip ? (
         <PowerlineRail
-          segments={[...memoryDetailChips, indexStatusChip].filter(
-            (chip): chip is React.ReactElement => chip !== null,
-          )}
+          segments={memoryDetailChips}
+          rightAnchor={indexStatusChip}
           budget={Math.max(12, termWidth)}
           monochrome={isNoColor}
           fillBg={LINE_BG_COLORS[3]}

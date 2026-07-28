@@ -2,6 +2,7 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { StatusBar, type StatusBarProps } from '../src/components/status-bar.js';
+import { displayWidth } from '../src/terminal-width.js';
 
 // Strip ANSI so we assert on the plain glyphs the user actually sees.
 function strip(s: string): string {
@@ -314,5 +315,66 @@ describe('StatusBar chip separators', () => {
     // is the only chip on line 3 here, so it should render without overflow.
     expect(frame).toContain('✉');
     expect(frame).toContain('0');
+  });
+
+  it('right-anchors the index-server chip so its column stays put while memory counters grow', () => {
+    // Find the right-edge column of "index connected #4242" on the last
+    // line under two different memory-detail widths, and assert the column
+    // is identical — that's the regression check for the statusline
+    // jitter that previously moved the index chip every heartbeat as
+    // matched/injected/filtered counts and "ctx N%" updated.
+    const narrow = frameOf({
+      Sage: { total: 6261, activeInContext: 3 },
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: { status: 'connected', connected: true, pid: 4242 },
+      },
+    });
+    const wide = frameOf({
+      Sage: { total: 6261, activeInContext: 3 },
+      memoryContextMonitor: {
+        memories: {},
+        transitions: [],
+        latest: {
+          at: '2026-07-28T00:00:00.000Z',
+          matched: 12,
+          injected: 9,
+          filtered: 4,
+          trigger: 'auth-refactor-bug',
+          contextPressure: 0.5,
+          injectedChars: 12345,
+        },
+      },
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: { status: 'connected', connected: true, pid: 4242 },
+      },
+    });
+
+    const lastLineOf = (f: string) => f.split('\n').at(-1) ?? '';
+    const endColumn = (line: string, needle: string) => {
+      const idx = line.indexOf(needle);
+      if (idx < 0) return -1;
+      // Use display-width to match Ink's column accounting.
+      let col = 0;
+      for (let i = 0; i < idx; i++) col += displayWidth(line.charAt(i));
+      col += displayWidth(needle);
+      return col;
+    };
+
+    // The index chip is the rightmost content on the last line in both
+    // cases. Asserting its trailing column is identical is the proof
+    // that the right-anchored geometry holds the chip steady regardless
+    // of how wide the memory counters grow.
+    expect(endColumn(lastLineOf(narrow), 'index connected #4242')).toBeGreaterThan(0);
+    expect(endColumn(lastLineOf(wide), 'index connected #4242')).toBe(
+      endColumn(lastLineOf(narrow), 'index connected #4242'),
+    );
   });
 });

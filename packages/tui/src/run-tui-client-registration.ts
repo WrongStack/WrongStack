@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import { RemoteMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config } from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
@@ -13,6 +13,7 @@ import {
   startToolTelemetryBridge,
   startWorktreeTelemetryBridge,
 } from '@wrongstack/core/hq';
+import type { TuiMailboxSnapshot } from './mailbox-view-model-types.js';
 
 export interface RunTuiClientRegistrationOptions {
   projectRoot?: string | undefined;
@@ -40,8 +41,9 @@ export function createRunTuiClientRegistration(
   let clientHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let clientSyncTimer: ReturnType<typeof setInterval> | null = null;
   let initialClientSyncTimer: ReturnType<typeof setTimeout> | null = null;
-  let registeredMailbox: GlobalMailbox | null = null;
+  let registeredMailbox: RemoteMailbox | null = null;
   let registeredClientId: string | null = null;
+  let unsubscribeMailboxEvents: (() => void) | null = null;
   let tuiHqPublisher: ReturnType<typeof createHqPublisherFromEnv>;
   let registrationGeneration = 0;
   const stopHqAuxBridges: Array<() => void> = [];
@@ -51,8 +53,63 @@ export function createRunTuiClientRegistration(
     const generation = ++registrationGeneration;
     try {
       const projectDir = resolveProjectDir(opts.projectRoot, wstackGlobalRoot());
-      const mailbox = new GlobalMailbox(projectDir, opts.events);
+      const mailbox = new RemoteMailbox({ projectDir, events: opts.events });
       const clientId = `tui@${randomUUID().slice(0, 8)}`;
+      await mailbox.initialize();
+
+      const publishSnapshot = async (): Promise<void> => {
+        if (opts.isCleaned() || generation !== registrationGeneration) return;
+        try {
+          const actorId = opts.getAgentId?.();
+          const [messages, agents, clients, service, unread] = await Promise.all([
+            mailbox.query({ limit: 50 }),
+            mailbox.getAgentStatuses(),
+            mailbox.getClientStatuses(),
+            mailbox.status(),
+            actorId === undefined ? Promise.resolve(0) : mailbox.unreadCount(actorId),
+          ]);
+          if (opts.isCleaned() || generation !== registrationGeneration) return;
+          const clientCounts = { tui: 0, webui: 0, repl: 0 };
+          for (const client of clients) {
+            if (client.online && client.source in clientCounts) {
+              clientCounts[client.source as keyof typeof clientCounts]++;
+            }
+          }
+          const snapshot: TuiMailboxSnapshot = {
+            actorId,
+            messages,
+            agents,
+            unread,
+            clients: clientCounts,
+            service: {
+              state: 'online',
+              protocolVersion: service.protocolVersion,
+              pid: service.pid,
+              clients: service.clients,
+              pendingRequests: service.pendingRequests,
+              storageKind: service.storageKind,
+            },
+          };
+          opts.events.emitCustom('mailbox.snapshot', snapshot);
+        } catch (error) {
+          if (opts.isCleaned() || generation !== registrationGeneration) return;
+          opts.events.emitCustom('mailbox.snapshot', {
+            messages: [],
+            agents: [],
+            unread: 0,
+            clients: { tui: 0, webui: 0, repl: 0 },
+            service: {
+              state: 'offline',
+              error: error instanceof Error ? error.message : String(error),
+            },
+          } satisfies TuiMailboxSnapshot);
+        }
+      };
+
+      unsubscribeMailboxEvents = opts.events.onPattern('mailbox.*', (event) => {
+        if (event === 'mailbox.snapshot' || event === 'mailbox.sync_clients') return;
+        void publishSnapshot();
+      });
       await mailbox.registerClient({
         clientId,
         sessionId: opts.getSessionId?.() ?? opts.projectRoot,
@@ -66,6 +123,7 @@ export function createRunTuiClientRegistration(
       }
       registeredMailbox = mailbox;
       registeredClientId = clientId;
+      await publishSnapshot();
 
       // The CLI host already owns the single session/fleet publisher. Standalone
       // TUI consumers still get a local publisher, which cleanup closes below.
@@ -169,6 +227,7 @@ export function createRunTuiClientRegistration(
             if (s.online && s.source in counts) counts[s.source as keyof typeof counts]++;
           }
           opts.events.emitCustom('mailbox.sync_clients', counts);
+          await publishSnapshot();
         } catch {
           // best-effort — sync failures should not affect TUI operation
         }
@@ -202,6 +261,8 @@ export function createRunTuiClientRegistration(
       clearTimeout(initialClientSyncTimer);
       initialClientSyncTimer = null;
     }
+    unsubscribeMailboxEvents?.();
+    unsubscribeMailboxEvents = null;
     for (const stop of stopHqAuxBridges) {
       try {
         stop();
@@ -216,7 +277,12 @@ export function createRunTuiClientRegistration(
     const clientId = registeredClientId;
     registeredMailbox = null;
     registeredClientId = null;
-    if (mailbox && clientId) void mailbox.deregisterClient(clientId).catch(() => undefined);
+    if (mailbox && clientId) {
+      void mailbox
+        .deregisterClient(clientId)
+        .catch(() => undefined)
+        .finally(() => mailbox.close());
+    }
   };
 
   return { register, unregister };

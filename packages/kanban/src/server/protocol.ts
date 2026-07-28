@@ -75,12 +75,54 @@ export interface KanbanServerOperations {
   transferTask: { args: { boardId: string; taskId: string; targetBoardId: string; targetColumnId?: string }; result: string };
 
   // Lifecycle / orchestration
-  transitionTask: { args: { boardId: string; taskId: string; status: string; transitionComment?: string }; result: string };
+  transitionTask: {
+    args: {
+      boardId: string;
+      taskId: string;
+      to?: string;
+      status?: string;
+      [key: string]: unknown;
+    };
+    result: unknown;
+  };
   claimTask: { args: { boardId?: string; agentId?: string; role?: string; priority?: string }; result: string };
   releaseTask: { args: { boardId: string; taskId: string }; result: string };
-  assignTask: { args: { boardId: string; taskId: string; assignee: string }; result: string };
+  assignTask: {
+    args: {
+      boardId: string;
+      taskId: string;
+      input: Record<string, unknown>;
+      eventContext?: Record<string, unknown>;
+    };
+    result: unknown;
+  };
+  updateTaskAssignment: {
+    args: {
+      boardId: string;
+      taskId: string;
+      patch: Record<string, unknown>;
+      eventContext?: Record<string, unknown>;
+    };
+    result: unknown;
+  };
+  finalizeTaskCompletion: {
+    args: {
+      boardId: string;
+      taskId: string;
+      options?: Record<string, unknown>;
+    };
+    result: unknown;
+  };
   heartbeatAssignment: { args: { boardId: string; taskId: string; currentTask?: string }; result: string };
-  verifyCompletion: { args: { boardId: string; taskId: string }; result: string };
+  verifyTaskCompletion: {
+    args: { boardId: string; taskId: string; persist?: boolean };
+    result: unknown;
+  };
+  /** @deprecated Use verifyTaskCompletion. Kept for older clients. */
+  verifyCompletion: {
+    args: { boardId: string; taskId: string; persist?: boolean };
+    result: unknown;
+  };
   recoverStaleTaskAssignments: { args: { boardId?: string }; result: string };
 
   adoptManagedLifecycle: {
@@ -91,9 +133,18 @@ export interface KanbanServerOperations {
     args: { boardId: string; taskId: string; author: string; transitionComment: string };
     result: string;
   };
+  reconcileBoard: { args: { boardId: string }; result: unknown };
 
   // Chains
-  setChain: { args: { boardId: string; taskIds: string[] }; result: string };
+  setChain: {
+    args: {
+      boardId: string;
+      taskIds: string[];
+      chainId?: string;
+      enforceDependencies?: boolean;
+    };
+    result: unknown;
+  };
 
   // Task graph
   syncTaskGraph: { args: { boardId: string; taskGraph: string }; result: string };
@@ -103,6 +154,9 @@ export interface KanbanServerOperations {
   // Export
   exportMarkdown: { args: { boardId: string }; result: string };
   exportTaskGraph: { args: { boardId: string }; result: string };
+
+  // Verification helpers
+  assessAtomicity: { args: { boardId: string; taskId: string }; result: unknown };
 }
 
 export type KanbanServerMethod = keyof KanbanServerOperations;

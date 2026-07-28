@@ -222,6 +222,7 @@ export function SettingsPanel() {
     window.location.reload();
   }, [localPrefs]);
   const currentCatalogProvider = catalogProviders.find((p) => p.id === provider);
+  const activeTabDef = TABS.find((tab) => tab.id === settingsActiveTab);
 
   // WS event subscriptions
   useEffect(() => {
@@ -413,11 +414,6 @@ export function SettingsPanel() {
                   >
                     <span className="shrink-0">{tab.icon}</span>
                     <span className="truncate">{t(tab.labelKey)}</span>
-                    {tab.descKey && (
-                      <span className="hidden lg:block truncate text-[10px] text-muted-foreground leading-tight">
-                        {t(tab.descKey)}
-                      </span>
-                    )}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -427,6 +423,20 @@ export function SettingsPanel() {
 
             {/* Content area */}
             <div className="min-w-0 space-y-0">
+              {activeTabDef?.descKey && (
+                <div className="mb-4 flex items-start gap-3 rounded-xl border border-border/60 bg-card/50 px-4 py-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                    {activeTabDef.icon}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{t(activeTabDef.labelKey)}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t(activeTabDef.descKey)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* ═══════════════════════════════════════ General ═══ */}
               <TabsContent value="general" className="mt-0">
                 <AppearanceSettingsTab />

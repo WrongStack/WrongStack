@@ -17,7 +17,8 @@ import {
   DEFAULT_SUBAGENT_BASELINE,
   type DirectorSessionFactory,
   FLEET_ROSTER,
-  GlobalMailbox,
+  getSharedProjectMailbox,
+  type MailboxAgentStatus,
   resolveSubagentModelTarget,
 } from '@wrongstack/core/coordination';
 import { installDesignStudioMiddleware } from '@wrongstack/core/design';
@@ -153,9 +154,9 @@ export function createHostSubagentFactory(
         : `${message} Falling back to the assigned checkout.`;
     }
 
-    let onlineAgents: Awaited<ReturnType<GlobalMailbox['getAgentStatuses']>> = [];
+    let onlineAgents: MailboxAgentStatus[] = [];
     try {
-      const subagentMailbox = new GlobalMailbox(host.mailboxProjectDir());
+      const subagentMailbox = getSharedProjectMailbox(host.mailboxProjectDir());
       onlineAgents = await subagentMailbox.getAgentStatuses();
     } catch {
       // Non-fatal: mailbox errors should not block subagent creation.

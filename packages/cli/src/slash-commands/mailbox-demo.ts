@@ -15,19 +15,25 @@
  */
 
 import type { SlashCommand } from '@wrongstack/core/types';
-import { GlobalMailbox, type MailboxAgentStatus, type MailboxMessage, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  type MailboxAgentStatus,
+  type MailboxMessage,
+  type RemoteMailbox,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
 
 const DEMO_AGENT_ID = 'mailbox-demo';
 
-function buildMailbox(opts: SlashCommandContext): GlobalMailbox | null {
+function buildMailbox(opts: SlashCommandContext): RemoteMailbox | null {
   // Prefer paths.projectDir (wstack-paths slug), fall back to projectRoot
   const projectDir =
     opts.paths?.projectDir ?? resolveProjectDir(opts.projectRoot, wstackGlobalRoot());
   try {
-    return new GlobalMailbox(projectDir);
+    return getSharedProjectMailbox(projectDir);
   } catch {
     return null;
   }

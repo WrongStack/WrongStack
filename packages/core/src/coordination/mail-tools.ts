@@ -23,7 +23,7 @@ import type { EventBus } from '../kernel/events.js';
 import type { Context } from '../core/context.js';
 import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { GlobalMailbox } from './global-mailbox.js';
+import { getSharedProjectMailbox } from './remote-mailbox.js';
 import { parseMailboxSendInput } from './mailbox-codecs.js';
 import { isMailboxMessageVisibleTo, normalizeRecipient } from './mailbox-types.js';
 import type {
@@ -55,7 +55,7 @@ function makeResolver(opts: MailToolsOptions): MailboxResolver {
   return (
     opts.resolveMailbox ??
     ((ctx: Context) =>
-      new GlobalMailbox(opts.projectDir ?? defaultResolveProjectDir(ctx), opts.events))
+      getSharedProjectMailbox(opts.projectDir ?? defaultResolveProjectDir(ctx), opts.events))
   );
 }
 

@@ -335,6 +335,7 @@
     "pinned": "Fijados",
     "quickSettings": "Ajustes rápidos",
     "autonomy": "Autonomía",
+    "autonomyTitle": "Detener la ejecución automática de los siguientes pasos. Desactívalo para parar el bucle autónomo del agente",
     "autonomyOptions": {
       "off": "Desactivado",
       "suggest": "Sugerir",
@@ -1909,6 +1910,11 @@
     "breakRoom": "Sala de descanso",
     "onBreak": "{{count}} en descanso",
     "desksEmpty": "Todos están en descanso — los escritorios están listos para la próxima tarea"
+  },
+  "sageMemory": {
+    "injectedHeading": "Memoria SAGE inyectada",
+    "memoriesLabel_one": "{{count}} memoria",
+    "memoriesLabel_other": "{{count}} memorias"
   },
   "sddhub": {
     "tabProject": "Proyecto SDD",

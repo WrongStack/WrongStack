@@ -57,6 +57,7 @@ export function SddWizard({
   const agentText = useSddWizardStore((s) => s.agentText);
   const error = useSddWizardStore((s) => s.error);
   const startedRunId = useSddWizardStore((s) => s.startedRunId);
+  const setStartedRunId = useSddWizardStore((s) => s.setStartedRunId);
 
   const [goal, setGoal] = useState('');
   const [reply, setReply] = useState('');
@@ -97,8 +98,10 @@ export function SddWizard({
   // Notify parent (e.g. SddHub) when a run id lands. Hub owns clearing the flag
   // so Specs/Kanban-started runs also flip to the Live Board tab.
   useEffect(() => {
-    if (startedRunId) onRunStarted?.();
-  }, [onRunStarted, startedRunId]);
+    if (!startedRunId) return;
+    setStartedRunId(null);
+    onRunStarted?.();
+  }, [onRunStarted, setStartedRunId, startedRunId]);
 
   const busy = snapshot?.busy ?? false;
   const phase = snapshot?.phase ?? 'idle';

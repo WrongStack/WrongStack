@@ -11,25 +11,56 @@
  * assigning unique ids during insertion.
  */
 
-import * as ts from '@typescript/typescript6';
+import type * as TS from '@typescript/typescript6';
 import type { FileSymbols, Ref, Symbol as IndexSymbol, SymbolKind, SymbolLang } from './schema.js';
 
-// Map TypeScript SyntaxKind → our SymbolKind taxonomy
-const KIND_MAP: Partial<Record<ts.SyntaxKind, SymbolKind>> = {
-  [ts.SyntaxKind.ClassDeclaration]:      'class',
-  [ts.SyntaxKind.InterfaceDeclaration]: 'interface',
-  [ts.SyntaxKind.EnumDeclaration]:       'enum',
-  [ts.SyntaxKind.TypeAliasDeclaration]:  'type',
-  [ts.SyntaxKind.FunctionDeclaration]:    'function',
-  [ts.SyntaxKind.MethodDeclaration]:     'method',
-  [ts.SyntaxKind.GetAccessor]:           'property',
-  [ts.SyntaxKind.SetAccessor]:           'property',
-  [ts.SyntaxKind.PropertyDeclaration]:   'property',
-  [ts.SyntaxKind.Parameter]:            'parameter',
-  [ts.SyntaxKind.NamespaceExportDeclaration]: 'namespace',
-};
+type TsModule = typeof import('@typescript/typescript6');
 
-function kindOf(node: ts.Node): SymbolKind | null {
+/**
+ * The TypeScript compiler is ~9MB of JavaScript and costs ~26MB heap / ~44MB
+ * RSS to evaluate. A static `import` here put it in the module graph of every
+ * bundle that can reach the indexer — including `wstack version`, the mailbox
+ * bridge, and the codebase-index project server, none of which parse TS.
+ *
+ * It must stay a runtime `import()` of an EXTERNAL package: the build runs with
+ * `splitting: false` (scripts/build-package.mjs), so esbuild inlines dynamic
+ * imports of in-repo files. `parser-dispatch.ts` doing `await import('./ts-parser.js')`
+ * therefore does NOT defer anything on its own — this boundary is the one that
+ * survives bundling. Mirrors `_syntax-check.ts`.
+ */
+let ts!: TsModule;
+let tsLoad: Promise<TsModule> | null = null;
+
+function loadTypescript(): Promise<TsModule> {
+  tsLoad ??= import('@typescript/typescript6').then((m) => {
+    ts = ((m as unknown as { default?: TsModule }).default ?? m) as TsModule;
+    return ts;
+  });
+  return tsLoad;
+}
+
+// Map TypeScript SyntaxKind → our SymbolKind taxonomy. Built on first use
+// because the enum values only exist once the compiler module is loaded.
+let kindMapCache: Partial<Record<TS.SyntaxKind, SymbolKind>> | null = null;
+
+function kindMap(): Partial<Record<TS.SyntaxKind, SymbolKind>> {
+  kindMapCache ??= {
+    [ts.SyntaxKind.ClassDeclaration]:      'class',
+    [ts.SyntaxKind.InterfaceDeclaration]: 'interface',
+    [ts.SyntaxKind.EnumDeclaration]:       'enum',
+    [ts.SyntaxKind.TypeAliasDeclaration]:  'type',
+    [ts.SyntaxKind.FunctionDeclaration]:    'function',
+    [ts.SyntaxKind.MethodDeclaration]:     'method',
+    [ts.SyntaxKind.GetAccessor]:           'property',
+    [ts.SyntaxKind.SetAccessor]:           'property',
+    [ts.SyntaxKind.PropertyDeclaration]:   'property',
+    [ts.SyntaxKind.Parameter]:            'parameter',
+    [ts.SyntaxKind.NamespaceExportDeclaration]: 'namespace',
+  };
+  return kindMapCache;
+}
+
+function kindOf(node: TS.Node): SymbolKind | null {
   // VariableDeclaration needs special handling — its parent tells us whether
   // it's `const`, `let`, or `var`.
   if (ts.isVariableDeclaration(node)) {
@@ -45,13 +76,13 @@ function kindOf(node: ts.Node): SymbolKind | null {
   // Namespace (module) declaration
   if (ts.isModuleDeclaration(node)) return 'namespace';
 
-  return KIND_MAP[node.kind] ?? null;
+  return kindMap()[node.kind] ?? null;
 }
 
 // Extension → language lives in languages.ts (single source of truth for
 // discovery + first-class + generic coverage).
 
-function getSignature(printer: ts.Printer, node: ts.Declaration, sourceFile: ts.SourceFile): string {
+function getSignature(printer: TS.Printer, node: TS.Declaration, sourceFile: TS.SourceFile): string {
   const raw = printer.printNode(ts.EmitHint.Unspecified, node, sourceFile);
   return raw.replace(/\s+/g, ' ').slice(0, 500);
 }
@@ -61,7 +92,7 @@ function getSignature(printer: ts.Printer, node: ts.Declaration, sourceFile: ts.
  * Uses `ts.getLeadingCommentRanges` which is the modern replacement for
  * the removed `ts.getJSDocComments`.
  */
-function getJsDoc(node: ts.Node, sourceFile: ts.SourceFile): string {
+function getJsDoc(node: TS.Node, sourceFile: TS.SourceFile): string {
   const fullText = sourceFile.getFullText();
   // getLeadingCommentRanges wants the position where the node's leading trivia
   // begins (getFullStart), not the node's width — passing getFullWidth() looked
@@ -87,7 +118,7 @@ function getJsDoc(node: ts.Node, sourceFile: ts.SourceFile): string {
 }
 
 /** Push the current node's scope contribution onto `parts` (for the O(1) recursive scope tracker). */
-function pushScopeName(node: ts.Node, parts: string[]): void {
+function pushScopeName(node: TS.Node, parts: string[]): void {
   if (
     ts.isClassDeclaration(node) ||
     ts.isInterfaceDeclaration(node) ||
@@ -121,11 +152,16 @@ export interface ParseOptions {
  * for assigning unique numeric ids during bulk insertion.
  *
  * Returns an empty array for files that can't be parsed or contain no symbols.
+ *
+ * Async because the TypeScript compiler is loaded on first use — see
+ * {@link loadTypescript}. The load is memoized, so only the first call to this
+ * function in a process pays for it.
  */
-export function parseSymbols(opts: ParseOptions): FileSymbols {
+export async function parseSymbols(opts: ParseOptions): Promise<FileSymbols> {
   const { file, content, lang } = opts;
+  await loadTypescript();
 
-  let sourceFile: ts.SourceFile;
+  let sourceFile: TS.SourceFile;
   try {
     sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
   } catch {
@@ -140,7 +176,7 @@ export function parseSymbols(opts: ParseOptions): FileSymbols {
   // for every navigable declaration (often 100-300 per file).
   const printer = ts.createPrinter({});
 
-  function visit(node: ts.Node, funcDepth: number, scopeParts: string[]): void {
+  function visit(node: TS.Node, funcDepth: number, scopeParts: string[]): void {
     // ── Symbol extraction ──────────────────────────────────────────────
     const kind = kindOf(node);
 
@@ -157,7 +193,7 @@ export function parseSymbols(opts: ParseOptions): FileSymbols {
         // Fall through to ref extraction — function-local variables can still
         // appear in type references and calls.
       } else {
-        const nameNode = (node as { name?: ts.Identifier | undefined }).name;
+        const nameNode = (node as { name?: TS.Identifier | undefined }).name;
         if (!nameNode || !ts.isIdentifier(nameNode)) {
           // Anonymous declaration (e.g. `export default class { ... }`) — no
           // name identifier, so there's nothing to index. Skip children too
@@ -170,7 +206,7 @@ export function parseSymbols(opts: ParseOptions): FileSymbols {
         const pos = nameNode.getStart(sourceFile);
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(pos);
         const scope = scopeParts.join('.');
-        const signature = getSignature(printer, node as ts.Declaration, sourceFile);
+        const signature = getSignature(printer, node as TS.Declaration, sourceFile);
         const docComment = getJsDoc(node, sourceFile);
         const text = [name, signature, docComment].filter(Boolean).join(' | ');
 
@@ -209,7 +245,7 @@ export function parseSymbols(opts: ParseOptions): FileSymbols {
       if (name) refs.push({ fromId: 0, toName: name, callType: 'type_ref', line: lineNum });
     } else if (ts.isHeritageClause(node)) {
       for (const t of node.types) {
-        const name = getTypeName(t.expression as ts.EntityName);
+        const name = getTypeName(t.expression as TS.EntityName);
         if (name) refs.push({ fromId: 0, toName: name, callType: node.token === ts.SyntaxKind.ExtendsKeyword ? 'inherit' : 'implement', line: lineNum });
       }
     } else if (ts.isImportDeclaration(node)) {
@@ -233,7 +269,7 @@ export function parseSymbols(opts: ParseOptions): FileSymbols {
 // ─── Reference extraction helpers ──────────────────────────────────────────────
 
 /** Extract the name string from a type name node (simple or qualified). */
-function getTypeName(name: ts.EntityName): string {
+function getTypeName(name: TS.EntityName): string {
   if (ts.isIdentifier(name)) return name.text;
   if (ts.isQualifiedName(name)) return `${getTypeName(name.left)}.${name.right.text}`;
   /* v8 ignore next -- an EntityName is always an Identifier or QualifiedName; defensive. */
@@ -241,7 +277,7 @@ function getTypeName(name: ts.EntityName): string {
 }
 
 /** Get the module path string from an import declaration. */
-function getModuleName(node: ts.ImportDeclaration): string {
+function getModuleName(node: TS.ImportDeclaration): string {
   const moduleSpecifier = node.moduleSpecifier;
   if (ts.isStringLiteral(moduleSpecifier)) return moduleSpecifier.text;
   /* v8 ignore next -- an import declaration's module specifier is always a string literal; defensive. */

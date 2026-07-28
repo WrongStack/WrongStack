@@ -504,6 +504,12 @@ export class CollaborationWebSocketHandler {
     for (const [kernelEvent, kind] of forwarded) {
       this.offs.push(
         on(kernelEvent, (raw) => {
+          // Bail before the clone when nobody is watching. This list includes
+          // `tool.progress` and `subagent.iteration_summary` — per-delta hot
+          // paths — and the deep clone below used to run on every kernel event
+          // even with zero observers connected, because the only no-op guard
+          // lived inside broadcastEvent().
+          if (this.bySession.size === 0) return;
           // Best-effort payload shape: we don't deeply validate, but we
           // make sure it's serializable. Observers must never receive
           // non-serializable objects (Functions, circular refs).
@@ -551,10 +557,16 @@ export class CollaborationWebSocketHandler {
    */
   private async replayHistory(ws: WebSocket, sessionId: string): Promise<void> {
     if (!this.reader) return;
-    const all: unknown[] = [];
+    // Keep only the trailing REPLAY_LIMIT events in a ring instead of
+    // materializing the whole session log. `reader.replay` is already an async
+    // iterator; buffering all of it just to `slice(-50)` meant a late joiner
+    // pulled an entire (unbounded) session history into memory first.
+    const ring: unknown[] = new Array(REPLAY_LIMIT);
+    let seen = 0;
     try {
       for await (const ev of this.reader.replay(sessionId)) {
-        all.push(ev);
+        ring[seen % REPLAY_LIMIT] = ev;
+        seen++;
       }
     } catch (err) {
       this.logger.debug?.(
@@ -564,7 +576,11 @@ export class CollaborationWebSocketHandler {
       );
       return;
     }
-    const tail = all.slice(-REPLAY_LIMIT);
+    const tail =
+      seen <= REPLAY_LIMIT
+        ? ring.slice(0, seen)
+        : // Unwrap the ring back into chronological order.
+          [...ring.slice(seen % REPLAY_LIMIT), ...ring.slice(0, seen % REPLAY_LIMIT)];
     if (tail.length === 0) return; // nothing to replay
     for (const raw of tail) {
       const ev = raw as { type?: string | undefined; ts?: string | undefined; [k: string]: unknown };

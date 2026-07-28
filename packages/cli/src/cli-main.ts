@@ -22,7 +22,6 @@ import {
   getSddRuntimeStateForCli,
   loadOnlineAgentsForPrompt,
 } from './cli-main-helpers.js';
-import { execute } from './execution.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { SessionStats } from './session-stats.js';
@@ -846,6 +845,12 @@ export async function main(argv: string[]): Promise<number> {
   });
 
   const savedProviderCfg = config.providers?.[config.provider];
+  // The interactive graph — every slash command, the wiring layer, and with
+  // them @wrongstack/sdd, /acp, /sage and /security-scanner — hangs off this
+  // one module. Importing it statically meant `wstack version` and
+  // `wstack mailbox serve`, which are dispatched long before this line, still
+  // paid for all of it at boot.
+  const { execute } = await import('./execution.js');
   return execute(
     toExecuteDeps({
       core: {

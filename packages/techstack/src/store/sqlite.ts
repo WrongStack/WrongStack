@@ -13,7 +13,11 @@ import { createRequire } from 'node:module';
 import { mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { wstackGlobalRoot, withSqliteExperimentalWarningSuppressed } from '@wrongstack/core/utils';
+import {
+  SageCachePragmas,
+  withSqliteExperimentalWarningSuppressed,
+  wstackGlobalRoot,
+} from '@wrongstack/core/utils';
 import { applySchema } from './schema.js';
 import type {
   DeliveryOutbox,
@@ -90,8 +94,12 @@ export class TechStackStore {
     this.db.exec('PRAGMA synchronous = NORMAL;');
     this.db.exec('PRAGMA busy_timeout = 10000;');
     this.db.exec('PRAGMA temp_store = MEMORY;');
-    this.db.exec('PRAGMA cache_size = -32768;'); // 32 MiB
-    this.db.exec('PRAGMA mmap_size = 134217728;'); // 128 MiB
+    // Sized from the shared perf profile like sage and codebase-index do.
+    // These were hardcoded at 32 MiB / 128 MiB, which meant
+    // WRONGSTACK_PERF_PROFILE=frugal had no effect on this store at all.
+    const cache = SageCachePragmas();
+    this.db.exec(`PRAGMA cache_size = -${cache.cacheSizeKiB};`);
+    this.db.exec(`PRAGMA mmap_size = ${cache.mmapBytes};`);
     this.db.exec('PRAGMA foreign_keys = ON;');
     applySchema(this.db);
   }

@@ -1,7 +1,10 @@
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { type FileAuthorTrackerOptions, type PackageAuthorTrackerOptions, startTechStackConsumer } from '@wrongstack/core/coordination';
-import { GlobalMailbox, startPackageOutdatedWatcher } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  startPackageOutdatedWatcher,
+} from '@wrongstack/core/coordination';
 import type { DefaultLogger } from '@wrongstack/core/infrastructure';
 import type { MultiAgentHost } from '../multi-agent.js';
 
@@ -33,7 +36,7 @@ export function setupDepWatcherConsumers(deps: SetupDepWatcherConsumersDeps): vo
   if (dwCfg?.['enabled'] === true) {
     try {
       const projectDir = path.join(globalRoot, 'projects', projectSlug);
-      const tsMailbox = new GlobalMailbox(projectDir, events);
+      const tsMailbox = getSharedProjectMailbox(projectDir, events);
       const fileAuthorOpts: FileAuthorTrackerOptions = {
         storageDir: projectDir,
         projectRoot,
@@ -69,7 +72,7 @@ export function setupDepWatcherConsumers(deps: SetupDepWatcherConsumersDeps): vo
   if (dwCfg?.['enabled'] === true) {
     try {
       const projectDir = path.join(globalRoot, 'projects', projectSlug);
-      const pkgMailbox = new GlobalMailbox(projectDir, events);
+      const pkgMailbox = getSharedProjectMailbox(projectDir, events);
       const pkgTrackerOpts: Pick<PackageAuthorTrackerOptions, 'storageDir' | 'projectRoot'> = {
         storageDir: projectDir,
         projectRoot,
