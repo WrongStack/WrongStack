@@ -196,6 +196,18 @@ jobs:
       - name: Verify artifact lineage
         run: pnpm check:build-manifest
 
+      # Warm up workspace dist artifacts before Playwright runs. The
+      # E2E job is dispatched on its own runner in parallel with the
+      # Build job, so the downloaded artifact may not include every
+      # dist entry Playwright's tsconfig-resolve path needs (it walks
+      # `references: ["./packages/core"]` etc. at module resolution time).
+      # Building locally guarantees the missing dist files exist before
+      # the Playwright loader walks the references chain.
+      - name: Build workspace dist for Playwright tsconfig resolution
+        run: pnpm -r build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
       # Playwright browsers are cached to avoid re-downloading on every run.
       - name: Cache Playwright browsers
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -324,6 +336,18 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Warm up workspace dist artifacts before the heap-soak benchmark
+      # runs esbuild. The benchmark script imports entry points like
+      # @wrongstack/tools/next-steps and @wrongstack/runtime/clipboard
+      # which only exist as dist entries; without a build the esbuild
+      # resolve step fails with "Could not resolve" before any memory
+      # measurement can be taken. Building locally guarantees the
+      # dist tree matches what production TUI users load.
+      - name: Build workspace dist for heap-soak esbuild resolve
+        run: pnpm -r build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Run heap-soak benchmark (quick profile)
         run: pnpm bench:tui-heap --quick
