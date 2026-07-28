@@ -33,6 +33,7 @@ import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
+import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
 import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
 import type { ChronicleEvent } from './types.js';
 import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
@@ -112,8 +113,9 @@ function loadDatabaseSync(): typeof DatabaseSync {
   if (Ctor) return Ctor;
   if (Ctor === null) throw new Error('node:sqlite is unavailable in this runtime');
   try {
-    Ctor = (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite'))
-      .DatabaseSync;
+    Ctor = withSqliteExperimentalWarningSuppressed(
+      () => (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite')).DatabaseSync,
+    );
     return Ctor;
   } catch (error) {
     Ctor = null;
