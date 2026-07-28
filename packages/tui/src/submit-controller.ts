@@ -568,10 +568,11 @@ export function createSubmitController(host: SubmitControllerHost) {
 
     // ── SDD Context Injection ──────────────────────────────────────────
     // When an SDD session is active, prepend the session context so the
-    // model knows it's in a spec-building conversation. Pass the user text
-    // so the questioning phase can record the Q/A pair before the prompt
-    // is built (parity with WebUI SddInterviewDriver.submitAnswer).
-    const sddContext = await getSDDContext?.(effectiveText || trimmed);
+    // model knows it's in a spec-building conversation. The context getter
+    // is zero-arg (see app-props / run-tui-options), so the Q/A pair for
+    // the questioning phase is recorded elsewhere; here we just fetch the
+    // prompt prefix.
+    const sddContext = await getSDDContext?.();
     if (sddContext && trimmed) {
       builder.appendText(`[SDD SESSION ACTIVE]\n${sddContext}\n\n---\nUser message:\n`);
     }
