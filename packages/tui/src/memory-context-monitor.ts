@@ -105,7 +105,30 @@ export function memoryEventMatchesSession(payload: unknown, currentSessionId: st
 
 /** Read the all-status SAGE record total without requiring that backend at the type boundary. */
 export async function readMemoryRecordTotal(store: unknown): Promise<number | undefined> {
-  if (!store || typeof store !== 'object' || !('stats' in store)) return undefined;
+  if (!store || typeof store !== 'object') return undefined;
+  // Production path: MemoryPort exposes stats via the SAGE surface capability
+  // (getCapability). ProjectSageMemoryPort proxies over IPC and has no direct
+  // stats() method — only the capability accessor.
+  if (typeof (store as { getCapability?: unknown }).getCapability === 'function') {
+    try {
+      const { getSageSurface } = await import('@wrongstack/sage');
+      const surface = getSageSurface(store as import('@wrongstack/core/types').MemoryPort);
+      if (surface && typeof surface.stats === 'function') {
+        const result = await surface.stats();
+        return typeof result.total === 'number' &&
+          Number.isFinite(result.total) &&
+          result.total >= 0
+          ? Math.floor(result.total)
+          : undefined;
+      }
+    } catch {
+      // Dynamic import or capability resolution failed — fall through to
+      // the duck-typing path below (works for SqliteMemoryPort in inline mode).
+    }
+  }
+  // Inline/test fallback: SqliteMemoryPort extends SqliteSageStore and has
+  // stats() directly on the object.
+  if (!('stats' in store)) return undefined;
   const stats = (store as { stats?: unknown }).stats;
   if (typeof stats !== 'function') return undefined;
   const result = (await stats.call(store)) as { total?: unknown };

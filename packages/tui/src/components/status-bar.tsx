@@ -388,7 +388,6 @@ export function StatusBar({
         {isNoColor ? `CPU ${cpuPercent.toFixed(0)}%` : `${STATUSLINE_ICONS.cpu} ${cpuPercent.toFixed(0)}%`}
       </Text>
     ) : null;
-  const SageStatusChip = null;
 
   const indexStatusChip =
     indexState && showChip('index')
@@ -537,7 +536,6 @@ export function StatusBar({
           );
         })()
       : null,
-    SageStatusChip,
     queueCount > 0 && showChip('queue') ? (
       <Text color={isNoColor ? undefined : theme.accent}>
         {STATUSLINE_ICONS.queue} queued {queueCount}
@@ -645,7 +643,6 @@ export function StatusBar({
           );
         })()
       : null,
-    SageStatusChip,
     // Autonomy mode (if active)
     autonomy && autonomy !== 'off' && showChip('autonomy') ? (
       <Text
