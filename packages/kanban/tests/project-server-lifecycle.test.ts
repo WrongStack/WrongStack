@@ -99,7 +99,7 @@ describe('kanban project server lifecycle', () => {
       expect(code, why(child)).toBe(0);
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill();
-      await fs.rm(projectRoot, { recursive: true, force: true });
+      await fs.rm(projectRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
     }
   });
 
@@ -114,7 +114,7 @@ describe('kanban project server lifecycle', () => {
       expect(code, why(child)).toBe(0);
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill();
-      await fs.rm(projectRoot, { recursive: true, force: true });
+      await fs.rm(projectRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
     }
   });
 
@@ -138,7 +138,11 @@ describe('kanban project server lifecycle', () => {
       ).rejects.toThrow();
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill();
-      await fs.rm(projectRoot, { recursive: true, force: true });
+      // On Windows the SQLite WAL/SHM files in the project root stay mapped
+      // for a brief moment after the daemon's DatabaseSync.close() returns,
+      // so the recursive rm can hit EBUSY. maxRetries lets node retry the
+      // unlink with the standard 25ms backoff until the OS releases the map.
+      await fs.rm(projectRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
     }
   });
 });
