@@ -206,6 +206,14 @@ const profiles = {
     },
     external: ['@wrongstack/core', '@wrongstack/core/utils'],
   },
+  '@wrongstack/sage-mcp': {
+    entries: {
+      index: 'src/index.ts',
+      cli: 'src/cli.ts',
+    },
+    workspaceExternal: true,
+    postBuild: prependSageMcpCliShebang,
+  },
   '@wrongstack/sdd': standard(['@wrongstack/core']),
   '@wrongstack/security-scanner': standard(['@wrongstack/core']),
   '@wrongstack/techstack': standard(['@wrongstack/core', '@wrongstack/tools']),
@@ -288,6 +296,12 @@ const profiles = {
 
 function prependServerShebang() {
   const path = join(packageRoot, 'dist/server/entry.js');
+  const source = readFileSync(path, 'utf8');
+  if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env node\n${source}`);
+}
+
+function prependSageMcpCliShebang() {
+  const path = join(packageRoot, 'dist/cli.js');
   const source = readFileSync(path, 'utf8');
   if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env node\n${source}`);
 }

@@ -1,0 +1,51 @@
+{
+  "name": "@wrongstack/sage-mcp",
+  "version": "0.296.2",
+  "license": "MIT",
+  "description": "WrongStack SAGE Memory as an MCP (Model Context Protocol) server: STDIO and loopback HTTP, additive to the existing SAGE IPC server.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/sage-mcp"
+  },
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "bugs": {
+    "url": "https://github.com/WrongStack/WrongStack/issues"
+  },
+  "author": "ECOSTACK TECHNOLOGY OÜ",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "wstack-sage-mcp": "./dist/cli.js"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "echo \"Run @wrongstack/sage-mcp tests from the workspace root: pnpm exec vitest run packages/sage-mcp/tests\"",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@wrongstack/core": "workspace:*",
+    "@wrongstack/mcp": "workspace:*",
+    "@wrongstack/sage": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
