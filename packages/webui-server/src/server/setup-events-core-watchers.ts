@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { EventBus, EventName, Listener } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { watchKanbanBoards } from './kanban-board-watcher.js';
+import { subscribeKanbanDaemonEvents } from './kanban-daemon-subscriber.js';
 import type { WebSocket } from 'ws';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
@@ -39,7 +39,9 @@ export function registerSetupEventsCoreWatchers(
 
   const projectRoot = context.projectRoot;
   if (projectRoot) {
-    disposers.push(watchKanbanBoards(projectRoot, (message) => broadcast(clients, message)));
+    disposers.push(
+      subscribeKanbanDaemonEvents(projectRoot, (message) => broadcast(clients, message)),
+    );
   }
   return disposers;
 }

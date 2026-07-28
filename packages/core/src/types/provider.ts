@@ -3,6 +3,7 @@ import type { ContentBlock, TextBlock } from './blocks.js';
 import type { ErrorCode } from './errors.js';
 import { ERROR_CODES, WrongStackError } from './errors.js';
 import type { Message } from './messages.js';
+import { QUOTA_EXHAUSTED_RE } from './quota-regex.js';
 import type { Tool } from './tool.js';
 
 /**
@@ -340,8 +341,6 @@ const CONTEXT_OVERFLOW_RE =
 
 /** Content-policy refusals surfaced as HTTP errors (Azure/OpenAI `content_filter`, etc.). */
 const CONTENT_FILTER_RE = /content.(filter|policy|moderation)|safety (system|filter)/i;
-const QUOTA_EXHAUSTED_RE =
-  /(?:insufficient|exhausted|depleted|exceeded|no|not enough)[-_\s]*(?:quota|credit|balance)|(?:quota|credit|balance)[-_\s]*(?:exhausted|depleted|exceeded|insufficient)|billing[_\s-]*(?:hard[_\s-]*)?limit|payment required|spending limit|plan limit|usage[-_\s]*limit[-_\s]*(?:reached|exceeded)/i;
 /** "rate limit exceeded" pattern — checked against body.message only, NOT the
  *  raw JSON text, because OpenAI's `"code":"rate_limit_exceeded"` field would
  *  produce a false positive in the combined-text regex. */
