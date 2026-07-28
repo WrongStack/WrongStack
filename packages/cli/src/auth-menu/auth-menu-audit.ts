@@ -109,7 +109,7 @@ export interface AuthAuditSink {
 }
 
 /** Default sink: one JSON line per event on stdout. */
-export function defaultStdoutSink(): AuthAuditSink {
+function defaultStdoutSink(): AuthAuditSink {
   // process.stdout.write is the right primitive here — it
   // bypasses the test runner's `console.log` capture and
   // never throws. Use \n explicitly; some terminals buffer
@@ -122,7 +122,7 @@ export function defaultStdoutSink(): AuthAuditSink {
 }
 
 /** Stderr sink: one JSON line per event on stderr. */
-export function defaultStderrSink(): AuthAuditSink {
+function defaultStderrSink(): AuthAuditSink {
   return {
     write(line: string) {
       process.stderr.write(`${line}\n`);
