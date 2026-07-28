@@ -1,5 +1,6 @@
 import { createChronicleProjectAccess } from '@wrongstack/core/chronicle';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { getKanbanDir, getKanbanServerConnection } from '@wrongstack/kanban';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import { checkCodebaseIndexServerHealth, getIndexState } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
@@ -8,7 +9,7 @@ import type { WSClientMessage, WSServerMessage } from './types.js';
 export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
-  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage';
+  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban';
   label: string;
   status: ConnectionHealthStatus;
   required: boolean;
@@ -77,6 +78,7 @@ export async function collectConnectionsHealth(options: {
     chronicleHealth(options.projectRoot),
     codebaseIndexHealth(options.projectRoot, options.indexDir),
     sageHealth(options.projectRoot),
+    kanbanHealth(options.projectRoot),
   ]);
   const required = services.filter((service) => service.required);
   const overall = required.some((service) => service.status === 'error')
@@ -264,6 +266,72 @@ async function sageHealth(projectRoot: string): Promise<ConnectionHealthService>
     );
   } finally {
     connection.close();
+  }
+}
+
+async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthService> {
+  const startedAt = Date.now();
+  if (process.env['WRONGSTACK_KANBAN_SERVER'] === '0') {
+    return {
+      id: 'kanban',
+      label: 'Kanban IPC',
+      status: 'unavailable',
+      required: false,
+      mode: 'disabled',
+      detail: 'Kanban IPC daemon is disabled via WRONGSTACK_KANBAN_SERVER=0.',
+      storage: getKanbanDir(projectRoot),
+    };
+  }
+  let connection;
+  try {
+    connection = await getKanbanServerConnection(projectRoot);
+  } catch (error) {
+    return failureService(
+      'kanban',
+      'Kanban IPC',
+      false,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
+  }
+  if (!connection) {
+    return {
+      id: 'kanban',
+      label: 'Kanban IPC',
+      status: 'unavailable',
+      required: false,
+      mode: 'disabled',
+      detail: 'Kanban IPC daemon is disabled in this runtime.',
+      storage: getKanbanDir(projectRoot),
+    };
+  }
+  try {
+    const status = await connection.request('ping', {}, { timeoutMs: 5_000 });
+    return {
+      id: 'kanban',
+      label: 'Kanban IPC',
+      status: 'healthy',
+      required: true,
+      mode: 'project-server',
+      detail: `Single shared project-server owns kanban state for this project (v${status.protocolVersion}).`,
+      ownerPid: status.pid,
+      endpoint: status.endpoint,
+      storage: getKanbanDir(projectRoot),
+      latencyMs: Date.now() - startedAt,
+      clients: status.clients,
+      activeRequests: status.pendingRequests,
+      uptimeMs: Date.now() - new Date(status.startedAt).getTime(),
+    };
+  } catch (error) {
+    return failureService(
+      'kanban',
+      'Kanban IPC',
+      true,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
   }
 }
 

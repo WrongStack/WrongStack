@@ -16,7 +16,7 @@ import { F_KEY_ENTRIES } from '../components/f-key-picker.js';
 import { THINKING_WORD_FIELD } from '../components/settings-picker.js';
 import { actionForFKeyPanel } from '../f-key-panels.js';
 import { selectedSlashCommandLine } from '../slash-command-search.js';
-import type { StatuslineItem } from '../ui-contracts.js';
+import type { StatuslineItem } from '../components/statusline-picker.js';
 
 interface UseAppPickerKeysOptions {
   host: AppProps;

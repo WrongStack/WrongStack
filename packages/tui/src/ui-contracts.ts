@@ -1,4 +1,5 @@
 import type { AgentTimelineEntry } from '@wrongstack/core/coordination';
+import type { StatuslineItem as StatuslineItemSource } from './components/statusline-picker.js';
 
 export interface AgentTranscriptReader {
   getTranscript(subagentId: string, limit?: number): AgentTimelineEntry[];
@@ -95,14 +96,7 @@ export interface PromptPickEntry {
 
 export type SendMode = 'queue' | 'btw' | 'steer';
 
-export type StatuslineItem =
-  | 'version' | 'state' | 'model' | 'tokens' | 'cache' | 'queue' | 'processes'
-  | 'hint' | 'index' | 'memory' | 'sage' | 'breaker' | 'todos' | 'plan'
-  | 'tasks' | 'fleet' | 'fleet_agents' | 'git' | 'elapsed' | 'context' | 'cost'
-  | 'working_dir' | 'project' | 'yolo' | 'autonomy' | 'eternal_stage' | 'goal'
-  | 'mode' | 'auto_proceed' | 'sessions' | 'time' | 'tools' | 'token_saving'
-  | 'brain' | 'mailbox' | 'enhance' | 'debug_stream' | 'next_steps'
-  | 'memory_context' | 'cpu';
+export type StatuslineItem = StatuslineItemSource;
 
 export interface ChipMeta {
   key: StatuslineItem;

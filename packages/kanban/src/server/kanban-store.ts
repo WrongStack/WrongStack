@@ -59,10 +59,10 @@ export class ServerKanbanStore {
     return this.call('addColumn', { boardId, ...input }, () => kanban.addColumn(this.projectRoot, boardId, input));
   }
   updateColumn(boardId: string, columnId: string, patch: any) {
-    return this.call('updateColumn', { boardId, columnId, ...patch }, () => (kanban as any).updateColumn(this.projectRoot, boardId, columnId, patch));
+    return this.call('updateColumn', { boardId, columnId, ...patch }, () => kanban.updateColumn(this.projectRoot, boardId, columnId, patch));
   }
   removeColumn(boardId: string, columnId: string) {
-    return this.call('deleteColumn', { boardId, columnId }, () => (kanban as any).removeColumn(this.projectRoot, boardId, columnId));
+    return this.call('deleteColumn', { boardId, columnId }, () => kanban.removeColumn(this.projectRoot, boardId, columnId));
   }
 
   // ─── Task operations ────────────────────────────────────────────────────
@@ -77,8 +77,7 @@ export class ServerKanbanStore {
     return this.call('moveTask', { boardId, taskId, targetColumnId, order }, () => kanban.moveTask(this.projectRoot, boardId, taskId, targetColumnId, order));
   }
   deleteTask(boardId: string, taskId: string) {
-    const fn = (kanban as any).deleteTask ?? (kanban as any).removeTask;
-    return this.call('deleteTask', { boardId, taskId }, () => fn(this.projectRoot, boardId, taskId));
+    return this.call('deleteTask', { boardId, taskId }, () => kanban.removeTask(this.projectRoot, boardId, taskId));
   }
   getTask(boardId: string, taskId: string) {
     return this.call('getTask', { boardId, taskId }, () => kanban.getTask(this.projectRoot, boardId, taskId));
@@ -179,19 +178,19 @@ export class ServerKanbanStore {
     return this.call('readyTasks', input, () => kanban.listReadyTasks(this.projectRoot, input));
   }
   exportMarkdown(boardId: string) {
-    return this.call('exportMarkdown', { boardId }, () => (kanban as any).exportBoardToMarkdown(this.projectRoot, boardId));
+    return this.call('exportMarkdown', { boardId }, async () => {
+      const board = await storage.readBoard(this.projectRoot, boardId);
+      return board ? kanban.exportBoardAsMarkdown(board) : null;
+    });
   }
   exportTaskGraph(boardId: string) {
-    return this.call('exportTaskGraph', { boardId }, () => (kanban as any).exportBoardToTaskGraph(this.projectRoot, boardId));
+    return this.call('exportTaskGraph', { boardId }, () => kanban.exportBoardToTaskGraph(this.projectRoot, boardId));
   }
   syncTaskGraph(boardId: string, taskGraph: any) {
-    return this.call('syncTaskGraph', { boardId, taskGraph: JSON.stringify(taskGraph) }, () => (kanban as any).syncTaskGraphToBoard(this.projectRoot, boardId, taskGraph));
+    return this.call('syncTaskGraph', { boardId, taskGraph: JSON.stringify(taskGraph) }, () => kanban.syncBoardFromTaskGraph(this.projectRoot, boardId, taskGraph));
   }
   createFromGraph(taskGraph: any, options: any) {
-    return this.call('createFromGraph', { taskGraph: JSON.stringify(taskGraph), boardTitle: options?.boardTitle }, () => (kanban as any).createBoardFromTaskGraph(this.projectRoot, taskGraph, options));
-  }
-  mirrorSessionTasks(options: any) {
-    return this.call('importSessionTasks', options, () => (kanban as any).mirrorSessionTasksToBoard(this.projectRoot, options));
+    return this.call('createFromGraph', { taskGraph: JSON.stringify(taskGraph), boardTitle: options?.boardTitle }, () => kanban.createBoardFromTaskGraph(this.projectRoot, taskGraph, options));
   }
 
   // ─── Atomicity ──────────────────────────────────────────────────────────

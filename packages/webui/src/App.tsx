@@ -67,14 +67,11 @@ const DesignGalleryView = lazy(() =>
 const MailboxDetailView = lazy(() =>
   import('./components/MailboxDetailView').then((m) => ({ default: m.MailboxDetailView })),
 );
-const MemoryManager = lazy(() =>
-  import('./components/MemoryManager').then((m) => ({ default: m.MemoryManager })),
+const SageTabs = lazy(() =>
+  import('./components/MemoryManager/SageTabs').then((m) => ({ default: m.SageTabs })),
 );
 const AgentRosterView = lazy(() =>
   import('./components/AgentRosterView').then((m) => ({ default: m.AgentRosterView })),
-);
-const AudienceMemoryPanel = lazy(() =>
-  import('./components/AudienceMemoryPanel').then((m) => ({ default: m.AudienceMemoryPanel })),
 );
 const KanbanView = lazy(() =>
   import('./components/KanbanView').then((m) => ({ default: m.KanbanView })),
@@ -641,19 +638,10 @@ function AppInner() {
           </ErrorBoundary>
         )}
         {currentView === 'memory' && (
-          <ErrorBoundary level="panel" name="Memory Manager">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
-              <Suspense fallback={<PanelSuspense label="Loading…" />}>
-                <div className="h-[38dvh] min-h-56 w-full shrink-0 border-b border-border/40 lg:h-full lg:min-h-0 lg:w-80 lg:border-b-0 lg:border-r">
-                  <AudienceMemoryPanel />
-                </div>
-              </Suspense>
-              <Suspense fallback={<PanelSuspense label="Loading SAGE…" />}>
-                <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-                  <MemoryManager />
-                </div>
-              </Suspense>
-            </div>
+          <ErrorBoundary level="panel" name="SAGE Memory">
+            <Suspense fallback={<PanelSuspense label="Loading SAGE…" />}>
+              <SageTabs />
+            </Suspense>
           </ErrorBoundary>
         )}
         {currentView === 'roster' && (

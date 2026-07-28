@@ -12,7 +12,6 @@ export type StatuslineItem =
   | 'tokens'
   | 'cache'
   | 'queue'
-  | 'processes'
   | 'hint'
   | 'index'
   | 'memory'
@@ -27,6 +26,9 @@ export type StatuslineItem =
   | 'elapsed'
   | 'context'
   | 'cost'
+  | 'cpu'
+  | 'processes'
+  | 'time'
   | 'working_dir'
   | 'project'
   | 'yolo'
@@ -36,7 +38,6 @@ export type StatuslineItem =
   | 'mode'
   | 'auto_proceed'
   | 'sessions'
-  | 'time'
   | 'tools'
   | 'token_saving'
   | 'brain'
@@ -44,8 +45,7 @@ export type StatuslineItem =
   | 'enhance'
   | 'debug_stream'
   | 'next_steps'
-  | 'memory_context'
-  | 'cpu';
+  | 'memory_context';
 
 /**
  * Metadata for a temporarily-visible chip (one that appeared due to data,
@@ -96,7 +96,6 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   tokens: 'Input/output token counters',
   cache: 'Prompt cache hit ratio',
   queue: 'Queued prompt count',
-  processes: 'Tracked shell/process count',
   hint: 'Transient status hint text',
   index: 'Codebase index server and indexing status',
   memory: 'Current CLI process RAM and V8 heap usage',
@@ -111,6 +110,9 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   elapsed: 'Session elapsed time',
   context: 'Context window usage %',
   cost: 'Token cost estimate',
+  cpu: 'CPU usage percentage',
+  processes: 'Tracked bash/exec process count',
+  time: 'Wall-clock session start time',
   working_dir: 'Current working directory',
   project: 'Project name',
   yolo: 'YOLO permission mode',
@@ -120,7 +122,6 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   mode: 'Active agent mode label',
   auto_proceed: 'Auto-proceed countdown',
   sessions: 'Live session count',
-  time: 'Current wall clock time',
   tools: 'Registered tool count',
   token_saving: 'Token-saving mode indicator',
   brain: 'Brain arbiter decisions',
@@ -128,8 +129,7 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   enhance: 'Prompt-enhance countdown',
   debug_stream: 'Stream debug telemetry',
   next_steps: 'Next-step auto-submit countdown',
-  memory_context: 'Memory context detail line (matched/injected/filtered/active counts)',
-  cpu: 'CPU usage percentage (system load average)',
+  memory_context: 'Memory context detail line (total records + active-in-context)',
 };
 
 /**

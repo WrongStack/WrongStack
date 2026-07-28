@@ -15,7 +15,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1033,
+      "lines": 1051,
       "relativeImports": 42
     },
     "packages/cli/src/execution.ts": {
@@ -315,7 +315,7 @@
       "relativeImports": 12
     },
     "packages/tui/src/components/status-bar.tsx": {
-      "lines": 1042,
+      "lines": 1076,
       "relativeImports": 16
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
@@ -335,8 +335,8 @@
       "relativeImports": 1
     },
     "packages/webui/src/App.tsx": {
-      "lines": 944,
-      "relativeImports": 45
+      "lines": 932,
+      "relativeImports": 44
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
       "lines": 971,
@@ -383,7 +383,7 @@
       "relativeImports": 15
     },
     "packages/webui/src/components/MemoryManager/index.tsx": {
-      "lines": 991,
+      "lines": 996,
       "relativeImports": 10
     },
     "packages/webui/src/components/OfficeMapCanvas.tsx": {

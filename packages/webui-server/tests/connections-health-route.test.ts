@@ -94,3 +94,78 @@ describe('connections health route', () => {
     ).toBe(false);
   });
 });
+
+describe('connections health kanban service', () => {
+  it('reports a healthy kanban IPC row when ping returns the project-server status', async () => {
+    vi.resetModules();
+    const ping = vi.fn(async () => ({
+      protocolVersion: 1,
+      pid: 9001,
+      projectRoot: '/project',
+      endpoint: '\\\\.\\pipe\\wrongstack-kanban-v1-deadbeef',
+      startedAt: new Date(Date.now() - 12_000).toISOString(),
+      clients: 3,
+      pendingRequests: 0,
+    }));
+    const getKanbanServerConnection = vi.fn(async () => ({
+      request: (_method: string, _params: unknown, _opts?: unknown) => ping(),
+    }));
+    const getKanbanDir = vi.fn((root: string) => `${root}/.wrongstack/kanbans`);
+    vi.doMock('@wrongstack/kanban', () => ({
+      getKanbanServerConnection,
+      getKanbanDir,
+    }));
+    const { collectConnectionsHealth: collectFresh } = await import(
+      '../src/server/connections-health-route.js'
+    );
+    const fresh = await collectFresh({
+      projectRoot: '/project',
+      indexDir: undefined,
+      backend: 'cli-embedded',
+    });
+    const kanban = fresh.services.find((service) => service.id === 'kanban');
+    expect(kanban).toBeDefined();
+    expect(kanban).toMatchObject({
+      id: 'kanban',
+      label: 'Kanban IPC',
+      status: 'healthy',
+      required: true,
+      mode: 'project-server',
+      ownerPid: 9001,
+      clients: 3,
+      activeRequests: 0,
+      storage: '/project/.wrongstack/kanbans',
+    });
+    expect(typeof kanban?.latencyMs).toBe('number');
+    expect(typeof kanban?.uptimeMs).toBe('number');
+    expect((kanban?.uptimeMs ?? -1) >= 0).toBe(true);
+  });
+
+  it('reports an error row when the kanban daemon ping rejects', async () => {
+    vi.resetModules();
+    const getKanbanServerConnection = vi.fn(async () => ({
+      request: () => Promise.reject(new Error('boom')),
+    }));
+    const getKanbanDir = vi.fn((root: string) => `${root}/.wrongstack/kanbans`);
+    vi.doMock('@wrongstack/kanban', () => ({
+      getKanbanServerConnection,
+      getKanbanDir,
+    }));
+    const { collectConnectionsHealth: collectFresh } = await import(
+      '../src/server/connections-health-route.js'
+    );
+    const fresh = await collectFresh({
+      projectRoot: '/project',
+      indexDir: undefined,
+      backend: 'cli-embedded',
+    });
+    const kanban = fresh.services.find((service) => service.id === 'kanban');
+    expect(kanban).toMatchObject({
+      id: 'kanban',
+      status: 'error',
+      required: true,
+      mode: 'project-server',
+    });
+    expect(kanban?.lastError).toBe('boom');
+  });
+});

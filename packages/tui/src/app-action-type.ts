@@ -6,7 +6,8 @@ import type { BrainLogEntry, BrainRiskLevel } from './brain-contracts.js';
 import type { BrainPanelSettings } from './brain-panel-model.js';
 import type { DraftEntry, GoalSummary, QueueItem, ResumeSessionEntry, SlashCommandMatch } from './app-state-core-types.js';
 import type { AuditLevel, CacheTtl, CompactorStrategy, ContextMode, LogLevel, ReasoningEffort, SettingsMode, SettingsPickerPatch, StatuslineMode } from './settings-contracts.js';
-import type { AutonomyOption, ChipMeta, HelpEntry, LiveSessionEntry, McpPickerItem, ModeOption, PluginPickerItem, ProjectPickerItem, PromptPickEntry, ProviderOption, ShadowState, StatuslineItem, ToolPickerItem, WorktreeRow } from './ui-contracts.js';
+import type { AutonomyOption, ChipMeta, HelpEntry, LiveSessionEntry, McpPickerItem, ModeOption, PluginPickerItem, ProjectPickerItem, PromptPickEntry, ProviderOption, ShadowState, ToolPickerItem, WorktreeRow } from './ui-contracts.js';
+import type { StatuslineItem } from './components/statusline-picker.js';
 import type { FleetEntry } from './app-state-fleet.js';
 import type { State } from './app-state.js';
 export type Action =

@@ -67,7 +67,7 @@ export interface FleetAgentDetail {
   running: boolean;
   /** Current/last tool the subagent invoked, shown as its live action. */
   tool?: string | undefined;
-  /** Cumulative budget auto-extensions granted — rendered as "⚡×N". */
+  /** Cumulative budget auto-extensions granted — rendered as `"glyphs.process ×N"`. */
   extensions?: number | undefined;
 }
 
@@ -144,7 +144,7 @@ export interface StatusBarProps {
   /**
    * Plan board counts surfaced as a chip on line 2. Distinct from
    * `todos` — plans are higher-level and persist across resume; the
-   * chip uses a different glyph (📋) so the user can tell them apart
+   * chip uses a different glyph (`glyphs.plan`) so the user can tell them apart
    * at a glance.
    */
   plan?: PlanCounts | undefined;
@@ -199,17 +199,17 @@ export interface StatusBarProps {
   projectName?: string | undefined;
   /**
    * Working directory relative to the project root. Rendered on line 2
-   * as a 📂 chip so the user knows which subdirectory tools will resolve
+   * as a `glyphs.folder` chip so the user knows which subdirectory tools will resolve
    * against. Updated live via `ctx.onWorkingDirChanged()`.
    */
   workingDir?: string | undefined;
   /** Autonomy mode chip: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel'. */
   autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
-  /** Number of tracked bash/exec processes from the process registry. */
+  /** Number of tracked bash/exec processes from the process registry. Currently unused on the rail. */
   processCount?: number | undefined;
   /** Current RSS/heap sample for this CLI process. */
   processMemory?: HeapSample | undefined;
-  /** CPU usage percentage (0-100). Derived from process.cpuUsage delta. */
+  /** CPU usage percentage (0-100). Derived from process.cpuUsage delta. Currently unused on the rail. */
   cpuPercent?: number | undefined;
   /** Items to hide from the status bar. Canonical set: {@link StatuslineItem}. */
   hiddenItems?: StatuslineItem[] | undefined;
@@ -289,16 +289,16 @@ export interface StatusBarProps {
   };
   /**
    * Live countdown to the process circuit breaker's automatic kill/reset.
-   * Rendered as an urgent chip on line 1 ("⚡ kill/reset in Ns") while armed;
+   * Rendered as an urgent chip on line 1 (`glyphs.warning kill/reset in Ns`) while armed;
    * null/undefined hides it. The host ticks this every second.
    */
   breakerCountdown?: { remainingMs: number; totalMs: number } | null | undefined;
-  /** Active agent mode label with icon (e.g. "🧑‍🏫 teach", "⚡ brief"). Rendered on line 2. */
+  /** Active agent mode label with icon (e.g. `glyphs.brand teach`, `glyphs.running brief`). Rendered on line 2. */
   modeLabel?: string | undefined;
   /**
    * Live debug-stream telemetry — pushed into the TUI reducer by the
    * throttled callback from stream-debug-state.ts. When non-null, renders
-   * a "🐛 stream" chip on line 3 with chunk count, size, delta, and total
+   * a `glyphs.bug stream` chip on line 3 with chunk count, size, delta, and total
    * bytes. Cleared on provider.response (per-iteration stream reset).
    */
   debugStreamStats?:
@@ -320,13 +320,13 @@ export interface StatusBarProps {
   enhanceCountdown?: number | null | undefined;
   /**
    * Seconds remaining in the next-steps auto-submit countdown.
-   * When non-null, renders a line-3 chip like `⏳ next step in 3s`
+   * When non-null, renders a line-3 chip like `glyphs.auto next step in 3s`
    * that auto-submits the suggested next step when the countdown reaches 0.
    */
   nextStepsAutoSubmitCountdown?: number | null | undefined;
   /**
    * Label of the step that will be auto-submitted (the suggestion text).
-   * When provided alongside countdown, renders as `⏳ step text in 3s`.
+   * When provided alongside countdown, renders as `glyphs.auto step text in 3s`.
    */
   nextStepsAutoSubmitLabel?: string | null | undefined;
   /** Number of live sessions across processes (from SessionRegistry). */
@@ -334,7 +334,7 @@ export interface StatusBarProps {
   /** Mailbox activity — unread count, online agents, latest message. */
   mailbox?: MailboxStatus | undefined;
   /**
-   * Token-saving tier. When set and not `'off'`, renders a `💾 <tier>` chip
+   * Token-saving tier. When set and not `'off'`, renders a `glyphs.save <tier>` chip
    * on line 2 to remind the user that non-essential tools are omitted and
    * system prompt sections are trimmed at that compactness level.
    */

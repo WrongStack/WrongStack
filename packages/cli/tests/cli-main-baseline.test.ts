@@ -115,7 +115,7 @@ describe('cli main() — baseline boot shape (PR 0 of #29)', () => {
     // returns null for no flags, then `main()` proceeds to `boot()`.
     // Marked sequential to avoid worker-pool contention with heavy
     // SSR transforms in parallel suites.
-    const { main } = await import('../src/cli-main.js');
+    const { main } = await import('../src/cli-entry-main.js');
     const start = Date.now();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const exit = await Promise.race([

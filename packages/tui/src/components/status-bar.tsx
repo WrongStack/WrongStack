@@ -54,6 +54,62 @@ export {
   truncateChip,
 } from './status-bar-format.js';
 
+/**
+ * Field icon vocabulary for the statusline rail.
+ *
+ * Exhaustive mapping for every `StatuslineItem` value. Typecheck enforces
+ * a 1:1 mapping via the `satisfies` clause — adding a new `StatuslineItem`
+ * requires adding an entry here (the compiler produces an error otherwise).
+ * Each value comes from the shared {@link glyphs} unicode vocabulary
+ * (`WRONGSTACK_TUI_ICON_STYLE` swaps the underlying character set; nerd-font
+ * and ascii profiles are resolved by `ui-glyphs.ts`).
+ *
+ * Chip renderers may reference entries via `STATUSLINE_ICONS.X` or inline
+ * `glyphs.X` directly — this map is the canonical icon table.
+ */
+const STATUSLINE_ICONS = {
+  auto_proceed: glyphs.auto,
+  autonomy: glyphs.brand,
+  brain: glyphs.brain,
+  breaker: glyphs.warning,
+  cache: glyphs.success,
+  context: glyphs.context,
+  cost: glyphs.cost,
+  cpu: glyphs.cpu,
+  debug_stream: glyphs.bug,
+  elapsed: glyphs.clock,
+  enhance: glyphs.auto,
+  eternal_stage: glyphs.running,
+  fleet: glyphs.fleet,
+  fleet_agents: glyphs.fleet,
+  git: glyphs.gitBranch,
+  goal: glyphs.goal,
+  hint: glyphs.info,
+  index: glyphs.index,
+  mailbox: glyphs.mail,
+  memory: glyphs.warning,
+  memory_context: glyphs.brain,
+  mode: glyphs.terminal,
+  model: glyphs.brand,
+  next_steps: glyphs.auto,
+  plan: glyphs.plan,
+  processes: glyphs.process,
+  project: glyphs.folder,
+  queue: glyphs.queue,
+  sage: glyphs.brain,
+  sessions: glyphs.sessions,
+  state: glyphs.running,
+  tasks: glyphs.task,
+  time: glyphs.clock,
+  token_saving: glyphs.save,
+  tokens: glyphs.context,
+  todos: glyphs.task,
+  tools: glyphs.tools,
+  version: glyphs.brand,
+  working_dir: glyphs.workingDirectory,
+  yolo: glyphs.warning,
+} as const satisfies Record<StatuslineItem, string>;
+
 export type {
   BrainStatusChip,
   ContextWindow,
@@ -278,10 +334,9 @@ export function StatusBar({
         ? `agent ▶${fleet.running} ·${fleet.idle}`
         : `agent ${subagentCount}`
       : '',
-    typeof processCount === 'number' && processCount > 0 && showChip('processes')
-      ? `proc ${processCount}`
+    processCount != null && processCount > 0 && showChip('processes')
+      ? `${glyphs.process}${processCount}`
       : '',
-    typeof cpuPercent === 'number' && showChip('cpu') ? `cpu ${Math.round(cpuPercent)}%` : '',
   ].filter(Boolean);
 
   const stateStatusChip =
@@ -321,20 +376,18 @@ export function StatusBar({
         ) : null}
       </Text>
     ) : null;
+  const cpuColor =
+    cpuPercent == null
+      ? theme.textSecondary
+      : cpuPercent >= 90
+        ? theme.error
+        : cpuPercent >= 75
+          ? theme.warn
+          : theme.success;
   const cpuStatusChip =
-    typeof cpuPercent === 'number' && showChip('cpu') ? (
-      <Text
-        color={
-          isNoColor
-            ? undefined
-            : cpuPercent > 80
-              ? theme.error
-              : cpuPercent > 50
-                ? theme.warn
-                : theme.success
-        }
-      >
-        {glyphs.cpu} {Math.round(cpuPercent)}%
+    cpuPercent != null && showChip('cpu') ? (
+      <Text color={isNoColor ? undefined : cpuColor}>
+        {isNoColor ? `CPU ${cpuPercent.toFixed(0)}%` : `${glyphs.cpu} ${cpuPercent.toFixed(0)}%`}
       </Text>
     ) : null;
   const SageStatusChip = null;
@@ -390,94 +443,68 @@ export function StatusBar({
   const hasMemoryDetail = (memorySummary != null || Sage != null) && showChip('memory_context');
   const memoryDetailChips: React.ReactElement[] = [];
   if (hasMemoryDetail) {
-    const records = memoryMonitor ? Object.values(memoryMonitor.memories) : [];
-    const active = memoryMonitor ? activeMemoryContextCount(memoryMonitor) : 0;
-    const pending = records.filter((m) => m.state === 'injected').length;
-    const left = records.filter((m) => m.state === 'exited').length;
+    // Prefer the live memory-context monitor when present, otherwise fall back
+    // to the latest-known Sage.activeInContext summary count. The rail shows a
+    // single `actv N` chip (collapsed from the previous four-counter layout)
+    // so full evidence belongs in /context and the WebUI Context Dashboard.
+    const liveActive = memoryMonitor ? activeMemoryContextCount(memoryMonitor) : 0;
+    const reportedActive = memoryMonitor ? liveActive : (Sage?.activeInContext ?? 0);
     memoryDetailChips.push(
       <Text color={chipColor(theme.accent, isNoColor)} key="mem-label">
-        {isNoColor ? 'Memory ' : `Memory ${glyphs.brain} `}
+        {isNoColor ? 'Memory ' : `${STATUSLINE_ICONS.memory_context} `}
       </Text>,
     );
-    // Total records + active-in-context (moved from line 1)
     if (Sage) {
       memoryDetailChips.push(
         <Text key="total">
           {Sage.total} total
-          <Text dimColor={!isNoColor}> · </Text>
-          <Text color={chipColor(theme.success, isNoColor)}>{Sage.activeInContext} ctx</Text>
-          {memorySummary != null ? <Text dimColor={!isNoColor}> · </Text> : null}
-        </Text>,
-      );
-    }
-    if (memorySummary != null) {
-      memoryDetailChips.push(
-        <Text key="matched">
-          {memorySummary.matched} matched
-          <Text dimColor={!isNoColor}> · </Text>
-          <Text color={chipColor(theme.success, isNoColor)}>{memorySummary.injected} inj</Text>
-          <Text dimColor={!isNoColor}> · </Text>
-          <Text color={chipColor(theme.warn, isNoColor)}>{memorySummary.filtered} filt</Text>
-          <Text dimColor={!isNoColor}> · </Text>
-          <Text color={chipColor(theme.accent, isNoColor)}>{active} actv</Text>
-          {pending > 0 ? (
+          {reportedActive > 0 ? (
             <>
               <Text dimColor={!isNoColor}> · </Text>
-              <Text color={chipColor(theme.accent, isNoColor)}>{pending} pend</Text>
-            </>
-          ) : null}
-          {left > 0 ? (
-            <>
-              <Text dimColor={!isNoColor}> · </Text>
-              <Text color={chipColor(theme.textMuted, isNoColor)}>{left} left</Text>
+              <Text color={chipColor(theme.success, isNoColor)}>{reportedActive} actv</Text>
             </>
           ) : null}
         </Text>,
       );
+    } else if (reportedActive > 0) {
       memoryDetailChips.push(
-        <Text color={chipColor(theme.textMuted, isNoColor)} key="trigger">
-          {memorySummary.trigger.length > 25
-            ? `${memorySummary.trigger.slice(0, 22)}…`
-            : memorySummary.trigger}
-          <Text dimColor={!isNoColor}>
-            {' · ctx '}
-            {Math.round(memorySummary.contextPressure * 100)}%{' · +'}
-            {memorySummary.injectedChars >= 1024
-              ? `${(memorySummary.injectedChars / 1024).toFixed(1)}K`
-              : memorySummary.injectedChars}
-            {' chars'}
-          </Text>
+        <Text key="actv">
+          <Text color={chipColor(theme.success, isNoColor)}>{reportedActive} actv</Text>
         </Text>,
       );
     }
   }
 
   const primaryChips: React.ReactElement[] = [
-    // Combined context bar: meter · tokens · cost
-    (context || showTokenDisplay || (cost?.total ?? 0) > 0) &&
-    (showChip('context') || showChip('tokens') || showChip('cost'))
+    // Combined context bar: meter · tokens · cost · cache
+    (context || showTokenDisplay || (cost?.total ?? 0) > 0 || (cache?.hitRatio ?? 0) > 0) &&
+    (showChip('context') || showChip('tokens') || showChip('cost') || showChip('cache'))
       ? (() => {
           const ratio = context ? Math.min(context.used / context.max, 1) : 0;
           const barColor = isNoColor ? undefined : contextBarColor(ratio);
           const hasTokens = showTokenDisplay && showChip('tokens');
           const hasCost = cost && cost.total > 0 && showChip('cost');
+          const hasCache = cache && cache.hitRatio > 0 && showChip('cache');
           const segments: string[] = [];
           if (context) segments.push('meter');
           if (hasTokens) segments.push('tokens');
           if (hasCost) segments.push('cost');
+          if (hasCache) segments.push('cache');
           const sep = segments.length > 1;
           return (
             <Text>
               {context ? (
                 <Text color={barColor}>
-                  <Text dimColor={!isNoColor}>{'ctx '}</Text>
+                  <Text dimColor={!isNoColor}>{`${STATUSLINE_ICONS.context} ctx `}</Text>
                   {renderMeter(ratio, 8)} {fmtTok(context.used)}/{fmtTok(context.max)}
                   {contextStrategy ? (
                     <Text dimColor={!isNoColor}>{` [${contextStrategy}]`}</Text>
                   ) : null}
                 </Text>
               ) : null}
-              {sep && context ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
+              {sep && context && hasTokens ? (
+                <Text dimColor={!isNoColor}>{' · '}</Text>
+              ) : null}
               {hasTokens ? (
                 <Text>
                   <Text color={isNoColor ? undefined : theme.textSecondary}>{'↑'}</Text>
@@ -495,8 +522,17 @@ export function StatusBar({
               ) : null}
               {hasCost ? (
                 <Text color={isNoColor ? undefined : theme.warn}>
-                  {glyphs.cost}
+                  {STATUSLINE_ICONS.cost}
                   {cost.total.toFixed(4)}
+                </Text>
+              ) : null}
+              {sep && hasCache && (context || hasTokens || hasCost) ? (
+                <Text dimColor={!isNoColor}>{' · '}</Text>
+              ) : null}
+              {hasCache ? (
+                <Text dimColor={!isNoColor}>
+                  {STATUSLINE_ICONS.cache}
+                  {(cache.hitRatio * 100).toFixed(0)}%
                 </Text>
               ) : null}
             </Text>
@@ -504,17 +540,9 @@ export function StatusBar({
         })()
       : null,
     SageStatusChip,
-    cache && cache.hitRatio > 0 && isComfortable && showChip('cache') ? (
-      <Text dimColor={!isNoColor}>cache {(cache.hitRatio * 100).toFixed(0)}%</Text>
-    ) : null,
     queueCount > 0 && showChip('queue') ? (
       <Text color={isNoColor ? undefined : theme.accent}>
-        {glyphs.queue} queued {queueCount}
-      </Text>
-    ) : null,
-    typeof processCount === 'number' && processCount > 0 && showChip('processes') ? (
-      <Text color={isNoColor ? undefined : theme.error}>
-        {glyphs.process} {processCount} process{processCount === 1 ? '' : 'es'}
+        {STATUSLINE_ICONS.queue} queued {queueCount}
       </Text>
     ) : null,
     hint && showChip('hint') ? <Text dimColor={!isNoColor}>{hint}</Text> : null,
@@ -524,7 +552,7 @@ export function StatusBar({
           const c = secs > 20 ? theme.success : secs > 10 ? theme.warn : theme.error;
           return (
             <Text color={isNoColor ? undefined : c} bold>
-              {glyphs.warning} kill/reset in {secs}s
+              {STATUSLINE_ICONS.breaker} kill/reset in {secs}s
             </Text>
           );
         })()
@@ -536,7 +564,7 @@ export function StatusBar({
     // then the context meter and remaining runtime details.
     yolo && showChip('yolo') ? (
       <Text color={chipColor(theme.error, isNoColor)} bold>
-        {isNoColor ? 'YOLO' : `${glyphs.warning} YOLO`}
+        {isNoColor ? 'YOLO' : `${STATUSLINE_ICONS.yolo} YOLO`}
       </Text>
     ) : null,
     autonomy && autonomy !== 'off' && showChip('autonomy') ? (
@@ -551,6 +579,12 @@ export function StatusBar({
       </Text>
     ) : null,
     modelStatusChip,
+    processCount != null && processCount > 0 && showChip('processes') ? (
+      <Text color={isNoColor ? undefined : theme.error}>
+        {STATUSLINE_ICONS.processes}
+        {processCount} {processCount === 1 ? 'process' : 'processes'}
+      </Text>
+    ) : null,
     ...primaryChips,
     stateStatusChip,
     fleetWorkingTime != null && fleetWorkingTime > 0 && showChip('elapsed') ? (
@@ -750,20 +784,20 @@ export function StatusBar({
             <Text color={chipColor(theme.accent, isNoColor)}>
               {isNoColor
                 ? truncateChip(projectName, 24)
-                : `${glyphs.folder} ${truncateChip(projectName, 24)}`}
+                : `${STATUSLINE_ICONS.project} ${truncateChip(projectName, 24)}`}
             </Text>
           ) : null,
           workingDir && showChip('working_dir') ? (
             <Text color={chipColor(theme.accent, isNoColor)}>
               {isNoColor
                 ? truncateChip(workingDir, 28)
-                : `${glyphs.workingDirectory} ${truncateChip(workingDir, 28)}`}
+                : `${STATUSLINE_ICONS.working_dir} ${truncateChip(workingDir, 28)}`}
             </Text>
           ) : null,
           git && showChip('git') ? (
             <Text>
               <Text color={theme.monitor.agents}>
-                {glyphs.gitBranch} {truncateChip(git.branch, 24)}
+                {STATUSLINE_ICONS.git} {truncateChip(git.branch, 24)}
               </Text>
               {git.deleted > 0 ? <Text color={theme.error}> -{git.deleted}</Text> : null}
               {git.untracked > 0 ? <Text dimColor={!isNoColor}> ?{git.untracked}</Text> : null}
@@ -778,19 +812,19 @@ export function StatusBar({
             <Text color={isNoColor ? undefined : theme.accent}>
               {isNoColor
                 ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
-                : `${glyphs.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
+                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
             </Text>
           ) : null,
           toolCount != null && showChip('tools') ? (
             <Text color={isNoColor ? undefined : theme.accent}>
               {isNoColor
                 ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
-                : `${glyphs.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
+                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
             </Text>
           ) : null,
           tokenSavingMode !== undefined && tokenSavingMode !== 'off' && showChip('token_saving') ? (
             <Text color={isNoColor ? undefined : theme.warn} bold>
-              {isNoColor ? tokenSavingMode : `${glyphs.save} ${tokenSavingMode}`}
+              {isNoColor ? tokenSavingMode : `${STATUSLINE_ICONS.token_saving} ${tokenSavingMode}`}
             </Text>
           ) : null,
           sideEffectCount > 0 ? (
@@ -800,8 +834,8 @@ export function StatusBar({
                 : `${glyphs.audit} ${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`}
             </Text>
           ) : null,
-          cpuStatusChip,
           memoryStatusChip,
+          cpuStatusChip,
         ].filter((c): c is React.ReactElement => c !== null)}
         budget={Math.max(12, termWidth)}
         monochrome={isNoColor}
@@ -821,19 +855,19 @@ export function StatusBar({
                 <Text dimColor={!isNoColor}>todos </Text>
                 {todos.inProgress > 0 ? (
                   <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `⌛${todos.inProgress}` : `⌛${todos.inProgress}`}
+                    {isNoColor ? `?${todos.inProgress}` : `${glyphs.running}${todos.inProgress}`}
                   </Text>
                 ) : null}
                 {todos.inProgress > 0 && (todos.pending > 0 || todos.completed > 0) ? ' ' : ''}
                 {todos.pending > 0 ? (
                   <Text dimColor={!isNoColor}>
-                    {isNoColor ? `☐${todos.pending}` : `☐${todos.pending}`}
+                    {isNoColor ? `.${todos.pending}` : `${glyphs.pending}${todos.pending}`}
                   </Text>
                 ) : null}
                 {todos.pending > 0 && todos.completed > 0 ? ' ' : ''}
                 {todos.completed > 0 ? (
                   <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `✓${todos.completed}` : `✓${todos.completed}`}
+                    {isNoColor ? `+${todos.completed}` : `${glyphs.success}${todos.completed}`}
                   </Text>
                 ) : null}
               </Text>
@@ -841,21 +875,21 @@ export function StatusBar({
             plan && (plan.open > 0 || plan.inProgress > 0 || plan.done > 0) && showChip('plan') ? (
               <Text>
                 <Text color={isNoColor ? undefined : theme.accent}>
-                  {isNoColor ? '' : `${glyphs.plan} `}
+                  {isNoColor ? '' : `${STATUSLINE_ICONS.plan} `}
                 </Text>
                 {plan.inProgress > 0 ? (
                   <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `⌛${plan.inProgress}` : `⌛${plan.inProgress}`}
+                    {isNoColor ? `?${plan.inProgress}` : `${glyphs.running}${plan.inProgress}`}
                   </Text>
                 ) : null}
                 {plan.inProgress > 0 && (plan.open > 0 || plan.done > 0) ? ' ' : ''}
                 {plan.open > 0 ? (
-                  <Text dimColor={!isNoColor}>{isNoColor ? `☐${plan.open}` : `☐${plan.open}`}</Text>
+                  <Text dimColor={!isNoColor}>{isNoColor ? `.${plan.open}` : `${glyphs.pending}${plan.open}`}</Text>
                 ) : null}
                 {plan.open > 0 && plan.done > 0 ? ' ' : ''}
                 {plan.done > 0 ? (
                   <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `✓${plan.done}` : `✓${plan.done}`}
+                    {isNoColor ? `+${plan.done}` : `${glyphs.success}${plan.done}`}
                   </Text>
                 ) : null}
                 {plan.scope ? <Text dimColor={!isNoColor}> [{plan.scope}]</Text> : null}
@@ -864,23 +898,23 @@ export function StatusBar({
             hasTaskActivity && showChip('tasks') ? (
               <Text>
                 <Text color={isNoColor ? undefined : theme.monitor.agents}>
-                  {isNoColor ? '' : `${glyphs.task} `}
+                  {isNoColor ? '' : `${STATUSLINE_ICONS.tasks} `}
                 </Text>
                 {tasks!.inProgress > 0 ? (
                   <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `⌛${tasks!.inProgress}` : `⌛${tasks!.inProgress}`}
+                    {isNoColor ? `?${tasks!.inProgress}` : `${glyphs.running}${tasks!.inProgress}`}
                   </Text>
                 ) : null}
                 {tasks!.inProgress > 0 && (tasks!.pending > 0 || tasks!.blocked > 0) ? ' ' : ''}
                 {tasks!.pending > 0 ? (
                   <Text dimColor={!isNoColor}>
-                    {isNoColor ? `☐${tasks!.pending}` : `☐${tasks!.pending}`}
+                    {isNoColor ? `.${tasks!.pending}` : `${glyphs.pending}${tasks!.pending}`}
                   </Text>
                 ) : null}
                 {tasks!.pending > 0 && tasks!.blocked > 0 ? ' ' : ''}
                 {tasks!.blocked > 0 ? (
                   <Text color={isNoColor ? undefined : theme.error}>
-                    {isNoColor ? `⊘${tasks!.blocked}` : `⊘${tasks!.blocked}`}
+                    {isNoColor ? `!${tasks!.blocked}` : `${glyphs.warning}${tasks!.blocked}`}
                   </Text>
                 ) : null}
                 {(tasks!.pending > 0 || tasks!.blocked > 0) &&
@@ -889,13 +923,13 @@ export function StatusBar({
                   : ''}
                 {tasks!.completed > 0 ? (
                   <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `✓${tasks!.completed}` : `✓${tasks!.completed}`}
+                    {isNoColor ? `+${tasks!.completed}` : `${glyphs.success}${tasks!.completed}`}
                   </Text>
                 ) : null}
                 {tasks!.completed > 0 && tasks!.failed > 0 ? ' ' : ''}
                 {tasks!.failed > 0 ? (
                   <Text color={isNoColor ? undefined : theme.error}>
-                    {isNoColor ? `✗${tasks!.failed}` : `✗${tasks!.failed}`}
+                    {isNoColor ? `x${tasks!.failed}` : `${glyphs.failure}${tasks!.failed}`}
                   </Text>
                 ) : null}
                 {tasks!.scope ? <Text dimColor={!isNoColor}> [{tasks!.scope}]</Text> : null}
@@ -905,11 +939,11 @@ export function StatusBar({
               fleet ? (
                 <Text>
                   <Text color={isNoColor ? undefined : theme.accent}>
-                    {isNoColor ? '' : `${glyphs.fleet} `}
+                    {isNoColor ? '' : `${STATUSLINE_ICONS.fleet} `}
                   </Text>
                   {fleet.running > 0 ? (
                     <Text color={isNoColor ? undefined : theme.warn}>
-                      {isNoColor ? `▶${fleet.running}` : `▶${fleet.running}`}
+                      {isNoColor ? `>${fleet.running}` : `${glyphs.running}${fleet.running}`}
                     </Text>
                   ) : null}
                   {fleet.running > 0 && (fleet.pending > 0 || fleet.idle > 0 || fleet.completed > 0)
@@ -917,7 +951,7 @@ export function StatusBar({
                     : ''}
                   {fleet.pending > 0 ? (
                     <Text dimColor={!isNoColor}>
-                      {isNoColor ? `☐${fleet.pending}` : `☐${fleet.pending}`}
+                      {isNoColor ? `.${fleet.pending}` : `${glyphs.pending}${fleet.pending}`}
                     </Text>
                   ) : null}
                   {fleet.pending > 0 && (fleet.idle > 0 || fleet.completed > 0) ? ' ' : ''}
@@ -925,7 +959,7 @@ export function StatusBar({
                   {fleet.idle > 0 && fleet.completed > 0 ? ' ' : ''}
                   {fleet.completed > 0 ? (
                     <Text color={isNoColor ? undefined : theme.success}>
-                      {isNoColor ? `✓${fleet.completed}` : `✓${fleet.completed}`}
+                      {isNoColor ? `+${fleet.completed}` : `${glyphs.success}${fleet.completed}`}
                     </Text>
                   ) : null}
                 </Text>
@@ -933,7 +967,7 @@ export function StatusBar({
                 <Text color={isNoColor ? undefined : theme.accent}>
                   {isNoColor
                     ? `${subagentCount} agent${subagentCount === 1 ? '' : 's'}`
-                    : `${glyphs.fleet} ${subagentCount} agent${subagentCount === 1 ? '' : 's'}`}
+                    : `${STATUSLINE_ICONS.fleet} ${subagentCount} agent${subagentCount === 1 ? '' : 's'}`}
                 </Text>
               )
             ) : null,

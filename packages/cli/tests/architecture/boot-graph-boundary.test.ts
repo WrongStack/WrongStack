@@ -34,9 +34,26 @@ const ENTRY = path.join(process.cwd(), 'packages', 'cli', 'dist', 'index.js');
  * the measured standalone cost is in the comment.
  */
 const MUST_BE_LAZY = [
-  '@wrongstack/webui-server', // +38.7MB heap / +80.2MB RSS — WebUI is off by default
-  '@wrongstack/bench', // only reachable from the `bench` subcommand
+  '@wrongstack/webui-server', // 80.2MB RSS standalone — WebUI is off by default
+  '@wrongstack/bench', // 5.5MB — only reachable from the `bench` subcommand
+  // These five hang off the interactive wiring layer, which `cli-entry-main.ts`
+  // loads only after `initializeCli()` declines to short-circuit. Standalone
+  // RSS in comments; a static edge to any of them means a subcommand-only or
+  // `mailbox serve` invocation is paying for a full interactive session.
+  '@wrongstack/sdd', // 21.3MB
+  '@wrongstack/acp', // 21.2MB
+  '@wrongstack/sage', // 19.8MB
+  '@wrongstack/mcp', // 11.3MB
+  '@wrongstack/security-scanner', // 7.5MB
 ];
+
+/**
+ * The always-loaded graph should stay small. This is a ratchet, not a precise
+ * target: it was 270 modules before the `cli-entry-main.ts` split and 27 after,
+ * so anything approaching the old number means the boundary was breached by a
+ * new static import somewhere in `cli-context.ts` / `boot.ts`.
+ */
+const MAX_ENTRY_MODULES = 60;
 
 function staticSpecifiers(source: string): Set<string> {
   const found = new Set<string>();
@@ -65,6 +82,14 @@ describe('CLI boot graph boundary', () => {
     const specifiers = staticSpecifiers(source);
     const offenders = MUST_BE_LAZY.filter((pkg) => specifiers.has(pkg));
     expect(offenders).toEqual([]);
+  });
+
+  it('keeps the always-loaded module graph small', async () => {
+    const source = await fs.readFile(ENTRY, 'utf8');
+    // esbuild leaves a `// src/foo.ts` marker above each inlined module.
+    const modules = source.match(/^\/\/ src\/.+$/gmu) ?? [];
+    expect(modules.length).toBeGreaterThan(0);
+    expect(modules.length).toBeLessThanOrEqual(MAX_ENTRY_MODULES);
   });
 
   it('emits real chunks, so dynamic imports actually defer', async () => {

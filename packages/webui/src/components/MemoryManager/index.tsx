@@ -719,59 +719,6 @@ export function MemoryManager() {
           )}
           aria-label="Memory library"
         >
-          {/* PR #4: drawer toggle. `setCurrentFilePath` is a hook for callers
-              that own file context (e.g. the file editor). For the standalone
-              MemoryManager demo, we seed a sample file path so the toggle is
-              immediately useful — production callers will set the real path. */}
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-1.5">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              File drawer
-            </span>
-            <div className="flex items-center gap-2">
-              <select
-                value={currentFilePath ?? ''}
-                onChange={(e) => {
-                  const next = e.target.value || null;
-                  setCurrentFilePath(next);
-                  if (next) setDrawerOpen(true);
-                }}
-                className="max-w-[180px] truncate rounded-sm border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-mono"
-                aria-label="File for memory drawer"
-                data-testid="memory-drawer-file-select"
-              >
-                <option value="">— select a file —</option>
-                {memories
-                  .flatMap((memory) => memory.anchors ?? [])
-                  .filter((anchor) => anchor.type === 'file' && anchor.path)
-                  .map((anchor, idx) => (
-                    <option key={`${anchor.path}-${idx}`} value={anchor.path}>
-                      {anchor.path}
-                    </option>
-                  ))}
-              </select>
-              <Button
-                type="button"
-                size="sm"
-                variant={drawerActive ? 'default' : 'outline'}
-                onClick={() => {
-                  if (!currentFilePath) return;
-                  setDrawerOpen((prev) => !prev);
-                }}
-                disabled={!currentFilePath}
-                className="h-7 gap-1 px-2 text-[11px]"
-                aria-pressed={drawerActive}
-                title={drawerActive ? 'Hide file memory drawer' : 'Show file memory drawer'}
-              >
-                {drawerActive ? (
-                  <PanelRightOpen className="size-3" />
-                ) : (
-                  <PanelRight className="size-3" />
-                )}
-                {drawerActive ? 'Hide' : 'Show'} drawer
-              </Button>
-            </div>
-          </div>
-
           {/* Active / Deleted view tabs. The Deleted tab is a separate paginated
               query so the soft-delete audit trail never floods the main list. */}
           <div
@@ -868,6 +815,64 @@ export function MemoryManager() {
           )}
           aria-label="Memory detail"
         >
+          {/* File drawer toolbar — lives in the right rail so it doesn't
+              consume vertical space in the memory list above. Only rendered
+              when at least one memory in the current page has a file anchor
+              (the drawer is meaningless without one). */}
+          {memories.some((memory) =>
+            (memory.anchors ?? []).some((anchor) => anchor.type === 'file' && anchor.path),
+          ) && (
+            <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-card/30 px-3 py-1.5">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                File drawer
+              </span>
+              <select
+                value={currentFilePath ?? ''}
+                onChange={(e) => {
+                  const next = e.target.value || null;
+                  setCurrentFilePath(next);
+                  if (next) setDrawerOpen(true);
+                }}
+                className="min-w-0 max-w-[260px] flex-1 truncate rounded-sm border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-mono"
+                aria-label="File for memory drawer"
+                data-testid="memory-drawer-file-select"
+              >
+                <option value="">— select a file —</option>
+                {memories
+                  .flatMap((memory) => memory.anchors ?? [])
+                  .filter((anchor) => anchor.type === 'file' && anchor.path)
+                  .map((anchor, idx) => (
+                    <option
+                      key={`${anchor.path}-${idx}`}
+                      value={anchor.path}
+                      title={anchor.path}
+                    >
+                      {anchor.path}
+                    </option>
+                  ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                variant={drawerActive ? 'default' : 'outline'}
+                onClick={() => {
+                  if (!currentFilePath) return;
+                  setDrawerOpen((prev) => !prev);
+                }}
+                disabled={!currentFilePath}
+                className="h-7 shrink-0 gap-1 px-2 text-[11px]"
+                aria-pressed={drawerActive}
+                title={drawerActive ? 'Hide file memory drawer' : 'Show file memory drawer'}
+              >
+                {drawerActive ? (
+                  <PanelRightOpen className="size-3" />
+                ) : (
+                  <PanelRight className="size-3" />
+                )}
+                {drawerActive ? 'Hide' : 'Show'} drawer
+              </Button>
+            </div>
+          )}
           {creating ? (
             <MemoryEditor
               mode="create"

@@ -91,6 +91,11 @@
       "offline": "Sleeping",
       "unavailable": "Unavailable",
       "error": "Error"
+    },
+    "services": {
+      "kanban": {
+        "label": "Kanban IPC"
+      }
     }
   },
   "provider": {

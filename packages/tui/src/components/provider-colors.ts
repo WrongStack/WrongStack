@@ -117,9 +117,8 @@ export const STATUSLINE_ITEM_COLORS: Record<string, string> = {
   cache: '#94e2d5',
   context: '#f5c2e7',
 
-  // Queue / processes / fleet
+  // Queue / fleet
   queue: '#89dceb',
-  processes: '#89dceb',
   fleet: '#89b4fa',
   fleet_agents: '#89b4fa',
 

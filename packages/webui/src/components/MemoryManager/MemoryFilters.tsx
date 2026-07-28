@@ -1,4 +1,5 @@
-import { BrainCircuit, FilterX, Search, Tag, X } from 'lucide-react';
+import { BrainCircuit, ChevronDown, FilterX, Search, Tag, X } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,14 @@ export function MemoryFilters({
   onTagFilterChange,
   onClearFilters,
 }: MemoryFiltersProps) {
+  // The tag-chip row is the largest filter-area consumer. We collapse it by
+  // default so the memory list gets the vertical space on first paint, but
+  // auto-expand it when a tag is currently active (so the user can see and
+  // toggle the chip that produced the filtered list).
+  const [tagsExpanded, setTagsExpanded] = useState(Boolean(tagFilter));
+  const tagsVisible = tagsExpanded || Boolean(tagFilter);
+  const hasTags = allTags.length > 0;
+
   return (
     <div className="shrink-0 space-y-2 overflow-hidden border-b border-border/70 bg-card/45 p-3">
       <div className="flex gap-2">
@@ -83,7 +92,7 @@ export function MemoryFilters({
           </Button>
         )}
       </div>
-      <div className="grid gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <label className="sr-only" htmlFor="memory-status-filter">
           Filter by status
         </label>
@@ -119,8 +128,65 @@ export function MemoryFilters({
           ))}
         </select>
       </div>
-      {allTags.length > 0 && (
-        <fieldset className="min-w-0 border-0 p-0">
+      {hasTags && (
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              // While a tag is active the row is forced open so the user can
+              // see and untoggle the chip; ignore the click rather than
+              // silently flipping state behind the parent's back.
+              if (tagFilter) return;
+              setTagsExpanded((value) => !value);
+            }}
+            aria-expanded={tagsVisible}
+            aria-controls="memory-tags-panel"
+            disabled={Boolean(tagFilter)}
+            className={cn(
+              'flex items-center gap-1.5 px-1 py-0.5 text-[10px] uppercase tracking-wide transition-colors',
+              tagsVisible
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+              Boolean(tagFilter) && 'cursor-default',
+            )}
+            title={
+              tagFilter
+                ? `Active filter: ${tagFilter} (click the chip to clear)`
+                : tagsVisible
+                  ? 'Hide tag filters'
+                  : `Show tag filters (${allTags.length})`
+            }
+          >
+            <ChevronDown
+              className={cn(
+                'size-3 transition-transform',
+                !tagsVisible && '-rotate-90',
+              )}
+            />
+            <Tag className="size-3" />
+            <span className="font-semibold">Tags</span>
+            <span className="font-mono text-[9px] text-muted-foreground">
+              {allTags.length}
+            </span>
+          </button>
+          {/* Active-tag badge lives OUTSIDE the toggle button so the toggle's
+              accessible name stays stable (e.g. "Tags 3") regardless of which
+              tag is active. Screen readers announce the badge separately. */}
+          {tagFilter && (
+            <span
+              aria-label={`Active tag filter: ${tagFilter}`}
+              className="border border-info/55 bg-info/10 px-1 font-mono text-[9px] uppercase text-info"
+            >
+              {tagFilter}
+            </span>
+          )}
+        </div>
+      )}
+      {hasTags && tagsVisible && (
+        <fieldset
+          id="memory-tags-panel"
+          className="min-w-0 border-0 p-0"
+        >
           <legend className="sr-only">Popular tags</legend>
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5">
             {allTags.slice(0, 18).map(([tagName, count]) => (

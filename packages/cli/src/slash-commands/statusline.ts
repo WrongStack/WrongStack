@@ -53,7 +53,6 @@ const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
   cache: 'Prompt cache hit ratio',
   cost: 'Token cost estimate (input/output/total)',
   queue: 'Queued prompt count',
-  processes: 'Tracked shell/process count',
   hint: 'Transient status hint text',
   index: 'Codebase indexing status',
   sage: 'Total SAGE records and provider-context active count',
@@ -74,7 +73,6 @@ const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
   enhance: 'Prompt-enhance countdown',
   debug_stream: 'Stream debug telemetry',
   next_steps: 'Next-step auto-submit countdown',
-  cpu: 'CPU usage percentage (system load average)',
 };
 
 const ALL_CONFIG_KEYS = STATUSLINE_CONFIG_KEYS;

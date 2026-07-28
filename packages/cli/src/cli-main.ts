@@ -14,7 +14,7 @@ import { configureSimpleUiRuntimeContext } from './boot/simpleui-full-auto.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
 import { registerBuiltinTools } from './boot/tool-registry.js';
-import { initializeCli } from './cli-context.js';
+import type { CliContext } from './cli-context.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import {
   createPickableProvidersLoader,
@@ -62,12 +62,30 @@ import { toExecuteDeps } from './wiring/to-execute-deps.js';
 
 export { CLI_VERSION };
 
-export async function main(argv: string[]): Promise<number> {
-  // Issue #29 cli-main PR 7 — the first ~150 lines of boot/wiring
-  // have been consolidated into `initializeCli()` in cli-context.ts.
-  const cliCtx = await initializeCli(argv);
-  if (typeof cliCtx === 'number') return cliCtx;
-
+/**
+ * Everything the CLI needs once it knows it is running an interactive session.
+ *
+ * The boundary that keeps the ~30 wiring modules imported above — and
+ * `@wrongstack/sdd`, `/acp`, `/sage`, `/mcp`, `/security-scanner` behind them
+ * — out of the graph that every `wstack` invocation loads is the
+ * `await import('./cli-main.js')` in `cli-entry-main.ts:33`. Because
+ * `@wrongstack/cli` is built with `splitting: true` (see
+ * `scripts/build-package.mjs`), that dynamic import makes the whole module
+ * graph behind this file a deferred chunk, so subcommands like `wstack
+ * version` and `wstack mailbox serve` never pay for it at boot.
+ *
+ * A secondary boundary lives inside this function at the
+ * `await import('./execution.js')` further below — it defers the dispatch
+ * layer (slash commands, UI controllers) until after the wiring/agent
+ * setup is complete, keeping the post-setup chunk focused on dispatch.
+ * See `cli-entry-main.ts` for the full rationale and the bundling
+ * constraint that makes the outer boundary real.
+ *
+ * This function is intentionally exported: `cli-entry-main.ts` consumes it
+ * via `await import('./cli-main.js')`, and that dynamic import requires
+ * the binding to be a real ESM export. There is no in-tree static caller.
+ */
+export async function runInteractive(cliCtx: CliContext): Promise<number> {
   let {
     config,
     vault,

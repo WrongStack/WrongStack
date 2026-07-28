@@ -285,9 +285,7 @@ defineMethod('updateTask', async (params: any) => {
 });
 defineMethod('deleteTask', async ({ boardId, taskId }: any) => {
   if (!boardId || !taskId) invalid('deleteTask requires boardId and taskId');
-  const fn = (kanban as any).deleteTask ?? (kanban as any).removeTask;
-  if (!fn) throw { code: 'INTERNAL_ERROR', message: 'deleteTask not available in this build' };
-  const board = await fn(projectRoot, boardId, taskId);
+  const board = await kanban.removeTask(projectRoot, boardId, taskId);
   if (!board) notFound('Task not found');
   emitBoardEvent('task.deleted', boardId, { taskId }, taskId);
   return board;
@@ -417,22 +415,18 @@ defineMethod('getChain', async (params: any) => {
 defineMethod('syncTaskGraph', async ({ boardId, taskGraph }: any) => {
   if (!boardId || !taskGraph) invalid('syncTaskGraph requires boardId and taskGraph');
   const bridge = await import('../manager/task-graph-bridge.js');
-  return await (bridge as any).syncTaskGraphToBoard(projectRoot, boardId, typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph);
+  return await bridge.syncBoardFromTaskGraph(projectRoot, boardId, typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph);
 });
 defineMethod('createFromGraph', async ({ taskGraph, options }: any) => {
   if (!taskGraph) invalid('createFromGraph requires taskGraph');
   const bridge = await import('../manager/task-graph-bridge.js');
-  const board = await (bridge as any).createBoardFromTaskGraph(
+  const result = await bridge.createBoardFromTaskGraph(
     projectRoot,
     typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph,
     options,
   );
-  emitBoardEvent('board.created', board.id, board);
-  return board;
-});
-defineMethod('importSessionTasks', async (params: any) => {
-  const bridge = await import('../manager/task-graph-bridge.js');
-  return await (bridge as any).mirrorSessionTasksToBoard(projectRoot, params);
+  emitBoardEvent('board.created', result.board.id, result.board);
+  return result;
 });
 
 // Atomicity
@@ -444,15 +438,18 @@ defineMethod('assessAtomicity', async (params: any) => {
 // Export
 defineMethod('exportMarkdown', async ({ boardId }: { boardId: string }) => {
   if (!boardId) invalid('exportMarkdown requires boardId');
-  const serialization = await import('../manager/serialization.js');
-  const md = await (serialization as any).exportBoardToMarkdown(projectRoot, boardId);
-  if (!md) notFound(`Board ${boardId} not found`);
-  return md;
+  const [serialization, storage] = await Promise.all([
+    import('../manager/serialization.js'),
+    import('../storage.js'),
+  ]);
+  const board = await storage.readBoard(projectRoot, boardId);
+  if (!board) notFound(`Board ${boardId} not found`);
+  return serialization.exportBoardAsMarkdown(board);
 });
 defineMethod('exportTaskGraph', async ({ boardId }: { boardId: string }) => {
   if (!boardId) invalid('exportTaskGraph requires boardId');
   const bridge = await import('../manager/task-graph-bridge.js');
-  const graph = await (bridge as any).exportBoardToTaskGraph(projectRoot, boardId);
+  const graph = await bridge.exportBoardToTaskGraph(projectRoot, boardId);
   if (!graph) notFound(`Board ${boardId} not found`);
   return graph;
 });

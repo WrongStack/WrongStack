@@ -49,6 +49,11 @@
       "offline": "En veille",
       "unavailable": "Indisponible",
       "error": "Erreur"
+    },
+    "services": {
+      "kanban": {
+        "label": "Kanban IPC"
+      }
     }
   },
   "provider": {

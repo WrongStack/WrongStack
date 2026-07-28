@@ -1,7 +1,7 @@
 export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
-  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage';
+  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban';
   label: string;
   status: ConnectionHealthStatus;
   required: boolean;

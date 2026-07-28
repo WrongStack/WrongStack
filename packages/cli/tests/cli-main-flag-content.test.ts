@@ -46,7 +46,7 @@ afterEach(() => {
 
 describe('cli main() — flag short-circuit content (Phase 1)', () => {
   it('prints help text containing usage and the wstack binary name to stdout', async () => {
-    const { main } = await import('../src/cli-main.js');
+    const { main } = await import('../src/cli-entry-main.js');
     await main(['node', 'wstack', '--help']);
     const out = stdoutWrites.join('');
     expect(out.length).toBeGreaterThan(0);
@@ -57,7 +57,7 @@ describe('cli main() — flag short-circuit content (Phase 1)', () => {
   });
 
   it('prints a version string to stdout for --version', async () => {
-    const { main } = await import('../src/cli-main.js');
+    const { main } = await import('../src/cli-entry-main.js');
     await main(['node', 'wstack', '--version']);
     const out = stdoutWrites.join('');
     expect(out.length).toBeGreaterThan(0);
@@ -69,7 +69,7 @@ describe('cli main() — flag short-circuit content (Phase 1)', () => {
   it('defaults NODE_ENV to production and sets the marker on first run', async () => {
     delete process.env.NODE_ENV;
     delete process.env.WRONGSTACK_NODE_ENV_DEFAULTED;
-    const { main } = await import('../src/cli-main.js');
+    const { main } = await import('../src/cli-entry-main.js');
     await main(['node', 'wstack', '--help']);
     expect(process.env.NODE_ENV).toBe('production');
     expect(process.env.WRONGSTACK_NODE_ENV_DEFAULTED).toBe('1');
@@ -78,7 +78,7 @@ describe('cli main() — flag short-circuit content (Phase 1)', () => {
   it('does not overwrite an explicit NODE_ENV', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.WRONGSTACK_NODE_ENV_DEFAULTED;
-    const { main } = await import('../src/cli-main.js');
+    const { main } = await import('../src/cli-entry-main.js');
     await main(['node', 'wstack', '--help']);
     expect(process.env.NODE_ENV).toBe('development');
     expect(process.env.WRONGSTACK_NODE_ENV_DEFAULTED).toBeUndefined();

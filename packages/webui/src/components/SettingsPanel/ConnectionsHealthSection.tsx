@@ -4,6 +4,7 @@ import {
   CircleOff,
   Database,
   HardDrive,
+  KanbanSquare,
   MemoryStick,
   RefreshCw,
   Server,
@@ -162,7 +163,12 @@ function ServiceCard({ service }: { service: ConnectionHealthService }) {
         ? Database
         : service.id === 'codebase-index'
           ? HardDrive
-          : MemoryStick;
+          : service.id === 'kanban'
+            ? KanbanSquare
+            : MemoryStick;
+  const displayLabel = service.id === 'kanban'
+    ? (t('settings:connection.services.kanban.label', { defaultValue: service.label }) as string)
+    : service.label;
   const fields = [
     service.ownerPid !== undefined ? ['PID', String(service.ownerPid)] : undefined,
     service.clients !== undefined ? ['clients', String(service.clients)] : undefined,
@@ -181,7 +187,7 @@ function ServiceCard({ service }: { service: ConnectionHealthService }) {
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-xs font-semibold">{service.label}</h4>
+              <h4 className="text-xs font-semibold">{displayLabel}</h4>
               {!service.required && (
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings:connection.healthOptional')}

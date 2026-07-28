@@ -149,7 +149,6 @@ export interface KanbanServerOperations {
   // Task graph
   syncTaskGraph: { args: { boardId: string; taskGraph: string }; result: string };
   createFromGraph: { args: { taskGraph: string; boardId?: string; boardTitle?: string }; result: string };
-  importSessionTasks: { args: { boardId?: string; boardTitle?: string }; result: string };
 
   // Export
   exportMarkdown: { args: { boardId: string }; result: string };

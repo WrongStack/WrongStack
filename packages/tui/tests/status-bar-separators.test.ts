@@ -158,14 +158,17 @@ describe('StatusBar chip separators', () => {
     expect(frame).toContain('heap 768M');
   });
 
-  it('shows total SAGE records and the exact provider-context active count', () => {
+  it('shows total SAGE records and the active-in-context summary', () => {
+    // The redesign collapsed the matched/injected/filtered/active counters into
+    // a single `actv N` chip; with no memory-context monitor prop the count
+    // falls back to Sage.activeInContext so the rail still surfaces it.
     const frame = frameOf({
       Sage: { total: 6261, activeInContext: 3 },
       hiddenItems: ['state'],
     });
 
     expect(frame).toContain('6261 total');
-    expect(frame).toContain('3 ctx');
+    expect(frame).toContain('3 actv');
   });
 
   it('hides SAGE counts when the statusline item is disabled', () => {
@@ -175,7 +178,7 @@ describe('StatusBar chip separators', () => {
     });
 
     expect(frame).not.toContain('6261 total');
-    expect(frame).not.toContain('3 ctx');
+    expect(frame).not.toContain('3 actv');
   });
 
   it('places live provider/model before context and project/workdir on line 2', () => {

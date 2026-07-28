@@ -16,7 +16,6 @@ export const STATUSLINE_CONFIG_KEYS = [
   'cache',
   'cost',
   'queue',
-  'processes',
   'hint',
   'index',
   'sage',
@@ -44,7 +43,6 @@ export const STATUSLINE_CONFIG_KEYS = [
   'next_steps',
   'mailbox',
   'fleet_agents',
-  'cpu',
 ] as const;
 
 export type StatuslineConfigKey = (typeof STATUSLINE_CONFIG_KEYS)[number];
