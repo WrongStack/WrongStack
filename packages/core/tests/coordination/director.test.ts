@@ -230,3 +230,63 @@ describe('Director — task result notifier', () => {
     expect(director.status()).toBeDefined();
   });
 });
+
+describe('Director — removeSubagent per-subagent Map cleanup', () => {
+  let events: EventBus;
+
+  beforeEach(() => {
+    events = new EventBus();
+  });
+
+  it('drops subagentMeta and priceLookups entries for the retired subagent', async () => {
+    // Regression: Director.remove previously cleared subagentBridges,
+    // manifestEntries, usedNicknames, taskWorktrees, budgetPolicy, and
+    // fleetManager — but NOT its own subagentMeta / priceLookups Maps.
+    // Without a FleetManager (the non-fleet fallback path used by tests
+    // and lightweight consumers), those Maps live on the Director itself
+    // and accumulated one entry per retired subagent for the lifetime of
+    // the leader process. Same leak FleetManager already fixed internally.
+    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+
+    // Simulate fleet-spawn.ts:254 / fleet-manager.ts:361: the per-subagent
+    // metadata and price-lookup entries that recordSpawn would normally
+    // populate. The Director exposes these Maps publicly (readonly) so
+    // production spawn flows fill them; here we set them directly.
+    (director.subagentMeta as Map<string, unknown>).set('s1', { provider: 'anthropic', model: 'm' });
+    (director.subagentMeta as Map<string, unknown>).set('s2', { provider: 'openai', model: 'gpt' });
+    (director.priceLookups as Map<string, unknown>).set('anthropic/m', { input: 3 });
+    (director.priceLookups as Map<string, unknown>).set('openai/gpt', { input: 5 });
+    expect(director.subagentMeta.size).toBe(2);
+    expect(director.priceLookups.size).toBe(2);
+
+    await director.remove('s1');
+
+    // The retired subagent's entries must be gone from both Maps. The other
+    // subagent's entries must remain untouched (no cross-contamination).
+    expect(director.subagentMeta.has('s1')).toBe(false);
+    expect(director.priceLookups.has('anthropic/m')).toBe(false);
+    expect(director.subagentMeta.has('s2')).toBe(true);
+    expect(director.priceLookups.has('openai/gpt')).toBe(true);
+  });
+
+  it('remains idempotent across many retirements (no leak over a long fleet run)', async () => {
+    // Long-running fleet sessions retire dozens of subagents; each remove()
+    // must fully release its per-subagent Map entries so a 1000-subagent
+    // run does not balloon the Map to 1000 entries.
+    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+
+    for (let i = 0; i < 50; i++) {
+      const id = `s${i}`;
+      const provider = i % 2 === 0 ? 'anthropic' : 'openai';
+      (director.subagentMeta as Map<string, unknown>).set(id, { provider, model: 'm' });
+      (director.priceLookups as Map<string, unknown>).set(`${provider}/m`, { input: 1 });
+      await director.remove(id);
+    }
+
+    expect(director.subagentMeta.size).toBe(0);
+    // priceLookups shares keys by provider/model — only two unique keys,
+    // each deleted once on its first retirement. All later retirements
+    // are no-ops on that key.
+    expect(director.priceLookups.size).toBe(0);
+  });
+});

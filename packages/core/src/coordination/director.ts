@@ -654,6 +654,22 @@ export class Director implements DirectorFleetHost, ICoordinator {
     }
     this.budgetPolicy.removeSubagent(subagentId);
     this.manifestEntries.delete(subagentId);
+    // Drop the per-subagent metadata and price-lookup entries that
+    // FleetManager records at spawn time (fleet-spawn.ts:254 and
+    // fleet-manager.ts:361). When Director runs WITHOUT a fleetManager
+    // (the non-fleet fallback path), these Maps live on the Director
+    // itself and would otherwise accumulate one entry per retired
+    // subagent — same leak FleetManager already fixed internally.
+    //
+    // priceLookups is keyed by `${provider}/${model}` (shared across
+    // subagents using the same model), not by subagentId. Read the
+    // provider/model from subagentMeta so we delete exactly the right
+    // entry instead of guessing or deleting all entries.
+    const meta = this.subagentMeta.get(subagentId);
+    if (meta?.provider && meta.model) {
+      this.priceLookups.delete(`${meta.provider}/${meta.model}`);
+    }
+    this.subagentMeta.delete(subagentId);
   }
 
   private clearSubagentIdleRetirement(subagentId: string): void {
