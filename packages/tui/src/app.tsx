@@ -956,6 +956,18 @@ export function App(props: AppProps): React.ReactElement {
       setEnhanceDuration: setEnhanceDurationMs,
       setRefineProvider: setRefineProviderId,
       setRefineModel,
+      onAfterClear: () => {
+        // Clear paste accumulator and its flush timer.
+        pasteAccumRef.current = null;
+        if (pasteFlushTimerRef.current) {
+          clearTimeout(pasteFlushTimerRef.current);
+          pasteFlushTimerRef.current = null;
+        }
+        // Clear next-steps auto-submit suggestion so a stale prompt
+        // from the old conversation can't fire.
+        nextStepsAutoSubmitSuggestionRef.current = null;
+        cancelNextStepsCountdown();
+      },
     },
   });
   submitRef.current = submit;

@@ -78,6 +78,10 @@ export interface SubmitControllerHost {
     setEnhanceDuration(value: number | null): void;
     setRefineProvider(value: string | null): void;
     setRefineModel(value: string | null): void;
+    /** Called after /clear dispatches clearHistory — app.tsx uses this to
+     *  reset mutable refs that the reducer cannot reach (paste accumulator,
+     *  next-steps auto-submit, prompt-usage store, enhance abort). */
+    onAfterClear?(): void;
   };
 }
 
@@ -161,6 +165,7 @@ export function createSubmitController(host: SubmitControllerHost) {
       setEnhanceDuration: setEnhanceDurationMs,
       setRefineProvider: setRefineProviderId,
       setRefineModel,
+      onAfterClear,
     },
   } = host;
   const submit = async (overrideRaw?: string) => {
@@ -426,6 +431,29 @@ export function createSubmitController(host: SubmitControllerHost) {
           // Reset cumulative token/cost counters so the status bar
           // reflects a fresh session, not pre-clear stats.
           tokenCounter?.reset();
+          // ── Reset mutable refs that survive the reducer dispatch ─────
+          // The reducer clears state fields, but these refs hold data
+          // outside React state and must be reset manually.
+          // Abort any in-flight prompt-refinement call so it cannot
+          // dispatch into the cleared session.
+          enhanceAbortRef.current?.abort('session cleared');
+          enhanceAbortRef.current = null;
+          enhanceCancelledRef.current = true;
+          enhanceOriginalRef.current = '';
+          // Cancel a pending next-steps auto-submit timer so it cannot
+          // fire a stale suggestion into the new session.
+          if (nextStepsAutoSubmitTimerRef.current !== undefined) {
+            clearInterval(nextStepsAutoSubmitTimerRef.current);
+            nextStepsAutoSubmitTimerRef.current = undefined;
+          }
+          // Reset the auto-submit streak and loop guard so the new
+          // session starts clean.
+          autoSubmitStreakRef.current = 0;
+          autoSubmitCapWarnedRef.current = false;
+          autoSubmitLoopGuardRef.current.reset();
+          // Delegate remaining ref cleanup (paste, prompt-usage,
+          // next-steps suggestion) to the host callback.
+          onAfterClear?.();
         }
       } catch (err) {
         dispatch({
@@ -540,8 +568,10 @@ export function createSubmitController(host: SubmitControllerHost) {
 
     // ── SDD Context Injection ──────────────────────────────────────────
     // When an SDD session is active, prepend the session context so the
-    // model knows it's in a spec-building conversation.
-    const sddContext = await getSDDContext?.();
+    // model knows it's in a spec-building conversation. Pass the user text
+    // so the questioning phase can record the Q/A pair before the prompt
+    // is built (parity with WebUI SddInterviewDriver.submitAnswer).
+    const sddContext = await getSDDContext?.(effectiveText || trimmed);
     if (sddContext && trimmed) {
       builder.appendText(`[SDD SESSION ACTIVE]\n${sddContext}\n\n---\nUser message:\n`);
     }

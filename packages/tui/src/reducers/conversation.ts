@@ -140,6 +140,32 @@ export function reduceConversation(state: State, action: ConversationAction): St
           lastEventAt: Date.now(),
           iterating: false,
         },
+        // ── Additional session-specific state that must not survive /clear ──
+        // Input history (Up/Down navigation) from the old conversation.
+        inputHistory: [],
+        historyIndex: 0,
+        historyDraft: '',
+        // Brain analysis belongs to the old conversation.
+        brain: { state: 'idle' },
+        // Any pending interactive panel with a resolve callback must be
+        // dismissed — the closures hold old-session state and the Promises
+        // would never settle.
+        enhance: null,
+        enhanceBusy: false,
+        refineFailure: null,
+        continueConfirm: null,
+        sendModePicker: null,
+        shellCommandWarning: null,
+        escConfirm: null,
+        exitConfirm: null,
+        // Auto-proceed countdown from the old conversation.
+        countdown: null,
+        // Session checkpoints and the rewind overlay reference the old
+        // conversation's prompt indices.
+        checkpoints: [],
+        rewindOverlay: null,
+        // Collaborative debugging session timeline.
+        collabSession: null,
       };
     }
     case 'streamDelta':
