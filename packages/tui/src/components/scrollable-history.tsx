@@ -105,6 +105,9 @@ export interface CopyHit {
   iconCol: number;
 }
 
+/** Sentinel returned after copying the active, non-retained tool-stream box. */
+export const LIVE_TOOL_STREAM_COPY_ID = -1;
+
 /**
  * Resolve the copy target under a viewport cell, or null. A cell matches when
  * its `row` is within the card's visible rows and its `col` is within the
@@ -122,6 +125,28 @@ export function findCopyHit(hits: readonly CopyHit[], row: number, col: number):
   return null;
 }
 
+/** Resolve a hit to the complete current clipboard payload without performing I/O. */
+export function resolveCopyPayload(
+  hit: CopyHit,
+  entriesById: ReadonlyMap<number, HistoryEntry>,
+  liveToolText?: string | undefined,
+): { entryId: number; text: string } | null {
+  if (hit.entryId === LIVE_TOOL_STREAM_COPY_ID) {
+    return liveToolText ? { entryId: LIVE_TOOL_STREAM_COPY_ID, text: liveToolText } : null;
+  }
+  const entryIds = hit.entryIds ?? [hit.entryId];
+  const entries = entryIds
+    .map((entryId) => entriesById.get(entryId))
+    .filter((entry): entry is HistoryEntry => entry !== undefined);
+  if (entries.length !== entryIds.length) return null;
+  const firstEntry = entries[0];
+  if (firstEntry === undefined) return null;
+  return {
+    entryId: hit.entryId,
+    text: entries.length === 1 ? copyableTextForEntry(firstEntry) : copyableTextForEntries(entries),
+  };
+}
+
 /**
  * Rows clipped from the top of the mounted history stack before it appears in
  * the viewport. Scrolled frames clip by the anchor's row offset; pinned frames
@@ -137,6 +162,24 @@ export function copyRegistryVisibleClip(opts: {
 }): number {
   if (opts.scrolled) return opts.clip;
   return Math.max(0, opts.mountedRows + opts.tailRows - opts.viewportRows);
+}
+
+/** Build the live tool-stream header hit, accounting for ToolStreamBox's top margin. */
+export function liveToolStreamCopyHit(opts: {
+  visible: boolean;
+  mountedRows: number;
+  visibleClip: number;
+  viewportRows: number;
+  iconCol: number;
+}): CopyHit | null {
+  const headerRow = opts.mountedRows - opts.visibleClip + 1;
+  if (!opts.visible || headerRow < 0 || headerRow >= opts.viewportRows) return null;
+  return {
+    entryId: LIVE_TOOL_STREAM_COPY_ID,
+    startRow: headerRow,
+    endRow: headerRow + 1,
+    iconCol: opts.iconCol,
+  };
 }
 
 export interface ScrollableHistoryProps extends HistoryProps {
@@ -359,6 +402,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // pass from the same measured heights the scroll math uses. Read by the
   // controller's copyAtViewportCell when a left-click lands in the history band.
   const copyHitsRef = useRef<CopyHit[]>([]);
+  const liveToolCopyHitRef = useRef<CopyHit | null>(null);
+  const toolStreamRef = useRef(toolStream);
+  toolStreamRef.current = toolStream;
   const entriesByIdRef = useRef(new Map<number, HistoryEntry>());
   entriesByIdRef.current = new Map(entries.map((entry) => [entry.id, entry]));
   // Exact global row-to-entry mapping is impossible while arbitrary markdown
@@ -563,23 +609,28 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           resolvedTopRow(geom, positionRef.current) < maxTopRow(geom)
         );
       },
-      hasCopyTargetAt: (row, col) => findCopyHit(copyHitsRef.current, row, col) !== null,
+      hasCopyTargetAt: (row, col) =>
+        findCopyHit(copyHitsRef.current, row, col) !== null ||
+        findCopyHit(
+          liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],
+          row,
+          col,
+        ) !== null,
       copyAtViewportCell: async (row, col) => {
-        const hit = findCopyHit(copyHitsRef.current, row, col);
+        const liveHit = findCopyHit(
+          liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],
+          row,
+          col,
+        );
+        const hit = liveHit ?? findCopyHit(copyHitsRef.current, row, col);
         if (hit === null) return null;
-        const entryIds = hit.entryIds ?? [hit.entryId];
-        const entries = entryIds
-          .map((entryId) => entriesByIdRef.current.get(entryId))
-          .filter((entry): entry is HistoryEntry => entry !== undefined);
-        // A group is one visual box, so never copy a partial payload if retention
-        // changed between registry creation and the click.
-        if (entries.length !== entryIds.length) return null;
-        const firstEntry = entries[0];
-        if (firstEntry === undefined) return null;
-        const text =
-          entries.length === 1 ? copyableTextForEntry(firstEntry) : copyableTextForEntries(entries);
-        const ok = await writeClipboardText(text);
-        return ok ? hit.entryId : null;
+        const payload = resolveCopyPayload(
+          hit,
+          entriesByIdRef.current,
+          toolStreamRef.current?.text,
+        );
+        if (payload === null) return null;
+        return (await writeClipboardText(payload.text)) ? payload.entryId : null;
       },
     }),
     [applyPosition],
@@ -755,6 +806,13 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         });
       }
       copyHitsRef.current = hits;
+      liveToolCopyHitRef.current = liveToolStreamCopyHit({
+        visible: Boolean(iconFits && plan.mountTail && toolTail && toolStream),
+        mountedRows: mountedGroupRows,
+        visibleClip,
+        viewportRows: vp,
+        iconCol,
+      });
     }
 
     if (
@@ -937,12 +995,25 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               space: mounted whenever the window reaches the newest group, and
               clipped by the viewport like everything else. */}
           {plan.mountTail && toolTail && toolStream ? (
-            <ToolStreamBox
-              name={toolStream.name}
-              text={toolTail}
-              startedAt={toolStream.startedAt}
-              termWidth={termWidth}
-            />
+            <Box flexDirection="row" alignItems="flex-start" flexShrink={0}>
+              <Box flexGrow={1} flexShrink={1}>
+                <ToolStreamBox
+                  name={toolStream.name}
+                  text={toolTail}
+                  startedAt={toolStream.startedAt}
+                  termWidth={Math.max(1, termWidth - COPY_ICON_WIDTH)}
+                />
+              </Box>
+              <Box width={COPY_ICON_WIDTH} flexShrink={0}>
+                <Text
+                  color={
+                    copiedEntryId === LIVE_TOOL_STREAM_COPY_ID ? theme.success : theme.textMuted
+                  }
+                >
+                  {COPY_ICON}
+                </Text>
+              </Box>
+            </Box>
           ) : null}
         </Box>
       </Box>

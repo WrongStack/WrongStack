@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   type CopyHit,
+  LIVE_TOOL_STREAM_COPY_ID,
   copyRegistryVisibleClip,
   findCopyHit,
+  liveToolStreamCopyHit,
 } from '../src/components/scrollable-history.js';
 
 /** Build a copy hit at a given row range with the icon at `iconCol`. */
@@ -57,6 +59,46 @@ describe('copyRegistryVisibleClip', () => {
         viewportRows: 5,
       }),
     ).toBe(0);
+  });
+});
+
+describe('liveToolStreamCopyHit', () => {
+  it('places the hit on the stream header after its top margin', () => {
+    expect(
+      liveToolStreamCopyHit({
+        visible: true,
+        mountedRows: 3,
+        visibleClip: 1,
+        viewportRows: 10,
+        iconCol: 57,
+      }),
+    ).toEqual({
+      entryId: LIVE_TOOL_STREAM_COPY_ID,
+      startRow: 3,
+      endRow: 4,
+      iconCol: 57,
+    });
+  });
+
+  it('returns null when the stream or header is not visible', () => {
+    expect(
+      liveToolStreamCopyHit({
+        visible: false,
+        mountedRows: 3,
+        visibleClip: 1,
+        viewportRows: 10,
+        iconCol: 57,
+      }),
+    ).toBeNull();
+    expect(
+      liveToolStreamCopyHit({
+        visible: true,
+        mountedRows: 12,
+        visibleClip: 0,
+        viewportRows: 10,
+        iconCol: 57,
+      }),
+    ).toBeNull();
   });
 });
 

@@ -20,8 +20,10 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
+  LIVE_TOOL_STREAM_COPY_ID,
   type CopyHit,
   findCopyHit,
+  resolveCopyPayload,
 } from '../src/components/scrollable-history.js';
 import {
   copyableTextForEntries,
@@ -116,6 +118,24 @@ async function clickHit(
   const ok = await writeClipboardText(text);
   return ok ? hit.entryId : null;
 }
+
+describe('resolveCopyPayload', () => {
+  it('returns the full active tool stream instead of its truncated display tail', () => {
+    const fullStream = Array.from({ length: 20 }, (_, index) => `line ${index}`).join('\n');
+    const hit: CopyHit = {
+      entryId: LIVE_TOOL_STREAM_COPY_ID,
+      startRow: 4,
+      endRow: 5,
+      iconCol: 57,
+    };
+
+    expect(resolveCopyPayload(hit, new Map(), fullStream)).toEqual({
+      entryId: LIVE_TOOL_STREAM_COPY_ID,
+      text: fullStream,
+    });
+    expect(resolveCopyPayload(hit, new Map(), '')).toBeNull();
+  });
+});
 
 describe('CopyHit entryId-only (F1 regression)', () => {
   it('CopyHit carries entryId only — no text field (F1 RAM savings)', () => {
