@@ -15,9 +15,11 @@ function fakeWs() {
   } as never;
 }
 
-function lastOfType(ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> }, type: string) {
-  const m = ws.sent.filter((x) => x.type === type);
-  return m[m.length - 1];
+function requireLastOfType(ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> }, type: string) {
+  const matches = ws.sent.filter((x) => x.type === type);
+  const match = matches[matches.length - 1];
+  if (!match) throw new Error(`expected at least one ${type} frame, got none`);
+  return match;
 }
 
 function tmp(): string {
@@ -86,8 +88,8 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
 
     // 1. Start the interview.
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
-    expect(lastOfType(ws, 'sdd.spec.agent_text').payload.text).toBe(QUESTION);
-    let snap = lastOfType(ws, 'sdd.spec.snapshot').payload;
+    expect(requireLastOfType(ws, 'sdd.spec.agent_text').payload.text).toBe(QUESTION);
+    let snap = requireLastOfType(ws, 'sdd.spec.snapshot').payload;
     expect(snap.phase).toBe('questioning');
     expect(snap.busy).toBe(false);
     expect(snap.title).toBe('OAuth login');
@@ -97,13 +99,13 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
       type: 'sdd.spec.message',
       payload: { text: 'Google and GitHub' },
     });
-    snap = lastOfType(ws, 'sdd.spec.snapshot').payload;
+    snap = requireLastOfType(ws, 'sdd.spec.snapshot').payload;
     expect(snap.phase).toBe('spec_review');
     expect((snap.spec as { title: string }).title).toBe('OAuth login');
 
     // 3. Approve the spec → implementation turn emits tasks → graph built.
     await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
-    snap = lastOfType(ws, 'sdd.spec.snapshot').payload;
+    snap = requireLastOfType(ws, 'sdd.spec.snapshot').payload;
     expect(snap.taskCount).toBe(2);
     expect(snap.graphId).toBeTruthy();
 
@@ -111,7 +113,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     await handler.handleMessage({ type: 'sdd.run.start', payload: {} });
     expect(startRunCalls).toHaveLength(1);
     expect(startRunCalls[0]?.taskCount).toBe(2);
-    expect(lastOfType(ws, 'sdd.run.started').payload.runId).toBe('run-xyz');
+    expect(requireLastOfType(ws, 'sdd.run.started').payload.runId).toBe('run-xyz');
   });
 
   it('forwards the run-config knobs (parallelSlots + worktrees + planDecompose) to startRun', async () => {
@@ -141,7 +143,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     handler.addClient(ws);
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'Something else' } });
-    expect(lastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/already in progress/i);
+    expect(requireLastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/already in progress/i);
   });
 
   it('discards an interview so a fresh goal can start', async () => {
@@ -151,11 +153,11 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
     const turnsBefore = turnPrompts.length;
     await handler.handleMessage({ type: 'sdd.spec.discard', payload: {} });
-    const discarded = lastOfType(ws, 'sdd.spec.snapshot').payload as { discarded?: boolean };
+    const discarded = requireLastOfType(ws, 'sdd.spec.snapshot').payload as { discarded?: boolean };
     expect(discarded.discarded).toBe(true);
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'New feature' } });
     expect(turnPrompts.length).toBeGreaterThan(turnsBefore);
-    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(/New feature/);
+    expect((requireLastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(/New feature/);
   });
 
   it('starts a run from a graph id when startRunFromGraphId is wired', async () => {
@@ -180,7 +182,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
       payload: { graphId: 'graph-abc', worktrees: true },
     });
     expect(fromGraph).toEqual(['graph-abc']);
-    expect(lastOfType(ws, 'sdd.run.started').payload).toMatchObject({
+    expect(requireLastOfType(ws, 'sdd.run.started').payload).toMatchObject({
       runId: 'from-g',
       graphId: 'graph-abc',
     });
@@ -209,7 +211,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
       payload: { specId: 'spec-1', worktrees: true },
     });
     expect(fromGraph).toEqual(['graph-from-spec']);
-    expect(lastOfType(ws, 'sdd.run.started').payload).toMatchObject({
+    expect(requireLastOfType(ws, 'sdd.run.started').payload).toMatchObject({
       runId: 'from-spec-run',
       graphId: 'graph-from-spec',
       specId: 'spec-1',
@@ -224,7 +226,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     // Jump straight to run.start before any spec/tasks exist.
     await handler.handleMessage({ type: 'sdd.run.start', payload: {} });
     expect(startRunCalls).toHaveLength(0);
-    expect(lastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/spec/i);
+    expect(requireLastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/spec/i);
   });
 
   it('rejects an empty goal', async () => {
@@ -232,7 +234,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     const ws = fakeWs();
     handler.addClient(ws);
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: '   ' } });
-    expect(lastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/goal/i);
+    expect(requireLastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/goal/i);
   });
 
   it('accumulates the full Q&A history (transcript data) across turns', async () => {
@@ -244,18 +246,18 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
     // After Q1, the user answers → Q2 arrives.
     await handler.handleMessage({ type: 'sdd.spec.message', payload: { text: 'Google + GitHub' } });
-    let snap = lastOfType(ws, 'sdd.spec.snapshot').payload as {
+    let snap = requireLastOfType(ws, 'sdd.spec.snapshot').payload as {
       answers: Array<{ question: string; answer: string }>;
     };
     expect(snap.answers).toEqual([{ question: 'Q1: providers?', answer: 'Google + GitHub' }]);
 
     // Answer Q2 → the spec is generated.
     await handler.handleMessage({ type: 'sdd.spec.message', payload: { text: 'Redis' } });
-    snap = lastOfType(ws, 'sdd.spec.snapshot').payload as never;
+    snap = requireLastOfType(ws, 'sdd.spec.snapshot').payload as never;
     expect(snap.answers).toEqual([
       { question: 'Q1: providers?', answer: 'Google + GitHub' },
       { question: 'Q2: session store?', answer: 'Redis' },
     ]);
-    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { phase: string }).phase).toBe('spec_review');
+    expect((requireLastOfType(ws, 'sdd.spec.snapshot').payload as { phase: string }).phase).toBe('spec_review');
   });
 });

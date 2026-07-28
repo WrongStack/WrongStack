@@ -89,17 +89,17 @@ describe('FleetManager.removeSubagent', () => {
     const fm = new FleetManager();
     fm.recordSpawn('sub-a', cfg({ provider: 'anthropic', model: 'm' }), { input: 3 } as never);
     fm.recordSpawn('sub-b', cfg({ provider: 'openai', model: 'gpt' }), { input: 5 } as never);
-    expect(fm.subagentMeta.size).toBe(2);
-    expect(fm.priceLookups.size).toBe(2);
+    expect(fm.getSubagentMetaSizeForTests()).toBe(2);
+    expect(fm.getPriceLookupsSizeForTests()).toBe(2);
 
     fm.removeSubagent('sub-a');
 
     // The retired subagent's entries must be gone from both Maps. The other
     // subagent's entries must remain untouched.
-    expect(fm.subagentMeta.has('sub-a')).toBe(false);
-    expect(fm.priceLookups.has('anthropic/m')).toBe(false);
-    expect(fm.subagentMeta.has('sub-b')).toBe(true);
-    expect(fm.priceLookups.has('openai/gpt')).toBe(true);
+    expect(fm.hasSubagentMetaForTests('sub-a')).toBe(false);
+    expect(fm.hasPriceLookupForTests('anthropic/m')).toBe(false);
+    expect(fm.hasSubagentMetaForTests('sub-b')).toBe(true);
+    expect(fm.hasPriceLookupForTests('openai/gpt')).toBe(true);
   });
 
   it('remains idempotent across many retirements (no leak over a long fleet run)', () => {
@@ -117,8 +117,8 @@ describe('FleetManager.removeSubagent', () => {
       fm.recordSpawn(id, cfg({ provider, model }), { input: 1 } as never);
       fm.removeSubagent(id);
     }
-    expect(fm.subagentMeta.size).toBe(0);
-    expect(fm.priceLookups.size).toBe(0);
+    expect(fm.getSubagentMetaSizeForTests()).toBe(0);
+    expect(fm.getPriceLookupsSizeForTests()).toBe(0);
   });
 });
 

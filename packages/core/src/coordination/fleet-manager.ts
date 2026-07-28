@@ -298,6 +298,26 @@ export class FleetManager implements IFleetManager {
     this.leaderContextPressure = tokens;
   }
 
+  /** Test-only accessor: number of entries in the private subagent-meta map. */
+  getSubagentMetaSizeForTests(): number {
+    return this.subagentMeta.size;
+  }
+
+  /** Test-only accessor: number of entries in the private price-lookup map. */
+  getPriceLookupsSizeForTests(): number {
+    return this.priceLookups.size;
+  }
+
+  /** Test-only accessor: check whether a private price-lookup key is present. */
+  hasPriceLookupForTests(key: string): boolean {
+    return this.priceLookups.has(key);
+  }
+
+  /** Test-only accessor: check whether a private subagent-meta key is present. */
+  hasSubagentMetaForTests(key: string): boolean {
+    return this.subagentMeta.has(key);
+  }
+
   private resolveMaxContext(): number {
     const resolved = typeof this.maxContext === 'function' ? this.maxContext() : this.maxContext;
     return resolved && resolved > 0 ? resolved : 128_000;

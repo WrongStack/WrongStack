@@ -6,7 +6,6 @@
  * and the shared test harness.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { Director } from '../../src/coordination/director.js';
 import type { MultiAgentConfig, SubagentRunner, TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
 
@@ -43,11 +42,9 @@ function makeRunner(): SubagentRunner & { calls: any[] } {
 }
 
 describe('Director — construction & basic API', () => {
-  let events: EventBus;
   let runner: ReturnType<typeof makeRunner>;
 
   beforeEach(() => {
-    events = new EventBus();
     runner = makeRunner();
   });
 
@@ -55,7 +52,6 @@ describe('Director — construction & basic API', () => {
     const director = new Director({
       config: makeConfig(),
       runner,
-      events,
     });
     expect(director.id).toBeTruthy();
     expect(director.fleet).toBeDefined();
@@ -66,7 +62,6 @@ describe('Director — construction & basic API', () => {
     const director = new Director({
       config: makeConfig(),
       runner,
-      events,
     });
     const status = director.status();
     expect(status).toBeDefined();
@@ -79,7 +74,6 @@ describe('Director — construction & basic API', () => {
     const director = new Director({
       config: makeConfig(),
       runner,
-      events,
     });
     const usage = director.usage.snapshot();
     expect(usage).toBeDefined();
@@ -87,16 +81,14 @@ describe('Director — construction & basic API', () => {
 });
 
 describe('Director — context pressure', () => {
-  let events: EventBus;
   let runner: ReturnType<typeof makeRunner>;
 
   beforeEach(() => {
-    events = new EventBus();
     runner = makeRunner();
   });
 
   it('setLeaderContextPressure and get round-trip', () => {
-    const director = new Director({ config: makeConfig(), runner, events });
+    const director = new Director({ config: makeConfig(), runner });
     expect(director.getLeaderContextPressure()).toBe(0);
     director.setLeaderContextPressure(50000);
     expect(director.getLeaderContextPressure()).toBe(50000);
@@ -104,14 +96,12 @@ describe('Director — context pressure', () => {
 });
 
 describe('Director — budget tracking', () => {
-  let events: EventBus;
 
   beforeEach(() => {
-    events = new EventBus();
   });
 
   it('getRemainingBudgetUsd returns undefined when no cap', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     expect(director.getRemainingBudgetUsd()).toBeUndefined();
   });
 
@@ -119,7 +109,6 @@ describe('Director — budget tracking', () => {
     const director = new Director({
       config: makeConfig({ maxFleetCostUsd: 10.0 }),
       runner: makeRunner(),
-      events,
     });
     // The director may delegate budget to FleetManager; without one,
     // getRemainingBudgetUsd may return undefined if the cap isn't stored
@@ -130,27 +119,25 @@ describe('Director — budget tracking', () => {
 });
 
 describe('Director — BTW notes', () => {
-  let events: EventBus;
 
   beforeEach(() => {
-    events = new EventBus();
   });
 
   it('setLeaderBtwNote stores and getLeaderBtwNotes retrieves', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     director.setLeaderBtwNote('check the database');
     expect(director.getLeaderBtwNotes()).toContain('check the database');
   });
 
   it('peekLeaderBtwNotes does not drain', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     director.setLeaderBtwNote('note1');
     director.peekLeaderBtwNotes();
     expect(director.getLeaderBtwNotes()).toHaveLength(1);
   });
 
   it('drainLeaderBtwNotes clears the buffer', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     director.setLeaderBtwNote('temp');
     director.drainLeaderBtwNotes();
     expect(director.getLeaderBtwNotes()).toHaveLength(0);
@@ -158,14 +145,12 @@ describe('Director — BTW notes', () => {
 });
 
 describe('Director — tools factory', () => {
-  let events: EventBus;
 
   beforeEach(() => {
-    events = new EventBus();
   });
 
   it('tools() returns an array of Tool objects', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     const tools = director.tools();
     expect(Array.isArray(tools)).toBe(true);
     expect(tools.length).toBeGreaterThan(0);
@@ -176,7 +161,7 @@ describe('Director — tools factory', () => {
   });
 
   it('tools include spawn, assign, await_tasks, terminate', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     const names = director.tools().map((t) => t.name);
     expect(names).toContain('spawn_subagent');
     expect(names).toContain('assign_task');
@@ -186,23 +171,19 @@ describe('Director — tools factory', () => {
 });
 
 describe('Director — workComplete', () => {
-  let events: EventBus;
 
   beforeEach(() => {
-    events = new EventBus();
   });
 
   it('workComplete sets stopped state without throwing', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
     expect(() => director.workComplete()).not.toThrow();
   });
 });
 
 describe('Director — task result notifier', () => {
-  let events: EventBus;
 
   beforeEach(() => {
-    events = new EventBus();
   });
 
   it('fires taskResultNotifier on fire-and-forget task completion', async () => {
@@ -210,7 +191,6 @@ describe('Director — task result notifier', () => {
     const director = new Director({
       config: makeConfig(),
       runner: makeRunner(),
-      events,
       taskResultNotifier: (n) => { notifications.push(n); },
     });
 
@@ -232,10 +212,8 @@ describe('Director — task result notifier', () => {
 });
 
 describe('Director — removeSubagent per-subagent Map cleanup', () => {
-  let events: EventBus;
 
   beforeEach(() => {
-    events = new EventBus();
   });
 
   it('drops subagentMeta and priceLookups entries for the retired subagent', async () => {
@@ -246,7 +224,7 @@ describe('Director — removeSubagent per-subagent Map cleanup', () => {
     // and lightweight consumers), those Maps live on the Director itself
     // and accumulated one entry per retired subagent for the lifetime of
     // the leader process. Same leak FleetManager already fixed internally.
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
 
     // Simulate fleet-spawn.ts:254 / fleet-manager.ts:361: the per-subagent
     // metadata and price-lookup entries that recordSpawn would normally
@@ -273,7 +251,7 @@ describe('Director — removeSubagent per-subagent Map cleanup', () => {
     // Long-running fleet sessions retire dozens of subagents; each remove()
     // must fully release its per-subagent Map entries so a 1000-subagent
     // run does not balloon the Map to 1000 entries.
-    const director = new Director({ config: makeConfig(), runner: makeRunner(), events });
+    const director = new Director({ config: makeConfig(), runner: makeRunner() });
 
     for (let i = 0; i < 50; i++) {
       const id = `s${i}`;
