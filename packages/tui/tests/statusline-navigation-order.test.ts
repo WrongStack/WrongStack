@@ -8,17 +8,17 @@ import {
 
 /**
  * Navigation order must match the visual layout order.
- * The picker groups items by their status-bar line (1-3) and shows
+ * The picker groups items by their status-bar line (1-4) and shows
  * them in section order. Up/Down arrow keys cycle through STATUSLINE_ITEMS
  * by index, so the array order must match the visual top-to-bottom order.
  */
 describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
-  it('has exactly 40 fields', () => {
-    expect(STATUSLINE_ITEMS.length).toBe(40);
-    expect(STATUSLINE_FIELD_COUNT).toBe(40);
+  it('has exactly 38 fields', () => {
+    expect(STATUSLINE_ITEMS.length).toBe(38);
+    expect(STATUSLINE_FIELD_COUNT).toBe(38);
   });
 
-  it('follows line 1 → line 2 → line 3 order with no line 4 items', () => {
+  it('follows line 1 → line 2 → line 3 → line 4 order', () => {
     const lines = STATUSLINE_ITEMS.map((item) => ITEM_LINE[item]);
 
     // All line 1 items come first
@@ -32,10 +32,15 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
 
     // Then all line 3 items
     const line3Start = line2End;
-    expect(lines.slice(line3Start).every((l) => l === 3)).toBe(true);
+    const line3End = lines.findIndex((l, i) => i >= line3Start && l !== 3);
+    expect(lines.slice(line3Start, line3End).every((l) => l === 3)).toBe(true);
 
-    // No items on line 4
-    expect(lines.every((l) => l >= 1 && l <= 3)).toBe(true);
+    // Then all line 4 items
+    const line4Start = line3End;
+    expect(lines.slice(line4Start).every((l) => l === 4)).toBe(true);
+
+    // No items on line 5+
+    expect(lines.every((l) => l >= 1 && l <= 4)).toBe(true);
   });
 
   it('is alphabetically sorted within each line (after priority items)', () => {
@@ -45,7 +50,6 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
     const PRIORITY_ITEMS = new Set<StatuslineItem>([
       'yolo',
       'autonomy',
-      'time',
       'project',
       'working_dir',
     ]);
@@ -69,10 +73,10 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
   });
 
   it('groups memory with the line-2 session-context chips', () => {
-    // The /statusline picker displays the LINE 1 / LINE 2 / LINE 3 section
-    // headers by reading `ITEM_LINE`. Memory (RAM + heap) moved from line 1
-    // (cheap runtime telemetry) to line 2 (slower session-context chips the
-    // user inspects together when something goes wrong).
+    // The /statusline picker displays the LINE 1 / LINE 2 / LINE 3 / LINE 4
+    // section headers by reading `ITEM_LINE`. Memory (RAM + heap) moved from
+    // line 1 (cheap runtime telemetry) to line 2 (slower session-context
+    // chips the user inspects together when something goes wrong).
     expect(ITEM_LINE.memory).toBe(2);
 
     const line2Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
@@ -82,14 +86,47 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
     expect(line1Items).not.toContain('memory');
   });
 
-  it('groups codebase index server status with the final service-detail chips', () => {
-    expect(ITEM_LINE.index).toBe(3);
+  it('groups codebase index server status on line 4 (background services)', () => {
+    expect(ITEM_LINE.index).toBe(4);
+
+    const line4Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 4);
+    expect(line4Items).toContain('index');
 
     const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
-    expect(line3Items).toContain('index');
+    expect(line3Items).not.toContain('index');
+  });
 
-    const line1Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 1);
-    expect(line1Items).not.toContain('index');
+  it('groups memory_context on line 4 (background services)', () => {
+    expect(ITEM_LINE.memory_context).toBe(4);
+
+    const line4Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 4);
+    expect(line4Items).toContain('memory_context');
+
+    const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
+    expect(line3Items).not.toContain('memory_context');
+  });
+
+  it('places goal, eternal_stage, and auto_proceed on line 3 (active work)', () => {
+    expect(ITEM_LINE.goal).toBe(3);
+    expect(ITEM_LINE.eternal_stage).toBe(3);
+    expect(ITEM_LINE.auto_proceed).toBe(3);
+
+    const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
+    expect(line3Items).toContain('goal');
+    expect(line3Items).toContain('eternal_stage');
+    expect(line3Items).toContain('auto_proceed');
+
+    const line2Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
+    expect(line2Items).not.toContain('goal');
+    expect(line2Items).not.toContain('eternal_stage');
+    expect(line2Items).not.toContain('auto_proceed');
+  });
+
+  it('places side_effects on line 2 (session context)', () => {
+    expect(ITEM_LINE.side_effects).toBe(2);
+
+    const line2Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
+    expect(line2Items).toContain('side_effects');
   });
 
   it('has no duplicate items', () => {
@@ -128,19 +165,23 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
       'project',
       'queue',
       'sessions',
+      'side_effects',
       'state',
       'tasks',
-      'time',
       'token_saving',
       'tokens',
       'todos',
       'tools',
-      'sage',
-      'version',
       'working_dir',
       'yolo',
     ].sort();
     const actual = [...STATUSLINE_ITEMS].sort();
     expect(actual).toEqual(expected);
+  });
+
+  it('does not include removed phantom items', () => {
+    expect(STATUSLINE_ITEMS).not.toContain('version');
+    expect(STATUSLINE_ITEMS).not.toContain('time');
+    expect(STATUSLINE_ITEMS).not.toContain('sage');
   });
 });

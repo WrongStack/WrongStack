@@ -38,7 +38,6 @@ export interface StatuslineCommandDeps {
 
 /** Item descriptions for help display */
 const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
-  version: 'WrongStack version chip',
   state: 'Agent run state / thinking spinner',
   model: 'Current provider/model id',
   todos: 'Todo items (pending/in-progress/done counts)',
@@ -55,7 +54,6 @@ const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
   queue: 'Queued prompt count',
   hint: 'Transient status hint text',
   index: 'Codebase indexing status',
-  sage: 'Total SAGE records and provider-context active count',
   breaker: 'Process breaker countdown',
   working_dir: 'Current working directory',
   project: 'Project name',
@@ -68,11 +66,15 @@ const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
   sessions: 'Live session count',
   tools: 'Registered tool count',
   token_saving: 'Token-saving mode indicator',
+  memory: 'Current CLI process RAM and V8 heap usage',
+  cpu: 'CPU usage percentage',
+  side_effects: 'Side-effect / audit event count',
   brain: 'Brain arbiter decisions',
   mailbox: 'Mailbox unread messages and peers',
   enhance: 'Prompt-enhance countdown',
   debug_stream: 'Stream debug telemetry',
   next_steps: 'Next-step auto-submit countdown',
+  memory_context: 'Memory context detail (total records + active-in-context)',
 };
 
 const ALL_CONFIG_KEYS = STATUSLINE_CONFIG_KEYS;

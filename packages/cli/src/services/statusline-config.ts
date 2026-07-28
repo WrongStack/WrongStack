@@ -8,7 +8,6 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 const CONFIG_ENV = 'WRONGSTACK_STATUSLINE_CONFIG';
 
 export const STATUSLINE_CONFIG_KEYS = [
-  'version',
   'state',
   'model',
   'context',
@@ -18,7 +17,6 @@ export const STATUSLINE_CONFIG_KEYS = [
   'queue',
   'hint',
   'index',
-  'sage',
   'breaker',
   'yolo',
   'autonomy',
@@ -33,6 +31,9 @@ export const STATUSLINE_CONFIG_KEYS = [
   'sessions',
   'tools',
   'token_saving',
+  'memory',
+  'cpu',
+  'side_effects',
   'todos',
   'plan',
   'tasks',
@@ -43,6 +44,7 @@ export const STATUSLINE_CONFIG_KEYS = [
   'next_steps',
   'mailbox',
   'fleet_agents',
+  'memory_context',
 ] as const;
 
 export type StatuslineConfigKey = (typeof STATUSLINE_CONFIG_KEYS)[number];

@@ -96,16 +96,14 @@ const STATUSLINE_ICONS = {
   processes: glyphs.process,
   project: glyphs.folder,
   queue: glyphs.queue,
-  sage: glyphs.brain,
   sessions: glyphs.sessions,
+  side_effects: glyphs.audit,
   state: glyphs.running,
   tasks: glyphs.task,
-  time: glyphs.clock,
   token_saving: glyphs.save,
   tokens: glyphs.context,
   todos: glyphs.task,
   tools: glyphs.tools,
-  version: glyphs.brand,
   working_dir: glyphs.workingDirectory,
   yolo: glyphs.warning,
 } as const satisfies Record<StatuslineItem, string>;
@@ -827,7 +825,7 @@ export function StatusBar({
               {isNoColor ? tokenSavingMode : `${STATUSLINE_ICONS.token_saving} ${tokenSavingMode}`}
             </Text>
           ) : null,
-          sideEffectCount > 0 ? (
+          sideEffectCount > 0 && showChip('side_effects') ? (
             <Text color={isNoColor ? undefined : theme.warn}>
               {isNoColor
                 ? `${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`

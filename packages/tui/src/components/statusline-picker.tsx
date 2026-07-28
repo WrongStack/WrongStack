@@ -6,7 +6,6 @@ import { KeyCap, MonitorShell, truncatePanelText, useMonitorSize } from './monit
 
 /** All possible statusline chip keys. */
 export type StatuslineItem =
-  | 'version'
   | 'state'
   | 'model'
   | 'tokens'
@@ -15,7 +14,6 @@ export type StatuslineItem =
   | 'hint'
   | 'index'
   | 'memory'
-  | 'sage'
   | 'breaker'
   | 'todos'
   | 'plan'
@@ -28,7 +26,6 @@ export type StatuslineItem =
   | 'cost'
   | 'cpu'
   | 'processes'
-  | 'time'
   | 'working_dir'
   | 'project'
   | 'yolo'
@@ -45,7 +42,8 @@ export type StatuslineItem =
   | 'enhance'
   | 'debug_stream'
   | 'next_steps'
-  | 'memory_context';
+  | 'memory_context'
+  | 'side_effects';
 
 /**
  * Metadata for a temporarily-visible chip (one that appeared due to data,
@@ -90,7 +88,6 @@ export function getExpiresInLabel(meta: ChipMeta, now = Date.now()): string | nu
 
 /** Item descriptions for display. */
 const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
-  version: 'WrongStack version chip',
   state: 'Agent run state / thinking spinner',
   model: 'Current provider/model id',
   tokens: 'Input/output token counters',
@@ -99,7 +96,6 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   hint: 'Transient status hint text',
   index: 'Codebase index server and indexing status',
   memory: 'Current CLI process RAM and V8 heap usage',
-  sage: 'Total SAGE records and exact provider-context active count',
   breaker: 'Process breaker countdown',
   todos: 'Todo items (pending/in-progress/done)',
   plan: 'Plan board items',
@@ -112,7 +108,6 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   cost: 'Token cost estimate',
   cpu: 'CPU usage percentage',
   processes: 'Tracked bash/exec process count',
-  time: 'Wall-clock session start time',
   working_dir: 'Current working directory',
   project: 'Project name',
   yolo: 'YOLO permission mode',
@@ -130,6 +125,7 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   debug_stream: 'Stream debug telemetry',
   next_steps: 'Next-step auto-submit countdown',
   memory_context: 'Memory context detail line (total records + active-in-context)',
+  side_effects: 'Side-effect / audit event count',
 };
 
 /**
@@ -137,8 +133,10 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
  * visually in the picker. MUST mirror the actual render lines in
  * `status-bar.tsx`: line 1 = workspace + runtime chips (mode/project/workdir
  * state + cheap provider/model/context telemetry), line 2 = session context
- * (memory pressure, git, mode label, goals, countdowns, tools), line 3 =
- * active work + connectivity and background services. Exported so the navigation-order test guards
+ * (memory pressure, git, mode label, tools), line 3 = active work +
+ * connectivity (todos, plan, tasks, fleet, brain, mailbox, goals,
+ * countdowns), line 4 = background services (memory context lifecycle,
+ * codebase-index server health). Exported so the navigation-order test guards
  * against drift instead of duplicating it.
  */
 export const ITEM_LINE: Record<StatuslineItem, number> = {
@@ -155,38 +153,37 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   processes: 1,
   queue: 1,
   state: 1,
-  sage: 1,
-  time: 1,
   tokens: 1,
-  version: 1,
   yolo: 1,
-  // Line 2 — session context: workdir/project first, then mode, git, goals,
-  // memory pressure (RAM/heap), countdowns, tools.
-  auto_proceed: 2,
+  // Line 2 — session context: workdir/project first, then mode, git,
+  // memory pressure (RAM/heap), CPU, tools.
   cpu: 2,
-  eternal_stage: 2,
   git: 2,
-  goal: 2,
   memory: 2,
   mode: 2,
   project: 2,
   sessions: 2,
+  side_effects: 2,
   token_saving: 2,
   tools: 2,
   working_dir: 2,
   // Line 3 — active work + connectivity
+  auto_proceed: 3,
   brain: 3,
   debug_stream: 3,
   enhance: 3,
+  eternal_stage: 3,
   fleet: 3,
   fleet_agents: 3,
-  index: 3,
+  goal: 3,
   mailbox: 3,
-  memory_context: 3,
   next_steps: 3,
   plan: 3,
   tasks: 3,
   todos: 3,
+  // Line 4 — background-service telemetry
+  index: 4,
+  memory_context: 4,
 };
 
 export interface StatuslinePickerProps {
@@ -216,44 +213,43 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'model',
   'processes',
   'queue',
-  'sage',
   'state',
-  'time',
   'tokens',
-  'version',
   'yolo',
   // Line 2 — workdir/project first, then session context
   'project',
   'working_dir',
-  'auto_proceed',
   'cpu',
-  'eternal_stage',
   'git',
-  'goal',
   'memory',
   'mode',
   'sessions',
+  'side_effects',
   'token_saving',
   'tools',
   // Line 3
+  'auto_proceed',
   'brain',
   'debug_stream',
   'enhance',
+  'eternal_stage',
   'fleet',
   'fleet_agents',
-  'index',
+  'goal',
   'mailbox',
-  'memory_context',
   'next_steps',
   'plan',
   'tasks',
   'todos',
+  // Line 4
+  'index',
+  'memory_context',
 ];
 
 /** Stream-triggered chips — these auto-expire unless the user has toggled them on permanently. */
 export const STREAM_CHIP_KEYS: StatuslineItem[] = ['brain', 'mailbox', 'enhance', 'debug_stream'];
 
-/** Group items by their display line (1-3). */
+/** Group items by their display line (1-4). */
 function groupByLine(items: StatuslineItem[]): Map<number, StatuslineItem[]> {
   const map = new Map<number, StatuslineItem[]>();
   for (const item of items) {
