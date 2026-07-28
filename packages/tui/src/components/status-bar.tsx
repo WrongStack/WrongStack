@@ -333,7 +333,7 @@ export function StatusBar({
         : `agent ${subagentCount}`
       : '',
     processCount != null && processCount > 0 && showChip('processes')
-      ? `${glyphs.process}${processCount}`
+      ? `${STATUSLINE_ICONS.processes}${processCount}`
       : '',
   ].filter(Boolean);
 
@@ -385,7 +385,7 @@ export function StatusBar({
   const cpuStatusChip =
     cpuPercent != null && showChip('cpu') ? (
       <Text color={isNoColor ? undefined : cpuColor}>
-        {isNoColor ? `CPU ${cpuPercent.toFixed(0)}%` : `${glyphs.cpu} ${cpuPercent.toFixed(0)}%`}
+        {isNoColor ? `CPU ${cpuPercent.toFixed(0)}%` : `${STATUSLINE_ICONS.cpu} ${cpuPercent.toFixed(0)}%`}
       </Text>
     ) : null;
   const SageStatusChip = null;
@@ -429,7 +429,7 @@ export function StatusBar({
                   : theme.textMuted;
           return (
             <Text color={isNoColor ? undefined : color}>
-              {glyphs.index} {label}
+              {STATUSLINE_ICONS.index} {label}
             </Text>
           );
         })()
@@ -589,7 +589,7 @@ export function StatusBar({
       <Text dimColor={!isNoColor}>
         {isNoColor
           ? fmtElapsed(fleetWorkingTime)
-          : `${glyphs.clock} ${fmtElapsed(fleetWorkingTime)}`}
+          : `${STATUSLINE_ICONS.elapsed} ${fmtElapsed(fleetWorkingTime)}`}
       </Text>
     ) : null,
   ].filter((c): c is React.ReactElement => c !== null);
@@ -701,10 +701,10 @@ export function StatusBar({
     detailChips.push(
       mailbox.unread > 0 ? (
         <Text color={isNoColor ? undefined : theme.warn} bold>
-          {glyphs.mail} {mailbox.unread} new
+          {`${STATUSLINE_ICONS.mailbox} ${mailbox.unread} new`}
         </Text>
       ) : (
-        <Text dimColor={!isNoColor}>{glyphs.mail} 0</Text>
+        <Text dimColor={!isNoColor}>{`${STATUSLINE_ICONS.mailbox} 0`}</Text>
       ),
       <Text color={isNoColor ? undefined : theme.accent}>
         {glyphs.peers} {mailbox.onlineAgents} agent{mailbox.onlineAgents === 1 ? '' : 's'}
@@ -829,7 +829,7 @@ export function StatusBar({
             <Text color={isNoColor ? undefined : theme.warn}>
               {isNoColor
                 ? `${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`
-                : `${glyphs.audit} ${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`}
+                : `${STATUSLINE_ICONS.side_effects} ${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`}
             </Text>
           ) : null,
           memoryStatusChip,
@@ -972,7 +972,7 @@ export function StatusBar({
             showBrain ? <BrainChip brain={brain!} monochrome={isNoColor} /> : null,
             showDebugStream ? (
               <Text color={isNoColor ? undefined : theme.accent}>
-                <Text bold>{isNoColor ? 'stream' : `${glyphs.bug} stream`}</Text>
+                <Text bold>{isNoColor ? 'stream' : `${STATUSLINE_ICONS.debug_stream} stream`}</Text>
                 <Text dimColor={!isNoColor}> #{debugStreamStats!.chunkCount}</Text>
                 <Text dimColor={!isNoColor}> · {debugStreamStats!.lastChunkSize}B</Text>
                 <Text dimColor={!isNoColor}> · +{debugStreamStats!.lastDeltaMs}ms</Text>
@@ -983,7 +983,7 @@ export function StatusBar({
               <Text color={isNoColor ? undefined : countdownColor(enhanceCountdown!, 15, 5)}>
                 {isNoColor
                   ? `refined · send in ${enhanceCountdown}s`
-                  : `${glyphs.auto} refinement ready · send in ${enhanceCountdown}s`}
+                  : `${STATUSLINE_ICONS.enhance} refinement ready · send in ${enhanceCountdown}s`}
               </Text>
             ) : null,
             hasNextStepsAutoSubmit &&
@@ -993,7 +993,7 @@ export function StatusBar({
                 <Text color={isNoColor ? undefined : nextStepsColor} bold>
                   {isNoColor
                     ? `${nextStepsAutoSubmitCountdown}s`
-                    : `${glyphs.auto} ${nextStepsAutoSubmitCountdown}s`}
+                    : `${STATUSLINE_ICONS.next_steps} ${nextStepsAutoSubmitCountdown}s`}
                 </Text>
                 <Text dimColor={!isNoColor}>
                   {' '}
@@ -1018,7 +1018,7 @@ export function StatusBar({
                         : theme.warn
                 }
               >
-                {isNoColor ? '' : `${glyphs.goal} `}
+                {isNoColor ? '' : `${STATUSLINE_ICONS.goal} `}
                 {goalSummary!.goal.length > 40
                   ? `${goalSummary!.goal.slice(0, 37)}…`
                   : goalSummary!.goal}{' '}
@@ -1037,7 +1037,7 @@ export function StatusBar({
               >
                 {isNoColor
                   ? `auto in ${autoProceedCountdown}s`
-                  : `${glyphs.auto} auto in ${autoProceedCountdown}s`}
+                  : `${STATUSLINE_ICONS.auto_proceed} auto in ${autoProceedCountdown}s`}
               </Text>
             ) : null,
             ...detailChips,
