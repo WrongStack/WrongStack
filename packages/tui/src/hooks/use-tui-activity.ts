@@ -8,6 +8,14 @@ import { type HeapSample, startHeapWatchdog, takeHeapSample } from '../heap-watc
 import { useAnimation } from '../ink.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
 
+// Cached once at module init: `os.cpus()` allocates a fresh array on every
+// call (Node.js libuv malloc), and the TUI shell computes CPU usage on every
+// 10s tick (`useMemo` keyed on `nowTick`). The number of cores does not
+// change for the lifetime of the process, so hoist it out of the per-tick
+// path entirely — turning per-tick allocation + property access into a
+// constant-fold.
+const CPU_CORES = os.cpus().length || 1;
+
 export interface UseTuiActivityOptions {
   status: State['status'];
   fleet: State['fleet'];
@@ -101,11 +109,18 @@ export function useTuiActivity({
   }, [fleetRunningCount]);
 
   // Foreground and fleet elapsed clocks used to own independent 1s intervals,
-  // causing two root renders per second whenever both were active. One shared
-  // Ink animation tick is sufficient to derive both values.
+  // causing two root renders per second whenever both were active. The enhance
+  // animation (the loading-dot cycle shown by `setEnhanceBusy`) used to own a
+  // SECOND independent 1s interval — so an active enhance with no leader/fleet
+  // work still triggered a re-render every second. One shared Ink animation
+  // tick is sufficient to derive both values; include `enhanceBusy` so the
+  // dots animation keeps ticking when enhance is the only thing active.
   const timingActive = thinkingWorking || fleetRunningCount > 0;
-  const { frame: timingFrame } = useAnimation({ interval: 1_000, isActive: timingActive });
-  void timingFrame;
+  const enhanceActive = enhanceBusy;
+  const { frame: timingFrame } = useAnimation({
+    interval: 1_000,
+    isActive: timingActive || enhanceActive,
+  });
   const timingNow = Date.now();
   const workingTimeMs =
     workingStartRef.current === null
@@ -135,8 +150,9 @@ export function useTuiActivity({
     const wallMs = Number(now - prev.time) / 1e6;
     if (wallMs <= 0) return undefined;
     // cpuDeltaUsec is in microseconds; wall time in ms. Ratio gives core-utilization.
-    const cores = os.cpus().length || 1;
-    return Math.min(100, Math.round((cpuDeltaUsec / 1000) / wallMs / cores * 100));
+    // CPU_CORES is cached at module init — see top of file. Using the cached
+    // constant avoids an os.cpus() call + array allocation per 10s tick.
+    return Math.min(100, Math.round((cpuDeltaUsec / 1000) / wallMs / CPU_CORES * 100));
   }, [nowTick]);
   useEffect(() => {
     const stopHeapWatchdog = startHeapWatchdog({
@@ -209,8 +225,12 @@ export function useTuiActivity({
     refreshGoalSummary();
   }, [nowTick, refreshGoalSummary]);
 
-  const { frame: enhanceFrame } = useAnimation({ interval: 1_000, isActive: enhanceBusy });
-  const enhanceDots = enhanceFrame % 36;
+  // Enhance dots share the timingFrame animation tick declared above. When
+  // enhance is the only active consumer, isActive still keeps the tick alive
+  // (timingActive || enhanceActive), so timingFrame keeps advancing and the
+  // dots animate. When nothing is active, both pause together — a single
+  // animation interval instead of two independent ones.
+  const enhanceDots = enhanceBusy ? timingFrame % 36 : 0;
 
   return {
     displayThinkingWord,
