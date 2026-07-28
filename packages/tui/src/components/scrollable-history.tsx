@@ -26,7 +26,13 @@ import {
 } from '../scroll-anchor.js';
 import { theme } from '../theme.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
-import { COPY_ICON, COPY_ICON_WIDTH, copyableTextForEntry } from './history/copy-icon.js';
+import {
+  COPY_ICON,
+  COPY_ICON_WIDTH,
+  copyableTextForEntries,
+  copyableTextForEntry,
+  isCopyableEntry,
+} from './history/copy-icon.js';
 import {
   estimateRenderGroupRows,
   groupEntries,
@@ -85,12 +91,15 @@ export interface HistoryScrollController {
 
 /**
  * A clickable copy-icon target resolved in viewport coordinates during the
- * post-render measurement pass. `startRow`/`endRow` bound the card's visible
- * rows (0-based from the viewport top, `endRow` exclusive); `iconCol` is the
- * 0-based terminal column the icon renders at on the card's first visible row.
+ * post-render measurement pass. `entryId` identifies a single card or the first
+ * member of a compact tool group; `entryIds` contains every group member when
+ * present. `startRow`/`endRow` bound the box's visible rows (0-based from the
+ * viewport top, `endRow` exclusive); `iconCol` is the 0-based terminal column
+ * the icon renders at on the box's first visible row.
  */
 export interface CopyHit {
   entryId: number;
+  entryIds?: readonly number[] | undefined;
   startRow: number;
   endRow: number;
   iconCol: number;
@@ -558,10 +567,17 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       copyAtViewportCell: async (row, col) => {
         const hit = findCopyHit(copyHitsRef.current, row, col);
         if (hit === null) return null;
-        const entry = entriesByIdRef.current.get(hit.entryId);
-        if (!entry) return null;
-        const text = copyableTextForEntry(entry);
-        if (text === null) return null;
+        const entryIds = hit.entryIds ?? [hit.entryId];
+        const entries = entryIds
+          .map((entryId) => entriesByIdRef.current.get(entryId))
+          .filter((entry): entry is HistoryEntry => entry !== undefined);
+        // A group is one visual box, so never copy a partial payload if retention
+        // changed between registry creation and the click.
+        if (entries.length !== entryIds.length) return null;
+        const firstEntry = entries[0];
+        if (firstEntry === undefined) return null;
+        const text =
+          entries.length === 1 ? copyableTextForEntry(firstEntry) : copyableTextForEntries(entries);
         const ok = await writeClipboardText(text);
         return ok ? hit.entryId : null;
       },
@@ -671,10 +687,11 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     // Rebuild the copy-icon click registry from the measured heights. Groups
     // render top-to-bottom, then the viewport hides either the scrolled anchor
     // clip or the top overflow from pinned flex-end clipping. A group's viewport
-    // start row is its cumulative content offset minus that visible clip. Only
-    // single-entry copyable cards get a target; grouped tool calls never do. The
-    // icon sits on the card's first visible row at the right edge of the content
-    // column.
+    // start row is its cumulative content offset minus that visible clip.
+    // Every retained card gets a target; a compact tool group uses its first
+    // entry id as the success-feedback id and also records every member id so
+    // the complete grouped box can be copied in order. The icon sits on the
+    // box's first visible row at the right edge of the content column.
     {
       const hits: CopyHit[] = [];
       const mountedGroupRows = renderGroups.reduce(
@@ -712,9 +729,14 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         const startRow = offset - visibleClip;
         offset += groupHeight;
         if (!iconFits) continue;
-        if (group.type === 'tool-group') continue;
-        const text = copyableTextForEntry(group.entry);
-        if (text === null) continue;
+        const groupEntryIds =
+          group.type === 'tool-group'
+            ? group.data.entries.map((entry) => entry.id)
+            : isCopyableEntry(group.entry)
+              ? [group.entry.id]
+              : [];
+        const entryId = groupEntryIds[0];
+        if (entryId === undefined) continue;
         // The icon is painted on exactly the card's first row (the row
         // container aligns children to flex-start). When that row is scrolled
         // above the viewport top (startRow < 0) the icon is off-screen, so
@@ -724,7 +746,8 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         // row: [startRow, startRow + 1).
         if (startRow < 0 || startRow >= vp) continue;
         hits.push({
-          entryId: group.entry.id,
+          entryId,
+          ...(groupEntryIds.length > 1 ? { entryIds: groupEntryIds } : {}),
           startRow,
           endRow: startRow + 1,
           iconCol,
@@ -822,23 +845,39 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               else entryNodeRefs.current.delete(gid);
             };
             if (group.type === 'tool-group') {
+              const entryId = group.data.entries[0]?.id;
+              const copyable = entryId !== undefined && termWidth > COPY_ICON_WIDTH;
+              const groupWidth = copyable ? termWidth - COPY_ICON_WIDTH : termWidth;
               return (
-                <Box key={`tool-group-${gid}`} ref={setNode} flexShrink={0}>
-                  <EntryErrorBoundary label="tool group" resetKey={group.data.entries.length}>
-                    <ToolGroup data={group.data} termWidth={termWidth} />
-                  </EntryErrorBoundary>
+                <Box
+                  key={`tool-group-${gid}`}
+                  ref={setNode}
+                  flexShrink={0}
+                  flexDirection="row"
+                  alignItems="flex-start"
+                >
+                  <Box flexGrow={1} flexShrink={1}>
+                    <EntryErrorBoundary label="tool group" resetKey={group.data.entries.length}>
+                      <ToolGroup data={group.data} termWidth={groupWidth} />
+                    </EntryErrorBoundary>
+                  </Box>
+                  {copyable ? (
+                    <Box width={COPY_ICON_WIDTH} flexShrink={0}>
+                      <Text color={copiedEntryId === entryId ? theme.success : theme.textMuted}>
+                        {COPY_ICON}
+                      </Text>
+                    </Box>
+                  ) : null}
                 </Box>
               );
             }
             const { entry } = group;
-            // Copyable cards (user / assistant / thinking) render a click-to-copy
-            // icon in a 1-column gutter on the right. The Entry is narrowed by the
-            // icon width so total height stays unchanged and the icon lands on the
-            // exact column the copy hit-registry records (termWidth - COPY_ICON_WIDTH).
-            // Only show the icon when there is room to carve out its gutter
-            // without collapsing the content column (mirrors the hit-registry's
-            // iconFits guard so click targets and rendered icons never diverge).
-            const copyable = copyableTextForEntry(entry) !== null && termWidth > COPY_ICON_WIDTH;
+            // Copyable conversational and tool cards render a click-to-copy
+            // icon in a 1-column gutter on the right. The Entry is narrowed by
+            // the icon width so total height stays unchanged and the icon lands
+            // on the exact column recorded by the copy hit registry. Only show
+            // it when the content column still has at least one cell.
+            const copyable = isCopyableEntry(entry) && termWidth > COPY_ICON_WIDTH;
             const entryWidth = copyable ? termWidth - COPY_ICON_WIDTH : termWidth;
             const entryEl = (
               <EntryErrorBoundary

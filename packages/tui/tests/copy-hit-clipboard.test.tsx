@@ -4,9 +4,10 @@
  * The CopyHit registry now stores `entryId` rather than the full `entry.text`
  * to avoid pinning every copyable card's markdown string for the lifetime of
  * the mounted window. This test exercises the round-trip contract directly:
- *   1. CopyHit carries entryId only (compile-time + runtime shape).
- *   2. The controller's copyAtViewportCell resolves entryId → live entry →
- *      copyableTextForEntry → clipboard, preserving the FULL original text.
+ *   1. Single-card CopyHit records carry entryId without pinning card text;
+ *      compact tool groups add only their bounded member entryIds.
+ *   2. The controller's copyAtViewportCell resolves ids → live entries → raw
+ *      clipboard content, preserving the FULL original text.
  *
  * We mock `@wrongstack/runtime/clipboard` to capture writeClipboardText calls
  * and exercise the controller's lookup path against a hand-built registry +
@@ -22,7 +23,10 @@ import {
   type CopyHit,
   findCopyHit,
 } from '../src/components/scrollable-history.js';
-import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
+import {
+  copyableTextForEntries,
+  copyableTextForEntry,
+} from '../src/components/history/copy-icon.js';
 import { writeClipboardText } from '@wrongstack/runtime/clipboard';
 import type { HistoryEntry } from '../src/components/history.js';
 
@@ -77,11 +81,19 @@ const TOOL_ENTRY: HistoryEntry = {
   name: 'bash',
   durationMs: 0,
   ok: true,
-  output: 'NOT a copyable card — text must be null',
+  output: 'raw shell output',
+};
+const TOOL_ENTRY_TWO: HistoryEntry = {
+  id: 5,
+  kind: 'tool',
+  name: 'bash',
+  durationMs: 1,
+  ok: false,
+  output: 'raw shell failure',
 };
 
 /** Mirror of ScrollableHistory's controller lookup path: resolve the hit's
- *  entryId against the live entries, call copyableTextForEntry, write the
+ *  ids against the live entries, call the appropriate copy helper, write the
  *  result to the clipboard. Kept as a single function so the test mirrors
  *  the exact same control flow the controller uses post-F1. */
 async function clickHit(
@@ -92,10 +104,15 @@ async function clickHit(
 ): Promise<number | null> {
   const hit = findCopyHit(hits, row, col);
   if (hit === null) return null;
-  const entry = entriesById.get(hit.entryId);
-  if (entry === undefined) return null;
-  const text = copyableTextForEntry(entry);
-  if (text === null) return null;
+  const entryIds = hit.entryIds ?? [hit.entryId];
+  const entries = entryIds
+    .map((entryId) => entriesById.get(entryId))
+    .filter((entry): entry is HistoryEntry => entry !== undefined);
+  if (entries.length !== entryIds.length) return null;
+  const firstEntry = entries[0];
+  if (firstEntry === undefined) return null;
+  const text =
+    entries.length === 1 ? copyableTextForEntry(firstEntry) : copyableTextForEntries(entries);
   const ok = await writeClipboardText(text);
   return ok ? hit.entryId : null;
 }
@@ -197,15 +214,51 @@ describe('CopyHit entryId-only (F1 regression)', () => {
     expect(writeClipboardTextMock).not.toHaveBeenCalled();
   });
 
-  it('returns null when the hit entry is no longer copyable', async () => {
-    // The hit registry pre-F1 used `copyableTextForEntry(entry) !== null`
-    // as the gate for pushing a hit, so this case shouldn't arise in
-    // practice. The post-F1 guard mirrors that gate, so the controller
-    // returns null and writes nothing when an entry's copyable-ness
-    // changed after the hit was registered (e.g. an entry was mutated in
-    // place to a non-copyable kind).
+  it('copies a tool card raw even when the visual renderer formats or truncates it', async () => {
     const hits: CopyHit[] = [{ entryId: 4, startRow: 0, endRow: 1, iconCol: 57 }];
     const entriesById = new Map<number, HistoryEntry>([[4, TOOL_ENTRY]]);
+    writeClipboardTextMock.mockClear();
+
+    const result = await clickHit(hits, 0, 57, entriesById);
+    expect(result).toBe(4);
+    expect(writeClipboardTextMock).toHaveBeenCalledWith(TOOL_ENTRY.output);
+  });
+
+  it('copies every member of a compact tool-group box in original order', async () => {
+    const hits: CopyHit[] = [
+      { entryId: 4, entryIds: [4, 5], startRow: 0, endRow: 1, iconCol: 57 },
+    ];
+    const entriesById = new Map<number, HistoryEntry>([
+      [4, TOOL_ENTRY],
+      [5, TOOL_ENTRY_TWO],
+    ]);
+    writeClipboardTextMock.mockClear();
+
+    const result = await clickHit(hits, 0, 57, entriesById);
+    expect(result).toBe(4);
+    expect(JSON.parse(writeClipboardTextMock.mock.calls[0]?.[0])).toEqual([
+      TOOL_ENTRY,
+      TOOL_ENTRY_TWO,
+    ]);
+  });
+
+  it('returns null instead of copying a partial compact tool-group payload', async () => {
+    const hits: CopyHit[] = [
+      { entryId: 4, entryIds: [4, 5], startRow: 0, endRow: 1, iconCol: 57 },
+    ];
+    const entriesById = new Map<number, HistoryEntry>([[4, TOOL_ENTRY]]);
+    writeClipboardTextMock.mockClear();
+
+    const result = await clickHit(hits, 0, 57, entriesById);
+    expect(result).toBeNull();
+    expect(writeClipboardTextMock).not.toHaveBeenCalled();
+  });
+
+  it('returns null without writing when every entryIds entry has been evicted', async () => {
+    const hits: CopyHit[] = [
+      { entryId: 5, entryIds: [5, 6], startRow: 0, endRow: 1, iconCol: 57 },
+    ];
+    const entriesById = new Map<number, HistoryEntry>([[1, ASSISTANT_BIG]]);
     writeClipboardTextMock.mockClear();
 
     const result = await clickHit(hits, 0, 57, entriesById);
