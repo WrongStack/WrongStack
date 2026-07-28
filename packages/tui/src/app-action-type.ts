@@ -281,6 +281,8 @@ export type Action =
   | { type: 'enhanceClose' }
   | { type: 'enhanceSet'; enabled: boolean }
   | { type: 'enhanceBusy'; on: boolean }
+  | { type: 'refineCountdownOpen'; info: NonNullable<State['refineCountdown']> }
+  | { type: 'refineCountdownClose' }
   | { type: 'refineFailureOpen'; info: NonNullable<State['refineFailure']> }
   | { type: 'refineFailureClose' }
   | { type: 'continueConfirmOpen'; info: NonNullable<State['continueConfirm']> }

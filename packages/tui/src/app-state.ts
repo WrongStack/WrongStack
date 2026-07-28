@@ -276,6 +276,8 @@ export type State = {
     autoProceedMaxIterations: number;
     /** Prompt refinement preview countdown (ms). */
     enhanceDelayMs: number;
+    /** Pre-refine grace period (seconds). 0 = skip countdown entirely. */
+    preRefineSeconds: number;
     /** Master toggle for the prompt refiner (mirrors Settings.enhanceEnabled). */
     enhanceEnabled: boolean;
     /** Refined-prompt language preference (mirrors Settings.enhanceLanguage). */
@@ -453,6 +455,21 @@ export type State = {
   enhanceEnabled: boolean;
   /** True while the refiner LLM call is in flight (before the panel appears). Drives a "refining…" indicator. */
   enhanceBusy: boolean;
+  /**
+   * Active pre-refine grace countdown. Set after the user submits a prompt
+   * that passes the refiner gate but BEFORE the refiner LLM call starts.
+   * The user sees a "refining in Ns…" panel and can send as-is (any key),
+   * cancel back to the composer (Esc), or let the timer expire to proceed
+   * into normal refinement. Resolves to proceed / skip / cancel. Null when
+   * no countdown is active.
+   */
+  refineCountdown: {
+    /** The user's just-submitted message (shown as preview). */
+    original: string;
+    /** Grace period in seconds before the refiner call starts. */
+    seconds: number;
+    resolve: (decision: 'proceed' | 'skip' | 'cancel') => void;
+  } | null;
   /**
    * Active refinement-failure recovery panel. Set when a refine attempt (and
    * its automatic timeout retry) failed and the user must choose how to

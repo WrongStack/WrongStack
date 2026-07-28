@@ -16,6 +16,7 @@ import {
   formatEnhanceDelay,
   formatMaxIterations,
   formatMultiDiffSummaryThreshold,
+  formatPreRefineSeconds,
   formatSettingsDelay,
 } from './settings-picker-model.js';
 import type {
@@ -78,6 +79,8 @@ export interface SettingsPickerProps {
   enhanceEnabled: boolean;
   /** Default language for refinement: original (keep user's language) or english. */
   enhanceLanguage: EnhanceLanguage;
+  /** Pre-refine grace countdown (seconds). 0 = skip. */
+  preRefineSeconds: number;
   /** Run incremental index at session start. */
   indexOnStart: boolean;
   /** User-tunable cutoff for the multi-file diff summary footer. 0 = off. */
@@ -167,6 +170,7 @@ export function SettingsPicker({
   enhanceDelayMs,
   enhanceEnabled,
   enhanceLanguage,
+  preRefineSeconds,
   indexOnStart,
   multiDiffSummaryThreshold,
   thinkingWord,
@@ -421,6 +425,11 @@ export function SettingsPicker({
       label: 'Show agent swarm panel',
       value: boolVal(showAgentSwarmPanel),
       detail: 'Show persistent agent activity and mission queue',
+    },
+    {
+      label: 'Pre-refine countdown',
+      value: formatPreRefineSeconds(preRefineSeconds),
+      detail: 'Grace period before refiner starts (0 = skip)',
     },
   ];
 

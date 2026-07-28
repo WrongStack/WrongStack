@@ -44,6 +44,8 @@ const dialogActionTypes = [
   'enhanceClose',
   'enhanceSet',
   'enhanceBusy',
+  'refineCountdownOpen',
+  'refineCountdownClose',
   'refineFailureOpen',
   'refineFailureClose',
   'continueConfirmOpen',
@@ -275,6 +277,10 @@ export function reduceDialogs(state: State, action: DialogAction): State {
       return { ...state, enhanceEnabled: action.enabled };
     case 'enhanceBusy':
       return { ...state, enhanceBusy: action.on };
+    case 'refineCountdownOpen':
+      return { ...state, refineCountdown: action.info };
+    case 'refineCountdownClose':
+      return { ...state, refineCountdown: null };
     case 'refineFailureOpen':
       return { ...state, refineFailure: action.info };
     case 'refineFailureClose':

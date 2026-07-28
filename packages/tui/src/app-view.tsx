@@ -17,6 +17,7 @@ import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { ExitConfirmPanel } from './components/exit-confirm-panel.js';
 import { FKeyPicker } from './components/f-key-picker.js';
+import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { FilePicker } from './components/file-picker.js';
 import { HelpPanel } from './components/help-panel.js';
 import { DEFAULT_INPUT_PROMPT, Input } from './components/input.js';
@@ -286,6 +287,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               maxIterations={state.settingsPicker.maxIterations}
               autoProceedMaxIterations={state.settingsPicker.autoProceedMaxIterations}
               enhanceDelayMs={state.settingsPicker.enhanceDelayMs}
+              preRefineSeconds={state.settingsPicker.preRefineSeconds}
               enhanceEnabled={state.settingsPicker.enhanceEnabled}
               enhanceLanguage={state.settingsPicker.enhanceLanguage}
               debugStream={state.settingsPicker.debugStream}
@@ -535,6 +537,30 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                     messagePreview={info.displayText}
                     onMove={(delta) => dispatch({ type: 'sendModePickerMove', delta })}
                     onSelect={finish}
+                  />
+                );
+              })()
+            : null}
+          {state.refineCountdown
+            ? (() => {
+                const info = state.refineCountdown;
+                let resolved = false;
+                const onDecision = (
+                  decision: Parameters<typeof info.resolve>[0],
+                ) => {
+                  if (resolved) return;
+                  resolved = true;
+                  info.resolve(decision);
+                };
+                return (
+                  <RefineCountdownPanel
+                    original={info.original}
+                    seconds={info.seconds}
+                    onDecision={onDecision}
+                    providerId={
+                      refineProviderId ?? (agent.ctx.provider as { id?: string } | undefined)?.id
+                    }
+                    model={refineModel ?? agent.ctx.model}
                   />
                 );
               })()

@@ -173,6 +173,8 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'queueClear',
   'queueDelete',
   'queueToggleRefine',
+  'refineCountdownClose',
+  'refineCountdownOpen',
   'refineFailureClose',
   'refineFailureOpen',
   'replaceHistory',

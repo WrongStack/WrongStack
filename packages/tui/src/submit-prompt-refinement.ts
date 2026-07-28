@@ -28,6 +28,8 @@ export interface PromptRefinementHost {
   readonly original: MutableCell<string>;
   readonly abortController: MutableCell<AbortController | null>;
   readonly cancelled: MutableCell<boolean>;
+  /** Grace period in seconds before the refiner LLM call starts. 0 = skip. */
+  readonly preRefineSeconds: number;
   dispatch(action: Action): void;
   clearDraft(): void;
   setDraft(buffer: string, cursor: number): void;
@@ -68,6 +70,40 @@ export async function refineSubmittedPrompt(
     !shouldEnhance(cleanText)
   ) {
     return { kind: 'send', effectiveText };
+  }
+
+  // ── Pre-refine grace countdown ───────────────────────────────────
+  // Give the user a few seconds to bail before the refiner LLM call
+  // starts. Any key sends as-is (skip); Esc cancels back to the
+  // composer; countdown expiry proceeds into normal refinement.
+  // 0 = skip the countdown entirely (go straight to refinement).
+  if (host.preRefineSeconds > 0) {
+    const countdownDecision = await new Promise<
+      'proceed' | 'skip' | 'cancel'
+    >((resolve) => {
+      host.dispatch({
+        type: 'refineCountdownOpen',
+        info: {
+          original: trimmed,
+          seconds: host.preRefineSeconds,
+          resolve,
+        },
+      });
+    });
+    host.dispatch({ type: 'refineCountdownClose' });
+    if (countdownDecision === 'skip') {
+      return { kind: 'send', effectiveText };
+    }
+    if (countdownDecision === 'cancel') {
+      host.setDraft(trimmed, trimmed.length);
+      return { kind: 'cancel' };
+    }
+    // 'proceed' — fall through to normal refinement.
+    if (host.cancelled.current) {
+      host.cancelled.current = false;
+      host.setDraft(trimmed, trimmed.length);
+      return { kind: 'cancel' };
+    }
   }
 
   const { capabilities } = host;

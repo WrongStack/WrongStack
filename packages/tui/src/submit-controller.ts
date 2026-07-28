@@ -518,6 +518,7 @@ export function createSubmitController(host: SubmitControllerHost) {
         original: enhanceOriginalRef,
         abortController: enhanceAbortRef,
         cancelled: enhanceCancelledRef,
+        preRefineSeconds: state.settingsPicker.preRefineSeconds,
         dispatch,
         clearDraft,
         setDraft,

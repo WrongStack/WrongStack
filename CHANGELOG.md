@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **TUI: pre-refine grace countdown.** A configurable grace period (default 3 seconds) is shown after submitting a prompt that passes the refiner gate but BEFORE the refiner LLM call starts. The user can: press **Enter** to start refining immediately ("Refine now"), press **any other key** to send the message as-is ("skip"), press **Esc** to cancel back to the composer, or let the countdown expire to proceed into normal refinement. Mirrors the WebUI/SimpleUI RefinePanel countdown face. The duration is configurable via Settings picker (field 41, Alt+R shortcut) with presets `[0, 2, 3, 5, 8, 10]` seconds; `0` disables the countdown entirely. The countdown panel also shows the provider/model that will run the refinement.
+
 ### Fixed
 
 - **CLI: subagent teardown leak (host-subagent-factory).** `dispose()` now calls `agent.teardown()` so the per-subagent Context's `drainAgentHooks()` runs and clears the mailbox heartbeat `setInterval`, awareness-polling `setInterval`, HQ publisher connection, and `mbox.startAutoCompactTimer()` timer registered at subagent construction. Without this, every retired subagent retained 4 live timers and 1 HQ socket for the rest of the leader process's lifetime — a long-running kanban-dispatch loop with N subagents accumulated 4N timers and N HQ sockets. Two focused regression tests in `multi-agent.test.ts` pin `agentHooks.size === 0` after `dispose()` and after three sequential subagent retirements.

@@ -191,6 +191,7 @@ export function useTerminalRenderLifecycle(state: State): void {
     if (
       state.enhanceBusy ||
       state.enhance != null ||
+      state.refineCountdown != null ||
       state.refineFailure != null ||
       state.continueConfirm != null
     )

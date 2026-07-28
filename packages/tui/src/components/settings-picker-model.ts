@@ -56,6 +56,9 @@ export const AUTO_PROCEED_MAX_PRESETS = [10, 25, 50, 100, 250, 0];
 /** Presets for prompt refinement preview countdown. */
 export const ENHANCE_DELAY_PRESETS = [15_000, 30_000, 45_000, 60_000, 90_000, 120_000];
 
+/** Presets for pre-refine grace countdown (seconds). 0 = skip. */
+export const PRE_REFINE_SECONDS_PRESETS = [0, 2, 3, 5, 8, 10];
+
 /** Presets for the circuit-breaker auto kill/reset delay. 0 = manual recovery. */
 export const BREAKER_TIMEOUT_PRESETS = [0, 30_000, 60_000, 120_000, 300_000];
 
@@ -125,6 +128,11 @@ export function formatEnhanceDelay(ms: number): string {
   return `${Math.round(ms / 1000)}s`;
 }
 
+export function formatPreRefineSeconds(s: number): string {
+  if (s === 0) return 'off';
+  return `${s}s`;
+}
+
 /** Animation style choices for the settings picker — all AnimationStyles plus 'cycle'. */
 export const ANIMATION_STYLE_CHOICES = [...ANIMATION_STYLES, 'cycle'] as const;
 export type AnimationStyleChoice = (typeof ANIMATION_STYLE_CHOICES)[number];
@@ -142,7 +150,7 @@ export const MODE_DESC: Record<SettingsMode, string> = {
 };
 
 /** Total number of settings rows (used for wrap-around navigation). */
-export const SETTINGS_FIELD_COUNT = 41;
+export const SETTINGS_FIELD_COUNT = 42;
 
 /**
  * Field index of the "Thinking word" row. The reducer's per-field switch and
@@ -252,6 +260,7 @@ export type SettingsPickerPatch = Partial<{
   maxIterations: number;
   autoProceedMaxIterations: number;
   enhanceDelayMs: number;
+  preRefineSeconds: number;
   enhanceEnabled: boolean;
   enhanceLanguage: EnhanceLanguage;
   debugStream: boolean;
@@ -316,6 +325,7 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Breaker timeout', // 38
   'Show model reasoning', // 39
   'Show agent swarm panel', // 40
+  'Pre-refine countdown', // 41
 ];
 
 /**
@@ -420,6 +430,7 @@ export function resolveSettingsFieldValue(
     [15, 'maxIterations', MAX_ITERATIONS_PRESETS, (n) => formatMaxIterations(n)],
     [16, 'autoProceedMaxIterations', AUTO_PROCEED_MAX_PRESETS, (n) => formatMaxIterations(n)],
     [17, 'enhanceDelayMs', ENHANCE_DELAY_PRESETS, (n) => formatEnhanceDelay(n)],
+    [41, 'preRefineSeconds', PRE_REFINE_SECONDS_PRESETS, (n) => formatPreRefineSeconds(n)],
     [21, 'multiDiffSummaryThreshold', MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS, (n) => formatMultiDiffSummaryThreshold(n)],
     [30, 'maxConcurrent', MAX_CONCURRENT_PRESETS, (n) => presetLabel(n, 'runtime default')],
     [38, 'breakerAutoKillResetMs', BREAKER_TIMEOUT_PRESETS, (n) => formatBreakerTimeout(n)],
@@ -522,6 +533,7 @@ export function getSettingsFieldValue(
     [15, 'maxIterations', formatMaxIterations],
     [16, 'autoProceedMaxIterations', formatMaxIterations],
     [17, 'enhanceDelayMs', formatEnhanceDelay],
+    [41, 'preRefineSeconds', formatPreRefineSeconds],
     [21, 'multiDiffSummaryThreshold', formatMultiDiffSummaryThreshold],
     [30, 'maxConcurrent', (n) => presetLabel(n, 'runtime default')],
     [38, 'breakerAutoKillResetMs', formatBreakerTimeout],
@@ -587,7 +599,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Display',
-    fields: [39, 40],
+    fields: [39, 40, 41],
   },
 ];
 
@@ -657,6 +669,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   maxIterations: 500,
   autoProceedMaxIterations: 50,
   enhanceDelayMs: 60_000,
+  preRefineSeconds: 3,
   enhanceEnabled: true,
   enhanceLanguage: 'original',
   debugStream: false,
@@ -710,7 +723,7 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     [30, 'maxConcurrent'], [31, 'logLevel'], [32, 'auditLevel'], [33, 'debugStream'],
     [34, 'statuslineMode'], [35, 'configScope'], [36, 'animationStyle'],
     [37, 'breakerEnabled'], [38, 'breakerAutoKillResetMs'], [39, 'showModelReasoning'],
-    [40, 'showAgentSwarmPanel'],
+    [40, 'showAgentSwarmPanel'], [41, 'preRefineSeconds'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

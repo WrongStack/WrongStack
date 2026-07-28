@@ -39,6 +39,7 @@ describe('refineSubmittedPrompt model-specific reasoning', () => {
         original: { current: '' },
         abortController: { current: null },
         cancelled: { current: false },
+        preRefineSeconds: 0,
         dispatch: vi.fn(),
         clearDraft: vi.fn(),
         setDraft: vi.fn(),

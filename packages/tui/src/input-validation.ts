@@ -809,6 +809,7 @@ export function validateAction(action: {
     case 'enhanceCancel':
     case 'enhanceDismiss':
     case 'enhanceConfirmClose':
+    case 'refineCountdownClose':
     case 'refineFailureClose':
     case 'continueConfirmOpen':
     case 'continueConfirmClose':
@@ -865,6 +866,7 @@ export function validateAction(action: {
     case 'confirmPromptClose':
     case 'setDeadline':
     case 'enhanceOpen':
+    case 'refineCountdownOpen':
       return { valid: true, value: payload };
 
     default:

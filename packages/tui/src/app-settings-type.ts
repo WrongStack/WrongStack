@@ -35,6 +35,8 @@ export type Settings = {
   autoProceedMaxIterations: number;
   /** Prompt refinement preview countdown (ms). */
   enhanceDelayMs: number;
+  /** Pre-refine grace period (seconds) before the refiner LLM call starts. 0 = skip. */
+  preRefineSeconds: number;
   /** Enable/disable prompt refinement. */
   enhanceEnabled: boolean;
   /** Default language for refinement: original or english. */

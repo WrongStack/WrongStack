@@ -152,6 +152,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
         // would never settle.
         enhance: null,
         enhanceBusy: false,
+        refineCountdown: null,
         refineFailure: null,
         continueConfirm: null,
         sendModePicker: null,
