@@ -85,6 +85,8 @@ export interface LocalPrefs {
   // --- Refine ---
   enhanceEnabled: boolean;
   enhanceDelayMs: number;
+  /** Pre-refine grace countdown (ms) before the refiner call starts. */
+  enhanceCountdownMs: number;
   enhanceLanguage: 'original' | 'english';
   /** Provider id for goal refinement (`/goal set`). Empty = use session provider. */
   refinerProvider: string;
@@ -105,6 +107,12 @@ export interface LocalPrefs {
   showThinkingLogs: boolean;
   /** Group consecutive tool calls into collapsible chips */
   groupToolCalls: boolean;
+  /** Show model reasoning/thinking blocks inline in the chat */
+  showModelReasoning: boolean;
+  /** Show the persistent agent-swarm fleet panel */
+  showAgentSwarmPanel: boolean;
+  /** Allow tools to access paths outside the project root (inverse of fsAccess). */
+  allowOutsideProjectRoot: boolean;
 
   // --- Reasoning / cache runtime ---
   reasoningMode: 'auto' | 'on' | 'off';
@@ -218,6 +226,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   auditLevel: 'standard',
   enhanceEnabled: true,
   enhanceDelayMs: 60_000,
+  enhanceCountdownMs: 3_000,
   enhanceLanguage: 'original',
   refinerProvider: '',
   refinerModel: '',
@@ -227,6 +236,9 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   animationStyle: 'rainbow',
   showThinkingLogs: true,
   groupToolCalls: true,
+  showModelReasoning: true,
+  showAgentSwarmPanel: false,
+  allowOutsideProjectRoot: true,
   reasoningMode: 'auto',
   reasoningEffort: 'high',
   reasoningPreserve: false,
@@ -268,13 +280,16 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
 export const useLocalPrefs = create<LocalPrefs>()(
   persist(
     (set) => ({
-      ...DEFAULTS,
+      .../** @see LocalPrefs */ (DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>),
       set: (patch) => set(patch),
-      reset: () => set(DEFAULTS),
+      reset: () => set(/** @see LocalPrefs */ (DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>)),
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 10,
+      version: 11,
+      // v11 (2026-07-28): added showModelReasoning, showAgentSwarmPanel,
+      // allowOutsideProjectRoot — backfill via DEFAULTS spread + defensive typeof guards.
+      //
       // v10 (2026-07-20): streamFleet (boolean) renamed to fleetChatVerbosity
       // ('off'|'full'). Map legacy true → 'full' (was the default), legacy false
       // → 'off'. Clean up the old key from localStorage.
@@ -421,6 +436,10 @@ export const useLocalPrefs = create<LocalPrefs>()(
         ) {
           p.autoReviewCascadeOn = 'off';
         }
+        // v11: new boolean flags — backfill with defaults
+        if (typeof p.showModelReasoning !== 'boolean') p.showModelReasoning = true;
+        if (typeof p.showAgentSwarmPanel !== 'boolean') p.showAgentSwarmPanel = false;
+        if (typeof p.allowOutsideProjectRoot !== 'boolean') p.allowOutsideProjectRoot = true;
         return p as never as LocalPrefs;
       },
     },

@@ -32,6 +32,14 @@ import type { ProviderCustomModelWire, WSServerMessage } from '@/types';
 import { AvailabilityCalendarEditor } from '../AvailabilityCalendarEditor';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { Button } from '../ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { AppearanceSettingsTab, ConnectionSettingsTab } from './BasicSettingsTabs';
@@ -40,9 +48,9 @@ import { FallbacksSection } from './FallbacksSection';
 import { FleetSection } from './FleetSection';
 import { IntegrationsSection } from './IntegrationsSection';
 import { ModelSection } from './ModelSection';
+import { PluginToggleList } from './PluginToggleList';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
-import { PluginToggleList } from './PluginToggleList';
 import {
   type CatalogProvider,
   ProviderSection,
@@ -57,34 +65,88 @@ interface TabDef {
   id: string;
   icon: React.ReactNode;
   labelKey: string;
+  descKey?: string;
 }
 
 const TABS: TabDef[] = [
-  { id: 'general', icon: <Palette className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.general' },
-  { id: 'provider', icon: <Network className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.provider' },
+  {
+    id: 'general',
+    icon: <Palette className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.general',
+    descKey: 'settings:tabs.generalDesc',
+  },
+  {
+    id: 'provider',
+    icon: <Network className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.provider',
+    descKey: 'settings:tabs.providerDesc',
+  },
   {
     id: 'connection',
     icon: <Globe className="h-3.5 w-3.5" />,
     labelKey: 'settings:tabs.connection',
+    descKey: 'settings:tabs.connectionDesc',
   },
-  { id: 'agent', icon: <Bot className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.agent' },
-  { id: 'execution', icon: <Zap className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.execution' },
+  {
+    id: 'agent',
+    icon: <Bot className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.agent',
+    descKey: 'settings:tabs.agentDesc',
+  },
+  {
+    id: 'execution',
+    icon: <Zap className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.execution',
+    descKey: 'settings:tabs.executionDesc',
+  },
   {
     id: 'fallbacks',
     icon: <Layers className="h-3.5 w-3.5" />,
     labelKey: 'settings:tabs.fallbacks',
+    descKey: 'settings:tabs.fallbacksDesc',
   },
-  { id: 'routing', icon: <ListPlus className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.routing' },
-  { id: 'fleet', icon: <Radio className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.fleet' },
+  {
+    id: 'routing',
+    icon: <ListPlus className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.routing',
+    descKey: 'settings:tabs.routingDesc',
+  },
+  {
+    id: 'fleet',
+    icon: <Radio className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.fleet',
+    descKey: 'settings:tabs.fleetDesc',
+  },
   {
     id: 'integrations',
     icon: <Puzzle className="h-3.5 w-3.5" />,
     labelKey: 'settings:tabs.integrations',
+    descKey: 'settings:tabs.integrationsDesc',
   },
-  { id: 'chimera', icon: <Brain className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.chimera' },
-  { id: 'context', icon: <FileText className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.context' },
-  { id: 'logs', icon: <Bug className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.logs' },
-  { id: 'security', icon: <Shield className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.security' },
+  {
+    id: 'chimera',
+    icon: <Brain className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.chimera',
+    descKey: 'settings:tabs.chimeraDesc',
+  },
+  {
+    id: 'context',
+    icon: <FileText className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.context',
+    descKey: 'settings:tabs.contextDesc',
+  },
+  {
+    id: 'logs',
+    icon: <Bug className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.logs',
+    descKey: 'settings:tabs.logsDesc',
+  },
+  {
+    id: 'security',
+    icon: <Shield className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.security',
+    descKey: 'settings:tabs.securityDesc',
+  },
 ];
 
 // ── Catalog types ──────────────────────────────────────────────────────
@@ -152,6 +214,13 @@ export function SettingsPanel() {
   const [providerTab, setProviderTab] = useState<ProviderTab>('catalog');
   const [catalogQuery, setCatalogQuery] = useState('');
   const [refinerPickerOpen, setRefinerPickerOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+
+  const resetConfirm = useCallback(() => {
+    localPrefs.reset();
+    setResetOpen(false);
+    window.location.reload();
+  }, [localPrefs]);
   const currentCatalogProvider = catalogProviders.find((p) => p.id === provider);
 
   // WS event subscriptions
@@ -321,6 +390,9 @@ export function SettingsPanel() {
         <Button variant="ghost" size="icon" onClick={() => showPanel('chat')}>
           <X className="h-4 w-4" />
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => setResetOpen(true)}>
+          {t('settings:resetLabel')}
+        </Button>
       </header>
 
       {/* Content */}
@@ -341,6 +413,11 @@ export function SettingsPanel() {
                   >
                     <span className="shrink-0">{tab.icon}</span>
                     <span className="truncate">{t(tab.labelKey)}</span>
+                    {tab.descKey && (
+                      <span className="hidden lg:block truncate text-[10px] text-muted-foreground leading-tight">
+                        {t(tab.descKey)}
+                      </span>
+                    )}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -433,8 +510,8 @@ export function SettingsPanel() {
                     }}
                   />
                   <PreferenceSlider
-                    label={t('settings:agent.autoProceedDelayLabel')}
-                    hint={t('settings:agent.autoProceedDelayHint')}
+                    label={t('settings:agent.autonomyDelayMsLabel')}
+                    hint={t('settings:agent.autonomyDelayMsHint')}
                     value={localPrefs.autonomyDelayMs}
                     min={0}
                     max={10000}
@@ -475,6 +552,16 @@ export function SettingsPanel() {
                     step={15000}
                     unit="ms"
                     onChange={(v) => syncPref('enhanceDelayMs', v)}
+                  />
+                  <PreferenceSlider
+                    label={t('settings:agent.refineCountdownLabel')}
+                    hint={t('settings:agent.refineCountdownHint')}
+                    value={localPrefs.enhanceCountdownMs}
+                    min={1000}
+                    max={10000}
+                    step={1000}
+                    unit="ms"
+                    onChange={(v) => syncPref('enhanceCountdownMs', v)}
                   />
                   <PreferenceSelect
                     label={t('settings:agent.refineLanguageLabel')}
@@ -968,6 +1055,24 @@ export function SettingsPanel() {
           </Tabs>
         </div>
       </ScrollArea>
+
+      {/* Reset confirmation dialog */}
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t('settings:resetConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('settings:resetConfirmBody')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setResetOpen(false)}>
+              {t('settings:cancel')}
+            </Button>
+            <Button variant="destructive" onClick={resetConfirm}>
+              {t('settings:resetConfirmAction')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
