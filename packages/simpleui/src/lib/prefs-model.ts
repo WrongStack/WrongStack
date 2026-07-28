@@ -14,6 +14,8 @@ export interface SimplePrefs {
   yolo: boolean;
   enhanceEnabled: boolean;
   enhanceLanguage: string;
+  /** Pre-refine grace countdown (seconds). 0 = skip. */
+  preRefineSeconds: number;
   showModelReasoning: boolean;
   chime: boolean;
   confirmExit: boolean;
@@ -28,6 +30,7 @@ export const DEFAULT_PREFS: SimplePrefs = {
   yolo: false,
   enhanceEnabled: false,
   enhanceLanguage: 'english',
+  preRefineSeconds: 3,
   showModelReasoning: true,
   chime: false,
   confirmExit: false,
@@ -63,6 +66,10 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
       typeof raw['enhanceLanguage'] === 'string' && raw['enhanceLanguage']
         ? raw['enhanceLanguage']
         : previous.enhanceLanguage,
+    preRefineSeconds:
+      typeof raw['preRefineSeconds'] === 'number' && raw['preRefineSeconds'] >= 0
+        ? raw['preRefineSeconds']
+        : previous.preRefineSeconds,
     showModelReasoning: bool(raw['showModelReasoning'], previous.showModelReasoning),
     chime: bool(raw['chime'], previous.chime),
     confirmExit: bool(raw['confirmExit'], previous.confirmExit),

@@ -47,6 +47,7 @@ interface ComposerProps {
   onRefineRetryFallback: (ref: string) => void;
   onRefineStartNow: () => void;
   onRefineSendEdited: (text: string) => void;
+  preRefineSeconds?: number;
   // Image attachment
   attachedImages: { id: string; data: string; mime: string; name: string }[];
   onAttachImages: () => void;
@@ -93,6 +94,7 @@ export function Composer({
   onRefineRetryFallback,
   onRefineStartNow,
   onRefineSendEdited,
+  preRefineSeconds,
   attachedImages,
   onAttachImages,
   onRemoveImage,
@@ -135,6 +137,7 @@ export function Composer({
           onRetryFallback={onRefineRetryFallback}
           onStartRefine={onRefineStartNow}
           onSendEdited={onRefineSendEdited}
+          preRefineSeconds={preRefineSeconds}
         />
       )}
 

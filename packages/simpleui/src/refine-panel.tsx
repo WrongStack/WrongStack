@@ -11,10 +11,12 @@ interface RefinePanelProps {
   onStartRefine: () => void;
   /** Send a user-edited version of the refined text. */
   onSendEdited: (text: string) => void;
+  /** Grace period in seconds before the refiner call starts. 0 = skip. Default 3. */
+  preRefineSeconds?: number;
 }
 
-/** Seconds for the pre-refine grace countdown (mirrors the WebUI's 3-2-1). */
-const PRE_REFINE_SECONDS = 3;
+/** Default grace period (seconds) before the refiner call starts. */
+const DEFAULT_PRE_REFINE_SECONDS = 3;
 
 /** Review step for a refined prompt.
  *
@@ -34,10 +36,11 @@ export function RefinePanel({
   onRetryFallback,
   onStartRefine,
   onSendEdited,
+  preRefineSeconds = DEFAULT_PRE_REFINE_SECONDS,
 }: RefinePanelProps) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(state.refined);
-  const [countdown, setCountdown] = useState(PRE_REFINE_SECONDS);
+  const [countdown, setCountdown] = useState(preRefineSeconds);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
   /** Snapshot of the edit buffer taken when edit mode is entered.
    *  Escape restores this so the user's in-progress draft is not
@@ -76,8 +79,13 @@ export function RefinePanel({
   // it inside the body.
   useEffect(() => {
     if (state.status !== 'countdown') return;
+    // 0 = skip countdown entirely — fire refine immediately.
+    if (preRefineSeconds <= 0) {
+      onStartRefineRef.current();
+      return;
+    }
     countdownFiredRef.current = false;
-    setCountdown(PRE_REFINE_SECONDS);
+    setCountdown(preRefineSeconds);
     const timer = setInterval(() => {
       setCountdown((prev) => Math.max(0, prev - 1));
     }, 1000);

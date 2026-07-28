@@ -1054,6 +1054,7 @@ export function SimpleUiSession() {
               onRefineRetryFallback={refineRetryFallback}
               onRefineStartNow={refineStartNow}
               onRefineSendEdited={refineSendEdited}
+              preRefineSeconds={prefsRef.current.preRefineSeconds}
               attachedImages={attachedImages}
               onAttachImages={attachImages}
               onRemoveImage={removeImage}

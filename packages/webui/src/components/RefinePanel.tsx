@@ -85,6 +85,7 @@ export function RefinePanel({
   const { t } = useAppTranslation();
   const enhanceLanguage = useLocalPrefs((s) => s.enhanceLanguage);
   const yolo = useLocalPrefs((s) => s.yolo);
+  const enhanceCountdownMs = useLocalPrefs((s) => s.enhanceCountdownMs);
   const { updatePrefs } = useWebSocket();
 
   const toggleLanguage = useCallback(() => {
@@ -115,12 +116,18 @@ export function RefinePanel({
   // resetting the countdown to 3.
   const onStartRefineRef = useRef(onStartRefine);
   onStartRefineRef.current = onStartRefine;
-  const [preRefineCountdown, setPreRefineCountdown] = useState(3);
+  const [preRefineCountdown, setPreRefineCountdown] = useState(Math.max(0, Math.ceil(enhanceCountdownMs / 1000)));
   const preRefineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (status !== 'countdown') return;
-    setPreRefineCountdown(3);
+    const seconds = Math.max(0, Math.ceil(enhanceCountdownMs / 1000));
+    // 0 = skip countdown entirely — fire refine immediately.
+    if (seconds === 0) {
+      onStartRefineRef.current?.();
+      return;
+    }
+    setPreRefineCountdown(seconds);
     preRefineTimerRef.current = setInterval(() => {
       setPreRefineCountdown((prev) => {
         if (prev <= 1) {
