@@ -897,6 +897,57 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     await built.dispose?.();
   });
 
+  it('dispose() drains agent-lifetime hooks so retired subagents do not leak timers', async () => {
+    // Regression for the subagent teardown leak: every retired subagent used
+    // to leave its mailbox heartbeat interval, awareness polling interval,
+    // HQ publisher connection, and auto-compaction timer alive for the rest
+    // of the leader process's lifetime. dispose() must call agent.teardown()
+    // so drainAgentHooks() runs and clears the per-subagent hook registrations.
+    const host = new MultiAgentHost(depsWithTools());
+    const factory = host.makeSubagentFactory(config);
+    const built = await factory(slotCfg);
+
+    // Construction registers at least one mailbox-related agent hook on the
+    // subagent's Context (heartbeat, awareness, HQ, auto-compact). Capture
+    // the pre-dispose count as a positive baseline.
+    const agentHooksBefore = (built.agent.ctx as unknown as {
+      agentHooks: { size: number };
+    }).agentHooks.size;
+    expect(agentHooksBefore).toBeGreaterThan(0);
+
+    await built.dispose?.();
+
+    // After dispose the Context's agentHooks Set must be empty — drainAgentHooks
+    // pops every entry and clears the set. A non-zero count means at least
+    // one hook was not invoked (timers / subscriptions / HQ socket still alive).
+    const agentHooksAfter = (built.agent.ctx as unknown as {
+      agentHooks: { size: number };
+    }).agentHooks.size;
+    expect(agentHooksAfter).toBe(0);
+  });
+
+  it('dispose() remains idempotent across repeated subagent retirements', async () => {
+    // Long-running kanban-dispatch loops spin up many subagents sequentially;
+    // each must fully release its hooks on retire. Build three subagents and
+    // assert none of them retain agentHooks after dispose.
+    const host = new MultiAgentHost(depsWithTools());
+    const factory = host.makeSubagentFactory(config);
+    const built1 = await factory({ ...slotCfg, id: 'leak-1' });
+    const built2 = await factory({ ...slotCfg, id: 'leak-2' });
+    const built3 = await factory({ ...slotCfg, id: 'leak-3' });
+
+    await built1.dispose?.();
+    await built2.dispose?.();
+    await built3.dispose?.();
+
+    for (const built of [built1, built2, built3]) {
+      const remaining = (built.agent.ctx as unknown as {
+        agentHooks: { size: number };
+      }).agentHooks.size;
+      expect(remaining).toBe(0);
+    }
+  });
+
   it('scopes the agent context to the filtered tool allow-list', async () => {
     const host = new MultiAgentHost(depsWithTools());
     const { agent, dispose } = await host.makeSubagentFactory(config)(slotCfg);

@@ -338,6 +338,19 @@ export function createHostSubagentFactory(
 
     const dispose = async () => {
       disposeBridge();
+      // Drain agent-lifetime hooks registered during construction (mailbox
+      // heartbeat interval, awareness polling, HQ publisher connection,
+      // auto-compaction timer). Without this, every retired subagent leaks
+      // its setInterval handles + event subscriptions + HQ socket + auto-
+      // compact timer for the rest of the leader process's lifetime — a
+      // long-running kanban-dispatch loop with N subagents accumulates 4N
+      // live timers and N open HQ sockets. See
+      // packages/core/src/core/agent.ts#teardown (drainAgentHooks).
+      try {
+        await agent.teardown();
+      } catch {
+        // Cleanup must not mask the task result.
+      }
       try {
         await subSession.close?.();
       } catch {
