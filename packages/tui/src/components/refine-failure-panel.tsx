@@ -152,9 +152,7 @@ export function RefineFailurePanel({
       Math.min(cursor - Math.floor(PICK_WINDOW / 2), total - PICK_WINDOW),
     );
     const windowStart = Math.max(0, start);
-    const visible = query
-      ? filteredModels.slice(windowStart, windowStart + PICK_WINDOW)
-      : models.slice(windowStart, windowStart + PICK_WINDOW);
+    const visible = filteredModels.slice(windowStart, windowStart + PICK_WINDOW);
     return (
       <Box
         alignSelf="stretch"
@@ -171,12 +169,12 @@ export function RefineFailurePanel({
           <Box flexGrow={1} />
           <Text color={theme.textMuted}>
             {query ? `${total}/${models.length}` : `${models.length}`} model
-            {models.length === 1 ? '' : 's'}
+            {(query ? total : models.length) === 1 ? '' : 's'}
           </Text>
         </Box>
         <Box height={1} marginTop={1}>
           <Text color={theme.textMuted}>
-            {query ? `🔍 ${query}${' '.repeat(1)}` : '🔍 type to filter'}
+            {query ? `🔍 ${query} ` : '🔍 type to filter'}
           </Text>
         </Box>
         {total === 0 ? (
