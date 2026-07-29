@@ -159,9 +159,8 @@ describe('StatusBar chip separators', () => {
   });
 
   it('shows total SAGE records and the active-in-context summary', () => {
-    // The redesign collapsed the matched/injected/filtered/active counters into
-    // a single `actv N` chip; with no memory-context monitor prop the count
-    // falls back to Sage.activeInContext so the rail still surfaces it.
+    // With no memory-context monitor prop the active count falls back to
+    // Sage.activeInContext so the rail still surfaces it.
     const frame = frameOf({
       Sage: { total: 6261, activeInContext: 3 },
       hiddenItems: ['state'],
@@ -179,6 +178,99 @@ describe('StatusBar chip separators', () => {
 
     expect(frame).not.toContain('6261 total');
     expect(frame).not.toContain('3 actv');
+  });
+
+  it('renders injector pipeline counters when memoryContextMonitor has live data', () => {
+    const frame = frameOf({
+      Sage: { total: 6261, activeInContext: 3 },
+      memoryContextMonitor: {
+        memories: {},
+        transitions: [],
+        latest: {
+          at: '2026-07-29T00:00:00.000Z',
+          trigger: 'read',
+          matched: 12,
+          injected: 9,
+          filtered: 4,
+          contextPressure: 0.42,
+          injectedChars: 5678,
+        },
+      },
+    });
+
+    expect(frame).toContain('12 matched');
+    expect(frame).toContain('9 inj');
+    expect(frame).toContain('4 filt');
+    expect(frame).toContain('42% ctx');
+  });
+
+  it('renders context-pressure traffic light at warn threshold', () => {
+    const frame = frameOf({
+      Sage: { total: 100, activeInContext: 1 },
+      memoryContextMonitor: {
+        memories: {},
+        transitions: [],
+        latest: {
+          at: '2026-07-29T00:00:00.000Z',
+          trigger: 'read',
+          matched: 5,
+          injected: 3,
+          filtered: 2,
+          contextPressure: 0.70,
+          injectedChars: 1000,
+        },
+      },
+    });
+
+    expect(frame).toContain('70% ctx');
+  });
+
+  it('hides pipeline counters when all counts are zero (idle session)', () => {
+    const frame = frameOf({
+      Sage: { total: 100, activeInContext: 0 },
+      memoryContextMonitor: {
+        memories: {},
+        transitions: [],
+        latest: {
+          at: '2026-07-29T00:00:00.000Z',
+          trigger: 'read',
+          matched: 0,
+          injected: 0,
+          filtered: 0,
+          contextPressure: 0,
+          injectedChars: 0,
+        },
+      },
+    });
+
+    expect(frame).not.toContain('matched');
+    expect(frame).not.toContain('inj');
+    expect(frame).not.toContain('filt');
+    expect(frame).not.toContain('ctx');
+  });
+
+  it('hides pipeline counters when injector outcome was error', () => {
+    const frame = frameOf({
+      Sage: { total: 100, activeInContext: 0 },
+      memoryContextMonitor: {
+        memories: {},
+        transitions: [],
+        latest: {
+          at: '2026-07-29T00:00:00.000Z',
+          trigger: 'read',
+          matched: 12,
+          injected: 0,
+          filtered: 0,
+          contextPressure: 0.5,
+          injectedChars: 0,
+          outcome: 'error',
+          error: 'injector crashed',
+        },
+      },
+    });
+
+    expect(frame).not.toContain('12 matched');
+    expect(frame).not.toContain('50% ctx');
   });
 
   it('places live provider/model before context and project/workdir on line 2', () => {
