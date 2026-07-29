@@ -470,9 +470,7 @@
         "import": "./dist/utils/expect-defined.js"
       },
       "source": "packages/core/src/utils/expect-defined.ts",
-      "declarations": [
-        "export function expectDefined"
-      ]
+      "declarations": ["export function expectDefined"]
     },
     {
       "subpath": "./utils/error",
@@ -481,9 +479,7 @@
         "import": "./dist/utils/error.js"
       },
       "source": "packages/core/src/utils/error.ts",
-      "declarations": [
-        "export function toErrorMessage"
-      ]
+      "declarations": ["export function toErrorMessage"]
     },
     {
       "subpath": "./utils/tree-kill",
@@ -1038,21 +1034,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 30,
-      "sourceLines": 7851
+      "sourceLines": 7891
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41325
+      "sourceLines": 41367
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8477
+      "sourceLines": 8522
     },
     {
       "directory": "defaults",
@@ -1115,7 +1111,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3357
+      "sourceLines": 3406
     },
     {
       "directory": "middleware",
@@ -1199,7 +1195,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 16018
+      "sourceLines": 16036
     },
     {
       "directory": "tasking",

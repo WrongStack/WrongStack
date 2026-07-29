@@ -6,7 +6,7 @@
     "@wrongstack/core/agent": {
       "files": 218,
       "typeOnly": 180,
-      "runtimeOrMixed": 52
+      "runtimeOrMixed": 53
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -967,7 +967,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/read.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     {
       "specifier": "@wrongstack/core/agent",

@@ -55,7 +55,7 @@
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings.ts": {
-      "lines": 967,
+      "lines": 988,
       "relativeImports": 4
     },
     "packages/cli/src/subcommands/handlers/modeldiag.ts": {
@@ -119,7 +119,7 @@
       "relativeImports": 24
     },
     "packages/core/src/core/context.ts": {
-      "lines": 855,
+      "lines": 870,
       "relativeImports": 13
     },
     "packages/core/src/execution/autonomy-brain.ts": {
@@ -171,7 +171,7 @@
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1027,
+      "lines": 1045,
       "relativeImports": 36
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
@@ -250,12 +250,16 @@
       "lines": 811,
       "relativeImports": 7
     },
+    "packages/tools/src/codebase-index/dead-code-scan.ts": {
+      "lines": 878,
+      "relativeImports": 13
+    },
     "packages/tools/src/codebase-index/project-server-client.ts": {
       "lines": 838,
       "relativeImports": 4
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1153,
+      "lines": 1187,
       "relativeImports": 15
     },
     "packages/tools/src/kanban.ts": {
@@ -267,7 +271,7 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 808,
+      "lines": 810,
       "relativeImports": 11
     },
     "packages/tui/src/app.tsx": {
@@ -339,11 +343,11 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1000,
+      "lines": 1001,
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
-      "lines": 981,
+      "lines": 1006,
       "relativeImports": 18
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
@@ -415,7 +419,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1031,
+      "lines": 1057,
       "relativeImports": 8
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -423,7 +427,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 827,
+      "lines": 828,
       "relativeImports": 10
     },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
