@@ -1,18 +1,18 @@
-import { ArrowRight, Lightbulb, MousePointerClick, Timer } from 'lucide-react';
-import type React from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
 import {
-  type ParseNextStepsResult,
   type ParsedNextStep as NextStep,
+  type ParseNextStepsResult,
   parseNextSteps,
   stripNextStepsBlock,
 } from '@wrongstack/tools/next-steps';
+import { ArrowRight, Check, Lightbulb, MousePointerClick, Timer } from 'lucide-react';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 
+export type { NextStep, ParseNextStepsResult };
 // Re-export the shared parser functions and types for back-compat with
 // downstream consumers that import them from this file.
 export { parseNextSteps, stripNextStepsBlock };
-export type { NextStep, ParseNextStepsResult };
 
 /**
  * Fill the chat input textarea with the given text.
@@ -39,15 +39,20 @@ function AutoCountdown({
   onComplete: () => void;
 }): React.ReactElement {
   const [remaining, setRemaining] = useState(Math.ceil(delayMs / 1000));
+  // Hold onComplete in a ref to decouple the timer effect from unstable
+  // callback references. The parent re-renders frequently (Zustand selectors
+  // return new arrays), which would otherwise cancel the timer on every tick.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (remaining <= 0) {
-      onComplete();
+      onCompleteRef.current();
       return;
     }
     const timer = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(timer);
-  }, [remaining, onComplete]);
+  }, [remaining]);
 
   return (
     <span className="flex items-center gap-1 text-xs text-primary font-medium">
@@ -87,15 +92,17 @@ function SessionEndFillCountdown({
   onComplete: () => void;
 }): React.ReactElement {
   const [remaining, setRemaining] = useState(seconds);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (remaining <= 0) {
-      onComplete();
+      onCompleteRef.current();
       return;
     }
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(t);
-  }, [remaining, onComplete]);
+  }, [remaining]);
 
   return (
     <span className="flex items-center gap-1 text-xs text-primary font-medium">
@@ -116,6 +123,8 @@ export function NextStepsBar({
   sessionEndAutoFill = false,
   /** Override the default 5s countdown for session-end auto-fill */
   sessionEndAutoFillSeconds = SESSION_END_FILL_SECONDS,
+  isLatest = true,
+  onBatchSubmit,
 }: {
   steps: NextStep[];
   /** Whether YOLO mode is active */
@@ -132,8 +141,30 @@ export function NextStepsBar({
   sessionEndAutoFill?: boolean;
   /** Override the default countdown seconds for session-end auto-fill */
   sessionEndAutoFillSeconds?: number;
+  /** Whether this bar belongs to the latest assistant message. When false,
+   *  the session-end auto-fill listener is suppressed to prevent duplicate
+   *  handler registration across multiple bars. */
+  isLatest?: boolean;
+  /** Callback to submit multiple selected step texts together (bypasses refine) */
+  onBatchSubmit?: (texts: string[]) => void;
 }): React.ReactElement | null {
   const { t } = useAppTranslation();
+
+  // ── Multi-select state ──────────────────────────────────────────────
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const toggleIndex = useCallback((idx: number) => {
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }, []);
+  const hasSelection = selectedIndices.size > 0;
+  const batchTexts = useMemo(
+    () => steps.filter((s) => selectedIndices.has(s.index)).map((s) => s.text),
+    [steps, selectedIndices],
+  );
 
   // ── Session-end auto-fill countdown ──────────────────────────────────
   // Listens for the custom event dispatched after the completion chime and
@@ -142,6 +173,7 @@ export function NextStepsBar({
   const [autoFillActive, setAutoFillActive] = useState(false);
   const autoFillFired = useRef(false);
   useEffect(() => {
+    if (!isLatest || !sessionEndAutoFill) return;
     if (autoFillActive || autoFillFired.current) return;
     const handler = () => {
       if (steps.length > 0) {
@@ -151,14 +183,13 @@ export function NextStepsBar({
     };
     document.addEventListener('chat:next-step-countdown', handler);
     return () => document.removeEventListener('chat:next-step-countdown', handler);
-  }, [steps.length, autoFillActive]);
+  }, [steps.length, autoFillActive, isLatest, sessionEndAutoFill]);
 
   const handleAutoFill = useCallback(() => {
     if (steps.length > 0) {
       const step = steps[0]!;
-      // If the first step is marked auto, submit it directly via onAutoSubmit
-      // (which sends via WS, bypassing the refine/enhance panel). Otherwise,
-      // fill the input so the user can review and press Enter.
+      // Only auto-submit when the first step carries the auto="true" marker.
+      // Without the marker, fall back to filling the input even in auto mode.
       if (step.auto && onAutoSubmit) {
         onAutoSubmit(step.text);
       } else {
@@ -168,11 +199,25 @@ export function NextStepsBar({
     setAutoFillActive(false);
   }, [steps, onAutoSubmit]);
 
+  // Clear multi-selection when steps structurally change (new response, new indices).
+  // Use a structural key to avoid Zalgo — step objects are new refs on every render
+  // from Zustand selectors, but only a different count or different index=text pairs
+  // means the user should lose their selection.
+  // NOTE: must be before the early return so hooks run unconditionally (rules-of-hooks).
+  const stepsKey = steps.map((s) => `${s.index}:${s.text}`).join('|');
+  useEffect(() => {
+    setSelectedIndices(new Set());
+  }, [stepsKey]);
+
   if (steps.length === 0) return null;
 
   // Don't show YOLO countdown if the consecutive auto-submit cap has been reached
   const showAutoCountdown = yoloMode && autoMode && canAutoSubmitProp;
   const autoStep = showAutoCountdown ? steps.find((s) => s.auto) : undefined;
+
+  // When auto mode is active but no step carries the auto="true" marker,
+  // we still want the user to notice that auto mode is engaged.
+  const autoModeUnmet = autoMode && !steps.some((s) => s.auto);
 
   return (
     <div className="mt-4 rounded-xl border border-primary/20 bg-primary/[0.03] overflow-hidden animate-message">
@@ -181,25 +226,58 @@ export function NextStepsBar({
         <span className="flex items-center justify-center w-5 h-5 rounded-md bg-primary/15 text-primary">
           <Lightbulb className="h-3 w-3" />
         </span>
-        <span className="text-xs font-semibold text-foreground/90">{t('activity:nextSteps.header')}</span>
+        <span className="text-xs font-semibold text-foreground/90">
+          {t('activity:nextSteps.header', 'Suggestions')}
+        </span>
         {autoFillActive ? (
           <span className="ml-auto flex items-center gap-1 text-xs text-primary font-medium">
             {steps[0]?.auto && onAutoSubmit
-              ? t('activity:nextSteps.autoSubmitting')
+              ? t('activity:nextSteps.autoSubmitting', 'Auto-submitting in')
               : t('activity:nextSteps.autoFilling', 'Filling in')}{' '}
-            <SessionEndFillCountdown seconds={sessionEndAutoFillSeconds} onComplete={handleAutoFill} />
+            <SessionEndFillCountdown
+              seconds={sessionEndAutoFillSeconds}
+              onComplete={handleAutoFill}
+            />
           </span>
         ) : showAutoCountdown && autoStep ? (
           <span className="ml-auto flex items-center gap-1 text-xs text-primary">
             <Timer className="h-3 w-3" />
-            {t('activity:nextSteps.autoSubmitting')} <AutoCountdown delayMs={autoDelayMs} onComplete={() => onAutoSubmit?.(autoStep.text)} />
+            {t('activity:nextSteps.autoSubmitting', 'Auto-submitting in')}{' '}
+            <AutoCountdown delayMs={autoDelayMs} onComplete={() => onAutoSubmit?.(autoStep.text)} />
           </span>
         ) : (
           <span className="text-[10px] text-muted-foreground ml-auto">
-            {t('activity:nextSteps.clickToFill')}
+            {autoModeUnmet ? (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-accent2">
+                <Timer className="h-3 w-3" />
+                {t('activity:nextSteps.autoModeIdle', 'Auto — waiting for auto="true" marker')}
+              </span>
+            ) : (
+              t('activity:nextSteps.clickToFill', 'Click to fill')
+            )}
           </span>
         )}
       </div>
+
+      {/* ── Multi-select batch submit bar ── */}
+      {hasSelection && onBatchSubmit && batchTexts.length > 0 && (
+        <div className="flex items-center justify-end gap-2 px-3.5 py-1.5 border-b border-primary/10 bg-primary/[0.06]">
+          <span className="text-xs text-muted-foreground">
+            {t('activity:nextSteps.nSelected', '{{n}} selected', { n: batchTexts.length })}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              onBatchSubmit(batchTexts);
+              setSelectedIndices(new Set());
+            }}
+            className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <ArrowRight className="h-3 w-3" />
+            {t('activity:nextSteps.submitN', 'Submit {{n}}', { n: batchTexts.length })}
+          </button>
+        </div>
+      )}
 
       {/* ── Steps ── */}
       <div className="flex flex-col p-2 gap-1">
@@ -207,40 +285,58 @@ export function NextStepsBar({
           const isAutoSelected = autoFillActive
             ? s.index === steps[0]?.index
             : showAutoCountdown && s.auto;
+          const isSelected = selectedIndices.has(s.index);
           return (
             <button
               key={s.index}
               type="button"
-              onClick={() => fillInput(s.text)}
+              aria-pressed={onBatchSubmit ? isSelected : undefined}
+              onClick={onBatchSubmit ? () => toggleIndex(s.index) : () => fillInput(s.text)}
               className={`group flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg transition-all border ${
-                isAutoSelected
-                  ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
-                  : 'border-transparent hover:bg-primary/[0.08] hover:shadow-sm hover:border-primary/20'
+                isSelected
+                  ? 'bg-accent2/10 border-accent2/40 ring-1 ring-accent2/30'
+                  : isAutoSelected
+                    ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
+                    : 'border-transparent hover:bg-primary/[0.08] hover:shadow-sm hover:border-primary/20'
               }`}
-              title={t('activity:nextSteps.clickToFillTitle', { text: s.text })}
+              title={
+                onBatchSubmit
+                  ? isSelected
+                    ? t('activity:nextSteps.deselectTitle', 'Deselect')
+                    : t('activity:nextSteps.selectTitle', 'Select for batch submit')
+                  : t('activity:nextSteps.clickToFillTitle', { text: s.text })
+              }
             >
-              {/* Index badge */}
+              {/* Index badge + checkmark */}
               <span
                 className={`flex items-center justify-center w-5 h-5 rounded-md text-[11px] font-mono font-semibold tabular-nums shrink-0 transition-colors ${
-                  isAutoSelected
-                    ? 'bg-primary/30 text-primary'
-                    : 'bg-muted/80 group-hover:bg-primary/20 text-muted-foreground group-hover:text-primary'
+                  isSelected
+                    ? 'bg-accent2/30 text-accent2'
+                    : isAutoSelected
+                      ? 'bg-primary/30 text-primary'
+                      : 'bg-muted/80 group-hover:bg-primary/20 text-muted-foreground group-hover:text-primary'
                 }`}
               >
-                {s.index}
+                {isSelected ? <Check className="h-3 w-3" /> : s.index}
               </span>
               {/* Arrow */}
               <ArrowRight
                 className={`h-3.5 w-3.5 shrink-0 transition-all ${
-                  isAutoSelected
-                    ? 'text-primary'
-                    : 'text-muted-foreground/75 group-hover:text-primary group-hover:translate-x-0.5'
+                  isSelected
+                    ? 'text-accent2'
+                    : isAutoSelected
+                      ? 'text-primary'
+                      : 'text-muted-foreground/75 group-hover:text-primary group-hover:translate-x-0.5'
                 }`}
               />
               {/* Text */}
               <span
                 className={`text-sm leading-snug flex-1 min-w-0 transition-colors ${
-                  isAutoSelected ? 'text-foreground font-medium' : 'text-foreground/80 group-hover:text-foreground'
+                  isSelected
+                    ? 'text-accent2 font-medium'
+                    : isAutoSelected
+                      ? 'text-foreground font-medium'
+                      : 'text-foreground/80 group-hover:text-foreground'
                 }`}
               >
                 {s.text}
@@ -249,19 +345,25 @@ export function NextStepsBar({
               {s.auto && (
                 <span className="flex items-center gap-1 text-[10px] text-primary/70">
                   {autoMode && s.index === 1 && !showAutoCountdown ? (
-                    <span title={t('activity:nextSteps.willAutoSubmit')}>⏩</span>
+                    <span title={t('activity:nextSteps.willAutoSubmit', 'Will auto-submit')}>
+                      ⏩
+                    </span>
                   ) : (
                     <Timer className="h-3 w-3" />
                   )}
-                  {t('activity:nextSteps.auto')}
+                  {t('activity:nextSteps.auto', 'Auto')}
                 </span>
               )}
-              {/* Click indicator — visible on hover */}
-              <MousePointerClick
-                className={`h-3.5 w-3.5 shrink-0 transition-all ${
-                  isAutoSelected ? 'opacity-100 text-primary/60' : 'opacity-0 group-hover:opacity-100 text-primary/60'
-                }`}
-              />
+              {/* Click indicator — visible on hover for unselected items; hidden on selected items where the checkmark badge already communicates selection state */}
+              {!isSelected && (
+                <MousePointerClick
+                  className={`h-3.5 w-3.5 shrink-0 transition-all ${
+                    isAutoSelected
+                      ? 'opacity-100 text-primary/60'
+                      : 'opacity-0 group-hover:opacity-100 text-primary/60'
+                  }`}
+                />
+              )}
             </button>
           );
         })}
@@ -275,6 +377,5 @@ export function NextStepsBar({
  * result, including the steps array and the content with the block stripped.
  */
 export function useNextSteps(content: string): ParseNextStepsResult {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return parseNextSteps(content);
+  return useMemo(() => parseNextSteps(content), [content]);
 }

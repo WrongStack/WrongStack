@@ -31,10 +31,7 @@ import { ErrorBodyWithStack } from './ErrorBody.js';
 import { LazyMarkdown as ReactMarkdown } from './LazyMarkdown.js';
 import { StreamingMarkdown } from './StreamingMarkdown.js';
 import { ToolLedgerCard } from './ToolLedgerCard.js';
-import {
-  markdownComponents,
-  rehypePlugins,
-} from './utils.js';
+import { markdownComponents, rehypePlugins } from './utils.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -129,6 +126,21 @@ export const MessageBubble = memo(function MessageBubble({
     client.sendMessage(text);
     // Clear the input field after auto-submitting, matching the behaviour
     // of the normal form submission path in ChatInput.
+    fillInput('');
+  };
+
+  /** Batch-submit callback for multi-select: joins selected step texts and
+   *  sends as a single user message, bypassing the refine/enhance panel. */
+  const handleBatchSubmit = (texts: string[]) => {
+    const combined = texts.join('\n');
+    const client = getWSClient(wsUrl);
+    if (!client.isConnected) {
+      toast.error(t('common:status.notConnectedRetry'));
+      return;
+    }
+    addMessage({ role: 'user', content: combined });
+    setLoading(true);
+    client.sendMessage(combined);
     fillInput('');
   };
 
@@ -328,170 +340,172 @@ export const MessageBubble = memo(function MessageBubble({
             )}
           >
             {editing && isUser ? (
-            <div className="flex flex-col gap-2 min-w-[280px]">
-              <textarea
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    cancelEdit();
-                  } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    saveEdit();
-                  }
-                }}
-                rows={Math.min(8, Math.max(2, editValue.split('\n').length))}
-                className="w-full resize-none rounded-md border bg-background text-foreground px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] text-primary-foreground/60">
-                  {t('activity:message.editHint')}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    className="text-xs px-2 py-0.5 rounded border border-primary-foreground/30 hover:bg-primary-foreground/10"
-                  >
-                    {t('common:action.cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveEdit}
-                    disabled={!editValue.trim()}
-                    className="text-xs px-2 py-0.5 rounded bg-primary-foreground text-primary disabled:opacity-50"
-                  >
-                    {t('activity:message.saveResend')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : message.thinkingLog && showThinkingLogs ? (
-            (() => {
-              const log = message.thinkingLog;
-              const lineCount = log.text.split('\n').length;
-              const seconds = Math.max(0.1, log.durationMs / 1000);
-              const durationLabel = log.replayed
-                ? t('activity:message.replay')
-                : `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
-              const preview = log.text.split('\n').slice(-4).join('\n').trim();
-              return (
-                <div className="ws-reasoning min-w-0 max-w-full py-0.5 sm:max-w-[720px]">
-                  <button
-                    type="button"
-                    onClick={() => setThinkingExpanded((v) => !v)}
-                    className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 text-left font-mono text-xs"
-                    aria-expanded={thinkingExpanded}
-                  >
-                    <span className="ws-reasoning__mark text-sm leading-none" aria-hidden>
-                      ✦
-                    </span>
-                    <span className="font-semibold uppercase tracking-wide text-primary">
-                      {t('activity:message.thinkingProcess')}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/70">
-                      {t('activity:message.thinkingMeta', {
-                        iter: log.iteration,
-                        dur: durationLabel,
-                        lines: t('activity:message.linesSuffix', { count: lineCount }),
-                      })}
-                    </span>
-                    <span className="ml-auto text-muted-foreground/60">
-                      {thinkingExpanded ? (
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      )}
-                    </span>
-                  </button>
-                  <pre
-                    className={cn(
-                      'mt-1.5 whitespace-pre-wrap break-words font-mono text-xs italic leading-relaxed text-foreground/65',
-                      thinkingExpanded ? 'max-h-[32rem] overflow-auto' : 'max-h-24 overflow-hidden',
-                    )}
-                  >
-                    {thinkingExpanded ? log.text : preview || log.text}
-                  </pre>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <CopyButton
-                      text={log.text}
-                      label={t('activity:message.copyLog')}
-                      className="text-[10px] text-muted-foreground/60 opacity-70 transition-opacity hover:opacity-100"
-                    />
-                    {!thinkingExpanded && lineCount > 4 && (
-                      <button
-                        type="button"
-                        onClick={() => setThinkingExpanded(true)}
-                        className="text-[10px] text-muted-foreground/70 transition-colors hover:text-foreground"
-                      >
-                        {t('activity:message.showFullLog')}
-                      </button>
-                    )}
+              <div className="flex flex-col gap-2 min-w-[280px]">
+                <textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      cancelEdit();
+                    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      saveEdit();
+                    }
+                  }}
+                  rows={Math.min(8, Math.max(2, editValue.split('\n').length))}
+                  className="w-full resize-none rounded-md border bg-background text-foreground px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-primary-foreground/60">
+                    {t('activity:message.editHint')}
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="text-xs px-2 py-0.5 rounded border border-primary-foreground/30 hover:bg-primary-foreground/10"
+                    >
+                      {t('common:action.cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={!editValue.trim()}
+                      className="text-xs px-2 py-0.5 rounded bg-primary-foreground text-primary disabled:opacity-50"
+                    >
+                      {t('activity:message.saveResend')}
+                    </button>
                   </div>
                 </div>
-              );
-            })()
-          ) : (
-            (() => {
-              // When model reasoning is off and the message only has a
-              // thinking log with no visible content, hide the entire block.
-              if (hideEmptyReasoning) return null;
+              </div>
+            ) : message.thinkingLog && showThinkingLogs ? (
+              (() => {
+                const log = message.thinkingLog;
+                const lineCount = log.text.split('\n').length;
+                const seconds = Math.max(0.1, log.durationMs / 1000);
+                const durationLabel = log.replayed
+                  ? t('activity:message.replay')
+                  : `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
+                const preview = log.text.split('\n').slice(-4).join('\n').trim();
+                return (
+                  <div className="ws-reasoning min-w-0 max-w-full py-0.5 sm:max-w-[720px]">
+                    <button
+                      type="button"
+                      onClick={() => setThinkingExpanded((v) => !v)}
+                      className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 text-left font-mono text-xs"
+                      aria-expanded={thinkingExpanded}
+                    >
+                      <span className="ws-reasoning__mark text-sm leading-none" aria-hidden>
+                        ✦
+                      </span>
+                      <span className="font-semibold uppercase tracking-wide text-primary">
+                        {t('activity:message.thinkingProcess')}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/70">
+                        {t('activity:message.thinkingMeta', {
+                          iter: log.iteration,
+                          dur: durationLabel,
+                          lines: t('activity:message.linesSuffix', { count: lineCount }),
+                        })}
+                      </span>
+                      <span className="ml-auto text-muted-foreground/60">
+                        {thinkingExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                    </button>
+                    <pre
+                      className={cn(
+                        'mt-1.5 whitespace-pre-wrap break-words font-mono text-xs italic leading-relaxed text-foreground/65',
+                        thinkingExpanded
+                          ? 'max-h-[32rem] overflow-auto'
+                          : 'max-h-24 overflow-hidden',
+                      )}
+                    >
+                      {thinkingExpanded ? log.text : preview || log.text}
+                    </pre>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <CopyButton
+                        text={log.text}
+                        label={t('activity:message.copyLog')}
+                        className="text-[10px] text-muted-foreground/60 opacity-70 transition-opacity hover:opacity-100"
+                      />
+                      {!thinkingExpanded && lineCount > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => setThinkingExpanded(true)}
+                          className="text-[10px] text-muted-foreground/70 transition-colors hover:text-foreground"
+                        >
+                          {t('activity:message.showFullLog')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              (() => {
+                // When model reasoning is off and the message only has a
+                // thinking log with no visible content, hide the entire block.
+                if (hideEmptyReasoning) return null;
 
-              // For assistant output, the canonical <nextsteps> block was
-              // already stripped from message.content at finalization time
-              // (chat-store.finalizeMessage), so renderedContent is simply
-              // message.content. The parsed steps render as a separate
-              // <NextStepsBar> below the bubble, reading from message.nextSteps.
-              const renderedContent = message.content;
-              const hasAttachments = !!message.attachments && message.attachments.length > 0;
-              return (
-                <div
-                  className={cn(
-                    'text-sm leading-relaxed markdown-content',
-                    message.streaming && 'streaming-cursor',
-                  )}
-                >
-                  {hasAttachments && (
-                    <AttachmentGallery
-                      attachments={message.attachments ?? []}
-                      notRetainedLabel={t('activity:message.imageNotRetained')}
-                    />
-                  )}
-                  {renderedContent ? (
-                    showRaw && message.role === 'assistant' ? (
-                      <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground/90 max-h-[40rem] overflow-auto">
-                        {message.content}
-                      </pre>
-                    ) : message.role === 'assistant' && message.isError ? (
-                      <ErrorBodyWithStack text={message.content} />
+                // For assistant output, the canonical <nextsteps> block was
+                // already stripped from message.content at finalization time
+                // (chat-store.finalizeMessage), so renderedContent is simply
+                // message.content. The parsed steps render as a separate
+                // <NextStepsBar> below the bubble, reading from message.nextSteps.
+                const renderedContent = message.content;
+                const hasAttachments = !!message.attachments && message.attachments.length > 0;
+                return (
+                  <div
+                    className={cn(
+                      'text-sm leading-relaxed markdown-content',
+                      message.streaming && 'streaming-cursor',
+                    )}
+                  >
+                    {hasAttachments && (
+                      <AttachmentGallery
+                        attachments={message.attachments ?? []}
+                        notRetainedLabel={t('activity:message.imageNotRetained')}
+                      />
+                    )}
+                    {renderedContent ? (
+                      showRaw && message.role === 'assistant' ? (
+                        <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground/90 max-h-[40rem] overflow-auto">
+                          {message.content}
+                        </pre>
+                      ) : message.role === 'assistant' && message.isError ? (
+                        <ErrorBodyWithStack text={message.content} />
+                      ) : message.streaming ? (
+                        // While streaming, avoid re-parsing the whole growing
+                        // message through remark on every frame — see
+                        // StreamingMarkdown for the stable-prefix strategy.
+                        <StreamingMarkdown text={renderedContent} />
+                      ) : (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={rehypePlugins}
+                          components={markdownComponents}
+                        >
+                          {renderedContent}
+                        </ReactMarkdown>
+                      )
                     ) : message.streaming ? (
-                      // While streaming, avoid re-parsing the whole growing
-                      // message through remark on every frame — see
-                      // StreamingMarkdown for the stable-prefix strategy.
-                      <StreamingMarkdown text={renderedContent} />
-                    ) : (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={rehypePlugins}
-                        components={markdownComponents}
-                      >
-                        {renderedContent}
-                      </ReactMarkdown>
-                    )
-                  ) : message.streaming ? (
-                    <span className="inline-block animate-pulse text-muted-foreground">
-                      {t('activity:message.typing')}
-                    </span>
-                  ) : hasAttachments ? null : (
-                    <span className="text-muted-foreground italic">
-                      {t('activity:message.noContent')}
-                    </span>
-                  )}
-                </div>
-              );
-            })()
-          )}
+                      <span className="inline-block animate-pulse text-muted-foreground">
+                        {t('activity:message.typing')}
+                      </span>
+                    ) : hasAttachments ? null : (
+                      <span className="text-muted-foreground italic">
+                        {t('activity:message.noContent')}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()
+            )}
           </div>
         )}
 
@@ -515,6 +529,9 @@ export const MessageBubble = memo(function MessageBubble({
             autoDelayMs={localPrefs.autonomyDelayMs}
             onAutoSubmit={handleAutoSubmit}
             canAutoSubmit={canAutoSubmitNow}
+            onBatchSubmit={handleBatchSubmit}
+            isLatest={isLatestAssistant}
+            sessionEndAutoFill={true}
           />
         )}
 

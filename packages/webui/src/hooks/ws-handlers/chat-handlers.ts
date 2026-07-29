@@ -239,10 +239,7 @@ export function handleRunResult(msg: WSServerMessage) {
     let lastRunAssistant: (typeof messages)[number] | undefined;
     for (let i = messages.length - 1; i >= 0; i--) {
       const candidate = messages[i];
-      if (
-        candidate?.role === 'assistant' &&
-        (!runStart || candidate.timestamp >= runStart.at)
-      ) {
+      if (candidate?.role === 'assistant' && (!runStart || candidate.timestamp >= runStart.at)) {
         lastRunAssistant = candidate;
         break;
       }
@@ -339,6 +336,26 @@ export function handleRunResult(msg: WSServerMessage) {
         }
       : {}),
   });
+
+  // ── Mode-aware dispatch ──────────────────────────────────────────────
+  // 'btw' messages ride alongside the running agent via the mailbox
+  // system — they are injected into context on the next iteration without
+  // starting a new run. 'queue' (the default) sends as a regular
+  // user_message, starting a fresh run after the current one finishes.
+  if (next.mode === 'btw') {
+    client.sendMailboxMessage({
+      type: 'btw',
+      to: 'leader',
+      subject: 'btw from WebUI',
+      body: next.text,
+      priority: 'normal',
+      audience: 'all',
+    });
+    // Don't set loading — we're not starting a run, the mailbox
+    // injection will fold into the existing run's next iteration.
+    return;
+  }
+
   useChatStore.getState().setLoading(true);
   client.sendMessage(next.text, images.length > 0 ? toWireImages(images) : undefined);
 }

@@ -10,12 +10,13 @@ import {
   PanelLeftOpen,
   Pencil,
   Terminal,
-  Zap,
   Wand2,
+  Zap,
 } from 'lucide-react';
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VList, type VListHandle } from 'virtua';
 import { useShallow } from 'zustand/react/shallow';
+import { MemoryInjectorTrace } from '@/components/MemoryManager/MemoryInjectorTrace';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -32,10 +33,9 @@ import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextFillBar } from '../ContextBar';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
-import { ContextWindowEditor } from '../context-editor/ContextWindowEditor';
-import { MemoryInjectorTrace } from '@/components/MemoryManager/MemoryInjectorTrace';
 import { ContextModePicker } from '../ContextModePicker';
 import { CostChip } from '../CostChip';
+import { ContextWindowEditor } from '../context-editor/ContextWindowEditor';
 import { MessageBubble } from '../MessageBubble';
 import { ModePicker } from '../ModePicker';
 import { ProviderWaitingRoom } from '../ProviderWaitingRoom';
@@ -276,6 +276,8 @@ export function ChatView() {
   // Collapsed input: when there's an active session, the input area shrinks
   // to a thin bar. Click to expand. Initialised true when messages exist.
   const [inputCollapsed, setInputCollapsed] = useState(messages.length > 0);
+  // Track previous loading state so we can detect the true→false transition.
+  const prevLoading = useRef(isLoading);
 
   // Context breakdown modal
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -310,6 +312,16 @@ export function ChatView() {
       document.removeEventListener('chat:next-step-countdown', handler);
     };
   }, []);
+
+  // Auto-expand input when a response finishes (loading true→false).
+  // This covers "response arrives" and "stream completes" — the user is
+  // ready to type the next message.
+  useEffect(() => {
+    if (prevLoading.current && !isLoading) {
+      setInputCollapsed(false);
+    }
+    prevLoading.current = isLoading;
+  }, [isLoading, setInputCollapsed]);
 
   // Context window usage: cap display at 100%; raw token counts still show overflow.
   const ctxPct =
@@ -924,14 +936,24 @@ export function ChatView() {
                   <span className="opacity-20 grow min-w-[1rem]" />
                   <div className="flex items-center gap-3 tabular-nums text-[10px] text-muted-foreground/70 shrink-0">
                     {totalTokens.input > 0 && (
-                      <span className="flex items-center gap-1" title={`${totalTokens.input.toLocaleString()} tokens in`}>
-                        <span className="font-medium text-foreground/80">{fmtTok(totalTokens.input)}</span>
+                      <span
+                        className="flex items-center gap-1"
+                        title={`${totalTokens.input.toLocaleString()} tokens in`}
+                      >
+                        <span className="font-medium text-foreground/80">
+                          {fmtTok(totalTokens.input)}
+                        </span>
                         <span className="text-[9px]">in</span>
                       </span>
                     )}
                     {totalTokens.output > 0 && (
-                      <span className="flex items-center gap-1" title={`${totalTokens.output.toLocaleString()} tokens out`}>
-                        <span className="font-medium text-foreground/80">{fmtTok(totalTokens.output)}</span>
+                      <span
+                        className="flex items-center gap-1"
+                        title={`${totalTokens.output.toLocaleString()} tokens out`}
+                      >
+                        <span className="font-medium text-foreground/80">
+                          {fmtTok(totalTokens.output)}
+                        </span>
                         <span className="text-[9px]">out</span>
                       </span>
                     )}
@@ -942,7 +964,10 @@ export function ChatView() {
                       </span>
                     )}
                     {iteration?.index && (
-                      <span className="flex items-center gap-1 text-primary/70" title="Current iteration">
+                      <span
+                        className="flex items-center gap-1 text-primary/70"
+                        title="Current iteration"
+                      >
                         <span className="font-medium">{iteration.index}</span>
                         <span className="text-[9px]">iter</span>
                       </span>

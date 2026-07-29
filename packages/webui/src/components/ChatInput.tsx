@@ -1,5 +1,5 @@
-import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
+import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { Bell, BookOpen, ListPlus, RotateCw, Send, Sparkles } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -7,27 +7,34 @@ import { useShallow } from 'zustand/react/shallow';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { useChatStore, useConfigStore, useFileReferenceStore, useFileStore, useSessionStore, useUIStore } from '@/stores';
-import { useLocalPrefs } from '@/stores/local-prefs';
+import {
+  useChatStore,
+  useConfigStore,
+  useFileReferenceStore,
+  useFileStore,
+  useSessionStore,
+  useUIStore,
+} from '@/stores';
 import { useAutoSubmitStreak } from '@/stores/auto-submit-streak.js';
 import type { QueueMode } from '@/stores/chat-store';
 import { refsToMarkdown } from '@/stores/file-reference-store.js';
+import { useLocalPrefs } from '@/stores/local-prefs';
+import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
 import { FileMentionPicker, type FileMentionState } from './ChatInput/file-mention-picker.js';
+import { ImageAttachControl } from './ChatInput/image-attach-control.js';
 import { toWireImages } from './ChatInput/image-attachments.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
+import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
 import { detectAtMention, matchSlash, type SlashCommandDef } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
+import { StopControls } from './ChatInput/stop-controls.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
 import { FileReferenceChip } from './FileReferenceChip.js';
 import { parseNextSteps } from './NextStepsBar.js';
 import { PromptLibraryModal } from './PromptLibraryModal.js';
 import { toast } from './Toaster';
 import { Button } from './ui/button';
-import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
-import { ImageAttachControl } from './ChatInput/image-attach-control.js';
-import { StopControls } from './ChatInput/stop-controls.js';
-import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
 export function resolveCancelInput(prev: string, original: string): string {
   return prev.trim() ? prev : original;
 }
@@ -38,24 +45,39 @@ export function ChatInput({
   onOpenBreakdown?: (() => void) | undefined;
 } = {}) {
   const { isLoading, setLoading, addMessage, clearMessages } = useChatStore(
-    useShallow((s) => ({ isLoading: s.isLoading, setLoading: s.setLoading, addMessage: s.addMessage, clearMessages: s.clearMessages })),
+    useShallow((s) => ({
+      isLoading: s.isLoading,
+      setLoading: s.setLoading,
+      addMessage: s.addMessage,
+      clearMessages: s.clearMessages,
+    })),
   );
   const messages = useChatStore((s) => s.messages);
   const openFiles = useFileStore((s) => s.openFiles);
   const chatStarted = messages.length > 0;
-  const queue = useChatStore((s) => s.queue); const enqueue = useChatStore((s) => s.enqueue);
-  const removeQueued = useChatStore((s) => s.removeQueued); const clearQueue = useChatStore((s) => s.clearQueue);
-  const setCurrentView = useUIStore((s) => s.setCurrentView); const setPromptLibraryOpen = useUIStore((s) => s.setPromptLibraryOpen);
-  const pushPrompt = useUIStore((s) => s.pushPrompt); const promptHistory = useUIStore((s) => s.promptHistory);
+  const queue = useChatStore((s) => s.queue);
+  const enqueue = useChatStore((s) => s.enqueue);
+  const removeQueued = useChatStore((s) => s.removeQueued);
+  const clearQueue = useChatStore((s) => s.clearQueue);
+  const setCurrentView = useUIStore((s) => s.setCurrentView);
+  const setPromptLibraryOpen = useUIStore((s) => s.setPromptLibraryOpen);
+  const pushPrompt = useUIStore((s) => s.pushPrompt);
+  const promptHistory = useUIStore((s) => s.promptHistory);
   const ws = useWebSocket();
   const { sendMessage, sendAbort, client, refineModel, updatePrefs } = ws;
   const { t } = useAppTranslation();
-  const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled); const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
-  const refinerModel = useLocalPrefs((s) => s.refinerModel); const refinerFallbackProfile = useLocalPrefs((s) => s.refinerFallbackProfile);
-  const fallbackProfiles = useLocalPrefs((s) => s.fallbackProfiles); const refinePanel = useUIStore((s) => s.refinePanel);
-  const configProvider = useConfigStore((s) => s.provider); const configModel = useConfigStore((s) => s.model);
-  const promptInsertRequest = useUIStore((s) => s.promptInsertRequest); const clearPromptInsert = useUIStore((s) => s.clearPromptInsert);
-  const setRefinePanel = useUIStore((s) => s.setRefinePanel); const setProcessMonitorOpen = useUIStore((s) => s.setProcessMonitorOpen);
+  const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
+  const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
+  const refinerModel = useLocalPrefs((s) => s.refinerModel);
+  const refinerFallbackProfile = useLocalPrefs((s) => s.refinerFallbackProfile);
+  const fallbackProfiles = useLocalPrefs((s) => s.fallbackProfiles);
+  const refinePanel = useUIStore((s) => s.refinePanel);
+  const configProvider = useConfigStore((s) => s.provider);
+  const configModel = useConfigStore((s) => s.model);
+  const promptInsertRequest = useUIStore((s) => s.promptInsertRequest);
+  const clearPromptInsert = useUIStore((s) => s.clearPromptInsert);
+  const setRefinePanel = useUIStore((s) => s.setRefinePanel);
+  const setProcessMonitorOpen = useUIStore((s) => s.setProcessMonitorOpen);
   const setQueuePanelOpen = useUIStore((s) => s.setQueuePanelOpen);
   const { reset: resetAutoSubmitStreak } = useAutoSubmitStreak();
 
@@ -91,13 +113,29 @@ export function ChatInput({
   const { removeRef, clearRefs } = useFileReferenceStore.getState();
   const hasFileRefs = fileRefs.length > 0;
   const {
-    draggingOver, onDragEnter, onDragLeave, onDragOver, onDrop, onTextPaste, pasteHint,
-    pendingImagesRef, pendingImages, addImageFiles, removeImage, clearPendingImages, setPasteHint,
-  } = usePasteDrop({ input, textareaRef, setInput, errorText: {
-    tooManyImages: (max) => t('chat:input.tooManyImages', { max }),
-    imageProcessFailed: (name) => t('chat:input.imageProcessFailed', { name }),
-    imageTooLarge: (name) => t('chat:input.imageTooLarge', { name }),
-  } });
+    draggingOver,
+    onDragEnter,
+    onDragLeave,
+    onDragOver,
+    onDrop,
+    onTextPaste,
+    pasteHint,
+    pendingImagesRef,
+    pendingImages,
+    addImageFiles,
+    removeImage,
+    clearPendingImages,
+    setPasteHint,
+  } = usePasteDrop({
+    input,
+    textareaRef,
+    setInput,
+    errorText: {
+      tooManyImages: (max) => t('chat:input.tooManyImages', { max }),
+      imageProcessFailed: (name) => t('chat:input.imageProcessFailed', { name }),
+      imageTooLarge: (name) => t('chat:input.imageTooLarge', { name }),
+    },
+  });
   const imagePickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,11 +175,30 @@ export function ChatInput({
         handleNextList,
         handleNextSelect,
       }),
-    [addMessage, clearMessages, client, queue, sendAbort, setLoading, setCurrentView, handleToggleEnhance, setProcessMonitorOpen, setQueuePanelOpen, ws, onOpenBreakdown],
+    [
+      addMessage,
+      clearMessages,
+      client,
+      queue,
+      sendAbort,
+      setLoading,
+      setCurrentView,
+      handleToggleEnhance,
+      setProcessMonitorOpen,
+      setQueuePanelOpen,
+      ws,
+      onOpenBreakdown,
+    ],
   );
 
-
-  function stepsFromMessage(m: { content: string; nextSteps?: { steps: Array<{ index: number; text: string }> } | undefined } | undefined): Array<{ index: number; text: string }> {
+  function stepsFromMessage(
+    m:
+      | {
+          content: string;
+          nextSteps?: { steps: Array<{ index: number; text: string }> } | undefined;
+        }
+      | undefined,
+  ): Array<{ index: number; text: string }> {
     if (!m) return [];
     if (m.nextSteps && m.nextSteps.steps.length > 0) {
       return m.nextSteps.steps.map((s) => ({ index: s.index, text: s.text }));
@@ -163,7 +220,8 @@ export function ChatInput({
     return [];
   }
 
-  function sendMsg(content: string) {
+  function sendMsg(content: string, mode?: QueueMode) {
+    const effectiveMode = mode ?? 'queue';
     if (isLoading) {
       const images = pendingImagesRef.current;
       useChatStore.getState().setPendingRefinement(
@@ -188,7 +246,7 @@ export function ChatInput({
       } else {
         useChatStore.getState().setPendingRefinement(null);
         useChatStore.getState().setRefining(false);
-        enqueue(content, 'queue', images.length > 0 ? images : undefined);
+        enqueue(content, effectiveMode, images.length > 0 ? images : undefined);
       }
       return;
     }
@@ -254,7 +312,12 @@ export function ChatInput({
 
   function handleNextList(): true {
     const all = useChatStore.getState().messages;
-    let lastMsg: { content: string; nextSteps?: { steps: Array<{ index: number; text: string }> } | undefined } | undefined;
+    let lastMsg:
+      | {
+          content: string;
+          nextSteps?: { steps: Array<{ index: number; text: string }> } | undefined;
+        }
+      | undefined;
     for (let i = all.length - 1; i >= 0; i--) {
       const m = all[i];
       if (m?.role === 'assistant' && m.content) {
@@ -392,18 +455,21 @@ export function ChatInput({
               : undefined;
             const slash = profileRef?.indexOf('/') ?? -1;
             const displayedProvider = profileRef
-              ? slash > 0 ? profileRef.slice(0, slash) : configProvider
+              ? slash > 0
+                ? profileRef.slice(0, slash)
+                : configProvider
               : refinerProvider || configProvider;
             const displayedModel = profileRef
-              ? slash > 0 ? profileRef.slice(slash + 1) : profileRef
+              ? slash > 0
+                ? profileRef.slice(slash + 1)
+                : profileRef
               : refinerModel || configModel;
             setRefinePanel({
               original: combined,
               refined: combined, // Will be replaced when backend responds
               english: combined,
               status: 'countdown',
-              resolve: (_decision) => {
-              },
+              resolve: (_decision) => {},
               provider: displayedProvider,
               model: displayedModel,
             });
@@ -746,19 +812,21 @@ export function ChatInput({
 
       {/* When the user toggles enhance OFF while a refine panel is open,
           close the panel and send the original text immediately. */}
-      {refinePanel && !enhanceEnabled && (() => {
-        const panel = refinePanel;
-        setRefinePanel(null);
-        if (client?.isConnected) {
-          addMessage({ role: 'user', content: panel.original });
-          setLoading(true);
-          sendMessage(panel.original);
-        } else {
-          setInput(panel.original);
-          toast.error(t('chat:input.notConnectedDraftKept'));
-        }
-        return null;
-      })()}
+      {refinePanel &&
+        !enhanceEnabled &&
+        (() => {
+          const panel = refinePanel;
+          setRefinePanel(null);
+          if (client?.isConnected) {
+            addMessage({ role: 'user', content: panel.original });
+            setLoading(true);
+            sendMessage(panel.original);
+          } else {
+            setInput(panel.original);
+            toast.error(t('chat:input.notConnectedDraftKept'));
+          }
+          return null;
+        })()}
 
       <ChatInputRefinePanelHost
         enhanceEnabled={enhanceEnabled}
@@ -919,7 +987,8 @@ export function ChatInput({
               }}
               className={cn(
                 'h-[44px] w-[44px] shrink-0 rounded-md transition-colors',
-                enhanceEnabled && 'bg-warning/20 hover:bg-warning/30 text-warning border-warning/50',
+                enhanceEnabled &&
+                  'bg-warning/20 hover:bg-warning/30 text-warning border-warning/50',
               )}
               title={
                 enhanceEnabled

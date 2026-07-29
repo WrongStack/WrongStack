@@ -1,9 +1,8 @@
-import { safeId } from '@/lib/utils';
 import {
   createSurfaceConnectionState,
+  DEFAULT_SURFACE_CONNECTION_CONFIG,
   decodeProtocolFrame,
   decodeProtocolMessage,
-  DEFAULT_SURFACE_CONNECTION_CONFIG,
   enqueueBounded,
   markConnectionActivity,
   markConnectionConnecting,
@@ -11,9 +10,10 @@ import {
   negotiateProtocol,
   planConnectionReconnect,
   resetConnection,
-  stopConnection,
   type SurfaceConnectionState,
+  stopConnection,
 } from '@wrongstack/webui-server/protocol';
+import { safeId } from '@/lib/utils';
 import type {
   ProviderCustomModelWire,
   WSClientMessage,
@@ -23,13 +23,13 @@ import type {
 } from '../types';
 import type { ContextEditorMessage } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
+import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
+import type { WSSendOptions } from './ws-client-contracts';
 import {
   buildClearModelsMessage,
   buildProviderUpdateMessage,
   buildUndoClearMessage,
 } from './ws-client-helpers';
-import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
-import type { WSSendOptions } from './ws-client-contracts';
 import {
   defaultWsUrl,
   type EventHandler,
@@ -42,10 +42,9 @@ import {
   type WsStatus,
 } from './ws-client-utils';
 
+export type { WSSendOptions } from './ws-client-contracts';
 // Re-export types for backward compat
 export type { WsStatus };
-
-export type { WSSendOptions } from './ws-client-contracts';
 
 const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
   Record<WSClientMessage['type'], WSServerMessage['type']>
@@ -522,8 +521,7 @@ class WrongStackWebSocketClientBase {
       );
       return false;
     }
-    const sessionSwap =
-      message.type === 'session.new' || message.type === 'session.resume';
+    const sessionSwap = message.type === 'session.new' || message.type === 'session.resume';
     if (sessionSwap && this.sessionSwapPending) return false;
     if (sessionSwap) this.sessionSwapPending = true;
     if (options.echoToChat === false) {
@@ -634,6 +632,41 @@ class WrongStackWebSocketClientBase {
       }),
     });
     return id;
+  }
+
+  /** Send a mailbox message of the given type (btw, steer, note, etc.)
+   *  to a target agent/role. Returns the requestId for response tracking. */
+  sendMailboxMessage(opts: {
+    type:
+      | 'note'
+      | 'ask'
+      | 'assign'
+      | 'steer'
+      | 'btw'
+      | 'broadcast'
+      | 'status'
+      | 'result'
+      | 'review';
+    to: string;
+    subject: string;
+    body: string;
+    priority?: 'low' | 'normal' | 'high' | undefined;
+    audience?: 'all' | 'leaders' | undefined;
+  }): string {
+    const requestId = `mbox_${Date.now()}_${safeId().slice(0, 8)}`;
+    this.send({
+      type: 'mailbox.send',
+      payload: {
+        requestId,
+        to: opts.to,
+        type: opts.type,
+        audience: opts.audience ?? 'all',
+        subject: opts.subject,
+        body: opts.body,
+        priority: opts.priority ?? 'normal',
+      },
+    });
+    return requestId;
   }
 
   sendAbort() {
@@ -781,7 +814,10 @@ class WrongStackWebSocketClientBase {
   }
 
   searchProviderModels(query: string, limit?: number) {
-    this.send({ type: 'provider.models.search', payload: { query, ...(limit !== undefined ? { limit } : {}) } });
+    this.send({
+      type: 'provider.models.search',
+      payload: { query, ...(limit !== undefined ? { limit } : {}) },
+    });
   }
 
   addKey(providerId: string, label: string, apiKey: string) {
@@ -808,7 +844,17 @@ class WrongStackWebSocketClientBase {
     models?: string[] | undefined,
     customModels?: Record<string, ProviderCustomModelWire> | undefined,
   ) {
-    this.send({ type: 'provider.add', payload: { id, family, baseUrl, apiKey, ...(models ? { models } : {}), ...(customModels ? { customModels } : {}) } });
+    this.send({
+      type: 'provider.add',
+      payload: {
+        id,
+        family,
+        baseUrl,
+        apiKey,
+        ...(models ? { models } : {}),
+        ...(customModels ? { customModels } : {}),
+      },
+    });
   }
 
   removeProvider(providerId: string) {
@@ -892,11 +938,7 @@ class WrongStackWebSocketClientBase {
     });
   }
 
-  applyContextEditor(
-    baseRevision: string,
-    messages: ContextEditorMessage[],
-    allowRepair: boolean,
-  ) {
+  applyContextEditor(baseRevision: string, messages: ContextEditorMessage[], allowRepair: boolean) {
     this.send({
       type: 'context.editor.apply',
       payload: this.withSession({ baseRevision, messages, allowRepair }),
@@ -990,9 +1032,7 @@ class WrongStackWebSocketClientBase {
 
 installWsClientActionMethods(WrongStackWebSocketClientBase);
 
-export type WrongStackWebSocketClient =
-  & WrongStackWebSocketClientBase
-  & WsClientActionMethods;
+export type WrongStackWebSocketClient = WrongStackWebSocketClientBase & WsClientActionMethods;
 
 interface WrongStackWebSocketClientConstructor {
   new (url?: string): WrongStackWebSocketClient;
