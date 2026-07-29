@@ -146,6 +146,9 @@ export interface SessionDeps {
   mcpRegistry: MCPRegistry;
   mailbox: RemoteMailbox;
   detachTodosCheckpoint?: (() => void | Promise<void>) | undefined;
+  rebindTodosCheckpoint?:
+    | ((sessionId: string, sessionsDir?: string) => void | Promise<void>)
+    | undefined;
   restoredMessages?: Message[] | undefined;
   restoredToolCalls?: RestoredToolCall[] | undefined;
   /** Raw prior-session JSONL events — feeds the canonical resume renderer so

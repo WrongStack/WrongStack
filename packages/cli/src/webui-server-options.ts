@@ -147,6 +147,10 @@ export interface CliWebUIOptions {
         },
       ) => Promise<() => Promise<void>>)
     | undefined;
+  /** Rebind session-scoped todo persistence before a new todo snapshot is installed. */
+  onBeforeSessionTodosReplaced?:
+    | ((newSessionId: string, sessionsDir: string) => void | Promise<void>)
+    | undefined;
   /**
    * Called after session.resume swaps the active writer, with the new session
    * id. Hosts use this to refresh session-scoped integrations.

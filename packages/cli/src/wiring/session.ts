@@ -32,7 +32,9 @@ export interface SessionResult {
   attachments: DefaultAttachmentStore;
   queueStore: QueueStore;
   planPath: string;
-  detachTodosCheckpoint: () => void;
+  detachTodosCheckpoint: () => void | Promise<void>;
+  /** Flush the current todo checkpoint and bind persistence to another session before its todos load. */
+  rebindTodosCheckpoint: (sessionId: string, sessionsDir?: string) => Promise<void>;
   /** Director state checkpoint from the prior run — null if this is not a resume. */
   priorFleetState?: import('@wrongstack/core/storage').DirectorStateSnapshot | undefined;
   /** Tool execution records from the prior session (tool_call_end JSONL events). */
@@ -221,7 +223,12 @@ export async function setupSession(params: {
   const todosCheckpointPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.todos.json');
   if (resumeId) {
     try {
-      const restoredTodos = await loadTodosCheckpoint(todosCheckpointPath, eventsBus, traceId);
+      const restoredTodos = await loadTodosCheckpoint(
+        todosCheckpointPath,
+        eventsBus,
+        traceId,
+        sessionId,
+      );
       if (restoredTodos && restoredTodos.length > 0) {
         context.state.replaceTodos(restoredTodos);
         renderer.writeInfo(
@@ -232,14 +239,47 @@ export async function setupSession(params: {
       /* best-effort */
     }
   }
-  const detachTodosCheckpointOnly = attachTodosCheckpoint(
-    context.state,
-    todosCheckpointPath,
-    sessionId,
-    eventsBus,
-    traceId,
-    loggerParam ? (msg: string) => loggerParam.warn(msg) : undefined,
-  );
+  const checkpointWarning = loggerParam ? (msg: string) => loggerParam.warn(msg) : undefined;
+  let checkpointSessionId = sessionId;
+  let checkpointSessionsDir = wpaths.projectSessions;
+  const attachCheckpoint = (targetSessionId: string, sessionsDir: string) =>
+    attachTodosCheckpoint(
+      context.state,
+      sessionScopedPath(sessionsDir, targetSessionId, '.todos.json'),
+      targetSessionId,
+      eventsBus,
+      traceId,
+      checkpointWarning,
+    );
+  let detachTodosCheckpointOnly = attachCheckpoint(sessionId, checkpointSessionsDir);
+  let checkpointAttached = true;
+  const detachCurrentCheckpoint = async (): Promise<void> => {
+    if (!checkpointAttached) return;
+    checkpointAttached = false;
+    await detachTodosCheckpointOnly();
+  };
+  let checkpointRebindTail = Promise.resolve();
+  const rebindTodosCheckpoint = (
+    nextSessionId: string,
+    sessionsDir = wpaths.projectSessions,
+  ): Promise<void> => {
+    const transition = checkpointRebindTail.then(async () => {
+      if (
+        checkpointAttached &&
+        nextSessionId === checkpointSessionId &&
+        sessionsDir === checkpointSessionsDir
+      ) {
+        return;
+      }
+      await detachCurrentCheckpoint();
+      checkpointSessionId = nextSessionId;
+      checkpointSessionsDir = sessionsDir;
+      detachTodosCheckpointOnly = attachCheckpoint(nextSessionId, sessionsDir);
+      checkpointAttached = true;
+    });
+    checkpointRebindTail = transition.catch(() => undefined);
+    return transition;
+  };
 
   const planPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.plan.json');
   context.state.setMeta('plan.path', planPath);
@@ -255,7 +295,8 @@ export async function setupSession(params: {
   const detachTodosCheckpoint = async () => {
     detachSessionKanbanMirror();
     cacheLedger?.dispose();
-    await detachTodosCheckpointOnly();
+    await checkpointRebindTail;
+    await detachCurrentCheckpoint();
   };
 
   let dirState;
@@ -300,6 +341,7 @@ export async function setupSession(params: {
     queueStore,
     planPath,
     detachTodosCheckpoint,
+    rebindTodosCheckpoint,
     priorFleetState: dirState ?? undefined,
     restoredToolCalls,
     restoredEvents,

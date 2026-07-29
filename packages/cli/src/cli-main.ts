@@ -903,6 +903,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
         queueStore,
         context,
         detachTodosCheckpoint,
+        rebindTodosCheckpoint: sessResult.rebindTodosCheckpoint,
         sessionStore,
         memoryStore,
         modeStore,

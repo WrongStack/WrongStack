@@ -181,6 +181,25 @@ describe('todos-checkpoint', () => {
 
   // ── storage.* event tests ─────────────────────────────────────────────────
 
+  it('detach is idempotent and preserves the final pending checkpoint', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-todos-'));
+    const file = path.join(dir, 'sess.todos.json');
+    try {
+      const ctx = makeContext();
+      const detach = attachTodosCheckpoint(ctx.state, file, 'sess');
+      ctx.state.replaceTodos([{ id: 'final', content: 'persist once', status: 'pending' }]);
+
+      await Promise.all([detach(), detach()]);
+
+      expect(await loadTodosCheckpoint(file)).toEqual([
+        { id: 'final', content: 'persist once', status: 'pending' },
+      ]);
+      await expect(detach()).resolves.toBeUndefined();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('emits storage.read with outcome success when loadTodosCheckpoint finds a valid file', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-todos-'));
     const file = path.join(dir, 'sess.todos.json');
@@ -197,7 +216,16 @@ describe('todos-checkpoint', () => {
         store: 'todos',
         operation: 'load',
         outcome: 'success',
-        sessionId: '~boot~',
+        sessionId: 'sess',
+      }));
+
+      await loadTodosCheckpoint(file, events, 'trace-load', 'sess-explicit');
+      expect(events.emit).toHaveBeenLastCalledWith('storage.read', expect.objectContaining({
+        store: 'todos',
+        operation: 'load',
+        outcome: 'success',
+        sessionId: 'sess-explicit',
+        traceId: 'trace-load',
       }));
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
@@ -243,9 +271,11 @@ describe('todos-checkpoint', () => {
       fs.readFile.mockRejectedValueOnce(
         Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }),
       );
-      const result = await loadTodosCheckpoint(file, events);
+      const result = await loadTodosCheckpoint(file, events, 'trace-load', 'sess-load');
       expect(result).toBeNull();
       expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
+        sessionId: 'sess-load',
+        traceId: 'trace-load',
         store: 'todos',
         operation: 'load',
         outcome: 'failure',
@@ -292,8 +322,11 @@ describe('todos-checkpoint', () => {
         'sess',
         [{ id: 't1', content: 'first', status: 'pending' }],
         events,
+        'trace-save',
       );
       expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
+        sessionId: 'sess',
+        traceId: 'trace-save',
         store: 'todos',
         operation: 'save',
         outcome: 'failure',

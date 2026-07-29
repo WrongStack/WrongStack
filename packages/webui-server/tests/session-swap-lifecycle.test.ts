@@ -5,6 +5,7 @@ import { sessionScopedPath } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
 import { createSessionHandlers } from '../src/server/session-handlers.js';
+import { createStandaloneTodosCheckpointLifecycle } from '../src/server/start-webui.js';
 
 describe('standalone WebUI session swap lifecycle', () => {
   let root: string;
@@ -47,6 +48,96 @@ describe('standalone WebUI session swap lifecycle', () => {
     expect(harness.meta.get('task.path')).toBe(
       sessionScopedPath(sessionsDir, next.id, '.tasks.json'),
     );
+  });
+
+  it('flushes the old todo checkpoint before persisting the new session snapshot', async () => {
+    const old = writer('2026-07-12/sess_old');
+    const next = writer('2026-07-12/sess_new');
+    const oldCheckpointPath = sessionScopedPath(sessionsDir, old.id, '.todos.json');
+    const harness = makeHarness({ root, sessionsDir, current: old, created: next });
+    const checkpoint = createStandaloneTodosCheckpointLifecycle({
+      state: harness.context.state as never,
+      sessionsDir,
+      sessionId: old.id,
+    });
+    harness.setOnBeforeSessionTodosReplaced(checkpoint.rebind);
+
+    harness.context.state.replaceTodos([
+      { id: 'old', content: 'flush to old session', status: 'pending' },
+    ]);
+    await harness.routes.newSession(harness.ws, {
+      type: 'session.new',
+      payload: { sessionId: old.id },
+    });
+    await checkpoint.detach();
+
+    const oldCheckpoint = JSON.parse(await fs.readFile(oldCheckpointPath, 'utf8')) as {
+      sessionId: string;
+      todos: Array<{ id: string }>;
+    };
+    const nextCheckpoint = JSON.parse(
+      await fs.readFile(sessionScopedPath(sessionsDir, next.id, '.todos.json'), 'utf8'),
+    ) as { sessionId: string; todos: Array<{ id: string }> };
+    expect(oldCheckpoint).toMatchObject({ sessionId: old.id, todos: [{ id: 'old' }] });
+    expect(nextCheckpoint).toMatchObject({ sessionId: next.id, todos: [] });
+  });
+
+  it('reattaches a detached checkpoint when rebound to the same session', async () => {
+    const current = writer('2026-07-12/sess_same');
+    const harness = makeHarness({ root, sessionsDir, current });
+    const checkpoint = createStandaloneTodosCheckpointLifecycle({
+      state: harness.context.state as never,
+      sessionsDir,
+      sessionId: current.id,
+    });
+
+    await checkpoint.detach();
+    await checkpoint.rebind(current.id, sessionsDir);
+    harness.context.state.replaceTodos([
+      { id: 'reattached', content: 'persist after reattach', status: 'pending' },
+    ]);
+    await checkpoint.detach();
+
+    const saved = JSON.parse(
+      await fs.readFile(sessionScopedPath(sessionsDir, current.id, '.todos.json'), 'utf8'),
+    ) as { sessionId: string; todos: Array<{ id: string }> };
+    expect(saved).toMatchObject({ sessionId: current.id, todos: [{ id: 'reattached' }] });
+  });
+
+  it('can retry a rebind after the next checkpoint subscription fails', async () => {
+    const handlers = new Set<(change: { kind: string; todos: unknown[] }) => void>();
+    let subscriptionCount = 0;
+    const state = {
+      onChange(handler: (change: { kind: string; todos: unknown[] }) => void) {
+        subscriptionCount += 1;
+        if (subscriptionCount === 2) throw new Error('subscription failed');
+        handlers.add(handler);
+        return () => handlers.delete(handler);
+      },
+      replaceTodos(todos: unknown[]) {
+        for (const handler of handlers) handler({ kind: 'todos_replaced', todos });
+      },
+    };
+    const oldSessionId = '2026-07-12/sess_old';
+    const nextSessionId = '2026-07-12/sess_next';
+    const checkpoint = createStandaloneTodosCheckpointLifecycle({
+      state: state as never,
+      sessionsDir,
+      sessionId: oldSessionId,
+    });
+
+    await expect(checkpoint.rebind(nextSessionId, sessionsDir)).rejects.toThrow(
+      'subscription failed',
+    );
+    await checkpoint.rebind(nextSessionId, sessionsDir);
+    state.replaceTodos([{ id: 'retry', content: 'persist after retry', status: 'pending' }]);
+    await checkpoint.detach();
+
+    const saved = JSON.parse(
+      await fs.readFile(sessionScopedPath(sessionsDir, nextSessionId, '.todos.json'), 'utf8'),
+    ) as { sessionId: string; todos: Array<{ id: string }> };
+    expect(subscriptionCount).toBe(3);
+    expect(saved).toMatchObject({ sessionId: nextSessionId, todos: [{ id: 'retry' }] });
   });
 
   it('aborts the in-flight run before finalizing the old writer on session.new', async () => {
@@ -251,9 +342,13 @@ function makeHarness(input: {
   resumedUsage?: Record<string, number> | undefined;
   abortActiveRun?: (() => void) | undefined;
   claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
+  onBeforeSessionTodosReplaced?:
+    | ((sessionId: string, sessionsDir: string) => void | Promise<void>)
+    | undefined;
 }) {
   let current = input.current;
   const meta = new Map<string, unknown>();
+  const stateChangeHandlers = new Set<(change: { kind: string; todos?: unknown[] }) => void>();
   const context = {
     session: current,
     messages: [],
@@ -262,7 +357,13 @@ function makeHarness(input: {
     lastRealInputTokens: 888,
     state: {
       replaceMessages: vi.fn(),
-      replaceTodos: vi.fn(),
+      replaceTodos: vi.fn((todos: unknown[]) => {
+        for (const handler of stateChangeHandlers) handler({ kind: 'todos_replaced', todos });
+      }),
+      onChange: vi.fn((handler: (change: { kind: string; todos?: unknown[] }) => void) => {
+        stateChangeHandlers.add(handler);
+        return () => stateChangeHandlers.delete(handler);
+      }),
       setMeta: vi.fn((key: string, value: unknown) => meta.set(key, value)),
       deleteMeta: vi.fn((key: string) => meta.delete(key)),
     },
@@ -276,6 +377,7 @@ function makeHarness(input: {
   };
   const onSessionSwapped = vi.fn(async () => undefined);
   const claimSession = input.claimSession ?? vi.fn(async () => async () => undefined);
+  let onBeforeSessionTodosReplaced = input.onBeforeSessionTodosReplaced;
   const ws = {
     readyState: 1,
     sent: [] as Array<{ type: string; payload: unknown }>,
@@ -311,6 +413,8 @@ function makeHarness(input: {
     },
     setSessionStartedAt: vi.fn(),
     claimSession,
+    onBeforeSessionTodosReplaced: (sessionId, targetDir) =>
+      onBeforeSessionTodosReplaced?.(sessionId, targetDir),
     onSessionSwapped,
     abortActiveRun: input.abortActiveRun,
     sessionStartPayload: async () => ({
@@ -337,6 +441,11 @@ function makeHarness(input: {
     store,
     claimSession,
     onSessionSwapped,
+    setOnBeforeSessionTodosReplaced: (
+      callback: (sessionId: string, targetDir: string) => void | Promise<void>,
+    ) => {
+      onBeforeSessionTodosReplaced = callback;
+    },
     meta,
     current: () => current,
   };

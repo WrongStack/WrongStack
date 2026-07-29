@@ -39,6 +39,9 @@ export interface ProjectHandlersContext {
   setSessionStartedAt?: (startedAt: number) => void;
   abortRunLock: () => void;
   abortAllRuns?: () => void;
+  onBeforeSessionTodosReplaced?:
+    | ((sessionId: string, sessionsDir: string) => void | Promise<void>)
+    | undefined;
   onSessionSwapped?: (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>;
   allowProjectMutations?: boolean;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<unknown>;
@@ -176,6 +179,17 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
         });
         const previous = ctx.getSession();
         const previousId = previous.id;
+        const previousProjectRoot = ctx.getProjectRoot();
+        const previousPaths = resolveWstackPaths({
+          projectRoot: previousProjectRoot,
+          globalRoot: ctx.wpaths.globalRoot,
+        });
+        const previousIdentityTarget: SessionIdentityTarget = {
+          projectSlug: previousPaths.projectSlug,
+          projectRoot: previousProjectRoot,
+          projectName: path.basename(previousProjectRoot),
+          workingDir: ctx.context.workingDir,
+        };
         const previousUsage = ctx.tokenCounter.total();
         const config = ctx.getConfig?.() ?? ctx.config;
         const next = await store.create({
@@ -203,7 +217,18 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
         };
         try {
           await ctx.onSessionSwapped?.(next.id, identityTarget);
+          await ctx.onBeforeSessionTodosReplaced?.(next.id, paths.projectSessions);
         } catch (err) {
+          try {
+            await ctx.onBeforeSessionTodosReplaced?.(previous.id, previousPaths.projectSessions);
+          } catch {
+            // Best-effort rollback must continue restoring identity and disposing the fresh writer.
+          }
+          try {
+            await ctx.onSessionSwapped?.(previous.id, previousIdentityTarget);
+          } catch {
+            // Best-effort rollback must still dispose the fresh writer.
+          }
           await next.close().catch(() => undefined);
           await store.delete(next.id).catch(() => undefined);
           throw err;

@@ -282,8 +282,9 @@ describe('setupSession', () => {
     expect(result.context.state.todos.length).toBe(2);
   });
 
-  it('survives missing todos checkpoint silently', async () => {
+  it('survives missing todos checkpoint silently and emits both telemetry identifiers', async () => {
     const renderer = makeRenderer();
+    const events = { emit: vi.fn(), on: vi.fn(() => () => undefined) };
     const sessionStore = makeSessionStore({
       resume: vi.fn().mockResolvedValue({
         writer: makeSessionWriter('resumed-3'),
@@ -305,9 +306,115 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer,
       flags: { resume: 'resumed-3' },
+      events: events as never,
     });
     // No "Restored X todos" message — but the function should have completed.
     expect(renderer.writeError).not.toHaveBeenCalled();
+    expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
+      sessionId: 'resumed-3',
+      traceId: expect.any(String),
+      store: 'todos',
+      operation: 'load',
+    }));
+  });
+
+  it('flushes the old todo checkpoint before rebinding to a new session', async () => {
+    const result = await setupSession({
+      config: { model: 'm', provider: 'p' },
+      wpaths: makeWpaths(),
+      projectRoot: tmp,
+      cwd: tmp,
+      sessionStore: makeSessionStore(),
+      systemPrompt: [],
+      provider: fakeProvider,
+      tokenCounter: fakeTokenCounter,
+      renderer: makeRenderer(),
+      flags: {},
+    });
+
+    result.context.state.replaceTodos([
+      { id: 'old', content: 'flush to old session', status: 'pending' },
+    ]);
+    await result.rebindTodosCheckpoint('sess-next');
+
+    const oldCheckpoint = JSON.parse(
+      await fs.readFile(path.join(tmp, 'sess-new.todos.json'), 'utf8'),
+    ) as { sessionId: string; todos: Array<{ id: string }> };
+    expect(oldCheckpoint.sessionId).toBe('sess-new');
+    expect(oldCheckpoint.todos).toEqual([expect.objectContaining({ id: 'old' })]);
+
+    result.context.state.replaceTodos([
+      { id: 'next', content: 'persist to new session', status: 'pending' },
+    ]);
+    await result.detachTodosCheckpoint();
+
+    const nextCheckpoint = JSON.parse(
+      await fs.readFile(path.join(tmp, 'sess-next.todos.json'), 'utf8'),
+    ) as { sessionId: string; todos: Array<{ id: string }> };
+    expect(nextCheckpoint.sessionId).toBe('sess-next');
+    expect(nextCheckpoint.todos).toEqual([expect.objectContaining({ id: 'next' })]);
+  });
+
+  it('does not detach or flush when rebinding the todo checkpoint to the active session', async () => {
+    const events = { emit: vi.fn(), on: vi.fn(() => () => undefined) };
+    const result = await setupSession({
+      config: { model: 'm', provider: 'p' },
+      wpaths: makeWpaths(),
+      projectRoot: tmp,
+      cwd: tmp,
+      sessionStore: makeSessionStore(),
+      systemPrompt: [],
+      provider: fakeProvider,
+      tokenCounter: fakeTokenCounter,
+      renderer: makeRenderer(),
+      flags: {},
+      events: events as never,
+    });
+
+    result.context.state.replaceTodos([
+      { id: 'same', content: 'still debounced', status: 'pending' },
+    ]);
+    await result.rebindTodosCheckpoint('sess-new');
+
+    const todoWrites = events.emit.mock.calls.filter(
+      ([event, payload]) =>
+        event === 'storage.write' &&
+        (payload as { store?: string } | undefined)?.store === 'todos',
+    );
+    expect(todoWrites).toHaveLength(0);
+    await result.detachTodosCheckpoint();
+  });
+
+  it('serializes concurrent todo checkpoint rebinds without orphaning a listener', async () => {
+    const result = await setupSession({
+      config: { model: 'm', provider: 'p' },
+      wpaths: makeWpaths(),
+      projectRoot: tmp,
+      cwd: tmp,
+      sessionStore: makeSessionStore(),
+      systemPrompt: [],
+      provider: fakeProvider,
+      tokenCounter: fakeTokenCounter,
+      renderer: makeRenderer(),
+      flags: {},
+    });
+
+    await Promise.all([
+      result.rebindTodosCheckpoint('sess-intermediate'),
+      result.rebindTodosCheckpoint('sess-final'),
+    ]);
+    result.context.state.replaceTodos([
+      { id: 'final', content: 'only the final listener persists', status: 'pending' },
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await result.detachTodosCheckpoint();
+
+    await expect(fs.access(path.join(tmp, 'sess-intermediate.todos.json'))).rejects.toThrow();
+    const finalCheckpoint = JSON.parse(
+      await fs.readFile(path.join(tmp, 'sess-final.todos.json'), 'utf8'),
+    ) as { sessionId: string; todos: Array<{ id: string }> };
+    expect(finalCheckpoint.sessionId).toBe('sess-final');
+    expect(finalCheckpoint.todos).toEqual([expect.objectContaining({ id: 'final' })]);
   });
 
   it('surfaces banner when prior fleet state present on resume', async () => {

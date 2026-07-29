@@ -239,6 +239,8 @@ export interface WebuiCallbacks {
   }>;
   /** Reserve an explicitly selected session before its writer is opened. */
   claimSession: (sessionId: string, target?: SessionIdentityTarget) => Promise<() => Promise<void>>;
+  /** Rebind session-scoped todo persistence before a new todo snapshot is installed. */
+  onBeforeSessionTodosReplaced: (sessionId: string, sessionsDir: string) => Promise<void>;
   /** Re-point registry and HQ identity after a writer swap. */
   onSessionSwapped: (sessionId: string, target?: SessionIdentityTarget) => Promise<void>;
   /** Re-build the AutoCompaction middleware denominator on model switch. */
@@ -388,6 +390,7 @@ export function buildRoutes(
     config: state.getConfig(),
     clients: state.getClients(),
     context: deps.context,
+    events: deps.events,
     toolRegistry: deps.toolRegistry,
     compactor: deps.compactor,
     customModeStore: deps.customModeStore,
@@ -399,6 +402,7 @@ export function buildRoutes(
     setSession: state.setSession,
     setSessionStartedAt: state.setSessionStartedAt,
     claimSession: cb.claimSession,
+    onBeforeSessionTodosReplaced: cb.onBeforeSessionTodosReplaced,
     onSessionSwapped: cb.onSessionSwapped,
     abortActiveRun: state.abortRunLock,
     isRunActive: state.isRunActive,
@@ -421,6 +425,8 @@ export function buildRoutes(
     setSessionStore: state.setSessionStore,
     setSessionStartedAt: state.setSessionStartedAt,
     abortRunLock: state.abortRunLock,
+    onBeforeSessionTodosReplaced: cb.onBeforeSessionTodosReplaced,
+    onSessionSwapped: cb.onSessionSwapped,
     sessionStartPayload: cb.sessionStartPayload,
   });
 

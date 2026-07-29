@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
-import { TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS, type EventBus } from '@wrongstack/core/kernel';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type {
   Config,
@@ -151,11 +151,15 @@ export function createEmbeddedConversationRoutes(
 export interface EmbeddedSessionOptions {
   projectRoot?: string | undefined;
   agent: Agent;
+  events?: EventBus | undefined;
   session: SessionWriter;
   sessionStore?: SessionStore | undefined;
   sessionsDir?: string | undefined;
   claimSession?:
     | ((sessionId: string, target?: SessionIdentityTarget) => Promise<() => Promise<void>>)
+    | undefined;
+  onBeforeSessionTodosReplaced?:
+    | ((sessionId: string, sessionsDir: string) => void | Promise<void>)
     | undefined;
   onSessionSwapped?:
     | ((sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>)
@@ -188,6 +192,7 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     config: { model: actx.model ?? '', provider: actx.provider?.id ?? '' },
     getConfig: () => ({ model: actx.model ?? '', provider: actx.provider?.id ?? '' }),
     context: actx,
+    events: opts.events,
     listTools: () => opts.agent.tools.list(),
     getCompactor: () => opts.agent.container.resolve(TOKENS.Compactor),
     getCustomModeStore: ctx.getCustomModeStore,
@@ -202,6 +207,8 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
       actx.session = next;
     },
     claimSession: opts.claimSession,
+    onBeforeSessionTodosReplaced: async (sessionId, sessionsDir) =>
+      opts.onBeforeSessionTodosReplaced?.(sessionId, sessionsDir),
     onSessionSwapped: async (sessionId, target) => opts.onSessionSwapped?.(sessionId, target),
     abortActiveRun: ctx.abortActiveRun,
     isRunActive: ctx.isRunActive,
@@ -259,6 +266,8 @@ export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): Projec
       for (const controller of ctx.abortControllers.values()) controller.abort();
       ctx.abortControllers.clear();
     },
+    onBeforeSessionTodosReplaced: async (sessionId, sessionsDir) =>
+      opts.onBeforeSessionTodosReplaced?.(sessionId, sessionsDir),
     onSessionSwapped: async (sessionId, target) => opts.onSessionSwapped?.(sessionId, target),
     allowProjectMutations: true,
     sessionStartPayload: ctx.buildSessionStart,

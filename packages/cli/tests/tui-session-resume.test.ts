@@ -180,5 +180,11 @@ describe('TUI session resume ownership', () => {
       'resumed-provider',
     );
     expect(h.activateSessionIdentity).toHaveBeenCalledTimes(1);
+    expect(mocks.loadTodosCheckpoint).toHaveBeenCalledWith(
+      expect.stringContaining('sess_resumed.todos.json'),
+      undefined,
+      'trace-test',
+      h.resumedWriter.id,
+    );
   });
 });

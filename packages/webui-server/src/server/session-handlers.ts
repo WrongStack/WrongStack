@@ -12,6 +12,7 @@
 
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import type { createStrategyCompactor } from '@wrongstack/core/execution';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { loadTodosCheckpoint } from '@wrongstack/core/storage';
 import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
@@ -68,6 +69,7 @@ export interface SessionHandlersContext {
   sendMessage?: (ws: WebSocket, message: OutboundMessage) => void;
   broadcastMessage?: (message: OutboundMessage) => void;
   context: Context;
+  events?: EventBus | undefined;
   toolRegistry?: Pick<ToolRegistry, 'list'>;
   listTools?: () => ReturnType<ToolRegistry['list']>;
   compactor?: ReturnType<typeof createStrategyCompactor>;
@@ -88,6 +90,9 @@ export interface SessionHandlersContext {
   setSessionStartedAt?: (t: number) => void;
   /** Atomically reserve an explicitly selected session before opening its writer. */
   claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
+  onBeforeSessionTodosReplaced?:
+    | ((sessionId: string, sessionsDir: string) => void | Promise<void>)
+    | undefined;
   onSessionSwapped?: (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>;
   /**
    * Abort the in-flight agent run (if any) before the active session is
@@ -196,6 +201,9 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     ctx.context.session = next;
     ctx.context.state.replaceMessages(messages);
     await ctx.context.flushConversationJournal?.();
+    // Rebind durable todo persistence before replaceTodos emits. Detaching
+    // afterward would flush this new-session snapshot into the previous file.
+    await ctx.onBeforeSessionTodosReplaced?.(next.id, sessionsDirectory());
     // Restore the resumed session's todo board from its .todos.json sidecar
     // (empty for a fresh session). Without this a resume cleared the panel.
     ctx.context.state.replaceTodos(todos);
@@ -620,6 +628,9 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           const restoredTodos =
             (await loadTodosCheckpoint(
               sessionScopedPath(sessionsDirectory(), resumed.writer.id, '.todos.json'),
+              ctx.events,
+              ctx.context.traceId,
+              resumed.writer.id,
             ).catch(() => null)) ?? [];
           activated = true;
           await activateSession(

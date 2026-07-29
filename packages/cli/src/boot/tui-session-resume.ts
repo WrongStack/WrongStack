@@ -111,6 +111,7 @@ export async function resumeSession(
       resumedTodosPath,
       events,
       agent.ctx.traceId,
+      resumed.writer.id,
     ).catch(() => null);
 
     // Capture and swap writers BEFORE hydrating. replaceMessages emits the

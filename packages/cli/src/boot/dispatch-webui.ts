@@ -80,6 +80,9 @@ export interface WebUIDispatchContext {
         target?: import('../wiring/session-registry.js').SessionIdentityTarget,
       ) => Promise<void>)
     | undefined;
+  rebindTodosCheckpoint?:
+    | ((sessionId: string, sessionsDir?: string) => void | Promise<void>)
+    | undefined;
   /** Read-only worker transcript snapshot used for browser refresh replay. */
   agentTranscripts?:
     | {
@@ -150,6 +153,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     applyLiveSettings,
     onModelContextResolved,
     activateSessionIdentity,
+    rebindTodosCheckpoint,
     agentTranscripts,
     sddSubagentFactory,
     onKanbanDispatch,
@@ -282,6 +286,8 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     brainSettings,
     brainRuntime,
     getBrainLog,
+    onBeforeSessionTodosReplaced: (sessionId, sessionsDir) =>
+      rebindTodosCheckpoint?.(sessionId, sessionsDir),
     onSessionSwapped: async (sessionId, target) => {
       if (target && activateSessionIdentity) {
         await activateSessionIdentity(sessionId, target);

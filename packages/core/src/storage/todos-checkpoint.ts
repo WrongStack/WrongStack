@@ -31,6 +31,7 @@ export async function loadTodosCheckpoint(
   filePath: string,
   events?: EventBus,
   traceId?: string,
+  sessionId?: string,
 ): Promise<TodoItem[] | null> {
   const t0 = Date.now();
   let raw: string;
@@ -38,13 +39,14 @@ export async function loadTodosCheckpoint(
     raw = await fsp.readFile(filePath, 'utf8');
   } catch (err) {
     events?.emit('storage.error', {
-      sessionId: traceId ?? '~boot~',
+      sessionId: sessionId ?? '~boot~',
       store: 'todos',
       filePath,
       operation: 'load',
       outcome: 'failure',
       error: toErrorMessage(err),
       recoverable: true,
+      ...(traceId !== undefined && { traceId }),
     });
     return null;
   }
@@ -52,7 +54,7 @@ export async function loadTodosCheckpoint(
     const parsed = JSON.parse(raw) as TodosCheckpointFile;
     if (parsed?.version !== 1 || !Array.isArray(parsed.todos)) {
       events?.emit('storage.read', {
-        sessionId: traceId ?? '~boot~',
+        sessionId: sessionId ?? '~boot~',
         store: 'todos',
         filePath,
         operation: 'load',
@@ -64,7 +66,7 @@ export async function loadTodosCheckpoint(
       return null;
     }
     events?.emit('storage.read', {
-      sessionId: traceId ?? '~boot~',
+      sessionId: sessionId ?? parsed.sessionId ?? '~boot~',
       store: 'todos',
       filePath,
       operation: 'load',
@@ -82,7 +84,7 @@ export async function loadTodosCheckpoint(
     );
   } catch {
     events?.emit('storage.read', {
-      sessionId: traceId ?? '~boot~',
+      sessionId: sessionId ?? '~boot~',
       store: 'todos',
       filePath,
       operation: 'load',
@@ -117,7 +119,7 @@ export async function saveTodosCheckpoint(
   try {
     await atomicWrite(filePath, JSON.stringify(payload, null, 2), { mode: 0o600 });
     events?.emit('storage.write', {
-      sessionId: traceId ?? sessionId,
+      sessionId,
       store: 'todos',
       filePath,
       operation: 'save',
@@ -127,13 +129,14 @@ export async function saveTodosCheckpoint(
     });
   } catch (err) {
     events?.emit('storage.error', {
-      sessionId: traceId ?? sessionId,
+      sessionId,
       store: 'todos',
       filePath,
       operation: 'save',
       outcome: 'failure',
       error: toErrorMessage(err),
       recoverable: false,
+      ...(traceId !== undefined && { traceId }),
     });
     (
       warn ??
@@ -222,15 +225,23 @@ export function attachTodosCheckpoint(
       void flush();
     }, 150);
   });
-  return async () => {
+  let detached = false;
+  let detachPromise: Promise<void> | null = null;
+  return () => {
+    if (detachPromise) return detachPromise;
+    if (detached) return Promise.resolve();
+    detached = true;
     unsubscribe();
-    if (timer) {
-      clearTimeout(timer);
-      // Flush any pending write before detach so callers can safely
-      // unsubscribe at shutdown without losing the last update.
-      await flush();
-    } else {
-      await writeInFlight;
-    }
+    detachPromise = (async () => {
+      if (timer) {
+        clearTimeout(timer);
+        // Flush any pending write before detach so callers can safely
+        // unsubscribe at shutdown without losing the last update.
+        await flush();
+      } else {
+        await writeInFlight;
+      }
+    })();
+    return detachPromise;
   };
 }
