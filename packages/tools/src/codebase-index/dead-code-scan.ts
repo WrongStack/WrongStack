@@ -251,11 +251,14 @@ function trySourceEquivalent(resolved: string): string | null {
   for (const marker of BUILD_OUTPUT_DIR_NAMES) {
     const idx = resolved.indexOf(marker);
     if (idx === -1) continue;
-    // Ensure the matched segment is a complete path node, not part of a longer
-    // directory name (e.g. "src/distribution/" contains "/dist/" but "dist" is
-    // not a standalone path segment there).
-    if (idx > 0 && resolved[idx - 1] !== path.sep) continue;
 
+    // `marker` already includes leading and trailing path.sep (e.g. `/dist/`),
+    // so `idx` points to that leading separator. The character `idx - 1` is
+    // the last char of the parent directory — NOT a separator — so checking
+    // `idx > 0 && resolved[idx - 1] !== path.sep` would *always* reject valid
+    // matches. The leading+trailing separators in the marker already enforce
+    // segment boundaries: `/my-dist/` would map to a non-existent `src/` path
+    // which `fs.existsSync` catches harmlessly below.
     const base = resolved.replace(marker, `${path.sep}src${path.sep}`);
 
     // 1. Replace .js/.mjs/.cjs → .ts
@@ -271,9 +274,14 @@ function trySourceEquivalent(resolved: string): string | null {
       return candidateDts;
     }
 
-    // 3. Plain `.ts` appended when path had no JS extension (e.g. dist/main → src/main.ts)
+    // 3. Plain `.ts` appended when path had no JS extension (e.g. dist/main → src/main.ts).
+    // Skips when branch 2 already checked this same path (no .d.ts extension).
     const candidateNoExt = base + '.ts';
-    if (candidate !== candidateNoExt && fs.existsSync(candidateNoExt)) {
+    if (
+      candidate !== candidateNoExt
+      && candidateNoExt !== candidateDts
+      && fs.existsSync(candidateNoExt)
+    ) {
       return candidateNoExt;
     }
   }

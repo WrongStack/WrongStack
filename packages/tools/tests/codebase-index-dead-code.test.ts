@@ -278,6 +278,40 @@ onlyBuiltDependencies:
     expect(hasTrapPath).toBe(false);
   });
 
+  it('maps build-output main entry to src/ equivalent when no convention match exists', async () => {
+    // Package.json main points to dist/main/main.js (build output path).
+    // No dist/ directory exists, and no conventional src/index.ts or src/main.ts.
+    // The only way to find the entry point is via trySourceEquivalent mapping
+    // dist/main/main.js → src/main/main.ts. Without that, the entry point
+    // would be missed entirely and run() would appear dead.
+    await write(
+      'package.json',
+      JSON.stringify({ name: 'test-pkg', main: './dist/main/main.js' }),
+    );
+    await write(
+      'src/main/main.ts',
+      `export function run() { return 1; }`,
+    );
+    // Deliberately no dist/ dir, no src/index.ts, no src/main.ts.
+
+    await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
+
+    const store = indexStorePool.acquire(dir, { indexDir: indexDir() });
+    const result = runDeadCodeScan(dir, { store });
+    indexStorePool.release(store);
+
+    // src/main/main.ts must appear in entry points — it can ONLY be found
+    // via trySourceEquivalent since there's no dist/ dir and no convention match.
+    const entryPaths = result.entryPoints;
+    const hasSrcMainTs = entryPaths.some((p) =>
+      p.includes(path.join('src', 'main', 'main.ts')),
+    );
+    expect(hasSrcMainTs).toBe(true);
+
+    // run() should be alive (transitively reachable from the entry point).
+    expect(result.deadSymbols.filter((s) => s.name === 'run')).toHaveLength(0);
+  });
+
   it('excludes local variables (let, var) from dead symbol reports', async () => {
     await write('package.json', JSON.stringify({ name: 'test-pkg' }));
     await write(
