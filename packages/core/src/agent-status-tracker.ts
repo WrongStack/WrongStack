@@ -35,6 +35,14 @@ import type {
 const AGENT_REAP_MS = 30_000;
 /** How often the reaper sweeps for finished subagents. */
 const AGENT_SWEEP_INTERVAL_MS = 10_000;
+/**
+ * How long a PendingTool entry survives without its matching `tool.executed` /
+ * `subagent.tool_executed` event before being auto-evicted. Prevents orphaned
+ * entries (tool started event → executed event never arrives due to abort,
+ * provider crash, or process kill) from accumulating in the pending-tools Maps
+ * and retaining their full tool-input objects for the process lifetime.
+ */
+const PENDING_TOOL_TTL_MS = 300_000;
 /** Max chars of streamed assistant text kept in the registry (the live tail). */
 const PARTIAL_TEXT_CAP = 1200;
 /** Min gap between registry flushes triggered purely by streamed text. */
@@ -568,6 +576,8 @@ export class AgentStatusTracker {
       clearTimeout(this.partialTimer);
       this.partialTimer = null;
     }
+    this.leaderPendingTools.clear();
+    this.subagentPendingTools.clear();
   }
 
   /**
@@ -588,6 +598,10 @@ export class AgentStatusTracker {
    * Remove subagents that have been finished (idle/error) for longer than
    * {@link AGENT_REAP_MS}. Running / streaming / waiting_user agents are kept
    * regardless of age — only *not-working* agents are reaped.
+   *
+   * Also trims orphaned PendingTool entries older than {@link PENDING_TOOL_TTL_MS}
+   * from both leader and subagent pending-tools Maps. Piggybacks on the same
+   * 10-second interval to avoid a second timer.
    */
   private sweep(): void {
     const now = Date.now();
@@ -601,7 +615,23 @@ export class AgentStatusTracker {
         removed = true;
       }
     }
+    this.trimPendingTools(this.leaderPendingTools, now);
+    this.trimPendingTools(this.subagentPendingTools, now);
     if (removed) this.flush();
+  }
+
+  /**
+   * Evict pending-tool entries whose `startedAt` is older than
+   * {@link PENDING_TOOL_TTL_MS}. These are tool.started / subagent.tool_started
+   * events whose matching tool.executed / subagent.tool_executed never arrived
+   * (provider crash, abort, process kill). Without periodic cleanup the
+   * Maps retain the full tool-input objects for the process lifetime.
+   */
+  private trimPendingTools(map: Map<string, PendingTool>, now: number): void {
+    const cutoff = now - PENDING_TOOL_TTL_MS;
+    for (const [key, entry] of map) {
+      if (entry.startedAt < cutoff) map.delete(key);
+    }
   }
 
   private flush(): void {
