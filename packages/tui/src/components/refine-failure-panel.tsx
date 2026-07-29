@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -63,7 +63,8 @@ function useColumns(): number {
 /**
  * Recovery panel shown when a refinement fails. Two views: the default option
  * list (retry / fallback / pick / send-as-is / edit) and — when the user opens
- * "pick another model" — an inline, searchless scroll list of provider/models.
+ * "pick another model" — an inline scroll list of provider/models with a
+ * type-to-filter search box.
  * Everything resolves through `onDecision`; no session state is mutated here.
  */
 export function RefineFailurePanel({
@@ -77,18 +78,28 @@ export function RefineFailurePanel({
   const columns = useColumns();
   const [view, setView] = useState<'options' | 'pick'>('options');
   const [cursor, setCursor] = useState(0);
+  const [query, setQuery] = useState('');
+  const filteredModels = useMemo(() => filterRefineModels(models, query), [models, query]);
   const width = Math.max(30, columns - 4);
   const canPick = models.length > 0;
   const canFallback = !!fallbackRef;
 
   useInput((input, key) => {
     if (view === 'pick') {
+      // Layered Esc: clear query first, then go back to options
       if (key.escape) {
+        if (query) {
+          setQuery('');
+          return;
+        }
         setView('options');
+        setQuery('');
+        setCursor(0);
         return;
       }
       if (key.downArrow) {
-        setCursor((c) => Math.min(c + 1, models.length - 1));
+        const n = filteredModels.length;
+        if (n > 0) setCursor((c) => Math.min(c + 1, n - 1));
         return;
       }
       if (key.upArrow) {
@@ -96,9 +107,21 @@ export function RefineFailurePanel({
         return;
       }
       if (key.return) {
-        const chosen = models[cursor];
+        const chosen = filteredModels[cursor];
         if (chosen)
           onDecision({ kind: 'pick', providerId: chosen.providerId, model: chosen.model });
+        return;
+      }
+      // Backspace/Delete → remove last char of the search query
+      if (key.backspace || key.delete) {
+        setQuery((q) => q.slice(0, -1));
+        setCursor(0);
+        return;
+      }
+      // Printable ASCII → extend the search query
+      if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+        setQuery((q) => q + input);
+        setCursor(0);
         return;
       }
       return;
@@ -116,18 +139,22 @@ export function RefineFailurePanel({
     if (ch === 'm' && canFallback) onDecision({ kind: 'fallback' });
     else if (ch === 'p' && canPick) {
       setCursor(0);
+      setQuery('');
       setView('pick');
     } else if (ch === 's') onDecision({ kind: 'original' });
     else if (ch === 'e') onDecision({ kind: 'edit' });
   });
 
   if (view === 'pick') {
+    const total = filteredModels.length;
     const start = Math.max(
       0,
-      Math.min(cursor - Math.floor(PICK_WINDOW / 2), models.length - PICK_WINDOW),
+      Math.min(cursor - Math.floor(PICK_WINDOW / 2), total - PICK_WINDOW),
     );
     const windowStart = Math.max(0, start);
-    const visible = models.slice(windowStart, windowStart + PICK_WINDOW);
+    const visible = query
+      ? filteredModels.slice(windowStart, windowStart + PICK_WINDOW)
+      : models.slice(windowStart, windowStart + PICK_WINDOW);
     return (
       <Box
         alignSelf="stretch"
@@ -143,29 +170,43 @@ export function RefineFailurePanel({
           </Text>
           <Box flexGrow={1} />
           <Text color={theme.textMuted}>
-            {models.length} model{models.length === 1 ? '' : 's'}
+            {query ? `${total}/${models.length}` : `${models.length}`} model
+            {models.length === 1 ? '' : 's'}
           </Text>
         </Box>
-        <Box flexDirection="column" marginTop={1}>
-          {visible.map((m, i) => {
-            const idx = windowStart + i;
-            const selected = idx === cursor;
-            const label = m.label && m.label !== m.model ? `  ${m.label}` : '';
-            return (
-              <Box key={`${m.providerId}/${m.model}`} height={1}>
-                <Text color={selected ? theme.accent : theme.textMuted}>
-                  {selected ? '▸ ' : '  '}
-                </Text>
-                <Text color={selected ? theme.textPrimary : theme.textSecondary}>
-                  {`${m.providerId}/${m.model}`}
-                </Text>
-                <Text color={theme.textMuted}>{label}</Text>
-              </Box>
-            );
-          })}
-        </Box>
         <Box height={1} marginTop={1}>
-          <Text color={theme.textMuted}>↑/↓ choose · Enter refine on it · Esc back</Text>
+          <Text color={theme.textMuted}>
+            {query ? `🔍 ${query}${' '.repeat(1)}` : '🔍 type to filter'}
+          </Text>
+        </Box>
+        {total === 0 ? (
+          <Box height={1} marginTop={1}>
+            <Text color={theme.textMuted}>(no models match &quot;{query}&quot;)</Text>
+          </Box>
+        ) : (
+          <Box flexDirection="column" marginTop={1}>
+            {visible.map((m, i) => {
+              const idx = windowStart + i;
+              const selected = idx === cursor;
+              const label = m.label && m.label !== m.model ? `  ${m.label}` : '';
+              return (
+                <Box key={`${m.providerId}/${m.model}`} height={1}>
+                  <Text color={selected ? theme.accent : theme.textMuted}>
+                    {selected ? '▸ ' : '  '}
+                  </Text>
+                  <Text color={selected ? theme.textPrimary : theme.textSecondary}>
+                    {`${m.providerId}/${m.model}`}
+                  </Text>
+                  <Text color={theme.textMuted}>{label}</Text>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+        <Box height={1} marginTop={1}>
+          <Text color={theme.textMuted}>
+            ↑/↓ choose · Enter refine · {query ? 'Esc clear · ' : ''}Esc back
+          </Text>
         </Box>
       </Box>
     );
