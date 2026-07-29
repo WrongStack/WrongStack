@@ -352,4 +352,59 @@ describe('ConversationState — write API and onChange', () => {
       expect(ctx.toolAdjacencyDirty).toBe(false);
     });
   });
+
+  describe('MAX_MESSAGE_TOKENS cap', () => {
+    let ORIG_COUNT: number;
+    let ORIG_TOKENS: number;
+
+    beforeEach(() => {
+      ORIG_COUNT = Context.MAX_MESSAGES;
+      ORIG_TOKENS = Context.MAX_MESSAGE_TOKENS;
+      // Count cap out of the way — this block is about the size cap alone.
+      (Context as { MAX_MESSAGES: number }).MAX_MESSAGES = 0;
+      (Context as { MAX_MESSAGE_TOKENS: number }).MAX_MESSAGE_TOKENS = 100;
+    });
+
+    afterEach(() => {
+      (Context as { MAX_MESSAGES: number }).MAX_MESSAGES = ORIG_COUNT;
+      (Context as { MAX_MESSAGE_TOKENS: number }).MAX_MESSAGE_TOKENS = ORIG_TOKENS;
+    });
+
+    /** ~1 token per 4 chars, so 200 chars ≈ 50 tokens. */
+    const fatMessage = (tag: string) => userMessage(`${tag}:${'x'.repeat(200)}`);
+
+    it('drops oldest messages once the estimated size cap is exceeded', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      for (let i = 0; i < 6; i++) state.appendMessage(fatMessage(`m-${i}`));
+
+      const total = ctx.messages.reduce((sum, m) => sum + (m._estTokens ?? 0), 0);
+      expect(total).toBeLessThanOrEqual(100);
+      // Newest survives, oldest went first.
+      expect(JSON.stringify(ctx.messages)).toContain('m-5');
+      expect(JSON.stringify(ctx.messages)).not.toContain('m-0');
+      expect(ctx.toolAdjacencyDirty).toBe(true);
+    });
+
+    it('never drops the message just appended, even if it alone exceeds the cap', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      state.appendMessage(userMessage(`huge:${'y'.repeat(10_000)}`));
+
+      // Truncating to satisfy the cap must not discard the current turn —
+      // an empty history would break the request that is being built.
+      expect(ctx.messages).toHaveLength(1);
+      expect(JSON.stringify(ctx.messages)).toContain('huge');
+    });
+
+    it('leaves an ordinary history untouched', () => {
+      (Context as { MAX_MESSAGE_TOKENS: number }).MAX_MESSAGE_TOKENS = ORIG_TOKENS;
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      for (let i = 0; i < 50; i++) state.appendMessage(userMessage(`ordinary-${i}`));
+
+      expect(ctx.messages).toHaveLength(50);
+      expect(ctx.toolAdjacencyDirty).toBe(false);
+    });
+  });
 });

@@ -86,6 +86,116 @@ export async function readTailNonEmptyLines(
 }
 
 /**
+ * Byte offset at which the retained tail of a JSONL file begins.
+ *
+ * The counterpart to {@link readTailNonEmptyLines} for callers that want to
+ * *keep* a tail rather than read it: this returns a line-aligned offset and
+ * never materializes the tail itself. Peak memory is one chunk, regardless of
+ * how large the retained region is — the whole point, since the tail of a
+ * rotation-sized log is exactly what must not be buffered.
+ *
+ * The retained region is bounded by both `keepLines` and `maxBytes`; whichever
+ * binds first wins. A single line longer than `maxBytes` is still retained
+ * whole rather than dropped, so rotation can never empty the file outright.
+ *
+ * Returns `offset === 0` when the file has fewer than `keepLines` lines (no
+ * rotation needed) and the file's size, sampled once, for the caller.
+ */
+export async function findTailStartOffset(
+  filePath: string,
+  keepLines: number,
+  maxBytes: number,
+): Promise<{ offset: number; size: number }> {
+  const handle = await fs.open(filePath, 'r');
+  try {
+    const size = (await handle.stat()).size;
+    if (size === 0) return { offset: 0, size };
+
+    // A trailing newline terminates the last line; without one, the last
+    // newline in the file *opens* the final line. That shifts which newline
+    // from the end marks the start of the retained region by exactly one.
+    const tailByte = Buffer.allocUnsafe(1);
+    await handle.read(tailByte, 0, 1, size - 1);
+    const target = keepLines + (tailByte[0] === 0x0a ? 1 : 0);
+    if (target <= 0) return { offset: size, size };
+
+    const buffer = Buffer.allocUnsafe(LINE_COUNT_CHUNK_BYTES);
+    let position = size;
+    let seen = 0;
+    // Best line-aligned boundary found so far. Walks backwards from "retain
+    // nothing" as newlines are discovered.
+    let boundary = size;
+    while (position > 0) {
+      const length = Math.min(LINE_COUNT_CHUNK_BYTES, position);
+      position -= length;
+      let read = 0;
+      while (read < length) {
+        const result = await handle.read(buffer, read, length - read, position + read);
+        if (result.bytesRead === 0) break;
+        read += result.bytesRead;
+      }
+      if (read === 0) break;
+      for (let index = read - 1; index >= 0; index--) {
+        if (buffer[index] !== 0x0a) continue;
+        const candidate = position + index + 1;
+        if (size - candidate > maxBytes) {
+          // Past the byte budget. Keep the last boundary that fit — or this
+          // one when nothing has fit yet, so an oversized final line survives.
+          return { offset: boundary < size ? boundary : candidate, size };
+        }
+        boundary = candidate;
+        seen++;
+        if (seen >= target) return { offset: boundary, size };
+      }
+    }
+    // Fewer lines than requested: the whole file is already the tail.
+    return { offset: 0, size };
+  } finally {
+    await handle.close().catch(() => {});
+  }
+}
+
+/**
+ * Copy `sourcePath` from `offset` to EOF into an open destination handle,
+ * chunk by chunk. Peak memory is one chunk. Returns the bytes copied and the
+ * number of newlines seen, so a caller rotating a log can reset its counters
+ * without a second pass.
+ */
+export async function copyTailToHandle(
+  sourcePath: string,
+  offset: number,
+  destination: fs.FileHandle,
+): Promise<{ bytes: number; lines: number }> {
+  const handle = await fs.open(sourcePath, 'r');
+  try {
+    const buffer = Buffer.allocUnsafe(LINE_COUNT_CHUNK_BYTES);
+    let position = offset;
+    let bytes = 0;
+    let lines = 0;
+    let lineHasBytes = false;
+    for (;;) {
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, position);
+      if (bytesRead === 0) break;
+      position += bytesRead;
+      const chunk = buffer.subarray(0, bytesRead);
+      for (let index = 0; index < bytesRead; index++) {
+        if (chunk[index] === 0x0a) {
+          if (lineHasBytes) lines++;
+          lineHasBytes = false;
+        } else {
+          lineHasBytes = true;
+        }
+      }
+      await destination.write(chunk);
+      bytes += bytesRead;
+    }
+    return { bytes, lines: lines + (lineHasBytes ? 1 : 0) };
+  } finally {
+    await handle.close().catch(() => {});
+  }
+}
+
+/**
  * Yield non-empty lines of a JSONL file without ever holding the whole file.
  *
  * Deliberately not `readline`/`createReadStream`: this module already speaks

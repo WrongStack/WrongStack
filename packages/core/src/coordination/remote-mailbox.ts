@@ -6,6 +6,7 @@ import type {
   IssueCredentialOptions,
   MailboxCredential,
 } from './mailbox-credential-store.js';
+import { HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS } from './mailbox-constants.js';
 import type { MailboxEvent, MailboxEventEmitter } from './mailbox-events.js';
 import {
   MailboxProjectServerConnection,
@@ -87,6 +88,9 @@ export class RemoteMailbox implements Mailbox {
   private readonly unsubscribeMailboxEvent: () => void;
   private cacheEviction: (() => void) | undefined;
   private closed = false;
+  /** Pending coalesced HQ snapshot; see {@link scheduleHqSnapshot}. */
+  private hqSnapshotTimer: ReturnType<typeof setTimeout> | undefined;
+  private hqSnapshotLastAt = 0;
 
   constructor(
     optionsOrProjectDir: ProjectMailboxOptions | string,
@@ -304,6 +308,10 @@ export class RemoteMailbox implements Mailbox {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    if (this.hqSnapshotTimer !== undefined) {
+      clearTimeout(this.hqSnapshotTimer);
+      this.hqSnapshotTimer = undefined;
+    }
     this.cacheEviction?.();
     this.cacheEviction = undefined;
     this.unsubscribeEvent();
@@ -333,6 +341,32 @@ export class RemoteMailbox implements Mailbox {
     return typeof this.hqPublisherRef === 'function' ? this.hqPublisherRef() : this.hqPublisherRef;
   }
 
+  /**
+   * Publish a full HQ mailbox snapshot, at most once per
+   * {@link HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS}.
+   *
+   * Trailing-edge: the first caller after the interval schedules one, and
+   * every caller in the window folds into it. The snapshot is a rollup of
+   * current state, so a coalesced publish carries strictly more up-to-date
+   * information than the ones it replaced — dropping them loses nothing.
+   */
+  private scheduleHqSnapshot(mailboxId: string): void {
+    if (this.closed || this.hqSnapshotTimer !== undefined) return;
+    const elapsed = Date.now() - this.hqSnapshotLastAt;
+    const delay = Math.max(0, HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS - elapsed);
+    this.hqSnapshotTimer = setTimeout(() => {
+      this.hqSnapshotTimer = undefined;
+      this.hqSnapshotLastAt = Date.now();
+      const publisher = this.hqPublisher;
+      if (this.closed || !publisher) return;
+      void publisher.publishMailboxSnapshot(this, { mailboxId }).catch(() => {
+        // HQ telemetry remains best-effort.
+      });
+    }, delay);
+    // Never hold the process open for a telemetry rollup.
+    this.hqSnapshotTimer.unref?.();
+  }
+
   private publishHqEvent(event: MailboxEvent): void {
     const publisher = this.hqPublisher;
     if (!publisher) return;
@@ -347,7 +381,7 @@ export class RemoteMailbox implements Mailbox {
           ...(message ? { message } : {}),
           timestamp: event.timestamp,
         });
-        return publisher.publishMailboxSnapshot(this, { mailboxId });
+        this.scheduleHqSnapshot(mailboxId);
       })
       .catch(() => {
         // HQ telemetry remains best-effort.
@@ -387,7 +421,13 @@ export class RemoteMailbox implements Mailbox {
             ...(agentId ? { summary: agentId } : {}),
           });
         }
-        return publisher.publishMailboxSnapshot(this, { mailboxId });
+        // A heartbeat only refreshes one agent's `lastSeen` — it changes no
+        // roster membership and no message state, so the snapshot rollup it
+        // used to trigger was pure duplication of the delta just published.
+        // With one heartbeat per agent per 30s, that path alone accounted for
+        // most of the snapshot volume. Registration and deregistration do
+        // move the roster, so those still schedule a (coalesced) snapshot.
+        if (action !== 'agent.heartbeat') this.scheduleHqSnapshot(mailboxId);
       })
       .catch(() => {
         // HQ telemetry remains best-effort.

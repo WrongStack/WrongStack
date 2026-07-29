@@ -264,11 +264,23 @@ export class DefaultSessionStore implements SessionStore {
     const data = await this.load(canonicalId);
     const persistedSummary = await this.readSummaryManifest(canonicalId);
     const fileStat = await fsp.stat(file);
-    const derivedSummary = await summarizeSessionEvents({
-      id: canonicalId,
-      events: data.events,
-      mtime: fileStat.mtime.toISOString(),
-    });
+    // When the events array was front-truncated to stay within the retention
+    // budget (`eventsDropped > 0`), the oldest records are missing from memory.
+    // The summary must be derived from the full file, and file-observation
+    // validation must use the streaming search path to see every observation.
+    const eventsDropped = data.eventsDropped ?? 0;
+    const derivedSummary = eventsDropped > 0
+      ? await summarizeSessionFile({
+          id: canonicalId,
+          file,
+          mtime: fileStat.mtime.toISOString(),
+          secretScrubber: this.secretScrubber,
+        })
+      : await summarizeSessionEvents({
+          id: canonicalId,
+          events: data.events,
+          mtime: fileStat.mtime.toISOString(),
+        });
     const initialSummary: SessionSummary = {
       ...derivedSummary,
       ...(persistedSummary?.name !== undefined ? { name: persistedSummary.name } : {}),
@@ -279,7 +291,13 @@ export class DefaultSessionStore implements SessionStore {
     let resumeValidation: import('../types/session.js').ResumeValidation | undefined;
     if (this.projectRoot) {
       try {
-        resumeValidation = await validateResumeFileObservations(data.events, this.projectRoot);
+        const validationEvents = eventsDropped > 0
+          ? (await this.searchEvents(
+              canonicalId,
+              (ev: SessionEvent, _i: number, _ts: string) => ev.type === 'file_observation',
+            )).map((h) => h.event)
+          : data.events;
+        resumeValidation = await validateResumeFileObservations(validationEvents, this.projectRoot);
         const notice = formatResumeValidationNotice(resumeValidation, this.projectRoot);
         if (notice) {
           noticeMessages.push({

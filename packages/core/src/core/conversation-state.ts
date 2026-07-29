@@ -102,8 +102,8 @@ export class ConversationState {
     // run (provider error storms, rewinds, custom embedders). Oldest
     // messages are dropped first — the compaction digest lives at index 0
     // and is dropped with them.
-    if (Context.MAX_MESSAGES > 0 && this.ctx.messages.length > Context.MAX_MESSAGES) {
-      const overflow = this.ctx.messages.length - Context.MAX_MESSAGES;
+    const overflow = this.overflowCount();
+    if (overflow > 0) {
       this.ctx.messages.splice(0, overflow);
       // Dropping messages may orphan a tool_use or tool_result, breaking
       // strict-provider adjacency rules. Force a repair scan on the next
@@ -115,6 +115,35 @@ export class ConversationState {
     } else {
       this.emit({ kind: 'message_appended', message });
     }
+  }
+
+  /**
+   * How many of the oldest messages must be dropped to satisfy both retention
+   * caps — count ({@link Context.MAX_MESSAGES}) and size
+   * ({@link Context.MAX_MESSAGE_TOKENS}). Returns 0 when the history already
+   * fits, which is the overwhelmingly common case.
+   *
+   * The size pass reads the per-message `_estTokens` cache populated at
+   * mutation time, so it is a sum over numbers rather than a re-walk of
+   * content blocks, and it only runs when the cheap count check passes.
+   */
+  private overflowCount(): number {
+    const arr = this.ctx.messages;
+    let drop =
+      Context.MAX_MESSAGES > 0 ? Math.max(0, arr.length - Context.MAX_MESSAGES) : 0;
+    if (Context.MAX_MESSAGE_TOKENS <= 0) return drop;
+
+    let total = 0;
+    for (let i = drop; i < arr.length; i++) total += arr[i]?._estTokens ?? 0;
+    if (total <= Context.MAX_MESSAGE_TOKENS) return drop;
+    // Walk forward dropping the oldest survivors until the remainder fits.
+    // Always keep the newest message: dropping the one just appended would
+    // silently discard the turn the caller is in the middle of.
+    while (drop < arr.length - 1 && total > Context.MAX_MESSAGE_TOKENS) {
+      total -= arr[drop]?._estTokens ?? 0;
+      drop++;
+    }
+    return drop;
   }
 
   /**

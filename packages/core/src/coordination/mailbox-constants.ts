@@ -48,6 +48,22 @@ export const MAILBOX_AWARENESS_INTERVAL_MS = 30_000;
 /** Agent heartbeat interval in the attach layer. */
 export const MAILBOX_HEARTBEAT_INTERVAL_MS = 30_000;
 
+/**
+ * Floor on how often a full HQ mailbox snapshot may be published.
+ *
+ * The snapshot is a rollup (50 messages + every agent status, ~30 KB) that
+ * exists so the HQ dashboard's counters are authoritative. It used to be
+ * published after *every* message mutation and *every* agent heartbeat, which
+ * made it the single largest thing HQ persists: 14,053 snapshots totalling
+ * 415 MB in one measured `events.jsonl`, next to 8.3 MB for the 12,445
+ * `mailbox.event` deltas that already carried the same information.
+ *
+ * Snapshots are now coalesced behind this interval — the dashboard converges
+ * within a few seconds instead of on every keystroke-scale event, and the
+ * deltas keep the live feed exact in between.
+ */
+export const HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS = 10_000;
+
 /** Min interval between registry reads for the fleet pulse digest. */
 export const PULSE_MIN_READ_INTERVAL_MS = 30_000;
 

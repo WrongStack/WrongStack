@@ -105,6 +105,47 @@ describe('project mailbox HQ publisher wiring', () => {
     await expect.poll(() => publishSnapshot.mock.calls.length, { timeout: 5000 }).toBeGreaterThan(0);
   });
 
+  it('does not publish a snapshot for a heartbeat once the roster is known', async () => {
+    const mailbox = open(makePublisher());
+    await mailbox.registerAgent({
+      agentId: 'leader@1', sessionId: 'session_1', name: 'Leader', role: 'leader', pid: 1, source: 'cli',
+    });
+    // Registration moves the roster, so it legitimately schedules one snapshot.
+    await expect.poll(() => publishSnapshot.mock.calls.length, { timeout: 5000 }).toBe(1);
+    publishSnapshot.mockClear();
+
+    await mailbox.heartbeat({ agentId: 'leader@1', status: 'running' });
+    await mailbox.heartbeat({ agentId: 'leader@1', status: 'running' });
+    await mailbox.heartbeat({ agentId: 'leader@1', status: 'running' });
+
+    // The heartbeat delta still goes out — it is what keeps `lastSeen` live.
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('agent.heartbeat');
+    // But no rollup: a heartbeat changes no state the snapshot summarizes, and
+    // at one per agent per 30s this was the bulk of HQ's persisted volume.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(publishSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('coalesces snapshots across a burst of message activity', async () => {
+    const mailbox = open(makePublisher());
+    for (let index = 0; index < 8; index++) {
+      await mailbox.send({
+        from: 'a', to: 'b', type: 'note', subject: `burst-${index}`, body: 'body',
+      });
+    }
+
+    // Every message publishes its own delta — the live feed stays exact.
+    await expect
+      .poll(() => publishedActions().filter((action) => action === 'message.sent').length, {
+        timeout: 5000,
+      })
+      .toBe(8);
+    // The rollup fires once for the burst (leading publish, then the 10s gate
+    // swallows the rest) instead of eight ~30 KB snapshots.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(publishSnapshot.mock.calls.length).toBe(1);
+  });
+
   it('publishes an update when one actor completes a fan-out message', async () => {
     const mailbox = open(makePublisher());
     const msg = await mailbox.send({

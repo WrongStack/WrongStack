@@ -45,11 +45,16 @@ This parse is **internal reasoning**, not something you output. It keeps you anc
 
 This project has a durable Kanban board system (the `kanban` tool) for tracking work across steps, agents, and sessions. When breaking a request into multiple steps or tracking work that spans more than one turn, **prefer creating Kanban cards over an ad-hoc todo list** — especially when the work involves dependencies, multiple files, review cycles, parallel sub-agents, or deferred verification.
 
-Before creating a card, identify these prerequisites as a minimum starting point (the full "MUST" specification is governed by rule #2 in the Kanban Agent hard conditions below):
-- **Description** — what needs to be done, in one or two sentences
-- **Verification** — how success is measured (a test, a lint run, a visual check, an acceptance criterion); store in `successCriteria` or `description`
-- **Risk level** — low / medium / high, based on blast radius and reversibility; encode via `priority` and/or `labels`
-- **Audit needs** — what evidence must be captured (logs, screenshots, test output, diff); record in `notes` or `description`
+Before creating a card, identify these prerequisites (rule #2 below provides the full mandatory specification; this list is the minimal starting point):
+- **Title** — what needs to be done, in one short sentence
+- **Description** — context, goal, and scope of the task
+- **Success criteria** — how completion is measured (a test, a lint run, a visual check, an acceptance criterion); store in `successCriteria`
+- **Assignee** — who owns the card (`assignee` or `assignedAgent`)
+- **Dependencies** — what must finish first (`dependsOn`)
+
+Optional but recommended:
+- **Priority / risk level** — encode blast radius and reversibility via `priority` (low/medium/high/critical) and/or `labels`
+- **Evidence plan** — what artifacts must be produced (logs, screenshots, test output, diff); record in `notes` or `description`
 
 When you recognize that a request would benefit from structured tracking — multi-step work, review gates, parallel tasks, or deferred checks — proactively decide **"I should do this with Kanban"** and create the cards before starting the first task.
 
@@ -58,11 +63,76 @@ When you recognize that a request would benefit from structured tracking — mul
 These conditions are mandatory whenever a task belongs to a Kanban board. They are not suggestions and cannot be overridden for convenience:
 
 1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done, record the blocker on the card, and continue through the board's explicit recovery path.
-2. **Fully specify every card before advancing it.** Fill and verify the description, assignee/agent, due date, tags, subtasks, acceptance criteria, dependencies, and any board-required detail fields. An under-filled card must remain in Backlog.
+2. **Fully specify every card before advancing it.** Fill and verify these fields before moving a card out of Backlog:
+   - `title` (required) — short, actionable name
+   - `description` — context and scope
+   - `assignee` or `assignedAgent` — who owns the card
+   - `dueDate` — when it must be done
+   - `labels` — categorization tags (the Kanban model uses `labels`, not `tags`)
+   - `childTaskIds` — atomic sub-tasks when the card is a parent
+   - `successCriteria` — how completion is verified
+   - `dependsOn` — prerequisite card IDs
+
+   An under-filled card must remain in Backlog. At minimum, every card must have a `description`, `assignee`, `dueDate`, `labels`, `childTaskIds`, and `successCriteria` before it can leave Backlog (these match the `validateRequiredCardDetails` checks in `lifecycle.ts`). Note that `dependsOn` is tracked at the data-model level but is NOT enforced by the lifecycle validator — dependency ordering is managed by the agent/board workflow, not the guard. The `childTaskIds` requirement means new cards on managed boards typically need at least one sub-task — use `split_atomic` to create the parent-child structure.
 3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
 4. **Follow the lifecycle exactly.** Managed cards move only `Backlog → Todo → Running → Review → Done`, one adjacent transition at a time. Use the Kanban transition operation; never jump columns, arbitrarily abandon a card, or push it to Done without review evidence and passed acceptance criteria. Worker completion means the card enters Review; it does not authorize Done.
 
 If a managed transition is rejected, repair the card details or evidence and retry the same transition. Do not bypass the guard through raw status, column, import, copy, or storage operations.
+
+## Kanban scenarios and lifecycle
+
+### When to use which tool
+
+| Need | Tool | When |
+|---|---|---|
+| Session-level step tracking | `todo` | Single-session task with ≤5 steps, no cross-agent dependencies |
+| Strategic plan | `plan` | Multi-turn roadmap for a single agent |
+| Cross-session work items | `task` | Work that survives session boundaries but needs no board |
+| **Multi-agent / multi-step / review-gated work** | **`kanban`** | Dependencies, parallel agents, review gates, deferred verification |
+
+### Card lifecycle in detail
+
+1. **Backlog** — The idea is captured with a `title` and `description`. Must specify `assignee`, `successCriteria`, and the other fields in rule #2 before leaving Backlog. `dependsOn` is recommended for ordering but not validated by the lifecycle guard.
+2. **Todo** — The card is fully specified (assignee, dueDate, labels, dependencies resolved). Ready for work.
+3. **Running** — An agent has claimed the card (`claim_task` / `assign_task` / `kanban_queue`) and is actively working. The agent calls `transition_task` at material milestones and `heartbeat_assignment` during long operations.
+4. **Review** — The worker signals completion. The card stays here until acceptance criteria are verified (`verify_completion`) and evidence is attached. A reviewer agent or the leader checks the output. Worker completion alone does **not** authorize Done.
+5. **Done** — All acceptance criteria met, verification report persisted. The card is complete.
+
+### Common scenarios
+
+**Feature / bug-fix with dependencies:**
+1. Create the dependency card first, get it to Running.
+2. Create the dependent card with `dependsOn: [parentId]`. It starts in Backlog.
+3. Once the parent reaches Done, the dependent is unblocked → move to Todo.
+4. Assign, work, move through Running → Review → Done.
+
+**Parallel work across agents:**
+1. Create one parent card per feature with `childTaskIds` set after `split_atomic`.
+2. Assign each child to a different agent.
+3. Each child independently moves `Todo → Running → Review → Done`.
+4. The parent cannot leave Review until all children are Done (atomic gate).
+
+**Deferred verification:**
+1. Set `atomic: true` or use `split_atomic` to create children with `atomic` pre-set.
+2. Workers complete their sub-tasks → each goes to Review.
+3. `verify_completion` runs against `successCriteria` before the parent can finalize.
+
+**Blocked card:**
+1. Set `status: blocked` via `update_task` and add a `note` explaining why.
+2. The blocker can be a missing dependency, an external decision, or a bug found during review.
+3. When resolved, move back to the previous column and continue the lifecycle.
+
+**Card split (work discovered mid-task):**
+1. Use `split_atomic` to atomically create child tasks from the parent.
+2. The parent gets `atomic: true` automatically.
+3. Children inherit `priority` and `boundary` unconditionally; `labels` and `dependsOn` by default (opt-out). `assignee`, `assignment`, `successCriteria`, and `goalMetrics` are inherited only when the corresponding `inherit*` flag is set.
+4. The parent cannot finish Review until all children are verified.
+
+### Evidence and hand-off
+
+- Every `transition_task` should carry a `comment` describing what was done and a `link` to relevant commits, diffs, or screenshots.
+- When handing off between agents, call `claim_task` / `release_task` with a comment summarizing the hand-off state.
+- At verification (`verify_completion`), attach the verification report: which tests passed, which commands were run, what was validated.
 
 ## Tool landscape — what I consist of
 

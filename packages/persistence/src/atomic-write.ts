@@ -29,6 +29,11 @@ export interface PersistencePrimitives {
     content: string | Uint8Array,
     opts?: AtomicWriteOptions,
   ): Promise<void>;
+  atomicReplaceWithWriter<T>(
+    targetPath: string,
+    write: (handle: fs.FileHandle) => Promise<T>,
+    opts?: AtomicWriteOptions,
+  ): Promise<T>;
   ensureDir(dir: string): Promise<void>;
   withFileLock<T>(targetPath: string, fn: () => Promise<T>, opts?: FileLockOptions): Promise<T>;
 }
@@ -71,17 +76,53 @@ export function createPersistencePrimitives(
         context: { timeoutMs },
       }));
 
+  /**
+   * Shared tail of every atomic replace: fsync the temp file, carry the
+   * target's permission bits over, and swap it in with the Windows-hardened
+   * rename. Split out so `atomicWrite` (whole-buffer) and
+   * `atomicReplaceWithWriter` (streaming) cannot drift apart.
+   */
+  async function commitTemp(tmp: string, targetPath: string, opts: AtomicWriteOptions) {
+    try {
+      const fileHandle = await fs.open(tmp, 'r+');
+      try {
+        await fileHandle.sync();
+      } finally {
+        await fileHandle.close();
+      }
+    } catch {
+      // fsync is best-effort; the atomic rename still protects readers.
+    }
+
+    let mode: number | undefined;
+    try {
+      const stat = await fs.stat(targetPath);
+      mode = stat.mode & 0o777;
+    } catch {
+      mode = opts.mode;
+    }
+    if (mode !== undefined) await fs.chmod(tmp, mode);
+
+    await renameWithRetry(tmp, targetPath);
+    if (mode !== undefined && process.platform === 'win32') {
+      await fs.chmod(targetPath, mode).catch(() => undefined);
+    }
+  }
+
+  function tempPathFor(targetPath: string): string {
+    return path.join(
+      path.dirname(targetPath),
+      `.${path.basename(targetPath)}.${randomBytes(6).toString('hex')}.tmp`,
+    );
+  }
+
   async function atomicWrite(
     targetPath: string,
     content: string | Uint8Array,
     opts: AtomicWriteOptions = {},
   ): Promise<void> {
-    const dir = path.dirname(targetPath);
-    await fs.mkdir(dir, { recursive: true });
-    const tmp = path.join(
-      dir,
-      `.${path.basename(targetPath)}.${randomBytes(6).toString('hex')}.tmp`,
-    );
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    const tmp = tempPathFor(targetPath);
 
     try {
       if (typeof content === 'string') {
@@ -89,30 +130,42 @@ export function createPersistencePrimitives(
       } else {
         await fs.writeFile(tmp, content, { flag: 'wx' });
       }
-      try {
-        const fileHandle = await fs.open(tmp, 'r+');
-        try {
-          await fileHandle.sync();
-        } finally {
-          await fileHandle.close();
-        }
-      } catch {
-        // fsync is best-effort; the atomic rename still protects readers.
-      }
+      await commitTemp(tmp, targetPath, opts);
+    } catch (error) {
+      await fs.unlink(tmp).catch(() => undefined);
+      throw error;
+    }
+  }
 
-      let mode: number | undefined;
-      try {
-        const stat = await fs.stat(targetPath);
-        mode = stat.mode & 0o777;
-      } catch {
-        mode = opts.mode;
-      }
-      if (mode !== undefined) await fs.chmod(tmp, mode);
+  /**
+   * Atomically replace `targetPath` with whatever `write` streams into the
+   * handle it is given. Same durability and rename semantics as
+   * {@link atomicWrite}, but the caller never has to materialize the new
+   * contents in memory — the point of this variant. Used by log rotation,
+   * where holding the retained tail as one buffer is exactly the allocation
+   * spike being avoided.
+   *
+   * Returns whatever `write` returns. The temp file is removed if `write`
+   * throws, so a failed rotation leaves the original file untouched.
+   */
+  async function atomicReplaceWithWriter<T>(
+    targetPath: string,
+    write: (handle: fs.FileHandle) => Promise<T>,
+    opts: AtomicWriteOptions = {},
+  ): Promise<T> {
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    const tmp = tempPathFor(targetPath);
 
-      await renameWithRetry(tmp, targetPath);
-      if (mode !== undefined && process.platform === 'win32') {
-        await fs.chmod(targetPath, mode).catch(() => undefined);
+    try {
+      const handle = await fs.open(tmp, 'wx');
+      let result: T;
+      try {
+        result = await write(handle);
+      } finally {
+        await handle.close().catch(() => undefined);
       }
+      await commitTemp(tmp, targetPath, opts);
+      return result;
     } catch (error) {
       await fs.unlink(tmp).catch(() => undefined);
       throw error;
@@ -206,7 +259,7 @@ export function createPersistencePrimitives(
     }
   }
 
-  return { atomicWrite, ensureDir, withFileLock };
+  return { atomicWrite, atomicReplaceWithWriter, ensureDir, withFileLock };
 }
 
 async function waitForLockRelease(lockPath: string, remainingMs: number): Promise<void> {

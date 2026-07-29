@@ -45,11 +45,37 @@ const PRIORITY_NAMES: Record<number, string> = {
   2: 'P2 Dead Symbol',
 };
 
-const PRIORITY_COLORS: Record<number, string> = {
-  0: '#ef4444',
-  1: '#f59e0b',
-  2: '#3b82f6',
+// Semantic priority roles → theme tokens, not raw hex.
+// Each maps to a CSS custom property that adapts to light/dark automatically.
+const PRIORITY_TOKEN: Record<number, string> = {
+  0: 'hsl(var(--destructive))', // P0 — worst, destructive red
+  1: 'hsl(var(--warning))', // P1 — caution amber
+  2: 'hsl(var(--info))', // P2 — informational blue
 };
+
+/**
+ * Safely parse a fetch Response as JSON.
+ *
+ * The backend should always return JSON, but if the server is misconfigured
+ * or the SPA fallback serves index.html, the body will be HTML. Reading
+ * `.text()` first and then `JSON.parse` lets us catch that gracefully
+ * and surface a useful error instead of the cryptic
+ * `Unexpected token '<', "<!doctype "... is not valid JSON`.
+ */
+async function safeJsonParse<T>(res: Response): Promise<T> {
+  const raw = await res.text();
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    // Log the raw body (truncated) for debugging.
+    const preview = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
+    console.warn(JSON.stringify({ level: 'warn', event: 'deadcode_parse_error', preview, timestamp: new Date().toISOString() }));
+    throw new Error(
+      'The server returned a non-JSON response (possibly an HTML error page). ' +
+        'Check that the backend is running and the /api/deadcode/* routes are wired.',
+    );
+  }
+}
 
 export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
@@ -71,10 +97,10 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
         body: JSON.stringify({}),
       });
       if (!res.ok) {
-        const err = (await res.json()) as { error?: string; detail?: string };
+        const err = await safeJsonParse<{ error?: string; detail?: string }>(res);
         throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
       }
-      const data = (await res.json()) as DeadCodeScanOutput;
+      const data = await safeJsonParse<DeadCodeScanOutput>(res);
       setScanResult(data);
       setScanPhase('done');
     } catch (err) {
@@ -86,6 +112,7 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
   const handleGeneratePlan = useCallback(async () => {
     if (!scanResult) return;
     setPlanPhase('generating');
+    setError(null);
     try {
       const res = await fetch('/api/deadcode/action-plan', {
         method: 'POST',
@@ -93,10 +120,10 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
         body: JSON.stringify(scanResult),
       });
       if (!res.ok) {
-        const err = (await res.json()) as { error?: string; detail?: string };
+        const err = await safeJsonParse<{ error?: string; detail?: string }>(res);
         throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
       }
-      const data = (await res.json()) as ActionPlan;
+      const data = await safeJsonParse<ActionPlan>(res);
       setActionPlan(data);
       setPlanPhase('ready');
     } catch (err) {
@@ -127,8 +154,6 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
     ].join('\n');
 
     // Dispatch a new agent task via the WebSocket's message system.
-    // We fire a session message through the existing completion-handler
-    // protocol so the current agent processes the cleanup plan.
     const ws = (window as typeof window & { __WS?: WebSocket }).__WS;
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(
@@ -149,8 +174,22 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
   }, [actionPlan]);
 
   return (
-    <div style={{ padding: '16px', fontFamily: 'system-ui, sans-serif' }}>
-      <h2 style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600 }}>
+    <div
+      style={{
+        padding: '16px',
+        fontFamily: 'var(--font-sans, system-ui, sans-serif)',
+        color: 'hsl(var(--foreground))',
+        background: 'hsl(var(--background))',
+      }}
+    >
+      <h2
+        style={{
+          margin: '0 0 16px',
+          fontSize: '18px',
+          fontWeight: 600,
+          color: 'hsl(var(--foreground))',
+        }}
+      >
         🔍 Dead-Code Scan
       </h2>
 
@@ -162,10 +201,14 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
           padding: '8px 16px',
           fontSize: '14px',
           fontWeight: 500,
-          background: scanPhase === 'scanning' ? '#94a3b8' : '#3b82f6',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '6px',
+          background:
+            scanPhase === 'scanning' ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
+          color:
+            scanPhase === 'scanning'
+              ? 'hsl(var(--muted-foreground))'
+              : 'hsl(var(--primary-foreground))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '0',
           cursor: scanPhase === 'scanning' ? 'not-allowed' : 'pointer',
         }}
       >
@@ -178,9 +221,10 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
           style={{
             marginTop: '12px',
             padding: '8px 12px',
-            background: '#fef2f2',
-            color: '#991b1b',
-            borderRadius: '6px',
+            background: 'hsl(var(--destructive) / 0.1)',
+            color: 'hsl(var(--destructive))',
+            border: '1px solid hsl(var(--destructive) / 0.3)',
+            borderRadius: '0',
             fontSize: '13px',
           }}
         >
@@ -193,6 +237,7 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
               border: 'none',
               cursor: 'pointer',
               fontWeight: 600,
+              color: 'hsl(var(--destructive))',
             }}
           >
             ✕
@@ -204,13 +249,13 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
       {scanResult && (
         <div style={{ marginTop: '16px' }}>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-            <StatCard label="Total Symbols" value={scanResult.stats.totalSymbols} color="#6366f1" />
-            <StatCard label="Alive" value={scanResult.stats.alive} color="#22c55e" />
-            <StatCard label="Dead" value={scanResult.stats.dead} color="#ef4444" />
+            <StatCard label="Total Symbols" value={scanResult.stats.totalSymbols} token="info" />
+            <StatCard label="Alive" value={scanResult.stats.alive} token="success" />
+            <StatCard label="Dead" value={scanResult.stats.dead} token="destructive" />
           </div>
 
           {scanResult.deadPackages.length > 0 && (
-            <ResultSection title={`Dead Packages (${scanResult.deadPackages.length})`} color="#ef4444">
+            <ResultSection title={`Dead Packages (${scanResult.deadPackages.length})`} token="destructive">
               {scanResult.deadPackages.map((pkg) => (
                 <ResultRow key={pkg.package} columns={[pkg.package, pkg.path, `${pkg.fileCount} file(s)`]} />
               ))}
@@ -218,23 +263,29 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
           )}
 
           {scanResult.deadFiles.length > 0 && (
-            <ResultSection title={`Dead Files (${scanResult.deadFiles.length})`} color="#f59e0b">
-              {scanResult.deadFiles.map((f) => (
+            <ResultSection title={`Dead Files (${scanResult.deadFiles.length})`} token="warning">
+              {scanResult.deadFiles.map((f: DeadFile) => (
                 <ResultRow key={f.file} columns={[f.file, `${f.symbolCount} symbol(s)`, f.lang]} />
               ))}
             </ResultSection>
           )}
 
           {scanResult.deadSymbols.length > 0 && (
-            <ResultSection title={`Dead Symbols (${scanResult.deadSymbols.length})`} color="#3b82f6">
-              {scanResult.deadSymbols.slice(0, 50).map((s) => (
+            <ResultSection title={`Dead Symbols (${scanResult.deadSymbols.length})`} token="info">
+              {scanResult.deadSymbols.slice(0, 50).map((s: DeadSymbol) => (
                 <ResultRow
                   key={`${s.file}:${s.line}:${s.name}`}
                   columns={[s.name, s.kind, s.file.split('/').pop() ?? s.file, `line ${s.line}`]}
                 />
               ))}
               {scanResult.deadSymbols.length > 50 && (
-                <div style={{ padding: '6px 8px', color: '#64748b', fontSize: '12px' }}>
+                <div
+                  style={{
+                    padding: '6px 8px',
+                    color: 'hsl(var(--muted-foreground))',
+                    fontSize: '12px',
+                  }}
+                >
                   … and {scanResult.deadSymbols.length - 50} more
                 </div>
               )}
@@ -251,10 +302,14 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
                 padding: '8px 16px',
                 fontSize: '14px',
                 fontWeight: 500,
-                background: planPhase === 'generating' ? '#94a3b8' : '#8b5cf6',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
+                background:
+                  planPhase === 'generating' ? 'hsl(var(--muted))' : 'hsl(var(--accent))',
+                color:
+                  planPhase === 'generating'
+                    ? 'hsl(var(--muted-foreground))'
+                    : 'hsl(var(--accent-foreground))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '0',
                 cursor: planPhase === 'generating' ? 'not-allowed' : 'pointer',
               }}
             >
@@ -269,16 +324,29 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
         <div
           style={{
             marginTop: '16px',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '0',
             padding: '12px',
-            background: '#fafafa',
+            background: 'hsl(var(--card))',
           }}
         >
-          <h3 style={{ margin: '0 0 8px', fontSize: '15px', fontWeight: 600 }}>
+          <h3
+            style={{
+              margin: '0 0 8px',
+              fontSize: '15px',
+              fontWeight: 600,
+              color: 'hsl(var(--card-foreground))',
+            }}
+          >
             📋 Action Plan
           </h3>
-          <p style={{ fontSize: '13px', color: '#475569', margin: '0 0 12px' }}>
+          <p
+            style={{
+              fontSize: '13px',
+              color: 'hsl(var(--muted-foreground))',
+              margin: '0 0 12px',
+            }}
+          >
             {actionPlan.summary}
           </p>
 
@@ -290,15 +358,16 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
                 alignItems: 'flex-start',
                 gap: '8px',
                 padding: '6px 0',
-                borderBottom: i < actionPlan.files.length - 1 ? '1px solid #e2e8f0' : 'none',
+                borderBottom:
+                  i < actionPlan.files.length - 1 ? '1px solid hsl(var(--border))' : 'none',
                 fontSize: '13px',
               }}
             >
               <span
                 style={{
-                  background: PRIORITY_COLORS[file.priority] ?? '#94a3b8',
-                  color: '#fff',
-                  borderRadius: '4px',
+                  background: PRIORITY_TOKEN[file.priority] ?? 'hsl(var(--muted-foreground))',
+                  color: 'hsl(var(--primary-foreground))',
+                  borderRadius: '0',
                   padding: '2px 6px',
                   fontSize: '11px',
                   fontWeight: 600,
@@ -315,11 +384,12 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   {file.file}
                 </div>
-                <div style={{ color: '#64748b', fontSize: '12px' }}>
+                <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '12px' }}>
                   {file.symbolCount} symbol(s)
                   {file.symbols.length > 0 && ` · ${file.symbols.slice(0, 2).join(', ')}${file.symbols.length > 2 ? '…' : ''}`}
                 </div>
@@ -335,10 +405,11 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
               padding: '8px 16px',
               fontSize: '14px',
               fontWeight: 500,
-              background: planPhase === 'executing' ? '#94a3b8' : '#22c55e',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
+              background:
+                planPhase === 'executing' ? 'hsl(var(--muted))' : 'hsl(var(--success))',
+              color: 'hsl(var(--primary-foreground))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '0',
               cursor: planPhase === 'executing' ? 'not-allowed' : 'pointer',
             }}
           >
@@ -352,41 +423,55 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────
 
+type SemanticToken = 'success' | 'warning' | 'info' | 'destructive' | 'primary';
+
+const TOKEN_COLORS: Record<SemanticToken, string> = {
+  success: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  info: 'hsl(var(--info))',
+  destructive: 'hsl(var(--destructive))',
+  primary: 'hsl(var(--primary))',
+};
+
 function StatCard({
   label,
   value,
-  color,
+  token,
 }: {
   label: string;
   value: number;
-  color: string;
+  token: SemanticToken;
 }) {
+  const color = TOKEN_COLORS[token];
   return (
     <div
       style={{
         flex: 1,
         padding: '10px',
-        borderRadius: '8px',
-        border: `1px solid ${color}22`,
-        background: `${color}08`,
+        borderRadius: '0',
+        border: `1px solid hsl(var(--border))`,
+        background: 'hsl(var(--card))',
         textAlign: 'center',
       }}
     >
       <div style={{ fontSize: '24px', fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{label}</div>
+      <div style={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginTop: '2px' }}>
+        {label}
+      </div>
     </div>
   );
 }
 
 function ResultSection({
   title,
-  color,
+  token,
   children,
 }: {
   title: string;
-  color: string;
+  token: SemanticToken;
   children: React.ReactNode;
 }) {
+  const color = TOKEN_COLORS[token];
   return (
     <div style={{ marginBottom: '12px' }}>
       <h3
@@ -403,8 +488,8 @@ function ResultSection({
       </h3>
       <div
         style={{
-          border: '1px solid #e2e8f0',
-          borderRadius: '6px',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '0',
           overflow: 'hidden',
           fontSize: '13px',
         }}
@@ -426,9 +511,11 @@ function ResultRow({
         display: 'flex',
         gap: '8px',
         padding: '5px 8px',
-        borderBottom: '1px solid #f1f5f9',
+        borderBottom: '1px solid hsl(var(--border))',
         fontSize: '13px',
-        fontFamily: 'monospace',
+        fontFamily: 'var(--font-mono, monospace)',
+        background: 'hsl(var(--card))',
+        color: 'hsl(var(--card-foreground))',
       }}
     >
       {columns.map((col, i) => (

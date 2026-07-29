@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
   KANBAN_AGENT_STAGES,
@@ -22,11 +22,16 @@ import {
   updateTask,
   updateTaskAssignment,
 } from '../src/manager.js';
+import { writeBoard } from '../src/storage.js';
 
 let tmpDir: string;
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-life-'));
+});
+
+afterEach(async () => {
+  await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
 });
 
 function nowIso(): string {
@@ -176,6 +181,76 @@ describe('adoptManagedLifecycle', () => {
     expect(unchanged?.lifecycle).toBeUndefined();
     expect(unchanged?.tasks[0]?.columnId).toBe('extra');
     expect(unchanged?.tasks.every((task) => task.lifecycle === undefined)).toBe(true);
+  });
+
+  it('skips tasks that already have lifecycle metadata during first adoption — same mapping', async () => {
+    const at = nowIso();
+    const board = await createBoard(tmpDir, {
+      title: 'Partial lifecycle',
+      columns: COLS,
+      tasks: [
+        { title: 'Fresh', columnId: 'todo', status: 'pending' },
+        { title: 'Has-lifecycle', columnId: 'in-progress', status: 'in_progress' },
+      ],
+    });
+
+    // Manually set lifecycle on one task before adoption. The board itself
+    // does NOT have a managed lifecycle (simulates a partial migration or
+    // externally imported task with stale lifecycle metadata).
+    board.tasks[1]!.lifecycle = {
+      currentStage: 'running',
+      stageEnteredAt: at,
+      history: [{ to: 'running', at, actor: 'pre-adoption', action: 'Pre-adoption init.' }],
+    };
+    await writeBoard(tmpDir, board);
+
+    const adopted = await adoptManagedLifecycle(tmpDir, board.id, {
+      columns: policy.columns,
+      actor: 'migration-agent',
+      comment: 'Adopt board with one pre-lifecycled task.',
+    });
+
+    // The task with pre-existing lifecycle kept it unchanged (skip path)
+    expect(adopted!.tasks[1]?.lifecycle?.currentStage).toBe('running');
+    expect(adopted!.tasks[1]?.lifecycle?.stageEnteredAt).toBe(at);
+    expect(adopted!.tasks[1]?.lifecycle?.history).toHaveLength(1);
+
+    // The fresh task got lifecycle initialized
+    expect(adopted!.tasks[0]?.lifecycle?.currentStage).toBe('todo');
+  });
+
+  it('rejects adoption when a task has pre-existing lifecycle that mismatches its column', async () => {
+    const at = nowIso();
+    const board = await createBoard(tmpDir, {
+      title: 'Staged mismatch',
+      columns: COLS,
+      tasks: [{ title: 'Mis-staged', columnId: 'backlog', status: 'pending' }],
+    });
+
+    // Give the task lifecycle metadata that says 'done', but the task sits
+    // in 'backlog' column. Under default mapping backlog→backlog, the
+    // expected stage for the backlog column is 'backlog' — but the task
+    // claims it is 'done'. This must be caught by the skip-path consistency
+    // check at lifecycle.ts:152-166.
+    board.tasks[0]!.lifecycle = {
+      currentStage: 'done',
+      stageEnteredAt: at,
+      history: [{ to: 'done', at, actor: 'pre-adoption', action: 'Pre-adoption init.' }],
+    };
+    await writeBoard(tmpDir, board);
+
+    await expect(
+      adoptManagedLifecycle(tmpDir, board.id, {
+        columns: policy.columns,
+        actor: 'migration-agent',
+        comment: 'Adopt with mismatched lifecycle.',
+      }),
+    ).rejects.toThrow(KanbanLifecycleError);
+
+    // Board unchanged
+    const unchanged = await getBoard(tmpDir, board.id);
+    expect(unchanged?.lifecycle).toBeUndefined();
+    expect(unchanged?.tasks[0]?.lifecycle?.currentStage).toBe('done');
   });
 });
 

@@ -429,6 +429,13 @@ export interface SessionData {
    * Undefined for events-only loads (no message reconstruction).
    */
   pendingToolUseCount?: number | undefined;
+  /**
+   * Number of oldest `events` dropped to stay inside the loader's retention
+   * budget. Only set for sessions large enough to hit it (see
+   * `DEFAULT_MAX_RETAINED_EVENT_BYTES`); absent means `events` is complete.
+   * `messages` is never affected — it is replayed as lines arrive.
+   */
+  eventsDropped?: number | undefined;
 }
 
 export interface ResumedSession {

@@ -128,6 +128,64 @@ describe('runDeadCodeScan', () => {
     expect(result.deadSymbols.filter((s) => s.name === 'orphan')).toHaveLength(1);
   });
 
+  it('discovers entry points from pnpm-workspace.yaml when package.json has no workspaces field', async () => {
+    // Root package.json with no workspaces field — pnpm monorepo pattern.
+    await write('package.json', JSON.stringify({ name: 'test-mono' }));
+    // pnpm-workspace.yaml listing two workspace dirs.
+    await write(
+      'pnpm-workspace.yaml',
+      `packages:
+  - "packages/*"
+  - "apps/*"
+onlyBuiltDependencies:
+  - electron
+  - esbuild
+`,
+    );
+    // Workspace package with package.json + conventional entry point.
+    await write(
+      'packages/lib/package.json',
+      JSON.stringify({ name: '@test/lib', main: './dist/index.js' }),
+    );
+    await write(
+      'packages/lib/src/index.ts',
+      `import { greet } from './greet';
+       export function entry() { greet(); }
+      `,
+    );
+    await write(
+      'packages/lib/src/greet.ts',
+      `export function greet() { return 'hello'; }
+       export function unused() { return 'dead'; }
+      `,
+    );
+    // apps/web package with just a convention entry point.
+    await write(
+      'apps/web/package.json',
+      JSON.stringify({ name: '@test/web' }),
+    );
+    await write(
+      'apps/web/src/main.ts',
+      `export function webEntry() { return 42; }
+      `,
+    );
+
+    await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
+
+    const store = indexStorePool.acquire(dir, { indexDir: indexDir() });
+    const result = runDeadCodeScan(dir, { store });
+    indexStorePool.release(store);
+
+    // Should have discovered entry points from workspace packages.
+    expect(result.entryPoints.length).toBeGreaterThanOrEqual(2);
+    // entry() and greet() should be alive; unused() should be dead.
+    expect(result.deadSymbols.filter((s) => s.name === 'entry')).toHaveLength(0);
+    expect(result.deadSymbols.filter((s) => s.name === 'greet')).toHaveLength(0);
+    expect(result.deadSymbols.filter((s) => s.name === 'unused')).toHaveLength(1);
+    // webEntry should also be alive (src/main.ts convention hit).
+    expect(result.deadSymbols.filter((s) => s.name === 'webEntry')).toHaveLength(0);
+  });
+
   it('excludes local variables (let, var) from dead symbol reports', async () => {
     await write('package.json', JSON.stringify({ name: 'test-pkg' }));
     await write(

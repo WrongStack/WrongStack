@@ -98,6 +98,21 @@ export class Context implements RunEnv {
    */
   static readonly MAX_MESSAGES = 2_000;
   /**
+   * Companion size cap on the same history, in estimated tokens.
+   *
+   * `MAX_MESSAGES` bounds the message *count*, which does not bound memory:
+   * message size spans four orders of magnitude, and a tool result may be up
+   * to `exec`'s 200 KB output cap. 2,000 of those is ~400 MB of live
+   * conversation, reached without ever tripping the count cap. Both caps guard
+   * the same failure — compaction not running — so both belong here.
+   *
+   * 8M tokens is roughly 32M characters, i.e. ~64 MB of text before JS object
+   * overhead. That is ~40x a full 200k-token context window, so this never
+   * engages while compaction is doing its job; it only bounds the runaway.
+   * Set to 0 for unlimited (legacy/test behaviour).
+   */
+  static readonly MAX_MESSAGE_TOKENS = 8_000_000;
+  /**
    * Hard cap on distinct tracked-file paths retained in memory per session.
    * Past this limit the oldest (least-recently-entered) path is dropped.
    * Prevents unbounded growth on very large repos in long sessions.

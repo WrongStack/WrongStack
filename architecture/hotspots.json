@@ -118,6 +118,10 @@
       "lines": 922,
       "relativeImports": 24
     },
+    "packages/core/src/core/context.ts": {
+      "lines": 855,
+      "relativeImports": 13
+    },
     "packages/core/src/execution/autonomy-brain.ts": {
       "lines": 962,
       "relativeImports": 8
@@ -431,8 +435,8 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 856,
-      "relativeImports": 8
+      "lines": 900,
+      "relativeImports": 9
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 967,

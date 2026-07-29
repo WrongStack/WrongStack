@@ -13,6 +13,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
+import { loadSessionDataFromFile } from '../../src/storage/session-store/load-session-data.js';
+import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
+
+const passthroughScrubber: SecretScrubber = {
+  scrub: (text) => text,
+  scrubObject: (obj) => obj,
+};
 
 let dir: string;
 let sessionFile: string;
@@ -121,6 +128,67 @@ describe('session loader snapshot payload retention', () => {
 
     expect(only.messages).toHaveLength(1);
     expect(only.messagesOmitted).toBeUndefined();
+  });
+
+  it('refunds stripped snapshot bytes so the retention budget tracks live size', async () => {
+    // Source bytes are dominated by snapshot payloads that get stripped. A
+    // budget charged on raw line length would evict here; charged on what is
+    // actually resident, it must not.
+    const fat = (ts: string) => snapshot(ts, Array.from({ length: 400 }, (_, i) => `pad-${i}`.repeat(20)));
+    await writeSession([
+      start,
+      fat('2026-01-01T00:01:00.000Z'),
+      fat('2026-01-01T00:02:00.000Z'),
+      fat('2026-01-01T00:03:00.000Z'),
+      fat('2026-01-01T00:04:00.000Z'),
+    ]);
+    const sourceBytes = (await fs.stat(sessionFile)).size;
+
+    const data = await loadSessionDataFromFile({
+      id: SESSION_ID,
+      file: sessionFile,
+      full: true,
+      secretScrubber: passthroughScrubber,
+      // Well under the raw file size — only the refund keeps us inside it.
+      maxRetainedEventBytes: Math.floor(sourceBytes / 2),
+    });
+
+    expect(data.eventsDropped).toBeUndefined();
+    expect(data.events).toHaveLength(5);
+  });
+
+  it('drops oldest events past the budget without disturbing replay', async () => {
+    const inputs = Array.from({ length: 60 }, (_, i) => ({
+      type: 'user_input',
+      ts: `2026-01-01T00:${String(i).padStart(2, '0')}:00.000Z`,
+      content: [{ type: 'text', text: `turn-${i}-${'x'.repeat(500)}` }],
+    }));
+    await writeSession([start, ...inputs]);
+
+    const bounded = await loadSessionDataFromFile({
+      id: SESSION_ID,
+      file: sessionFile,
+      full: true,
+      secretScrubber: passthroughScrubber,
+      maxRetainedEventBytes: 4_000,
+    });
+    const unbounded = await loadSessionDataFromFile({
+      id: SESSION_ID,
+      file: sessionFile,
+      full: true,
+      secretScrubber: passthroughScrubber,
+    });
+
+    // The budget engaged, and it took the oldest.
+    expect(bounded.eventsDropped).toBeGreaterThan(0);
+    expect(bounded.events.length).toBeLessThan(unbounded.events.length);
+    expect(JSON.stringify(bounded.events)).toContain('turn-59');
+    expect(JSON.stringify(bounded.events)).not.toContain('turn-0-');
+
+    // Replay is built as lines arrive, so it is identical either way. This is
+    // the property that makes front-eviction safe.
+    expect(bounded.messages).toHaveLength(unbounded.messages.length);
+    expect(JSON.stringify(bounded.messages)).toBe(JSON.stringify(unbounded.messages));
   });
 
   it('does not disturb non-snapshot events', async () => {

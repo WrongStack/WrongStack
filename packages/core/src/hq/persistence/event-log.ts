@@ -9,19 +9,31 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite, withFileLock } from '../../utils/atomic-write.js';
+import { atomicReplaceWithWriter, withFileLock } from '../../utils/atomic-write.js';
 import type { HqEventEnvelope } from '../protocol.js';
 import { BestEffortBatchQueue } from '../write-queues.js';
 import {
+  copyTailToHandle,
+  findTailStartOffset,
   LINE_COUNT_CHUNK_BYTES,
   RECENT_READ_CHUNK_BYTES,
-  readTailNonEmptyLines,
 } from './jsonl-io.js';
 
 /** Maximum event-log lines before a rotation compacts it down to the tail. */
 const DEFAULT_EVENT_LOG_MAX_LINES = 50_000;
 /** How many lines to retain after a rotation. */
 const DEFAULT_EVENT_LOG_ROTATE_KEEP = 20_000;
+/**
+ * Maximum event-log *bytes* before rotation, and how many bytes to retain.
+ *
+ * A line cap alone does not bound this file: envelope size varies by three
+ * orders of magnitude across event types, so 50k lines has meant anywhere from
+ * a few MB to ~700 MB in practice (measured: 429 MB at 30,809 lines, average
+ * line 14.5 KB — the line cap had never once fired). Rotation now triggers on
+ * whichever cap binds first, and the retained tail is bounded the same way.
+ */
+const DEFAULT_EVENT_LOG_MAX_BYTES = 64 * 1024 * 1024;
+const DEFAULT_EVENT_LOG_ROTATE_KEEP_BYTES = 24 * 1024 * 1024;
 /** Switch to one bulk prefix read when a selective filter requires a deep scan. */
 const RECENT_TAIL_SCAN_BYTES = 1024 * 1024;
 const FILTERED_RECENT_TAIL_SCAN_BYTES = 256 * 1024;
@@ -38,6 +50,8 @@ export interface HqEventLogOptions {
   dataDir: string;
   maxLines?: number;
   rotateKeep?: number;
+  maxBytes?: number;
+  rotateKeepBytes?: number;
 }
 
 /**
@@ -54,7 +68,10 @@ export class HqEventLog {
   private readonly maxLines: number;
   private readonly rotateKeep: number;
   private readonly writer: BestEffortBatchQueue<HqEventEnvelope>;
+  private readonly maxBytes: number;
+  private readonly rotateKeepBytes: number;
   private lineCount = 0;
+  private byteCount = 0;
   private counted = false;
   private hydration: Promise<void> | undefined;
 
@@ -62,6 +79,8 @@ export class HqEventLog {
     this.filePath = path.join(opts.dataDir, 'events.jsonl');
     this.maxLines = opts.maxLines ?? DEFAULT_EVENT_LOG_MAX_LINES;
     this.rotateKeep = opts.rotateKeep ?? DEFAULT_EVENT_LOG_ROTATE_KEEP;
+    this.maxBytes = opts.maxBytes ?? DEFAULT_EVENT_LOG_MAX_BYTES;
+    this.rotateKeepBytes = opts.rotateKeepBytes ?? DEFAULT_EVENT_LOG_ROTATE_KEEP_BYTES;
     this.writer = new BestEffortBatchQueue((events) => this.appendInternal(events));
   }
 
@@ -80,27 +99,46 @@ export class HqEventLog {
     const lines = events.map((event) => JSON.stringify(event)).join('\n') + '\n';
     await fs.appendFile(this.filePath, lines, { encoding: 'utf8' });
     this.lineCount += events.length;
-    if (this.lineCount >= this.maxLines) {
+    this.byteCount += Buffer.byteLength(lines, 'utf8');
+    if (this.lineCount >= this.maxLines || this.byteCount >= this.maxBytes) {
       await this.rotate();
     }
   }
 
+  /**
+   * Compact the log down to its most recent lines.
+   *
+   * Streams the retained tail straight from the old file into the replacement
+   * rather than materializing it. The previous implementation read the tail
+   * into a `string[]`, `join`ed it, and handed the result to `atomicWrite` —
+   * at the observed 14.5 KB average line that is ~277 MB of UTF-8 inflated to
+   * ~555 MB of JS strings, plus another ~555 MB for the join, all allocated
+   * inside the file lock. Rotation is now O(one chunk) no matter how much is
+   * retained, so the operation that exists to *reclaim* space stops being the
+   * largest allocation the process ever makes.
+   */
   private async rotate(): Promise<void> {
     await withFileLock(this.filePath, async () => {
       try {
         const retainCount = Math.max(0, Math.floor(this.rotateKeep));
-        // Probe one line beyond the keep-count so we can detect the boundary
-        // case where the file has exactly `retainCount` lines (no rotation
-        // needed) vs. `retainCount + 1+` (rotation required). The over-read
-        // is bounded because `readTailNonEmptyLines` clips to `limit`.
-        const newest = await readTailNonEmptyLines(this.filePath, retainCount + 1, this.lineCount);
-        if (newest.length <= retainCount) {
-          this.lineCount = newest.length;
+        const { offset, size } = await findTailStartOffset(
+          this.filePath,
+          retainCount,
+          this.rotateKeepBytes,
+        );
+        // offset 0 means the file is already at or under the keep-count and
+        // within the byte budget — nothing to reclaim. Re-sync the counters
+        // (another process may have rotated underneath us) and stop.
+        if (offset === 0) {
+          this.byteCount = size;
+          this.lineCount = await this.countLines();
           return;
         }
-        const kept = newest.slice(0, retainCount).reverse();
-        await atomicWrite(this.filePath, kept.join('\n') + '\n');
-        this.lineCount = kept.length;
+        const copied = await atomicReplaceWithWriter(this.filePath, (handle) =>
+          copyTailToHandle(this.filePath, offset, handle),
+        );
+        this.lineCount = copied.lines;
+        this.byteCount = copied.bytes;
       } catch {
         /* best-effort */
       }
@@ -170,8 +208,18 @@ export class HqEventLog {
 
   private async ensureLineCount(): Promise<void> {
     if (this.counted) return;
-    this.hydration ??= this.countLines().then((count) => {
+    // Seed the byte counter alongside the line counter, otherwise a process
+    // that restarts against an already-oversized log would count up from zero
+    // and never trip the byte cap.
+    this.hydration ??= Promise.all([
+      this.countLines(),
+      fs.stat(this.filePath).then(
+        (stat) => stat.size,
+        () => 0,
+      ),
+    ]).then(([count, size]) => {
       this.lineCount = count;
+      this.byteCount = size;
       this.counted = true;
     });
     try {

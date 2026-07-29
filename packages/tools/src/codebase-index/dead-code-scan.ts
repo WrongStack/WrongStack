@@ -325,6 +325,10 @@ function extractWorkspaceGlobs(
  * package.json does not have a `workspaces` field (pnpm default layout).
  * Parses the `packages:` list — each entry is a glob string that gets
  * expanded the same way as package.json workspaces entries.
+ *
+ * Uses a line-by-line context tracker so only list items nested under
+ * the `packages:` key are collected — items under other top-level keys
+ * (e.g. `onlyBuiltDependencies:`) are correctly ignored.
  */
 function extractPnpmWorkspaceDirs(
   projectRoot: string,
@@ -335,17 +339,37 @@ function extractPnpmWorkspaceDirs(
   try {
     const content = fs.readFileSync(yamlPath, 'utf8');
     const dirs: string[] = [];
-    // Match lines that are list items under the `packages:` key:
-    //   - "packages/*"
-    //   - "apps/*"
-    //   - packages/*
-    // (with optional quotes)
-    const pkgLineRe = /^\s+-\s+"([^"]+)"|^\s+-\s+'([^']+)'|^\s+-\s+(\S+)$/gm;
-    let match: RegExpExecArray | null;
-    while ((match = pkgLineRe.exec(content)) !== null) {
-      const entry = match[1] ?? match[2] ?? match[3];
-      if (entry) {
-        dirs.push(...expandGlobPattern(entry, projectRoot));
+    let inPackages = false;
+    const lines = content.split('\n');
+    // Regex for a list item: whitespace, dash, optional space, then optional
+    // quoted or bare value.
+    const itemRe = /^\s+-\s+"([^"]+)"|^\s+-\s+'([^']+)'|^\s+-\s+(\S+)/;
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Detect `packages:` key at any indent level.
+      if (/^packages\s*:\s*$/.test(trimmed)) {
+        inPackages = true;
+        continue;
+      }
+
+      // Any other top-level key (no leading whitespace) ends the packages section.
+      if (inPackages && trimmed.length > 0 && !line.startsWith(' ') && !line.startsWith('\t')) {
+        if (!trimmed.startsWith('-')) {
+          inPackages = false;
+          continue;
+        }
+      }
+
+      // Collect list items when inside the packages block.
+      if (inPackages) {
+        const m = itemRe.exec(line);
+        if (m) {
+          const entry = m[1] ?? m[2] ?? m[3];
+          if (entry) {
+            dirs.push(...expandGlobPattern(entry, projectRoot));
+          }
+        }
       }
     }
     return dirs;

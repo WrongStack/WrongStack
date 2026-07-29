@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.296.2",
+  "packageVersion": "0.296.3",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1038,21 +1038,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 30,
-      "sourceLines": 7814
+      "sourceLines": 7851
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41269
+      "sourceLines": 41325
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8412
+      "sourceLines": 8477
     },
     {
       "directory": "defaults",
@@ -1101,7 +1101,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 38,
-      "sourceLines": 7434
+      "sourceLines": 7592
     },
     {
       "directory": "infrastructure",
@@ -1199,7 +1199,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 15954
+      "sourceLines": 16018
     },
     {
       "directory": "tasking",
@@ -1220,14 +1220,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9283
+      "sourceLines": 9290
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 55,
-      "sourceLines": 8235
+      "sourceLines": 8246
     },
     {
       "directory": "worktree",

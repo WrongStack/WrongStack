@@ -16,14 +16,47 @@ import { extractToolCallEnds } from '../session-tool-call-ends.js';
 
 type UsageTotals = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
+/**
+ * Budget for the raw `events` array, in source bytes.
+ *
+ * `events` used to grow with the file, without limit. Measured, that is a
+ * 1.88x heap multiplier over the JSONL — a 564 MB session (15 such files
+ * exist in one real project) becomes ~1.03 GB of live objects for this array
+ * alone, before `messages` and before parse garbage. Loading one was an OOM,
+ * not a slow load.
+ *
+ * The budget keeps the newest events and drops the oldest, because everything
+ * downstream of `events` is tail-oriented: the summary counts, the resume
+ * file-observation check, and the transcript all care about recent history.
+ * `messages` is unaffected — it is replayed incrementally as lines arrive and
+ * carries its own retention.
+ *
+ * Sized so it never engages for ordinary sessions: 96 MB of JSONL is above
+ * all but a handful of sessions ever recorded, so the common path keeps
+ * byte-for-byte the behaviour it had.
+ */
+export const DEFAULT_MAX_RETAINED_EVENT_BYTES = 96 * 1024 * 1024;
+/** Evict down to this fraction of the budget so eviction is amortized, not per-line. */
+const EVICT_TO_FRACTION = 0.9;
+/** What a snapshot event still costs once `stripSnapshotPayload` empties it. */
+const SNAPSHOT_ENVELOPE_BYTES = 256;
+
 export async function loadSessionDataFromFile(params: {
   id: string;
   file: string;
   full: boolean;
   events?: EventBus | undefined;
   secretScrubber: SecretScrubber;
+  maxRetainedEventBytes?: number | undefined;
 }): Promise<SessionData> {
   const events: SessionEvent[] = [];
+  const eventBytes: number[] = [];
+  const eventBudget = params.maxRetainedEventBytes ?? DEFAULT_MAX_RETAINED_EVENT_BYTES;
+  const evictTo = Math.floor(eventBudget * EVICT_TO_FRACTION);
+  let retainedBytes = 0;
+  let eventsDropped = 0;
+  /** Absolute index (across evictions) of the newest snapshot still in `events`. */
+  let lastSnapshotAbsIndex = -1;
   let sessionStartEvent: SessionEvent | undefined;
   let sessionEndEvent: SessionEvent | undefined;
   let sessionModel: string | undefined;
@@ -60,11 +93,41 @@ export async function loadSessionDataFromFile(params: {
         // the final state, so it stays available for anything that later wants
         // to inspect it — and strip the ones it superseded. Retention becomes
         // O(1) snapshots instead of O(session length).
-        if (isSnapshotEvent(ev)) {
-          if (lastSnapshot !== undefined) stripSnapshotPayload(lastSnapshot);
-          lastSnapshot = ev;
-        }
         events.push(ev);
+        eventBytes.push(line.length);
+        retainedBytes += line.length;
+        if (isSnapshotEvent(ev)) {
+          if (lastSnapshot !== undefined) {
+            stripSnapshotPayload(lastSnapshot);
+            // Refund the stripped payload to the retention budget. Without
+            // this the budget would be charged for bytes that are no longer
+            // resident, and on a snapshot-heavy session (where source bytes
+            // exceed live bytes by an order of magnitude) it would evict
+            // events that cost almost nothing to keep.
+            const slot = lastSnapshotAbsIndex - eventsDropped;
+            if (slot >= 0 && slot < eventBytes.length) {
+              const refund = eventBytes[slot]! - SNAPSHOT_ENVELOPE_BYTES;
+              if (refund > 0) {
+                retainedBytes -= refund;
+                eventBytes[slot] = SNAPSHOT_ENVELOPE_BYTES;
+              }
+            }
+          }
+          lastSnapshot = ev;
+          lastSnapshotAbsIndex = eventsDropped + events.length - 1;
+        }
+        if (retainedBytes > eventBudget) {
+          // Drop from the front in one batch down to `evictTo` — a per-line
+          // `shift()` here would be O(n) on every subsequent line.
+          let cut = 0;
+          while (cut < eventBytes.length && retainedBytes > evictTo) {
+            retainedBytes -= eventBytes[cut]!;
+            cut++;
+          }
+          events.splice(0, cut);
+          eventBytes.splice(0, cut);
+          eventsDropped += cut;
+        }
 
         if (ev.type === 'session_start' && !sessionStartEvent) {
           sessionStartEvent = ev;
@@ -152,6 +215,7 @@ export async function loadSessionDataFromFile(params: {
     usage,
     toolCallEnds,
     ...(pendingToolUseCount !== undefined ? { pendingToolUseCount } : {}),
+    ...(eventsDropped > 0 ? { eventsDropped } : {}),
   };
 }
 

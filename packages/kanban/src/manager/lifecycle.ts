@@ -85,15 +85,6 @@ export async function adoptManagedLifecycle(
   input: AdoptManagedLifecycleInput,
 ): Promise<KanbanBoard | null> {
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
-    if (board.lifecycle?.mode === 'managed') {
-      throw new KanbanLifecycleError('Board already uses the managed lifecycle.', [
-        {
-          code: 'managed-policy-invalid',
-          field: 'lifecycle.mode',
-          message: 'Board already uses the managed lifecycle.',
-        },
-      ]);
-    }
     if (!hasText(input.actor) || !hasText(input.comment)) {
       throw new KanbanLifecycleError('Lifecycle adoption requires an actor and audit comment.', [
         {
