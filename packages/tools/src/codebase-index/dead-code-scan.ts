@@ -223,6 +223,87 @@ function discoverEntryPoints(
   return [...entries];
 }
 
+/**
+ * Known build-output directory names that may have equivalent source
+ * directories under `src/`. Used by {@link trySourceEquivalent} to map
+ * compiled paths back to their source files.
+ */
+const BUILD_OUTPUT_DIRS = ['dist', 'out', 'build', 'release'] as const;
+
+/**
+ * Known build-output directory names. Used by {@link trySourceEquivalent}.
+ */
+const BUILD_OUTPUT_DIR_NAMES = BUILD_OUTPUT_DIRS.map((d) => `${path.sep}${d}${path.sep}`);
+
+/**
+ * Given a resolved path that points into a build-output directory (e.g.
+ * `<pkgDir>/dist/main/main.js`), try to find the corresponding source file
+ * under `src/` with a `.ts` extension.
+ *
+ * Examples:
+ *   `<pkgDir>/dist/main/main.js` → `<pkgDir>/src/main/main.ts`
+ *   `<pkgDir>/out/index.mjs`     → `<pkgDir>/src/index.ts`
+ *   `<pkgDir>/build/cli.cjs`     → `<pkgDir>/src/cli.ts`
+ *
+ * Returns the first existing source path, or null if none is found.
+ */
+function trySourceEquivalent(resolved: string): string | null {
+  for (const marker of BUILD_OUTPUT_DIR_NAMES) {
+    const idx = resolved.indexOf(marker);
+    if (idx === -1) continue;
+    // Ensure the matched segment is a complete path node, not part of a longer
+    // directory name (e.g. "src/distribution/" contains "/dist/" but "dist" is
+    // not a standalone path segment there).
+    if (idx > 0 && resolved[idx - 1] !== path.sep) continue;
+
+    const base = resolved.replace(marker, `${path.sep}src${path.sep}`);
+
+    // 1. Replace .js/.mjs/.cjs → .ts
+    const candidate = base.replace(/\.(js|mjs|cjs)$/, '.ts');
+    if (candidate !== base && fs.existsSync(candidate)) {
+      return candidate;
+    }
+
+    // 2. Strip .d.ts first, then append .ts (catches e.g. dist/index.d.ts → src/index.ts)
+    const dtsStripped = base.replace(/\.d\.ts$/, '');
+    const candidateDts = dtsStripped + '.ts';
+    if (candidateDts !== base && candidateDts !== candidate && fs.existsSync(candidateDts)) {
+      return candidateDts;
+    }
+
+    // 3. Plain `.ts` appended when path had no JS extension (e.g. dist/main → src/main.ts)
+    const candidateNoExt = base + '.ts';
+    if (candidate !== candidateNoExt && fs.existsSync(candidateNoExt)) {
+      return candidateNoExt;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve a path string from a package.json field, add it to entries if it
+ * exists, and also try the src/ equivalent when the path points to a
+ * build-output directory (dist/out/build/release).
+ */
+function tryAddEntryPath(pkgDir: string, rawPath: string, entries: Set<string>): void {
+  const resolved = resolveAgainst(pkgDir, rawPath);
+  if (fs.existsSync(resolved)) entries.add(resolved);
+
+  // Try .ts extension (for .js/.mjs/.cjs paths).
+  const tsResolved = resolved.replace(/\.(js|mjs|cjs)$/, '.ts');
+  if (tsResolved !== resolved && fs.existsSync(tsResolved)) {
+    entries.add(tsResolved);
+  }
+
+  // Try source equivalent under src/ (e.g. dist/main/main.js → src/main/main.ts).
+  // This catches packages like Electron apps whose "main" field points to the
+  // compiled output rather than the TypeScript source.
+  // Runs even when the .ts sibling check above succeeded, because the build-output
+  // dir might contain a stale .d.ts while the real source lives under src/.
+  const srcAlt = trySourceEquivalent(resolved);
+  if (srcAlt) entries.add(srcAlt);
+}
+
 function addPkgJsonEntryPoints(
   pkgDir: string,
   pkg: Record<string, unknown>,
@@ -230,25 +311,17 @@ function addPkgJsonEntryPoints(
 ): void {
   // main
   if (typeof pkg.main === 'string') {
-    const resolved = resolveAgainst(pkgDir, pkg.main);
-    if (fs.existsSync(resolved)) entries.add(resolved);
-    // also try .ts extension
-    const tsResolved = resolved.replace(/\.(js|mjs|cjs)$/, '.ts');
-    if (tsResolved !== resolved && fs.existsSync(tsResolved)) {
-      entries.add(tsResolved);
-    }
+    tryAddEntryPath(pkgDir, pkg.main, entries);
   }
 
   // bin
   const bin = pkg.bin;
   if (typeof bin === 'string') {
-    const resolved = resolveAgainst(pkgDir, bin);
-    if (fs.existsSync(resolved)) entries.add(resolved);
+    tryAddEntryPath(pkgDir, bin, entries);
   } else if (bin && typeof bin === 'object') {
     for (const value of Object.values(bin)) {
       if (typeof value === 'string') {
-        const resolved = resolveAgainst(pkgDir, value);
-        if (fs.existsSync(resolved)) entries.add(resolved);
+        tryAddEntryPath(pkgDir, value, entries);
       }
     }
   }
@@ -256,8 +329,7 @@ function addPkgJsonEntryPoints(
   // types / typings
   for (const key of ['types', 'typings'] as const) {
     if (typeof pkg[key] === 'string') {
-      const resolved = resolveAgainst(pkgDir, pkg[key] as string);
-      if (fs.existsSync(resolved)) entries.add(resolved);
+      tryAddEntryPath(pkgDir, pkg[key] as string, entries);
     }
   }
 
@@ -266,16 +338,14 @@ function addPkgJsonEntryPoints(
   if (exports_ && typeof exports_ === 'object') {
     for (const value of Object.values(exports_ as Record<string, unknown>)) {
       if (typeof value === 'string') {
-        const resolved = resolveAgainst(pkgDir, value);
-        if (fs.existsSync(resolved)) entries.add(resolved);
+        tryAddEntryPath(pkgDir, value, entries);
       } else if (value && typeof value === 'object') {
         // Nested export condition: { "import": "./dist/foo.js", "types": ... }
         for (const nested of Object.values(
           value as Record<string, unknown>,
         )) {
           if (typeof nested === 'string') {
-            const resolved = resolveAgainst(pkgDir, nested);
-            if (fs.existsSync(resolved)) entries.add(resolved);
+            tryAddEntryPath(pkgDir, nested, entries);
           }
         }
       }
