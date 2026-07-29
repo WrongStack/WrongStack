@@ -186,6 +186,98 @@ onlyBuiltDependencies:
     expect(result.deadSymbols.filter((s) => s.name === 'webEntry')).toHaveLength(0);
   });
 
+  it('ignores non-packages sections in pnpm-workspace.yaml (regression)', async () => {
+    // Multi-section pnpm-workspace.yaml mirroring a real project layout.
+    // Only items under the `packages:` key should be treated as workspace
+    // globs — items under `onlyBuiltDependencies`, `auditConfig.ignoreGhsas`,
+    // and other top-level keys must be ignored.
+    await write('package.json', JSON.stringify({ name: 'test-mono' }));
+    await write(
+      'pnpm-workspace.yaml',
+      [
+        'packages:',
+        '  - "packages/*"',
+        '  - "apps/*"',
+        'overrides:',
+        '  dompurify: ">=3.4.11"',
+        '  esbuild: "^0.28.1"',
+        'auditConfig:',
+        '  ignoreGhsas:',
+        '    - GHSA-gv7w-rqvm-qjhr',
+        'allowBuilds:',
+        "  '@biomejs/biome': true",
+        '  better-sqlite3: true',
+        '  electron: true',
+        'onlyBuiltDependencies:',
+        '  - "@biomejs/biome"',
+        '  - better-sqlite3',
+        '  - electron',
+        '  - esbuild',
+        '  - node-pty',
+        'minimumReleaseAgeExclude:',
+        '  - electron@43.0.0',
+        '',
+      ].join('\n'),
+    );
+
+    // Legitimate workspace packages.
+    await write(
+      'packages/lib/package.json',
+      JSON.stringify({ name: '@test/lib' }),
+    );
+    await write(
+      'packages/lib/src/index.ts',
+      `export function libFn() {}`,
+    );
+
+    await write(
+      'apps/web/package.json',
+      JSON.stringify({ name: '@test/web' }),
+    );
+    await write(
+      'apps/web/src/main.ts',
+      `export function webFn() {}`,
+    );
+
+    // Trap directory: 'electron' appears in both onlyBuiltDependencies and
+    // allowBuilds. Create it as a real directory with a package.json so the
+    // old code (global regex matching ALL list items) would incorrectly
+    // discover it as a workspace entry point. The fixed code must ignore it.
+    await write(
+      'electron/package.json',
+      JSON.stringify({ name: 'electron' }),
+    );
+    await write(
+      'electron/src/index.ts',
+      `export function electronTrap() {}`,
+    );
+
+    await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
+
+    const store = indexStorePool.acquire(dir, { indexDir: indexDir() });
+    const result = runDeadCodeScan(dir, { store });
+    indexStorePool.release(store);
+
+    // Legitimate workspace entry points must be found.
+    // Use path.join for cross-platform separator compatibility.
+    const entryPaths = result.entryPoints;
+    const hasLibPath = entryPaths.some((p) =>
+      p.includes(path.join('packages', 'lib')),
+    );
+    const hasWebPath = entryPaths.some((p) =>
+      p.includes(path.join('apps', 'web')),
+    );
+    expect(hasLibPath).toBe(true);
+    expect(hasWebPath).toBe(true);
+
+    // Trap directory must NOT appear in entry points — if it does, the
+    // pnpm-workspace.yaml parser is picking up items from non-packages keys.
+    const hasTrapPath = entryPaths.some((p) =>
+      p.includes(path.join('electron')),
+    );
+    expect(hasTrapPath).toBe(false);
+  });
+
   it('excludes local variables (let, var) from dead symbol reports', async () => {
     await write('package.json', JSON.stringify({ name: 'test-pkg' }));
     await write(
