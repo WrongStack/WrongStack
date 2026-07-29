@@ -97,6 +97,13 @@ export class Context implements RunEnv {
    * Set to 0 for unlimited (legacy/test behaviour).
    */
   static readonly MAX_MESSAGES = 2_000;
+  /**
+   * Hard cap on distinct tracked-file paths retained in memory per session.
+   * Past this limit the oldest (least-recently-entered) path is dropped.
+   * Prevents unbounded growth on very large repos in long sessions.
+   * Affects readFiles, writtenFiles, fileMtimes, and fileHashes.
+   */
+  static readonly MAX_TRACKED_FILES = 5_000;
   todos: TodoItem[] = [];
   /**
    * Files whose content the **user / model has explicitly seen** via the
@@ -109,14 +116,26 @@ export class Context implements RunEnv {
    *
    * Tool-driven mutations record via `writtenFiles` + `recordRead(..., 'write')`
    * so mtime tracking still works without widening the bypass.
+   *
+   * Bounded at MAX_TRACKED_FILES with oldest-first eviction to prevent
+   * unbounded growth in long-running sessions over large codebases.
    */
   readFiles = new Set<string>();
   /**
    * Files written by `edit`/`write` in this session. Tracked for observability
    * and to keep `readFiles` (the permission-bypass source of truth) clean.
    * `recordRead(path, mtime, 'write')` adds here instead of `readFiles`.
+   *
+   * Bounded at MAX_TRACKED_FILES with oldest-first eviction.
    */
   writtenFiles = new Set<string>();
+  /**
+   * Last-known mtime for each tracked file path. Used by the permission
+   * policy and edit-staleness checks.
+   *
+   * Bounded at MAX_TRACKED_FILES with oldest-first eviction to prevent
+   * unbounded growth in long-running sessions.
+   */
   fileMtimes = new Map<string, number>();
   /**
    * sha-256 (hex) of file content at the last recorded read/write, when the
@@ -128,6 +147,8 @@ export class Context implements RunEnv {
    * hash-less `recordRead` observes a *different* mtime (content may have
    * changed under us — fall back to the mtime heuristic rather than trust a
    * stale hash).
+   *
+   * Bounded at MAX_TRACKED_FILES with oldest-first eviction.
    */
   fileHashes = new Map<string, string>();
   /**
@@ -135,6 +156,8 @@ export class Context implements RunEnv {
    * (P2 #5). Populated by `recordSideEffect()` — read by /diag for an
    * in-memory audit trail without parsing the JSONL file. Cleared by
    * `clearFileTracking()` alongside read/written-file tracking.
+   *
+   * Bounded at MAX_SIDE_EFFECTS (500) with oldest-first splice.
    */
   sideEffects: import('../types/side-effect.js').SideEffect[] = [];
   /**
@@ -142,6 +165,8 @@ export class Context implements RunEnv {
    * `recordFileEvent()` — used for in-memory audit and real-time
    * subscription (EventBus `file.event`). Also persisted to session
    * JSONL as `file_event` events for durable storage.
+   *
+   * Bounded at MAX_FILE_EVENTS (1000) with oldest-first slice.
    */
   fileEvents: FileEventRecord[] = [];
   contextEvidence: ContextEvidenceState = createContextEvidenceState();
@@ -550,6 +575,46 @@ export class Context implements RunEnv {
       this.writtenFiles.add(absPath);
     } else {
       this.readFiles.add(absPath);
+    }
+    this.trimTrackedFiles();
+  }
+
+  /**
+   * Enforce MAX_TRACKED_FILES cap on all four file-tracking structures.
+   * Evicts the oldest entries (insertion order = oldest-first in Set/Map)
+   * when the cap is exceeded. This prevents unbounded memory growth in
+   * long-running sessions over very large codebases where the agent
+   * touches thousands of distinct files.
+   *
+   * The order of eviction across structures is not synchronized (each
+   * structure independently drops its oldest), so after trimming the
+   * sets may reference paths whose mtime/hash have been evicted from the
+   * maps, and vice-versa. This is safe: paths in a Set are just strings
+   * (4-8 bytes per char in the heap), and a stale lookup in fileMtimes
+   * returns undefined, which `read`/`edit` treat as "first access" —
+   * the tool will re-stat the file and re-populate the entry. The agent
+   * never fails or misbehaves; it just pays one extra stat call.
+   */
+  private trimTrackedFiles(): void {
+    Context.trimSet(this.readFiles, Context.MAX_TRACKED_FILES);
+    Context.trimSet(this.writtenFiles, Context.MAX_TRACKED_FILES);
+    Context.trimMap(this.fileMtimes, Context.MAX_TRACKED_FILES);
+    Context.trimMap(this.fileHashes, Context.MAX_TRACKED_FILES);
+  }
+
+  private static trimSet(set: Set<string>, max: number): void {
+    while (set.size > max) {
+      const oldest = set.values().next().value;
+      if (oldest === undefined) break;
+      set.delete(oldest);
+    }
+  }
+
+  private static trimMap(map: Map<string, unknown>, max: number): void {
+    while (map.size > max) {
+      const oldest = map.keys().next().value;
+      if (oldest === undefined) break;
+      map.delete(oldest);
     }
   }
 
