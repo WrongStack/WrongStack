@@ -398,3 +398,100 @@ describe('EventBus', () => {
     expect(order).toEqual(['b', 'c']);
   });
 });
+
+describe('EventBus dispatch-array caching', () => {
+  // emit() reuses a cached dispatch array instead of rebuilding one per event
+  // (that allocation was per-emit on streaming paths). These pin the
+  // invalidation: a stale cache would silently deliver to the wrong set.
+  it('sees listeners subscribed after a previous emit', () => {
+    const bus = new EventBus();
+    const first = vi.fn();
+    bus.on('session.started', first);
+    bus.emit('session.started', { id: '1' });
+
+    const second = vi.fn();
+    bus.on('session.started', second);
+    bus.emit('session.started', { id: '2' });
+
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops delivering to a listener removed after a previous emit', () => {
+    const bus = new EventBus();
+    const kept = vi.fn();
+    const removed = vi.fn();
+    bus.on('session.started', kept);
+    const off = bus.on('session.started', removed);
+    bus.emit('session.started', { id: '1' });
+
+    off();
+    bus.emit('session.started', { id: '2' });
+
+    expect(kept).toHaveBeenCalledTimes(2);
+    expect(removed).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates the wildcard cache on subscribe and unsubscribe', () => {
+    const bus = new EventBus();
+    const first = vi.fn();
+    const off = bus.onAny(first);
+    bus.emit('session.started', { id: '1' });
+
+    const second = vi.fn();
+    bus.onAny(second);
+    bus.emit('session.started', { id: '2' });
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledTimes(1);
+
+    off();
+    bus.emit('session.started', { id: '3' });
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledTimes(2);
+  });
+
+  it('invalidates both caches on clear()', () => {
+    const bus = new EventBus();
+    const named = vi.fn();
+    const wild = vi.fn();
+    bus.on('session.started', named);
+    bus.onAny(wild);
+    bus.emit('session.started', { id: '1' });
+
+    bus.clear();
+    bus.emit('session.started', { id: '2' });
+
+    expect(named).toHaveBeenCalledTimes(1);
+    expect(wild).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps snapshot semantics for a listener added during dispatch', () => {
+    const bus = new EventBus();
+    const late = vi.fn();
+    bus.on('session.started', () => {
+      bus.on('session.started', late);
+    });
+
+    // Added mid-dispatch: must not fire this round...
+    bus.emit('session.started', { id: '1' });
+    expect(late).not.toHaveBeenCalled();
+    // ...but the invalidation must have landed, so it fires on the next.
+    bus.emit('session.started', { id: '2' });
+    expect(late).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps emitCustom wildcard delivery correct across subscription changes', () => {
+    const bus = new EventBus();
+    const seen: string[] = [];
+    const off = bus.onPattern('plugin.*', (event) => seen.push(`a:${event}`));
+    bus.emitCustom('plugin.one', {});
+
+    bus.onPattern('plugin.*', (event) => seen.push(`b:${event}`));
+    bus.emitCustom('plugin.two', {});
+
+    off();
+    bus.emitCustom('plugin.three', {});
+
+    expect(seen).toEqual(['a:plugin.one', 'a:plugin.two', 'b:plugin.two', 'b:plugin.three']);
+  });
+});
