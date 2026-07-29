@@ -1,7 +1,7 @@
 import type { ContentBlock } from '../types/blocks.js';
 import type { Message } from '../types/messages.js';
 import { computeMessageTokens } from '../utils/token-estimate.js';
-import { type TodoItem } from './context.js';
+import type { TodoItem } from './context.js';
 import { Context } from './context.js';
 
 /**
@@ -125,12 +125,12 @@ export class ConversationState {
    *
    * The size pass reads the per-message `_estTokens` cache populated at
    * mutation time, so it is a sum over numbers rather than a re-walk of
-   * content blocks, and it only runs when the cheap count check passes.
+   * content blocks.  It runs whenever the token cap is enabled; the count
+   * cap determines the starting index for the sum but does not gate it.
    */
   private overflowCount(): number {
     const arr = this.ctx.messages;
-    let drop =
-      Context.MAX_MESSAGES > 0 ? Math.max(0, arr.length - Context.MAX_MESSAGES) : 0;
+    let drop = Context.MAX_MESSAGES > 0 ? Math.max(0, arr.length - Context.MAX_MESSAGES) : 0;
     if (Context.MAX_MESSAGE_TOKENS <= 0) return drop;
 
     let total = 0;
@@ -169,7 +169,11 @@ export class ConversationState {
     // Replace only the trailing message object — O(1), no full-array copy.
     // Recompute the token estimate for the one changed message; everything
     // else in the array is untouched and its cache stays valid.
-    const updated: Message = { ...last, content, _estTokens: computeMessageTokens({ ...last, content }) };
+    const updated: Message = {
+      ...last,
+      content,
+      _estTokens: computeMessageTokens({ ...last, content }),
+    };
     arr[arr.length - 1] = updated;
     // Text/informational blocks never carry tool_use/tool_result, so
     // toolAdjacencyDirty is unaffected — no need to set it here.

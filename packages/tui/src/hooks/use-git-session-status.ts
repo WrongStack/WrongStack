@@ -10,13 +10,15 @@ interface GitSessionStatusOptions {
 }
 
 function sameGitInfo(a: GitInfo | null, b: GitInfo | null): boolean {
-  return a === b ||
+  return (
+    a === b ||
     (a !== null &&
       b !== null &&
       a.branch === b.branch &&
       a.added === b.added &&
       a.deleted === b.deleted &&
-      a.untracked === b.untracked);
+      a.untracked === b.untracked)
+  );
 }
 
 /** Polls repository identity and the live-session count for status surfaces. */
@@ -47,7 +49,11 @@ export function useGitSessionStatus({
                 },
               ],
             };
-            agent.ctx.messages.push(message);
+            // Via `state`, not `ctx.messages.push`: a direct push bypasses
+            // both retention caps and the observer layer, so the notice would
+            // be invisible to the session journal and would not count toward
+            // the history budget.
+            agent.ctx.state.appendMessage(message);
             void import('@wrongstack/core/storage')
               .then(({ getSessionRegistry }) => getSessionRegistry()?.updateAgents([]))
               .catch(() => undefined);
