@@ -1,17 +1,26 @@
+/**
+ * HQ publisher wiring for the project mailbox.
+ *
+ * The publisher hangs off `RemoteMailbox`, not off the SQLite store: the store
+ * is owned by one detached process per project and knows nothing about HQ, so
+ * telemetry is produced by the client wrapper as it observes IPC events. All
+ * publishing is fire-and-forget — the assertions poll rather than await.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
-  _clearMailboxSingletons,
-  getSharedMailbox,
-  GlobalMailbox,
-} from '../../src/coordination/global-mailbox.js';
+  createProjectMailbox,
+  getSharedProjectMailbox,
+  MailboxProjectServerConnection,
+  type RemoteMailbox,
+} from '../../src/coordination/index.js';
 import type { HqPublisher } from '../../src/hq/publisher.js';
 import { EventBus } from '../../src/kernel/events.js';
 
 let dir: string;
-let mailbox: GlobalMailbox;
+const openMailboxes: RemoteMailbox[] = [];
 const publishEvent = vi.fn();
 const publishSnapshot = vi.fn().mockResolvedValue(undefined);
 
@@ -23,48 +32,81 @@ function makePublisher(): HqPublisher {
   } as never as HqPublisher;
 }
 
+function open(hqPublisher?: HqPublisher | (() => HqPublisher | undefined)): RemoteMailbox {
+  const mailbox = createProjectMailbox({ projectDir: dir, hqPublisher, isolatedConnection: true });
+  openMailboxes.push(mailbox);
+  return mailbox;
+}
+
+function track(mailbox: RemoteMailbox): RemoteMailbox {
+  openMailboxes.push(mailbox);
+  return mailbox;
+}
+
+/** Actions seen by the publisher so far. */
+function publishedActions(spy = publishEvent): string[] {
+  return spy.mock.calls.map((call) => (call[0] as { action: string }).action);
+}
+
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-mailbox-wiring-'));
-  _clearMailboxSingletons();
   publishEvent.mockClear();
   publishSnapshot.mockClear();
 });
 
 afterEach(async () => {
-  _clearMailboxSingletons();
-  await fs.rm(dir, { recursive: true, force: true });
+  for (const mailbox of openMailboxes.splice(0)) await mailbox.close().catch(() => undefined);
+  const control = new MailboxProjectServerConnection(dir);
+  try {
+    await control.shutdown('test-teardown');
+  } catch {
+    // No owner running, or it exited on its own.
+  } finally {
+    control.close();
+  }
+  await fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
 
-describe('GlobalMailbox HQ publisher wiring', () => {
+describe('project mailbox HQ publisher wiring', () => {
   it('behaves normally when no HQ publisher is configured', async () => {
-    mailbox = new GlobalMailbox(dir);
+    const mailbox = open();
     const msg = await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'b' });
     expect(msg.id).toBeDefined();
     expect(publishEvent).not.toHaveBeenCalled();
     expect(publishSnapshot).not.toHaveBeenCalled();
   });
 
-  it('publishes mailbox.snapshot and mailbox.event on send/register/ack/heartbeat/client activity', async () => {
-    mailbox = new GlobalMailbox(dir, undefined, makePublisher());
+  it('publishes mailbox events and snapshots on send/register/ack/heartbeat activity', async () => {
+    const mailbox = open(makePublisher());
 
-    await mailbox.registerAgent({ agentId: 'leader@1', sessionId: 'session_1', name: 'Leader', role: 'leader', pid: 1, source: 'cli' });
-    const msg = await mailbox.send({ from: 'leader@1', to: '*', type: 'status', subject: 'done', body: 'done' });
+    await mailbox.registerAgent({
+      agentId: 'leader@1', sessionId: 'session_1', name: 'Leader', role: 'leader', pid: 1, source: 'cli',
+    });
+    const msg = await mailbox.send({
+      from: 'leader@1', to: '*', type: 'status', subject: 'done', body: 'done',
+    });
     await mailbox.heartbeat({ agentId: 'leader@1', status: 'running' });
-    await mailbox.registerClient({ clientId: 'tui@1', sessionId: 'session_1', name: 'TUI', source: 'tui', pid: 1 });
+    await mailbox.registerClient({
+      clientId: 'tui@1', sessionId: 'session_1', name: 'TUI', source: 'tui', pid: 1,
+    });
     await mailbox.clientHeartbeat({ clientId: 'tui@1' });
-    await mailbox.ack({ messageId: msg.id, readerId: 'leader@1', completed: true, outcome: 'shipped' });
+    await mailbox.ack({
+      messageId: msg.id, readerId: 'leader@1', completed: true, outcome: 'shipped',
+    });
 
-    const actions = publishEvent.mock.calls.map((call) => (call[0] as { action: string }).action);
-    expect(actions).toContain('agent.registered');
-    expect(actions).toContain('message.sent');
-    expect(actions).toContain('agent.heartbeat');
-    expect(actions).toContain('message.completed');
-
-    expect(publishSnapshot.mock.calls.length).toBeGreaterThanOrEqual(6);
+    await expect
+      .poll(() => publishedActions(), { timeout: 5000 })
+      .toEqual(expect.arrayContaining(['agent.registered', 'message.sent', 'agent.heartbeat']));
+    // An ack is an update, not a distinct completion action: completion is
+    // per-actor now, so the aggregate telemetry carries the whole message.
+    await expect
+      .poll(() => publishedActions(), { timeout: 5000 })
+      .toContain('message.updated');
+    await expect.poll(() => publishSnapshot.mock.calls.length, { timeout: 5000 }).toBeGreaterThan(0);
   });
 
-  it('publishes a completed event for v2 fan-out completion', async () => {
-    mailbox = new GlobalMailbox(dir, undefined, makePublisher());
+  it('publishes an update when one actor completes a fan-out message', async () => {
+    const mailbox = open(makePublisher());
     const msg = await mailbox.send({
       from: 'leader@1',
       to: '*',
@@ -72,6 +114,7 @@ describe('GlobalMailbox HQ publisher wiring', () => {
       subject: 'fan-out',
       body: 'complete independently',
     });
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('message.sent');
     publishEvent.mockClear();
 
     const updated = await mailbox.ack({
@@ -80,31 +123,35 @@ describe('GlobalMailbox HQ publisher wiring', () => {
       completed: true,
     });
 
+    // The ACTOR's view: worker@1 completed it. The stored message stays
+    // incomplete for everyone else — see mailbox-v2-receipts.test.ts.
     expect(updated).toMatchObject({ completed: true, completedBy: 'worker@1' });
-    expect(publishEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'message.completed' }),
-    );
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('message.updated');
   });
 
-  it('does not publish a duplicate HQ event for a no-op acknowledgement', async () => {
-    mailbox = new GlobalMailbox(dir, undefined, makePublisher());
+  it('does not publish an event for a no-op acknowledgement', async () => {
+    const mailbox = open(makePublisher());
     const msg = await mailbox.send({
       from: 'leader@1', to: 'worker@1', type: 'note', subject: 'read once', body: 'body',
     });
     await mailbox.ack({ messageId: msg.id, readerId: 'worker@1', read: true });
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('message.updated');
     publishEvent.mockClear();
 
     const updated = await mailbox.ack({ messageId: msg.id, readerId: 'worker@1', read: true });
 
     expect(updated).toMatchObject({ id: msg.id });
+    // Give a stray event a chance to land before asserting its absence.
+    await new Promise((resolve) => setTimeout(resolve, 250));
     expect(publishEvent).not.toHaveBeenCalled();
   });
 
   it('starts publishing when a lazy HQ publisher becomes available', async () => {
     let publisher: HqPublisher | undefined;
-    mailbox = new GlobalMailbox(dir, undefined, () => publisher);
+    const mailbox = open(() => publisher);
 
     await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'before', body: 'before' });
+    await new Promise((resolve) => setTimeout(resolve, 250));
     expect(publishEvent).not.toHaveBeenCalled();
     expect(publishSnapshot).not.toHaveBeenCalled();
 
@@ -118,9 +165,8 @@ describe('GlobalMailbox HQ publisher wiring', () => {
     });
     await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'after', body: 'after' });
 
-    const actions = publishEvent.mock.calls.map((call) => (call[0] as { action: string }).action);
-    expect(actions).toContain('message.sent');
-    expect(publishSnapshot).toHaveBeenCalled();
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('message.sent');
+    await expect.poll(() => publishSnapshot.mock.calls.length, { timeout: 5000 }).toBeGreaterThan(0);
   });
 
   it('isolates shared mailbox dependencies for same-project agents', async () => {
@@ -142,10 +188,11 @@ describe('GlobalMailbox HQ publisher wiring', () => {
       publishMailboxSnapshot: vi.fn().mockResolvedValue(undefined),
     } as never as HqPublisher;
 
-    const firstMailbox = getSharedMailbox(dir, firstEvents, firstPublisher);
-    const secondMailbox = getSharedMailbox(dir, secondEvents, secondPublisher);
+    const firstMailbox = track(getSharedProjectMailbox(dir, firstEvents, firstPublisher));
+    const secondMailbox = track(getSharedProjectMailbox(dir, secondEvents, secondPublisher));
 
-    expect(getSharedMailbox(dir, firstEvents, firstPublisher)).toBe(firstMailbox);
+    // Same (projectDir, events, publisher) triple → the same wrapper.
+    expect(getSharedProjectMailbox(dir, firstEvents, firstPublisher)).toBe(firstMailbox);
     expect(secondMailbox).not.toBe(firstMailbox);
 
     await secondMailbox.send({
@@ -156,10 +203,15 @@ describe('GlobalMailbox HQ publisher wiring', () => {
       body: 'body',
     });
 
-    expect(firstEventListener).not.toHaveBeenCalled();
+    // Every client connected to the project owner observes project mailbox
+    // activity — that cross-process visibility is the whole point of the
+    // daemon. What stays isolated is the DEPENDENCY set: each wrapper feeds
+    // its own EventBus and its own publisher, exactly once, with no crosstalk
+    // between the two dependency triples.
+    await expect.poll(() => firstPublishEvent.mock.calls.length, { timeout: 5000 }).toBe(1);
+    await expect.poll(() => secondPublishEvent.mock.calls.length, { timeout: 5000 }).toBe(1);
+    expect(firstEventListener).toHaveBeenCalledOnce();
     expect(secondEventListener).toHaveBeenCalledOnce();
-    expect(firstPublishEvent).not.toHaveBeenCalled();
-    expect(secondPublishEvent).toHaveBeenCalledOnce();
   });
 
   it('keeps mailbox behavior unaffected when the HQ publisher throws', async () => {
@@ -170,10 +222,12 @@ describe('GlobalMailbox HQ publisher wiring', () => {
       publishMailboxSnapshot: vi.fn(() => Promise.reject(new Error('HQ snapshot down'))),
     } as never as HqPublisher;
 
-    mailbox = new GlobalMailbox(dir, undefined, failingPublisher);
+    const mailbox = open(failingPublisher);
 
     const msg = await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'b' });
     expect(msg.id).toBeDefined();
-    await expect(mailbox.ack({ messageId: msg.id, readerId: 'b', completed: true })).resolves.toMatchObject({ id: msg.id });
+    await expect(
+      mailbox.ack({ messageId: msg.id, readerId: 'b', completed: true }),
+    ).resolves.toMatchObject({ id: msg.id });
   });
 });

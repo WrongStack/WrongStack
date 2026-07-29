@@ -7,7 +7,8 @@
  * use background delivery: routine chatter remains telemetry-only, while
  * actionable asks/results/steers still reach the agent.
  *
- * Uses the project-level GlobalMailbox for cross-session communication.
+ * Uses the project-level mailbox (one detached owner, reached over IPC) for
+ * cross-session communication.
  *
  * ## Type-based dispatch
  *
@@ -359,7 +360,7 @@ export function removeInjectedMailboxBlocks(
 }
 
 // ── Integration hooks ────────────────────────────────────────────────────
-// attachMailboxChecker (which constructs the concrete GlobalMailbox) lives
+// attachMailboxChecker (which resolves the concrete project mailbox) lives
 // in ../mailbox-attach.ts — the composition layer — so this file stays free
 // of runtime coordination/ imports (architecture Rule 3).
 

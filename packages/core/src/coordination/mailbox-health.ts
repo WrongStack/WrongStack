@@ -244,7 +244,7 @@ export function buildDownAlert(input: DownAlertInput): MailboxSendInput {
       '',
       'Consequences:',
       '- External agents (Claude Code, Aider, scripts) cannot read or send messages.',
-      '- WrongStack-internal agents continue to work — they use GlobalMailbox directly, not the HTTP bridge.',
+      '- WrongStack-internal agents continue to work — they reach the project mailbox over IPC, not the HTTP bridge.',
       '',
       'Likely causes:',
       '- The `wstack mailbox serve` (or `/mailbox-serve` slash command) process exited.',

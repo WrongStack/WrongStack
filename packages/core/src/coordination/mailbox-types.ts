@@ -6,7 +6,8 @@
  *
  * ## Cross-session communication
  *
- * The mailbox is stored at **project level** (`~/.wrongstack/projects/<slug>/_mailbox.jsonl`),
+ * The mailbox is stored at **project level** (`~/.wrongstack/projects/<slug>/_mailbox.sqlite`, owned by one detached
+ * project server and reached over IPC),
  * so agents in different terminal sessions / WebUI tabs working on the same
  * canonical project can communicate live, even when they run in different
  * processes, clients, branches, or linked Git worktrees.
@@ -118,7 +119,7 @@ export {
  * 7. **Agent registry**: `getAgentStatuses()` reads the dedicated agent
  *    registry (`_mailbox.registry.json`), not mailbox message content. The
  *    registry is populated by agent heartbeat calls (not by `status`-type
- *    messages). `DefaultMailbox.getAgentStatuses()` (per-session) derives
+ *    messages). `Mailbox.getAgentStatuses()` derives
  *    a registry snapshot from `status`-type messages as a fallback when no
  *    shared registry file exists.
  * 8. **Request-scoped context**: delivered raw mailbox blocks are removed
@@ -231,7 +232,7 @@ export interface MailboxMessage {
   /**
    * ISO8601 — when the message was soft-deleted. When present, the
    * default `Mailbox.query()` filter excludes the message from the
-   * normal inbox view; {@link GlobalMailbox.restore} clears the
+   * normal inbox view; {@link Mailbox.restore} clears the
    * field to undo the delete. Hard deletes (removing the line from
    * the JSONL) are reserved for the CLI and never happen via the
    * server route handlers.

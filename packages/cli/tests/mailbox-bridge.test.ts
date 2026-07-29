@@ -73,7 +73,7 @@ beforeAll(async () => {
   // set it before the handler imports its deps.
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-mailbox-test-home-'));
   process.env['WRONGSTACK_HOME'] = home;
-  process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+  delete process.env['WRONGSTACK_MAILBOX_INLINE'];
   // Per-suite project dir under that home.
   tmpProject = await fs.mkdtemp(path.join(home, 'project-'));
   const projectDir = resolveProjectDir(tmpProject, wstackGlobalRoot());
@@ -182,7 +182,7 @@ afterAll(async () => {
     });
     delete process.env['WRONGSTACK_HOME'];
   }
-  delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+  delete process.env['WRONGSTACK_MAILBOX_INLINE'];
 });
 
 const auth = (): Record<string, string> => ({ Authorization: `Bearer ${token}` });
@@ -477,7 +477,7 @@ describe('mailbox-bridge — body cap', () => {
 });
 
 // Suppress unused-var warnings; the project mailbox was constructed in
-// beforeAll to ensure the JSONL exists and to give GlobalMailbox a real
+// beforeAll to ensure the JSONL exists and to give SqliteMailbox a real
 // shared state with the server.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 void resolveProjectDir;

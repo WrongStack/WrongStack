@@ -16,7 +16,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { resolveSendType } from '../../src/coordination/mailbox-message-codec.js';
 import { MAILBOX_TYPE_PROPERTIES, isMailboxMessageVisibleTo } from '../../src/coordination/mailbox-types.js';
 import type { EventBus } from '../../src/kernel/events.js';
@@ -43,17 +43,35 @@ import {
 } from './fixtures/mailbox/index.js';
 
 let dir: string;
-let mb: GlobalMailbox;
+let mb: SqliteMailbox;
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-baseline-'));
-  mb = new GlobalMailbox(dir, undefined as unknown as EventBus);
+  mb = new SqliteMailbox(dir, undefined as unknown as EventBus);
 });
 
 afterEach(async () => {
-  await mb.close();
-  await fs.rm(dir, { recursive: true, force: true });
+  await mb.close().catch(() => undefined);
+  // SQLite keeps `-wal`/`-shm` mapped for a moment after the handle closes.
+  await fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
+
+/**
+ * Reopen the store over a legacy `_mailbox.jsonl` holding `jsonl`.
+ *
+ * The fixtures are v1 JSONL. There is no file to append to any more, so they
+ * go in through the store's one-shot legacy import: drop the database, write
+ * the retired file, reopen.
+ */
+async function loadLegacyFixture(jsonl: string): Promise<void> {
+  await mb.close();
+  const rmOptions = { force: true, maxRetries: 10, retryDelay: 50 } as const;
+  for (const suffix of ['', '-wal', '-shm']) {
+    await fs.rm(path.join(dir, `_mailbox.sqlite${suffix}`), rmOptions);
+  }
+  await fs.writeFile(path.join(dir, '_mailbox.jsonl'), jsonl);
+  mb = new SqliteMailbox(dir, undefined as unknown as EventBus);
+}
 
 // ── Fixture validity ───────────────────────────────────────────────────
 
@@ -167,7 +185,7 @@ describe('GM-P0.0 send-input fixture coverage', () => {
 
 // ── Behavioral baseline (current contract, pre-change) ─────────────────
 
-describe('GM-P0.0 baseline: GlobalMailbox send/query/ack', () => {
+describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
   it('sends and queries a direct message', async () => {
     const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 'direct', body: 'body' });
     const result = await mb.query({ to: 'b' });
@@ -317,10 +335,9 @@ describe('GM-P0.0 baseline: replyTo (documents current gap)', () => {
 // ── Migration fixture baseline ──────────────────────────────────────────
 
 describe('GM-P0.0 baseline: migration fixture loads correctly', () => {
-  it('loads the mixed v1 fixture into a GlobalMailbox and reads it back', async () => {
+  it('loads the mixed v1 fixture into a SqliteMailbox and reads it back', async () => {
     const { jsonl } = buildMixedV1Fixture();
-    await fs.writeFile(mb.messagePath, jsonl);
-    await mb.close(); // invalidate cache
+    await loadLegacyFixture(jsonl);
 
     const messages = await mb.query({ limit: 100 });
     expect(messages.length).toBeGreaterThanOrEqual(5);
@@ -337,8 +354,7 @@ describe('GM-P0.0 baseline: migration fixture loads correctly', () => {
   });
 
   it('loads corrupt-line fixture without dropping valid messages', async () => {
-    await fs.writeFile(mb.messagePath, buildCorruptLineFixture());
-    await mb.close();
+    await loadLegacyFixture(buildCorruptLineFixture());
     const messages = await mb.query({ limit: 100 });
     // 2 valid messages should survive; 2 corrupt lines should be skipped.
     expect(messages.length).toBe(2);
@@ -347,8 +363,7 @@ describe('GM-P0.0 baseline: migration fixture loads correctly', () => {
   });
 
   it('loads orphan-ack fixture without error', async () => {
-    await fs.writeFile(mb.messagePath, buildOrphanAckFixture());
-    await mb.close();
+    await loadLegacyFixture(buildOrphanAckFixture());
     const messages = await mb.query({ limit: 100 });
     expect(messages.length).toBe(1);
     expect(messages[0]!.subject).toBe('has ack');
@@ -366,8 +381,7 @@ describe('GM-P0.0 baseline: migration fixture loads correctly', () => {
     const future = new Date(Date.now() + 86_400_000).toISOString();
     const recent = buildV1Message({ id: 'recent', timestamp: future });
 
-    await fs.writeFile(mb.messagePath, buildMailboxJsonl([oldCompleted, oldIncomplete, recent]));
-    await mb.close();
+    await loadLegacyFixture(buildMailboxJsonl([oldCompleted, oldIncomplete, recent]));
 
     const result = await mb.purgeStale({
       completedMaxAgeMs: 1,
@@ -383,7 +397,7 @@ describe('GM-P0.0 baseline: migration fixture loads correctly', () => {
 
 // ── Send-input fixture matrix baseline ─────────────────────────────────
 
-describe('GM-P0.0 baseline: all send-input types are accepted by GlobalMailbox.send()', () => {
+describe('GM-P0.0 baseline: all send-input types are accepted by SqliteMailbox.send()', () => {
   for (const { label, input } of buildAllSendInputs()) {
     it(`accepts ${label}`, async () => {
       const msg = await mb.send(input);

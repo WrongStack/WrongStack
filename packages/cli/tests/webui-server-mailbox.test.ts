@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import { createProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runWebUI } from '../src/webui-server.js';
 import { openWs } from './_ws-client.js';
@@ -13,6 +13,10 @@ const nextPort = (): number => ports.next++;
 let serverDone: Promise<void> | null = null;
 let tmpDir: string;
 let globalConfigPath: string;
+/** Project state dirs whose detached mailbox owner must be stopped on teardown. */
+const mailboxProjectDirs: string[] = [];
+/** Mailbox wrappers a test opened; closed before their owners are shut down. */
+const openMailboxes: Array<{ close(): Promise<void> }> = [];
 
 beforeEach(async () => {
   tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ws-mailbox-test-'));
@@ -29,7 +33,27 @@ afterEach(async () => {
     await serverDone;
     serverDone = null;
   }
-  await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  // Each project mailbox has a detached owner holding `_mailbox.sqlite` open;
+  // Windows refuses to remove the directory while it lives.
+  for (const mailbox of openMailboxes.splice(0)) await mailbox.close().catch(() => undefined);
+  const { MailboxProjectServerConnection } = await import('@wrongstack/core/coordination');
+  for (const projectDir of mailboxProjectDirs.splice(0)) {
+    const control = new MailboxProjectServerConnection(projectDir);
+    try {
+      await control.shutdown('test-teardown');
+    } catch {
+      // No owner running, or it exited on its own.
+    } finally {
+      control.close();
+    }
+  }
+  // Best-effort: an owner that was still starting up when the shutdown request
+  // arrived can hold the project directory a moment longer, and Windows `rm`
+  // then blocks on EBUSY past the hook timeout. Vitest's daemon reaper cleans
+  // up the process at the end of the run either way.
+  await fs.promises
+    .rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+    .catch(() => undefined);
 });
 
 describe('runWebUI mailbox operations', () => {
@@ -114,7 +138,9 @@ describe('runWebUI mailbox operations', () => {
     // so use the canonical resolveProjectDir instead of a hand-rolled slug.
     const mbDir = resolveProjectDir(projectRoot, tmpDir);
     await fs.promises.mkdir(mbDir, { recursive: true });
-    const mb = new GlobalMailbox(mbDir);
+    mailboxProjectDirs.push(mbDir);
+    const mb = createProjectMailbox({ projectDir: mbDir, isolatedConnection: true });
+    openMailboxes.push(mb);
     await mb.send({ from: 'agent#1', to: '*', type: 'broadcast', subject: 'test', body: 'test message' });
 
     serverDone = runWebUI({

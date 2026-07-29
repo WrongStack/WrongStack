@@ -179,7 +179,7 @@ tracks *spend* (with pricing), the latter enforces a *budget*
 ### Cross-agent
 
 Plugins that publish to the project mailbox
-([`GlobalMailbox`](../packages/core/src/coordination/global-mailbox.ts))
+([`RemoteMailbox`](../packages/core/src/coordination/remote-mailbox.ts))
 so other agents in the same project (terminals, WebUIs, shadow
 agents) can see what this one is doing.
 

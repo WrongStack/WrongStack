@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import { createProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 
 /**
@@ -20,6 +20,7 @@ let tmpProject: string;
 let token: string;
 let baseUrl: string;
 let serverChild: import('node:child_process').ChildProcess | null = null;
+let mailboxProjectDir: string;
 
 async function readToken(projectDir: string): Promise<string> {
   const tokenPath = path.join(projectDir, '.mailbox.token');
@@ -63,9 +64,11 @@ beforeAll(async () => {
   process.env['WRONGSTACK_HOME'] = home;
   tmpProject = await fs.mkdtemp(path.join(home, 'project-'));
   const projectDir = resolveProjectDir(tmpProject, wstackGlobalRoot());
+  mailboxProjectDir = projectDir;
 
-  // Pre-create the mailbox file.
-  const mb = new GlobalMailbox(projectDir);
+  // Pre-create the mailbox store (through the project daemon — the concrete
+  // SQLite store is deliberately not reachable outside its owner process).
+  const mb = createProjectMailbox({ projectDir, isolatedConnection: true });
   await mb.send({
     from: 'test-bootstrap', to: 'test-bootstrap',
     type: 'note', subject: 'bootstrap', body: 'pre-suite',
@@ -120,6 +123,18 @@ afterAll(async () => {
       child.once('exit', () => { clearTimeout(t); resolve(); });
       child.kill('SIGINT');
     });
+  }
+  // The bridge reaches the mailbox through the project's detached owner, which
+  // holds `_mailbox.sqlite` open. Leave it running and the rm below blocks on
+  // EBUSY until the hook times out.
+  const { MailboxProjectServerConnection } = await import('@wrongstack/core/coordination');
+  const control = new MailboxProjectServerConnection(mailboxProjectDir);
+  try {
+    await control.shutdown('test-teardown');
+  } catch {
+    // No owner running, or it exited on its own.
+  } finally {
+    control.close();
   }
   if (process.env['WRONGSTACK_HOME']) {
     await fs.rm(process.env['WRONGSTACK_HOME'], {

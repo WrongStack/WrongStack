@@ -15,23 +15,23 @@ import { createRunTuiClientRegistration } from '../src/run-tui-client-registrati
 let root: string;
 let projectRoot: string;
 let previousHome: string | undefined;
-let previousForceServer: string | undefined;
+let previousInline: string | undefined;
 
 beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'tui-mailbox-ipc-'));
   projectRoot = path.join(root, 'project');
   await fs.mkdir(projectRoot, { recursive: true });
   previousHome = process.env['WRONGSTACK_HOME'];
-  previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+  previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
   process.env['WRONGSTACK_HOME'] = path.join(root, 'global');
-  process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+  delete process.env['WRONGSTACK_MAILBOX_INLINE'];
 });
 
 afterEach(async () => {
   if (previousHome === undefined) delete process.env['WRONGSTACK_HOME'];
   else process.env['WRONGSTACK_HOME'] = previousHome;
-  if (previousForceServer === undefined) delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
-  else process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+  if (previousInline === undefined) delete process.env['WRONGSTACK_MAILBOX_INLINE'];
+  else process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
   await fs.rm(root, { recursive: true, force: true }).catch(() => undefined);
 });
 

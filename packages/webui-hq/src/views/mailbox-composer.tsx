@@ -1,5 +1,5 @@
 /**
- * Mailbox composer — write a prompt straight into a project's GlobalMailbox
+ * Mailbox composer — write a prompt straight into a project's mailbox
  * from the HQ browser via `POST /api/mailbox-send`.
  *
  * This is the "send even when no active agent" path: the message lands in

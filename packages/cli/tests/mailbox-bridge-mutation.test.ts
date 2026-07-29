@@ -21,9 +21,10 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
-import { resolveProjectDir } from '@wrongstack/core/coordination';
+import { type MailboxMessage, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 
 import {
@@ -237,7 +238,7 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
   // /mailbox/query endpoint.
   //
   // We rewrite the whole file (not just `appendFile`) on purpose: the
-  // bridge subprocess keeps an mtime/size-keyed GlobalMailbox cache, and
+  // bridge subprocess keeps an mtime/size-keyed SqliteMailbox cache, and
   // a bare `appendFile` between bridge operations would leave the cache
   // "current" per its trackers yet missing the appended record. The
   // bridge's `send()` updates the cache with the post-append size, so
@@ -246,7 +247,7 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
   // next read invalidates the cache and re-reads the file from disk.
   //
   // IMPORTANT: do NOT change `writeRecord` to `appendFile` — the helper
-  // exists specifically to defeat the GlobalMailbox size/mtime cache
+  // exists specifically to defeat the SqliteMailbox size/mtime cache
   // and force a re-read on the next bridge operation.
 
   // Contract source: `packages/cli/src/subcommands/handlers/mailbox-serve.ts`
@@ -255,19 +256,35 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
   // host wiring; if it ever flips to opt-out the assertions degrade to
   // "no filter" without any test signal — verify with a grep before
   // changing this test.
-  async function writeRecord(mailboxPath: string, record: object): Promise<void> {
-    // do NOT replace with `appendFile` — that only changes size; the
-    // subprocess's GlobalMailbox size/mtime cache might not invalidate
-    // on a size-only bump from outside its own send(). writeFile
-    // rewrites the file so both size AND mtime change, forcing the
-    // next read-path call to re-read the file from disk.
-    let existing = '';
+  /**
+   * Seed a message the API cannot produce: one stamped in the past.
+   * `send()` always stamps `Date.now()`, so a staleness test has to write
+   * the row itself. This inserts straight into the project store the bridge
+   * subprocess is serving. WAL makes the concurrent write safe, and unlike
+   * the old JSONL file there is no reader cache to invalidate afterwards.
+   */
+  function writeRecord(databasePath: string, record: MailboxMessage): void {
+    const db = new DatabaseSync(databasePath);
     try {
-      existing = await fs.readFile(mailboxPath, 'utf8');
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      db.exec('PRAGMA busy_timeout = 5000');
+      db.prepare(
+        `INSERT INTO messages(
+           id, from_id, to_id, type, priority, timestamp, completed, completed_at,
+           deleted_at, sender_session_id, reply_to, expires_at,
+           legacy_global_completion, data
+         ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, 0, ?)`,
+      ).run(
+        record.id,
+        record.from,
+        record.to,
+        record.type,
+        record.priority,
+        record.timestamp,
+        JSON.stringify(record),
+      );
+    } finally {
+      db.close();
     }
-    await fs.writeFile(mailboxPath, `${existing}${JSON.stringify(record)}\n`, 'utf8');
   }
 
   it('returns all retained mail when callers opt in via ?sinceMs=0', async () => {
@@ -285,8 +302,8 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
     const now = Date.now();
     const recipient = `agent-staleness-${now}`;
     const dir = resolveProjectDir(tmpProject, wstackGlobalRoot());
-    const mailboxPath = path.join(dir, '_mailbox.jsonl');
-    const backdated = {
+    const databasePath = path.join(dir, '_mailbox.sqlite');
+    const backdated: MailboxMessage = {
       id: `old-stale-${now}`,
       from: 'archive-bot',
       to: recipient,
@@ -298,15 +315,12 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
       readBy: {},
       completed: false,
     };
-    await writeRecord(mailboxPath, backdated);
+    writeRecord(databasePath, backdated);
 
-    // The bridge subprocess keeps an mtime/size-keyed GlobalMailbox
-    // cache and never re-reads the file on /send. A read-path call
-    // re-stats, sees the size/mtime mismatch from our writeRecord, and
-    // full-re-reads the file so the backdated record lands in cache.
-    // /mailbox/check requires `agentId`; pass it so the probe runs.
-    // `markRead: false` so the probe doesn't mutate read state — the
-    // /mailbox/query?sinceMs=0 assertion below is unaffected.
+    // Sanity-check that the seeded row is visible to the serving process
+    // before the assertions depend on it. /mailbox/check requires
+    // `agentId`; `markRead: false` keeps the probe from mutating read state,
+    // so the /mailbox/query?sinceMs=0 assertion below is unaffected.
     const probe = await http(
       'POST',
       '/mailbox/check',

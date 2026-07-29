@@ -2,28 +2,33 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type { MailboxMessage } from '../../src/coordination/mailbox-types.js';
 import type { EventBus } from '../../src/kernel/events.js';
 
 let dir: string;
-let mb: GlobalMailbox;
+let mb: SqliteMailbox;
 let events: { emitCustom: ReturnType<typeof vi.fn> };
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-autocompact-'));
   events = { emitCustom: vi.fn() };
-  mb = new GlobalMailbox(dir, events as never as EventBus);
+  mb = new SqliteMailbox(dir, events as never as EventBus);
 });
 
 afterEach(async () => {
-  await mb.close();
-  await fs.rm(dir, { recursive: true, force: true });
+  await mb.close().catch(() => undefined);
+  // SQLite keeps `-wal`/`-shm` mapped for a moment after the handle closes.
+  await fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
 
 /**
- * Write raw message lines directly to the mailbox file, bypassing send().
- * Used to inject messages with specific timestamps / expiry / read state.
+ * Seed messages with caller-chosen timestamps, expiry and read state.
+ *
+ * `send()` always stamps "now", and the store is SQLite, so raw rows cannot be
+ * appended to a file behind its back. The store's one-shot import of a legacy
+ * `_mailbox.jsonl` is the supported way in: drop the database, write the
+ * retired file, and reopen so the constructor imports it.
  */
 async function writeRawMessages(messages: Partial<MailboxMessage>[]): Promise<void> {
   const defaults = {
@@ -40,14 +45,31 @@ async function writeRawMessages(messages: Partial<MailboxMessage>[]): Promise<vo
   const lines = messages
     .map((m) => JSON.stringify({ ...defaults, ...m }))
     .join('\n');
-  await fs.writeFile(mb.messagePath, `${lines}\n`);
-  // Invalidate cache so the next read picks up the raw file.
+  // Dropping the database drops the agent registry with it, and several tests
+  // register their online agents before seeding messages. Carry them over.
+  const agents = await mb.getAgentStatuses();
   await mb.close();
+  const rmOptions = { force: true, maxRetries: 10, retryDelay: 50 } as const;
+  for (const suffix of ['', '-wal', '-shm']) {
+    await fs.rm(path.join(dir, `_mailbox.sqlite${suffix}`), rmOptions);
+  }
+  await fs.writeFile(path.join(dir, '_mailbox.jsonl'), `${lines}\n`);
+  mb = new SqliteMailbox(dir, events as never as EventBus);
+  for (const agent of agents) {
+    await mb.registerAgent({
+      agentId: agent.agentId,
+      sessionId: agent.sessionId,
+      name: agent.name,
+      ...(agent.role !== undefined ? { role: agent.role } : {}),
+      ...(agent.source !== undefined ? { source: agent.source } : {}),
+      pid: agent.pid,
+    });
+  }
 }
 
 // ── TTL on send ───────────────────────────────────────────────────────────
 
-describe('GlobalMailbox TTL on send', () => {
+describe('SqliteMailbox TTL on send', () => {
   it('sets expiresAt from ttlMs', async () => {
     const before = Date.now();
     const msg = await mb.send({
@@ -83,7 +105,7 @@ describe('GlobalMailbox TTL on send', () => {
 
 // ── autoCompact: expiry pass ──────────────────────────────────────────────
 
-describe('GlobalMailbox autoCompact — expiry', () => {
+describe('SqliteMailbox autoCompact — expiry', () => {
   it('removes messages with explicit expiresAt in the past', async () => {
     const pastExpiry = new Date(Date.now() - 60_000).toISOString();
     await writeRawMessages([
@@ -183,7 +205,7 @@ describe('GlobalMailbox autoCompact — expiry', () => {
 
 // ── autoCompact: read-by-all pass ─────────────────────────────────────────
 
-describe('GlobalMailbox autoCompact — read by all online agents', () => {
+describe('SqliteMailbox autoCompact — read by all online agents', () => {
   it('removes messages read by every online agent after readMaxAgeMs', async () => {
     // Register two online agents.
     await mb.registerAgent({ agentId: 'ag1', sessionId: 's', name: 'A', role: 'r', pid: 1 });
@@ -284,7 +306,7 @@ describe('GlobalMailbox autoCompact — read by all online agents', () => {
 
 // ── autoCompact: stale purge pass ─────────────────────────────────────────
 
-describe('GlobalMailbox autoCompact — stale purge integration', () => {
+describe('SqliteMailbox autoCompact — stale purge integration', () => {
   it('removes old completed messages in the same pass', async () => {
     const old = new Date(Date.now() - 10 * 86_400_000).toISOString(); // 10 days
     await writeRawMessages([
@@ -317,7 +339,7 @@ describe('GlobalMailbox autoCompact — stale purge integration', () => {
 
 // ── autoCompact: combined / edge cases ────────────────────────────────────
 
-describe('GlobalMailbox autoCompact — combined and edge cases', () => {
+describe('SqliteMailbox autoCompact — combined and edge cases', () => {
   it('handles all three passes in one call', async () => {
     await mb.registerAgent({ agentId: 'ag1', sessionId: 's', name: 'A', role: 'r', pid: 1 });
 
@@ -391,7 +413,7 @@ describe('GlobalMailbox autoCompact — combined and edge cases', () => {
 
 // ── startAutoCompactTimer ─────────────────────────────────────────────────
 
-describe('GlobalMailbox startAutoCompactTimer', () => {
+describe('SqliteMailbox startAutoCompactTimer', () => {
   it('returns a dispose function', () => {
     const dispose = mb.startAutoCompactTimer({ intervalMs: 1000 });
     expect(typeof dispose).toBe('function');
@@ -435,7 +457,7 @@ describe('GlobalMailbox startAutoCompactTimer', () => {
 
 // ── softDelete / restore changed-flag ─────────────────────────────────────
 
-describe('GlobalMailbox softDelete / restore changed-flag', () => {
+describe('SqliteMailbox softDelete / restore changed-flag', () => {
   it('softDelete is a no-op on an already-deleted message (no rewrite)', async () => {
     const msg = await mb.send({ from: 'a', to: 'b', type: 'info', subject: 's', body: 'x' });
     await mb.softDelete(msg.id, 'user1');
@@ -476,7 +498,7 @@ describe('GlobalMailbox softDelete / restore changed-flag', () => {
 
 // ── EventBus push notification ────────────────────────────────────────────
 
-describe('GlobalMailbox EventBus push notification', () => {
+describe('SqliteMailbox EventBus push notification', () => {
   it('emits mailbox.message_sent on send', async () => {
     await mb.send({ from: 'a', to: 'b', type: 'info', subject: 'hello', body: 'world' });
 

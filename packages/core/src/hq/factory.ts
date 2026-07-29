@@ -3,11 +3,6 @@ import * as fs from 'node:fs';
 import { hostname } from 'node:os';
 import { basename } from 'node:path';
 import { readProjectIdentitySync } from '../utils/project-identity.js';
-import {
-  getSharedProjectMailbox,
-  type RemoteMailbox,
-} from '../coordination/remote-mailbox.js';
-import type { EventBus } from '../kernel/events.js';
 import type { HqClientConfig } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
 import {
@@ -261,14 +256,4 @@ export function createHqPublisherFromEnv(options: CreateHqPublisherOptions): HqP
     ...(options.discoveryPollMs !== undefined ? { discoveryPollMs: options.discoveryPollMs } : {}),
     ...(options.logger !== undefined ? { logger: options.logger } : {}),
   });
-}
-
-export interface CreateGlobalMailboxOptions {
-  projectDir: string;
-  events?: EventBus;
-  hqPublisher?: HqPublisher;
-}
-
-export function createGlobalMailbox(options: CreateGlobalMailboxOptions): RemoteMailbox {
-  return getSharedProjectMailbox(options.projectDir, options.events, options.hqPublisher);
 }

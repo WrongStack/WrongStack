@@ -2,7 +2,12 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { WebSocket } from 'ws';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  createProjectMailbox,
+  MailboxProjectServerConnection,
+  type RemoteMailbox,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleMailboxMessages } from '@wrongstack/webui-server';
 
@@ -20,7 +25,7 @@ describe('mailbox handlers', () => {
   let root: string;
   let projectRoot: string;
   let globalRoot: string;
-  let mailbox: GlobalMailbox;
+  let mailbox: RemoteMailbox;
 
   beforeEach(async () => {
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'wrongstack-webui-mailbox-'));
@@ -28,11 +33,30 @@ describe('mailbox handlers', () => {
     globalRoot = path.join(root, 'global');
     await fs.mkdir(projectRoot, { recursive: true });
     await fs.mkdir(globalRoot, { recursive: true });
-    mailbox = new GlobalMailbox(resolveProjectDir(projectRoot, globalRoot));
+    mailbox = createProjectMailbox({
+      projectDir: resolveProjectDir(projectRoot, globalRoot),
+      isolatedConnection: true,
+    });
   });
 
   afterEach(async () => {
-    await fs.rm(root, { recursive: true, force: true });
+    // The mailbox has one mode: a detached owner per project directory. Leave
+    // it running and Windows fails the `fs.rm` below with EBUSY on the open
+    // `_mailbox.sqlite` handle. Close the wrapper first so its socket does not
+    // hold the owner's `server.close()` open.
+    await mailbox.close().catch(() => undefined);
+    const control = new MailboxProjectServerConnection(
+      resolveProjectDir(projectRoot, globalRoot),
+    );
+    try {
+      await control.shutdown('test-teardown');
+    } catch {
+      // No owner running, or it exited on its own.
+    } finally {
+      control.close();
+    }
+    // SQLite keeps `-wal`/`-shm` mapped for a moment after the owner exits.
+    await fs.rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it('filters mailbox messages by agent recipient and broadcast visibility', async () => {

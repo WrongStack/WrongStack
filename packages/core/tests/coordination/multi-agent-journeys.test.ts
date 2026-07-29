@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
 import { makeQualityGateTool } from '../../src/coordination/director-tools.js';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type {
   MultiAgentConfig,
   SubagentRunner,
@@ -13,8 +13,10 @@ import type {
 } from '../../src/types/multi-agent.js';
 
 const tempRoots: string[] = [];
+const openStores: SqliteMailbox[] = [];
 
 afterEach(async () => {
+  for (const store of openStores.splice(0)) await store.close().catch(() => undefined);
   await Promise.all(
     tempRoots
       .splice(0)
@@ -173,7 +175,10 @@ describe('multi-agent outcome journeys', () => {
 
   it('propagates a coordinated task result through the project mailbox', async () => {
     const root = await makeTempRoot();
-    const mailbox = new DefaultMailbox(root);
+    const mailbox = new SqliteMailbox(root);
+    // SQLite holds the store open for the life of the connection; the shared
+    // afterEach `fs.rm` hits EBUSY on Windows unless it is closed first.
+    openStores.push(mailbox);
     const director = makeDirector(async (task) => {
       await mailbox.send({
         from: task.subagentId ?? 'worker',

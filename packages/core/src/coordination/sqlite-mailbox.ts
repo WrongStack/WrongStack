@@ -32,6 +32,7 @@ import {
 } from './global-mailbox-paths.js';
 import { isMessageCompletedForActor } from './global-mailbox-completion.js';
 import { parseMailboxFile } from './mailbox-parse-state.js';
+import { isFanOutRecipient } from './mailbox-receipt-folding.js';
 import { parseAgentRegistryEntry, parseClientRegistryEntry } from './mailbox-registry-codec.js';
 import {
   projectMailboxCompletion,
@@ -111,6 +112,36 @@ interface ReceiptRow {
  */
 const HEARTBEAT_TRACKING_MAX_ENTRIES = 512;
 const HEARTBEAT_TRACKING_TTL_MS = 30 * 60_000;
+
+/**
+ * Predicate matching a `last_seen_at` that is not an ISO-8601 timestamp.
+ *
+ * A registration whose heartbeat timestamp is garbage would otherwise outlive
+ * every sweep: string comparison puts `'invalid'` after any real timestamp, so
+ * `last_seen_at < cutoff` never matches it and the row shows up as a
+ * permanently offline agent. The JSONL registry it replaced pruned these via
+ * `Number.isFinite(Date.parse(...))`.
+ */
+const MALFORMED_TIMESTAMP =
+  "last_seen_at NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*'";
+
+/**
+ * Strip the message-level completion fields from a fan-out message before it
+ * is stored. Per-actor state lives in `message_receipts`; the aggregate fields
+ * would claim the message is done for every recipient.
+ */
+function withoutAggregateCompletion(message: MailboxMessageProjection): MailboxMessageProjection {
+  const stored: MailboxMessageProjection = {
+    ...message,
+    completed: message.legacyGlobalCompletion === true,
+  };
+  if (!stored.completed) {
+    delete stored.completedBy;
+    delete stored.completedAt;
+  }
+  delete stored.outcome;
+  return stored;
+}
 
 export class SqliteMailbox implements Mailbox {
   readonly databasePath: string;
@@ -558,7 +589,11 @@ export class SqliteMailbox implements Mailbox {
       params.push(type);
     }
     if (query.minPriority !== undefined) {
-      where.push(`CASE priority WHEN 'high' THEN 2 WHEN 'normal' THEN 1 ELSE 0 END >= ?`);
+      // Unrecognized priorities rank as `normal`, matching the JSONL reader
+      // this store replaced: an unknown value must not silently drop a
+      // message out of a `minPriority: 'normal'` query. Only an explicit
+      // 'low' ranks below normal.
+      where.push(`CASE priority WHEN 'high' THEN 2 WHEN 'low' THEN 0 ELSE 1 END >= ?`);
       params.push(minimumRank);
     }
     if (query.since !== undefined) {
@@ -573,7 +608,12 @@ export class SqliteMailbox implements Mailbox {
     const canPreLimit = query.unreadBy === undefined && !query.incompleteOnly;
     let sql = 'SELECT id, data, legacy_global_completion FROM messages';
     if (where.length > 0) sql += ` WHERE ${where.join(' AND ')}`;
-    sql += ' ORDER BY timestamp DESC';
+    // `rowid DESC` breaks ties: two sends can land in the same millisecond and
+    // ISO timestamps have no finer resolution. Without it SQLite is free to
+    // return same-millisecond messages in any order, and "newest first"
+    // becomes a coin flip. Insertion order is stable — `persistMessage`
+    // upserts, so an ack never moves a message's rowid.
+    sql += ' ORDER BY timestamp DESC, rowid DESC';
     if (canPreLimit) {
       sql += ' LIMIT ?';
       params.push(query.limit ?? 50);
@@ -678,7 +718,17 @@ export class SqliteMailbox implements Mailbox {
 
         if (didChange) {
           this.persistReceipt(message.id, state);
-          this.persistMessage(message, message.legacyGlobalCompletion === true);
+          // Aggregate completion is STORED only for a message with a single
+          // addressee. One actor finishing a fan-out (`*`, `@session:`, a bare
+          // role alias) must not mark it done for everyone else — that is what
+          // the per-actor receipt model exists to prevent, and
+          // `legacyGlobalCompletion` marks the historical v1 messages that
+          // predate it. The value returned to the caller below still reports
+          // that actor's own completion.
+          this.persistMessage(
+            isFanOutRecipient(message.to) ? withoutAggregateCompletion(message) : message,
+            message.legacyGlobalCompletion === true,
+          );
           changed.add(message.id);
         }
         results.push({ ...message, readBy: { ...message.readBy } });
@@ -824,7 +874,9 @@ export class SqliteMailbox implements Mailbox {
 
   private pruneAgents(maxAgeMs = AGENT_STALE_MS): number {
     const cutoff = new Date(Date.now() - Math.max(0, maxAgeMs)).toISOString();
-    const result = this.stmt('DELETE FROM agents WHERE last_seen_at < ?').run(cutoff);
+    const result = this.stmt(
+      `DELETE FROM agents WHERE last_seen_at < ? OR ${MALFORMED_TIMESTAMP}`,
+    ).run(cutoff);
     return Number(result.changes);
   }
 
@@ -954,7 +1006,9 @@ export class SqliteMailbox implements Mailbox {
 
   private pruneClientsInPlace(): number {
     const cutoff = new Date(Date.now() - CLIENT_STALE_MS).toISOString();
-    const result = this.stmt('DELETE FROM clients WHERE last_seen_at < ?').run(cutoff);
+    const result = this.stmt(
+      `DELETE FROM clients WHERE last_seen_at < ? OR ${MALFORMED_TIMESTAMP}`,
+    ).run(cutoff);
     return Number(result.changes);
   }
 

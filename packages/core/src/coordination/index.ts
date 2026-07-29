@@ -252,11 +252,8 @@ export {
   HARD_MAX_SPAWN_DEPTH,
   resolveMaxSpawnDepth,
 } from './spawn-budget.js';
-export { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';
-export {
-  JsonlCredentialStore,
-  type MailboxCredentialVerifier,
-} from './mailbox-credential-store.js';
+export { resolveProjectDir } from './global-mailbox-paths.js';
+export type { MailboxCredentialVerifier } from './mailbox-credential-store.js';
 export {
   createProjectMailbox,
   getSharedProjectMailbox,
@@ -265,6 +262,7 @@ export {
 } from './remote-mailbox.js';
 export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';
 export {
+  isMailboxProjectServerAvailable,
   MailboxProjectServerConnection,
   type MailboxProjectServerConnectionState,
 } from './mailbox-project-server-client.js';
@@ -281,7 +279,7 @@ export {
 } from './techstack-mailbox-consumer.js';
 export {
   authorizeMailboxBearerToken,
-  authorizeMailboxCredential,
+  authorizePersistedMailboxCredential,
   createMailboxHttpRouter,
   MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
   MAILBOX_HTTP_MAX_AGE_CEILING_MS,
@@ -305,8 +303,7 @@ export {
   SUBAGENT_STRUCTURED_REPORT_META_KEY,
 } from './subagent-result-tool.js';
 export { type MailToolsOptions, makeMailInboxTool, makeMailSendTool } from './mail-tools.js';
-// ── Mailbox — inter-agent messaging ──────────────────────────────────────
-export { DefaultMailbox } from './mailbox.js';
+// Mailbox - inter-agent messaging
 export type {
   MailboxActionInput,
   MailboxActionResult,
@@ -354,8 +351,10 @@ export type {
   MailboxAgentStatus,
   MailboxAudience,
   MailboxMessage,
+  MailboxMessageProjection,
   MailboxMessageType,
   MailboxQuery,
+  MailboxRecipientState,
   MailboxSendInput,
   MailboxTaskContext,
   PurgeOptions,

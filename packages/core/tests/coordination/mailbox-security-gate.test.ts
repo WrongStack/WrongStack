@@ -1,5 +1,5 @@
 /**
- * GM-P0.12 — Security gate tests for the Global Mailbox.
+ * GM-P0.12 — Security gate tests for the project mailbox.
  *
  * Covers the remaining P0 acceptance criteria not already tested in
  * the v2-receipt, credential-store, http-router, or codec suites:
@@ -14,7 +14,10 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { JsonlCredentialStore } from '../../src/coordination/mailbox-credential-store.js';
+import {
+  closeOpenedCredentialStores,
+  openCredentialStore,
+} from '../helpers/sqlite-credential-store.js';
 
 let dir: string;
 
@@ -23,7 +26,10 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await fs.rm(dir, { recursive: true, force: true });
+  // Each store holds a SQLite handle open; Windows will not unlink the
+  // directory until every one of them is released.
+  await closeOpenedCredentialStores();
+  await fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
 
 // ── 1. Non-loopback startup fails without TLS ────────────────────────
@@ -168,7 +174,7 @@ describe('R8 / AC-18 — Downgrade resistance', () => {
 
 describe('R6 / AC-19 — Credential lifecycle', () => {
   it('issues an active credential with bounded TTL', async () => {
-    const store = new JsonlCredentialStore(path.join(dir, 'creds'));
+    const store = openCredentialStore(path.join(dir, 'creds'));
     await store.load();
     const { credential, secret } = await store.issue({
       principalId: 'lifecycle-test',
@@ -182,12 +188,12 @@ describe('R6 / AC-19 — Credential lifecycle', () => {
     expect(credential.kind).toBe('agent');
     expect(secret.length).toBeGreaterThan(10);
 
-    const listed = await store.list();
+    const listed = store.list();
     expect(listed.some((c) => c.credentialId === credential.credentialId)).toBe(true);
   });
 
   it('revokes an active credential', async () => {
-    const store = new JsonlCredentialStore(path.join(dir, 'creds-revoke'));
+    const store = openCredentialStore(path.join(dir, 'creds-revoke'));
     await store.load();
     const { credential } = await store.issue({
       principalId: 'revoke-test',
@@ -197,12 +203,12 @@ describe('R6 / AC-19 — Credential lifecycle', () => {
     });
 
     await store.revoke(credential.credentialId, 'testing revoke');
-    const entry = (await store.list()).find((c) => c.credentialId === credential.credentialId);
+    const entry = store.list().find((c) => c.credentialId === credential.credentialId);
     expect(entry?.status).toBe('revoked');
   });
 
   it('rejects an expired credential on verify', async () => {
-    const store = new JsonlCredentialStore(path.join(dir, 'creds-expire'));
+    const store = openCredentialStore(path.join(dir, 'creds-expire'));
     await store.load();
     const { credential, secret } = await store.issue({
       principalId: 'expiry-test',
@@ -212,7 +218,7 @@ describe('R6 / AC-19 — Credential lifecycle', () => {
     });
 
     await new Promise((r) => setTimeout(r, 15));
-    const result = await store.verify(credential.credentialId, secret);
+    const result = store.verify(credential.credentialId, secret);
     expect(result.valid).toBe(false);
     expect(result.credential?.status).toBe('active');
     expect(result.reason).toContain('expired');

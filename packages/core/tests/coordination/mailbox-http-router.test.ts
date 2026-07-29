@@ -5,12 +5,16 @@ import { join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
-import { JsonlCredentialStore } from '../../src/coordination/mailbox-credential-store.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
+import {
+  closeOpenedCredentialStores,
+  type CredentialStoreLike,
+  openCredentialStore,
+} from '../helpers/sqlite-credential-store.js';
 import { MailboxEventEmitter } from '../../src/coordination/mailbox-events.js';
 import {
   authorizeMailboxBearerToken,
-  authorizeMailboxCredential,
+  authorizePersistedMailboxCredential,
   createMailboxHttpRouter,
   MailboxHttpRateLimiter,
 } from '../../src/coordination/mailbox-http-router.js';
@@ -192,7 +196,7 @@ async function handle(
     request?: IncomingMessage;
     routePath?: string;
     authorize?: Parameters<typeof createMailboxHttpRouter>[0]['authorize'];
-    credentialStore?: JsonlCredentialStore;
+    credentialStore?: CredentialStoreLike;
     rateLimiter?: MailboxHttpRateLimiter;
     eventEmitter?: MailboxEventEmitter;
     maxBodyBytes?: number;
@@ -879,7 +883,7 @@ describe('mailbox HTTP router', () => {
   it('revalidates a credential before SSE delivery and closes a revoked stream', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-sse-credential-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'worker@sess-1',
@@ -905,7 +909,7 @@ describe('mailbox HTTP router', () => {
 
       await router.handle(request, response.response);
       expect(eventEmitter.subscriberCount).toBe(1);
-      const externalStore = new JsonlCredentialStore(dir);
+      const externalStore = openCredentialStore(dir);
       await externalStore.load();
       await externalStore.revoke(credential.credentialId);
       eventEmitter.emit({
@@ -921,14 +925,15 @@ describe('mailbox HTTP router', () => {
       expect(eventEmitter.subscriberCount).toBe(0);
       router.close();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('preserves SSE event order while credential revalidation is asynchronous', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-sse-order-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'worker@sess-1',
@@ -973,14 +978,15 @@ describe('mailbox HTTP router', () => {
       expect(response.text().indexOf('first')).toBeLessThan(response.text().indexOf('second'));
       router.close();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('does not write an event when the stream closes during credential revalidation', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-sse-close-race-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'worker@sess-1',
@@ -1029,7 +1035,8 @@ describe('mailbox HTTP router', () => {
       expect(response.ended).toBe(true);
       expect(response.text()).not.toContain('pending-at-close');
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
@@ -1539,7 +1546,7 @@ describe('mailbox HTTP authorization helpers', () => {
   it('resolves the persisted principal and capability set for a valid credential', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-credential-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'agent-credential',
@@ -1549,7 +1556,7 @@ describe('mailbox HTTP authorization helpers', () => {
         ttlMs: 60_000,
       });
 
-      const decision = authorizeMailboxCredential(
+      const decision = await authorizePersistedMailboxCredential(
         makeRequest({
           headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
         }),
@@ -1571,14 +1578,15 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(decision.actor.capabilities).toBeInstanceOf(Set);
       expect(decision.actor.capabilities.has('mail.read.self')).toBe(true);
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('uses credentialStore for router authorization when no custom authorizer is supplied', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-credential-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'service-credential',
@@ -1611,14 +1619,15 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(rejected.status).toBe(401);
       expect(missing.status).toBe(401);
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('rejects ordinary requests after another store revokes the credential', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-external-revoke-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -1638,7 +1647,7 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(accepted.status).toBe(200);
       expect(stub.getAgentStatuses).toHaveBeenCalledTimes(1);
 
-      const externalStore = new JsonlCredentialStore(dir);
+      const externalStore = openCredentialStore(dir);
       await externalStore.load();
       await externalStore.revoke(credential.credentialId);
       stub.getAgentStatuses.mockClear();
@@ -1651,14 +1660,15 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(rejected.status).toBe(401);
       expect(stub.getAgentStatuses).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('revalidates cached custom credential authorization before ordinary dispatch', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-custom-external-revoke-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -1669,7 +1679,8 @@ describe('mailbox HTTP authorization helpers', () => {
       });
       const authorization = `Credential ${credential.credentialId}:${secret}`;
       const stub = makeMailbox();
-      const authorize = (request: IncomingMessage) => authorizeMailboxCredential(request, store);
+      const authorize = (request: IncomingMessage) =>
+        authorizePersistedMailboxCredential(request, store);
 
       const accepted = await handle({
         mailbox: stub.mailbox,
@@ -1680,7 +1691,7 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(accepted.status).toBe(200);
       expect(stub.getAgentStatuses).toHaveBeenCalledTimes(1);
 
-      const externalStore = new JsonlCredentialStore(dir);
+      const externalStore = openCredentialStore(dir);
       await externalStore.load();
       await externalStore.revoke(credential.credentialId);
       stub.getAgentStatuses.mockClear();
@@ -1694,14 +1705,15 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(rejected.status).toBe(401);
       expect(stub.getAgentStatuses).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('uses persisted capabilities instead of a custom authorizer stale snapshot', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-custom-capabilities-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -1733,14 +1745,15 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(response.status).toBe(403);
       expect(stub.getAgentStatuses).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('enforces credential capabilities and derives the sender from the principal', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-principal-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -1785,14 +1798,15 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(denied.status).toBe(403);
       expect(stub.query).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('enforces project scope before dispatching a credential-authenticated request', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-project-scope-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -1819,14 +1833,15 @@ describe('mailbox HTTP authorization helpers', () => {
       });
       expect(stub.getAgentStatuses).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('requires ack capability when credential check uses its default mark-read behavior', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-check-capability-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -1877,14 +1892,15 @@ describe('mailbox HTTP authorization helpers', () => {
       );
       expect(stub.ackMany).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('derives ack and self-query identities from the credential principal', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-self-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -2068,7 +2084,8 @@ describe('mailbox HTTP authorization helpers', () => {
       expect(rejectedBatch.status).toBe(404);
       expect(stub.ackMany).toHaveBeenCalledTimes(1);
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
@@ -2317,9 +2334,9 @@ describe('mailbox HTTP authorization helpers', () => {
 
   it('derives v2 completion and outcome on credential query and read-only check paths', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-v2-projection-'));
-    const mailbox = new GlobalMailbox(dir);
+    const mailbox = new SqliteMailbox(dir);
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -2381,15 +2398,36 @@ describe('mailbox HTTP authorization helpers', () => {
       }
     } finally {
       await mailbox.close();
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('preserves legacy global completion when projecting a credential query', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-v1-projection-'));
-    const mailbox = new GlobalMailbox(dir);
+    // The v1 record goes in through the store's one-shot import of a legacy
+    // `_mailbox.jsonl`, so it must be on disk BEFORE the store opens.
+    await writeFile(
+      join(dir, '_mailbox.jsonl'),
+      `${JSON.stringify({
+        id: 'legacy-complete',
+        from: 'sender',
+        to: '*',
+        type: 'ask',
+        subject: 'legacy question',
+        body: 'already handled',
+        priority: 'normal',
+        timestamp: '2026-07-16T00:00:00.000Z',
+        readBy: {},
+        completed: true,
+        completedBy: 'old-worker',
+        completedAt: '2026-07-16T00:01:00.000Z',
+      })}\n`,
+      'utf8',
+    );
+    const mailbox = new SqliteMailbox(dir);
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent',
@@ -2398,24 +2436,6 @@ describe('mailbox HTTP authorization helpers', () => {
         capabilities: ['mail.read.self'],
         ttlMs: 60_000,
       });
-      await writeFile(
-        mailbox.messagePath,
-        `${JSON.stringify({
-          id: 'legacy-complete',
-          from: 'sender',
-          to: '*',
-          type: 'ask',
-          subject: 'legacy question',
-          body: 'already handled',
-          priority: 'normal',
-          timestamp: '2026-07-16T00:00:00.000Z',
-          readBy: {},
-          completed: true,
-          completedBy: 'old-worker',
-          completedAt: '2026-07-16T00:01:00.000Z',
-        })}\n`,
-        'utf8',
-      );
       const response = await handle({
         mailbox,
         credentialStore: store,
@@ -2440,14 +2460,15 @@ describe('mailbox HTTP authorization helpers', () => {
       });
     } finally {
       await mailbox.close();
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('rejects a credential presence registration with a conflicting session claim', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-presence-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent@credential-session',
@@ -2480,14 +2501,15 @@ describe('mailbox HTTP authorization helpers', () => {
       });
       expect(stub.registerAgent).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('rejects a credential presence registration with a conflicting role claim', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-presence-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent@credential-session',
@@ -2520,14 +2542,15 @@ describe('mailbox HTTP authorization helpers', () => {
       });
       expect(stub.registerAgent).not.toHaveBeenCalled();
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 
   it('derives credential presence registration identity and heartbeat agent ID', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-presence-'));
     try {
-      const store = new JsonlCredentialStore(dir);
+      const store = openCredentialStore(dir);
       await store.load();
       const { credential, secret } = await store.issue({
         principalId: 'credential-agent@credential-session',
@@ -2577,7 +2600,8 @@ describe('mailbox HTTP authorization helpers', () => {
         }),
       );
     } finally {
-      await rm(dir, { recursive: true, force: true });
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 5_000);
 

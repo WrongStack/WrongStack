@@ -675,7 +675,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   // Forward cross-session mailbox activity (messages received by this
   // process's agents, new agent registrations on the project) to the
   // browser so the user sees multi-terminal/multi-surface chatter live.
-  // These events are emitted via emit() with untyped names (GlobalMailbox
+  // These events are emitted via emit() with untyped names (the mailbox
   // + mailbox-loop), so subscribe by pattern like the TUI does.
   disposers.push(
     events.onPattern('mailbox.received', (_e, payload) => {

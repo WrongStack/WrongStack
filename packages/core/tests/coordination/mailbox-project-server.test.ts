@@ -3,8 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
-import { JsonlCredentialStore } from '../../src/coordination/mailbox-credential-store.js';
+import { createMailboxCredential } from '../../src/coordination/mailbox-credential-store.js';
 import { MailboxProjectServerConnection } from '../../src/coordination/mailbox-project-server-client.js';
 import {
   mailboxProjectServerEndpoint,
@@ -98,8 +97,8 @@ describe('RemoteMailbox single-owner IPC', () => {
   });
 
   it('reference-counts the shared process connection across independent wrappers', async () => {
-    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
-    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
     const first = new RemoteMailbox(projectDir);
     const second = new RemoteMailbox(projectDir);
     try {
@@ -121,10 +120,10 @@ describe('RemoteMailbox single-owner IPC', () => {
       const control = new MailboxProjectServerConnection(projectDir);
       await control.shutdown('refcount-test-complete').catch(() => undefined);
       control.close();
-      if (previousForceServer === undefined) {
-        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
       } else {
-        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -133,10 +132,10 @@ describe('RemoteMailbox single-owner IPC', () => {
   it('elects one owner, shares messages, and keeps leased clients alive with heartbeats', async () => {
     const previousLease = process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS'];
     const previousHeartbeat = process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'];
-    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
     process.env['WRONGSTACK_MAILBOX_SERVER_CLIENT_LEASE_MS'] = '300';
     process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'] = '50';
-    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
     const first = new RemoteMailbox({ projectDir, isolatedConnection: true });
     const second = new RemoteMailbox({ projectDir, isolatedConnection: true });
     try {
@@ -184,10 +183,10 @@ describe('RemoteMailbox single-owner IPC', () => {
       } else {
         process.env['WRONGSTACK_MAILBOX_CLIENT_HEARTBEAT_MS'] = previousHeartbeat;
       }
-      if (previousForceServer === undefined) {
-        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
       } else {
-        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
       await first.close();
       await second.close();
@@ -199,8 +198,8 @@ describe('RemoteMailbox single-owner IPC', () => {
   });
 
   it('keeps fan-out completion actor-scoped until every recipient completes', async () => {
-    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
-    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
     const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
     try {
       await mailbox.initialize();
@@ -268,59 +267,105 @@ describe('RemoteMailbox single-owner IPC', () => {
       const control = new MailboxProjectServerConnection(projectDir);
       await control.shutdown('fanout-test-complete').catch(() => undefined);
       control.close();
-      if (previousForceServer === undefined) {
-        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
       } else {
-        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   });
 
   it('imports legacy JSONL and registries once, then persists every operation in SQLite', async () => {
-    const legacy = new GlobalMailbox(projectDir);
-    const legacyMessage = await legacy.send({
+    // The JSONL writer is gone, so the fixture is written by hand. That is
+    // the point of this test: users upgrading from the file-based mailbox
+    // still have these files on disk, and the owner has to carry them into
+    // SQLite exactly once.
+    const legacyMessage = {
+      id: 'legacy-import-1',
       from: 'leader@legacy',
       to: 'worker@legacy',
       type: 'assign',
       subject: 'legacy-import',
       body: 'must survive storage migration',
-    });
-    await legacy.ack({
-      messageId: legacyMessage.id,
-      readerId: 'worker@legacy',
-      completed: true,
-      outcome: 'done before migration',
-    });
-    await legacy.registerAgent({
-      agentId: 'worker@legacy',
-      sessionId: 'legacy-session',
-      name: 'Legacy worker',
-      role: 'worker',
-    });
-    await legacy.registerClient({
-      clientId: 'client@legacy',
-      sessionId: 'legacy-session',
-      name: 'Legacy TUI',
-      source: 'tui',
-    });
-    await legacy.close();
-    const legacyCredentials = new JsonlCredentialStore(projectDir);
-    await legacyCredentials.load();
-    const legacyCredential = await legacyCredentials.issue({
+      priority: 'normal',
+      timestamp: new Date(Date.now() - 60_000).toISOString(),
+      readBy: {},
+      completed: false,
+    };
+    const nowIso = new Date().toISOString();
+    await fs.writeFile(
+      path.join(projectDir, '_mailbox.jsonl'),
+      [
+        JSON.stringify(legacyMessage),
+        JSON.stringify({
+          __mailboxReceipt: 2,
+          messageId: legacyMessage.id,
+          actorId: 'worker@legacy',
+          timestamp: nowIso,
+          read: true,
+          completed: true,
+          outcome: 'done before migration',
+        }),
+        '',
+      ].join(String.fromCharCode(10)),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(projectDir, '_mailbox.registry.json'),
+      JSON.stringify({
+        'worker@legacy': {
+          agentId: 'worker@legacy',
+          sessionId: 'legacy-session',
+          name: 'Legacy worker',
+          role: 'worker',
+          status: 'idle',
+          iterations: 0,
+          toolCalls: 0,
+          registeredAt: nowIso,
+          lastSeenAt: nowIso,
+        },
+      }),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(projectDir, '_mailbox.clients.json'),
+      JSON.stringify({
+        'client@legacy': {
+          clientId: 'client@legacy',
+          sessionId: 'legacy-session',
+          name: 'Legacy TUI',
+          source: 'tui',
+          registeredAt: nowIso,
+          lastSeenAt: nowIso,
+        },
+      }),
+      'utf8',
+    );
+    // Same story as the mailbox above: the writer that produced
+    // `_mailbox_credentials.json` is gone, so the fixture is built from the
+    // credential factory and written out by hand. `createMailboxCredential`
+    // mints the record without touching storage, which is exactly what a
+    // pre-SQLite install left on disk.
+    const legacyCredential = createMailboxCredential({
       principalId: 'worker@legacy',
       projectId: path.basename(projectDir),
       kind: 'agent',
       capabilities: ['mail.read.self'],
       ttlMs: 60_000,
     });
+    await fs.writeFile(
+      path.join(projectDir, '_mailbox_credentials.json'),
+      `${JSON.stringify(legacyCredential.credential)}${String.fromCharCode(10)}`,
+      'utf8',
+    );
 
     const legacyJsonlPath = path.join(projectDir, '_mailbox.jsonl');
     const legacyBefore = await fs.readFile(legacyJsonlPath, 'utf8');
     const legacyCredentialPath = path.join(projectDir, '_mailbox_credentials.json');
     const credentialsBefore = await fs.readFile(legacyCredentialPath, 'utf8');
-    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
-    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
     const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
     try {
       await mailbox.initialize();
@@ -373,10 +418,10 @@ describe('RemoteMailbox single-owner IPC', () => {
       const control = new MailboxProjectServerConnection(projectDir);
       await control.shutdown('migration-test-complete').catch(() => undefined);
       control.close();
-      if (previousForceServer === undefined) {
-        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
       } else {
-        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -413,9 +458,9 @@ describe('RemoteMailbox single-owner IPC', () => {
 
   it('stops the owner after the last client disconnects and idle time elapses', async () => {
     const previousIdle = process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'];
-    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
     process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'] = '150';
-    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
     const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
     try {
       await mailbox.initialize();
@@ -451,17 +496,17 @@ describe('RemoteMailbox single-owner IPC', () => {
       } else {
         process.env['WRONGSTACK_MAILBOX_SERVER_IDLE_MS'] = previousIdle;
       }
-      if (previousForceServer === undefined) {
-        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
       } else {
-        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
     }
   });
 
   it('completes an explicit shutdown while the requesting IPC socket is open', async () => {
-    const previousForceServer = process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
-    process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = '1';
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
     const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
     const control = new MailboxProjectServerConnection(projectDir);
     try {
@@ -493,10 +538,10 @@ describe('RemoteMailbox single-owner IPC', () => {
     } finally {
       await mailbox.close().catch(() => undefined);
       control.close();
-      if (previousForceServer === undefined) {
-        delete process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'];
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
       } else {
-        process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] = previousForceServer;
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
     }
   });

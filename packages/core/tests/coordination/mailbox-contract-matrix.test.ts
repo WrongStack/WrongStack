@@ -3,14 +3,14 @@
  *
  * GM-P0.11: Iterates over all (fixture, 'core') pairs and asserts
  * that the canonical input normalizes correctly through the direct
- * GlobalMailbox API.
+ * SqliteMailbox API.
  */
 
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import {
   allMatrixFixtures,
   type MatrixFixture,
@@ -20,11 +20,11 @@ import {
 const TARGET_SURFACE: MailboxSurface = 'core';
 
 let dir: string;
-let mb: GlobalMailbox;
+let mb: SqliteMailbox;
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-contract-'));
-  mb = new GlobalMailbox(dir);
+  mb = new SqliteMailbox(dir);
 });
 
 afterEach(async () => {

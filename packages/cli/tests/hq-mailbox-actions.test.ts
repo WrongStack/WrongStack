@@ -13,10 +13,19 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  type MailboxMessageProjection,
+  type RemoteMailbox,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
+import {
+  disposeProjectMailbox,
+  MAILBOX_RM_OPTIONS,
+} from './helpers/mailbox-daemon.js';
 
 let handle: HqServerHandle | null = null;
 let tempRoot: string;
@@ -37,7 +46,7 @@ afterEach(async () => {
     await handle.close();
     handle = null;
   }
-  await fs.rm(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  await fs.rm(tempRoot, MAILBOX_RM_OPTIONS);
 });
 
 function getPort(): number {
@@ -79,7 +88,7 @@ async function seedSession(
 }
 
 interface Seeded {
-  mailbox: GlobalMailbox;
+  mailbox: RemoteMailbox;
   mailId: string;
   cleanup: () => Promise<void>;
   projectRoot: string;
@@ -91,7 +100,10 @@ async function seedMessage(sessionId: string, slug: string): Promise<Seeded> {
   const projectRoot = path.join(dataDir, slug);
   await fs.mkdir(projectRoot, { recursive: true });
   const cleanup = await seedSession(globalRoot, sessionId, slug, projectRoot);
-  const mailbox = new GlobalMailbox(resolveProjectDir(projectRoot, globalRoot));
+  // Assert through the SAME store the HQ route mutates. A separate
+  // direct-filesystem mailbox here only agreed with the server while
+  // RemoteMailbox silently fell back to one under VITEST.
+  const mailbox = getSharedProjectMailbox(resolveProjectDir(projectRoot, globalRoot));
   const sent = await mailbox.send({
     from: 'leader@x',
     to: 'operator@sess-1',
@@ -100,7 +112,17 @@ async function seedMessage(sessionId: string, slug: string): Promise<Seeded> {
     body: 'Which port should HQ bind?',
     priority: 'normal',
   });
-  return { mailbox, mailId: sent.id, cleanup, projectRoot };
+  return {
+    mailbox,
+    mailId: sent.id,
+    // The HQ route reached a real project owner over IPC; that daemon has
+    // to exit before the afterEach can unlink tempRoot.
+    cleanup: async () => {
+      await disposeProjectMailbox(resolveProjectDir(projectRoot, globalRoot), mailbox);
+      await cleanup();
+    },
+    projectRoot,
+  };
 }
 
 function actionUrl(h: HqServerHandle, mailId: string): string {
@@ -134,11 +156,18 @@ describe('HQ mailbox message actions (POST /api/mailbox/messages/:id/action)', (
       };
       expect(body).toMatchObject({ action: 'acknowledge', mailId, changed: true, message: null });
 
-      const msgs = await mailbox.query({ to: 'operator@sess-1' });
-      const found = msgs.find((m) => m.id === mailId);
-      expect(found?.completed).toBe(true);
-      expect(found?.completedBy).toBe('hq-operator');
-      expect(found?.readBy['hq-operator']).toBeTruthy();
+      // Completion is ACTOR-SCOPED (the v2 receipt model): acknowledging as
+      // `hq-operator` records that operator's receipt, it does not complete
+      // the message on behalf of the addressed recipient. The message-level
+      // `completed` projection therefore stays false until
+      // `operator@sess-1` itself completes it.
+      const msgs = await mailbox.query({ to: 'operator@sess-1', includeReceiptState: true });
+      const found = msgs.find((m) => m.id === mailId) as
+        | Partial<MailboxMessageProjection>
+        | undefined;
+      expect(found?.readBy?.['hq-operator']).toBeTruthy();
+      expect(found?.recipientState?.['hq-operator']?.completedAt).toBeTruthy();
+      expect(found?.completed).toBe(false);
     } finally {
       await cleanup();
     }

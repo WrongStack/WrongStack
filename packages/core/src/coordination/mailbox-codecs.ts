@@ -10,7 +10,7 @@
  *   - Actor-override rejection (body-supplied `from`, `readerId`, etc.)
  *   - Capability checks for directive sends
  *
- * Downstream tasks (GM-P0.5A) will make `GlobalMailbox` itself call
+ * Downstream tasks (GM-P0.5A) will make the store itself call
  * `validateSendType()` internally so direct typed calls are also gated.
  *
  * @module mailbox-codecs

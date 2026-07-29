@@ -248,16 +248,6 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
 
 async function mailboxHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
-  if (process.env['WRONGSTACK_MAILBOX_SERVER'] === '0') {
-    return {
-      id: 'mailbox',
-      label: 'Mailbox IPC',
-      status: 'unavailable',
-      required: false,
-      mode: 'disabled',
-      detail: 'Mailbox IPC daemon is disabled via WRONGSTACK_MAILBOX_SERVER=0.',
-    };
-  }
   if (!isMailboxProjectServerAvailable()) {
     return {
       id: 'mailbox',

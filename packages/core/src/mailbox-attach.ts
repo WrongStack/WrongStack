@@ -1,16 +1,23 @@
 /**
  * mailbox-attach — composition glue for the agent-loop mailbox checker.
  *
- * Lives at the src root (composition layer) because it constructs the
- * concrete GlobalMailbox from coordination/ and hands the resulting
- * checker to core/ — core/ itself may only depend on the Mailbox
- * interface (architecture Rule 3, see tests/architecture/
- * package-boundaries.test.ts).
+ * Lives at the src root (composition layer) because it resolves the concrete
+ * project mailbox from coordination/ and hands the resulting checker to
+ * core/ — core/ itself may only depend on the Mailbox interface
+ * (architecture Rule 3, see tests/architecture/package-boundaries.test.ts).
+ *
+ * The mailbox it resolves is the *server-backed* one: the detached project
+ * owner holds the only SQLite handle and every surface reaches it over IPC.
+ * This module used to construct a direct-filesystem `GlobalMailbox`, which
+ * put the agent loop — registration, heartbeat, delivery, ack — on a private
+ * `_mailbox.jsonl` while every UI read `_mailbox.sqlite`. That split is the
+ * exact failure the project-daemon invariant exists to prevent.
  *
  * @module mailbox-attach
  */
 
-import { GlobalMailbox, getSharedMailbox, resolveProjectDir } from './coordination/global-mailbox.js';
+import { resolveProjectDir } from './coordination/global-mailbox-paths.js';
+import { getSharedProjectMailbox } from './coordination/remote-mailbox.js';
 import { createHqPublisherFromEnv } from './hq/factory.js';
 import { wstackGlobalRoot } from './utils/wstack-paths.js';
 import { toErrorMessage } from './utils/error.js';
@@ -54,10 +61,11 @@ function attachMailboxCheckerInner(
   // picked up automatically without re-creating the loop handler.
   const getMailbox = (): Mailbox => {
     const projectDir = resolveProjectDir(a.ctx.projectRoot, wstackGlobalRoot());
-    return getSharedMailbox(projectDir, a.events, hqPublisher);
+    return getSharedProjectMailbox(projectDir, a.events, hqPublisher);
   };
-  // Pass the agent's EventBus so GlobalMailbox can emit real-time events
-  // (agent_registered, agent_heartbeat, etc.) for TUI/WebUI display.
+  // Pass the agent's EventBus so the mailbox can re-emit the project owner's
+  // real-time events (agent_registered, agent_heartbeat, etc.) for TUI/WebUI
+  // display.
   // This socket only carries mailbox telemetry. Declaring the default
   // capability set (which includes `session.summary`) would make HQ treat it
   // as a terminal surface: it would render as a phantom "waiting for session
@@ -164,13 +172,13 @@ function attachMailboxCheckerInner(
   // at the next safe loop boundary. This is the important separation: polling
   // is continuous, conversation mutation remains serialized by the agent loop.
   //
-  // PUSH-NOTIFICATION SHORT-CIRCUIT: when a same-process agent sends a message,
-  // GlobalMailbox.emitCustom('mailbox.message_sent', ...) fires on the EventBus.
-  // We subscribe to that event and trigger an immediate (debounced) awareness
-  // poll — so in-process messages surface in <500ms instead of waiting up to
-  // the full poll interval. The poll interval is intentionally kept higher
-  // (30s) as a fallback for cross-process messages that don't trigger the
-  // in-process event.
+  // PUSH-NOTIFICATION SHORT-CIRCUIT: the project owner emits
+  // 'mailbox.message_sent' on every send() and broadcasts it to every
+  // connected client, which re-emits it on this agent's EventBus. We
+  // subscribe to that event and trigger an immediate (debounced) awareness
+  // poll — so a message surfaces in <500ms instead of waiting up to the full
+  // poll interval. Since the owner is shared, this now covers cross-process
+  // sends too; the 30s interval remains as a fallback for a dropped socket.
   const AWARENESS_FALLBACK_INTERVAL_MS = MAILBOX_AWARENESS_INTERVAL_MS; // cross-process fallback
   const AWARENESS_PUSH_DEBOUNCE_MS = 500; // collapse bursts from the same sender
   let pollInFlight = false;
@@ -208,8 +216,8 @@ function attachMailboxCheckerInner(
     }, AWARENESS_PUSH_DEBOUNCE_MS);
   };
 
-  // Subscribe to in-process 'mailbox.message_sent' events for push-based
-  // awareness. The GlobalMailbox instance emits this on every send().
+  // Subscribe to 'mailbox.message_sent' for push-based awareness. The project
+  // owner emits it on every send(); the local connection re-emits it here.
   let pushUnsub: (() => void) | null = null;
   if (a.events && typeof a.events.onPattern === 'function') {
     pushUnsub = a.events.onPattern('mailbox.message_sent', () => {
@@ -231,15 +239,11 @@ function attachMailboxCheckerInner(
     pushUnsub?.();
   });
 
-  // Start background auto-compaction: periodically removes messages that
-  // have been read by all online agents, messages whose TTL expired, and
-  // stale completed/incomplete messages. Best-effort — failures are
-  // swallowed inside autoCompact().
-  const mbox = getMailbox();
-  if (mbox instanceof GlobalMailbox) {
-    const stopAutoCompact = mbox.startAutoCompactTimer();
-    a.ctx.registerAgentHook(() => stopAutoCompact());
-  }
+  // Auto-compaction (drop messages read by every online agent, expired TTLs,
+  // stale completed/incomplete records) is NOT started here: the detached
+  // project owner runs exactly one compaction timer for the whole project
+  // (`mailbox-project-server.ts` → `startAutoCompactTimer`). Starting a
+  // per-agent timer would have N sessions compacting the same store.
 
   return checkMailbox;
 }
@@ -262,7 +266,7 @@ export function attachFleetPulse(
     const projectDir = resolveProjectDir(a.ctx.projectRoot, wstackGlobalRoot());
     // No EventBus/HQ publisher here — the pulse is a read-only registry
     // consumer; the checker's mailbox instance already owns event emission.
-    const mailbox: Mailbox = getSharedMailbox(projectDir);
+    const mailbox: Mailbox = getSharedProjectMailbox(projectDir);
     let lastReadAt = 0;
     let lastSignature = '';
     return async () => {

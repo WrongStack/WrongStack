@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import type { HqPublisher } from '../hq/publisher.js';
 import type { EventBus } from '../kernel/events.js';
-import { GlobalMailbox } from './global-mailbox.js';
 import type {
   CredentialValidation,
   IssueCredentialOptions,
@@ -64,8 +63,14 @@ function dependencyCache(): RemoteDependencyCache {
 }
 
 /**
- * Server-backed project mailbox. This is the production-facing Mailbox
- * implementation; the detached project server owns the SQLite connection.
+ * The project mailbox, as seen by every process that is not the owner.
+ *
+ * There is no second mode. One detached server per project owns the only
+ * SQLite handle, and every CLI/TUI/WebUI/HQ/bridge process reaches it over
+ * the deterministic IPC endpoint. If that server cannot be reached the
+ * operation fails — it does not quietly become a private local store, which
+ * is how the agent loop once spent a whole migration talking to a
+ * `_mailbox.jsonl` nobody else read.
  */
 export class RemoteMailbox implements Mailbox {
   readonly projectDir: string;
@@ -73,7 +78,6 @@ export class RemoteMailbox implements Mailbox {
   readonly registryPath: string;
   readonly clientRegistryPath: string;
   private readonly connection: MailboxProjectServerConnection;
-  private readonly inlineMailbox?: GlobalMailbox | undefined;
   private readonly ownsConnection: boolean;
   private readonly sharedConnectionKey?: string | undefined;
   private readonly events?: EventBus | undefined;
@@ -106,23 +110,14 @@ export class RemoteMailbox implements Mailbox {
     this.events = options.events;
     this.hqPublisherRef = options.hqPublisher;
     this.eventEmitter = options.eventEmitter;
-    const inlineForTests =
-      !process.env['WRONGSTACK_MAILBOX_FORCE_SERVER'] &&
-      (Boolean(process.env['VITEST']) || process.env['NODE_ENV'] === 'test');
-    if (inlineForTests) {
-      this.inlineMailbox = new GlobalMailbox(
-        this.projectDir,
-        options.events,
-        options.hqPublisher,
-        options.eventEmitter,
-      );
-      this.connection = new MailboxProjectServerConnection(this.projectDir);
-      this.ownsConnection = false;
-      this.unsubscribeEvent = () => {};
-      this.unsubscribeMailboxEvent = () => {};
-      return;
-    }
-    if (options.isolatedConnection) {
+    // Escape hatch — must be REQUESTED, never entered by accident. Sniffing
+    // VITEST/NODE_ENV here used to put the whole test suite (and anything that
+    // happened to set NODE_ENV=test) on a private in-process store, which is
+    // precisely the silent "one store per process" failure the project-daemon
+    // invariant forbids. Matches the sibling daemons: sage, chronicle and
+    // codebase-index all gate on their own `WRONGSTACK_*_INLINE` and nothing
+    // else. See tests/architecture/project-daemon-boundary.test.ts.
+     if (options.isolatedConnection) {
       this.connection = new MailboxProjectServerConnection(this.projectDir);
       this.ownsConnection = true;
     } else {
@@ -147,181 +142,137 @@ export class RemoteMailbox implements Mailbox {
       this.eventEmitter?.emit(event);
       this.publishHqEvent(event);
     });
+    // Eagerly start the detached mailbox IPC server so the first client for
+    // this project has a server running without waiting for mail to be sent
+    // or received. The connection is idempotent — if a concurrent
+    // initialize() or operation arrives, ensureConnected deduplicates on the
+    // in-flight promise. Fire-and-forget: failures are retried lazily on the
+    // next real operation.
+    void this.connection.connect().catch(() => {
+      // Swallowed intentionally; the next mailbox operation will retry.
+    });
   }
 
   getConnectionState(): MailboxProjectServerConnectionState {
-    if (this.inlineMailbox) {
-      return {
-        status: 'connected',
-        connected: true,
-        projectDir: this.projectDir,
-        endpoint: 'inline-test-adapter',
-        pid: process.pid,
-      };
-    }
     return this.connection.getState();
   }
 
   onConnectionStateChange(
     listener: (state: MailboxProjectServerConnectionState) => void,
   ): () => void {
-    if (this.inlineMailbox) {
-      listener(this.getConnectionState());
-      return () => {};
-    }
     return this.connection.onStateChange(listener);
   }
 
   async initialize(): Promise<void> {
-    if (this.inlineMailbox) return;
     await this.connection.connect();
     await this.connection.status();
   }
 
   async status() {
-    if (this.inlineMailbox) {
-      return {
-        protocolVersion: 0,
-        pid: process.pid,
-        projectDir: this.projectDir,
-        endpoint: 'inline-test-adapter',
-        startedAt: new Date(0).toISOString(),
-        clients: 1,
-        pendingRequests: 0,
-        messagePath: this.messagePath,
-        databasePath: this.messagePath,
-        storageKind: 'legacy-test-adapter' as const,
-      };
-    }
     return this.connection.status();
   }
 
   send(input: MailboxSendInput): Promise<MailboxMessage> {
-    if (this.inlineMailbox) return this.inlineMailbox.send(input);
     return this.connection.call('send', { input });
   }
 
   sendRuntimeControl(
     input: Omit<MailboxSendInput, 'type'> & { type?: 'control' },
   ): Promise<MailboxMessage> {
-    if (this.inlineMailbox) return this.inlineMailbox.sendRuntimeControl(input);
     return this.connection.call('sendRuntimeControl', { input });
   }
 
   query(query: MailboxQuery): Promise<MailboxMessage[]> {
-    if (this.inlineMailbox) return this.inlineMailbox.query(query);
     return this.connection.call('query', { query });
   }
 
   ack(input: MailboxAckInput): Promise<MailboxMessage | null> {
-    if (this.inlineMailbox) return this.inlineMailbox.ack(input);
     return this.connection.call('ack', { input });
   }
 
   ackMany(input: MailboxAckBatchInput): Promise<MailboxMessage[]> {
-    if (this.inlineMailbox) return this.inlineMailbox.ackMany(input);
     return this.connection.call('ackMany', { input });
   }
 
   unreadCount(forAgentId: string, sessionId?: string): Promise<number> {
-    if (this.inlineMailbox) return this.inlineMailbox.unreadCount(forAgentId, sessionId);
     return this.connection.call('unreadCount', { forAgentId, sessionId });
   }
 
   softDelete(mailId: string, by: string): Promise<MailboxMessage | null> {
-    if (this.inlineMailbox) return this.inlineMailbox.softDelete(mailId, by);
     return this.connection.call('softDelete', { mailId, by });
   }
 
   restore(mailId: string): Promise<MailboxMessage | null> {
-    if (this.inlineMailbox) return this.inlineMailbox.restore(mailId);
     return this.connection.call('restore', { mailId });
   }
 
   registerAgent(input: AgentRegistrationInput): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.registerAgent(input);
     return this.connection.call('registerAgent', { input });
   }
 
   deregisterAgent(agentId: string): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.deregisterAgent(agentId);
     return this.connection.call('deregisterAgent', { agentId });
   }
 
   heartbeat(input: AgentHeartbeatInput): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.heartbeat(input);
     return this.connection.call('heartbeat', { input });
   }
 
   getAgentStatuses(): Promise<MailboxAgentStatus[]> {
-    if (this.inlineMailbox) return this.inlineMailbox.getAgentStatuses();
     return this.connection.call('getAgentStatuses', {});
   }
 
   getOnlineAgents(): Promise<MailboxAgentStatus[]> {
-    if (this.inlineMailbox) return this.inlineMailbox.getOnlineAgents();
     return this.connection.call('getOnlineAgents', {});
   }
 
   purgeAgents(maxAgeMs?: number): Promise<number> {
-    if (this.inlineMailbox) return this.inlineMailbox.purgeAgents(maxAgeMs);
     return this.connection.call('purgeAgents', { maxAgeMs });
   }
 
   registerClient(input: ClientRegistrationInput): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.registerClient(input);
     return this.connection.call('registerClient', { input });
   }
 
   deregisterClient(clientId: string): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.deregisterClient(clientId);
     return this.connection.call('deregisterClient', { clientId });
   }
 
   clientHeartbeat(input: ClientHeartbeatInput): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.clientHeartbeat(input);
     return this.connection.call('clientHeartbeat', { input });
   }
 
   getClientStatuses(): Promise<ClientStatus[]> {
-    if (this.inlineMailbox) return this.inlineMailbox.getClientStatuses();
     return this.connection.call('getClientStatuses', {});
   }
 
   purgeClients(): Promise<number> {
-    if (this.inlineMailbox) return this.inlineMailbox.purgeClients();
     return this.connection.call('purgeClients', {});
   }
 
   clearAll(): Promise<void> {
-    if (this.inlineMailbox) return this.inlineMailbox.clearAll();
     return this.connection.call('clearAll', {});
   }
 
   purgeStale(options?: PurgeOptions): Promise<PurgeResult> {
-    if (this.inlineMailbox) return this.inlineMailbox.purgeStale(options);
     return this.connection.call('purgeStale', { options });
   }
 
   autoCompact(options?: AutoCompactOptions): Promise<AutoCompactResult> {
-    if (this.inlineMailbox) return this.inlineMailbox.autoCompact(options);
     return this.connection.call('autoCompact', { options }, { timeoutMs: 2 * 60_000 });
   }
 
   credentialIssue(
     options: IssueCredentialOptions,
   ): Promise<{ credential: MailboxCredential; secret: string }> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialIssue', { options });
   }
 
   credentialVerify(credentialId: string, secret: string): Promise<CredentialValidation> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialVerify', { credentialId, secret });
   }
 
   credentialRevoke(credentialId: string, reason?: string, by?: string): Promise<boolean> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialRevoke', { credentialId, reason, by });
   }
 
@@ -329,27 +280,24 @@ export class RemoteMailbox implements Mailbox {
     credentialId: string,
     options?: Partial<IssueCredentialOptions>,
   ): Promise<{ credential: MailboxCredential; secret: string } | null> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialRotate', { credentialId, options });
   }
 
   credentialGet(credentialId: string): Promise<MailboxCredential | null> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialGet', { credentialId });
   }
 
   credentialList(): Promise<MailboxCredential[]> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialList', {});
   }
 
   credentialStatusCounts(): Promise<Record<string, number>> {
-    if (this.inlineMailbox) return Promise.reject(new Error('SQLite credential owner is unavailable'));
     return this.connection.call('credentialStatusCounts', {});
   }
 
   startAutoCompactTimer(_options?: AutoCompactOptions): () => void {
-    // The detached owner runs exactly one timer for the project.
+    // The detached owner runs exactly one compaction timer for the project;
+    // clients must never start their own.
     return () => {};
   }
 
@@ -360,10 +308,6 @@ export class RemoteMailbox implements Mailbox {
     this.cacheEviction = undefined;
     this.unsubscribeEvent();
     this.unsubscribeMailboxEvent();
-    if (this.inlineMailbox) {
-      await this.inlineMailbox.close();
-      return;
-    }
     if (this.ownsConnection) {
       this.connection.close();
       return;

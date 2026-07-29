@@ -122,7 +122,7 @@ export interface PluginsWiringDeps {
    */
   modelsRegistry?: ModelsRegistry | undefined;
   /**
-   * Project-level mailbox (GlobalMailbox). Forwarded to plugins that
+   * Project-level mailbox (server-backed). Forwarded to plugins that
    * publish to other agents (todo-listener, session-recap). Optional —
    * minimal hosts (tests, the LSP server) may omit.
    */

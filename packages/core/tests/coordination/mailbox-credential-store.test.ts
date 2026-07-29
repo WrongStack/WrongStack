@@ -1,33 +1,57 @@
 /**
- * Tests for the mailbox credential store.
+ * Credential lifecycle: issue, verify, revoke, rotate.
  *
- * GM-P0.6
+ * GM-P0.6. These assertions are about credential POLICY (TTL caps, rotation
+ * overlap, revocation visibility), not about where the records are kept, so
+ * they survived the move off `_mailbox_credentials.json` unchanged. They run
+ * against the store production actually uses, reached through a store-shaped
+ * adapter; two `openCredentialStore` calls on one directory stand in for two
+ * processes sharing the project owner.
  */
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  JsonlCredentialStore,
   MAX_CREDENTIAL_TTL,
   ROTATION_OVERLAP_MS,
 } from '../../src/coordination/mailbox-credential-store.js';
+import {
+  type CredentialStoreLike,
+  openCredentialStore,
+} from '../helpers/sqlite-credential-store.js';
+import { disposeProjectMailbox, MAILBOX_RM_OPTIONS } from '../helpers/mailbox-daemon.js';
 
 let dir: string;
-let store: JsonlCredentialStore;
+let store: CredentialStoreLike;
+const extraStores: CredentialStoreLike[] = [];
+
+/** Register a second store so afterEach can release its handle. */
+function trackStore(created: CredentialStoreLike): CredentialStoreLike {
+  extraStores.push(created);
+  return created;
+}
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-cred-'));
-  store = new JsonlCredentialStore(dir);
+  store = openCredentialStore(dir);
 });
 
 afterEach(async () => {
-  await fs.rm(dir, { recursive: true, force: true });
+  // Release every handle before unlinking: Windows keeps `-wal`/`-shm` mapped
+  // until close() returns.
+  for (const extra of extraStores.splice(0)) await extra.close().catch(() => undefined);
+  await store.close().catch(() => undefined);
+  await disposeProjectMailbox(dir);
+  await fs.rm(dir, MAILBOX_RM_OPTIONS);
 });
 
 // ── Resolution ─────────────────────────────────────────────────
 
 describe('resolveCredentialStorePath', () => {
+  // Still exported, and still exercised: it is what
+  // `SqliteMailbox.migrateLegacyCredentials()` reads to carry pre-SQLite
+  // credentials forward exactly once.
   it('resolves to the correct file name', async () => {
     const { resolveCredentialStorePath } = await import('../../src/coordination/mailbox-credential-store.js');
     expect(resolveCredentialStorePath(dir)).toBe(path.join(dir, '_mailbox_credentials.json'));
@@ -95,7 +119,7 @@ describe('issue', () => {
     });
 
     // Re-create store and verify persistence
-    const store2 = new JsonlCredentialStore(dir);
+    const store2 = trackStore(openCredentialStore(dir));
     await store2.load();
     const loaded = store2.get(credential.credentialId);
     expect(loaded).toBeTruthy();
@@ -152,7 +176,7 @@ describe('verify', () => {
     expect(result.reason).toContain('expired');
   });
 
-  it('observes revocation persisted by another store when verifying a fresh snapshot', async () => {
+  it('observes a revocation issued by another holder of the store immediately', async () => {
     await store.load();
     const { credential, secret } = await store.issue({
       principalId: 'agent-cross-process',
@@ -160,11 +184,19 @@ describe('verify', () => {
       capabilities: ['mail.events.self'],
       ttlMs: 60_000,
     });
-    const externalStore = new JsonlCredentialStore(dir);
+    const externalStore = trackStore(openCredentialStore(dir));
     await externalStore.load();
     await externalStore.revoke(credential.credentialId, 'revoked externally');
 
-    expect(store.verify(credential.credentialId, secret).valid).toBe(true);
+    // The file store answered `verify()` from an in-memory snapshot, so a
+    // revocation written elsewhere stayed invisible until `verifyPersisted()`
+    // re-read the file. There is no such snapshot to go stale now: both paths
+    // read the same committed row, so a revoked credential is refused on the
+    // very next call either way.
+    expect(store.verify(credential.credentialId, secret)).toMatchObject({
+      valid: false,
+      reason: 'credential is revoked',
+    });
     const persistedResult = await store.verifyPersisted(credential.credentialId, secret);
     expect(persistedResult.valid).toBe(false);
     expect(persistedResult.reason).toBe('credential is revoked');

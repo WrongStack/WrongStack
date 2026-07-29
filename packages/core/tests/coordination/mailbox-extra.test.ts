@@ -1,41 +1,77 @@
+/**
+ * Behavioural coverage for the server-owned SQLite mailbox store.
+ *
+ * The suite this replaced was written against the JSONL implementation and
+ * asserted on that file format's internals — `_mailbox.jsonl` paths, the
+ * bounded in-memory `_messageCache`, the incremental "file only grew" read
+ * path, and half-written-append recovery. None of those exist behind SQLite,
+ * so the assertions here are about observable mailbox semantics instead:
+ * what `send`/`query`/`ack`/`purgeStale` do, and what the one-shot import of
+ * a legacy `_mailbox.jsonl` produces.
+ */
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 let dir: string;
-let mb: DefaultMailbox;
+let mb: SqliteMailbox;
+const extraStores: SqliteMailbox[] = [];
+
+/** `fs.rm` retries: SQLite keeps `-wal`/`-shm` mapped briefly after close. */
+const RM_OPTIONS = { recursive: true, force: true, maxRetries: 10, retryDelay: 50 } as const;
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'default-mailbox-'));
-  mb = new DefaultMailbox(dir);
+  mb = new SqliteMailbox(dir);
 });
 afterEach(async () => {
-  await fs.rm(dir, { recursive: true, force: true });
+  for (const store of extraStores.splice(0)) await store.close().catch(() => undefined);
+  await mb.close().catch(() => undefined);
+  await fs.rm(dir, RM_OPTIONS);
 });
 
 const send = (over: Record<string, unknown> = {}) =>
   mb.send({ from: 'a', to: 'b', type: 'info', subject: 's', body: 'hi', ...over } as never);
 
-function persistedMessage(id: string, subject: string): string {
-  return JSON.stringify({
-    id,
-    from: 'external',
+/**
+ * Seed a legacy `_mailbox.jsonl` and open a store over it. The constructor
+ * runs the one-shot import, so this is the only way to introduce messages
+ * with timestamps the caller controls (`send` always stamps "now").
+ */
+async function openWithLegacyMessages(lines: readonly unknown[]): Promise<SqliteMailbox> {
+  const legacyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'legacy-mailbox-'));
+  await fs.writeFile(
+    path.join(legacyDir, '_mailbox.jsonl'),
+    `${lines.map((line) => (typeof line === 'string' ? line : JSON.stringify(line))).join('\n')}\n`,
+  );
+  const store = new SqliteMailbox(legacyDir);
+  extraStores.push(store);
+  return store;
+}
+
+function legacyMessage(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: '1',
+    from: 'a',
     to: 'b',
     type: 'info',
-    subject,
-    body: 'body',
+    subject: 's',
+    body: 'x',
     priority: 'normal',
     readBy: {},
     completed: false,
     timestamp: new Date().toISOString(),
-  });
+    ...over,
+  };
 }
 
-describe('DefaultMailbox basics', () => {
-  it('exposes the mailbox file path', () => {
-    expect(mb.mailboxPath).toBe(path.join(dir, '_mailbox.jsonl'));
+describe('SqliteMailbox basics', () => {
+  it('exposes the store path', () => {
+    expect(mb.databasePath).toBe(path.join(dir, '_mailbox.sqlite'));
+    // Compatibility alias the project-server health/status consumers read.
+    expect(mb.messagePath).toBe(mb.databasePath);
   });
 
   it('sends, normalizing the broadcast recipient', async () => {
@@ -88,109 +124,68 @@ describe('DefaultMailbox basics', () => {
     await send({ to: 'other' });
     expect(await mb.unreadCount('b')).toBe(2);
   });
+
+  it('returns [] for a freshly created store', async () => {
+    expect(await mb.query({})).toEqual([]);
+  });
 });
 
-describe('DefaultMailbox agent statuses (from status messages)', () => {
-  it('synthesizes the latest status per agent', async () => {
-    await send({
-      from: 'ag1',
-      type: 'status',
-      subject: 'task-a',
-      taskContext: { agentName: 'Neo', agentRole: 'executor', status: 'busy' },
-    });
-    // #249: back-to-back sends can land in the same millisecond on fast CI
-    // runners and flip the ordering. Sleep 5ms so ISO timestamps are distinct.
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    // older status for the same agent should be superseded
-    await send({ from: 'ag1', type: 'status', subject: 'task-b', taskContext: { status: 'idle' } });
-    await send({ from: 'ag2', type: 'status', subject: 'other' });
-    await send({ from: 'ag1', type: 'info', subject: 'not-a-status' }); // ignored (not status type)
+describe('SqliteMailbox agent + client registries', () => {
+  it('persists registered agents and reports them as online', async () => {
+    await mb.registerAgent({
+      agentId: 'ag1',
+      sessionId: 's1',
+      name: 'Neo',
+      role: 'executor',
+    } as never);
+    await mb.heartbeat({ agentId: 'ag1', status: 'running', currentTask: 'task-a' } as never);
+
     const statuses = await mb.getAgentStatuses();
-    const ag1 = statuses.find((s) => s.agentId === 'ag1');
-    expect(ag1?.currentTask).toBe('task-b'); // newest status wins
-    expect(statuses.map((s) => s.agentId).sort()).toEqual(['ag1', 'ag2']);
-    expect((await mb.getOnlineAgents()).length).toBe(2);
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toMatchObject({
+      agentId: 'ag1',
+      name: 'Neo',
+      role: 'executor',
+      status: 'running',
+      currentTask: 'task-a',
+      online: true,
+    });
+    expect(await mb.getOnlineAgents()).toHaveLength(1);
   });
 
-  it('falls back to from/idle when taskContext is absent', async () => {
-    await send({ from: 'bare', type: 'status', subject: 'doing' });
-    const s = (await mb.getAgentStatuses())[0];
-    expect(s).toMatchObject({ agentId: 'bare', name: 'bare', status: 'idle' });
+  it('deregisters an agent', async () => {
+    await mb.registerAgent({ agentId: 'ag1', sessionId: 's1', name: 'Neo' } as never);
+    await mb.deregisterAgent('ag1');
+    expect(await mb.getAgentStatuses()).toEqual([]);
   });
 
-  it('keeps the newest status when an older one appears later in the file', async () => {
-    // Write a NEWER status first, then an OLDER one → the older is skipped.
-    const newer = {
-      id: '1',
-      from: 'ag',
-      to: '*',
-      type: 'status',
-      subject: 'newer',
-      body: '',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: '2026-02-02T00:00:00Z',
-    };
-    const older = {
-      id: '2',
-      from: 'ag',
-      to: '*',
-      type: 'status',
-      subject: 'older',
-      body: '',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: '2026-01-01T00:00:00Z',
-    };
-    await fs.writeFile(mb.mailboxPath, `${JSON.stringify(newer)}\n${JSON.stringify(older)}\n`);
-    const s = (await mb.getAgentStatuses())[0];
-    expect(s?.currentTask).toBe('newer'); // older skipped
+  it('persists registered clients and drops them on deregister', async () => {
+    await mb.registerClient({
+      clientId: 'c1',
+      sessionId: 's1',
+      name: 'TUI',
+      source: 'tui',
+    } as never);
+    const clients = await mb.getClientStatuses();
+    expect(clients).toHaveLength(1);
+    expect(clients[0]).toMatchObject({ clientId: 'c1', name: 'TUI', source: 'tui' });
+
+    await mb.clientHeartbeat({ clientId: 'c1' } as never);
+    await mb.deregisterClient('c1');
+    expect(await mb.getClientStatuses()).toEqual([]);
   });
 });
 
-describe('DefaultMailbox query/migration edge cases', () => {
+describe('SqliteMailbox query edge cases', () => {
   it('treats an unrecognized priority as normal for minPriority', async () => {
     await send({ priority: 'weird' as never, subject: 'odd' });
     // weird priority → order lookup falls back to 1 (normal) → passes minPriority:'normal'
     expect((await mb.query({ minPriority: 'normal' })).some((m) => m.subject === 'odd')).toBe(true);
   });
-
-  it('uses "unknown" as the read key when a legacy message has no recipient', async () => {
-    const legacy = JSON.stringify({
-      id: '1',
-      from: 'a',
-      type: 'info',
-      subject: 's',
-      body: 'x',
-      read: true,
-      readAt: '2026-01-01T00:00:00Z',
-      timestamp: '2026-01-01T00:00:00Z',
-      priority: 'normal',
-      completed: false,
-    });
-    await fs.writeFile(mb.mailboxPath, `${legacy}\n`);
-    const all = await mb.query({});
-    expect(all[0]?.readBy?.unknown).toBe('2026-01-01T00:00:00Z');
-  });
 });
 
-describe('DefaultMailbox lifecycle + stubs', () => {
-  it('close, registerAgent, heartbeat, registerClient, clientHeartbeat are no-ops', async () => {
-    await expect(mb.close()).resolves.toBeUndefined();
-    await expect(
-      mb.registerAgent({ agentId: 'a', sessionId: 's', name: 'n', role: 'r' } as never),
-    ).resolves.toBeUndefined();
-    await expect(mb.heartbeat({ agentId: 'a' } as never)).resolves.toBeUndefined();
-    await expect(
-      mb.registerClient({ clientId: 'c', sessionId: 's', name: 'n', source: 'tui' } as never),
-    ).resolves.toBeUndefined();
-    await expect(mb.clientHeartbeat({ clientId: 'c' } as never)).resolves.toBeUndefined();
-    expect(await mb.getClientStatuses()).toEqual([]);
-  });
-
-  it('clearAll truncates the mailbox', async () => {
+describe('SqliteMailbox lifecycle', () => {
+  it('clearAll drops every message', async () => {
     await send();
     await mb.clearAll();
     expect(await mb.query({})).toEqual([]);
@@ -198,49 +193,18 @@ describe('DefaultMailbox lifecycle + stubs', () => {
 
   it('purgeStale drops old completed and incomplete messages', async () => {
     const oldTs = new Date(Date.now() - 10 * 86_400_000).toISOString();
-    const lines = [
-      {
+    const store = await openWithLegacyMessages([
+      legacyMessage({
         id: '1',
-        from: 'a',
-        to: 'b',
-        type: 'info',
         subject: 'old-done',
-        body: '',
-        priority: 'normal',
-        readBy: {},
         completed: true,
         completedAt: oldTs,
         timestamp: oldTs,
-      },
-      {
-        id: '2',
-        from: 'a',
-        to: 'b',
-        type: 'info',
-        subject: 'old-incomplete',
-        body: '',
-        priority: 'normal',
-        readBy: {},
-        completed: false,
-        timestamp: oldTs,
-      },
-      {
-        id: '3',
-        from: 'a',
-        to: 'b',
-        type: 'info',
-        subject: 'recent',
-        body: '',
-        priority: 'normal',
-        readBy: {},
-        completed: false,
-        timestamp: new Date().toISOString(),
-      },
-    ]
-      .map((m) => JSON.stringify(m))
-      .join('\n');
-    await fs.writeFile(mb.mailboxPath, `${lines}\n`);
-    const r = await mb.purgeStale();
+      }),
+      legacyMessage({ id: '2', subject: 'old-incomplete', timestamp: oldTs }),
+      legacyMessage({ id: '3', subject: 'recent' }),
+    ]);
+    const r = await store.purgeStale();
     expect(r).toMatchObject({
       completedPurged: 1,
       incompletePurged: 1,
@@ -253,223 +217,7 @@ describe('DefaultMailbox lifecycle + stubs', () => {
     expect((await mb.purgeStale()).totalPurged).toBe(0);
   });
 
-  it('ackMany sets cache metadata synchronously (no zombie stat race)', async () => {
-    // Regression: the previous _setMessageCache() did a fire-and-forget
-    // fsp.stat() when called without mtime/size. ackMany, clearAll, and
-    // purgeStale all used that path. After the rewrite released the file
-    // lock, the cache metadata was at the sentinel (-1, -1) or stale
-    // values from before the rewrite. A subsequent _readAllCached() call
-    // could take the "file only grew" branch against those stale values
-    // and append the rewritten file's contents onto the still-cached
-    // old messages, producing duplicates.
-    //
-    // After the fix, the cache metadata is set synchronously under the
-    // same lock that produced it. A query immediately after ackMany (no
-    // intervening send/append) must return the post-ack state without
-    // any duplication or loss.
-    const sent: string[] = [];
-    for (let i = 0; i < 5; i++) {
-      const m = await send({ subject: `m${i}` });
-      sent.push(m.id);
-    }
-    // ackMany rewrites the file under the lock. Previously the cache
-    // metadata was set asynchronously after the lock released, so a
-    // query landing in the gap could see a racy intermediate state.
-    await mb.ackMany({ acks: [{ messageId: sent[0]!, readerId: 'b' }] });
-    const all = await mb.query({ limit: 100 });
-    // No sends happened after ackMany, so the cache and the file must
-    // be in lock-step: 5 messages, no duplicates.
-    expect(all.length).toBe(5);
-    const ids = new Set(all.map((m) => m.id));
-    expect(ids.size).toBe(5);
-    for (const id of sent) expect(ids.has(id)).toBe(true);
-    // The first message must reflect the ack we issued.
-    const acked = all.find((m) => m.id === sent[0]);
-    expect(acked?.readBy?.b).toBeTruthy();
-  });
-
-  it('clearAll sets cache metadata synchronously (no zombie stat)', async () => {
-    // Same regression shape: clearAll rewrites the file to empty under
-    // the lock, and previously did not pass mtime/size to the cache
-    // helper. A query right after clearAll must return [] (no race).
-    await send({ subject: 'will-be-cleared' });
-    await send({ subject: 'will-be-cleared' });
-    await mb.clearAll();
-    const all = await mb.query({ limit: 100 });
-    expect(all).toEqual([]);
-  });
-
-  it('purgeStale sets cache metadata synchronously (no zombie stat)', async () => {
-    // purgeStale rewrites the file under the lock when it drops
-    // messages. Previously did not pass mtime/size to the cache
-    // helper. A query right after purgeStale must return only the
-    // post-purge state, with no race-induced extra messages.
-    const oldTs = new Date(Date.now() - 10 * 86_400_000).toISOString();
-    const stale = {
-      id: 'stale-1',
-      from: 'a',
-      to: 'b',
-      type: 'info',
-      subject: 'stale',
-      body: '',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: oldTs,
-    };
-    const recent = {
-      id: 'recent-1',
-      from: 'a',
-      to: 'b',
-      type: 'info',
-      subject: 'recent',
-      body: '',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: new Date().toISOString(),
-    };
-    await fs.writeFile(
-      mb.mailboxPath,
-      `${[stale, recent].map((m) => JSON.stringify(m)).join('\n')}\n`,
-    );
-    await mb.purgeStale();
-    const all = await mb.query({ limit: 100 });
-    const ids = new Set(all.map((m) => m.id));
-    expect(ids.has('stale-1')).toBe(false);
-    expect(ids.has('recent-1')).toBe(true);
-    expect(all.length).toBe(1);
-  });
-
-  it('send after a prior read does not duplicate messages (cache size stays in lock-step)', async () => {
-    // Regression: send() used to call _pushToCache(msg) but did not
-    // advance _messageCacheSize. The next _readAllCached() saw
-    // st.size > _messageCacheSize, took the incremental "file only
-    // grew" branch, and re-parsed the just-appended bytes — pushing
-    // them onto the cache a second time.
-    //
-    // This is most visible when the cache is already populated (so
-    // _messageCacheSize is non-negative) and a send() happens after
-    // a read. The fix stats the file under the same lock as the
-    // append and updates the cache size/mtime, so the next read
-    // hits the fast path and returns exactly the messages on disk.
-    const m0 = await send({ subject: 'first' });
-    // Force a read so the cache is populated and the file size is
-    // known. Before the fix, _messageCacheSize is now S1 (the size
-    // after one message) and _messageCacheMtime is M1.
-    const firstRead = await mb.query({ limit: 100 });
-    expect(firstRead.length).toBe(1);
-    // Now send more messages. The pre-fix code would push them to
-    // the cache but leave _messageCacheSize at S1.
-    for (let i = 0; i < 4; i++) {
-      await send({ subject: `extra-${i}` });
-    }
-    const all = await mb.query({ limit: 100 });
-    // Must be exactly 5 messages, not 10.
-    expect(all.length).toBe(5);
-    const ids = new Set(all.map((m) => m.id));
-    expect(ids.size).toBe(5);
-    expect(ids.has(m0.id)).toBe(true);
-  });
-
-  it('retries a half-written incremental JSONL line after the append completes', async () => {
-    await send({ subject: 'seed' });
-    expect(await mb.query({ limit: 100 })).toHaveLength(1);
-
-    const line = persistedMessage('partial-1', 'completed-later');
-    const splitAt = Math.floor(line.length / 2);
-    await fs.appendFile(mb.mailboxPath, line.slice(0, splitAt));
-
-    expect((await mb.query({ limit: 100 })).map((message) => message.subject)).toEqual(['seed']);
-
-    await fs.appendFile(mb.mailboxPath, `${line.slice(splitAt)}\n`);
-    const all = await mb.query({ limit: 100 });
-    expect(new Set(all.map((message) => message.subject))).toEqual(
-      new Set(['seed', 'completed-later']),
-    );
-    expect(all.find((message) => message.id === 'partial-1')?.type).toBe('note');
-  });
-
-  it('keeps a bounded recent cache and falls back for matches outside the window', async () => {
-    const messages = Array.from({ length: 10_005 }, (_, index) => ({
-      id: `bounded-${index}`,
-      from: index === 0 ? 'rare-sender' : 'busy-sender',
-      to: index === 0 ? 'rare-recipient' : 'busy-recipient',
-      type: 'note',
-      subject: `bounded-${index}`,
-      body: 'body',
-      priority: index === 0 ? 'high' : 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: new Date(1_700_000_000_000 + index).toISOString(),
-    }));
-    await fs.writeFile(
-      mb.mailboxPath,
-      `${messages.map((message) => JSON.stringify(message)).join('\n')}\n`,
-    );
-
-    expect((await mb.query({ to: 'busy-recipient', limit: 2 })).map((m) => m.id)).toEqual([
-      'bounded-10004',
-      'bounded-10003',
-    ]);
-
-    const internals = mb as unknown as {
-      _messageCache: unknown[];
-      _messageCacheTruncated: boolean;
-    };
-    expect(internals._messageCache).toHaveLength(10_000);
-    expect(internals._messageCacheTruncated).toBe(true);
-
-    expect((await mb.query({ to: 'rare-recipient', limit: 1 })).map((m) => m.id)).toEqual([
-      'bounded-0',
-    ]);
-    expect((await mb.query({ from: 'rare-sender', limit: 1 })).map((m) => m.id)).toEqual([
-      'bounded-0',
-    ]);
-    expect((await mb.query({ minPriority: 'high', limit: 1 })).map((m) => m.id)).toEqual([
-      'bounded-0',
-    ]);
-    expect(await mb.unreadCount('rare-recipient')).toBe(1);
-  });
-
-  it('evicts one oldest cached message per append instead of discarding the cache', async () => {
-    const messages = Array.from({ length: 10_000 }, (_, index) => ({
-      id: `append-${index}`,
-      from: 'sender',
-      to: 'recipient',
-      type: 'note',
-      subject: `append-${index}`,
-      body: 'body',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: new Date(1_700_000_000_000 + index).toISOString(),
-    }));
-    await fs.writeFile(
-      mb.mailboxPath,
-      `${messages.map((message) => JSON.stringify(message)).join('\n')}\n`,
-    );
-    await mb.query({ limit: 1 });
-
-    const appended = await send({ subject: 'append-10000' });
-    const internals = mb as unknown as {
-      _messageCache: Array<{ id: string }>;
-      _messageCacheTruncated: boolean;
-    };
-    expect(internals._messageCache).toHaveLength(10_000);
-    expect(internals._messageCache[0]?.id).toBe('append-1');
-    expect(internals._messageCache.at(-1)?.id).toBe(appended.id);
-    expect(internals._messageCacheTruncated).toBe(true);
-  });
-
   it('send + ackMany + send + query does not duplicate messages', async () => {
-    // Same regression shape, with an ackMany (which rewrites the file)
-    // in the middle. Previously the sequence produced 15 messages
-    // (5 from the initial sends + 5 re-parsed from the post-ack
-    // incremental read + 5 from the post-ack sends + 5 re-parsed
-    // again). After the fix, the cache size/mtime advances under
-    // the lock on every write, so the incremental path never fires
-    // against an already-cached range.
     const sent: string[] = [];
     for (let i = 0; i < 5; i++) {
       const m = await send({ subject: `m${i}` });
@@ -486,100 +234,70 @@ describe('DefaultMailbox lifecycle + stubs', () => {
     expect(ids.size).toBe(10);
     for (const id of sent) expect(ids.has(id)).toBe(true);
     // The first message must reflect the ack we issued.
-    const acked = all.find((m) => m.id === sent[0]);
-    expect(acked?.readBy?.b).toBeTruthy();
+    expect(all.find((m) => m.id === sent[0])?.readBy?.b).toBeTruthy();
   });
 
-  it('send + clearAll + send + query does not duplicate messages', async () => {
-    // Same regression shape, with clearAll (which truncates the file
-    // to empty) in the middle. The pre-fix code left _messageCacheSize
-    // at the pre-clear value, so the post-clear send+query would
-    // re-parse the cleared bytes.
+  it('send + clearAll + send + query returns only the post-clear messages', async () => {
     await send({ subject: 'will-be-cleared' });
     await send({ subject: 'will-be-cleared' });
     await mb.clearAll();
     await send({ subject: 'fresh-1' });
     await send({ subject: 'fresh-2' });
-    const all = await mb.query({ limit: 100 });
-    expect(all.length).toBe(2);
-    const subjects = new Set(all.map((m) => m.subject));
-    expect(subjects.has('fresh-1')).toBe(true);
-    expect(subjects.has('fresh-2')).toBe(true);
-    expect(subjects.has('will-be-cleared')).toBe(false);
+    const subjects = new Set((await mb.query({ limit: 100 })).map((m) => m.subject));
+    expect(subjects).toEqual(new Set(['fresh-1', 'fresh-2']));
   });
 
-  it('send + purgeStale + send + query does not duplicate messages', async () => {
-    // Same regression shape, with purgeStale in the middle. The pre-fix
-    // code left _messageCacheSize at the pre-purge value, so the
-    // post-purge send+query would re-parse the purged bytes.
+  it('send + purgeStale + send + query keeps the recent and the new message', async () => {
     const oldTs = new Date(Date.now() - 10 * 86_400_000).toISOString();
-    const stale = {
-      id: 'stale-1',
-      from: 'a',
-      to: 'b',
-      type: 'info',
-      subject: 'stale',
-      body: '',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: oldTs,
-    };
-    const recent = {
-      id: 'recent-1',
-      from: 'a',
-      to: 'b',
-      type: 'info',
-      subject: 'recent',
-      body: '',
-      priority: 'normal',
-      readBy: {},
-      completed: false,
-      timestamp: new Date().toISOString(),
-    };
-    await fs.writeFile(
-      mb.mailboxPath,
-      `${[stale, recent].map((m) => JSON.stringify(m)).join('\n')}\n`,
-    );
-    await mb.purgeStale();
-    await send({ subject: 'after-purge' });
-    const all = await mb.query({ limit: 100 });
+    const store = await openWithLegacyMessages([
+      legacyMessage({ id: 'stale-1', subject: 'stale', timestamp: oldTs }),
+      legacyMessage({ id: 'recent-1', subject: 'recent' }),
+    ]);
+    await store.purgeStale();
+    await store.send({ from: 'a', to: 'b', type: 'note', subject: 'after-purge', body: 'hi' });
+    const all = await store.query({ limit: 100 });
     const ids = new Set(all.map((m) => m.id));
     expect(ids.has('stale-1')).toBe(false);
     expect(ids.has('recent-1')).toBe(true);
     expect(ids.size).toBe(2);
-    const afterPurge = all.find((m) => m.subject === 'after-purge');
-    expect(afterPurge).toBeTruthy();
+    expect(all.some((m) => m.subject === 'after-purge')).toBe(true);
   });
 });
 
-describe('DefaultMailbox _readAll', () => {
+describe('SqliteMailbox legacy JSONL import', () => {
   it('migrates legacy read/readAt and skips malformed lines', async () => {
-    const legacy = JSON.stringify({
-      id: '1',
-      from: 'a',
-      to: 'b',
-      type: 'info',
-      subject: 's',
-      body: 'x',
-      read: true,
-      readAt: '2026-01-01T00:00:00Z',
-      timestamp: '2026-01-01T00:00:00Z',
-      priority: 'normal',
-      completed: false,
-    });
-    await fs.writeFile(mb.mailboxPath, `${legacy}\nnot-json\n`);
-    const all = await mb.query({});
+    // `read`/`readAt` only migrate when the record predates `readBy`.
+    const legacy = legacyMessage({ read: true, readAt: '2026-01-01T00:00:00Z' });
+    delete legacy['readBy'];
+    const store = await openWithLegacyMessages([legacy, 'not-json']);
+    const all = await store.query({});
     expect(all.length).toBe(1);
     expect(all[0]?.readBy?.b).toBe('2026-01-01T00:00:00Z');
   });
 
-  it('returns [] when the mailbox file is absent', async () => {
-    expect(await mb.query({})).toEqual([]);
+  it('uses "unknown" as the read key when a legacy message has no recipient', async () => {
+    const legacy = legacyMessage({ read: true, readAt: '2026-01-01T00:00:00Z' });
+    delete legacy['readBy'];
+    delete legacy['to'];
+    const store = await openWithLegacyMessages([legacy]);
+    const all = await store.query({});
+    expect(all[0]?.readBy?.unknown).toBe('2026-01-01T00:00:00Z');
   });
 
-  it('rethrows a non-ENOENT read error (path is a directory)', async () => {
-    await fs.mkdir(mb.mailboxPath, { recursive: true });
-    await expect(mb.query({})).rejects.toThrow();
+  it('runs the import exactly once per store', async () => {
+    const legacyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'legacy-mailbox-once-'));
+    await fs.writeFile(
+      path.join(legacyDir, '_mailbox.jsonl'),
+      `${JSON.stringify(legacyMessage({ id: 'once-1', subject: 'imported' }))}\n`,
+    );
+    const first = new SqliteMailbox(legacyDir);
+    extraStores.push(first);
+    expect(await first.query({})).toHaveLength(1);
+    await first.close();
+
+    // Re-opening the same directory must not import the retired file again.
+    const second = new SqliteMailbox(legacyDir);
+    extraStores.push(second);
+    expect(await second.query({})).toHaveLength(1);
   });
 });

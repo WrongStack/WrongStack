@@ -19,7 +19,7 @@ import {
   DEPENDENCY_FILE_PATTERNS,
   type DepWatchEntry,
 } from '../../src/coordination/dep-watcher.js';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type { Mailbox } from '../../src/coordination/mailbox-types.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ describe('makeDependencyWatcherConfig', () => {
     dir = tmpDir();
     await fs.mkdir(dir, { recursive: true });
     projectRoot = dir;
-    mailbox = new DefaultMailbox(dir);
+    mailbox = new SqliteMailbox(dir);
   });
 
   afterEach(async () => {
@@ -145,10 +145,30 @@ describe('makeDependencyWatcherConfig', () => {
 
       expect(spy).toHaveBeenCalledTimes(1);
       const callArgs = spy.mock.calls[0]![0] as Record<string, unknown>;
-      expect(callArgs.type).toBe('assign');
+      // No `targetAgent` → the default `*` fan-out. `assign` is rejected for a
+      // multi-recipient target, so the notification goes out as a broadcast.
+      expect(callArgs.to).toBe('*');
+      expect(callArgs.type).toBe('broadcast');
       expect(callArgs.subject).toContain('package.json');
       expect(callArgs.priority).toBe('high');
       expect(callArgs.from).toBe('dep-watcher');
+    });
+
+    it('assigns to a single named target', async () => {
+      const cfg = makeDependencyWatcherConfig({
+        projectRoot,
+        mailbox,
+        targetAgent: 'tech-stack',
+        debounceMs: 10,
+      });
+      const spy = vi.spyOn(mailbox, 'send');
+
+      await cfg.onChange(makeEntry({ path: 'package.json', event: 'change' }));
+      await new Promise((r) => setTimeout(r, 50));
+
+      const callArgs = spy.mock.calls[0]![0];
+      expect(callArgs.to).toBe('tech-stack');
+      expect(callArgs.type).toBe('assign');
     });
 
     it('publishes with the correct targetAgent', async () => {

@@ -6,7 +6,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type { EventBus } from '../../src/kernel/events.js';
 import type {
   MailboxMessage,
@@ -19,33 +19,67 @@ import {
   serializeReceiptRecordV2,
 } from '../../src/coordination/mailbox-receipt-folding.js';
 import { parseMailboxFile } from '../../src/coordination/mailbox-parse-state.js';
-import {
-  MAILBOX_VERSION_CURRENT,
-  MAILBOX_VERSION_SENTINEL,
-  MailboxVersionFenceError,
-  assertMailboxNotFenced,
-  checkMailboxVersion,
-  checkMailboxVersionFromContent,
-  ensureVersionSentinel,
-  isMailboxVersionMarker,
-  sentinelLine,
-} from '../../src/coordination/mailbox-version-fence.js';
 import { isMailboxReceiptRecordV2 } from '../../src/coordination/mailbox-types.js';
-import { parseMailboxLines } from '../../src/coordination/mailbox-message-codec.js';
 
 let dir: string;
-let mb: GlobalMailbox;
+let mb: SqliteMailbox;
 const events = { emitCustom: () => {} };
+/** Extra stores a test opened; closed before any directory is removed. */
+const extraStores: SqliteMailbox[] = [];
+/** Directories a test seeded outside `dir`; removed after their stores close. */
+const extraDirs: string[] = [];
+
+const RM_OPTIONS = { recursive: true, force: true, maxRetries: 10, retryDelay: 50 } as const;
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-v2-'));
-  mb = new GlobalMailbox(dir, events as never as EventBus);
+  mb = new SqliteMailbox(dir, events as never as EventBus);
 });
 
 afterEach(async () => {
-  await mb.close();
-  await fs.rm(dir, { recursive: true, force: true });
+  for (const store of extraStores.splice(0)) await store.close().catch(() => undefined);
+  await mb.close().catch(() => undefined);
+  for (const extra of extraDirs.splice(0)) await fs.rm(extra, RM_OPTIONS);
+  await fs.rm(dir, RM_OPTIONS);
 });
+
+/** Open a second connection to the store under test. */
+function reopen(): SqliteMailbox {
+  const store = new SqliteMailbox(dir, events as never as EventBus);
+  extraStores.push(store);
+  return store;
+}
+
+/**
+ * Read a message back with its per-actor receipt state.
+ *
+ * Receipts live in the `message_receipts` table now, not as `__mailboxReceipt`
+ * lines in a JSONL file — `includeReceiptState` is how a caller sees them.
+ */
+async function projectionOf(
+  store: SqliteMailbox,
+  messageId: string,
+): Promise<MailboxMessageProjection | undefined> {
+  const all = await store.query({ limit: 1000, includeReceiptState: true });
+  return all.find((message) => message.id === messageId) as
+    | MailboxMessageProjection
+    | undefined;
+}
+
+/**
+ * Open a store over a directory seeded with a legacy `_mailbox.jsonl`.
+ *
+ * The constructor runs the one-shot import, so this is how a test introduces
+ * v1 messages, v1 acks and v2 receipt lines with timestamps it controls.
+ */
+async function openWithLegacyLines(lines: readonly string[]): Promise<SqliteMailbox> {
+  const legacyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-v2-legacy-'));
+  await fs.writeFile(path.join(legacyDir, '_mailbox.jsonl'), `${lines.join('\n')}\n`);
+  const store = new SqliteMailbox(legacyDir, events as never as EventBus);
+  extraStores.push(store);
+  extraDirs.push(legacyDir);
+  return store;
+}
 
 // ── Receipt record discriminator ─────────────────────────────────────
 
@@ -382,108 +416,10 @@ describe('parseMailboxFile', () => {
   });
 });
 
-// ── Version fence ────────────────────────────────────────────────────
+// ── End-to-end: SqliteMailbox with v2 receipts ───────────────────────
 
-describe('Version fence', () => {
-  describe('isMailboxVersionMarker', () => {
-    it('accepts a valid marker', () => {
-      expect(isMailboxVersionMarker({ __mailboxVersion: 2 })).toBe(true);
-    });
-    it('rejects non-objects', () => {
-      expect(isMailboxVersionMarker(null)).toBe(false);
-      expect(isMailboxVersionMarker(42)).toBe(false);
-      expect(isMailboxVersionMarker([])).toBe(false);
-    });
-    it('rejects objects without the key', () => {
-      expect(isMailboxVersionMarker({ __ack: true })).toBe(false);
-    });
-  });
-
-  describe('checkMailboxVersion', () => {
-    it('returns null for a nonexistent file', async () => {
-      const p = path.join(dir, 'no-such.jsonl');
-      expect(await checkMailboxVersion(p)).toBeNull();
-    });
-
-    it('returns null for a file without a marker', async () => {
-      const p = path.join(dir, 'v1.jsonl');
-      await fs.writeFile(p, '{"id":"m1","type":"note"}\n');
-      expect(await checkMailboxVersion(p)).toBeNull();
-    });
-
-    it('returns the version for a fenced file', async () => {
-      const p = path.join(dir, 'fenced.jsonl');
-      await fs.writeFile(p, `${MAILBOX_VERSION_SENTINEL}\n{"id":"m1"}\n`);
-      expect(await checkMailboxVersion(p)).toBe(2);
-    });
-  });
-
-  describe('checkMailboxVersionFromContent', () => {
-    it('returns null for content without a marker', () => {
-      expect(checkMailboxVersionFromContent('{"id":"m1"}\n')).toBeNull();
-    });
-    it('returns the version for content with a marker', () => {
-      expect(checkMailboxVersionFromContent(`${MAILBOX_VERSION_SENTINEL}\n`)).toBe(2);
-    });
-    it('handles mixed content', () => {
-      const content = `{"id":"m1"}\n${MAILBOX_VERSION_SENTINEL}\n{"__ack":true}\n`;
-      expect(checkMailboxVersionFromContent(content)).toBe(2);
-    });
-  });
-
-  describe('ensureVersionSentinel', () => {
-    it('writes the sentinel to a new file', async () => {
-      const p = path.join(dir, 'new.jsonl');
-      await fs.writeFile(p, '{"id":"m1"}\n');
-      await ensureVersionSentinel(p);
-      const version = await checkMailboxVersion(p);
-      expect(version).toBe(2);
-    });
-
-    it('is idempotent — does not duplicate the sentinel', async () => {
-      const p = path.join(dir, 'idempotent.jsonl');
-      await fs.writeFile(p, `${MAILBOX_VERSION_SENTINEL}\n`);
-      await ensureVersionSentinel(p);
-      const content = await fs.readFile(p, 'utf8');
-      const count = (content.match(/__mailboxVersion/g) ?? []).length;
-      expect(count).toBe(1);
-    });
-  });
-
-  describe('assertMailboxNotFenced', () => {
-    it('passes for a v1 file', async () => {
-      const p = path.join(dir, 'v1.jsonl');
-      await fs.writeFile(p, '{"id":"m1"}\n');
-      await expect(assertMailboxNotFenced(p)).resolves.toBeUndefined();
-    });
-
-    it('passes for a file at our version', async () => {
-      const p = path.join(dir, 'same.jsonl');
-      await fs.writeFile(p, `${MAILBOX_VERSION_SENTINEL}\n`);
-      await expect(assertMailboxNotFenced(p, MAILBOX_VERSION_CURRENT)).resolves.toBeUndefined();
-    });
-
-    it('throws for a file with a newer version', async () => {
-      const p = path.join(dir, 'newer.jsonl');
-      await fs.writeFile(p, '{"__mailboxVersion":3}\n');
-      await expect(assertMailboxNotFenced(p, 2)).rejects.toThrow(MailboxVersionFenceError);
-    });
-  });
-
-  describe('sentinelLine', () => {
-    it('returns a valid JSON line ending with newline', () => {
-      const line = sentinelLine();
-      expect(line.endsWith('\n')).toBe(true);
-      const parsed = JSON.parse(line.trim());
-      expect(parsed.__mailboxVersion).toBe(2);
-    });
-  });
-});
-
-// ── End-to-end: GlobalMailbox with v2 receipts ───────────────────────
-
-describe('GlobalMailbox v2 receipt integration', () => {
-  it('appends v2 receipt records alongside v1 acks (dual-write)', async () => {
+describe('SqliteMailbox v2 receipt integration', () => {
+  it('records a per-actor receipt on ack', async () => {
     const msg = await mb.send({
       from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
     });
@@ -493,31 +429,14 @@ describe('GlobalMailbox v2 receipt integration', () => {
       read: true,
       completed: true,
     });
-    await mb.close();
 
-    // Read the raw file and check for v2 receipt records.
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const parsed = raw
-      .split('\n')
-      .filter((l) => l.trim())
-      .map((l) => JSON.parse(l));
-
-    const v2Receipts = parsed.filter((p) => p.__mailboxReceipt === 2);
-    const v1Acks = parsed.filter((p) => p.__ack === true);
-
-    // Dual-write: both v1 ack and v2 receipt should be present.
-    expect(v1Acks.length).toBeGreaterThanOrEqual(1);
-    expect(v2Receipts.length).toBeGreaterThanOrEqual(1);
-
-    // v2 receipt should have the right fields.
-    const receipt = v2Receipts[0];
-    expect(receipt.messageId).toBe(msg.id);
-    expect(receipt.actorId).toBe('b');
-    expect(receipt.read).toBe(true);
-    expect(receipt.completed).toBe(true);
+    const projection = await projectionOf(mb, msg.id);
+    expect(projection?.recipientState['b']).toMatchObject({ actorId: 'b' });
+    expect(projection?.recipientState['b']?.readAt).toBeDefined();
+    expect(projection?.recipientState['b']?.completedAt).toBeDefined();
   });
 
-  it('keeps actor completion and outcome out of the legacy ack for fan-out messages', async () => {
+  it('keeps actor completion and outcome off the message for fan-out messages', async () => {
     const msg = await mb.send({
       from: 'leader', to: '*', type: 'broadcast', subject: 'q', body: '?',
     });
@@ -529,32 +448,26 @@ describe('GlobalMailbox v2 receipt integration', () => {
       outcome: 'handled by actor a',
     });
 
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const legacyMessage = parseMailboxLines(raw).find((message) => message.id === msg.id);
-    const modernMessage = parseMailboxFile(raw).find((message) => message.id === msg.id);
-
-    expect(legacyMessage).toBeDefined();
-    expect(legacyMessage?.readBy['actor-a']).toBeDefined();
-    expect(legacyMessage?.completed).toBe(false);
-    expect(legacyMessage?.completedBy).toBeUndefined();
-    expect(legacyMessage?.outcome).toBeUndefined();
-    expect(modernMessage?.recipientState['actor-a']?.completedAt).toBeDefined();
-    expect(modernMessage?.recipientState['actor-a']?.outcome).toBe('handled by actor a');
+    const projection = await projectionOf(mb, msg.id);
+    // Aggregate view: one actor finishing a fan-out completes nothing globally.
+    expect(projection?.readBy['actor-a']).toBeDefined();
+    expect(projection?.completed).toBe(false);
+    expect(projection?.completedBy).toBeUndefined();
+    // Per-actor view: that actor's completion and outcome are recorded.
+    expect(projection?.recipientState['actor-a']?.completedAt).toBeDefined();
+    expect(projection?.recipientState['actor-a']?.outcome).toBe('handled by actor a');
   });
 
-  it('writes the version sentinel on first v2 receipt', async () => {
-    const msg = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 's', body: 'b',
-    });
+  it('strips receipt state unless the caller asks for it', async () => {
+    const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'b' });
     await mb.ack({ messageId: msg.id, readerId: 'b', read: true });
-    await mb.close();
 
-    const version = await checkMailboxVersion(mb.messagePath);
-    expect(version).toBe(2);
+    const [plain] = await mb.query({ limit: 10 });
+    expect(plain).not.toHaveProperty('recipientState');
+    expect(plain).not.toHaveProperty('legacyGlobalCompletion');
   });
 
-  it('mixed v1/v2 JSONL survives read, append, close, and reopen', async () => {
-    // Write a v1 message and v1 ack.
+  it('messages and receipts survive close and reopen', async () => {
     const msg = await mb.send({
       from: 'a', to: 'b', type: 'note', subject: 's', body: 'b',
     });
@@ -562,20 +475,48 @@ describe('GlobalMailbox v2 receipt integration', () => {
     await mb.close();
 
     // Reopen and send another message.
-    const mb2 = new GlobalMailbox(dir, events as never as EventBus);
+    const mb2 = reopen();
     const msg2 = await mb2.send({
       from: 'a', to: 'b', type: 'note', subject: 's2', body: 'b2',
     });
     await mb2.ack({ messageId: msg2.id, readerId: 'b', read: true, completed: true });
     await mb2.close();
 
-    // Reopen again and verify both messages survive.
-    const mb3 = new GlobalMailbox(dir, events as never as EventBus);
+    // Reopen again and verify both messages and their receipts survive.
+    const mb3 = reopen();
     const all = await mb3.query({ limit: 100 });
     expect(all).toHaveLength(2);
     expect(all.map((m) => m.subject)).toContain('s');
     expect(all.map((m) => m.subject)).toContain('s2');
-    await mb3.close();
+    expect((await projectionOf(mb3, msg.id))?.recipientState['b']?.readAt).toBeDefined();
+    expect((await projectionOf(mb3, msg2.id))?.recipientState['b']?.completedAt).toBeDefined();
+  });
+
+  it('imports v1 acks and v2 receipt lines from a legacy JSONL mailbox', async () => {
+    const store = await openWithLegacyLines([
+      JSON.stringify({
+        id: 'legacy-1', from: 'a', to: 'legacy@sess-1', type: 'ask',
+        subject: 's', body: 'b', priority: 'normal',
+        readBy: {}, completed: false, timestamp: '2026-01-01T00:00:00Z',
+      }),
+      JSON.stringify({
+        __ack: true, messageId: 'legacy-1', readerId: 'legacy@sess-1',
+        timestamp: '2026-01-01T01:00:00Z', read: true, completed: true,
+      }),
+      JSON.stringify(
+        buildReceiptRecordV2('legacy-1', 'modern@sess-2', '2026-01-01T02:00:00Z', {
+          completed: true,
+        }),
+      ),
+    ]);
+
+    const projection = await projectionOf(store, 'legacy-1');
+    expect(projection?.recipientState['legacy@sess-1']?.completedAt).toBe(
+      '2026-01-01T01:00:00Z',
+    );
+    expect(projection?.recipientState['modern@sess-2']?.completedAt).toBe(
+      '2026-01-01T02:00:00Z',
+    );
   });
 });
 
@@ -634,7 +575,7 @@ describe('parseMailboxFile integration', () => {
 
 // ── Actor-scoped completion ──────────────────────────────────────────
 
-describe('GlobalMailbox v2 actor-scoped completion', () => {
+describe('SqliteMailbox v2 actor-scoped completion', () => {
   it('persists separate completions when two actors complete a broadcast', async () => {
     const msg = await mb.send({
       from: 'leader', to: '*', type: 'broadcast',
@@ -656,24 +597,19 @@ describe('GlobalMailbox v2 actor-scoped completion', () => {
     });
     await mb.close();
 
-    const reopened = new GlobalMailbox(dir, events as never as EventBus);
-    try {
-      const forBAfterReopen = await reopened.query({
-        to: '*', unreadBy: 'actor-b', readerRole: 'worker', incompleteOnly: true,
-      });
-      expect(forBAfterReopen.map((message) => message.id)).not.toContain(msg.id);
-      const forAAfterReopen = await reopened.query({
-        to: '*', unreadBy: 'actor-a', readerRole: 'worker', incompleteOnly: true,
-      });
-      expect(forAAfterReopen.map((message) => message.id)).not.toContain(msg.id);
+    const reopened = reopen();
+    const forBAfterReopen = await reopened.query({
+      to: '*', unreadBy: 'actor-b', readerRole: 'worker', incompleteOnly: true,
+    });
+    expect(forBAfterReopen.map((message) => message.id)).not.toContain(msg.id);
+    const forAAfterReopen = await reopened.query({
+      to: '*', unreadBy: 'actor-a', readerRole: 'worker', incompleteOnly: true,
+    });
+    expect(forAAfterReopen.map((message) => message.id)).not.toContain(msg.id);
 
-      const persisted = parseMailboxFile(await fs.readFile(reopened.messagePath, 'utf8'))
-        .find((message) => message.id === msg.id);
-      expect(persisted?.recipientState['actor-a']?.completedAt).toBeDefined();
-      expect(persisted?.recipientState['actor-b']?.completedAt).toBeDefined();
-    } finally {
-      await reopened.close();
-    }
+    const persisted = await projectionOf(reopened, msg.id);
+    expect(persisted?.recipientState['actor-a']?.completedAt).toBeDefined();
+    expect(persisted?.recipientState['actor-b']?.completedAt).toBeDefined();
   });
 
   it('direct message completion is actor-scoped', async () => {
@@ -683,204 +619,46 @@ describe('GlobalMailbox v2 actor-scoped completion', () => {
     await mb.ack({
       messageId: msg.id, readerId: 'b', read: true, completed: true,
     });
-    // B queries incompleteOnly — should NOT see it
+    // B queries incompleteOnly - should NOT see it
     const forB = await mb.query({
       to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
     });
     expect(forB.map((m) => m.id)).not.toContain(msg.id);
   });
 
-  it('does not append a duplicate read won by another mailbox instance', async () => {
-    const msg = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 'q', body: '?',
-    });
-    const competing = new GlobalMailbox(dir, events as never as EventBus);
-    try {
-      await Promise.all([mb.query({ limit: 100 }), competing.query({ limit: 100 })]);
-      const originalRead = Reflect.get(
-        mb,
-        '_readMessagesCached',
-      ) as () => Promise<MailboxMessage[]>;
-      let injected = false;
-      Reflect.set(mb, '_readMessagesCached', async () => {
-        const messages = await originalRead.call(mb);
-        if (!injected) {
-          injected = true;
-          await competing.ack({ messageId: msg.id, readerId: 'b', read: true });
-        }
-        return messages;
-      });
+  it('a repeated read ack keeps the original receipt', async () => {
+    const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 'q', body: '?' });
+    await mb.ack({ messageId: msg.id, readerId: 'b', read: true });
+    const firstReadAt = (await projectionOf(mb, msg.id))?.recipientState['b']?.readAt;
+    expect(firstReadAt).toBeDefined();
 
-      await mb.ack({ messageId: msg.id, readerId: 'b', read: true });
-
-      const raw = await fs.readFile(mb.messagePath, 'utf8');
-      const readReceipts = raw
-        .split('\n')
-        .filter((line) => line.includes('"__mailboxReceipt":2'))
-        .map((line) => JSON.parse(line) as Record<string, unknown>)
-        .filter((receipt) => receipt.messageId === msg.id && receipt.actorId === 'b' && receipt.read === true);
-      expect(readReceipts).toHaveLength(1);
-    } finally {
-      await competing.close();
-    }
+    await mb.ack({ messageId: msg.id, readerId: 'b', read: true });
+    const projection = await projectionOf(mb, msg.id);
+    expect(Object.keys(projection?.recipientState ?? {})).toEqual(['b']);
+    // The receipt keeps its ORIGINAL read timestamp - a re-read is not a new read.
+    expect(projection?.recipientState['b']?.readAt).toBe(firstReadAt);
   });
 
-  it('does not append a v2 completion after a legacy fan-out completion wins the race', async () => {
-    const msg = await mb.send({
-      from: 'a', to: '*', type: 'broadcast', subject: 'q', body: '?',
+  it('refuses a new actor completion on a legacy globally-completed fan-out', async () => {
+    // A historical v1 fan-out completion stays globally suppressed so an
+    // upgrade does not re-deliver it; `legacyGlobalCompletion` marks it.
+    const store = await openWithLegacyLines([
+      JSON.stringify({
+        id: 'legacy-fanout', from: 'a', to: '*', type: 'broadcast',
+        subject: 'q', body: '?', priority: 'normal', readBy: {},
+        completed: true, completedBy: 'legacy-worker',
+        completedAt: '2026-01-01T01:00:00Z', timestamp: '2026-01-01T00:00:00Z',
+      }),
+    ]);
+    const projection = await projectionOf(store, 'legacy-fanout');
+    expect(projection?.legacyGlobalCompletion).toBe(true);
+
+    await store.ack({
+      messageId: 'legacy-fanout', readerId: 'modern-worker', read: false, completed: true,
     });
-    const originalRead = Reflect.get(
-      mb,
-      '_readMessagesCached',
-    ) as () => Promise<MailboxMessage[]>;
-    let injected = false;
-    Reflect.set(mb, '_readMessagesCached', async () => {
-      const messages = await originalRead.call(mb);
-      if (!injected) {
-        injected = true;
-        await fs.appendFile(mb.messagePath, `${JSON.stringify({
-          __ack: true,
-          messageId: msg.id,
-          readerId: 'legacy-worker',
-          timestamp: new Date().toISOString(),
-          read: false,
-          completed: true,
-          completedBy: 'legacy-worker',
-        })}\n`, 'utf8');
-      }
-      return messages;
-    });
-
-    await mb.ack({
-      messageId: msg.id, readerId: 'modern-worker', read: false, completed: true,
-    });
-
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const modernReceipts = raw
-      .split('\n')
-      .filter((line) => line.includes('"__mailboxReceipt":2'))
-      .map((line) => JSON.parse(line) as Record<string, unknown>)
-      .filter((receipt) => receipt.messageId === msg.id && receipt.actorId === 'modern-worker');
-    expect(modernReceipts).toHaveLength(0);
-    expect(parseMailboxFile(raw).find((message) => message.id === msg.id)?.legacyGlobalCompletion)
-      .toBe(true);
-  });
-
-  it('does not append a duplicate completion won by another mailbox instance', async () => {
-    const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
-    });
-    const competing = new GlobalMailbox(dir, events as never as EventBus);
-    try {
-      // Populate both optimistic caches before either completion is appended.
-      await Promise.all([mb.query({ limit: 100 }), competing.query({ limit: 100 })]);
-      const originalRead = Reflect.get(
-        mb,
-        '_readMessagesCached',
-      ) as () => Promise<MailboxMessage[]>;
-      let injected = false;
-      Reflect.set(mb, '_readMessagesCached', async () => {
-        const messages = await originalRead.call(mb);
-        if (!injected) {
-          injected = true;
-          await competing.ack({
-            messageId: msg.id, readerId: 'b', read: true, completed: true,
-          });
-        }
-        return messages;
-      });
-
-      await mb.ack({ messageId: msg.id, readerId: 'b', read: true, completed: true });
-
-      const raw = await fs.readFile(mb.messagePath, 'utf8');
-      const completionReceipts = raw
-        .split('\n')
-        .filter((line) => line.includes('"__mailboxReceipt":2'))
-        .map((line) => JSON.parse(line) as Record<string, unknown>)
-        .filter((receipt) => receipt.messageId === msg.id && receipt.actorId === 'b' && receipt.completed === true);
-      expect(completionReceipts).toHaveLength(1);
-    } finally {
-      await competing.close();
-    }
-  });
-
-  it('preserves a new read receipt when another mailbox wins the completion race', { timeout: 5000 }, async () => {
-    const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
-    });
-    const competing = new GlobalMailbox(dir, events as never as EventBus);
-    try {
-      await Promise.all([mb.query({ limit: 100 }), competing.query({ limit: 100 })]);
-      const originalRead = Reflect.get(
-        mb,
-        '_readMessagesCached',
-      ) as () => Promise<MailboxMessage[]>;
-      let injected = false;
-      Reflect.set(mb, '_readMessagesCached', async () => {
-        const messages = await originalRead.call(mb);
-        if (!injected) {
-          injected = true;
-          await competing.ack({
-            messageId: msg.id, readerId: 'b', read: false, completed: true,
-          });
-        }
-        return messages;
-      });
-
-      await mb.ack({
-        messageId: msg.id,
-        readerId: 'b',
-        read: true,
-        completed: true,
-      });
-
-      const projection = parseMailboxFile(await fs.readFile(mb.messagePath, 'utf8'))
-        .find((message) => message.id === msg.id);
-      expect(projection?.recipientState['b']?.completedAt).toBeDefined();
-      expect(projection?.recipientState['b']?.readAt).toBeDefined();
-    } finally {
-      await competing.close();
-    }
-  });
-
-  it('preserves outcome when another mailbox wins the completion race', async () => {
-    const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
-    });
-    const competing = new GlobalMailbox(dir, events as never as EventBus);
-    try {
-      await Promise.all([mb.query({ limit: 100 }), competing.query({ limit: 100 })]);
-      const originalRead = Reflect.get(
-        mb,
-        '_readMessagesCached',
-      ) as () => Promise<MailboxMessage[]>;
-      let injected = false;
-      Reflect.set(mb, '_readMessagesCached', async () => {
-        const messages = await originalRead.call(mb);
-        if (!injected) {
-          injected = true;
-          await competing.ack({
-            messageId: msg.id, readerId: 'b', read: true, completed: true,
-          });
-        }
-        return messages;
-      });
-
-      await mb.ack({
-        messageId: msg.id,
-        readerId: 'b',
-        read: true,
-        completed: true,
-        outcome: 'resolved-by-primary',
-      });
-
-      const projection = parseMailboxFile(await fs.readFile(mb.messagePath, 'utf8'))
-        .find((message) => message.id === msg.id);
-      expect(projection?.recipientState['b']?.completedAt).toBeDefined();
-      expect(projection?.recipientState['b']?.outcome).toBe('resolved-by-primary');
-    } finally {
-      await competing.close();
-    }
+    const after = await projectionOf(store, 'legacy-fanout');
+    expect(after?.recipientState['modern-worker']?.completedAt).toBeUndefined();
+    expect(after?.legacyGlobalCompletion).toBe(true);
   });
 
   it('reopen via completed:false makes message incomplete for that actor', async () => {
@@ -906,41 +684,31 @@ describe('GlobalMailbox v2 actor-scoped completion', () => {
     expect(incomplete.map((message) => message.id)).toContain(msg.id);
     expect(incomplete.find((message) => message.id === msg.id)?.readBy).toHaveProperty('b');
 
-    // Assert the v2 projection reflects the reopen: completedAt must be cleared.
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const projections = parseMailboxFile(raw);
-    const proj = projections.find((p) => p.id === msg.id);
-    expect(proj).toBeDefined();
-    expect(proj!.recipientState?.['b']?.completedAt).toBeUndefined();
-    // V1 global completed stays true on disk (v2 reopen is actor-scoped)
-    expect(raw).toContain('"completed":true');
-
-    // Idempotency: a second reopen (mark-read with completed:false, which
-    // is NOT the reopen verb) must not append another v2 receipt.
-    const receiptsBefore = (raw.match(/__mailboxReceipt/g) ?? []).length;
-    await mb.ack({ messageId: msg.id, readerId: 'b', read: true, completed: false });
-    const rawAfterRepeatedReopen = await fs.readFile(mb.messagePath, 'utf8');
-    expect((rawAfterRepeatedReopen.match(/__mailboxReceipt/g) ?? []).length).toBe(receiptsBefore);
+    // The receipt reflects the reopen: completedAt is cleared for that actor.
+    const projection = await projectionOf(mb, msg.id);
+    expect(projection?.recipientState['b']?.completedAt).toBeUndefined();
+    expect(projection?.recipientState['b']?.readAt).toBeDefined();
   });
 
   it('reopens a direct message whose completion exists only in v1 state', async () => {
     const timestamp = '2026-01-01T01:00:00.000Z';
-    await fs.writeFile(mb.messagePath, `${JSON.stringify({
-      id: 'legacy-direct', from: 'a', to: 'b@sess-1', type: 'ask',
-      subject: 'q', body: '?', priority: 'normal', readBy: {}, completed: false,
-      timestamp: '2026-01-01T00:00:00.000Z',
-    })}\n${JSON.stringify({
-      __ack: true, messageId: 'legacy-direct', readerId: 'b@sess-1', timestamp,
-      read: true, completed: true, completedBy: 'b@sess-1',
-    })}\n`, 'utf8');
-    await mb.close();
+    const store = await openWithLegacyLines([
+      JSON.stringify({
+        id: 'legacy-direct', from: 'a', to: 'b@sess-1', type: 'ask',
+        subject: 'q', body: '?', priority: 'normal', readBy: {}, completed: false,
+        timestamp: '2026-01-01T00:00:00.000Z',
+      }),
+      JSON.stringify({
+        __ack: true, messageId: 'legacy-direct', readerId: 'b@sess-1', timestamp,
+        read: true, completed: true, completedBy: 'b@sess-1',
+      }),
+    ]);
 
-    await mb.ack({
+    await store.ack({
       messageId: 'legacy-direct', readerId: 'b@sess-1', read: false, completed: false,
     });
 
-    const projection = parseMailboxFile(await fs.readFile(mb.messagePath, 'utf8'))
-      .find((message) => message.id === 'legacy-direct');
+    const projection = await projectionOf(store, 'legacy-direct');
     expect(projection?.recipientState['b@sess-1']?.completedAt).toBeUndefined();
   });
 
@@ -951,46 +719,35 @@ describe('GlobalMailbox v2 actor-scoped completion', () => {
     const msg = await mb.send({
       from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
     });
-    // Complete it
     await mb.ack({
       messageId: msg.id, readerId: 'b', read: true, completed: true,
     });
-    // Now mark-read again (e.g. a second agent or a re-check) — completion
-    // remains omitted and must NOT reopen.
     await mb.ack({
       messageId: msg.id, readerId: 'b', read: true,
     });
-    // Query incompleteOnly for b — message should NOT appear
     const incomplete = await mb.query({
       to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
     });
     expect(incomplete.map((m) => m.id)).not.toContain(msg.id);
-    // V1 global completed stays true
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    expect(raw).toContain('"completed":true');
+    expect((await projectionOf(mb, msg.id))?.recipientState['b']?.completedAt).toBeDefined();
   });
 
   it('outcome-only ack after completion does NOT silently reopen', async () => {
     // Regression: setting an outcome after completion (completed:undefined)
-    // must not reopen the message or write a completed:false receipt.
+    // must not reopen the message.
     const msg = await mb.send({
       from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
     });
     await mb.ack({
       messageId: msg.id, readerId: 'b', read: true, completed: true,
     });
-    // Outcome-only ack — completed is undefined, not false
+    // Outcome-only ack - completed is undefined, not false
     await mb.ack({
       messageId: msg.id, readerId: 'b', outcome: 'resolved',
     });
-    // V2 receipt for the outcome ack must NOT carry completed:false
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const lines = raw.split('\n').filter((l) => l.includes('__mailboxReceipt'));
-    const lastReceipt = lines[lines.length - 1];
-    expect(lastReceipt).toBeDefined();
-    const parsed = JSON.parse(lastReceipt!);
-    expect(parsed.completed).not.toBe(false);
-    // Message should still be completed
+    const projection = await projectionOf(mb, msg.id);
+    expect(projection?.recipientState['b']?.completedAt).toBeDefined();
+    expect(projection?.recipientState['b']?.outcome).toBe('resolved');
     const incomplete = await mb.query({
       to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
     });
@@ -1047,10 +804,37 @@ describe('GlobalMailbox v2 actor-scoped completion', () => {
       messageId: msg.id, readerId: 'actor-b', read: true, outcome: 'acknowledged',
     });
 
-    const projection = parseMailboxFile(await fs.readFile(mb.messagePath, 'utf8'))
-      .find((message) => message.id === msg.id);
+    const projection = await projectionOf(mb, msg.id);
     expect(projection?.recipientState['actor-a']?.outcome).toBe('acknowledged');
     expect(projection?.recipientState['actor-b']?.outcome).toBe('acknowledged');
+  });
+
+  it('two actors on a broadcast get independent outcomes', async () => {
+    // Regression: actor A sets outcome "fixed" and actor B sets outcome
+    // "wontfix" on the same broadcast. Each actor's state must be its OWN,
+    // not the message-global one and not the other actor's.
+    const msg = await mb.send({
+      from: 'a', to: '*', type: 'broadcast', subject: 'bug', body: 'crash on startup',
+    });
+
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-a@sess-1', read: true, completed: true, outcome: 'fixed',
+    });
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-b@sess-2', read: true, completed: true, outcome: 'wontfix',
+    });
+
+    const projection = await projectionOf(mb, msg.id);
+    expect(projection?.recipientState['worker-a@sess-1']?.outcome).toBe('fixed');
+    expect(projection?.recipientState['worker-b@sess-2']?.outcome).toBe('wontfix');
+
+    // Actor A changes its outcome - actor B's is untouched.
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-a@sess-1', outcome: 'needs-review',
+    });
+    const final = await projectionOf(mb, msg.id);
+    expect(final?.recipientState['worker-a@sess-1']?.outcome).toBe('needs-review');
+    expect(final?.recipientState['worker-b@sess-2']?.outcome).toBe('wontfix');
   });
 
   it('unread count respects actor-scoped completion', async () => {
@@ -1066,56 +850,9 @@ describe('GlobalMailbox v2 actor-scoped completion', () => {
   });
 });
 
-// ── Version fence on mutations ───────────────────────────────────────
-
-describe('GlobalMailbox version fence enforcement', () => {
-  it('send is refused when mailbox has a newer version sentinel', async () => {
-    // Write a version 3 sentinel to the mailbox file
-    await fs.writeFile(mb.messagePath, '{"__mailboxVersion":3}\n');
-    // Clear the cache so the next read sees the sentinel
-    await mb.close();
-
-    await expect(
-      mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'b' }),
-    ).rejects.toThrow(MailboxVersionFenceError);
-  });
-
-  it('ack is refused when mailbox has a newer version sentinel', async () => {
-    // Write a valid message line together with a version 3 sentinel
-    const msgLine = JSON.stringify({
-      id: 'test-msg', from: 'a', to: 'b', type: 'note',
-      subject: 's', body: 'b', priority: 'normal' as const,
-      readBy: {}, completed: false, timestamp: new Date().toISOString(),
-    });
-    await fs.writeFile(mb.messagePath, `${msgLine}\n{"__mailboxVersion":3}\n`);
-    await mb.close();
-
-    // ack should read the file, find the message, enter the lock, and
-    // hit the version-fence check.
-    const mb2 = new GlobalMailbox(dir, events as never as EventBus);
-    await expect(
-      mb2.ack({ messageId: 'test-msg', readerId: 'b', read: true }),
-    ).rejects.toThrow(MailboxVersionFenceError);
-    await mb2.close();
-  });
-
-  it('send succeeds when mailbox is at current version', async () => {
-    // Write current-version sentinel
-    await fs.writeFile(mb.messagePath, `${MAILBOX_VERSION_SENTINEL}\n`);
-    await mb.close();
-    // Current version = 2, sentinel is version 2 → allowed
-    const mb2 = new GlobalMailbox(dir, events as never as EventBus);
-    const msg = await mb2.send({
-      from: 'a', to: 'b', type: 'note', subject: 's', body: 'b',
-    });
-    expect(msg.id).toBeDefined();
-    await mb2.close();
-  });
-});
-
 // ── Compaction v2 preservation ───────────────────────────────────────
 
-describe('GlobalMailbox autoCompact preserves v2 receipts', () => {
+describe('SqliteMailbox autoCompact preserves v2 receipts', () => {
   it('retains a v2 broadcast on the incomplete TTL while a recipient is unfinished', async () => {
     await mb.registerAgent({
       agentId: 'actor-a@s', sessionId: 's', name: 'A', role: 'worker', pid: 1,
@@ -1140,74 +877,61 @@ describe('GlobalMailbox autoCompact preserves v2 receipts', () => {
     expect((await mb.query({ limit: 100 })).map((message) => message.id)).toContain(msg.id);
   });
 
-  it('v2 receipts survive after autoCompact rewrite', async () => {
+  it('v2 receipts survive an autoCompact pass', async () => {
     const msg1 = await mb.send({
       from: 'a', to: 'b', type: 'note', subject: 'm1', body: 'b',
     });
     const msg2 = await mb.send({
       from: 'a', to: 'b', type: 'note', subject: 'm2', body: 'b',
     });
-    // Ack both — creates v2 receipts
     await mb.ack({ messageId: msg1.id, readerId: 'b', read: true, completed: true });
     await mb.ack({ messageId: msg2.id, readerId: 'b', read: true });
 
-    // Run compaction with a large TTL so messages are not removed by expiry
+    // Large TTL so nothing is removed by expiry.
     await mb.autoCompact({ defaultTtlMs: 86400_000 });
 
-    // Read raw file — should contain v2 receipt lines
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const hasV2Receipts = raw.includes('__mailboxReceipt');
-    expect(hasV2Receipts).toBe(true);
-
-    // The sentinel should also be present
-    expect(raw).toContain('__mailboxVersion');
+    expect((await projectionOf(mb, msg1.id))?.recipientState['b']?.completedAt).toBeDefined();
+    expect((await projectionOf(mb, msg2.id))?.recipientState['b']?.readAt).toBeDefined();
   });
 
   it('read-by-all compaction keeps v2 receipts for surviving messages', async () => {
-    await mb.registerAgent({
-      agentId: 'ag1', sessionId: 's', name: 'A', role: 'r', pid: 1,
-    });
     const oldTime = new Date(Date.now() - 300_000).toISOString();
     const nowTime = new Date().toISOString();
 
-    // Seed a message that will be kept (recent) and one that will be removed (old, read-by-all)
-    await fs.writeFile(mb.messagePath, [
+    // Seed one message that survives (recent) and one that is dropped
+    // (old and already read by every online agent).
+    const store = await openWithLegacyLines([
       JSON.stringify({
         id: 'keep-me', from: 'a', to: 'ag1', type: 'note',
-        subject: 'keep', body: 'b', priority: 'normal' as const,
+        subject: 'keep', body: 'b', priority: 'normal',
         readBy: { ag1: oldTime }, completed: false, timestamp: nowTime,
       }),
       JSON.stringify({
         id: 'purge-me', from: 'a', to: 'ag1', type: 'note',
-        subject: 'purge', body: 'b', priority: 'normal' as const,
+        subject: 'purge', body: 'b', priority: 'normal',
         readBy: { ag1: oldTime }, completed: false, timestamp: oldTime,
       }),
-    ].join('\n') + '\n');
-    await mb.close();
+    ]);
+    await store.registerAgent({
+      agentId: 'ag1', sessionId: 's', name: 'A', role: 'r', pid: 1,
+    });
+    await store.ack({ messageId: 'keep-me', readerId: 'ag1', read: true, completed: true });
 
-    // Re-open, then ack 'keep-me' (creates v2 receipt for kept message)
-    const mb2 = new GlobalMailbox(dir, events as never as EventBus);
-    const msgs = await mb2.query({ limit: 100 });
-    const keepMsg = msgs.find((m) => m.subject === 'keep')!;
-    await mb2.ack({ messageId: keepMsg.id, readerId: 'ag1', read: true, completed: true });
-
-    // Compact with very short read-max-age to trigger removal of 'purge-me'
-    const result = await mb2.autoCompact({ readMaxAgeMs: 60_000, defaultTtlMs: 86400_000 });
+    const result = await store.autoCompact({ readMaxAgeMs: 60_000, defaultTtlMs: 86400_000 });
     expect(result.totalRemoved).toBeGreaterThanOrEqual(1);
-    await mb2.close();
 
-    // Verify v2 receipt for 'keep-me' survived
-    const rawFinal = await fs.readFile(mb.messagePath, 'utf8');
-    const lines = rawFinal.split('\n').filter((l) => l.includes('__mailboxReceipt'));
-    // At least one v2 receipt should remain (for keep-me)
-    expect(lines.length).toBeGreaterThanOrEqual(1);
+    const ids = (await store.query({ limit: 100 })).map((message) => message.id);
+    expect(ids).toContain('keep-me');
+    expect(ids).not.toContain('purge-me');
+    expect((await projectionOf(store, 'keep-me'))?.recipientState['ag1']?.completedAt)
+      .toBeDefined();
   });
 });
 
-describe('GlobalMailbox purgeStale preserves v2 receipts', () => {
+describe('SqliteMailbox purgeStale preserves v2 receipts', () => {
   it('keeps actor-reopened work on the incomplete retention path', async () => {
     const oldTime = new Date(Date.now() - 2 * 86_400_000).toISOString();
-    await fs.writeFile(mb.messagePath, [
+    const store = await openWithLegacyLines([
       JSON.stringify({
         id: 'reopened', from: 'a', to: 'b', type: 'ask',
         subject: 'work', body: 'b', priority: 'normal',
@@ -1216,16 +940,14 @@ describe('GlobalMailbox purgeStale preserves v2 receipts', () => {
       }),
       JSON.stringify(buildReceiptRecordV2('reopened', 'b', oldTime, { completed: true })),
       JSON.stringify(buildReceiptRecordV2('reopened', 'b', oldTime, { completed: false })),
-      MAILBOX_VERSION_SENTINEL,
-    ].join('\n') + '\n');
-    await mb.close();
+    ]);
 
-    const result = await mb.purgeStale({
+    const result = await store.purgeStale({
       completedMaxAgeMs: 86_400_000,
       incompleteMaxAgeMs: 7 * 86_400_000,
     });
     expect(result.totalPurged).toBe(0);
-    expect(await fs.readFile(mb.messagePath, 'utf8')).toContain('reopened');
+    expect((await store.query({ limit: 100 })).map((m) => m.id)).toContain('reopened');
   });
 
   it('retains a v2 broadcast until every intended recipient completes it', async () => {
@@ -1251,88 +973,32 @@ describe('GlobalMailbox purgeStale preserves v2 receipts', () => {
     expect((await mb.query({ limit: 100 })).map((message) => message.id)).toContain(msg.id);
   });
 
-  it('v2 receipts survive after purge rewrite', async () => {
+  it('v2 receipts survive a purge pass', async () => {
     const now = Date.now();
     const oldTime = new Date(now - 10 * 86400_000).toISOString();
     const recentTime = new Date(now).toISOString();
 
-    await fs.writeFile(mb.messagePath, [
+    const store = await openWithLegacyLines([
       JSON.stringify({
         id: 'old-done', from: 'a', to: 'b', type: 'note',
-        subject: 'old', body: 'b', priority: 'normal' as const,
+        subject: 'old', body: 'b', priority: 'normal',
         readBy: {}, completed: true, completedAt: oldTime,
         completedBy: 'b', timestamp: oldTime,
       }),
       JSON.stringify({
         id: 'keep-me', from: 'a', to: 'b', type: 'note',
-        subject: 'keep', body: 'b', priority: 'normal' as const,
+        subject: 'keep', body: 'b', priority: 'normal',
         readBy: {}, completed: false, timestamp: recentTime,
       }),
-    ].join('\n') + '\n');
-    await mb.close();
+    ]);
+    await store.ack({ messageId: 'keep-me', readerId: 'b', read: true });
 
-    // Re-open, ack keep-me to create v2 receipt
-    const mb2 = new GlobalMailbox(dir, events as never as EventBus);
-    const msgs = await mb2.query({ limit: 100 });
-    const keepMsg = msgs.find((m) => m.subject === 'keep')!;
-    await mb2.ack({ messageId: keepMsg.id, readerId: 'b', read: true });
+    // old-done was completed >1 day ago and is dropped; keep-me stays.
+    await store.purgeStale();
 
-    // Purge: old-done is completed >1 day ago, gets removed; keep-me stays
-    await mb2.purgeStale();
-    await mb2.close();
-
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const hasV2Receipt = raw.includes('__mailboxReceipt');
-    expect(hasV2Receipt).toBe(true);
-    expect(raw).toContain('keep-me');
-    expect(raw).not.toContain('old-done');
-  });
-
-  it('two actors on a broadcast get independent outcomes and no-op detection', async () => {
-    // Regression: actor A sets outcome "fixed" and actor B sets outcome
-    // "wontfix" on the same broadcast. Each actor's no-op detection must
-    // compare against its OWN recipientState outcome, not the message-global
-    // or the other actor's outcome.
-    const msg = await mb.send({
-      from: 'a', to: '*', type: 'broadcast', subject: 'bug', body: 'crash on startup',
-    });
-
-    // Actor A completes with outcome "fixed"
-    await mb.ack({
-      messageId: msg.id, readerId: 'worker-a@sess-1', read: true, completed: true, outcome: 'fixed',
-    });
-
-    // Actor B completes with outcome "wontfix"
-    await mb.ack({
-      messageId: msg.id, readerId: 'worker-b@sess-2', read: true, completed: true, outcome: 'wontfix',
-    });
-
-    // Assert each actor has independent state in the projection
-    const raw = await fs.readFile(mb.messagePath, 'utf8');
-    const projections = parseMailboxFile(raw);
-    const proj = projections.find((p) => p.id === msg.id);
-    expect(proj).toBeDefined();
-    expect(proj!.recipientState?.['worker-a@sess-1']?.outcome).toBe('fixed');
-    expect(proj!.recipientState?.['worker-b@sess-2']?.outcome).toBe('wontfix');
-
-    // Actor A re-acks the same outcome "fixed" — must be a no-op (no new receipt)
-    const receiptsBefore = (raw.match(/__mailboxReceipt/g) ?? []).length;
-    await mb.ack({
-      messageId: msg.id, readerId: 'worker-a@sess-1', outcome: 'fixed',
-    });
-    const rawAfter = await fs.readFile(mb.messagePath, 'utf8');
-    const receiptsAfter = (rawAfter.match(/__mailboxReceipt/g) ?? []).length;
-    expect(receiptsAfter).toBe(receiptsBefore);
-
-    // Actor A changes outcome to "needs-review" — must NOT be a no-op
-    await mb.ack({
-      messageId: msg.id, readerId: 'worker-a@sess-1', outcome: 'needs-review',
-    });
-    const rawFinal = await fs.readFile(mb.messagePath, 'utf8');
-    const projectionsFinal = parseMailboxFile(rawFinal);
-    const projFinal = projectionsFinal.find((p) => p.id === msg.id);
-    expect(projFinal!.recipientState?.['worker-a@sess-1']?.outcome).toBe('needs-review');
-    // Actor B's outcome is unchanged
-    expect(projFinal!.recipientState?.['worker-b@sess-2']?.outcome).toBe('wontfix');
+    const ids = (await store.query({ limit: 100 })).map((message) => message.id);
+    expect(ids).toContain('keep-me');
+    expect(ids).not.toContain('old-done');
+    expect((await projectionOf(store, 'keep-me'))?.recipientState['b']?.readAt).toBeDefined();
   });
 });

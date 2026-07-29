@@ -1,6 +1,10 @@
 import { createChronicleProjectAccess } from '@wrongstack/core/chronicle';
+import {
+  isMailboxProjectServerAvailable,
+  MailboxProjectServerConnection,
+} from '@wrongstack/core/coordination';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import { getKanbanDir, getKanbanServerConnection } from '@wrongstack/kanban';
+import { getKanbanServerConnection } from '@wrongstack/kanban';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import { checkCodebaseIndexServerHealth, getIndexState } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
@@ -9,7 +13,7 @@ import type { WSClientMessage, WSServerMessage } from './types.js';
 export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
-  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban';
+  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox';
   label: string;
   status: ConnectionHealthStatus;
   required: boolean;
@@ -79,6 +83,7 @@ export async function collectConnectionsHealth(options: {
     codebaseIndexHealth(options.projectRoot, options.indexDir),
     sageHealth(options.projectRoot),
     kanbanHealth(options.projectRoot),
+    mailboxHealth(options.projectRoot),
   ]);
   const required = services.filter((service) => service.required);
   const overall = required.some((service) => service.status === 'error')
@@ -109,8 +114,9 @@ function webuiHealth(backend: ConnectionsHealthReport['backend']): ConnectionHea
 
 async function chronicleHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
-  const access = createChronicleProjectAccess({ projectRoot });
+  let access: ReturnType<typeof createChronicleProjectAccess> | undefined;
   try {
+    access = createChronicleProjectAccess({ projectRoot });
     const health = await access.call('ping', {}, { timeoutMs: 5_000 });
     return {
       id: 'chronicle',
@@ -141,12 +147,12 @@ async function chronicleHealth(projectRoot: string): Promise<ConnectionHealthSer
       'chronicle',
       'Chronicle telemetry',
       true,
-      access.mode,
+      access?.mode ?? 'unavailable',
       error,
       Date.now() - startedAt,
     );
   } finally {
-    await access.close();
+    await access?.close();
   }
 }
 
@@ -279,7 +285,6 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
       required: false,
       mode: 'disabled',
       detail: 'Kanban IPC daemon is disabled via WRONGSTACK_KANBAN_SERVER=0.',
-      storage: getKanbanDir(projectRoot),
     };
   }
   let connection;
@@ -303,7 +308,6 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
       required: false,
       mode: 'disabled',
       detail: 'Kanban IPC daemon is disabled in this runtime.',
-      storage: getKanbanDir(projectRoot),
     };
   }
   try {
@@ -317,7 +321,7 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
       detail: `Single shared project-server owns kanban state for this project (v${status.protocolVersion}).`,
       ownerPid: status.pid,
       endpoint: status.endpoint,
-      storage: getKanbanDir(projectRoot),
+      storage: status.databasePath,
       latencyMs: Date.now() - startedAt,
       clients: status.clients,
       activeRequests: status.pendingRequests,
@@ -338,6 +342,62 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
 function isOfflineConnectionError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /(?:ENOENT|ECONNREFUSED|not found|not running|unavailable|connect failed)/iu.test(message);
+}
+
+async function mailboxHealth(projectRoot: string): Promise<ConnectionHealthService> {
+  const startedAt = Date.now();
+  if (!isMailboxProjectServerAvailable()) {
+    return {
+      id: 'mailbox',
+      label: 'Mailbox IPC',
+      status: 'unavailable',
+      required: false,
+      mode: 'unavailable',
+      detail: 'The packaged mailbox project server is unavailable in this runtime.',
+    };
+  }
+  const connection = new MailboxProjectServerConnection(projectRoot);
+  try {
+    const status = await connection.probeStatus();
+    if (!status) {
+      return {
+        id: 'mailbox',
+        label: 'Mailbox IPC',
+        status: 'offline',
+        required: false,
+        mode: 'on-demand project-server',
+        detail: 'Not running for this project; it starts on demand when mailbox is used.',
+        endpoint: connection.getState().endpoint,
+        latencyMs: Date.now() - startedAt,
+      };
+    }
+    return {
+      id: 'mailbox',
+      label: 'Mailbox IPC',
+      status: 'healthy',
+      required: true,
+      mode: 'project-server',
+      detail: `Single shared project-server owns inter-agent mailbox state for this project (v${status.protocolVersion}).`,
+      ownerPid: status.pid,
+      endpoint: status.endpoint,
+      storage: status.databasePath,
+      latencyMs: Date.now() - startedAt,
+      clients: status.clients,
+      activeRequests: status.pendingRequests,
+      uptimeMs: Date.now() - new Date(status.startedAt).getTime(),
+    };
+  } catch (error) {
+    return failureService(
+      'mailbox',
+      'Mailbox IPC',
+      true,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
+  } finally {
+    connection.close();
+  }
 }
 
 function failureService(

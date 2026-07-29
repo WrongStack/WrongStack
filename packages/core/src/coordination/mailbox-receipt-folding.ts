@@ -221,7 +221,7 @@ export function extractV2Receipts(parsed: readonly unknown[]): MailboxReceiptRec
 
 /**
  * Build a v2 receipt record from an ack operation.
- * Used by `GlobalMailbox.ackMany()` for dual-write.
+ * Used when folding legacy v1 ack records during the one-shot import.
  */
 export function buildReceiptRecordV2(
   messageId: string,

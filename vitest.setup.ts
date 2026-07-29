@@ -57,3 +57,14 @@ if (!process.env['WRONGSTACK_HOME']) {
   process.env['WRONGSTACK_HOME'] = path.join(os.tmpdir(), `wstack-vitest-${process.pid}`);
 }
 
+// ── Mailbox has no in-process mode ────────────────────────────────────────
+// `RemoteMailbox` used to sniff `VITEST`/`NODE_ENV` and silently hand back a
+// filesystem mailbox. That is how the agent loop stayed on `_mailbox.jsonl`
+// through the entire SQLite migration without a single test noticing: the
+// suite was exercising a store production had already left behind.
+//
+// There is no env var to set here now. Tests reach the mailbox the way every
+// process does — over IPC to the one detached owner for their project dir —
+// or they construct `SqliteMailbox` directly when the storage layer itself is
+// what is under test. Do not add a fallback back into this file.
+

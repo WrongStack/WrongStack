@@ -1,14 +1,14 @@
 /**
  * Tests for the thin mail_send / mail_inbox tools.
  *
- * These tools wrap GlobalMailbox with identity registration and ergonomic
- * input args. We do NOT need a real GlobalMailbox — a DefaultMailbox is
+ * These tools wrap SqliteMailbox with identity registration and ergonomic
+ * input args. We do NOT need a real SqliteMailbox — a SqliteMailbox is
  * sufficient for testing the tool execute path, as long as we provide a
  * resolveMailbox function that returns it and a Context whose meta fields
  * resolve to predictable identities.
  *
  * The registerAgent/heartbeat calls inside the tool are best-effort (catch
- * swallows errors), so the DefaultMailbox stubs for those (no-ops) are fine.
+ * swallows errors), so the SqliteMailbox stubs for those (no-ops) are fine.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
@@ -19,7 +19,7 @@ import {
   makeMailSendTool,
   makeMailInboxTool,
 } from '../../src/coordination/mail-tools.js';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import type { Context } from '../../src/core/context.js';
 import type { Mailbox } from '../../src/coordination/mailbox-types.js';
@@ -68,7 +68,7 @@ describe('makeMailSendTool', () => {
   beforeEach(async () => {
     dir = tmpDir();
     await fs.mkdir(dir, { recursive: true });
-    mailbox = new DefaultMailbox(dir);
+    mailbox = new SqliteMailbox(dir);
     tool = makeMailSendTool({
       resolveMailbox: () => mailbox,
     });
@@ -248,7 +248,7 @@ describe('makeMailInboxTool', () => {
   beforeEach(async () => {
     dir = tmpDir();
     await fs.mkdir(dir, { recursive: true });
-    mailbox = new DefaultMailbox(dir);
+    mailbox = new SqliteMailbox(dir);
     _sendTool = makeMailSendTool({
       resolveMailbox: () => mailbox,
     });

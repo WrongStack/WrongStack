@@ -3,7 +3,7 @@
  * http-server.ts to keep the static-serve/routing concern separate from the
  * (substantial) Fleet-HQ session/mailbox API. Every handler is a pure,
  * param-based function: it takes the Node req/res plus the globalRoot and reads
- * the cross-process SessionRegistry / GlobalMailbox via dynamic core imports.
+ * the cross-process SessionRegistry / project mailbox via dynamic core imports.
  * createHttpServer() in http-server.ts dispatches to these.
  */
 import type * as http from 'node:http';

@@ -7,23 +7,24 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { makeMailboxTool , mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import { makeDependencyWatcherConfig } from '../../src/coordination/dep-watcher.js';
 
 describe('mailbox end-to-end smoke test', () => {
   let tmpRoot: string;
   let sessionDir: string;
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let mockCtx: Record<string, unknown>;
+  /** Extra stores a test opened; closed in afterEach so the temp dir unlinks. */
+  const extraStores: SqliteMailbox[] = [];
 
   beforeEach(async () => {
     tmpRoot = path.join(os.tmpdir(), `ws-smoke-${randomUUID().slice(0, 8)}`);
     await fs.mkdir(tmpRoot, { recursive: true });
     sessionDir = path.join(tmpRoot, 'session');
     await fs.mkdir(sessionDir, { recursive: true });
-    mailbox = new DefaultMailbox(sessionDir);
+    mailbox = new SqliteMailbox(sessionDir);
     mockCtx = {
       meta: {},
       session: { transcriptPath: path.join(sessionDir, 'session.jsonl') },
@@ -31,8 +32,14 @@ describe('mailbox end-to-end smoke test', () => {
   });
 
   afterEach(async () => {
+    // Close the store first: SQLite holds `_mailbox.sqlite` (plus `-wal`/`-shm`)
+    // open for the life of the connection, and Windows refuses to unlink them.
+    for (const store of extraStores.splice(0)) await store.close().catch(() => {});
+    await mailbox.close().catch(() => {});
     // Best-effort cleanup of the per-test temp dir.
-    await fs.rm(tmpRoot, { recursive: true, force: true }).catch(() => {});
+    await fs
+      .rm(tmpRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 })
+      .catch(() => {});
   });
 
   it('full round-trip: dep-watcher → mailbox → tech-stack → result', async () => {
@@ -112,8 +119,6 @@ describe('mailbox end-to-end smoke test', () => {
     const completedAssign = assignMsgs.find((m) => m.completed);
     expect(completedAssign).toBeDefined();
 
-    // Cleanup
-    await fs.rm(tmpRoot, { recursive: true, force: true });
   });
 
   it('mailbox status discovers agents across the fleet', async () => {
@@ -137,8 +142,6 @@ describe('mailbox end-to-end smoke test', () => {
     expect(statusResult.ok).toBe(true);
     expect(statusResult.count).toBeGreaterThanOrEqual(2);
 
-    // Cleanup
-    await fs.rm(tmpRoot, { recursive: true, force: true });
   });
 
   it('cross-session: two sessions share the same project mailbox', async () => {
@@ -147,12 +150,14 @@ describe('mailbox end-to-end smoke test', () => {
     await fs.mkdir(projectDir, { recursive: true });
 
     // Session A — terminal 1
-    const mbA = new GlobalMailbox(projectDir);
+    const mbA = new SqliteMailbox(projectDir);
+    extraStores.push(mbA);
     const toolA = makeMailboxTool({ resolveMailbox: () => mbA, agentId: 'leader-sessA' });
     const ctxA = { meta: { sessionId: 'sess-A', agentId: 'leader-sessA', agentName: 'Leader A' }, session: { id: 'sess-A' } };
 
-    // Session B — terminal 2  
-    const mbB = new GlobalMailbox(projectDir);
+    // Session B — terminal 2
+    const mbB = new SqliteMailbox(projectDir);
+    extraStores.push(mbB);
     const toolB = makeMailboxTool({ resolveMailbox: () => mbB, agentId: 'leader-sessB' });
     const ctxB = { meta: { sessionId: 'sess-B', agentId: 'leader-sessB', agentName: 'Leader B' }, session: { id: 'sess-B' } };
 
@@ -198,8 +203,6 @@ describe('mailbox end-to-end smoke test', () => {
     expect(unreadA.ok).toBe(true);
     expect(typeof unreadA.count).toBe('number');
 
-    // Cleanup
-    await fs.rm(tmpRoot, { recursive: true, force: true });
   });
 
   it('dep-watcher-bridge: file-watcher event → mailbox notification', async () => {
@@ -274,7 +277,5 @@ describe('mailbox end-to-end smoke test', () => {
 
     dispose();
 
-    // Cleanup
-    await fs.rm(tmpRoot, { recursive: true, force: true });
   });
 });

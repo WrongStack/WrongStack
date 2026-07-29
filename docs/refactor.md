@@ -230,7 +230,7 @@ Two unrelated subsystems share the `Brain` prefix: the **decision-gate** (`Brain
 ### R11 · Unify twin engines & mailbox families `[P2 · Merge · M]`
 
 - **Two eternal engines:** `EternalAutonomyEngine` (`eternal-autonomy.ts:205`, 1059) + `ParallelEternalEngine` (`parallel-eternal-engine.ts:108`, 659) duplicate the state enum + sleep/stop/error stages. → extract `engine-lifecycle.ts`; keep only divergent phases.
-- **Two `Mailbox` impls:** `DefaultMailbox` (`mailbox.ts:43`, 669) has **no live instantiation** (JSDoc + barrel only); `GlobalMailbox` (1566) is the real one. → confirm no external/test consumers, then delete `DefaultMailbox` (or factor a shared `MailboxCore`).
+- ~~**Two `Mailbox` impls:** `DefaultMailbox` / `GlobalMailbox`.~~ DONE — both JSONL implementations were deleted; `SqliteMailbox` behind the project server is the only store, and `RemoteMailbox` the only client.
 - **Two mailbox tool families:** `mailbox-tool.ts` (`makeMailboxTool`) vs `mail-tools.ts` (`makeMailSendTool`/`makeMailInboxTool`). → merge into `mailbox-tools.ts` with shared resolvers.
 - **Parallel mailbox types:** `coordination/mailbox-types.ts` vs `hq/protocol.ts` `Hq*` re-declarations. → derive HQ variants from the coordination types.
 

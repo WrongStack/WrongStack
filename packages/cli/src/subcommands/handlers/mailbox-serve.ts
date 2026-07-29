@@ -1,17 +1,17 @@
 /**
  * `wstack mailbox serve` — run a loopback HTTP façade over the project's
- * shared `GlobalMailbox`, so external coding agents (Claude Code, Aider,
+ * shared project mailbox, so external coding agents (Claude Code, Aider,
  * custom scripts) can read and send messages on the same channel that
  * WrongStack-internal agents use.
  *
  * ## Design
  *
  * The server is intentionally tiny: one `node:http` server, a single
- * `GlobalMailbox` instance, and a bearer-token gate. Every route is a
- * thin JSON-in / JSON-out wrapper over a `GlobalMailbox` method, so all
+ * project mailbox client, and a bearer-token gate. Every route is a
+ * thin JSON-in / JSON-out wrapper over a `Mailbox` method, so all
  * file locking, mtime-cached reads, agent heartbeats, and HQ telemetry
  * happen exactly as they do for WrongStack-internal callers. External
- * agents are NOT given raw file access — they go through `GlobalMailbox`
+ * agents are NOT given raw file access — they go through the project owner
  * so they cannot race the file lock during acks.
  *
  * ## Single-instance lock
@@ -332,7 +332,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     capabilities: ['telemetry.publish', 'mailbox.summary', 'mailbox.serve'],
     onConnect: (publisher) => {
       // Announce the bridge immediately; subsequent HTTP mutations publish
-      // mailbox events/snapshots through the GlobalMailbox getter above.
+      // mailbox events/snapshots through the mailbox getter above.
       void publisher
         .publishMailboxSnapshot(mailbox, { mailboxId: `${path.basename(projectDir)}:mailbox` })
         .catch(() => undefined);

@@ -5,17 +5,17 @@ import * as os from 'node:os';
 import {
   startTechStackConsumer,
 } from '../../src/coordination/techstack-mailbox-consumer.js';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 describe('techstack-mailbox-consumer', () => {
   let tmpDir: string;
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let spawnedTasks: Array<{ task: string; name: string }>;
   let dispose: (() => void) | undefined;
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tsc-test-'));
-    mailbox = new DefaultMailbox(tmpDir);
+    mailbox = new SqliteMailbox(tmpDir);
     spawnedTasks = [];
   });
 
@@ -24,7 +24,10 @@ describe('techstack-mailbox-consumer', () => {
       dispose();
       dispose = undefined;
     }
-    await fs.rm(tmpDir, { recursive: true, force: true });
+    // SQLite holds the store open for the life of the connection; on Windows
+    // `fs.rm` then fails with EBUSY on `_mailbox.sqlite` and its `-wal`/`-shm`.
+    await mailbox.close().catch(() => undefined);
+    await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it('spawns agent when assign message arrives', async () => {
@@ -240,17 +243,23 @@ describe('techstack-mailbox-consumer', () => {
     const onError = vi.fn();
 
     // Create a mailbox that rejects query
-    const brokenMailbox = new DefaultMailbox(tmpDir);
+    const brokenMailbox = new SqliteMailbox(tmpDir);
     vi.spyOn(brokenMailbox, 'query').mockRejectedValue(new Error('query failed'));
 
-    dispose = startTechStackConsumer({
-      mailbox: brokenMailbox,
-      onSpawn,
-      onError,
-      pollIntervalMs: 50,
-    });
+    try {
+      dispose = startTechStackConsumer({
+        mailbox: brokenMailbox,
+        onSpawn,
+        onError,
+        pollIntervalMs: 50,
+      });
 
-    await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+      await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+    } finally {
+      // Second connection to the same directory — close it here or the
+      // afterEach `fs.rm` hits EBUSY on the still-open database.
+      await brokenMailbox.close().catch(() => undefined);
+    }
   });
 
   it('can extract manifest from subject with path pattern', async () => {

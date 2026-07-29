@@ -225,20 +225,14 @@ export {
   type SupervisedSubagent,
   type SupervisorLogEntry,
 } from './coordination/fleet-supervisor.js';
-export {
-  _clearMailboxSingletons,
-  GlobalMailbox,
-  getSharedMailbox,
-  resolveProjectDir,
-} from './coordination/global-mailbox.js';
+export { resolveProjectDir } from './coordination/global-mailbox-paths.js';
 export * from './coordination/index.js';
 export {
   type MailToolsOptions,
   makeMailInboxTool,
   makeMailSendTool,
 } from './coordination/mail-tools.js';
-// ── Mailbox — inter-agent messaging ──────────────────────────────────────
-export { DefaultMailbox } from './coordination/mailbox.js';
+// Mailbox - inter-agent messaging
 export type {
   MailboxEvent,
   MailboxEventListener,

@@ -50,13 +50,18 @@ function normalizePath(value: string): string {
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 }
 
+/**
+ * Locate the built project-server entrypoint.
+ *
+ * There is deliberately no env var that turns the server off. The mailbox has
+ * exactly one mode — one detached owner per project, reached over IPC — so the
+ * only reason this returns null is a missing build, and that is an error, not
+ * a fallback. `WRONGSTACK_MAILBOX_INLINE` / `WRONGSTACK_MAILBOX_SERVER=0` used
+ * to select an in-process store here; they are gone. Do not reintroduce them:
+ * the moment a client can quietly open its own store, "one mailbox per
+ * project" becomes "one mailbox per process" with no visible symptom.
+ */
 function resolveProjectServerUrl(): URL | null {
-  if (
-    process.env['WRONGSTACK_MAILBOX_INLINE'] ||
-    process.env['WRONGSTACK_MAILBOX_SERVER'] === '0'
-  ) {
-    return null;
-  }
   for (const relative of [
     './mailbox-project-server.js',
     '../../dist/coordination/mailbox-project-server.js',
@@ -133,6 +138,24 @@ export class MailboxProjectServerConnection {
     return this.call('ping', {}, { timeoutMs: 3_000 });
   }
 
+  /**
+   * Inspect an existing project server without starting one.
+   * Returns null when no server is running (ECONNREFUSED / timeout).
+   * Mirrors the SAGE `status()` probe pattern.
+   */
+  async probeStatus(): Promise<MailboxProjectServerStatus | null> {
+    try {
+      await this.ensureConnected(false);
+      return await this.request<MailboxProjectServerStatus>(
+        { type: 'request', op: 'ping', args: {} },
+        3_000,
+      );
+    } catch {
+      this.close();
+      return null;
+    }
+  }
+
   async call<O extends MailboxServerOperationName>(
     op: O,
     args: MailboxServerOperations[O]['args'],
@@ -189,7 +212,8 @@ export class MailboxProjectServerConnection {
     if (!isMailboxProjectServerAvailable()) {
       this.transition('unavailable');
       throw new Error(
-        'Built mailbox project server is unavailable. Build @wrongstack/core; direct file fallback is intentionally disabled.',
+        'Built mailbox project server is unavailable. Run `pnpm --filter @wrongstack/core build`. ' +
+          'The mailbox has no in-process mode: there is no env var to fall back to, by design.',
       );
     }
     this.transition('connecting');

@@ -3,11 +3,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { DefaultMailbox } from '../../src/coordination/mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type {
   MailboxAgentStatus,
   MailboxMessage,
-  MailboxTaskContext,
+  MailboxMessageProjection,
 } from '../../src/coordination/mailbox-types.js';
 import { makeMailboxTool, mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import {
@@ -48,30 +48,50 @@ function makeTypedMailboxTool(...args: Parameters<typeof makeMailboxTool>) {
   };
 }
 
-function legacyAgentStatusContext(
-  agentName: string,
+/**
+ * Register an agent and stamp its live status.
+ *
+ * Agent status comes from the agent registry, not from `type: 'status'`
+ * messages: the JSONL `DefaultMailbox` this store replaced synthesized
+ * statuses out of the message log, the registry-backed store does not.
+ */
+async function registerAgentStatus(
+  mailbox: SqliteMailbox,
+  agentId: string,
+  name: string,
   status: MailboxAgentStatus['status'],
-): MailboxTaskContext {
-  // DefaultMailbox's legacy status-message adapter reads taskContext.status as
-  // an agent lifecycle value. Keep that compatibility fixture local until the
-  // concurrently evolving mailbox contracts expose a dedicated status field.
-  return { agentName, status } as unknown as MailboxTaskContext;
+  currentTask?: string,
+): Promise<void> {
+  await mailbox.registerAgent({ agentId, sessionId: 'test-session', name } as never);
+  // `registerAgent` seeds the row as idle; the heartbeat carries live state.
+  // Heartbeats are throttled per agent id, so call this once per agent.
+  await mailbox.heartbeat({ agentId, status, currentTask } as never);
 }
 
 function tmpDir(): string {
   return path.join(os.tmpdir(), `ws-mailbox-test-${randomUUID().slice(0, 8)}`);
 }
 
-async function createMailbox(): Promise<{ mailbox: DefaultMailbox; dir: string }> {
+/**
+ * Close the store before unlinking its directory. SQLite holds `_mailbox.sqlite`
+ * (plus `-wal`/`-shm`) open for as long as the connection lives, and on Windows
+ * `fs.rm` then fails with EBUSY — the assertions pass and the teardown throws.
+ */
+async function disposeMailbox(mailbox: SqliteMailbox, dir: string): Promise<void> {
+  await mailbox.close().catch(() => undefined);
+  await fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+}
+
+async function createMailbox(): Promise<{ mailbox: SqliteMailbox; dir: string }> {
   const dir = tmpDir();
   await fs.mkdir(dir, { recursive: true });
-  return { mailbox: new DefaultMailbox(dir), dir };
+  return { mailbox: new SqliteMailbox(dir), dir };
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
-describe('DefaultMailbox', () => {
-  let mailbox: DefaultMailbox;
+describe('SqliteMailbox', () => {
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
@@ -81,10 +101,13 @@ describe('DefaultMailbox', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(dir, { recursive: true, force: true });
+    // SQLite holds the store open; close before unlinking or Windows fails the
+    // rm with EBUSY. `-wal`/`-shm` stay mapped briefly, hence the retries.
+    await mailbox.close().catch(() => undefined);
+    await fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  it('creates the mailbox file on first send', async () => {
+  it('creates the mailbox store on first send', async () => {
     const msg = await mailbox.send({
       from: 'agent-a',
       to: 'agent-b',
@@ -100,8 +123,11 @@ describe('DefaultMailbox', () => {
     expect(msg.readBy).toEqual({});
     expect(msg.completed).toBe(false);
 
-    // Verify file exists
-    const exists = await fs.access(mailbox.mailboxPath).then(() => true).catch(() => false);
+    // Verify the store exists on disk
+    const exists = await fs
+      .access(mailbox.databasePath)
+      .then(() => true)
+      .catch(() => false);
     expect(exists).toBe(true);
   });
 
@@ -235,9 +261,11 @@ describe('DefaultMailbox', () => {
     expect(updated!.completed).toBe(true);
     expect(updated!.outcome).toBe('Done — validated all packages');
 
-    // incompleteOnly should filter it out
-    const incomplete = await mailbox.query({ to: 'b', incompleteOnly: true });
-    expect(incomplete.length).toBe(0);
+    // Completion is per-actor: `b`'s own incomplete queue no longer holds it.
+    // The unscoped query still does — a bare alias like `b` can resolve to more
+    // than one agent, so one actor finishing it completes nothing globally.
+    const incompleteForB = await mailbox.query({ to: 'b', unreadBy: 'b', incompleteOnly: true });
+    expect(incompleteForB.length).toBe(0);
   });
 
   it('ack returns null for unknown message id', async () => {
@@ -264,23 +292,15 @@ describe('DefaultMailbox', () => {
     expect(msg.taskContext?.agentRole).toBe('tech-stack');
   });
 
-  it('getAgentStatuses returns agents that posted status messages', async () => {
-    await mailbox.send({
-      from: 'agent-1',
-      to: '*',
-      type: 'status',
-      subject: 'Auditing dependencies',
-      body: 'Working on tech-stack audit',
-      taskContext: legacyAgentStatusContext('Tesla (Executor)', 'running'),
-    });
-    await mailbox.send({
-      from: 'agent-2',
-      to: '*',
-      type: 'status',
-      subject: 'Scanning for bugs',
-      body: 'Bug hunt in progress',
-      taskContext: legacyAgentStatusContext('Einstein (BugHunter)', 'running'),
-    });
+  it('getAgentStatuses returns every registered agent', async () => {
+    await registerAgentStatus(
+      mailbox,
+      'agent-1',
+      'Tesla (Executor)',
+      'running',
+      'Auditing dependencies',
+    );
+    await registerAgentStatus(mailbox, 'agent-2', 'Einstein (BugHunter)', 'running');
 
     const statuses = await mailbox.getAgentStatuses();
     expect(statuses.length).toBe(2);
@@ -291,22 +311,25 @@ describe('DefaultMailbox', () => {
     expect(tesla!.currentTask).toBe('Auditing dependencies');
   });
 
-  it('getAgentStatuses only returns latest status per agent', async () => {
-    await mailbox.send({
-      from: 'agent-1', to: '*', type: 'status', subject: 'Starting...',
-      body: '', taskContext: legacyAgentStatusContext('Agent 1', 'running'),
-    });
-    // Small delay
-    await new Promise((r) => setTimeout(r, 5));
-    await mailbox.send({
-      from: 'agent-1', to: '*', type: 'status', subject: 'Done!',
-      body: '', taskContext: legacyAgentStatusContext('Agent 1', 'idle'),
-    });
-
-    const statuses = await mailbox.getAgentStatuses();
+  it('getAgentStatuses keeps one row per agent across re-registration', async () => {
+    await registerAgentStatus(mailbox, 'agent-1', 'Agent 1', 'running', 'Starting...');
+    let statuses = await mailbox.getAgentStatuses();
     expect(statuses.length).toBe(1);
+    expect(statuses[0]!.status).toBe('running');
+    expect(statuses[0]!.currentTask).toBe('Starting...');
+
+    // Re-registering the same id upserts the existing row rather than adding a
+    // second one, and resets the agent to idle with no task in flight.
+    await mailbox.registerAgent({
+      agentId: 'agent-1',
+      sessionId: 'test-session',
+      name: 'Agent 1 (restarted)',
+    } as never);
+
+    statuses = await mailbox.getAgentStatuses();
+    expect(statuses.length).toBe(1);
+    expect(statuses[0]!.name).toBe('Agent 1 (restarted)');
     expect(statuses[0]!.status).toBe('idle');
-    expect(statuses[0]!.currentTask).toBe('Done!');
   });
 
   it('is resilient to missing file on first query', async () => {
@@ -314,7 +337,11 @@ describe('DefaultMailbox', () => {
     expect(results).toEqual([]);
   });
 
-  it('invalidates its read cache when the mailbox file changes externally', async () => {
+  it('reads through to a write made by another connection on the same store', async () => {
+    // The JSONL reader kept an in-memory cache keyed on file size/mtime, and
+    // this test used to append a raw line behind its back. SQLite has no such
+    // cache — the equivalent guarantee is that an already-open connection
+    // observes a write another connection committed, with no reopen.
     await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'cached', body: 'body' });
 
     const first = await mailbox.query({ to: 'b' });
@@ -322,22 +349,12 @@ describe('DefaultMailbox', () => {
     expect(first.map((m) => m.subject)).toEqual(['cached']);
     expect(second.map((m) => m.subject)).toEqual(['cached']);
 
-    await fs.appendFile(
-      mailbox.mailboxPath,
-      `${JSON.stringify({
-        id: 'external',
-        from: 'a',
-        to: 'b',
-        type: 'note',
-        subject: 'external',
-        body: 'body',
-        priority: 'normal',
-        readBy: {},
-        completed: false,
-        timestamp: new Date(Date.now() + 1_000).toISOString(),
-      })}\n`,
-      'utf8',
-    );
+    const other = new SqliteMailbox(dir);
+    try {
+      await other.send({ from: 'a', to: 'b', type: 'note', subject: 'external', body: 'body' });
+    } finally {
+      await other.close();
+    }
 
     const third = await mailbox.query({ to: 'b' });
     expect(third.map((m) => m.subject)).toEqual(['external', 'cached']);
@@ -347,7 +364,7 @@ describe('DefaultMailbox', () => {
     await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'persistent', body: 'body' });
 
     // Create a new mailbox instance pointing to the same directory
-    const mailbox2 = new DefaultMailbox(dir);
+    const mailbox2 = new SqliteMailbox(dir);
     const results = await mailbox2.query({ to: 'b' });
     expect(results.length).toBe(1);
     expect(results[0]!.subject).toBe('persistent');
@@ -357,7 +374,7 @@ describe('DefaultMailbox', () => {
 // ── Mailbox Tool ─────────────────────────────────────────────────────────
 
 describe('makeMailboxTool', () => {
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let dir: string;
   /** Tool pre-wired to the test mailbox — created in beforeEach. */
   let toolForAgentB: ReturnType<typeof makeTypedMailboxTool>;
@@ -379,7 +396,7 @@ describe('makeMailboxTool', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(dir, { recursive: true, force: true });
+    await disposeMailbox(mailbox, dir);
   });
 
   /** Helper: create a one-off tool for a specific agent id. */
@@ -441,12 +458,20 @@ describe('makeMailboxTool', () => {
     expect(result.summary).toContain('(marked read)');
     expect(result.summary).toContain('(completed)');
 
+    // `agent-b` is a bare alias, which can resolve to more than one agent, so
+    // completion is recorded per actor rather than on the message itself.
     const uniqueId = `agent-b@${mailboxSessionTag('default')}`;
-    const all = await mailbox.query({ to: 'agent-b', limit: 10 });
+    const all = (await mailbox.query({
+      to: 'agent-b',
+      limit: 10,
+      includeReceiptState: true,
+    })) as MailboxMessageProjection[];
     expect(all).toHaveLength(2);
-    expect(all.every((m) => m.completed)).toBe(true);
-    expect(all.every((m) => m.completedBy === uniqueId)).toBe(true);
-    expect(all.every((m) => m.outcome === 'handled from check')).toBe(true);
+    expect(all.every((m) => m.recipientState[uniqueId]?.completedAt !== undefined)).toBe(true);
+    expect(all.every((m) => m.recipientState[uniqueId]?.completedBy === uniqueId)).toBe(true);
+    expect(all.every((m) => m.recipientState[uniqueId]?.outcome === 'handled from check')).toBe(
+      true,
+    );
   });
 
   it('send posts a message', async () => {
@@ -559,7 +584,10 @@ describe('makeMailboxTool', () => {
 
     expect(result.ok).toBe(true);
 
-    const updated = await mailbox.query({ to: 'b', incompleteOnly: true });
+    // The tool acks as its own fully-qualified id, so the completion receipt
+    // belongs to that actor — not to the bare `b` the message was addressed to.
+    const actorId = `agent-b@${mailboxSessionTag('default')}`;
+    const updated = await mailbox.query({ to: 'b', unreadBy: actorId, incompleteOnly: true });
     expect(updated.length).toBe(0);
   });
 
@@ -573,15 +601,14 @@ describe('makeMailboxTool', () => {
   });
 
   it('status returns agent statuses', async () => {
-    await mailbox.send({
-      from: 'worker-1', to: '*', type: 'status', subject: 'Working',
-      body: '', taskContext: legacyAgentStatusContext('Worker 1', 'running'),
-    });
+    await registerAgentStatus(mailbox, 'worker-1', 'Worker 1', 'running', 'Working');
     const result = await toolForDirector.execute({ action: 'status' }, mockCtx() as any);
     expect(result.ok).toBe(true);
-    expect(result.count).toBe(1);
-    expect(result.agents?.at(0)?.name).toBe('Worker 1');
-    expect(result.agents?.at(0)?.status).toBe('running');
+    // The tool auto-registers its caller, so the director shows up alongside
+    // the worker this test registered explicitly.
+    expect(result.count).toBe(2);
+    const worker = result.agents?.find((a) => a.name === 'Worker 1');
+    expect(worker?.status).toBe('running');
   });
 
   it('unknown action returns error', async () => {
@@ -594,7 +621,7 @@ describe('makeMailboxTool', () => {
 // ── Mailbox Loop ─────────────────────────────────────────────────────────
 
 describe('mailbox-loop', () => {
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
@@ -604,16 +631,7 @@ describe('mailbox-loop', () => {
   });
 
   afterEach(async () => {
-    // Windows may hold file handles briefly after mailbox writes — retry
-    for (let i = 0; i < 3; i++) {
-      try {
-        await fs.rm(dir, { recursive: true, force: true });
-        break;
-      } catch {
-        if (i === 2) throw new Error(`Failed to clean up ${dir}`);
-        await new Promise((r) => setTimeout(r, 20));
-      }
-    }
+    await disposeMailbox(mailbox, dir);
   });
 
   it('createMailboxChecker returns all unread message types', async () => {
@@ -697,7 +715,7 @@ describe('mailbox-loop', () => {
 // ── Dependency Watcher ───────────────────────────────────────────────────
 
 describe('makeDependencyWatcherConfig', () => {
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
@@ -707,7 +725,7 @@ describe('makeDependencyWatcherConfig', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(dir, { recursive: true, force: true });
+    await disposeMailbox(mailbox, dir);
   });
 
   it('generates watch paths for dependency files', () => {
@@ -850,8 +868,8 @@ describe('makeDependencyWatcherConfig', () => {
 });
 
 // ── send/ack concurrency (lost-append race regression) ──────────────────────
-describe('DefaultMailbox — send racing ack does not lose messages', () => {
-  let mailbox: DefaultMailbox;
+describe('SqliteMailbox — send racing ack does not lose messages', () => {
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
@@ -861,7 +879,7 @@ describe('DefaultMailbox — send racing ack does not lose messages', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(dir, { recursive: true, force: true });
+    await disposeMailbox(mailbox, dir);
   });
 
   it('concurrent sends and acks preserve every message', async () => {
@@ -898,7 +916,7 @@ describe('DefaultMailbox — send racing ack does not lose messages', () => {
 
 // ── mail_send / mail_inbox thin tools ────────────────────────────────────────
 describe('mail_send + mail_inbox tools', () => {
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
@@ -908,7 +926,7 @@ describe('mail_send + mail_inbox tools', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(dir, { recursive: true, force: true });
+    await disposeMailbox(mailbox, dir);
   });
 
   it('round-trip: agent A broadcasts, agent B reads it once via mail_inbox', async () => {
@@ -994,7 +1012,7 @@ describe('mail_send + mail_inbox tools', () => {
 
 // ── "all" broadcast alias ────────────────────────────────────────────────────
 describe('recipient "all" normalizes to the broadcast address', () => {
-  let mailbox: DefaultMailbox;
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
@@ -1004,10 +1022,10 @@ describe('recipient "all" normalizes to the broadcast address', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(dir, { recursive: true, force: true });
+    await disposeMailbox(mailbox, dir);
   });
 
-  it('DefaultMailbox.send canonicalizes to:"all" (any casing) to "*"', async () => {
+  it('SqliteMailbox.send canonicalizes to:"all" (any casing) to "*"', async () => {
     const msg = await mailbox.send({ from: 'a', to: 'all', type: 'note', subject: 's', body: 'b' });
     expect(msg.to).toBe('*');
     const upper = await mailbox.send({ from: 'a', to: ' ALL ', type: 'note', subject: 's2', body: 'b' });

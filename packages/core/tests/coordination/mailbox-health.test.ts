@@ -32,7 +32,7 @@ import {
   type RecoveryAlertInput,
   type WatchdogConfig,
 } from '../../src/coordination/mailbox-health.js';
-import type { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import type { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 const downFixture: DownAlertInput = {
   from: 'mailbox-bridge-watchdog',
@@ -183,8 +183,8 @@ describe('validateWatchdogOptions', () => {
 // the Watchdog's timer-driven probe/record lifecycle with fake timers + a
 // stubbed fetch + a fake mailbox.
 
-function makeMailbox(send?: (m: unknown) => Promise<void>): GlobalMailbox {
-  return { send: send ?? (vi.fn(async () => undefined) as never) } as unknown as GlobalMailbox;
+function makeMailbox(send?: (m: unknown) => Promise<void>): SqliteMailbox {
+  return { send: send ?? (vi.fn(async () => undefined) as never) } as unknown as SqliteMailbox;
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;

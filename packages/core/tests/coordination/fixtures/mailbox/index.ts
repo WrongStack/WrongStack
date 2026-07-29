@@ -3,7 +3,7 @@
  *
  * These builders construct `MailboxMessage` and `AckRecord` objects in the
  * exact wire format the JSONL codec expects, without requiring a live
- * `GlobalMailbox` instance or filesystem I/O. They are used by:
+ * `SqliteMailbox` instance or filesystem I/O. They are used by:
  *
  * - `global-mailbox.test.ts` — baseline behavioral snapshots
  * - `mailbox-v2-migration.test.ts` (GM-P0.12) — mixed-log migration

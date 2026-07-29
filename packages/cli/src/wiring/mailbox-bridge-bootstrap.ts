@@ -9,7 +9,7 @@
  *
  * Never throws — bootstrap failures degrade to a warning + no bridge,
  * matching the contract of the underlying helper. The agent still
- * works against the local mailbox file; only external-agent HTTP
+ * reaches the project mailbox over IPC; only external-agent HTTP
  * access is impacted.
  *
  * The handle is stashed on `ctx.meta['mailboxBridge']` so any later

@@ -11,7 +11,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeFleetStatusTool } from '../../src/coordination/fleet-status-tool.js';
-import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import type { AgentEntry } from '../../src/session-registry.js';
 
@@ -20,13 +20,13 @@ function mockCtx(overrides: Record<string, unknown> = {}): Record<string, unknow
 }
 
 describe('makeFleetStatusTool', () => {
-  let mailbox: GlobalMailbox;
+  let mailbox: SqliteMailbox;
   let dir: string;
 
   beforeEach(async () => {
     dir = path.join(os.tmpdir(), `ws-fleet-status-${randomUUID().slice(0, 8)}`);
     await fs.mkdir(dir, { recursive: true });
-    mailbox = new GlobalMailbox(dir);
+    mailbox = new SqliteMailbox(dir);
   });
 
   afterEach(async () => {

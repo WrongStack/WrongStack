@@ -69,7 +69,7 @@ export { MAILBOX_HTTP_MAX_AGE_CEILING_MS };
 
 export {
   authorizeMailboxBearerToken,
-  authorizeMailboxCredential,
+  authorizePersistedMailboxCredential,
   type MailboxHttpAccessDecision,
   type MailboxHttpCredentialDecision,
 } from './mailbox-http-auth.js';

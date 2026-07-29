@@ -3,15 +3,15 @@
  *
  * Declares the {@link MailboxMessageAction} union (the verb that a user
  * or agent issues against a single message) and the per-action input
- * shapes. The implementations live on `GlobalMailbox`:
- *   - `mark-read` / `acknowledge` / `reopen` → {@link GlobalMailbox.ack}
- *     / {@link GlobalMailbox.ackMany}
- *   - `soft-delete` → {@link GlobalMailbox.softDelete}
- *   - `restore`     → {@link GlobalMailbox.restore}
+ * shapes. The implementations live on the `Mailbox` interface:
+ *   - `mark-read` / `acknowledge` / `reopen` → {@link Mailbox.ack}
+ *     / {@link Mailbox.ackMany}
+ *   - `soft-delete` → {@link Mailbox.softDelete}
+ *   - `restore`     → {@link Mailbox.restore}
  *
  * Keeping the verb+input types in their own file means the WebUI client
  * and the server route handlers can import them independently of the
- * `GlobalMailbox` implementation, and a future "message actions" CLI
+ * `Mailbox` implementation, and a future "message actions" CLI
  * subcommand only has to add one verb to a single place.
  */
 import type { MailboxAckInput, MailboxMessage } from './mailbox-types.js';
@@ -65,10 +65,10 @@ export interface MailboxActionResult {
 
 /**
  * Convert a high-level action into the underlying
- * {@link MailboxAckInput} the existing `GlobalMailbox.ack` already
+ * {@link MailboxAckInput} the existing `Mailbox.ack` already
  * supports. `soft-delete` and `restore` do NOT go through `ack` —
- * the caller must dispatch them to `GlobalMailbox.softDelete` /
- * `GlobalMailbox.restore` instead. This helper returns `null` for
+ * the caller must dispatch them to `Mailbox.softDelete` /
+ * `Mailbox.restore` instead. This helper returns `null` for
  * those two so the type signature forces the caller to handle them
  * separately.
  */

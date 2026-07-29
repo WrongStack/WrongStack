@@ -3,7 +3,8 @@
  * inter-agent mailbox.
  *
  * Every terminal/TUI/WebUI working on the same project shares one
- * GlobalMailbox under `~/.wrongstack/projects/<slug>/_mailbox.jsonl`.
+ * project mailbox at `~/.wrongstack/projects/<slug>/_mailbox.sqlite`,
+ * reached over IPC through the one detached owner for that project.
  * Agents read it automatically each iteration (mailbox-loop) and can
  * write via the `mailbox` tool; this command gives the USER the same
  * powers — see who is online, read the inbox, message a specific agent,

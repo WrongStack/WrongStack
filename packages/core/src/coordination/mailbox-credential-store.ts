@@ -1,19 +1,22 @@
 /**
  * Mailbox credential lifecycle and storage.
  *
- * GM-P0.6: Implements opaque per-principal credential issuance, rotation,
- * revocation, verification, and audit. Credentials are stored as keyed
- * hashes so a store leak does not expose reusable tokens.
+ * GM-P0.6: opaque per-principal credential issuance, rotation, revocation,
+ * verification and audit. Credentials are stored as keyed hashes so a store
+ * leak does not expose reusable tokens.
+ *
+ * Types and policy only. The storage half used to live here as
+ * `JsonlCredentialStore` over `_mailbox_credentials.json`; credentials now
+ * live in `_mailbox.sqlite` behind the project owner, so the only thing that
+ * still reads the old file is `SqliteMailbox.migrateLegacyCredentials()` —
+ * hence `CREDENTIAL_STORE_FILE` and `resolveCredentialStorePath` staying.
  *
  * @module mailbox-credential-store
  */
 
 import * as crypto from 'node:crypto';
-import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite } from '../utils/atomic-write.js';
 import type { MailboxCapability } from './mailbox-types.js';
-import { LINE_SEPARATOR } from './mailbox-constants.js';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -151,7 +154,13 @@ export function verifyMailboxCredential(
   if (credential.status !== 'active' && !rotationStillValid) {
     return { valid: false, reason: `credential is ${credential.status}`, credential };
   }
-  if (new Date(credential.expiresAt).getTime() < now) {
+  // Inclusive: a credential that expires AT `now` is expired, mirroring
+  // `notBefore` below (valid at exactly `notBefore`). With the exclusive
+  // comparison a zero-TTL credential was accepted for the millisecond it was
+  // issued in — invisible against the file store, which was slow enough that
+  // the clock had usually moved on by the time `verify` ran, and reproducible
+  // against SQLite, which is not.
+  if (new Date(credential.expiresAt).getTime() <= now) {
     return { valid: false, reason: 'credential expired', credential };
   }
   if (credential.notBefore !== undefined && new Date(credential.notBefore).getTime() > now) {
@@ -182,171 +191,4 @@ export function verifyMailboxCredential(
  */
 export function resolveCredentialStorePath(projectDir: string): string {
   return path.join(projectDir, CREDENTIAL_STORE_FILE);
-}
-
-/**
- * In-memory credential store backed by a JSON file.
- *
- * Uses atomic writes + file locking (same pattern as mailbox registries).
- */
-export class JsonlCredentialStore {
-  private readonly filePath: string;
-  private credentials: Map<string, MailboxCredential> = new Map();
-  private _loaded = false;
-
-  constructor(projectDir: string) {
-    this.filePath = resolveCredentialStorePath(projectDir);
-  }
-
-  get storePath(): string {
-    return this.filePath;
-  }
-
-  /**
-   * Load credentials from the store file.
-   */
-  async load(): Promise<void> {
-    try {
-      const raw = await fsp.readFile(this.filePath, 'utf8');
-      const lines = raw.split(LINE_SEPARATOR).filter((l) => l.trim().length > 0);
-      this.credentials = new Map();
-      for (const line of lines) {
-        try {
-          const cred = JSON.parse(line) as MailboxCredential;
-          this.credentials.set(cred.credentialId, cred);
-        } catch {
-          // Skip malformed lines
-        }
-      }
-    } catch {
-      // File doesn't exist yet
-    }
-    this._loaded = true;
-  }
-
-  /** Save the current state to disk atomically. */
-  private async _persist(): Promise<void> {
-    const lines = Array.from(this.credentials.values())
-      .map((c) => JSON.stringify(c))
-      .join(LINE_SEPARATOR);
-    await fsp.mkdir(path.dirname(this.filePath), { recursive: true });
-    await atomicWrite(this.filePath, lines + LINE_SEPARATOR);
-  }
-
-  /**
-   * Issue a new credential.
-   * Returns the credential object with the raw secret (one-time exposure).
-   */
-  async issue(opts: IssueCredentialOptions): Promise<{ credential: MailboxCredential; secret: string }> {
-    await this._ensureLoaded();
-
-    const now = Date.now();
-    const { credential, secret } = createMailboxCredential(opts, now);
-    const credentialId = credential.credentialId;
-
-    // Keep the superseded credential valid only for the documented overlap.
-    if (opts.supersedes) {
-      const old = this.credentials.get(opts.supersedes);
-      if (old && old.status === 'active') {
-        old.status = 'rotated_out';
-        old.statusChangedAt = new Date(now).toISOString();
-        old.statusReason = 'superseded by rotation';
-        old.rotationValidUntil = new Date(now + ROTATION_OVERLAP_MS).toISOString();
-      }
-    }
-
-    this.credentials.set(credentialId, credential);
-    await this._persist();
-
-    return { credential, secret };
-  }
-
-  /**
-   * Verify a credential's secret against the stored verifier.
-   */
-  verify(credentialId: string, secret: string): CredentialValidation {
-    if (!this._loaded) {
-      return { valid: false, reason: 'store not loaded' };
-    }
-
-    return verifyMailboxCredential(this.credentials.get(credentialId), secret);
-  }
-
-  /** Verify against a fresh persisted snapshot without mutating this store's cache. */
-  async verifyPersisted(credentialId: string, secret: string): Promise<CredentialValidation> {
-    const snapshot = new JsonlCredentialStore(path.dirname(this.filePath));
-    await snapshot.load();
-    return snapshot.verify(credentialId, secret);
-  }
-
-  /**
-   * Revoke a credential by ID.
-   */
-  async revoke(credentialId: string, reason?: string, by?: string): Promise<boolean> {
-    await this._ensureLoaded();
-
-    const credential = this.credentials.get(credentialId);
-    if (!credential || credential.status === 'revoked') return false;
-
-    credential.status = 'revoked';
-    credential.statusChangedAt = new Date().toISOString();
-    credential.statusReason = reason ?? 'revoked';
-    credential.lastModifiedBy = by;
-    await this._persist();
-    return true;
-  }
-
-  /**
-   * Rotate a credential: issue a new one with a rotation overlap window,
-   * revoking the old one after the overlap expires (not immediately).
-   */
-  async rotate(
-    credentialId: string,
-    opts?: Partial<IssueCredentialOptions>,
-  ): Promise<{ credential: MailboxCredential; secret: string } | null> {
-    await this._ensureLoaded();
-
-    const old = this.credentials.get(credentialId);
-    if (!old) return null;
-
-    return this.issue({
-      principalId: old.principalId,
-      projectId: old.projectId ?? opts?.projectId,
-      kind: old.kind,
-      capabilities: opts?.capabilities ?? old.capabilities,
-      ttlMs: opts?.ttlMs ?? MAX_CREDENTIAL_TTL[old.kind],
-      supersedes: credentialId,
-      issuedBy: opts?.issuedBy,
-    });
-  }
-
-  /** Get a credential (without exposing the secret). */
-  get(credentialId: string): MailboxCredential | null {
-    if (!this._loaded) return null;
-    return this.credentials.get(credentialId) ?? null;
-  }
-
-  /** List all credentials (active first). */
-  list(): MailboxCredential[] {
-    if (!this._loaded) return [];
-    return Array.from(this.credentials.values())
-      .sort((a, b) => {
-        if (a.status === 'active' && b.status !== 'active') return -1;
-        if (a.status !== 'active' && b.status === 'active') return 1;
-        return b.issuedAt.localeCompare(a.issuedAt);
-      });
-  }
-
-  /** Count credentials by status. */
-  statusCounts(): Record<string, number> {
-    const counts: Record<string, number> = {};
-    for (const c of this.credentials.values()) {
-      counts[c.status] = (counts[c.status] || 0) + 1;
-    }
-    return counts;
-  }
-
-  private async _ensureLoaded(): Promise<void> {
-    if (!this._loaded) await this.load();
-  }
 }

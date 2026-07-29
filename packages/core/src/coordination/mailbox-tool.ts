@@ -17,7 +17,7 @@ import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { toErrorMessage } from '../utils/error.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
-import { resolveProjectDir } from './global-mailbox.js';
+import { resolveProjectDir } from './global-mailbox-paths.js';
 import { getSharedProjectMailbox } from './remote-mailbox.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import {

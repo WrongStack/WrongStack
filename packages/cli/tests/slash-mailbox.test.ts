@@ -2,10 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GlobalMailbox } from '@wrongstack/core/coordination';
+import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/core/coordination';
 import { buildMailboxCommand } from '../src/slash-commands/mailbox.js';
 import { touchProjectInManifest, loadManifest } from '../src/slash-commands/project-utils.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import {
+  disposeProjectMailbox,
+  MAILBOX_RM_OPTIONS,
+} from './helpers/mailbox-daemon.js';
 
 function stripAnsi(s: string): string {
   return s.replace(/\[[0-9;]*m/g, '');
@@ -14,12 +18,16 @@ function stripAnsi(s: string): string {
 describe('/mailbox slash command', () => {
   let tmp: string;
   let opts: SlashCommandContext;
-  let mailbox: GlobalMailbox;
+  let mailbox: RemoteMailbox;
 
   beforeEach(async () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-slash-mb-'));
     await fs.mkdir(tmp, { recursive: true });
-    mailbox = new GlobalMailbox(tmp);
+    // Assert through the SAME store the command writes to. Constructing a
+    // separate direct-filesystem mailbox here used to pass only because
+    // RemoteMailbox silently fell back to one under VITEST — the assertions
+    // were reading a store nothing under test ever wrote to.
+    mailbox = getSharedProjectMailbox(tmp);
     opts = {
       projectRoot: tmp,
       paths: { projectDir: tmp } as SlashCommandContext['paths'],
@@ -30,7 +38,10 @@ describe('/mailbox slash command', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tmp, { recursive: true, force: true });
+    // The command reached a real project owner over IPC; that daemon has to
+    // exit before the temp dir it is sitting in can be removed.
+    await disposeProjectMailbox(tmp, mailbox);
+    await fs.rm(tmp, MAILBOX_RM_OPTIONS);
   });
 
   it('broadcast sends a "*" message attributed to this process leader', async () => {

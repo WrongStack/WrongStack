@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type {
-  JsonlCredentialStore,
+  CredentialValidation,
   MailboxCredentialVerifier,
 } from './mailbox-credential-store.js';
 import type { MailboxActorContext } from './mailbox-types.js';
@@ -39,20 +39,11 @@ export function authorizeMailboxBearerToken(
 /**
  * Authorize a request using identity-scoped credentials.
  *
- * The credential format is: `Credential <id>:<secret>` where `<id>` is the
- * credential ID and `<secret>` is the opaque 32-byte hex secret issued at
- * credential creation time.
+ * The credential format is `Credential <id>:<secret>`, where `<secret>` is the
+ * opaque 32-byte hex value issued at creation time. Verification always goes
+ * to the persisted store, so a revocation issued elsewhere applies on the very
+ * next request rather than after some cache expires.
  */
-export function authorizeMailboxCredential(
-  request: IncomingMessage,
-  store: JsonlCredentialStore,
-): MailboxHttpAccessDecision | MailboxHttpCredentialDecision {
-  const parsed = parseCredentialAuthorization(request);
-  if (parsed === undefined) return { allowed: false };
-  return credentialDecision(parsed.credentialId, store.verify(parsed.credentialId, parsed.secret));
-}
-
-/** Authorize against a fresh persisted snapshot so external revocations apply immediately. */
 export async function authorizePersistedMailboxCredential(
   request: IncomingMessage,
   store: MailboxCredentialVerifier,
@@ -67,7 +58,7 @@ export async function authorizePersistedMailboxCredential(
 
 function credentialDecision(
   credentialId: string,
-  result: ReturnType<JsonlCredentialStore['verify']>,
+  result: CredentialValidation,
 ): MailboxHttpAccessDecision | MailboxHttpCredentialDecision {
   const credential = result.credential;
   const projectId = credential?.projectId;
