@@ -100,7 +100,7 @@ export default defineConfig({
       'packages/cli/tests/hq-dashboard.test.ts',
     ],
     coverage: {
-      provider: 'v8',
+      provider: 'istanbul',
       reporter: ['text', 'json', 'json-summary', 'html'],
       reportOnFailure: true,
       include: ['packages/*/src/**/*.{ts,tsx}'],
