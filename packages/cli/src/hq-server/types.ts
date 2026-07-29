@@ -4,11 +4,9 @@
  * @module hq-server/types
  */
 
-import type { WebSocket } from 'ws';
-import type { HqClientCapability, HqAlertRuleConfig, HqClientRecord, HqEventEnvelope, HqFleetSnapshotPayload, HqMailboxSnapshotPayload, HqMcpServerHealth, HqPersistence, HqProjectIdentity, HqProjectRecord, HqQueuedCommand, HqRedactionPolicy, HqSessionSnapshotPayload, HqToken, HqTranscriptEntry } from '@wrongstack/core/hq';
-import type { HqBrowserMessage } from '@wrongstack/core/hq';
-
-export type {
+import type {
+  HqAlertRuleConfig,
+  HqBrowserMessage,
   HqClientCapability,
   HqClientRecord,
   HqEventEnvelope,
@@ -23,7 +21,25 @@ export type {
   HqSessionSnapshotPayload,
   HqToken,
   HqTranscriptEntry,
+} from '@wrongstack/core/hq';
+import type { WebSocket } from 'ws';
+
+export type {
   HqBrowserMessage,
+  HqClientCapability,
+  HqClientRecord,
+  HqEventEnvelope,
+  HqFleetSnapshotPayload,
+  HqMailboxSnapshotPayload,
+  HqMcpServerHealth,
+  HqPersistence,
+  HqProjectIdentity,
+  HqProjectRecord,
+  HqQueuedCommand,
+  HqRedactionPolicy,
+  HqSessionSnapshotPayload,
+  HqToken,
+  HqTranscriptEntry,
 };
 
 // ── In-memory data structures ──────────────────────────────────────────────
@@ -68,7 +84,7 @@ export interface ConnectedClient {
   /** Per-client coordinator fleet snapshots, keyed by runId and owned by a session when known. */
   fleets: Map<string, TrackedFleetSnapshot>;
   /** Per-session MCP health snapshots, keyed by sessionId. */
-  mcpSnapshots: Map<string, HqMcpServerHealth[]>;
+  mcpSnapshots: Map<string, { servers: HqMcpServerHealth[]; receivedAt: number }>;
   /** Pending outbound commands (Phase 3 — control plane). */
   commandQueue: HqQueuedCommand[];
 }

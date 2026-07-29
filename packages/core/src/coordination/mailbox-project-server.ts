@@ -10,8 +10,8 @@ import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
-import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import { EventBus } from '../kernel/events.js';
+import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import { MailboxEventEmitter } from './mailbox-events.js';
 import {
   ensureMailboxProjectServerSocketDirectory,
@@ -33,6 +33,25 @@ import { SQLITE_MAILBOX_FILE, SqliteMailbox } from './sqlite-mailbox.js';
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
 const DEFAULT_CLIENT_LEASE_MS = 45_000;
+
+/**
+ * Cap on outbound bytes queued for a single client before it is dropped.
+ *
+ * `socket.write()` returns `false` once its internal queue passes the stream's
+ * high-water mark; that is the signal to stop producing. This server
+ * broadcasts every `mailbox.*` event to every connected client, so ignoring
+ * that signal meant one client that stopped reading — a suspended process, a
+ * TUI stuck behind a modal, a debugger-paused peer — made the owner buffer
+ * every subsequent broadcast for it, without limit. Nothing else here is big:
+ * the SQLite file is single-digit MB, so an owner holding hundreds of MB is
+ * this queue and nothing else.
+ *
+ * Dropping is the right response rather than throttling: these are
+ * notifications, and SQLite remains the authority. A client that reconnects
+ * re-queries current state, so it loses nothing but the events it was already
+ * too far behind to have processed.
+ */
+const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
 
 interface ClientState {
   socket: net.Socket;
@@ -80,14 +99,37 @@ const serverInfo: MailboxProjectServerInfo = {
   startedAt,
 };
 
-function send(state: ClientState, message: MailboxProjectServerMessage): void {
-  if (!state.socket.destroyed) {
-    state.socket.write(encodeMailboxProjectServerMessage(message));
+function writeEncoded(state: ClientState, encoded: string): void {
+  if (state.socket.destroyed) return;
+  // A client that has stopped draining must not be allowed to grow the
+  // owner's heap one broadcast at a time. `writableLength` is what is still
+  // queued in this socket, so checking it before writing bounds the worst
+  // case at roughly one message beyond the cap.
+  if (state.socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
+    state.socket.destroy(new Error('Mailbox client fell too far behind on reads'));
+    return;
   }
+  state.socket.write(encoded);
 }
 
+function send(state: ClientState, message: MailboxProjectServerMessage): void {
+  if (state.socket.destroyed) return;
+  writeEncoded(state, encodeMailboxProjectServerMessage(message));
+}
+
+/**
+ * Encode once, write to every client.
+ *
+ * Serializing inside the per-client loop meant the same payload was
+ * stringified once per connected client. Mailbox snapshot events are tens of
+ * KB, so a handful of attached surfaces (TUI, WebUI, HQ) turned every event
+ * into a multiple of that in short-lived garbage — visible as a sawtooth of
+ * hundreds of MB in a daemon whose database is single-digit MB.
+ */
 function broadcast(message: MailboxProjectServerMessage): void {
-  for (const state of clients) send(state, message);
+  if (clients.size === 0) return;
+  const encoded = encodeMailboxProjectServerMessage(message);
+  for (const state of clients) writeEncoded(state, encoded);
 }
 
 events.onAny((event, payload) => {

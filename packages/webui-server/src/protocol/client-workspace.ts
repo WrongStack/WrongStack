@@ -28,6 +28,7 @@ export const CLIENT_WORKSPACE_MESSAGE_TYPES = [
 export const CLIENT_CONFIGURATION_MESSAGE_TYPES = [
   'codebase.index.server.shutdown',
   'connections.health',
+  'connections.service_action',
   'diag.get',
   'key.add',
   'key.delete',

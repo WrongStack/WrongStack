@@ -13,52 +13,63 @@ import * as fs from 'node:fs/promises';
 import type { Server as HttpServer } from 'node:http';
 import * as http from 'node:http';
 import * as path from 'node:path';
-import { WebSocket, WebSocketServer } from 'ws';
-import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
-import { createHqPersistence, toAlertMessage, watchHqAuthFile } from '@wrongstack/core/hq';
-import { createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS } from '@wrongstack/core/coordination';
-import { type EnsureHqFirstRunAuthResult, type HqAlert, HqAlertEngine, type HqAlertRuleConfig, type HqCommandAuditEntry, HqCommandAuditLog, type HqEventEnvelope, type HqTranscriptEntry } from '@wrongstack/core/hq';
 import {
+  createMailboxHttpRouter,
   createProjectMailbox,
   getSharedProjectMailbox,
+  MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
   MailboxEventEmitter,
-  MailboxHttpRateLimiter,
   type MailboxHttpAccessDecision,
+  MailboxHttpRateLimiter,
 } from '@wrongstack/core/coordination';
+import {
+  createHqPersistence,
+  type EnsureHqFirstRunAuthResult,
+  type HqAlert,
+  HqAlertEngine,
+  type HqAlertRuleConfig,
+  type HqCommandAuditEntry,
+  HqCommandAuditLog,
+  type HqEventEnvelope,
+  type HqTranscriptEntry,
+  toAlertMessage,
+  watchHqAuthFile,
+} from '@wrongstack/core/hq';
+import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
+import { WebSocket, WebSocketServer } from 'ws';
 import { HQ_HTML } from './hq-recovery-html.js';
 import * as HqServerAuth from './hq-server/auth.js';
-import * as HqServerSnapshot from './hq-server/snapshot.js';
-import * as HqServerWs from './hq-server/ws.js';
-import {
-  createHqRouter,
-  type HqRouterDeps,
-  type HqRouterMailboxGateway,
-  authenticateBrowserRequest,
-  hasTrustedBrowserOrigin,
-  isTokenAuth,
-  parseHqSessionCookie,
-  parseCookieHeader,
-  HQ_SESSION_COOKIE,
-  buildHttpUrl,
-  buildClientWsUrl,
-  readLocalSubagentTranscript,
-  agentRingKey,
-  agentMessageToEntry,
-  decodePathSegment,
-  sanitizeApiError,
-} from './hq-server/routes.js';
-import {
-  writeHqRuntimeMarker,
-  clearHqRuntimeMarker,
-  writeHqStartupInfo,
-} from './hq-server/startup.js';
 import { createHqAuthState } from './hq-server/auth-state.js';
 import { prepareHqServerStart } from './hq-server/preflight.js';
-
+import {
+  agentMessageToEntry,
+  agentRingKey,
+  authenticateBrowserRequest,
+  buildClientWsUrl,
+  buildHttpUrl,
+  createHqRouter,
+  decodePathSegment,
+  HQ_SESSION_COOKIE,
+  type HqRouterDeps,
+  type HqRouterMailboxGateway,
+  hasTrustedBrowserOrigin,
+  isTokenAuth,
+  parseCookieHeader,
+  parseHqSessionCookie,
+  readLocalSubagentTranscript,
+  sanitizeApiError,
+} from './hq-server/routes.js';
+import * as HqServerSnapshot from './hq-server/snapshot.js';
+import {
+  clearHqRuntimeMarker,
+  writeHqRuntimeMarker,
+  writeHqStartupInfo,
+} from './hq-server/startup.js';
 import type { ConnectedClient, TranscriptRing } from './hq-server/types.js';
-export type { ConnectedClient, TranscriptRing };
+import * as HqServerWs from './hq-server/ws.js';
 
 export { HqInsecureExposureError } from '@wrongstack/core/hq';
+export type { ConnectedClient, TranscriptRing };
 
 // ── Re-exports for backward compatibility ──────────────────────────────────
 
@@ -73,11 +84,11 @@ export const BROWSER_HEARTBEAT_INTERVAL_MS = 15_000;
 export const SESSION_SNAPSHOT_TTL_MS = 30_000;
 
 export {
-  readLocalSubagentTranscript,
-  decodePathSegment,
-  sanitizeApiError,
-  agentRingKey,
   agentMessageToEntry,
+  agentRingKey,
+  decodePathSegment,
+  readLocalSubagentTranscript,
+  sanitizeApiError,
 };
 
 // ── Public interfaces ──────────────────────────────────────────────────────
@@ -218,6 +229,18 @@ function startHqServerWithAuth(
     const persistence = createHqPersistence(dataDir);
     const auditLog = new HqCommandAuditLog(1000, (entry) => persistence.commandLog.append(entry));
 
+    // One-shot startup housekeeping: purge stale client registrations from
+    // every known project's mailbox.
+    //
+    // Each `getSharedProjectMailbox` here *starts* that project's mailbox
+    // daemon if it isn't already running, and the shared wrapper keeps its IPC
+    // connection open for the life of this process. Leaving them open pinned
+    // every daemon alive permanently: `mailbox-project-server`'s idle-stop is
+    // gated on `clients.size === 0`, so one lingering connection per project
+    // defeats it. Measured on a machine with 165 project directories: 165
+    // resident daemons at ~63 MB each, ~10.4 GB, none of which had ever served
+    // a request after this sweep. Closing each mailbox releases the connection
+    // so idle daemons shut themselves down on their own 5-minute timer.
     void (async () => {
       const projectsDir = path.join(path.dirname(dataDir), 'projects');
       const entries = await fs.readdir(projectsDir, { withFileTypes: true }).catch(() => []);
@@ -225,8 +248,42 @@ function startHqServerWithAuth(
         entries
           .filter((entry) => entry.isDirectory())
           .map(async (entry) => {
-            const mailbox = getSharedProjectMailbox(path.join(projectsDir, entry.name));
-            await Promise.all([mailbox.getAgentStatuses(), mailbox.purgeClients()]);
+            const projectDir = path.join(projectsDir, entry.name);
+            // Sweep only projects whose daemon is actually running.
+            //
+            // `getSharedProjectMailbox` *starts* a daemon when none is live,
+            // so an unconditional sweep turns HQ startup into one spawn per
+            // project directory — measured at 165 on a real machine. Metadata
+            // presence alone is not enough of a filter either: a daemon that
+            // was killed rather than stopped leaves its file behind, and 163
+            // of those 165 were exactly that.
+            //
+            // A dead owner has no clients to purge (its registrations died
+            // with it), so skipping costs nothing; clear the orphaned file
+            // while we are here so it stops advertising a daemon that is gone.
+            const metadataPath = path.join(projectDir, '.mailbox-server.json');
+            const ownerPid = await fs
+              .readFile(metadataPath, 'utf8')
+              .then((raw) => (JSON.parse(raw) as { pid?: number }).pid)
+              .catch(() => undefined);
+            if (ownerPid === undefined) return;
+            let ownerAlive = false;
+            try {
+              process.kill(ownerPid, 0);
+              ownerAlive = true;
+            } catch {
+              ownerAlive = false;
+            }
+            if (!ownerAlive) {
+              await fs.rm(metadataPath, { force: true }).catch(() => {});
+              return;
+            }
+            const mailbox = getSharedProjectMailbox(projectDir);
+            try {
+              await Promise.all([mailbox.getAgentStatuses(), mailbox.purgeClients()]);
+            } finally {
+              await mailbox.close().catch(() => {});
+            }
           }),
       );
     })().catch(() => {});
@@ -241,13 +298,29 @@ function startHqServerWithAuth(
       const tokenMode = mutableAuth.browserTokens.size > 0;
       const passwordMode = mutableAuth.passwordHash !== undefined;
       if ((tokenMode || passwordMode) && auth === undefined) {
-        return { allowed: false, status: 401, body: { error: { code: 'UNAUTHORIZED', message: 'unauthorized' } } };
+        return {
+          allowed: false,
+          status: 401,
+          body: { error: { code: 'UNAUTHORIZED', message: 'unauthorized' } },
+        };
       }
       const token = isTokenAuth(auth) ? mutableAuth.browserTokenObjs.get(auth.token) : undefined;
       const canUseMailbox =
-        auth === 'cookie' || !tokenMode || token?.capabilities === undefined || token.capabilities.includes('control.enqueue');
+        auth === 'cookie' ||
+        !tokenMode ||
+        token?.capabilities === undefined ||
+        token.capabilities.includes('control.enqueue');
       if (!canUseMailbox) {
-        return { allowed: false, status: 403, body: { error: { code: 'FORBIDDEN', message: 'forbidden: token lacks control.enqueue capability' } } };
+        return {
+          allowed: false,
+          status: 403,
+          body: {
+            error: {
+              code: 'FORBIDDEN',
+              message: 'forbidden: token lacks control.enqueue capability',
+            },
+          },
+        };
       }
       const identity = isTokenAuth(auth) ? auth.id : auth === 'cookie' ? 'cookie' : 'open';
       return { allowed: true, rateLimitKey: `hq:${identity}:${projectDir}` };
@@ -296,17 +369,27 @@ function startHqServerWithAuth(
       .catch(() => {});
     persistence.alertLog
       .readAll()
-      .then((prior) => { alertEngine.seed(prior as readonly HqAlert[]); })
+      .then((prior) => {
+        alertEngine.seed(prior as readonly HqAlert[]);
+      })
       .catch(() => {});
     persistence.commandLog
       .readAll()
-      .then((prior) => { auditLog.seed(prior as readonly HqCommandAuditEntry[]); })
+      .then((prior) => {
+        auditLog.seed(prior as readonly HqCommandAuditEntry[]);
+      })
       .catch(() => {});
 
-    const timeseriesFlushTimer = setInterval(() => { persistence.timeseries.flush(); }, 60_000);
+    const timeseriesFlushTimer = setInterval(() => {
+      persistence.timeseries.flush();
+    }, 60_000);
     timeseriesFlushTimer.unref?.();
 
-    const snapshotBroadcaster = HqServerSnapshot.createSnapshotBroadcaster(clients, browsers, persistence);
+    const snapshotBroadcaster = HqServerSnapshot.createSnapshotBroadcaster(
+      clients,
+      browsers,
+      persistence,
+    );
     snapshotBroadcaster.currentSerialized();
 
     const stopAlertEngine = alertEngine.startPeriodic(
@@ -398,7 +481,10 @@ function startHqServerWithAuth(
     const wss = new WebSocketServer({ noServer: true, maxPayload: 1 * 1024 * 1024 });
 
     const browserHeartbeatTimer = setInterval(() => {
-      const heartbeat = JSON.stringify({ type: 'hq.heartbeat', serverTime: new Date().toISOString() });
+      const heartbeat = JSON.stringify({
+        type: 'hq.heartbeat',
+        serverTime: new Date().toISOString(),
+      });
       for (const browser of browsers) {
         if (browser.readyState === WebSocket.OPEN) browser.send(heartbeat);
       }
@@ -417,16 +503,24 @@ function startHqServerWithAuth(
       if (!hasTrustedBrowserOrigin(req, host, listeningPort, trustedPublicOrigins)) {
         socket.write(
           'HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n' +
-            JSON.stringify({ error: { code: 'INVALID_ORIGIN', message: 'Cross-origin WebSocket upgrade rejected.' } }),
+            JSON.stringify({
+              error: {
+                code: 'INVALID_ORIGIN',
+                message: 'Cross-origin WebSocket upgrade rejected.',
+              },
+            }),
         );
         socket.destroy();
         return;
       }
 
-      const tokenSet = pathname === '/ws/browser' ? mutableAuth.browserTokens : mutableAuth.clientTokens;
+      const tokenSet =
+        pathname === '/ws/browser' ? mutableAuth.browserTokens : mutableAuth.clientTokens;
       const needsAuth =
         pathname === '/ws/browser'
-          ? options.requireBrowserAuth || tokenSet.size > 0 || mutableAuth.passwordHash !== undefined
+          ? options.requireBrowserAuth ||
+            tokenSet.size > 0 ||
+            mutableAuth.passwordHash !== undefined
           : tokenSet.size > 0;
       if (needsAuth) {
         const supplied = url.searchParams.get('token') ?? '';
@@ -448,9 +542,10 @@ function startHqServerWithAuth(
               JSON.stringify({
                 error: {
                   code: 'UNAUTHORIZED',
-                  message: pathname === '/ws/browser'
-                    ? 'A valid ?token= or password session is required for browser connections.'
-                    : 'A valid ?token= is required for client connections in token mode.',
+                  message:
+                    pathname === '/ws/browser'
+                      ? 'A valid ?token= or password session is required for browser connections.'
+                      : 'A valid ?token= is required for client connections in token mode.',
                 },
               }),
           );
@@ -516,14 +611,21 @@ function startHqServerWithAuth(
       {
         warn: (msg) =>
           console.warn(
-            JSON.stringify({ level: 'warn', event: 'hq.auth.reload_failed', message: msg, timestamp: new Date().toISOString() }),
+            JSON.stringify({
+              level: 'warn',
+              event: 'hq.auth.reload_failed',
+              message: msg,
+              timestamp: new Date().toISOString(),
+            }),
           ),
       },
     );
 
     // ── Listen ─────────────────────────────────────────────────────────────
     let bindAttempts = 0;
-    const listen = (nextPort: number): void => { httpServer.listen(nextPort, host); };
+    const listen = (nextPort: number): void => {
+      httpServer.listen(nextPort, host);
+    };
     const onError = (err: NodeJS.ErrnoException) => {
       if (
         err.code === 'EADDRINUSE' &&
@@ -580,13 +682,18 @@ function startHqServerWithAuth(
           trustPublicOrigin: (origin) => {
             const parsed = new URL(origin);
             if (parsed.protocol !== 'https:' || parsed.origin !== origin) {
-              throw new TypeError('Trusted HQ public origin must be an exact HTTPS origin without a path.');
+              throw new TypeError(
+                'Trusted HQ public origin must be an exact HTTPS origin without a path.',
+              );
             }
             trustedPublicOrigins.add(parsed.origin.toLowerCase());
           },
           close: () =>
             new Promise<void>((res) => {
-              if (closed) { res(); return; }
+              if (closed) {
+                res();
+                return;
+              }
               closed = true;
               clearInterval(cleanupTimer);
               clearInterval(browserHeartbeatTimer);

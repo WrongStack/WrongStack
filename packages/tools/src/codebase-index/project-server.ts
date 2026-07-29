@@ -11,10 +11,10 @@
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
-import { useDaemonPerfDefaults } from '@wrongstack/core/utils';
 import {
   DEFAULT_WALK_IGNORE_SET,
   type ProjectWatchSubscription,
+  useDaemonPerfDefaults,
   watchProjectTree,
 } from '@wrongstack/core/utils';
 import {
@@ -170,8 +170,22 @@ function cachedRead<T>(cache: GenerationLruCache<T>, key: string, load: () => T)
   return indexActivity.indexing ? value : cache.set(key, generation, value);
 }
 
+/**
+ * Cap on outbound bytes queued for one client before it is dropped. This
+ * server pushes index-activity updates to every client, and `socket.write()`
+ * buffers without limit when its `false` return is ignored — so one client
+ * that stops reading would otherwise grow the owner's heap indefinitely. The
+ * index lives in SQLite; a dropped client re-queries on reconnect.
+ */
+const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+
 function send(state: ClientState, message: ProjectServerMessage): void {
-  if (!state.socket.destroyed) state.socket.write(encodeProjectServerMessage(message));
+  if (state.socket.destroyed) return;
+  if (state.socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
+    state.socket.destroy(new Error('Index client fell too far behind on reads'));
+    return;
+  }
+  state.socket.write(encodeProjectServerMessage(message));
 }
 
 function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
@@ -362,10 +376,8 @@ async function dispatchOperation(
       );
     }
     case 'search':
-      return cachedRead(
-        searchCache,
-        JSON.stringify(message.args),
-        () => searchService(fixedArgs(message.args as SearchOpArgs)),
+      return cachedRead(searchCache, JSON.stringify(message.args), () =>
+        searchService(fixedArgs(message.args as SearchOpArgs)),
       );
     case 'stats':
       return cachedRead(statsCache, 'stats', () =>
@@ -376,16 +388,12 @@ async function dispatchOperation(
         packageGraphService(fixedArgs(message.args as StatsOpArgs)),
       );
     case 'fileGraph':
-      return cachedRead(
-        fileGraphCache,
-        (message.args as FileGraphOpArgs).packageFilter,
-        () => fileGraphService(fixedArgs(message.args as FileGraphOpArgs)),
+      return cachedRead(fileGraphCache, (message.args as FileGraphOpArgs).packageFilter, () =>
+        fileGraphService(fixedArgs(message.args as FileGraphOpArgs)),
       );
     case 'symbolGraph':
-      return cachedRead(
-        symbolGraphCache,
-        (message.args as SymbolGraphOpArgs).fileFilter,
-        () => symbolGraphService(fixedArgs(message.args as SymbolGraphOpArgs)),
+      return cachedRead(symbolGraphCache, (message.args as SymbolGraphOpArgs).fileFilter, () =>
+        symbolGraphService(fixedArgs(message.args as SymbolGraphOpArgs)),
       );
     default:
       throw new Error(`unknown index operation: ${String(op satisfies never)}`);

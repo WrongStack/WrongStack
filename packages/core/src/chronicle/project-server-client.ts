@@ -154,6 +154,31 @@ export class ChronicleProjectServerClient {
     return this.call('ping', {}, { timeoutMs: 3_000 });
   }
 
+  /**
+   * Request the Chronicle project server to shut down cleanly.
+   *
+   * Returns the server PID and acknowledgment. Does not throw if the server
+   * is already offline or unreachable — the caller is assumed to want the
+   * server stopped regardless of current state.
+   */
+  async shutdown(reason?: string): Promise<{ stopped: boolean; pid?: number; reason?: string }> {
+    try {
+      await this.ensureConnected(false);
+    } catch {
+      return { stopped: false, reason: 'offline' };
+    }
+    const pid = this.info?.pid;
+    try {
+      const result = (await this.request<{ stopped: boolean; pid?: number; reason?: string }>(
+        { type: 'shutdown', reason },
+        5_000,
+      )) ?? { stopped: true };
+      return { ...result, ...(pid !== undefined && result.pid === undefined ? { pid } : {}) };
+    } catch {
+      return { stopped: false, ...(pid !== undefined ? { pid } : {}), reason: 'write-failed' };
+    }
+  }
+
   async close(): Promise<void> {
     const socket = this.socket;
     this.socket = null;
@@ -237,7 +262,9 @@ export class ChronicleProjectServerClient {
   }
 
   private request<T>(
-    message: { type: 'request'; op: ChronicleServerOperationName; args: unknown },
+    message:
+      | { type: 'request'; op: ChronicleServerOperationName; args: unknown }
+      | { type: 'shutdown'; reason?: string | undefined },
     timeoutMs: number,
   ): Promise<T> {
     const socket = this.socket;
@@ -249,12 +276,13 @@ export class ChronicleProjectServerClient {
     if (encoded.length > CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS) {
       return Promise.reject(new Error('Chronicle project server request exceeded frame limit'));
     }
+    const label = message.type === 'request' ? message.op : message.type;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         const pending = this.pending.get(id);
         if (!pending) return;
         this.pending.delete(id);
-        pending.reject(new Error(`Chronicle ${message.op} exceeded its ${timeoutMs}ms timeout`));
+        pending.reject(new Error(`Chronicle ${label} exceeded its ${timeoutMs}ms timeout`));
       }, timeoutMs);
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });

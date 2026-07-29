@@ -1,26 +1,26 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { EventBus } from './kernel/events.js';
 import { DefaultLogger, noOpLogger } from './infrastructure/logger.js';
 import { DefaultPathResolver } from './infrastructure/path-resolver.js';
+import type { EventBus } from './kernel/events.js';
 import { DefaultSecretVault, migratePlaintextSecrets } from './security/secret-vault.js';
 import { DefaultConfigLoader } from './storage/config-loader.js';
 import { type Config, normalizeTokenSavingTier } from './types/config.js';
-import { safeParse } from './utils/safe-json.js';
-import { writeErr } from './utils/term.js';
-import { toErrorMessage } from './utils/error.js';
 import { atomicWrite } from './utils/atomic-write.js';
+import { toErrorMessage } from './utils/error.js';
 import {
   ensureProjectGitignore,
   ensureProjectIdentity,
   readProjectIdentity,
 } from './utils/project-identity.js';
+import { safeParse } from './utils/safe-json.js';
+import { writeErr } from './utils/term.js';
 import {
   canonicalProjectRoot,
-  type WstackPaths,
   resolveWstackPaths,
   safeProfileName,
+  type WstackPaths,
 } from './utils/wstack-paths.js';
 
 /**
@@ -87,7 +87,12 @@ export interface BootConfigResult {
  * of boot behavior so the two consumers can't drift.
  */
 export async function bootConfig(options: BootConfigOptions = {}): Promise<BootConfigResult> {
-  const { flags = {}, appLabel = 'wstack', loadSyncConfig = true, skipIdentityValidation = false } = options;
+  const {
+    flags = {},
+    appLabel = 'wstack',
+    loadSyncConfig = true,
+    skipIdentityValidation = false,
+  } = options;
 
   const cwd = typeof flags['cwd'] === 'string' ? path.resolve(flags['cwd']) : process.cwd();
   const pathResolver = new DefaultPathResolver(cwd);
@@ -205,7 +210,10 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
         }),
       );
       try {
-        config = await configLoader.load({ cliFlags: flagsToConfigPatch(flags), skipIdentityValidation: true });
+        config = await configLoader.load({
+          cliFlags: flagsToConfigPatch(flags),
+          skipIdentityValidation: true,
+        });
       } catch (fallbackErr) {
         // Best-effort: if even the skip-validation load fails (corrupt config,
         // FS error), create a minimal in-memory config so --webui can still show
@@ -381,14 +389,17 @@ async function migrateLegacyConfig(wpaths: WstackPaths): Promise<void> {
 
   // Validate the legacy content is parseable JSON with actual settings.
   const result = safeParse<Record<string, unknown>>(legacyRaw);
-  if (!result.ok || !result.value || typeof result.value !== 'object' || Array.isArray(result.value)) {
+  if (
+    !result.ok ||
+    !result.value ||
+    typeof result.value !== 'object' ||
+    Array.isArray(result.value)
+  ) {
     return;
   }
 
   const activeProfile = safeProfileName(
-    typeof result.value['activeProfile'] === 'string'
-      ? result.value['activeProfile']
-      : undefined,
+    typeof result.value['activeProfile'] === 'string' ? result.value['activeProfile'] : undefined,
   );
   const profileFp = wpaths.profileConfig(activeProfile);
 
@@ -472,17 +483,12 @@ const PROFILE_STATE_PAIRS: ReadonlyArray<{
     globalSrc: (w) => path.join(w.globalRoot, 'installed-skills.json'),
     profileDst: (w, n) => path.join(w.profilesDir, n, 'installed-skills.json'),
   },
-  ...[
-    'skills',
-    'prompts',
-    'instructions',
-    'design-kits',
-    'desktop',
-    'settings',
-  ].map((directory) => ({
-    globalSrc: (w: WstackPaths) => path.join(w.globalRoot, directory),
-    profileDst: (w: WstackPaths, n: string) => path.join(w.profilesDir, n, directory),
-  })),
+  ...['skills', 'prompts', 'instructions', 'design-kits', 'desktop', 'settings'].map(
+    (directory) => ({
+      globalSrc: (w: WstackPaths) => path.join(w.globalRoot, directory),
+      profileDst: (w: WstackPaths, n: string) => path.join(w.profilesDir, n, directory),
+    }),
+  ),
 ];
 
 /**
@@ -666,7 +672,17 @@ async function registerProjectInManifest(
 
   // Write updated manifest
   try {
-    let manifest: { projects: Array<{ name: string; root: string; slug: string; projectId?: string; lastSeen?: string; createdAt?: string; lastWorkingDir?: string }> };
+    let manifest: {
+      projects: Array<{
+        name: string;
+        root: string;
+        slug: string;
+        projectId?: string;
+        lastSeen?: string;
+        createdAt?: string;
+        lastWorkingDir?: string;
+      }>;
+    };
     try {
       const raw = await fs.readFile(manifestPath, 'utf8');
       manifest = JSON.parse(raw);
@@ -683,9 +699,16 @@ async function registerProjectInManifest(
     } else {
       const slug = paths.projectSlug;
       const name = path.basename(projectRoot);
-      const entry: Record<string, string | undefined> = { name, root: projectRoot, slug, projectId, lastSeen: now, createdAt: now };
+      const entry: Record<string, string | undefined> = {
+        name,
+        root: projectRoot,
+        slug,
+        projectId,
+        lastSeen: now,
+        createdAt: now,
+      };
       if (workingDir) entry.lastWorkingDir = workingDir;
-      manifest.projects.push(entry as typeof manifest.projects[0]);
+      manifest.projects.push(entry as (typeof manifest.projects)[0]);
     }
 
     const writeT0 = Date.now();
@@ -712,11 +735,31 @@ async function registerProjectInManifest(
 }
 
 /**
- * Remove project directories whose original `root` no longer exists on
- * disk (e.g. temp directories from tests, deleted working copies).  Runs
- * as a fire-and-forget best-effort — failures are silently ignored.
+ * Remove project directories that can no longer describe a real project:
+ * those whose original `root` is gone from disk (temp dirs from tests,
+ * deleted working copies), and phantom *nested* projects whose `root` points
+ * back inside the state namespace.
+ *
+ * The nested case is the residue of the bug `assertProjectRootOutsideStateDir`
+ * now refuses at boot: a process started with a state path as its cwd
+ * registered `<slug>-<hash>` whose `root` is `<globalRoot>/projects/<slug>`.
+ * The guard stops new ones, but it cannot retire the ones already on disk —
+ * and the existing "root is gone" rule never matches them, because their root
+ * is a directory that very much still exists. They therefore persisted
+ * indefinitely, each one doubling a real project's footprint: its own
+ * `meta.json`, mailbox lock, token, and — because callers enumerate this
+ * directory — its own spawned daemon.
+ *
+ * Safe to delete unconditionally: nothing under `projects/` is ever a real
+ * repository, which is the same reasoning that lets the boot guard scope
+ * itself to that subtree.
+ *
+ * Runs as a fire-and-forget best-effort — failures are silently ignored.
+ *
+ * @internal Exported for tests: this recursively deletes directories, so its
+ * keep/delete decision is worth pinning directly rather than through `boot()`.
  */
-async function cleanupStaleProjects(wpaths: WstackPaths): Promise<void> {
+export async function cleanupStaleProjects(wpaths: WstackPaths): Promise<void> {
   const projectsRoot = path.dirname(wpaths.projectDir);
   let entries;
   try {
@@ -724,20 +767,28 @@ async function cleanupStaleProjects(wpaths: WstackPaths): Promise<void> {
   } catch {
     return; // directory doesn't exist or can't be read
   }
+  const stateNamespace = path.resolve(projectsRoot);
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const metaPath = path.join(projectsRoot, entry.name, 'meta.json');
+    const projectPath = path.join(projectsRoot, entry.name);
+    const metaPath = path.join(projectPath, 'meta.json');
     try {
       const raw = await fs.readFile(metaPath, 'utf8');
       const meta = JSON.parse(raw) as { root?: string | undefined };
-      if (typeof meta.root === 'string') {
-        try {
-          await fs.access(meta.root);
-          // root still exists — keep it
-        } catch {
-          // root gone → remove the entire project directory
-          await fs.rm(path.join(projectsRoot, entry.name), { recursive: true, force: true });
-        }
+      if (typeof meta.root !== 'string') continue;
+      const rel = path.relative(stateNamespace, path.resolve(meta.root));
+      const nested = rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+      if (nested) {
+        // Phantom project registered from a state path — never legitimate.
+        await fs.rm(projectPath, { recursive: true, force: true });
+        continue;
+      }
+      try {
+        await fs.access(meta.root);
+        // root still exists — keep it
+      } catch {
+        // root gone → remove the entire project directory
+        await fs.rm(projectPath, { recursive: true, force: true });
       }
     } catch {
       // no readable meta.json → leave it alone (don't nuke ambiguous dirs)

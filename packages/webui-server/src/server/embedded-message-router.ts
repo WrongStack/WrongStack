@@ -20,7 +20,10 @@ import type { ClientTransportRouteHandlers } from './client-transport-routes.js'
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
 import type { CompletionRouteHandlers } from './completion-routes.js';
-import { handleConnectionsHealthRoute } from './connections-health-route.js';
+import {
+  handleConnectionsHealthRoute,
+  handleConnectionsServiceAction,
+} from './connections-health-route.js';
 import type { DesignContext } from './design-handlers.js';
 import {
   applyEmbeddedModelSwitch,
@@ -502,6 +505,18 @@ export function createEmbeddedMessageRouter(
         ws,
         message,
       )
+    )
+      return;
+    if (
+      await handleConnectionsServiceAction(ws, message, {
+        getProjectRoot: projectRoot,
+        getIndexDir: () =>
+          typeof opts.agent.ctx.meta['codebaseIndexDir'] === 'string'
+            ? opts.agent.ctx.meta['codebaseIndexDir']
+            : undefined,
+        send,
+        backend: 'cli-embedded',
+      })
     )
       return;
     if (

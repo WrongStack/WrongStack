@@ -26,3 +26,10 @@ export interface ConnectionsHealthReport {
   projectRoot: string;
   services: ConnectionHealthService[];
 }
+
+export interface ServiceActionResult {
+  serviceId: ConnectionHealthService['id'] | null;
+  action: 'shutdown' | 'restart';
+  success: boolean;
+  message: string;
+}

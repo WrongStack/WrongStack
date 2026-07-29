@@ -396,6 +396,10 @@ export type WSClientMessageCore =
   | { type: 'diag.get'; payload?: SessionScopedPayload }
   | { type: 'stats.get'; payload?: SessionScopedPayload }
   | { type: 'connections.health' }
+  | {
+      type: 'connections.service_action';
+      payload: { serviceId: string; action?: 'shutdown' | 'restart' };
+    }
   | { type: 'chronicle.status' }
   | { type: 'chronicle.query'; payload: { query?: ChronicleQuery | undefined } }
   | {

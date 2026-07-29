@@ -4,7 +4,24 @@
  * @module hq-server/snapshot
  */
 
-import type { HqBrowserMessage, HqClientCapability, HqClientRecord, HqCommandAuditEntry, HqEventEnvelope, HqFleetSnapshotPayload, HqFleetSummary, HqMachineRecord, HqMailboxSnapshotPayload, HqMailboxSummary, HqMcpServerHealth, HqPersistence, HqProjectRecord, HqSessionSnapshotPayload, HqSessionSummary, HqSnapshot } from '@wrongstack/core/hq';
+import type {
+  HqBrowserMessage,
+  HqClientCapability,
+  HqClientRecord,
+  HqCommandAuditEntry,
+  HqEventEnvelope,
+  HqFleetSnapshotPayload,
+  HqFleetSummary,
+  HqMachineRecord,
+  HqMailboxSnapshotPayload,
+  HqMailboxSummary,
+  HqMcpServerHealth,
+  HqPersistence,
+  HqProjectRecord,
+  HqSessionSnapshotPayload,
+  HqSessionSummary,
+  HqSnapshot,
+} from '@wrongstack/core/hq';
 import { WebSocket } from 'ws';
 import type { ConnectedClient, HqSnapshotBroadcaster, ProjectDetail } from './types.js';
 import { hqMachineKey } from './utils.js';
@@ -21,12 +38,101 @@ export const HQ_SNAPSHOT_BROADCAST_DEBOUNCE_MS = 100;
  */
 export const HQ_SNAPSHOT_PERSIST_MIN_INTERVAL_MS = 3_000;
 
+/** Unsent bytes retained for one dashboard socket before it is disconnected. */
+export const HQ_BROWSER_MAX_BUFFERED_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Send an already-serialized frame to a WebSocket peer, enforcing
+ * per-client backpressure.
+ *
+ * A `readyState === OPEN` check alone says the socket is connected, not that
+ * anyone is reading it. `ws` buffers whatever it cannot flush, so a tab that
+ * stalled — backgrounded, throttled, paused in devtools — makes this process
+ * retain every subsequent broadcast for it. These are full fleet snapshots,
+ * historically as large as 9 MB each, which is the difference between a
+ * bounded cost and an unbounded one.
+ *
+ * Mirrors `sendSerialized` in `@wrongstack/webui-server`, deliberately
+ * duplicated rather than imported: HQ's snapshot path is in the CLI's
+ * always-loaded graph, and a static import would drag that whole package into
+ * boot, which the CLI keeps behind a lazy import on purpose.
+ */
+export function sendGuarded(ws: WebSocket, data: string): boolean {
+  if (ws.readyState !== WebSocket.OPEN) return false;
+  const buffered = Number.isFinite(ws.bufferedAmount) ? ws.bufferedAmount : 0;
+  if (buffered + Buffer.byteLength(data, 'utf8') > HQ_BROWSER_MAX_BUFFERED_BYTES) {
+    try {
+      ws.terminate();
+    } catch {
+      try {
+        ws.close(1013, 'client cannot keep up');
+      } catch {
+        // Socket is already gone.
+      }
+    }
+    return false;
+  }
+  try {
+    ws.send(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * How long a session/fleet snapshot may go unrefreshed before it is treated
+ * as gone.
+ *
+ * `session.ended` is the only thing that used to remove these entries, so any
+ * session that died without sending one — crash, SIGKILL, dropped network,
+ * closed laptop — stayed in its client's map for as long as the socket lived.
+ * That is both retained memory and, worse, permanent weight in every
+ * `buildSnapshot()` broadcast to every browser.
+ *
+ * A live session republishes unconditionally every 2.5s (`session-bridge.ts`
+ * forces the snapshot on a timer, bypassing its own dedupe hash), so
+ * `receivedAt` is a true liveness signal rather than a change signal. Five
+ * minutes is 120 consecutive missed publishes — far past any GC pause,
+ * scheduler stall, or transient hiccup, so this never evicts a live session.
+ */
+export const HQ_STALE_SNAPSHOT_MS = 5 * 60_000;
+
+/**
+ * Drop session/fleet/MCP entries whose publisher has stopped refreshing them.
+ *
+ * Runs from `buildSnapshot` because that is exactly the moment stale entries
+ * would otherwise be serialized into a broadcast — no separate timer to own,
+ * and no window where a reaped entry is still visible to a reader.
+ */
+export function reapStaleClientState(
+  clients: Map<WebSocket, ConnectedClient>,
+  nowMs: number = Date.now(),
+): void {
+  for (const client of clients.values()) {
+    for (const [sessionId, tracked] of client.sessions) {
+      if (nowMs - tracked.receivedAt > HQ_STALE_SNAPSHOT_MS) client.sessions.delete(sessionId);
+    }
+    for (const [runId, fleet] of client.fleets) {
+      if (nowMs - fleet.receivedAt > HQ_STALE_SNAPSHOT_MS) client.fleets.delete(runId);
+    }
+    // MCP health ages on its own clock rather than following `sessions`:
+    // a health snapshot can arrive before the session's first snapshot (and
+    // is keyed 'unknown' when the envelope carries no sessionId), so keying
+    // its lifetime off session membership would drop it in that window.
+    for (const [sessionId, tracked] of client.mcpSnapshots) {
+      if (nowMs - tracked.receivedAt > HQ_STALE_SNAPSHOT_MS) client.mcpSnapshots.delete(sessionId);
+    }
+  }
+}
+
 // ── buildSnapshot ──────────────────────────────────────────────────────────
 
 export function buildSnapshot(
   clients: Map<WebSocket, ConnectedClient>,
   options?: { tokenStats?: HqSnapshot['totals']['tokenStats'] },
 ): HqSnapshot {
+  reapStaleClientState(clients);
   const now = new Date().toISOString();
   // Dedupe client records by clientId — one process may hold two sockets (a
   // mailbox publisher + a telemetry publisher) sharing the same clientId.
@@ -290,8 +396,8 @@ export function buildSnapshot(
   const mcpServers: HqMcpServerHealth[] = [];
   const seenMcp = new Set<string>();
   for (const client of clients.values()) {
-    for (const [sessionId, servers] of client.mcpSnapshots.entries()) {
-      for (const server of servers) {
+    for (const [sessionId, tracked] of client.mcpSnapshots.entries()) {
+      for (const server of tracked.servers) {
         const key = `${client.clientId}:${sessionId}:${server.name}`;
         if (seenMcp.has(key)) continue;
         seenMcp.add(key);
@@ -363,15 +469,16 @@ export function createSnapshotBroadcaster(
       // No dashboard viewer: skip the browser (de)serialize entirely — the
       // expensive full-tree JSON.stringify is wasted with no recipient. Keep the
       // on-disk checkpoint fresh only on the slow throttled cadence.
-      if (persistence !== undefined && Date.now() - lastPersistAt >= HQ_SNAPSHOT_PERSIST_MIN_INTERVAL_MS) {
+      if (
+        persistence !== undefined &&
+        Date.now() - lastPersistAt >= HQ_SNAPSHOT_PERSIST_MIN_INTERVAL_MS
+      ) {
         persistCheckpoint(buildSnapshot(clients));
       }
       return;
     }
     const data = serialize();
-    for (const ws of browsers) {
-      if (ws.readyState === WebSocket.OPEN) ws.send(data);
-    }
+    for (const ws of browsers) sendGuarded(ws, data);
   };
 
   return {
@@ -461,9 +568,7 @@ export function buildProjectDetail(
 export function broadcastEvent(event: HqEventEnvelope, browsers: Set<WebSocket>): void {
   const msg: HqBrowserMessage = { type: 'hq.event', event };
   const data = JSON.stringify(msg);
-  for (const ws of browsers) {
-    if (ws.readyState === WebSocket.OPEN) ws.send(data);
-  }
+  for (const ws of browsers) sendGuarded(ws, data);
 }
 
 /** Push one control command's lifecycle to every authenticated HQ browser. */
@@ -472,7 +577,5 @@ export function broadcastCommandStatus(
   browsers: Set<WebSocket>,
 ): void {
   const data = JSON.stringify({ type: 'hq.command_status', command } satisfies HqBrowserMessage);
-  for (const ws of browsers) {
-    if (ws.readyState === WebSocket.OPEN) ws.send(data);
-  }
+  for (const ws of browsers) sendGuarded(ws, data);
 }

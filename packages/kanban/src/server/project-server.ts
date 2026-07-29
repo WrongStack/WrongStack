@@ -16,8 +16,8 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
-import * as kanban from '../manager.js';
 import { StaleWriteError } from '../manager/lifecycle.js';
+import * as kanban from '../manager.js';
 import { installKanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanEvent } from '../types.js';
 import { kanbanProjectServerEndpoint } from './endpoint.js';
@@ -82,14 +82,42 @@ let server: net.Server | null = null;
 
 // ─── Frame I/O ───────────────────────────────────────────────────────────────
 
-function sendFrame(socket: net.Socket, frame: unknown): void {
-  socket.write(JSON.stringify(frame) + '\n');
+/**
+ * Cap on outbound bytes queued for one client before it is dropped.
+ *
+ * `socket.write()` reporting `false` is the signal to stop producing; this
+ * server broadcasts board events to every client, so ignoring it let a single
+ * client that stopped reading grow the owner's heap by one queued broadcast at
+ * a time, without limit. Board state lives in SQLite, so a dropped client
+ * re-reads it on reconnect and loses only events it was already too far behind
+ * to have handled.
+ */
+const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+
+function writeFrame(socket: net.Socket, encoded: string): void {
+  if (socket.destroyed) return;
+  if (socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
+    socket.destroy(new Error('Kanban client fell too far behind on reads'));
+    return;
+  }
+  socket.write(encoded);
 }
 
+function sendFrame(socket: net.Socket, frame: unknown): void {
+  writeFrame(socket, JSON.stringify(frame) + '\n');
+}
+
+/**
+ * Encode once, write to every client — stringifying inside the loop produced
+ * one copy of the payload per connected client. Board snapshots are the large
+ * frames here, so the multiple showed up directly as allocation churn.
+ */
 function broadcastEvent(ev: KanbanServerEvent): void {
+  if (clients.size === 0) return;
+  const encoded = JSON.stringify(ev) + '\n';
   for (const state of clients) {
     try {
-      sendFrame(state.socket, ev);
+      writeFrame(state.socket, encoded);
     } catch {
       state.socket.destroy();
     }

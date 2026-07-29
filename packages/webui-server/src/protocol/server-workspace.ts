@@ -32,6 +32,7 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'codebase.index.server.shutdown_result',
   'connections.health_error',
   'connections.health_result',
+  'connections.service_action_result',
   'diag.get',
   'key.operation_result',
   'model.switch_result',

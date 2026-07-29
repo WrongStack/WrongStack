@@ -16,6 +16,7 @@ import { type ChronicleContext, createChronicleContext } from './context.js';
 import { type ChronicleFileObserver, startChronicleFileObserver } from './file-observer.js';
 import { resolveChronicleRuntimeLocation } from './identity.js';
 import { ChronicleJournal, type ChronicleJournalStats } from './journal.js';
+import { importLegacyChronicleJournal } from './legacy-journal-import.js';
 import { ChronicleMetricsStore } from './metrics-store.js';
 import { ChroniclePartitionRangeCache } from './partition-range-cache.js';
 import {
@@ -34,15 +35,16 @@ import {
   type ChronicleServerOperations,
   encodeChronicleProjectServerMessage,
 } from './project-server-protocol.js';
-import { ChronicleQueryEngine, type ChronicleQuery } from './query.js';
-import { importLegacyChronicleJournal } from './legacy-journal-import.js';
+import { type ChronicleQuery, ChronicleQueryEngine } from './query.js';
+import type { ChronicleEventSink } from './sink.js';
 import { type ChronicleQuarantinedFamily, ChronicleSqliteJournal } from './sqlite-journal.js';
 import type { ChronicleSqliteQueryEngine } from './sqlite-query.js';
-import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEvent, ChronicleEventInput } from './types.js';
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
 const MAX_APPEND_BATCH = 10_000;
+/** Outbound bytes queued for one client before it is dropped as unresponsive. */
+const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
 
 interface ParsedArgs {
   projectRoot: string;
@@ -142,9 +144,7 @@ const MAX_OPEN_JOURNAL_DAYS = 2;
  */
 function pruneJournals(currentDay: string): void {
   if (journals.size <= MAX_OPEN_JOURNAL_DAYS) return;
-  const keep = new Set(
-    [...journals.keys()].sort().reverse().slice(0, MAX_OPEN_JOURNAL_DAYS),
-  );
+  const keep = new Set([...journals.keys()].sort().reverse().slice(0, MAX_OPEN_JOURNAL_DAYS));
   keep.add(currentDay);
   for (const [day, journal] of journals) {
     if (keep.has(day)) continue;
@@ -388,9 +388,9 @@ async function dispatch<O extends ChronicleServerOperationName>(
       return undefined as ChronicleServerOperations[O]['result'];
     case 'purge': {
       const args = rawArgs as ChronicleServerOperations['purge']['args'];
-      return (useSqliteStore()
+      return useSqliteStore()
         ? ((await (await store()).purge(args)) as ChronicleServerOperations[O]['result'])
-        : ((await journalForToday().purge(args)) as ChronicleServerOperations[O]['result']));
+        : ((await journalForToday().purge(args)) as ChronicleServerOperations[O]['result']);
     }
     case 'query': {
       const args = rawArgs as ChronicleServerOperations['query']['args'];
@@ -434,9 +434,10 @@ async function dispatch<O extends ChronicleServerOperationName>(
     }
     case 'metrics': {
       const args = rawArgs as ChronicleServerOperations['metrics']['args'];
-      const refreshed = args.refresh === false
-        ? { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 }
-        : await refreshMetrics();
+      const refreshed =
+        args.refresh === false
+          ? { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 }
+          : await refreshMetrics();
       if (args.refresh === false) {
         // Keep the projection converging without putting historical indexing
         // latency on the caller's critical path.
@@ -463,6 +464,14 @@ function send(state: ClientState, message: ChronicleProjectServerMessage): void 
     state.socket.destroy(new Error('Chronicle project server response exceeded frame limit'));
     return;
   }
+  // The frame cap above bounds one message; this bounds the queue. Ignoring
+  // `socket.write()`'s `false` return lets a client that stopped reading grow
+  // the owner's heap without limit — see the identical guard in the mailbox,
+  // kanban, SAGE and index owners.
+  if (state.socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
+    state.socket.destroy(new Error('Chronicle client fell too far behind on reads'));
+    return;
+  }
   state.socket.write(encoded);
 }
 
@@ -471,7 +480,7 @@ async function handleMessage(
   message: ChronicleProjectServerClientMessage,
 ): Promise<void> {
   if (message.type === 'shutdown') {
-    send(state, { type: 'response', id: message.id, ok: true, result: undefined });
+    send(state, { type: 'response', id: message.id, ok: true, result: { stopped: true } });
     await stop(message.reason ?? 'client request');
     return;
   }

@@ -5,21 +5,47 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import type {
+  HqCommandAuditLog,
+  HqEventEnvelope,
+  HqFleetSnapshotPayload,
+  HqKanbanSnapshotPayload,
+  HqMailboxEventPayload,
+  HqMailboxSnapshotPayload,
+  HqMcpHealthSnapshotPayload,
+  HqPersistence,
+  HqQueuedCommand,
+  HqRedactionPolicy,
+  HqSessionEndedPayload,
+  HqSessionSnapshotPayload,
+  HqToken,
+  HqTranscriptAppendPayload,
+  HqTranscriptEntry,
+  HqWelcomePayload,
+} from '@wrongstack/core/hq';
+import {
+  HQ_PROTOCOL_VERSION,
+  HQ_TRANSCRIPT_TEXT_CAP,
+  parseHqEventPayload,
+  parseHqFrame,
+  redactHqEvent,
+  resolveHqRedactionPolicy,
+  tightenHqRedactionPolicy,
+  tokenHasCapability,
+} from '@wrongstack/core/hq';
 import { WebSocket } from 'ws';
-import { HQ_PROTOCOL_VERSION, HQ_TRANSCRIPT_TEXT_CAP, parseHqEventPayload, parseHqFrame, redactHqEvent, resolveHqRedactionPolicy, tightenHqRedactionPolicy, tokenHasCapability } from '@wrongstack/core/hq';
-import type { HqCommandAuditLog, HqEventEnvelope, HqFleetSnapshotPayload, HqKanbanSnapshotPayload, HqMailboxEventPayload, HqMailboxSnapshotPayload, HqMcpHealthSnapshotPayload, HqPersistence, HqQueuedCommand, HqRedactionPolicy, HqSessionEndedPayload, HqSessionSnapshotPayload, HqToken, HqTranscriptAppendPayload, HqTranscriptEntry, HqWelcomePayload } from '@wrongstack/core/hq';
+import { broadcastCommandStatus, broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, TranscriptRing } from './types.js';
 import {
-  TRANSCRIPT_RING_MAX,
-  MAX_TRANSCRIPT_SESSIONS,
-  MAX_AGENT_RINGS,
   agentMessageToEntry,
   agentRingKey,
   evictOldest,
+  MAX_AGENT_RINGS,
+  MAX_TRANSCRIPT_SESSIONS,
   recordTimeseriesSignal,
+  TRANSCRIPT_RING_MAX,
   truncateHqSummary,
 } from './utils.js';
-import { broadcastCommandStatus, broadcastEvent } from './snapshot.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -48,7 +74,7 @@ export function handleBrowser(
     );
   });
 
-  ws.send(snapshotBroadcaster.currentSerialized());
+  sendGuarded(ws, snapshotBroadcaster.currentSerialized());
 
   ws.on('close', () => {
     browsers.delete(ws);
@@ -208,11 +234,12 @@ export function handleClient(
       };
       ws.send(JSON.stringify(welcome));
       if (persistence !== undefined) {
-        void persistence.kanban.load(client.projectId).then((payload) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'hq.kanban_snapshot', payload }));
-          }
-        }).catch(() => undefined);
+        void persistence.kanban
+          .load(client.projectId)
+          .then((payload) => {
+            sendGuarded(ws, JSON.stringify({ type: 'hq.kanban_snapshot', payload }));
+          })
+          .catch(() => undefined);
       }
 
       const event: HqEventEnvelope = {
@@ -368,9 +395,7 @@ export function handleClient(
             };
             const message = JSON.stringify({ type: 'hq.kanban_snapshot', payload: delta });
             for (const peer of clients.values()) {
-              if (peer.projectId === client.projectId && peer.ws.readyState === WebSocket.OPEN) {
-                peer.ws.send(message);
-              }
+              if (peer.projectId === client.projectId) sendGuarded(peer.ws, message);
             }
           })
           .catch((error: unknown) => {
@@ -484,7 +509,7 @@ export function handleClient(
             projectId: client.projectId,
             clientId: client.clientId,
           }));
-          client.mcpSnapshots.set(sessionId, stamped);
+          client.mcpSnapshots.set(sessionId, { servers: stamped, receivedAt: Date.now() });
           snapshotBroadcaster.broadcast();
         }
         return;
@@ -519,7 +544,8 @@ export function handleClient(
       // every leader's transcript into one shared ring.
       if (event.type === 'agent.message') {
         const p = event.payload as Record<string, unknown> | undefined;
-        const subId = p && typeof p['subagentId'] === 'string' ? (p['subagentId'] as string) : undefined;
+        const subId =
+          p && typeof p['subagentId'] === 'string' ? (p['subagentId'] as string) : undefined;
         if (subId) {
           const key = agentRingKey(event.sessionId, subId);
           let ring = agentMessages.get(key);

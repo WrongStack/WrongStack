@@ -8,6 +8,7 @@ import {
   Mail,
   MemoryStick,
   RefreshCw,
+  RotateCcw,
   Server,
   TriangleAlert,
   Wifi,
@@ -17,7 +18,12 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConfigStore } from '@/stores';
-import type { ConnectionHealthService, ConnectionsHealthReport, WSServerMessage } from '@/types';
+import type {
+  ConnectionHealthService,
+  ConnectionsHealthReport,
+  ServiceActionResult,
+  WSServerMessage,
+} from '@/types';
 import { Button } from '../ui/button';
 
 const REFRESH_INTERVAL_MS = 15_000;
@@ -29,6 +35,10 @@ export function ConnectionsHealthSection() {
   const [report, setReport] = useState<ConnectionsHealthReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
+  const [actionFeedback, setActionFeedback] = useState<
+    Record<string, { success: boolean; message: string } | null>
+  >({});
 
   const refresh = useCallback(() => {
     if (!wsConnected || !client) {
@@ -46,6 +56,16 @@ export function ConnectionsHealthSection() {
     client.send({ type: 'connections.health' });
   }, [client, t, wsConnected]);
 
+  const handleServiceAction = useCallback(
+    (serviceId: string, action: 'shutdown' | 'restart') => {
+      if (!client || !wsConnected) return;
+      setPendingActions((prev) => new Set(prev).add(serviceId));
+      setActionFeedback((prev) => ({ ...prev, [serviceId]: null }));
+      client.send({ type: 'connections.service_action', payload: { serviceId, action } });
+    },
+    [client, wsConnected],
+  );
+
   useEffect(() => {
     if (!client) return;
     const offResult = client.on('connections.health_result', (message: WSServerMessage) => {
@@ -59,12 +79,39 @@ export function ConnectionsHealthSection() {
       setLoading(false);
       setError(message.payload.message);
     });
+    const offActionResult = client.on(
+      'connections.service_action_result',
+      (message: WSServerMessage) => {
+        if (message.type !== 'connections.service_action_result') return;
+        const result = message.payload as ServiceActionResult;
+        setPendingActions((prev) => {
+          const next = new Set(prev);
+          next.delete(result.serviceId ?? '');
+          return next;
+        });
+        setActionFeedback((prev) => ({
+          ...prev,
+          [result.serviceId ?? '']: { success: result.success, message: result.message },
+        }));
+        // Auto-clear feedback after 5s
+        const timer = window.setTimeout(() => {
+          setActionFeedback((prev) => ({
+            ...prev,
+            [result.serviceId ?? '']: null,
+          }));
+        }, 5_000);
+        // Auto-refresh health after action
+        void refresh();
+        return () => window.clearTimeout(timer);
+      },
+    );
     refresh();
     const timer = window.setInterval(refresh, REFRESH_INTERVAL_MS);
     return () => {
       window.clearInterval(timer);
       offResult();
       offError();
+      offActionResult();
     };
   }, [client, refresh]);
 
@@ -147,7 +194,13 @@ export function ConnectionsHealthSection() {
 
       <div className="grid gap-3 xl:grid-cols-2">
         {services.map((service) => (
-          <ServiceCard key={service.id} service={service} />
+          <ServiceCard
+            key={service.id}
+            service={service}
+            onAction={handleServiceAction}
+            actionPending={pendingActions.has(service.id)}
+            feedback={actionFeedback[service.id] ?? undefined}
+          />
         ))}
         {!report && loading && [0, 1, 2, 3].map((key) => <ServiceSkeleton key={key} />)}
       </div>
@@ -155,25 +208,37 @@ export function ConnectionsHealthSection() {
   );
 }
 
-function ServiceCard({ service }: { service: ConnectionHealthService }) {
+function ServiceCard({
+  service,
+  onAction,
+  actionPending,
+  feedback,
+}: {
+  service: ConnectionHealthService;
+  onAction?: (serviceId: string, action: 'shutdown' | 'restart') => void;
+  actionPending?: boolean;
+  feedback?: { success: boolean; message: string } | undefined;
+}) {
   const { t } = useAppTranslation();
-  const Icon =
-    service.id === 'webui'
-      ? Wifi
-      : service.id === 'chronicle'
-        ? Database
-        : service.id === 'codebase-index'
-          ? HardDrive
-          : service.id === 'kanban'
-            ? KanbanSquare
-            : service.id === 'mailbox'
-              ? Mail
-              : MemoryStick;
+  const isWebui = service.id === 'webui';
+  const Icon = isWebui
+    ? Wifi
+    : service.id === 'chronicle'
+      ? Database
+      : service.id === 'codebase-index'
+        ? HardDrive
+        : service.id === 'kanban'
+          ? KanbanSquare
+          : service.id === 'mailbox'
+            ? Mail
+            : MemoryStick;
   const displayLabel =
     service.id === 'kanban'
       ? (t('settings:connection.services.kanban.label', { defaultValue: service.label }) as string)
       : service.id === 'mailbox'
-        ? (t('settings:connection.services.mailbox.label', { defaultValue: service.label }) as string)
+        ? (t('settings:connection.services.mailbox.label', {
+            defaultValue: service.label,
+          }) as string)
         : service.label;
   const fields = [
     service.ownerPid !== undefined ? ['PID', String(service.ownerPid)] : undefined,
@@ -205,8 +270,39 @@ function ServiceCard({ service }: { service: ConnectionHealthService }) {
             </p>
           </div>
         </div>
-        <StatusBadge status={service.status} />
+        <div className="flex items-center gap-2">
+          {!isWebui && onAction && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={actionPending}
+              onClick={() => onAction(service.id, 'shutdown')}
+              className="h-7 px-2 text-[10px]"
+              title={
+                t('settings:connection.serviceActionReset', {
+                  defaultValue: `Reset ${displayLabel}`,
+                }) as string
+              }
+            >
+              <RotateCcw className={cn('h-3 w-3', actionPending && 'animate-spin')} />
+            </Button>
+          )}
+          <StatusBadge status={service.status} />
+        </div>
       </div>
+
+      {feedback && (
+        <div
+          className={cn(
+            'mt-2 rounded px-2 py-1 text-[10px]',
+            feedback.success
+              ? 'border border-success/30 bg-success/10 text-success'
+              : 'border border-destructive/30 bg-destructive/10 text-destructive',
+          )}
+        >
+          {feedback.message}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border/50 pt-2 font-mono text-[9px] text-muted-foreground">
         <span>
