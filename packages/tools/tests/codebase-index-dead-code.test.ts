@@ -9,8 +9,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runDeadCodeScan } from '../src/codebase-index/dead-code-scan.js';
-import { indexStorePool } from '../src/codebase-index/writer.js';
 import { runIndexer } from '../src/codebase-index/indexer.js';
+import { indexStorePool } from '../src/codebase-index/writer.js';
 
 let dir: string;
 
@@ -65,22 +65,16 @@ describe('runDeadCodeScan', () => {
     expect(used).toHaveLength(0);
 
     // dead_never_called should be dead
-    const deadNever = result.deadSymbols.filter(
-      (s) => s.name === 'dead_never_called',
-    );
+    const deadNever = result.deadSymbols.filter((s) => s.name === 'dead_never_called');
     expect(deadNever).toHaveLength(1);
     expect(deadNever[0]!.reason).toBe('unreferenced');
 
     // also_dead should be dead
-    const alsoDead = result.deadSymbols.filter(
-      (s) => s.name === 'also_dead',
-    );
+    const alsoDead = result.deadSymbols.filter((s) => s.name === 'also_dead');
     expect(alsoDead).toHaveLength(1);
 
     // DEAD_CONST should be dead
-    const deadConst = result.deadSymbols.filter(
-      (s) => s.name === 'DEAD_CONST',
-    );
+    const deadConst = result.deadSymbols.filter((s) => s.name === 'DEAD_CONST');
     expect(deadConst).toHaveLength(1);
 
     // Stats sanity
@@ -160,10 +154,7 @@ onlyBuiltDependencies:
       `,
     );
     // apps/web package with just a convention entry point.
-    await write(
-      'apps/web/package.json',
-      JSON.stringify({ name: '@test/web' }),
-    );
+    await write('apps/web/package.json', JSON.stringify({ name: '@test/web' }));
     await write(
       'apps/web/src/main.ts',
       `export function webEntry() { return 42; }
@@ -221,36 +212,18 @@ onlyBuiltDependencies:
     );
 
     // Legitimate workspace packages.
-    await write(
-      'packages/lib/package.json',
-      JSON.stringify({ name: '@test/lib' }),
-    );
-    await write(
-      'packages/lib/src/index.ts',
-      `export function libFn() {}`,
-    );
+    await write('packages/lib/package.json', JSON.stringify({ name: '@test/lib' }));
+    await write('packages/lib/src/index.ts', `export function libFn() {}`);
 
-    await write(
-      'apps/web/package.json',
-      JSON.stringify({ name: '@test/web' }),
-    );
-    await write(
-      'apps/web/src/main.ts',
-      `export function webFn() {}`,
-    );
+    await write('apps/web/package.json', JSON.stringify({ name: '@test/web' }));
+    await write('apps/web/src/main.ts', `export function webFn() {}`);
 
     // Trap directory: 'electron' appears in both onlyBuiltDependencies and
     // allowBuilds. Create it as a real directory with a package.json so the
     // old code (global regex matching ALL list items) would incorrectly
     // discover it as a workspace entry point. The fixed code must ignore it.
-    await write(
-      'electron/package.json',
-      JSON.stringify({ name: 'electron' }),
-    );
-    await write(
-      'electron/src/index.ts',
-      `export function electronTrap() {}`,
-    );
+    await write('electron/package.json', JSON.stringify({ name: 'electron' }));
+    await write('electron/src/index.ts', `export function electronTrap() {}`);
 
     await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
 
@@ -261,20 +234,14 @@ onlyBuiltDependencies:
     // Legitimate workspace entry points must be found.
     // Use path.join for cross-platform separator compatibility.
     const entryPaths = result.entryPoints;
-    const hasLibPath = entryPaths.some((p) =>
-      p.includes(path.join('packages', 'lib')),
-    );
-    const hasWebPath = entryPaths.some((p) =>
-      p.includes(path.join('apps', 'web')),
-    );
+    const hasLibPath = entryPaths.some((p) => p.includes(path.join('packages', 'lib')));
+    const hasWebPath = entryPaths.some((p) => p.includes(path.join('apps', 'web')));
     expect(hasLibPath).toBe(true);
     expect(hasWebPath).toBe(true);
 
     // Trap directory must NOT appear in entry points — if it does, the
     // pnpm-workspace.yaml parser is picking up items from non-packages keys.
-    const hasTrapPath = entryPaths.some((p) =>
-      p.includes(path.join('electron')),
-    );
+    const hasTrapPath = entryPaths.some((p) => p.includes(path.join('electron')));
     expect(hasTrapPath).toBe(false);
   });
 
@@ -284,14 +251,8 @@ onlyBuiltDependencies:
     // The only way to find the entry point is via trySourceEquivalent mapping
     // dist/main/main.js → src/main/main.ts. Without that, the entry point
     // would be missed entirely and run() would appear dead.
-    await write(
-      'package.json',
-      JSON.stringify({ name: 'test-pkg', main: './dist/main/main.js' }),
-    );
-    await write(
-      'src/main/main.ts',
-      `export function run() { return 1; }`,
-    );
+    await write('package.json', JSON.stringify({ name: 'test-pkg', main: './dist/main/main.js' }));
+    await write('src/main/main.ts', `export function run() { return 1; }`);
     // Deliberately no dist/ dir, no src/index.ts, no src/main.ts.
 
     await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
@@ -303,9 +264,7 @@ onlyBuiltDependencies:
     // src/main/main.ts must appear in entry points — it can ONLY be found
     // via trySourceEquivalent since there's no dist/ dir and no convention match.
     const entryPaths = result.entryPoints;
-    const hasSrcMainTs = entryPaths.some((p) =>
-      p.includes(path.join('src', 'main', 'main.ts')),
-    );
+    const hasSrcMainTs = entryPaths.some((p) => p.includes(path.join('src', 'main', 'main.ts')));
     expect(hasSrcMainTs).toBe(true);
 
     // run() should be alive (transitively reachable from the entry point).
@@ -344,6 +303,53 @@ onlyBuiltDependencies:
     expect(result.deadSymbols.filter((s) => s.name === 'localVar')).toHaveLength(0);
     expect(result.deadSymbols.filter((s) => s.name === 'localConst')).toHaveLength(0);
     expect(result.deadSymbols.filter((s) => s.name === 'localVar2')).toHaveLength(0);
+  });
+
+  it('detects re-exports from a pure-barrel entry point with zero own symbols', async () => {
+    // Pure-barrel entry point: only re-exports, no declarations.
+    // The barrel scanner reads the source and seeds the re-export targets.
+    await write('package.json', JSON.stringify({ name: 'test-pkg', main: './dist/index.js' }));
+    await write(
+      'src/index.ts',
+      `export { a } from './a';
+       export { b } from './b';`,
+    );
+    await write('src/a.ts', `export function a() { return 'a'; }`);
+    await write(
+      'src/b.ts',
+      `export function b() { return 'b'; }
+       export function dead_in_b() { return 'dead'; }`,
+    );
+
+    await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
+
+    const result = runDeadCodeScan(dir, {
+      store: indexStorePool.acquire(dir, { indexDir: indexDir() }),
+    });
+
+    expect(result.deadSymbols.filter((s) => s.name === 'a')).toHaveLength(0);
+    expect(result.deadSymbols.filter((s) => s.name === 'b')).toHaveLength(0);
+    expect(result.deadSymbols.filter((s) => s.name === 'dead_in_b')).toHaveLength(1);
+  });
+
+  it('traverses multi-hop barrel chains (barrel → barrel → code)', async () => {
+    await write('package.json', JSON.stringify({ name: 'test-pkg', main: './dist/index.js' }));
+    await write('src/index.ts', `export { actual } from './intermediate';`);
+    await write('src/intermediate.ts', `export { actual } from './actual';`);
+    await write(
+      'src/actual.ts',
+      `export function actual() { return 1; }
+       export function orphan() { return 2; }`,
+    );
+
+    await runIndexer({} as never, { projectRoot: dir, indexDir: indexDir() });
+
+    const result = runDeadCodeScan(dir, {
+      store: indexStorePool.acquire(dir, { indexDir: indexDir() }),
+    });
+
+    expect(result.deadSymbols.filter((s) => s.name === 'actual')).toHaveLength(0);
+    expect(result.deadSymbols.filter((s) => s.name === 'orphan')).toHaveLength(1);
   });
 });
 

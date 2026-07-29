@@ -21,11 +21,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
-import {
-  type SymbolKind,
-  type SymbolLang,
-} from './schema.js';
-import { codebaseIndexDirOverride, IndexStore, indexStorePool } from './writer.js';
+import { detectLang } from './languages.js';
+import type { SymbolKind, SymbolLang } from './schema.js';
+import { codebaseIndexDirOverride, type IndexStore, indexStorePool } from './writer.js';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -118,8 +116,7 @@ export const deadCodeScanTool: Tool<DeadCodeScanInput, DeadCodeScanOutput> = {
       entryPoints: {
         type: 'array',
         items: { type: 'string' },
-        description:
-          'Additional entry-point file paths to seed the scan.',
+        description: 'Additional entry-point file paths to seed the scan.',
       },
     },
   },
@@ -165,10 +162,7 @@ function resolveAgainst(base: string, relative: string): string {
 /**
  * Walk the workspace and discover entry-point files from package.json(s).
  */
-function discoverEntryPoints(
-  projectRoot: string,
-  userEntryPoints: string[] | undefined,
-): string[] {
+function discoverEntryPoints(projectRoot: string, userEntryPoints: string[] | undefined): string[] {
   const entries = new Set<string>();
 
   // 1. User-provided entry points.
@@ -248,6 +242,9 @@ const BUILD_OUTPUT_DIR_NAMES = BUILD_OUTPUT_DIRS.map((d) => `${path.sep}${d}${pa
  * Returns the first existing source path, or null if none is found.
  */
 function trySourceEquivalent(resolved: string): string | null {
+  // Normalize path separators so BUILD_OUTPUT_DIR_NAMES (built with path.sep)
+  // matches regardless of how paths are stored in the index or config.
+  resolved = resolved.replace(/[/\\]/g, path.sep);
   for (const marker of BUILD_OUTPUT_DIR_NAMES) {
     const idx = resolved.indexOf(marker);
     if (idx === -1) continue;
@@ -278,9 +275,9 @@ function trySourceEquivalent(resolved: string): string | null {
     // Skips when branch 2 already checked this same path (no .d.ts extension).
     const candidateNoExt = base + '.ts';
     if (
-      candidate !== candidateNoExt
-      && candidateNoExt !== candidateDts
-      && fs.existsSync(candidateNoExt)
+      candidate !== candidateNoExt &&
+      candidateNoExt !== candidateDts &&
+      fs.existsSync(candidateNoExt)
     ) {
       return candidateNoExt;
     }
@@ -349,9 +346,7 @@ function addPkgJsonEntryPoints(
         tryAddEntryPath(pkgDir, value, entries);
       } else if (value && typeof value === 'object') {
         // Nested export condition: { "import": "./dist/foo.js", "types": ... }
-        for (const nested of Object.values(
-          value as Record<string, unknown>,
-        )) {
+        for (const nested of Object.values(value as Record<string, unknown>)) {
           if (typeof nested === 'string') {
             tryAddEntryPath(pkgDir, nested, entries);
           }
@@ -382,10 +377,7 @@ function expandGlobPattern(entry: string, projectRoot: string): string[] {
   return dirs;
 }
 
-function extractWorkspaceGlobs(
-  pkg: Record<string, unknown>,
-  projectRoot: string,
-): string[] {
+function extractWorkspaceGlobs(pkg: Record<string, unknown>, projectRoot: string): string[] {
   const dirs: string[] = [];
   const workspaces = pkg.workspaces;
   if (Array.isArray(workspaces)) {
@@ -408,9 +400,7 @@ function extractWorkspaceGlobs(
  * the `packages:` key are collected — items under other top-level keys
  * (e.g. `onlyBuiltDependencies:`) are correctly ignored.
  */
-function extractPnpmWorkspaceDirs(
-  projectRoot: string,
-): string[] {
+function extractPnpmWorkspaceDirs(projectRoot: string): string[] {
   const yamlPath = path.join(projectRoot, 'pnpm-workspace.yaml');
   if (!fs.existsSync(yamlPath)) return [];
 
@@ -472,6 +462,102 @@ interface RefsRow {
   callType: string;
 }
 
+/**
+ * Try to resolve a relative module specifier (e.g. './foo', '../bar/index.js')
+ * against an importing file's directory to find an indexed source file.
+ *
+ * Tries these extensions in order: .ts, .tsx, .js, .jsx, /index.ts, /index.tsx,
+ * /index.js, /index.jsx.  Strips .js/.jsx/.mjs/.cjs → .ts/.tsx for the common pattern
+ * where source is TypeScript but the import specifier references the compiled
+ * output (e.g. `import { X } from './foo.js'` → resolves to `./foo.ts`).
+ *
+ * Returns the absolute paths of all matching indexed files, or an empty array.
+ */
+function resolveModulePath(
+  importerPath: string,
+  moduleSpecifier: string,
+  indexedFiles: ReadonlySet<string>,
+): string[] {
+  // Only handle relative paths — bare specifiers (package names) can't be
+  // resolved locally.
+  if (!moduleSpecifier.startsWith('.')) return [];
+
+  const dir = path.dirname(importerPath);
+  const base = path.resolve(dir, moduleSpecifier);
+  const results: string[] = [];
+
+  // Strip common extensions → bare base so we try cross-extension equivalents.
+  // Include .ts/.tsx so specifiers like `./foo.ts` are handled the same way
+  // as `./foo.js`.
+  const stripped = base.replace(/\.(ts|tsx|js|jsx|mjs|cjs)$/, '');
+  // When the original path already has one of the known extensions we try
+  // below, skip the `base` iteration — `stripped` already covers all the
+  // extension variants, and retrying with the original extension appended
+  // (e.g. `foo.ts.ts`) would only produce pointless Set.has() misses.
+  const skipBase = stripped !== base && /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(base);
+  const candidates = skipBase ? [stripped] : [base];
+
+  for (const candidate of candidates) {
+    if (indexedFiles.has(candidate + '.ts')) results.push(candidate + '.ts');
+    if (indexedFiles.has(candidate + '.tsx')) results.push(candidate + '.tsx');
+    if (indexedFiles.has(candidate + '.js')) results.push(candidate + '.js');
+    if (indexedFiles.has(candidate + '.jsx')) results.push(candidate + '.jsx');
+    if (indexedFiles.has(candidate + '.mjs')) results.push(candidate + '.mjs');
+    if (indexedFiles.has(candidate + '.cjs')) results.push(candidate + '.cjs');
+
+    // Try /index.{ts,tsx,js,jsx,mjs,cjs}
+    if (indexedFiles.has(path.join(candidate, 'index.ts')))
+      results.push(path.join(candidate, 'index.ts'));
+    if (indexedFiles.has(path.join(candidate, 'index.tsx')))
+      results.push(path.join(candidate, 'index.tsx'));
+    if (indexedFiles.has(path.join(candidate, 'index.js')))
+      results.push(path.join(candidate, 'index.js'));
+    if (indexedFiles.has(path.join(candidate, 'index.jsx')))
+      results.push(path.join(candidate, 'index.jsx'));
+    if (indexedFiles.has(path.join(candidate, 'index.mjs')))
+      results.push(path.join(candidate, 'index.mjs'));
+    if (indexedFiles.has(path.join(candidate, 'index.cjs')))
+      results.push(path.join(candidate, 'index.cjs'));
+  }
+
+  return [...new Set(results)];
+}
+
+/**
+ * Parse the specific symbol names from a named re-export statement like:
+ *   export { X, Y } from './M'           → ['X', 'Y']
+ *   export { X as Y, type Z } from './M' → ['X', 'Z']
+ *   export type { X } from './M'         → ['X']
+ *
+ * Returns `null` for wildcard re-exports (`export * from './M'` or
+ * `export * as X from './M'`) since those legitimately re-export all symbols.
+ */
+function parseNamedExportSymbols(matchText: string): string[] | null {
+  const braceStart = matchText.indexOf('{');
+  if (braceStart === -1) return null; // wildcard export
+
+  const braceEnd = matchText.indexOf('}', braceStart);
+  if (braceEnd === -1) return null;
+
+  const inner = matchText.slice(braceStart + 1, braceEnd);
+  const symbols: string[] = [];
+
+  for (const part of inner.split(',')) {
+    let s = part.trim();
+    if (!s) continue;
+    // Strip inline 'type ' modifier (e.g. "type X" → "X")
+    s = s.replace(/^type\s+/, '');
+    // Handle 'X as Y' — extract X (the source symbol name)
+    const asIdx = s.search(/\s+as\s+/);
+    if (asIdx !== -1) {
+      s = s.slice(0, asIdx).trim();
+    }
+    if (s) symbols.push(s);
+  }
+
+  return symbols;
+}
+
 export function runDeadCodeScan(
   projectRoot: string,
   opts: {
@@ -481,9 +567,7 @@ export function runDeadCodeScan(
     store?: IndexStore | undefined;
   } = {},
 ): DeadCodeScanOutput {
-  const store =
-    opts.store ??
-    indexStorePool.acquire(projectRoot, { indexDir: opts.indexDir });
+  const store = opts.store ?? indexStorePool.acquire(projectRoot, { indexDir: opts.indexDir });
 
   try {
     // Phase 1: load the full symbol universe + refs graph.
@@ -511,11 +595,118 @@ export function runDeadCodeScan(
     const discoveredFiles = discoverEntryPoints(projectRoot, opts.userEntryPoints);
     const entryFileSet = new Set(discoveredFiles.map((f) => path.resolve(f)));
 
+    // Build a set of all indexed files for module-path resolution.
+    // We need both files with symbols AND files without (pure barrels) so
+    // resolveModulePath can find intermediate barrels in re-export chains.
+    const indexedFiles = new Set<string>();
+    for (const s of allSymbols) indexedFiles.add(s.file);
+    for (const fm of store.getAllFileMetas()) indexedFiles.add(fm.file);
+
     // Map entry files to their symbol ids.
     const seedIds = new Set<number>();
     for (const s of allSymbols) {
       if (entryFileSet.has(s.file)) {
         seedIds.add(s.id);
+      }
+    }
+
+    // ── Pre-build lookups for O(1) access ───────────────────────────
+    const fileToSymbolIds = new Map<string, number[]>();
+    for (const s of allSymbols) {
+      let byFile = fileToSymbolIds.get(s.file);
+      if (!byFile) {
+        byFile = [];
+        fileToSymbolIds.set(s.file, byFile);
+      }
+      byFile.push(s.id);
+    }
+
+    // ── Recursive barrel-file scanner ─────────────────────────────────
+    // The ts-parser stores re-export refs (`export { X } from '..'`,
+    // `export * from '..'`) with fromId=0 — file-level, not attached to
+    // any specific symbol.  The BFS below only traverses refs from symbol
+    // ids (≥1), so fromId=0 refs are never visited.
+    //
+    // For **pure** barrels (zero own declarations), the refs never enter the
+    // database because assignRefsToSymbols returns [] when symbols is empty.
+    // The regex-based scanner seeds those symbols directly.
+    //
+    // For **mixed** barrels (declarations + re-exports), assignRefsToSymbols
+    // attaches the re-export ref to the first declaration (ordered[0]) so
+    // the BFS CAN follow them.  The scanner is idempotent over mixed barrels
+    // (redundant but harmless due to Set.add) and only runs when the file
+    // is in the entryFileSet anyway.  We keep scanning all entry files for
+    // simplicity — the overhead is negligible.
+    const scannedBarrels = new Set<string>();
+    const barrelWorkList = [...entryFileSet];
+    while (barrelWorkList.length > 0) {
+      const epFile = barrelWorkList.pop()!;
+      if (scannedBarrels.has(epFile)) continue;
+      scannedBarrels.add(epFile);
+
+      try {
+        const content = fs.readFileSync(epFile, 'utf8');
+        // Strip comments (not strings!) so the re-export regex doesn't get
+        // fooled by commented-out exports but can still match module paths
+        // like `'./a'` inside `export { X } from '<modulePath>'`.
+        // Stripping strings would destroy those module specifiers.
+        const strippedContent = content
+          .replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length))
+          .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
+        // Match: export { X } from '..' (single/multi-line),
+        // export type { X } from '..', export * from '..', export * as X from '..'
+        // [\s\S]*? spans newlines so multi-line export blocks match.
+        // Note: module specifiers containing embedded quotes (e.g. "module's")
+        // are not supported — [^'"]+ stops at the embedded quote.  This is an
+        // accepted limitation because module paths with quotes are vanishingly
+        // rare in practice and would only result in a false-positive dead report
+        // for that single file while the rest of the chain is unaffected.
+        const reExportRe =
+          /export\s+(?:(?:type\s+)?\{[\s\S]*?\}\s+from|\*\s+as\s+\w+\s+from|\*\s+from)\s+['"]([^'"]+)['"]/g;
+        let match: RegExpExecArray | null;
+        while ((match = reExportRe.exec(strippedContent)) !== null) {
+          const moduleSpec = match[1]!;
+          const resolvedFiles = resolveModulePath(epFile, moduleSpec, indexedFiles);
+          for (const rf of resolvedFiles) {
+            const fileSyms = fileToSymbolIds.get(rf);
+            if (fileSyms) {
+              // Named re-export (export { X } from ...) → only seed
+              // matching symbols. Wildcard (export * from ...) →
+              // seed all symbols from the source file.
+              const namedSymbols = parseNamedExportSymbols(match[0]);
+              if (namedSymbols) {
+                const nameSet = new Set(namedSymbols);
+                for (const sid of fileSyms) {
+                  const sym = symbolById.get(sid);
+                  if (sym && nameSet.has(sym.name)) seedIds.add(sid);
+                }
+              } else {
+                for (const sid of fileSyms) seedIds.add(sid);
+              }
+            }
+            // If the resolved file hasn't been scanned yet, add it to the
+            // work list for recursive scanning — re-export chains may go
+            // through mixed barrels whose fromId=0 refs the BFS can't follow.
+            if (!scannedBarrels.has(rf)) {
+              barrelWorkList.push(rf);
+            }
+          }
+        }
+      } catch (err) {
+        // Silently skip files that can't be read (deleted, moved, binary).
+        // A few false-negative dead reports from one barrel is better than
+        // crashing the scan over an I/O glitch.
+        if (err instanceof Error && (err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'dead_code_scan_barrel_read_failed',
+              message: err.message,
+              file: epFile,
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        }
       }
     }
 
@@ -567,7 +758,7 @@ export function runDeadCodeScan(
       dead.push({
         name: s.name,
         kind: s.kind as SymbolKind,
-        lang: 'ts' as SymbolLang, // populated from symbol file metadata
+        lang: detectLang(s.file) ?? ('ts' as SymbolLang),
         file: s.file,
         line: s.line,
         reason,
@@ -596,7 +787,7 @@ export function runDeadCodeScan(
         deadFiles.push({
           file,
           symbolCount: syms.length,
-          lang: syms[0]?.kind ?? 'ts',
+          lang: detectLang(file) ?? 'ts',
         });
       }
     }
@@ -606,9 +797,7 @@ export function runDeadCodeScan(
     const deadPackages: DeadPackage[] = [];
     const pkgEntries = findPackageEntries(projectRoot);
     for (const [pkgName, pkgDir] of pkgEntries) {
-      const pkgFiles = allSymbols.filter((s) =>
-        s.file.startsWith(pkgDir + path.sep),
-      );
+      const pkgFiles = allSymbols.filter((s) => s.file.startsWith(pkgDir + path.sep));
       if (pkgFiles.length === 0) continue;
       const pkgUsed = pkgFiles.filter((s) => alive.has(s.id));
       if (pkgUsed.length === 0) {
@@ -649,9 +838,7 @@ export function runDeadCodeScan(
 
 // ─── Package discovery helpers ─────────────────────────────────────────────
 
-function findPackageEntries(
-  projectRoot: string,
-): Map<string, string> {
+function findPackageEntries(projectRoot: string): Map<string, string> {
   const pkgMap = new Map<string, string>();
 
   // Root package

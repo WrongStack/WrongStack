@@ -20,42 +20,33 @@ import { expectDefined } from '@wrongstack/core/utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
+import { lspKindToInternalKind } from './lsp-kind.js';
 import type {
+  CodeMapGraph,
   FileMeta,
   IndexStats,
+  Symbol as IndexSymbol,
   Ref,
   SearchResult,
-  Symbol as IndexSymbol,
   SymbolKind,
   SymbolLang,
-  CodeMapGraph,
 } from './schema.js';
 import { SCHEMA_VERSION } from './schema.js';
-import { lspKindToInternalKind } from './lsp-kind.js';
-import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
 import { loadDatabaseSync, runSqliteWithRetry } from './sqlite-runtime.js';
-import { assignRefsToSymbols, escapeLike, resolveIndexDir } from './writer-helpers.js';
 import {
-  CORE_TABLES_SQL,
-  METADATA_TABLE_SQL,
-  REFS_INDEX_SQL,
-  REFS_TABLE_SQL,
-  SYMBOLS_FTS_SQL,
-  SYMBOL_INDEX_SQL,
-} from './writer-schema.js';
-import {
-  getAllIndexableWithStatement,
   getAllFileMetasWithStatement,
+  getAllIndexableWithStatement,
   getFileMetaWithStatement,
   getMaxSymbolIdWithStatement,
   getMetadataWithStatement,
   getStatsWithStatement,
 } from './writer-admin.js';
 import {
+  type BulkSymbolRow,
   bulkInsertFtsWithStatement,
   bulkInsertRefsWithStatement,
   bulkInsertSymbolsWithStatement,
-  type BulkSymbolRow,
 } from './writer-bulk-insert.js';
 import {
   findRefsFromWithStatement,
@@ -64,7 +55,16 @@ import {
   getPackageGraphWithStatement,
   getSymbolGraphWithStatement,
 } from './writer-graph-reader.js';
+import { assignRefsToSymbols, escapeLike, resolveIndexDir } from './writer-helpers.js';
 import { applyIndexStorePragmas } from './writer-pragmas.js';
+import {
+  CORE_TABLES_SQL,
+  METADATA_TABLE_SQL,
+  REFS_INDEX_SQL,
+  REFS_TABLE_SQL,
+  SYMBOL_INDEX_SQL,
+  SYMBOLS_FTS_SQL,
+} from './writer-schema.js';
 import {
   buildWriterSearchWhere,
   mapWriterSearchRow,
@@ -73,8 +73,10 @@ import {
   type WriterSearchRow,
 } from './writer-search-helpers.js';
 import { StorePool } from './writer-store-pool.js';
+
 export { codebaseIndexDirOverride, resolveIndexDir } from './writer-helpers.js';
 export { StorePool } from './writer-store-pool.js';
+
 const DB_FILE = 'index.db';
 
 export class IndexStore {
@@ -145,8 +147,9 @@ export class IndexStore {
     // Schema migration: the index is derived, rebuildable data — on any
     // version mismatch we drop everything and let the next index run repopulate
     // from source, instead of maintaining per-version migration scripts.
-    const storedRows = this.stmt('SELECT value FROM metadata WHERE key = ?')
-      .all('version') as { value: string }[];
+    const storedRows = this.stmt('SELECT value FROM metadata WHERE key = ?').all('version') as {
+      value: string;
+    }[];
     const storedVersion = storedRows.length ? Number(storedRows[0]?.value) : null;
     if (storedVersion !== null && storedVersion !== SCHEMA_VERSION) {
       this.db.exec(`
@@ -155,11 +158,15 @@ export class IndexStore {
         DROP TABLE IF EXISTS refs;
       `);
       this.db.exec('DROP TABLE IF EXISTS symbols_fts');
-      this.stmt('UPDATE metadata SET value = ? WHERE key = ?')
-        .run(String(SCHEMA_VERSION), 'version');
+      this.stmt('UPDATE metadata SET value = ? WHERE key = ?').run(
+        String(SCHEMA_VERSION),
+        'version',
+      );
     } else if (storedVersion === null) {
-      this.stmt('INSERT INTO metadata(key, value) VALUES (?, ?)')
-        .run('version', String(SCHEMA_VERSION));
+      this.stmt('INSERT INTO metadata(key, value) VALUES (?, ?)').run(
+        'version',
+        String(SCHEMA_VERSION),
+      );
     }
 
     this.db.exec(CORE_TABLES_SQL);
@@ -178,20 +185,18 @@ export class IndexStore {
       // the derived table when FTS later becomes available instead of making
       // every historical symbol invisible until a forced rebuild.
       const symbolCount = Number(
-        (this.stmt('SELECT COUNT(*) AS n FROM symbols').get() as { n?: number } | undefined)
-          ?.n ?? 0,
+        (this.stmt('SELECT COUNT(*) AS n FROM symbols').get() as { n?: number } | undefined)?.n ??
+          0,
       );
       const ftsCount = Number(
-        (
-          this.stmt('SELECT COUNT(*) AS n FROM symbols_fts').get() as
-            | { n?: number }
-            | undefined
-        )?.n ?? 0,
+        (this.stmt('SELECT COUNT(*) AS n FROM symbols_fts').get() as { n?: number } | undefined)
+          ?.n ?? 0,
       );
       if (symbolCount !== ftsCount) {
         this.db.exec('DELETE FROM symbols_fts');
-        const rows = this.stmt('SELECT id, name, signature, doc_comment FROM symbols ORDER BY id')
-          .all() as Array<{ id: number; name: string; signature: string; doc_comment: string }>;
+        const rows = this.stmt(
+          'SELECT id, name, signature, doc_comment FROM symbols ORDER BY id',
+        ).all() as Array<{ id: number; name: string; signature: string; doc_comment: string }>;
         bulkInsertFtsWithStatement(
           (sql) => this.stmt(sql),
           IndexStore.MAX_SQL_VARS,
@@ -450,7 +455,9 @@ export class IndexStore {
     const sql = `SELECT id, lang, kind, name, file, line, col, signature, doc_comment, text FROM symbols ${where}${limitSql}`;
 
     const binds = limit !== undefined ? [...values, limit] : values;
-    const rows = this.stmt(sql).all(...(binds as (string | number)[])) as unknown as WriterSearchRow[];
+    const rows = this.stmt(sql).all(
+      ...(binds as (string | number)[]),
+    ) as unknown as WriterSearchRow[];
 
     return rows.map((row) => mapWriterSearchRow(row, filter?.lspKind));
   }
@@ -519,14 +526,13 @@ export class IndexStore {
     const where = conditions.join(' AND ');
 
     const countRows = this.stmt(
-        `SELECT COUNT(*) AS n FROM symbols_fts JOIN symbols s ON s.id = symbols_fts.rowid WHERE ${where}`,
-      )
-      .all(...values) as { n: number }[];
+      `SELECT COUNT(*) AS n FROM symbols_fts JOIN symbols s ON s.id = symbols_fts.rowid WHERE ${where}`,
+    ).all(...values) as { n: number }[];
     const total = countRows[0] ? Number(countRows[0].n) : 0;
     if (total === 0) return { results: [], total: 0 };
 
     const rows = this.stmt(
-        `SELECT s.id, s.lang, s.kind, s.name, s.file, s.line, s.col, s.signature, s.doc_comment,
+      `SELECT s.id, s.lang, s.kind, s.name, s.file, s.line, s.col, s.signature, s.doc_comment,
                 -bm25(symbols_fts) AS score,
                 snippet(symbols_fts, 0, '', '', '…', 12) AS snippet
          FROM symbols_fts JOIN symbols s ON s.id = symbols_fts.rowid
@@ -537,8 +543,7 @@ export class IndexStore {
                 ELSE 2 END,
            bm25(symbols_fts), lower(s.name), s.file, s.line, s.col, s.id
          LIMIT ?`,
-      )
-      .all(...values, query.trim(), `${escapeLike(query.trim())}%`, safeLimit) as {
+    ).all(...values, query.trim(), `${escapeLike(query.trim())}%`, safeLimit) as {
       id: number;
       lang: string;
       kind: string;
@@ -682,8 +687,9 @@ export class IndexStore {
 
   setLastIndexed(ts: number): void {
     this.runWithRetry(() => {
-      this.stmt("INSERT OR REPLACE INTO metadata(key, value) VALUES('last_indexed', ?)")
-        .run(String(ts));
+      this.stmt("INSERT OR REPLACE INTO metadata(key, value) VALUES('last_indexed', ?)").run(
+        String(ts),
+      );
     });
   }
 
@@ -814,17 +820,16 @@ export class IndexStore {
           }
           if (this.ftsAvailable) {
             this.stmt(
-                `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
-              )
-              .run(...options.deleteForFiles);
+              `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
+            ).run(...options.deleteForFiles);
           }
           // Refs first (FK direction: refs.from_id → symbols.id).
           this.stmt(
-              `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
-            )
-            .run(...options.deleteForFiles);
-          this.stmt(`DELETE FROM symbols WHERE file IN (${placeholders})`)
-            .run(...options.deleteForFiles);
+            `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
+          ).run(...options.deleteForFiles);
+          this.stmt(`DELETE FROM symbols WHERE file IN (${placeholders})`).run(
+            ...options.deleteForFiles,
+          );
         }
 
         // 2) Assign ids + multi-row insert symbols (+ FTS).
@@ -875,11 +880,7 @@ export class IndexStore {
         );
 
         // 3) Multi-row insert all refs.
-        bulkInsertRefsWithStatement(
-          (sql) => this.stmt(sql),
-          IndexStore.MAX_SQL_VARS,
-          refsToInsert,
-        );
+        bulkInsertRefsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, refsToInsert);
 
         // 4) Upsert file metadata for every entry (small N — single-row is fine).
         const upsertStmt = this.stmt(
@@ -912,8 +913,9 @@ export class IndexStore {
    */
   deleteRefsForFile(file: string): void {
     this.runWithRetry(() => {
-      this.stmt('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)')
-        .run(file);
+      this.stmt('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(
+        file,
+      );
     });
   }
 
@@ -1012,9 +1014,7 @@ export class IndexStore {
    * freelist. Compact only large, materially sparse databases and only when the
    * caller is already on a full-index maintenance path.
    */
-  compactIfNeeded(
-    options: { minBytes?: number; minFreeRatio?: number } = {},
-  ): boolean {
+  compactIfNeeded(options: { minBytes?: number; minFreeRatio?: number } = {}): boolean {
     const minBytes = options.minBytes ?? 256 * 1024 * 1024;
     const minFreeRatio = options.minFreeRatio ?? 0.35;
     try {
@@ -1102,9 +1102,7 @@ export class IndexStore {
     line: number;
   }> {
     return (
-      this.stmt(
-        'SELECT id, name, file, kind, line FROM symbols ORDER BY id',
-      ).all() as Array<{
+      this.stmt('SELECT id, name, file, kind, line FROM symbols ORDER BY id').all() as Array<{
         id: number;
         name: string;
         file: string;
@@ -1127,6 +1125,40 @@ export class IndexStore {
     return this.stmt(
       'SELECT from_id AS fromId, to_id AS toId, call_type AS callType FROM refs WHERE to_id IS NOT NULL',
     ).all() as Array<{ fromId: number; toId: number; callType: string }>;
+  }
+
+  /**
+   * Returns ALL import refs (including unresolved) with their source-file
+   * path and resolved target id.  Used by the dead-code scan's file-level
+   * graph traversal to handle barrel-only entry points where no symbol
+   * carries the ref.
+   *
+   * Refs whose `from_id` doesn't match a known symbol (e.g. pure-barrel
+   * files with no declarations) will have `sourceFile === null`.
+   */
+  getAllImportRefs(): Array<{
+    /** Source-file path (null when the owning symbol can't be resolved). */
+    sourceFile: string | null;
+    toName: string;
+    /** Resolved target symbol id (null when the name couldn't be matched). */
+    toId: number | null;
+    callType: string;
+    line: number;
+  }> {
+    return this.stmt(
+      `SELECT s.file AS sourceFile, r.to_name AS toName, r.to_id AS toId,
+              r.call_type AS callType, r.line
+       FROM refs r
+       LEFT JOIN symbols s ON r.from_id = s.id
+       WHERE r.call_type = 'import'
+       ORDER BY r.line`,
+    ).all() as Array<{
+      sourceFile: string | null;
+      toName: string;
+      toId: number | null;
+      callType: string;
+      line: number;
+    }>;
   }
 
   close(): void {

@@ -71,8 +71,16 @@ describe('ts-parser parseSymbols — declaration kinds', () => {
 
 describe('ts-parser — JSDoc extraction', () => {
   it('captures the first line of a leading JSDoc comment', async () => {
-    const content = ['/**', ' * Adds two numbers.', ' * @param a first', ' */', 'function add(a: number) {}'].join('\n');
-    expect((await parse(content)).symbols.find((s) => s.name === 'add')?.docComment).toBe('Adds two numbers.');
+    const content = [
+      '/**',
+      ' * Adds two numbers.',
+      ' * @param a first',
+      ' */',
+      'function add(a: number) {}',
+    ].join('\n');
+    expect((await parse(content)).symbols.find((s) => s.name === 'add')?.docComment).toBe(
+      'Adds two numbers.',
+    );
   });
 
   it('returns no docComment for a plain (non-JSDoc) comment', async () => {
@@ -81,7 +89,9 @@ describe('ts-parser — JSDoc extraction', () => {
   });
 
   it('returns no docComment when there is no leading comment', async () => {
-    expect((await parse('function bare() {}')).symbols.find((s) => s.name === 'bare')?.docComment).toBe('');
+    expect(
+      (await parse('function bare() {}')).symbols.find((s) => s.name === 'bare')?.docComment,
+    ).toBe('');
   });
 });
 
@@ -103,7 +113,7 @@ describe('ts-parser — reference extraction', () => {
     const refs = (await parse(content)).refs ?? [];
     const has = (callType: string, toName: string) =>
       refs.some((r) => r.callType === callType && r.toName === toName);
-    expect(has('import', './dep.js')).toBe(true);
+    expect(has('import', 'x')).toBe(true); // import { x } → toName is 'x', not module path
     expect(has('call', 'helper')).toBe(true);
     expect(has('call', 'obj')).toBe(true); // property access on identifier `obj`
     expect(has('inherit', 'Base')).toBe(true);

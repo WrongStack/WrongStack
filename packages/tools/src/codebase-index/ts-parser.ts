@@ -12,7 +12,7 @@
  */
 
 import type * as TS from '@typescript/typescript6';
-import type { FileSymbols, Ref, Symbol as IndexSymbol, SymbolKind, SymbolLang } from './schema.js';
+import type { FileSymbols, Symbol as IndexSymbol, Ref, SymbolKind, SymbolLang } from './schema.js';
 
 type TsModule = typeof import('@typescript/typescript6');
 
@@ -45,16 +45,16 @@ let kindMapCache: Partial<Record<TS.SyntaxKind, SymbolKind>> | null = null;
 
 function kindMap(): Partial<Record<TS.SyntaxKind, SymbolKind>> {
   kindMapCache ??= {
-    [ts.SyntaxKind.ClassDeclaration]:      'class',
+    [ts.SyntaxKind.ClassDeclaration]: 'class',
     [ts.SyntaxKind.InterfaceDeclaration]: 'interface',
-    [ts.SyntaxKind.EnumDeclaration]:       'enum',
-    [ts.SyntaxKind.TypeAliasDeclaration]:  'type',
-    [ts.SyntaxKind.FunctionDeclaration]:    'function',
-    [ts.SyntaxKind.MethodDeclaration]:     'method',
-    [ts.SyntaxKind.GetAccessor]:           'property',
-    [ts.SyntaxKind.SetAccessor]:           'property',
-    [ts.SyntaxKind.PropertyDeclaration]:   'property',
-    [ts.SyntaxKind.Parameter]:            'parameter',
+    [ts.SyntaxKind.EnumDeclaration]: 'enum',
+    [ts.SyntaxKind.TypeAliasDeclaration]: 'type',
+    [ts.SyntaxKind.FunctionDeclaration]: 'function',
+    [ts.SyntaxKind.MethodDeclaration]: 'method',
+    [ts.SyntaxKind.GetAccessor]: 'property',
+    [ts.SyntaxKind.SetAccessor]: 'property',
+    [ts.SyntaxKind.PropertyDeclaration]: 'property',
+    [ts.SyntaxKind.Parameter]: 'parameter',
     [ts.SyntaxKind.NamespaceExportDeclaration]: 'namespace',
   };
   return kindMapCache;
@@ -82,7 +82,11 @@ function kindOf(node: TS.Node): SymbolKind | null {
 // Extension → language lives in languages.ts (single source of truth for
 // discovery + first-class + generic coverage).
 
-function getSignature(printer: TS.Printer, node: TS.Declaration, sourceFile: TS.SourceFile): string {
+function getSignature(
+  printer: TS.Printer,
+  node: TS.Declaration,
+  sourceFile: TS.SourceFile,
+): string {
   const raw = printer.printNode(ts.EmitHint.Unspecified, node, sourceFile);
   return raw.replace(/\s+/g, ' ').slice(0, 500);
 }
@@ -108,8 +112,8 @@ function getJsDoc(node: TS.Node, sourceFile: TS.SourceFile): string {
     if (trimmed.startsWith('/**') && trimmed.endsWith('*/')) {
       // Strip the /** and */ delimiters and leading * on each line
       const inner = trimmed
-        .slice(3, -2)              // remove /** and */
-        .replace(/^[ \t]*\*[ ]?/gm, '')  // remove leading " * " or " *" on each line
+        .slice(3, -2) // remove /** and */
+        .replace(/^[ \t]*\*[ ]?/gm, '') // remove leading " * " or " *" on each line
         .trim();
       return inner.split('\n')[0]?.trim().slice(0, 200) ?? '';
     }
@@ -246,11 +250,25 @@ export async function parseSymbols(opts: ParseOptions): Promise<FileSymbols> {
     } else if (ts.isHeritageClause(node)) {
       for (const t of node.types) {
         const name = getTypeName(t.expression as TS.EntityName);
-        if (name) refs.push({ fromId: 0, toName: name, callType: node.token === ts.SyntaxKind.ExtendsKeyword ? 'inherit' : 'implement', line: lineNum });
+        if (name)
+          refs.push({
+            fromId: 0,
+            toName: name,
+            callType: node.token === ts.SyntaxKind.ExtendsKeyword ? 'inherit' : 'implement',
+            line: lineNum,
+          });
       }
     } else if (ts.isImportDeclaration(node)) {
-      const moduleName = getModuleName(node);
-      if (moduleName) refs.push({ fromId: 0, toName: moduleName, callType: 'import', line: lineNum });
+      // Emit import refs for each imported symbol NAME rather than the module
+      // path string.  This lets the ref resolver match the import against the
+      // target symbol's declaration name, so the dead-code BFS can traverse
+      // module boundaries.  Module-path refs (old behaviour) were never
+      // resolvable because no symbol is ever named './foo.js'.
+      emitImportSpecifierRefs(node, refs, lineNum);
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      // Re-exports: export { X } from './foo' — emit refs for the exported
+      // names so they resolve to the source module's symbols.
+      emitExportSpecifierRefs(node, refs, lineNum);
     }
 
     // Push scope name before recursing, pop after (O(1) instead of O(depth) parent walk)
@@ -276,14 +294,6 @@ function getTypeName(name: TS.EntityName): string {
   return '';
 }
 
-/** Get the module path string from an import declaration. */
-function getModuleName(node: TS.ImportDeclaration): string {
-  const moduleSpecifier = node.moduleSpecifier;
-  if (ts.isStringLiteral(moduleSpecifier)) return moduleSpecifier.text;
-  /* v8 ignore next -- an import declaration's module specifier is always a string literal; defensive. */
-  return '';
-}
-
 /** Remove duplicate refs (same toName, callType, line). fromId is always 0 at this stage. */
 function deduplicateRefs(refs: Ref[]): Ref[] {
   const seen = new Set<string>();
@@ -293,6 +303,94 @@ function deduplicateRefs(refs: Ref[]): Ref[] {
     seen.add(key);
     return true;
   });
+}
+
+/** Extract the imported (original-export) name from an ImportSpecifier. */
+function getImportSpecifierName(spec: TS.ImportSpecifier): string {
+  // import { X as Y } from './foo' → propertyName is 'X', name is 'Y'
+  // import { X } from './foo' → propertyName is undefined, name is 'X'
+  // We emit the ORIGINAL exported name so the ref resolves to the
+  // declaration symbol in the source module.
+  return spec.propertyName?.text ?? spec.name.text;
+}
+
+/**
+ * Emit `import` refs for each named symbol brought into scope by an
+ * `ImportDeclaration`.  Uses the original exported name (not the local
+ * alias and not the module path) so the ref resolver can match it against
+ * the target symbol's declaration name.
+ *
+ * Handles:
+ *   import { X } from 'M'           → ref toName: 'X'
+ *   import { X as Y } from 'M'      → ref toName: 'X'  (original name)
+ *   import X from 'M'                → ref toName: 'X'
+ *   import * as X from 'M'           → ref toName: 'X'
+ *   import { type X } from 'M'       → ref toName: 'X'  (type-only flagged)
+ *   import 'M'                       → no refs (side-effect only)
+ */
+function emitImportSpecifierRefs(node: TS.ImportDeclaration, refs: Ref[], lineNum: number): void {
+  const clause = node.importClause;
+  if (!clause) return; // side-effect import: import 'foo'
+
+  // Default import: import X from 'M'  (may coexist with named bindings
+  // e.g. import React, { useState } from 'react')
+  if (clause.name) {
+    refs.push({ fromId: 0, toName: clause.name.text, callType: 'import', line: lineNum });
+  }
+
+  // Named imports: import { X, Y } from 'M'
+  const bindings = clause.namedBindings;
+  if (!bindings) return;
+
+  if (ts.isNamedImports(bindings)) {
+    for (const element of bindings.elements) {
+      refs.push({
+        fromId: 0,
+        toName: getImportSpecifierName(element),
+        callType: 'import',
+        line: lineNum,
+      });
+    }
+  } else if (ts.isNamespaceImport(bindings)) {
+    // import * as X from 'M'
+    refs.push({ fromId: 0, toName: bindings.name.text, callType: 'import', line: lineNum });
+  }
+}
+
+/**
+ * Emit `import` refs for each symbol re-exported by an `ExportDeclaration`
+ * with a `from` clause.  These use the original source-side name so the ref
+ * resolves to the declaration symbol in the source module.
+ *
+ * Handles:
+ *   export { X } from 'M'           → ref toName: 'X'
+ *   export { X as Y } from 'M'      → ref toName: 'X'  (original name)
+ *   export * as X from 'M'          → ref toName: 'X'  (namespace)
+ *   export * from 'M'               → NO ref (wildcard — handled via
+ *                                      file-level graph in dead-code-scan)
+ */
+function emitExportSpecifierRefs(node: TS.ExportDeclaration, refs: Ref[], lineNum: number): void {
+  const clause = node.exportClause;
+
+  if (clause && ts.isNamespaceExport(clause)) {
+    // export * as X from 'M' — NamespaceExport has a .name
+    refs.push({ fromId: 0, toName: clause.name.text, callType: 'import', line: lineNum });
+    return;
+  }
+
+  if (clause && ts.isNamedExports(clause)) {
+    // export { X } from 'M' — NamedExports
+    for (const element of clause.elements) {
+      // export { X as Y } → propertyName is 'X' (original), name is 'Y' (exported)
+      // export { X } → propertyName is undefined, name is 'X'
+      const originalName = element.propertyName?.text ?? element.name.text;
+      refs.push({ fromId: 0, toName: originalName, callType: 'import', line: lineNum });
+    }
+    return;
+  }
+
+  // export * from 'M' — no clause (wildcard).  No per-symbol ref is
+  // possible; the dead-code-scan handles this via file-level graph.
 }
 
 /** Detect SymbolLang from a file path — re-exported from the central map. */
