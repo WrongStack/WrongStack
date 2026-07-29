@@ -296,12 +296,19 @@ export function ChatView() {
     return () => document.removeEventListener('open:context-editor', handler);
   }, []);
 
-  // Listen for session-end event → expand collapsed input so next-steps
-  // selections can reach the textarea.
+  // Listen for session-end and run-completion events → expand collapsed
+  // input so next-steps selections can reach the textarea.
+  // - chat:session-end fires on WS session teardown.
+  // - chat:next-step-countdown fires when a run completes and the Next Steps
+  //   screen is about to appear.
   useEffect(() => {
     const handler = () => setInputCollapsed(false);
     document.addEventListener('chat:session-end', handler);
-    return () => document.removeEventListener('chat:session-end', handler);
+    document.addEventListener('chat:next-step-countdown', handler);
+    return () => {
+      document.removeEventListener('chat:session-end', handler);
+      document.removeEventListener('chat:next-step-countdown', handler);
+    };
   }, []);
 
   // Context window usage: cap display at 100%; raw token counts still show overflow.

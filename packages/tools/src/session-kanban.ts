@@ -15,9 +15,9 @@ import { deserializeTaskGraph } from '@wrongstack/core/tasking';
 import type { SerializedTaskGraph, TaskStatus } from '@wrongstack/core/types';
 import { resolveWstackPaths, type TaskItem } from '@wrongstack/core/utils';
 import {
+  bridgeKanbanSupervisor,
   createBoard,
   getBoard,
-  getKanbanDir,
   type KanbanBoard,
   type KanbanColumn,
   type KanbanTask,
@@ -569,7 +569,7 @@ export function attachSessionKanbanMirror(context: Context): () => void {
   let watcher: FSWatcher | null = null;
   let watchedDir = '';
   let timer: NodeJS.Timeout | null = null;
-  let boardWatcher: FSWatcher | null = null;
+  let unsubscribeBoardEvents: (() => void) | null = null;
   let watchedBoardId = '';
   let boardTimer: NodeJS.Timeout | null = null;
   let presenceTimer: NodeJS.Timeout | null = null;
@@ -600,19 +600,19 @@ export function attachSessionKanbanMirror(context: Context): () => void {
     const id = sessionId();
     const board = id ? await ensureSessionKanbanBoard(context.projectRoot, id) : null;
     if (!board || board.id === watchedBoardId) return;
-    boardWatcher?.close();
-    boardWatcher = null;
+    unsubscribeBoardEvents?.();
+    unsubscribeBoardEvents = null;
     watchedBoardId = board.id;
     try {
-      const boardFileName = `${board.id}.json`;
-      boardWatcher = watch(
-        getKanbanDir(context.projectRoot),
-        { persistent: false },
-        (_event, filename) => {
-          if (filename?.toString() !== boardFileName) return;
+      unsubscribeBoardEvents = bridgeKanbanSupervisor(
+        context.projectRoot,
+        (event) => {
+          const data = event.data as { boardId?: string } | undefined;
+          if (data?.boardId !== board.id) return;
           if (boardTimer) clearTimeout(boardTimer);
           boardTimer = setTimeout(() => fireAndForget('refresh-board', refreshBoard()), 60);
         },
+        { autoReconnect: true, reconnectDelayMs: 1_000 },
       );
       const touchPresence = () =>
         touchKanbanPresence(context.projectRoot, board.id, {
@@ -624,13 +624,8 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       if (presenceTimer) clearInterval(presenceTimer);
       presenceTimer = setInterval(() => fireAndForget('touch-presence', touchPresence()), 60_000);
       presenceTimer.unref?.();
-      boardWatcher.on('error', () => {
-        boardWatcher?.close();
-        boardWatcher = null;
-        watchedBoardId = '';
-      });
     } catch {
-      boardWatcher = null;
+      unsubscribeBoardEvents = null;
       watchedBoardId = '';
     }
   };
@@ -697,7 +692,7 @@ export function attachSessionKanbanMirror(context: Context): () => void {
     if (boardTimer) clearTimeout(boardTimer);
     if (presenceTimer) clearInterval(presenceTimer);
     watcher?.close();
-    boardWatcher?.close();
+    unsubscribeBoardEvents?.();
     bindings.delete(context);
     if (attachedProjectRoot && registeredSessionId) {
       releaseActiveSessionBoard(attachedProjectRoot, registeredSessionId);

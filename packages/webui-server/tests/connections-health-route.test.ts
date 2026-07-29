@@ -99,10 +99,12 @@ describe('connections health kanban service', () => {
   it('reports a healthy kanban IPC row when ping returns the project-server status', async () => {
     vi.resetModules();
     const ping = vi.fn(async () => ({
-      protocolVersion: 1,
+      protocolVersion: 2,
       pid: 9001,
       projectRoot: '/project',
-      endpoint: '\\\\.\\pipe\\wrongstack-kanban-v1-deadbeef',
+      endpoint: '\\\\.\\pipe\\wrongstack-kanban-v2-deadbeef',
+      storage: 'sqlite' as const,
+      databasePath: '/project/.wrongstack/kanbans/_kanban.sqlite',
       startedAt: new Date(Date.now() - 12_000).toISOString(),
       clients: 3,
       pendingRequests: 0,
@@ -134,7 +136,7 @@ describe('connections health kanban service', () => {
       ownerPid: 9001,
       clients: 3,
       activeRequests: 0,
-      storage: '/project/.wrongstack/kanbans',
+      storage: '/project/.wrongstack/kanbans/_kanban.sqlite',
     });
     expect(typeof kanban?.latencyMs).toBe('number');
     expect(typeof kanban?.uptimeMs).toBe('number');

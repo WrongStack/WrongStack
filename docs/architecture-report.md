@@ -1,7 +1,7 @@
 # WrongStack — Comprehensive Architecture Report
 
-> **Generated:** 2026-07-22  
-> **Version:** 0.295.0  
+> **Generated:** 2026-07-28  
+> **Version:** 0.296.2  
 > **Repository:** github.com/WrongStack/WrongStack  
 > **Stack:** TypeScript 7 strict, pnpm workspace monorepo, Node.js ≥ 22.19
 
@@ -55,13 +55,13 @@
 **WrongStack** is a free, open-source, MIT-licensed AI coding agent that runs in the terminal. It reads code, edits files, runs commands, and reasons through bugs across five surfaces: a plain REPL, a full-screen Ink/React TUI (`--tui`), a browser WebUI (`--webui`), an Electron desktop shell (`--desktop`), and a cross-machine HQ command center (`--hq`).
 
 Key numbers:
-- **~530 source files** across 17 packages + 2 apps
-- **58 built-in tools** in `@wrongstack/tools`
+- **~630 source files** across 17 packages + 2 apps
+- **60+ built-in tools** in `@wrongstack/tools`
 - **23 built-in skills** shipped with `@wrongstack/core`
 - **73 managed plugin rows** (8 core + 63 in `@wrongstack/plugins` + 2 bridges)
 - **~140 LLM providers** auto-discovered from models.dev
 - **~75 slash commands** in the CLI
-- **~47 agent roles** in the multi-agent roster
+- **75 agent roles** in the multi-agent roster
 - **TypeScript 7 strict**, ESM-only, `noUncheckedIndexedAccess`
 
 ### Tech Stack
@@ -296,16 +296,23 @@ Decision-making infrastructure:
 ### 6.5 Dispatcher (`dispatcher.ts`)
 `dispatchAgent` routes tasks to the best agent using an `LLMClassifier` or `scoreAgents` heuristic. Supports `DEFAULT_DISPATCH_ROLE` for fallback routing.
 
-### 6.6 Mailbox System (`mailbox.ts`, `global-mailbox.ts`, `mailbox-actions.ts`, `mailbox-events.ts`, `mailbox-health.ts`, `mailbox-hooks.ts`, `mailbox-http-router.ts`, `mailbox-message-codec.ts`, `mailbox-tool.ts`, `mailbox-types.ts`)
-Inter-agent messaging across processes, sessions, worktrees, and machines:
-- `GlobalMailbox` — singleton; file-based JSONL under `~/.wrongstack/projects/<slug>/_mailbox.jsonl`
+### 6.6 Mailbox System (SQLite IPC)
+
+Inter-agent messaging across processes, sessions, worktrees, and machines via a **single-owner, SQLite-backed IPC architecture**:
+- `SqliteMailbox` (`sqlite-mailbox.ts`) — the authoritative store; only the elected project server opens the SQLite database directly
+- `MailboxProjectServer` (`mailbox-project-server.ts`, `mailbox-project-server-protocol.ts`, `mailbox-project-server-endpoint.ts`) — detached IPC server that owns `~/.wrongstack/projects/<slug>/_mailbox.sqlite`
+- `RemoteMailbox` (`remote-mailbox.ts`) — client-side proxy; all production callers communicate over deterministic IPC
+- `MailboxProjectServerClient` (`mailbox-project-server-client.ts`) — IPC client connection and framing
 - Message types: `note`, `ask`, `assign`, `steer`, `btw`, `broadcast`, `status`, `result`, `review`, `control`
 - Audience scoping: `all` vs `leaders` (hides from subagents)
-- HTTP bridge (`mailbox-http-router.ts`) for cross-machine communication
+- HTTP bridge (`mailbox-http-router.ts`, `mailbox-http-auth.ts`, `mailbox-http-rate-limit.ts`) for cross-machine communication
 - Mailbox hooks (`mailbox-hooks.ts`) for lifecycle events
+- Supporting modules: `mailbox-actions.ts`, `mailbox-events.ts`, `mailbox-health.ts`, `mailbox-message-codec.ts`, `mailbox-tool.ts`, `mailbox-types.ts`, `mailbox-credential-store.ts`, `mailbox-retention-state.ts`, `mailbox-receipt-folding.ts`, `mailbox-type-properties.ts`, `mailbox-registry-codec.ts`, `mailbox-codecs.ts`, `mailbox-parse-state.ts`, `mailbox-constants.ts`, `mailbox-status-mappers.ts`, `single-instance-mailbox.ts`, `mail-tools.ts`
+
+The old `GlobalMailbox` and `DefaultMailbox` JSONL implementations have been removed. Production construction fails closed with no escape hatch. The architecture boundary is enforced by `packages/core/tests/architecture/mailbox-ipc-boundary.test.ts`.
 
 ### 6.7 Agent Catalog (`agents/`)
-47 agent roles organized in phases:
+75 agent roles organized in phases:
 - Phase 1: Discovery agents
 - Phase 2: Planning agents
 - Phase 3: Build agents (platform, meta)
@@ -836,7 +843,7 @@ Offline React app for the cross-machine coordination surface (port 3499). Featur
 ## 17. Specialized Packages
 
 ### 17.1 Kanban (`packages/kanban`)
-Standalone, deterministic file-based multi-kanban board manager. Depends only on `@wrongstack/persistence`. Provides:
+Standalone, project-scoped multi-kanban service with a single IPC owner and SQLite persistence. Depends only on `@wrongstack/persistence`. Provides:
 - CRUD operations on boards, columns, tasks
 - Managed cards with lifecycle transitions (Backlog → Todo → Running → Review → Done)
 - Task assignment, dependencies, recovery
@@ -1008,7 +1015,7 @@ packages/kanban, packages/persistence  → lowest layer (no WrongStack dependenc
 
 7. **Streaming Tools**: `executeStream` yields typed progress events (`log`, `partial_output`, `metric`, `file_changed`, `warning`) → published on EventBus → consumed by all UI surfaces uniformly.
 
-8. **Inter-Agent Mailbox**: File-based JSONL messaging across processes, sessions, worktrees, and machines. HTTP bridge for cross-machine communication. Type-safe with audience scoping.
+8. **Inter-Agent SQLite Mailbox**: Single-owner, SQLite-backed IPC messaging across processes, sessions, worktrees, and machines. All production callers use `RemoteMailbox` over deterministic IPC. The old GlobalMailbox/JSONL architecture was removed. HTTP bridge (`mailbox-http-router.ts`) for cross-machine communication. Type-safe with audience scoping. Enforced by `mailbox-ipc-boundary.test.ts`.
 
 9. **Two-Layer Compaction**: `SelectiveCompactor` (preserves critical messages) + `IntelligentCompactor` (LLM summarization) compose in `HybridCompactor`. Policy-driven with four modes.
 
@@ -1024,4 +1031,4 @@ packages/kanban, packages/persistence  → lowest layer (no WrongStack dependenc
 
 ---
 
-*Report generated from direct analysis of 533 source files across 17 packages and 2 apps, architecture documentation, package manifests, and type definitions.*
+*Report generated from direct analysis of ~630 source files across 17 packages and 2 apps, architecture documentation, package manifests, and type definitions.*

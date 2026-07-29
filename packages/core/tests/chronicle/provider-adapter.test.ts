@@ -127,4 +127,138 @@ describe('wireProviderAttemptsToChronicle', () => {
     // The shared bus payload must never be mutated in place.
     expect(first.tools.names).toEqual(['read', 'write', 'edit']);
   });
+
+  it('records taskId/boardId in scope on provider.attempt.started', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-provider-task-start-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
+
+    events.emit('provider.attempt.started', {
+      sessionId: 'sess',
+      agentId: 'leader',
+      logicalRequestId: 'req-task',
+      attemptId: 'att-task',
+      attempt: 0,
+      providerId: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+      streaming: true,
+      messageCount: 2,
+      toolCount: 5,
+      startedAt: new Date().toISOString(),
+      taskId: 'task-42',
+      boardId: 'board-7',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({
+      sessionId: 'sess',
+      agentId: 'leader',
+      taskId: 'task-42',
+      kanbanBoardId: 'board-7',
+    });
+    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'anthropic', modelId: 'claude-sonnet-4-20250514' });
+  });
+
+  it('records taskId/boardId in scope on provider.attempt.completed', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-provider-task-comp-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
+
+    events.emit('provider.attempt.completed', {
+      sessionId: 'sess',
+      agentId: 'leader',
+      logicalRequestId: 'req-comp',
+      attemptId: 'att-comp',
+      attempt: 0,
+      providerId: 'openai',
+      model: 'gpt-4o',
+      startedAt: '2026-07-18T00:00:00.000Z',
+      endedAt: '2026-07-18T00:00:02.000Z',
+      durationMs: 2000,
+      stopReason: 'end_turn',
+      usage: { input: 50, output: 30 },
+      taskId: 'task-99',
+      boardId: 'board-7',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-99', kanbanBoardId: 'board-7' });
+  });
+
+  it('records taskId/boardId in scope on provider.attempt.failed', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-provider-task-fail-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
+
+    events.emit('provider.attempt.failed', {
+      sessionId: 'sess',
+      agentId: 'leader',
+      logicalRequestId: 'req-fail',
+      attemptId: 'att-fail',
+      attempt: 1,
+      providerId: 'anthropic',
+      model: 'claude-haiku-3',
+      startedAt: '2026-07-18T00:00:00.000Z',
+      endedAt: '2026-07-18T00:00:05.000Z',
+      durationMs: 5000,
+      status: 429,
+      failureKind: 'rate_limit',
+      description: 'rate limited',
+      retryable: true,
+      retryScheduled: true,
+      taskId: 'task-77',
+      boardId: 'board-7',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-77', kanbanBoardId: 'board-7' });
+  });
+
+  it('omits taskId/boardId from scope when not provided', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-provider-no-task-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
+
+    events.emit('provider.attempt.started', {
+      sessionId: 'sess',
+      agentId: 'leader',
+      logicalRequestId: 'req-notask',
+      attemptId: 'att-notask',
+      attempt: 0,
+      providerId: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+      streaming: true,
+      messageCount: 2,
+      toolCount: 3,
+      startedAt: new Date().toISOString(),
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).not.toHaveProperty('taskId');
+    expect(recorded[0]?.scope).not.toHaveProperty('kanbanBoardId');
+  });
 });

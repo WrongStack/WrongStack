@@ -28,11 +28,12 @@ export const chronicleCmd: SubcommandHandler = async (args, deps) => {
     deps.renderer.write(usage());
     return 0;
   }
-  const access = createChronicleProjectAccess({
-    projectRoot: deps.projectRoot,
-    userHome: deps.userHome,
-  });
+  let access: ReturnType<typeof createChronicleProjectAccess> | undefined;
   try {
+    access = createChronicleProjectAccess({
+      projectRoot: deps.projectRoot,
+      userHome: deps.userHome,
+    });
     if (operation === 'status') {
       const health = await access.call('ping', {});
       deps.renderer.write(
@@ -78,7 +79,9 @@ export const chronicleCmd: SubcommandHandler = async (args, deps) => {
       }
       const result = await access.call('purge', { retentionDays: days, dryRun });
       if (dryRun) {
-        deps.renderer.write(`Dry-run: would delete ${result.candidates?.length ?? 0} files`);
+        // "entries" rather than "files": SQLite purges whole day-chains, the
+        // legacy store purged partition files. Both are entries to the caller.
+        deps.renderer.write(`Dry-run: would delete ${result.candidates?.length ?? 0} entries`);
         if (result.candidates?.length) {
           const totalBytes = result.candidates.reduce((sum: number, f: string) => {
             try {
@@ -98,7 +101,7 @@ export const chronicleCmd: SubcommandHandler = async (args, deps) => {
         }
       } else {
         const bytes = result.deletedBytes;
-        deps.renderer.write(`Purged ${result.deletedCount} files (${formatBytes(bytes)})`);
+        deps.renderer.write(`Purged ${result.deletedCount} entries (${formatBytes(bytes)})`);
         if (result.errors.length) deps.renderer.write(`, ${result.errors.length} errors`);
         deps.renderer.write('.\n');
         for (const err of result.errors) {
@@ -180,8 +183,11 @@ export const chronicleCmd: SubcommandHandler = async (args, deps) => {
     const result = await access.call('query', { query: parseQuery(args.slice(1)) });
     deps.renderer.write(JSON.stringify(result, null, 2) + '\n');
     return 0;
+  } catch (error) {
+    deps.renderer.writeError(`${error instanceof Error ? error.message : String(error)}\n`);
+    return 1;
   } finally {
-    await access.close();
+    await access?.close();
   }
 };
 

@@ -53,7 +53,25 @@ export interface ChronicleFileObserver {
   noteToolMutation(hint: ChronicleToolMutationHint): void;
 }
 
-const DEFAULT_EXCLUDED = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.temp_files'];
+/**
+ * Directories this observer must never descend into.
+ *
+ * `.claude` earns its place the same way `.wrongstack` did: it is the tool's own
+ * workspace, not the user's project, so nothing inside it is an "external
+ * mutation" worth an audit event. It matters far more than it looks — git
+ * worktrees live under `.claude/worktrees`, and a worktree is a full copy of the
+ * repository. Creating one made the watcher report every tracked file as
+ * `file.external.created`, and removing it reported every file again as
+ * `deleted`. Measured on this repo: 85,619 of 85,813 file events in a single
+ * day came from `.claude/worktrees`, ~95 MB of a 106 MB journal — 90% of the
+ * day's telemetry describing the tool watching itself.
+ */
+const DEFAULT_EXCLUDED = [
+  ...DEFAULT_WALK_IGNORE_DIRS,
+  '.wrongstack',
+  '.claude',
+  '.temp_files',
+];
 const SCAN_HASH_CONCURRENCY = 32;
 // Platforms that omit the filename (common on Windows recursive watch) can
 // emit null-filename events in bursts. Each one used to trigger a full
@@ -156,7 +174,14 @@ export async function startChronicleFileObserver(
     const fullScan = wantsFullScan
       ? await scanProject(root, excluded, excludedPaths, maxHashBytes, options.onError, known)
       : undefined;
-    const candidates = fullScan ? unionKeys(known, fullScan.files) : changedPaths;
+    // Re-apply the exclusion boundary at reconciliation time. OS watchers can
+    // report paths using a different recursive-root shape than the scheduling
+    // callback (notably on Windows), and pending paths may outlive a directory
+    // rename. Excluded tool workspaces must never become Chronicle events even
+    // if an upstream watcher notification slips through the first filter.
+    const candidates = (fullScan ? unionKeys(known, fullScan.files) : changedPaths).filter(
+      (relative) => !isExcluded(relative, excluded, excludedPaths),
+    );
     const changes: Array<{
       relative: string;
       before?: FileFingerprint | undefined;

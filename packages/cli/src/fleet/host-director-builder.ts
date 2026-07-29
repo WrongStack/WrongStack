@@ -57,7 +57,12 @@ export function prepareHostDirectorRuntime(input: {
     Number.isFinite(configuredIdleTimeoutMs) &&
     configuredIdleTimeoutMs >= 0
       ? configuredIdleTimeoutMs
-      : 30_000;
+      : 300_000; // 5 min — covers the typical leader reasoning gap between
+                  // `spawn_subagent` and `assign_task`. This fallback governs
+                  // the lifecycle removal timeout only; the per-spawn
+                  // `spawn_subagent({ idleTimeoutMs })` parameter feeds the
+                  // separate in-task activity watchdog (see
+                  // multi-agent-coordinator.ts).
   const defaultScratchpad =
     opts.sharedScratchpadPath ||
     (opts.sessionsRoot && opts.directorRunId

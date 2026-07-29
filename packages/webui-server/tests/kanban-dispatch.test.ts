@@ -68,7 +68,6 @@ function managedBoard(stage: 'todo' | 'running' | 'review' = 'todo') {
 describe('handleKanbanTaskDispatch daemon store integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env['WRONGSTACK_KANBAN_MODE'] = 'server';
     mockStore.getBoard.mockResolvedValue(managedBoard('todo'));
     mockStore.assignTask.mockResolvedValue(managedBoard('todo'));
     mockStore.updateTaskAssignment.mockImplementation(async (_boardId: string, _taskId: string, patch: { status?: string }) => {

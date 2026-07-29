@@ -115,6 +115,10 @@ type ToolCorrelationEvent = {
   agentId?: string | undefined;
   id?: string | undefined;
   name: string;
+  taskId?: string | undefined;
+  boardId?: string | undefined;
+  provider?: string | undefined;
+  model?: string | undefined;
 };
 
 function persist(
@@ -130,12 +134,22 @@ function persist(
       ...context.scope,
       ...(event.sessionId ? { sessionId: event.sessionId } : {}),
       ...(event.agentId ? { agentId: event.agentId } : {}),
+      ...(event.taskId ? { taskId: event.taskId } : {}),
+      ...(event.boardId ? { kanbanBoardId: event.boardId } : {}),
     },
     correlation: {
       ...context.correlation,
       ...(event.traceId ? { traceId: event.traceId } : {}),
       ...(event.id ? { toolCallId: event.id } : {}),
     },
+    ...(event.provider || event.model
+      ? {
+          runtime: {
+            ...(event.provider ? { providerId: event.provider } : {}),
+            ...(event.model ? { modelId: event.model } : {}),
+          },
+        }
+      : {}),
   };
   void options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
 }

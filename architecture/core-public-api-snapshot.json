@@ -62,7 +62,6 @@
         "export { DEFAULT_MAX_FLEET_SPAWNS, HARD_MAX_SPAWN_DEPTH, resolveMaxSpawnDepth, } from './coordination/spawn-budget.js';",
         "export { DEFAULT_SESSION_PRUNE_DAYS } from './types/default-config.js';",
         "export { DEPENDENCY_FILE_PATTERNS, type DependencyWatcherConfig, type DepWatchEntry, makeDependencyWatcherConfig, } from './coordination/dep-watcher.js';",
-        "export { DefaultMailbox } from './coordination/mailbox.js';",
         "export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './plugin/api.js';",
         "export { DefaultSecretScrubber } from './security/secret-scrubber.js';",
         "export { DefaultSystemPromptBuilder, type DefaultSystemPromptBuilderOptions, LAYER_1_IDENTITY, SYSTEM_BLOCK_SOURCE, type SystemBlockSource, } from './core/system-prompt-builder.js';",
@@ -83,7 +82,6 @@
         "export { ProviderCacheLedger, type ProviderCacheEntry, } from './infrastructure/provider-cache-ledger.js';",
         "export { TRUST_POLICY_JSON_SCHEMA, TRUST_POLICY_LIMITS, TRUST_POLICY_SCHEMA_VERSION, type TrustPolicyDiagnostic, type TrustPolicyDiagnosticCode, type TrustPolicyValidationResult, validateTrustPolicy, } from './security/permission-policy-schema.js';",
         "export { ToolRegistry } from './registry/tool-registry.js';",
-        "export { _clearMailboxSingletons, GlobalMailbox, getSharedMailbox, resolveProjectDir, } from './coordination/global-mailbox.js';",
         "export { allServers } from './infrastructure/mcp-servers.js';",
         "export { applyContentMode, BRAIN_TRACE_REDACTED_MAX, BRAIN_TRACE_VERSION, type BrainTraceContentMode, type BrainTraceCouncilResolution, type BrainTraceCouncilVote, type BrainTraceLlmCall, type BrainTraceRecord, BrainTraceRecorder, type BrainTraceRecorderOptions, type BrainTraceTierStep, readBrainTrace, sanitizeDecision, sanitizeRequest, } from './coordination/brain-trace.js';",
         "export { applyMailboxSendPolicy, type MailboxResolver, type MailboxToolOptions, mailboxSessionTag, makeMailboxTool, resolveMailboxIdentity, } from './coordination/mailbox-tool.js';",
@@ -128,6 +126,7 @@
         "export { makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, makeKanbanQueueTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateTool, } from './coordination/director-tools.js';",
         "export { persistReviewReport, syncReportCompletion, syncReportReopen, type ReportIntegrationResult, type ReportSyncResult, type ReportReopenResult, } from './plugins/review-report-integration.js';",
         "export { readBundledInstructionText, renderInstructionTemplate, } from './utils/instruction-file.js';",
+        "export { resolveProjectDir } from './coordination/global-mailbox-paths.js';",
         "export { runProviderWithRetry } from './core/provider-runner.js';",
         "export { safeParse, safeStringify, sanitizeJsonString, stripCodeFences, } from './utils/safe-json.js';",
         "export { startTechStackConsumer, type TechStackConsumerOptions, } from './coordination/techstack-mailbox-consumer.js';",
@@ -293,6 +292,36 @@
         "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
         "export { flattenSystemPromptRegions } from './system-prompt.js';",
         "export { isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock } from './blocks.js';"
+      ]
+    },
+    {
+      "subpath": "./types/session-markers",
+      "target": {
+        "types": "./dist/types/session-markers.d.ts",
+        "import": "./dist/types/session-markers.js"
+      },
+      "source": "packages/core/src/types/session-markers.ts",
+      "declarations": [
+        "export const CHAT_MARKER_SOURCES",
+        "export const SESSION_MARKER_EVENT_TYPES",
+        "export function projectSessionMarkers",
+        "export function sessionEventToMarker",
+        "export interface SessionMarker",
+        "export type SessionMarkerLevel"
+      ]
+    },
+    {
+      "subpath": "./core/model-ref",
+      "target": {
+        "types": "./dist/core/model-ref.d.ts",
+        "import": "./dist/core/model-ref.js"
+      },
+      "source": "packages/core/src/core/model-ref.ts",
+      "declarations": [
+        "export function formatModelRef",
+        "export function normalizeModelRef",
+        "export function parseModelRef",
+        "export interface ModelRef"
       ]
     },
     {
@@ -536,7 +565,7 @@
       },
       "source": "packages/core/src/coordination/index.ts",
       "declarations": [
-        "export type { AgentHeartbeatInput, AgentRegistrationInput, ClientHeartbeatInput, ClientRegistrationInput, ClientSource, ClientStatus, Mailbox, MailboxAckBatchInput, MailboxAckInput, MailboxAgentStatus, MailboxAudience, MailboxMessage, MailboxMessageType, MailboxQuery, MailboxSendInput, MailboxTaskContext, PurgeOptions, PurgeResult, ReadReceipts, RegisteredAgent, } from './mailbox-types.js';",
+        "export type { AgentHeartbeatInput, AgentRegistrationInput, ClientHeartbeatInput, ClientRegistrationInput, ClientSource, ClientStatus, Mailbox, MailboxAckBatchInput, MailboxAckInput, MailboxAgentStatus, MailboxAudience, MailboxMessage, MailboxMessageProjection, MailboxMessageType, MailboxQuery, MailboxRecipientState, MailboxSendInput, MailboxTaskContext, PurgeOptions, PurgeResult, ReadReceipts, RegisteredAgent, } from './mailbox-types.js';",
         "export type { ApprovalDecision, AutonomousBrainOptions, AutonomousDecisionRequest, AutonomousDecisionType, DecisionPrompt, EscalationDecision, LLMProvider, PrioritizationDecision, SpawnDecision, } from './autonomous-brain.js';",
         "export type { AutonomousCoordinatorOptions, CoordinatorEvent, CoordinatorStats, RunOptions, } from './autonomous-coordinator.js';",
         "export type { BudgetKind, BudgetLimits, BudgetNegotiationMode, BudgetThresholdDecision, BudgetThresholdHandler, BudgetUsage, } from './subagent-budget.js';",
@@ -546,6 +575,7 @@
         "export type { ICoordinator } from './icoordinator.js';",
         "export type { IFleetManager } from './ifleet-manager.js';",
         "export type { MailboxActionInput, MailboxActionResult, MailboxMessageAction, } from './mailbox-actions.js';",
+        "export type { MailboxCredentialVerifier } from './mailbox-credential-store.js';",
         "export type { MailboxProjectServerInfo, MailboxProjectServerStatus, } from './mailbox-project-server-protocol.js';",
         "export type { TaskAuctionOptions, TaskBid, } from './task-auctioneer.js';",
         "export { ACP_AGENTS, ALL_FLEET_AGENTS, AUDIT_LOG_AGENT, applyRosterBudget, BUG_HUNTER_AGENT, FLEET_ROSTER, FLEET_ROSTER_BUDGETS, FLEET_ROSTER_WITHACP, type FleetRosterBudget, GENERIC_AGENT, REFACTOR_PLANNER_AGENT, SECURITY_SCANNER_AGENT, } from './fleet.js';",
@@ -560,18 +590,14 @@
         "export { DEFAULT_DISPATCH_ROLE, type DispatchCandidate, type DispatchClassifier, type DispatchMethod, type DispatchOptions, type DispatchResult, dispatchAgent, makeLLMClassifier, scoreAgents, } from './dispatcher.js';",
         "export { DEFAULT_MAX_FLEET_SPAWNS, HARD_MAX_SPAWN_DEPTH, resolveMaxSpawnDepth, } from './spawn-budget.js';",
         "export { DEPENDENCY_FILE_PATTERNS, type DependencyWatcherConfig, type DepWatchEntry, makeDependencyWatcherConfig, } from './dep-watcher.js';",
-        "export { DefaultMailbox } from './mailbox.js';",
         "export { DefaultMultiAgentCoordinator, type MultiAgentCoordinatorOptions, } from './multi-agent-coordinator.js';",
         "export { Director, FleetCostCapError, FleetSpawnBudgetError, FleetTokenCapError, type TaskResultNotification, } from './director.js';",
         "export { FleetBus, type FleetEvent, type FleetHandler, type FleetUsage, FleetUsageAggregator, type SubagentUsageSnapshot, } from './fleet-bus.js';",
         "export { FleetManager, type FleetManagerOptions, } from './fleet-manager.js';",
         "export { FleetSupervisor, type FleetSupervisorActions, type FleetSupervisorConfig, type FleetSupervisorOptions, type FleetSupervisorSource, type SupervisedSubagent, type SupervisorLogEntry, } from './fleet-supervisor.js';",
-        "export { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';",
-        "export { JsonlCredentialStore, type MailboxCredentialVerifier, } from './mailbox-credential-store.js';",
         "export { KnowledgeGraph } from './knowledge-graph.js';",
         "export { LargeAnswerStore } from './large-answer-store.js';",
         "export { MailboxEventEmitter } from './mailbox-events.js';",
-        "export { MailboxProjectServerConnection, type MailboxProjectServerConnectionState, } from './mailbox-project-server-client.js';",
         "export { NULL_FLEET_BUS } from './null-fleet-bus.js';",
         "export { ProviderModelStatusTracker, type ErrorHistoryEntry, type ProviderModelState, type ProviderModelStatus, type ProviderStatusSnapshot, type ProviderStatusTrackerConfig, } from './provider-status-tracker.js';",
         "export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';",
@@ -582,7 +608,7 @@
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './dep-watcher-bridge.js';",
-        "export { authorizeMailboxBearerToken, authorizeMailboxCredential, createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS, MAILBOX_HTTP_MAX_AGE_CEILING_MS, MAILBOX_HTTP_MAX_BODY_BYTES, MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE, MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS, MailboxHttpRateLimiter, type MailboxHttpAccessDecision, type MailboxHttpRouter, type MailboxHttpRouterOptions, } from './mailbox-http-router.js';",
+        "export { authorizeMailboxBearerToken, authorizePersistedMailboxCredential, createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS, MAILBOX_HTTP_MAX_AGE_CEILING_MS, MAILBOX_HTTP_MAX_BODY_BYTES, MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE, MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS, MailboxHttpRateLimiter, type MailboxHttpAccessDecision, type MailboxHttpRouter, type MailboxHttpRouterOptions, } from './mailbox-http-router.js';",
         "export { brainDecisionKey, BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from './brain-ledger.js';",
         "export { buildDownAlert, buildRecoveryAlert, type DownAlertInput, MAILBOX_HEALTH_DEFAULT_FAILURE_THRESHOLD, MAILBOX_HEALTH_DEFAULT_FROM, MAILBOX_HEALTH_DEFAULT_INTERVAL_MS, MAILBOX_HEALTH_DEFAULT_TIMEOUT_MS, type MailboxHealthEvent, MailboxHealthWatchdog, type MailboxHealthWatchdogOptions, type RecoveryAlertInput, validateWatchdogOptions, type WatchdogConfig, } from './mailbox-health.js';",
         "export { collabInjectMiddleware, collabPauseMiddleware, } from '../middleware/collab-pause.js';",
@@ -593,9 +619,11 @@
         "export { detectEcosystem, getFullPackageLog, getManifestPackages, getPackageAuthor, getPackagesByAgent, type PackageAuthorEntry, type PackageAuthorLog, type PackageAuthorTrackerOptions, recordPackageAction, updatePackageOutdatedStatus, } from './package-author-tracker.js';",
         "export { formatSubagentStructuredReport, MAX_SUBAGENT_STRUCTURED_REPORT_CHARS, makeSubagentResultTool, normalizeSubagentStructuredReport, readSubagentStructuredReport, SUBAGENT_STRUCTURED_REPORT_META_KEY, } from './subagent-result-tool.js';",
         "export { isMailboxLeader, isMailboxMessageVisibleTo, MAILBOX_TYPE_PROPERTIES, mailboxIdentityBase, normalizeRecipient, SESSION_RECIPIENT_PREFIX, sessionRecipient, } from './mailbox-types.js';",
+        "export { isMailboxProjectServerAvailable, MailboxProjectServerConnection, type MailboxProjectServerConnectionState, } from './mailbox-project-server-client.js';",
         "export { isValidMatrixKey, MATRIX_PHASE_KEYS, type MatrixKeyKind, type ModelMatrixResolution, type ModelMatrixResolutionSource, type ModelReference, matrixKeyKind, phaseForRole, type ResolvedModelTarget, type ResolvedSubagentModelTarget, resolveImplementationModelTarget, resolveModelMatrix, resolveModelMatrixResolution, resolveModelTargetFromEntry, resolveSubagentModelTarget, roleNeedsIndependentReviewModel, sameModelReference, } from './model-matrix.js';",
         "export { makeAskResultTool, makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, // NOTE: `makeFleetStatusTool` is no longer an alias of makeFleetTool — it // is the standalone read-only peer-snapshot tool from fleet-status-tool.ts // (exported below). The old leader-side fleet_status was consolidated into // `fleet` (action: status). makeKanbanQueueTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateAllTool, makeTerminateTool, makeWorkCompleteTool, } from './director-tools.js';",
         "export { parseMailboxAckInput, parseMailboxQueryInput, parseMailboxSendInput, } from './mailbox-codecs.js';",
+        "export { resolveProjectDir } from './global-mailbox-paths.js';",
         "export { startTechStackConsumer, type TechStackConsumerOptions, } from './techstack-mailbox-consumer.js';",
         "export { type AcquireOptions, type AcquireResult, acquireOrJoin, finalize, type LiveLockResult, MAILBOX_BRIDGE_LOCK_FILENAME, MAILBOX_BRIDGE_TOKEN_FILENAME, type MailboxBridgeLock, readLiveLock, release, } from './single-instance-mailbox.js';",
         "export { type AgentFactory, type AgentFactoryResult, type AgentRunnerOptions, makeAgentSubagentRunner, withDisabledToolFiltering, } from './agent-subagent-runner.js';",
@@ -935,6 +963,7 @@
         "export { wireProcessesToChronicle, type ChronicleProcessAdapterOptions, } from './process-adapter.js';",
         "export { wireProviderAttemptsToChronicle, type ChronicleProviderAdapterOptions, } from './provider-adapter.js';",
         "export { wireProviderStreamsToChronicle, type ChronicleStreamAdapterOptions } from './stream-adapter.js';",
+        "export { wireReviewFindingsToChronicle, type ChronicleReviewAdapterOptions } from './review-adapter.js';",
         "export { wireRollupsToChronicle, type ChronicleRollupAdapterOptions } from './rollup-adapter.js';",
         "export { wireToolsToChronicle, type ChronicleToolAdapterOptions } from './tool-adapter.js';"
       ]
@@ -1007,22 +1036,22 @@
       "directory": "chronicle",
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
-      "sourceFiles": 25,
-      "sourceLines": 5848
+      "sourceFiles": 30,
+      "sourceLines": 7624
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 156,
-      "sourceLines": 44668
+      "sourceFiles": 139,
+      "sourceLines": 40966
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 35,
-      "sourceLines": 8128
+      "sourceLines": 8235
     },
     {
       "directory": "defaults",
@@ -1043,7 +1072,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 50,
-      "sourceLines": 16445
+      "sourceLines": 16466
     },
     {
       "directory": "extension",
@@ -1071,7 +1100,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 33,
-      "sourceLines": 7365
+      "sourceLines": 7350
     },
     {
       "directory": "infrastructure",
@@ -1085,7 +1114,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3248
+      "sourceLines": 3292
     },
     {
       "directory": "middleware",
@@ -1127,7 +1156,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6070
+      "sourceLines": 6078
     },
     {
       "directory": "prompts",
@@ -1169,7 +1198,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 15947
+      "sourceLines": 15949
     },
     {
       "directory": "tasking",
@@ -1190,7 +1219,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9262
+      "sourceLines": 9283
     },
     {
       "directory": "utils",

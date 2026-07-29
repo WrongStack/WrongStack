@@ -12,7 +12,7 @@ import { startHqServer, type HqServerHandle } from '../src/hq-server.js';
 import {
   disposeProjectMailbox,
   disposeProjectMailboxesUnder,
-  MAILBOX_RM_OPTIONS,
+  removeMailboxTempRoot,
 } from './helpers/mailbox-daemon.js';
 
 let tempRoot: string;
@@ -205,7 +205,7 @@ afterEach(async () => {
   // gives up. Shut them down first; removal stays best-effort either way,
   // since a stuck temp dir is not worth failing a passing test over.
   await disposeProjectMailboxesUnder(tempRoot);
-  await fs.rm(tempRoot, MAILBOX_RM_OPTIONS).catch(() => undefined);
+  await removeMailboxTempRoot(tempRoot);
   delete process.env['WRONGSTACK_HOME'];
 });
 

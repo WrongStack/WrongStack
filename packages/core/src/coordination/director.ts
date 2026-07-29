@@ -288,7 +288,17 @@ export class Director implements DirectorFleetHost, ICoordinator {
       recordPendingTask: (taskId, subagentId, description) =>
         this.fleetManager?.addPendingTask(taskId, subagentId, description),
       appendSessionEvent: (event) => this.appendSessionEvent(event),
-      scheduleManifest: () => this.scheduleManifest(),
+      // FleetManager owns manifest state when injected. Scheduling the
+      // Director's legacy writer here would race the FleetManager writer
+      // against the same path with Director.manifestEntries (empty in the
+      // delegated path), intermittently replacing live children with [].
+      scheduleManifest: () => {
+        if (this.fleetManager) {
+          this.fleetManager.scheduleManifest();
+        } else {
+          this.scheduleManifest();
+        }
+      },
       getSubagentMeta: (subagentId) => this.subagentMeta.get(subagentId),
     });
     this.taskCompletedListener = (payload) => this.handleTaskCompleted(payload);
@@ -484,7 +494,19 @@ export class Director implements DirectorFleetHost, ICoordinator {
     const config: SubagentConfig = { ...callerConfig };
     this.resolveSpawnModel(config);
     const subagentId = await fleetSpawn(this, config, priceLookup);
-    this.armSubagentIdleRetirement(subagentId, this.subagentIdleTimeoutMs);
+    // Per-subagent idle timeout override: if the caller supplied an
+    // `idleTimeoutMs` in the SubagentConfig (e.g. via `spawn_subagent`'s
+    // inputSchema), honor it. Otherwise fall back to the Director-wide
+    // `subagentIdleTimeoutMs`. This lets callers keep spawned slots alive
+    // across the gap between `spawn_subagent` and `assign_task` when the
+    // leader's reasoning time exceeds the default.
+    const perSubagentIdleMs =
+      typeof config.idleTimeoutMs === 'number' &&
+      Number.isFinite(config.idleTimeoutMs) &&
+      config.idleTimeoutMs >= 0
+        ? config.idleTimeoutMs
+        : this.subagentIdleTimeoutMs;
+    this.armSubagentIdleRetirement(subagentId, perSubagentIdleMs);
     return subagentId;
   }
 

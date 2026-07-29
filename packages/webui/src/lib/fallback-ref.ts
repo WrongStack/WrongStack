@@ -33,9 +33,18 @@ export interface RefActiveState {
 //
 // We re-export `parseModelRef` from the canonical core location so the
 // helper stays in sync with the slash command / LLM tools. New code MUST
-// import `parseModelRef` directly from `@wrongstack/core/agent`.
+// import `parseModelRef` directly from `@wrongstack/core/core/model-ref`.
+//
+// Browser code takes the narrow `core/model-ref` subpath rather than the
+// `agent` barrel (`dist/core/index.js`): the barrel drags Node built-ins into
+// the Vite graph, which is what `core-browser-shim.ts` exists to avoid for the
+// bare `@wrongstack/core` specifier. The subpath deliberately mirrors the
+// source layout (`src/core/model-ref.ts`) so the prefix aliases that point
+// `@wrongstack/core` at `packages/core/src` in the Vitest configs resolve it
+// without needing a per-config entry — the way `./utils/expect-defined` and
+// `./types/session-markers` already do.
 
-export { formatModelRef, normalizeModelRef, parseModelRef } from '@wrongstack/core/agent';
+export { formatModelRef, normalizeModelRef, parseModelRef } from '@wrongstack/core/core/model-ref';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

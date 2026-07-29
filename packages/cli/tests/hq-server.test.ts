@@ -1,4 +1,4 @@
-import { GlobalMailbox } from '@wrongstack/core/coordination';
+import { createProjectMailbox } from '@wrongstack/core/coordination';
 import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { HQ_HTML, type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
+import { removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 
 let handle: HqServerHandle | null = null;
 let tempRoot: string;
@@ -29,8 +30,41 @@ afterEach(async () => {
     await handle.close();
     handle = null;
   }
-  await fs.rm(tempRoot, { recursive: true, force: true });
+  await stopProjectMailboxOwners();
+  await removeMailboxTempRoot(tempRoot);
 });
+
+/**
+ * Stop every detached mailbox owner this test started.
+ *
+ * The HQ server resolves project mailboxes SERVER-side (from a sessionId or
+ * projectId), so the test never holds a handle to them — but each one leaves a
+ * daemon whose cwd is the project directory, which Windows then refuses to
+ * remove. Sweep whatever landed under `<tempRoot>/projects` plus the HQ data
+ * dir, which doubles as a project dir in the same-process publisher test.
+ */
+async function stopProjectMailboxOwners(): Promise<void> {
+  const { MailboxProjectServerConnection } = await import('@wrongstack/core/coordination');
+  const candidates = [dataDir];
+  try {
+    const projectsRoot = path.join(tempRoot, 'projects');
+    for (const entry of await fs.readdir(projectsRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) candidates.push(path.join(projectsRoot, entry.name));
+    }
+  } catch {
+    // No project mailboxes were created.
+  }
+  for (const projectDir of candidates) {
+    const control = new MailboxProjectServerConnection(projectDir);
+    try {
+      await control.shutdown('test-teardown');
+    } catch {
+      // No owner running, or it exited on its own.
+    } finally {
+      control.close();
+    }
+  }
+}
 
 async function startOpenHqServer(options: Omit<Parameters<typeof startHqServer>[0], 'dataDir'> = {}): Promise<HqServerHandle> {
   await writeHqAuthFile(dataDir, {
@@ -415,7 +449,7 @@ describe('HQ server', () => {
     browser.close();
   });
 
-  it('shows a same-process publisher registered through GlobalMailbox as an HQ project', async () => {
+  it('shows a same-process publisher registered through the project mailbox as an HQ project', async () => {
     const port = getPort();
     handle = await startOpenHqServer({ port });
 
@@ -432,7 +466,11 @@ describe('HQ server', () => {
     expect(publisher).toBeDefined();
     publisher!.connect();
 
-    const mailbox = new GlobalMailbox(dataDir, undefined, publisher);
+    const mailbox = createProjectMailbox({
+      projectDir: dataDir,
+      hqPublisher: publisher,
+      isolatedConnection: true,
+    });
     await mailbox.registerClient({
       clientId: 'tui@integration',
       sessionId: 'session-integration',
@@ -2144,9 +2182,11 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
 
       // The message must be readable from the SAME project mailbox the server
       // resolved — proving the write landed with zero connected clients.
-      const { GlobalMailbox, resolveProjectDir } = await import('@wrongstack/core/coordination');
+      const { createProjectMailbox, resolveProjectDir } = await import(
+        '@wrongstack/core/coordination',
+      );
       const projectDir = resolveProjectDir(projectRoot, globalRoot);
-      const mailbox = new GlobalMailbox(projectDir);
+      const mailbox = createProjectMailbox({ projectDir, isolatedConnection: true });
       const msgs = await mailbox.query({ to: 'leader' });
       const found = msgs.find((m) => m.body === 'continue please');
       expect(found).toBeTruthy();
@@ -2177,8 +2217,13 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       // queue is delivered as a plain `note` mailbox message.
       expect(body.type).toBe('note');
 
-      const { GlobalMailbox, resolveProjectDir } = await import('@wrongstack/core/coordination');
-      const mailbox = new GlobalMailbox(resolveProjectDir(projectRoot, globalRoot));
+      const { createProjectMailbox, resolveProjectDir } = await import(
+        '@wrongstack/core/coordination',
+      );
+      const mailbox = createProjectMailbox({
+        projectDir: resolveProjectDir(projectRoot, globalRoot),
+        isolatedConnection: true,
+      });
       const msgs = await mailbox.query({ to: 'leader' });
       const found = msgs.find((m) => m.body === 'later task');
       expect(found?.type).toBe('note');
@@ -2220,8 +2265,13 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
         audience: 'leaders',
       });
 
-      const { GlobalMailbox, resolveProjectDir } = await import('@wrongstack/core/coordination');
-      const mailbox = new GlobalMailbox(resolveProjectDir(projectRoot, globalRoot));
+      const { createProjectMailbox, resolveProjectDir } = await import(
+        '@wrongstack/core/coordination',
+      );
+      const mailbox = createProjectMailbox({
+        projectDir: resolveProjectDir(projectRoot, globalRoot),
+        isolatedConnection: true,
+      });
       const messages = await mailbox.query({ to: 'leader' });
       expect(messages.find((message) => message.body === 'review complete')).toMatchObject({
         type: 'result',

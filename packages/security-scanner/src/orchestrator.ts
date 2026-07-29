@@ -16,10 +16,17 @@ import type { GeneratedSkill } from './skill-generator.js';
 import type { ScanResult, Finding } from './scanner.js';
 import type { ReportOptions } from './report-generator.js';
 import { NETWORK_ERR_RE, type RetryPolicy, type ErrorHandler } from './_compat-types.js';
-import { DEFAULT_EXCLUDE_PATTERNS, gatherFiles } from './file-gathering.js';
+import { DEFAULT_EXCLUDE_PATTERNS, gatherFiles, readFileHead } from './file-gathering.js';
 import { extractJsonBlock } from './json-extractor.js';
-import { readFile, readdir, mkdir } from 'node:fs/promises';
+import { readdir, mkdir } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
+
+/** Per-file excerpt included in a batch scan prompt. */
+const SCAN_FILE_HEAD_CHARS = 2000;
+
+/** Per-file excerpt included in the project-context summary. */
+const KEY_FILE_HEAD_CHARS = 1000;
+
 export interface SecurityScannerOptions {
   projectRoot: string;
   scanOptions?: {
@@ -421,9 +428,9 @@ export class SecurityScannerOrchestrator {
     for (let index = 0; index < files.length; index += fileConcurrency) {
       const readResults = await Promise.allSettled(
         files.slice(index, index + fileConcurrency).map(async (file) => {
-          const content = await readFile(file, 'utf-8');
+          const content = await readFileHead(file, SCAN_FILE_HEAD_CHARS);
           const relativePath = relative(projectRoot, file).replace(/\\/g, '/');
-          return `\n=== ${relativePath} ===\n${content.slice(0, 2000)}`;
+          return `\n=== ${relativePath} ===\n${content}`;
         }),
       );
       for (const result of readResults) {
@@ -682,9 +689,9 @@ ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
 
     for (const file of keyFiles) {
       try {
-        const content = await readFile(join(projectRoot, file), 'utf-8');
+        const content = await readFileHead(join(projectRoot, file), KEY_FILE_HEAD_CHARS);
         const displayName = file === 'README.md' || file === 'CONTRIBUTING.md' ? 'README' : file;
-        info.push(`\n--- ${displayName} ---\n${content.slice(0, 1000)}`);
+        info.push(`\n--- ${displayName} ---\n${content}`);
       } catch {
         // File doesn't exist, skip
       }

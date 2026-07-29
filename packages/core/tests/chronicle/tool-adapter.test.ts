@@ -9,6 +9,7 @@ import {
   wireToolsToChronicle,
 } from '../../src/chronicle/index.js';
 import { EventBus } from '../../src/kernel/events.js';
+import { ToolErrorCategory } from '../../src/types/tool.js';
 
 const tempDirs: string[] = [];
 const scrubber = {
@@ -118,7 +119,7 @@ describe('wireToolsToChronicle', () => {
       sessionId: 'session',
       agentId: 'leader',
       durationMs: 300,
-      category: 'timeout',
+      category: ToolErrorCategory.TRANSIENT,
       retryable: true,
       detail: 'timed out',
     });
@@ -126,7 +127,7 @@ describe('wireToolsToChronicle', () => {
     const recorded = await journal.readAll();
     expect(recorded).toHaveLength(1);
     expect(recorded[0]).toMatchObject({ eventType: 'tool.failed', outcome: 'failure', durationNs: '300000000' });
-    expect(recorded[0]?.attributes).toMatchObject({ toolName: 'bash', category: 'timeout', retryable: true });
+    expect(recorded[0]?.attributes).toMatchObject({ toolName: 'bash', category: 'transient', retryable: true });
   });
 
   it('records permission provenance without persisting raw tool arguments', async () => {
@@ -254,5 +255,141 @@ describe('wireToolsToChronicle', () => {
     expect(recorded).toHaveLength(1);
     // Short output should be preserved as a plain string
     expect(recorded[0]?.attributes?.['outputPreview']).toBe('short output');
+  });
+
+  it('records taskId/boardId in scope and provider/model in runtime on tool.started', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-task-scope-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
+
+    events.emit('tool.started', {
+      sessionId: 'sess',
+      traceId: 'trace',
+      agentId: 'leader',
+      name: 'grep',
+      id: 'tool-task',
+      input: { pattern: 'TODO' },
+      taskId: 'task-42',
+      boardId: 'board-7',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({
+      sessionId: 'sess',
+      agentId: 'leader',
+      taskId: 'task-42',
+      kanbanBoardId: 'board-7',
+    });
+    expect(recorded[0]?.runtime).toMatchObject({
+      providerId: 'anthropic',
+      modelId: 'claude-sonnet-4-20250514',
+    });
+  });
+
+  it('records taskId/boardId in scope and provider/model in runtime on tool.executed', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-task-exec-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
+
+    events.emit('tool.executed', {
+      sessionId: 'sess',
+      traceId: 'trace',
+      agentId: 'leader',
+      id: 'tool-exec-task',
+      name: 'edit',
+      durationMs: 50,
+      ok: true,
+      output: 'patched file',
+      outputBytes: 12,
+      outputTokens: 3,
+      outputLines: 2,
+      metadata: { toolUseId: 'tool-exec-task', toolName: 'edit', ok: true, summary: 'edit file', files: [], symbols: [], commands: [], errors: [], status: 'seen', referenceCount: 0, seenAt: 1 },
+      taskId: 'task-99',
+      boardId: 'board-7',
+      provider: 'openai',
+      model: 'gpt-4o',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-99', kanbanBoardId: 'board-7' });
+    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'openai', modelId: 'gpt-4o' });
+  });
+
+  it('records taskId/boardId/provider/model on tool.failed', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-task-fail-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
+
+    events.emit('tool.failed', {
+      name: 'bash',
+      id: 'tool-fail-task',
+      sessionId: 'sess',
+      agentId: 'leader',
+      durationMs: 5000,
+      category: ToolErrorCategory.TRANSIENT,
+      retryable: true,
+      detail: 'command timed out',
+      taskId: 'task-77',
+      boardId: 'board-7',
+      provider: 'anthropic',
+      model: 'claude-haiku-3',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-77', kanbanBoardId: 'board-7' });
+    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'anthropic', modelId: 'claude-haiku-3' });
+  });
+
+  it('records taskId/boardId/provider/model on permission.evaluated', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-perm-task-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
+
+    events.emit('permission.evaluated', {
+      sessionId: 'sess',
+      agentId: 'leader',
+      name: 'bash',
+      id: 'perm-task',
+      inputHash: 'b'.repeat(64),
+      policyDecision: 'auto',
+      effectiveDecision: 'auto',
+      decisionSource: 'trust',
+      yoloEnabled: false,
+      capabilityDowngraded: false,
+      taskId: 'task-55',
+      boardId: 'board-7',
+      provider: 'google',
+      model: 'gemini-2.0-flash',
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-55', kanbanBoardId: 'board-7' });
+    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'google', modelId: 'gemini-2.0-flash' });
   });
 });

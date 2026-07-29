@@ -11,7 +11,7 @@
  *    appropriate verifier that MUST produce concrete backing evidence.
  * 4. Compares file-change expectations against actual git diff.
  * 5. Aggregates everything into a KanbanVerificationReport.
- * 6. Writes the report atomically into the board JSON via the board mutation.
+ * 6. Writes the report atomically into the SQLite-backed board record via the owner mutation.
  *
  * Deterministic by default — zero LLM calls unless a check explicitly opts
  * into agent/council escalation.
@@ -29,10 +29,10 @@ import type {
   KanbanVerificationReport,
   KanbanVerificationSubtasks,
 } from '../types.js';
-import type { VerifierRegistry } from './verifier-registry.js';
+import { createDefaultRegistry } from './plugins/index.js';
 import { VerificationContext } from './verification-context.js';
 import { buildVerificationReport } from './verification-report.js';
-import { createDefaultRegistry } from './plugins/index.js';
+import type { VerifierRegistry } from './verifier-registry.js';
 
 export interface VerifyTaskCompletionOptions {
   /** Custom verifier registry (default: deterministic plugins only). */
@@ -88,13 +88,7 @@ export async function verifyTaskCompletion(
   // Phase 1: Recursively verify subtasks (when atomic)
   let subtaskReport: KanbanVerificationSubtasks | undefined;
   if (task.atomic && task.childTaskIds?.length) {
-    subtaskReport = await verifySubtasks(
-      projectRoot,
-      board,
-      task,
-      registry,
-      options,
-    );
+    subtaskReport = await verifySubtasks(projectRoot, board, task, registry, options);
     // If any child failed, we can still run parent checks but the
     // overall verdict will reflect it.
   }
@@ -142,10 +136,14 @@ export async function verifyTaskCompletion(
         ...existing,
         // Map KanbanCheckReportStatus → KanbanCheckStatus:
         // 'error' is a runtime failure → 'failed', 'pending' is inapplicable here
-        status: result.status === 'passed' ? 'passed' as const
-          : result.status === 'failed' ? 'failed' as const
-          : result.status === 'skipped' ? 'skipped' as const
-          : 'failed' as const,
+        status:
+          result.status === 'passed'
+            ? ('passed' as const)
+            : result.status === 'failed'
+              ? ('failed' as const)
+              : result.status === 'skipped'
+                ? ('skipped' as const)
+                : ('failed' as const),
         checkedBy: result.type === 'agent' ? 'agent' : 'system',
         checkedAt: report.completedAt,
         notes: result.error

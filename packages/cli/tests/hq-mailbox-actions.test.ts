@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import {
   disposeProjectMailbox,
-  MAILBOX_RM_OPTIONS,
+  removeMailboxTempRoot,
 } from './helpers/mailbox-daemon.js';
 
 let handle: HqServerHandle | null = null;
@@ -46,7 +46,7 @@ afterEach(async () => {
     await handle.close();
     handle = null;
   }
-  await fs.rm(tempRoot, MAILBOX_RM_OPTIONS);
+  await removeMailboxTempRoot(tempRoot);
 });
 
 function getPort(): number {

@@ -56,6 +56,8 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       attempt,
       providerId: provider.id,
       model: request.model,
+      taskId: ctx.currentKanbanTaskId,
+      boardId: ctx.currentKanbanBoardId,
     };
     events.emit('provider.attempt.started', {
       ...correlation,

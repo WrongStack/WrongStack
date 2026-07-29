@@ -125,7 +125,41 @@ describe('domain lifecycle bridge', () => {
     expect(recorded[0]).toMatchObject({
       scope: { sessionId: 's', agentId: 'worker-1', taskId: 'task-9', kanbanBoardId: 'board-3' },
       resource: { kind: 'file', path: 'src/app.ts' },
+      runtime: { providerId: 'openai', modelId: 'model-a' },
     });
     expect(recorded[1]).toMatchObject({ scope: { taskId: 'task-9', kanbanBoardId: 'board-3' } });
+    // provider is intentionally stripped from attributes by sanitize (childKey === 'provider' continue);
+    // model is preserved by PRESERVE_STRING_KEY and should survive sanitize.
+    expect((recorded[0]?.attributes as Record<string, unknown>).model).toBe('model-a');
+  });
+
+  it('extracts provider/model into runtime from any domain event payload', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-domain-runtime-')); dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const off = wireDomainEventsToChronicle({ events, journal, context });
+
+    // Emit an arbitrary domain event carrying provider/model — simulates
+    // subagent events that include these fields in their payload.
+    events.emit('agent.status_changed' as never, {
+      sessionId: 'sess',
+      subagentId: 'sub-1',
+      agentName: 'BugHunter',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+      status: 'running',
+      ts: new Date().toISOString(),
+    } as never);
+
+    const recorded = await journal.readAll(); off();
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.runtime).toMatchObject({
+      providerId: 'anthropic',
+      modelId: 'claude-sonnet-4-20250514',
+    });
+    // provider is intentionally stripped from attributes by sanitize;
+    // model is preserved by PRESERVE_STRING_KEY.
+    expect((recorded[0]?.attributes as Record<string, unknown>).model).toBe('claude-sonnet-4-20250514');
   });
 });

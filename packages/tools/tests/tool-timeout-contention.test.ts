@@ -13,7 +13,8 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { createBoard, getKanbanPath } from '@wrongstack/kanban';
+import { createBoard } from '@wrongstack/kanban';
+import { getKanbanPath } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { taskTool } from '../src/task.js';
 import { todoTool } from '../src/todo.js';
@@ -57,10 +58,7 @@ describe('tool timeout under kanban lock contention', () => {
       tags: ['session', 'session-work', `session:${sessionId}`],
     });
     const boardPath = getKanbanPath(sb.dir, board.id);
-    lockPath = path.join(
-      path.dirname(boardPath),
-      `.${path.basename(boardPath)}.lock`,
-    );
+    lockPath = path.join(path.dirname(boardPath), `.${path.basename(boardPath)}.lock`);
     // Create the lock exclusively — same mechanism withFileLock uses
     await fs.writeFile(lockPath, `${process.pid}:${Date.now()}`, { flag: 'wx' });
   }
@@ -91,7 +89,15 @@ describe('tool timeout under kanban lock contention', () => {
       {
         action: 'replace',
         tasks: [
-          { id: 't1', title: 'contended', type: 'feature', priority: 'medium', status: 'pending', createdAt: '2026-07-27T00:00:00Z', updatedAt: '2026-07-27T00:00:00Z' },
+          {
+            id: 't1',
+            title: 'contended',
+            type: 'feature',
+            priority: 'medium',
+            status: 'pending',
+            createdAt: '2026-07-27T00:00:00Z',
+            updatedAt: '2026-07-27T00:00:00Z',
+          },
         ],
       },
       sb.ctx,

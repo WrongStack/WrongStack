@@ -41,6 +41,8 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
   "fleet": { /* ... */ },
   "fallbackModels": [],
   "fallbackProfiles": { /* ... */ },
+  "fallbackAuto": true,
+  "fallbackStickiness": { "primaryProbeInterval": 60000, "stickyFallbackTurns": 0 },
   "cwd": ".",
   "extensions": { /* ... */ }
 }
@@ -61,6 +63,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `fallbackModels` | `string[]` | — | Ordered fallback chain tried when the primary model is overloaded (429/529/5xx) and its own retries are exhausted. Each entry is `model`, `provider/model`, or `provider model`. Cross-provider. After a fallback hop, the primary is retried only after its cooldown expires. Overridden by `--fallback-model a,b,c`. |
 | `fallbackProfiles` | `Record<string, string[]>` | — | Named fallback chains. `/setmodel` and WebUI Model Routing can point a role/phase/default entry at a profile. |
 | `fallbackAuto` | `boolean` | `true` | Auto-derive a fallback chain from other keyed providers when `fallbackModels` is empty. Toggle with `/fallback auto on\|off`. |
+| `fallbackStickiness` | `object` | `{ primaryProbeInterval: 60000, stickyFallbackTurns: 0 }` | Controls how the fallback engine transitions between the primary and fallback models. See [Fallback stickiness](#fallback-stickiness) below. |
 | `favoriteModels` | `string[]` | `[]` | User-curated model refs prioritized by pickers and smart fallback derivation. |
 | `favoriteModelsOnly` | `boolean` | `false` | Restrict the **auto-derived** smart-default fallback chain to `favoriteModels`. **Explicit** settings are always honored as written — this includes `fallbackModels`, `fallbackProfiles`, and matrix model-only entries (`agent_model_assign` with `model=...`, no `profile=...`). The smart-default chain is at most as strict as the matrix model-only mode: the matrix already requires favorites whenever `favoriteModels` is non-empty (via `isFavoriteRef`), regardless of this toggle. The toggle only narrows the auto-derivation path, and only when `favoriteModels` is non-empty — an empty `favoriteModels` list means the smart default falls back to including every usable provider/model pair. Toggle with `/fallback fav only on\|off`. |
 | `modelRuntime` | `object` | — | Runtime request controls for the leader/default request path: reasoning, prompt-cache TTL, and gated generation parameters. |
@@ -70,6 +73,90 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `brain` | `BrainConfig` | — | Decision layer: autonomy ceiling, deterministic rules, heuristics, LLM quality gate + circuit breaker, council, decision cache, replay trace, ledger, monitor. See [`brain`](#brain--decision-layer-autonomy-rules-council-trace). User config only; stripped from in-project config. |
 | `hooks` | `object` | — | Lifecycle shell hooks keyed by event. See [`hooks`](#hooks--lifecycle-hooks) below and [hooks.md](./hooks.md). |
 | `cwd` | `string` | `process.cwd()` | Working directory. Overridden by `--cwd` CLI flag. Director Mode is permanently on — no `--director` flag or config field exists. |
+
+---
+
+## Fallback stickiness
+
+The fallback system automatically rotates to a backup model when the primary
+provider returns capacity/transport errors (429, 5xx, overload, timeout, stream
+hang). Five design decisions govern how transitions work:
+
+### How the chain is traversed
+
+1. **Explicit chain priority** — When you configure `fallbackModels`, those
+   entries are tried **first**, in the order you specified. Default-profile
+   entries and the session primary are used as additional depth only after your
+   explicit chain is exhausted.
+
+2. **Stale-entry resilience** — A chain entry that returns a non-fallback-worthy
+   error (e.g. 404 / `invalid_request` from a retired model) is **skipped**, not
+   used to abort the rest of the chain. Only the primary's triggering error
+   decides whether fallback begins at all.
+
+3. **Last-working-fallback memory** — The engine remembers which fallback model
+   last succeeded. On subsequent primary failures, that model is **tried first**,
+   avoiding a full re-traversal through entries that already proved flaky. The
+   memory is cleared only when the primary fully recovers.
+
+### Primary recovery
+
+4. **Graduated recovery** — A single primary success does **not** fully reset
+   the failure ladder. The system requires `primaryRecoverySuccesses` (default:
+   2) consecutive primary successes before clearing the exponential backoff
+   streak. If the primary fails again during partial recovery, the backoff
+   continues from where it left off (60s → 120s → 240s …), not from scratch.
+
+5. **Sticky dwell controls** — Two config fields let you control how long the
+   system stays on a working fallback before probing the primary:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `fallbackStickiness.primaryProbeInterval` | `number` | `60000` (60s) | Base cooldown (ms) applied after the primary fails. While active, the system stays on the fallback instead of re-probing the primary every turn. Set `0` to probe every turn (legacy behavior). |
+| `fallbackStickiness.stickyFallbackTurns` | `number` | `0` | Minimum number of turns to dwell on a working fallback before the primary becomes eligible for a half-open probe — **even if** the cooldown timer has already expired. Set to e.g. `3` to require three full turns on the fallback before risking a switch back. |
+
+Both controls stack: the primary is only probed when **both** the timer has
+expired and the turn count is met.
+
+### Example: Conservative transitions
+
+Stays on a working fallback for at least 3 turns, and waits 2 minutes between
+primary probe attempts:
+
+```jsonc
+{
+  "fallbackStickiness": {
+    "primaryProbeInterval": 120000,
+    "stickyFallbackTurns": 3
+  }
+}
+```
+
+### Example: Aggressive primary recovery
+
+Probes the primary every turn (no cooldown), but still requires 2 consecutive
+successes before fully trusting it:
+
+```jsonc
+{
+  "fallbackStickiness": {
+    "primaryProbeInterval": 0
+  }
+}
+```
+
+> **Note:** `primaryProbeInterval: 0` disables the cooldown entirely. The
+> graduated recovery (consecutive-success requirement) still applies — it is a
+> separate mechanism baked into the extension, not configurable through
+> `fallbackStickiness`.
+
+### Interaction with the provider status tracker
+
+The `ProviderModelStatusTracker` adds a second layer of protection independent
+of `fallbackStickiness`. A model that returns a 429 is immediately quarantined
+for 5 minutes (`blockAfterRateLimitHits: 1`), and account-level quota exhaustion
+quarantines all sibling models on the same provider. Quarantined entries are
+filtered out of the chain **before** the stickiness controls apply.
 
 ---
 

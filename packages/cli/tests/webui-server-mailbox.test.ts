@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
 import { createProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import { removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runWebUI } from '../src/webui-server.js';
 import { openWs } from './_ws-client.js';
@@ -47,13 +48,7 @@ afterEach(async () => {
       control.close();
     }
   }
-  // Best-effort: an owner that was still starting up when the shutdown request
-  // arrived can hold the project directory a moment longer, and Windows `rm`
-  // then blocks on EBUSY past the hook timeout. Vitest's daemon reaper cleans
-  // up the process at the end of the run either way.
-  await fs.promises
-    .rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
-    .catch(() => undefined);
+  await removeMailboxTempRoot(tmpDir);
 });
 
 describe('runWebUI mailbox operations', () => {

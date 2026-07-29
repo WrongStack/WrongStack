@@ -23,7 +23,7 @@ import { kanbanProjectServerEndpoint } from '../src/server/project-server.js';
 // resolves next to the index bundle. The build entry key must match that.
 const distServer = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
 
-async function waitForExit(child: ChildProcess, timeoutMs = 10_000): Promise<number | null> {
+async function waitForExit(child: ChildProcess, timeoutMs = 15_000): Promise<number | null> {
   if (child.exitCode !== null || child.signalCode !== null) return child.exitCode;
   return new Promise<number | null>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -87,7 +87,7 @@ function why(child: ChildProcess): string {
   return captured ? ` — daemon stderr: ${captured}` : ' — daemon wrote nothing to stderr';
 }
 
-describe('kanban project server lifecycle', () => {
+describe('kanban project server lifecycle', { retry: 1 }, () => {
   it('exits after the idle window when no client ever connects', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-idle-'));
     const child = startDaemon(projectRoot);

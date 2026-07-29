@@ -35,6 +35,9 @@ import {
   encodeChronicleProjectServerMessage,
 } from './project-server-protocol.js';
 import { ChronicleQueryEngine, type ChronicleQuery } from './query.js';
+import { importLegacyChronicleJournal } from './legacy-journal-import.js';
+import { ChronicleSqliteJournal } from './sqlite-journal.js';
+import type { ChronicleSqliteQueryEngine } from './sqlite-query.js';
 import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEvent, ChronicleEventInput } from './types.js';
 
@@ -154,6 +157,38 @@ function pruneJournals(currentDay: string): void {
   }
 }
 
+/** Compose the legacy partition path a `ChronicleJournal` writes to. */
+function legacyPartitionPath(location: { chronicleDirectory: string; day: string }): string {
+  return path.join(location.chronicleDirectory, `${location.day}.events.jsonl`);
+}
+
+/**
+ * SQLite is the daemon's store; `WRONGSTACK_CHRONICLE_STORE=jsonl` restores the
+ * partition writer. This is the production write path — the inline one only
+ * runs in explicit recovery mode — so the cut-over lives here.
+ */
+function useSqliteStore(): boolean {
+  return process.env['WRONGSTACK_CHRONICLE_STORE'] !== 'jsonl';
+}
+
+let sqliteStore: Promise<ChronicleSqliteJournal> | undefined;
+
+/**
+ * Open the store, importing the legacy partitions the first time.
+ *
+ * The import is folded into opening so no request can observe a half-migrated
+ * journal: everything queues behind this one promise.
+ */
+function store(): Promise<ChronicleSqliteJournal> {
+  sqliteStore ??= (async () => {
+    await fsp.mkdir(chronicleDirectory, { recursive: true });
+    const journal = new ChronicleSqliteJournal({ directory: chronicleDirectory });
+    await importLegacyChronicleJournal(journal, chronicleDirectory);
+    return journal;
+  })();
+  return sqliteStore;
+}
+
 function journalForToday(): ChronicleJournal {
   const now = new Date();
   const day = now.toISOString().slice(0, 10);
@@ -166,7 +201,7 @@ function journalForToday(): ChronicleJournal {
       now,
     });
     journal = new ChronicleJournal({
-      filePath: location.journalPath,
+      filePath: legacyPartitionPath(location),
       retentionDays: parsed.retentionDays,
     });
     journals.set(day, journal);
@@ -224,8 +259,9 @@ async function appendInputs(inputs: ChronicleEventInput[]): Promise<ChronicleEve
     }
     noteMutation(input);
   }
-  const journal = journalForToday();
-  const events = await Promise.all(inputs.map((input) => journal.append(input)));
+  const events = useSqliteStore()
+    ? await (await store()).appendBatch(inputs)
+    : await Promise.all(inputs.map((input) => journalForToday().append(input)));
   queryGeneration += events.length;
   return events;
 }
@@ -237,6 +273,12 @@ const watcherSink: ChronicleEventSink = {
 };
 
 async function flushJournals(): Promise<void> {
+  if (useSqliteStore()) {
+    // Transactional writes leave nothing buffered; this only waits for an
+    // in-flight open (and its legacy import).
+    if (sqliteStore) await sqliteStore;
+    return;
+  }
   await Promise.all([...journals.values()].map((journal) => journal.flush()));
 }
 
@@ -245,7 +287,11 @@ function rangeCache(): ChroniclePartitionRangeCache {
   return partitionRangeCache;
 }
 
-async function queryEngine(): Promise<ChronicleQueryEngine> {
+async function queryEngine(): Promise<ChronicleQueryEngine | ChronicleSqliteQueryEngine> {
+  // The SQLite engine reads through the journal's own connection, so it always
+  // sees the latest commit — the generation cache exists only to avoid
+  // re-scanning partition files and is meaningless here.
+  if (useSqliteStore()) return (await store()).queryEngine();
   if (cachedQuery?.generation === queryGeneration) return cachedQuery.engine;
   const engine = await ChronicleQueryEngine.fromDirectory(chronicleDirectory, {
     rangeCache: rangeCache(),
@@ -321,7 +367,9 @@ async function dispatch<O extends ChronicleServerOperationName>(
       return undefined as ChronicleServerOperations[O]['result'];
     case 'purge': {
       const args = rawArgs as ChronicleServerOperations['purge']['args'];
-      return (await journalForToday().purge(args)) as ChronicleServerOperations[O]['result'];
+      return (useSqliteStore()
+        ? ((await (await store()).purge(args)) as ChronicleServerOperations[O]['result'])
+        : ((await journalForToday().purge(args)) as ChronicleServerOperations[O]['result']));
     }
     case 'query': {
       const args = rawArgs as ChronicleServerOperations['query']['args'];

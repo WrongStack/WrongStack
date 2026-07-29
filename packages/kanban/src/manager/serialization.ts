@@ -9,8 +9,8 @@ import {
   type KanbanSearchResult,
   type KanbanTaskPriority,
 } from '../types.js';
-import { listBoards } from './boards.js';
 import { matchesKanbanSearch, slugify } from './_internal.js';
+import { listBoards } from './boards.js';
 
 /**
  * @deprecated Renamed to `createBoardFromText` for clarity (no AI involved).
@@ -111,4 +111,12 @@ export function exportBoardAsMarkdown(board: KanbanBoard): string {
   }
   lines.push('', `---`, `Exported from WrongStack Kanban: ${board.id}`);
   return lines.join('\n');
+}
+
+export async function exportBoardMarkdown(
+  projectRoot: string,
+  boardId: string,
+): Promise<string | null> {
+  const board = await readBoard(projectRoot, boardId);
+  return board ? exportBoardAsMarkdown(board) : null;
 }

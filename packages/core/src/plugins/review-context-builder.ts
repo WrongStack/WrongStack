@@ -294,7 +294,15 @@ async function findFileProvenance(
 ): Promise<NonNullable<ReviewContextBundle['fileProvenance']>> {
   if (filePaths.length === 0) return [];
 
-  const access = createChronicleProjectAccess({ projectRoot });
+  // Chronicle now raises rather than silently handing back a process-local
+  // journal, so obtaining the gateway is itself a failure point. Provenance
+  // enriches a review; it never gates one.
+  let access: ReturnType<typeof createChronicleProjectAccess>;
+  try {
+    access = createChronicleProjectAccess({ projectRoot });
+  } catch {
+    return [];
+  }
   const provenance: NonNullable<ReviewContextBundle['fileProvenance']> = [];
   try {
     // Read the derived SQLite lineage projection in one indexed query. The old

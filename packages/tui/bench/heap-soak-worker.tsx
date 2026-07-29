@@ -1,16 +1,16 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { PassThrough, Writable } from 'node:stream';
 import { dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { PassThrough, Writable } from 'node:stream';
 import { writeHeapSnapshot } from 'node:v8';
-import { render, type DOMElement } from 'ink';
-import { type ReactElement, type RefObject, createRef } from 'react';
+import { type DOMElement, render } from 'ink';
+import { createRef, type ReactElement, type RefObject } from 'react';
 import { ScrollableHistory } from '../src/components/scrollable-history.js';
-import { Box } from '../src/ink.js';
 import type { HistoryEntry } from '../src/history-entry.js';
+import { Box } from '../src/ink.js';
 import {
-  HEAP_SOAK_SEED,
   buildHeapSoakWorkload,
+  HEAP_SOAK_SEED,
   heapSoakWorkloadFingerprint,
   workloadCharacterCount,
 } from './heap-soak-workload.js';
@@ -172,7 +172,19 @@ function plateauSlope(samples: readonly MemoryPoint[]): number {
   if (samples.length < 2) return 0;
   const first = samples[0]!;
   const last = samples.at(-1)!;
-  return (last.heapUsed - first.heapUsed) / (samples.length - 1);
+  const sampleSpan = last.index - first.index;
+  return sampleSpan > 0 ? (last.heapUsed - first.heapUsed) / sampleSpan : 0;
+}
+
+function plateauCheckpointIndexes(sampleCount: number): ReadonlySet<number> {
+  const lastIndex = sampleCount - 1;
+  return new Set([
+    0,
+    Math.floor(lastIndex / 4),
+    Math.floor(lastIndex / 2),
+    Math.floor((lastIndex * 3) / 4),
+    lastIndex,
+  ]);
 }
 
 function app(
@@ -238,6 +250,7 @@ async function main(): Promise<void> {
   // The workload remains live through unmount, separating app-state retention
   // from memory released specifically by the Ink/React renderer lifecycle.
   const workload = buildHeapSoakWorkload({ entryCount: options.entries, seed: options.seed });
+  const plateauCheckpoints = plateauCheckpointIndexes(options.plateauSamples);
 
   for (let step = 1; step <= options.steps; step++) {
     currentCount = Math.ceil((workload.length * step) / options.steps);
@@ -255,7 +268,11 @@ async function main(): Promise<void> {
     );
     await instance.waitUntilRenderFlush();
     forceGc(options.gcPasses);
-    samples.push(memoryPoint('plateau', index, workload.length, startedAt));
+    const point = memoryPoint('plateau', index, workload.length, startedAt);
+    // Retaining every observation makes the benchmark itself grow linearly
+    // with plateauSamples and contaminates the heap slope being measured.
+    // Five fixed checkpoints preserve the trend without an unbounded probe.
+    if (plateauCheckpoints.has(index)) samples.push(point);
   }
 
   const mountedStructures = countMountedStructures(rootRef.current);

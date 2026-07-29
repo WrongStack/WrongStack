@@ -1,9 +1,9 @@
 import type { IncomingMessage } from 'node:http';
-import type { WebSocket } from 'ws';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import {
-  createConnectionHandler,
   type ConnectionHandlerDeps,
+  createConnectionHandler,
 } from '../../src/webui-server/connection-handler.js';
 
 class TestSocket {
@@ -61,14 +61,18 @@ describe('CLI WebUI connection-handler errors', () => {
   it('labels invalid JSON as a parse failure without dispatching it', async () => {
     const handleMessage = vi.fn();
     const socket = new TestSocket();
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // Invalid JSON is a wire-level fault, not a server fault — see the
+    // severity policy in connection-lifecycle.ts. Benign client drift logs
+    // at warn, not error.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await createConnectionHandler(createDeps(handleMessage))(socket as never as WebSocket, request);
 
     await socket.receive('{bad json');
 
     expect(handleMessage).not.toHaveBeenCalled();
-    expect(JSON.parse(String(error.mock.calls[0]?.[0]))).toMatchObject({
+    expect(JSON.parse(String(warn.mock.calls[0]?.[0]))).toMatchObject({
       event: 'webui_server.message_parse_failed',
+      level: 'warn',
     });
   });
 

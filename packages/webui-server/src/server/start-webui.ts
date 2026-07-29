@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import { createDefaultPipelines } from '@wrongstack/core/agent';
+import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import {
   createSessionEventBridge,
@@ -19,7 +20,7 @@ import {
   watchProviderConfig,
 } from '@wrongstack/core/storage';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID, type ProviderConfig } from '@wrongstack/core/types';
-import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
+import { expectDefined, toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { type PackageOperation, toLanguagePackageInput } from '@wrongstack/techstack';
 import { ensureSessionShell } from '@wrongstack/tools';
@@ -792,6 +793,14 @@ export async function startWebUI(
     runLock: runLockControl,
     pendingConfirms,
   });
+  // Fire-and-forget callback wired on the connection lifecycle for
+  // `unsafe_key` / `too_deep` decoder rejections. Sends a high-priority
+  // mailbox note to leaders so the running agent-loop can respond if
+  // configured to alert (e.g. slash handler or tool watcher).
+  const mailbox = getSharedProjectMailbox(
+    resolveProjectDir(context.projectRoot, wstackGlobalRoot()),
+    events,
+  );
   const handleConnection = createConnectionHandler({
     getSessionId: () => session.id,
     sessionStartPayload,
@@ -805,6 +814,28 @@ export async function startWebUI(
     },
     clients,
     pendingConfirms,
+    onSecurityRejection: (ev) => {
+      try {
+        void mailbox.send({
+          from: context.agentId,
+          to: '*',
+          type: 'note',
+          audience: 'leaders',
+          subject: `Security rejection: ${ev.issueCode}`,
+          body:
+            `Decoder tripwire ${ev.issueCode}: ${ev.issueMessage}\n\n` +
+            `connectionId: ${ev.connectionId ?? '?'}\n` +
+            `sessionId: ${ev.sessionId ?? '?'}\n` +
+            `agentId: ${ev.agentId ?? '?'}\n` +
+            `projectRoot: ${ev.projectRoot ?? '?'}`,
+          priority: 'high',
+          senderSessionId: session.id,
+        });
+      } catch {
+        // Mailbox send is best-effort — a failure here must not crash
+        // the message handler or block future messages.
+      }
+    },
     goalHandler,
     specsHandler,
     sddBoardHandler,

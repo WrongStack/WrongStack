@@ -8,7 +8,6 @@
  * and enable focused testing.
  */
 
-import * as path from 'node:path';
 import type {
   ChronicleEventJournalHandle,
   ChronicleEventSink,
@@ -24,6 +23,7 @@ import {
   wireProcessesToChronicle,
   wireProviderAttemptsToChronicle,
   wireProviderStreamsToChronicle,
+  wireReviewFindingsToChronicle,
   wireRollupsToChronicle,
   wireToolsToChronicle,
 } from '@wrongstack/core/chronicle';
@@ -88,6 +88,36 @@ export function resolveChronicleRetentionDays(config: Record<string, unknown>): 
   return Math.max(MIN_CHRONICLE_RETENTION_DAYS, raw);
 }
 
+/**
+ * Open the Chronicle journal, or give up on telemetry for this session.
+ *
+ * `createChronicleEventJournal` fails closed: rather than quietly handing this
+ * process its own hash chain when the daemon build cannot be located, it
+ * raises. Chronicle is observability, though — losing it must never stop a
+ * user from working. So the failure is absorbed here, once, and reported.
+ *
+ * Note what is *not* done: no silent retry into an inline journal. Telemetry is
+ * either recorded by the project's single owner or not recorded at all, and the
+ * operator is told which.
+ */
+function tryCreateChronicleJournal(
+  options: Parameters<typeof createChronicleEventJournal>[0],
+): ChronicleEventJournalHandle | undefined {
+  try {
+    return createChronicleEventJournal(options);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'chronicle.disabled',
+        reason: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    return undefined;
+  }
+}
+
 // ── Exported wiring ────────────────────────────────────────────────────────
 
 /** Wire SessionEventBridge, appendSessionEvent, error ring, and tool-lifecycle
@@ -136,9 +166,14 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   let chronicleFileObserver: Promise<ChronicleFileObserver> | undefined;
   let stopChronicleHealth: (() => void) | undefined;
   let stopNetworkTelemetry: (() => void) | undefined;
+  // Chronicle refuses to run in-process unless asked, so a missing build now
+  // raises instead of silently giving this session a private hash chain. That
+  // is the right call for the journal's integrity but the wrong call for the
+  // session: telemetry is not load-bearing, and a user should never be unable
+  // to work because a daemon binary is absent. Degrade loudly to no telemetry.
   if (deps.events && wpaths.projectDir) {
     const retentionDays = resolveChronicleRetentionDays(config);
-    chronicleHandle = createChronicleEventJournal({
+    chronicleHandle = tryCreateChronicleJournal({
       projectRoot,
       retentionDays,
       projectPaths: {
@@ -148,6 +183,9 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
         workspaceId: wpaths.projectSlug,
       },
     });
+  }
+
+  if (chronicleHandle && deps.events) {
     chronicleJournal = chronicleHandle.journal;
     const location = chronicleHandle.identity;
     const chronicleContext = createChronicleContext(
@@ -235,6 +273,15 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       }),
       onPersistError: onChroniclePersistError,
     });
+    const unsubscribeReviewFindings = wireReviewFindingsToChronicle({
+      events: deps.events,
+      journal: chronicleJournal,
+      context: () => ({
+        ...chronicleContext,
+        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
+      }),
+      onPersistError: onChroniclePersistError,
+    });
     unsubscribeChronicle = () => {
       unsubscribeProviderChronicle();
       unsubscribeStreamChronicle();
@@ -243,13 +290,14 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       unsubscribeDecisionChronicle();
       unsubscribeDomainChronicle();
       unsubscribeRollups();
+      unsubscribeReviewFindings();
     };
     if (!chronicleHandle.serverBacked) {
       chronicleFileObserver = startChronicleFileObserver({
         projectRoot,
         journal: chronicleJournal,
         events: deps.events,
-        excludedPaths: [path.dirname(location.journalPath)],
+        excludedPaths: [location.chronicleDirectory],
         context: () => ({
           ...chronicleContext,
           scope: { ...chronicleContext.scope, sessionId: currentSessionId() },

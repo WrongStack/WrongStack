@@ -75,6 +75,24 @@ export interface FallbackModelDeps {
    * 10 minutes. Ignored when `primaryCooldownMs` is 0.
    */
   primaryCooldownMaxMs?: number | undefined;
+  /**
+   * Number of consecutive primary successes required to fully reset the
+   * failure ladder after a cooldown expiry. Set 1 for the legacy "one
+   * success fully resets" behavior; higher values prevent an
+   * intermittently-available primary from causing model bouncing — the
+   * streak is retained across a single success so the next failure
+   * continues the exponential backoff instead of restarting at 1.
+   * Default: 2.
+   */
+  primaryRecoverySuccesses?: number | undefined;
+  /**
+   * Minimum number of turns to dwell on a working fallback before the
+   * primary becomes eligible for a half-open probe — even if the cooldown
+   * timer has already expired. Default: 0 (timer alone governs).
+   * Set to e.g. 3 to require three full turns on the fallback before the
+   * system risks switching back to the primary.
+   */
+  stickyFallbackTurns?: number | undefined;
   /** Test hook for deterministic cooldown assertions. */
   now?: (() => number) | undefined;
   /**
@@ -153,6 +171,7 @@ export function effectiveFallbackChain(config: Config): string[] {
 
 const DEFAULT_PRIMARY_COOLDOWN_MS = 60_000;
 const DEFAULT_PRIMARY_COOLDOWN_MAX_MS = 10 * 60_000;
+const DEFAULT_PRIMARY_RECOVERY_SUCCESSES = 2;
 
 function sameTarget(
   a: { providerId: string; model: string } | undefined,
@@ -204,11 +223,9 @@ function fallbackCandidates(
     );
   }
 
-  if (opts.fallbackProfile !== 'default') {
-    candidates.push(...mgr.resolve('default', { exclude: current }));
-  }
-
-  // Always try the session's configured primary first when we're not already on it.
+  // 1. A live config or role-selected primary is the user's current model
+  //    choice, so try it before any fallback entries when the active context
+  //    is still on an older model.
   if (!sameTarget(configuredPrimary, current)) {
     candidates.push({
       providerId: configuredPrimary.providerId,
@@ -217,11 +234,17 @@ function fallbackCandidates(
     });
   }
 
-  // Then try the role-selected or explicit chain.
+  // 2. Preserve the exact order of the user's explicit / role-selected chain.
   candidates.push(...selectedChain);
 
-  // Finally try every other configured provider as a last resort — but only
-  // when fallbackAuto is actually enabled.
+  // 3. The default profile is additional fallback depth (unless we already
+  //    resolved it as the selected chain above).
+  if (opts.fallbackProfile !== 'default') {
+    candidates.push(...mgr.resolve('default', { exclude: current }));
+  }
+
+  // 4. Every other configured provider as a last resort — but only
+  //    when fallbackAuto is actually enabled.
   if (effectiveFallbackAuto) {
     const smartDefaults = mgr.resolveEffective({ fallbackAuto: true, exclude: current });
     candidates.push(...smartDefaults);
@@ -282,6 +305,12 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
   // True when a prior turn left the live context on a fallback model.
   let dirty = false;
   let primaryFailureStreak = 0;
+  let primaryRecoveryHits = 0;
+  let stickyTurnsElapsed = 0;
+  // Remembers the last fallback model that succeeded so the chain can
+  // front-load it on subsequent primary failures — avoiding a full
+  // re-traversal through flaky entries that were already tried.
+  let lastWorkingFallback: { providerId: string; model: string } | undefined;
   let blockedPrimary: { providerId: string; model: string } | undefined;
   let primaryBlockedUntil = 0;
 
@@ -296,6 +325,10 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
   const markPrimaryFailure = (cfg: Config) => {
     const primary = selectedPrimary(cfg);
     primaryFailureStreak = sameTarget(blockedPrimary, primary) ? primaryFailureStreak + 1 : 1;
+    // A failure breaks any in-progress recovery chain.
+    primaryRecoveryHits = 0;
+    // A new fallback hop starts the sticky-dwell window from zero.
+    stickyTurnsElapsed = 0;
     blockedPrimary = primary;
     const base = cooldownBase();
     if (base <= 0) {
@@ -306,11 +339,38 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
     primaryBlockedUntil = now() + Math.min(cooldownMax(), base * multiplier);
   };
 
-  const resetPrimaryLadder = (cfg: Config) => {
+  const recoveryTarget = () =>
+    Math.max(1, deps.primaryRecoverySuccesses ?? DEFAULT_PRIMARY_RECOVERY_SUCCESSES);
+
+  const stickyTarget = () => Math.max(0, deps.stickyFallbackTurns ?? 0);
+
+  /** Whether the mandatory fallback dwell period is still in effect. */
+  const inStickyWindow = () => stickyTurnsElapsed < stickyTarget();
+
+  /**
+   * Graduated primary recovery: a single success does NOT fully reset the
+   * failure ladder.  The streak is retained so the next failure continues
+   * the exponential backoff instead of restarting at 1 — preventing an
+   * intermittently-available primary from causing endless model bouncing.
+   * Only after `recoveryTarget()` consecutive successes is the ladder
+   * fully cleared.
+   */
+  const onPrimarySuccess = (cfg: Config) => {
     if (!sameTarget(blockedPrimary, selectedPrimary(cfg))) return;
-    primaryFailureStreak = 0;
-    blockedPrimary = undefined;
-    primaryBlockedUntil = 0;
+    primaryRecoveryHits += 1;
+    if (primaryRecoveryHits >= recoveryTarget()) {
+      // Enough consecutive successes — fully clear the ladder.
+      primaryFailureStreak = 0;
+      primaryRecoveryHits = 0;
+      stickyTurnsElapsed = 0;
+      lastWorkingFallback = undefined;
+      blockedPrimary = undefined;
+      primaryBlockedUntil = 0;
+    } else {
+      // Partial recovery: allow probing next turn but retain the streak
+      // so a subsequent failure continues the exponential backoff.
+      primaryBlockedUntil = 0;
+    }
   };
 
   return {
@@ -320,6 +380,14 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
       if (!dirty) return;
       const cfg = deps.getConfig();
       const primary = selectedPrimary(cfg);
+
+      // ── Sticky fallback dwell ──────────────────────────────────────
+      // Count this turn as one completed turn on the working fallback.
+      // If we haven't yet dwelled for `stickyTarget()` turns, stay on
+      // the fallback even if the cooldown timer has expired.
+      stickyTurnsElapsed += 1;
+      if (inStickyWindow()) return;
+
       if (primaryInCooldown(cfg)) return;
       if (
         !evaluateModelCalendar(cfg.modelAvailabilitySchedule, primary.providerId, primary.model)
@@ -332,8 +400,10 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         ctx.model = primary.model;
         await deps.onModelSwitch?.(primary.providerId, primary.model);
         // The next provider call is the half-open primary probe. If it
-        // succeeds, the wrapper resets the ladder; if it fails, the catch path
-        // marks a longer cooldown and rotates back through the chain.
+        // succeeds, onPrimarySuccess will either partially clear (allowing
+        // another probe) or fully reset the ladder (after recoveryTarget
+        // consecutive successes). If it fails, the catch path marks a
+        // longer cooldown and rotates back through the chain.
         primaryBlockedUntil = 0;
       } catch (err) {
         deps.logger?.warn(
@@ -404,7 +474,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         const cfg = deps.getConfig();
         const primary = selectedPrimary(cfg);
         if (ctx.provider.id === primary.providerId && ctx.model === primary.model) {
-          resetPrimaryLadder(cfg);
+          onPrimarySuccess(cfg);
         }
         return response;
       } catch (firstErr) {
@@ -449,9 +519,35 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         });
 
         // Filter blocked entries from the chain via the tracker
-        const usableChain = tracker
+        let usableChain = tracker
           ? chain.filter((e) => tracker.isAvailable(e.providerId, e.model))
           : chain;
+
+        // ── Last-working-fallback prioritization ──────────────────────
+        // If a prior turn found a model that worked, move it to the front
+        // of the chain so we don't re-traverse flaky entries that already
+        // failed. The dedup filter in fallbackCandidates already removed
+        // duplicates, so this is a stable re-order, not a duplication.
+        if (
+          lastWorkingFallback &&
+          usableChain.length > 1 &&
+          // Don't front-load if the last-working is the current model
+          // (we're already on it) or if it's now blocked.
+          !(lastWorkingFallback.providerId === current.providerId &&
+            lastWorkingFallback.model === current.model) &&
+          !(tracker && !tracker.isAvailable(lastWorkingFallback.providerId, lastWorkingFallback.model))
+        ) {
+          const lwfKey = `${lastWorkingFallback.providerId}/${lastWorkingFallback.model}`;
+          const lwfEntry = usableChain.find(
+            (e) => `${e.providerId}/${e.model}` === lwfKey,
+          );
+          if (lwfEntry) {
+            usableChain = [
+              lwfEntry,
+              ...usableChain.filter((e) => `${e.providerId}/${e.model}` !== lwfKey),
+            ];
+          }
+        }
 
         if (
           !alreadyTracked &&
@@ -581,6 +677,8 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
               sessionId: resolveEventSessionId(ctx_),
               agentId: ctx_.agentId,
             });
+            // Remember this model so the next chain traversal front-loads it.
+            lastWorkingFallback = { providerId: nextProvider.id, model: targetModel };
             return response;
           } catch (err) {
             // Record fallback failure too

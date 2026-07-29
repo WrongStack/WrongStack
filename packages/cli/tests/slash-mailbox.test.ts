@@ -8,7 +8,7 @@ import { touchProjectInManifest, loadManifest } from '../src/slash-commands/proj
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import {
   disposeProjectMailbox,
-  MAILBOX_RM_OPTIONS,
+  removeMailboxTempRoot,
 } from './helpers/mailbox-daemon.js';
 
 function stripAnsi(s: string): string {
@@ -41,7 +41,7 @@ describe('/mailbox slash command', () => {
     // The command reached a real project owner over IPC; that daemon has to
     // exit before the temp dir it is sitting in can be removed.
     await disposeProjectMailbox(tmp, mailbox);
-    await fs.rm(tmp, MAILBOX_RM_OPTIONS);
+    await removeMailboxTempRoot(tmp);
   });
 
   it('broadcast sends a "*" message attributed to this process leader', async () => {

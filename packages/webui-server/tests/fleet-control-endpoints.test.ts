@@ -1,6 +1,6 @@
 /**
  * End-to-end tests for the Fleet HQ two-way control endpoints, against a real
- * SessionRegistry file + GlobalMailbox in a temp WrongStack home:
+ * SessionRegistry file + SqliteMailbox in a temp WrongStack home:
  *   - POST /api/sessions/:id/message  (type + priority delivery)
  *   - GET  /api/sessions/:id/mailbox  (human↔leader thread)
  *   - POST /api/sessions/:id/interrupt (control message)
@@ -21,6 +21,7 @@ const ENC = encodeURIComponent(SESSION_ID);
 let globalRoot: string;
 let projectRoot: string;
 let distDir: string;
+let projectDir: string;
 let server: import('node:http').Server;
 let baseUrl: string;
 
@@ -34,6 +35,7 @@ beforeAll(async () => {
   // projectSlug matches resolveWstackPaths' projectDir (the mailbox location).
   const { resolveWstackPaths } = await import('@wrongstack/core/utils');
   const paths = resolveWstackPaths({ projectRoot, globalRoot });
+  projectDir = paths.projectDir;
 
   const entry = {
     sessionId: SESSION_ID,
@@ -73,10 +75,17 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  // Delivering mail starts the project's detached mailbox owner, which keeps
+  // `<globalRoot>/projects/<slug>/_mailbox.sqlite` open. Leave it running and
+  // the removal below blocks on EBUSY past the hook timeout.
+  const { disposeProjectMailbox, removeMailboxTempRoot } = await import(
+    './helpers/mailbox-daemon.js'
+  );
+  await disposeProjectMailbox(projectDir);
   await Promise.all([
-    fs.rm(globalRoot, { recursive: true, force: true }),
-    fs.rm(projectRoot, { recursive: true, force: true }),
-    fs.rm(distDir, { recursive: true, force: true }),
+    removeMailboxTempRoot(globalRoot),
+    removeMailboxTempRoot(projectRoot),
+    removeMailboxTempRoot(distDir),
   ]);
 });
 

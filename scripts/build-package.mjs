@@ -44,7 +44,14 @@ const coreEntries = entryMap([
   'src/index.ts',
   'src/kernel/index.ts',
   'src/core/index.ts',
+  // Narrow, dependency-free entries so browser bundles (webui, webui-hq,
+  // simpleui) can import these helpers without dragging the `types` / `core`
+  // barrels — those reach `types/mode-prompts.ts`, which reads instruction
+  // files with `node:fs` at module scope and made Vite externalize Node
+  // built-ins into the browser graph.
+  'src/core/model-ref.ts',
   'src/types/index.ts',
+  'src/types/session-markers.ts',
   'src/defaults/index.ts',
   'src/utils/index.ts',
   'src/utils/expect-defined.ts',
@@ -186,6 +193,7 @@ const profiles = {
     entries: {
       index: 'src/index.ts',
       'project-server': 'src/server/project-server.ts',
+      'test-support': 'src/test-support.ts',
     },
     external: [],
   },
@@ -439,9 +447,7 @@ async function stripBannerFromChunks(config, defaults, outdir, entries) {
   if (!banner || !banner.startsWith('#!')) return;
   if (!(config.splitting ?? defaults.splitting ?? false)) return;
 
-  const entryBasenames = new Set(
-    Object.keys(entries).map((name) => `${name.split('/').pop()}.js`),
-  );
+  const entryBasenames = new Set(Object.keys(entries).map((name) => `${name.split('/').pop()}.js`));
   const dir = join(packageRoot, outdir);
   const walk = (current) => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {

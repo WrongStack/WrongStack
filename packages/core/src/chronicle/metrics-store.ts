@@ -41,7 +41,7 @@ import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
 const SCHEMA_VERSION = 3;
 const READ_CHUNK_BYTES = 1024 * 1024;
 const EMPTY_FAMILIES: Record<ChronicleSignalFamily, number> = {
-  llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0,
+  llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0, finding: 0,
 };
 
 export interface ChronicleMetricsRefreshResult {

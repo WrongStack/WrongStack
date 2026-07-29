@@ -80,3 +80,31 @@ export const MAILBOX_RM_OPTIONS = {
   maxRetries: 10,
   retryDelay: 50,
 } as const;
+
+/**
+ * Remove a temp root that held project-daemon state, without ever blocking the
+ * teardown for longer than `deadlineMs`.
+ *
+ * `fs.rm`'s own retry loop is NOT time-bounded. On Windows every entry under a
+ * directory something still holds retries independently, so one stuck handle
+ * compounds across the tree and takes the 60 s hook timeout with it — the
+ * assertions pass and the suite fails in teardown. Shutting the mailbox owner
+ * down first is not a guarantee either: a project has five daemons (mailbox,
+ * kanban, chronicle, sage, index) and each one's cwd is inside the tree.
+ *
+ * So bound it and give up quietly. A leftover directory under the OS temp dir
+ * is swept eventually; failing an otherwise-green suite over one is not worth
+ * it. Callers that genuinely need the directory gone should assert on it.
+ */
+export async function removeMailboxTempRoot(dir: string, deadlineMs = 5_000): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const giveUp = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, deadlineMs);
+    timer.unref?.();
+  });
+  try {
+    await Promise.race([fs.rm(dir, MAILBOX_RM_OPTIONS).catch(() => undefined), giveUp]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}

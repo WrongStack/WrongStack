@@ -15,7 +15,11 @@
  * still costs a few dozen short strings.
  */
 import type { Message, SessionEvent, SessionMarker, Usage } from '@wrongstack/core/types';
-import { CHAT_MARKER_SOURCES, projectSessionMarkers } from '@wrongstack/core/types';
+// Narrow subpath, not the `types` barrel: this module is the only value import
+// in `src/protocol/`, which the browser bundles pull in wholesale. Going
+// through the barrel reached `types/mode.ts` → `types/mode-prompts.ts` and
+// dragged `node:fs`/`node:path`/`node:url` into every UI build.
+import { CHAT_MARKER_SOURCES, projectSessionMarkers } from '@wrongstack/core/types/session-markers';
 
 /**
  * Upper bound on replayed conversation messages. A very long session would

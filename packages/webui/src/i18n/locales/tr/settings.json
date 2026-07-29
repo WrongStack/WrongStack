@@ -49,6 +49,14 @@
       "offline": "Uykuda",
       "unavailable": "Kullanılamıyor",
       "error": "Hata"
+    },
+    "services": {
+      "kanban": {
+        "label": "Kanban IPC"
+      },
+      "mailbox": {
+        "label": "Mailbox IPC"
+      }
     }
   },
   "provider": {

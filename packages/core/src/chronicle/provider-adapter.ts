@@ -57,6 +57,8 @@ function persist(
       ...context.scope,
       sessionId: event.sessionId,
       ...(event.agentId ? { agentId: event.agentId } : {}),
+      ...(event.taskId ? { taskId: event.taskId } : {}),
+      ...(event.boardId ? { kanbanBoardId: event.boardId } : {}),
     },
     correlation: {
       ...context.correlation,

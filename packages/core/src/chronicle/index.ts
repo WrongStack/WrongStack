@@ -57,6 +57,7 @@ export { wireDecisionsToChronicle, type ChronicleDecisionAdapterOptions } from '
 export { wireDomainEventsToChronicle, type ChronicleDomainAdapterOptions } from './domain-adapter.js';
 export { wireProviderStreamsToChronicle, type ChronicleStreamAdapterOptions } from './stream-adapter.js';
 export { createChroniclePromptManifest, type ChroniclePromptManifest } from './prompt-manifest.js';
+export { wireReviewFindingsToChronicle, type ChronicleReviewAdapterOptions } from './review-adapter.js';
 export { wireRollupsToChronicle, type ChronicleRollupAdapterOptions } from './rollup-adapter.js';
 export {
   ChronicleMetricsStore,

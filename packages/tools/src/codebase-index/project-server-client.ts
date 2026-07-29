@@ -97,19 +97,42 @@ let latestConnectionState: ProjectIndexServerConnectionState = {
   connected: false,
 };
 
-function resolveProjectServerUrl(): URL | null {
+/**
+ * Why the index daemon is or is not usable.
+ *
+ * A bare `null` cannot distinguish "the operator asked for in-process mode"
+ * from "the built server is missing", so callers that degrade on `null` treat a
+ * broken build as a supported mode. For the index that means every process
+ * quietly builds its own FTS5 database instead of sharing the project's one
+ * owner — same data, N copies, none of them authoritative.
+ */
+export type ProjectIndexDaemonAvailability =
+  | { readonly kind: 'available'; readonly url: URL }
+  /** `WRONGSTACK_INDEX_INLINE` / `WRONGSTACK_INDEX_SERVER=0` was set. */
+  | { readonly kind: 'inline-requested' }
+  /** No server entry point exists in any known output layout. */
+  | { readonly kind: 'missing-build' };
+
+export function resolveProjectIndexDaemonAvailability(): ProjectIndexDaemonAvailability {
   if (process.env['WRONGSTACK_INDEX_INLINE'] || process.env['WRONGSTACK_INDEX_SERVER'] === '0') {
-    return null;
+    return { kind: 'inline-requested' };
   }
   for (const rel of ['./project-server.js', './codebase-index/project-server.js']) {
     try {
       const url = new URL(rel, import.meta.url);
-      if (url.protocol === 'file:' && fs.existsSync(fileURLToPath(url))) return url;
+      if (url.protocol === 'file:' && fs.existsSync(fileURLToPath(url))) {
+        return { kind: 'available', url };
+      }
     } catch {
       /* try the next candidate */
     }
   }
-  return null;
+  return { kind: 'missing-build' };
+}
+
+function resolveProjectServerUrl(): URL | null {
+  const availability = resolveProjectIndexDaemonAvailability();
+  return availability.kind === 'available' ? availability.url : null;
 }
 
 export function projectIndexServerExpectedBuildId(): string | null {

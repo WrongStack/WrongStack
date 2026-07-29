@@ -4,10 +4,10 @@ import * as path from 'node:path';
 import type { WebSocket } from 'ws';
 import {
   createProjectMailbox,
-  MailboxProjectServerConnection,
   type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
+import { disposeProjectMailbox, removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMailboxRouteHandlers, handleMailboxMessages } from '@wrongstack/webui-server';
 
@@ -49,18 +49,8 @@ describe('mailbox handlers', () => {
     // `_mailbox.sqlite` handle. Close the wrapper first so its socket does not
     // hold the owner's `server.close()` open.
     await mailbox.close().catch(() => undefined);
-    const control = new MailboxProjectServerConnection(
-      resolveProjectDir(projectRoot, globalRoot),
-    );
-    try {
-      await control.shutdown('test-teardown');
-    } catch {
-      // No owner running, or it exited on its own.
-    } finally {
-      control.close();
-    }
-    // SQLite keeps `-wal`/`-shm` mapped for a moment after the owner exits.
-    await fs.rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    await disposeProjectMailbox(resolveProjectDir(projectRoot, globalRoot));
+    await removeMailboxTempRoot(root);
   });
 
   it('filters mailbox messages by agent recipient and broadcast visibility', async () => {

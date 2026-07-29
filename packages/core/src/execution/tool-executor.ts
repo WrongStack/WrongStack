@@ -365,6 +365,12 @@ export class ToolExecutor {
         boundaryDecision: boundary.decision,
         ...(boundary.reason ? { boundaryReason: boundary.reason } : {}),
         capabilityDowngraded,
+        taskId: ctx.currentKanbanTaskId,
+        boardId: ctx.currentKanbanBoardId,
+        ...(typeof ctx.provider === 'object'
+          ? { provider: (ctx.provider as { id: string }).id }
+          : {}),
+        ...(ctx.model ? { model: ctx.model } : {}),
       });
 
       if (effectivePermission === 'deny') {
@@ -775,6 +781,12 @@ export class ToolExecutor {
       name: tool.name,
       id: use.id,
       input: use.input,
+      taskId: ctx.currentKanbanTaskId,
+      boardId: ctx.currentKanbanBoardId,
+      ...(typeof ctx.provider === 'object'
+        ? { provider: (ctx.provider as { id: string }).id }
+        : {}),
+      ...(ctx.model ? { model: ctx.model } : {}),
     });
     this.opts.renderer?.writeToolCall(tool.name, use.input);
     const output = await this.runWithTimeout(tool, use.input, ctx.signal, ctx, use.id);

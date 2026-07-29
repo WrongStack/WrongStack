@@ -3,6 +3,7 @@ import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.
 import { OneShotOrchestrator } from '../../src/execution/one-shot-llm.js';
 import { ProviderError } from '../../src/types/provider.js';
 import type {
+  Capabilities,
   Provider,
   ProviderErrorKind,
   Request,
@@ -12,11 +13,24 @@ import type { Config } from '../../src/types/config.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
+const TEST_CAPABILITIES = {
+  tools: true,
+  parallelTools: false,
+  vision: false,
+  streaming: true,
+  promptCache: false,
+  systemPrompt: true,
+  jsonMode: false,
+  reasoning: false,
+  maxContext: 128_000,
+  cacheControl: 'none',
+} satisfies Capabilities;
+
 function fakeProvider(id: string, opts?: { failCount?: number; model?: string }): Provider {
   let calls = 0;
   return {
     id,
-    capabilities: { maxContext: 128_000, supportsTools: true, supportsVision: false, supportsReasoning: false },
+    capabilities: TEST_CAPABILITIES,
     complete: vi.fn(async (_req: Request, _opts?: { signal?: AbortSignal }) => {
       calls++;
       if (opts?.failCount && calls <= opts.failCount) {
@@ -37,7 +51,7 @@ function fakeProvider(id: string, opts?: { failCount?: number; model?: string })
 function fakeProviderThatThrows(id: string, kind: ProviderErrorKind = 'auth'): Provider {
   return {
     id,
-    capabilities: { maxContext: 128_000, supportsTools: true, supportsVision: false, supportsReasoning: false },
+    capabilities: TEST_CAPABILITIES,
     complete: vi.fn(async () => {
       throw new ProviderError(
         `Provider ${id} ${kind} error`,
@@ -75,7 +89,10 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
   } as Config;
 }
 
-function makeOneShotOpts(config: Config, buildProvider: Parameters<typeof OneShotOrchestrator>[0]['buildProvider']) {
+function makeOneShotOpts(
+  config: Config,
+  buildProvider: ConstructorParameters<typeof OneShotOrchestrator>[0]['buildProvider'],
+) {
   return {
     buildProvider,
     getConfig: () => config,
@@ -261,6 +278,67 @@ describe('OneShotOrchestrator', () => {
     expect(result.model).toBe('fallback-b');
   });
 
+  // ── Stale-entry regression ────────────────────────────────────────────
+  //
+  // The per-entry break was removed so that one non-fallback-eligible
+  // failure inside the chain (e.g. a retired model returning 404 →
+  // invalid_request) does NOT abort every healthy entry after it.
+  // Only the PRIMARY's eligibility gates chain entry. Mirrors the
+  // agent-loop fix tested in fallback-model-kind-gate.test.ts:234.
+  it('skips a stale chain entry (404/invalid_request) and still tries the next one', async () => {
+    const primary: Provider = {
+      id: 'primary',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async () => {
+        throw new ProviderError('overloaded', 503, true, 'primary', { kind: 'overloaded' });
+      }),
+      stream: vi.fn(),
+    };
+    const stale: Provider = {
+      id: 'stale-provider',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async () => {
+        throw new ProviderError('model not found', 404, false, 'stale-provider', { kind: 'invalid_request' });
+      }),
+      stream: vi.fn(),
+    };
+    const healthy: Provider = {
+      id: 'healthy-provider',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async () => fakeResponse('healthy-provider', 'healthy-model')),
+      stream: vi.fn(),
+    };
+    const cfg = makeConfig({
+      providers: {
+        'test-provider': { type: 'test', apiKey: 'sk-test', models: ['test-model'] },
+        'stale-provider': { type: 'test', apiKey: 'sk-stale', models: ['retired-model'] },
+        'healthy-provider': { type: 'test', apiKey: 'sk-healthy', models: ['healthy-model'] },
+      },
+      fallbackAuto: false,
+    });
+    const buildProvider = vi.fn(async (pid: string) => {
+      if (pid === 'primary') return primary;
+      if (pid === 'stale-provider') return stale;
+      return healthy;
+    });
+    const orch = new OneShotOrchestrator(makeOneShotOpts(cfg, buildProvider));
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'primary',
+      model: 'primary-model',
+      fallbackModels: ['stale-provider/retired-model', 'healthy-provider/healthy-model'],
+    });
+
+    expect(result.text).toContain('healthy-model');
+    expect(result.fromFallback).toBe(true);
+    expect(result.provider).toBe('healthy-provider');
+    // Both chain entries were attempted — stale didn't abort the loop
+    expect(stale.complete).toHaveBeenCalledTimes(1);
+    expect(healthy.complete).toHaveBeenCalledTimes(1);
+  });
+
   it('honors a named fallback profile resolved upstream as fallbackModels', async () => {
     const primary = fakeProviderThatThrows('primary', 'overloaded');
     const fallback = fakeProvider('fallback-provider', { model: 'fallback-model' });
@@ -292,7 +370,7 @@ describe('OneShotOrchestrator', () => {
   it('times out when the provider takes too long (AbortSignal)', async () => {
     const slowProvider: Provider = {
       id: 'slow',
-      capabilities: { maxContext: 128_000, supportsTools: true, supportsVision: false, supportsReasoning: false },
+      capabilities: TEST_CAPABILITIES,
       complete: vi.fn(async (_req, opts) => {
         // Wait for the signal to abort
         await new Promise((_, reject) => {
@@ -328,7 +406,7 @@ describe('OneShotOrchestrator', () => {
     // AND no fallback chain configured
     const transientProvider: Provider = {
       id: 'transient',
-      capabilities: { maxContext: 128_000, supportsTools: true, supportsVision: false, supportsReasoning: false },
+      capabilities: TEST_CAPABILITIES,
       complete: vi.fn(async () => {
         throw new ProviderError('Rate limited', 429, true, 'transient', { kind: 'rate_limit' });
       }),
@@ -376,12 +454,7 @@ describe('OneShotOrchestrator', () => {
     const fallback = fakeProvider('fallback-provider', { model: 'fallback-model' });
     const primary: Provider = {
       id: 'primary',
-      capabilities: {
-        maxContext: 128_000,
-        supportsTools: true,
-        supportsVision: false,
-        supportsReasoning: false,
-      },
+      capabilities: TEST_CAPABILITIES,
       complete: vi.fn(async () => {
         controller.abort();
         throw new ProviderError('Cancelled', 0, false, 'primary', { kind: 'network' });
@@ -415,12 +488,7 @@ describe('OneShotOrchestrator', () => {
     let observedSignal: AbortSignal | undefined;
     const provider: Provider = {
       id: 'slow',
-      capabilities: {
-        maxContext: 128_000,
-        supportsTools: true,
-        supportsVision: false,
-        supportsReasoning: false,
-      },
+      capabilities: TEST_CAPABILITIES,
       complete: vi.fn(async (_request, opts) => {
         observedSignal = opts.signal;
         await new Promise((_, reject) => {

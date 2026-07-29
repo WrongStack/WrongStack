@@ -3,7 +3,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { HqKanbanSnapshotPayload, HqPublisher } from '@wrongstack/core/hq';
-import { createBoardObject, readBoard, writeBoard } from '@wrongstack/kanban';
+import { readBoard, readKanbanMetadata, writeBoard, writeKanbanMetadata } from '@wrongstack/kanban';
+import { createBoardObject } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createKanbanHqSync } from '../src/kanban-hq-sync.js';
 
@@ -121,10 +122,9 @@ describe('CLI Kanban HQ synchronization', () => {
 
   it('prunes expired tombstones before replaying a full snapshot', async () => {
     const root = await tempProject();
-    const stateDir = path.join(root, '.wrongstack', 'kanbans');
-    await fs.mkdir(stateDir, { recursive: true });
-    await fs.writeFile(
-      path.join(stateDir, '.hq-sync.json'),
+    await writeKanbanMetadata(
+      root,
+      'hq-sync-state-v1',
       JSON.stringify({
         boards: { deleted: { revision: 2, updatedAt: '2020-01-01T00:00:00.000Z' } },
         tombstones: {
@@ -142,7 +142,9 @@ describe('CLI Kanban HQ synchronization', () => {
       | undefined;
     if (event === undefined) throw new Error('expected retained snapshot publish');
     expect(event.payload.tombstones).toEqual([]);
-    const state = JSON.parse(await fs.readFile(path.join(stateDir, '.hq-sync.json'), 'utf8')) as {
+    const rawState = await readKanbanMetadata(root, 'hq-sync-state-v1');
+    if (rawState === null) throw new Error('expected SQLite sync metadata');
+    const state = JSON.parse(rawState) as {
       boards: Record<string, unknown>;
       tombstones: Record<string, unknown>;
     };
@@ -167,9 +169,10 @@ describe('CLI Kanban HQ synchronization', () => {
     changed.updatedAt = '2026-07-23T08:00:00.000Z';
     changed.title = 'Changed now';
     await writeBoard(root, changed);
+    sync.refresh(changed.id);
     await waitForCondition(
       () => vi.getTimerCount() > 0,
-      'expected filesystem event to schedule delta publish',
+      'expected daemon event to schedule delta publish',
     );
     await vi.advanceTimersByTimeAsync(150);
     await waitForCondition(
@@ -216,9 +219,10 @@ describe('CLI Kanban HQ synchronization', () => {
     changed.updatedAt = '2026-07-23T08:01:00.000Z';
     changed.title = 'Only this board changed';
     await fs.writeFile(path.join(kanbanDir, `${changed.id}.json`), JSON.stringify(changed), 'utf8');
+    sync.refresh(changed.id);
     await waitForCondition(
       () => vi.getTimerCount() > 0,
-      'expected filesystem event to schedule bounded delta publish',
+      'expected daemon event to schedule bounded delta publish',
     );
     await vi.advanceTimersByTimeAsync(150);
     await waitForCondition(
@@ -269,29 +273,15 @@ describe('CLI Kanban HQ synchronization', () => {
       }),
     );
     expect((await readBoard(root, remoteBoard.id))?.title).toBe('Remote');
-    await expect(
-      fs.readFile(path.join(root, '.wrongstack', 'kanbans', '.hq-sync.json'), 'utf8'),
-    ).resolves.toContain('"boards"');
+    await expect(readKanbanMetadata(root, 'hq-sync-state-v1')).resolves.toContain('"boards"');
     sync.stop();
   });
 
-  it('retries a transient Windows lock while replacing sync state', async () => {
+  it('persists sync state without filesystem rename seams', async () => {
     const root = await tempProject();
     const sync = createKanbanHqSync(root, 'shared-project');
     const publishEvent = vi.fn();
     await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
-
-    const statePath = path.join(root, '.wrongstack', 'kanbans', '.hq-sync.json');
-    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
-    if (platform === undefined || atomicWriteFs.actualRename === undefined) {
-      throw new Error('Windows retry test could not initialize its filesystem seams');
-    }
-    const busy = Object.assign(new Error('Resource busy'), { code: 'EBUSY' });
-    atomicWriteFs.rename
-      .mockClear()
-      .mockRejectedValueOnce(busy)
-      .mockImplementation(atomicWriteFs.actualRename);
-    Object.defineProperty(process, 'platform', { ...platform, value: 'win32' });
 
     try {
       await expect(
@@ -303,13 +293,9 @@ describe('CLI Kanban HQ synchronization', () => {
         }),
       ).resolves.toBeUndefined();
 
-      expect(atomicWriteFs.rename).toHaveBeenCalledTimes(2);
-      await expect(fs.readFile(statePath, 'utf8')).resolves.toContain('"boards"');
-      await expect(fs.readdir(path.dirname(statePath))).resolves.not.toEqual(
-        expect.arrayContaining([expect.stringMatching(/\.tmp$/)]),
-      );
+      expect(atomicWriteFs.rename).not.toHaveBeenCalled();
+      await expect(readKanbanMetadata(root, 'hq-sync-state-v1')).resolves.toContain('"boards"');
     } finally {
-      Object.defineProperty(process, 'platform', platform);
       sync.stop();
     }
   });

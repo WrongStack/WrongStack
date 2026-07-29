@@ -38,11 +38,13 @@ export async function touchKanbanPresence(
   boardId: string,
   input: TouchKanbanPresenceInput,
 ): Promise<KanbanBoard | null> {
-  if (!input.sessionId.trim() || !input.agentId.trim()) return readBoard(projectRoot, boardId);
+  if (!input.sessionId?.trim() || !input.agentId?.trim()) return readBoard(projectRoot, boardId);
   const seenAt = input.seenAt ?? new Date().toISOString();
   const seenMs = Date.parse(seenAt);
   const ttlMs = Math.max(1_000, Math.floor(input.ttlMs ?? DEFAULT_KANBAN_PRESENCE_TTL_MS));
-  const activeUntil = new Date((Number.isFinite(seenMs) ? seenMs : Date.now()) + ttlMs).toISOString();
+  const activeUntil = new Date(
+    (Number.isFinite(seenMs) ? seenMs : Date.now()) + ttlMs,
+  ).toISOString();
   const id = presenceId(input);
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const current = board.presence?.find((entry) => entry.id === id);

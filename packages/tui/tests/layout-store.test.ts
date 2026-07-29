@@ -2,15 +2,19 @@
  * Tests for the layout store — in-memory caching + disk persistence of
  * entry layout data.
  */
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { LayoutStore } from '../src/layout-store.js';
-import { computeLayout, LAYOUT_VERSION } from '../src/layout-engine.js';
+
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import { tmpdir } from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { computeLayout, LAYOUT_VERSION } from '../src/layout-engine.js';
+import { LayoutStore } from '../src/layout-store.js';
 
 function tempSessionDir(): string {
-  return path.join(tmpdir(), `tui-layout-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  return path.join(
+    tmpdir(),
+    `tui-layout-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
 }
 
 describe('LayoutStore (ephemeral mode)', () => {
@@ -174,6 +178,30 @@ describe('LayoutStore (persistence mode)', () => {
     store2.setTermWidth(80);
     const n = await store2.load();
     expect(n).toBe(0); // discarded — version mismatch
+  });
+
+  it('rejects version-1 measurements from before the copy-gutter width contract', async () => {
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(
+      path.join(dir, 'tui-layout.json'),
+      JSON.stringify({
+        termWidth: 80,
+        version: 1,
+        entries: {
+          1: {
+            ...computeLayout(1, 'assistant', 'legacy full-width measurement', 80),
+            rows: 7,
+            kind: 'measured',
+            version: 1,
+          },
+        },
+      }),
+    );
+
+    const store2 = new LayoutStore({ sessionDataDir: dir, ephemeral: false });
+    store2.setTermWidth(80);
+    expect(await store2.load()).toBe(0);
+    expect(store2.size).toBe(0);
   });
 
   it('discards data on large terminal width mismatch', async () => {

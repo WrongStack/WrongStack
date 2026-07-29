@@ -12,6 +12,14 @@ export interface ToolEventMap {
     name: string;
     id: string;
     input?: unknown | undefined;
+    /** Kanban task this tool call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this tool call belongs to, when known. */
+    boardId?: string | undefined;
+    /** LLM provider that produced this tool call. */
+    provider?: string | undefined;
+    /** LLM model that produced this tool call. */
+    model?: string | undefined;
   };
   /**
    * Fired when a tool call finishes successfully. Metrics collectors can count
@@ -42,6 +50,14 @@ export interface ToolEventMap {
     errorCode?: string | undefined;
     errorSubsystem?: string | undefined;
     errorSeverity?: string | undefined;
+    /** Kanban task this tool call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this tool call belongs to, when known. */
+    boardId?: string | undefined;
+    /** LLM provider that produced this tool call. */
+    provider?: string | undefined;
+    /** LLM model that produced this tool call. */
+    model?: string | undefined;
   };
   /**
    * Fired for each ToolProgressEvent yielded by `Tool.executeStream`. UIs
@@ -80,6 +96,14 @@ export interface ToolEventMap {
     boundaryDecision?: 'allow' | 'confirm' | 'block' | undefined;
     boundaryReason?: string | undefined;
     capabilityDowngraded: boolean;
+    /** Kanban task this tool call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this tool call belongs to, when known. */
+    boardId?: string | undefined;
+    /** LLM provider that produced this tool call. */
+    provider?: string | undefined;
+    /** LLM model that produced this tool call. */
+    model?: string | undefined;
   };
   /**
    * Fired when a tool call needs confirmation
@@ -203,6 +227,14 @@ export interface ToolEventMap {
      * information later referenced by the assistant.
      */
     metadata?: ToolOutputMetadata | undefined;
+    /** Kanban task this tool call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this tool call belongs to, when known. */
+    boardId?: string | undefined;
+    /** LLM provider that produced this tool call. */
+    provider?: string | undefined;
+    /** LLM model that produced this tool call. */
+    model?: string | undefined;
   };
   'mcp.server.connected': { name: string; toolCount: number };
   'mcp.server.reconnected': { name: string; toolCount: number };

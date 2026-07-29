@@ -1,7 +1,7 @@
 import type { JSONSchema } from '@wrongstack/core/types';
 
 export const KANBAN_TOOL_DESCRIPTION =
-  'Manage and audit project-scoped multi-kanban boards stored under .wrongstack/kanbans. Managed cards enforce fully specified details and adjacent Backlog → Todo → Running → Review → Done transitions with persistent comments and evidence. Successful board access records live agent/session presence. Use verify_completion to validate a task against its success criteria and persist the verification report. Use split_atomic to split a task into child tasks with parent.atomic=true in a single atomic board mutation, enforcing subtree verification before the parent can complete.';
+  'Manage and audit project-scoped multi-kanban boards through the shared IPC Kanban server and its SQLite store. Managed cards enforce fully specified details and adjacent Backlog → Todo → Running → Review → Done transitions with persistent comments and evidence. Successful board access records live agent/session presence. Use verify_completion to validate a task against its success criteria and persist the verification report. Use split_atomic to split a task into child tasks with parent.atomic=true in a single atomic board mutation, enforcing subtree verification before the parent can complete.';
 
 export const KANBAN_TOOL_USAGE_HINT =
   'Use this for durable project kanban state. Reassess with get_board whenever evidence changes; agents may add, update, split, merge, reprioritize, or remove tasks so the board remains a live plan. Presence includes active/last-seen session and agent metadata. For managed boards, fully fill card details, use transition_task after every material step, attach truthful evidence, and never use update_task/move_task to bypass lifecycle guards. Worker completion enters Review; only passed acceptance criteria plus review evidence allow Done. Use verify_completion to generate a verification report (persisted automatically) and split_atomic to atomically create child subtasks with the atomic flag pre-set.';
@@ -84,7 +84,16 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
     },
     status: {
       type: 'string',
-      enum: ['pending', 'ready', 'in_progress', 'blocked', 'review', 'completed', 'failed', 'archived'],
+      enum: [
+        'pending',
+        'ready',
+        'in_progress',
+        'blocked',
+        'review',
+        'completed',
+        'failed',
+        'archived',
+      ],
     },
     order: { type: 'number' },
     query: { type: 'string' },

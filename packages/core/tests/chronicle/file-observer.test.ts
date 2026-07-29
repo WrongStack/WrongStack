@@ -62,6 +62,46 @@ describe('startChronicleFileObserver', () => {
     await observer.close();
   });
 
+  it('ignores the tool workspace, including worktrees under .claude', async () => {
+    // A git worktree is a full copy of the repository. With `.claude` watched,
+    // creating one reported every tracked file as an external creation and
+    // removing it reported every file again — on this repo that was 90% of a
+    // day's telemetry, all of it the tool observing itself.
+    const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-files-workspace-'));
+    tempDirs.push(root);
+    await mkdir(path.join(root, '.claude', 'worktrees', 'feature', 'src'), { recursive: true });
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    const journal = new ChronicleJournal({
+      filePath: path.join(root, '.wrongstack', 'chronicle.jsonl'),
+    });
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const observer = await startChronicleFileObserver({
+      projectRoot: root,
+      journal,
+      context,
+      debounceMs: 25,
+    });
+
+    await writeFile(path.join(root, '.claude', 'worktrees', 'feature', 'src', 'copy.ts'), 'x\n');
+    // A real edit afterwards proves the observer is alive: without it, "no
+    // worktree event" would also be satisfied by an observer that saw nothing.
+    const real = path.join(root, 'src', 'value.ts');
+    await writeFile(real, 'export const value = 1;\n');
+
+    const created = await waitForEvent(journal, (type) => type === 'file.external.created');
+    expect(created.resource).toMatchObject({ path: 'src/value.ts' });
+
+    const events = await journal.readAll();
+    const worktreeEvents = events.filter((event) =>
+      String(event.resource?.path ?? '').includes('worktrees'),
+    );
+    expect(worktreeEvents).toEqual([]);
+    await observer.close();
+  });
+
   it('correlates watcher mutations with a recent tool call and detects rename lineage', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-files-tool-'));
     tempDirs.push(root);

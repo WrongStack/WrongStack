@@ -163,6 +163,23 @@ describe('canonical Chronicle handler family', () => {
     });
   });
 
+  it('surfaces query gateway creation failures as chronicle.error instead of rejecting', { timeout: 5_000 }, async () => {
+    const { context, sent } = harness();
+    const ws = {} as WebSocket;
+    const failingContext: ChronicleRouteContext = {
+      ...context,
+      getChronicleAccess: () => {
+        throw new Error('chronicle daemon unavailable');
+      },
+    };
+
+    expect(await handleChronicleRoute(failingContext, ws, { type: 'chronicle.query' })).toBe(true);
+    expect(sent.at(-1)).toEqual({
+      type: 'chronicle.error',
+      payload: { message: 'chronicle daemon unavailable' },
+    });
+  });
+
   it('returns canonical validation errors and declines foreign messages', async () => {
     const { context, call, sent } = harness();
     const ws = {} as WebSocket;

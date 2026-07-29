@@ -127,19 +127,12 @@ afterAll(async () => {
   // The bridge reaches the mailbox through the project's detached owner, which
   // holds `_mailbox.sqlite` open. Leave it running and the rm below blocks on
   // EBUSY until the hook times out.
-  const { MailboxProjectServerConnection } = await import('@wrongstack/core/coordination');
-  const control = new MailboxProjectServerConnection(mailboxProjectDir);
-  try {
-    await control.shutdown('test-teardown');
-  } catch {
-    // No owner running, or it exited on its own.
-  } finally {
-    control.close();
-  }
+  const { disposeProjectMailbox, removeMailboxTempRoot } = await import(
+    './helpers/mailbox-daemon.js'
+  );
+  await disposeProjectMailbox(mailboxProjectDir);
   if (process.env['WRONGSTACK_HOME']) {
-    await fs.rm(process.env['WRONGSTACK_HOME'], {
-      recursive: true, force: true, maxRetries: 10, retryDelay: 100,
-    });
+    await removeMailboxTempRoot(process.env['WRONGSTACK_HOME']);
     delete process.env['WRONGSTACK_HOME'];
   }
 });

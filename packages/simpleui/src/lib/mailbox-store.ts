@@ -24,18 +24,17 @@ export interface SimpleMailboxAgent {
   online: boolean;
 }
 
-export interface SimpleMailboxService {
-  protocolVersion: number;
-  pid: number;
-  clients: number;
-  pendingRequests: number;
-  storageKind: 'sqlite' | 'legacy-test-adapter';
-}
-
 export interface MailboxSnapshot {
   messages: SimpleMailboxMessage[];
   agents: SimpleMailboxAgent[];
-  service: SimpleMailboxService | null;
+  /**
+   * Wall-clock ms of the most recent mailbox.* event the store consumed
+   * from the server. `null` until the first event arrives. Lets the UI
+   * render an "online / offline" chip from real traffic — the
+   * `@wrongstack/webui-server` does not broadcast a `mailbox.status`
+   * service-info payload, so we synthesize this signal locally instead.
+   */
+  lastEventAt: number | null;
   error: string | null;
 }
 
@@ -100,27 +99,6 @@ function parseAgents(value: unknown): SimpleMailboxAgent[] {
   });
 }
 
-function parseService(value: unknown): SimpleMailboxService | null {
-  const item = record(value);
-  if (
-    !item ||
-    typeof item['protocolVersion'] !== 'number' ||
-    typeof item['pid'] !== 'number' ||
-    typeof item['clients'] !== 'number' ||
-    typeof item['pendingRequests'] !== 'number' ||
-    (item['storageKind'] !== 'sqlite' && item['storageKind'] !== 'legacy-test-adapter')
-  ) {
-    return null;
-  }
-  return {
-    protocolVersion: item['protocolVersion'],
-    pid: item['pid'],
-    clients: item['clients'],
-    pendingRequests: item['pendingRequests'],
-    storageKind: item['storageKind'],
-  };
-}
-
 /**
  * Cap on retained mailbox messages (oldest dropped when over). Mirrors the
  * TUI `use-mailbox-view-model.ts:115` cap and the WebUI `mailbox-store.ts`
@@ -136,7 +114,12 @@ const MAX_MAILBOX_MESSAGES = 100;
 const MAX_MAILBOX_AGENTS = 50;
 
 export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
-  let snapshot: MailboxSnapshot = { messages: [], agents: [], service: null, error: null };
+  let snapshot: MailboxSnapshot = {
+    messages: [],
+    agents: [],
+    lastEventAt: null,
+    error: null,
+  };
   const listeners = new Set<() => void>();
   const publish = (next: MailboxSnapshot): void => {
     snapshot = next;
@@ -151,11 +134,13 @@ export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
     },
     applyMessage: (message) => {
       const payload = message.payload ?? {};
+      const observedAt = Date.now();
       if (message.type === 'mailbox.messages') {
         const parsed = parseMessages(payload['messages']);
         publish({
           ...snapshot,
           messages: parsed.slice(-MAX_MAILBOX_MESSAGES),
+          lastEventAt: observedAt,
           error: text(payload['error']) || null,
         });
         return true;
@@ -165,18 +150,16 @@ export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
         publish({
           ...snapshot,
           agents: parsed.slice(-MAX_MAILBOX_AGENTS),
+          lastEventAt: observedAt,
           error: text(payload['error']) || null,
         });
         return true;
       }
-      if (message.type === 'mailbox.status') {
-        publish({
-          ...snapshot,
-          service: parseService(payload['status']),
-          error: text(payload['error']) || null,
-        });
-        return true;
-      }
+      // `mailbox.status` was previously projected into `snapshot.service`,
+      // but `@wrongstack/webui-server` never broadcasts that frame — see
+      // packages/webui-server/src/server/setup-events.ts for the actual
+      // server→client mailbox types. The branch is intentionally absent;
+      // the sidebar derives "online" from `lastEventAt` instead.
       if (
         message.type === 'mailbox.received' ||
         message.type === 'mailbox.action_result' ||
@@ -184,6 +167,10 @@ export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
         message.type === 'mailbox.event' ||
         message.type === 'mailbox.sent'
       ) {
+        publish({
+          ...snapshot,
+          lastEventAt: observedAt,
+        });
         onRefreshNeeded?.();
       }
       return false;

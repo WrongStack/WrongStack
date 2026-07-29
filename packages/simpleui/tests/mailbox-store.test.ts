@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMailboxStore } from '../src/lib/mailbox-store.js';
 
 describe('SimpleUI mailbox store', () => {
-  it('projects mailbox messages, agents, and SQLite IPC health', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-28T12:00:00.000Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('projects mailbox messages, agents, and stamps lastEventAt on real traffic', () => {
     const store = createMailboxStore();
     store.applyMessage({
       type: 'mailbox.messages',
@@ -29,7 +37,19 @@ describe('SimpleUI mailbox store', () => {
         agents: [{ agentId: 'worker@one', name: 'Worker', status: 'idle', online: true }],
       },
     });
-    store.applyMessage({
+
+    expect(store.getSnapshot()).toMatchObject({
+      messages: [{ id: 'mail-1', readByCount: 0 }],
+      agents: [{ agentId: 'worker@one', online: true }],
+      lastEventAt: new Date('2026-07-28T12:00:00.000Z').getTime(),
+      error: null,
+    });
+  });
+
+  it('ignores legacy mailbox.status frames — server does not broadcast them', () => {
+    const store = createMailboxStore();
+    const before = store.getSnapshot().lastEventAt;
+    const accepted = store.applyMessage({
       type: 'mailbox.status',
       payload: {
         status: {
@@ -41,16 +61,13 @@ describe('SimpleUI mailbox store', () => {
         },
       },
     });
-
-    expect(store.getSnapshot()).toMatchObject({
-      messages: [{ id: 'mail-1', readByCount: 0 }],
-      agents: [{ agentId: 'worker@one', online: true }],
-      service: { protocolVersion: 3, pid: 123, storageKind: 'sqlite' },
-      error: null,
-    });
+    expect(accepted).toBe(false);
+    const after = store.getSnapshot();
+    expect(after.lastEventAt).toBe(before);
+    expect(after).not.toHaveProperty('service');
   });
 
-  it('requests a fresh snapshot after mailbox activity events', () => {
+  it('requests a fresh snapshot after mailbox activity events and stamps lastEventAt', () => {
     const refresh = vi.fn();
     const store = createMailboxStore(refresh);
 
@@ -59,5 +76,6 @@ describe('SimpleUI mailbox store', () => {
     store.applyMessage({ type: 'mailbox.sent', payload: { success: true } });
 
     expect(refresh).toHaveBeenCalledTimes(3);
+    expect(store.getSnapshot().lastEventAt).toBe(new Date('2026-07-28T12:00:00.000Z').getTime());
   });
 });

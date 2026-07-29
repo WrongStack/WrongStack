@@ -160,6 +160,8 @@ export function makeDependencyWatcherConfig(
   // Deduplicate
   const unique = [...new Set(watchPaths)];
 
+  const isMultiRecipient = targetAgent === '*' || targetAgent.startsWith('@session:');
+
   // Globe matcher for wildcard patterns
   const globPatterns = patterns.filter((p) => p.includes('*'));
   const plainPatterns = patterns.filter((p) => !p.includes('*'));
@@ -208,7 +210,12 @@ export function makeDependencyWatcherConfig(
             await mailbox.send({
               from: watcherAgentId,
               to: targetAgent,
-              type: 'assign',
+              // `assign` requires a single recipient — the mailbox rejects it
+              // for `*` / `@session:` because a task with several owners is
+              // ambiguous. The default target IS `*`, so hard-coding `assign`
+              // made every notification throw straight into the catch below
+              // and vanish. Fan-out goes out as a broadcast instead.
+              type: isMultiRecipient ? 'broadcast' : 'assign',
               subject: `Dependency file changed: ${fileName}`,
               body: [
                 `File: ${entry.path}`,

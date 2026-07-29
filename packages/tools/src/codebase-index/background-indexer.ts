@@ -52,6 +52,7 @@ import {
   ensureProjectIndexServer,
   getProjectIndexServerConnectionState,
   isProjectIndexServerAvailable,
+  resolveProjectIndexDaemonAvailability,
   onProjectIndexServerConnectionStateChange,
   type ProjectIndexServerClientHealth,
   type ProjectIndexServerConnectionState,
@@ -319,10 +320,21 @@ function callIndexOp<O extends OpName>(
   opts: CallOpts,
 ): Promise<OpShapes[O]['result']> {
   // Production builds route every operation through one detached server per
-  // project. Source-tree tests and exotic runtimes without the built server
-  // retain the worker/inline fallback below.
-  if (isProjectIndexServerAvailable()) {
+  // project. The worker/inline path below still exists for source-tree tests
+  // and exotic runtimes, but it has to be asked for: reaching it because the
+  // build could not be located would give this process a private FTS5 database
+  // and no indication that it had stopped sharing the project's index.
+  const availability = resolveProjectIndexDaemonAvailability();
+  if (availability.kind === 'available') {
     return callProjectIndexServer(op, args, opts);
+  }
+  if (availability.kind === 'missing-build') {
+    return Promise.reject(
+      new Error(
+        'Built codebase-index project server is unavailable. Build @wrongstack/tools, ' +
+          'or set WRONGSTACK_INDEX_INLINE=1 to explicitly accept a process-local index.',
+      ),
+    );
   }
 
   const w = ensureWorker();

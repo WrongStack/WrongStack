@@ -1,10 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createBoardObject, listBoards, writeBoard } from '@wrongstack/kanban';
+import { listBoards, writeBoard } from '@wrongstack/kanban';
+import { createBoardObject } from '@wrongstack/kanban/test-support';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildKanbanCommand } from '../../src/slash-commands/kanban.js';
 import type { SlashCommandContext } from '../../src/slash-commands/command-context.js';
+import { buildKanbanCommand } from '../../src/slash-commands/kanban.js';
 
 const roots: string[] = [];
 
@@ -33,7 +34,9 @@ async function runPrune(root: string, argsText: string): Promise<{ message?: str
 
 const OLD = '2026-01-01T00:00:00.000Z';
 
-async function seedBoards(root: string): Promise<{ oldEmpty: string; oldUnfinished: string; fresh: string }> {
+async function seedBoards(
+  root: string,
+): Promise<{ oldEmpty: string; oldUnfinished: string; fresh: string }> {
   const oldEmpty = createBoardObject({ title: 'Old empty run' });
   oldEmpty.updatedAt = OLD;
   await writeBoard(root, oldEmpty);

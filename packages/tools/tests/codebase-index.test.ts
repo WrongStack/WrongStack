@@ -27,6 +27,13 @@ import { IndexStore, indexStorePool } from '../src/codebase-index/writer.js';
 import { runIndexer } from '../src/codebase-index/indexer.js';
 import { SCHEMA_VERSION } from '../src/codebase-index/schema.js';
 
+// This suite drives the codebase index in-process. The project daemon now
+// fails closed when its build cannot be located, so the in-process path has to
+// be requested rather than fallen into — the same declaration a user would make
+// with WRONGSTACK_INDEX_INLINE=1.
+process.env['WRONGSTACK_INDEX_INLINE'] = '1';
+
+
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
 
 function mkCtx(root: string): Context {

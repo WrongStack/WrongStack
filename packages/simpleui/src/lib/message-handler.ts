@@ -165,7 +165,18 @@ export interface MessageHandlerDeps {
 
 // ── Factory ─────────────────────────────────────────────────────────
 
-export type ServerMessageHandler = (message: ServerMessage) => void;
+export interface ServerMessageHandler {
+  (message: ServerMessage): void;
+  /**
+   * Apply any buffered streaming text immediately.
+   *
+   * Deltas are coalesced onto an animation frame, so a caller that needs the
+   * transcript to be current right now — a test asserting on state, or teardown
+   * that would otherwise drop the last partial token — must drain the buffer
+   * itself. Handling any non-delta message flushes implicitly.
+   */
+  flush(): void;
+}
 
 export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHandler {
   const {
@@ -237,7 +248,61 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     setQueue(rest);
   }
 
-  return function handleServerMessage(message: ServerMessage): void {
+  /**
+   * Streaming text arrives one `provider.text_delta` frame per token. Applying
+   * each one directly meant a `setMessages` — and therefore a React render of
+   * the whole transcript — per token, with two full copies of the message array
+   * allocated inside the updater. Deltas are instead accumulated here and
+   * applied once per animation frame, matching the coalescing the WebUI chat
+   * already does.
+   *
+   * Ordering is the constraint that makes this safe: every other message type
+   * flushes the buffer before it is handled, so a tool call or run result can
+   * never overtake text that arrived before it.
+   */
+  let pendingDelta = '';
+  let frameHandle: ReturnType<typeof setTimeout> | number | null = null;
+
+  const scheduleFlush =
+    typeof requestAnimationFrame === 'function'
+      ? (callback: () => void) => requestAnimationFrame(callback)
+      : (callback: () => void) => setTimeout(callback, 16);
+  const cancelFlush =
+    typeof cancelAnimationFrame === 'function'
+      ? (handle: ReturnType<typeof setTimeout> | number) => cancelAnimationFrame(handle as number)
+      : (handle: ReturnType<typeof setTimeout> | number) =>
+          clearTimeout(handle as ReturnType<typeof setTimeout>);
+
+  function flushPendingDelta(): void {
+    if (frameHandle !== null) {
+      cancelFlush(frameHandle);
+      frameHandle = null;
+    }
+    if (!pendingDelta) return;
+    const text = pendingDelta;
+    pendingDelta = '';
+    setMessages((current) => {
+      const last = current.at(-1);
+      if (last?.role === 'assistant' && last.streaming) {
+        // Only the tail changes, so copy the array once and replace one entry
+        // instead of mapping the whole transcript twice.
+        const next = current.slice();
+        next[next.length - 1] = { ...last, text: last.text + text };
+        return next;
+      }
+      // A thinking block is frozen the moment assistant text starts.
+      const normalized = current.map((item) =>
+        item.streaming && item.role === 'thinking' ? { ...item, streaming: false } : item,
+      );
+      normalized.push({ id: messageId('assistant'), role: 'assistant', text, streaming: true });
+      return normalized;
+    });
+  }
+
+  const handleServerMessage = function handleServerMessage(message: ServerMessage): void {
+    // Anything that is not more streaming text must observe the text that
+    // preceded it, so drain the buffer before doing any other work.
+    if (message.type !== 'provider.text_delta') flushPendingDelta();
     const payload = message.payload ?? {};
     worklists.applyMessage(message);
     const projectedNotice = projectStatusNotice(message);
@@ -449,21 +514,13 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const { text } = projection;
         setRunning(true);
         setActivity('Responding');
-        setMessages((current) => {
-          const normalized = current.map((item) =>
-            item.streaming && item.role === 'thinking' ? { ...item, streaming: false } : item,
-          );
-          const last = normalized.at(-1);
-          if (last?.role === 'assistant' && last.streaming) {
-            return normalized.map((item, index) =>
-              index === normalized.length - 1 ? { ...item, text: item.text + text } : item,
-            );
-          }
-          return [
-            ...normalized,
-            { id: messageId('assistant'), role: 'assistant', text, streaming: true },
-          ];
-        });
+        pendingDelta += text;
+        if (frameHandle === null) {
+          frameHandle = scheduleFlush(() => {
+            frameHandle = null;
+            flushPendingDelta();
+          });
+        }
         break;
       }
       case 'provider.response': {
@@ -763,5 +820,8 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         break;
       }
     }
-  };
+  } as ServerMessageHandler;
+
+  handleServerMessage.flush = flushPendingDelta;
+  return handleServerMessage;
 }

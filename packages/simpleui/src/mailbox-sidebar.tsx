@@ -43,6 +43,13 @@ export function MailboxSidebar({ store, onRefresh, onSend, onAction }: MailboxSi
     (message) => !message.completed && message.readByCount === 0,
   ).length;
   const online = snapshot.agents.filter((agent) => agent.online);
+  // Derive "online" from real server traffic — the WebUI server does not
+  // broadcast a `mailbox.status` service-info frame, so we light the chip
+  // when the store has actually consumed any mailbox.* event recently.
+  // Treat anything within 5 minutes as live; older snapshots are stale.
+  const STALE_AFTER_MS = 5 * 60_000;
+  const isOnline =
+    snapshot.lastEventAt !== null && Date.now() - snapshot.lastEventAt < STALE_AFTER_MS;
 
   const send = () => {
     const trimmedBody = body.trim();
@@ -69,9 +76,9 @@ export function MailboxSidebar({ store, onRefresh, onSend, onAction }: MailboxSi
           <RefreshCw size={12} />
         </button>
       </div>
-      <div className={`simple-mailbox-health ${snapshot.service ? 'online' : 'offline'}`}>
+      <div className={`simple-mailbox-health ${isOnline ? 'online' : 'offline'}`}>
         <Server size={12} />
-        {snapshot.service ? 'Mailbox service online' : snapshot.error || 'Mailbox service offline'}
+        {isOnline ? 'Mailbox service online' : snapshot.error || 'Mailbox service offline'}
       </div>
       <button
         type="button"
@@ -134,10 +141,10 @@ export function MailboxSidebar({ store, onRefresh, onSend, onAction }: MailboxSi
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    onAction(message.id, message.completed ? 'reopen' : 'acknowledge')
+                  onClick={() => onAction(message.id, message.completed ? 'reopen' : 'acknowledge')}
+                  aria-label={
+                    message.completed ? 'Reopen mailbox message' : 'Acknowledge mailbox message'
                   }
-                  aria-label={message.completed ? 'Reopen mailbox message' : 'Acknowledge mailbox message'}
                 >
                   {message.completed ? <RotateCw size={11} /> : <CheckCircle2 size={11} />}
                 </button>

@@ -7,6 +7,12 @@ import type { PermissionDecision } from '@wrongstack/core/types';
 import { ToolExecutor } from '../../core/src/execution/tool-executor.js';
 import type { ToolResultBlock, ToolUseBlock } from '../../core/src/types/blocks.js';
 import { builtinTools } from '../src/builtin.js';
+// This suite drives the codebase index in-process. The project daemon now
+// fails closed when its build cannot be located, so the in-process path has to
+// be requested rather than fallen into — the same declaration a user would make
+// with WRONGSTACK_INDEX_INLINE=1.
+process.env['WRONGSTACK_INDEX_INLINE'] = '1';
+
 
 /**
  * Never let this suite spawn a detached kanban daemon. `builtinTools` includes

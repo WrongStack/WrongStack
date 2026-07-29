@@ -15,65 +15,35 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-
+import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import * as kanban from '../manager.js';
-import {
-  KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
-  type KanbanHelloFrame,
-  type KanbanRequest,
-  type KanbanErrorResponse,
-  type KanbanServerEvent,
-  type KanbanProjectServerInfo,
-  type KanbanErrorCode,
-} from './protocol.js';
+import { installKanbanStorageBackend } from '../storage-backend.js';
+import type { KanbanBoard, KanbanEvent } from '../types.js';
+import { kanbanProjectServerEndpoint } from './endpoint.js';
 import { emitBoardEvent, subscribeToBoardEvents } from './event-emitter.js';
+import {
+  decodeKanbanDomainValue,
+  encodeKanbanDomainValue,
+  KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
+  KANBAN_SERVER_METHODS,
+  type KanbanErrorCode,
+  type KanbanErrorResponse,
+  type KanbanHelloFrame,
+  type KanbanProjectServerInfo,
+  type KanbanRequest,
+  type KanbanServerEvent,
+} from './protocol.js';
+import { SqliteKanbanStorage } from './sqlite-storage.js';
 
-// ─── Endpoint resolution ────────────────────────────────────────────────────
-
-/**
- * Canonicalize before hashing, matching `core/src/utils/project-watch.ts`.
- * Without it `D:\x` and `d:\x` hash differently and each spawns its own daemon
- * for the same project — two processes, two owners, split state.
- */
-function canonicalRoot(projectRoot: string): string {
-  const resolved = path.resolve(projectRoot);
-  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-}
-
-/**
- * 64-bit djb2 (two independent 32-bit lanes). A single 32-bit lane collides at
- * roughly 77k distinct roots by the birthday bound, and a collision here is not
- * cosmetic: two unrelated projects would share one pipe, so one daemon would
- * serve boards for the wrong root.
- */
-function projectKey(projectRoot: string): string {
-  const canonical = canonicalRoot(projectRoot);
-  let hashA = 5381;
-  let hashB = 52711;
-  for (let i = 0; i < canonical.length; i++) {
-    const code = canonical.charCodeAt(i);
-    hashA = ((hashA << 5) + hashA + code) | 0;
-    hashB = ((hashB << 5) + hashB + (code ^ 0x5f)) | 0;
-  }
-  return (
-    (hashA >>> 0).toString(16).padStart(8, '0') + (hashB >>> 0).toString(16).padStart(8, '0')
-  );
-}
-
-export function kanbanProjectServerEndpoint(projectRoot: string): string {
-  const key = projectKey(projectRoot);
-  if (process.platform === 'win32') {
-    return `\\\\.\\pipe\\wrongstack-kanban-v${KANBAN_PROJECT_SERVER_PROTOCOL_VERSION}-${key}`;
-  }
-  const dir = process.env['TMPDIR'] ?? '/tmp';
-  return path.join(dir, `wrongstack-kanban-v${KANBAN_PROJECT_SERVER_PROTOCOL_VERSION}-${key}.sock`);
-}
+export { kanbanProjectServerEndpoint } from './endpoint.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
 /** How often to confirm the project root still exists (orphan guard). */
 const ROOT_LIVENESS_CHECK_MS = 60_000;
+const CLIENT_LEASE_MS = 45_000;
+const CLIENT_LEASE_SWEEP_MS = 15_000;
 const MAX_FRAME_CHARS = 8 * 1024 * 1024;
 const MAX_PARALLEL_REQUESTS_PER_CLIENT = 32;
 
@@ -81,6 +51,7 @@ interface ClientState {
   socket: net.Socket;
   buffer: string;
   activeControllers: Set<AbortController>;
+  lastSeenAt: number;
 }
 
 let projectRoot = '';
@@ -88,7 +59,11 @@ let endpoint = '';
 let serverInfo: KanbanProjectServerInfo | null = null;
 let stopping = false;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
+let livenessTimer: ReturnType<typeof setInterval> | undefined;
+let leaseTimer: ReturnType<typeof setInterval> | undefined;
 const clients = new Set<ClientState>();
+let sqliteStorage: SqliteKanbanStorage | null = null;
+let uninstallStorageBackend: (() => void) | null = null;
 
 /**
  * Module-scope so `stop()` can actually close it. While this lived as a `const`
@@ -127,14 +102,20 @@ function scheduleIdleStop(): void {
   idleTimer.unref?.();
 }
 
-async function stop(reason: string): Promise<void> {
+async function stop(reason: string, gracefulSocket?: net.Socket): Promise<void> {
   if (stopping) return;
   stopping = true;
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
+  if (livenessTimer) clearInterval(livenessTimer);
+  livenessTimer = undefined;
+  if (leaseTimer) clearInterval(leaseTimer);
+  leaseTimer = undefined;
   for (const state of clients) {
-    for (const c of state.activeControllers) c.abort(new Error(`Kanban server stopping: ${reason}`));
-    state.socket.destroy();
+    for (const c of state.activeControllers)
+      c.abort(new Error(`Kanban server stopping: ${reason}`));
+    if (state.socket === gracefulSocket) state.socket.end();
+    else state.socket.destroy();
   }
   clients.clear();
   // Close the listener, or the ref'd handle keeps the event loop — and the
@@ -148,6 +129,10 @@ async function stop(reason: string): Promise<void> {
   if (process.platform !== 'win32' && endpoint) {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
   }
+  uninstallStorageBackend?.();
+  uninstallStorageBackend = null;
+  sqliteStorage?.close();
+  sqliteStorage = null;
 }
 
 async function ensureParentDir(): Promise<void> {
@@ -164,6 +149,7 @@ async function ensureParentDir(): Promise<void> {
 
 type Handler = (params: any) => Promise<unknown>;
 const methods = new Map<string, Handler>();
+const protocolMethods = new Set<string>(KANBAN_SERVER_METHODS);
 
 function defineMethod(name: string, handler: Handler): void {
   methods.set(name, handler);
@@ -183,8 +169,73 @@ defineMethod('ping', async () => ({
 }));
 
 defineMethod('shutdown', async () => {
-  setImmediate(() => void stop('client-request'));
   return { stopping: true };
+});
+
+const domainOperationSet = new Set<string>(KANBAN_DOMAIN_OPERATIONS);
+defineMethod('domainCall', async ({ operation, wireArgs }) => {
+  if (!domainOperationSet.has(operation)) {
+    invalid('domainCall requires an allowed operation');
+  }
+  const args = decodeKanbanDomainValue(wireArgs);
+  if (!Array.isArray(args)) {
+    invalid('domainCall requires encoded args[]');
+  }
+  const handler = (kanban as Record<string, unknown>)[operation];
+  if (typeof handler !== 'function') {
+    invalid(`Kanban domain operation is unavailable: ${operation}`);
+  }
+  const result = await (handler as (root: string, ...operationArgs: unknown[]) => unknown)(
+    projectRoot,
+    ...args,
+  );
+  return encodeKanbanDomainValue(result);
+});
+
+function ownerStorage(): SqliteKanbanStorage {
+  if (!sqliteStorage) throw new Error('Kanban SQLite owner is not ready');
+  return sqliteStorage;
+}
+
+defineMethod('storageListBoardIds', async () => ownerStorage().listBoardIds());
+defineMethod('storageReadBoard', async ({ boardRef }: { boardRef: string }) => {
+  if (!boardRef) invalid('storageReadBoard requires boardRef');
+  return ownerStorage().readBoard(boardRef);
+});
+defineMethod(
+  'storageWriteBoard',
+  async ({ board, expectedRevision }: { board: KanbanBoard; expectedRevision?: number }) => {
+    if (!board?.id) invalid('storageWriteBoard requires board.id');
+    await ownerStorage().writeBoard(board, expectedRevision);
+    return { written: true };
+  },
+);
+defineMethod(
+  'storageAppendEvent',
+  async ({ boardId, event }: { boardId: string; event: KanbanEvent }) => {
+    if (!boardId || !event) invalid('storageAppendEvent requires boardId and event');
+    await ownerStorage().appendEvent(boardId, event);
+    return { appended: true };
+  },
+);
+defineMethod('storageReadEvents', async ({ boardRef }: { boardRef: string }) => {
+  if (!boardRef) invalid('storageReadEvents requires boardRef');
+  return ownerStorage().readEvents(boardRef);
+});
+defineMethod('storageDeleteBoard', async ({ boardRef }: { boardRef: string }) => {
+  if (!boardRef) invalid('storageDeleteBoard requires boardRef');
+  return ownerStorage().deleteBoard(boardRef);
+});
+defineMethod('storageReadMetadata', async ({ key }: { key: string }) => {
+  if (!key) invalid('storageReadMetadata requires key');
+  return ownerStorage().readMetadata(key);
+});
+defineMethod('storageWriteMetadata', async ({ key, value }: { key: string; value: string }) => {
+  if (!key || typeof value !== 'string') {
+    invalid('storageWriteMetadata requires key and string value');
+  }
+  await ownerStorage().writeMetadata(key, value);
+  return { written: true };
 });
 
 // Board reads
@@ -202,68 +253,63 @@ defineMethod('getTask', async ({ boardId, taskId }: { boardId: string; taskId: s
   if (!task) notFound(`Task ${taskId} not found`);
   return task;
 });
-defineMethod('getKanbanOrchestrationSnapshot', async (params: any) =>
-  await kanban.getKanbanOrchestrationSnapshot(projectRoot, params),
+defineMethod(
+  'getKanbanOrchestrationSnapshot',
+  async (params: any) => await kanban.getKanbanOrchestrationSnapshot(projectRoot, params),
 );
 defineMethod('searchTasks', async (params: any) => await kanban.searchKanban(projectRoot, params));
 defineMethod('readyTasks', async (params: any) => await kanban.listReadyTasks(projectRoot, params));
 
 // Board mutations
 defineMethod('createBoard', async (params: any) => {
-  const board = await kanban.createBoard(projectRoot, params);
-  emitBoardEvent('board.created', board.id, board);
-  return board;
+  return kanban.createBoard(projectRoot, params);
 });
 defineMethod('updateBoard', async ({ boardId, ...patch }: any) => {
   if (!boardId) invalid('updateBoard requires boardId');
   const board = await kanban.updateBoard(projectRoot, boardId, patch);
   if (!board) notFound(`Board ${boardId} not found`);
-  emitBoardEvent('board.updated', boardId, patch);
   return board;
 });
 defineMethod('duplicateBoard', async ({ boardId, options }: any) => {
   if (!boardId) invalid('duplicateBoard requires boardId');
   const board = await kanban.duplicateBoard(projectRoot, boardId, options);
   if (!board) notFound(`Board ${boardId} not found`);
-  emitBoardEvent('board.created', board.id, board);
   return board;
 });
 defineMethod('deleteBoard', async ({ boardId }: { boardId: string }) => {
   if (!boardId) invalid('deleteBoard requires boardId');
-  const removed = await kanban.removeBoard(projectRoot, boardId);
-  if (removed) emitBoardEvent('board.deleted', boardId);
-  return removed;
+  return kanban.removeBoard(projectRoot, boardId);
 });
 defineMethod('generateBoard', async ({ description }: { description: string }) => {
   if (!description) invalid('generateBoard requires description');
   // Fallback: createBoard with a description-derived title
-  const board = await kanban.createBoard(projectRoot, {
+  return kanban.createBoard(projectRoot, {
     title: (description.split('\n')[0] ?? description).slice(0, 80),
     description,
   });
-  emitBoardEvent('board.created', board.id, board);
-  return board;
 });
 
 // Column mutations
 defineMethod('addColumn', async (params: any) => {
   const result = await kanban.addColumn(projectRoot, params.boardId, params);
   if (!result) notFound(`Board ${params.boardId} not found`);
-  emitBoardEvent('column.added', params.boardId, params, undefined, (result as any).column?.id ?? '');
   return result;
 });
 defineMethod('updateColumn', async (params: any) => {
   if (!params.boardId || !params.columnId) invalid('updateColumn requires boardId and columnId');
-  const board = await (kanban as any).updateColumn(projectRoot, params.boardId, params.columnId, params);
+  const board = await (kanban as any).updateColumn(
+    projectRoot,
+    params.boardId,
+    params.columnId,
+    params,
+  );
   if (!board) notFound('Column not found');
-  emitBoardEvent('column.updated', params.boardId, params, undefined, params.columnId);
   return board;
 });
 defineMethod('deleteColumn', async ({ boardId, columnId }: any) => {
   if (!boardId || !columnId) invalid('deleteColumn requires boardId and columnId');
   const board = await (kanban as any).removeColumn(projectRoot, boardId, columnId);
   if (!board) notFound('Column not found');
-  emitBoardEvent('column.deleted', boardId, { columnId }, undefined, columnId);
   return board;
 });
 
@@ -272,41 +318,55 @@ defineMethod('addTask', async (params: any) => {
   if (!params.boardId || !params.title) invalid('addTask requires boardId and title');
   const result = await kanban.addTask(projectRoot, params.boardId, params);
   if (!result) notFound(`Board ${params.boardId} not found`);
-  const taskId = (result as any).task?.id;
-  emitBoardEvent('task.added', params.boardId, params, taskId);
   return result;
 });
 defineMethod('updateTask', async (params: any) => {
   if (!params.boardId || !params.taskId) invalid('updateTask requires boardId and taskId');
   const board = await kanban.updateTask(projectRoot, params.boardId, params.taskId, params);
   if (!board) notFound(`Task ${params.taskId} not found`);
-  emitBoardEvent('task.updated', params.boardId, params, params.taskId);
   return board;
 });
 defineMethod('deleteTask', async ({ boardId, taskId }: any) => {
   if (!boardId || !taskId) invalid('deleteTask requires boardId and taskId');
   const board = await kanban.removeTask(projectRoot, boardId, taskId);
   if (!board) notFound('Task not found');
-  emitBoardEvent('task.deleted', boardId, { taskId }, taskId);
   return board;
 });
 defineMethod('moveTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.targetColumnId) invalid('moveTask requires boardId, taskId, and targetColumnId');
-  const board = await kanban.moveTask(projectRoot, params.boardId, params.taskId, params.targetColumnId, params.order);
+  if (!params.boardId || !params.taskId || !params.targetColumnId)
+    invalid('moveTask requires boardId, taskId, and targetColumnId');
+  const board = await kanban.moveTask(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params.targetColumnId,
+    params.order,
+  );
   if (!board) notFound('Move failed');
-  emitBoardEvent('task.moved', params.boardId, params, params.taskId);
   return board;
 });
 defineMethod('copyTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.targetBoardId) invalid('copyTask requires boardId, taskId, and targetBoardId');
-  const result = await kanban.copyTaskToBoard(projectRoot, params.boardId, params.taskId, params.targetBoardId, params.options ?? {});
-  emitBoardEvent('task.added', params.targetBoardId, result, (result as any)?.task?.id);
+  if (!params.boardId || !params.taskId || !params.targetBoardId)
+    invalid('copyTask requires boardId, taskId, and targetBoardId');
+  const result = await kanban.copyTaskToBoard(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params.targetBoardId,
+    params.options ?? {},
+  );
   return result;
 });
 defineMethod('transferTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.targetBoardId) invalid('transferTask requires boardId, taskId, and targetBoardId');
-  const result = await kanban.transferTaskToBoard(projectRoot, params.boardId, params.taskId, params.targetBoardId, params.targetColumnId);
-  emitBoardEvent('task.moved', params.targetBoardId, result, params.taskId);
+  if (!params.boardId || !params.taskId || !params.targetBoardId)
+    invalid('transferTask requires boardId, taskId, and targetBoardId');
+  const result = await kanban.transferTaskToBoard(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params.targetBoardId,
+    params.targetColumnId,
+  );
   return result;
 });
 
@@ -317,16 +377,22 @@ defineMethod('transitionTask', async (params: any) => {
   }
   const board = await kanban.transitionTask(projectRoot, params.boardId, params.taskId, params);
   if (!board) notFound('Board or task not found');
-  emitBoardEvent('task.transitioned', params.boardId, params, params.taskId);
   return board;
 });
 defineMethod('adoptManagedLifecycle', async (params: any) => {
-  if (!params.boardId || !params.author || !params.transitionComment) invalid('adoptManagedLifecycle requires boardId, author, transitionComment');
+  if (!params.boardId || !params.author || !params.transitionComment)
+    invalid('adoptManagedLifecycle requires boardId, author, transitionComment');
   return await kanban.adoptManagedLifecycle(projectRoot, params.boardId, params);
 });
 defineMethod('repairManagedProjection', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.author || !params.transitionComment) invalid('repairManagedProjection requires boardId, taskId, author, transitionComment');
-  return await kanban.repairManagedTaskProjection(projectRoot, params.boardId, params.taskId, params);
+  if (!params.boardId || !params.taskId || !params.author || !params.transitionComment)
+    invalid('repairManagedProjection requires boardId, taskId, author, transitionComment');
+  return await kanban.repairManagedTaskProjection(
+    projectRoot,
+    params.boardId,
+    params.taskId,
+    params,
+  );
 });
 defineMethod('claimTask', async (params: any) => await kanban.claimReadyTask(projectRoot, params));
 defineMethod('releaseTask', async ({ boardId, taskId }: any) => {
@@ -401,7 +467,8 @@ defineMethod('setChain', async ({ boardId, taskIds, chainId, enforceDependencies
   return result ?? notFound('Chain failed');
 });
 defineMethod('getChain', async (params: any) => {
-  if (!params.boardId || (!params.taskId && !params.chainId)) invalid('getChain requires boardId and taskId or chainId');
+  if (!params.boardId || (!params.taskId && !params.chainId))
+    invalid('getChain requires boardId and taskId or chainId');
   const chain = await kanban.getTaskChain(
     projectRoot,
     params.boardId,
@@ -415,7 +482,11 @@ defineMethod('getChain', async (params: any) => {
 defineMethod('syncTaskGraph', async ({ boardId, taskGraph }: any) => {
   if (!boardId || !taskGraph) invalid('syncTaskGraph requires boardId and taskGraph');
   const bridge = await import('../manager/task-graph-bridge.js');
-  return await bridge.syncBoardFromTaskGraph(projectRoot, boardId, typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph);
+  return await bridge.syncBoardFromTaskGraph(
+    projectRoot,
+    boardId,
+    typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph,
+  );
 });
 defineMethod('createFromGraph', async ({ taskGraph, options }: any) => {
   if (!taskGraph) invalid('createFromGraph requires taskGraph');
@@ -425,7 +496,6 @@ defineMethod('createFromGraph', async ({ taskGraph, options }: any) => {
     typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph,
     options,
   );
-  emitBoardEvent('board.created', result.board.id, result.board);
   return result;
 });
 
@@ -474,7 +544,8 @@ function errorFromThrown(value: unknown): KanbanErrorResponse['error'] {
 // ─── Per-client request loop ─────────────────────────────────────────────────
 
 function processRequest(state: ClientState, req: KanbanRequest): void {
-  const def = methods.get(req.method);
+  state.lastSeenAt = Date.now();
+  const def = protocolMethods.has(req.method) ? methods.get(req.method) : undefined;
   if (!def) {
     sendFrame(state.socket, {
       id: req.id,
@@ -497,7 +568,18 @@ function processRequest(state: ClientState, req: KanbanRequest): void {
   Promise.resolve()
     .then(() => def(req.params))
     .then((result) => {
-      sendFrame(state.socket, { id: req.id, ok: true, result: result ?? null });
+      const frame = { id: req.id, ok: true as const, result: result ?? null };
+      if (req.method === 'shutdown') {
+        // A plain write callback only means the frame reached the OS buffer.
+        // Destroying a Windows named pipe immediately afterwards can still
+        // discard it before the peer reads it. Half-close the requesting
+        // socket with the response and let server.close() wait for the
+        // graceful stream to finish.
+        state.socket.end(JSON.stringify(frame) + '\n');
+        setImmediate(() => void stop('client-request', state.socket));
+      } else {
+        sendFrame(state.socket, frame);
+      }
     })
     .catch((err) => {
       sendFrame(state.socket, { id: req.id, error: errorFromThrown(err) });
@@ -520,8 +602,21 @@ function onData(state: ClientState, chunk: string): void {
     if (!line.trim()) continue;
     try {
       const parsed = JSON.parse(line);
-      if (parsed && typeof parsed === 'object' && typeof parsed.method === 'string' && typeof parsed.id === 'number') {
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.method === 'string' &&
+        typeof parsed.id === 'number' &&
+        parsed.params !== null &&
+        typeof parsed.params === 'object' &&
+        !Array.isArray(parsed.params)
+      ) {
         processRequest(state, parsed as KanbanRequest);
+      } else {
+        sendFrame(state.socket, {
+          id: typeof parsed?.id === 'number' ? parsed.id : -1,
+          error: { code: 'INVALID_INPUT', message: 'Invalid Kanban request frame' },
+        });
       }
     } catch {
       sendFrame(state.socket, {
@@ -553,47 +648,37 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   await ensureParentDir();
 
-  serverInfo = {
-    protocolVersion: KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
-    pid: process.pid,
-    projectRoot,
-    endpoint,
-    startedAt: new Date().toISOString(),
-  };
-
   subscribeToBoardEvents((ev) => {
     broadcastEvent({ type: 'event', event: ev.event, data: ev.data });
   });
 
+  let readyResolve!: () => void;
+  let readyReject!: (error: unknown) => void;
+  const ready = new Promise<void>((resolve, reject) => {
+    readyResolve = resolve;
+    readyReject = reject;
+  });
+
   server = net.createServer((socket) => {
-    if (stopping) {
-      socket.destroy();
-      return;
-    }
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = undefined;
-    socket.setEncoding('utf8');
-    const state: ClientState = {
-      socket,
-      buffer: '',
-      activeControllers: new Set(),
-    };
-    clients.add(state);
-    const hello: KanbanHelloFrame = { type: 'hello', ...serverInfo! };
-    sendFrame(socket, hello);
-    socket.on('data', (chunk: string) => onData(state, chunk));
-    socket.on('close', () => {
-      for (const c of state.activeControllers) c.abort(new Error('Client disconnected'));
-      clients.delete(state);
-      scheduleIdleStop();
-    });
-    socket.on('error', () => {
-      clients.delete(state);
-    });
+    void ready.then(
+      () => acceptClient(socket),
+      () => socket.destroy(),
+    );
   });
 
   const listener = server;
+
+  await new Promise<void>((resolve, reject) => {
+    const onListenError = (error: Error): void => reject(error);
+    listener.once('error', onListenError);
+    listener.listen(endpoint!, () => {
+      listener.off('error', onListenError);
+      resolve();
+    });
+  });
+
   listener.on('error', (err: NodeJS.ErrnoException) => {
+    if (stopping) return;
     // EADDRINUSE means another daemon won the bind election for this root —
     // that is the ownership protocol working, not a failure. Exiting non-zero
     // there made a normal race look like a crash.
@@ -604,13 +689,34 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     process.exit(1);
   });
 
-  await new Promise<void>((resolve, reject) => {
-    listener.once('error', reject);
-    listener.listen(endpoint!, () => {
-      listener.off('error', reject);
-      resolve();
+  try {
+    sqliteStorage = await SqliteKanbanStorage.open(projectRoot, (mutation) => {
+      emitBoardEvent(
+        mutation.type === 'created'
+          ? 'board.created'
+          : mutation.type === 'deleted'
+            ? 'board.deleted'
+            : 'board.updated',
+        mutation.boardId,
+        mutation,
+      );
     });
-  });
+    uninstallStorageBackend = installKanbanStorageBackend(projectRoot, sqliteStorage);
+    serverInfo = {
+      protocolVersion: KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
+      pid: process.pid,
+      projectRoot,
+      endpoint,
+      storage: 'sqlite',
+      databasePath: sqliteStorage.databasePath,
+      startedAt: new Date().toISOString(),
+    };
+    readyResolve();
+  } catch (error) {
+    readyReject(error);
+    await stop('storage-initialization-failed');
+    throw error;
+  }
 
   process.stdout.write(`kanban project server listening on ${endpoint}\n`);
 
@@ -623,15 +729,56 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   // Orphan guard: kanban has no client heartbeat and no lease sweep, so a
   // half-open socket would pin `clients.size > 0` and defeat the idle timer.
   // A vanished project root is unambiguous — nothing can ever be served again.
-  const livenessTimer = setInterval(() => {
+  livenessTimer = setInterval(() => {
     void fsPromises.stat(projectRoot).catch(() => {
       void stop('project-root-removed').then(() => process.exit(0));
     });
   }, ROOT_LIVENESS_CHECK_MS);
   livenessTimer.unref?.();
+  leaseTimer = setInterval(() => {
+    const cutoff = Date.now() - CLIENT_LEASE_MS;
+    for (const state of clients) {
+      if (state.lastSeenAt >= cutoff) continue;
+      state.socket.destroy(new Error('Kanban client lease expired'));
+      clients.delete(state);
+    }
+    scheduleIdleStop();
+  }, CLIENT_LEASE_SWEEP_MS);
+  leaseTimer.unref?.();
 
   process.on('SIGTERM', () => void stop('SIGTERM').then(() => process.exit(0)));
   process.on('SIGINT', () => void stop('SIGINT').then(() => process.exit(0)));
+}
+
+function acceptClient(socket: net.Socket): void {
+  if (stopping) {
+    socket.destroy();
+    return;
+  }
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = undefined;
+  socket.setEncoding('utf8');
+  const state: ClientState = {
+    socket,
+    buffer: '',
+    activeControllers: new Set(),
+    lastSeenAt: Date.now(),
+  };
+  clients.add(state);
+  const hello: KanbanHelloFrame = { type: 'hello', ...serverInfo! };
+  sendFrame(socket, hello);
+  socket.on('data', (chunk: string) => onData(state, chunk));
+  socket.on('close', () => {
+    for (const controller of state.activeControllers) {
+      controller.abort(new Error('Client disconnected'));
+    }
+    clients.delete(state);
+    scheduleIdleStop();
+  });
+  socket.on('error', () => {
+    clients.delete(state);
+    scheduleIdleStop();
+  });
 }
 
 /**

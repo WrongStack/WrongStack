@@ -1,6 +1,3 @@
-import { type FSWatcher, watch } from 'node:fs';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import type {
   HqKanbanBoardRecord,
   HqKanbanSnapshotPayload,
@@ -8,15 +5,15 @@ import type {
   HqPublisher,
 } from '@wrongstack/core/hq';
 import { deriveHqProjectId } from '@wrongstack/core/hq';
-import { atomicWrite } from '@wrongstack/core/utils';
 import {
+  bridgeKanbanSupervisor,
   deleteBoard,
-  getKanbanDir,
-  isValidBoardId,
   type KanbanBoard,
   listBoardIds,
   readBoard,
+  readKanbanMetadata,
   writeBoard,
+  writeKanbanMetadata,
 } from '@wrongstack/kanban';
 
 interface LocalSyncState {
@@ -27,24 +24,22 @@ interface LocalSyncState {
 export interface KanbanHqSync {
   attachPublisher(publisher: HqPublisher): Promise<void>;
   handleRemote(snapshot: HqKanbanSnapshotPayload): Promise<void>;
+  /** Explicit refresh seam for hosts/tests; daemon events call the same path. */
+  refresh(boardId?: string): void;
   stop(): void;
 }
 
-const SYNC_STATE_FILE = '.hq-sync.json';
+const SYNC_STATE_KEY = 'hq-sync-state-v1';
 // The HQ WebSocket server deliberately caps inbound frames at 1 MiB. Keep
 // project-state payloads comfortably below that limit so the event envelope,
 // UTF-8 expansion, and future protocol metadata still have headroom.
 const MAX_KANBAN_SNAPSHOT_PAYLOAD_BYTES = 512 * 1024;
 const KANBAN_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-// --- File-watcher guard limits ---
 // Cap the number of boards read per publish cycle so a large project doesn't
-// open hundreds of JSON files in a single burst. Remaining boards spill to
+// load hundreds of board payloads in a single burst. Remaining boards spill to
 // the next cycle.
 const MAX_BOARDS_PER_PUBLISH = 50;
-// Reject unreasonably long filenames in the watcher callback before they reach
-// isValidBoardId. +5 accounts for the ".json" suffix check.
-const MAX_BOARD_ID_LENGTH = 128;
 
 // Kanban↔HQ sync is best-effort telemetry: every detached promise in this
 // module must land here instead of surfacing as an unhandled rejection (which
@@ -64,10 +59,9 @@ export function createKanbanHqSync(
   projectRoot: string,
   projectId = deriveHqProjectId(projectRoot),
 ): KanbanHqSync {
-  const dir = getKanbanDir(projectRoot);
-  const statePath = path.join(dir, SYNC_STATE_FILE);
   let publisher: HqPublisher | undefined;
-  let watcher: FSWatcher | undefined;
+  let unsubscribeDaemon: (() => void) | undefined;
+  let daemonConnectionCount = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const pendingBoardIds = new Set<string>();
   let fullRescanPending = false;
@@ -75,8 +69,8 @@ export function createKanbanHqSync(
   let stopped = false;
   let operationChain: Promise<void> = Promise.resolve();
   // Remote snapshots waiting to be applied, coalesced per boardId (latest
-  // revision wins). Applying a snapshot does one file read/write per board;
-  // when snapshots arrive faster than disk can absorb them, queueing each one
+  // revision wins). Applying a snapshot does one IPC read/write per board;
+  // when snapshots arrive faster than the owner can commit them, queueing each one
   // individually on `operationChain` retains every payload in memory — an
   // unbounded queue that has driven long fleet sessions into OOM. Coalescing
   // bounds pending memory to one record per distinct board.
@@ -135,7 +129,7 @@ export function createKanbanHqSync(
   ): Promise<void> => {
     const target = publisher;
     if (target === undefined || stopped) return;
-    const state = await readState(statePath);
+    const state = await readState(projectRoot);
     const prunedTombstones = pruneExpiredTombstones(state, Date.now());
     let stateChanged = fullSnapshot || prunedTombstones;
     const boards: HqKanbanBoardRecord[] = [];
@@ -184,12 +178,7 @@ export function createKanbanHqSync(
         fullSnapshot ||
         hadTombstone ||
         known === undefined ||
-        compareVersions(
-          known.revision,
-          known.updatedAt,
-          record.revision,
-          record.updatedAt,
-        ) !== 0
+        compareVersions(known.revision, known.updatedAt, record.revision, record.updatedAt) !== 0
       ) {
         boards.push(record);
       }
@@ -223,7 +212,7 @@ export function createKanbanHqSync(
         stateChanged = true;
       }
     }
-    if (stateChanged) await writeState(statePath, state);
+    if (stateChanged) await writeState(projectRoot, state);
 
     // A filesystem event caused by applying an HQ snapshot often arrives after
     // `applyingRemote` has been cleared. The persisted state fingerprint above
@@ -248,26 +237,28 @@ export function createKanbanHqSync(
   const attachPublisher = (next: HqPublisher): Promise<void> => {
     publisher = next;
     return runExclusive(async () => {
-      if (watcher === undefined) {
-        await fs.mkdir(dir, { recursive: true });
-        watcher = watch(dir, { persistent: false }, (_event, filename) => {
-          if (filename === null) {
-            schedulePublish(null);
-            return;
-          }
-          // Reject pathologically long filenames before any allocation or
-          // id validation — protects against inotify spam from non-kanban
-          // tooling that writes temp files into the kanban directory.
-          if (filename.length > MAX_BOARD_ID_LENGTH + 5) return; // +5 for ".json"
-          if (filename === SYNC_STATE_FILE || filename.endsWith('.events.jsonl')) return;
-          if (!filename.endsWith('.json')) return;
-          const boardId = filename.slice(0, -'.json'.length);
-          if (isValidBoardId(boardId)) schedulePublish(boardId);
-        });
-        watcher.on('error', () => {
-          watcher?.close();
-          watcher = undefined;
-        });
+      if (
+        unsubscribeDaemon === undefined &&
+        (process.env['NODE_ENV'] !== 'test' || process.env['WRONGSTACK_KANBAN_FORCE_IPC'] === '1')
+      ) {
+        unsubscribeDaemon = bridgeKanbanSupervisor(
+          projectRoot,
+          (event) => {
+            const data = event.data as { boardId?: string } | undefined;
+            // Non-board-scoped events conservatively request a full rescan.
+            schedulePublish(data?.boardId ?? null);
+          },
+          {
+            autoReconnect: true,
+            reconnectDelayMs: 1_000,
+            // Events emitted while the daemon was down cannot be replayed.
+            // Reconcile the authoritative snapshot after every connection.
+            onConnected: () => {
+              daemonConnectionCount++;
+              if (daemonConnectionCount > 1) schedulePublish(null);
+            },
+          },
+        );
       }
       await publishLocal(true);
     });
@@ -277,7 +268,7 @@ export function createKanbanHqSync(
     if (snapshot.projectId !== projectId || stopped) return;
     applyingRemote = true;
     try {
-      const state = await readState(statePath);
+      const state = await readState(projectRoot);
       for (const remote of snapshot.boards) {
         const local = await readBoard(projectRoot, remote.boardId);
         if (
@@ -318,7 +309,7 @@ export function createKanbanHqSync(
         };
         state.tombstones[tombstone.boardId] = tombstone;
       }
-      await writeState(statePath, state);
+      await writeState(projectRoot, state);
     } finally {
       applyingRemote = false;
     }
@@ -343,14 +334,15 @@ export function createKanbanHqSync(
   return {
     attachPublisher,
     handleRemote,
+    refresh: (boardId?: string) => schedulePublish(boardId ?? null),
     stop: () => {
       stopped = true;
       if (timer !== undefined) clearTimeout(timer);
       pendingBoardIds.clear();
       fullRescanPending = false;
       pendingRemote = null;
-      watcher?.close();
-      watcher = undefined;
+      unsubscribeDaemon?.();
+      unsubscribeDaemon = undefined;
       publisher = undefined;
     },
   };
@@ -469,7 +461,10 @@ function coalesceRemoteSnapshots(
   };
   for (const snapshot of [older, newer]) {
     for (const record of snapshot.boards) {
-      put({ kind: 'board', revision: record.revision, time: record.updatedAt, record }, record.boardId);
+      put(
+        { kind: 'board', revision: record.revision, time: record.updatedAt, record },
+        record.boardId,
+      );
     }
     for (const record of snapshot.tombstones) {
       put(
@@ -517,18 +512,17 @@ function pruneExpiredTombstones(state: LocalSyncState, now: number): boolean {
   return changed;
 }
 
-async function readState(filePath: string): Promise<LocalSyncState> {
+async function readState(projectRoot: string): Promise<LocalSyncState> {
   try {
-    const parsed = JSON.parse(await fs.readFile(filePath, 'utf8')) as Partial<LocalSyncState>;
+    const raw = await readKanbanMetadata(projectRoot, SYNC_STATE_KEY);
+    if (raw === null) return { boards: {}, tombstones: {} };
+    const parsed = JSON.parse(raw) as Partial<LocalSyncState>;
     return { boards: parsed.boards ?? {}, tombstones: parsed.tombstones ?? {} };
   } catch {
     return { boards: {}, tombstones: {} };
   }
 }
 
-async function writeState(filePath: string, state: LocalSyncState): Promise<void> {
-  await atomicWrite(filePath, `${JSON.stringify(state, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-  });
+async function writeState(projectRoot: string, state: LocalSyncState): Promise<void> {
+  await writeKanbanMetadata(projectRoot, SYNC_STATE_KEY, JSON.stringify(state));
 }

@@ -8,6 +8,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+// This suite drives the codebase index in-process. The project daemon now
+// fails closed when its build cannot be located, so the in-process path has to
+// be requested rather than fallen into — the same declaration a user would make
+// with WRONGSTACK_INDEX_INLINE=1.
+process.env['WRONGSTACK_INDEX_INLINE'] = '1';
+
 
 // Mock the index-service module BEFORE importing the unit under test. The mock
 // is declared via vi.hoisted so it's initialized before the hoisted vi.mock

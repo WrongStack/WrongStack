@@ -51,7 +51,6 @@ import { printLaunchHints } from './launch-hints.js';
 import { type PickerResult, runPicker, saveToGlobalConfig } from './picker.js';
 import {
   LaunchAbortedError,
-  maybeAskAboutIndexing,
   persistLaunchChoices,
   runLaunchPrompts,
   runProjectCheck,
@@ -642,23 +641,8 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
       );
     }
 
-    // Indexing question — one-time per-session decision, never persisted.
-    // Large codebases can take a while to index on first launch; let the
-    // user skip it. The answer overrides config.indexing.onSessionStart
-    // for this session only.
-    // --skip-index / --skip bypasses the question and skips indexing entirely.
-    let indexingAnswer: boolean | undefined;
-    if (flags['skip-index'] || flags['skip']) {
-      indexingAnswer = false;
-    } else {
-      indexingAnswer = await maybeAskAboutIndexing({
-        projectRoot,
-        renderer,
-        reader,
-        indexingConfigured: !!config.indexing,
-      });
-    }
-    if (indexingAnswer === false && config.indexing) {
+    // --skip-index / --skip suppresses startup codebase indexing.
+    if ((flags['skip-index'] || flags['skip']) && config.indexing) {
       config = patchConfig(config, {
         indexing: { ...config.indexing, onSessionStart: false },
       });

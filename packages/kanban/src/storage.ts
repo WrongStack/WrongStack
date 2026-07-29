@@ -1,7 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { normalizeKanbanBoundaryPolicy } from './boundary.js';
+import { getProductionKanbanStorage } from './server/remote-storage.js';
+import { getInstalledKanbanStorageBackend } from './storage-backend.js';
 import {
   CURRENT_KANBAN_VERSION,
   DEFAULT_COLUMNS,
@@ -14,6 +16,22 @@ import { atomicWrite, withFileLock } from './utils/atomic-write.js';
 
 const KANBANS_DIR = 'kanbans';
 const BOARD_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const testMetadata = new Map<string, string>();
+
+function runtimeStorage(projectRoot: string) {
+  const installed = getInstalledKanbanStorageBackend(projectRoot);
+  if (installed) return installed;
+  // Unit tests intentionally exercise the legacy file codec and locking
+  // implementation in-process. Real IPC tests opt in explicitly.
+  if (
+    process.env['NODE_ENV'] === 'test' &&
+    process.env['VITEST'] === 'true' &&
+    process.env['WRONGSTACK_KANBAN_FORCE_IPC'] !== '1'
+  ) {
+    return undefined;
+  }
+  return getProductionKanbanStorage(projectRoot);
+}
 
 export function getKanbanDir(projectRoot: string): string {
   return path.join(projectRoot, '.wrongstack', KANBANS_DIR);
@@ -101,6 +119,8 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 export async function listBoardIds(projectRoot: string): Promise<string[]> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.listBoardIds();
   const dir = getKanbanDir(projectRoot);
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -137,6 +157,8 @@ export async function readBoard(
   projectRoot: string,
   boardRef: string,
 ): Promise<KanbanBoard | null> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.readBoard(boardRef);
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return null;
   try {
@@ -149,6 +171,8 @@ export async function readBoard(
 }
 
 export async function writeBoard(projectRoot: string, board: KanbanBoard): Promise<void> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.writeBoard(board);
   const normalized = normalizeBoard(board);
   const filePath = getKanbanPath(projectRoot, normalized.id);
   await withFileLock(filePath, async () => {
@@ -210,6 +234,8 @@ export async function appendKanbanEvent(
   boardId: string,
   event: KanbanEvent,
 ): Promise<void> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.appendEvent(boardId, event);
   const filePath = getKanbanEventsPath(projectRoot, boardId);
   await withFileLock(filePath, async () => {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -270,6 +296,8 @@ export async function readKanbanEvents(
   projectRoot: string,
   boardRef: string,
 ): Promise<KanbanEvent[]> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.readEvents(boardRef);
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return [];
   try {
@@ -285,6 +313,8 @@ export async function readKanbanEvents(
 }
 
 export async function deleteBoard(projectRoot: string, boardRef: string): Promise<boolean> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.deleteBoard(boardRef);
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return false;
   const filePath = getKanbanPath(projectRoot, boardId);
@@ -308,11 +338,32 @@ export async function deleteBoard(projectRoot: string, boardRef: string): Promis
   });
 }
 
+export async function readKanbanMetadata(projectRoot: string, key: string): Promise<string | null> {
+  const backend = runtimeStorage(projectRoot);
+  if (!backend) return testMetadata.get(`${projectRoot}\0${key}`) ?? null;
+  return backend.readMetadata(key);
+}
+
+export async function writeKanbanMetadata(
+  projectRoot: string,
+  key: string,
+  value: string,
+): Promise<void> {
+  const backend = runtimeStorage(projectRoot);
+  if (!backend) {
+    testMetadata.set(`${projectRoot}\0${key}`, value);
+    return;
+  }
+  await backend.writeMetadata(key, value);
+}
+
 export async function mutateBoard<T>(
   projectRoot: string,
   boardRef: string,
   mutator: (board: KanbanBoard) => T | Promise<T>,
 ): Promise<{ board: KanbanBoard; result: T } | null> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.mutateBoard(boardRef, mutator);
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return null;
   const filePath = getKanbanPath(projectRoot, boardId);
@@ -333,9 +384,16 @@ export async function mutateBoard<T>(
     // and can create a self-sustaining render/lock workload in long-lived CLI
     // processes. Compare the canonical board payload so only real mutations
     // reach the filesystem; the mutator's result is still returned unchanged.
-    const beforeMutation = JSON.stringify(board);
+    // Fingerprint rather than retain: the serialized form is only ever used for
+    // an equality test, but the "before" value has to survive `await mutator`.
+    // Holding both full board strings kept two copies of the board alive for
+    // the whole mutation and put both on the heap at once; the digest keeps the
+    // same exact-equality semantics for 32 bytes, and each transient string is
+    // collectable as soon as its hash is computed. Boards here run ~5-100KB, so
+    // this bounds a per-mutation spike rather than removing a large leak.
+    const beforeMutation = boardFingerprint(board);
     const result = await mutator(board);
-    const afterMutation = JSON.stringify(board);
+    const afterMutation = boardFingerprint(board);
     // Stale-write detection: re-read the on-disk revision under the same file
     // lock to catch cross-process modifications since our initial read. If the
     // revision changed, another agent or process mutated the board while we
@@ -362,6 +420,18 @@ export async function mutateBoard<T>(
     await writeBoardUnlocked(filePath, normalizeBoard(board));
     return { board, result };
   });
+}
+
+/**
+ * Exact-equality fingerprint of a board's canonical JSON payload.
+ *
+ * Callers use this purely to decide whether a mutator actually changed
+ * anything, so any collision-resistant digest of the same bytes `JSON.stringify`
+ * would produce is equivalent to comparing the strings themselves — without
+ * keeping those strings alive across the mutation.
+ */
+function boardFingerprint(board: KanbanBoard): string {
+  return createHash('sha256').update(JSON.stringify(board)).digest('hex');
 }
 
 export function summarizeBoard(board: KanbanBoard): KanbanBoardSummary {
@@ -461,7 +531,7 @@ export async function listBoardSummaries(projectRoot: string): Promise<KanbanBoa
   return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-function normalizeBoard(board: KanbanBoard): KanbanBoard {
+export function normalizeBoard(board: KanbanBoard): KanbanBoard {
   const now = new Date().toISOString();
   const columns = [...(board.columns?.length ? board.columns : DEFAULT_COLUMNS)]
     .map((column, index) => ({

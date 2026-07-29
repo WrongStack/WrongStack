@@ -60,7 +60,7 @@ export interface FleetConfig {
     | {
         /**
          * Remove a spawned or between-task subagent after this much idle time.
-         * This is separate from the in-task activity watchdog. Default 30000.
+         * This is separate from the in-task activity watchdog. Default 300000.
          */
         idleTimeoutMs?: number | undefined;
         /**

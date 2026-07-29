@@ -131,12 +131,16 @@ describe('EntryHeightCache', () => {
     expect(c.size).toBe(0);
   });
 
-  it('clamps height to minimum of 1 row', () => {
+  it('stores zero heights (hidden entries render no rows)', () => {
     const c = new EntryHeightCache();
     c.record(1, 0);
-    expect(c.getHeight(1)).toBe(1);
+    expect(c.getHeight(1)).toBe(0);
     c.record(2, 0.3);
-    expect(c.getHeight(2)).toBe(1);
+    expect(c.getHeight(2)).toBe(0);
+    c.record(3, 4);
+    expect(c.totalHeight()).toBe(4);
+    // Zero-height entries occupy no scroll space in the prefix sums.
+    expect(c.accumulatedHeight(2)).toBe(0);
   });
 
   it('rounds fractional heights', () => {

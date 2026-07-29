@@ -273,4 +273,441 @@ describe('fallback-model kind gating', () => {
     expect(buildProvider).not.toHaveBeenCalled();
     expect(inner).toHaveBeenCalledTimes(1);
   });
+
+  // ── Chain ordering: explicit chain has priority ──────────────────────
+  //
+  // When the user configures an explicit fallbackModels chain, those entries
+  // must be tried BEFORE default-profile entries or the session primary.
+  // The old ordering (default → primary → explicit) silently overrode the
+  // user's intent — a carefully ordered chain [A, B] was unreachable until
+  // every default-profile model was attempted first.
+  it('tries explicit fallbackModels entries before default-profile entries', async () => {
+    const config = {
+      provider: 'primary',
+      model: 'model-a',
+      // Explicit chain — user wants these two models in this order
+      fallbackModels: ['explicit/explicit-model'],
+      // Default profile has a DIFFERENT model that would also succeed
+      fallbackProfiles: {
+        default: ['defaultprof/default-model'],
+      },
+      providers: {
+        primary: { type: 'openai', apiKey: 'k1' },
+        explicit: { type: 'openai', apiKey: 'k2' },
+        defaultprof: { type: 'openai', apiKey: 'k3' },
+      },
+    } as never as Config;
+    const { ext, ctx, request, buildProvider } = makeHarness(config);
+
+    const inner = vi
+      .fn()
+      // primary is rate limited → fallback-worthy, chain starts
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      // The explicit chain entry succeeds
+      .mockResolvedValueOnce(okResponse);
+
+    const res = await ext.wrapProviderRunner?.(ctx, request, inner);
+
+    expect(res).toBe(okResponse);
+    // The explicit chain entry was the first fallback attempted
+    expect(buildProvider).toHaveBeenCalledWith('explicit', 'explicit-model');
+    expect(ctx.model).toBe('explicit-model');
+    // The default-profile entry was NOT tried before the explicit one
+    expect(buildProvider).not.toHaveBeenCalledWith('defaultprof', 'default-model');
+  });
+
+  // ── Graduated primary recovery (H3) ──────────────────────────────────
+  //
+  // A single primary success after cooldown should NOT fully reset the
+  // failure ladder.  This prevents an intermittently-available primary
+  // from causing model bouncing (primary → fallback → primary → fallback)
+  // because the streak is retained — the next failure continues the
+  // exponential backoff instead of restarting at the base cooldown.
+
+  it('does NOT fully reset the primary ladder on a single success (default recoveryTarget=2)', async () => {
+    const config = makeConfig();
+    // Use a short, deterministic cooldown for the test
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: vi.fn(async (id: string) => makeProvider(id)),
+      events: new EventBus(),
+      now: () => 1_000,
+      primaryCooldownMs: 60_000,
+    });
+    const ctx = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    // Turn 1: primary fails → fallback to model-b
+    await ext.wrapProviderRunner?.(
+      ctx,
+      request,
+      vi.fn()
+        .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+        .mockResolvedValueOnce(okResponse),
+    );
+
+    // beforeRun: simulate cooldown expiry so the primary probe can fire
+    // (we can't advance time, so we re-create the extension)
+    // Instead, verify the behavior directly: primary succeeds but streak
+    // should be retained after a single success.
+
+    // Turn 2: primary succeeds (simulated by a normal call returning ok)
+    const primaryOk = {
+      content: [{ type: 'text', text: 'primary-ok' }],
+      stopReason: 'end_turn',
+      usage: { input: 1, output: 1 },
+      model: 'model-a',
+    } as never as Response;
+
+    // Need a fresh ctx on the primary for the success path
+    const ctx2 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+
+    await ext.wrapProviderRunner?.(
+      ctx2,
+      { ...request },
+      vi.fn().mockResolvedValueOnce(primaryOk),
+    );
+
+    // The primary succeeded, but with recoveryTarget=2 (default), a single
+    // success should NOT have cleared dirty — meaning the next beforeRun
+    // would still attempt a probe.  We verify by checking that the dirty
+    // flag is still set: beforeRun would still try to restore the primary.
+    // Since we can't read `dirty` directly, we verify behaviorally: a
+    // subsequent primary failure should continue the exponential backoff
+    // (streak=2 → 120s cooldown) rather than restarting at streak=1 (60s).
+
+    // Turn 3: primary fails again — if streak was retained (streak=2),
+    // the cooldown is 60s * 2^(2-1) = 120s.
+    const ctx3 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+
+    const failAgain = vi
+      .fn()
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      .mockResolvedValueOnce(okResponse);
+
+    await ext.wrapProviderRunner?.(ctx3, { ...request }, failAgain);
+
+    // If the streak was retained, the primary was NOT tried first in
+    // beforeRun (still dirty from the failed first turn), so the call
+    // goes directly to the inner runner. The important assertion is that
+    // the fallback chain was used, proving the ladder wasn't fully reset.
+    expect(failAgain).toHaveBeenCalledTimes(2); // primary attempt + fallback
+    expect(ctx3.model).toBe('model-b');
+  });
+
+  it('fully resets the primary ladder after recoveryTarget consecutive successes', async () => {
+    const config = makeConfig();
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: vi.fn(async (id: string) => makeProvider(id)),
+      events: new EventBus(),
+      now: () => 1_000,
+      primaryCooldownMs: 60_000,
+      primaryRecoverySuccesses: 2,
+    });
+
+    // Turn 1: primary fails → fallback
+    const ctx1 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    await ext.wrapProviderRunner?.(
+      ctx1,
+      request,
+      vi.fn()
+        .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+        .mockResolvedValueOnce(okResponse),
+    );
+
+    // Two consecutive primary successes to fully clear the ladder
+    const primaryOk = {
+      content: [{ type: 'text', text: 'ok' }],
+      stopReason: 'end_turn',
+      usage: { input: 1, output: 1 },
+      model: 'model-a',
+    } as never as Response;
+
+    // Success 1 — partial recovery
+    const ctx2 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    await ext.wrapProviderRunner?.(ctx2, { ...request }, vi.fn().mockResolvedValueOnce(primaryOk));
+
+    // Success 2 — full reset
+    const ctx3 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    await ext.wrapProviderRunner?.(ctx3, { ...request }, vi.fn().mockResolvedValueOnce(primaryOk));
+
+    // Turn 4: primary fails again — if the ladder was fully reset, the
+    // streak restarts at 1, producing a 60s cooldown (not 120s).
+    // We verify by checking the beforeRun behavior doesn't retain dirty.
+    // After full reset, blockedPrimary is undefined, so beforeRun should
+    // be a no-op (dirty was cleared by the successful probe).
+    const ctx4 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+
+    // beforeRun should be a no-op now (dirty=false after full recovery)
+    await ext.beforeRun?.(ctx4, {} as never);
+    // Provider should still be primary — beforeRun didn't change it
+    expect(ctx4.provider.id).toBe('primary');
+    expect(ctx4.model).toBe('model-a');
+  });
+
+  it('honors primaryRecoverySuccesses: 1 for legacy one-success-reset behavior', async () => {
+    const config = makeConfig();
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: vi.fn(async (id: string) => makeProvider(id)),
+      events: new EventBus(),
+      now: () => 1_000,
+      primaryCooldownMs: 60_000,
+      primaryRecoverySuccesses: 1, // legacy behavior
+    });
+
+    // Turn 1: primary fails → fallback
+    const ctx1 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    await ext.wrapProviderRunner?.(
+      ctx1,
+      request,
+      vi.fn()
+        .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+        .mockResolvedValueOnce(okResponse),
+    );
+
+    // Single success should fully reset with recoveryTarget=1
+    const primaryOk = {
+      content: [{ type: 'text', text: 'ok' }],
+      stopReason: 'end_turn',
+      usage: { input: 1, output: 1 },
+      model: 'model-a',
+    } as never as Response;
+
+    const ctx2 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    await ext.wrapProviderRunner?.(ctx2, { ...request }, vi.fn().mockResolvedValueOnce(primaryOk));
+
+    // beforeRun should be a no-op (dirty=false, fully reset)
+    const ctx3 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    await ext.beforeRun?.(ctx3, {} as never);
+    expect(ctx3.provider.id).toBe('primary');
+    expect(ctx3.model).toBe('model-a');
+  });
+
+  // ── Sticky fallback turns (stickyFallbackTurns) ──────────────────────
+  //
+  // When set, the system dwells on the working fallback for at least N
+  // turns before it becomes eligible for a primary probe — even if the
+  // cooldown timer has already expired.
+
+  it('stays on fallback during stickyFallbackTurns even when cooldown expired', async () => {
+    const config = makeConfig();
+    let mockTime = 1000;
+    // Use a very short cooldown (1ms) so it expires almost immediately,
+    // but set stickyFallbackTurns=2 to force dwelling on the fallback.
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: vi.fn(async (id: string) => makeProvider(id)),
+      events: new EventBus(),
+      now: () => mockTime,
+      primaryCooldownMs: 1,
+      stickyFallbackTurns: 2,
+    });
+
+    // Turn 1: primary fails at t=1000 → cooldown expires at 1001
+    const ctx1 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    await ext.wrapProviderRunner?.(
+      ctx1,
+      request,
+      vi.fn()
+        .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+        .mockResolvedValueOnce(okResponse),
+    );
+    expect(ctx1.model).toBe('model-b');
+
+    // beforeRun #1: t=2000 (cooldown long expired), but stickyTurnsElapsed=1 (<2)
+    // → stays on fallback
+    mockTime = 2000;
+    const ctx1b = { ...ctx1, provider: makeProvider('other'), model: 'model-b' } as never as Context;
+    await ext.beforeRun?.(ctx1b, {} as never);
+    expect(ctx1b.model).toBe('model-b');
+
+    // beforeRun #2: t=3000, stickyTurnsElapsed=2 (>=2) → eligible for probe
+    mockTime = 3000;
+    const ctx2 = { ...ctx1, provider: makeProvider('other'), model: 'model-b' } as never as Context;
+    await ext.beforeRun?.(ctx2, {} as never);
+    expect(ctx2.model).toBe('model-a');
+    expect(ctx2.provider.id).toBe('primary');
+  });
+
+  it('primaryProbeInterval overrides the default cooldown base', async () => {
+    const config = makeConfig();
+    let mockTime = 0;
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: vi.fn(async (id: string) => makeProvider(id)),
+      events: new EventBus(),
+      now: () => mockTime,
+      primaryCooldownMs: 30_000, // custom probe interval (30s instead of default 60s)
+    });
+
+    // Turn 1: primary fails at t=0 → cooldown set: base * 2^(1-1) = 30000
+    const ctx1 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    await ext.wrapProviderRunner?.(
+      ctx1,
+      request,
+      vi.fn()
+        .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+        .mockResolvedValueOnce(okResponse),
+    );
+
+    // beforeRun at t=29999 — cooldown (30000) still active → stays on fallback
+    mockTime = 29_999;
+    const ctx2 = { ...ctx1, provider: makeProvider('other'), model: 'model-b' } as never as Context;
+    await ext.beforeRun?.(ctx2, {} as never);
+    expect(ctx2.model).toBe('model-b');
+
+    // beforeRun at t=30001 — cooldown expired → primary probe fires
+    mockTime = 30_001;
+    const ctx3 = { ...ctx1, provider: makeProvider('other'), model: 'model-b' } as never as Context;
+    await ext.beforeRun?.(ctx3, {} as never);
+    expect(ctx3.model).toBe('model-a');
+    expect(ctx3.provider.id).toBe('primary');
+  });
+
+  // ── Last-working-fallback memory (H1) ────────────────────────────────
+  //
+  // When the primary fails and the chain is traversed, the first successful
+  // fallback is remembered. On subsequent primary failures the chain is
+  // reordered so the last-working entry is tried FIRST — avoiding a full
+  // re-traversal through entries that already proved flaky.
+  it('prioritizes the last-working fallback on a subsequent primary failure', async () => {
+    // Chain order: flaky/model-x (fails), good/model-y (succeeds)
+    const config = {
+      provider: 'primary',
+      model: 'model-a',
+      fallbackModels: ['flaky/model-x', 'good/model-y'],
+      providers: {
+        primary: { type: 'openai', apiKey: 'k1' },
+        flaky: { type: 'openai', apiKey: 'k2' },
+        good: { type: 'openai', apiKey: 'k3' },
+      },
+    } as never as Config;
+
+    const buildProvider = vi.fn(async (providerId: string) => makeProvider(providerId));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider,
+      events: new EventBus(),
+      now: () => 1_000,
+      primaryCooldownMs: 60_000,
+    });
+
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    // ── Turn 1: primary fails → flaky fails → good succeeds ───────────
+    const ctx1 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+
+    const inner1 = vi
+      .fn()
+      // primary: rate limited
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      // flaky/model-x: overloaded
+      .mockRejectedValueOnce(new ProviderError('overloaded', 503, true, 'flaky'))
+      // good/model-y: succeeds
+      .mockResolvedValueOnce(okResponse);
+
+    const res1 = await ext.wrapProviderRunner?.(ctx1, request, inner1);
+    expect(res1).toBe(okResponse);
+    // The chain entry good/model-y sets ctx.model to 'model-y'
+    expect(ctx1.model).toBe('model-y');
+
+    // Build calls: primary(primary), flaky(flaky), good(good)
+    expect(buildProvider).toHaveBeenCalledWith('flaky', 'model-x');
+    expect(buildProvider).toHaveBeenCalledWith('good', 'model-y');
+
+    // ── Turn 2: primary probed again, fails again ─────────────────────
+    // The chain should now front-load good/model-y instead of starting
+    // from flaky/model-x.
+    const ctx2 = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+
+    // Clear mock to track the new call order
+    buildProvider.mockClear();
+
+    const inner2 = vi
+      .fn()
+      // primary: rate limited again
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      // good/model-y (front-loaded): succeeds
+      .mockResolvedValueOnce(okResponse);
+
+    const res2 = await ext.wrapProviderRunner?.(ctx2, { ...request }, inner2);
+    expect(res2).toBe(okResponse);
+    expect(ctx2.model).toBe('model-y');
+
+    // The FIRST fallback build call should be 'good', NOT 'flaky' —
+    // last-working-fallback was front-loaded.
+    const fallbackBuilds = buildProvider.mock.calls.filter(
+      ([pid]) => pid !== 'primary',
+    );
+    expect(fallbackBuilds[0]).toEqual(['good', 'model-y']);
+
+    // flaky was NOT attempted at all — good was tried first and succeeded
+    expect(buildProvider).not.toHaveBeenCalledWith('flaky', 'model-x');
+  });
 });

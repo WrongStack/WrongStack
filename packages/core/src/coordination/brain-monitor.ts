@@ -92,8 +92,7 @@ export interface BrainMonitorOptions {
   leaderSessionId?: string | (() => string | undefined) | undefined;
   /**
    * Deliver a corrective steer to the working agent(s). Hosts typically
-   * send a `steer` mail to this session's leader via the project
-   * GlobalMailbox — the agent loop injects it before the next LLM call.
+   * send a `steer` mail to this session's leader via the project mailbox — the agent loop injects it before the next LLM call.
    */
   intervene: (input: BrainInterventionInput) => Promise<void>;
   /** Consecutive failures of the SAME tool before engaging. Default 3. */

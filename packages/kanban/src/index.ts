@@ -1,27 +1,100 @@
-export * from './manager.js';
 export * from './boundary.js';
-export * from './storage.js';
-export * from './types.js';
-export * from './server/kanban-store.js';
+// Explicit exports override the stateful names from manager.js for package
+// consumers. The project server imports manager.js directly and is therefore
+// the only production process that executes domain mutations locally.
+export {
+  addCheckToTask,
+  addColumn,
+  addDependency,
+  addGoalMetricToTask,
+  addLinkToTask,
+  addNoteToTask,
+  addTask,
+  adoptManagedLifecycle,
+  assessTaskAtomicity,
+  assignTask,
+  attachVerificationReport,
+  claimReadyTask,
+  copyTaskToBoard,
+  createBoard,
+  createBoardFromTaskGraph,
+  createBoardsFromPhaseGraph,
+  duplicateBoard,
+  enforceCompletionGate,
+  exportBoardMarkdown,
+  exportBoardToTaskGraph,
+  finalizeTaskCompletion,
+  getBoard,
+  getBoardWithLivePresence,
+  getKanbanOrchestrationSnapshot,
+  getKanbanQueueHealth,
+  getTask,
+  getTaskChain,
+  heartbeatTaskAssignment,
+  listBoards,
+  listKanbanEvents,
+  listReadyTasks,
+  listTaskActivity,
+  mergeTasks,
+  moveTask,
+  proposeTaskDecomposition,
+  reconcileKanbanBoard,
+  recordTaskActivity,
+  recordTaskFileActivity,
+  recoverStaleTaskAssignments,
+  releaseTaskClaim,
+  removeBoard,
+  removeColumn,
+  removeTask,
+  repairManagedTaskProjection,
+  resolveDecompositionProposal,
+  searchKanban,
+  setTaskChain,
+  splitTask,
+  syncBoardFromTaskGraph,
+  touchKanbanPresence,
+  transferTaskToBoard,
+  transitionTask,
+  updateBoard,
+  updateCheckOnTask,
+  updateColumn,
+  updateGoalMetricOnTask,
+  updateTask,
+  updateTaskAssignment,
+  verifyTaskCompletion,
+} from './client-domain.js';
+export * from './manager.js';
 export {
   getKanbanServerConnection,
   isKanbanServerAvailable,
   KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
 } from './server/client.js';
-export type {
-  KanbanServerMethod,
-  KanbanServerOperations,
-  KanbanServerEvent,
-  KanbanRequest,
-  KanbanResponse,
-  KanbanHelloFrame,
-  KanbanErrorCode,
-  KanbanProjectServerInfo,
-  KanbanProjectServerStatus,
-} from './server/protocol.js';
-export { kanbanProjectServerEndpoint } from './server/project-server.js';
+export { kanbanProjectServerEndpoint } from './server/endpoint.js';
+export * from './server/kanban-store.js';
 export {
+  type BridgeOptions,
   bridgeKanbanSupervisor,
   type KanbanSupervisorEvent,
-  type BridgeOptions,
 } from './server/kanban-supervisor-bridge.js';
+export type {
+  KanbanErrorCode,
+  KanbanHelloFrame,
+  KanbanProjectServerInfo,
+  KanbanProjectServerStatus,
+  KanbanRequest,
+  KanbanResponse,
+  KanbanServerEvent,
+  KanbanServerMethod,
+  KanbanServerOperations,
+} from './server/protocol.js';
+export {
+  appendKanbanEvent,
+  deleteBoard,
+  listBoardIds,
+  readBoard,
+  readKanbanEvents,
+  readKanbanMetadata,
+  writeBoard,
+  writeKanbanMetadata,
+} from './storage.js';
+export * from './types.js';

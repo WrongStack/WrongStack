@@ -16,7 +16,3 @@ export {
   runLaunchPrompts,
 } from './pre-launch/launch-prompts.js';
 
-export {
-  maybeAskAboutIndexing,
-  resolveIndexThreshold,
-} from './pre-launch/indexing-question.js';

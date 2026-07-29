@@ -57,7 +57,11 @@ export interface LayoutSnapshot {
 // ── Constants ────────────────────────────────────────────────────────────
 
 /** Current layout computation version. Bump when the algorithm changes. */
-export const LAYOUT_VERSION = 1;
+// Version 2 keeps copy icons in the already-reserved scrollbar rail instead of
+// narrowing copyable cards. Version 1 measurements were stamped with the outer
+// history width even though those cards rendered one column narrower, making
+// their prefix sums unsafe to reuse.
+export const LAYOUT_VERSION = 2;
 
 /** Default fallback row count for entries without computed layout. */
 export const FALLBACK_ROWS = 3;

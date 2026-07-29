@@ -116,6 +116,14 @@ export function createConnectionHandler(
       return allowed;
     },
     createClient: (ws) => ({ ws, sessionId: deps.currentSessionId() }),
+    // Enrich parse-failure / unknown-type logs with per-connection identity
+    // so operators can identify which client sent a malformed frame. The
+    // `connectionId`/`sessionId` fields are read from the `client` argument
+    // directly inside `logRejection`; the CLI's `ConnectedClient` only has
+    // `sessionId` (no per-socket `connId`), so the verbose payload carries
+    // `sessionId` only. Server-wide identity (`agentId`/`projectRoot`) isn't
+    // in scope at this handler and is omitted.
+    verboseWsLogging: true,
     registerClient: (ws) => {
       for (const handler of clientHandlers) handler.addClient(ws);
     },

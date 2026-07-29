@@ -38,7 +38,7 @@ export interface ChronicleSummary {
   families: Record<ChronicleSignalFamily, number>;
   failuresByFamily: Record<ChronicleSignalFamily, number>;
 }
-export type ChronicleSignalFamily = 'llm'|'agent'|'tool'|'file'|'memory'|'task'|'decision'|'runtime';
+export type ChronicleSignalFamily = 'llm'|'agent'|'tool'|'file'|'memory'|'task'|'decision'|'runtime'|'finding';
 
 export type ChronicleFacet = 'eventType' | 'outcome' | 'projectId' | 'sessionId' |
   'agentId' | 'taskId' | 'providerId' | 'modelId' | 'resourceKind' | 'resourcePath' | 'toolCallId';
@@ -444,7 +444,7 @@ async function* reverseLines(filePath: string, maxBytes?: number): AsyncGenerato
 
 // ── Running summary accumulator (replaces scan-then-summarize) ─────────────
 
-interface SummaryAcc {
+export interface SummaryAcc {
   logicalRequestIds: Set<string>;
   modelAttempts: number; completedAttempts: number; failedAttempts: number;
   scheduledRetries: number; fallbacks: number;
@@ -466,7 +466,18 @@ interface SummaryAcc {
    *  token.accounted event has a later timestamp for the same scope. */
 }
 
-function createSummaryAccumulator(): SummaryAcc {
+/**
+ * Exported for the SQLite query engine (`sqlite-query.ts`).
+ *
+ * Filtering and summarisation are the parts of `ChronicleQuery` with real
+ * semantics — family classification, nested `usage.*` attribute paths, cost
+ * de-duplication by scope, a p95 over every matching duration. Re-expressing
+ * those in SQL would create a second definition that drifts from this one, and
+ * the drift would show up as quietly different numbers rather than an error.
+ * The SQLite engine therefore uses SQL only to narrow candidates, then runs
+ * these exact functions over the parsed events.
+ */
+export function createSummaryAccumulator(): SummaryAcc {
   return {
     logicalRequestIds: new Set(), modelAttempts: 0, completedAttempts: 0, failedAttempts: 0,
     scheduledRetries: 0, fallbacks: 0, providers: new Set(), models: new Set(),
@@ -476,12 +487,12 @@ function createSummaryAccumulator(): SummaryAcc {
     processes: 0, failedProcesses: 0,
     fileEvents: 0, uniqueFiles: new Set(), agentEvents: 0, uniqueAgents: new Set(),
     decisions: 0, escalations: 0, failures: 0, cancellations: 0,
-    families: { llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0 },
-    failuresByFamily: { llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0 },
+    families: { llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0, finding: 0 },
+    failuresByFamily: { llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0, finding: 0 },
   };
 }
 
-function updateSummary(acc: SummaryAcc, event: ChronicleEvent): void {
+export function updateSummary(acc: SummaryAcc, event: ChronicleEvent): void {
   // Families
   const family = signalFamily(event);
   acc.families[family]++;
@@ -549,7 +560,7 @@ function updateSummary(acc: SummaryAcc, event: ChronicleEvent): void {
   if (event.outcome === 'cancelled' || event.outcome === 'abandoned') acc.cancellations++;
 }
 
-function finalizeSummary(acc: SummaryAcc): ChronicleSummary {
+export function finalizeSummary(acc: SummaryAcc): ChronicleSummary {
   const sortedProviderDurations = acc.providerDurations.slice().sort((a, b) => a - b);
   const sortedToolDurations = acc.toolDurations.slice().sort((a, b) => a - b);
   const totalCost = [...acc.costByScope.values()].reduce((sum, entry) => sum + entry.cost, 0);
@@ -655,6 +666,7 @@ export function signalFamily(event: ChronicleEvent): ChronicleSignalFamily {
   if (/^(?:tool|process|mcp|network)\./.test(event.eventType)) return 'tool';
   if (/^(?:memory|storage|trust)\./.test(event.eventType)) return 'memory';
   if (/^(?:sdd|task|kanban|checkpoint|session|iteration|in_flight)\./.test(event.eventType)) return 'task';
+  if (/^(?:finding|review)\./.test(event.eventType)) return 'finding';
   return 'runtime';
 }
 
@@ -666,7 +678,12 @@ export function isTerminalFailure(event: ChronicleEvent): boolean {
     /^(?:agent\.run\.error|sdd\.task\.failed|compaction\.failed|network\.request\.failed)$/.test(event.eventType);
 }
 
-function relationKeys(event: ChronicleEvent): Array<{ key: string; kind: ChronicleRelationKind; confidence: ChronicleGraphEdge['confidence'] }> {
+/**
+ * Exported for the SQLite engine. Which correlation keys an event carries — and
+ * with what confidence — is the definition of a Chronicle edge; a second copy
+ * would let the two engines draw different graphs from the same data.
+ */
+export function relationKeys(event: ChronicleEvent): Array<{ key: string; kind: ChronicleRelationKind; confidence: ChronicleGraphEdge['confidence'] }> {
   const result: Array<{ key: string; kind: ChronicleRelationKind; confidence: ChronicleGraphEdge['confidence'] }> = [];
   const add = (kind: ChronicleRelationKind, value: unknown, confidence: ChronicleGraphEdge['confidence']) => {
     if (typeof value === 'string' && value) result.push({ key: `${kind}:${value}`, kind, confidence });
@@ -695,7 +712,7 @@ function relationKeys(event: ChronicleEvent): Array<{ key: string; kind: Chronic
   return result;
 }
 
-function matches(event: ChronicleEvent, query: ChronicleQuery): boolean {
+export function matches(event: ChronicleEvent, query: ChronicleQuery): boolean {
   if (query.eventId && event.eventId !== query.eventId) return false;
   if (query.eventTypes && !query.eventTypes.includes(event.eventType)) return false;
   if (query.outcomes && (!event.outcome || !query.outcomes.includes(event.outcome))) return false;
@@ -743,7 +760,7 @@ function findInsertionIndex(
   }
   return low;
 }
-function compareEvents(a: ChronicleEvent, b: ChronicleEvent): number {
+export function compareEvents(a: ChronicleEvent, b: ChronicleEvent): number {
   return compareEventToKey(a, orderKey(b));
 }
 function compareEventToKey(event: ChronicleEvent, key: ChronicleOrderKey): number {
@@ -876,7 +893,7 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
-function facetValue(event: ChronicleEvent, field: ChronicleFacet): string | undefined {
+export function facetValue(event: ChronicleEvent, field: ChronicleFacet): string | undefined {
   const values: Record<ChronicleFacet, string | undefined> = {
     eventType: event.eventType, outcome: event.outcome, projectId: event.scope.projectId,
     sessionId: event.scope.sessionId, agentId: event.scope.agentId, taskId: event.scope.taskId,

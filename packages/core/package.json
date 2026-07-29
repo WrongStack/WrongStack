@@ -36,6 +36,14 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js"
     },
+    "./types/session-markers": {
+      "types": "./dist/types/session-markers.d.ts",
+      "import": "./dist/types/session-markers.js"
+    },
+    "./core/model-ref": {
+      "types": "./dist/core/model-ref.d.ts",
+      "import": "./dist/core/model-ref.js"
+    },
     "./defaults": {
       "types": "./dist/defaults/index.d.ts",
       "import": "./dist/defaults/index.js"

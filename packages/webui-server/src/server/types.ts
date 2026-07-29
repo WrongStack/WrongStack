@@ -111,6 +111,8 @@ export interface ConnectedClient {
   ws: WebSocket;
   sessionId: string | null;
   connectedAt: number;
+  /** Remote socket address captured for verbose rejection logging. */
+  remoteAddress?: string;
   /** Unique per-connection id — used to key per-connection state (e.g. the
    *  rate-limit bucket) so distinct browser tabs that share the same
    *  `sessionId` do not collide, and so the entry is reliably removable on

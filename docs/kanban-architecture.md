@@ -3,7 +3,8 @@
 > Architecture and operating report for WrongStack's project-scoped multi-kanban
 > system.
 
-**Status as of 2026-07-06**: the Kanban system supports multiple boards per
+**Status as of 2026-07-29**: the Kanban system runs as one detached,
+project-scoped IPC service with an authoritative SQLite database. It supports multiple boards per
 project, human CRUD, agent-visible queue operations, dependency-aware claiming,
 ordered chains, split/merge lineage, goal metrics, TaskGraph import/export/sync,
 and Director-backed multi-agent dispatch through `kanban_queue`.
@@ -57,13 +58,19 @@ Director, fleet host, or surface-specific dispatch hooks.
 
 ```text
 Project root
-  .wrongstack/kanbans/<boardId>.json
+  .wrongstack/kanbans/_kanban.sqlite
         ^
-        |
-packages/core/src/kanban/
-  types.ts      data model
-  storage.ts    file IO, locking, atomic writes, board refs
-  manager.ts    deterministic CRUD, graph operations, queue semantics
+        | only the elected owner opens SQLite
+packages/kanban/src/server/project-server.ts
+        ^
+        | named pipe on Windows / Unix socket elsewhere
+packages/kanban/src/server/client.ts
+        ^
+        | protocol v4: typed domain wire codec + storage/admin RPC
+packages/kanban/
+  types.ts          data model
+  client-domain.ts  stateful public API -> IPC only
+  manager.ts        daemon-local CRUD, graph operations, queue semantics
         ^
         |
 +-------+----------------+------------------+----------------------+
@@ -81,8 +88,12 @@ Primary implementation files:
 
 | Layer | File | Responsibility |
 |---|---|---|
-| Model | `packages/core/src/kanban/types.ts` | Board, column, task, assignment, chain, metric, graph-origin types |
-| Storage | `packages/kanban/src/storage.ts` | Project-local JSON storage, board id validation, locks, atomic writes |
+| Model | `packages/kanban/src/types.ts` | Board, column, task, assignment, chain, metric, graph-origin types |
+| IPC owner | `packages/kanban/src/server/project-server.ts` | Endpoint election, request serialization, events, lifecycle and health |
+| SQLite | `packages/kanban/src/server/sqlite-storage.ts` | Authoritative boards, events, metadata and one-time legacy import |
+| Stateful client API | `packages/kanban/src/client-domain.ts` | Whitelisted high-level operations routed through protocol v4 `domainCall` |
+| Remote storage | `packages/kanban/src/server/remote-storage.ts` | Fail-closed client access to the project owner |
+| Storage boundary | `packages/kanban/src/storage.ts` | Public persistence contract and test-only legacy JSON codec |
 | Manager | `packages/kanban/src/manager.ts` | Board/task CRUD, dependency checks, claim/release, split/merge, chain, TaskGraph bridge |
 | Presence | `packages/kanban/src/manager/presence.ts` | Per-session/agent heartbeat, TTL-based active/inactive derivation |
 | Session mirror | `packages/tools/src/session-kanban.ts` | Bidirectional projection between session todo list and session-owned board |
@@ -160,7 +171,7 @@ The assignment object is metadata. It does not execute work by itself.
 
 `KanbanBoardPresence` records which sessions and agents are actively reading or
 mutating a board. Presence is per-session + per-agent, stored as an array on the
-board JSON, never as an external store:
+SQLite-backed board record, never as an external store:
 
 | Field | Meaning |
 |---|---|
@@ -186,37 +197,57 @@ board JSON, never as an external store:
 
 ## 4. Storage and Consistency
 
-Kanban boards are stored under the project tree:
+The authoritative database is:
 
 ```text
-<projectRoot>/.wrongstack/kanbans/<boardId>.json
+<projectRoot>/.wrongstack/kanbans/_kanban.sqlite
+```
+
+Production follows one path:
+
+```text
+CLI / TUI / WebUI / tools / Director
+  -> Kanban client
+  -> named pipe or Unix socket
+  -> elected project server
+  -> SQLite
 ```
 
 Storage guarantees:
 
+- Only the endpoint-election winner opens SQLite.
+- Stateful package APIs execute their manager logic inside the elected daemon
+  through the protocol v4 `domainCall` allowlist.
+- Production is fail-closed; disabling or losing the daemon does not enable a
+  direct-file fallback.
+- `ServerKanbanStore` uses the same typed `domainCall` codec; it has no second
+  JSON-string RPC contract or manager/storage fallback.
+- The wire method allowlist exposes only control, `domainCall`, and typed
+  storage primitives. Old high-level method names are rejected as unknown.
 - Board ids must match `^[A-Za-z0-9][A-Za-z0-9_-]*$` and cannot include `..`.
 - Board references can be full ids or unique prefixes.
-- Reads normalize legacy/missing fields into current defaults.
-- Writes use `atomicWrite`.
-- Mutations use `withFileLock(filePath, ...)`, so concurrent writers serialize
-  through a per-board lock.
-- `mutateBoard()` reads, mutates, normalizes, and writes inside one locked block.
-
-This makes queue operations safe enough for multiple surfaces working on the
-same board: two agents claiming the same task concurrently should serialize on
-the board file, and only one claim should observe the task as ready.
-
-Important boundary: locking is per board file, not global across all boards.
-Cross-board workflows such as transfer read/write multiple boards and should not
-be treated as a distributed transaction.
+- Mutations use revision-checked SQLite writes and reject stale updates.
+- Board events and HQ sync metadata live in the same database.
+- Every successful SQLite create/update/delete commit emits exactly one daemon
+  mutation event; server events replace board-directory filesystem watchers.
+- Event subscribers follow daemon restarts. HQ performs a full authoritative
+  reconciliation after reconnect, and WebUI receives explicit board-deletion
+  notifications instead of retaining stale cards.
+- Existing `<boardId>.json`, `<boardId>.events.jsonl`, and `.hq-sync.json`
+  files are imported transactionally once and deleted only after the SQLite
+  commit succeeds. Failed imports preserve every source for retry; a committed
+  import with interrupted cleanup retries deletion on the next daemon start.
+- The legacy file codec is available only to tests and migration coverage.
 
 ---
 
 ## 5. Core Manager API
 
-The manager (`packages/core/src/kanban/manager.ts`) is the canonical behavior
-surface. Tools, CLI, and WebUI route through it rather than modifying JSON
-directly.
+The manager (`packages/kanban/src/manager.ts`) is the canonical behavior
+surface inside the project server. Tools, CLI, TUI, Director, and WebUI import
+the package-level API; stateful exports are overridden by
+`packages/kanban/src/client-domain.ts` and run through the daemon's explicit
+operation allowlist. Clients never execute manager mutations or open storage.
 
 ### Board and column operations
 
@@ -501,7 +532,8 @@ Main CLI capabilities:
 
 ### WebUI
 
-Both WebUI servers route Kanban messages through the same core manager:
+Both WebUI servers route Kanban messages through the same IPC-backed public
+client:
 
 - embedded CLI WebUI: `packages/cli/src/webui-server/ws-handlers/kanban.ts`
 - standalone WebUI: `packages/webui/src/server/kanban-routes.ts`
@@ -542,18 +574,18 @@ Leader plan file (onChange) ───────┤
                     │  projectSessionTodosTo... │
                     │  (via TaskGraph sync)     │
                     └──────────┬───────────────┘
-                               │ board JSON
+                               │ IPC
                                ▼
                     ┌──────────────────────────┐
-                    │  .wrongstack/kanbans/     │
-                    │  <board-id>.json          │
+                    │  Kanban project server    │
+                    │  _kanban.sqlite           │
                     └──────────────────────────┘
 ```
 
 **Reverse projection — board → todos:**
 
-When a Kanban agent (or another surface) mutates the session board, the board
-file watcher in `attachSessionKanbanMirror()` triggers
+When a Kanban agent (or another surface) mutates the session board, the daemon
+event subscription in `attachSessionKanbanMirror()` triggers
 `applySessionKanbanBoardToTodos()`. This function:
 
 1. Filters board tasks that originated from `session-todo` or are
@@ -653,21 +685,25 @@ orchestration, assignment status is the stronger runtime signal.
 
 The Kanban system should preserve these invariants:
 
-1. **No path escape**: board ids are validated before file paths are built.
-2. **One writer per board mutation**: `mutateBoard()` holds a file lock.
-3. **No dependency cycles**: dependency and graph sync operations reject cycles.
-4. **No self dependency**: a task cannot depend on itself.
-5. **Ready means dependency-ready**: queued/running tasks are excluded from
+1. **No path escape**: board ids are validated before lookup or migration.
+2. **One database owner**: only the elected project server opens SQLite.
+3. **IPC-only clients**: stateful public operations use the whitelisted
+   `domainCall`; an unavailable/disabled daemon fails closed.
+4. **No raw client storage**: SQLite, board paths, JSON/JSONL migration and
+   direct manager execution stay inside the Kanban package owner/test boundary.
+5. **No dependency cycles**: dependency and graph sync operations reject cycles.
+6. **No self dependency**: a task cannot depend on itself.
+7. **Ready means dependency-ready**: queued/running tasks are excluded from
    ready search.
-6. **Assignment routing survives claims**: a claim merges existing routing
+8. **Assignment routing survives claims**: a claim merges existing routing
    metadata with explicit overrides.
-7. **Lineage survives scope changes**: split/merge operations write parent,
+9. **Lineage survives scope changes**: split/merge operations write parent,
    child, merged-from, and merged-into fields.
-8. **Ordered chain is explicit**: chain metadata is not inferred from arbitrary
+10. **Ordered chain is explicit**: chain metadata is not inferred from arbitrary
    dependencies.
-9. **Graph origin is stable**: sync uses `origin.graphId`, `origin.taskId`, and
+11. **Graph origin is stable**: sync uses `origin.graphId`, `origin.taskId`, and
    optional `origin.phaseId` to update imported tasks.
-10. **Runtime failures are visible**: failed dispatch/await results write
+12. **Runtime failures are visible**: failed dispatch/await results write
     `assignment.error` and set task status to `failed`.
 
 Known failure behaviors:
@@ -684,6 +720,11 @@ Known failure behaviors:
 
 Current focused coverage lives primarily in:
 
+- `packages/kanban/tests/sqlite-project-server.test.ts`
+- `packages/kanban/tests/architecture/kanban-ipc-boundary.test.ts`
+- `packages/kanban/tests/project-server-lifecycle.test.ts`
+- `packages/kanban/tests/kanban-supervisor-bridge.test.ts`
+- `packages/webui-server/tests/kanban-daemon-subscriber.test.ts`
 - `packages/cli/tests/kanban.test.ts`
 - `packages/cli/tests/webui-server/ws-handler-parity.test.ts`
 - `packages/webui/tests/stores/kanban-store.test.ts`
@@ -716,7 +757,7 @@ pnpm --filter @wrongstack/cli typecheck
 pnpm --filter @wrongstack/tui typecheck
 pnpm vitest run packages/cli/tests/kanban.test.ts packages/cli/tests/webui-server/ws-handler-parity.test.ts
 pnpm --filter @wrongstack/webui test -- tests/stores/kanban-store.test.ts
-pnpm exec biome lint packages/core/src/kanban/types.ts packages/core/src/kanban/manager.ts packages/core/src/kanban/storage.ts packages/tools/src/kanban.ts
+pnpm exec biome lint packages/kanban/src/types.ts packages/kanban/src/manager.ts packages/kanban/src/storage.ts packages/tools/src/kanban.ts
 ```
 
 Avoid running broad recursive typecheck/build commands in parallel with package
@@ -730,32 +771,19 @@ while a dependency package is rebuilding.
 The current implementation is enough for deterministic project-local Kanban and
 first-class fleet dispatch. The next useful work is deeper orchestration:
 
-1. **Stronger transaction model for cross-board transfer**
-   Current board mutations are per-board locked. Cross-board operations are not
-   a true two-phase transaction.
-
-2. **Dedicated audit trail for Kanban task events**
-   Board JSON stores current state. Long-term event history currently depends on
-   session logs or notes. A board-local append-only history would improve
-   debugging.
-
-3. **Automatic stale claim recovery**
-   Queued/running assignments can remain if a process dies. A recovery policy
-   could release or mark stale claims after heartbeat/session inspection.
-
-4. **Richer assignment schema**
+1. **Richer assignment schema**
    Future task-level routing may need explicit goal metrics policy, evaluator
    role, retry policy, cost ceiling, or model-runtime reasoning settings.
 
-5. **Conflict-aware multi-agent merge policy**
+2. **Conflict-aware multi-agent merge policy**
    Kanban can represent split/merge lineage, but code changes still rely on
    worktree/Director conflict handling outside Kanban.
 
-6. **UI for chains and graph lineage**
+3. **UI for chains and graph lineage**
    CLI and WebUI expose the data, but a dedicated chain/graph visualization
    would make ordered task work easier to inspect.
 
-7. **End-to-end multi-agent integration tests**
+4. **End-to-end multi-agent integration tests**
    Current tests use fake Directors for queue dispatch. A full test with a
    coordinator, fake subagent runner, and Kanban board would raise confidence in
    real fleet behavior.

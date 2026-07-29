@@ -211,8 +211,11 @@ export class OneShotOrchestrator {
       }
 
       lastError = attempt.error;
-      fallbackEligible = attempt.fallbackEligible;
-      if (!fallbackEligible) break;
+      // Do NOT break on a non-fallback-eligible error from a chain entry.
+      // Only the primary's eligibility (checked above at the gate) decides
+      // whether we enter the chain at all. A stale entry (deleted model →
+      // 404 → invalid_request) must not abort every healthy entry after it.
+      // Mirrors the agent-loop fix in fallback-model.ts (lines 464–481).
     }
 
     // Total failure — all providers exhausted or non-retryable error.

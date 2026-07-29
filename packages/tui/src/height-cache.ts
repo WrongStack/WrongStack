@@ -78,7 +78,12 @@ export class EntryHeightCache {
    */
   record(id: number, height: number): boolean {
     if (!Number.isFinite(height) || height < 0) return false;
-    const clamped = Math.max(1, Math.round(height));
+    // Zero is a legal height: a mounted group whose content is hidden (e.g.
+    // a thinking entry with model reasoning display off) renders no rows, and
+    // the cache must agree with the screen or every row of the stale estimate
+    // becomes phantom scroll space (wheel turns, screen doesn't move, then
+    // jumps — plus permanent blank bands the underfill pass can't see).
+    const clamped = Math.max(0, Math.round(height));
     const prev = this.heights.get(id);
     if (prev === clamped) return false;
 
@@ -151,7 +156,7 @@ export class EntryHeightCache {
     for (const [id, height] of rows) {
       // Silently skip invalid rows, mirroring record()'s early-return.
       if (!Number.isFinite(height) || height < 0) continue;
-      const clamped = Math.max(1, Math.round(height));
+      const clamped = Math.max(0, Math.round(height));
       if (this.heights.get(id) === clamped) continue;
       if (!this.heights.has(id)) {
         throw new RangeError(

@@ -15,7 +15,8 @@ import { SCROLLBAR_HIT_WIDTH } from '../hit-test.js';
 import { Box, type DOMElement, measureElement, Text, useStdout } from '../ink.js';
 import { computeLayout } from '../layout-engine.js';
 import {
-  anchorAtTopRow,
+  anchorForTrackCell,
+  anchorTopRow,
   contentRows,
   maxTopRow,
   pageRows,
@@ -23,6 +24,8 @@ import {
   planPinned,
   type ScrollAnchor,
   type ScrollGeometry,
+  scrollAnchorBy,
+  scrollAnchorToTop,
 } from '../scroll-anchor.js';
 import { theme } from '../theme.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
@@ -36,6 +39,7 @@ import {
 import {
   estimateRenderGroupRows,
   groupEntries,
+  type RenderGroup,
   renderGroupId,
   ToolGroup,
 } from './history/tool-group.js';
@@ -182,6 +186,78 @@ export function liveToolStreamCopyHit(opts: {
   };
 }
 
+interface CopyRegistry {
+  hits: CopyHit[];
+  liveHit: CopyHit | null;
+}
+
+/**
+ * Resolve copy icons into the already-reserved scrollbar gap column.
+ *
+ * Copy affordances must not alter card width: changing the width changes
+ * wrapped row counts, which invalidates the prefix sums that map scrollbar
+ * positions to virtual entry slices. This helper derives icon rows from the
+ * same cached heights used by the mount plan while leaving entry geometry
+ * untouched.
+ */
+function buildCopyRegistry(opts: {
+  renderGroups: readonly RenderGroup[];
+  heightCache: EntryHeightCache;
+  scrolled: boolean;
+  clip: number;
+  tailRows: number;
+  viewportRows: number;
+  iconCol: number;
+  showModelReasoning?: boolean | undefined;
+  liveToolVisible: boolean;
+}): CopyRegistry {
+  const mountedGroupRows = opts.renderGroups.reduce(
+    (rows, group) => rows + (opts.heightCache.getHeight(renderGroupId(group)) ?? 0),
+    0,
+  );
+  const visibleClip = copyRegistryVisibleClip({
+    scrolled: opts.scrolled,
+    clip: opts.clip,
+    mountedRows: mountedGroupRows,
+    tailRows: opts.tailRows,
+    viewportRows: opts.viewportRows,
+  });
+  const hits: CopyHit[] = [];
+  let offset = 0;
+  for (const group of opts.renderGroups) {
+    const gid = renderGroupId(group);
+    const groupHeight = opts.heightCache.getHeight(gid) ?? 0;
+    const startRow = offset - visibleClip;
+    offset += groupHeight;
+    const groupEntryIds =
+      group.type === 'tool-group'
+        ? group.data.entries.map((entry) => entry.id)
+        : isCopyableEntry(group.entry) &&
+            !(group.entry.kind === 'thinking' && opts.showModelReasoning === false)
+          ? [group.entry.id]
+          : [];
+    const entryId = groupEntryIds[0];
+    if (entryId === undefined || startRow < 0 || startRow >= opts.viewportRows) continue;
+    hits.push({
+      entryId,
+      ...(groupEntryIds.length > 1 ? { entryIds: groupEntryIds } : {}),
+      startRow,
+      endRow: startRow + 1,
+      iconCol: opts.iconCol,
+    });
+  }
+  return {
+    hits,
+    liveHit: liveToolStreamCopyHit({
+      visible: opts.liveToolVisible,
+      mountedRows: mountedGroupRows,
+      visibleClip,
+      viewportRows: opts.viewportRows,
+      iconCol: opts.iconCol,
+    }),
+  };
+}
+
 export interface ScrollableHistoryProps extends HistoryProps {
   /** Height of the viewport in rows, computed by App from the bottom region. */
   viewportRows: number;
@@ -241,35 +317,50 @@ export function scrollOffsetForTrackRow(rows: number, total: number, cell: numbe
 }
 
 /**
- * Right-edge scrollbar for the managed viewport. A 1-column track with a thumb
- * sized and positioned from the scroll offset, total height, and viewport rows.
- * Always reserves its column so toggling scrollability does not reflow content.
+ * Right-edge rail for the managed viewport. Its first column is the copy-icon
+ * gap and its second column is the scrollbar track. Both columns are always
+ * reserved, so copy affordances and scrollability never reflow chat content.
  */
 function Scrollbar({
   rows,
   offset,
   total,
+  copyHits,
+  copiedEntryId,
 }: {
   rows: number;
   offset: number;
   total: number;
+  copyHits: readonly CopyHit[];
+  copiedEntryId?: number | null | undefined;
 }): React.ReactElement {
   const { top: thumbTop, size: thumbSize, scrollable } = scrollbarThumb(rows, offset, total);
   const cells: string[] = [];
   for (let i = 0; i < rows; i++) {
     cells.push(i >= thumbTop && i < thumbTop + thumbSize ? '█' : '│');
   }
+  const copyByRow = new Map<number, CopyHit>();
+  for (const hit of copyHits) copyByRow.set(hit.startRow, hit);
   return (
-    <Box flexDirection="column" marginLeft={1} flexShrink={0}>
-      {cells.map((c, i) => (
-        <Text
-          key={i}
-          {...(scrollable ? { color: theme.accent } : {})}
-          dimColor={!scrollable || c === '│'}
-        >
-          {c}
-        </Text>
-      ))}
+    <Box flexDirection="column" flexShrink={0}>
+      {cells.map((cell, row) => {
+        const copyHit = copyByRow.get(row);
+        return (
+          <Box key={row} flexDirection="row">
+            <Text
+              color={copyHit && copiedEntryId === copyHit.entryId ? theme.success : theme.textMuted}
+            >
+              {copyHit ? COPY_ICON : ' '}
+            </Text>
+            <Text
+              {...(scrollable ? { color: theme.accent } : {})}
+              dimColor={!scrollable || cell === '│'}
+            >
+              {cell}
+            </Text>
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -285,30 +376,7 @@ const UNDERFILL_BUMP_ROWS = 16;
 const MAX_UNDERFILL_BUMPS = 8;
 
 /**
- * One authoritative position for every scroll input.
- *
- * `topRow` is the absolute row at the viewport top. `null` is follow mode
- * (pinned to the newest output). A track gesture also keeps its normalized
- * ratio so late height measurements cannot move the thumb away from the
- * vertical point the user selected.
- */
-interface ScrollPosition {
-  topRow: number | null;
-  trackRatio: number | null;
-}
-
-function resolvedTopRow(geometry: ScrollGeometry, position: ScrollPosition): number {
-  const max = maxTopRow(geometry);
-  if (position.topRow === null) return max;
-  const requested =
-    position.trackRatio === null
-      ? position.topRow
-      : Math.round(Math.max(0, Math.min(1, position.trackRatio)) * max);
-  return Math.max(0, Math.min(max, Math.round(requested)));
-}
-
-/**
- * Bounded history viewport with absolute-row virtual scrolling.
+ * Bounded history viewport with stable-anchor virtual scrolling.
  *
  * Instead of streaming entries into the terminal's native scrollback via
  * `<Static>`, retained entries render into a fixed-height `overflowY:'hidden'`
@@ -317,20 +385,19 @@ function resolvedTopRow(geometry: ScrollGeometry, position: ScrollPosition): num
  * All paths use the {@link HistoryScrollController} this component owns.
  *
  * Positioning model (Ink-7 verified against real yoga layout):
- * - Pinned (`topRow:null`): `justifyContent:'flex-end'` + enough trailing
+ * - Pinned (`anchor:null`): `justifyContent:'flex-end'` + enough trailing
  *   groups mounted to overfill the viewport. Ink clips the overflow at the
  *   TOP, so the newest output hugs the input line with zero position math.
- * - Scrolled: wheel, page keys, and scrollbar gestures all update the same
- *   absolute content-row coordinate. That coordinate is translated to a
- *   render anchor for the current frame; groups mount from it downward and
- *   `marginTop:-clip` hides the preceding rows. Height corrections therefore
- *   re-resolve one coordinate instead of independently mutating an entry
- *   anchor, an offset, and a scrollbar ratio.
+ * - Scrolled: wheel, page keys, and scrollbar gestures all resolve to the
+ *   render-group id at the viewport top plus a row clipped inside that group.
+ *   Groups mount from that stable anchor and `marginTop:-clip` hides preceding
+ *   rows. Height corrections above the anchor can refine the scrollbar extent
+ *   without changing which content is visible.
  *
  * The {@link EntryHeightCache} seeds the global row space and decides how many
  * groups to mount. A post-render `measureElement` pass promotes mounted groups
- * to real heights, persists them, and re-resolves the same absolute position
- * (or the same normalized track position) against the corrected total.
+ * to real heights and persists them. Only the mounted virtual window is
+ * measured; a long transcript is never mounted wholesale for calibration.
  *
  * Wrapped in `React.memo` so keystrokes in the input buffer don't trigger a
  * full managed-viewport re-layout.
@@ -407,11 +474,6 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   toolStreamRef.current = toolStream;
   const entriesByIdRef = useRef(new Map<number, HistoryEntry>());
   entriesByIdRef.current = new Map(entries.map((entry) => [entry.id, entry]));
-  // Exact global row-to-entry mapping is impossible while arbitrary markdown
-  // groups still have heuristic heights. Once per terminal width, mount the
-  // retained transcript inside the clipped viewport, measure it in one Yoga
-  // pass, then return to a bounded virtual window.
-  const calibratedWidthRef = useRef<number | null>(null);
   const preparedGroupIdsRef = useRef<string | null>(null);
   const preparedEstimateWidthRef = useRef<number | null>(null);
   // Key that changes when either the group set or the terminal width changes,
@@ -420,17 +482,20 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // (via setTermWidth), so including it would make the key change one render
   // later — causing a second seeding pass that discards freshly-measured
   // heights and replaces them with estimates, corrupting the viewport.
-  const cacheKey = layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey;
+  // The reasoning-display flag participates in the key: toggling it changes
+  // every thinking entry's rendered height (full block ↔ zero rows), so the
+  // cache must re-seed or stale heights become phantom scroll space.
+  const reasoningKey = showModelReasoning === false ? '|r0' : '';
+  const cacheKey =
+    (layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey) + reasoningKey;
   if (preparedGroupIdsRef.current !== cacheKey || preparedEstimateWidthRef.current !== termWidth) {
     // `!== null` guards the first render: on mount `preparedEstimateWidthRef`
-    // is null so widthChanged stays false, preserving the initial calibration
-    // state. On subsequent renders a real width change clears the measured ids
-    // and calibrated width so the cache re-seeds cleanly at the new dimension.
+    // is null so widthChanged stays false. On subsequent renders a real width
+    // change clears measured ids so the cache re-seeds at the new dimension.
     const widthChanged =
       preparedEstimateWidthRef.current !== null && preparedEstimateWidthRef.current !== termWidth;
     if (widthChanged) {
       measuredGroupIdsRef.current.clear();
-      calibratedWidthRef.current = null;
     }
     heightCache.sync(groupIds);
     const retainedIds = new Set(groupIds);
@@ -446,6 +511,14 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       layoutStore.retain(new Set(groupIds));
       for (const group of groupedEntries) {
         const id = renderGroupId(group);
+        // A thinking entry renders zero rows while reasoning display is off.
+        // Record that truth ahead of any stored/estimated height — including
+        // over a `measured` snapshot from a reasoning-on era — or the screen
+        // and the prefix sums disagree by the entire reasoning text.
+        if (group.type !== 'tool-group' && group.entry.kind === 'thinking' && showModelReasoning === false) {
+          heightCache.record(id, 0);
+          continue;
+        }
         const stored = layoutStore.get(id);
         if (stored && stored.termWidth === termWidth) {
           // Never replace a live measurement with an older heuristic when a
@@ -472,23 +545,28 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         }
       }
     } else {
-      // No LayoutStore: fall back to heuristic estimates only.
+      // No LayoutStore: fall back to heuristic estimates only. Hidden
+      // thinking entries are zero-height on screen; force their cached rows
+      // to 0 even when previously measured in a reasoning-on state.
+      const hiddenIds = new Set<number>();
       const estimateById = new Map(
-        groupedEntries.map((group) => [
-          renderGroupId(group),
-          estimateRenderGroupRows(group, termWidth),
-        ]),
+        groupedEntries.map((group) => {
+          const id = renderGroupId(group);
+          const hidden =
+            group.type !== 'tool-group' &&
+            group.entry.kind === 'thinking' &&
+            showModelReasoning === false;
+          if (hidden) hiddenIds.add(id);
+          return [id, hidden ? 0 : estimateRenderGroupRows(group, termWidth)] as const;
+        }),
       );
       heightCache.recordMany(
         groupIds
-          .filter((id) => !measuredGroupIdsRef.current.has(id))
+          .filter((id) => hiddenIds.has(id) || !measuredGroupIdsRef.current.has(id))
           .map((id) => [id, estimateById.get(id) ?? 3] as const),
       );
     }
 
-    if (groupIds.length > 0 && groupIds.every((id) => measuredGroupIdsRef.current.has(id))) {
-      calibratedWidthRef.current = termWidth;
-    }
     preparedGroupIdsRef.current = cacheKey;
     preparedEstimateWidthRef.current = termWidth;
   }
@@ -496,13 +574,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const vp = Math.max(1, viewportRows);
 
   // ── Scroll state ────────────────────────────────────────────────────
-  // Keep one absolute top-row coordinate for wheel, page keys, and track
-  // interaction. This is intentionally not stored as an entry ID: changing a
-  // height estimate must not silently redefine what "row 400" means.
-  const [position, setPosition] = useState<ScrollPosition>({
-    topRow: null,
-    trackRatio: null,
-  });
+  // Keep the identity of the group at the viewport top. A numeric global row
+  // becomes a different piece of content whenever an estimate above it is
+  // corrected; an id + local clip keeps the visible content stable.
+  const [anchor, setAnchor] = useState<{ id: number; clip: number } | null>(null);
   // Underfill-correction steps for the current scroll position: each step
   // mounts UNDERFILL_BUMP_ROWS more estimated rows. Reset on scroll.
   const [mountBump, setMountBump] = useState(0);
@@ -536,86 +611,82 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     tailRows: toolTailHeight,
   };
 
-  const topRow = resolvedTopRow(geometry, position);
-  // Do not memoize this translation: post-render measurement mutates the
-  // height cache in place and the measurement tick must re-run the prefix-sum
-  // lookup even when every React identity is unchanged.
-  const effectiveAnchor: ScrollAnchor | null =
-    position.topRow === null ? null : anchorAtTopRow(geometry, topRow);
+  const groupIndexById = useMemo(() => {
+    const indexes = new Map<number, number>();
+    groupIds.forEach((id, index) => {
+      indexes.set(id, index);
+    });
+    return indexes;
+  }, [groupIds]);
+
+  // Resolve the stable id into this render's group index. If retention evicted
+  // the anchor, fall back to the oldest retained group. Clamp a stale clip to
+  // the same group's last row instead of advancing to unrelated content.
+  let effectiveAnchor: ScrollAnchor | null = null;
+  if (anchor !== null && groupedEntries.length > 0 && maxTopRow(geometry) > 0) {
+    const index = groupIndexById.get(anchor.id) ?? 0;
+    const id = groupIds[index];
+    const height = id === undefined ? 1 : (heightCache.getHeight(id) ?? 1);
+    effectiveAnchor = {
+      index,
+      clip: Math.max(0, Math.min(Math.max(0, height - 1), anchor.clip)),
+    };
+  }
   const scrolled = effectiveAnchor !== null;
 
   // Latest-value refs for the stable controller callbacks.
   const geometryRef = useRef(geometry);
   geometryRef.current = geometry;
-  const positionRef = useRef(position);
-  positionRef.current = position;
+  const effectiveAnchorRef = useRef(effectiveAnchor);
+  effectiveAnchorRef.current = effectiveAnchor;
+  const groupIdsRef = useRef(groupIds);
+  groupIdsRef.current = groupIds;
 
-  const applyPosition = useCallback(
-    (requestedTopRow: number | null, trackRatio: number | null = null): void => {
-      const geom = geometryRef.current;
-      const max = maxTopRow(geom);
-      const normalizedRatio = trackRatio === null ? null : Math.max(0, Math.min(1, trackRatio));
-      const computedTop =
-        requestedTopRow === null
-          ? max
-          : normalizedRatio === null
-            ? Math.max(0, Math.min(max, Math.round(requestedTopRow)))
-            : Math.round(normalizedRatio * max); // normalizedRatio ∈ [0,1] (clamped above)
-      const next: ScrollPosition =
-        max <= 0 || requestedTopRow === null || computedTop >= max
-          ? { topRow: null, trackRatio: null }
-          : { topRow: computedTop, trackRatio: normalizedRatio };
-      // Raw stdin often batches many trackpad/wheel reports in one chunk. React
-      // does not render between those controller calls, so update the imperative
-      // ref immediately; otherwise every event computes from the same stale
-      // coordinate and an entire gesture collapses to a single scroll step.
-      positionRef.current = next;
-      setPosition(next);
-      setMountBump(0);
-    },
-    [],
-  );
+  const applyAnchor = useCallback((next: ScrollAnchor | null): void => {
+    const ids = groupIdsRef.current;
+    const nextId = next ? ids[next.index] : undefined;
+    const normalized =
+      next && nextId !== undefined ? { index: next.index, clip: Math.max(0, next.clip) } : null;
+    // Raw stdin often batches many trackpad/wheel reports in one chunk. Update
+    // the imperative ref immediately so every report advances from the result
+    // of the previous one even before React commits a frame.
+    effectiveAnchorRef.current = normalized;
+    setAnchor(normalized && nextId !== undefined ? { id: nextId, clip: normalized.clip } : null);
+    setMountBump(0);
+  }, []);
 
   const controller = useMemo<HistoryScrollController>(
     () => ({
       scrollBy: (deltaUp) => {
-        const geom = geometryRef.current;
-        const currentTop = resolvedTopRow(geom, positionRef.current);
-        applyPosition(currentTop - deltaUp);
+        applyAnchor(scrollAnchorBy(geometryRef.current, effectiveAnchorRef.current, deltaUp));
       },
       scrollPage: (dir) => {
-        const geom = geometryRef.current;
-        const rows = pageRows(geom.viewportRows);
-        const currentTop = resolvedTopRow(geom, positionRef.current);
-        applyPosition(currentTop + (dir === 'up' ? -rows : rows));
-      },
-      scrollToTop: () => {
-        applyPosition(0);
-      },
-      scrollToBottom: () => {
-        applyPosition(null);
-      },
-      scrollToTrackCell: (cell) => {
-        const geom = geometryRef.current;
-        const rows = Math.max(1, geom.viewportRows);
-        const clampedCell = Math.max(0, Math.min(rows - 1, cell));
-        const ratio = clampedCell / Math.max(1, rows - 1);
-        applyPosition(Math.round(ratio * maxTopRow(geom)), ratio);
-      },
-      isScrolled: () => {
-        const geom = geometryRef.current;
-        return (
-          positionRef.current.topRow !== null &&
-          resolvedTopRow(geom, positionRef.current) < maxTopRow(geom)
+        const rows = pageRows(geometryRef.current.viewportRows);
+        applyAnchor(
+          scrollAnchorBy(
+            geometryRef.current,
+            effectiveAnchorRef.current,
+            dir === 'up' ? rows : -rows,
+          ),
         );
       },
+      scrollToTop: () => {
+        applyAnchor(scrollAnchorToTop(geometryRef.current));
+      },
+      scrollToBottom: () => {
+        applyAnchor(null);
+      },
+      scrollToTrackCell: (cell) => {
+        // The ratio is used once to select a logical anchor. Subsequent height
+        // corrections retain that content instead of continuously reapplying
+        // the ratio and sliding the viewport to another entry.
+        applyAnchor(anchorForTrackCell(geometryRef.current, cell));
+      },
+      isScrolled: () => effectiveAnchorRef.current !== null,
       hasCopyTargetAt: (row, col) =>
         findCopyHit(copyHitsRef.current, row, col) !== null ||
-        findCopyHit(
-          liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],
-          row,
-          col,
-        ) !== null,
+        findCopyHit(liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [], row, col) !==
+          null,
       copyAtViewportCell: async (row, col) => {
         const liveHit = findCopyHit(
           liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],
@@ -633,7 +704,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         return (await writeClipboardText(payload.text)) ? payload.entryId : null;
       },
     }),
-    [applyPosition],
+    [applyAnchor],
   );
 
   useEffect(() => {
@@ -669,21 +740,35 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // `vp` means even a 4:1 estimate overestimation fills the viewport in 2-3
   // correction cycles rather than exhausting the 8-step cap.
   const bumpStep = Math.max(UNDERFILL_BUMP_ROWS, vp);
-  const calibrating = groupedEntries.length > 0 && calibratedWidthRef.current !== termWidth;
-  const plan = calibrating
-    ? { startIdx: 0, endIdx: groupedEntries.length, mountTail: true }
-    : effectiveAnchor
-      ? planFromAnchor(geometry, effectiveAnchor, mountBump * bumpStep)
-      : planPinned(geometry, mountBump * bumpStep);
+  const plan = effectiveAnchor
+    ? planFromAnchor(geometry, effectiveAnchor, mountBump * bumpStep)
+    : planPinned(geometry, mountBump * bumpStep);
   const renderGroups = groupedEntries.slice(plan.startIdx, plan.endIdx);
-  // Calibration mounts from content row zero, so when scrolled its clip is
-  // the full absolute top-row coordinate. When pinned (calibrating && !scrolled)
-  // clip falls through to 0 — flex-end clips the overfill at the top. Normal
-  // virtual frames mount from the anchor group and clip only inside that group.
-  const clip = calibrating && scrolled ? topRow : (effectiveAnchor?.clip ?? 0);
+  const clip = effectiveAnchor?.clip ?? 0;
 
   const totalRows = contentRows(geometry);
-  const offsetFromBottom = scrolled ? Math.max(0, maxTopRow(geometry) - topRow) : 0;
+  const offsetFromBottom = scrolled
+    ? Math.max(0, maxTopRow(geometry) - anchorTopRow(geometry, effectiveAnchor))
+    : 0;
+  // The copy rail occupies the gap column already excluded from `termWidth`.
+  // Compute its rows from the same cache snapshot as this render so the visual
+  // glyphs and click registry stay aligned without changing card geometry.
+  const copyRegistry = buildCopyRegistry({
+    renderGroups,
+    heightCache,
+    scrolled,
+    clip,
+    tailRows: plan.mountTail ? toolTailHeight : 0,
+    viewportRows: vp,
+    iconCol: termWidth,
+    showModelReasoning,
+    liveToolVisible: Boolean(plan.mountTail && toolTail && toolStream),
+  });
+  copyHitsRef.current = copyRegistry.hits;
+  liveToolCopyHitRef.current = copyRegistry.liveHit;
+  const copyRailHits = copyRegistry.liveHit
+    ? [...copyRegistry.hits, copyRegistry.liveHit]
+    : copyRegistry.hits;
 
   // ── Post-render measurement ─────────────────────────────────────────
   // Measure the groups actually mounted this frame and replace their cached
@@ -693,8 +778,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // really occupies.
   //
   // Corrections this pass can make:
-  // - Bottom clamp: if measurements shrank the total below the absolute
-  //   coordinate, re-pin so the viewport remains full.
+  // - Anchor clamp: if the top group's height shrank, keep the same group at
+  //   the top and clamp its local clip instead of jumping into another entry.
+  // - Bottom clamp: if measurements shrank the total below the anchor, re-pin
+  //   so the viewport remains full.
   // - Underfill: if the mounted groups' real heights don't cover the
   //   viewport, mount more (bounded by MAX_UNDERFILL_BUMPS per position).
   // - Otherwise, a bare re-render nudge so thumb geometry and future mount
@@ -705,11 +792,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       const gid = renderGroupId(group);
       const node = entryNodeRefs.current.get(gid);
       if (!node) {
-        // The DOM ref never resolved for this group (e.g. a zero-height or
-        // collapsed group). It still counts as "measured" so the calibration
-        // convergence condition (line 564-572) can be satisfied — without this
-        // a missing node permanently blocks calibration and forces
-        // full-transcript mount on every render at that width.
+        // A zero-height/collapsed group may not expose a measurable node. Mark
+        // it visited so a later group-list refresh does not overwrite a live
+        // cache decision with a heuristic estimate.
         if (!measuredGroupIdsRef.current.has(gid)) {
           measuredGroupIdsRef.current.add(gid);
           changed = true;
@@ -718,137 +803,52 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       }
       const margin = group.type !== 'tool-group' && group.entry.kind === 'turn-summary' ? 1 : 0;
       const actual = measureElement(node).height + margin;
-      // Empty/collapsed groups render at height 0 but MUST still count as
-      // measured: without this, the calibration convergence condition
-      // (`every group is in measuredGroupIdsRef`) is impossible to satisfy and
-      // the component permanently mounts the entire retained transcript on
-      // every render at that width.
       if (!measuredGroupIdsRef.current.has(gid)) {
         measuredGroupIdsRef.current.add(gid);
         changed = true;
       }
-      if (actual <= 0) continue;
+      // Zero is a real measurement (hidden thinking entries render nothing).
+      // Skipping it would leave the seeded estimate in the cache forever:
+      // phantom rows the wheel scrolls through without the screen moving,
+      // and blank bands the underfill correction cannot detect.
+      if (actual < 0) continue;
       if (heightCache.getHeight(gid) !== actual) {
         heightCache.record(gid, actual);
-        layoutStore?.markMeasured(gid, actual, termWidth);
         changed = true;
       }
-    }
-
-    // Rebuild the copy-icon click registry from the measured heights. Groups
-    // render top-to-bottom, then the viewport hides either the scrolled anchor
-    // clip or the top overflow from pinned flex-end clipping. A group's viewport
-    // start row is its cumulative content offset minus that visible clip.
-    // Every retained card gets a target; a compact tool group uses its first
-    // entry id as the success-feedback id and also records every member id so
-    // the complete grouped box can be copied in order. The icon sits on the
-    // box's first visible row at the right edge of the content column.
-    {
-      const hits: CopyHit[] = [];
-      const mountedGroupRows = renderGroups.reduce(
-        (rows, group) => rows + (heightCache.getHeight(renderGroupId(group)) ?? 0),
-        0,
-      );
-      const visibleClip = copyRegistryVisibleClip({
-        scrolled,
-        clip,
-        mountedRows: mountedGroupRows,
-        tailRows: plan.mountTail ? toolTailHeight : 0,
-        viewportRows: vp,
-      });
-      let offset = 0; // content-space rows consumed by earlier mounted groups
-      // The icon renders at the right edge of the content column. `termWidth`
-      // is the content width (viewportWidth minus the SCROLLBAR_HIT_WIDTH
-      // gutter), so the icon's 0-based left column is termWidth - COPY_ICON_WIDTH.
-      //
-      // INVARIANT: iconCol is relative to the history band's left edge. The
-      // interactive mount (the only one whose clicks reach copyAtViewportCell via
-      // app-key-handler's hitRegion) always renders the band flush at terminal
-      // column 0, so this equals the absolute terminal column. The maxWidth /
-      // right-panel isolated renderer is display-only and never routes clicks
-      // here — if that ever changes, the click's absolute x must be translated by
-      // the band's left offset before lookup.
-      const iconCol = Math.max(0, termWidth - COPY_ICON_WIDTH);
-      // No room to carve out an icon gutter without collapsing the content
-      // column — skip the whole registry (matches the render-side guard).
-      const iconFits = termWidth > COPY_ICON_WIDTH;
-      for (const group of renderGroups) {
-        const gid = renderGroupId(group);
-        const groupHeight = heightCache.getHeight(gid) ?? 0;
-        // Content-space start row of this group; advance the cumulative offset
-        // for the next group before any early-continue below.
-        const startRow = offset - visibleClip;
-        offset += groupHeight;
-        if (!iconFits) continue;
-        const groupEntryIds =
-          group.type === 'tool-group'
-            ? group.data.entries.map((entry) => entry.id)
-            : isCopyableEntry(group.entry) &&
-                !(group.entry.kind === 'thinking' && showModelReasoning === false)
-              ? [group.entry.id]
-              : [];
-        const entryId = groupEntryIds[0];
-        if (entryId === undefined) continue;
-        // The icon is painted on exactly the card's first row (the row
-        // container aligns children to flex-start). When that row is scrolled
-        // above the viewport top (startRow < 0) the icon is off-screen, so
-        // register no target — otherwise a click at the top-right edge would
-        // match a card whose icon the user cannot see. Skip cards whose first
-        // row is at/below the viewport bottom. The hit spans only that single
-        // row: [startRow, startRow + 1).
-        if (startRow < 0 || startRow >= vp) continue;
-        hits.push({
-          entryId,
-          ...(groupEntryIds.length > 1 ? { entryIds: groupEntryIds } : {}),
-          startRow,
-          endRow: startRow + 1,
-          iconCol,
-        });
-      }
-      copyHitsRef.current = hits;
-      liveToolCopyHitRef.current = liveToolStreamCopyHit({
-        visible: Boolean(iconFits && plan.mountTail && toolTail && toolStream),
-        mountedRows: mountedGroupRows,
-        visibleClip,
-        viewportRows: vp,
-        iconCol,
-      });
-    }
-
-    if (
-      calibrating &&
-      renderGroups.length === groupedEntries.length &&
-      groupedEntries.every((group) => measuredGroupIdsRef.current.has(renderGroupId(group)))
-    ) {
-      calibratedWidthRef.current = termWidth;
-      changed = true;
+      // Promote an estimate even when it happened to equal the Yoga height.
+      // Otherwise the row is exact in memory but remains tagged `estimated`
+      // on disk and is needlessly remeasured on resume.
+      layoutStore?.markMeasured(gid, actual, termWidth);
     }
 
     const geom = geometryRef.current;
-    const currentPosition = positionRef.current;
-    const currentTop = resolvedTopRow(geom, currentPosition);
-    const cur = currentPosition.topRow === null ? null : anchorAtTopRow(geom, currentTop);
-
-    // Rounding a near-bottom track ratio, or a total-height correction, can
-    // land exactly on the newest legal row. Treat that as real follow mode;
-    // otherwise the next appended entry would unexpectedly un-pin the view.
-    if (
-      currentPosition.topRow !== null &&
-      (maxTopRow(geom) <= 0 || currentTop >= maxTopRow(geom))
-    ) {
-      applyPosition(null);
-      return;
-    }
+    const cur = effectiveAnchorRef.current;
 
     if (cur !== null) {
+      if (maxTopRow(geom) <= 0) {
+        applyAnchor(null);
+        return;
+      }
+      const anchorId = groupIdsRef.current[cur.index];
+      const anchorHeight = anchorId === undefined ? 1 : (heightCache.getHeight(anchorId) ?? 1);
+      const normalizedClip = Math.max(0, Math.min(anchorHeight - 1, cur.clip));
+      if (normalizedClip !== cur.clip) {
+        applyAnchor({ index: cur.index, clip: normalizedClip });
+        return;
+      }
+      const currentTop = heightCache.accumulatedHeight(cur.index) + normalizedClip;
+      if (currentTop >= maxTopRow(geom)) {
+        applyAnchor(null);
+        return;
+      }
+
       // Underfill: mounted rows below the clip must cover the viewport. Use
-      // `cur.clip` (re-resolved from the post-measurement prefix sums) rather
-      // than the render-scope `clip` so a height correction that shifts the
-      // anchor index/clip is reflected immediately; the render-scope value can
-      // be one correction stale and would nudge the bump counter by one.
+      // the normalized live anchor rather than the render-scope value so a
+      // height correction is reflected immediately.
       const startTop = heightCache.accumulatedHeight(plan.startIdx);
       const mountedRows = heightCache.accumulatedHeight(plan.endIdx) - startTop;
-      const visibleBudget = mountedRows - cur.clip + (plan.mountTail ? geom.tailRows : 0);
+      const visibleBudget = mountedRows - normalizedClip + (plan.mountTail ? geom.tailRows : 0);
       if (
         visibleBudget < geom.viewportRows &&
         plan.endIdx < geom.groupCount &&
@@ -904,43 +904,15 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               else entryNodeRefs.current.delete(gid);
             };
             if (group.type === 'tool-group') {
-              const entryId = group.data.entries[0]?.id;
-              const copyable = entryId !== undefined && termWidth > COPY_ICON_WIDTH;
-              const groupWidth = copyable ? termWidth - COPY_ICON_WIDTH : termWidth;
               return (
-                <Box
-                  key={`tool-group-${gid}`}
-                  ref={setNode}
-                  flexShrink={0}
-                  flexDirection="row"
-                  alignItems="flex-start"
-                >
-                  <Box flexGrow={1} flexShrink={1}>
-                    <EntryErrorBoundary label="tool group" resetKey={group.data.entries.length}>
-                      <ToolGroup data={group.data} termWidth={groupWidth} />
-                    </EntryErrorBoundary>
-                  </Box>
-                  {copyable ? (
-                    <Box width={COPY_ICON_WIDTH} flexShrink={0}>
-                      <Text color={copiedEntryId === entryId ? theme.success : theme.textMuted}>
-                        {COPY_ICON}
-                      </Text>
-                    </Box>
-                  ) : null}
+                <Box key={`tool-group-${gid}`} ref={setNode} flexShrink={0}>
+                  <EntryErrorBoundary label="tool group" resetKey={group.data.entries.length}>
+                    <ToolGroup data={group.data} termWidth={termWidth} />
+                  </EntryErrorBoundary>
                 </Box>
               );
             }
             const { entry } = group;
-            // Copyable conversational and tool cards render a click-to-copy
-            // icon in a 1-column gutter on the right. The Entry is narrowed by
-            // the icon width so total height stays unchanged and the icon lands
-            // on the exact column recorded by the copy hit registry. Only show
-            // it when the content column still has at least one cell.
-            const copyable =
-              isCopyableEntry(entry) &&
-              !(entry.kind === 'thinking' && showModelReasoning === false) &&
-              termWidth > COPY_ICON_WIDTH;
-            const entryWidth = copyable ? termWidth - COPY_ICON_WIDTH : termWidth;
             const entryEl = (
               <EntryErrorBoundary
                 label={entry.kind}
@@ -954,7 +926,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               >
                 <Entry
                   entry={entry}
-                  termWidth={entryWidth}
+                  termWidth={termWidth}
                   termHeight={vp}
                   setSuggestions={setSuggestions}
                   autonomyMode={autonomyMode}
@@ -970,23 +942,8 @@ export const ScrollableHistory = memo(function ScrollableHistory({
                 ref={setNode}
                 marginBottom={entry.kind === 'turn-summary' ? 1 : 0}
                 flexShrink={0}
-                flexDirection="row"
-                alignItems="flex-start"
               >
-                <Box flexGrow={1} flexShrink={1}>
-                  {entryEl}
-                </Box>
-                {copyable ? (
-                  <Box width={COPY_ICON_WIDTH} flexShrink={0}>
-                    {/* Flash this card's icon in the success color for the brief
-                        window the host keeps copiedEntryId set on it, so the
-                        clicked card gives visual feedback beside the status-line
-                        "Copied" notice. Otherwise it stays quietly muted. */}
-                    <Text color={copiedEntryId === entry.id ? theme.success : theme.textMuted}>
-                      {COPY_ICON}
-                    </Text>
-                  </Box>
-                ) : null}
+                {entryEl}
               </Box>
             );
           })}
@@ -995,29 +952,22 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               space: mounted whenever the window reaches the newest group, and
               clipped by the viewport like everything else. */}
           {plan.mountTail && toolTail && toolStream ? (
-            <Box flexDirection="row" alignItems="flex-start" flexShrink={0}>
-              <Box flexGrow={1} flexShrink={1}>
-                <ToolStreamBox
-                  name={toolStream.name}
-                  text={toolTail}
-                  startedAt={toolStream.startedAt}
-                  termWidth={Math.max(1, termWidth - COPY_ICON_WIDTH)}
-                />
-              </Box>
-              <Box width={COPY_ICON_WIDTH} flexShrink={0} marginTop={1}>
-                <Text
-                  color={
-                    copiedEntryId === LIVE_TOOL_STREAM_COPY_ID ? theme.success : theme.textMuted
-                  }
-                >
-                  {COPY_ICON}
-                </Text>
-              </Box>
-            </Box>
+            <ToolStreamBox
+              name={toolStream.name}
+              text={toolTail}
+              startedAt={toolStream.startedAt}
+              termWidth={termWidth}
+            />
           ) : null}
         </Box>
       </Box>
-      <Scrollbar rows={vp} offset={offsetFromBottom} total={totalRows} />
+      <Scrollbar
+        rows={vp}
+        offset={offsetFromBottom}
+        total={totalRows}
+        copyHits={copyRailHits}
+        copiedEntryId={copiedEntryId}
+      />
     </Box>
   );
 });

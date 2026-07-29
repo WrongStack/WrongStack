@@ -17,7 +17,11 @@ describe('resolveChronicleRuntimeLocation', () => {
     expect(first.installationId).toMatch(/^installation_[a-f0-9]{24}$/);
     expect(first.machineId).toMatch(/^machine_[a-f0-9]{24}$/);
     expect(first.projectId).toBe('project-abc');
-    expect(first.journalPath).toBe(path.join(input.projectDir, 'chronicle', '2026-07-18.events.jsonl'));
+    // Identity resolves *where* and *when*, never a file name: the storage
+    // format is the store's business, and pinning a `.jsonl` path here is what
+    // used to make every consumer assume partitions.
+    expect(first.chronicleDirectory).toBe(path.join(input.projectDir, 'chronicle'));
+    expect(first.day).toBe('2026-07-18');
     expect(JSON.stringify(first)).not.toContain(input.globalRoot);
   });
 });

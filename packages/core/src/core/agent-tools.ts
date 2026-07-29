@@ -173,6 +173,12 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       outputTokens: sig.outputTokens,
       outputLines: sig.outputLines,
       metadata,
+      taskId: a.ctx.currentKanbanTaskId,
+      boardId: a.ctx.currentKanbanBoardId,
+      ...(typeof a.ctx.provider === 'object'
+        ? { provider: (a.ctx.provider as { id: string }).id }
+        : {}),
+      ...(a.ctx.model ? { model: a.ctx.model } : {}),
     });
   }
 

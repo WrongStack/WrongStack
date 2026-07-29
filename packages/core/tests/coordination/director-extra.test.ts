@@ -464,6 +464,47 @@ describe('Director with an injected FleetManager', () => {
     await d.remove(id);
   });
 
+  it('keeps the FleetManager manifest authoritative after assign', async () => {
+    const root = await mkTmp('director-fleet-manager-manifest-');
+    const manifestPath = path.join(root, 'fleet.json');
+    const fleetManager = new FleetManager({
+      manifestPath,
+      manifestDebounceMs: 0,
+      directorRunId: 'fleet-manager-run',
+    });
+    const { d, buses } = makeDirector({
+      fleetManager,
+      manifestPath,
+      manifestDebounceMs: 5,
+      retireSubagentOnTaskComplete: false,
+    } as Partial<DirectorOpts>);
+    const id = await spawnWithBus(d, buses, {
+      name: 'Visible Worker',
+      provider: 'anthropic',
+      model: 'm',
+    });
+    const taskId = await d.assign({
+      id: 'visible-task',
+      description: 'stay visible',
+      subagentId: id,
+    });
+    await d.awaitTasks([taskId]);
+
+    // The legacy Director writer used to fire after FleetManager's canonical
+    // write and replace this file with { children: [] }.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as {
+      version?: number;
+      directorRunId?: string;
+      children?: Array<{ id: string; taskIds: string[] }>;
+    };
+    expect(manifest.version).toBe(1);
+    expect(manifest.directorRunId).toBe('fleet-manager-run');
+    expect(manifest.children).toEqual([
+      expect.objectContaining({ id, taskIds: ['visible-task'] }),
+    ]);
+  });
+
   it('surfaces a FleetManager spawn rejection as a budget error', async () => {
     const fleetManager = new FleetManager({ maxSpawns: 0 });
     const { d } = makeDirector({ fleetManager } as Partial<DirectorOpts>);

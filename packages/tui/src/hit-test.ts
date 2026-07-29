@@ -25,7 +25,7 @@ export interface MouseLayout {
 }
 
 export type HitRegion =
-  /** The managed scrollbar track; `cell` is the 0-based row on the track. */
+  /** The copy/scroll rail; `cell` is the 0-based row on the track. */
   | { kind: 'scrollbar'; cell: number }
   /** Inside the history viewport; `row` is 0-based from the viewport top. */
   | { kind: 'history'; row: number }
@@ -33,9 +33,8 @@ export type HitRegion =
   | { kind: 'bottom'; row: number };
 
 /**
- * Columns at the right edge of the history viewport that count as the
- * scrollbar, so a click need not land exactly on the 1-column track. The track
- * itself renders in the last column; this widens the target by one.
+ * Columns at the right edge of the history viewport reserved for the copy/scroll
+ * rail. Copy icons use the first column and the scrollbar track uses the last.
  */
 export const SCROLLBAR_HIT_WIDTH = 2;
 

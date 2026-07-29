@@ -1,0 +1,481 @@
+import { createHash } from 'node:crypto';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+
+import {
+  assertValidBoardId,
+  EVENT_LOG_MAX_ENTRIES,
+  EVENT_LOG_TRIM_TO,
+  getKanbanDir,
+  isValidBoardId,
+  normalizeBoard,
+} from '../storage.js';
+import type { KanbanStorageBackend } from '../storage-backend.js';
+import type { KanbanBoard, KanbanEvent } from '../types.js';
+
+export const KANBAN_SQLITE_FILE = '_kanban.sqlite';
+const LEGACY_MIGRATION_KEY = 'legacy-json-v1';
+
+interface BoardRow {
+  id: string;
+  payload: string;
+  revision: number;
+}
+
+interface CountRow {
+  count: number;
+}
+
+export interface SqliteKanbanMutation {
+  type: 'created' | 'updated' | 'deleted';
+  boardId: string;
+  revision?: number | undefined;
+}
+
+export class SqliteKanbanStorage implements KanbanStorageBackend {
+  readonly kind = 'sqlite' as const;
+  readonly databasePath: string;
+
+  private readonly db: DatabaseSync;
+  private queue: Promise<unknown> = Promise.resolve();
+  private closed = false;
+
+  private constructor(
+    readonly projectRoot: string,
+    databasePath: string,
+    private readonly onMutation?: (mutation: SqliteKanbanMutation) => void,
+  ) {
+    this.databasePath = databasePath;
+    this.db = new DatabaseSync(databasePath);
+  }
+
+  static async open(
+    projectRoot: string,
+    onMutation?: (mutation: SqliteKanbanMutation) => void,
+  ): Promise<SqliteKanbanStorage> {
+    const dir = getKanbanDir(projectRoot);
+    await fs.mkdir(dir, { recursive: true });
+    const storage = new SqliteKanbanStorage(
+      projectRoot,
+      path.join(dir, KANBAN_SQLITE_FILE),
+      onMutation,
+    );
+    try {
+      storage.initializeSchema();
+      await storage.migrateLegacyFiles();
+      return storage;
+    } catch (error) {
+      storage.close();
+      throw error;
+    }
+  }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.db.close();
+  }
+
+  async listBoardIds(): Promise<string[]> {
+    return this.exclusive(() =>
+      (
+        this.db.prepare('SELECT id FROM kanban_boards ORDER BY id').all() as Array<{
+          id: string;
+        }>
+      ).map((row) => row.id),
+    );
+  }
+
+  async readBoard(boardRef: string): Promise<KanbanBoard | null> {
+    return this.exclusive(() => this.readBoardUnlocked(boardRef));
+  }
+
+  async writeBoard(board: KanbanBoard, expectedRevision?: number): Promise<void> {
+    const created = await this.exclusive(() => {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const inserted = this.writeBoardUnlocked(board, expectedRevision);
+        this.db.exec('COMMIT');
+        return inserted;
+      } catch (error) {
+        this.db.exec('ROLLBACK');
+        throw error;
+      }
+    });
+    this.notify({
+      type: created ? 'created' : 'updated',
+      boardId: board.id,
+      revision: board.revision,
+    });
+  }
+
+  async appendEvent(boardId: string, event: KanbanEvent): Promise<void> {
+    assertValidBoardId(boardId);
+    await this.exclusive(() => {
+      this.db
+        .prepare('INSERT INTO kanban_events(board_id, payload) VALUES (?, ?)')
+        .run(boardId, JSON.stringify(event));
+      const row = this.db
+        .prepare('SELECT COUNT(*) AS count FROM kanban_events WHERE board_id = ?')
+        .get(boardId) as unknown as CountRow;
+      if (row.count > EVENT_LOG_MAX_ENTRIES) {
+        this.db
+          .prepare(
+            `DELETE FROM kanban_events
+             WHERE board_id = ?
+               AND seq NOT IN (
+                 SELECT seq FROM kanban_events
+                 WHERE board_id = ?
+                 ORDER BY seq DESC
+                 LIMIT ?
+               )`,
+          )
+          .run(boardId, boardId, EVENT_LOG_TRIM_TO);
+      }
+    });
+  }
+
+  async readEvents(boardRef: string): Promise<KanbanEvent[]> {
+    return this.exclusive(() => {
+      const boardId = this.resolveBoardRefUnlocked(boardRef);
+      if (!boardId) return [];
+      return (
+        this.db
+          .prepare('SELECT payload FROM kanban_events WHERE board_id = ? ORDER BY seq')
+          .all(boardId) as Array<{ payload: string }>
+      ).map((row) => JSON.parse(row.payload) as KanbanEvent);
+    });
+  }
+
+  async deleteBoard(boardRef: string): Promise<boolean> {
+    const outcome = await this.exclusive(() => {
+      const boardId = this.resolveBoardRefUnlocked(boardRef);
+      if (!boardId) return { boardId: null, deleted: false };
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        this.db.prepare('DELETE FROM kanban_events WHERE board_id = ?').run(boardId);
+        const result = this.db.prepare('DELETE FROM kanban_boards WHERE id = ?').run(boardId);
+        this.db.exec('COMMIT');
+        return { boardId, deleted: Number(result.changes) > 0 };
+      } catch (error) {
+        this.db.exec('ROLLBACK');
+        throw error;
+      }
+    });
+    if (outcome.deleted && outcome.boardId) {
+      this.notify({ type: 'deleted', boardId: outcome.boardId });
+    }
+    return outcome.deleted;
+  }
+
+  async readMetadata(key: string): Promise<string | null> {
+    return this.exclusive(() => {
+      const row = this.db.prepare('SELECT value FROM kanban_meta WHERE key = ?').get(key) as
+        | { value: string }
+        | undefined;
+      return row?.value ?? null;
+    });
+  }
+
+  async writeMetadata(key: string, value: string): Promise<void> {
+    await this.exclusive(() => {
+      this.db
+        .prepare(
+          `INSERT INTO kanban_meta(key, value) VALUES (?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        )
+        .run(key, value);
+    });
+  }
+
+  async mutateBoard<T>(
+    boardRef: string,
+    mutator: (board: KanbanBoard) => T | Promise<T>,
+  ): Promise<{ board: KanbanBoard; result: T } | null> {
+    const outcome = await this.exclusive(async () => {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const board = this.readBoardUnlocked(boardRef);
+        if (!board) {
+          this.db.exec('ROLLBACK');
+          return null;
+        }
+        const readRevision = board.revision ?? 0;
+        const before = fingerprint(board);
+        const result = await mutator(board);
+        const changed = fingerprint(board) !== before;
+        if (changed) {
+          board.revision = readRevision + 1;
+          this.writeBoardUnlocked(board, readRevision);
+        }
+        this.db.exec('COMMIT');
+        return { value: { board, result }, changed };
+      } catch (error) {
+        this.db.exec('ROLLBACK');
+        throw error;
+      }
+    });
+    if (!outcome) return null;
+    if (outcome.changed) {
+      this.notify({
+        type: 'updated',
+        boardId: outcome.value.board.id,
+        revision: outcome.value.board.revision,
+      });
+    }
+    return outcome.value;
+  }
+
+  private initializeSchema(): void {
+    this.db.exec(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA foreign_keys = ON;
+      PRAGMA busy_timeout = 5000;
+
+      CREATE TABLE IF NOT EXISTS kanban_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS kanban_boards (
+        id TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS kanban_events (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        board_id TEXT NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_kanban_events_board_seq
+        ON kanban_events(board_id, seq);
+    `);
+  }
+
+  private async migrateLegacyFiles(): Promise<void> {
+    const migrated = this.db
+      .prepare('SELECT value FROM kanban_meta WHERE key = ?')
+      .get(LEGACY_MIGRATION_KEY) as { value: string } | undefined;
+
+    const dir = getKanbanDir(this.projectRoot);
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    });
+    const boardFiles = entries
+      .filter(
+        (entry) =>
+          entry.isFile() && entry.name.endsWith('.json') && isValidBoardId(entry.name.slice(0, -5)),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const eventFiles = entries
+      .filter((entry) => {
+        if (!entry.isFile() || !entry.name.endsWith('.events.jsonl')) return false;
+        return isValidBoardId(entry.name.slice(0, -'.events.jsonl'.length));
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const hqSyncFile = entries.some((entry) => entry.isFile() && entry.name === '.hq-sync.json')
+      ? '.hq-sync.json'
+      : null;
+    const legacyFiles = [
+      ...boardFiles.map((entry) => entry.name),
+      ...eventFiles.map((entry) => entry.name),
+      ...(hqSyncFile ? [hqSyncFile] : []),
+    ];
+
+    if (migrated && legacyFiles.length === 0) return;
+
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const upsertLegacyBoard = this.db.prepare(
+        `INSERT INTO kanban_boards(id, payload, revision, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           payload = excluded.payload,
+           revision = excluded.revision,
+           updated_at = excluded.updated_at
+         WHERE excluded.revision > kanban_boards.revision
+            OR (
+              excluded.revision = kanban_boards.revision
+              AND excluded.updated_at > kanban_boards.updated_at
+            )`,
+      );
+      for (const entry of boardFiles) {
+        const boardId = entry.name.slice(0, -5);
+        assertValidBoardId(boardId);
+        const raw = await fs.readFile(path.join(dir, entry.name), 'utf8');
+        const parsed = JSON.parse(raw) as KanbanBoard;
+        if (parsed.id !== boardId) {
+          throw new Error(
+            `Legacy Kanban filename "${entry.name}" does not match board id "${parsed.id}"`,
+          );
+        }
+        const sourceUpdatedAt = parsed.updatedAt ?? parsed.createdAt ?? '';
+        const board = normalizeBoard(parsed);
+        upsertLegacyBoard.run(
+          board.id,
+          JSON.stringify(board),
+          board.revision ?? 0,
+          sourceUpdatedAt,
+        );
+      }
+      for (const entry of eventFiles) {
+        const boardId = entry.name.slice(0, -'.events.jsonl'.length);
+        assertValidBoardId(boardId);
+        const existingEventKeys = new Set(
+          (
+            this.db
+              .prepare('SELECT payload FROM kanban_events WHERE board_id = ? ORDER BY seq')
+              .all(boardId) as Array<{ payload: string }>
+          ).map((row) => eventIdentity(JSON.parse(row.payload) as KanbanEvent)),
+        );
+        const eventRaw = await fs.readFile(path.join(dir, entry.name), 'utf8');
+        for (const line of eventRaw.split(/\r?\n/)) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as KanbanEvent;
+          if (event.boardId !== boardId) {
+            throw new Error(
+              `Legacy Kanban event "${event.id}" belongs to "${event.boardId}", not "${boardId}"`,
+            );
+          }
+          const identity = eventIdentity(event);
+          if (existingEventKeys.has(identity)) continue;
+          this.db
+            .prepare('INSERT INTO kanban_events(board_id, payload) VALUES (?, ?)')
+            .run(boardId, JSON.stringify(event));
+          existingEventKeys.add(identity);
+        }
+      }
+      const legacyHqState =
+        hqSyncFile === null ? null : await fs.readFile(path.join(dir, hqSyncFile), 'utf8');
+      if (legacyHqState !== null) {
+        JSON.parse(legacyHqState);
+        this.db
+          .prepare('INSERT OR IGNORE INTO kanban_meta(key, value) VALUES (?, ?)')
+          .run('hq-sync-state-v1', legacyHqState);
+      }
+      this.db
+        .prepare(
+          `INSERT INTO kanban_meta(key, value) VALUES (?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        )
+        .run(LEGACY_MIGRATION_KEY, new Date().toISOString());
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+    // Filesystem deletion deliberately happens only after COMMIT. A parse,
+    // insert, or transaction failure therefore leaves every legacy source
+    // intact for diagnosis/retry. Cleanup failure fails startup and is retried
+    // on the next open via the committed migration marker above.
+    await removeLegacyFiles(dir, legacyFiles);
+  }
+
+  private resolveBoardRefUnlocked(boardRef: string): string | null {
+    assertValidBoardId(boardRef);
+    const exact = this.db.prepare('SELECT id FROM kanban_boards WHERE id = ?').get(boardRef) as
+      | { id: string }
+      | undefined;
+    if (exact) return exact.id;
+    const matches = this.db
+      .prepare(
+        `SELECT id FROM kanban_boards
+         WHERE id LIKE ? ESCAPE '\\'
+         ORDER BY id
+         LIMIT 6`,
+      )
+      .all(`${escapeLike(boardRef)}%`) as Array<{ id: string }>;
+    if (matches.length === 0) return null;
+    if (matches.length > 1) {
+      throw new Error(
+        `Ambiguous kanban board id "${boardRef}": ${matches
+          .slice(0, 5)
+          .map((row) => row.id)
+          .join(', ')}`,
+      );
+    }
+    return matches[0]?.id ?? null;
+  }
+
+  private readBoardUnlocked(boardRef: string): KanbanBoard | null {
+    const boardId = this.resolveBoardRefUnlocked(boardRef);
+    if (!boardId) return null;
+    const row = this.db
+      .prepare('SELECT id, payload, revision FROM kanban_boards WHERE id = ?')
+      .get(boardId) as BoardRow | undefined;
+    return row ? normalizeBoard(JSON.parse(row.payload) as KanbanBoard) : null;
+  }
+
+  private writeBoardUnlocked(board: KanbanBoard, expectedRevision?: number): boolean {
+    const normalized = normalizeBoard(board);
+    const current = this.db
+      .prepare('SELECT revision FROM kanban_boards WHERE id = ?')
+      .get(normalized.id) as { revision: number } | undefined;
+    if (expectedRevision !== undefined && current?.revision !== expectedRevision) {
+      throw new Error(
+        `Stale write detected for board "${normalized.id}": SQLite revision ${
+          current?.revision ?? 'missing'
+        } does not match read revision ${expectedRevision}. Rerun the operation.`,
+      );
+    }
+    this.db
+      .prepare(
+        `INSERT INTO kanban_boards(id, payload, revision, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           payload = excluded.payload,
+           revision = excluded.revision,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        normalized.id,
+        JSON.stringify(normalized),
+        normalized.revision ?? 0,
+        normalized.updatedAt ?? new Date().toISOString(),
+      );
+    return current === undefined;
+  }
+
+  private notify(mutation: SqliteKanbanMutation): void {
+    try {
+      this.onMutation?.(mutation);
+    } catch {
+      // Persistence has already committed. Subscriber failures must not turn a
+      // successful board mutation into a client-visible write failure.
+    }
+  }
+
+  private exclusive<T>(operation: () => Promise<T> | T): Promise<T> {
+    if (this.closed) return Promise.reject(new Error('Kanban SQLite storage is closed'));
+    const next = this.queue.then(operation, operation);
+    this.queue = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  }
+}
+
+function fingerprint(board: KanbanBoard): string {
+  return createHash('sha256').update(JSON.stringify(board)).digest('hex');
+}
+
+function eventIdentity(event: KanbanEvent): string {
+  return typeof event.id === 'string' && event.id.length > 0
+    ? `id:${event.id}`
+    : `sha256:${createHash('sha256').update(JSON.stringify(event)).digest('hex')}`;
+}
+
+async function removeLegacyFiles(dir: string, fileNames: readonly string[]): Promise<void> {
+  await Promise.all(fileNames.map((fileName) => fs.rm(path.join(dir, fileName), { force: true })));
+}
+
+function escapeLike(value: string): string {
+  return value.replaceAll('%', '\\%').replaceAll('_', '\\_');
+}

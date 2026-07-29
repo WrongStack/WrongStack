@@ -95,6 +95,9 @@
     "services": {
       "kanban": {
         "label": "Kanban IPC"
+      },
+      "mailbox": {
+        "label": "Mailbox IPC"
       }
     }
   },

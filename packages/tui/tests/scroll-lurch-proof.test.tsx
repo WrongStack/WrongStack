@@ -4,6 +4,8 @@ import {
   type HistoryScrollController,
   ScrollableHistory,
 } from '../src/components/scrollable-history.js';
+import { computeLayout } from '../src/layout-engine.js';
+import { LayoutStore } from '../src/layout-store.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 const VP = 12;
@@ -36,10 +38,7 @@ function makeEntries(count = 30): HistoryEntry[] {
   });
 }
 
-function view(
-  entries: HistoryEntry[],
-  controllerRef: { current: HistoryScrollController | null },
-) {
+function view(entries: HistoryEntry[], controllerRef: { current: HistoryScrollController | null }) {
   return (
     <ScrollableHistory
       entries={entries}
@@ -52,11 +51,11 @@ function view(
 
 // The historic "lurch": wheel-scrolling through mixed-height markdown made the
 // viewport bounce or jump to unrelated content because estimate→measured
-// corrections moved independently-maintained scroll values between commits.
-// One absolute top-row coordinate now drives the render anchor and scrollbar,
-// so a wheel step may only ever move the top marker monotonically — these tests
-// drive REAL Ink layout (fake TTY, real measureElement) and would have caught
-// the original bug.
+// corrections moved the viewport onto unrelated entries between commits. One
+// stable render-group anchor now drives the viewport while the scrollbar is
+// derived from corrected prefix sums, so a wheel step may only ever move the
+// top marker monotonically. These tests drive REAL Ink layout (fake TTY, real
+// measureElement) and inspect the rendered content rather than state alone.
 describe('scroll stability under real layout (lurch proof)', () => {
   it('wheel-up steps walk monotonically toward older content, no bounce', async () => {
     const controllerRef = { current: null as HistoryScrollController | null };
@@ -100,7 +99,7 @@ describe('scroll stability under real layout (lurch proof)', () => {
     direct.unmount();
   });
 
-  it('uses the same absolute row for PageDown and an equivalent wheel distance', async () => {
+  it('uses the same row delta for PageDown and an equivalent wheel distance', async () => {
     const pageRef = { current: null as HistoryScrollController | null };
     const wheelRef = { current: null as HistoryScrollController | null };
     const entries = makeEntries();
@@ -135,6 +134,83 @@ describe('scroll stability under real layout (lurch proof)', () => {
     await settle();
 
     expect(contentOnly(v.lastFrame())).toBe(selected);
+    v.unmount();
+  });
+
+  it('keeps the selected entry stable while wildly wrong cached heights are corrected', async () => {
+    const controllerRef = { current: null as HistoryScrollController | null };
+    const entries = Array.from(
+      { length: 60 },
+      (_, index) =>
+        ({
+          id: index + 1,
+          kind: 'assistant',
+          text: `M${String(index + 1).padStart(2, '0')} short line`,
+        }) as HistoryEntry,
+    );
+    const layoutStore = new LayoutStore({ sessionDataDir: undefined, ephemeral: true });
+    layoutStore.setTermWidth(58);
+    for (const entry of entries) {
+      const text = 'text' in entry ? entry.text : '';
+      layoutStore.set(entry.id, {
+        ...computeLayout(entry.id, entry.kind, text, 58),
+        rows: 40,
+        kind: 'measured',
+      });
+    }
+    const v = renderRealTty(
+      <ScrollableHistory
+        entries={entries}
+        toolStream={null}
+        viewportRows={20}
+        controllerRef={controllerRef}
+        layoutStore={layoutStore}
+      />,
+      { columns: 60, rows: 22 },
+    );
+    await settle(200);
+
+    const frameStart = v.stdout.frames.length;
+    controllerRef.current?.scrollToTrackCell(10);
+    await settle(500);
+    const markers = v.stdout.frames
+      .slice(frameStart)
+      .map(topMarker)
+      .filter((marker) => marker > 0);
+    expect(markers.length).toBeGreaterThan(0);
+    const selectedMarker = markers[0] ?? -1;
+    const finalMarker = markers.at(-1) ?? -1;
+    // Initial pinned-window measurements already refine part of the persisted
+    // extent, so the exact selected id is deliberately not hard-coded. Once
+    // the track selection renders, correcting its wildly wrong local heights
+    // may expose one adjacent marker but must not walk across unrelated cards.
+    expect(Math.abs(finalMarker - selectedMarker)).toBeLessThanOrEqual(1);
+    expect(Math.max(...markers) - Math.min(...markers)).toBeLessThanOrEqual(1);
+    v.unmount();
+  });
+
+  it('keeps the same logical content anchored through a width reflow', async () => {
+    const controllerRef = { current: null as HistoryScrollController | null };
+    const entries = makeEntries(30);
+    const v = renderRealTty(view(entries, controllerRef), { columns: 72, rows: VP + 2 });
+    await settle(250);
+
+    controllerRef.current?.scrollToTrackCell(Math.floor(VP / 2));
+    await settle(150);
+    const selectedMarker = topMarker(v.lastFrame());
+    expect(selectedMarker).toBeGreaterThan(0);
+
+    const frameStart = v.stdout.frames.length;
+    v.resize(44, VP + 2);
+    await settle(350);
+    const markers = v.stdout.frames
+      .slice(frameStart)
+      .map(topMarker)
+      .filter((marker) => marker > 0);
+    expect(markers.length).toBeGreaterThan(0);
+    for (const marker of markers) {
+      expect(Math.abs(marker - selectedMarker)).toBeLessThanOrEqual(1);
+    }
     v.unmount();
   });
 

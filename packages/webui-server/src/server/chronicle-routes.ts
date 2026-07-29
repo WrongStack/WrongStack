@@ -129,86 +129,102 @@ export async function handleChronicleRoute(
     }
     return true;
   }
-  const access = ctx.getChronicleAccess?.() ?? defaultChronicleAccess(ctx.getProjectRoot());
-  switch (message.type) {
-    case 'chronicle.query': {
-      const payload = (message.payload ?? {}) as { query?: ChronicleQuery };
-      ctx.send(ws, {
-        type: 'chronicle.query_result',
-        payload: await access.call('query', { query: payload.query ?? {} }),
-      });
-      return true;
-    }
-    case 'chronicle.facet': {
-      const payload = (message.payload ?? {}) as {
-        field?: ChronicleFacet;
-        query?: ChronicleQuery;
-        limit?: number;
-      };
-      if (!payload.field || !CHRONICLE_FACET_FIELDS.has(payload.field)) {
+  if (
+    message.type !== 'chronicle.query' &&
+    message.type !== 'chronicle.facet' &&
+    message.type !== 'chronicle.facets' &&
+    message.type !== 'chronicle.graph'
+  ) {
+    return false;
+  }
+  try {
+    const access = ctx.getChronicleAccess?.() ?? defaultChronicleAccess(ctx.getProjectRoot());
+    switch (message.type) {
+      case 'chronicle.query': {
+        const payload = (message.payload ?? {}) as { query?: ChronicleQuery };
         ctx.send(ws, {
-          type: 'chronicle.error',
-          payload: { message: 'Invalid Chronicle facet field.' },
+          type: 'chronicle.query_result',
+          payload: await access.call('query', { query: payload.query ?? {} }),
         });
         return true;
       }
-      ctx.send(ws, {
-        type: 'chronicle.facet_result',
-        payload: {
-          field: payload.field,
-          ...(await access.call('facet', {
+      case 'chronicle.facet': {
+        const payload = (message.payload ?? {}) as {
+          field?: ChronicleFacet;
+          query?: ChronicleQuery;
+          limit?: number;
+        };
+        if (!payload.field || !CHRONICLE_FACET_FIELDS.has(payload.field)) {
+          ctx.send(ws, {
+            type: 'chronicle.error',
+            payload: { message: 'Invalid Chronicle facet field.' },
+          });
+          return true;
+        }
+        ctx.send(ws, {
+          type: 'chronicle.facet_result',
+          payload: {
             field: payload.field,
+            ...(await access.call('facet', {
+              field: payload.field,
+              query: payload.query ?? {},
+              ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
+            })),
+          },
+        });
+        return true;
+      }
+      case 'chronicle.facets': {
+        const payload = (message.payload ?? {}) as {
+          fields?: ChronicleFacet[];
+          query?: ChronicleQuery;
+          limit?: number;
+        };
+        if (
+          !Array.isArray(payload.fields) ||
+          payload.fields.length === 0 ||
+          payload.fields.some((field) => !CHRONICLE_FACET_FIELDS.has(field))
+        ) {
+          ctx.send(ws, {
+            type: 'chronicle.error',
+            payload: { message: 'Invalid Chronicle facet fields.' },
+          });
+          return true;
+        }
+        ctx.send(ws, {
+          type: 'chronicle.facets_result',
+          payload: await access.call('facets', {
+            fields: payload.fields,
             query: payload.query ?? {},
             ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
-          })),
-        },
-      });
-      return true;
-    }
-    case 'chronicle.facets': {
-      const payload = (message.payload ?? {}) as {
-        fields?: ChronicleFacet[];
-        query?: ChronicleQuery;
-        limit?: number;
-      };
-      if (
-        !Array.isArray(payload.fields) ||
-        payload.fields.length === 0 ||
-        payload.fields.some((field) => !CHRONICLE_FACET_FIELDS.has(field))
-      ) {
-        ctx.send(ws, {
-          type: 'chronicle.error',
-          payload: { message: 'Invalid Chronicle facet fields.' },
+          }),
         });
         return true;
       }
-      ctx.send(ws, {
-        type: 'chronicle.facets_result',
-        payload: await access.call('facets', {
-          fields: payload.fields,
-          query: payload.query ?? {},
-          ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
-        }),
-      });
-      return true;
+      case 'chronicle.graph': {
+        const payload = (message.payload ?? {}) as {
+          seed?: ChronicleQuery;
+          hops?: number;
+          maxNodes?: number;
+        };
+        ctx.send(ws, {
+          type: 'chronicle.graph_result',
+          payload: await access.call('graph', {
+            seed: payload.seed ?? {},
+            ...(payload.hops !== undefined ? { hops: payload.hops } : {}),
+            ...(payload.maxNodes !== undefined ? { maxNodes: payload.maxNodes } : {}),
+          }),
+        });
+        return true;
+      }
+      default:
+        return false;
     }
-    case 'chronicle.graph': {
-      const payload = (message.payload ?? {}) as {
-        seed?: ChronicleQuery;
-        hops?: number;
-        maxNodes?: number;
-      };
-      ctx.send(ws, {
-        type: 'chronicle.graph_result',
-        payload: await access.call('graph', {
-          seed: payload.seed ?? {},
-          ...(payload.hops !== undefined ? { hops: payload.hops } : {}),
-          ...(payload.maxNodes !== undefined ? { maxNodes: payload.maxNodes } : {}),
-        }),
-      });
-      return true;
-    }
-    default:
-      return false;
+  } catch (error) {
+    ctx.send(ws, {
+      type: 'chronicle.error',
+      payload: { message: error instanceof Error ? error.message : String(error) },
+    });
+    return true;
   }
 }

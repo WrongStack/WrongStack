@@ -1,15 +1,20 @@
+import * as fsPromises from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 import { type ChronicleRuntimeLocation, resolveChronicleRuntimeLocation } from './identity.js';
-import { ChronicleJournal } from './journal.js';
+import { ChronicleJournal, type ChronicleJournalStats } from './journal.js';
 import { ChronicleMetricsStore } from './metrics-store.js';
+import { importLegacyChronicleJournal } from './legacy-journal-import.js';
+import { ChronicleSqliteJournal } from './sqlite-journal.js';
+import type { ChronicleSqliteQueryEngine } from './sqlite-query.js';
 import {
   type ChronicleProjectServerCallOptions,
   ChronicleProjectServerClient,
   type ChronicleProjectServerClientOptions,
   ChronicleRemoteJournal,
   isChronicleProjectServerAvailable,
+  resolveChronicleDaemonAvailability,
 } from './project-server-client.js';
 import type {
   ChronicleProjectServerHealth,
@@ -19,6 +24,7 @@ import type {
 import { CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION } from './project-server-protocol.js';
 import { ChronicleQueryEngine } from './query.js';
 import type { ChronicleEventSink } from './sink.js';
+import type { ChronicleEvent, ChronicleEventInput } from './types.js';
 
 export interface ChronicleProjectAccessOptions {
   projectRoot: string;
@@ -78,9 +84,9 @@ export function resolveChronicleProjectServerOptions(
 /**
  * Canonical read/process/control gateway for Chronicle consumers.
  *
- * Production builds use the per-project IPC owner. Source-only development
- * and explicit recovery mode stay functional through the inline
- * implementation, while callers never open journal partitions or metrics.db.
+ * Production builds use the per-project IPC owner. Explicit recovery mode
+ * stays functional through the inline implementation; a missing daemon build
+ * fails closed instead of silently creating a process-local journal.
  */
 export function createChronicleProjectAccess(
   options: ChronicleProjectAccessOptions,
@@ -98,7 +104,25 @@ export function createChronicleProjectAccess(
       close: () => client.close(),
     };
   }
+  assertInlineWasRequested('createChronicleProjectAccess');
   return new InlineChronicleProjectAccess(resolved);
+}
+
+/**
+ * Refuse to run in-process unless the operator asked for it.
+ *
+ * Chronicle is a per-project singleton: one daemon owns the journal so every
+ * terminal appends to the same hash chain. Dropping to an in-process journal
+ * because the build could not be located gives each process its own chain
+ * instead — no error, just silently divergent history. A missing build is a
+ * defect to fix, not a mode to enter.
+ */
+function assertInlineWasRequested(caller: string): void {
+  if (resolveChronicleDaemonAvailability().kind !== 'missing-build') return;
+  throw new Error(
+    `${caller}: built Chronicle project server is unavailable. Build @wrongstack/core, ` +
+      'or set WRONGSTACK_CHRONICLE_INLINE=1 to explicitly accept a process-local journal.',
+  );
 }
 
 /** Canonical producer sink selection used by CLI/TUI session wiring. */
@@ -120,8 +144,18 @@ export function createChronicleEventJournal(
       dispose: () => journal.dispose(),
     };
   }
+  assertInlineWasRequested('createChronicleEventJournal');
+  if (useSqliteStore()) {
+    const journal = new ChronicleSqliteEventSink(path.join(resolved.projectDir, 'chronicle'));
+    return {
+      journal,
+      identity,
+      serverBacked: false,
+      dispose: () => journal.close(),
+    };
+  }
   const journal = new ChronicleJournal({
-    filePath: identity.journalPath,
+    filePath: legacyPartitionPath(identity),
     retentionDays: options.retentionDays,
   });
   return {
@@ -132,11 +166,100 @@ export function createChronicleEventJournal(
   };
 }
 
+/** Compose the legacy partition path a `ChronicleJournal` writes to. */
+function legacyPartitionPath(location: { chronicleDirectory: string; day: string }): string {
+  return path.join(location.chronicleDirectory, `${location.day}.events.jsonl`);
+}
+
+/**
+ * Storage backend for the in-process path.
+ *
+ * SQLite is the default; `WRONGSTACK_CHRONICLE_STORE=jsonl` restores the legacy
+ * partition writer. The escape hatch exists because the cut-over is the one
+ * step of `chronicle-sqlite-journal-v1` that cannot be undone by re-reading the
+ * old files — once events are appended to `chronicle.sqlite` they are not
+ * mirrored back.
+ */
+function useSqliteStore(): boolean {
+  return process.env['WRONGSTACK_CHRONICLE_STORE'] !== 'jsonl';
+}
+
+/**
+ * Producer sink over the SQLite journal.
+ *
+ * `createChronicleEventJournal` is synchronous but opening the store has to
+ * import the legacy partitions first, so every append is queued behind that one
+ * promise. Without the queue a session's first events could be written before
+ * the import, landing *after* imported history in a chain that must stay dense.
+ */
+class ChronicleSqliteEventSink implements ChronicleEventSink {
+  private readonly ready: Promise<ChronicleSqliteJournal>;
+  private last: ChronicleJournalStats | undefined;
+
+  constructor(directory: string) {
+    this.ready = (async () => {
+      await fsPromises.mkdir(directory, { recursive: true });
+      const journal = new ChronicleSqliteJournal({ directory });
+      await importLegacyChronicleJournal(journal, directory);
+      return journal;
+    })();
+  }
+
+  async append(input: ChronicleEventInput): Promise<ChronicleEvent> {
+    const journal = await this.ready;
+    const event = await journal.append(input);
+    this.last = journal.stats();
+    return event;
+  }
+
+  async flush(): Promise<void> {
+    await this.ready;
+  }
+
+  stats(): ChronicleJournalStats {
+    return this.last ?? EMPTY_JOURNAL_STATS;
+  }
+
+  async close(): Promise<void> {
+    (await this.ready).close();
+  }
+}
+
+const EMPTY_JOURNAL_STATS: ChronicleJournalStats = {
+  acceptedEvents: 0,
+  persistedEvents: 0,
+  rejectedEvents: 0,
+  failedEvents: 0,
+  batches: 0,
+  pendingEvents: 0,
+  maxObservedPending: 0,
+  largestBatch: 0,
+  partitionRolls: 0,
+};
+
 class InlineChronicleProjectAccess implements ChronicleProjectAccess {
   readonly mode = 'inline' as const;
   private readonly journals = new Map<string, ChronicleJournal>();
+  private sqlite: Promise<ChronicleSqliteJournal> | undefined;
 
   constructor(private readonly options: ChronicleProjectServerClientOptions) {}
+
+  /**
+   * Open the SQLite journal, importing the legacy partitions the first time.
+   *
+   * The import is part of opening rather than a separate migration step so no
+   * caller can read a half-migrated store: until it finishes, this promise has
+   * not resolved and every operation is still queued behind it.
+   */
+  private store(): Promise<ChronicleSqliteJournal> {
+    this.sqlite ??= (async () => {
+      await fsPromises.mkdir(this.chronicleDirectory, { recursive: true });
+      const journal = new ChronicleSqliteJournal({ directory: this.chronicleDirectory });
+      await importLegacyChronicleJournal(journal, this.chronicleDirectory);
+      return journal;
+    })();
+    return this.sqlite;
+  }
 
   async call<O extends ChronicleServerOperationName>(
     op: O,
@@ -148,6 +271,10 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
         return this.health() as ChronicleServerOperations[O]['result'];
       case 'append': {
         const args = rawArgs as ChronicleServerOperations['append']['args'];
+        if (useSqliteStore()) {
+          const store = await this.store();
+          return (await store.appendBatch(args.inputs)) as ChronicleServerOperations[O]['result'];
+        }
         return (await Promise.all(
           args.inputs.map((input) => this.journalForToday().append(input)),
         )) as ChronicleServerOperations[O]['result'];
@@ -157,6 +284,10 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
         return undefined as ChronicleServerOperations[O]['result'];
       case 'purge': {
         const args = rawArgs as ChronicleServerOperations['purge']['args'];
+        if (useSqliteStore()) {
+          const store = await this.store();
+          return (await store.purge(args)) as ChronicleServerOperations[O]['result'];
+        }
         return (await this.journalForToday().purge(args)) as ChronicleServerOperations[O]['result'];
       }
       case 'query': {
@@ -212,6 +343,14 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
 
   async close(): Promise<void> {
     await this.flush();
+    // Releasing the SQLite handle is part of closing, not an optimization: the
+    // connection holds `-wal` and `-shm` sidecars open, so leaving it dangling
+    // leaks a file handle per access object and blocks directory removal.
+    if (this.sqlite) {
+      const store = await this.sqlite;
+      this.sqlite = undefined;
+      store.close();
+    }
   }
 
   private get chronicleDirectory(): string {
@@ -230,7 +369,7 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
         now,
       });
       journal = new ChronicleJournal({
-        filePath: identity.journalPath,
+        filePath: legacyPartitionPath(identity),
         retentionDays: this.options.retentionDays,
       });
       this.journals.set(day, journal);
@@ -238,11 +377,23 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
     return journal;
   }
 
-  private queryEngine(): Promise<ChronicleQueryEngine> {
+  /**
+   * Both engines expose the same read surface, so every `call()` branch is
+   * backend-agnostic. The SQLite one shares the journal's connection, which is
+   * also what makes the legacy import a precondition of reading.
+   */
+  private async queryEngine(): Promise<ChronicleQueryEngine | ChronicleSqliteQueryEngine> {
+    if (useSqliteStore()) return (await this.store()).queryEngine();
     return ChronicleQueryEngine.fromDirectory(this.chronicleDirectory);
   }
 
   private async flush(): Promise<void> {
+    if (useSqliteStore()) {
+      // Writes are transactional, so this only has to wait for an in-flight
+      // open (and its legacy import) rather than drain a buffer.
+      if (this.sqlite) await this.sqlite;
+      return;
+    }
     await Promise.all([...this.journals.values()].map((journal) => journal.flush()));
   }
 

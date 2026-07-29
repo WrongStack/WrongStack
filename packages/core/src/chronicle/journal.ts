@@ -1,9 +1,10 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
+import { GENESIS_HASH, hashValue } from './event-hash.js';
 import { comparePartitionPaths } from './partition-filename.js';
 import {
   CHRONICLE_SCHEMA_VERSION,
@@ -12,12 +13,11 @@ import {
   type ChronicleVerifyResult,
 } from './types.js';
 
-const GENESIS_HASH = '0'.repeat(64);
 const DEFAULT_MAX_PARTITION_BYTES = 100 * 1024 * 1024;
 const DEFAULT_ROTATION_WINDOW_MS = 60 * 60 * 1000;
 const RETENTION_CHECKPOINT_VERSION = 1;
 
-interface ChronicleRetentionCheckpoint {
+export interface ChronicleRetentionCheckpoint {
   version: typeof RETENTION_CHECKPOINT_VERSION;
   sequence: number;
   hash: string;
@@ -335,7 +335,16 @@ function rotatedPath(basePath: string, index: number): string {
   return path.join(dir, `${base}.${String(index).padStart(5, '0')}${ext}`);
 }
 
-async function collectPartitions(basePath: string): Promise<string[]> {
+/**
+ * Exported for the SQLite migration only (`legacy-journal-import.ts`).
+ *
+ * The importer has to walk partitions in exactly the order the writer produced
+ * them and parse them with exactly the same strictness, so it reuses these
+ * rather than growing a second implementation that could disagree about
+ * rotation order or malformed lines. All three go away with the legacy reader
+ * in phase 4 of `chronicle-sqlite-journal-v1`.
+ */
+export async function collectPartitions(basePath: string): Promise<string[]> {
   const dir = path.dirname(basePath);
   const ext = path.extname(basePath);
   const base = path.basename(basePath, ext);
@@ -463,7 +472,7 @@ async function verifyPartitionFiles(
   return { ok: true, entries, lastSequence, lastHash: previousHash };
 }
 
-async function readRetentionCheckpoint(basePath: string): Promise<{
+export async function readRetentionCheckpoint(basePath: string): Promise<{
   checkpoint?: ChronicleRetentionCheckpoint | undefined;
   error?: string | undefined;
 }> {
@@ -534,7 +543,7 @@ async function readLastEntryState(filePath: string): Promise<{
 /** Stream entries line by line. Reading a whole partition into one string
  *  breaks past V8's max string length (~512MB) — purge and verify must work
  *  on partitions of any size, so only individual lines are materialized. */
-async function* streamEntriesStrict(filePath: string): AsyncGenerator<ChronicleEvent> {
+export async function* streamEntriesStrict(filePath: string): AsyncGenerator<ChronicleEvent> {
   let lineNumber = 0;
   try {
     const input = createReadStream(filePath, { encoding: 'utf8', highWaterMark: 256 * 1024 });
@@ -559,13 +568,6 @@ async function readEntriesStrict(filePath: string): Promise<ChronicleEvent[]> {
   return entries;
 }
 
-function hashValue(value: unknown): string { return createHash('sha256').update(stableStringify(value), 'utf8').digest('hex'); }
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map((item) => item === undefined ? 'null' : stableStringify(item)).join(',')}]`;
-  const obj = value as Record<string, unknown>;
-  return `{${Object.keys(obj).sort().filter((k) => obj[k] !== undefined).map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
-}
 function isNotFound(error: unknown): boolean { return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'; }
 function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 

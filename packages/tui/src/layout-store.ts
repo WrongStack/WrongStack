@@ -174,7 +174,10 @@ export class LayoutStore {
 
     this.layouts.set(id, {
       ...existing,
-      rows: Math.max(1, actualRows),
+      // Zero rows is legal: hidden entries (reasoning display off) render
+      // nothing, and persisting 1 here would reintroduce a phantom row on
+      // every re-seed from the store.
+      rows: Math.max(0, actualRows),
       kind: 'measured',
       termWidth,
     });

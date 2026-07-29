@@ -2,24 +2,24 @@
  * Kanban Server Client — connect tools to the project server
  *
  * Resolves the project's endpoint, spawns the server detached if absent,
- * sends typed requests, and returns parsed responses. Falls back to the
- * direct file-backed storage functions if `WRONGSTACK_KANBAN_SERVER=0`.
+ * sends typed requests, and returns parsed responses. Production is
+ * fail-closed: disabling the server never enables direct storage writes.
  *
  * Mirrors `packages/sage/src/project-server-client.ts`.
  */
-import { spawn, type ChildProcess } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { type ChildProcess, spawn } from 'node:child_process';
 import * as net from 'node:net';
-
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { kanbanProjectServerEndpoint } from './endpoint.js';
 import {
-  type KanbanRequest,
-  type KanbanResponse,
+  KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
   type KanbanHelloFrame,
+  type KanbanRequest,
+  type KanbanServerEvent,
   type KanbanServerMethod,
   type KanbanServerOperations,
-  type KanbanServerEvent,
 } from './protocol.js';
-import { kanbanProjectServerEndpoint } from './project-server.js';
 
 const MAX_FRAME_CHARS = 8 * 1024 * 1024;
 const CONNECT_TIMEOUT_MS = 5_000;
@@ -27,9 +27,10 @@ const REQUEST_TIMEOUT_MS = 30_000;
 /** How long to keep retrying a connect after spawning a daemon. */
 const SPAWN_CONNECT_DEADLINE_MS = 5_000;
 const SPAWN_CONNECT_RETRY_MS = 50;
+const HEARTBEAT_MS = 10_000;
 
 interface PendingRequest {
-  resolve: (r: KanbanResponse) => void;
+  resolve: (result: unknown) => void;
   reject: (err: Error) => void;
   timer: ReturnType<typeof setTimeout>;
 }
@@ -50,16 +51,41 @@ class KanbanServerConnection {
   private helloPromise: Promise<KanbanHelloFrame>;
   private serverProcess: ChildProcess | null = null;
   private eventListeners = new Set<(ev: KanbanServerEvent) => void>();
+  private disconnectListeners = new Set<() => void>();
   private destroyed = false;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private connectPromise: Promise<KanbanHelloFrame> | null = null;
 
-  constructor(public readonly projectRoot: string, public readonly endpoint: string) {
+  constructor(
+    public readonly projectRoot: string,
+    public readonly endpoint: string,
+    private readonly cacheKey: string,
+  ) {
     this.helloPromise = new Promise<KanbanHelloFrame>((resolve, reject) => {
       this.helloResolve = resolve;
       this.helloReject = reject;
     });
+    // `connectOnce()` hands `helloPromise` to the caller only on the success
+    // path. When the connect fails, `connect()` still calls `helloReject` so a
+    // late awaiter sees the real error — but on that path nobody has awaited it
+    // yet, so the rejection is orphaned and surfaces as an unhandled rejection
+    // that takes the whole process (or a test run) down. Attach an inert
+    // handler at construction: awaiting `helloPromise` still rejects normally,
+    // it just can never be unhandled.
+    this.helloPromise.catch(() => undefined);
   }
 
   async connect(): Promise<KanbanHelloFrame> {
+    if (this.destroyed) throw new Error('Connection closed');
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = this.connectOnce().catch((error) => {
+      this.helloReject(error);
+      throw error;
+    });
+    return this.connectPromise;
+  }
+
+  private async connectOnce(): Promise<KanbanHelloFrame> {
     await this.tryConnectExisting();
     if (this.socket) return this.helloPromise;
     await this.spawnServer();
@@ -73,7 +99,8 @@ class KanbanServerConnection {
       if (this.socket) break;
       await new Promise((r) => setTimeout(r, SPAWN_CONNECT_RETRY_MS));
     }
-    if (!this.socket) throw new Error(`Failed to connect to kanban project server at ${this.endpoint}`);
+    if (!this.socket)
+      throw new Error(`Failed to connect to kanban project server at ${this.endpoint}`);
     return this.helloPromise;
   }
 
@@ -131,28 +158,43 @@ class KanbanServerConnection {
       this.socket?.destroy(new Error('Frame buffer exceeded maximum size'));
       return;
     }
-    let nl: number;
-    while ((nl = this.buffer.indexOf('\n')) !== -1) {
+    for (;;) {
+      const nl = this.buffer.indexOf('\n');
+      if (nl === -1) break;
       const line = this.buffer.slice(0, nl);
       this.buffer = this.buffer.slice(nl + 1);
       if (!line.trim()) continue;
       try {
         const parsed = JSON.parse(line) as { type?: string; [k: string]: unknown };
         if (parsed.type === 'hello') {
+          if (parsed.protocolVersion !== KANBAN_PROJECT_SERVER_PROTOCOL_VERSION) {
+            const error = new Error(
+              `Kanban protocol mismatch: client=${KANBAN_PROJECT_SERVER_PROTOCOL_VERSION}, server=${String(parsed.protocolVersion)}`,
+            );
+            this.helloReject(error);
+            this.socket?.destroy(error);
+            return;
+          }
           this.helloResolve(parsed as unknown as KanbanHelloFrame);
-          return;
+          this.startHeartbeat();
+          continue;
         }
         if (parsed.type === 'event') {
-          for (const listener of this.eventListeners) listener(parsed as unknown as KanbanServerEvent);
-          return;
+          for (const listener of this.eventListeners)
+            listener(parsed as unknown as KanbanServerEvent);
+          continue;
         }
         if (typeof parsed.id === 'number') {
           const pending = this.pending.get(parsed.id);
           if (pending) {
             this.pending.delete(parsed.id);
             clearTimeout(pending.timer);
-            if ('ok' in parsed) pending.resolve(parsed as unknown as KanbanResponse);
-            else pending.reject(new Error((parsed as any).error?.message ?? 'request failed'));
+            if ('ok' in parsed) {
+              pending.resolve((parsed as { result?: unknown }).result);
+            } else {
+              const message = (parsed as { error?: { message?: unknown } }).error?.message;
+              pending.reject(new Error(typeof message === 'string' ? message : 'request failed'));
+            }
           }
         }
       } catch {
@@ -164,6 +206,8 @@ class KanbanServerConnection {
   private onClose(reason: string): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
     this.socket = null;
     const err = new Error(`Kanban server ${this.endpoint}: ${reason}`);
     this.helloReject(err);
@@ -172,7 +216,16 @@ class KanbanServerConnection {
       pending.reject(err);
     }
     this.pending.clear();
-    connections.delete(this.projectRoot);
+    if (connections.get(this.cacheKey) === this) connections.delete(this.cacheKey);
+    for (const listener of this.disconnectListeners) {
+      try {
+        listener();
+      } catch {
+        // Connection lifecycle observers are isolated from one another.
+      }
+    }
+    this.disconnectListeners.clear();
+    this.eventListeners.clear();
   }
 
   async request<M extends KanbanServerMethod>(
@@ -189,7 +242,11 @@ class KanbanServerConnection {
         reject(new Error(`Request ${method} timed out`));
       }, opts.timeoutMs ?? REQUEST_TIMEOUT_MS);
       timer.unref?.();
-      this.pending.set(id, { resolve: resolve as any, reject, timer });
+      this.pending.set(id, {
+        resolve: (result) => resolve(result as KanbanServerOperations[M]['result']),
+        reject,
+        timer,
+      });
       const frame: KanbanRequest<M> = { id, method, params };
       this.socket!.write(JSON.stringify(frame) + '\n');
     });
@@ -199,26 +256,52 @@ class KanbanServerConnection {
     this.eventListeners.add(listener);
     return () => this.eventListeners.delete(listener);
   }
+
+  /**
+   * Observe terminal socket loss. Event subscribers use this to attach to the
+   * replacement project-server connection after daemon restart.
+   */
+  onDisconnect(listener: () => void): () => void {
+    if (this.destroyed) {
+      queueMicrotask(listener);
+      return () => {};
+    }
+    this.disconnectListeners.add(listener);
+    return () => this.disconnectListeners.delete(listener);
+  }
+
+  private startHeartbeat(): void {
+    if (this.heartbeatTimer) return;
+    this.heartbeatTimer = setInterval(() => {
+      void this.request('ping', {}).catch(() => {
+        this.socket?.destroy();
+      });
+    }, HEARTBEAT_MS);
+    this.heartbeatTimer.unref?.();
+  }
 }
 
 /**
  * Resolve (and lazily spawn) the connection to the kanban project server
- * for the given project root. Returns null if the server is disabled via
- * `WRONGSTACK_KANBAN_SERVER=0`.
+ * for the given project root. Returns null only when explicitly disabled;
+ * production storage callers treat that as an error rather than falling back.
  */
-export async function getKanbanServerConnection(projectRoot: string): Promise<KanbanServerConnection | null> {
+export async function getKanbanServerConnection(
+  projectRoot: string,
+): Promise<KanbanServerConnection | null> {
   if (process.env['WRONGSTACK_KANBAN_SERVER'] === '0') return null;
-  let conn = connections.get(projectRoot);
+  const cacheKey = canonicalRoot(projectRoot);
+  let conn = connections.get(cacheKey);
   if (!conn) {
     const endpoint = kanbanProjectServerEndpoint(projectRoot);
-    conn = new KanbanServerConnection(projectRoot, endpoint);
-    connections.set(projectRoot, conn);
-    try {
-      await conn.connect();
-    } catch (err) {
-      connections.delete(projectRoot);
-      throw err;
-    }
+    conn = new KanbanServerConnection(projectRoot, endpoint, cacheKey);
+    connections.set(cacheKey, conn);
+  }
+  try {
+    await conn.connect();
+  } catch (err) {
+    if (connections.get(cacheKey) === conn) connections.delete(cacheKey);
+    throw err;
   }
   return conn;
 }
@@ -245,5 +328,10 @@ export async function isKanbanServerAvailable(projectRoot: string): Promise<bool
   });
 }
 
+export type { KanbanServerEvent, KanbanServerMethod, KanbanServerOperations } from './protocol.js';
 export { KANBAN_PROJECT_SERVER_PROTOCOL_VERSION } from './protocol.js';
-export type { KanbanServerMethod, KanbanServerOperations, KanbanServerEvent } from './protocol.js';
+
+function canonicalRoot(projectRoot: string): string {
+  const resolved = path.resolve(projectRoot);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}

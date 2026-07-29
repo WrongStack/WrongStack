@@ -1,145 +1,188 @@
 /**
- * ServerKanbanStore — facade for tool code that prefers the IPC daemon
- * and falls back to direct file-backed storage when the server is
- * unavailable or disabled.
+ * ServerKanbanStore — facade for tool code that routes through the
+ * project-scoped IPC daemon.
  *
  * Per the project memory:
  *   - The kanban domain is intentionally provider- and LLM-free
- *   - Server-backed stores should wrap `FileKanbanStore` rather than fork
- *     validation/persistence logic
- *   - A `kanban.mode` of `auto|server|file` lets direct-file clients and
- *     the server coexist safely without per-project daemons
+ *   - Production is fail-closed and never opens board files directly.
+ *   - A disabled or unreachable daemon is an error for every client.
  */
-import * as storage from '../storage.js';
-import * as kanban from '../manager.js';
+import type * as DomainApi from '../client-domain.js';
+import type { KanbanDomainOperation } from '../domain-operations.js';
+import { getKanbanServerConnection } from './client.js';
 import {
-  getKanbanServerConnection,
+  decodeKanbanDomainValue,
+  encodeKanbanDomainValue,
   type KanbanServerMethod,
-} from './client.js';
+  type KanbanServerOperations,
+} from './protocol.js';
 
-type Mode = 'auto' | 'server' | 'file';
-
-function resolveMode(): Mode {
-  const env = process.env['WRONGSTACK_KANBAN_MODE'];
-  if (env === 'server' || env === 'file') return env;
-  return 'auto';
-}
+type DomainModule = typeof DomainApi;
+type DomainArgs<K extends KanbanDomainOperation> = DomainModule[K] extends (
+  projectRoot: string,
+  ...args: infer Args
+) => unknown
+  ? Args
+  : never;
+type DomainResult<K extends KanbanDomainOperation> = DomainModule[K] extends (
+  ...args: infer _Args
+) => infer Result
+  ? Awaited<Result>
+  : never;
 
 export class ServerKanbanStore {
-  constructor(public readonly projectRoot: string) {
-    // The kanban.mode env var (auto|server|file) is resolved lazily in the
-    // per-call `useServer` branch when per-action routing through the
-    // daemon is wired up. Today the facade calls direct file-backed
-    // functions; the infrastructure (client.ts, project-server.ts) is in
-    // place to support routing without changing every call site.
-    void resolveMode();
-  }
+  constructor(public readonly projectRoot: string) {}
 
   // ─── Board operations ────────────────────────────────────────────────────
 
   listBoards() {
-    return this.call('listBoards', {}, () => kanban.listBoards(this.projectRoot));
+    return this.callDomain('listBoards');
   }
   getBoard(boardId: string) {
-    return this.call('getBoard', { boardId }, () => kanban.getBoard(this.projectRoot, boardId));
+    return this.callDomain('getBoard', boardId);
   }
-  createBoard(input: any) {
-    return this.call('createBoard', input, () => kanban.createBoard(this.projectRoot, input));
+  createBoard(input: DomainArgs<'createBoard'>[0]) {
+    return this.callDomain('createBoard', input);
   }
-  updateBoard(boardId: string, patch: any) {
-    return this.call('updateBoard', { boardId, ...patch }, () => kanban.updateBoard(this.projectRoot, boardId, patch));
+  updateBoard(boardId: string, patch: DomainArgs<'updateBoard'>[1]) {
+    return this.callDomain('updateBoard', boardId, patch);
   }
-  duplicateBoard(boardId: string, options: any) {
-    return this.call('duplicateBoard', { boardId, options }, () => kanban.duplicateBoard(projectRoot_safe(this), boardId, options));
+  duplicateBoard(boardId: string, options: NonNullable<DomainArgs<'duplicateBoard'>[1]> = {}) {
+    return this.callDomain('duplicateBoard', boardId, options);
   }
   removeBoard(boardId: string) {
-    return this.call('deleteBoard', { boardId }, () => kanban.removeBoard(this.projectRoot, boardId));
+    return this.callDomain('removeBoard', boardId);
   }
-  addColumn(boardId: string, input: any) {
-    return this.call('addColumn', { boardId, ...input }, () => kanban.addColumn(this.projectRoot, boardId, input));
+  addColumn(boardId: string, input: DomainArgs<'addColumn'>[1]) {
+    return this.callDomain('addColumn', boardId, input);
   }
-  updateColumn(boardId: string, columnId: string, patch: any) {
-    return this.call('updateColumn', { boardId, columnId, ...patch }, () => kanban.updateColumn(this.projectRoot, boardId, columnId, patch));
+  updateColumn(boardId: string, columnId: string, patch: DomainArgs<'updateColumn'>[2]) {
+    return this.callDomain('updateColumn', boardId, columnId, patch);
   }
-  removeColumn(boardId: string, columnId: string) {
-    return this.call('deleteColumn', { boardId, columnId }, () => kanban.removeColumn(this.projectRoot, boardId, columnId));
+  removeColumn(
+    boardId: string,
+    columnId: string,
+    options: NonNullable<DomainArgs<'removeColumn'>[2]> = {},
+  ) {
+    return this.callDomain('removeColumn', boardId, columnId, options);
   }
 
   // ─── Task operations ────────────────────────────────────────────────────
 
-  addTask(boardId: string, input: any) {
-    return this.call('addTask', { boardId, ...input }, () => kanban.addTask(this.projectRoot, boardId, input));
+  addTask(
+    boardId: string,
+    input: DomainArgs<'addTask'>[1],
+    eventContext: NonNullable<DomainArgs<'addTask'>[2]> = {},
+  ) {
+    return this.callDomain('addTask', boardId, input, eventContext);
   }
-  updateTask(boardId: string, taskId: string, patch: any) {
-    return this.call('updateTask', { boardId, taskId, ...patch }, () => kanban.updateTask(this.projectRoot, boardId, taskId, patch));
+  updateTask(
+    boardId: string,
+    taskId: string,
+    patch: DomainArgs<'updateTask'>[2],
+    eventContext: NonNullable<DomainArgs<'updateTask'>[3]> = {},
+  ) {
+    return this.callDomain('updateTask', boardId, taskId, patch, eventContext);
   }
-  moveTask(boardId: string, taskId: string, targetColumnId: string, order?: number) {
-    return this.call('moveTask', { boardId, taskId, targetColumnId, order }, () => kanban.moveTask(this.projectRoot, boardId, taskId, targetColumnId, order));
+  moveTask(
+    boardId: string,
+    taskId: string,
+    targetColumnId: string,
+    order?: number,
+    eventContext: NonNullable<DomainArgs<'moveTask'>[4]> = {},
+  ) {
+    return this.callDomain('moveTask', boardId, taskId, targetColumnId, order, eventContext);
   }
   deleteTask(boardId: string, taskId: string) {
-    return this.call('deleteTask', { boardId, taskId }, () => kanban.removeTask(this.projectRoot, boardId, taskId));
+    return this.callDomain('removeTask', boardId, taskId);
   }
   getTask(boardId: string, taskId: string) {
-    return this.call('getTask', { boardId, taskId }, () => kanban.getTask(this.projectRoot, boardId, taskId));
+    return this.callDomain('getTask', boardId, taskId);
   }
-  copyTask(boardId: string, taskId: string, targetBoardId: string, options?: any) {
-    return this.call('copyTask', { boardId, taskId, targetBoardId, options }, () => kanban.copyTaskToBoard(this.projectRoot, boardId, taskId, targetBoardId, (options ?? {}) as any));
+  copyTask(
+    boardId: string,
+    taskId: string,
+    targetBoardId: string,
+    options: NonNullable<DomainArgs<'copyTaskToBoard'>[3]> = {},
+  ) {
+    return this.callDomain('copyTaskToBoard', boardId, taskId, targetBoardId, options);
   }
   transferTask(boardId: string, taskId: string, targetBoardId: string, targetColumnId?: string) {
-    return this.call(
-      'transferTask',
-      { boardId, taskId, targetBoardId, targetColumnId },
-      () => kanban.transferTaskToBoard(this.projectRoot, boardId, taskId, targetBoardId, { targetColumnId } as any),
-    );
+    return this.callDomain('transferTaskToBoard', boardId, taskId, targetBoardId, {
+      ...(targetColumnId !== undefined ? { targetColumnId } : {}),
+    });
   }
 
   // ─── Lifecycle / orchestration ──────────────────────────────────────────
 
-  transitionTask(boardId: string, taskId: string, input: any) {
-    return this.call('transitionTask', { boardId, taskId, ...input }, () => kanban.transitionTask(this.projectRoot, boardId, taskId, input));
+  transitionTask(boardId: string, taskId: string, input: DomainArgs<'transitionTask'>[2]) {
+    return this.callDomain('transitionTask', boardId, taskId, input);
   }
-  adoptManagedLifecycle(boardId: string, taskId: string, input: any) {
-    return this.call('adoptManagedLifecycle', { boardId, taskId, ...input }, () => kanban.adoptManagedLifecycle(this.projectRoot, boardId, input));
+  adoptManagedLifecycle(boardId: string, input: DomainArgs<'adoptManagedLifecycle'>[1]) {
+    return this.callDomain('adoptManagedLifecycle', boardId, input);
   }
-  repairManagedProjection(boardId: string, taskId: string, input: any) {
-    return this.call('repairManagedProjection', { boardId, taskId, ...input }, () => kanban.repairManagedTaskProjection(this.projectRoot, boardId, taskId, input));
+  repairManagedProjection(
+    boardId: string,
+    taskId: string,
+    input: DomainArgs<'repairManagedTaskProjection'>[2],
+  ) {
+    return this.callDomain('repairManagedTaskProjection', boardId, taskId, input);
   }
-  claimReadyTask(input: any) {
-    return this.call('claimTask', input, () => kanban.claimReadyTask(this.projectRoot, input));
+  claimReadyTask(input: NonNullable<DomainArgs<'claimReadyTask'>[0]> = {}) {
+    return this.callDomain('claimReadyTask', input);
   }
-  releaseTaskClaim(boardId: string, taskId: string) {
-    return this.call('releaseTask', { boardId, taskId }, () => kanban.releaseTaskClaim(this.projectRoot, boardId, taskId));
+  releaseTaskClaim(
+    boardId: string,
+    taskId: string,
+    input: NonNullable<DomainArgs<'releaseTaskClaim'>[2]> = {},
+  ) {
+    return this.callDomain('releaseTaskClaim', boardId, taskId, input);
   }
-  assignTask(boardId: string, taskId: string, input: any, eventContext: any = {}) {
-    return this.call('assignTask', { boardId, taskId, input, eventContext }, () =>
-      kanban.assignTask(this.projectRoot, boardId, taskId, input, eventContext),
-    );
+  assignTask(
+    boardId: string,
+    taskId: string,
+    input: DomainArgs<'assignTask'>[2],
+    eventContext: NonNullable<DomainArgs<'assignTask'>[3]> = {},
+  ) {
+    return this.callDomain('assignTask', boardId, taskId, input, eventContext);
   }
-  updateTaskAssignment(boardId: string, taskId: string, patch: any, eventContext: any = {}) {
-    return this.call(
-      'updateTaskAssignment',
-      { boardId, taskId, patch, eventContext },
-      () => kanban.updateTaskAssignment(this.projectRoot, boardId, taskId, patch, eventContext),
-    );
+  updateTaskAssignment(
+    boardId: string,
+    taskId: string,
+    patch: DomainArgs<'updateTaskAssignment'>[2],
+    eventContext: NonNullable<DomainArgs<'updateTaskAssignment'>[3]> = {},
+  ) {
+    return this.callDomain('updateTaskAssignment', boardId, taskId, patch, eventContext);
   }
-  finalizeTaskCompletion(boardId: string, taskId: string, options: any = {}) {
-    return this.call(
-      'finalizeTaskCompletion',
-      { boardId, taskId, options },
-      () => kanban.finalizeTaskCompletion(this.projectRoot, boardId, taskId, options),
-    );
+  finalizeTaskCompletion(
+    boardId: string,
+    taskId: string,
+    options: NonNullable<DomainArgs<'finalizeTaskCompletion'>[2]> = {},
+  ) {
+    return this.callDomain('finalizeTaskCompletion', boardId, taskId, options);
   }
-  heartbeatTaskAssignment(boardId: string, taskId: string, input: any) {
-    return this.call('heartbeatAssignment', { boardId, taskId, ...input }, () => kanban.heartbeatTaskAssignment(this.projectRoot, boardId, taskId, input));
+  heartbeatTaskAssignment(
+    boardId: string,
+    taskId: string,
+    input: NonNullable<DomainArgs<'heartbeatTaskAssignment'>[2]> = {},
+  ) {
+    return this.callDomain('heartbeatTaskAssignment', boardId, taskId, input);
   }
-  recoverStaleTaskAssignments(input: any) {
-    return this.call('recoverStaleTaskAssignments', { boardId: input?.boardId }, () => kanban.recoverStaleTaskAssignments(this.projectRoot, input));
+  recoverStaleTaskAssignments(
+    input: NonNullable<DomainArgs<'recoverStaleTaskAssignments'>[1]> & {
+      boardId: string;
+    },
+  ) {
+    const { boardId, ...options } = input;
+    return this.callDomain('recoverStaleTaskAssignments', boardId, options);
   }
-  getKanbanOrchestrationSnapshot(input: any) {
-    return this.call('getKanbanOrchestrationSnapshot', input, () => kanban.getKanbanOrchestrationSnapshot(this.projectRoot, input));
+  getKanbanOrchestrationSnapshot(
+    input: NonNullable<DomainArgs<'getKanbanOrchestrationSnapshot'>[0]> = {},
+  ) {
+    return this.callDomain('getKanbanOrchestrationSnapshot', input);
   }
   reconcileBoard(boardId: string) {
-    return this.call('reconcileBoard', { boardId }, () => kanban.reconcileKanbanBoard(this.projectRoot, boardId));
+    return this.callDomain('reconcileKanbanBoard', boardId);
   }
 
   // ─── Chains ─────────────────────────────────────────────────────────────
@@ -149,98 +192,102 @@ export class ServerKanbanStore {
     taskIds: string[],
     options: { chainId?: string; enforceDependencies?: boolean } = {},
   ) {
-    return this.call('setChain', { boardId, taskIds, ...options }, () =>
-      kanban.setTaskChain(this.projectRoot, boardId, { taskIds, ...options }),
-    );
+    return this.callDomain('setTaskChain', boardId, { taskIds, ...options });
   }
   getChain(boardId: string, opts: { taskId?: string; chainId?: string }) {
-    return this.call('getChain', { boardId, ...opts }, () =>
-      kanban.getTaskChain(this.projectRoot, boardId, opts.chainId ?? opts.taskId ?? ''),
-    );
+    const taskOrChainId = opts.chainId ?? opts.taskId;
+    if (!taskOrChainId) {
+      throw new Error('getChain requires taskId or chainId');
+    }
+    return this.callDomain('getTaskChain', boardId, taskOrChainId);
   }
 
   verifyTaskCompletion(
     boardId: string,
     taskId: string,
-    options: { persist?: boolean } = {},
+    options: NonNullable<DomainArgs<'verifyTaskCompletion'>[2]> = {},
   ) {
-    return this.call('verifyTaskCompletion', { boardId, taskId, ...options }, () =>
-      kanban.verifyTaskCompletion(this.projectRoot, boardId, taskId, options),
-    );
+    return this.callDomain('verifyTaskCompletion', boardId, taskId, options);
   }
 
   // ─── Search / export / import ───────────────────────────────────────────
 
-  searchTasks(input: any) {
-    return this.call('searchTasks', input, () => kanban.searchKanban(this.projectRoot, input));
+  searchTasks(input: NonNullable<DomainArgs<'searchKanban'>[0]> = {}) {
+    return this.callDomain('searchKanban', input);
   }
-  listReadyTasks(input: any) {
-    return this.call('readyTasks', input, () => kanban.listReadyTasks(this.projectRoot, input));
+  listReadyTasks(input: NonNullable<DomainArgs<'listReadyTasks'>[0]> = {}) {
+    return this.callDomain('listReadyTasks', input);
   }
   exportMarkdown(boardId: string) {
-    return this.call('exportMarkdown', { boardId }, async () => {
-      const board = await storage.readBoard(this.projectRoot, boardId);
-      return board ? kanban.exportBoardAsMarkdown(board) : null;
-    });
+    return this.callDomain('exportBoardMarkdown', boardId);
   }
-  exportTaskGraph(boardId: string) {
-    return this.call('exportTaskGraph', { boardId }, () => kanban.exportBoardToTaskGraph(this.projectRoot, boardId));
+  exportTaskGraph(
+    boardId: string,
+    options: NonNullable<DomainArgs<'exportBoardToTaskGraph'>[1]> = {},
+  ) {
+    return this.callDomain('exportBoardToTaskGraph', boardId, options);
   }
-  syncTaskGraph(boardId: string, taskGraph: any) {
-    return this.call('syncTaskGraph', { boardId, taskGraph: JSON.stringify(taskGraph) }, () => kanban.syncBoardFromTaskGraph(this.projectRoot, boardId, taskGraph));
+  syncTaskGraph(
+    boardId: string,
+    taskGraph: DomainArgs<'syncBoardFromTaskGraph'>[1],
+    options: NonNullable<DomainArgs<'syncBoardFromTaskGraph'>[2]> = {},
+  ) {
+    return this.callDomain('syncBoardFromTaskGraph', boardId, taskGraph, options);
   }
-  createFromGraph(taskGraph: any, options: any) {
-    return this.call('createFromGraph', { taskGraph: JSON.stringify(taskGraph), boardTitle: options?.boardTitle }, () => kanban.createBoardFromTaskGraph(this.projectRoot, taskGraph, options));
+  createFromGraph(
+    taskGraph: DomainArgs<'createBoardFromTaskGraph'>[0],
+    options: NonNullable<DomainArgs<'createBoardFromTaskGraph'>[1]> = {},
+  ) {
+    return this.callDomain('createBoardFromTaskGraph', taskGraph, options);
   }
 
   // ─── Atomicity ──────────────────────────────────────────────────────────
 
-  assessTaskAtomicity(boardId: string, taskId: string) {
-    return this.call('assessAtomicity', { boardId, taskId }, () => kanban.assessTaskAtomicity(this.projectRoot, boardId, taskId));
+  assessTaskAtomicity(
+    boardId: string,
+    taskId: string,
+    options: NonNullable<DomainArgs<'assessTaskAtomicity'>[2]> = {},
+  ) {
+    return this.callDomain('assessTaskAtomicity', boardId, taskId, options);
   }
 
   // ─── Storage direct (rarely needed by tools) ───────────────────────────
 
   readBoard(boardId: string) {
-    return storage.readBoard(this.projectRoot, boardId);
+    return this.call('storageReadBoard', { boardRef: boardId });
   }
   listBoardIds() {
-    return storage.listBoardIds(this.projectRoot);
+    return this.call('storageListBoardIds', {});
   }
 
-  // ─── Internal: prefer server, fallback to direct call ──────────────────
+  // ─── Internal: IPC is the only client transport ────────────────────────
 
-  private async call<T>(
-    method: KanbanServerMethod,
-    params: any,
-    direct: () => Promise<T> | T,
-  ): Promise<any> {
-    const mode = resolveMode();
-    if (mode === 'file') return direct();
+  private async callDomain<K extends KanbanDomainOperation>(
+    operation: K,
+    ...args: DomainArgs<K>
+  ): Promise<DomainResult<K>> {
+    const wireArgs = [...args] as unknown[];
+    while (wireArgs.length > 0 && wireArgs.at(-1) === undefined) wireArgs.pop();
+    const result = await this.call('domainCall', {
+      operation,
+      wireArgs: encodeKanbanDomainValue(wireArgs),
+    });
+    return decodeKanbanDomainValue(result) as DomainResult<K>;
+  }
 
-    let connection;
-    try {
-      connection = await getKanbanServerConnection(this.projectRoot);
-    } catch (error) {
-      if (mode === 'server') throw error;
-      return direct();
-    }
-
+  private async call<M extends KanbanServerMethod>(
+    method: M,
+    params: KanbanServerOperations[M]['args'],
+  ): Promise<KanbanServerOperations[M]['result']> {
+    const connection = await getKanbanServerConnection(this.projectRoot);
     if (!connection) {
-      if (mode === 'server') {
-        throw new Error('Kanban server unavailable (mode=server)');
-      }
-      return direct();
+      throw new Error('Kanban server unavailable; clients require the project IPC owner');
     }
 
     // Once a request reaches a daemon, never replay it against the file store:
     // a lost response may still mean the mutation committed server-side.
     return connection.request(method, params);
   }
-}
-
-function projectRoot_safe(store: ServerKanbanStore): string {
-  return store.projectRoot;
 }
 
 /**

@@ -10,13 +10,21 @@ session EventBus
   -> ChronicleRemoteJournal
      bounded batching + local IPC
   -> one project Chronicle server
-     assign sequence/hash -> append daily journal -> observe files once
+     assign sequence/hash -> append to SQLite journal -> observe files once
      refresh metrics.db -> query/facet/graph
   -> project access API
      WebUI WS routes -> Coding Intelligence / File Activity
      CLI `wstack chronicle`
      review context provenance
 ```
+
+The primary journal was migrated from daily JSONL partitions to SQLite
+(`chronicle.sqlite` on disk, owned exclusively by the project server).
+The legacy JSONL reader is retained behind `WRONGSTACK_CHRONICLE_STORE=jsonl`
+for migration verification. The new SQLite store (`sqlite-journal.ts`,
+`sqlite-query.ts`) provides indexed queries, row-level retention, and
+efficient summarization — eliminating the full-partition scans that the
+previous format required.
 
 ## Ownership contract
 
@@ -34,13 +42,15 @@ session EventBus
 The canonical project state directory comes from `resolveWstackPaths`, not from
 `<workspace>/.wrongstack`.
 
-- `chronicle/YYYY-MM-DD.events.jsonl` is the durable, append-only evidence and hash chain.
+- `chronicle/chronicle.sqlite` is the primary durable journal and tamper-evident hash chain.
 - `chronicle/metrics.db` is a rebuildable projection of the journal.
+- `chronicle/YYYY-MM-DD.events.jsonl` is the legacy JSONL format retained for migration
+  compatibility behind `WRONGSTACK_CHRONICLE_STORE=jsonl`.
 - The project-server endpoint metadata identifies the elected owner process and local IPC
   endpoint. It lives in the resolved project state, beside the Chronicle runtime state.
 
-Daily partitions are authoritative. Query caches and `metrics.db` are derived and may be
-rebuilt from those partitions.
+The SQLite journal is authoritative. Query caches and `metrics.db` are derived and may be
+rebuilt from the journal. Row-level retention replaces file-granular partition management.
 
 ## Runtime and fallback
 

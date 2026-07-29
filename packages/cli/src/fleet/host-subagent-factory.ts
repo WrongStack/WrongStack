@@ -325,6 +325,12 @@ export function createHostSubagentFactory(
           subReasoningConfig = await resolveHostSubagentReasoningConfig(host.deps, id, model);
         },
         events,
+        ...(mergedConfig.fallbackStickiness?.primaryProbeInterval !== undefined
+          ? { primaryCooldownMs: mergedConfig.fallbackStickiness.primaryProbeInterval }
+          : {}),
+        ...(mergedConfig.fallbackStickiness?.stickyFallbackTurns !== undefined
+          ? { stickyFallbackTurns: mergedConfig.fallbackStickiness.stickyFallbackTurns }
+          : {}),
       }),
     );
 

@@ -19,6 +19,7 @@ import type {
   RecoverStaleKanbanAssignmentsResult,
   ReleaseKanbanTaskClaimInput,
 } from '../types.js';
+import { resolveGateEnforcement } from '../verification/completion-gate.js';
 import {
   assignmentEventType,
   buildAssignment,
@@ -38,7 +39,6 @@ import {
 import { collectBoardsForHealth } from './board-health.js';
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
-import { resolveGateEnforcement } from '../verification/completion-gate.js';
 
 /**
  * Deterministically repair task/assignment/column drift.
@@ -306,10 +306,7 @@ export async function heartbeatTaskAssignment(
     // lease. This check runs inside the board mutation lock so it's atomic —
     // a recovered-and-reassigned task whose leaseId changed cannot be renewed
     // by a stale owner between the check and the write.
-    if (
-      input.expectedLeaseId !== undefined &&
-      task.assignment.leaseId !== input.expectedLeaseId
-    ) {
+    if (input.expectedLeaseId !== undefined && task.assignment.leaseId !== input.expectedLeaseId) {
       return null;
     }
     const beforeAssignment = { ...task.assignment };
@@ -629,7 +626,7 @@ export async function getKanbanQueueHealth(
     }
   }
 
-  // Read cached timestamps from the board JSON instead of scanning
+  // Read cached timestamps from the persisted board record instead of scanning
   // the full event log. These are set atomically by updateTaskAssignment
   // (for lastDispatchedAt) and recoverStaleTaskAssignments (for lastStaleRecoveredAt).
   let lastDispatchedAt: string | undefined;

@@ -277,6 +277,7 @@ describe('createHttpServer', () => {
 
 describe('GET /api/sessions/:id/events (watch stream)', () => {
   let gRoot: string;
+  let projectDir: string;
   let evServer: import('node:http').Server;
   let evBase: string;
   const sessionId = 'test-watch-1';
@@ -308,6 +309,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
     // The session's JSONL, written to the same path the handler resolves.
     const paths = resolveWstackPaths({ projectRoot, globalRoot: gRoot });
+    projectDir = paths.projectDir;
     await fs.mkdir(paths.projectSessions, { recursive: true });
     const lines =
       [
@@ -335,7 +337,14 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
   afterAll(async () => {
     await new Promise<void>((resolve) => evServer.close(() => resolve()));
-    await fs.rm(gRoot, { recursive: true, force: true });
+    // Posting a message starts the project's detached mailbox owner, which
+    // keeps `<gRoot>/projects/<slug>/_mailbox.sqlite` open; leave it running
+    // and the rm below blocks on EBUSY past the hook timeout.
+    const { disposeProjectMailbox, removeMailboxTempRoot } = await import(
+      '../helpers/mailbox-daemon.js'
+    );
+    await disposeProjectMailbox(projectDir);
+    await removeMailboxTempRoot(gRoot);
   });
 
   it('replays a session into compact watch entries (user / tool / assistant)', async () => {
@@ -363,7 +372,9 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('POST .../message delivers a steer message to the session mailbox', async () => {
-    const { mailboxSessionTag, GlobalMailbox } = await import('@wrongstack/core/coordination');
+    const { mailboxSessionTag, createProjectMailbox } = await import(
+      '@wrongstack/core/coordination',
+    );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
       method: 'POST',
@@ -377,7 +388,10 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
     // It must actually land in the project mailbox the target session reads.
     const paths = resolveWstackPaths({ projectRoot, globalRoot: gRoot });
-    const mailbox = new GlobalMailbox(paths.projectDir);
+    const mailbox = createProjectMailbox({
+      projectDir: paths.projectDir,
+      isolatedConnection: true,
+    });
     const msgs = await mailbox.query({ to: `leader@${tag}` });
     expect(msgs.some((m) => m.body === 'please run the tests' && m.type === 'steer')).toBe(true);
   });

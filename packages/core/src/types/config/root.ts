@@ -127,6 +127,28 @@ export interface Config {
    */
   fallbackAuto?: boolean | undefined;
   /**
+   * Fallback stickiness controls that govern how the extension transitions
+   * between the primary and fallback models. These make the system stay on
+   * a working fallback longer instead of bouncing back to the primary at
+   * every opportunity.
+   *
+   * - `primaryProbeInterval` overrides the base cooldown (ms) applied after
+   *   the configured primary fails with a fallback-worthy error. While
+   *   active, `beforeRun` leaves the context on the working fallback
+   *   instead of re-probing the primary every turn. Default: 60_000 (60s).
+   *   Set 0 to probe the primary at every turn (legacy behavior).
+   *
+   * - `stickyFallbackTurns` sets the minimum number of turns the system
+   *   dwells on a working fallback before it even attempts a primary probe.
+   *   Default: 0 (no mandatory dwell — the cooldown timer alone governs).
+   *   Set to e.g. 3 to require three full turns on the fallback before the
+   *   primary is eligible for a half-open probe, regardless of cooldown.
+   */
+  fallbackStickiness?: {
+    primaryProbeInterval?: number | undefined;
+    stickyFallbackTurns?: number | undefined;
+  } | undefined;
+  /**
    * Lifecycle command/HTTP hooks, keyed by event. Commands receive HookInput
    * JSON on stdin; HTTP hooks receive the same object as a POST body. A typed
    * outcome can allow, deny, or mutate. `policy: true` enforcement hooks remain

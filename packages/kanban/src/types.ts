@@ -1,7 +1,8 @@
 /**
  * Project-scoped multi-kanban data model.
  *
- * Boards are stored as JSON files under `<project>/.wrongstack/kanbans/`.
+ * Boards are owned by the project Kanban server and persisted in its SQLite
+ * database. Client processes access them only through IPC.
  * The model is intentionally provider-free: LLMs can manipulate kanban data
  * through tools, but core CRUD stays deterministic and file-based.
  */
@@ -85,7 +86,18 @@ export interface KanbanBoundaryPolicy {
   deny?: KanbanBoundarySelector[] | undefined;
 }
 
-export type KanbanCheckType = 'manual' | 'auto' | 'agent' | 'test' | 'review' | 'command' | 'file_exists' | 'file_matches' | 'git_diff' | 'metric' | 'council';
+export type KanbanCheckType =
+  | 'manual'
+  | 'auto'
+  | 'agent'
+  | 'test'
+  | 'review'
+  | 'command'
+  | 'file_exists'
+  | 'file_matches'
+  | 'git_diff'
+  | 'metric'
+  | 'council';
 
 export type KanbanCheckStatus = 'pending' | 'passed' | 'failed' | 'skipped';
 /**
@@ -486,7 +498,7 @@ export interface KanbanExpectedFileChange {
 
 /**
  * Immutable snapshot of a completed verification run.
- * Written atomically into the board JSON inside the board mutation lock.
+ * Written atomically into the authoritative board record inside the owner transaction.
  */
 export interface KanbanVerificationReport {
   taskId: string;

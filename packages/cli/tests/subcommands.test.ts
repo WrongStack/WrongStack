@@ -112,6 +112,7 @@ describe('subcommands', () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-sub-'));
   });
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await fs.rm(tmp, { recursive: true, force: true });
   });
 
@@ -134,6 +135,15 @@ describe('subcommands', () => {
   });
 
   it('chronicle prune discovers old daily journals in dry-run mode', async () => {
+    // Prune operates on the on-disk journal directly, i.e. the in-process path.
+    // Chronicle now refuses that path unless it is asked for, so a source-tree
+    // run with no built daemon has to say so rather than back into it.
+    vi.stubEnv('WRONGSTACK_CHRONICLE_INLINE', '1');
+    // This case is about legacy partition discovery specifically — it asserts a
+    // file path in the output and that the file survives a dry run. SQLite
+    // purges whole day-chains and has no partition paths to report, so pin the
+    // store rather than let the default carry the test somewhere it isn't about.
+    vi.stubEnv('WRONGSTACK_CHRONICLE_STORE', 'jsonl');
     const rig = withRig();
     const projectRoot = path.join(tmp, 'project');
     const paths = resolveWstackPaths({ projectRoot, userHome: tmp });
@@ -149,7 +159,7 @@ describe('subcommands', () => {
     );
 
     expect(code).toBe(0);
-    expect(stripAnsi(rig.out.buf)).toContain('Dry-run: would delete 1 files');
+    expect(stripAnsi(rig.out.buf)).toContain('Dry-run: would delete 1 entries');
     expect(stripAnsi(rig.out.buf)).toContain(oldJournal);
     expect(rig.err.buf).toBe('');
     await expect(fs.readFile(oldJournal, 'utf8')).resolves.toBe('{}\n');

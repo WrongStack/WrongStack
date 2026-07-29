@@ -19,6 +19,10 @@ export interface ProviderEventMap {
     toolCount: number;
     promptManifest?: ChroniclePromptManifest | undefined;
     startedAt: string;
+    /** Kanban task this provider call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this provider call belongs to, when known. */
+    boardId?: string | undefined;
   };
   /** Fired when one physical attempt returns a usable response. */
   'provider.attempt.completed': {
@@ -35,6 +39,10 @@ export interface ProviderEventMap {
     durationMs: number;
     stopReason: string;
     usage: Usage;
+    /** Kanban task this provider call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this provider call belongs to, when known. */
+    boardId?: string | undefined;
   };
   /** Fired for every failed attempt, whether or not another retry follows. */
   'provider.attempt.failed': {
@@ -56,6 +64,10 @@ export interface ProviderEventMap {
     retryScheduled: boolean;
     retryDelayMs?: number | undefined;
     providerRequestId?: string | undefined;
+    /** Kanban task this provider call belongs to, when known. */
+    taskId?: string | undefined;
+    /** Kanban board this provider call belongs to, when known. */
+    boardId?: string | undefined;
   };
   'provider.response': {
     sessionId?: string | undefined;

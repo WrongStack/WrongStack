@@ -5,6 +5,7 @@ import {
   Database,
   HardDrive,
   KanbanSquare,
+  Mail,
   MemoryStick,
   RefreshCw,
   Server,
@@ -165,10 +166,15 @@ function ServiceCard({ service }: { service: ConnectionHealthService }) {
           ? HardDrive
           : service.id === 'kanban'
             ? KanbanSquare
-            : MemoryStick;
-  const displayLabel = service.id === 'kanban'
-    ? (t('settings:connection.services.kanban.label', { defaultValue: service.label }) as string)
-    : service.label;
+            : service.id === 'mailbox'
+              ? Mail
+              : MemoryStick;
+  const displayLabel =
+    service.id === 'kanban'
+      ? (t('settings:connection.services.kanban.label', { defaultValue: service.label }) as string)
+      : service.id === 'mailbox'
+        ? (t('settings:connection.services.mailbox.label', { defaultValue: service.label }) as string)
+        : service.label;
   const fields = [
     service.ownerPid !== undefined ? ['PID', String(service.ownerPid)] : undefined,
     service.clients !== undefined ? ['clients', String(service.clients)] : undefined,

@@ -15,7 +15,134 @@
  *   code values: NOT_FOUND | READ_FAILED | WRITE_FAILED | INVALID_INPUT | INTERNAL_ERROR
  */
 
-export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 1;
+import type { KanbanDomainOperation } from '../domain-operations.js';
+import type { KanbanBoard, KanbanEvent } from '../types.js';
+
+export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 4;
+
+export type KanbanDomainWireValue =
+  | ['null']
+  | ['undefined']
+  | ['boolean', boolean]
+  | ['number', string]
+  | ['string', string]
+  | ['bigint', string]
+  | ['date', string]
+  | ['array', KanbanDomainWireValue[]]
+  | ['object', Array<[string, KanbanDomainWireValue]>]
+  | ['map', Array<[KanbanDomainWireValue, KanbanDomainWireValue]>]
+  | ['set', KanbanDomainWireValue[]];
+
+/**
+ * Encode domain values into an unambiguous JSON-safe tree. Wrapping every value
+ * avoids reserving a magic property name that could collide with task metadata.
+ */
+export function encodeKanbanDomainValue(value: unknown): KanbanDomainWireValue {
+  return encodeDomainValue(value, new Set<object>());
+}
+
+function encodeDomainValue(value: unknown, ancestors: Set<object>): KanbanDomainWireValue {
+  if (value === null) return ['null'];
+  if (value === undefined) return ['undefined'];
+  if (typeof value === 'boolean') return ['boolean', value];
+  if (typeof value === 'number') return ['number', Object.is(value, -0) ? '-0' : String(value)];
+  if (typeof value === 'string') return ['string', value];
+  if (typeof value === 'bigint') return ['bigint', String(value)];
+  if (typeof value !== 'object') {
+    throw new TypeError(`Unsupported Kanban domain wire value: ${typeof value}`);
+  }
+  if (ancestors.has(value)) {
+    throw new TypeError('Cyclic Kanban domain values cannot be sent over IPC');
+  }
+
+  ancestors.add(value);
+  try {
+    if (value instanceof Date) return ['date', value.toISOString()];
+    if (Array.isArray(value)) {
+      return ['array', Array.from(value, (item) => encodeDomainValue(item, ancestors))];
+    }
+    if (value instanceof Map) {
+      return [
+        'map',
+        Array.from(value, ([key, item]) => [
+          encodeDomainValue(key, ancestors),
+          encodeDomainValue(item, ancestors),
+        ]),
+      ];
+    }
+    if (value instanceof Set) {
+      return ['set', Array.from(value, (item) => encodeDomainValue(item, ancestors))];
+    }
+    return [
+      'object',
+      Object.entries(value).map(([key, item]) => [key, encodeDomainValue(item, ancestors)]),
+    ];
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+/** Decode and validate a domain value received from the IPC peer. */
+export function decodeKanbanDomainValue(value: unknown): unknown {
+  if (!Array.isArray(value) || typeof value[0] !== 'string') {
+    throw new TypeError('Malformed Kanban domain wire value');
+  }
+  const payload = value[1];
+  switch (value[0]) {
+    case 'null':
+      return null;
+    case 'undefined':
+      return undefined;
+    case 'boolean':
+      if (typeof payload === 'boolean') return payload;
+      break;
+    case 'number':
+      if (typeof payload === 'string') return Number(payload);
+      break;
+    case 'string':
+      if (typeof payload === 'string') return payload;
+      break;
+    case 'bigint':
+      if (typeof payload === 'string') return BigInt(payload);
+      break;
+    case 'date':
+      if (typeof payload === 'string') return new Date(payload);
+      break;
+    case 'array':
+      if (Array.isArray(payload)) return payload.map(decodeKanbanDomainValue);
+      break;
+    case 'object':
+      if (Array.isArray(payload)) {
+        return Object.fromEntries(
+          payload.map((entry) => {
+            if (!Array.isArray(entry) || typeof entry[0] !== 'string') {
+              throw new TypeError('Malformed Kanban domain object entry');
+            }
+            return [entry[0], decodeKanbanDomainValue(entry[1])];
+          }),
+        );
+      }
+      break;
+    case 'map':
+      if (Array.isArray(payload)) {
+        return new Map(
+          payload.map((entry) => {
+            if (!Array.isArray(entry)) {
+              throw new TypeError('Malformed Kanban domain map entry');
+            }
+            return [decodeKanbanDomainValue(entry[0]), decodeKanbanDomainValue(entry[1])];
+          }),
+        );
+      }
+      break;
+    case 'set':
+      if (Array.isArray(payload)) {
+        return new Set(payload.map(decodeKanbanDomainValue));
+      }
+      break;
+  }
+  throw new TypeError(`Malformed Kanban domain wire value: ${value[0]}`);
+}
 
 // ─── Server metadata ─────────────────────────────────────────────────────────
 
@@ -24,6 +151,8 @@ export interface KanbanProjectServerInfo {
   pid: number;
   projectRoot: string;
   endpoint: string;
+  storage: 'sqlite';
+  databasePath: string;
   startedAt: string;
 }
 
@@ -39,126 +168,48 @@ export interface KanbanServerOperations {
   ping: { args: Record<string, never>; result: KanbanProjectServerStatus };
   shutdown: { args: { reason?: string }; result: { stopping: boolean } };
 
-  // Board reads
-  listBoards: { args: Record<string, never>; result: string /* KanbanBoard[] json */ };
-  getBoard: { args: { boardId: string }; result: string /* KanbanBoard */ };
-  getKanbanOrchestrationSnapshot: {
-    args: { query?: string; assignee?: string };
-    result: string /* KanbanOrchestrationSnapshot json */
-  };
-  searchTasks: { args: { query?: string; boardId?: string }; result: string };
-  readyTasks: { args: { query?: string; boardId?: string }; result: string };
-  getTask: { args: { boardId: string; taskId: string }; result: string };
-  getChain: { args: { boardId: string; taskId?: string; chainId?: string }; result: string };
-  listBoardSummaries: { args: Record<string, never>; result: string };
-
-  // Board mutations
-  createBoard: { args: { title: string; description?: string; taskType?: string }; result: string };
-  updateBoard: { args: { boardId: string; title?: string; description?: string }; result: string };
-  duplicateBoard: { args: { boardId: string; newTitle?: string }; result: string };
-  deleteBoard: { args: { boardId: string }; result: boolean };
-  generateBoard: { args: { description: string }; result: string };
-
-  // Column mutations
-  addColumn: { args: { boardId: string; title: string; order?: number }; result: string };
-  updateColumn: { args: { boardId: string; columnId: string; title?: string; order?: number }; result: string };
-  deleteColumn: { args: { boardId: string; columnId: string }; result: string };
-
-  // Task mutations
-  addTask: { args: { boardId: string; title: string; taskType?: string; priority?: string; description?: string; tags?: string[]; labels?: string[]; dueDate?: string; estimateHours?: number }; result: string };
-  updateTask: { args: { boardId: string; taskId: string; [key: string]: unknown }; result: string };
-  deleteTask: { args: { boardId: string; taskId: string }; result: string };
-  moveTask: { args: { boardId: string; taskId: string; targetColumnId: string; order?: number }; result: string };
-  splitTask: { args: { boardId: string; taskId: string; childTitles: string[] }; result: string };
-  mergeTasks: { args: { boardId: string; taskIds: string[]; title: string }; result: string };
-  copyTask: { args: { boardId: string; taskId: string; targetBoardId: string }; result: string };
-  transferTask: { args: { boardId: string; taskId: string; targetBoardId: string; targetColumnId?: string }; result: string };
-
-  // Lifecycle / orchestration
-  transitionTask: {
-    args: {
-      boardId: string;
-      taskId: string;
-      to?: string;
-      status?: string;
-      [key: string]: unknown;
-    };
-    result: unknown;
-  };
-  claimTask: { args: { boardId?: string; agentId?: string; role?: string; priority?: string }; result: string };
-  releaseTask: { args: { boardId: string; taskId: string }; result: string };
-  assignTask: {
-    args: {
-      boardId: string;
-      taskId: string;
-      input: Record<string, unknown>;
-      eventContext?: Record<string, unknown>;
-    };
-    result: unknown;
-  };
-  updateTaskAssignment: {
-    args: {
-      boardId: string;
-      taskId: string;
-      patch: Record<string, unknown>;
-      eventContext?: Record<string, unknown>;
-    };
-    result: unknown;
-  };
-  finalizeTaskCompletion: {
-    args: {
-      boardId: string;
-      taskId: string;
-      options?: Record<string, unknown>;
-    };
-    result: unknown;
-  };
-  heartbeatAssignment: { args: { boardId: string; taskId: string; currentTask?: string }; result: string };
-  verifyTaskCompletion: {
-    args: { boardId: string; taskId: string; persist?: boolean };
-    result: unknown;
-  };
-  /** @deprecated Use verifyTaskCompletion. Kept for older clients. */
-  verifyCompletion: {
-    args: { boardId: string; taskId: string; persist?: boolean };
-    result: unknown;
-  };
-  recoverStaleTaskAssignments: { args: { boardId?: string }; result: string };
-
-  adoptManagedLifecycle: {
-    args: { boardId: string; taskId: string; author: string; transitionComment: string };
-    result: string;
-  };
-  repairManagedProjection: {
-    args: { boardId: string; taskId: string; author: string; transitionComment: string };
-    result: string;
-  };
-  reconcileBoard: { args: { boardId: string }; result: unknown };
-
-  // Chains
-  setChain: {
-    args: {
-      boardId: string;
-      taskIds: string[];
-      chainId?: string;
-      enforceDependencies?: boolean;
-    };
-    result: unknown;
+  // Stateful public API. The operation name is an explicit shared allowlist;
+  // projectRoot is never accepted from the client and is fixed by the owner.
+  domainCall: {
+    args: { operation: KanbanDomainOperation; wireArgs: KanbanDomainWireValue };
+    result: KanbanDomainWireValue;
   };
 
-  // Task graph
-  syncTaskGraph: { args: { boardId: string; taskGraph: string }; result: string };
-  createFromGraph: { args: { taskGraph: string; boardId?: string; boardTitle?: string }; result: string };
-
-  // Export
-  exportMarkdown: { args: { boardId: string }; result: string };
-  exportTaskGraph: { args: { boardId: string }; result: string };
-
-  // Verification helpers
-  assessAtomicity: { args: { boardId: string; taskId: string }; result: unknown };
+  // Authoritative storage primitives. Public manager functions use these
+  // when they need to execute local domain logic around an atomic board write.
+  storageListBoardIds: { args: Record<string, never>; result: string[] };
+  storageReadBoard: { args: { boardRef: string }; result: KanbanBoard | null };
+  storageWriteBoard: {
+    args: { board: KanbanBoard; expectedRevision?: number };
+    result: { written: boolean };
+  };
+  storageAppendEvent: {
+    args: { boardId: string; event: KanbanEvent };
+    result: { appended: boolean };
+  };
+  storageReadEvents: { args: { boardRef: string }; result: KanbanEvent[] };
+  storageDeleteBoard: { args: { boardRef: string }; result: boolean };
+  storageReadMetadata: { args: { key: string }; result: string | null };
+  storageWriteMetadata: {
+    args: { key: string; value: string };
+    result: { written: boolean };
+  };
 }
 
 export type KanbanServerMethod = keyof KanbanServerOperations;
+export const KANBAN_SERVER_METHODS = [
+  'ping',
+  'shutdown',
+  'domainCall',
+  'storageListBoardIds',
+  'storageReadBoard',
+  'storageWriteBoard',
+  'storageAppendEvent',
+  'storageReadEvents',
+  'storageDeleteBoard',
+  'storageReadMetadata',
+  'storageWriteMetadata',
+] as const satisfies readonly KanbanServerMethod[];
 
 // ─── Wire frames ────────────────────────────────────────────────────────────
 
@@ -202,15 +253,7 @@ export interface KanbanServerEvent {
 export type KanbanEventName =
   | 'board.created'
   | 'board.updated'
-  | 'board.deleted'
-  | 'task.added'
-  | 'task.updated'
-  | 'task.deleted'
-  | 'task.moved'
-  | 'task.transitioned'
-  | 'column.added'
-  | 'column.updated'
-  | 'column.deleted';
+  | 'board.deleted';
 
 export interface KanbanHelloFrame extends KanbanProjectServerInfo {
   type: 'hello';

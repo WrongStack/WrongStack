@@ -2,20 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import {
-  loadPlan,
-  loadTasks,
-  savePlan,
-  saveTasks,
-} from '@wrongstack/core/storage';
-import {
-  addTask,
-  createBoard,
-  getBoard,
-  getKanbanPath,
-  listBoards,
-  moveTask,
-} from '@wrongstack/kanban';
+import { loadPlan, loadTasks, savePlan, saveTasks } from '@wrongstack/core/storage';
+import { addTask, createBoard, getBoard, listBoards, moveTask } from '@wrongstack/kanban';
+import { getKanbanPath } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applySessionKanbanBoardToTodos,
@@ -210,9 +199,9 @@ describe('unified session kanban', () => {
     expect(todos).toEqual(next);
 
     const remirrored = await projectSessionTodosToKanban(dir, next, 'dynamic-session');
-    expect(remirrored?.tasks.filter((task) => task.title === 'New evidence-driven work')).toHaveLength(
-      1,
-    );
+    expect(
+      remirrored?.tasks.filter((task) => task.title === 'New evidence-driven work'),
+    ).toHaveLength(1);
     expect(remirrored?.tasks.find((task) => task.id === added?.task.id)?.origin).toMatchObject({
       system: 'session-todo',
       taskId: added?.task.id,

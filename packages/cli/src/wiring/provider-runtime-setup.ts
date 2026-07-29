@@ -163,6 +163,12 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       events,
       logger,
       statusTracker,
+      ...(cfg.fallbackStickiness?.primaryProbeInterval !== undefined
+        ? { primaryCooldownMs: cfg.fallbackStickiness.primaryProbeInterval }
+        : {}),
+      ...(cfg.fallbackStickiness?.stickyFallbackTurns !== undefined
+        ? { stickyFallbackTurns: cfg.fallbackStickiness.stickyFallbackTurns }
+        : {}),
     }),
   );
 

@@ -154,9 +154,19 @@ export function NextStepsBar({
   }, [steps.length, autoFillActive]);
 
   const handleAutoFill = useCallback(() => {
-    if (steps.length > 0) fillInput(steps[0]!.text);
+    if (steps.length > 0) {
+      const step = steps[0]!;
+      // If the first step is marked auto, submit it directly via onAutoSubmit
+      // (which sends via WS, bypassing the refine/enhance panel). Otherwise,
+      // fill the input so the user can review and press Enter.
+      if (step.auto && onAutoSubmit) {
+        onAutoSubmit(step.text);
+      } else {
+        fillInput(step.text);
+      }
+    }
     setAutoFillActive(false);
-  }, [steps]);
+  }, [steps, onAutoSubmit]);
 
   if (steps.length === 0) return null;
 
@@ -174,7 +184,9 @@ export function NextStepsBar({
         <span className="text-xs font-semibold text-foreground/90">{t('activity:nextSteps.header')}</span>
         {autoFillActive ? (
           <span className="ml-auto flex items-center gap-1 text-xs text-primary font-medium">
-            {t('activity:nextSteps.autoFilling', 'Filling in')}{' '}
+            {steps[0]?.auto && onAutoSubmit
+              ? t('activity:nextSteps.autoSubmitting')
+              : t('activity:nextSteps.autoFilling', 'Filling in')}{' '}
             <SessionEndFillCountdown seconds={sessionEndAutoFillSeconds} onComplete={handleAutoFill} />
           </span>
         ) : showAutoCountdown && autoStep ? (

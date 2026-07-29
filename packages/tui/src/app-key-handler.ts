@@ -1,14 +1,11 @@
 import type { Director } from '@wrongstack/core/coordination';
-import type {
-  Dispatch,
-  MutableRefObject,
-  SetStateAction,
-} from 'react';
-import type { AppProps } from './app-props.js';
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Action } from './app-action-type.js';
+import type { AppProps } from './app-props.js';
 import type { State } from './app-state.js';
 import { AUTONOMY_OPTIONS } from './components/autonomy-picker.js';
 import { DEFAULT_INPUT_PROMPT, type KeyEvent } from './components/input.js';
+import type { HistoryScrollController } from './components/scrollable-history.js';
 import {
   COMPACT_THRESHOLD,
   statusBarAutonomySpan,
@@ -18,7 +15,8 @@ import {
 import { STATUSLINE_ITEMS, type StatuslineItem } from './components/statusline-picker.js';
 import { actionForFKeyPanel, fKeyEntryFor } from './f-key-panels.js';
 import { hitRegion, isHistoryScrollTarget, statusBarLineRow } from './hit-test.js';
-import { measureElement, type DOMElement } from './ink.js';
+import type { AutonomyStage } from './hooks/use-statusline-state.js';
+import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
 import {
   isLowerOverlayOpen,
@@ -29,9 +27,7 @@ import {
   routeSettingsOverlayKey,
 } from './overlay-key-router.js';
 import { feedPaste, type PasteAccumState } from './paste-accumulator.js';
-import type { HistoryScrollController } from './components/scrollable-history.js';
 import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
-import type { AutonomyStage } from './hooks/use-statusline-state.js';
 
 const ESC_DOUBLE_PRESS_MS = 1000;
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
@@ -104,10 +100,9 @@ interface AppKeyHandlerOptions {
 }
 
 /** Creates the terminal key host around focused overlay/input routers. */
-export function createAppKeyHandler(options: AppKeyHandlerOptions): (
-  input: string,
-  key: KeyEvent,
-) => Promise<void> {
+export function createAppKeyHandler(
+  options: AppKeyHandlerOptions,
+): (input: string, key: KeyEvent) => Promise<void> {
   const {
     state,
     dispatch,
@@ -494,7 +489,6 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
       return;
     }
 
-
     // History lives in a bounded managed viewport. Skip scrolling when ANY
     // overlay below the statusline is open — these overlays
     // use arrow keys for their own navigation (↑↓ selection, scrolling).
@@ -537,25 +531,22 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
           key.mouse.x,
           key.mouse.y,
         );
-        if (region?.kind === 'scrollbar') {
-          historyScrollRef.current?.scrollToTrackCell(region.cell);
-          return;
-        }
-        // A left press inside the history viewport may land on a card's
-        // click-to-copy icon. Only a fresh press triggers a copy (drags scrub
-        // the scrollbar above). Decide synchronously via hasCopyTargetAt so a
-        // plain in-history click (no icon under the cell) falls through to the
-        // handlers below instead of being swallowed. `region.row` is 0-based
-        // from the viewport top; the mouse x is 1-based, so convert to a 0-based
-        // column. The clipboard write itself is fire-and-forget — it must not
-        // block key handling; failures (no clipboard tool / denied) are swallowed.
+        // Copy icons live in the first of the two reserved scrollbar columns.
+        // Give a fresh press on that exact cell priority over track jumping;
+        // the actual track remains the final column and drags still scrub.
+        const copyRow =
+          region?.kind === 'history'
+            ? region.row
+            : region?.kind === 'scrollbar'
+              ? region.cell
+              : null;
         if (
-          region?.kind === 'history' &&
+          copyRow !== null &&
           key.mouse.kind === 'press' &&
-          historyScrollRef.current?.hasCopyTargetAt(region.row, key.mouse.x - 1)
+          historyScrollRef.current?.hasCopyTargetAt(copyRow, key.mouse.x - 1)
         ) {
           void historyScrollRef.current
-            .copyAtViewportCell(region.row, key.mouse.x - 1)
+            .copyAtViewportCell(copyRow, key.mouse.x - 1)
             .then((entryId) => {
               // Non-null id means the clipboard write succeeded — surface the
               // transient "Copied" confirmation and flash that card's icon. A
@@ -563,6 +554,10 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
               if (entryId !== null) onHistoryCopy?.(entryId);
             })
             .catch(() => null);
+          return;
+        }
+        if (region?.kind === 'scrollbar') {
+          historyScrollRef.current?.scrollToTrackCell(region.cell);
           return;
         }
       }
@@ -685,11 +680,7 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
       // Terminal-safe paging fallback for compact keyboards (notably MacBooks).
       // Preserve the composer's Ctrl+U/D editing semantics whenever it contains
       // text; on an empty draft these chords page through chat history.
-      if (
-        key.ctrl &&
-        draftRef.current.buffer === '' &&
-        (input === 'u' || input === 'd')
-      ) {
+      if (key.ctrl && draftRef.current.buffer === '' && (input === 'u' || input === 'd')) {
         historyScrollRef.current?.scrollPage(input === 'u' ? 'up' : 'down');
         return;
       }

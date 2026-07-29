@@ -21,7 +21,9 @@
  * `riskTier === 'safe'`). Pass `--writable` to expose standard-tier
  * Sage tools (writes, deletes, hygiene).
  */
+import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { canonicalProjectRoot } from '@wrongstack/core/utils';
 import { serveHttp, serveStdio } from '@wrongstack/mcp';
 import {
@@ -179,14 +181,44 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main().then(
-  (code) => {
-    process.exitCode = code;
-  },
-  (error) => {
-    process.stderr.write(`${SERVER_INFO.name}: unexpected error\n`);
-    process.stderr.write(error instanceof Error ? (error.stack ?? error.message) : String(error));
-    process.stderr.write('\n');
-    process.exitCode = 1;
-  },
-);
+/**
+ * Only run the CLI when this module IS the process entry point.
+ *
+ * `tests/cli.test.ts` imports `parseArgs` from here. Without this guard the
+ * import ran `main()` inside the Vitest worker: Vitest's argv carries no
+ * `--project-root`, so `main` printed the help block and set
+ * `process.exitCode = 2`. The worker fork then exited mid-run and the pool's
+ * next `send()` failed with `EPIPE` — surfacing as a single unhandled
+ * "Worker forks emitted error" that failed the whole suite while every
+ * individual test still passed.
+ *
+ * The comparison has to be real-path based: `file://${process.argv[1]}` never
+ * matches on Windows (argv[1] is a backslash path, `import.meta.url` is a
+ * percent-encoded forward-slash URL), and on POSIX argv[1] is the
+ * `node_modules/.bin/wstack-sage-mcp` symlink rather than `dist/cli.js`.
+ */
+function isMainModule(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  const self = fileURLToPath(import.meta.url);
+  if (path.resolve(entry) === self) return true;
+  try {
+    return realpathSync(entry) === realpathSync(self);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
+  main().then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error) => {
+      process.stderr.write(`${SERVER_INFO.name}: unexpected error\n`);
+      process.stderr.write(error instanceof Error ? (error.stack ?? error.message) : String(error));
+      process.stderr.write('\n');
+      process.exitCode = 1;
+    },
+  );
+}

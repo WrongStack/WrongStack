@@ -15,7 +15,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEADER_AGENT_ID } from '../src/lib/agent-model.js';
 import type { FileMention } from '../src/lib/file-mention.js';
-import type { MessageHandlerDeps } from '../src/lib/message-handler.js';
+import type { MessageHandlerDeps, ServerMessageHandler } from '../src/lib/message-handler.js';
 import { createMessageHandler } from '../src/lib/message-handler.js';
 import { DEFAULT_PREFS } from '../src/lib/prefs-model.js';
 import type { QueuedItem } from '../src/lib/queue-model.js';
@@ -38,7 +38,12 @@ import type {
 } from '../src/types.js';
 
 interface Harness {
-  handler: (message: ServerMessage) => void;
+  /**
+   * Streaming text deltas are coalesced onto an animation frame, so a test that
+   * asserts on transcript text right after a `provider.text_delta` must call
+   * `handler.flush()` first. Any other message type flushes implicitly.
+   */
+  handler: ServerMessageHandler;
   /**
    * Live snapshot of every stateful setter. Reading `state.messages`
    * always returns the latest committed value because each property is a
@@ -77,6 +82,11 @@ interface Harness {
     readonly copiedMessageId: string | null;
     readonly providerLabels: Record<string, string>;
     readonly diffFiles: FileEditMeta[] | null;
+    /**
+     * How many times `setMessages` has been dispatched. Streaming coalescing is
+     * a claim about update *count*, which the resulting text cannot show.
+     */
+    readonly setMessagesCalls: number;
   };
   /**
    * Live snapshot of mutable refs. Each property reads the current `current`
@@ -266,6 +276,9 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
     state: {
       get messages() {
         return messages.latest.current;
+      },
+      get setMessagesCalls() {
+        return messages.mock.calls.length;
       },
       get running() {
         return running.latest.current;
@@ -655,11 +668,45 @@ describe('provider streaming', () => {
     });
 
     harness.handler({ type: 'provider.text_delta', payload: { text: 'Here is the answer' } });
+    harness.handler.flush();
 
     const last = harness.state.messages.at(-1);
     expect(last).toMatchObject({ role: 'assistant', text: 'Here is the answer', streaming: true });
     // The thinking block must be frozen (streaming:false) once text starts.
     expect(harness.state.messages.find((m) => m.role === 'thinking')?.streaming).toBe(false);
+  });
+
+  it('coalesces a burst of text deltas into a single transcript update', () => {
+    // Each delta used to trigger its own `setMessages`, so a response streamed
+    // one token at a time re-rendered the whole transcript once per token.
+    const before = harness.state.setMessagesCalls;
+    for (let index = 0; index < 50; index++) {
+      harness.handler({ type: 'provider.text_delta', payload: { text: `tok${index} ` } });
+    }
+    expect(harness.state.setMessagesCalls).toBe(before);
+
+    harness.handler.flush();
+
+    expect(harness.state.setMessagesCalls).toBe(before + 1);
+    expect(harness.state.messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      streaming: true,
+    });
+    expect(harness.state.messages.at(-1)?.text).toBe(
+      Array.from({ length: 50 }, (_, index) => `tok${index} `).join(''),
+    );
+  });
+
+  it('flushes buffered text before any non-delta message is applied', () => {
+    // Ordering guarantee: a tool call must never overtake text that arrived
+    // before it, even though that text is still sitting in the delta buffer.
+    harness.handler({ type: 'provider.text_delta', payload: { text: 'calling a tool' } });
+    harness.handler({ type: 'tool.started', payload: { id: 'tc-1', name: 'read', input: {} } });
+
+    const assistantIndex = harness.state.messages.findIndex(
+      (message) => message.role === 'assistant' && message.text === 'calling a tool',
+    );
+    expect(assistantIndex).toBeGreaterThanOrEqual(0);
   });
 
   it('treats tool.executed ok:false as the canonical failure signal, not the output text', () => {

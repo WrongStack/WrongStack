@@ -50,17 +50,49 @@ export interface ChronicleProjectServerCallOptions {
  * the bundle (for example `dist/plugin/index.js`), not this source module, so
  * a single relative lookup silently selects the inline fallback.
  */
-export function resolveChronicleProjectServerUrl(
+/**
+ * Why the Chronicle daemon is or is not usable.
+ *
+ * `resolveChronicleProjectServerUrl` collapses two very different situations
+ * into one `null`: the operator asked for in-process mode, or the built server
+ * simply could not be found. Callers that fall back on `null` therefore treat a
+ * broken build exactly like a deliberate choice — and since the lookup is
+ * relative to `import.meta.url`, a change in bundle layout alone is enough to
+ * silently give every process its own private journal.
+ */
+export type ChronicleDaemonAvailability =
+  | { readonly kind: 'available'; readonly url: URL }
+  /** `WRONGSTACK_CHRONICLE_INLINE` / `WRONGSTACK_CHRONICLE_SERVER=0` was set. */
+  | { readonly kind: 'inline-requested' }
+  /** No server entry point exists in any known output layout. */
+  | { readonly kind: 'missing-build' };
+
+export function resolveChronicleDaemonAvailability(
   moduleUrl = import.meta.url,
   exists: (filePath: string) => boolean = fs.existsSync,
-): URL | null {
+): ChronicleDaemonAvailability {
   if (
     process.env['WRONGSTACK_CHRONICLE_INLINE'] ||
     process.env['WRONGSTACK_CHRONICLE_SERVER'] === '0'
   ) {
-    return null;
+    return { kind: 'inline-requested' };
   }
+  const url = locateChronicleProjectServer(moduleUrl, exists);
+  return url ? { kind: 'available', url } : { kind: 'missing-build' };
+}
 
+export function resolveChronicleProjectServerUrl(
+  moduleUrl = import.meta.url,
+  exists: (filePath: string) => boolean = fs.existsSync,
+): URL | null {
+  const availability = resolveChronicleDaemonAvailability(moduleUrl, exists);
+  return availability.kind === 'available' ? availability.url : null;
+}
+
+function locateChronicleProjectServer(
+  moduleUrl: string,
+  exists: (filePath: string) => boolean,
+): URL | null {
   const candidates = [
     // Normal unbundled output: dist/chronicle/project-server-client.js.
     './project-server.js',
