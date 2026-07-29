@@ -441,9 +441,7 @@ export function StatusBar({
   const memoryDetailChips: React.ReactElement[] = [];
   if (hasMemoryDetail) {
     // Prefer the live memory-context monitor when present, otherwise fall back
-    // to the latest-known Sage.activeInContext summary count. The rail shows a
-    // single `actv N` chip (collapsed from the previous four-counter layout)
-    // so full evidence belongs in /context and the WebUI Context Dashboard.
+    // to the latest-known Sage.activeInContext summary count.
     const liveActive = memoryMonitor ? activeMemoryContextCount(memoryMonitor) : 0;
     const reportedActive = memoryMonitor ? liveActive : (Sage?.activeInContext ?? 0);
     memoryDetailChips.push(
@@ -469,6 +467,41 @@ export function StatusBar({
           <Text color={chipColor(theme.success, isNoColor)}>{reportedActive} actv</Text>
         </Text>,
       );
+    }
+    // Injector pipeline counters from the latest memory-injector run.
+    // Renders matched / injected / filtered and context-pressure so the
+    // operator can see injection activity at a glance. The right-anchored
+    // index chip on this rail absorbs width changes without jitter.
+    if (memorySummary && memorySummary.outcome !== 'error') {
+      const hasPipeline =
+        memorySummary.matched > 0 || memorySummary.injected > 0 || memorySummary.filtered > 0;
+      if (hasPipeline) {
+        memoryDetailChips.push(
+          <Text key="pipeline">
+            <Text dimColor={!isNoColor}>{' · '}</Text>
+            <Text dimColor={!isNoColor}>{memorySummary.matched} matched</Text>
+            <Text dimColor={!isNoColor}>{' · '}</Text>
+            <Text color={chipColor(theme.success, isNoColor)}>{memorySummary.injected} inj</Text>
+            <Text dimColor={!isNoColor}>{' · '}</Text>
+            <Text color={chipColor(theme.warn, isNoColor)}>{memorySummary.filtered} filt</Text>
+          </Text>,
+        );
+      }
+      if (memorySummary.contextPressure > 0) {
+        const pressurePct = Math.round(memorySummary.contextPressure * 100);
+        const pressureColor =
+          pressurePct >= 80
+            ? theme.error
+            : pressurePct >= 65
+              ? theme.warn
+              : theme.textSecondary;
+        memoryDetailChips.push(
+          <Text key="pressure">
+            <Text dimColor={!isNoColor}>{' · '}</Text>
+            <Text color={chipColor(pressureColor, isNoColor)}>{pressurePct}% ctx</Text>
+          </Text>,
+        );
+      }
     }
   }
 
