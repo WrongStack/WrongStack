@@ -121,14 +121,39 @@ const ready = new Promise<void>((resolve, reject) => {
   rejectReady = reject;
 });
 
-function send(state: ClientState, message: SageProjectServerMessage): void {
-  if (!state.socket.destroyed) {
-    state.socket.write(encodeSageProjectServerMessage(message));
+/**
+ * Cap on outbound bytes queued for one client before it is dropped. This
+ * server broadcasts `memory.*` events to every client, and `socket.write()`
+ * buffers without limit when its `false` return is ignored — so one client
+ * that stops reading would otherwise grow the owner's heap indefinitely.
+ * Memory state is in SQLite; a dropped client re-reads it on reconnect.
+ */
+const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+
+function writeEncoded(state: ClientState, encoded: string): void {
+  if (state.socket.destroyed) return;
+  if (state.socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
+    state.socket.destroy(new Error('SAGE client fell too far behind on reads'));
+    return;
   }
+  state.socket.write(encoded);
 }
 
+function send(state: ClientState, message: SageProjectServerMessage): void {
+  writeEncoded(state, encodeSageProjectServerMessage(message));
+}
+
+/** Encode once, write to every client — see the mailbox owner for rationale. */
 function broadcast(message: SageProjectServerMessage): void {
-  for (const state of clients) send(state, message);
+  if (clients.size === 0) return;
+  const encoded = encodeSageProjectServerMessage(message);
+  for (const state of clients) {
+    try {
+      writeEncoded(state, encoded);
+    } catch {
+      state.socket.destroy();
+    }
+  }
 }
 
 events.onPattern('memory.*', (event, payload) => {
@@ -393,13 +418,17 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
       send(state, { type: 'response', id: message.id, ok: true, result });
     })
     .catch((error) => {
-      send(state, {
-        type: 'response',
-        id: message.id,
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-        errorName: error instanceof Error ? error.name : undefined,
-      });
+      try {
+        send(state, {
+          type: 'response',
+          id: message.id,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+          errorName: error instanceof Error ? error.name : undefined,
+        });
+      } catch {
+        // socket already destroyed or write failed — nothing more to do
+      }
     })
     .finally(() => {
       state.active.delete(message.id);
@@ -502,6 +531,11 @@ const server = net.createServer((socket) => {
     }
     clients.delete(state);
     scheduleIdleStop();
+  });
+  socket.on('error', () => {
+    // Error already handled by 'close' cleanup above.  Must have a
+    // listener or Node.js 15+ throws on 'error' events with no handler.
+    // This is consistent with the kanban and codebase-index servers.
   });
 });
 
