@@ -41,6 +41,29 @@ export class KanbanLifecycleError extends Error {
   }
 }
 
+/**
+ * Shared prefix for StaleWriteError messages constructed by the local storage
+ * backends (SqliteKanbanStorage, file-legacy storage.ts). The prefix ensures
+ * error messages are recognisable in logs and test assertions, but callers
+ * should use `instanceof StaleWriteError` for local detection or
+ * `error.code === 'STALE_WRITE'` when the error has crossed IPC serialization
+ * (see remote-storage.ts and project-server.ts).
+ */
+export const STALE_WRITE_PREFIX = 'Stale write detected' as const;
+
+/**
+ * Thrown when a concurrent modification is detected during board mutation.
+ * Using a typed error (rather than `Error` with a message string) lets
+ * callers reliably identify stale-write failures via `instanceof` instead
+ * of fragile `error.message.includes(...)` checks.
+ */
+export class StaleWriteError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StaleWriteError';
+  }
+}
+
 export function createManagedLifecyclePolicy(
   overrides: Partial<KanbanBoardLifecyclePolicy['columns']> = {},
 ): KanbanBoardLifecyclePolicy {
@@ -81,13 +104,17 @@ export async function adoptManagedLifecycle(
       ]);
     }
     if (board.tasks.some((task) => task.lifecycle !== undefined)) {
-      throw new KanbanLifecycleError('Legacy lifecycle adoption refuses cards with existing lifecycle metadata.', [
-        {
-          code: 'managed-policy-invalid',
-          field: 'tasks.lifecycle',
-          message: 'Legacy lifecycle adoption refuses cards with existing lifecycle metadata.',
-        },
-      ]);
+      // A previous adoption may have partially written lifecycle metadata.
+      // Instead of rejecting the entire operation, adopt only cards that
+      // have no lifecycle metadata yet. Cards already adopted keep their
+      // existing lifecycle stage.
+      const alreadyAdopted = board.tasks.filter((task) => task.lifecycle !== undefined).length;
+      if (alreadyAdopted > 0) {
+        process.stderr.write(
+          `[kanban] adoptManagedLifecycle: ${alreadyAdopted}/${board.tasks.length} cards ` +
+          `already have lifecycle metadata — adopting remaining cards only.\n`,
+        );
+      }
     }
 
     const at = nowIso();
@@ -118,6 +145,27 @@ export async function adoptManagedLifecycle(
     board.lifecycle = lifecycle;
     board.updatedAt = at;
     for (const task of board.tasks) {
+      // Skip cards that already have lifecycle metadata — they were adopted
+      // in a previous (possibly partial) adoption and keep their existing stage.
+      // Re-adoption with different column mappings would leave a skipped card's
+      // currentStage out of sync, so verify consistency before skipping.
+      if (task.lifecycle !== undefined) {
+        const expectedStage = lifecycleStageForColumn(board, task.columnId);
+        if (task.lifecycle.currentStage !== expectedStage) {
+          const msg =
+            `Card ${task.id} lifecycle stage "${task.lifecycle.currentStage}" does not match ` +
+            `its column under the new policy (expected "${expectedStage ?? 'none'}"). ` +
+            `Re-adoption with different column mappings requires resetting the card lifecycle.`;
+          throw new KanbanLifecycleError(msg, [
+            {
+              code: 'stage-mismatch',
+              field: 'lifecycle.currentStage',
+              message: msg,
+            },
+          ]);
+        }
+        continue;
+      }
       const stage = lifecycleStageForColumn(board, task.columnId);
       if (!stage) {
         throw new KanbanLifecycleError(`Card ${task.id} is outside the adopted lifecycle columns.`, [

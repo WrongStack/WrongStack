@@ -12,6 +12,8 @@ import type { FleetEntry } from './app-state-fleet.js';
 import type { State } from './app-state.js';
 export type Action =
   | { type: 'addEntry'; entry: DraftEntry }
+  | { type: 'archiveLoaded'; entries: HistoryEntry[] }
+  | { type: 'startArchiveLoad' }
   | { type: 'compactHistory' }
   | { type: 'setBuffer'; buffer: string; cursor: number }
   | { type: 'clearInput' }

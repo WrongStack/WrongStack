@@ -17,6 +17,8 @@ function defineActionTypes<const T extends readonly Action['type'][]>(
 /** Known reducer action types — exact, compile-time checked allow-list. */
 export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'addEntry',
+  'archiveLoaded',
+  'startArchiveLoad',
   'authBusy',
   'authCatalog',
   'authClose',

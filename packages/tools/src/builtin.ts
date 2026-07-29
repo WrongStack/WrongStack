@@ -7,6 +7,7 @@ import {
   codebaseIndexTool,
   codebaseSearchTool,
   codebaseStatsTool,
+  deadCodeScanTool,
 } from './codebase-index/index.js';
 import { designTool } from './design.js';
 import { diffTool } from './diff.js';
@@ -134,8 +135,8 @@ export const TIER2_TOOLS: Tool[] = [
 
 /**
  * Tier 3 tool set — specialized/optional tools for specific workflows.
- * Adds 9 tools: outdated, logs, document, scaffold, toolSearch, toolUse,
- * batchToolUse, toolHelp, setWorkingDir.
+ * Adds 10 tools: deadCodeScan, outdated, logs, document, scaffold,
+ * toolSearch, toolUse, batchToolUse, toolHelp, setWorkingDir.
  *
  * These tools are rarely used in typical development (once-per-session,
  * debugging, or one-time generation) and can be safely omitted in any
@@ -146,6 +147,7 @@ export const TIER3_TOOLS: Tool[] = [
   logsTool,
   documentTool,
   scaffoldTool,
+  deadCodeScanTool,
   toolSearchTool,
   toolUseTool,
   batchToolUseTool,
@@ -162,6 +164,7 @@ export const builtinTools: Tool[] = [
   codebaseStatsTool,
   codebaseSearchTool,
   codebaseIndexTool,
+  deadCodeScanTool,
   replaceTool,
   globTool,
   grepTool,

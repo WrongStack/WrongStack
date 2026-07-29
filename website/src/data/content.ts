@@ -553,14 +553,14 @@ export const surfaces = [
     name: 'TUI',
     tagline: 'The instrument panel',
     description:
-      'A React/Ink terminal interface with status lines, pickers, fleet monitors, goal panels, worktrees and permission overlays—without leaving the terminal.',
+      'A React/Ink terminal interface with service health, copyable virtual history, status lines, pickers, fleet monitors, goal panels, worktrees and permission overlays—without leaving the terminal.',
     launch: 'wstack --tui',
     best: 'Long interactive coding sessions',
     traits: [
       'Keyboard-driven panels',
-      'Live context and cost',
+      'Live service health',
       'Fleet/agent monitors',
-      'Mouse support',
+      'Copyable history and streams',
     ],
     icon: Command,
   },

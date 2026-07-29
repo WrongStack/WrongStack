@@ -93,7 +93,7 @@ export interface SearchResult {
 export interface SageSurface {
   stats(): Promise<SageStats>;
   listSage(statuses?: SageStatus[]): Promise<Sage[]>;
-  listSagePage?(options?: ListSagePageOptions): Promise<ListSagePageResult>;
+  listSagePage(options?: ListSagePageOptions): Promise<ListSagePageResult>;
   getSage(id: string): Promise<Sage | null>;
   rememberSage(input: RememberSageInput): Promise<Sage>;
   updateSage(id: string, patch: UpdateSageInput): Promise<Sage>;
@@ -180,4 +180,7 @@ export interface SageServiceLike extends MemoryStore {
     options?: FindMemoriesForFileOptions,
   ): Promise<FindMemoriesForFileResponse>;
   getSage(id: string): Promise<Sage | null>;
+  /** Enumerate a bounded page of memories, with optional status/kind/query filtering. */
+  listSagePage(options?: ListSagePageOptions): Promise<ListSagePageResult>;
 }
+

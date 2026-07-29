@@ -31,6 +31,8 @@ const stateRef = {
 const agentContext = { state: { messages: [] } } as never;
 const dispatchMock = vi.fn();
 const dispatch = dispatchMock as never;
+const attachments = {} as never;
+const builderRef = { current: null } as never;
 
 function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   let resolve!: (value: T) => void;
@@ -60,6 +62,8 @@ function ActivityHarness({
     stateRef,
     agentContext,
     dispatch,
+    attachments,
+    builderRef,
   });
   return React.createElement(
     Text,
@@ -134,6 +138,8 @@ describe('useTuiActivity foreground working time', () => {
         stateRef: localStateRef,
         agentContext: localAgentContext,
         dispatch,
+        attachments,
+        builderRef,
       });
       return React.createElement(Text, null, 'stats');
     }
@@ -151,6 +157,9 @@ describe('useTuiActivity foreground working time', () => {
       fleetSize: 1,
       queued: 1,
       inputHistory: 2,
+      attachments: 0,
+      builderRefs: 0,
+      directorInFlight: 0,
     });
     act(() => view.unmount());
   });

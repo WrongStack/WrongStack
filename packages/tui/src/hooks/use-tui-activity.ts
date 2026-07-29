@@ -1,4 +1,6 @@
 import type { Agent } from '@wrongstack/core/agent';
+import type { AttachmentStore } from '@wrongstack/core/types';
+import type { InputBuilder } from '@wrongstack/core/agent';
 import { loadGoal } from '@wrongstack/core/storage';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -7,6 +9,40 @@ import type { Action, State } from '../app-reducer.js';
 import { type HeapSample, startHeapWatchdog, takeHeapSample } from '../heap-watchdog.js';
 import { useAnimation } from '../ink.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
+
+// ── Shallow retention sentinels (RAM audit) ────────────────────────────────
+// Each helper reads a known Map/Array length without traversing the graph,
+// so the watchdog tick stays O(1) regardless of session size. Used by
+// collectStats so heap.jsonl shows exactly which layer holds the bytes
+// after `/clear` or `--resume` boots.
+
+/** Number of attachments stored in the canonical AttachmentStore. */
+function attachmentsSize(store: AttachmentStore): number {
+  // DefaultAttachmentStore exposes `items: Map<string, Attachment>` and
+  // `refs: AttachmentRef[]`. The Map.size read is O(1); we prefer it
+  // because `items` is the cumulative-keep map. Refs can grow during a
+  // burst but always settles with items.
+  const items = (store as unknown as { items?: { size?: number } }).items;
+  return items?.size ?? 0;
+}
+
+/** Number of attachment refs retained by the mounted InputBuilder. */
+function builderRefsLength(builder: InputBuilder | null): number {
+  if (!builder) return 0;
+  const refs = (builder as unknown as { refs?: { length?: number } }).refs;
+  return refs?.length ?? 0;
+}
+
+/**
+ * In-flight coordinator task count for the live Director — used to detect
+ * that `/clear` did not actually drain subagent work. Zero when the
+ * Director is the fleet-manager path (coordinator lives on `Director`,
+ * not on the standalone MultiAgentCoordinator).
+ */
+function directorInFlight(ctx: Agent['ctx']): number {
+  const directorCtx = ctx as unknown as { director?: { coordinator?: { inFlight?: number } } };
+  return directorCtx.director?.coordinator?.inFlight ?? 0;
+}
 
 // Cached once at module init: `os.cpus()` allocates a fresh array on every
 // call (Node.js libuv malloc), and the TUI shell computes CPU usage on every
@@ -25,6 +61,10 @@ export interface UseTuiActivityOptions {
   stateRef: React.RefObject<State>;
   agentContext: Agent['ctx'];
   dispatch: React.Dispatch<Action>;
+  /** Attachment store for RAM-retention sentinels in heap diagnostics. */
+  attachments: AttachmentStore;
+  /** Input builder ref for RAM-retention sentinels in heap diagnostics. */
+  builderRef: React.RefObject<InputBuilder | null>;
 }
 
 /**
@@ -41,6 +81,8 @@ export function useTuiActivity({
   stateRef,
   agentContext,
   dispatch,
+  attachments,
+  builderRef,
 }: UseTuiActivityOptions) {
   const [rolledThinkingWord, setRolledThinkingWord] = useState(() => pickRandomTuiThinkingWord());
   const thinkingWorking = status === 'running' || status === 'streaming';
@@ -63,6 +105,7 @@ export function useTuiActivity({
   // Global clock tick. Deliberately slow (10s). Detail panels own their
   // faster clocks; this tick feeds monitor overlays and todo snapshots.
   const startedAtRef = useRef(Date.now());
+
   const [nowTick, setNowTick] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 10_000);
@@ -167,6 +210,17 @@ export function useTuiActivity({
         fleetSize: Object.keys(stateRef.current.fleet ?? {}).length,
         queued: stateRef.current.queue?.length ?? 0,
         inputHistory: stateRef.current.inputHistory?.length ?? 0,
+        // RAM retention sentinels — distinguish which layer holds old graphs
+        // after /clear so we know where to add cleanup wiring.
+        // attachments: DefaultAttachmentStore.items.size (cumulative
+        //   pastes/files/images for the lifetime of this process).
+        // builderRefs: InputBuilder.refs.length (refs retained by the
+        //   mounted builder until reset() is called).
+        // directorInFlight: coordinator in-flight task count, used to
+        //   detect that `/clear` did not actually drain subagent work.
+        attachments: attachmentsSize(attachments),
+        builderRefs: builderRefsLength(builderRef.current),
+        directorInFlight: directorInFlight(agentContext),
       }),
       onWarn: (level, message) => {
         dispatch({
@@ -178,7 +232,7 @@ export function useTuiActivity({
     return () => {
       void stopHeapWatchdog();
     };
-  }, [agentContext, dispatch, stateRef]);
+  }, [agentContext, dispatch, stateRef, attachments, builderRef]);
 
   const goalSummaryFingerprintRef = useRef<string | undefined>(undefined);
   const goalSummaryGenerationRef = useRef(0);

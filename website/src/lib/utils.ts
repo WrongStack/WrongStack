@@ -22,12 +22,12 @@ export const META = {
 
 export const heroStats = [
   { value: '58', label: 'built-in tools' },
-  { value: '25', label: 'bundled skills' },
+  { value: '26', label: 'bundled skills' },
   { value: '~140', label: 'model providers' },
   { value: '73', label: 'managed plugins' },
 ] as const;
 
-/** 25 bundled skills — README / bundled catalog canonical list. */
+/** 26 bundled skills — README / packages/core/skills canonical list. */
 export const skills = [
   { name: 'api-design', description: 'REST conventions, pagination, auth, and error taxonomy' },
   { name: 'audit-log', description: 'Analyze session logs and event streams' },
@@ -37,6 +37,10 @@ export const skills = [
   {
     name: 'docker-deploy',
     description: 'Container builds, non-root images, and deployment checks',
+  },
+  {
+    name: 'design-system',
+    description: 'Build consistent interfaces from shared visual tokens and component rules',
   },
   { name: 'git-flow', description: 'Branching strategy and commit conventions' },
   {
@@ -296,9 +300,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.296.2',
+    date: '2026-07-28',
+    latest: true,
+    tagline: 'Chronicle and release-gate stability under full-suite contention',
+    highlights: [
+      'Chronicle remote-journal and metrics-store suites tolerate transient full-suite worker contention and Windows SQLite WAL/SHM cleanup races',
+      'HQ frame parsing retries its demonstrated transient full-suite contention case without weakening isolated assertions',
+      'The complete release gate passed before the lockstep 0.296.2 package and website metadata update',
+    ],
+  },
+  {
     version: '0.296.0',
     date: '2026-07-25',
-    latest: true,
     tagline: 'Chronicle metrics store, headless roster consolidation, and cleaner CLI startup wiring',
     highlights: [
       'Chronicle gains a disposable SQLite metrics store (provider reliability, task outcomes, file lineage, token cost) with incremental ingest, journal retention (chronicle.retentionDays), and task/kanban file-lineage attribution',

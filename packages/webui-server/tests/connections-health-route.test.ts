@@ -171,3 +171,83 @@ describe('connections health kanban service', () => {
     expect(kanban?.lastError).toBe('boom');
   });
 });
+
+describe('connections health mailbox service', () => {
+  /**
+   * Stand up the route over a fake mailbox client and hand back what the
+   * constructor was actually given.
+   */
+  async function collectWithFakeMailbox(status: unknown) {
+    vi.resetModules();
+    const constructedWith: string[] = [];
+    class FakeMailboxConnection {
+      constructor(projectDir: string) {
+        constructedWith.push(projectDir);
+      }
+      probeStatus() {
+        return Promise.resolve(status);
+      }
+      getState() {
+        return { endpoint: '\\\\.\\pipe\\fake' };
+      }
+      close() {}
+    }
+    vi.doMock('@wrongstack/core/coordination', () => ({
+      isMailboxProjectServerAvailable: () => true,
+      MailboxProjectServerConnection: FakeMailboxConnection,
+    }));
+    const { collectConnectionsHealth: collectFresh } = await import(
+      '../src/server/connections-health-route.js'
+    );
+    const fresh = await collectFresh({
+      projectRoot: '/project',
+      indexDir: undefined,
+      backend: 'cli-embedded',
+    });
+    return {
+      mailbox: fresh.services.find((service) => service.id === 'mailbox'),
+      constructedWith,
+    };
+  }
+
+  /**
+   * The bug this pins: SAGE and kanban are keyed on the repo root, the mailbox
+   * owner on its data directory. Passing the root derived a different pipe
+   * name than the running daemon, so `probeStatus()` saw nothing and a healthy
+   * owner with live clients was reported as "sleeping" on every refresh.
+   */
+  it('probes the mailbox owner on the project data directory, not the repo root', async () => {
+    const { resolveWstackPaths } = await import('@wrongstack/core/utils');
+    const { constructedWith } = await collectWithFakeMailbox(null);
+
+    expect(constructedWith).toEqual([resolveWstackPaths({ projectRoot: '/project' }).projectDir]);
+    expect(constructedWith[0]).not.toBe('/project');
+  });
+
+  it('reports a healthy mailbox row when the owner answers with its status', async () => {
+    const { mailbox } = await collectWithFakeMailbox({
+      protocolVersion: 3,
+      pid: 105348,
+      endpoint: '\\\\.\\pipe\\wrongstack-mailbox-v3-abc',
+      databasePath: '/data/_mailbox.sqlite',
+      startedAt: new Date(Date.now() - 5_000).toISOString(),
+      clients: 9,
+      pendingRequests: 0,
+    });
+
+    expect(mailbox).toMatchObject({
+      id: 'mailbox',
+      status: 'healthy',
+      required: true,
+      mode: 'project-server',
+      ownerPid: 105348,
+      clients: 9,
+      storage: '/data/_mailbox.sqlite',
+    });
+  });
+
+  it('reports sleeping only when no owner answers', async () => {
+    const { mailbox } = await collectWithFakeMailbox(null);
+    expect(mailbox).toMatchObject({ id: 'mailbox', status: 'offline' });
+  });
+});

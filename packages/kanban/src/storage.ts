@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle.js';
 import { normalizeKanbanBoundaryPolicy } from './boundary.js';
 import { getProductionKanbanStorage } from './server/remote-storage.js';
 import { getInstalledKanbanStorageBackend } from './storage-backend.js';
@@ -404,8 +405,8 @@ export async function mutateBoard<T>(
     const currentBoard = JSON.parse(currentRaw) as KanbanBoard;
     const currentRevision = currentBoard.revision ?? 0;
     if (currentRevision !== readRevision) {
-      throw new Error(
-        `Stale write detected for board "${boardId}": on-disk revision ${currentRevision} ` +
+      throw new StaleWriteError(
+        `${STALE_WRITE_PREFIX} for board "${boardId}": on-disk revision ${currentRevision} ` +
           `does not match read revision ${readRevision}. The board was modified ` +
           'by another process since it was loaded. Rerun the operation.',
       );

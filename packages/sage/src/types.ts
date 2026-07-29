@@ -540,6 +540,29 @@ export interface ListSagePageResult {
   statusCounts: Record<string, number>;
 }
 
+/** Result from memory_gather_batch: memories plus their graph relations. */
+export interface GatherBatchResult {
+  /** The page of memories matching the filter. */
+  memories: Sage[];
+  /** Graph edges among and to related memories in the batch.
+   *  Scanned for the first N memories (see `relationsScannedAt`); beyond
+   *  that cap, relations are not collected. Use `memory_graph` on specific
+   *  IDs for deeper traversal. */
+  relations: MemoryGraphEdge[];
+  /** How many memories were scanned for graph relations. 0 when
+   * `includeRelations` is false. The cap is a resource guard — a
+   * large batch (>10) only scans the first batch for relations, so
+   * `relationsScannedAt < memories.length` means un-scanned memories
+   * may have edge data not included here. */
+  relationsScannedAt: number;
+  /** Opaque cursor to fetch the next page, or `null` for the last page. */
+  nextCursor: string | null;
+  /** Total memories matching the filter (across all pages). */
+  total: number;
+  /** Counts of ALL memories per status (ignoring the filter). */
+  statusCounts: Record<string, number>;
+}
+
 export interface RememberSageInput {
   text: string;
   scope?: SageScope | undefined;

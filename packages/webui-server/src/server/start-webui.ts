@@ -20,7 +20,7 @@ import {
   watchProviderConfig,
 } from '@wrongstack/core/storage';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID, type ProviderConfig } from '@wrongstack/core/types';
-import { expectDefined, toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
+import { expectDefined, startHeapWatchdog, toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { type PackageOperation, toLanguagePackageInput } from '@wrongstack/techstack';
 import { ensureSessionShell } from '@wrongstack/tools';
@@ -778,6 +778,10 @@ export async function startWebUI(
     credentialWatcherClose = credentialWatcher.close;
   }
 
+  // Start heap-watchdog for long-running WebUI server sessions so memory
+  // growth is diagnosable via ~/.wrongstack/logs/heap.jsonl even when no
+  // TUI or CLI surface is attached.
+  const stopHeapWatchdog = startHeapWatchdog();
   // Build the route table (Phase 1a) + the message dispatcher and connection
   // handler (Phase 1b). The dispatcher owns the inbound `switch (msg.type)`
   // and the runLock guard; the connection handler owns rate-limiting, F5
@@ -873,6 +877,7 @@ export async function startWebUI(
       ...(wssSecondary ? [wssSecondary] : []),
     ],
     onShutdown: async () => {
+      await stopHeapWatchdog();
       credentialWatcherClose?.();
       brainMonitor.stop();
       // Read via the services getter — ledger toggles swap the instance.

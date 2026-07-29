@@ -5,7 +5,7 @@
   "bySpecifier": {
     "@wrongstack/core/agent": {
       "files": 218,
-      "typeOnly": 179,
+      "typeOnly": 180,
       "runtimeOrMixed": 52
     },
     "@wrongstack/core/agent-catalog": {
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 802,
-      "typeOnly": 771,
+      "files": 805,
+      "typeOnly": 774,
       "runtimeOrMixed": 198
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -1200,7 +1200,7 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/src/hooks/use-tui-activity.ts",
-      "typeOnly": 1,
+      "typeOnly": 2,
       "runtimeOrMixed": 0
     },
     {
@@ -10595,6 +10595,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/dead-code-scan.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/design.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11117,6 +11123,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/hooks/use-tui-activity.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/hooks/use-tui-controllers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11262,6 +11274,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/coverage-targeted-4.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/diagnose-spacing-snap.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13985,12 +14003,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/parser-worker-pool.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/project-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -14628,6 +14640,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/ws-payload-preferences.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/connections-health-route.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

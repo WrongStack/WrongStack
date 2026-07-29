@@ -112,7 +112,7 @@ export const featureDeepDives: Record<string, FeatureDeepDive> = {
       {
         title: 'Share live state',
         body: 'Fleet events, pulse digests, status broadcasts and the mailbox keep the leader and workers aware of relevant peers.',
-        code: 'FleetBus + GlobalMailbox',
+        code: 'FleetBus + Project Mailbox',
       },
       {
         title: 'Roll up evidence',
@@ -414,7 +414,7 @@ export const featureDeepDives: Record<string, FeatureDeepDive> = {
     ],
     signals: [
       { label: 'Ownership', value: 'Director task + lineage' },
-      { label: 'Durable channel', value: 'GlobalMailbox' },
+      { label: 'Durable channel', value: 'Project Mailbox' },
       { label: 'Live channel', value: 'FleetBus' },
     ],
   },
@@ -608,8 +608,8 @@ export const featureDeepDives: Record<string, FeatureDeepDive> = {
       },
       {
         title: 'Stay safe across processes',
-        body: 'Project-level JSONL, shared file locks, batched acknowledgements and indexed caches prevent lost concurrent delivery.',
-        code: 'append lock + ack lock + recipient index',
+        body: 'Every client uses RemoteMailbox over a deterministic local endpoint; one elected owner serializes SQLite messages, receipts, presence, credentials and retention.',
+        code: 'RemoteMailbox → IPC owner → _mailbox.sqlite',
       },
     ],
     operatorNotes: [
@@ -630,7 +630,7 @@ export const featureDeepDives: Record<string, FeatureDeepDive> = {
       {
         title: 'Model durable work',
         body: 'Boards contain custom columns and tasks with priority, status, ownership, success criteria, metrics, links and notes.',
-        code: '.wrongstack/kanbans/<board>.json',
+        code: '.wrongstack/kanbans/_kanban.sqlite',
       },
       {
         title: 'Compute readiness',

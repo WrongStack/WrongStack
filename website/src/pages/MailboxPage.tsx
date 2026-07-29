@@ -96,7 +96,9 @@ export function MailboxPage() {
               <div>
                 <Mail className="mx-auto size-6 text-brand-2" />
                 <strong className="mt-3 block text-sm">Mailbox hub</strong>
-                <span className="mt-1 block font-mono text-[8px] text-zinc-600">project JSONL</span>
+                <span className="mt-1 block font-mono text-[8px] text-zinc-600">
+                  SQLite · IPC owner
+                </span>
               </div>
               <span className="absolute -left-12 top-1/2 hidden w-12 border-t border-dashed border-brand-2/40 lg:block" />
               <span className="absolute -right-12 top-1/2 hidden w-12 border-t border-dashed border-brand-2/40 lg:block" />
@@ -211,32 +213,32 @@ export function MailboxPage() {
               [
                 Mail,
                 'Send',
-                'Append under the shared mailbox lock and emit a lightweight event.',
-                'message.sent',
+                'Send over local IPC; the elected owner commits one SQLite transaction and emits an event.',
+                'RemoteMailbox → owner',
               ],
               [
                 Inbox,
                 'Deliver',
-                'Query exact id, base alias and broadcasts; deduplicate the resulting set.',
-                'unique + alias + *',
+                'Query indexed exact-id, base-alias and broadcast recipients from the authoritative store.',
+                'exact + alias + *',
               ],
               [
                 Clock3,
                 'Surface',
-                'Fold urgent mail before tool calls and during the agent iteration loop.',
-                'poll + in-process push',
+                'Push server events to connected surfaces and fold urgent mail into the agent iteration loop.',
+                'IPC event + bounded poll',
               ],
               [
                 Reply,
                 'Acknowledge',
-                'Record per-recipient read time, completion actor and optional outcome.',
-                'readBy + completedBy',
+                'Record actor-scoped read, completion and optional outcome receipts transactionally.',
+                'message_receipts',
               ],
               [
                 ShieldCheck,
                 'Retain',
-                'Expire, purge, compact, soft-delete or restore without racing concurrent sends.',
-                'TTL + locked maintenance',
+                'Let the single owner expire, purge, compact, soft-delete or restore without competing writers.',
+                'TTL + owner maintenance',
               ],
             ].map(([Icon, title, body, code], index) => {
               const ItemIcon = Icon as typeof Mail;
@@ -323,10 +325,10 @@ export function MailboxPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              'Canonical project slug keeps every surface in the same mailbox directory.',
-              'Send and acknowledge operations share locks, preventing lost concurrent appends.',
-              'Recipient and sender indexes avoid scanning the entire history for normal reads.',
-              'HQ publishing is best-effort and governed by its separate raw-content policy.',
+              'A deterministic local endpoint makes every surface converge on one project owner.',
+              'Only the elected owner opens SQLite; clients fail closed instead of writing a fallback file.',
+              'Messages, per-actor receipts, credentials and presence commit through one transactional store.',
+              'Legacy JSONL state imports once and remains untouched for manual recovery.',
             ].map((item) => (
               <div
                 key={item}

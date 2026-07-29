@@ -1,7 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as internalModule from '../src/manager/_internal.js';
 import {
   addCheckToTask,
   addColumn,
@@ -16,11 +17,11 @@ import {
   copyTaskToBoard,
   createBoard,
   createBoardFromTaskGraph,
+  createBoardFromText,
   duplicateBoard,
   exportBoardAsMarkdown,
   exportBoardToTaskGraph,
   findBlockedTasks,
-  createBoardFromText,
   getBoard,
   getKanbanQueueHealth,
   getTask,
@@ -36,6 +37,7 @@ import {
   removeBoard,
   removeColumn,
   removeTask,
+  StaleWriteError,
   searchKanban,
   setTaskChain,
   splitTask,
@@ -47,8 +49,16 @@ import {
   updateTask,
   updateTaskAssignment,
 } from '../src/manager.js';
-import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
 import { CURRENT_KANBAN_VERSION, type KanbanBoard } from '../src/types.js';
+import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
+import type { ClaimKanbanTaskInput } from '../src/types-operations.js';
+
+// hoisted: makes _internal.js exports mockable so vi.spyOn intercepts
+// imports from assignment.ts (named imports create separate live bindings
+// that vi.spyOn on a namespace proxy cannot reach without vi.mock).
+vi.mock('../src/manager/_internal.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+}));
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -1471,6 +1481,41 @@ describe('claimReadyTask', () => {
     const result = await claimReadyTask(tmpDir, { agentId: 'finder' });
     expect(result).not.toBeNull();
     expect(result!.task.assignment?.agentId).toBe('finder');
+  });
+
+  it('continues to the next board when a stale write occurs on one board', async () => {
+    await createBoard(tmpDir, {
+      title: 'Stale board',
+      tasks: [{ title: 'Task A' }],
+    });
+    await createBoard(tmpDir, {
+      title: 'Good board',
+      tasks: [{ title: 'Task B' }],
+    });
+
+    const originalFn = internalModule.claimReadyTaskOnBoard;
+    const spy = vi.spyOn(internalModule, 'claimReadyTaskOnBoard');
+    let callIndex = 0;
+    spy.mockImplementation(async (projectRoot: string, boardId: string, input: ClaimKanbanTaskInput) => {
+      callIndex++;
+      if (callIndex <= 1) {
+        throw new StaleWriteError('Stale write detected');
+      }
+      return originalFn(projectRoot, boardId, input);
+    });
+
+    try {
+      const result = await claimReadyTask(tmpDir, { agentId: 'worker' });
+      expect(result).not.toBeNull();
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(result!.task.assignment?.agentId).toBe('worker');
+      // The spy was called twice: first throw StaleWriteError (skips one
+      // board), second succeeds (claims from the other board). This
+      // confirms the stale-write continuation path was exercised, not
+      // silently bypassed.
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

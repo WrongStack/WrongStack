@@ -518,3 +518,47 @@ describe('IndexStore searchRanking exact/prefix boost', () => {
     expect(r.results.length).toBeLessThanOrEqual(100);
   });
 });
+
+// ─── FTS backfill ─────────────────────────────────────────────────────────
+
+describe('FTS backfill drift detection', () => {
+  let ftsDir: string;
+  beforeEach(async () => {
+    ftsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-fts-backfill-'));
+  });
+  afterEach(async () => {
+    await fs.rm(ftsDir, { recursive: true, force: true });
+  });
+  it('backfills the FTS index when reopening detects drift between symbols and symbols_fts', () => {
+    const idxDir = path.join(ftsDir, '.codebase-index');
+    // Phase 1: populate
+    const a = new IndexStore(ftsDir, { indexDir: idxDir });
+    a.insertSymbols([
+      sym({ name: 'Alpha', kind: 'function', file: '/p/a.ts' }),
+      sym({ name: 'Beta', kind: 'function', file: '/p/b.ts' }),
+    ]);
+    const before = a.searchRanked('Alpha', undefined, 10);
+    expect(before.total).toBeGreaterThan(0);
+    const storePath = path.join(idxDir, 'index.db');
+    a.close();
+
+    // Phase 2: simulate drift by deleting FTS rows directly
+    const { DatabaseSync } = require('node:sqlite') as {
+      DatabaseSync: new (path: string) => { exec(sql: string): void; close(): void };
+    };
+    const raw = new DatabaseSync(storePath);
+    try {
+      raw.exec('DELETE FROM symbols_fts');
+      raw.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    } finally {
+      raw.close();
+    }
+
+    // Phase 3: reopen — initSchema detects drift and backfills
+    const b = new IndexStore(ftsDir, { indexDir: idxDir });
+    const after = b.searchRanked('Alpha', undefined, 10);
+    expect(after.total).toBeGreaterThan(0);
+    expect(after.results[0]?.name).toBe('Alpha');
+    b.close();
+  });
+});

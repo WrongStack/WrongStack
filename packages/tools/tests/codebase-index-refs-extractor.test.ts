@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { execFileBehavior, execFileMock, mkdirMock, writeFileMock } = vi.hoisted(() => {
+const { execFileBehavior, execFileMock, mkdtempMock, writeFileMock } = vi.hoisted(() => {
   const behavior = vi.fn();
   const execFile = vi.fn(
     (
@@ -20,7 +20,7 @@ const { execFileBehavior, execFileMock, mkdirMock, writeFileMock } = vi.hoisted(
   return {
     execFileBehavior: behavior,
     execFileMock: execFile,
-    mkdirMock: vi.fn(async () => undefined),
+    mkdtempMock: vi.fn(async () => '/tmp/ws-refs-test'),
     writeFileMock: vi.fn(async () => undefined),
   };
 });
@@ -32,7 +32,7 @@ vi.mock('node:child_process', async (orig) => ({
 
 vi.mock('node:fs/promises', async (orig) => ({
   ...(await orig<typeof import('node:fs/promises')>()),
-  mkdir: mkdirMock,
+  mkdtemp: mkdtempMock,
   writeFile: writeFileMock,
 }));
 
@@ -41,7 +41,7 @@ import { extractRefs } from '../src/codebase-index/refs-extractor.js';
 beforeEach(() => {
   execFileBehavior.mockReset();
   execFileMock.mockClear();
-  mkdirMock.mockReset().mockResolvedValue(undefined);
+  mkdtempMock.mockReset().mockResolvedValue('/tmp/ws-refs-test');
   writeFileMock.mockReset().mockResolvedValue(undefined);
 });
 afterEach(() => vi.restoreAllMocks());
@@ -123,7 +123,7 @@ describe('extractRefs go', () => {
   it('returns [] when Go helper initialization fails', async () => {
     vi.resetModules();
     const { extractRefs: freshExtractRefs } = await import('../src/codebase-index/refs-extractor.js');
-    mkdirMock.mockRejectedValue(new Error('temp directory unavailable'));
+    mkdtempMock.mockRejectedValue(new Error('temp directory unavailable'));
 
     expect(await freshExtractRefs({ file: 'main.go', content: '', lang: 'go' })).toEqual([]);
     expect(execFileBehavior).not.toHaveBeenCalled();
@@ -157,6 +157,14 @@ describe('extractRefs python', () => {
     writeFileMock.mockRejectedValue(new Error('temp script unavailable'));
 
     expect(await freshExtractRefs({ file: 'a.py', content: '', lang: 'py' })).toEqual([]);
-    expect(execFileBehavior).not.toHaveBeenCalled();
+    // resolvePythonCommand() runs before initializePythonRunner(), so one
+    // execFile call for `python3 --version` is expected even when the runner
+    // script initialization fails afterward.
+    expect(execFileBehavior).toHaveBeenCalledTimes(1);
+    expect(execFileBehavior).toHaveBeenCalledWith(
+      'python3',
+      ['--version'],
+      expect.any(Object),
+    );
   });
 });

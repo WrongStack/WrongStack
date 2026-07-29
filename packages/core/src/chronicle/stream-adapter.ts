@@ -15,14 +15,30 @@ interface StreamState {
   textHash: Hash; thinkingHash: Hash;
 }
 
+/** Max age in ms before an incomplete stream state is force-flushed as a failure. */
+const MAX_STATE_AGE_MS = 300_000;
+
 /** Aggregates high-frequency streaming deltas without dropping their volume/timing/content identity. */
 export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOptions): () => void {
   const states = new Map<string, StreamState>();
   const key = (sessionId: string | undefined, agentId: string | undefined) => `${sessionId ?? '__default__'}\0${agentId ?? '__leader__'}`;
   const update = (sessionId: string | undefined, agentId: string | undefined, text: string, thinking: boolean): void => {
-    const state = states.get(key(sessionId, agentId));
+    const now = Date.now();
+    // Proactive sweep: flush every state that has been alive too long without
+    // completion/failure. Runs on every delta to catch completely silent stale
+    // states — even entries that never receive another delta for their own key
+    // will eventually be swept when a delta arrives for ANY active attempt.
+    if (states.size > 0) {
+      for (const [, s] of states) {
+        if (now - s.startedAtMs > MAX_STATE_AGE_MS) {
+          flush(s.sessionId, s.agentId, 'failure');
+        }
+      }
+    }
+    const k = key(sessionId, agentId);
+    const state = states.get(k);
     if (!state) return;
-    const now = Date.now(); const bytes = Buffer.byteLength(text);
+    const bytes = Buffer.byteLength(text);
     state.firstChunkAtMs ??= now; state.lastChunkAtMs = now;
     if (thinking) { state.thinkingChunks++; state.thinkingBytes += bytes; state.thinkingHash.update(text); }
     else { state.textChunks++; state.textBytes += bytes; state.textHash.update(text); }

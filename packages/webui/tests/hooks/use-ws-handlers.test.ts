@@ -33,7 +33,7 @@ describe('useWsHandlers', () => {
     expect(onSpy).toHaveBeenCalledWith('session.start', expect.any(Function));
     expect(onSpy).toHaveBeenCalledWith('provider.text_delta', expect.any(Function));
 
-    const wrapper = onSpy.mock.calls.find((c) => c[0] === 'session.start')?.[1] as (
+    const wrapper = (onSpy.mock.calls as Array<Array<unknown>>).find((c) => c[0] === 'session.start')?.[1] as (
       msg: unknown,
     ) => void;
     const msg = { type: 'session.start', payload: {} };
@@ -51,7 +51,7 @@ describe('useWsHandlers', () => {
     handler = second;
     rerender();
 
-    const wrapper = onSpy.mock.calls[0]?.[1] as (msg: unknown) => void;
+    const wrapper = (onSpy.mock.calls as Array<Array<unknown>>)[0]?.[1] as (msg: unknown) => void;
     wrapper({ type: 'session.start', payload: {} });
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe('useWsHandlers', () => {
     // Both keys get wrappers: the map value can flip undefined → fn on a
     // later render without re-subscribing (the wrapper reads the ref).
     expect(onSpy).toHaveBeenCalledTimes(2);
-    const wrapper = onSpy.mock.calls.find((c) => c[0] === 'provider.text_delta')?.[1] as (
+    const wrapper = (onSpy.mock.calls as Array<Array<unknown>>).find((c) => c[0] === 'provider.text_delta')?.[1] as (
       msg: unknown,
     ) => void;
     // Dispatching to the undefined slot is a safe no-op.

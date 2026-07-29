@@ -136,10 +136,14 @@ function parseOutdatedPackages(body: string): PackageOutdatedEntry[] {
   return results;
 }
 
+/** Max processed message IDs retained for duplicate suppression. */
+const MAX_PROCESSED_IDS = 500;
+
 interface WatcherState {
   running: boolean;
   timer: ReturnType<typeof setInterval> | null;
   processedIds: Set<string>;
+  processedIdsQueue: string[];
 }
 
 /**
@@ -165,6 +169,7 @@ export function startPackageOutdatedWatcher(opts: PackageOutdatedWatcherOptions)
     running: true,
     timer: null,
     processedIds: new Set<string>(),
+    processedIdsQueue: [],
   };
 
   async function pollOnce(): Promise<void> {
@@ -181,7 +186,15 @@ export function startPackageOutdatedWatcher(opts: PackageOutdatedWatcherOptions)
 
       for (const msg of messages) {
         if (state.processedIds.has(msg.id)) continue;
+        // Cap processedIds to prevent unbounded memory growth from
+        // retaining every message id forever. When the cap is reached,
+        // evict the oldest entry before adding the new one.
+        if (state.processedIds.size >= MAX_PROCESSED_IDS) {
+          const oldest = state.processedIdsQueue.shift();
+          if (oldest !== undefined) state.processedIds.delete(oldest);
+        }
         state.processedIds.add(msg.id);
+        state.processedIdsQueue.push(msg.id);
 
         await mailbox.ack({
           messageId: msg.id,

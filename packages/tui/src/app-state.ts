@@ -61,6 +61,11 @@ export type { FleetEntry } from './app-state-fleet.js';
 export type State = {
   entries: HistoryEntry[];
   /**
+   * True while the history archive is loading older entries from disk.
+   * The UI may show a loading indicator for the scrollback area.
+   */
+  archiveLoading: boolean;
+  /**
    * Monotonic generation counter retained for wholesale history replacement
    * compatibility and the legacy standalone History renderer.
    */

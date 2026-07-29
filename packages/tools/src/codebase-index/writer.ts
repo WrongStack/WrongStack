@@ -715,6 +715,12 @@ export class IndexStore {
         // Clear statement cache — prepared stmts reference the now-dropped tables.
         this.stmtCache.clear();
         this.initSchema();
+        // Reset the symbol-id counter to 1 so repeated forced rebuilds
+        // don't allocate from a monotonically growing id namespace.
+        this.stmt('INSERT OR REPLACE INTO metadata(key, value) VALUES (?, ?)').run(
+          IndexStore.NEXT_SYMBOL_ID_KEY,
+          '1',
+        );
       } catch (err) {
         this.db.exec('ROLLBACK');
         throw err;
@@ -1082,6 +1088,45 @@ export class IndexStore {
    */
   getSymbolGraph(fileFilter: string): CodeMapGraph {
     return getSymbolGraphWithStatement((sql) => this.stmt(sql), fileFilter);
+  }
+
+  /**
+   * Returns every symbol in the index. Used by dead-code analysis to
+   * build the full symbol universe for the reachability scan.
+   */
+  getAllSymbols(): Array<{
+    id: number;
+    name: string;
+    file: string;
+    kind: SymbolKind;
+    line: number;
+  }> {
+    return (
+      this.stmt(
+        'SELECT id, name, file, kind, line FROM symbols ORDER BY id',
+      ).all() as Array<{
+        id: number;
+        name: string;
+        file: string;
+        kind: string;
+        line: number;
+      }>
+    ).map((r) => ({ ...r, kind: r.kind as SymbolKind }));
+  }
+
+  /**
+   * Returns every resolved reference (to_id IS NOT NULL). Used by
+   * dead-code analysis to build the consumer-ship graph. Refs whose
+   * target symbol id is null (unresolved imports) are excluded.
+   */
+  getAllResolvedRefs(): Array<{
+    fromId: number;
+    toId: number;
+    callType: string;
+  }> {
+    return this.stmt(
+      'SELECT from_id AS fromId, to_id AS toId, call_type AS callType FROM refs WHERE to_id IS NOT NULL',
+    ).all() as Array<{ fromId: number; toId: number; callType: string }>;
   }
 
   close(): void {

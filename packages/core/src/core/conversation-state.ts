@@ -1,7 +1,8 @@
 import type { ContentBlock } from '../types/blocks.js';
 import type { Message } from '../types/messages.js';
 import { computeMessageTokens } from '../utils/token-estimate.js';
-import type { Context, TodoItem } from './context.js';
+import { type TodoItem } from './context.js';
+import { Context } from './context.js';
 
 /**
  * Observable wrapper for mutable conversation state. Production code should
@@ -97,7 +98,23 @@ export class ConversationState {
       message._estTokens = computeMessageTokens(message);
     }
     this.ctx.messages.splice(this.ctx.messages.length, 0, message);
-    this.emit({ kind: 'message_appended', message });
+    // Cap messages to prevent unbounded growth when compaction does not
+    // run (provider error storms, rewinds, custom embedders). Oldest
+    // messages are dropped first — the compaction digest lives at index 0
+    // and is dropped with them.
+    if (Context.MAX_MESSAGES > 0 && this.ctx.messages.length > Context.MAX_MESSAGES) {
+      const overflow = this.ctx.messages.length - Context.MAX_MESSAGES;
+      this.ctx.messages.splice(0, overflow);
+      // Dropping messages may orphan a tool_use or tool_result, breaking
+      // strict-provider adjacency rules. Force a repair scan on the next
+      // request pipeline run.
+      this.ctx.toolAdjacencyDirty = true;
+      // Emit a full snapshot so journal replay does not reconstruct an
+      // array larger than live state after truncation.
+      this.emit({ kind: 'messages_replaced', messages: [...this.ctx.messages] });
+    } else {
+      this.emit({ kind: 'message_appended', message });
+    }
   }
 
   /**

@@ -104,6 +104,11 @@ const _SpecsView = lazy(() =>
 const TechStackView = lazy(() =>
   import('./components/TechStackView').then((m) => ({ default: m.TechStackView })),
 );
+const DeadCodeScanPanel = lazy(() =>
+  import('./components/DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({
+    default: m.DeadCodeScanPanel,
+  })),
+);
 const TerminalPanel = lazy(() =>
   import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })),
 );
@@ -439,6 +444,7 @@ function AppInner() {
   const isLoading = useChatStore((s) => s.isLoading);
   const iteration = useSessionStore((s) => s.iteration);
   const projectName = useSessionStore((s) => s.projectName);
+  const projectRoot = useSessionStore((s) => s.projectRoot);
   const sessionTitle = useSessionStore((s) => s.session?.title);
   const sessionId = useSessionStore((s) => s.session?.id);
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
@@ -832,6 +838,17 @@ function AppInner() {
             <Suspense fallback={<PanelSuspense label="Loading TechStack…" />}>
               <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
                 <TechStackView />
+              </div>
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {/* ── Dead-Code Scan — unreferenced symbol detection ── */}
+        {currentView === 'deadcode' && (
+          <ErrorBoundary level="panel" name="DeadCode">
+            <Suspense fallback={<PanelSuspense label="Loading Dead-Code Scan…" />}>
+              <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+                <DeadCodeScanPanel projectRoot={projectRoot} />
               </div>
             </Suspense>
           </ErrorBoundary>

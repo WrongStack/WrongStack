@@ -1,103 +1,42 @@
-import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import type { EventBus } from '../kernel/events.js';
-import { buildChildEnv } from '../utils/child-env.js';
 import { toErrorMessage } from '../utils/error.js';
+import {
+  collectStats,
+  defaultRun,
+  identityArgs,
+  makeSlug,
+  parseConflictPaths,
+} from './worktree-git.js';
+import {
+  cleanupAllManaged,
+  cleanupStale,
+  listManaged,
+  type ManagedOpsContext,
+  removeOne,
+} from './worktree-managed-ops.js';
+import type {
+  AllocateOpts,
+  MergeOpts,
+  MergeResult,
+  RunResult,
+  WorktreeHandle,
+  WorktreeManagerOptions,
+  WorktreeStatus,
+} from './worktree-types.js';
 
-/**
- * Lifecycle of a single worktree handle.
- *
- *   allocating → active → committing → merging → merged
- *                                            └─→ needs-review (conflict, kept)
- *   (any)      → failed
- */
-export type WorktreeStatus =
-  | 'allocating'
-  | 'active'
-  | 'committing'
-  | 'merging'
-  | 'merged'
-  | 'needs-review'
-  | 'failed';
-
-export interface WorktreeHandle {
-  /** Stable id (== slug). Used as the event `handleId`. */
-  id: string;
-  /** Caller-supplied owner (a phase id in Goal). */
-  ownerId: string;
-  /** Human label for the owner (phase name). */
-  ownerLabel: string;
-  slug: string;
-  /** Absolute path to the worktree checkout. */
-  dir: string;
-  /** Branch checked out in the worktree (`wstack/ap/<slug>`). */
-  branch: string;
-  /** Branch the worktree was forked from and merges back into. */
-  baseBranch: string;
-  status: WorktreeStatus;
-  createdAt: number;
-  updatedAt: number;
-  /** Diff stats from the last commit. */
-  insertions: number;
-  deletions: number;
-  files: number;
-  sha?: string | undefined;
-  lastError?: string | undefined;
-  conflictFiles?: string[] | undefined;
-}
-
-export interface AllocateOpts {
-  /** Friendly basis for the slug/branch (e.g. the phase name). */
-  slugHint?: string | undefined;
-  ownerLabel?: string | undefined;
-  /** Override the detected base branch. */
-  baseBranch?: string | undefined;
-}
-
-export interface MergeOpts {
-  squash?: boolean | undefined;
-  message?: string | undefined;
-  /**
-   * Optional conflict resolver. Invoked when the squash-merge conflicts, with
-   * the conflicted paths and the base working tree (`cwd`). It must resolve the
-   * conflict markers in place and return `true` when done. If it returns `true`
-   * and no conflict markers remain, the merge is committed and `merge()` returns
-   * `{ ok: true, resolved: true }`. Otherwise the merge is aborted (hard reset)
-   * and the handle is parked `needs-review` — exactly as if no resolver were
-   * provided, so the base tree is never left dirty.
-   */
-  resolve?: (info: { conflictFiles: string[]; cwd: string }) => Promise<boolean>;
-}
-
-export interface MergeResult {
-  ok: boolean;
-  conflict?: boolean | undefined;
-  conflictFiles?: string[] | undefined;
-  stderr?: string | undefined;
-  /** True when an initial conflict was successfully resolved by `opts.resolve`. */
-  resolved?: boolean | undefined;
-}
-
-export interface RunResult {
-  code: number;
-  stdout: string;
-  stderr: string;
-}
-
-export interface WorktreeManagerOptions {
-  projectRoot: string;
-  events?: EventBus | undefined;
-  sessionId?: string | (() => string | undefined) | undefined;
-  gitBin?: string | undefined;
-  /**
-   * Test seam. When provided, replaces the real `git` spawn so the manager's
-   * sequencing/arg vectors can be asserted without touching a repo.
-   */
-  run?: (args: string[], cwd: string) => Promise<RunResult>;
-}
-
-const MAX_SLUG = 40;
+// Re-exported so `worktree-manager.js` stays the import site for consumers.
+export type {
+  AllocateOpts,
+  MergeOpts,
+  MergeResult,
+  RunResult,
+  WorktreeHandle,
+  WorktreeManagerOptions,
+  WorktreeStatus,
+} from './worktree-types.js';
+export { assertSafePath, parseConflictPaths } from './worktree-git.js';
 
 /**
  * Owns the git-worktree lifecycle for isolated, parallel work units. Shells out
@@ -344,51 +283,7 @@ export class WorktreeManager {
    * Returns the number of worktrees removed. Never throws — best-effort cleanup.
    */
   async cleanupAllManaged(): Promise<{ removed: number }> {
-    const root = resolve(this.worktreesRoot());
-    let removed = 0;
-    try {
-      const listed = await this.runGit(['worktree', 'list', '--porcelain'], this.projectRoot);
-      // Porcelain emits a `worktree <abs-path>` line per checkout (blank-line
-      // separated records). Match the ones under our worktrees root.
-      for (const line of listed.stdout.split('\n')) {
-        const m = line.match(/^worktree\s+(.+?)\s*$/);
-        if (!m?.[1]) continue;
-        const dir = resolve(m[1]);
-        if (dir !== root && (dir === root || dir.startsWith(root + sep))) {
-          const rm = await this.runGit(['worktree', 'remove', '--force', dir], this.projectRoot);
-          if (rm.code === 0) removed++;
-        }
-      }
-    } catch {
-      // best-effort
-    }
-    // Delete every wstack/ap/* branch (covers branches whose worktree was already
-    // gone, e.g. a merged task whose checkout was released but branch lingered).
-    try {
-      const branches = await this.runGit(
-        ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
-        this.projectRoot,
-      );
-      for (const b of branches.stdout
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean)) {
-        await this.runGit(['branch', '-D', b], this.projectRoot);
-      }
-    } catch {
-      // best-effort
-    }
-    await this.runGit(['worktree', 'prune'], this.projectRoot).catch(() => undefined);
-    // Drop any in-memory handles too, so a still-live manager forgets them.
-    this.handles.clear();
-    this.usedSlugs.clear();
-    this.emit('worktree.released', {
-      handleId: 'cleanup-all',
-      ownerId: 'cleanup-all',
-      branch: 'wstack/ap/*',
-      kept: false,
-    });
-    return { removed };
+    return cleanupAllManaged(this.managedOpsContext());
   }
 
   /**
@@ -402,55 +297,7 @@ export class WorktreeManager {
     worktrees: Array<{ dir: string; branch?: string | undefined }>;
     branches: string[];
   }> {
-    const root = resolve(this.worktreesRoot());
-    const worktrees: Array<{ dir: string; branch?: string | undefined }> = [];
-    try {
-      const listed = await this.runGit(['worktree', 'list', '--porcelain'], this.projectRoot);
-      // Porcelain emits blank-line-separated records: `worktree <dir>` then
-      // optional `HEAD <sha>` / `branch refs/heads/<name>` lines.
-      let curDir: string | null = null;
-      let curBranch: string | undefined;
-      const flush = (): void => {
-        if (curDir) {
-          const d = resolve(curDir);
-          if (d !== root && d.startsWith(root + sep)) {
-            worktrees.push({ dir: curDir, branch: curBranch });
-          }
-        }
-        curDir = null;
-        curBranch = undefined;
-      };
-      for (const line of listed.stdout.split('\n')) {
-        if (line.startsWith('worktree ')) {
-          flush();
-          curDir = line.slice('worktree '.length).trim();
-        } else if (line.startsWith('branch ')) {
-          curBranch = line
-            .slice('branch '.length)
-            .trim()
-            .replace(/^refs\/heads\//, '');
-        } else if (line.trim() === '') {
-          flush();
-        }
-      }
-      flush();
-    } catch {
-      // best-effort
-    }
-    let branches: string[] = [];
-    try {
-      const b = await this.runGit(
-        ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
-        this.projectRoot,
-      );
-      branches = b.stdout
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    } catch {
-      // best-effort
-    }
-    return { worktrees, branches };
+    return listManaged(this.managedOpsContext());
   }
 
   /**
@@ -460,30 +307,7 @@ export class WorktreeManager {
    * worktrees root can be removed. Best-effort; never throws.
    */
   async removeOne(dir: string, branch?: string | undefined): Promise<{ removed: boolean }> {
-    const root = resolve(this.worktreesRoot());
-    const abs = resolve(dir);
-    // Refuse anything outside the managed worktrees root (never the main checkout).
-    if (abs === root || !abs.startsWith(root + sep)) {
-      return { removed: false };
-    }
-    let removed = false;
-    try {
-      const rm = await this.runGit(['worktree', 'remove', '--force', abs], this.projectRoot);
-      removed = rm.code === 0;
-    } catch {
-      // best-effort
-    }
-    // Defense-in-depth: never let a branch that could be parsed as a git flag
-    // through (a leading `-`). `branch -D --` terminates option parsing.
-    if (branch && !branch.startsWith('-')) {
-      await this.runGit(['branch', '-D', '--', branch], this.projectRoot).catch(() => undefined);
-    }
-    await this.runGit(['worktree', 'prune'], this.projectRoot).catch(() => undefined);
-    // Drop any in-memory handle pointing at this dir.
-    for (const [ownerId, h] of [...this.handles]) {
-      if (resolve(h.dir) === abs) this.handles.delete(ownerId);
-    }
-    return { removed };
+    return removeOne(this.managedOpsContext(), dir, branch);
   }
 
   /**
@@ -597,47 +421,7 @@ export class WorktreeManager {
    * Returns the number of stale worktrees removed (0 = clean).
    */
   async cleanupStale(): Promise<{ removed: number; detected: number }> {
-    const root = resolve(this.worktreesRoot());
-    let detected = 0;
-    try {
-      const listed = await this.runGit(['worktree', 'list', '--porcelain'], this.projectRoot);
-      for (const line of listed.stdout.split('\n')) {
-        const m = line.match(/^worktree\s+(.+?)\s*$/);
-        if (!m?.[1]) continue;
-        const dir = resolve(m[1]);
-        if (dir !== root && (dir === root || dir.startsWith(root + sep))) {
-          detected++;
-        }
-      }
-    } catch {
-      // git not available or not a repo — nothing to clean
-      return { removed: 0, detected: 0 };
-    }
-    // Also catch dangling `wstack/ap/*` branches whose worktree checkout is
-    // already gone (e.g. a crash between `worktree remove` and `branch -D`, or a
-    // merged task whose checkout was released but the branch lingered). These
-    // are orphans too — without this the worktree-dir-only probe would report
-    // "clean" and the branch would accumulate across runs.
-    if (detected === 0) {
-      try {
-        const branches = await this.runGit(
-          ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
-          this.projectRoot,
-        );
-        detected += branches.stdout
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean).length;
-      } catch {
-        // best-effort
-      }
-    }
-    if (detected === 0) {
-      return { removed: 0, detected: 0 };
-    }
-    // Stale worktrees / branches found — delegate to the full sweep.
-    const { removed } = await this.cleanupAllManaged();
-    return { removed, detected };
+    return cleanupStale(this.managedOpsContext());
   }
 
   /**
@@ -804,57 +588,17 @@ export class WorktreeManager {
   }
 
   private makeSlug(hint: string): string {
-    let base = hint
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^[-.]+/, '')
-      .replace(/[-.]+$/, '')
-      .slice(0, MAX_SLUG)
-      .replace(/[-.]+$/, '');
-    if (!base) base = 'wt';
-    let slug = `${base}-${crypto.randomUUID().slice(0, 6)}`;
-    while (this.usedSlugs.has(slug)) slug = `${base}-${crypto.randomUUID().slice(0, 6)}`;
-    this.usedSlugs.add(slug);
-    return slug;
+    return makeSlug(hint, this.usedSlugs);
   }
 
   private async collectStats(
     dir: string,
   ): Promise<{ insertions: number; deletions: number; files: number; sha: string }> {
-    const sha = (await this.runGit(['rev-parse', 'HEAD'], dir)).stdout.trim();
-    const numstat = await this.runGit(['show', '--numstat', '--format=', 'HEAD'], dir);
-    let insertions = 0;
-    let deletions = 0;
-    let files = 0;
-    for (const line of numstat.stdout.split('\n')) {
-      const m = line.trim().match(/^(\d+|-)\t(\d+|-)\t(.+)$/);
-      if (!m) continue;
-      files++;
-      if (m[1] !== '-') insertions += Number(m[1]);
-      if (m[2] !== '-') deletions += Number(m[2]);
-    }
-    return { insertions, deletions, files, sha };
+    return collectStats(this.runGit, dir);
   }
 
-  /**
-   * `git -c user.*` fallback so commits succeed on machines and CI runners
-   * that have no global git identity configured. Returns `[]` when both
-   * `user.name` and `user.email` are already set (the common case), so a real
-   * user's identity is never overridden. The worktree branch commits are
-   * squashed away on merge, so the fallback identity never reaches the base
-   * branch history.
-   */
   private async identityArgs(cwd: string): Promise<string[]> {
-    const name = (await this.runGit(['config', 'user.name'], cwd)).stdout.trim();
-    const email = (await this.runGit(['config', 'user.email'], cwd)).stdout.trim();
-    if (name && email) return [];
-    return [
-      '-c',
-      `user.name=${name || 'Goal'}`,
-      '-c',
-      `user.email=${email || 'goal@agent.local'}`,
-    ];
+    return identityArgs(this.runGit, cwd);
   }
 
   private async unmergedFiles(): Promise<string[]> {
@@ -919,53 +663,18 @@ export class WorktreeManager {
   }
 
   private defaultRun(args: string[], cwd: string): Promise<RunResult> {
-    return new Promise((res) => {
-      let stdout = '';
-      let stderr = '';
-      // Bound the captured output — a merge/status against a huge worktree
-      // can emit MBs that nothing reads in full (parseConflictPaths only
-      // scans for CONFLICT lines). 1 MB matches grep.ts's buffer cap.
-      const MAX_GIT_OUTPUT = 1_000_000;
-      const child = spawn(this.gitBin, args, {
-        cwd,
-        env: buildChildEnv(),
-        stdio: ['ignore', 'pipe', 'pipe'],
-        signal: AbortSignal.timeout(30_000),
-        windowsHide: true,
-      });
-      child.stdout?.on('data', (c: Buffer) => {
-        if (stdout.length < MAX_GIT_OUTPUT) stdout += c.toString();
-      });
-      child.stderr?.on('data', (c: Buffer) => {
-        if (stderr.length < MAX_GIT_OUTPUT) stderr += c.toString();
-      });
-      child.on('error', (err) => res({ code: 1, stdout, stderr: err.message }));
-      child.on('close', (code) => res({ code: code ?? 1, stdout, stderr }));
-    });
+    return defaultRun(this.gitBin, args, cwd);
   }
-}
 
-/**
- * Extract conflicted paths from git merge output. Git prints one
- * `CONFLICT (<kind>): Merge conflict in <path>` line per conflicted file to
- * stdout — a portable signal that doesn't depend on the post-merge index
- * state (which `git diff --diff-filter=U` can report as empty on some runners
- * after a `--squash` conflict).
- */
-export function parseConflictPaths(output: string): string[] {
-  const paths = new Set<string>();
-  for (const line of output.split('\n')) {
-    const m = line.match(/^CONFLICT \([^)]*\): Merge conflict in (.+?)\s*$/);
-    if (m?.[1]) paths.add(m[1]);
-  }
-  return [...paths];
-}
-
-/** Throw if `dir` resolves outside `projectRoot`. */
-export function assertSafePath(dir: string, projectRoot: string): void {
-  const root = resolve(projectRoot);
-  const abs = resolve(dir);
-  if (abs !== root && !abs.startsWith(root + sep)) {
-    throw new Error(`worktree path escapes project root: ${dir}`);
+  /** Bundle of manager state the handle-free managed-artifact ops operate on. */
+  private managedOpsContext(): ManagedOpsContext {
+    return {
+      runGit: this.runGit,
+      projectRoot: this.projectRoot,
+      worktreesRoot: this.worktreesRoot(),
+      handles: this.handles,
+      usedSlugs: this.usedSlugs,
+      emit: (event, payload) => this.emit(event, payload),
+    };
   }
 }

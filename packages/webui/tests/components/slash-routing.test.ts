@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     selectActivity: vi.fn(),
     setCurrentViewUI: vi.fn(),
     setTerminalOpen: vi.fn(),
+    setPromptLibraryOpen: vi.fn(),
   };
 
   // Shared factory used by both @/stores and @/stores/ui-store mocks so
@@ -38,6 +39,7 @@ const mocks = vi.hoisted(() => {
     selectActivity: fns.selectActivity,
     setCurrentView: fns.setCurrentViewUI,
     setTerminalOpen: fns.setTerminalOpen,
+    setPromptLibraryOpen: fns.setPromptLibraryOpen,
   });
 
   return { ...fns, createMockUIStore };
@@ -559,5 +561,371 @@ describe('runChatSlashCommand — case insensitivity', () => {
     const opts = makeOptions({ raw: '/Tools' });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.ws.listTools).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Coverage completion pass (2026-07-29) ───────────────────────────────────
+// The blocks below close the branches `need-tests.md` still listed as
+// uncovered: /brain, /autonomy, /goal, /working-dir, /todos, /f<N> panel
+// dispatch, and the small view-routing commands.
+
+describe('runChatSlashCommand — /brain', () => {
+  it('requests status with no sub-command', () => {
+    const opts = makeOptions({ raw: '/brain' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'brain.status' });
+  });
+
+  it('requests status for an unrecognised sub-command', () => {
+    const opts = makeOptions({ raw: '/brain wibble' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'brain.status' });
+  });
+
+  it.each(['off', 'low', 'medium', 'high', 'all'])('sets the risk ceiling to %s', (level) => {
+    const opts = makeOptions({ raw: `/brain risk ${level}` });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'brain.risk', payload: { level } });
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining(`**${level}**`) }),
+    );
+  });
+
+  it('lowercases the level', () => {
+    const opts = makeOptions({ raw: '/brain RISK HIGH' });
+    runChatSlashCommand(opts);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'brain.risk',
+      payload: { level: 'high' },
+    });
+  });
+
+  it('prints usage when the level is missing', () => {
+    const opts = makeOptions({ raw: '/brain risk' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('Usage:') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown level without sending', () => {
+    const opts = makeOptions({ raw: '/brain risk extreme' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('Unknown risk level') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('forwards a question to the Brain', () => {
+    const opts = makeOptions({ raw: '/brain ask should I ship this?' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'brain.ask',
+      payload: { question: 'should I ship this?' },
+    });
+  });
+
+  it('prints usage for an empty question', () => {
+    const opts = makeOptions({ raw: '/brain ask' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('/brain ask') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('runChatSlashCommand — /autonomy', () => {
+  it.each(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'])('switches to %s', (mode) => {
+    const opts = makeOptions({ raw: `/autonomy ${mode}` });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'autonomy.switch',
+      payload: { mode },
+    });
+  });
+
+  it('prints usage with no mode', () => {
+    const opts = makeOptions({ raw: '/autonomy' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('Usage:') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown mode', () => {
+    const opts = makeOptions({ raw: '/autonomy yolo' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('Unknown autonomy mode') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('is case-insensitive about the mode', () => {
+    const opts = makeOptions({ raw: '/autonomy ETERNAL' });
+    runChatSlashCommand(opts);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'autonomy.switch',
+      payload: { mode: 'eternal' },
+    });
+  });
+});
+
+describe('runChatSlashCommand — /goal', () => {
+  it('opens the goal view with no sub-command', () => {
+    const opts = makeOptions({ raw: '/goal' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('starts a goal with a title', () => {
+    const opts = makeOptions({ raw: '/goal start Ship the thing' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'goal.start',
+      payload: { title: 'Ship the thing' },
+    });
+  });
+
+  it('prints usage when start has no title', () => {
+    const opts = makeOptions({ raw: '/goal start' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('/goal start') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['pause', 'goal.pause'],
+    ['resume', 'goal.resume'],
+    ['stop', 'goal.stop'],
+  ])('%s sends %s', (sub, type) => {
+    const opts = makeOptions({ raw: `/goal ${sub}` });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type, payload: {} });
+  });
+
+  it('falls through to the goal view for an unknown sub-command', () => {
+    const opts = makeOptions({ raw: '/goal wibble' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('runChatSlashCommand — /working-dir', () => {
+  it('reports the current directory with no argument', () => {
+    const opts = makeOptions({ raw: '/working-dir' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('/work/proj') }),
+    );
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('sets a new directory', () => {
+    const opts = makeOptions({ raw: '/working-dir /repo/sub' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'working_dir.set',
+      payload: { path: '/repo/sub' },
+    });
+  });
+
+  it('/cwd is an alias', () => {
+    const opts = makeOptions({ raw: '/cwd /other' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'working_dir.set',
+      payload: { path: '/other' },
+    });
+  });
+});
+
+describe('runChatSlashCommand — /todos', () => {
+  it('renders the live todo list with a done counter', () => {
+    const opts = makeOptions({ raw: '/todos' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    const calls = (opts.addMessage as ReturnType<typeof vi.fn>).mock.calls;
+    const content = String(calls[0]?.[0]?.content ?? '');
+    expect(content).toContain('(1/2 done)');
+    expect(content).toContain('[x] Write tests');
+    // An in-progress todo renders its activeForm, not its content.
+    expect(content).toContain('[~] Shipping feature');
+  });
+
+  it('opens the work dock on the todos tab', () => {
+    runChatSlashCommand(makeOptions({ raw: '/todos' }));
+    expect(mocks.setDockSection).toHaveBeenCalledWith('work');
+    expect(mocks.setWorkDashboardTab).toHaveBeenCalledWith('todos');
+  });
+
+  it('clear wipes the list without rendering it', () => {
+    const opts = makeOptions({ raw: '/todos clear' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.clearTodos).toHaveBeenCalled();
+    expect(opts.addMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('runChatSlashCommand — /f panel dispatch', () => {
+  it('lists the panels for a bare /f', () => {
+    const opts = makeOptions({ raw: '/f' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('F-key panels') }),
+    );
+  });
+
+  it('lists the panels for an out-of-range index', () => {
+    const opts = makeOptions({ raw: '/f 99' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('F-key panels') }),
+    );
+  });
+
+  it('accepts the spaced form', () => {
+    const opts = makeOptions({ raw: '/f 2' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(mocks.setFleetMonitorOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('accepts the joined form', () => {
+    const opts = makeOptions({ raw: '/f3' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(mocks.setAgentsMonitorOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('always closes the dock customizer first', () => {
+    runChatSlashCommand(makeOptions({ raw: '/f2' }));
+    expect(mocks.setDockCustomizeOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('/f4 opens the worktree dock', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/f4' }))).toBe(true);
+    expect(mocks.setDockSection).toHaveBeenCalledWith('worktrees');
+  });
+
+  it('/f5 requests the plan and focuses its tab', () => {
+    const opts = makeOptions({ raw: '/f5' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.ws.getPlan).toHaveBeenCalled();
+    expect(mocks.setWorkDashboardTab).toHaveBeenCalledWith('plan');
+  });
+
+  it('/f6 focuses the todos tab without a round-trip', () => {
+    const opts = makeOptions({ raw: '/f6' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(mocks.setWorkDashboardTab).toHaveBeenCalledWith('todos');
+    expect(opts.ws.getPlan).not.toHaveBeenCalled();
+  });
+
+  it('/f7 opens the queue panel', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/f7' }))).toBe(true);
+    expect(mocks.setQueuePanelOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('/f8 opens the process list', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/f8' }))).toBe(true);
+    expect(mocks.setProcessMonitorOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('/f9 requests the goal state', () => {
+    const opts = makeOptions({ raw: '/f9' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'goal.get' });
+    expect(mocks.setDockSection).toHaveBeenCalledWith('goal-state');
+  });
+
+  it('/f10 lists sessions with the documented cap', () => {
+    const opts = makeOptions({ raw: '/f10' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.ws.listSessions).toHaveBeenCalledWith(50);
+  });
+
+  it('/f1 returns to the session panel', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/f1' }))).toBe(true);
+  });
+
+  it('/f11 and /f12 route to the office map and the statusline picker', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/f11' }))).toBe(true);
+    expect(runChatSlashCommand(makeOptions({ raw: '/f12' }))).toBe(true);
+    expect(mocks.setDockCustomizeOpen).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('runChatSlashCommand — misc view routing', () => {
+  it('/collab reveals the collab dock', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/collab' }))).toBe(true);
+    expect(mocks.setDockSection).toHaveBeenCalledWith('collab');
+  });
+
+  it.each(['/worktree', '/worktrees'])('%s reveals the worktrees dock', (raw) => {
+    expect(runChatSlashCommand(makeOptions({ raw }))).toBe(true);
+    expect(mocks.setDockSection).toHaveBeenCalledWith('worktrees');
+  });
+
+  it('/fleet opens the fleet monitor', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/fleet' }))).toBe(true);
+    expect(mocks.setFleetMonitorOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('/agents opens the agents monitor', () => {
+    expect(runChatSlashCommand(makeOptions({ raw: '/agents' }))).toBe(true);
+    expect(mocks.setAgentsMonitorOpen).toHaveBeenCalledWith(true);
+  });
+
+  it.each(['/load', '/resume'])('%s lists recent sessions', (raw) => {
+    const opts = makeOptions({ raw });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.ws.listSessions).toHaveBeenCalledWith(50);
+  });
+
+  it.each(['/interrupt', '/abort', '/stop', '/int'])('%s aborts the run', (raw) => {
+    const opts = makeOptions({ raw });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendAbort).toHaveBeenCalled();
+    expect(opts.setLoading).toHaveBeenCalledWith(false);
+  });
+
+  it('/plan requests the plan and focuses its tab', () => {
+    const opts = makeOptions({ raw: '/plan' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.ws.getPlan).toHaveBeenCalled();
+    expect(mocks.setWorkDashboardTab).toHaveBeenCalledWith('plan');
+  });
+
+  it('/export downloads the transcript and confirms', () => {
+    const opts = makeOptions({ raw: '/export' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('exported') }),
+    );
+  });
+
+  it('/enhance reports the toggled state', () => {
+    const opts = makeOptions({ raw: '/enhance' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.toggleRefineEnabled).toHaveBeenCalled();
+    // The mocked store reports refineEnabled: false, so the toggle enables it.
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Prompt refinement enabled.' }),
+    );
+  });
+
+  it.each(['/suggest', '/next-steps'])('%s asks the agent for follow-ups', (raw) => {
+    const opts = makeOptions({ raw });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendMsg).toHaveBeenCalledWith(expect.stringContaining('Suggest exact prompt'));
+  });
+
+  it.each(['/prompt', '/prompts'])('%s opens the prompt library', (raw) => {
+    expect(runChatSlashCommand(makeOptions({ raw }))).toBe(true);
+    expect(mocks.setPromptLibraryOpen).toHaveBeenCalledWith(true);
   });
 });

@@ -46,6 +46,12 @@ export interface AppViewRuntime {
    * "managed" key hint via `state.historyScrolled`.
    */
   onScrollInfo?: ((info: { scrolled: boolean }) => void) | undefined;
+  /**
+   * Called by ScrollableHistory when the user scrolls to the oldest loaded
+   * entries. The host should load older entries from the history archive and
+   * dispatch `archiveLoaded` to prepend them into the scroll window.
+   */
+  onRequestOlderEntries?: (() => void) | undefined;
   bottomRegionRef: MutableRefObject<DOMElement | null>;
   statusBarWrapRef: MutableRefObject<DOMElement | null>;
   belowStatusBarRef: MutableRefObject<DOMElement | null>;

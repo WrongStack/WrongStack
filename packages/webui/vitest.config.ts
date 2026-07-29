@@ -30,22 +30,94 @@ export default defineConfig({
       reporter: ['text', 'json', 'json-summary', 'html'],
       reportOnFailure: true,
       // Enforce coverage across the whole WebUI source, not just src/lib.
+      //
+      // `all: false` + this include keeps the report to files this run is
+      // actually responsible for. The `@wrongstack/webui-server` alias below
+      // resolves that package from source, so without the explicit exclude
+      // its ~10k statements land in this report at near-0% — they are covered
+      // by `packages/webui-server/tests` under the ROOT vitest config, not
+      // here. That double-count is what made the generated coverage audit
+      // list every webui-server route as "completely untested" when e.g.
+      // ws-utils.ts is at 95% and zip.ts at 99% in its own run.
+      //
+      // This mirrors the root vitest.config.ts, which excludes
+      // `packages/webui/src/**` for exactly the same reason in reverse.
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         '**/*.test.*',
         '**/dist/**',
         'src/env.d.ts',        // ambient type declarations only
+        'src/vite-env.d.ts',   // ambient type declarations only
         'src/main.tsx',        // ReactDOM bootstrap entry — exercised by E2E
         'src/lib/core-browser-shim.ts', // side-effect polyfill shim
         'src/server/entry.ts', // process/bootstrap entry — exercised at runtime
+        // Type-only modules: interfaces and unions with zero runtime code. v8
+        // reports them as 0/0 which the aggregate ratchet then reads as a real
+        // gap. The root vitest.config.ts already excludes `**/types/**` for the
+        // same reason — this mirrors it for the WebUI's own type surface.
+        'src/types/**',
+        'src/types.ts',                 // barrel: `export * from './types/*'`
+        'src/protocol-compatibility.ts', // compile-time AssertNever bridge only
+        // Measured by packages/webui-server/tests under the root config —
+        // see the include comment above.
+        '../webui-server/**',
+        '**/packages/webui-server/**',
       ],
       // Aggregate WebUI ratchet. Per-file 100% is not yet representative of the
       // existing component inventory; keep the measured floor non-regressing.
+      //
+      // Raised 2026-07-29. Two things moved the number:
+      //   1. The exclude list above stopped counting `../webui-server/**` and
+      //      the type-only modules, so the denominator now reflects code this
+      //      suite is actually responsible for (33,824 → 22,949 statements).
+      //   2. ~430 new tests across lib/, stores/, hooks/ and the SetupScreen +
+      //      AgentOfficeView helpers.
+      // Measured: 45.76% statements, 37.73% branches, 39.2% functions,
+      // 46.85% lines. Floors set just under to absorb ordinary jitter.
+      //
+      // Raised again after covering the ws-handler dispatch maps
+      // (files-mailbox, fleet, techstack, misc) and useGlobalKeyboardShortcuts.
+      // Measured: 47.71% statements, 39.89% branches, 40.03% functions,
+      // 48.95% lines.
+      //
+      // Raised once more after finishing the dispatch layer (ws-handlers.ts,
+      // session-handlers provider/delegate/context, chat-handlers tool
+      // lifecycle) and useDesktopBridge.
+      // Measured: 49.84% statements, 41.7% branches, 41.1% functions,
+      // 51.27% lines.
+      //
+      // Raised after the non-component tail (small stores, lib leaf modules,
+      // ChatInput/image-attachments, slash-routing branches).
+      // Measured: 50.61% statements, 42.2% branches, 41.42% functions,
+      // 52.1% lines.
+      //
+      // Raised after ws-client-actions, useWebSocket and the native
+      // paste/drop interception path.
+      // Measured: 51.13% statements, 42.45% branches, 42.61% functions,
+      // 52.63% lines.
+      //
+      // Raised after the ws-handlers dispatch tail (session.start branches,
+      // the inline WS_HANDLERS entries incl. the codemap overlay) and the
+      // fleet/kanban/ui/viz/chat store surfaces.
+      // Measured: 52.46% statements, 44.03% branches, 44.38% functions,
+      // 53.93% lines.
+      //
+      // Raised after the ws-client socket lifecycle (auth cookie, connect
+      // timeout, frame rejection), the useWebSocket delegation surface, and
+      // kanban-cleaner / auto-submit-streak / CommandPalette export-utils.
+      // Measured: 52.95% statements, 44.46% branches, 44.93% functions,
+      // 54.35% lines.
+      //
+      // Raised after the first two rendered-component suites
+      // (SessionWatchPanel, QuickModelSwitcher) — the start of the `.tsx`
+      // render-tree work that is now the bulk of the remainder.
+      // Measured: 53.97% statements, 45.24% branches, 45.83% functions,
+      // 55.38% lines.
       thresholds: {
-        statements: 19,
-        branches: 16,
-        functions: 17,
-        lines: 19,
+        statements: 53,
+        branches: 45,
+        functions: 45,
+        lines: 55,
         perFile: false,
       },
     },

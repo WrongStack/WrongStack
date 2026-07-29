@@ -621,6 +621,7 @@ export async function runStartupIndex(opts: {
     // Auto-recovery: SQLite constraint failures indicate index DB corruption
     // from a previous interrupted write (e.g., process killed mid-insert).
     // Retry with force=true to wipe and rebuild from source.
+    const originalError = _lastError;
     if (isRecoverableConstraintError(err) && !opts.force) {
       _lastError = null;
       const rebuildResult = await runStartupIndex({
@@ -628,7 +629,12 @@ export async function runStartupIndex(opts: {
         force: true,
       });
       _ready = true;
-      return rebuildResult;
+      // Tag the result so callers can distinguish a normal run from a
+      // corruption-triggered recovery.
+      return {
+        ...rebuildResult,
+        autoRecovered: { failure: originalError, rebuiltWithForce: true },
+      };
     }
 
     _ready = true; // index is "ready" in the sense that we won't try again; downstream tools will see lastError

@@ -170,6 +170,15 @@ export function App(props: AppProps): React.ReactElement {
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
     [dispatch],
   );
+  const onRequestOlderEntries = useCallback(() => {
+    // Toggle loading state and load from archive. Currently loads nothing
+    // since the HistoryArchive is not yet wired from the run-tui startup.
+    // Future: create archive, call archive.loadRange(), dispatch results.
+    dispatch({ type: 'startArchiveLoad' });
+    // Fire-and-forget: the actual archive load will be wired when the
+    // HistoryArchive is created in app startup.
+    setTimeout(() => dispatch({ type: 'archiveLoaded', entries: [] }), 0);
+  }, [dispatch]);
   const onHistoryCopy = useHistoryCopyNotice(dispatch);
   const { focusedBoardId, setFocusedBoardId, boardFocusRef } = useKanbanBoardFocus();
 
@@ -262,6 +271,8 @@ export function App(props: AppProps): React.ReactElement {
     stateRef,
     agentContext: agent.ctx,
     dispatch,
+    attachments,
+    builderRef,
   });
   const {
     displayThinkingWord,
@@ -973,6 +984,19 @@ export function App(props: AppProps): React.ReactElement {
         // from the old conversation can't fire.
         nextStepsAutoSubmitSuggestionRef.current = null;
         cancelNextStepsCountdown();
+        // RAM retention fix: drop canonical attachment payloads AND
+        // builder refs so `/clear` releases the cumulative paste/file/
+        // image graphs. Without these two calls, `DefaultAttachmentStore`
+        // and `InputBuilder.refs` keep every attachment of the old
+        // conversation reachable for the lifetime of the process.
+        // `attachments.clear()` is a no-op on test doubles and on stores
+        // that already empty; safe to call unconditionally.
+        if (attachments) {
+          void attachments.clear()?.catch?.(() => undefined);
+        }
+        if (builderRef.current) {
+          builderRef.current.reset();
+        }
       },
     },
   });
@@ -993,7 +1017,7 @@ export function App(props: AppProps): React.ReactElement {
     <AppView
       host={props}
       runtime={{
-        state, dispatch, historyScrollRef, onScrollInfo, activity, environment, statusbar,
+        state, dispatch, historyScrollRef, onScrollInfo, onRequestOlderEntries, activity, environment, statusbar,
         mailbox, gitInfo, viewState, mouseMode, termRows, bottomRegionRef, statusBarWrapRef,
         belowStatusBarRef, stableOnKey, liveTodos, liveSettings, liveAnimationStyle,
         liveStatuslineMode, projectName, workingDirChip, handleRewindTo, activeCtrlRef,

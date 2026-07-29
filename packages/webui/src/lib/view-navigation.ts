@@ -18,6 +18,7 @@ export type MainView =
   | 'roster'
   | 'codemap'
   | 'techstack'
+  | 'deadcode'
   | 'chronicle';
 
 export type AppView = PanelMainView | MainView | 'sessions' | 'setup' | 'debug' | 'refresh-debug' | 'analytics';

@@ -199,12 +199,35 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
       }
       append(JSON.stringify({ pid: process.pid, ...s, userTimings, ...extras }));
     }
+
+    // (NODE_ENV sentinel moved out of the tick body — see note below the
+    // tick for why it lives in `startHeapWatchdog`'s startup block.)
   };
 
   const timer = setInterval(tick, sampleEveryMs);
   timer.unref?.();
+
   // Immediate first sample so a session that OOMs early still leaves a trace.
   tick();
+
+  // NODE_ENV sentinel. Any value other than "production" means React/Ink
+  // may have loaded the dev reconciler, which historically accumulated
+  // PerformanceMeasure entries on every render. Surface it once on the
+  // first watchdog startup so a bypass or stale `dist` shows up in
+  // heap.jsonl. Written OUTSIDE the `tick()` body so every line emitted
+  // by the watchdog remains HeapSample-shaped — position-0 consumers
+  // (tests, log scrapers) never see a `{ warn: 'dev_reconciler' }` line
+  // where they expect a HeapSample.
+  if (process.env['NODE_ENV'] !== 'production') {
+    append(
+      JSON.stringify({
+        pid: process.pid,
+        warn: 'dev_reconciler',
+        nodeEnv: process.env['NODE_ENV'] ?? '',
+        ts: new Date().toISOString(),
+      }),
+    );
+  }
 
   return async () => {
     stopped = true;

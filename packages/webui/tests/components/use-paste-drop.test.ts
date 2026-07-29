@@ -357,3 +357,307 @@ describe('usePasteDrop', () => {
     });
   });
 });
+
+
+// ── Coverage completion pass (2026-07-29) ───────────────────────────────────
+// The blocks above use a fully stubbed textarea whose addEventListener is a
+// spy, so the native `paste` interception and the undo-fence callback never
+// ran. These use a real element and drive the real listener.
+
+import { autoFenceCode } from '../../src/components/ChatInput/code-detect.js';
+import { processImageFile } from '../../src/components/ChatInput/image-attachments.js';
+import { toast } from '../../src/components/Toaster.js';
+
+function realTextarea(): HTMLTextAreaElement {
+  const ta = document.createElement('textarea');
+  document.body.appendChild(ta);
+  return ta;
+}
+
+function liveOptions(input = '') {
+  const textarea = realTextarea();
+  const textareaRef = { current: textarea } as React.RefObject<HTMLTextAreaElement | null>;
+  const setInput = vi.fn();
+  return {
+    textarea,
+    setInput,
+    options: {
+      input,
+      textareaRef,
+      setInput,
+      errorText: {
+        tooManyImages: (max: number) => `too many (${max})`,
+        imageProcessFailed: (name: string) => `failed ${name}`,
+        imageTooLarge: (name: string) => `too large ${name}`,
+      },
+    },
+  };
+}
+
+function imageFile(name = 'shot.png', type = 'image/png'): File {
+  return new File(['x'], name, { type });
+}
+
+/** A ClipboardEvent carrying the given items. */
+function pasteEventWith(items: Array<{ type: string; file: File | null }>): Event {
+  const event = new Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', {
+    value: {
+      items: items.map((i) => ({ type: i.type, getAsFile: () => i.file })),
+    },
+  });
+  return event;
+}
+
+describe('usePasteDrop — native clipboard interception', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    vi.clearAllMocks();
+  });
+
+  it('attaches a pasted image and swallows the event', async () => {
+    const { textarea, options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    const event = pasteEventWith([{ type: 'image/png', file: imageFile() }]);
+    await act(async () => {
+      textarea.dispatchEvent(event);
+    });
+
+    expect(event.defaultPrevented).toBe(true);
+    await waitFor(() => expect(result.current.pendingImages).toHaveLength(1));
+  });
+
+  it('ignores a paste with no clipboardData', async () => {
+    const { textarea, options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', { value: null });
+    await act(async () => {
+      textarea.dispatchEvent(event);
+    });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(result.current.pendingImages).toHaveLength(0);
+  });
+
+  it('ignores a text-only paste', async () => {
+    const { textarea, options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    const event = pasteEventWith([{ type: 'text/plain', file: null }]);
+    await act(async () => {
+      textarea.dispatchEvent(event);
+    });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(result.current.pendingImages).toHaveLength(0);
+  });
+
+  it('skips an image item whose blob is unavailable', async () => {
+    const { textarea, options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    const event = pasteEventWith([{ type: 'image/png', file: null }]);
+    await act(async () => {
+      textarea.dispatchEvent(event);
+    });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(result.current.pendingImages).toHaveLength(0);
+  });
+
+  it('attaches every image in a multi-image paste', async () => {
+    const { textarea, options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      textarea.dispatchEvent(
+        pasteEventWith([
+          { type: 'image/png', file: imageFile('a.png') },
+          { type: 'image/jpeg', file: imageFile('b.jpg', 'image/jpeg') },
+        ]),
+      );
+    });
+
+    await waitFor(() => expect(result.current.pendingImages).toHaveLength(2));
+  });
+
+  it('detaches the listener on unmount', async () => {
+    const { textarea, options } = liveOptions();
+    const { result, unmount } = renderHook(() => usePasteDrop(options));
+    unmount();
+
+    await act(async () => {
+      textarea.dispatchEvent(pasteEventWith([{ type: 'image/png', file: imageFile() }]));
+    });
+    expect(result.current.pendingImages).toHaveLength(0);
+  });
+
+  it('is inert when the textarea ref is not attached', () => {
+    const setInput = vi.fn();
+    const options = {
+      input: '',
+      textareaRef: { current: null } as React.RefObject<HTMLTextAreaElement | null>,
+      setInput,
+      errorText: {
+        tooManyImages: (max: number) => `too many (${max})`,
+        imageProcessFailed: (name: string) => `failed ${name}`,
+        imageTooLarge: (name: string) => `too large ${name}`,
+      },
+    };
+    expect(() => renderHook(() => usePasteDrop(options))).not.toThrow();
+  });
+});
+
+describe('usePasteDrop — attachment cap and failures', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    vi.clearAllMocks();
+  });
+
+  it('stops at the per-message cap and reports it once', async () => {
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      await result.current.addImageFiles(
+        Array.from({ length: 10 }, (_, i) => imageFile(`f${i}.png`)),
+      );
+    });
+
+    expect(result.current.pendingImages).toHaveLength(8);
+    expect(toast.error).toHaveBeenCalledWith('too many (8)');
+    // It returns on the first over-cap file rather than toasting per file.
+    expect((toast.error as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+  });
+
+  it('reports an over-large image with the dedicated message', async () => {
+    const { ImageAttachmentError } = await import(
+      '../../src/components/ChatInput/image-attachments.js'
+    );
+    (processImageFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new (ImageAttachmentError as never as new (m: string, r: string) => Error)(
+        'nope',
+        'too_large',
+      ),
+    );
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      await result.current.addImageFiles([imageFile('huge.png')]);
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('too large huge.png');
+  });
+
+  it('reports any other failure as a decode problem', async () => {
+    (processImageFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      await result.current.addImageFiles([imageFile('broken.png')]);
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('failed broken.png');
+  });
+
+  it('substitutes a placeholder name for an unnamed file', async () => {
+    (processImageFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      await result.current.addImageFiles([new File(['x'], '', { type: 'image/png' })]);
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('failed image');
+  });
+
+  it('keeps processing later files after one fails', async () => {
+    (processImageFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      await result.current.addImageFiles([imageFile('bad.png'), imageFile('good.png')]);
+    });
+
+    expect(result.current.pendingImages).toHaveLength(1);
+  });
+
+  it('removeImage drops just that attachment', async () => {
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    await act(async () => {
+      await result.current.addImageFiles([imageFile('a.png'), imageFile('b.png')]);
+    });
+    const first = result.current.pendingImages[0]!.id;
+
+    act(() => result.current.removeImage(first));
+    expect(result.current.pendingImages).toHaveLength(1);
+    expect(result.current.pendingImagesRef.current).toHaveLength(1);
+  });
+
+  it('removeImage is a no-op for an unknown id', async () => {
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+    await act(async () => {
+      await result.current.addImageFiles([imageFile('a.png')]);
+    });
+    act(() => result.current.removeImage('nope'));
+    expect(result.current.pendingImages).toHaveLength(1);
+  });
+
+  it('clearPendingImages empties both the state and the submit-time ref', async () => {
+    const { options } = liveOptions();
+    const { result } = renderHook(() => usePasteDrop(options));
+    await act(async () => {
+      await result.current.addImageFiles([imageFile('a.png')]);
+    });
+
+    act(() => result.current.clearPendingImages());
+    expect(result.current.pendingImages).toHaveLength(0);
+    expect(result.current.pendingImagesRef.current).toHaveLength(0);
+  });
+});
+
+describe('usePasteDrop — undo-fence', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    vi.clearAllMocks();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
+  });
+
+  it('restores the raw text and clears the hint', () => {
+    (autoFenceCode as ReturnType<typeof vi.fn>).mockReturnValue({
+      fenced: '```ts\nconst a = 1;\n```',
+      lang: 'ts',
+    });
+    const { options, setInput } = liveOptions('');
+    const { result } = renderHook(() => usePasteDrop(options));
+
+    const event = {
+      clipboardData: { getData: () => 'const a = 1;' },
+      preventDefault: vi.fn(),
+    } as never as React.ClipboardEvent<HTMLTextAreaElement>;
+
+    act(() => result.current.onTextPaste(event));
+    expect(result.current.pasteHint?.lang).toBe('ts');
+
+    const undo = result.current.pasteHint?.undoFence;
+    expect(undo).toBeTypeOf('function');
+
+    act(() => undo?.());
+    // The last setInput call restores the unfenced text.
+    expect(setInput).toHaveBeenLastCalledWith('const a = 1;');
+    expect(result.current.pasteHint).toBeNull();
+  });
+});

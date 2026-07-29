@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Context } from '../../src/core/context.js';
 import { ConversationState, wrapAsState } from '../../src/core/conversation-state.js';
 import { extractRunEnv } from '../../src/core/run-env.js';
@@ -54,9 +54,9 @@ describe('extractRunEnv', () => {
     }).toThrow();
   });
 
-  it('view reflects mutations to the underlying Context references', () => {
-    // The view holds references, not copies. Treat this as documented
-    // behavior — callers who need a stable snapshot should clone.
+  it('snapshots primitive fields at extract time', () => {
+    // The view holds references to mutable objects (e.g. tools array),
+    // but primitive fields (model, cwd) are copied at extract time.
     const ctx = mkContext();
     const env = extractRunEnv(ctx);
     ctx.model = 'changed-after-extract';
@@ -284,5 +284,72 @@ describe('ConversationState — write API and onChange', () => {
     const b = wrapAsState(ctx);
     a.appendMessage(userMessage('via-class'));
     expect(b.messages).toEqual(a.messages);
+  });
+
+  describe('MAX_MESSAGES cap', () => {
+    let ORIG_MAX: number;
+
+    beforeEach(() => {
+      ORIG_MAX = Context.MAX_MESSAGES;
+      (Context as { MAX_MESSAGES: number }).MAX_MESSAGES = 3;
+    });
+
+    afterEach(() => {
+      // Safety net: restore unconditionally to prevent static-state leakage
+      // across tests if a prior test crashes or bails.
+      (Context as { MAX_MESSAGES: number }).MAX_MESSAGES = ORIG_MAX;
+    });
+
+    it('drops oldest messages when cap is exceeded', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      state.appendMessage(userMessage('msg-1'));
+      state.appendMessage(userMessage('msg-2'));
+      state.appendMessage(userMessage('msg-3'));
+      // At 3 — exactly at the cap, no truncation.
+      expect(ctx.messages.map((m) => (m.content as TextBlock[])[0]?.text)).toEqual([
+        'msg-1',
+        'msg-2',
+        'msg-3',
+      ]);
+
+      // One more pushes the oldest out.
+      state.appendMessage(userMessage('msg-4'));
+      expect(ctx.messages.map((m) => (m.content as TextBlock[])[0]?.text)).toEqual([
+        'msg-2',
+        'msg-3',
+        'msg-4',
+      ]);
+    });
+
+    it('sets toolAdjacencyDirty on truncation', () => {
+      const ctx = mkContext();
+      expect(ctx.toolAdjacencyDirty).toBe(false);
+      const state = new ConversationState(ctx);
+      const cb = vi.fn();
+      state.onChange(cb);
+      for (let i = 0; i < 5; i++) {
+        state.appendMessage(userMessage(`msg-${i}`));
+      }
+      // Cap of 3 means 2 were dropped → toolAdjacencyDirty must be true.
+      expect(ctx.toolAdjacencyDirty).toBe(true);
+      // Must emit messages_replaced so downstream consumers (journal replay,
+      // compaction) see the correct truncation event kind.
+      // The first N calls are message_appended (messages 0..2 fit within cap);
+      // the truncation call fires messages_replaced. The callback receives
+      // (change, state) — assert only the first argument.
+      expect(cb).toHaveBeenCalled();
+      expect(cb).toHaveBeenLastCalledWith(
+        expect.objectContaining({ kind: 'messages_replaced' }),
+        expect.anything(),
+      );
+    });
+
+    it('does not set toolAdjacencyDirty when no truncation occurs', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      state.appendMessage(userMessage('only-one'));
+      expect(ctx.toolAdjacencyDirty).toBe(false);
+    });
   });
 });

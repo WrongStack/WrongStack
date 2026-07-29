@@ -333,7 +333,7 @@ export function StatusBar({
         : `agent ${subagentCount}`
       : '',
     processCount != null && processCount > 0 && showChip('processes')
-      ? `${STATUSLINE_ICONS.processes}${processCount}`
+      ? `${STATUSLINE_ICONS.processes} ${processCount}`
       : '',
   ].filter(Boolean);
 
@@ -553,6 +553,7 @@ export function StatusBar({
               {hasCost ? (
                 <Text color={isNoColor ? undefined : theme.warn}>
                   {STATUSLINE_ICONS.cost}
+                  {' '}
                   {cost.total.toFixed(4)}
                 </Text>
               ) : null}
@@ -562,6 +563,7 @@ export function StatusBar({
               {hasCache ? (
                 <Text dimColor={!isNoColor}>
                   {STATUSLINE_ICONS.cache}
+                  {' '}
                   {(cache.hitRatio * 100).toFixed(0)}%
                 </Text>
               ) : null}
@@ -611,6 +613,7 @@ export function StatusBar({
     processCount != null && processCount > 0 && showChip('processes') ? (
       <Text color={isNoColor ? undefined : theme.error}>
         {STATUSLINE_ICONS.processes}
+        {' '}
         {processCount} {processCount === 1 ? 'process' : 'processes'}
       </Text>
     ) : null,
@@ -720,7 +723,7 @@ export function StatusBar({
             {agent.extensions && agent.extensions > 0 ? (
               <Text
                 color={isNoColor ? undefined : theme.warn}
-              >{` · ${glyphs.process}×${agent.extensions}`}</Text>
+              >{` · ${glyphs.process} ×${agent.extensions}`}</Text>
             ) : null}
           </Text>
         ))
@@ -883,19 +886,19 @@ export function StatusBar({
                 <Text dimColor={!isNoColor}>todos </Text>
                 {todos.inProgress > 0 ? (
                   <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `?${todos.inProgress}` : `${glyphs.running}${todos.inProgress}`}
+                    {isNoColor ? `?${todos.inProgress}` : `${glyphs.running} ${todos.inProgress}`}
                   </Text>
                 ) : null}
                 {todos.inProgress > 0 && (todos.pending > 0 || todos.completed > 0) ? ' ' : ''}
                 {todos.pending > 0 ? (
                   <Text dimColor={!isNoColor}>
-                    {isNoColor ? `.${todos.pending}` : `${glyphs.pending}${todos.pending}`}
+                    {isNoColor ? `.${todos.pending}` : `${glyphs.pending} ${todos.pending}`}
                   </Text>
                 ) : null}
                 {todos.pending > 0 && todos.completed > 0 ? ' ' : ''}
                 {todos.completed > 0 ? (
                   <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `+${todos.completed}` : `${glyphs.success}${todos.completed}`}
+                    {isNoColor ? `+${todos.completed}` : `${glyphs.success} ${todos.completed}`}
                   </Text>
                 ) : null}
               </Text>
@@ -907,17 +910,17 @@ export function StatusBar({
                 </Text>
                 {plan.inProgress > 0 ? (
                   <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `?${plan.inProgress}` : `${glyphs.running}${plan.inProgress}`}
+                    {isNoColor ? `?${plan.inProgress}` : `${glyphs.running} ${plan.inProgress}`}
                   </Text>
                 ) : null}
                 {plan.inProgress > 0 && (plan.open > 0 || plan.done > 0) ? ' ' : ''}
                 {plan.open > 0 ? (
-                  <Text dimColor={!isNoColor}>{isNoColor ? `.${plan.open}` : `${glyphs.pending}${plan.open}`}</Text>
+                  <Text dimColor={!isNoColor}>{isNoColor ? `.${plan.open}` : `${glyphs.pending} ${plan.open}`}</Text>
                 ) : null}
                 {plan.open > 0 && plan.done > 0 ? ' ' : ''}
                 {plan.done > 0 ? (
                   <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `+${plan.done}` : `${glyphs.success}${plan.done}`}
+                    {isNoColor ? `+${plan.done}` : `${glyphs.success} ${plan.done}`}
                   </Text>
                 ) : null}
                 {plan.scope ? <Text dimColor={!isNoColor}> [{plan.scope}]</Text> : null}
@@ -930,19 +933,19 @@ export function StatusBar({
                 </Text>
                 {tasks!.inProgress > 0 ? (
                   <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `?${tasks!.inProgress}` : `${glyphs.running}${tasks!.inProgress}`}
+                    {isNoColor ? `?${tasks!.inProgress}` : `${glyphs.running} ${tasks!.inProgress}`}
                   </Text>
                 ) : null}
                 {tasks!.inProgress > 0 && (tasks!.pending > 0 || tasks!.blocked > 0) ? ' ' : ''}
                 {tasks!.pending > 0 ? (
                   <Text dimColor={!isNoColor}>
-                    {isNoColor ? `.${tasks!.pending}` : `${glyphs.pending}${tasks!.pending}`}
+                    {isNoColor ? `.${tasks!.pending}` : `${glyphs.pending} ${tasks!.pending}`}
                   </Text>
                 ) : null}
                 {tasks!.pending > 0 && tasks!.blocked > 0 ? ' ' : ''}
                 {tasks!.blocked > 0 ? (
                   <Text color={isNoColor ? undefined : theme.error}>
-                    {isNoColor ? `!${tasks!.blocked}` : `${glyphs.warning}${tasks!.blocked}`}
+                    {isNoColor ? `!${tasks!.blocked}` : `${glyphs.warning} ${tasks!.blocked}`}
                   </Text>
                 ) : null}
                 {(tasks!.pending > 0 || tasks!.blocked > 0) &&
@@ -951,13 +954,13 @@ export function StatusBar({
                   : ''}
                 {tasks!.completed > 0 ? (
                   <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `+${tasks!.completed}` : `${glyphs.success}${tasks!.completed}`}
+                    {isNoColor ? `+${tasks!.completed}` : `${glyphs.success} ${tasks!.completed}`}
                   </Text>
                 ) : null}
                 {tasks!.completed > 0 && tasks!.failed > 0 ? ' ' : ''}
                 {tasks!.failed > 0 ? (
                   <Text color={isNoColor ? undefined : theme.error}>
-                    {isNoColor ? `x${tasks!.failed}` : `${glyphs.failure}${tasks!.failed}`}
+                    {isNoColor ? `x${tasks!.failed}` : `${glyphs.failure} ${tasks!.failed}`}
                   </Text>
                 ) : null}
                 {tasks!.scope ? <Text dimColor={!isNoColor}> [{tasks!.scope}]</Text> : null}
@@ -971,7 +974,7 @@ export function StatusBar({
                   </Text>
                   {fleet.running > 0 ? (
                     <Text color={isNoColor ? undefined : theme.warn}>
-                      {isNoColor ? `>${fleet.running}` : `${glyphs.running}${fleet.running}`}
+                      {isNoColor ? `>${fleet.running}` : `${glyphs.running} ${fleet.running}`}
                     </Text>
                   ) : null}
                   {fleet.running > 0 && (fleet.pending > 0 || fleet.idle > 0 || fleet.completed > 0)
@@ -979,7 +982,7 @@ export function StatusBar({
                     : ''}
                   {fleet.pending > 0 ? (
                     <Text dimColor={!isNoColor}>
-                      {isNoColor ? `.${fleet.pending}` : `${glyphs.pending}${fleet.pending}`}
+                      {isNoColor ? `.${fleet.pending}` : `${glyphs.pending} ${fleet.pending}`}
                     </Text>
                   ) : null}
                   {fleet.pending > 0 && (fleet.idle > 0 || fleet.completed > 0) ? ' ' : ''}
@@ -987,7 +990,7 @@ export function StatusBar({
                   {fleet.idle > 0 && fleet.completed > 0 ? ' ' : ''}
                   {fleet.completed > 0 ? (
                     <Text color={isNoColor ? undefined : theme.success}>
-                      {isNoColor ? `+${fleet.completed}` : `${glyphs.success}${fleet.completed}`}
+                      {isNoColor ? `+${fleet.completed}` : `${glyphs.success} ${fleet.completed}`}
                     </Text>
                   ) : null}
                 </Text>

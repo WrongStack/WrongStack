@@ -168,6 +168,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
         : []),
       ...restoredEntries,
     ],
+    archiveLoading: false,
     historyGen: 0,
     buffer: '',
     cursor: 0,

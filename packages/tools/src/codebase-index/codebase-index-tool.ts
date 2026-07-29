@@ -21,7 +21,13 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
   permission: 'confirm',
   mutating: true,
   capabilities: ['fs.write.outside-project'],
-  timeoutMs: 120_000,
+  // Must comfortably exceed the index watchdog
+  // (DEFAULT_FULL_INDEX_TIMEOUT_MS = 240s in background-indexer.ts) so the
+  // structured IndexTimeoutError reaches the agent instead of a generic
+  // TOOL_TIMEOUT.  The watchdog is armed inside withMutex, so under
+  // contention from a concurrent incremental batch (60s ceiling) the tool
+  // timeout must also cover the mutex queue wait + 240s watchdog + margin.
+  timeoutMs: 305_000,
   inputSchema: {
     type: 'object',
     properties: {

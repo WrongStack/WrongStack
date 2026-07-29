@@ -533,7 +533,7 @@ const MEMORY_STATUS_VALUES = [
   'contradicted',
   'archived',
   'deleted',
-];
+] as const;
 
 interface ParsedMemoryFlags {
   text: string;
@@ -586,7 +586,7 @@ function parseMemoryFlags(tokens: string[]): ParsedMemoryFlags {
     if (value !== undefined) i++;
     switch (name) {
       case 'kind':
-        if (value && MEMORY_KIND_VALUES.includes(value)) out.kind = value;
+        if (value && (MEMORY_KIND_VALUES as readonly string[]).includes(value)) out.kind = value;
         else errors.push(`--kind must be one of: ${MEMORY_KIND_VALUES.join(', ')}.`);
         break;
       case 'scope':
@@ -594,7 +594,7 @@ function parseMemoryFlags(tokens: string[]): ParsedMemoryFlags {
         else errors.push(`--scope must be one of: ${MEMORY_SCOPE_VALUES.join(', ')}.`);
         break;
       case 'status':
-        if (value && MEMORY_STATUS_VALUES.includes(value)) out.status = value;
+        if (value && (MEMORY_STATUS_VALUES as readonly string[]).includes(value)) out.status = value;
         else errors.push(`--status must be one of: ${MEMORY_STATUS_VALUES.join(', ')}.`);
         break;
       case 'tag':
@@ -792,6 +792,7 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
       '  /memory delete <id> [reason]\n' +
       '  /memory graph <id|path|query> — show persisted relations, weights, and why evidence\n' +
       '  /memory forget <query>      — remove entries matching a substring\n' +
+      '  /memory gather [--limit N] [--status s] [--kind k] [--relations] [query] — batch gather memories with optional graph\n' +
       '  /memory project-memory      — legacy: list only project memory\n' +
       '  /memory user-memory         — legacy: list only user memory\n' +
       '  /memory project-agents      — legacy: list only AGENTS.md entries\n' +
@@ -824,6 +825,125 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
             ),
           ].join('\n'),
         };
+      }
+
+      if (sub === 'gather') {
+        const Sage = getSageSurface(store);
+        if (!Sage?.listSagePage) {
+          return { message: '`/memory gather` requires the SAGE page listing backend.' };
+        }
+        // Parse gather-specific flags: --relations, --status, --kind
+        const remaining = tokens.slice(1).join(' ').trim();
+        const remainingTokens = remaining.split(/\s+/);
+        // Token-level check for --relations (no value arg) to avoid substring collisions
+        const includeRelations = remainingTokens.includes('--relations');
+        const statusMatch = remaining.match(/--status\s+(\w+)/);
+        const statusVal = statusMatch?.[1];
+        const kindMatch = remaining.match(/--kind\s+(\w+)/);
+        const kindVal = kindMatch?.[1];
+        const limitMatch = remaining.match(/--limit\s+(\d+)/);
+        const limitVal = limitMatch ? Math.min(MAX_MEMORY_LIMIT, Math.max(1, Number.parseInt(limitMatch[1]!, 10))) : DEFAULT_MEMORY_LIMIT;
+        // Positional query: strip flags — use exact token matching for --relations,
+        // regex for flags that carry a value argument
+        const query = remainingTokens
+          .filter(t => t !== '--relations')
+          .join(' ')
+          .replace(/--status\s+\w+/g, '')
+          .replace(/--kind\s+\w+/g, '')
+          .replace(/--limit\s+\d+/g, '')
+          .trim();
+
+        // Runtime-validate --status against known SageStatus values
+        if (statusVal !== undefined && !(MEMORY_STATUS_VALUES as readonly string[]).includes(statusVal)) {
+          return { message: `Invalid --status "${statusVal}". Valid: ${MEMORY_STATUS_VALUES.join(', ')}` };
+        }
+        if (kindVal !== undefined && !(MEMORY_KIND_VALUES as readonly string[]).includes(kindVal)) {
+          return { message: `Invalid --kind "${kindVal}". Valid: ${MEMORY_KIND_VALUES.join(', ')}` };
+        }
+        const resolvedStatus = statusVal as typeof MEMORY_STATUS_VALUES[number] | undefined;
+
+        try {
+          const page = await Sage.listSagePage({
+            statuses: resolvedStatus ? [resolvedStatus] : ['active'],
+            kind: kindVal,
+            query: query || undefined,
+            limit: limitVal,
+          });
+          if (page.memories.length === 0) {
+            return { message: 'No memories matched the gather criteria.' };
+          }
+          const lines: string[] = [];
+          lines.push('');
+          lines.push(`## 📋 Memory Gather — ${page.total} matched`);
+          if (page.statusCounts && Object.keys(page.statusCounts).length > 0) {
+            const bar = Object.entries(page.statusCounts)
+              .map(([s, n]) => `${s}: ${n}`)
+              .join(' · ');
+            lines.push(`> ${bar}`);
+          }
+          lines.push('');
+
+          // If --relations, attempt graph edges for the returned memories
+          let relationEdges: Array<{ from: string; to: string; relation: string }> = [];
+          if (includeRelations && Sage.graphFor && page.memories.length > 0) {
+            const scanCount = Math.min(page.memories.length, 10);
+            for (let i = 0; i < scanCount; i++) {
+              const mem = page.memories[i]!;
+              try {
+                const edges = await Sage.graphFor(mem.id, 1, 50);
+                for (const edge of edges) {
+                  relationEdges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+                }
+              } catch {
+                // Best-effort
+              }
+            }
+            // Deduplicate
+            const seen = new Set<string>();
+            relationEdges = relationEdges.filter((e) => {
+              const key = `${e.from}|${e.relation}|${e.to}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }
+
+          // Render entries
+          for (const mem of page.memories) {
+            const kindEmoji = KIND_EMOJI[mem.kind as keyof typeof KIND_EMOJI] ?? '•';
+            const textPreview = mem.text.length > 120 ? `${mem.text.slice(0, 118)}…` : mem.text;
+            const tags = mem.tags.length > 0 ? ` 🏷️ ${mem.tags.map((t) => `\`${t}\``).join(' ')}` : '';
+            lines.push(`> ${kindEmoji} **${textPreview}**`);
+            lines.push(`> \`${mem.id}\` · ${mem.kind} · ${mem.status} · importance ${mem.importance} · confidence ${mem.confidence}`);
+            if (tags) lines.push(`> ${tags.slice(1).trim()}`);
+            // Anchor info
+            const anchor = mem.anchors?.find((a: { path?: string | undefined; symbol?: string | undefined; command?: string | undefined }) => a.path || a.symbol || a.command);
+            if (anchor) {
+              lines.push(`> 📎 \`${anchor.path ?? anchor.symbol ?? anchor.command ?? ''}\``);
+            }
+            lines.push('');
+          }
+
+          // Render relations if gathered
+          if (relationEdges.length > 0) {
+            lines.push('### 🔗 Graph relations (first page)');
+            lines.push('');
+            for (const edge of relationEdges) {
+              lines.push(`- ${edge.from} —[${edge.relation}]→ ${edge.to}`);
+            }
+            lines.push('');
+          }
+
+          // Footer
+          const moreAvailable = page.total > page.memories.length;
+          if (moreAvailable) {
+            lines.push(`*Showing ${page.memories.length} of ${page.total} — use \`/memory gather --limit ${Math.min(MAX_MEMORY_LIMIT, limitVal * 2)}\` for more*`);
+          }
+
+          return { message: lines.join('\n') };
+        } catch (err) {
+          return { message: `Failed to gather memories: ${memErr(err)}` };
+        }
       }
 
       const parsed = parseArgs(args);

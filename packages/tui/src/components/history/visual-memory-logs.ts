@@ -1,4 +1,4 @@
-import { numOf, stringOf, tryParseJson } from './basic-format.js';
+import { numOf, stringOf, truncMid, tryParseJson } from './basic-format.js';
 import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 const VISUAL_MAX_LINES = 7;
@@ -15,7 +15,29 @@ export function visualMemory(
       return memoryResultRows(Array.isArray(obj['results']) ? obj['results'] : []);
     }
     const fields = recordToStringFields(obj);
-    return [memoryStatusRow(toolName, fields, ok)];
+    const lines: ToolVisualLine[] = [memoryStatusRow(toolName, fields, ok)];
+
+    // For the `remember` tool the result carries the full Sage object
+    // (id, kind, persistence, scope). Show an informational line like
+    // "MEMORY mem_01K... entered · decision · long_lived" before the
+    // closing bottom border so the user sees what was stored at a glance.
+    if (toolName === 'remember') {
+      const memoryId = stringOf(obj['id']);
+      const kind = stringOf(obj['kind']);
+      const persistence = stringOf(obj['persistence']);
+      const parts: string[] = [];
+      if (memoryId) {
+        parts.push(`MEMORY ${truncMid(memoryId, 20)}`);
+      } else {
+        parts.push('MEMORY');
+      }
+      parts.push('entered');
+      if (kind) parts.push(kind);
+      if (persistence) parts.push(persistence);
+      lines.push({ kind: 'meta', text: parts.join(' · ') });
+    }
+
+    return lines;
   }
 
   const header = parseHeaderLine(text);

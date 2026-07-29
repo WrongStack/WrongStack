@@ -406,13 +406,20 @@ export const useCoordinatorMonitorStore = create<CoordinatorMonitorState>()((set
 
   recordBudgetDecision: (subagentId, kind, decision, newLimit) =>
     set((s) => {
-      const alerts = new Map(
-        s.budgetAlerts.reduce<Map<string, BudgetAlert>>((acc, a) => {
-          if (a.subagentId === subagentId && a.kind === kind) return acc;
-          acc.set(`${a.subagentId}:${a.kind}`, a);
-          return acc;
-        }, new Map<string, BudgetAlert>()),
-      );
+      // Collapse to one alert per `${subagentId}:${kind}`, keeping the newest
+      // (budgetAlerts is newest-first, so the first occurrence of a key wins).
+      //
+      // The matching alert must stay IN the map: this reduce used to skip it
+      // (`if (a.subagentId === subagentId && a.kind === kind) return acc`),
+      // which made the `alerts.get(key)` below always undefined. The whole
+      // `if (existing)` annotation branch was therefore unreachable, and the
+      // net effect of recording a decision was to *delete* the alert it was
+      // supposed to annotate.
+      const alerts = new Map<string, BudgetAlert>();
+      for (const a of s.budgetAlerts) {
+        const alertKey = `${a.subagentId}:${a.kind}`;
+        if (!alerts.has(alertKey)) alerts.set(alertKey, a);
+      }
       const key = `${subagentId}:${kind}`;
       const existing = alerts.get(key);
       if (existing) {

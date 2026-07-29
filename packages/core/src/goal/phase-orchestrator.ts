@@ -12,6 +12,23 @@ import {
   requeuePhaseTask,
   setPhaseTaskAssignee,
 } from './phase-board-mutations.js';
+import {
+  commitAndEnqueueMerge,
+  failPhaseAfterTasks,
+  type IntegrationContext,
+  keepWorktreeForReview,
+  worktreeEnv,
+} from './phase-orchestrator-integration.js';
+import {
+  getActivePhases,
+  getCompletedTaskCount,
+  getExecutableTasks,
+  getFailedTaskCount,
+  getProgress,
+  getReadyPhases,
+  isGraphComplete,
+  truncate,
+} from './phase-orchestrator-queries.js';
 import { createNoopEventBus, normalizePhaseGraphForResume } from './phase-orchestrator-runtime.js';
 import type {
   NormalizedGoalOptions,
@@ -364,235 +381,46 @@ export class PhaseOrchestrator {
   }
 
   /** Worktree env (cwd/branch) for a phase, or undefined if it runs on the shared tree. */
+  /** Bundle of orchestrator state the worktree-integration steps drive. */
+  private integrationCtx(): IntegrationContext {
+    return {
+      graph: this.graph,
+      ctx: this.ctx,
+      logger: this.logger,
+      worktrees: this.worktrees,
+      phaseWorktrees: this.phaseWorktrees,
+      phaseMergePromise: this.phaseMergePromise,
+      runningPhases: this.runningPhases,
+      getMergeQueue: () => this.mergeQueue,
+      setMergeQueue: (queue) => {
+        this.mergeQueue = queue;
+      },
+      emit: (event, payload) => this.emit(event, payload),
+      updatePhaseStatus: (phase, status) => this.updatePhaseStatus(phase, status),
+    };
+  }
+
   private worktreeEnv(phase: PhaseNode): { cwd?: string | undefined; branch?: string | undefined } | undefined {
-    const handle = this.phaseWorktrees.get(phase.id);
-    return handle ? { cwd: handle.dir, branch: handle.branch } : undefined;
+    return worktreeEnv(this.integrationCtx(), phase);
   }
 
-  /** Shared failure bookkeeping for a phase whose tasks ran but the phase failed. */
   private async failPhaseAfterTasks(phase: PhaseNode, error: string): Promise<void> {
-    this.updatePhaseStatus(phase, 'failed');
-    phase.completedAt = Date.now();
-    phase.actualDurationMs = Date.now() - (phase.startedAt ?? Date.now());
-    this.runningPhases.delete(phase.id);
-    this.graph.activePhaseIds = this.graph.activePhaseIds.filter((id) => id !== phase.id);
-    this.emit('phase.failed', { phaseId: phase.id, name: phase.name, error });
-    this.ctx.onPhaseFail?.(phase, new Error(error));
-    await this.keepWorktreeForReview(phase);
-  }
-
-  /**
-   * A phase whose tasks all succeeded was marked `completed` and queued for
-   * merge, but the merge back into the base branch failed. Its work is NOT
-   * integrated, so correct the graph: move the phase out of `completedPhaseIds`
-   * into `failedPhaseIds` and flip its status to `failed`. Without this the
-   * persisted graph (and the board) would claim the phase succeeded while a
-   * `phase.failed` event fired — an inconsistency that hides un-merged work.
-   * Idempotent: safe to call more than once for the same phase.
-   */
-  private markPhaseMergeFailed(phase: PhaseNode, error: string): void {
-    if (phase.status !== 'failed') {
-      this.graph.completedPhaseIds = this.graph.completedPhaseIds.filter((id) => id !== phase.id);
-      this.updatePhaseStatus(phase, 'failed');
-    }
-    if (!this.graph.failedPhaseIds.includes(phase.id)) this.graph.failedPhaseIds.push(phase.id);
-    this.emit('phase.failed', { phaseId: phase.id, name: phase.name, error });
-    this.ctx.onPhaseFail?.(phase, new Error(error));
+    await failPhaseAfterTasks(this.integrationCtx(), phase, error);
   }
 
   /** Trim long verifier output so it fits cleanly in an event/error message. */
   private truncate(text: string, max = 500): string {
-    const t = text.trim();
-    return t.length <= max ? t : `${t.slice(0, max)}… (+${t.length - max} chars)`;
+    return truncate(text, max);
   }
 
   // ─── Worktree integration ───────────────────────────────────────────────────
 
-  /**
-   * Commit the phase's worktree changes, then enqueue the merge back into the
-   * base branch. Merges run dependency-ordered (a phase merges only after its
-   * `dependsOn` phases) and globally serialized (one at a time) to avoid
-   * concurrent writes to the base tree.
-   */
   private async commitAndEnqueueMerge(phase: PhaseNode): Promise<void> {
-    const handle = this.phaseWorktrees.get(phase.id);
-    if (!this.worktrees || !handle) return;
-
-    try {
-      await this.worktrees.commitAll(handle, `goal(${phase.name}): ${phase.id}`);
-    } catch {
-      // commit failure is non-fatal; the merge step will report a clean tree.
-    }
-
-    const depPromises = phase.dependsOn
-      .map((d) => this.phaseMergePromise.get(d))
-      .filter((p): p is Promise<void> => Boolean(p));
-
-    const merged = (async () => {
-      await Promise.allSettled(depPromises); // dependency-ordered
-      // Chain onto the global queue so only one merge touches base at a time.
-      this.mergeQueue = this.mergeQueue
-        .then(() => this.mergeOne(phase, handle))
-        .catch((err) => {
-          // Defensive backstop: mergeOne handles its own errors, so this only
-          // fires if it throws unexpectedly. Keep the queue alive (a failed
-          // merge must not poison the chain) and correct the graph state.
-          const msg = toErrorMessage(err);
-          this.logger.error(msg, { event: 'orchestrator.merge_failed', phaseId: phase.id });
-          this.markPhaseMergeFailed(phase, msg);
-        });
-      await this.mergeQueue;
-    })();
-    this.phaseMergePromise.set(phase.id, merged);
+    await commitAndEnqueueMerge(this.integrationCtx(), phase);
   }
-
-  /**
-   * Squash-merge one phase. When a `resolveConflict` callback is wired, a merge
-   * conflict is handed to it (a resolver subagent) before giving up; only if
-   * that fails does the worktree fall to needs-review and the run continues.
-   */
-  private async mergeOne(phase: PhaseNode, handle: WorktreeHandle): Promise<void> {
-    if (!this.worktrees) return;
-    try {
-      const resolve = this.ctx.resolveConflict
-        ? async (info: { conflictFiles: string[]; cwd: string }) => {
-            const shouldResolve = await this.shouldAttemptConflictResolution(phase, info);
-            if (!shouldResolve) return false;
-            this.emit('phase.conflictResolving', {
-              phaseId: phase.id,
-              name: phase.name,
-              files: info.conflictFiles,
-            });
-            const resolved = await this.ctx.resolveConflict?.(phase, info);
-            return resolved ?? false;
-          }
-        : undefined;
-      const mergeOpts: { squash: true; resolve?: (info: { conflictFiles: string[]; cwd: string }) => Promise<boolean> } = {
-        squash: true,
-      };
-      if (resolve !== undefined) mergeOpts.resolve = resolve;
-      const result = await this.worktrees.merge(handle, mergeOpts);
-      if (result.resolved) {
-        this.emit('phase.conflictResolved', { phaseId: phase.id, name: phase.name });
-      }
-      this.setIntegrationMetadata(phase, result.ok ? 'merged' : 'needs_review', {
-        branch: handle.branch,
-        worktreeDir: handle.dir,
-        conflictFiles: result.conflictFiles,
-      });
-      // merge() already emitted worktree.merged / worktree.conflict and set status.
-      // Clean (or resolved) merge → remove the worktree; conflict → release(keep).
-      await this.worktrees.release(handle, { keep: !result.ok });
-    } catch (err) {
-      this.setIntegrationMetadata(phase, 'merge_failed', {
-        branch: handle.branch,
-        worktreeDir: handle.dir,
-        error: toErrorMessage(err),
-      });
-      // The merge failed → the phase's work never reached base. Reflect that in
-      // the graph, not just in metadata + a stray event (see markPhaseMergeFailed).
-      this.markPhaseMergeFailed(phase, `worktree merge failed: ${toErrorMessage(err)}`);
-    }
-  }
-
-  private async shouldAttemptConflictResolution(
-    phase: PhaseNode,
-    info: { conflictFiles: string[]; cwd: string },
-  ): Promise<boolean> {
-    if (!this.ctx.brain) return true;
-
-    const decision = await this.ctx.brain.decide({
-      id: `goal-conflict-${phase.id}`,
-      source: 'goal',
-      question: `Should Goal try to resolve merge conflicts for phase "${phase.name}" automatically?`,
-      context: [
-        `Phase id: ${phase.id}`,
-        `Conflicted files: ${info.conflictFiles.join(', ') || '(unknown)'}`,
-        `Base working tree: ${info.cwd}`,
-      ].join('\n'),
-      // 'critical', not 'high': choosing `resolve` lets a resolver agent EDIT
-      // FILES IN THE BASE WORKING TREE. That is the one Brain decision in the
-      // system whose wrong answer is not recoverable by simply continuing —
-      // unlike a budget grant (bounded, capped) or a goal-done verdict (the
-      // run can be restarted).
-      //
-      // Consequences of the level, both intended:
-      //   - it is at or above the council floor, so a multi-LLM panel decides
-      //     it whenever one can convene;
-      //   - with no council (a single-model install resolves the autonomy
-      //     ceiling to 'high'), it exceeds the ceiling and never reaches an
-      //     unchecked single model. The policy tier's `ask_human` then routes
-      //     to the terminal policy, which refuses a recommended option at
-      //     critical risk and denies — i.e. the worktree is kept for human
-      //     review, which is exactly the safe outcome.
-      risk: 'critical',
-      fallback: 'ask_human',
-      options: [
-        {
-          id: 'resolve',
-          label: 'Try the configured conflict resolver',
-          consequence: 'A resolver agent may edit conflicted files in the base working tree.',
-          risk: 'critical',
-        },
-        {
-          id: 'review',
-          label: 'Keep the worktree for human review',
-          consequence: 'No automatic conflict resolution is attempted.',
-          risk: 'low',
-          recommended: true,
-        },
-      ],
-    });
-
-    phase.metadata = {
-      ...phase.metadata,
-      brainConflictDecision: decision.type,
-      brainConflictDecisionAt: Date.now(),
-    };
-
-    if (decision.type !== 'answer') return false;
-    // Control-plane check: automatic conflict resolution runs ONLY on the
-    // exact option id. Prose mentioning "resolve" is not authorization.
-    return decision.optionId === 'resolve';
-  }
-
-  private setIntegrationMetadata(
-    phase: PhaseNode,
-    status: 'merged' | 'needs_review' | 'merge_failed' | 'not_merged_failed_phase',
-    details: {
-      branch?: string | undefined;
-      worktreeDir?: string | undefined;
-      conflictFiles?: string[] | undefined;
-      error?: string | undefined;
-    } = {},
-  ): void {
-    phase.metadata = {
-      ...phase.metadata,
-      integrationStatus: status,
-      integrationBranch: details.branch,
-      integrationWorktreeDir: details.worktreeDir,
-      integrationConflictFiles: details.conflictFiles,
-      integrationError: details.error,
-      integrationUpdatedAt: Date.now(),
-    };
-    phase.updatedAt = Date.now();
-    this.graph.updatedAt = Date.now();
-  }
-
   /** A failed phase keeps its worktree on disk for inspection (no merge). */
   private async keepWorktreeForReview(phase: PhaseNode): Promise<void> {
-    const handle = this.phaseWorktrees.get(phase.id);
-    if (!this.worktrees || !handle) return;
-    try {
-      await this.worktrees.commitAll(handle, `goal(${phase.name}) [failed]: ${phase.id}`);
-    } catch {
-      // best effort
-    }
-    this.setIntegrationMetadata(phase, 'not_merged_failed_phase', {
-      branch: handle.branch,
-      worktreeDir: handle.dir,
-    });
-    await this.worktrees.release(handle, { keep: true }).catch(() => {});
+    await keepWorktreeForReview(this.integrationCtx(), phase);
   }
 
   private async executePhaseTasks(phase: PhaseNode): Promise<void> {
@@ -714,46 +542,15 @@ export class PhaseOrchestrator {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private getReadyPhases(): PhaseNode[] {
-    const ready: PhaseNode[] = [];
-
-    for (const phase of this.graph.phases.values()) {
-      if (phase.status !== 'pending') continue;
-
-      const depsDone = phase.dependsOn.every((depId) => {
-        const dep = this.graph.phases.get(depId);
-        return dep?.status === 'completed' || dep?.status === 'skipped' || dep?.status === 'failed';
-      });
-
-      // A phase is ready ONLY when its dependencies are resolved. `parallelizable`
-      // governs whether ready phases may run CONCURRENTLY (the `maxConcurrentPhases`
-      // batch in start()/tick() already enforces that) — it must NOT let a phase
-      // start before its dependencies finish. (Previously this read
-      // `depsDone || phase.parallelizable`, which let a dependent-but-parallelizable
-      // phase, e.g. a Testing phase depending on Implementation, jump the gun.)
-      if (depsDone) {
-        ready.push(phase);
-      }
-    }
-
-    const prioOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    ready.sort((a, b) => (prioOrder[a.priority] ?? 4) - (prioOrder[b.priority] ?? 4));
-
-    return ready;
+    return getReadyPhases(this.graph);
   }
 
   private getActivePhases(): PhaseNode[] {
-    return Array.from(this.graph.phases.values()).filter((p) => p.status === 'running');
+    return getActivePhases(this.graph);
   }
 
   private getExecutableTasks(phase: PhaseNode): TaskNode[] {
-    const tracker = this.getTrackerForPhase(phase);
-    return tracker
-      .getAllNodes({ status: ['pending', 'blocked'] })
-      .filter((n: { id: string; status: string; priority: string }) => n.status === 'pending' && tracker.canStart(n.id))
-      .sort((a: { priority: TaskNode['priority'] }, b: { priority: TaskNode['priority'] }) => {
-        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-        return (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
-      });
+    return getExecutableTasks((p) => this.getTrackerForPhase(p), phase);
   }
 
   private getTrackerForPhase(phase: PhaseNode): TaskTracker {
@@ -767,11 +564,11 @@ export class PhaseOrchestrator {
   }
 
   private getFailedTaskCount(phase: PhaseNode): number {
-    return this.getTrackerForPhase(phase).getAllNodes({ status: ['failed'] }).length;
+    return getFailedTaskCount((p) => this.getTrackerForPhase(p), phase);
   }
 
   private getCompletedTaskCount(phase: PhaseNode): number {
-    return this.getTrackerForPhase(phase).getAllNodes({ status: ['completed'] }).length;
+    return getCompletedTaskCount((p) => this.getTrackerForPhase(p), phase);
   }
 
   private updatePhaseStatus(phase: PhaseNode, status: PhaseStatus): void {
@@ -783,10 +580,7 @@ export class PhaseOrchestrator {
   }
 
   private isComplete(): boolean {
-    const allPhases = Array.from(this.graph.phases.values());
-    return allPhases.every(
-      (p) => p.status === 'completed' || p.status === 'skipped' || p.status === 'failed',
-    );
+    return isGraphComplete(this.graph);
   }
 
   private onGraphComplete(): void {
@@ -808,76 +602,7 @@ export class PhaseOrchestrator {
   // ─── Progress ─────────────────────────────────────────────────────────────
 
   getProgress(): PhaseProgress {
-    const phases = Array.from(this.graph.phases.values());
-    let pending = 0;
-    let ready = 0;
-    let running = 0;
-    let paused = 0;
-    let completed = 0;
-    let failed = 0;
-    let skipped = 0;
-    let totalTasks = 0;
-    let completedTasks = 0;
-    let failedTasks = 0;
-    let estimatedHours = 0;
-    let actualHours = 0;
-
-    for (const p of phases) {
-      switch (p.status) {
-        case 'pending':
-          pending++;
-          break;
-        case 'ready':
-          ready++;
-          break;
-        case 'running':
-          running++;
-          break;
-        case 'paused':
-          paused++;
-          break;
-        case 'completed':
-          completed++;
-          break;
-        case 'failed':
-          failed++;
-          break;
-        case 'skipped':
-          skipped++;
-          break;
-        default:
-          // Unknown phase status — log and skip in counter
-          break;
-      }
-      estimatedHours += p.estimateHours;
-      if (p.actualDurationMs) actualHours += p.actualDurationMs / 3600000;
-
-      const tracker = this.getTrackerForPhase(p);
-      const progress = tracker.getProgress();
-      totalTasks += progress.total;
-      completedTasks += progress.completed;
-      failedTasks += progress.failed;
-    }
-
-    const totalPhases = phases.length;
-    const done = completed + skipped;
-
-    return {
-      totalPhases,
-      pending,
-      ready,
-      running,
-      paused,
-      completed,
-      failed,
-      skipped,
-      percentComplete: totalPhases > 0 ? Math.min(100, Math.round((done / totalPhases) * 100)) : 0,
-      totalTasks,
-      completedTasks,
-      failedTasks,
-      estimatedHours,
-      actualHours,
-    };
+    return getProgress(this.graph, (p) => this.getTrackerForPhase(p));
   }
 
   getGraph(): PhaseGraph {

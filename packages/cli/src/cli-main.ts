@@ -7,7 +7,7 @@ import { gatedEnhancerReasoning } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { getSessionRegistry } from '@wrongstack/core/storage';
-import { writeErr } from '@wrongstack/core/utils';
+import { startHeapWatchdog, writeErr } from '@wrongstack/core/utils';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { wireEventWiring } from './boot/event-wiring.js';
 import { configureSimpleUiRuntimeContext } from './boot/simpleui-full-auto.js';
@@ -869,6 +869,12 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // `wstack mailbox serve`, which are dispatched long before this line, still
   // paid for all of it at boot.
   const { execute } = await import('./execution.js');
+  // Start heap-watchdog for long-running CLI sessions so memory growth is
+  // diagnosable via ~/.wrongstack/logs/heap.jsonl even in headless mode.
+  const stopHeapWatchdog = startHeapWatchdog();
+  // Wrap in void because teardownHandlers are sync-only (Array<() => void>)
+  // and the watchdog's stop is best-effort by design.
+  teardownHandlers.push(() => { void stopHeapWatchdog(); });
   return execute(
     toExecuteDeps({
       core: {

@@ -41,6 +41,9 @@ export const CHRONICLE_SQLITE_FILE = 'chronicle.sqlite';
 /** Marker written once the legacy JSONL partitions have been imported. */
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy-jsonl-v1';
 
+/** Day families the import refused to move, recorded so they are never retried silently. */
+export const LEGACY_JSONL_QUARANTINE_KEY = 'legacy-jsonl-v1:quarantine';
+
 const SCHEMA_VERSION = 1;
 
 export interface ChronicleSqliteJournalOptions {
@@ -61,7 +64,14 @@ interface ChainAnchor {
   hash: string;
 }
 
-/** Write surface handed to a legacy import; see {@link ChronicleSqliteJournal.runImport}. */
+/** A day family the import refused to move, and why. */
+export interface ChronicleQuarantinedFamily {
+  day: string;
+  sequence: number;
+  reason: string;
+}
+
+/** Write surface handed to a legacy import; see {@link ChronicleSqliteJournal.runFamilyImport}. */
 export interface ChronicleImportSink {
   /**
    * Store an event with its recorded `sequence`, `previousHash` and `hash`.
@@ -395,7 +405,7 @@ export class ChronicleSqliteJournal {
   }
 
   /**
-   * Run a legacy import inside one transaction.
+   * Run one day family's legacy import inside its own transaction.
    *
    * Deliberately separate from `appendBatch`: the append path *computes*
    * `sequence`, `previousHash` and `hash`, while an import must carry them over
@@ -403,10 +413,14 @@ export class ChronicleSqliteJournal {
    * re-hashing historical events, which is the one change that silently
    * destroys their tamper evidence.
    *
-   * The whole import is one transaction, so a chain that fails verification
-   * halfway leaves the database exactly as it was.
+   * The transaction is scoped to a single family because chains are: `sequence`
+   * restarts at 1 each day, so one day's break says nothing about the next
+   * day's integrity. A whole-journal transaction made every future day hostage
+   * to the worst day on disk — one corrupt family and the daemon could never
+   * open its store again. The family is still all-or-nothing: a break rolls
+   * back that day entirely, so no partial chain is ever visible.
    */
-  async runImport(load: (sink: ChronicleImportSink) => Promise<void>): Promise<void> {
+  async runFamilyImport(load: (sink: ChronicleImportSink) => Promise<void>): Promise<void> {
     const insert = this.db.prepare(
       `INSERT INTO events (
          day, sequence, event_id, hash, previous_hash, occurred_at, event_type, outcome,
@@ -450,10 +464,6 @@ export class ChronicleSqliteJournal {
           checkpoint.run(day, sequence, hash);
         },
       });
-      this.db.prepare(
-        `INSERT INTO chronicle_meta (key, value) VALUES (?, 'done')
-           ON CONFLICT(key) DO UPDATE SET value = 'done'`,
-      ).run(LEGACY_JSONL_MIGRATION_KEY);
       this.db.exec('COMMIT');
     } catch (error) {
       try {
@@ -490,6 +500,53 @@ export class ChronicleSqliteJournal {
            ON CONFLICT(key) DO UPDATE SET value = 'done'`,
       )
       .run(LEGACY_JSONL_MIGRATION_KEY);
+  }
+
+  /**
+   * Record the day families the import refused to move.
+   *
+   * Persisted rather than merely logged because the import runs once: after the
+   * marker is set nothing re-reads the JSONL, so this row is the only surviving
+   * evidence that a day was dropped. Health reports read it back to say
+   * "degraded, and here is exactly what is missing" instead of quietly serving
+   * a journal with a hole in it.
+   */
+  recordQuarantinedFamilies(families: readonly ChronicleQuarantinedFamily[]): void {
+    if (families.length === 0) return;
+    this.db
+      .prepare(
+        `INSERT INTO chronicle_meta (key, value) VALUES (?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .run(LEGACY_JSONL_QUARANTINE_KEY, JSON.stringify(families));
+  }
+
+  /**
+   * Does this day already hold rows?
+   *
+   * Each family commits on its own, so an import interrupted between families
+   * leaves a database that is complete for the days it reached. `(day,
+   * sequence)` is the primary key, so re-inserting one of those days would
+   * abort on a constraint violation rather than start over — this is what lets
+   * the next run resume at the first day it never got to.
+   */
+  hasImportedDay(day: string): boolean {
+    const row = this.db.prepare('SELECT 1 AS present FROM events WHERE day = ? LIMIT 1').get(day) as
+      | { present: number }
+      | undefined;
+    return row !== undefined;
+  }
+
+  /** Day families the legacy import refused to move, oldest first. */
+  quarantinedFamilies(): ChronicleQuarantinedFamily[] {
+    const raw = this.readMeta(LEGACY_JSONL_QUARANTINE_KEY);
+    if (!raw) return [];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as ChronicleQuarantinedFamily[]) : [];
+    } catch {
+      return [];
+    }
   }
 
   // ─── internals ────────────────────────────────────────────────────────────

@@ -91,7 +91,13 @@ export class CollaborationWebSocketHandler {
     this.subscribe();
     // Phase 4 feedback loop: when the inject middleware applies a queued
     // injection, broadcast a `consumed` grant so observers see it landed.
-    this.bus?.onInjectionConsumed((info) => this.broadcastInjectionConsumed(info));
+    // Store the disposer in this.offs so dispose() removes the callback,
+    // preventing the handler closure from keeping this instance alive
+    // via the bus reference after teardown.
+    const offInjection = this.bus?.onInjectionConsumed((info) =>
+      this.broadcastInjectionConsumed(info),
+    );
+    if (offInjection) this.offs.push(offInjection);
   }
 
   // ── Public API (called by server/index.ts per WS connection) ───────────

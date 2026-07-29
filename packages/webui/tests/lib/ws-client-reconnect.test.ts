@@ -28,13 +28,15 @@ const FakeWSModule = vi.hoisted(() => {
     onclose: ((ev: { code: number; reason: string }) => void) | null = null;
     onerror: ((err: unknown) => void) | null = null;
     binaryType = 'arraybuffer';
+    close: (code?: number, reason?: string) => void = () => {};
+    send: (data: string) => void = () => {};
     static OPEN = 1;
     static CONNECTING = 0;
     static CLOSING = 2;
     static CLOSED = 3;
     constructor(url: string) {
       this.url = url;
-      const self = this as unknown as FakeWS;
+      const self = this;
       self.close = (_code?: number, _reason?: string) => {
         self.readyState = 3;
       };

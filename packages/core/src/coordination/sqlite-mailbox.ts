@@ -1,42 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
-import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { EventBus } from '../kernel/events.js';
-import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
 import {
   AGENT_STALE_MS,
-  AUTO_COMPACT_DEFAULT_TTL_MS,
   AUTO_COMPACT_INTERVAL_MS,
-  AUTO_COMPACT_READ_MAX_AGE_MS,
-  AUTO_COMPACT_TYPE_TTL_MS,
   CLIENT_STALE_MS,
   HEARTBEAT_THROTTLE_MS,
 } from './mailbox-constants.js';
-import {
-  CREDENTIAL_STORE_FILE,
-  createMailboxCredential,
-  type CredentialValidation,
-  type IssueCredentialOptions,
-  MAX_CREDENTIAL_TTL,
-  type MailboxCredential,
-  ROTATION_OVERLAP_MS,
-  verifyMailboxCredential,
+import type {
+  CredentialValidation,
+  IssueCredentialOptions,
+  MailboxCredential,
 } from './mailbox-credential-store.js';
 import type { MailboxEventEmitter } from './mailbox-events.js';
-import {
-  GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE,
-  GLOBAL_MAILBOX_FILE,
-} from './global-mailbox-paths.js';
 import { isMessageCompletedForActor } from './global-mailbox-completion.js';
-import { parseMailboxFile } from './mailbox-parse-state.js';
 import { isFanOutRecipient } from './mailbox-receipt-folding.js';
-import { parseAgentRegistryEntry, parseClientRegistryEntry } from './mailbox-registry-codec.js';
 import {
   projectMailboxCompletion,
-  resolveMailboxRetentionState,
 } from './mailbox-retention-state.js';
 import { mapRegisteredAgentsToStatuses, mapRegisteredClientsToStatuses } from './mailbox-status-mappers.js';
 import type {
@@ -68,38 +51,42 @@ import {
   validateSendType,
 } from './mailbox-types.js';
 import { normalizeMailboxMessageType } from './mailbox-message-codec.js';
-
+import {
+  autoCompact,
+  type CompactionContext,
+  purgeStale,
+} from './sqlite-mailbox-compaction.js';
+import {
+  credentialGet,
+  credentialIssue,
+  credentialList,
+  credentialRevoke,
+  credentialRotate,
+  credentialStatusCounts,
+  credentialVerify,
+} from './sqlite-mailbox-credentials.js';
+import {
+  deleteMessages,
+  materializeMessageRows,
+  type MessageRow,
+  type SqliteStatement,
+  persistAgent,
+  persistClient,
+  persistMessage,
+  persistReceipt,
+  pruneAgents,
+  pruneClients,
+  readAgents,
+  readClients,
+  withoutAggregateCompletion,
+} from './sqlite-mailbox-rows.js';
+import {
+  initializeSchema,
+  loadDatabaseSync,
+  migrateLegacyFiles,
+  type SchemaContext,
+} from './sqlite-mailbox-schema.js';
 export const SQLITE_MAILBOX_FILE = '_mailbox.sqlite';
-const SQLITE_MAILBOX_SCHEMA_VERSION = 2;
-
-let DatabaseSyncCtor: typeof DatabaseSync | undefined;
-
-function loadDatabaseSync(): typeof DatabaseSync {
-  if (DatabaseSyncCtor) return DatabaseSyncCtor;
-  return withSqliteExperimentalWarningSuppressed(() => {
-    const require = createRequire(import.meta.url);
-    DatabaseSyncCtor = (require('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
-    return DatabaseSyncCtor;
-  });
-}
-
-type SqliteStatement = ReturnType<DatabaseSync['prepare']>;
-
-interface MessageRow {
-  id: string;
-  data: string;
-  legacy_global_completion: number;
-}
-
-interface ReceiptRow {
-  message_id: string;
-  actor_id: string;
-  read_at: string | null;
-  completed_at: string | null;
-  completed_by: string | null;
-  outcome: string | null;
-}
-
 /**
  * Server-owned project mailbox persistence.
  *
@@ -112,36 +99,6 @@ interface ReceiptRow {
  */
 const HEARTBEAT_TRACKING_MAX_ENTRIES = 512;
 const HEARTBEAT_TRACKING_TTL_MS = 30 * 60_000;
-
-/**
- * Predicate matching a `last_seen_at` that is not an ISO-8601 timestamp.
- *
- * A registration whose heartbeat timestamp is garbage would otherwise outlive
- * every sweep: string comparison puts `'invalid'` after any real timestamp, so
- * `last_seen_at < cutoff` never matches it and the row shows up as a
- * permanently offline agent. The JSONL registry it replaced pruned these via
- * `Number.isFinite(Date.parse(...))`.
- */
-const MALFORMED_TIMESTAMP =
-  "last_seen_at NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*'";
-
-/**
- * Strip the message-level completion fields from a fan-out message before it
- * is stored. Per-actor state lives in `message_receipts`; the aggregate fields
- * would claim the message is done for every recipient.
- */
-function withoutAggregateCompletion(message: MailboxMessageProjection): MailboxMessageProjection {
-  const stored: MailboxMessageProjection = {
-    ...message,
-    completed: message.legacyGlobalCompletion === true,
-  };
-  if (!stored.completed) {
-    delete stored.completedBy;
-    delete stored.completedAt;
-  }
-  delete stored.outcome;
-  return stored;
-}
 
 export class SqliteMailbox implements Mailbox {
   readonly databasePath: string;
@@ -172,8 +129,8 @@ export class SqliteMailbox implements Mailbox {
     this.db.exec('PRAGMA synchronous = NORMAL');
     this.db.exec('PRAGMA foreign_keys = ON');
     this.db.exec('PRAGMA busy_timeout = 5000');
-    this.initializeSchema();
-    this.migrateLegacyFiles();
+    initializeSchema(this.schemaCtx());
+    migrateLegacyFiles(this.schemaCtx());
   }
 
   private stmt(sql: string): SqliteStatement {
@@ -192,304 +149,25 @@ export class SqliteMailbox implements Mailbox {
     }
   }
 
-  private initializeSchema(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS mailbox_meta (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        from_id TEXT NOT NULL,
-        to_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        priority TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        completed INTEGER NOT NULL DEFAULT 0,
-        completed_at TEXT,
-        deleted_at TEXT,
-        sender_session_id TEXT,
-        reply_to TEXT,
-        expires_at TEXT,
-        legacy_global_completion INTEGER NOT NULL DEFAULT 0,
-        data TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS message_receipts (
-        message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-        actor_id TEXT NOT NULL,
-        read_at TEXT,
-        completed_at TEXT,
-        completed_by TEXT,
-        outcome TEXT,
-        PRIMARY KEY (message_id, actor_id)
-      );
-      CREATE TABLE IF NOT EXISTS agents (
-        agent_id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        role TEXT,
-        status TEXT NOT NULL,
-        current_tool TEXT,
-        current_task TEXT,
-        iterations INTEGER NOT NULL,
-        tool_calls INTEGER NOT NULL,
-        registered_at TEXT NOT NULL,
-        last_seen_at TEXT NOT NULL,
-        pid INTEGER NOT NULL,
-        source TEXT
-      );
-      CREATE TABLE IF NOT EXISTS clients (
-        client_id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        source TEXT NOT NULL,
-        registered_at TEXT NOT NULL,
-        last_seen_at TEXT NOT NULL,
-        pid INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS credentials (
-        credential_id TEXT PRIMARY KEY,
-        status TEXT NOT NULL,
-        principal_id TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        data TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_messages_to_timestamp ON messages(to_id, timestamp DESC);
-      CREATE INDEX IF NOT EXISTS idx_messages_from_timestamp ON messages(from_id, timestamp DESC);
-      CREATE INDEX IF NOT EXISTS idx_messages_type_timestamp ON messages(type, timestamp DESC);
-      CREATE INDEX IF NOT EXISTS idx_messages_deleted_at ON messages(deleted_at);
-      CREATE INDEX IF NOT EXISTS idx_messages_session_timestamp ON messages(sender_session_id, timestamp DESC);
-      CREATE INDEX IF NOT EXISTS idx_messages_reply_timestamp ON messages(reply_to, timestamp DESC);
-      CREATE INDEX IF NOT EXISTS idx_receipts_actor ON message_receipts(actor_id, message_id);
-      CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents(last_seen_at);
-      CREATE INDEX IF NOT EXISTS idx_clients_last_seen ON clients(last_seen_at);
-      CREATE INDEX IF NOT EXISTS idx_credentials_status ON credentials(status, expires_at);
-    `);
-    this.stmt(
-      'INSERT INTO mailbox_meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
-    ).run('schema_version', String(SQLITE_MAILBOX_SCHEMA_VERSION));
-    const schema = this.stmt('SELECT value FROM mailbox_meta WHERE key = ?').get(
-      'schema_version',
-    ) as { value: string } | undefined;
-    const foundVersion = Number(schema?.value);
-    if (
-      !Number.isInteger(foundVersion) ||
-      foundVersion < 1 ||
-      foundVersion > SQLITE_MAILBOX_SCHEMA_VERSION
-    ) {
-      throw new Error(
-        `Unsupported mailbox SQLite schema ${schema?.value ?? 'missing'}; this build supports ${SQLITE_MAILBOX_SCHEMA_VERSION}`,
-      );
-    }
-    if (foundVersion < SQLITE_MAILBOX_SCHEMA_VERSION) {
-      this.stmt('UPDATE mailbox_meta SET value = ? WHERE key = ?').run(
-        String(SQLITE_MAILBOX_SCHEMA_VERSION),
-        'schema_version',
-      );
-    }
-    this.migrateLegacyCredentials();
-  }
-
-  private migrateLegacyCredentials(): void {
-    const marker = this.stmt('SELECT value FROM mailbox_meta WHERE key = ?').get(
-      'legacy_credentials_imported',
-    ) as { value: string } | undefined;
-    if (marker !== undefined) return;
-    const legacyPath = path.join(this.projectDir, CREDENTIAL_STORE_FILE);
-    const credentials: MailboxCredential[] = [];
-    try {
-      for (const line of fs.readFileSync(legacyPath, 'utf8').split(/\r?\n/u)) {
-        if (!line.trim()) continue;
-        try {
-          const credential = JSON.parse(line) as MailboxCredential;
-          if (
-            typeof credential.credentialId === 'string' &&
-            typeof credential.verifier === 'string' &&
-            typeof credential.principalId === 'string'
-          ) credentials.push(credential);
-        } catch {
-          // Preserve legacy adapter behavior: malformed records are skipped.
-        }
-      }
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'ENOENT') throw error;
-    }
-    this.transaction(() => {
-      for (const credential of credentials) this.persistCredential(credential);
-      this.stmt('INSERT INTO mailbox_meta(key, value) VALUES (?, ?)').run(
-        'legacy_credentials_imported',
-        new Date().toISOString(),
-      );
-    });
-  }
-
-  private migrateLegacyFiles(): void {
-    const marker = this.stmt('SELECT value FROM mailbox_meta WHERE key = ?').get(
-      'legacy_files_imported',
-    ) as { value: string } | undefined;
-    if (marker !== undefined) return;
-
-    const messages = this.readLegacyMessages();
-    const agents = this.readLegacyRegistry(
-      path.join(this.projectDir, '_mailbox.registry.json'),
-      parseAgentRegistryEntry,
-    );
-    const clients = this.readLegacyRegistry(
-      path.join(this.projectDir, GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE),
-      parseClientRegistryEntry,
-    );
-
-    this.transaction(() => {
-      for (const message of messages) {
-        const projection = message as MailboxMessageProjection;
-        this.persistMessage(message, projection.legacyGlobalCompletion === true);
-        for (const state of Object.values(projection.recipientState ?? {})) {
-          this.persistReceipt(message.id, state);
-        }
-      }
-      for (const agent of agents.values()) this.persistAgent(agent);
-      for (const client of clients.values()) this.persistClient(client);
-      this.stmt('INSERT INTO mailbox_meta(key, value) VALUES (?, ?)').run(
-        'legacy_files_imported',
-        new Date().toISOString(),
-      );
-    });
-  }
-
-  private readLegacyMessages(): MailboxMessage[] {
-    try {
-      return parseMailboxFile(fs.readFileSync(path.join(this.projectDir, GLOBAL_MAILBOX_FILE), 'utf8'));
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw error;
-    }
-  }
-
-  private readLegacyRegistry<T>(
-    filePath: string,
-    parseEntry: (value: unknown) => T | null,
-  ): Map<string, T> {
-    try {
-      const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Record<string, unknown>;
-      const result = new Map<string, T>();
-      for (const [id, value] of Object.entries(raw)) {
-        const parsed = parseEntry(value);
-        if (parsed !== null) result.set(id, parsed);
-      }
-      return result;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Map();
-      throw error;
-    }
+  /** Bundle of store state the schema/migration module operates on. */
+  private schemaCtx(): SchemaContext {
+    return {
+      db: this.db,
+      projectDir: this.projectDir,
+      transaction: (run) => this.transaction(run),
+    };
   }
 
   private persistMessage(message: MailboxMessage, legacyGlobalCompletion = false): void {
-    const stored = { ...message, readBy: { ...message.readBy } } as MailboxMessageProjection;
-    delete (stored as Partial<MailboxMessageProjection>).recipientState;
-    delete (stored as Partial<MailboxMessageProjection>).legacyGlobalCompletion;
-    this.stmt(`
-      INSERT INTO messages(
-        id, from_id, to_id, type, priority, timestamp, completed, completed_at,
-        deleted_at, sender_session_id, reply_to, expires_at,
-        legacy_global_completion, data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        from_id = excluded.from_id,
-        to_id = excluded.to_id,
-        type = excluded.type,
-        priority = excluded.priority,
-        timestamp = excluded.timestamp,
-        completed = excluded.completed,
-        completed_at = excluded.completed_at,
-        deleted_at = excluded.deleted_at,
-        sender_session_id = excluded.sender_session_id,
-        reply_to = excluded.reply_to,
-        expires_at = excluded.expires_at,
-        legacy_global_completion = excluded.legacy_global_completion,
-        data = excluded.data
-    `).run(
-      message.id,
-      message.from,
-      message.to,
-      message.type,
-      message.priority,
-      message.timestamp,
-      message.completed ? 1 : 0,
-      message.completedAt ?? null,
-      message.deletedAt ?? null,
-      message.senderSessionId ?? null,
-      message.replyTo ?? null,
-      message.expiresAt ?? null,
-      legacyGlobalCompletion ? 1 : 0,
-      JSON.stringify(stored),
-    );
+    persistMessage(this.db, message, legacyGlobalCompletion);
   }
 
   private persistReceipt(messageId: string, state: MailboxRecipientState): void {
-    this.stmt(`
-      INSERT INTO message_receipts(
-        message_id, actor_id, read_at, completed_at, completed_by, outcome
-      ) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(message_id, actor_id) DO UPDATE SET
-        read_at = excluded.read_at,
-        completed_at = excluded.completed_at,
-        completed_by = excluded.completed_by,
-        outcome = excluded.outcome
-    `).run(
-      messageId,
-      state.actorId,
-      state.readAt ?? null,
-      state.completedAt ?? null,
-      state.completedBy ?? null,
-      state.outcome ?? null,
-    );
+    persistReceipt(this.db, messageId, state);
   }
 
   private materializeMessageRows(rows: readonly MessageRow[]): MailboxMessageProjection[] {
-    if (rows.length === 0) return [];
-
-    const useTargetedReceipts = rows.length <= 500;
-    const receiptSql = useTargetedReceipts
-      ? `
-        SELECT message_id, actor_id, read_at, completed_at, completed_by, outcome
-        FROM message_receipts
-        WHERE message_id IN (${rows.map(() => '?').join(', ')})
-      `
-      : `
-        SELECT message_id, actor_id, read_at, completed_at, completed_by, outcome
-        FROM message_receipts
-      `;
-    const receiptRows = this.stmt(receiptSql).all(
-      ...(useTargetedReceipts ? rows.map((row) => row.id) : []),
-    ) as unknown as ReceiptRow[];
-    const receiptState = new Map<string, Record<string, MailboxRecipientState>>();
-    for (const row of receiptRows) {
-      const states = receiptState.get(row.message_id) ?? {};
-      states[row.actor_id] = {
-        actorId: row.actor_id,
-        ...(row.read_at !== null ? { readAt: row.read_at } : {}),
-        ...(row.completed_at !== null ? { completedAt: row.completed_at } : {}),
-        ...(row.completed_by !== null ? { completedBy: row.completed_by } : {}),
-        ...(row.outcome !== null ? { outcome: row.outcome } : {}),
-      };
-      receiptState.set(row.message_id, states);
-    }
-
-    return rows.map((row) => {
-      const base = JSON.parse(row.data) as MailboxMessage;
-      const recipientState = receiptState.get(row.id) ?? {};
-      const readBy = { ...base.readBy };
-      for (const state of Object.values(recipientState)) {
-        if (state.readAt !== undefined) readBy[state.actorId] = state.readAt;
-      }
-      return {
-        ...base,
-        readBy,
-        recipientState,
-        ...(row.legacy_global_completion === 1 ? { legacyGlobalCompletion: true } : {}),
-      };
-    });
+    return materializeMessageRows(this.db, rows);
   }
 
   private readMessages(): MailboxMessageProjection[] {
@@ -813,71 +491,15 @@ export class SqliteMailbox implements Mailbox {
   }
 
   private persistAgent(agent: RegisteredAgent): void {
-    this.stmt(`
-      INSERT INTO agents(
-        agent_id, session_id, name, role, status, current_tool, current_task,
-        iterations, tool_calls, registered_at, last_seen_at, pid, source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(agent_id) DO UPDATE SET
-        session_id = excluded.session_id,
-        name = excluded.name,
-        role = excluded.role,
-        status = excluded.status,
-        current_tool = excluded.current_tool,
-        current_task = excluded.current_task,
-        iterations = excluded.iterations,
-        tool_calls = excluded.tool_calls,
-        registered_at = excluded.registered_at,
-        last_seen_at = excluded.last_seen_at,
-        pid = excluded.pid,
-        source = excluded.source
-    `).run(
-      agent.agentId,
-      agent.sessionId,
-      agent.name,
-      agent.role ?? null,
-      agent.status,
-      agent.currentTool ?? null,
-      agent.currentTask ?? null,
-      agent.iterations,
-      agent.toolCalls,
-      agent.registeredAt,
-      agent.lastSeenAt,
-      agent.pid,
-      agent.source ?? null,
-    );
+    persistAgent(this.db, agent);
   }
 
   private readAgents(): Map<string, RegisteredAgent> {
-    const rows = this.stmt('SELECT * FROM agents').all() as unknown as Array<Record<string, unknown>>;
-    const agents = new Map<string, RegisteredAgent>();
-    for (const row of rows) {
-      const agent: RegisteredAgent = {
-        agentId: String(row['agent_id']),
-        sessionId: String(row['session_id']),
-        name: String(row['name']),
-        ...(row['role'] !== null ? { role: String(row['role']) } : {}),
-        status: row['status'] as RegisteredAgent['status'],
-        ...(row['current_tool'] !== null ? { currentTool: String(row['current_tool']) } : {}),
-        ...(row['current_task'] !== null ? { currentTask: String(row['current_task']) } : {}),
-        iterations: Number(row['iterations']),
-        toolCalls: Number(row['tool_calls']),
-        registeredAt: String(row['registered_at']),
-        lastSeenAt: String(row['last_seen_at']),
-        pid: Number(row['pid']),
-        ...(row['source'] !== null ? { source: row['source'] as RegisteredAgent['source'] } : {}),
-      };
-      agents.set(agent.agentId, agent);
-    }
-    return agents;
+    return readAgents(this.db);
   }
 
   private pruneAgents(maxAgeMs = AGENT_STALE_MS): number {
-    const cutoff = new Date(Date.now() - Math.max(0, maxAgeMs)).toISOString();
-    const result = this.stmt(
-      `DELETE FROM agents WHERE last_seen_at < ? OR ${MALFORMED_TIMESTAMP}`,
-    ).run(cutoff);
-    return Number(result.changes);
+    return pruneAgents(this.db, maxAgeMs);
   }
 
   async registerAgent(input: AgentRegistrationInput): Promise<void> {
@@ -964,52 +586,15 @@ export class SqliteMailbox implements Mailbox {
   }
 
   private persistClient(client: RegisteredClient): void {
-    this.stmt(`
-      INSERT INTO clients(
-        client_id, session_id, name, source, registered_at, last_seen_at, pid
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(client_id) DO UPDATE SET
-        session_id = excluded.session_id,
-        name = excluded.name,
-        source = excluded.source,
-        registered_at = excluded.registered_at,
-        last_seen_at = excluded.last_seen_at,
-        pid = excluded.pid
-    `).run(
-      client.clientId,
-      client.sessionId,
-      client.name,
-      client.source,
-      client.registeredAt,
-      client.lastSeenAt,
-      client.pid,
-    );
+    persistClient(this.db, client);
   }
 
   private readClients(): Map<string, RegisteredClient> {
-    const rows = this.stmt('SELECT * FROM clients').all() as unknown as Array<Record<string, unknown>>;
-    const clients = new Map<string, RegisteredClient>();
-    for (const row of rows) {
-      const client: RegisteredClient = {
-        clientId: String(row['client_id']),
-        sessionId: String(row['session_id']),
-        name: String(row['name']),
-        source: row['source'] as RegisteredClient['source'],
-        registeredAt: String(row['registered_at']),
-        lastSeenAt: String(row['last_seen_at']),
-        pid: Number(row['pid']),
-      };
-      clients.set(client.clientId, client);
-    }
-    return clients;
+    return readClients(this.db);
   }
 
   private pruneClientsInPlace(): number {
-    const cutoff = new Date(Date.now() - CLIENT_STALE_MS).toISOString();
-    const result = this.stmt(
-      `DELETE FROM clients WHERE last_seen_at < ? OR ${MALFORMED_TIMESTAMP}`,
-    ).run(cutoff);
-    return Number(result.changes);
+    return pruneClients(this.db);
   }
 
   async registerClient(input: ClientRegistrationInput): Promise<void> {
@@ -1073,202 +658,58 @@ export class SqliteMailbox implements Mailbox {
   }
 
   async purgeStale(options?: PurgeOptions): Promise<PurgeResult> {
-    const completedMaxAgeMs = options?.completedMaxAgeMs ?? 86_400_000;
-    const incompleteMaxAgeMs = options?.incompleteMaxAgeMs ?? 604_800_000;
-    const statuses = await this.getAgentStatuses();
-    const now = Date.now();
-    let completedPurged = 0;
-    let incompletePurged = 0;
-    const ids: string[] = [];
-    const messages = this.readMessages();
-    for (const message of messages) {
-      const retention = resolveMailboxRetentionState(message, statuses);
-      const messageTime = new Date(message.timestamp).getTime();
-      const completionTime = new Date(retention.completedAt ?? 0).getTime();
-      if (retention.completed && completionTime < now - completedMaxAgeMs) {
-        completedPurged++;
-        ids.push(message.id);
-      } else if (!retention.completed && messageTime < now - incompleteMaxAgeMs) {
-        incompletePurged++;
-        ids.push(message.id);
-      }
-    }
-    this.deleteMessages(ids);
-    return {
-      completedPurged,
-      incompletePurged,
-      totalPurged: ids.length,
-      remaining: messages.length - ids.length,
-    };
+    return purgeStale(this.compactionCtx(), options);
   }
 
   async autoCompact(options?: AutoCompactOptions): Promise<AutoCompactResult> {
-    const readMaxAgeMs = options?.readMaxAgeMs ?? AUTO_COMPACT_READ_MAX_AGE_MS;
-    const defaultTtlMs = options?.defaultTtlMs ?? AUTO_COMPACT_DEFAULT_TTL_MS;
-    const typeTtlMs = options?.typeTtlMs ?? AUTO_COMPACT_TYPE_TTL_MS;
-    const completedMaxAgeMs = options?.completedMaxAgeMs ?? 86_400_000;
-    const incompleteMaxAgeMs = options?.incompleteMaxAgeMs ?? 604_800_000;
-    const statuses = await this.getAgentStatuses();
-    const online = statuses.filter((status) => status.online);
-    const now = Date.now();
-    let readByAllRemoved = 0;
-    let expiredRemoved = 0;
-    let stalePurged = 0;
-    const ids: string[] = [];
-    const messages = this.readMessages();
+    return autoCompact(this.compactionCtx(), options);
+  }
 
-    for (const message of messages) {
-      const messageTime = new Date(message.timestamp).getTime();
-      const expiry =
-        message.expiresAt !== undefined
-          ? new Date(message.expiresAt).getTime()
-          : messageTime + (typeTtlMs[message.type] ?? defaultTtlMs);
-      if (expiry < now) {
-        expiredRemoved++;
-        ids.push(message.id);
-        continue;
-      }
-
-      const retention = resolveMailboxRetentionState(message, statuses);
-      const eligible = online.filter((status) =>
-        isMailboxMessageVisibleTo(message, status.agentId, status.role),
-      );
-      if (!retention.completed && eligible.length > 0) {
-        const readByAll = eligible.every((status) => status.agentId in message.readBy);
-        const latestRead = Math.max(
-          ...eligible.map((status) => new Date(message.readBy[status.agentId] ?? 0).getTime()),
-        );
-        if (readByAll && latestRead < now - readMaxAgeMs) {
-          readByAllRemoved++;
-          ids.push(message.id);
-          continue;
-        }
-      }
-
-      const completionTime = new Date(retention.completedAt ?? 0).getTime();
-      if (
-        (retention.completed && completionTime < now - completedMaxAgeMs) ||
-        (!retention.completed && messageTime < now - incompleteMaxAgeMs)
-      ) {
-        stalePurged++;
-        ids.push(message.id);
-      }
-    }
-
-    this.deleteMessages(ids);
+  /** Bundle of store operations the retention sweeps drive. */
+  private compactionCtx(): CompactionContext {
     return {
-      readByAllRemoved,
-      expiredRemoved,
-      stalePurged,
-      totalRemoved: ids.length,
-      remaining: messages.length - ids.length,
+      getAgentStatuses: () => this.getAgentStatuses(),
+      readMessages: () => this.readMessages(),
+      deleteMessages: (ids) => this.deleteMessages(ids),
     };
   }
 
   private deleteMessages(ids: readonly string[]): void {
     if (ids.length === 0) return;
-    this.transaction(() => {
-      const statement = this.stmt('DELETE FROM messages WHERE id = ?');
-      for (const id of ids) statement.run(id);
-    });
-  }
-
-  private persistCredential(credential: MailboxCredential): void {
-    this.stmt(`
-      INSERT INTO credentials(credential_id, status, principal_id, expires_at, data)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(credential_id) DO UPDATE SET
-        status = excluded.status,
-        principal_id = excluded.principal_id,
-        expires_at = excluded.expires_at,
-        data = excluded.data
-    `).run(
-      credential.credentialId,
-      credential.status,
-      credential.principalId,
-      credential.expiresAt,
-      JSON.stringify(credential),
-    );
+    this.transaction(() => deleteMessages(this.db, ids));
   }
 
   credentialGet(credentialId: string): MailboxCredential | null {
-    const row = this.stmt('SELECT data FROM credentials WHERE credential_id = ?').get(
-      credentialId,
-    ) as { data: string } | undefined;
-    return row === undefined ? null : JSON.parse(row.data) as MailboxCredential;
+    return credentialGet(this.db, credentialId);
   }
 
   credentialList(): MailboxCredential[] {
-    const rows = this.stmt('SELECT data FROM credentials').all() as unknown as {
-      data: string;
-    }[];
-    return rows
-      .map((row) => JSON.parse(row.data) as MailboxCredential)
-      .sort((left, right) => {
-        if (left.status === 'active' && right.status !== 'active') return -1;
-        if (left.status !== 'active' && right.status === 'active') return 1;
-        return right.issuedAt.localeCompare(left.issuedAt);
-      });
+    return credentialList(this.db);
   }
 
   credentialStatusCounts(): Record<string, number> {
-    const rows = this.stmt(
-      'SELECT status, COUNT(*) AS count FROM credentials GROUP BY status',
-    ).all() as unknown as { status: string; count: number }[];
-    return Object.fromEntries(rows.map((row) => [row.status, row.count]));
+    return credentialStatusCounts(this.db);
   }
 
   credentialIssue(
     options: IssueCredentialOptions,
   ): { credential: MailboxCredential; secret: string } {
-    const now = Date.now();
-    const issued = createMailboxCredential(options, now);
-    this.transaction(() => {
-      if (options.supersedes !== undefined) {
-        const old = this.credentialGet(options.supersedes);
-        if (old?.status === 'active') {
-          old.status = 'rotated_out';
-          old.statusChangedAt = new Date(now).toISOString();
-          old.statusReason = 'superseded by rotation';
-          old.rotationValidUntil = new Date(now + ROTATION_OVERLAP_MS).toISOString();
-          this.persistCredential(old);
-        }
-      }
-      this.persistCredential(issued.credential);
-    });
-    return issued;
+    return credentialIssue(this.db, (run) => this.transaction(run), options);
   }
 
   credentialVerify(credentialId: string, secret: string): CredentialValidation {
-    return verifyMailboxCredential(this.credentialGet(credentialId) ?? undefined, secret);
+    return credentialVerify(this.db, credentialId, secret);
   }
 
   credentialRevoke(credentialId: string, reason?: string, by?: string): boolean {
-    const credential = this.credentialGet(credentialId);
-    if (credential === null || credential.status === 'revoked') return false;
-    credential.status = 'revoked';
-    credential.statusChangedAt = new Date().toISOString();
-    credential.statusReason = reason ?? 'revoked';
-    credential.lastModifiedBy = by;
-    this.persistCredential(credential);
-    return true;
+    return credentialRevoke(this.db, credentialId, reason, by);
   }
 
   credentialRotate(
     credentialId: string,
     options?: Partial<IssueCredentialOptions>,
   ): { credential: MailboxCredential; secret: string } | null {
-    const old = this.credentialGet(credentialId);
-    if (old === null) return null;
-    return this.credentialIssue({
-      principalId: old.principalId,
-      projectId: old.projectId ?? options?.projectId,
-      kind: old.kind,
-      capabilities: options?.capabilities ?? old.capabilities,
-      ttlMs: options?.ttlMs ?? MAX_CREDENTIAL_TTL[old.kind],
-      supersedes: credentialId,
-      issuedBy: options?.issuedBy,
-    });
+    return credentialRotate(this.db, (run) => this.transaction(run), credentialId, options);
   }
 
   startAutoCompactTimer(options?: AutoCompactOptions): () => void {

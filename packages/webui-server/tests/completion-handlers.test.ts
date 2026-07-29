@@ -12,6 +12,8 @@ vi.mock('@wrongstack/tools/codebase-index/index', () => ({
   codebaseIndexTool: undefined as never,
   codebaseSearchTool: undefined as never,
   codebaseStatsTool: undefined as never,
+  deadCodeScanTool: undefined as never,
+  runDeadCodeScan: undefined as never,
   runIndexer: undefined as never,
   runStartupIndex: undefined as never,
   enqueueReindex: undefined as never,

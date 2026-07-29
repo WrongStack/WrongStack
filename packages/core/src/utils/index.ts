@@ -156,3 +156,10 @@ export {
 } from './project-watch.js';
 export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';
 export * from './wstack-paths.js';
+export {
+  type HeapSample,
+  type HeapWatchdogOptions,
+  startHeapWatchdog,
+  takeHeapSample,
+  defaultHeapLogPath,
+} from './heap-watchdog.js';

@@ -284,8 +284,8 @@ describe('StatusBar chip separators', () => {
     });
     const [line1 = '', line2 = ''] = frame.split('\n');
 
-    expect(line1).toMatch(/openai\/gpt-5\.6.*▶.*\[00o/);
-    expect(line2).toMatch(/▣ WrongStack.*▶.*⌁ packages\/tui/);
+    expect(line1).toMatch(/openai\/gpt-5\.6.*\[00o/);
+    expect(line2).toMatch(/▣ WrongStack.*⌁ packages\/tui/);
   });
 
   it('updates the rendered provider/model when current state changes', () => {
@@ -327,8 +327,8 @@ describe('StatusBar chip separators', () => {
     expect(frame).toContain('∞ AUTO');
     expect(frame).toContain('▣ proj');
     const [line1 = '', line2 = ''] = frame.split('\n');
-    expect(line1).toMatch(/AUTO.*▶.*anthropic\/claude.*▶.*● idle/);
-    expect(line2).toMatch(/^◖ ▣ proj/);
+    expect(line1).toMatch(/AUTO.*anthropic\/claude.*● idle/);
+    expect(line2).toMatch(/^▣ proj/);
   });
 
   it('line 2: separates the task chip from the fleet chip without todos/plan present', () => {
@@ -341,7 +341,7 @@ describe('StatusBar chip separators', () => {
     // Both task and fleet glyphs appear on the same line with separators
     expect(frame).toContain('◆');
     expect(frame).toContain('◈');
-    expect(frame).toMatch(/◆.*▶.*◈/);
+    expect(frame).toMatch(/◆.*◈/);
   });
 
   it('renders todos on the active-work line (line 3)', () => {
@@ -353,10 +353,10 @@ describe('StatusBar chip separators', () => {
     const line = frame.split('\n').find((l) => l.includes('todos')) ?? '';
     expect(line).toContain('todos');
     // On line 3, todos is the first chip, so there is no transition before it.
-    expect(line).toMatch(/^◖ todos/);
+    expect(line).toMatch(/^todos/);
   });
 
-  it('inserts a Powerline transition between every pair of visible chips on line 1', () => {
+  it('renders all visible chips on line 1 in the correct order', () => {
     const frame = frameOf({
       yolo: true,
       autonomy: 'eternal',
@@ -364,8 +364,8 @@ describe('StatusBar chip separators', () => {
     // YOLO is first on line 1, followed by autonomy, then state/idle, then model.
     // Every adjacent pair should have a Powerline transition.
     const line1 = frame.split('\n').find((l) => l.includes('YOLO')) ?? '';
-    expect(line1).toMatch(/YOLO.*▶.*∞ ETERNAL/);
-    expect(line1).toMatch(/∞ ETERNAL.*▶.*●/);
+    expect(line1).toMatch(/YOLO.*∞ ETERNAL/);
+    expect(line1).toMatch(/∞ ETERNAL.*●/);
   });
 
   it('hides mailbox line content when mailbox is disabled', () => {

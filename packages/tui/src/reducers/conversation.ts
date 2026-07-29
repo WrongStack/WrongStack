@@ -10,6 +10,8 @@ import {
 
 const conversationActionTypes = [
   'addEntry',
+  'archiveLoaded',
+  'startArchiveLoad',
   'compactHistory',
   'setBuffer',
   'clearInput',
@@ -67,6 +69,27 @@ export function reduceConversation(state: State, action: ConversationAction): St
         nextId: state.nextId + 1,
       };
     }
+    case 'archiveLoaded': {
+      // Entries loaded from the history archive. Prepend them to the current
+      // entries so the scroll window shifts to include archived content.
+      // Use a simple slice cap instead of retainTuiHistory — that keeps the
+      // newest entries and would drop the just-loaded archive entries first,
+      // making scroll-back a no-op. The next addEntry dispatch will run
+      // retainTuiHistory and trim from the front, naturally aging out the
+      // oldest archive entries. This hard cap prevents unbounded growth from
+      // repeated archive loads without the user submitting new entries.
+      const loadedMaxId = action.entries.reduce((max, e) => Math.max(max, e.id), 0);
+      const merged = [...action.entries, ...state.entries];
+      const SOFT_MAX_ENTRIES = 800;
+      return {
+        ...state,
+        archiveLoading: false,
+        entries: merged.length > SOFT_MAX_ENTRIES ? merged.slice(-SOFT_MAX_ENTRIES) : merged,
+        nextId: Math.max(state.nextId, loadedMaxId + 1),
+      };
+    }
+    case 'startArchiveLoad':
+      return { ...state, archiveLoading: true };
     case 'compactHistory': {
       const entries = retainTuiHistory(state.entries);
       return entries === state.entries ? state : { ...state, entries };
@@ -99,6 +122,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
       return {
         ...state,
         entries: refreshedBanner ? [refreshedBanner] : [],
+        archiveLoading: false,
         queue: [],
         nextQueueId: 1,
         streamingText: '',

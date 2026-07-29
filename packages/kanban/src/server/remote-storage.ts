@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
+import { StaleWriteError } from '../manager/lifecycle.js';
+import type { KanbanErrorCode } from './protocol.js';
 import { getInstalledKanbanStorageBackend, type KanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanEvent } from '../types.js';
 import { getKanbanServerConnection } from './client.js';
@@ -73,7 +75,27 @@ class RemoteKanbanStorage implements KanbanStorageBackend {
     const result = await mutator(board);
     if (fingerprint(board) === before) return { board, result };
     board.revision = readRevision + 1;
-    await this.writeBoard(board, readRevision);
+    try {
+      await this.writeBoard(board, readRevision);
+    } catch (error) {
+      // The writeBoard call crosses IPC, so StaleWriteError from the server
+      // arrives here as a plain Error (the typed class is lost via JSON
+      // serialization in client.ts's onData handler). The server's
+      // errorFromThrown serialises StaleWriteError with code === 'STALE_WRITE'
+      // and client.ts's onData attaches the code to the reconstructed Error.
+      // Only wrap that case into a local StaleWriteError so callers (e.g.
+      // claimReadyTask) can catch by type. All other IPC failures
+      // (connection loss, timeout, server-down, disk-full) propagate
+      // unchanged so the caller can distinguish real infrastructure
+      // failures from benign stale-write contention.
+      if (
+        error instanceof Error &&
+        (error as { code?: KanbanErrorCode }).code === 'STALE_WRITE'
+      ) {
+        throw new StaleWriteError(error.message);
+      }
+      throw error;
+    }
     return { board, result };
   }
 }

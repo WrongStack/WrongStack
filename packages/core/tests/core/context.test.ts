@@ -410,4 +410,27 @@ describe('Context content-hash tracking', () => {
     ctx.clearFileTracking();
     expect(ctx.lastReadHash('/a/b.ts')).toBeUndefined();
   });
+
+  it('recordFileEvent caps at MAX_FILE_EVENTS with oldest-first eviction', () => {
+    const ctx = mkContext();
+    const MAX = (Context as never as Record<string, number>)['MAX_FILE_EVENTS'] ?? 1000;
+    const over = MAX + 10;
+
+    for (let i = 0; i < over; i++) {
+      ctx.recordFileEvent({
+        operation: 'read',
+        filePath: `src/file-${i}.ts`,
+        absPath: `/tmp/src/file-${i}.ts`,
+        toolName: 'read',
+        toolUseId: `tu-${i}`,
+      });
+    }
+
+    expect(ctx.fileEvents.length).toBeLessThanOrEqual(MAX);
+    expect(ctx.fileEvents.length).toBe(MAX);
+
+    // Oldest entries evicted; newest retained
+    expect(ctx.fileEvents[0]?.toolUseId).toBe(`tu-${over - MAX}`);
+    expect(ctx.fileEvents[MAX - 1]?.toolUseId).toBe(`tu-${over - 1}`);
+  });
 });

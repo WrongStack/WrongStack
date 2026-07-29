@@ -200,7 +200,12 @@ class ChronicleSqliteEventSink implements ChronicleEventSink {
     this.ready = (async () => {
       await fsPromises.mkdir(directory, { recursive: true });
       const journal = new ChronicleSqliteJournal({ directory });
-      await importLegacyChronicleJournal(journal, directory);
+      try {
+        await importLegacyChronicleJournal(journal, directory);
+      } catch (error) {
+        journal.close();
+        throw error;
+      }
       return journal;
     })();
   }
@@ -255,7 +260,15 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
     this.sqlite ??= (async () => {
       await fsPromises.mkdir(this.chronicleDirectory, { recursive: true });
       const journal = new ChronicleSqliteJournal({ directory: this.chronicleDirectory });
-      await importLegacyChronicleJournal(journal, this.chronicleDirectory);
+      try {
+        await importLegacyChronicleJournal(journal, this.chronicleDirectory);
+      } catch (error) {
+        // Mirrors the daemon: a cached rejection would make every later call
+        // fail identically while the handle holds the WAL open.
+        this.sqlite = undefined;
+        journal.close();
+        throw error;
+      }
       return journal;
     })();
     return this.sqlite;

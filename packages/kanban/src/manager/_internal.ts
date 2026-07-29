@@ -460,7 +460,20 @@ export async function claimReadyTaskOnBoard(
       const task = candidates.find(
         (candidate) => isTaskReadyForWork(board, candidate) && candidate.lifecycle?.currentStage === 'todo',
       );
-      if (!task) return null;
+      if (!task) {
+        // No task is in the 'todo' lifecycle stage. The board may have ready
+        // tasks that are still in 'backlog' (not yet transitioned to the work
+        // queue). Return null — the caller sees no claimable work — but log
+        // the distinction so operators can diagnose stage-blocked tasks.
+        const stageBlocked = candidates.length > 0;
+        if (stageBlocked) {
+          process.stderr.write(
+            `[kanban] claimReadyTask: ${candidates.length} ready candidate(s) on "${boardId}" ` +
+            `but none in 'todo' lifecycle stage. Tasks may be stage-blocked in 'backlog'.\n`,
+          );
+        }
+        return null;
+      }
       const current = task.assignment;
       const assignment = buildAssignment({
         ...(current?.agentId !== undefined ? { agentId: current.agentId } : {}),
@@ -901,8 +914,14 @@ export function createKanbanEvent(
 export async function emitKanbanEvent(projectRoot: string, event: KanbanEvent): Promise<void> {
   try {
     await appendKanbanEvent(projectRoot, event.boardId, event);
-  } catch {
-    // Event logging is observability-only; current board state must remain authoritative.
+  } catch (error) {
+    // Event logging is observability-only; current board state must remain
+    // authoritative. Log the failure so operators can detect audit gaps.
+    const msg = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `[kanban] emitKanbanEvent: failed to append event ${event.type} ` +
+      `for board ${event.boardId}: ${msg}\n`,
+    );
   }
 }
 

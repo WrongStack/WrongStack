@@ -15,8 +15,8 @@ import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-import { kanbanProjectServerEndpoint } from '../src/server/project-server.js';
+import { afterEach, describe, expect, it } from 'vitest';
+import { MAX_FRAME_CHARS, onData, kanbanProjectServerEndpoint } from '../src/server/project-server.js';
 
 // Emitted at the dist ROOT, not under dist/server/: `client.ts` is bundled
 // into dist/index.js, so its `new URL('./project-server.js', import.meta.url)`
@@ -144,6 +144,89 @@ describe('kanban project server lifecycle', { retry: 1 }, () => {
       // unlink with the standard 25ms backoff until the OS releases the map.
       await fs.rm(projectRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
     }
+  });
+});
+
+describe('kanban project server frame buffer guard', () => {
+  let server: net.Server | undefined;
+  let tempRoot: string | undefined;
+  let orphanSock: string | undefined;
+  const sockets: net.Socket[] = [];
+
+  afterEach(async () => {
+    for (const sock of sockets.splice(0)) sock.destroy();
+    server?.close();
+    server = undefined;
+    if (orphanSock) {
+      await fs.rm(orphanSock, { force: true }).catch(() => {});
+      orphanSock = undefined;
+    }
+    if (tempRoot) {
+      await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {});
+      tempRoot = undefined;
+    }
+  });
+
+  it('destroys the connection when a chunk without newline exceeds MAX_FRAME_CHARS', async () => {
+    tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-bufguard-'));
+    const endpoint = kanbanProjectServerEndpoint(tempRoot);
+    // The endpoint resolves to a system-level path outside tempRoot
+    // (e.g. /tmp/wrongstack-kanban-v4-<hash>.sock). Track it so afterEach
+    // can clean it up — the temp directory removal alone won't delete it.
+    orphanSock = endpoint;
+
+    // Start a local server that wires up the real onData guard — same
+    // logic that the daemon uses in acceptClient().
+    server = net.createServer((serverSocket) => {
+      serverSocket.setEncoding('utf8');
+      const state = {
+        socket: serverSocket,
+        buffer: '',
+        inflightRequests: 0,
+        lastSeenAt: Date.now(),
+      };
+      serverSocket.on('data', (chunk: string) => onData(state, chunk));
+      serverSocket.on('error', () => {
+        /* consumed by design — same as acceptClient */
+      });
+    });
+    await new Promise<void>((resolve, reject) => {
+      server!.once('error', reject);
+      server!.listen(endpoint, resolve);
+    });
+
+    // Connect a raw client socket
+    const client = await new Promise<net.Socket>((resolve, reject) => {
+      const s = net.createConnection(endpoint);
+      s.once('connect', () => resolve(s));
+      s.once('error', reject);
+    });
+    sockets.push(client);
+
+    // Send a chunk larger than MAX_FRAME_CHARS with no trailing \n.
+    // The guard in onData() checks buffer.length BEFORE the frame loop,
+    // so a newline-less chunk cannot bypass the cap — this must destroy
+    // the socket unconditionally.
+    const oversized = Buffer.alloc(MAX_FRAME_CHARS + 1, 'x');
+
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(
+            new Error(
+              'Socket was not destroyed within 10 s — the MAX_FRAME_CHARS guard ' +
+                'is missing or positioned inside the frame loop, so a newline-less ' +
+                'chunk bypasses it',
+            ),
+          );
+        }, 10_000);
+        client.on('close', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        client.write(oversized);
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 

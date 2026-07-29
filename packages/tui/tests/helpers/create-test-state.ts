@@ -49,6 +49,7 @@ type DeepPartial<T> = {
 export function createTestState(overrides: DeepPartial<State> & Record<string, unknown> = {}): State {
   const base: State = {
     entries: [],
+    archiveLoading: false,
     historyGen: 0,
     buffer: '',
     cursor: 0,

@@ -13,156 +13,35 @@
  * @module session-registry
  */
 
-import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import {
+  breakStaleLock,
+  pruneStaleTempFiles,
+  STALE_TMP_MS,
+  writeAtomicFile,
+} from './session-registry-atomic-file.js';
+import type {
+  AgentEntry,
+  SessionLiveStatus,
+  SessionRegistryEntry,
+} from './session-registry-types.js';
 import { isPidAlive } from './utils/pid.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-/** Live status of a single agent within a session. */
-export type AgentLiveStatus =
-  | 'idle'
-  | 'running'
-  | 'streaming'
-  | 'waiting_user' // brain.ask_human, confirm prompt
-  | 'error';
-
-/** A bounded, display-safe tool receipt shared with cross-process observers. */
-export interface AgentRecentTool {
-  id: string;
-  name: string;
-  startedAt: number;
-  completedAt: number;
-  durationMs: number;
-  ok: boolean;
-  input?: unknown | undefined;
-  output?: string | undefined;
-  inputLines?: number | undefined;
-  oldLines?: number | undefined;
-  newLines?: number | undefined;
-  addedLines?: number | undefined;
-  removedLines?: number | undefined;
-  outputLines?: number | undefined;
-  outputBytes?: number | undefined;
-  outputTokens?: number | undefined;
-}
-
-export interface AgentRecentMail {
-  id: string;
-  direction: 'incoming' | 'outgoing';
-  from: string;
-  to: string;
-  type: string;
-  subject: string;
-  at: number;
-}
-
-/** A compact todo mirrored with the leader so every Office can show its live worklist. */
-export interface AgentTodoItem {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  activeForm?: string | undefined;
-}
-
-/** Session-long aggregate used by project Office dashboards. */
-export interface AgentActivityTotals {
-  filesTouched: string[];
-  reads: number;
-  writes: number;
-  edits: number;
-  terminalCalls: number;
-  webCalls: number;
-  searches: number;
-  otherCalls: number;
-  mailReceived: number;
-  mailSent: number;
-  linesRead: number;
-  linesWritten: number;
-  linesAdded: number;
-  linesRemoved: number;
-}
-
-export interface AgentEntry {
-  /** Unique agent id (ULID or UUID). */
-  id: string;
-  /** Human-readable label (e.g. "leader", "bug-hunter #1"). */
-  name: string;
-  /** UTC ISO timestamp when this agent/run started, when known. */
-  startedAt?: string | undefined;
-  status: AgentLiveStatus;
-  /** Current tool name if running, undefined otherwise. */
-  currentTool?: string | undefined;
-  /** Human-readable task currently assigned to this agent. */
-  currentTask?: string | undefined;
-  /** Stable coordinator task id when this is a delegated/subagent task. */
-  taskId?: string | undefined;
-  /** Iteration count so far. */
-  iterations: number;
-  /** Tool calls so far. */
-  toolCalls: number;
-  /** Cumulative cost in USD for this agent, when known. */
-  costUsd?: number | undefined;
-  /** Cumulative input tokens, when known. */
-  tokensIn?: number | undefined;
-  /** Cumulative output tokens, when known. */
-  tokensOut?: number | undefined;
-  /** Context window fill 0–100 (may exceed 100 when over limit), when known. */
-  ctxPct?: number | undefined;
-  /** Model id this agent is running on, when known. */
-  model?: string | undefined;
-  /**
-   * Tail of the assistant text currently being streamed (capped, throttled).
-   * Lets a cross-process watcher see the response form in near-real-time
-   * instead of waiting for the completed turn to land in the session log.
-   */
-  partialText?: string | undefined;
-  /** Recent completed tools, newest first. Bounded by AgentStatusTracker. */
-  recentTools?: AgentRecentTool[] | undefined;
-  recentMail?: AgentRecentMail[] | undefined;
-  /** Session worklist. Populated on the leader entry only. */
-  todos?: AgentTodoItem[] | undefined;
-  /** Most recent operator prompt. Populated on the leader entry only. */
-  latestPrompt?: string | undefined;
-  latestPromptAt?: number | undefined;
-  /** Cumulative activity for this live session, reset when the session ends. */
-  activity?: AgentActivityTotals | undefined;
-  /** UTC ISO timestamp of last activity. */
-  lastActivityAt: string;
-}
-
-export type SessionLiveStatus =
-  | 'active' // process running, agents may be idle or busy
-  | 'idle' // process running, no agent activity
-  | 'closing' // session_end written, process shutting down
-  | 'stale' // process no longer alive (pruned on next read)
-  | 'lost'; // heartbeat timeout — process may still be alive but unreachable
-
-export interface SessionRegistryEntry {
-  sessionId: string;
-  projectSlug: string;
-  projectRoot: string;
-  projectName: string;
-  workingDir: string;
-  /**
-   * Which surface owns this session — `'tui'` / `'webui'` / `'cli'` (one-shot or
-   * REPL). Lets cross-process consumers (e.g. the WebUI Fleet HQ office map) label
-   * each live session by client kind. Optional for back-compat with older entries.
-   */
-  clientType?: 'tui' | 'webui' | 'cli' | 'repl' | string | undefined;
-  /** Current git branch, if the project is a git repo. Detected at registration. */
-  gitBranch?: string | undefined;
-  status: SessionLiveStatus;
-  pid: number;
-  /** UTC ISO */
-  startedAt: string;
-  /** UTC ISO — updated on every heartbeat */
-  lastHeartbeatAt: string;
-  /** Count of tracked agents */
-  agentCount: number;
-  agents: AgentEntry[];
-}
+// Re-exported so `session-registry.js` stays the single import site for these
+// record shapes across the workspace; the declarations live in their own module.
+export type {
+  AgentActivityTotals,
+  AgentEntry,
+  AgentLiveStatus,
+  AgentRecentMail,
+  AgentRecentTool,
+  AgentTodoItem,
+  SessionLiveStatus,
+  SessionRegistryEntry,
+} from './session-registry-types.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -181,17 +60,12 @@ const CLOSING_GRACE_MS = 15_000;
 // can still write. Operators must terminate the live owner before takeover.
 /** Subagents without any activity this long are not live, even if the owning session still heartbeats. */
 const AGENT_STALE_MS = 5 * 60_000;
-// A held lock is released within milliseconds; anything older is a crashed
-// owner's leftover and is safe to break so writes never wedge permanently.
-const STALE_LOCK_MS = 10_000;
 // Ownership claims are rare and must survive ordinary Windows fsync/antivirus
 // latency plus a burst of simultaneous heartbeats from several clients.
 // Telemetry writes remain cheap/best-effort and keep the shorter budget.
 const OWNERSHIP_LOCK_WAIT_MS = 8_000;
 const OPTIONAL_LOCK_WAIT_MS = 750;
 const LOCK_RETRY_MAX_MS = 100;
-const STALE_TMP_MS = 60_000;
-const MAX_STALE_TMP_FILES = 20;
 // Agent snapshots arrive on every tool boundary — a busy agent can cross
 // several boundaries per second, and each write is a full temp+fsync+rename
 // under the advisory lock. Coalesce to at most one write per window; the
@@ -698,7 +572,7 @@ export class SessionRegistry {
           // future write — the registry silently stops updating. Break the lock
           // when its owner pid is dead or it has been held implausibly long
           // (legit holds are sub-millisecond), then retry the open once.
-          if (await this.breakStaleLock(lockPath)) {
+          if (await breakStaleLock(lockPath)) {
             /* v8 ignore start -- retry-open after breaking a stale lock; .catch only fires on contention */
             lockHandle = await fs.open(lockPath, 'wx').catch(() => null);
             /* v8 ignore stop */
@@ -757,42 +631,6 @@ export class SessionRegistry {
       );
     }
     // All retries exhausted — non-ownership telemetry update dropped.
-  }
-
-  /**
-   * Break a contended lock if it is stale: the recorded owner pid is no longer
-   * alive, or the lock is older than {@link STALE_LOCK_MS}. Returns true when the
-   * lock was removed (caller should retry acquisition). Best-effort and
-   * race-tolerant — a fresh lock (age ~0, live owner) is never broken, so the
-   * common concurrent case self-heals on the next heartbeat.
-   */
-  private async breakStaleLock(lockPath: string): Promise<boolean> {
-    try {
-      const [stat, content] = await Promise.all([
-        fs.stat(lockPath),
-        /* v8 ignore start -- best-effort lock-content read; .catch only fires if the lock vanished */
-        fs.readFile(lockPath, 'utf8').catch(() => ''),
-        /* v8 ignore stop */
-      ]);
-      const ageMs = Date.now() - stat.mtimeMs;
-      const ownerPid = Number.parseInt(content.trim(), 10);
-      const ownerDead =
-        Number.isInteger(ownerPid) &&
-        ownerPid > 0 &&
-        ownerPid !== process.pid &&
-        !pidAlive(ownerPid);
-      if (ownerDead || ageMs > STALE_LOCK_MS) {
-        /* v8 ignore start -- best-effort stale-lock removal; .catch only fires if the lock vanished */
-        await fs.unlink(lockPath).catch(() => undefined);
-        /* v8 ignore stop */
-        return true;
-      }
-      return false;
-    } catch {
-      // stat failed → the lock vanished underneath us; let the caller retry.
-      /* v8 ignore next -- defensive: a vanished lock between stat and read is fine */
-      return true;
-    }
   }
 
   private async writeAtomicLocked(registry: Record<string, SessionRegistryEntry>): Promise<void> {
@@ -855,104 +693,11 @@ export class SessionRegistry {
   }
 
   private async writeAtomicFile(registry: Record<string, SessionRegistryEntry>): Promise<void> {
-    const tmp = path.join(
-      path.dirname(this.filePath),
-      `.${path.basename(this.filePath)}.${randomUUID().slice(0, 8)}.tmp`,
-    );
-    let tmpPersisted = false;
-    try {
-      // Write + fsync BEFORE the rename: without the fsync, a system crash
-      // can journal the rename metadata while the data blocks were never
-      // flushed, leaving a zero-filled (all-NUL) registry file on reboot.
-      const handle = await fs.open(tmp, 'w');
-      try {
-        await handle.writeFile(JSON.stringify(registry, null, 2), 'utf8');
-        await handle.sync().catch(() => undefined);
-      } finally {
-        await handle.close();
-      }
-      tmpPersisted = true;
-      // Cross-platform atomic publish:
-      //   1. POSIX: rename(2) is atomic; if the destination exists it is
-      //      replaced in one step.
-      //   2. Windows (Node 22): fs.rename uses MoveFile, which fails with
-      //      EPERM/EBUSY when the destination is briefly held by an antivirus
-      //      scan, a peer process reading the file, or an indexer.
-      //      fs.copyFile uses CopyFileEx/CopyFile2 with REPLACE_EXISTING,
-      //      which DOES overwrite an existing destination and tolerates short
-      //      sharing-violation windows better than MoveFile. Doing copyFile
-      //      first, then fs.unlink(tmp), gives us "best of both worlds":
-      //      the published bytes are the freshly written + fsynced ones,
-      //      and the destination is replaced even when MoveFile refuses.
-      //      The publish is no longer strictly atomic across the OS boundary,
-      //      but the only readers (cross-process observers) re-read after a
-      //      brief settle, and we still hold the cross-process advisory lock
-      //      so no concurrent writer can interleave.
-      try {
-        await fs.rename(tmp, this.filePath);
-        tmpPersisted = false;
-      } catch (renameErr) {
-        const code = (renameErr as NodeJS.ErrnoException | undefined)?.code;
-        if (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES') {
-          // Copy bytes to destination (REPLACE_EXISTING is the default for
-          // fs.copyFile when COPYFILE_FAIL_IF_EXISTS is not set), fsync the
-          // destination so readers don't see zero-filled data on a crash,
-          // then drop the temp file.
-          await fs.copyFile(tmp, this.filePath);
-          try {
-            const destHandle = await fs.open(this.filePath, 'r+');
-            try {
-              await destHandle.sync().catch(() => undefined);
-            } finally {
-              await destHandle.close();
-            }
-          } catch {
-            // Best-effort fsync of the destination; failure is non-fatal
-            // because we already wrote the bytes and the OS will flush.
-          }
-          await fs.unlink(tmp).catch(() => undefined);
-          tmpPersisted = false;
-        } else {
-          throw renameErr;
-        }
-      }
-    } catch (err) {
-      /* v8 ignore start -- rename-failure cleanup: best-effort tmp unlink + rethrow (atomicUpdate swallows it) */
-      if (tmpPersisted) await fs.unlink(tmp).catch(() => undefined);
-      throw err;
-      /* v8 ignore stop */
-    }
+    await writeAtomicFile(this.filePath, registry);
   }
 
   private async pruneStaleTempFiles(): Promise<void> {
-    try {
-      const dir = path.dirname(this.filePath);
-      const base = path.basename(this.filePath);
-      const now = Date.now();
-      const stale: Array<{ name: string; mtimeMs: number }> = [];
-
-      for (const name of await fs.readdir(dir)) {
-        const isTemp =
-          (name.startsWith(`${base}.`) || name.startsWith(`.${base}.`)) && name.endsWith('.tmp');
-        if (!isTemp) continue;
-        /* v8 ignore start -- best-effort temp stat; .catch(null)+continue only fire when the temp vanished */
-        const stat = await fs.stat(path.join(dir, name)).catch(() => null);
-        if (!stat) continue;
-        /* v8 ignore stop */
-        if (now - stat.mtimeMs > STALE_TMP_MS) stale.push({ name, mtimeMs: stat.mtimeMs });
-      }
-
-      stale.sort((a, b) => b.mtimeMs - a.mtimeMs);
-      await Promise.all(
-        stale.slice(MAX_STALE_TMP_FILES).map(async ({ name }) => {
-          /* v8 ignore start -- best-effort temp removal; .catch only fires if the temp vanished */
-          await fs.unlink(path.join(dir, name)).catch(() => undefined);
-          /* v8 ignore stop */
-        }),
-      );
-    } catch {
-      // best-effort cleanup must not block registry heartbeats
-    }
+    await pruneStaleTempFiles(this.filePath);
   }
 }
 

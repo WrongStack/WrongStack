@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { STALE_WRITE_PREFIX, StaleWriteError } from '../manager/lifecycle.js';
 import {
   assertValidBoardId,
   EVENT_LOG_MAX_ENTRIES,
@@ -418,8 +419,8 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
       .prepare('SELECT revision FROM kanban_boards WHERE id = ?')
       .get(normalized.id) as { revision: number } | undefined;
     if (expectedRevision !== undefined && current?.revision !== expectedRevision) {
-      throw new Error(
-        `Stale write detected for board "${normalized.id}": SQLite revision ${
+      throw new StaleWriteError(
+        `${STALE_WRITE_PREFIX} for board "${normalized.id}": SQLite revision ${
           current?.revision ?? 'missing'
         } does not match read revision ${expectedRevision}. Rerun the operation.`,
       );

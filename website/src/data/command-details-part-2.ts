@@ -130,7 +130,7 @@ export const commandDetailsPart2: CommandDetailMap = {
     purpose:
       'Expose the project mailbox through its HTTP bridge — let external agents (Claude Code, scripts, CI) participate.',
     behavior:
-      'The command starts a loopback HTTP server wrapping the GlobalMailbox. External agents can send/receive messages via REST endpoints using a bearer token. The server prints its bind URL and writes the token to `.mailbox.token`. External agents appear in the WebUI with `source: http`.',
+      'The command starts a loopback HTTP server that forwards to the project-owned RemoteMailbox over local IPC. External agents can send/receive messages via REST endpoints using a bearer token; they never open SQLite directly. The server prints its bind URL and writes the token to `.mailbox.token`. External agents appear in the WebUI with `source: http`.',
     before:
       'Ensure the project is initialized. The bridge binds to loopback by default — safe for local development.',
     during:

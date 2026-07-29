@@ -140,11 +140,11 @@ export function InterfacesPage() {
             ],
             [
               'Sessions',
-              'CLI and standalone WebUI register live sessions; Desktop hosts isolated runtimes that still use the same storage contract.',
+              'Every TUI, WebUI and SimpleUI starts a fresh session by default; explicit resume claims one live writer before hydration.',
             ],
             [
               'Mailbox',
-              'Unique session-tagged identities, aliases and heartbeats let local processes exchange exact or fan-out messages.',
+              'Unique identities and heartbeats reach one SQLite owner over local IPC for exact or fan-out delivery.',
             ],
           ].map(([title, body], index) => (
             <div key={title} className="bg-card p-7">

@@ -1008,6 +1008,11 @@ export class DefaultSessionStore implements SessionStore {
     })}\n`;
     await atomicWrite(file, record);
     await fsp.unlink(meta).catch(() => undefined);
+    // Invalidate the parsed-session cache so the cleared `SessionData`
+    // graph cannot survive in `SessionLoadCache` (50 entries / 64 MiB).
+    // Without this, a `replaceMessages([])` on a previous hot session can
+    // keep an unbounded body graph reachable for the process lifetime.
+    this.clearLoadCache(id);
   }
 
   private async summarize(id: string, mtime: string): Promise<SessionSummary> {

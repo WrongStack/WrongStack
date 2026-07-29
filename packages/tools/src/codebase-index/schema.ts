@@ -138,6 +138,14 @@ export interface IndexResult {
   langStats: Record<SymbolLang, number>;
   durationMs: number;
   errors: string[];
+  /**
+   * Present when `runStartupIndex` detected a corrupt/stale index (SQLite
+   * constraint failure) and automatically recovered by wiping and rebuilding
+   * with `force: true`. The original failure message is preserved here so
+   * callers diagnosing intermittent crashes can distinguish a normal rebuild
+   * from one triggered by corruption recovery.
+   */
+  autoRecovered?: { failure: string; rebuiltWithForce: true } | undefined;
 }
 
 // ─── Cross-reference types ───────────────────────────────────────────────────

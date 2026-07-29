@@ -39,6 +39,7 @@ import {
 import { collectBoardsForHealth } from './board-health.js';
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
+import { StaleWriteError } from './lifecycle.js';
 
 /**
  * Deterministically repair task/assignment/column drift.
@@ -196,6 +197,12 @@ export async function updateTaskAssignment(
     if (task.assignment.agentId) task.assignedAgent = task.assignment.agentId;
     if (board.lifecycle?.mode === 'managed') {
       if (task.assignment.status === 'completed') {
+        // On managed boards, the lifecycle stage governs task completion, not
+        // the assignment status. Workers persist their result here (lastResult,
+        // completedAt) but the lifecycle is advanced separately via
+        // transitionTask Running → Review → Done. This is the documented
+        // two-step pattern: mark_assignment to record the result, then
+        // transitionTask to advance the card.
         task.assignment.completedAt = task.assignment.completedAt ?? nowIso();
       } else if (task.assignment.status === 'running') {
         task.assignment.dispatchedAt = task.assignment.dispatchedAt ?? nowIso();
@@ -438,9 +445,26 @@ export async function claimReadyTask(
   input: ClaimKanbanTaskInput = {},
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
   if (input.boardId) return claimReadyTaskOnBoard(projectRoot, input.boardId, input);
-  for (const board of await listBoards(projectRoot)) {
-    const claimed = await claimReadyTaskOnBoard(projectRoot, board.id, input);
-    if (claimed) return claimed;
+  const boards = await listBoards(projectRoot);
+  // Shuffle the board list so all boards get fair claim opportunities
+  // regardless of their position in the alphabetically-sorted board list.
+  for (let i = boards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [boards[i], boards[j]] = [boards[j]!, boards[i]!];
+  }
+  for (const board of boards) {
+    try {
+      const claimed = await claimReadyTaskOnBoard(projectRoot, board.id, input);
+      if (claimed) return claimed;
+    } catch (error) {
+      // A stale-write error on this board means another agent claimed the
+      // ready task before us. Continue to the next board instead of failing
+      // the whole claim — another board may have ready tasks.
+      if (error instanceof StaleWriteError) {
+        continue;
+      }
+      throw error;
+    }
   }
   return null;
 }
@@ -587,13 +611,18 @@ export async function getKanbanQueueHealth(
       const isQueued =
         assignment !== undefined &&
         (assignment.status === 'queued' || assignment.status === 'assigned');
-      if (task.status === 'ready' && !isRunning) {
-        counts.ready += 1;
+      // Each task is counted exactly once. The semantic priority for the
+      // canonical bucket is: running > queued/assigned > raw task status.
+      // Previously running/queued were additive extras on top of the raw
+      // status count, which inflated totals (a running-assignment task with
+      // ready status showed in both ready and running).
+      if (isRunning) {
+        counts.running += 1;
+      } else if (isQueued) {
+        counts.queued += 1;
       } else {
         counts[task.status as keyof typeof counts] += 1;
       }
-      if (isRunning) counts.running += 1;
-      if (isQueued) counts.queued += 1;
       const readyButBlocked = task.status === 'ready' && dependencyUnmet;
       const pendingButBlocked = task.status === 'pending' && dependencyUnmet;
       if (readyButBlocked || pendingButBlocked) {

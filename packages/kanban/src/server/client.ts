@@ -192,8 +192,12 @@ class KanbanServerConnection {
             if ('ok' in parsed) {
               pending.resolve((parsed as { result?: unknown }).result);
             } else {
-              const message = (parsed as { error?: { message?: unknown } }).error?.message;
-              pending.reject(new Error(typeof message === 'string' ? message : 'request failed'));
+              const errPayload = (parsed as { error?: { code?: unknown; message?: unknown } }).error;
+              const message = errPayload?.message;
+              const code = errPayload?.code;
+              const error = new Error(typeof message === 'string' ? message : 'request failed');
+              if (typeof code === 'string') (error as { code?: string }).code = code;
+              pending.reject(error);
             }
           }
         }

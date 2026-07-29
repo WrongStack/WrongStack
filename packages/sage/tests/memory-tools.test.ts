@@ -124,6 +124,9 @@ function createMockService(): SageServiceLike {
     async getSage() {
       return { id: 'mem_get' } as never;
     },
+    async listSagePage() {
+      return { memories: [], nextCursor: null, total: 0, statusCounts: {} };
+    },
   };
 }
 
@@ -141,15 +144,16 @@ describe('isSageService', () => {
 });
 
 describe('createSageTools', () => {
-  it('returns 13 tools with correct names', () => {
+  it('returns 14 tools with correct names', () => {
     const service = createMockService();
     const tools = createSageTools(service);
-    expect(tools).toHaveLength(13);
+    expect(tools).toHaveLength(14);
     expect(tools.map((t) => t.name)).toEqual([
       'memory_for_file',
       'memory_for_path',
       'memory_search',
       'memory_graph',
+      'memory_gather_batch',
       'memory_verify',
       'memory_hygiene',
       'memory_candidates',
@@ -326,6 +330,192 @@ describe('memory_graph tool', () => {
   });
 });
 
+describe('memory_gather_batch tool', () => {
+  it('calls listSagePage with provided filters and returns GatherBatchResult', async () => {
+    const listSagePage = vi.fn().mockResolvedValue({
+      memories: [
+        { id: 'mem_1', text: 'Alpha', kind: 'fact', status: 'active' },
+      ],
+      nextCursor: null,
+      total: 1,
+      statusCounts: { active: 1 },
+    });
+    const service = createMockService();
+    service.listSagePage = listSagePage;
+
+    const tools = createSageTools(service);
+    const tool = tools[4]!;
+    expect(tool.name).toBe('memory_gather_batch');
+
+    const result = (await tool.execute(
+      { kind: 'fact', limit: 10, includeRelations: false } as never,
+      {} as never,
+      { signal: new AbortController().signal } as never,
+    )) as {
+      memories: unknown[];
+      relations: unknown[];
+      relationsScannedAt: number;
+      nextCursor: string | null;
+      total: number;
+    };
+
+    expect(listSagePage).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'fact', limit: 10 }),
+    );
+    expect(result.memories).toHaveLength(1);
+    expect(result.relations).toEqual([]);
+    expect(result.relationsScannedAt).toBe(0);
+    expect(result.nextCursor).toBeNull();
+    expect(result.total).toBe(1);
+  });
+
+  it('gathers graph relations by default and sets relationsScannedAt', async () => {
+    const listSagePage = vi.fn().mockResolvedValue({
+      memories: [
+        { id: 'mem_1', text: 'First' },
+        { id: 'mem_2', text: 'Second' },
+      ],
+      nextCursor: 'cursor_abc',
+      total: 2,
+      statusCounts: { active: 2 },
+    });
+    const graphFor = vi.fn().mockResolvedValue([
+      { id: 'edge_1', sourceId: 'mem_1', targetId: 'mem_2', relation: 'related' },
+    ]);
+    const service = createMockService();
+    service.listSagePage = listSagePage;
+    service.graphFor = graphFor;
+
+    const tool = createSageTools(service)[4]!;
+    const result = (await tool.execute(
+      {} as never,
+      {} as never,
+      { signal: new AbortController().signal } as never,
+    )) as {
+      relations: unknown[];
+      relationsScannedAt: number;
+      nextCursor: string | null;
+    };
+
+    expect(graphFor).toHaveBeenCalledTimes(2);
+    expect(graphFor).toHaveBeenCalledWith('mem_1', 1, 100);
+    expect(graphFor).toHaveBeenCalledWith('mem_2', 1, 100);
+    expect(result.relations).toHaveLength(1);
+    expect(result.relationsScannedAt).toBe(2);
+    // nextCursor from page is forwarded
+    expect(result.nextCursor).toBe('cursor_abc');
+  });
+
+  it('deduplicates graph edges via seen set', async () => {
+    const listSagePage = vi.fn().mockResolvedValue({
+      memories: [
+        { id: 'mem_1', text: 'A' },
+        { id: 'mem_2', text: 'B' },
+      ],
+      nextCursor: null,
+      total: 2,
+      statusCounts: { active: 2 },
+    });
+    // Both memories return the same edge id
+    const graphFor = vi.fn().mockResolvedValue([
+      { id: 'edge_shared', sourceId: 'mem_1', targetId: 'mem_2', relation: 'duplicate' },
+    ]);
+    const service = createMockService();
+    service.listSagePage = listSagePage;
+    service.graphFor = graphFor;
+
+    const tool = createSageTools(service)[4]!;
+    const result = (await tool.execute(
+      {} as never,
+      {} as never,
+      { signal: new AbortController().signal } as never,
+    )) as {
+      relations: unknown[];
+      relationsScannedAt: number;
+    };
+
+    // Only one copy of the shared edge, not two
+    expect(result.relations).toHaveLength(1);
+    expect(result.relationsScannedAt).toBe(2);
+  });
+
+  it('caps graph relation scan at BATCH_GRAPH_SCAN_LIMIT (10) memories', async () => {
+    const memories = Array.from({ length: 15 }, (_, i) => ({
+      id: `mem_${i + 1}`,
+      text: `Memory ${i + 1}`,
+    }));
+    const listSagePage = vi.fn().mockResolvedValue({
+      memories,
+      nextCursor: null,
+      total: 15,
+      statusCounts: { active: 15 },
+    });
+    const graphFor = vi.fn().mockResolvedValue([]);
+    const service = createMockService();
+    service.listSagePage = listSagePage;
+    service.graphFor = graphFor;
+
+    const tool = createSageTools(service)[4]!;
+    const result = (await tool.execute(
+      {} as never,
+      {} as never,
+      { signal: new AbortController().signal } as never,
+    )) as {
+      relations: unknown[];
+      relationsScannedAt: number;
+    };
+
+    // Only first 10 memories scanned; last 5 untouched
+    expect(graphFor).toHaveBeenCalledTimes(10);
+    expect(graphFor).toHaveBeenCalledWith('mem_1', 1, 100);
+    expect(graphFor).toHaveBeenCalledWith('mem_10', 1, 100);
+    expect(graphFor).not.toHaveBeenCalledWith('mem_11', 1, 100);
+    expect(result.relationsScannedAt).toBe(10);
+  });
+
+  it('swallows graphFor errors for individual memories', async () => {
+    const listSagePage = vi.fn().mockResolvedValue({
+      memories: [
+        { id: 'mem_1', text: 'A' },
+        { id: 'mem_2', text: 'B' },
+      ],
+      nextCursor: null,
+      total: 2,
+      statusCounts: { active: 2 },
+    });
+    const graphFor = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: 'edge_ok', sourceId: 'mem_1', targetId: 'mem_3', relation: 'r' }])
+      .mockRejectedValueOnce(new Error('graph lookup failed'));
+    const service = createMockService();
+    service.listSagePage = listSagePage;
+    service.graphFor = graphFor;
+
+    const tool = createSageTools(service)[4]!;
+    const result = (await tool.execute(
+      {} as never,
+      {} as never,
+      { signal: new AbortController().signal } as never,
+    )) as {
+      relations: unknown[];
+      relationsScannedAt: number;
+    };
+
+    // One edge from mem_1, mem_2's error swallowed
+    expect(result.relations).toHaveLength(1);
+    expect(result.relationsScannedAt).toBe(2);
+  });
+
+  it('throws on abort signal', async () => {
+    const tool = createSageTools(createMockService())[4]!;
+    const abort = new AbortController();
+    abort.abort();
+    await expect(
+      tool.execute({} as never, {} as never, { signal: abort.signal } as never),
+    ).rejects.toThrow();
+  });
+});
+
 describe('memory_verify tool', () => {
   it('calls verify with memory_id', async () => {
     const verify = vi.fn().mockResolvedValue([]);
@@ -333,7 +523,7 @@ describe('memory_verify tool', () => {
     service.verify = verify;
 
     const tools = createSageTools(service);
-    const tool = tools[4]!;
+    const tool = tools[5]!;
     const signal = new AbortController().signal;
     await tool.execute({ memory_id: 'mem_123' }, {} as never, { signal } as never);
 
@@ -346,7 +536,7 @@ describe('memory_verify tool', () => {
     service.verify = verify;
 
     const tools = createSageTools(service);
-    const tool = tools[4]!;
+    const tool = tools[5]!;
     const signal = new AbortController().signal;
     await tool.execute({}, {} as never, { signal } as never);
 
@@ -372,7 +562,7 @@ describe('memory_hygiene tool', () => {
     service.hygiene = hygiene;
 
     const tools = createSageTools(service);
-    const tool = tools[5]!;
+    const tool = tools[6]!;
     const signal = new AbortController().signal;
     await tool.execute({ retentionDays: 30 }, {} as never, { signal } as never);
 
@@ -387,7 +577,7 @@ describe('memory_candidates tool', () => {
     service.listCandidates = listCandidates;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const signal = new AbortController().signal;
     await tool.execute({}, {} as never, { signal } as never);
 
@@ -400,7 +590,7 @@ describe('memory_candidates tool', () => {
     service.listCandidates = listCandidates;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     await tool.execute(
       { include_resolved: true },
       {} as never,
@@ -416,7 +606,7 @@ describe('memory_candidates tool', () => {
     service.acceptCandidate = acceptCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     await tool.execute(
       { action: 'accept', candidate_id: 'cand_1' },
       {} as never,
@@ -432,7 +622,7 @@ describe('memory_candidates tool', () => {
     service.rejectCandidate = rejectCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const result = await tool.execute(
       { action: 'reject', candidate_id: 'cand_1', reason: 'Not needed' },
       {} as never,
@@ -445,7 +635,7 @@ describe('memory_candidates tool', () => {
 
   it('validates candidate_id required for accept/reject', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const errors = tool.validate?.({ action: 'accept' }) ?? [];
     expect(errors).toContain('candidate_id is required for accept or reject');
   });
@@ -456,7 +646,7 @@ describe('memory_candidates tool', () => {
     service.createCandidate = createCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     await tool.execute(
       {
         action: 'propose',
@@ -481,7 +671,7 @@ describe('memory_candidates tool', () => {
 
   it('requires text for propose', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const errors = tool.validate?.({ action: 'propose' }) ?? [];
     expect(errors).toContain('text is required for propose');
   });
@@ -494,7 +684,7 @@ describe('memory_candidates tool', () => {
     service.resolveCandidate = resolveCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const result = await tool.execute(
       { action: 'resolve', candidate_id: 'cand_1', decision: 'delete', reason: 'noise' },
       {} as never,
@@ -507,7 +697,7 @@ describe('memory_candidates tool', () => {
 
   it('requires candidate_id and decision for resolve', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     expect(tool.validate?.({ action: 'resolve' }) ?? []).toContain(
       'candidate_id is required for resolve',
     );
@@ -518,14 +708,14 @@ describe('memory_candidates tool', () => {
 
   it('validation passes for accept with candidate_id', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const errors = tool.validate?.({ action: 'accept', candidate_id: 'cand_1' }) ?? [];
     expect(errors).toHaveLength(0);
   });
 
   it('validation passes for list action', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[6]!;
+    const tool = tools[7]!;
     const errors = tool.validate?.({ action: 'list' }) ?? [];
     expect(errors).toHaveLength(0);
   });
@@ -539,7 +729,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[7]!;
+    const tool = createSageTools(service)[8]!;
     expect(tool.name).toBe('remember');
     await tool.execute(
       {
@@ -577,7 +767,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[7]!;
+    const tool = createSageTools(service)[8]!;
     await tool.execute(
       { text: 'Always verify migration reversibility.' } as never,
       { meta: { agentRole: 'reviewer' } } as never,
@@ -599,7 +789,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[7]!;
+    const tool = createSageTools(service)[8]!;
     await tool.execute(
       { text: 'General project note.' } as never,
       { meta: {} } as never,
@@ -621,7 +811,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[7]!;
+    const tool = createSageTools(service)[8]!;
     await tool.execute(
       {
         text: 'Scoped memory.',
@@ -646,7 +836,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[7]!;
+    const tool = createSageTools(service)[8]!;
     await tool.execute(
       { text: 'General note from a subagent.', no_auto_audience: true } as never,
       { meta: { agentRole: 'reviewer', mode: 'teach' } } as never,
@@ -668,7 +858,7 @@ describe('forget tool', () => {
     const service = createMockService();
     service.forget = forget;
 
-    const tool = createSageTools(service)[8]!;
+    const tool = createSageTools(service)[9]!;
     expect(tool.name).toBe('forget');
     const result = await tool.execute(
       { query: 'stale note' } as never,
@@ -689,7 +879,7 @@ describe('memory_update tool', () => {
     const service = createMockService();
     service.updateSage = updateSage;
 
-    const tool = createSageTools(service)[9]!;
+    const tool = createSageTools(service)[10]!;
     expect(tool.name).toBe('memory_update');
     expect(tool.validate?.({ id: 'mem_1' } as never)).toContain(
       'at least one field to update is required',
@@ -710,7 +900,7 @@ describe('memory_delete tool', () => {
     const service = createMockService();
     service.deleteSage = deleteSage;
 
-    const tool = createSageTools(service)[10]!;
+    const tool = createSageTools(service)[11]!;
     expect(tool.name).toBe('memory_delete');
     const result = await tool.execute(
       { id: 'mem_1', reason: 'obsolete', force: true } as never,
@@ -723,7 +913,7 @@ describe('memory_delete tool', () => {
   });
 
   it('rejects deletion without force', async () => {
-    const tool = createSageTools(createMockService())[10]!;
+    const tool = createSageTools(createMockService())[11]!;
     const errors = tool.validate?.({ id: 'mem_1', reason: 'test' } as never) ?? [];
     expect(errors).toContain(
       'force: true is required to delete any memory. This prevents accidental or autonomous deletions. Pass force: true to authorize; the override is audit-logged. For non-destructive review, use memory_candidates({ action: "propose" }) instead.',

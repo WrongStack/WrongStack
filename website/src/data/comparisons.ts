@@ -734,7 +734,7 @@ export const productComparisons: ProductComparison[] = [
       {
         capability: 'Memory and sessions',
         wrongstack:
-          'Append-only reconstructable sessions, recovery locks, checkpoints, compaction and verified project memory graph.',
+          'Append-only reconstructable sessions, exclusive live-writer ownership, checkpoints, compaction and verified project memory graph.',
         competitor:
           'Sessions support resume, fork, tree navigation, branching, compaction, import/export and custom storage via SDK.',
         difference:

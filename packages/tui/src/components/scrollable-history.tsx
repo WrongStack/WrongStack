@@ -281,6 +281,12 @@ export interface ScrollableHistoryProps extends HistoryProps {
    * `null` / undefined = no card highlighted.
    */
   copiedEntryId?: number | null | undefined;
+  /**
+   * Called when the user scrolls near the top of the currently loaded
+   * entries. The host should respond by loading older entries from the
+   * history archive and dispatching `archiveLoaded` to prepend them.
+   */
+  onRequestOlderEntries?: (() => void) | undefined;
 }
 
 /** Pure thumb geometry for the scrollbar: where the thumb starts and how many
@@ -416,6 +422,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   showModelReasoning,
   layoutStore,
   copiedEntryId,
+  onRequestOlderEntries,
 }: ScrollableHistoryProps): React.ReactElement {
   const { stdout } = useStdout();
   const resolveViewportWidth = useCallback(() => {
@@ -726,6 +733,12 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const lastReportedScrolled = useRef<boolean | null>(null);
   const onScrollInfoRef = useRef(onScrollInfo);
   onScrollInfoRef.current = onScrollInfo;
+  // Track archive request state. Refs are safe for cross-cycle state; the
+  // planStartIdxRef is updated per-render after the plan computation below.
+  const planStartIdxRef = useRef(0);
+  const requestOlderFiredRef = useRef(false);
+  const onRequestOlderEntriesRef = useRef(onRequestOlderEntries);
+  onRequestOlderEntriesRef.current = onRequestOlderEntries;
   useEffect(() => {
     if (lastReportedScrolled.current === scrolled) return;
     lastReportedScrolled.current = scrolled;
@@ -745,6 +758,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     : planPinned(geometry, mountBump * bumpStep);
   const renderGroups = groupedEntries.slice(plan.startIdx, plan.endIdx);
   const clip = effectiveAnchor?.clip ?? 0;
+  // Track the current mount-plan start index so the scroll-to-top archive
+  // check in the useLayoutEffect can read it without a stale closure.
+  planStartIdxRef.current = plan.startIdx;
 
   const totalRows = contentRows(geometry);
   const offsetFromBottom = scrolled
@@ -868,6 +884,24 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         setMountBump((bump) => Math.min(MAX_UNDERFILL_BUMPS, bump + 1));
         return;
       }
+    }
+
+    // Trigger archive page load when the user is scrolled to the oldest
+    // loaded group. Runs every render (no-dep useLayoutEffect) so scroll-
+    // within-scrolled state is covered — not just scrolled transitions.
+    // The `scrolled` guard prevents spurious requests when the mount plan
+    // starts at index 0 while pinned (short conversation, all entries fit).
+    if (
+      scrolled &&
+      planStartIdxRef.current === 0 &&
+      onRequestOlderEntriesRef.current &&
+      !requestOlderFiredRef.current
+    ) {
+      requestOlderFiredRef.current = true;
+      onRequestOlderEntriesRef.current();
+    }
+    if (planStartIdxRef.current > 0) {
+      requestOlderFiredRef.current = false;
     }
 
     if (changed) setMeasureTick((tick) => tick + 1);

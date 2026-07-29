@@ -242,6 +242,7 @@ export type KanbanErrorCode =
   | 'WRITE_FAILED'
   | 'INVALID_INPUT'
   | 'ALREADY_EXISTS'
+  | 'STALE_WRITE'
   | 'INTERNAL_ERROR';
 
 export interface KanbanServerEvent {

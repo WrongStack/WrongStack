@@ -16,6 +16,22 @@ import type { SessionEventMap } from './events/session-events.js';
 import type { ToolEventMap } from './events/tool-events.js';
 import type { WorktreeEventMap } from './events/worktree-events.js';
 
+/** Safety cap on the wildcard listener array to prevent unbounded growth from
+ *  undisposed onPattern/onRegex/onAny callers. No legitimate usage needs more
+ *  than this — past the cap, new registrations are rejected with a warning. */
+const MAX_WILDCARDS = 500;
+
+/**
+ * Safety cap on total named listeners (all event names combined) to prevent
+ * unbounded heap growth when callers forget to dispose their `.on()` registrations.
+ * While each `.on()` returns a disposer, long-lived sessions with missing cleanup
+ * could accumulate thousands of listener closures (each holding references to its
+ * captured scope). Past this cap, new `.on()` registrations are rejected with a
+ * logged warning and a no-op disposer is returned, making the leak visible without
+ * crashing the process.
+ */
+const MAX_NAMED_LISTENERS = 2000;
+
 /** Distress signals the BrainMonitor watches. See `coordination/brain-monitor.ts`. */
 export type BrainInterventionKind =
   | 'tool_failure_streak'
@@ -80,18 +96,29 @@ export interface EventLogger {
 }
 
 export class EventBus {
-  private readonly listeners = new Map<EventName, Set<Listener<EventName>>>();
-  private readonly wildcards: Array<{
+  protected readonly listeners = new Map<EventName, Set<Listener<EventName>>>();
+  protected readonly wildcards: Array<{
     match: (event: string) => boolean;
     fn: (event: string, payload: unknown) => void;
   }> = [];
-  private logger?: EventLogger | undefined;
+  protected logger?: EventLogger | undefined;
 
   setLogger(logger: EventLogger): void {
     this.logger = logger;
   }
 
   on<E extends EventName>(event: E, fn: Listener<E>): () => void {
+    // Prevent unbounded accumulation of named listeners when callers
+    // forget to dispose their registrations. Past the cap, new `.on()`
+    // calls are rejected with a warning and a no-op disposer — the
+    // process keeps running and the developer sees the symptom.
+    if (this.listenerCount() >= MAX_NAMED_LISTENERS) {
+      this.logger?.error(
+        `EventBus named listener limit (~${MAX_NAMED_LISTENERS}) reached — rejecting on("${event}"). ` +
+        'Callers must dispose their named listeners to prevent unbounded memory growth.',
+      );
+      return () => {};
+    }
     let set = this.listeners.get(event);
     if (!set) {
       set = new Set();
@@ -146,6 +173,13 @@ export class EventBus {
    * Returns an unsubscribe function.
    */
   onPattern(pattern: string, fn: (event: string, payload: unknown) => void): () => void {
+    if (this.wildcards.length >= MAX_WILDCARDS) {
+      this.logger?.error(
+        `EventBus wildcard limit (${MAX_WILDCARDS}) reached — rejecting onPattern("${pattern}"). ` +
+        'Callers must dispose their wildcard listeners to prevent unbounded growth.',
+      );
+      return () => {};
+    }
     const match = makePatternMatcher(pattern);
     const entry = { match, fn };
     this.wildcards.push(entry);
@@ -163,6 +197,13 @@ export class EventBus {
    * Returns an unsubscribe function.
    */
   onRegex(regex: RegExp, fn: (event: string, payload: unknown) => void): () => void {
+    if (this.wildcards.length >= MAX_WILDCARDS) {
+      this.logger?.error(
+        `EventBus wildcard limit (${MAX_WILDCARDS}) reached — rejecting onRegex(${regex}). ` +
+        'Callers must dispose their wildcard listeners to prevent unbounded growth.',
+      );
+      return () => {};
+    }
     const entry = { match: (e: string) => regex.test(e), fn };
     this.wildcards.push(entry);
     return () => {
@@ -352,6 +393,13 @@ export class ScopedEventBus extends EventBus {
    * tracked so that `teardown()` will remove it automatically.
    */
   override onAny(fn: (event: string, payload: unknown) => void): () => void {
+    if (this.wildcards.length >= MAX_WILDCARDS) {
+      this.logger?.error(
+        `EventBus wildcard limit (${MAX_WILDCARDS}) reached — rejecting onAny(). ` +
+        'Callers must dispose their wildcard listeners to prevent unbounded growth.',
+      );
+      return () => {};
+    }
     const key = this.nextKey++;
     // Call EventBus.onPattern directly so the wrapper-consumption in
     // ScopedEventBus.on() doesn't re-enter and create a second registration slot.
@@ -368,6 +416,16 @@ export class ScopedEventBus extends EventBus {
    * `teardown()` will remove it automatically.
    */
   override onPattern(pattern: string, fn: (event: string, payload: unknown) => void): () => void {
+    // Pre-check the cap before delegating to EventBus.onPattern so we never
+    // store a no-op disposer in our registrations map, which would inflate
+    // scopedListenerCount metrics without providing any cleanup.
+    if (this.wildcards.length >= MAX_WILDCARDS) {
+      this.logger?.error(
+        `EventBus wildcard limit (${MAX_WILDCARDS}) reached — rejecting onPattern("${pattern}"). ` +
+        'Callers must dispose their wildcard listeners to prevent unbounded growth.',
+      );
+      return () => {};
+    }
     const key = this.nextKey++;
     const unsub = super.onPattern(pattern, fn);
     this.registrations.set(key, unsub);
@@ -382,6 +440,13 @@ export class ScopedEventBus extends EventBus {
    * `teardown()` will remove it automatically.
    */
   override onRegex(regex: RegExp, fn: (event: string, payload: unknown) => void): () => void {
+    if (this.wildcards.length >= MAX_WILDCARDS) {
+      this.logger?.error(
+        `EventBus wildcard limit (${MAX_WILDCARDS}) reached — rejecting onRegex(${regex}). ` +
+        'Callers must dispose their wildcard listeners to prevent unbounded growth.',
+      );
+      return () => {};
+    }
     const key = this.nextKey++;
     const unsub = super.onRegex(regex, fn);
     this.registrations.set(key, unsub);

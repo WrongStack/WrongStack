@@ -89,6 +89,7 @@ const VIEWS: ViewDef[] = [
   { id: 'goal', icon: <Rocket size={16} />, label: 'Goal' },
   { id: 'codemap', icon: <Network size={16} />, label: 'CodeMap' },
   { id: 'techstack', icon: <Boxes size={16} />, label: 'TechStack' },
+  { id: 'deadcode', icon: <Zap size={16} />, label: 'Dead Code' },
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
   { id: 'memory', icon: <BrainCircuit size={16} />, label: 'Memory' },
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },

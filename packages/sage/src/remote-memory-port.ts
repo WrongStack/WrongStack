@@ -143,6 +143,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     findMemoriesForFile: (filePath, options) =>
       this.call('findMemoriesForFile', { filePath, options }),
     getSage: (id) => this.call('getSage', { id }),
+    listSagePage: (options) => this.call('listSagePage', { options }),
   };
 
   constructor(options: ProjectSageMemoryPortOptions) {

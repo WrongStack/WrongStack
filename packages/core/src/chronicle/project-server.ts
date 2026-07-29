@@ -36,7 +36,7 @@ import {
 } from './project-server-protocol.js';
 import { ChronicleQueryEngine, type ChronicleQuery } from './query.js';
 import { importLegacyChronicleJournal } from './legacy-journal-import.js';
-import { ChronicleSqliteJournal } from './sqlite-journal.js';
+import { type ChronicleQuarantinedFamily, ChronicleSqliteJournal } from './sqlite-journal.js';
 import type { ChronicleSqliteQueryEngine } from './sqlite-query.js';
 import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEvent, ChronicleEventInput } from './types.js';
@@ -173,6 +173,9 @@ function useSqliteStore(): boolean {
 
 let sqliteStore: Promise<ChronicleSqliteJournal> | undefined;
 
+/** Day families the legacy import refused; surfaced by `ping` so health degrades. */
+let quarantinedFamilies: ChronicleQuarantinedFamily[] = [];
+
 /**
  * Open the store, importing the legacy partitions the first time.
  *
@@ -183,7 +186,18 @@ function store(): Promise<ChronicleSqliteJournal> {
   sqliteStore ??= (async () => {
     await fsp.mkdir(chronicleDirectory, { recursive: true });
     const journal = new ChronicleSqliteJournal({ directory: chronicleDirectory });
-    await importLegacyChronicleJournal(journal, chronicleDirectory);
+    try {
+      const result = await importLegacyChronicleJournal(journal, chronicleDirectory);
+      quarantinedFamilies = result.quarantined;
+    } catch (error) {
+      // Caching a rejected promise poisons the daemon for its whole lifetime:
+      // every later request awaits the same rejection, and the handle above
+      // keeps the database — and its write-ahead log — open the entire time.
+      // Drop both so the next request gets a real retry.
+      sqliteStore = undefined;
+      journal.close();
+      throw error;
+    }
     return journal;
   })();
   return sqliteStore;
@@ -321,6 +335,12 @@ async function refreshMetrics(): Promise<
 async function serverHealth(): Promise<ChronicleProjectServerHealth> {
   const memory = process.memoryUsage();
   await flushJournals();
+  // `ping` is the one call a health probe makes, so it has to open the store:
+  // a daemon that answers "healthy" without ever touching its own journal is
+  // exactly what let a broken import go unnoticed while nothing was recorded.
+  if (useSqliteStore()) {
+    quarantinedFamilies = (await store()).quarantinedFamilies();
+  }
   const journalStats: ChronicleJournalStats = journalForToday().stats();
   return {
     ...serverInfo,
@@ -329,6 +349,7 @@ async function serverHealth(): Promise<ChronicleProjectServerHealth> {
     clients: clients.size,
     activeRequests,
     journal: journalStats,
+    ...(quarantinedFamilies.length > 0 ? { quarantinedFamilies } : {}),
     watcher: {
       active: watcher !== undefined,
       watchedFiles: watcher?.watchedFiles ?? 0,
@@ -468,6 +489,10 @@ async function handleMessage(
     });
   } finally {
     activeRequests--;
+    // The client may have hung up while this ran — the socket 'close' handler
+    // already tried to arm the idle stop and was refused because work was in
+    // flight. Re-arm here or the daemon would linger with nobody attached.
+    scheduleIdleStop();
   }
 }
 
@@ -494,8 +519,19 @@ function onData(state: ClientState, chunk: string): void {
   }
 }
 
+/**
+ * Arm the idle stop, but never while a request is still running.
+ *
+ * "Idle" has to mean no clients *and* no work — a long operation outlives the
+ * connection that asked for it. The legacy import is the extreme case: it runs
+ * for minutes inside the first `ping`, so a client that disconnects meanwhile
+ * left the daemon counting down and exiting mid-import. Each restart then
+ * redid the scan from the top, and because the completion marker is only
+ * written at the end, it could never finish. `activeRequests` is decremented
+ * in a `finally` that re-arms this, so a hung-up client still gets collected.
+ */
 function scheduleIdleStop(): void {
-  if (stopping || clients.size > 0 || idleTimer) return;
+  if (stopping || clients.size > 0 || activeRequests > 0 || idleTimer) return;
   idleTimer = setTimeout(() => {
     idleTimer = undefined;
     void stop('idle timeout');

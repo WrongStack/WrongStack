@@ -157,9 +157,20 @@ export class CollaborationBus {
    * CollaborationWebSocketHandler uses it to broadcast a
    * `collab.injection.granted` with phase `'consumed'` so observers learn the
    * injection was applied (and to which real tool). Last registration wins.
+   *
+   * Returns an unsubscribe function. Callers MUST invoke it during teardown
+   * so the reference to the handler closure does not keep the subscriber alive
+   * past dispose(), preventing a closure-based memory leak.
    */
-  onInjectionConsumed(fn: (info: ConsumedInjectionInfo) => void): void {
+  onInjectionConsumed(fn: (info: ConsumedInjectionInfo) => void): () => void {
     this.onConsumed = fn;
+    return () => {
+      // Ownership guard: only null the slot if we are still the active
+      // registrant. A stale disposer from a prior caller that was
+      // overwritten by a later registration must NOT wipe the newer
+      // handler (single-slot, last-registration-wins contract).
+      if (this.onConsumed === fn) this.onConsumed = undefined;
+    };
   }
 
   /**

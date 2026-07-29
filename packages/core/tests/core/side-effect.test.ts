@@ -112,8 +112,34 @@ describe('Context.recordSideEffect — structured audit (P2 #5)', () => {
       risk: 'network',
     });
     expect(ctx.sideEffects).toHaveLength(2);
-    expect(ctx.sideEffects[0].toolName).toBe('bash');
-    expect(ctx.sideEffects[1].toolName).toBe('fetch');
+    expect(ctx.sideEffects[0]?.toolName).toBe('bash');
+    expect(ctx.sideEffects[1]?.toolName).toBe('fetch');
+  });
+
+  it('caps sideEffects at MAX_SIDE_EFFECTS with oldest-first eviction', () => {
+    const ctx = mkCtx();
+    const MAX = (Context as never as Record<string, number>)['MAX_SIDE_EFFECTS'] ?? 500;
+    const over = MAX + 10;
+
+    // Fill past the cap
+    for (let i = 0; i < over; i++) {
+      ctx.recordSideEffect({
+        toolUseId: `tu-over-${i}`,
+        toolName: 'bash',
+        ts: new Date(Date.now() + i).toISOString(),
+        input: { seq: i },
+        outcome: 'exit 0',
+        risk: 'shell',
+      });
+    }
+
+    // Array is capped at MAX, not growing past it
+    expect(ctx.sideEffects.length).toBeLessThanOrEqual(MAX);
+    expect(ctx.sideEffects.length).toBe(MAX);
+
+    // The first (oldest) entries were evicted; the last entry is present
+    expect(ctx.sideEffects[0]?.toolUseId).toBe(`tu-over-${over - MAX}`);
+    expect(ctx.sideEffects[MAX - 1]?.toolUseId).toBe(`tu-over-${over - 1}`);
   });
 
   it('the side_effect event shape matches the SessionEvent union', () => {

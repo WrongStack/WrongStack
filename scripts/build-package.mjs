@@ -57,6 +57,7 @@ const coreEntries = entryMap([
   'src/utils/expect-defined.ts',
   'src/utils/error.ts',
   'src/utils/tree-kill.ts',
+  'src/utils/heap-watchdog.ts',
   'src/execution/prompt-enhancer.ts',
   'src/execution/index.ts',
   'src/design/index.ts',
@@ -140,7 +141,6 @@ const toolEntries = entryMap([
   'src/win32.ts',
   'src/e2e.ts',
   'src/codebase-index/index.ts',
-  'src/codebase-index/parser-worker.ts',
   'src/codebase-index/worker.ts',
   'src/codebase-index/project-server.ts',
 ]);

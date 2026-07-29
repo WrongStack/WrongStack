@@ -88,6 +88,15 @@ export interface ContextInit {
  */
 export class Context implements RunEnv {
   messages: Message[] = [];
+  /**
+   * Maximum number of messages retained in the conversation history.
+   * Past this limit, the oldest messages are dropped. Compaction passes
+   * should reduce messages below this threshold — this cap is a safety
+   * net to prevent unbounded growth when compaction is not running
+   * (e.g., during a /rewind, provider error storm, or custom embedder).
+   * Set to 0 for unlimited (legacy/test behaviour).
+   */
+  static readonly MAX_MESSAGES = 2_000;
   todos: TodoItem[] = [];
   /**
    * Files whose content the **user / model has explicitly seen** via the
@@ -306,15 +315,24 @@ export class Context implements RunEnv {
   private _conversationJournalDrain: Promise<void> | null = null;
   private static readonly CONVERSATION_JOURNAL_MAX_EVENTS = 256;
   private static readonly CONVERSATION_JOURNAL_MAX_BYTES = 4 * 1024 * 1024;
+  private static readonly MAX_FILE_EVENTS = 1000;
+  private static readonly MAX_SIDE_EFFECTS = 500;
 
   /** Wait until every exact conversation-state event queued so far is in the writer buffer. */
   async flushConversationJournal(): Promise<void> {
     for (;;) {
       if (this._conversationJournalQueue.length > 0) this.startConversationJournalDrain();
       const drain = this._conversationJournalDrain;
-      if (!drain) return;
+      if (!drain) break;
       await drain;
     }
+    // After the drain completes, forcefully clear the queue to release
+    // references to the old session's SessionEvent objects. The drain
+    // above processed every event, but the array slot references may
+    // still be held by V8's internal representation. Explicit nulling
+    // here makes the old objects unreachable immediately.
+    this._conversationJournalQueue.length = 0;
+    this._conversationJournalBytes = 0;
   }
 
   private conversationJournalBytes(event: SessionEvent): number {
@@ -560,6 +578,9 @@ export class Context implements RunEnv {
    */
   recordSideEffect(sideEffect: import('../types/side-effect.js').SideEffect): void {
     this.sideEffects.push(sideEffect);
+    if (this.sideEffects.length > Context.MAX_SIDE_EFFECTS) {
+      this.sideEffects.splice(0, this.sideEffects.length - Context.MAX_SIDE_EFFECTS);
+    }
     // Persist through the writer pinned to this run (if active) so a
     // host-side session swap cannot route side effects into the new
     // session's JSONL — same invariant as recordFileEvent.
@@ -643,6 +664,9 @@ export class Context implements RunEnv {
     };
 
     this.fileEvents.push(record);
+    if (this.fileEvents.length > Context.MAX_FILE_EVENTS) {
+      this.fileEvents.splice(0, this.fileEvents.length - Context.MAX_FILE_EVENTS);
+    }
 
     // Persist through the writer pinned to this run. The WebUI may replace
     // `this.session` while a late tool operation is completing; pairing the

@@ -1408,6 +1408,42 @@ describe('formatToolVisualOutput', () => {
     expect(search?.[0]?.text).toContain('Use pnpm');
   });
 
+  it('renders remember meta row with id, kind, and persistence', () => {
+    const remember = formatToolVisualOutput(
+      'remember',
+      JSON.stringify({
+        ok: true,
+        scope: 'project-memory',
+        id: 'mem_01KXYZABCDEF',
+        kind: 'decision',
+        persistence: 'long_lived',
+      }),
+      true,
+    );
+    // First row: status (unchanged)
+    expect(remember?.[0]).toMatchObject({ kind: 'ok', text: 'remember · project-memory' });
+    // Second row: meta summary of stored object
+    expect(remember?.[1]).toMatchObject({ kind: 'meta' });
+    expect(remember?.[1]?.text).toContain('MEMORY');
+    expect(remember?.[1]?.text).toContain('mem_01KXYZABCDEF');
+    expect(remember?.[1]?.text).toContain('entered');
+    expect(remember?.[1]?.text).toContain('decision');
+    expect(remember?.[1]?.text).toContain('long_lived');
+  });
+
+  it('renders remember meta row without id when absent', () => {
+    const remember = formatToolVisualOutput(
+      'remember',
+      JSON.stringify({ ok: true, scope: 'project-memory', kind: 'fact' }),
+      true,
+    );
+    expect(remember?.[0]).toMatchObject({ kind: 'ok' });
+    expect(remember?.[1]).toMatchObject({ kind: 'meta' });
+    expect(remember?.[1]?.text).toContain('MEMORY');
+    expect(remember?.[1]?.text).toContain('entered');
+    expect(remember?.[1]?.text).toContain('fact');
+  });
+
   it('renders logs and document previews', () => {
     const logs = formatToolVisualOutput(
       'logs',

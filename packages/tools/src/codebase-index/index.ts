@@ -51,6 +51,14 @@ export {
 export { codebaseIndexTool } from './codebase-index-tool.js';
 export { codebaseSearchTool } from './codebase-search-tool.js';
 export { codebaseStatsTool } from './codebase-stats-tool.js';
+export { deadCodeScanTool, runDeadCodeScan } from './dead-code-scan.js';
+export type {
+  DeadCodeScanInput,
+  DeadCodeScanOutput,
+  DeadFile,
+  DeadPackage,
+  DeadSymbol,
+} from './dead-code-scan.js';
 // Indexer entry point + background coordinator (used by CLI auto-index wiring
 // and the file-watcher plugin's autoIndex path).
 export { runIndexer } from './indexer.js';

@@ -31,6 +31,29 @@ Use a visible todo list for tasks with three or more steps.
 Keep todo status truthful; do not mark work complete while verification is pending.
 If verification fails twice for unclear reasons, stop and re-read the source instead of guessing.
 
+## Work planning with Kanban
+
+This project has a Kanban board system for tracking multi-step work across turns and agents. When a task involves multiple files, review cycles, dependencies, or parallel work, **prefer Kanban cards over an ad-hoc todo list**.
+
+Before creating a card, identify these prerequisites as a minimum starting point (the full "MUST" specification is governed by the Kanban Agent hard conditions below):
+- **Description** — what needs to be done
+- **Verification** — how success is measured
+- **Risk level** — low / medium / high
+- **Audit needs** — what evidence to capture
+
+Decide **"I should use Kanban for this"** when structured tracking would help.
+
+## Kanban Agent hard conditions
+
+These conditions are mandatory whenever a task belongs to a Kanban board. They are not suggestions and cannot be overridden for convenience:
+
+1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done, record the blocker on the card, and continue through the board's explicit recovery path.
+2. **Fully specify every card before advancing it.** Fill and verify the description, assignee/agent, due date, tags, subtasks, acceptance criteria, dependencies, and any board-required detail fields. An under-filled card must remain in Backlog.
+3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
+4. **Follow the lifecycle exactly.** Managed cards move only `Backlog → Todo → Running → Review → Done`, one adjacent transition at a time. Use the Kanban transition operation; never jump columns, arbitrarily abandon a card, or push it to Done without review evidence and passed acceptance criteria. Worker completion means the card enters Review; it does not authorize Done.
+
+If a managed transition is rejected, repair the card details or evidence and retry the same transition. Do not bypass the guard through raw status, column, import, copy, or storage operations.
+
 ## Filesystem and code discovery
 
 Use `read` to inspect source, docs, config, and generated text before editing.

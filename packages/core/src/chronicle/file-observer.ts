@@ -78,6 +78,8 @@ const SCAN_HASH_CONCURRENCY = 32;
 // project walk — bound rescans to this floor; a queued rescan is deferred,
 // never dropped, so no external mutation is lost.
 const DEFAULT_FULL_RESCAN_MIN_INTERVAL_MS = 30_000;
+/** Max entries in recentToolMutations before oldest are evicted. */
+const MAX_RECENT_TOOL_MUTATIONS = 500;
 
 /** Observe editor/user/external process mutations that bypass WrongStack tools. */
 export async function startChronicleFileObserver(
@@ -104,6 +106,15 @@ export async function startChronicleFileObserver(
       agentId: hint.agentId,
       sessionId: hint.sessionId,
     });
+    // Evict oldest entries past the cap to prevent unbounded growth when
+    // tool mutations accumulate faster than reconciliation drains them.
+    if (recentToolMutations.size > MAX_RECENT_TOOL_MUTATIONS) {
+      const overflow = recentToolMutations.size - MAX_RECENT_TOOL_MUTATIONS;
+      const keys = [...recentToolMutations.keys()];
+      for (let i = 0; i < overflow && i < keys.length; i++) {
+        recentToolMutations.delete(keys[i]!);
+      }
+    }
   };
   const offToolProgress = options.events?.on('tool.progress', (event) => {
     if (event.event.type !== 'file_changed' || !event.event.path) return;
@@ -343,6 +354,7 @@ export async function startChronicleFileObserver(
       }
       if (pending.size > 0) drainPending();
       await flushTail;
+      recentToolMutations.clear();
     },
   };
 }

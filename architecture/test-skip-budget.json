@@ -127,11 +127,6 @@
       "fingerprint": "c0819fc3befcf009"
     },
     {
-      "file": "packages/tools/tests/codebase-index-parser-worker.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "2acf6fc24a6e81e2"
-    },
-    {
       "file": "packages/tools/tests/codebase-index-worker.test.ts",
       "kind": "skipIf",
       "fingerprint": "73f47856be4c7a02"

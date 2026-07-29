@@ -17,6 +17,7 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import * as kanban from '../manager.js';
+import { StaleWriteError } from '../manager/lifecycle.js';
 import { installKanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanEvent } from '../types.js';
 import { kanbanProjectServerEndpoint } from './endpoint.js';
@@ -50,7 +51,11 @@ const MAX_PARALLEL_REQUESTS_PER_CLIENT = 32;
 interface ClientState {
   socket: net.Socket;
   buffer: string;
-  activeControllers: Set<AbortController>;
+  /** Count of in-flight request handlers. Used to cap concurrent work per
+   *  client. Note: handlers are NOT cancelled on disconnect — the mutation has
+   *  already entered the storage layer and may have committed server-side. A
+   *  lost response is accepted per the at-most-once-execution contract. */
+  inflightRequests: number;
   lastSeenAt: number;
 }
 
@@ -102,7 +107,7 @@ function scheduleIdleStop(): void {
   idleTimer.unref?.();
 }
 
-async function stop(reason: string, gracefulSocket?: net.Socket): Promise<void> {
+async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void> {
   if (stopping) return;
   stopping = true;
   if (idleTimer) clearTimeout(idleTimer);
@@ -112,8 +117,10 @@ async function stop(reason: string, gracefulSocket?: net.Socket): Promise<void> 
   if (leaseTimer) clearInterval(leaseTimer);
   leaseTimer = undefined;
   for (const state of clients) {
-    for (const c of state.activeControllers)
-      c.abort(new Error(`Kanban server stopping: ${reason}`));
+    // Handlers are intentionally NOT aborted here: once a request reaches the
+    // storage layer the mutation may have committed server-side. Aborting would
+    // give the false impression that the mutation was rolled back. The handler
+    // will finish and write to a destroyed socket, which is silently dropped.
     if (state.socket === gracefulSocket) state.socket.end();
     else state.socket.destroy();
   }
@@ -155,9 +162,6 @@ function defineMethod(name: string, handler: Handler): void {
   methods.set(name, handler);
 }
 
-function notFound(message: string): never {
-  throw { code: 'NOT_FOUND', message };
-}
 function invalid(message: string): never {
   throw { code: 'INVALID_INPUT', message };
 }
@@ -238,295 +242,9 @@ defineMethod('storageWriteMetadata', async ({ key, value }: { key: string; value
   return { written: true };
 });
 
-// Board reads
-defineMethod('listBoards', async () => await kanban.listBoards(projectRoot));
-defineMethod('listBoardSummaries', async () => await kanban.listBoards(projectRoot));
-defineMethod('getBoard', async ({ boardId }: { boardId: string }) => {
-  if (!boardId) invalid('getBoard requires boardId');
-  const board = await kanban.getBoard(projectRoot, boardId);
-  if (!board) notFound(`Board ${boardId} not found`);
-  return board;
-});
-defineMethod('getTask', async ({ boardId, taskId }: { boardId: string; taskId: string }) => {
-  if (!boardId || !taskId) invalid('getTask requires boardId and taskId');
-  const task = await kanban.getTask(projectRoot, boardId, taskId);
-  if (!task) notFound(`Task ${taskId} not found`);
-  return task;
-});
-defineMethod(
-  'getKanbanOrchestrationSnapshot',
-  async (params: any) => await kanban.getKanbanOrchestrationSnapshot(projectRoot, params),
-);
-defineMethod('searchTasks', async (params: any) => await kanban.searchKanban(projectRoot, params));
-defineMethod('readyTasks', async (params: any) => await kanban.listReadyTasks(projectRoot, params));
-
-// Board mutations
-defineMethod('createBoard', async (params: any) => {
-  return kanban.createBoard(projectRoot, params);
-});
-defineMethod('updateBoard', async ({ boardId, ...patch }: any) => {
-  if (!boardId) invalid('updateBoard requires boardId');
-  const board = await kanban.updateBoard(projectRoot, boardId, patch);
-  if (!board) notFound(`Board ${boardId} not found`);
-  return board;
-});
-defineMethod('duplicateBoard', async ({ boardId, options }: any) => {
-  if (!boardId) invalid('duplicateBoard requires boardId');
-  const board = await kanban.duplicateBoard(projectRoot, boardId, options);
-  if (!board) notFound(`Board ${boardId} not found`);
-  return board;
-});
-defineMethod('deleteBoard', async ({ boardId }: { boardId: string }) => {
-  if (!boardId) invalid('deleteBoard requires boardId');
-  return kanban.removeBoard(projectRoot, boardId);
-});
-defineMethod('generateBoard', async ({ description }: { description: string }) => {
-  if (!description) invalid('generateBoard requires description');
-  // Fallback: createBoard with a description-derived title
-  return kanban.createBoard(projectRoot, {
-    title: (description.split('\n')[0] ?? description).slice(0, 80),
-    description,
-  });
-});
-
-// Column mutations
-defineMethod('addColumn', async (params: any) => {
-  const result = await kanban.addColumn(projectRoot, params.boardId, params);
-  if (!result) notFound(`Board ${params.boardId} not found`);
-  return result;
-});
-defineMethod('updateColumn', async (params: any) => {
-  if (!params.boardId || !params.columnId) invalid('updateColumn requires boardId and columnId');
-  const board = await (kanban as any).updateColumn(
-    projectRoot,
-    params.boardId,
-    params.columnId,
-    params,
-  );
-  if (!board) notFound('Column not found');
-  return board;
-});
-defineMethod('deleteColumn', async ({ boardId, columnId }: any) => {
-  if (!boardId || !columnId) invalid('deleteColumn requires boardId and columnId');
-  const board = await (kanban as any).removeColumn(projectRoot, boardId, columnId);
-  if (!board) notFound('Column not found');
-  return board;
-});
-
-// Task mutations
-defineMethod('addTask', async (params: any) => {
-  if (!params.boardId || !params.title) invalid('addTask requires boardId and title');
-  const result = await kanban.addTask(projectRoot, params.boardId, params);
-  if (!result) notFound(`Board ${params.boardId} not found`);
-  return result;
-});
-defineMethod('updateTask', async (params: any) => {
-  if (!params.boardId || !params.taskId) invalid('updateTask requires boardId and taskId');
-  const board = await kanban.updateTask(projectRoot, params.boardId, params.taskId, params);
-  if (!board) notFound(`Task ${params.taskId} not found`);
-  return board;
-});
-defineMethod('deleteTask', async ({ boardId, taskId }: any) => {
-  if (!boardId || !taskId) invalid('deleteTask requires boardId and taskId');
-  const board = await kanban.removeTask(projectRoot, boardId, taskId);
-  if (!board) notFound('Task not found');
-  return board;
-});
-defineMethod('moveTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.targetColumnId)
-    invalid('moveTask requires boardId, taskId, and targetColumnId');
-  const board = await kanban.moveTask(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params.targetColumnId,
-    params.order,
-  );
-  if (!board) notFound('Move failed');
-  return board;
-});
-defineMethod('copyTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.targetBoardId)
-    invalid('copyTask requires boardId, taskId, and targetBoardId');
-  const result = await kanban.copyTaskToBoard(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params.targetBoardId,
-    params.options ?? {},
-  );
-  return result;
-});
-defineMethod('transferTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.targetBoardId)
-    invalid('transferTask requires boardId, taskId, and targetBoardId');
-  const result = await kanban.transferTaskToBoard(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params.targetBoardId,
-    params.targetColumnId,
-  );
-  return result;
-});
-
-// Lifecycle / orchestration
-defineMethod('transitionTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || (!params.to && !params.status)) {
-    invalid('transitionTask requires boardId, taskId, and to/status');
-  }
-  const board = await kanban.transitionTask(projectRoot, params.boardId, params.taskId, params);
-  if (!board) notFound('Board or task not found');
-  return board;
-});
-defineMethod('adoptManagedLifecycle', async (params: any) => {
-  if (!params.boardId || !params.author || !params.transitionComment)
-    invalid('adoptManagedLifecycle requires boardId, author, transitionComment');
-  return await kanban.adoptManagedLifecycle(projectRoot, params.boardId, params);
-});
-defineMethod('repairManagedProjection', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.author || !params.transitionComment)
-    invalid('repairManagedProjection requires boardId, taskId, author, transitionComment');
-  return await kanban.repairManagedTaskProjection(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params,
-  );
-});
-defineMethod('claimTask', async (params: any) => await kanban.claimReadyTask(projectRoot, params));
-defineMethod('releaseTask', async ({ boardId, taskId }: any) => {
-  if (!boardId || !taskId) invalid('releaseTask requires boardId and taskId');
-  return await kanban.releaseTaskClaim(projectRoot, boardId, taskId);
-});
-defineMethod('assignTask', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.input) {
-    invalid('assignTask requires boardId, taskId, and input');
-  }
-  return await kanban.assignTask(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params.input,
-    params.eventContext,
-  );
-});
-defineMethod('updateTaskAssignment', async (params: any) => {
-  if (!params.boardId || !params.taskId || !params.patch) {
-    invalid('updateTaskAssignment requires boardId, taskId, and patch');
-  }
-  return await kanban.updateTaskAssignment(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params.patch,
-    params.eventContext,
-  );
-});
-defineMethod('finalizeTaskCompletion', async (params: any) => {
-  if (!params.boardId || !params.taskId) {
-    invalid('finalizeTaskCompletion requires boardId and taskId');
-  }
-  return await kanban.finalizeTaskCompletion(
-    projectRoot,
-    params.boardId,
-    params.taskId,
-    params.options,
-  );
-});
-defineMethod('heartbeatAssignment', async (params: any) => {
-  if (!params.boardId || !params.taskId) invalid('heartbeatAssignment requires boardId and taskId');
-  return await kanban.heartbeatTaskAssignment(projectRoot, params.boardId, params.taskId, params);
-});
-const verifyCompletion = async (params: any) => {
-  if (!params.boardId || !params.taskId) {
-    invalid('verifyTaskCompletion requires boardId and taskId');
-  }
-  return await kanban.verifyTaskCompletion(projectRoot, params.boardId, params.taskId, {
-    ...(params.persist !== undefined ? { persist: params.persist } : {}),
-  });
-};
-defineMethod('verifyTaskCompletion', verifyCompletion);
-defineMethod('verifyCompletion', verifyCompletion);
-defineMethod('recoverStaleTaskAssignments', async (params: any) => {
-  const boardId = params?.boardId ?? '';
-  return await kanban.recoverStaleTaskAssignments(projectRoot, boardId, {});
-});
-defineMethod('reconcileBoard', async ({ boardId }: { boardId: string }) => {
-  if (!boardId) invalid('reconcileBoard requires boardId');
-  return await kanban.reconcileKanbanBoard(projectRoot, boardId);
-});
-
-defineMethod('setChain', async ({ boardId, taskIds, chainId, enforceDependencies }: any) => {
-  if (!boardId || !Array.isArray(taskIds)) invalid('setChain requires boardId and taskIds[]');
-  const result = await kanban.setTaskChain(projectRoot, boardId, {
-    taskIds,
-    ...(chainId !== undefined ? { chainId } : {}),
-    ...(enforceDependencies !== undefined ? { enforceDependencies } : {}),
-  });
-  return result ?? notFound('Chain failed');
-});
-defineMethod('getChain', async (params: any) => {
-  if (!params.boardId || (!params.taskId && !params.chainId))
-    invalid('getChain requires boardId and taskId or chainId');
-  const chain = await kanban.getTaskChain(
-    projectRoot,
-    params.boardId,
-    params.chainId ?? params.taskId,
-  );
-  if (!chain) notFound('Chain not found');
-  return chain;
-});
-
-// Task graph — forward to the task-graph-bridge module directly.
-defineMethod('syncTaskGraph', async ({ boardId, taskGraph }: any) => {
-  if (!boardId || !taskGraph) invalid('syncTaskGraph requires boardId and taskGraph');
-  const bridge = await import('../manager/task-graph-bridge.js');
-  return await bridge.syncBoardFromTaskGraph(
-    projectRoot,
-    boardId,
-    typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph,
-  );
-});
-defineMethod('createFromGraph', async ({ taskGraph, options }: any) => {
-  if (!taskGraph) invalid('createFromGraph requires taskGraph');
-  const bridge = await import('../manager/task-graph-bridge.js');
-  const result = await bridge.createBoardFromTaskGraph(
-    projectRoot,
-    typeof taskGraph === 'string' ? JSON.parse(taskGraph) : taskGraph,
-    options,
-  );
-  return result;
-});
-
-// Atomicity
-defineMethod('assessAtomicity', async (params: any) => {
-  if (!params.boardId || !params.taskId) invalid('assessAtomicity requires boardId and taskId');
-  return await kanban.assessTaskAtomicity(projectRoot, params.boardId, params.taskId);
-});
-
-// Export
-defineMethod('exportMarkdown', async ({ boardId }: { boardId: string }) => {
-  if (!boardId) invalid('exportMarkdown requires boardId');
-  const [serialization, storage] = await Promise.all([
-    import('../manager/serialization.js'),
-    import('../storage.js'),
-  ]);
-  const board = await storage.readBoard(projectRoot, boardId);
-  if (!board) notFound(`Board ${boardId} not found`);
-  return serialization.exportBoardAsMarkdown(board);
-});
-defineMethod('exportTaskGraph', async ({ boardId }: { boardId: string }) => {
-  if (!boardId) invalid('exportTaskGraph requires boardId');
-  const bridge = await import('../manager/task-graph-bridge.js');
-  const graph = await bridge.exportBoardToTaskGraph(projectRoot, boardId);
-  if (!graph) notFound(`Board ${boardId} not found`);
-  return graph;
-});
-
 function sumActive(): number {
   let total = 0;
-  for (const state of clients) total += state.activeControllers.size;
+  for (const state of clients) total += state.inflightRequests;
   return total;
 }
 
@@ -534,6 +252,9 @@ function errorFromThrown(value: unknown): KanbanErrorResponse['error'] {
   if (value && typeof value === 'object' && 'code' in value && 'message' in value) {
     const v = value as { code: KanbanErrorCode; message: string };
     return { code: v.code, message: v.message };
+  }
+  if (value instanceof StaleWriteError) {
+    return { code: 'STALE_WRITE', message: value.message };
   }
   if (value instanceof Error) {
     return { code: 'INTERNAL_ERROR', message: value.message, cause: value.stack ?? null };
@@ -545,16 +266,21 @@ function errorFromThrown(value: unknown): KanbanErrorResponse['error'] {
 
 function processRequest(state: ClientState, req: KanbanRequest): void {
   state.lastSeenAt = Date.now();
-  const def = protocolMethods.has(req.method) ? methods.get(req.method) : undefined;
-  if (!def) {
+  const handler = protocolMethods.has(req.method) ? methods.get(req.method) : undefined;
+  // Guard against a programming error where a method is in the protocol
+  // allowlist but missing from the handler map.
+  if (!handler) {
     sendFrame(state.socket, {
       id: req.id,
-      error: { code: 'INVALID_INPUT', message: `Unknown method: ${req.method}` },
+      error: {
+        code: 'INVALID_INPUT',
+        message: `Unknown method: ${req.method}`,
+      },
     });
     return;
   }
 
-  if (state.activeControllers.size >= MAX_PARALLEL_REQUESTS_PER_CLIENT) {
+  if (state.inflightRequests >= MAX_PARALLEL_REQUESTS_PER_CLIENT) {
     sendFrame(state.socket, {
       id: req.id,
       error: { code: 'INTERNAL_ERROR', message: 'Too many parallel requests on this connection' },
@@ -562,11 +288,10 @@ function processRequest(state: ClientState, req: KanbanRequest): void {
     return;
   }
 
-  const controller = new AbortController();
-  state.activeControllers.add(controller);
+  state.inflightRequests += 1;
 
   Promise.resolve()
-    .then(() => def(req.params))
+    .then(() => handler(req.params))
     .then((result) => {
       const frame = { id: req.id, ok: true as const, result: result ?? null };
       if (req.method === 'shutdown') {
@@ -582,23 +307,31 @@ function processRequest(state: ClientState, req: KanbanRequest): void {
       }
     })
     .catch((err) => {
-      sendFrame(state.socket, { id: req.id, error: errorFromThrown(err) });
+      try {
+        sendFrame(state.socket, { id: req.id, error: errorFromThrown(err) });
+      } catch {
+        state.socket.destroy();
+      }
     })
     .finally(() => {
-      state.activeControllers.delete(controller);
+      state.inflightRequests -= 1;
     });
 }
 
 function onData(state: ClientState, chunk: string): void {
   state.buffer += chunk;
+  // Check buffer cap BEFORE the frame loop — a chunk without a newline would
+  // never enter the while loop and the in-loop check would never fire, letting
+  // the buffer grow without bound. Check here unconditionally (mirrors the
+  // client-side pattern in client.ts).
+  if (state.buffer.length > MAX_FRAME_CHARS) {
+    state.socket.destroy(new Error('Frame buffer exceeded maximum size'));
+    return;
+  }
   let nl: number;
   while ((nl = state.buffer.indexOf('\n')) !== -1) {
     const line = state.buffer.slice(0, nl);
     state.buffer = state.buffer.slice(nl + 1);
-    if (state.buffer.length > MAX_FRAME_CHARS) {
-      state.socket.destroy(new Error('Frame buffer exceeded maximum size'));
-      return;
-    }
     if (!line.trim()) continue;
     try {
       const parsed = JSON.parse(line);
@@ -672,21 +405,19 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const onListenError = (error: Error): void => reject(error);
     listener.once('error', onListenError);
     listener.listen(endpoint!, () => {
+      // Attach the permanent handler BEFORE removing the temporary one,
+      // so no error can fall through the gap between .off() and .on().
+      listener.on('error', (err: NodeJS.ErrnoException) => {
+        if (stopping) return;
+        if (err.code === 'EADDRINUSE') {
+          process.exit(0);
+        }
+        process.stderr.write(`kanban project server error: ${err.message}\n`);
+        process.exit(1);
+      });
       listener.off('error', onListenError);
       resolve();
     });
-  });
-
-  listener.on('error', (err: NodeJS.ErrnoException) => {
-    if (stopping) return;
-    // EADDRINUSE means another daemon won the bind election for this root —
-    // that is the ownership protocol working, not a failure. Exiting non-zero
-    // there made a normal race look like a crash.
-    if (err.code === 'EADDRINUSE') {
-      process.exit(0);
-    }
-    process.stderr.write(`kanban project server error: ${err.message}\n`);
-    process.exit(1);
   });
 
   try {
@@ -761,7 +492,7 @@ function acceptClient(socket: net.Socket): void {
   const state: ClientState = {
     socket,
     buffer: '',
-    activeControllers: new Set(),
+    inflightRequests: 0,
     lastSeenAt: Date.now(),
   };
   clients.add(state);
@@ -769,9 +500,6 @@ function acceptClient(socket: net.Socket): void {
   sendFrame(socket, hello);
   socket.on('data', (chunk: string) => onData(state, chunk));
   socket.on('close', () => {
-    for (const controller of state.activeControllers) {
-      controller.abort(new Error('Client disconnected'));
-    }
     clients.delete(state);
     scheduleIdleStop();
   });
@@ -795,3 +523,6 @@ if (isMain) {
     process.exit(1);
   });
 }
+
+// Exported for testing
+export { MAX_FRAME_CHARS, onData };

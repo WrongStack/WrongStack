@@ -126,7 +126,7 @@ export function EcosystemPage() {
                 '~/.wrongstack/profiles/<name>/skills/',
                 '~/.claude/skills/ + foreign agents',
                 'user-configured extraDirs',
-                '25 bundled core skills',
+                '26 bundled core skills',
               ].map((path, index) => (
                 <div
                   key={path}

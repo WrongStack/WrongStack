@@ -146,6 +146,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
           }
           layoutStore={layoutStore}
           copiedEntryId={state.copiedEntryId}
+          onRequestOlderEntries={runtime.onRequestOlderEntries}
         />
         <Box flexDirection="column" flexShrink={0} ref={bottomRegionRef}>
           {/* NOTE: the LiveActivityStrip is deliberately NOT rendered here yet.

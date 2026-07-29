@@ -59,6 +59,18 @@ it goes through the normal authorization boundary before shutdown. The WebUI
 client correlates the result by request id and never queues this destructive
 action for replay after a disconnected session.
 
+## Parser architecture
+
+Symbols are extracted by per-language parser modules loaded lazily by
+`parser-dispatch.ts`. Each parser is a standalone module imported only when a
+file of its language is encountered — the TypeScript compiler API, for instance,
+is never loaded for a Go-only project.
+
+Parser worker threads (`parser-worker.ts`, `parser-worker-pool.ts`) were removed
+in 2026-07 — the lazy dynamic import + `Promise.allSettled` on the main thread
+provides adequate parallel parsing, and the detached project server already runs
+parsing off the main event loop.
+
 ## Compatibility and recovery
 
 The protocol begins with a versioned handshake. Health payloads are validated at

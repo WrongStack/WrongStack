@@ -146,6 +146,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     findMemoriesForFile: (filePath, options) =>
       super.findMemoriesForFile(filePath, options),
     getSage: (id) => super.getSage(id),
+    listSagePage: (options) => super.listSagePage(options),
   };
 
   private async importLegacyFiles(files: string[]) {

@@ -1,7 +1,9 @@
 /** Cross-reference extraction for languages not handled by ts-parser.ts. */
 
 import { execFile } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Ref, SymbolLang } from './schema.js';
 
@@ -91,6 +93,7 @@ except Exception:
 
 export interface ExtractRefsOptions {
   file: string;
+  /** Reserved — not yet consumed by extractRefs. Passed through in callers for future use. */
   content: string;
   lang: SymbolLang;
 }
@@ -104,11 +107,12 @@ const runnerOptions = {
 };
 
 let goRunnerPromise: Promise<{ command: string; argsPrefix: string[] } | null> | undefined;
+/**
+ * Cached Python interpreter path. Probed once: `python3` preferred, `python`
+ * fallback. `null` means neither was found — subsequent calls skip probing.
+ */
+let pythonCommandPromise: Promise<string | null> | undefined;
 let pythonScriptPathPromise: Promise<string | null> | undefined;
-
-function helperDirectory(name: string): string {
-  return path.join(process.env.TEMP ?? process.env.TMP ?? '/tmp', name);
-}
 
 function runFile(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -119,15 +123,43 @@ function runFile(command: string, args: string[]): Promise<string> {
   });
 }
 
+/**
+ * Temp directories created by this module, tracked for cleanup on process exit.
+ * Every call to `makeTempDir` records the path so `cleanupTempDirs` can reap it.
+ */
+const tempDirs: string[] = [];
+
+/** Best-effort synchronous cleanup of all tracked temp directories. */
+function cleanupTempDirs(): void {
+  const dirs = tempDirs.splice(0);
+  for (const dir of dirs) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // best-effort cleanup — swallow per-dir errors
+    }
+  }
+}
+
+if (process.listenerCount('exit', cleanupTempDirs) === 0) {
+  process.on('exit', cleanupTempDirs);
+}
+
+/** Create a unique, non-predictable temporary directory owned by this process. */
+async function makeTempDir(prefix: string): Promise<string> {
+  const dir = await mkdtemp(path.join(os.tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
 function initializeGoRunner(): Promise<{ command: string; argsPrefix: string[] } | null> {
   goRunnerPromise ??= (async () => {
     try {
-    const directory = helperDirectory('ws-go-refs');
-    await mkdir(directory, { recursive: true });
-    const scriptPath = path.join(directory, 'refs.go');
-    const executablePath = path.join(directory, 'refs.exe');
-    await writeFile(scriptPath, GO_REFS_SCRIPT, 'utf8');
-    try {
+      const directory = await makeTempDir('ws-go-refs-');
+      const scriptPath = path.join(directory, 'refs.go');
+      const executablePath = path.join(directory, 'refs.exe');
+      await writeFile(scriptPath, GO_REFS_SCRIPT, 'utf8');
+      try {
       await runFile('go', ['build', '-o', executablePath, scriptPath]);
       return { command: executablePath, argsPrefix: [] };
     } catch {
@@ -142,11 +174,34 @@ function initializeGoRunner(): Promise<{ command: string; argsPrefix: string[] }
   return goRunnerPromise;
 }
 
+/**
+ * Resolve the Python interpreter. Tries `python3` first (common on Arch,
+ * macOS, Docker), then `python`.  Caches the result so per-file calls
+ * don't re-probe.
+ */
+function resolvePythonCommand(): Promise<string | null> {
+  pythonCommandPromise ??= (async () => {
+    for (const candidate of ['python3', 'python']) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          execFile(candidate, ['--version'], { timeout: 5_000, windowsHide: true }, (err) => {
+            err ? reject(err) : resolve();
+          });
+        });
+        return candidate;
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  })();
+  return pythonCommandPromise;
+}
+
 function initializePythonRunner(): Promise<string | null> {
   pythonScriptPathPromise ??= (async () => {
     try {
-      const directory = helperDirectory('ws-py-refs');
-      await mkdir(directory, { recursive: true });
+      const directory = await makeTempDir('ws-py-refs-');
       const scriptPath = path.join(directory, 'refs.py');
       await writeFile(scriptPath, PY_REFS_SCRIPT, 'utf8');
       return scriptPath;
@@ -166,16 +221,18 @@ function parseRunnerOutput(stdout: string): Ref[] {
       const candidate = value as Partial<RunnerRef>;
       if (
         typeof candidate.toName !== 'string' ||
-        typeof candidate.callType !== 'string' ||
-        typeof candidate.line !== 'number'
+        typeof candidate.line !== 'number' ||
+        (candidate.callType !== 'call' && candidate.callType !== 'import')
       ) {
         return [];
       }
+      // After the ===/!== checks above, candidate.callType is narrowed to
+      // 'call' | 'import', matching Ref['callType'] — no runtime cast needed.
       return [
         {
           fromId: 0,
           toName: candidate.toName,
-          callType: candidate.callType as Ref['callType'],
+          callType: candidate.callType,
           line: candidate.line,
         },
       ];
@@ -196,10 +253,12 @@ async function extractGoRefs(filePath: string): Promise<Ref[]> {
 }
 
 async function extractPythonRefs(filePath: string): Promise<Ref[]> {
+  const command = await resolvePythonCommand();
+  if (!command) return [];
   const scriptPath = await initializePythonRunner();
   if (!scriptPath) return [];
   try {
-    return parseRunnerOutput(await runFile('python', [scriptPath, filePath]));
+    return parseRunnerOutput(await runFile(command, [scriptPath, filePath]));
   } catch {
     return [];
   }

@@ -76,16 +76,22 @@ async function chronicleHealth(projectRoot: string): Promise<ConnectionHealthSer
   try {
     access = createChronicleProjectAccess({ projectRoot });
     const health = await access.call('ping', {}, { timeoutMs: 5_000 });
+    const quarantined = health.quarantinedFamilies ?? [];
     return {
       id: 'chronicle',
       label: 'Chronicle telemetry',
-      status: access.mode === 'server' ? 'healthy' : 'degraded',
+      status:
+        quarantined.length > 0 ? 'degraded' : access.mode === 'server' ? 'healthy' : 'degraded',
       required: true,
       mode: access.mode,
       detail:
-        access.mode === 'server'
-          ? 'One project owner collects, processes, stores, and serves telemetry.'
-          : 'Inline fallback is active; ownership is not shared across clients.',
+        quarantined.length > 0
+          ? `Serving, but ${quarantined.length} day(s) were quarantined for a broken chain: ${quarantined
+              .map((family) => family.day)
+              .join(', ')}.`
+          : access.mode === 'server'
+            ? 'One project owner collects, processes, stores, and serves telemetry.'
+            : 'Inline fallback is active; ownership is not shared across clients.',
       ownerPid: health.pid,
       endpoint: health.endpoint,
       storage: health.chronicleDirectory,
@@ -95,7 +101,11 @@ async function chronicleHealth(projectRoot: string): Promise<ConnectionHealthSer
       activeRequests: health.activeRequests,
       queuedWork: health.journal.pendingEvents,
       watcher: { active: health.watcher.active, watchedFiles: health.watcher.watchedFiles },
-      ...(health.watcher.lastError ? { lastError: health.watcher.lastError } : {}),
+      ...(quarantined[0]
+        ? { lastError: quarantined[0].reason }
+        : health.watcher.lastError
+          ? { lastError: health.watcher.lastError }
+          : {}),
     };
   } catch (error) {
     return failureService('chronicle', 'Chronicle telemetry', true, access?.mode ?? 'unavailable', error, Date.now() - startedAt);
@@ -258,7 +268,10 @@ async function mailboxHealth(projectRoot: string): Promise<ConnectionHealthServi
       detail: 'The packaged mailbox project server is unavailable in this runtime.',
     };
   }
-  const connection = new MailboxProjectServerConnection(projectRoot);
+  // Keyed on the data directory, not the repo root — see the WebUI collector.
+  const connection = new MailboxProjectServerConnection(
+    resolveWstackPaths({ projectRoot }).projectDir,
+  );
   try {
     const status = await connection.probeStatus();
     if (!status) {

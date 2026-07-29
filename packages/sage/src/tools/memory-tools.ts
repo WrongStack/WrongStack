@@ -2,6 +2,8 @@ import type { MemoryScope, Tool } from '@wrongstack/core/types';
 import type { SageServiceLike } from '../service-contract.js';
 import type {
   FindMemoriesForFileResponse,
+  GatherBatchResult,
+  ListSagePageOptions,
   MemoryAnchor,
   MemoryAudienceSelector,
   MemoryGraphEdge,
@@ -31,12 +33,16 @@ import {
   stringSchema,
 } from './tool-schema-helpers.js';
 
+/** Resource limit: at most this many memory IDs are individually queried for graph relations during batch gather. */
+const BATCH_GRAPH_SCAN_LIMIT = 10;
+
 export function createSageTools(memory: SageServiceLike): Tool[] {
   return [
     memoryForFileTool(memory),
     memoryForPathTool(memory),
     memorySearchTool(memory),
     memoryGraphTool(memory),
+    memoryGatherBatchTool(memory),
     memoryVerifyTool(memory),
     memoryHygieneTool(memory),
     memoryCandidatesTool(memory),
@@ -655,6 +661,91 @@ function memoryGraphTool(
     async execute(input, _ctx, opts) {
       opts.signal.throwIfAborted();
       return memory.graphFor(input.query, input.depth ?? 2, input.limit ?? 100);
+    },
+  };
+}
+
+function memoryGatherBatchTool(
+  memory: SageServiceLike,
+): Tool<
+  {
+    statuses?: Sage['status'][] | undefined;
+    kind?: string | undefined;
+    query?: string | undefined;
+    limit?: number | undefined;
+    cursor?: string | undefined;
+    /** Include graph edges among gathered memories. Default true. */
+    includeRelations?: boolean | undefined;
+  },
+  GatherBatchResult
+> {
+  return {
+    name: 'memory_gather_batch',
+    category: 'Session',
+    description:
+      'Gather a bounded batch of memories with optional graph relations. Use this for bulk memory review and cleanup workflows — enumerates active memories by status, kind, or text substring, and optionally includes their graph edges for collective evaluation.',
+    inputSchema: objectSchema({
+      statuses: {
+        type: 'array',
+        items: { type: 'string', enum: STATUS_VALUES },
+        description: 'Statuses to include. Default: all except deleted.',
+      },
+      kind: stringSchema('Optional kind filter (e.g. "fact").'),
+      query: stringSchema('Case-insensitive substring match against memory text.'),
+      limit: numberSchema(1, 500),
+      cursor: stringSchema('Opaque cursor from a previous page\'s `nextCursor`.'),
+      includeRelations: {
+        type: 'boolean',
+        description: 'Include graph edges among gathered memories. Default true.',
+      },
+    }),
+    permission: 'auto',
+    mutating: false,
+    riskTier: 'safe',
+    capabilities: ['memory.read'],
+    icon: 'search',
+    async execute(input, _ctx, opts) {
+      opts.signal.throwIfAborted();
+      const pageOpts: ListSagePageOptions = {
+        statuses: input.statuses,
+        kind: input.kind,
+        query: input.query,
+        limit: input.limit,
+        cursor: input.cursor,
+      };
+      const page = await memory.listSagePage(pageOpts);
+      // Optionally gather graph relations for the first N memories
+      const relations: MemoryGraphEdge[] = [];
+      let scannedCount = 0;
+      if (input.includeRelations !== false && page.memories.length > 0) {
+        const seen = new Set<string>();
+        const idsToScan = page.memories.slice(0, BATCH_GRAPH_SCAN_LIMIT);
+        for (const mem of idsToScan) {
+          opts.signal.throwIfAborted();
+          scannedCount++;
+          try {
+            const edges = await memory.graphFor(mem.id, 1, 100);
+            for (const edge of edges) {
+              if (!seen.has(edge.id)) {
+                seen.add(edge.id);
+                relations.push(edge);
+              }
+            }
+          } catch (err) {
+            // Best-effort: one memory's graph failure does not fail the batch;
+            // rethrow abort so the caller can cancel promptly.
+            if (opts.signal.aborted) throw err;
+          }
+        }
+      }
+      return {
+        memories: page.memories,
+        relations,
+        relationsScannedAt: scannedCount,
+        nextCursor: page.nextCursor,
+        total: page.total,
+        statusCounts: page.statusCounts,
+      };
     },
   };
 }

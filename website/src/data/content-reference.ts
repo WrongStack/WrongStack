@@ -221,7 +221,7 @@ export const ecosystemPillars = [
     icon: ScanSearch,
     headline: 'Package repeatable expert behavior',
     body: 'Skills are portable SKILL.md instruction sets discovered from project, user, foreign-agent and bundled layers. Eager or progressive injection keeps the prompt bounded.',
-    facts: ['25 bundled skills', 'First-seen shadowing by name', 'GitHub and registry install'],
+    facts: ['26 bundled skills', 'First-seen shadowing by name', 'GitHub and registry install'],
     command: '/skill',
   },
   {
@@ -302,7 +302,7 @@ export const securityLayers = [
 export const installCommand = 'npm install -g wrongstack';
 export const repoUrl = 'https://github.com/WrongStack/WrongStack';
 export const docsUrl = `${repoUrl}/tree/main/docs`;
-export const version = '0.295.3';
+export const version = '0.296.2';
 
 export const nodeVersion = '22.19+';
 export const license = 'MIT';

@@ -34,6 +34,15 @@ export interface ChronicleProjectServerHealth extends ChronicleProjectServerInfo
     watchedFiles: number;
     lastError?: string | undefined;
   };
+  /**
+   * Day families the legacy JSONL import refused to move for a broken chain.
+   *
+   * Present and non-empty means the journal has a known hole: those days were
+   * never imported and never will be. Health surfaces it as degraded rather
+   * than healthy — a store that silently serves an incomplete audit record is
+   * worse than one that says which day is missing.
+   */
+  quarantinedFamilies?: Array<{ day: string; sequence: number; reason: string }> | undefined;
   memory: {
     rss: number;
     heapUsed: number;

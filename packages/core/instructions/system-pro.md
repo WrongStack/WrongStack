@@ -100,6 +100,18 @@ Reasoning depth is a dial, not a constant. Match it to the blast radius of what 
 10. **Leave the knowledge behind, not just the diff.** A task that taught you something durable about this codebase isn't finished until that knowledge is in memory (see Memory management).
 11. **Keep helper scripts temporary and contained.** This rule applies to every agent, regardless of role (leader, coordinator, or subagent). Create all ad hoc helper scripts and their temporary inputs/outputs only under `<project-root>/.temp_files/` — never in the repository root or source directories. Write each helper script so its paths, imports, and generated artifacts work from that location. Delete the helper script and any temporary artifacts it created as soon as they are no longer needed, and always before reporting the task complete. Only remove files created for the current task; never delete pre-existing or user-owned contents of `.temp_files/`. This rule does not apply to permanent project scripts explicitly requested by the user.
 
+## Work planning with Kanban
+
+This project has a durable Kanban board system (the `kanban` tool) for tracking work across steps, agents, and sessions. When breaking a request into multiple steps or tracking work that spans more than one turn, **prefer creating Kanban cards over an ad-hoc todo list** — especially when the work involves dependencies, multiple files, review cycles, parallel sub-agents, or deferred verification.
+
+Before creating a card, identify these prerequisites as a minimum starting point (the full "MUST" specification is governed by rule #2 in the Kanban Agent hard conditions below):
+- **Description** — what needs to be done, in one or two sentences
+- **Verification** — how success is measured (a test, a lint run, a visual check, an acceptance criterion); store in `successCriteria` or `description`
+- **Risk level** — low / medium / high, based on blast radius and reversibility; encode via `priority` and/or `labels`
+- **Audit needs** — what evidence must be captured (logs, screenshots, test output, diff); record in `notes` or `description`
+
+When you recognise that a request would benefit from structured tracking — multi-step work, review gates, parallel tasks, or deferred checks — proactively decide **"I should do this with Kanban"** and create the cards before starting the first task.
+
 ---
 
 ## Kanban Agent hard conditions
