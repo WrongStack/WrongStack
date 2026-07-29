@@ -186,9 +186,17 @@ function discoverEntryPoints(
   }
 
   // 3. Workspace packages if this is a monorepo.
-  const workspaces = rootPkg
-    ? extractWorkspaceGlobs(rootPkg, projectRoot)
-    : [];
+  let workspaces: string[];
+  if (rootPkg) {
+    workspaces = extractWorkspaceGlobs(rootPkg, projectRoot);
+    // Fall back to pnpm-workspace.yaml when package.json has no workspaces field
+    // (pnpm's default layout for modern monorepos).
+    if (workspaces.length === 0) {
+      workspaces = extractPnpmWorkspaceDirs(projectRoot);
+    }
+  } else {
+    workspaces = [];
+  }
   for (const wsDir of workspaces) {
     const pkgJsonPath = path.join(wsDir, 'package.json');
     const pkg = tryReadJson(pkgJsonPath);
@@ -275,6 +283,27 @@ function addPkgJsonEntryPoints(
   }
 }
 
+function expandGlobPattern(entry: string, projectRoot: string): string[] {
+  const dirs: string[] = [];
+  if (entry.includes('*')) {
+    const base = entry.replace(/\/\*+$/, '');
+    const baseDir = path.resolve(projectRoot, base);
+    try {
+      const children = fs.readdirSync(baseDir, { withFileTypes: true });
+      for (const child of children) {
+        if (child.isDirectory()) {
+          dirs.push(path.join(baseDir, child.name));
+        }
+      }
+    } catch {
+      // ignore missing dirs
+    }
+  } else {
+    dirs.push(path.resolve(projectRoot, entry));
+  }
+  return dirs;
+}
+
 function extractWorkspaceGlobs(
   pkg: Record<string, unknown>,
   projectRoot: string,
@@ -284,27 +313,45 @@ function extractWorkspaceGlobs(
   if (Array.isArray(workspaces)) {
     for (const entry of workspaces) {
       if (typeof entry === 'string') {
-        // Expand simple globs: "packages/*" → list directories
-        if (entry.includes('*')) {
-          const base = entry.replace(/\/\*+$/, '');
-          const baseDir = path.resolve(projectRoot, base);
-          try {
-            const children = fs.readdirSync(baseDir, { withFileTypes: true });
-            for (const child of children) {
-              if (child.isDirectory()) {
-                dirs.push(path.join(baseDir, child.name));
-              }
-            }
-          } catch {
-            // ignore missing dirs
-          }
-        } else {
-          dirs.push(path.resolve(projectRoot, entry));
-        }
+        dirs.push(...expandGlobPattern(entry, projectRoot));
       }
     }
   }
   return dirs;
+}
+
+/**
+ * Read workspace directories from `pnpm-workspace.yaml` when the root
+ * package.json does not have a `workspaces` field (pnpm default layout).
+ * Parses the `packages:` list — each entry is a glob string that gets
+ * expanded the same way as package.json workspaces entries.
+ */
+function extractPnpmWorkspaceDirs(
+  projectRoot: string,
+): string[] {
+  const yamlPath = path.join(projectRoot, 'pnpm-workspace.yaml');
+  if (!fs.existsSync(yamlPath)) return [];
+
+  try {
+    const content = fs.readFileSync(yamlPath, 'utf8');
+    const dirs: string[] = [];
+    // Match lines that are list items under the `packages:` key:
+    //   - "packages/*"
+    //   - "apps/*"
+    //   - packages/*
+    // (with optional quotes)
+    const pkgLineRe = /^\s+-\s+"([^"]+)"|^\s+-\s+'([^']+)'|^\s+-\s+(\S+)$/gm;
+    let match: RegExpExecArray | null;
+    while ((match = pkgLineRe.exec(content)) !== null) {
+      const entry = match[1] ?? match[2] ?? match[3];
+      if (entry) {
+        dirs.push(...expandGlobPattern(entry, projectRoot));
+      }
+    }
+    return dirs;
+  } catch {
+    return [];
+  }
 }
 
 // ─── BFS reachability scan ────────────────────────────────────────────────
@@ -513,7 +560,10 @@ function findPackageEntries(
 
   // Workspace packages
   if (rootPkg) {
-    const wsDirs = extractWorkspaceGlobs(rootPkg, projectRoot);
+    let wsDirs = extractWorkspaceGlobs(rootPkg, projectRoot);
+    if (wsDirs.length === 0) {
+      wsDirs = extractPnpmWorkspaceDirs(projectRoot);
+    }
     for (const wsDir of wsDirs) {
       const wsPkg = tryReadJson(path.join(wsDir, 'package.json'));
       if (wsPkg && typeof wsPkg.name === 'string') {
