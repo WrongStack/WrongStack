@@ -62,8 +62,9 @@ export interface AppProps {
   /** When true, the first Ctrl+C aborts work and shows "confirm exit" rather than "exit". */
   confirmExit?: boolean | undefined;
   /** Live on/off control for the animated terminal title. Lets `/settings`
-   *  toggle the title animation within the running session. */
-  titleController?: { setEnabled: (on: boolean) => void } | undefined;
+   *  toggle the title animation within the running session, and `setModel`
+   *  pushes model changes to the title without a restart. */
+  titleController?: { setEnabled: (on: boolean) => void; setModel: (model: string) => void } | undefined;
   /**
    * Token-saving mode tier. Rendered as a `💾 <tier>` chip on the status bar
    * line 2 (hidden when tier is `'off'`) so the user knows which system-prompt

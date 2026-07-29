@@ -10,7 +10,7 @@ export function useLiveSettingsState({
   confirmExit,
 }: {
   getSettings?: (() => Settings) | undefined;
-  titleController?: { setEnabled: (on: boolean) => void } | undefined;
+  titleController?: { setEnabled: (on: boolean) => void; setModel: (model: string) => void } | undefined;
   chime: boolean;
   confirmExit: boolean;
 }): {

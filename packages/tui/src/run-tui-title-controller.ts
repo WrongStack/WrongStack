@@ -1,9 +1,10 @@
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
-import { startTerminalTitle } from './terminal-title.js';
+import { startTerminalTitle, type TerminalTitleHandle } from './terminal-title.js';
 
 export interface RunTuiTitleController {
   setEnabled(on: boolean): void;
+  setModel(model: string): void;
 }
 
 export function createRunTuiTitleController(opts: {
@@ -12,29 +13,34 @@ export function createRunTuiTitleController(opts: {
   model: string;
   projectRoot?: string | undefined;
 }): { controller: RunTuiTitleController; start: () => void; stop: () => void } {
-  let titleStop: (() => void) | null = null;
+  let titleHandle: TerminalTitleHandle | null = null;
+  let currentModel = opts.model;
   const start = () => {
-    if (titleStop) return;
-    titleStop = startTerminalTitle({
+    if (titleHandle) return;
+    titleHandle = startTerminalTitle({
       stdout: opts.stdout,
       events: opts.events,
-      model: opts.model,
+      model: currentModel,
       appName: opts.projectRoot ? path.basename(opts.projectRoot) : undefined,
     });
   };
   const stop = () => {
     try {
-      titleStop?.();
+      titleHandle?.stop();
     } catch {
       // title controller already torn down - ignore.
     }
-    titleStop = null;
+    titleHandle = null;
   };
   return {
     controller: {
       setEnabled(on: boolean) {
         if (on) start();
         else stop();
+      },
+      setModel(model: string) {
+        currentModel = model;
+        titleHandle?.setModel(model);
       },
     },
     start,

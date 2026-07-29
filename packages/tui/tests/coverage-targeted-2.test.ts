@@ -265,7 +265,7 @@ describe('terminal-title.ts — branch gaps', () => {
   it('startTerminalTitle returns noop when WRONGSTACK_NO_TITLE=1', async () => {
     process.env['WRONGSTACK_NO_TITLE'] = '1';
     const { startTerminalTitle } = await import('../src/terminal-title.js');
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: { isTTY: true } as never,
       events: { on: () => () => {} } as never,
     });
@@ -276,7 +276,7 @@ describe('terminal-title.ts — branch gaps', () => {
 
   it('startTerminalTitle returns noop when stdout is not a TTY', async () => {
     const { startTerminalTitle } = await import('../src/terminal-title.js');
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: { isTTY: false } as never,
       events: { on: () => () => {} } as never,
     });
@@ -287,7 +287,7 @@ describe('terminal-title.ts — branch gaps', () => {
   it('startTerminalTitle wires event listeners and writes title', async () => {
     const offs: Array<() => void> = [];
     const { startTerminalTitle } = await import('../src/terminal-title.js');
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: {
         isTTY: true,
         write: () => {},

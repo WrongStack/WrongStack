@@ -43,7 +43,7 @@ describe('startTerminalTitle', () => {
 
   it('is a no-op on a non-TTY stdout', () => {
     const out = fakeStdout(false);
-    const stop = startTerminalTitle({ stdout: out, events: new EventBus(), model: 'm' });
+    const { stop } = startTerminalTitle({ stdout: out, events: new EventBus(), model: 'm' });
     vi.advanceTimersByTime(500);
     expect(out.writes).toHaveLength(0);
     stop();
@@ -53,7 +53,7 @@ describe('startTerminalTitle', () => {
   it('honors WRONGSTACK_NO_TITLE=1', () => {
     process.env['WRONGSTACK_NO_TITLE'] = '1';
     const out = fakeStdout(true);
-    const stop = startTerminalTitle({ stdout: out, events: new EventBus(), model: 'm' });
+    const { stop } = startTerminalTitle({ stdout: out, events: new EventBus(), model: 'm' });
     vi.advanceTimersByTime(500);
     expect(out.writes).toHaveLength(0);
     stop();
@@ -61,7 +61,7 @@ describe('startTerminalTitle', () => {
 
   it('shows the idle marquee before any activity', () => {
     const out = fakeStdout(true);
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: out,
       events: new EventBus(),
       model: 'claude-opus-4-8',
@@ -78,7 +78,7 @@ describe('startTerminalTitle', () => {
   it('switches to a tool status with the spinner + tool name', () => {
     const events = new EventBus();
     const out = fakeStdout(true);
-    const stop = startTerminalTitle({ stdout: out, events, model: 'm', intervalMs: 50 });
+    const { stop } = startTerminalTitle({ stdout: out, events, model: 'm', intervalMs: 50 });
     events.emit('tool.started', { name: 'bash', id: 'x' } as never);
     vi.advanceTimersByTime(60);
     const t = lastTitle(out)!;
@@ -89,7 +89,7 @@ describe('startTerminalTitle', () => {
   it('falls back to idle after the activity window elapses', () => {
     const events = new EventBus();
     const out = fakeStdout(true);
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: out,
       events,
       model: 'm',
@@ -108,7 +108,7 @@ describe('startTerminalTitle', () => {
   it('resets to a static title on stop and unsubscribes', () => {
     const events = new EventBus();
     const out = fakeStdout(true);
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: out,
       events,
       model: 'claude-opus-4-8',
@@ -128,7 +128,7 @@ describe('startTerminalTitle', () => {
   it('uses app name in the stop title', () => {
     const events = new EventBus();
     const out = fakeStdout(true);
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: out,
       events,
       model: 'claude-haiku-4-5-20251001',
@@ -136,5 +136,26 @@ describe('startTerminalTitle', () => {
     });
     stop();
     expect(lastTitle(out)).toBe('WrongStack');
+  });
+
+  it('updates the idle title after setModel', () => {
+    const out = fakeStdout(true);
+    const { stop, setModel } = startTerminalTitle({
+      stdout: out,
+      events: new EventBus(),
+      model: 'claude-opus-4-8',
+      intervalMs: 50,
+    });
+    vi.advanceTimersByTime(60);
+    // Idle title starts with the initial model.
+    expect(lastTitle(out)).toContain('claude-opus-4-8');
+
+    setModel('claude-haiku-4-5-20251001');
+    // The next timer tick picks up the new model.
+    vi.advanceTimersByTime(60);
+    const t = lastTitle(out)!;
+    expect(t).toContain('claude-haiku-4-5-20251001');
+    expect(t).not.toContain('claude-opus-4-8');
+    stop();
   });
 });

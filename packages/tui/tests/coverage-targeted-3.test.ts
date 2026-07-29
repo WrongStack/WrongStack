@@ -200,7 +200,7 @@ describe('terminal-title.ts — event wiring', () => {
   it('wires and unwires event listeners', async () => {
     const { startTerminalTitle } = await import('../src/terminal-title.js');
     const writes: string[] = [];
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: {
         isTTY: true,
         write: (s: string) => { writes.push(s); },

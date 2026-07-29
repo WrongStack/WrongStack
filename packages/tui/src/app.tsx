@@ -247,6 +247,12 @@ export function App(props: AppProps): React.ReactElement {
     confirmExitRef,
   } = useLiveSettingsState({ getSettings, titleController, chime, confirmExit });
 
+  // Push live model changes to the terminal title controller so the
+  // window/tab title reflects the active model after /model or /setmodel.
+  useEffect(() => {
+    titleController?.setModel(liveModel);
+  }, [titleController, liveModel]);
+
   const activity = useTuiActivity({
     status: state.status,
     fleet: state.fleet,

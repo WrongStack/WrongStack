@@ -25,16 +25,23 @@ export interface TerminalTitleOptions {
   idleAfterMs?: number | undefined;
 }
 
-export function startTerminalTitle(opts: TerminalTitleOptions): () => void {
+export interface TerminalTitleHandle {
+  /** Stop the animation, unsubscribe events, and reset the title. */
+  stop(): void;
+  /** Update the model label used in the idle title. */
+  setModel(model: string): void;
+}
+
+export function startTerminalTitle(opts: TerminalTitleOptions): TerminalTitleHandle {
   const { stdout, events } = opts;
   if (process.env['WRONGSTACK_NO_TITLE'] === '1' || !stdout.isTTY) {
-    return () => {};
+    return { stop: () => {}, setModel: () => {} };
   }
 
   const app = opts.appName ?? 'WrongStack';
   const idleAfter = opts.idleAfterMs ?? 3500;
   const suffix = ` · ${app}`;
-  const idleTitle = opts.model ? `✦ ${app} · ${opts.model}` : `✦ ${app}`;
+  let currentModel = opts.model ?? '';
 
   let frame = 0;
   let phase: 'idle' | 'thinking' | 'tool' = 'idle';
@@ -75,7 +82,7 @@ export function startTerminalTitle(opts: TerminalTitleOptions): () => void {
     } else if (phase === 'thinking') {
       title = `${sp} thinking…${suffix}`;
     } else {
-      title = idleTitle;
+      title = currentModel ? `✦ ${app} · ${currentModel}` : `✦ ${app}`;
     }
     // Avoid emitting the exact same OSC sequence twice (terminal writes are
     // surprisingly costly on Windows hosts).
@@ -87,9 +94,17 @@ export function startTerminalTitle(opts: TerminalTitleOptions): () => void {
   // Don't keep the event loop alive just for the title animation.
   timer.unref?.();
 
-  return () => {
-    clearInterval(timer);
-    for (const off of offs) off();
-    write(setTitle(app));
+  return {
+    stop() {
+      clearInterval(timer);
+      for (const off of offs) off();
+      write(setTitle(app));
+    },
+    setModel(model: string) {
+      currentModel = model;
+      // Force the next timer tick to re-evaluate the idle title even if
+      // we were already idle (lastWrittenTitle would otherwise match).
+      lastWrittenTitle = '';
+    },
   };
 }

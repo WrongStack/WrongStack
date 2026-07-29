@@ -123,7 +123,7 @@ describe('terminal-title.ts — event handler coverage', () => {
     const { startTerminalTitle } = await import('../src/terminal-title.js');
     const events: Array<{ event: string; cb: unknown }> = [];
     const written: string[] = [];
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: { isTTY: true, write: (s: string) => { written.push(s); } } as never,
       events: {
         on: (event: string, cb: unknown) => {
@@ -368,7 +368,7 @@ describe('terminal-title.ts — write error handling', () => {
   it('handles stdout.write throwing during title write', async () => {
     const { startTerminalTitle } = await import('../src/terminal-title.js');
     let _calls = 0;
-    const stop = startTerminalTitle({
+    const { stop } = startTerminalTitle({
       stdout: {
         isTTY: true,
         write: () => { _calls++; throw new Error('write error'); },
