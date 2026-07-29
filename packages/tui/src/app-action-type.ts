@@ -1,15 +1,56 @@
-import type { AutonomyStage, DesignKitEntry, FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
+import type {
+  AutonomyStage,
+  DesignKitEntry,
+  FleetChatVerbosity,
+  TokenSavingTier,
+} from '@wrongstack/core/types';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
-import type { AuthCatalogRow, AuthConfirmAction, AuthLocalPresetRow, AuthPanelView, AuthProviderRow } from './auth-panel-model.js';
-import type { HistoryEntry } from './history-entry.js';
+import type { State } from './app-state.js';
+import type {
+  DraftEntry,
+  GoalSummary,
+  QueueItem,
+  ResumeSessionEntry,
+  SlashCommandMatch,
+} from './app-state-core-types.js';
+import type { FleetEntry } from './app-state-fleet.js';
+import type {
+  AuthCatalogRow,
+  AuthConfirmAction,
+  AuthLocalPresetRow,
+  AuthPanelView,
+  AuthProviderRow,
+} from './auth-panel-model.js';
 import type { BrainLogEntry, BrainRiskLevel } from './brain-contracts.js';
 import type { BrainPanelSettings } from './brain-panel-model.js';
-import type { DraftEntry, GoalSummary, QueueItem, ResumeSessionEntry, SlashCommandMatch } from './app-state-core-types.js';
-import type { AuditLevel, CacheTtl, CompactorStrategy, ContextMode, LogLevel, ReasoningEffort, SettingsMode, SettingsPickerPatch, StatuslineMode } from './settings-contracts.js';
-import type { AutonomyOption, ChipMeta, HelpEntry, LiveSessionEntry, McpPickerItem, ModeOption, PluginPickerItem, ProjectPickerItem, PromptPickEntry, ProviderOption, ShadowState, ToolPickerItem, WorktreeRow } from './ui-contracts.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
-import type { FleetEntry } from './app-state-fleet.js';
-import type { State } from './app-state.js';
+import type { HistoryEntry } from './history-entry.js';
+import type {
+  AuditLevel,
+  CacheTtl,
+  CompactorStrategy,
+  ContextMode,
+  LogLevel,
+  ReasoningEffort,
+  SettingsMode,
+  SettingsPickerPatch,
+  StatuslineMode,
+} from './settings-contracts.js';
+import type {
+  AutonomyOption,
+  ChipMeta,
+  HelpEntry,
+  LiveSessionEntry,
+  McpPickerItem,
+  ModeOption,
+  PluginPickerItem,
+  ProjectPickerItem,
+  PromptPickEntry,
+  ProviderOption,
+  ShadowState,
+  ToolPickerItem,
+  WorktreeRow,
+} from './ui-contracts.js';
 export type Action =
   | { type: 'addEntry'; entry: DraftEntry }
   | { type: 'archiveLoaded'; entries: HistoryEntry[] }
@@ -58,7 +99,12 @@ export type Action =
   | { type: 'slashPickerOpen'; query: string; matches: SlashCommandMatch[] }
   | { type: 'slashPickerClose' }
   | { type: 'slashPickerMove'; delta: number }
-  | { type: 'modelPickerOpen'; providers: ProviderOption[]; purpose?: 'switch' | 'pick' | undefined; title?: string | undefined }
+  | {
+      type: 'modelPickerOpen';
+      providers: ProviderOption[];
+      purpose?: 'switch' | 'pick' | undefined;
+      title?: string | undefined;
+    }
   | { type: 'modelPickerClose' }
   | { type: 'modelPickerMove'; delta: number }
   | { type: 'modelPickerPickProvider'; providerId: string; models: string[] }
@@ -151,6 +197,7 @@ export type Action =
       breakerAutoKillResetMs: number;
       showModelReasoning: boolean;
       showAgentSwarmPanel: boolean;
+      readSymbols: boolean;
     }
   | { type: 'settingsClose' }
   | { type: 'settingsFieldMove'; delta: number }
@@ -221,7 +268,12 @@ export type Action =
   | { type: 'toolsPickerBusy'; busy: boolean }
   | { type: 'toolsPickerHint'; text?: string | undefined }
   | { type: 'toolsPickerFilter'; filter: string }
-  | { type: 'brainOpen'; riskLevel: BrainRiskLevel; log: BrainLogEntry[]; settings?: BrainPanelSettings | undefined }
+  | {
+      type: 'brainOpen';
+      riskLevel: BrainRiskLevel;
+      log: BrainLogEntry[];
+      settings?: BrainPanelSettings | undefined;
+    }
   | { type: 'brainClose' }
   | { type: 'brainMove'; delta: number }
   | { type: 'brainRiskChange'; delta: number }

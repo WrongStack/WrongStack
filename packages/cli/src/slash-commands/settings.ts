@@ -1,14 +1,16 @@
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
 import { noOpVault } from '@wrongstack/core/security';
+import type { FleetChatVerbosity, SlashCommand } from '@wrongstack/core/types';
 import { resolveFleetChatVerbosity } from '@wrongstack/core/types';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
-import { deriveFsAccessPair, persistAutonomySetting, persistConfigSetting } from '../settings-menu.js';
+import {
+  deriveFsAccessPair,
+  persistAutonomySetting,
+  persistConfigSetting,
+} from '../settings-menu.js';
 import { formatDelay } from '../utils/delay-format.js';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
 /**
  * `/settings` — view or change persisted settings.
@@ -57,6 +59,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
     '  /settings thinking-word <word>   TUI status-chip word (single short word)',
     '  /settings statusline minimum|detailed|no-color   TUI statusline density',
     '  /settings animation rainbow|wave|pulse|dots|breathe|cycle   TUI working-chip animation',
+    '  /settings read-symbols on|off   Include codebase-index symbols in read tool results',
     '  /settings reasoning auto|on|off   Reasoning mode (auto = provider default)',
     '  /settings reasoning-effort none|minimal|low|medium|high|xhigh|max   Reasoning effort',
     '  /settings reasoning-preserve on|off   Preserve thinking across turns',
@@ -104,25 +107,38 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
     const contextMode = (context?.mode as string) ?? 'balanced';
     const contextStrategy = (context?.strategy as string) ?? 'hybrid';
     const contextAutoCompact = context?.autoCompact !== false; // default true
-    const features = opts.configStore.get().features as never as Record<string, unknown> | undefined;
+    const features = opts.configStore.get().features as never as
+      | Record<string, unknown>
+      | undefined;
     const tokenSavingTier = (features?.tokenSavingMode as string) ?? 'off';
     const maxConcurrent = opts.configStore.get().maxConcurrent ?? 4;
     const titleAnimation =
       (autonomy as { terminalTitleAnimation?: boolean } | undefined)?.terminalTitleAnimation !==
       false;
     const modelRuntime = opts.configStore.get().modelRuntime as
-      | { reasoning?: { mode?: string; effort?: string; preserve?: boolean }; cache?: { ttl?: string } }
+      | {
+          reasoning?: { mode?: string; effort?: string; preserve?: boolean };
+          cache?: { ttl?: string };
+        }
       | undefined;
     const reasoningMode = modelRuntime?.reasoning?.mode ?? 'auto';
     const reasoningEffort = modelRuntime?.reasoning?.effort ?? '(unset)';
     const reasoningPreserve = modelRuntime?.reasoning?.preserve === true;
     const cacheTtl = modelRuntime?.cache?.ttl ?? 'default';
     const hq = (opts.configStore.get() as { hq?: unknown }).hq as
-      | { enabled?: boolean; url?: string; token?: string; rawContent?: boolean; projectAlias?: string }
+      | {
+          enabled?: boolean;
+          url?: string;
+          token?: string;
+          rawContent?: boolean;
+          projectAlias?: string;
+        }
       | undefined;
     const hqEnabled = hq?.enabled === true;
     const hqUrl = hq?.url ?? '(auto/local)';
-    const hqToken = hq?.token ? `${hq.token.slice(0, 6)}…${hq.token.slice(-4)} (${hq.token.length} chars)` : '(auto/local)';
+    const hqToken = hq?.token
+      ? `${hq.token.slice(0, 6)}…${hq.token.slice(-4)} (${hq.token.length} chars)`
+      : '(auto/local)';
     const persistedTo =
       configScope === 'project'
         ? '<project>/.wrongstack/config.json'
@@ -148,9 +164,9 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
       `  refine:                     ${enhanceEnabled ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings refine on|off')}`,
       `  refine-delay:               ${color.cyan(formatDelay(enhanceDelay))}   ${color.dim('change: /settings refine-delay <seconds>')}`,
       `  refine-language:            ${color.cyan(enhanceLanguage)}   ${color.dim('change: /settings refine-language original|english')}`,
-      `  refiner-provider:           ${color.cyan(au?.refinerProvider as string ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-provider <id>')}`,
-      `  refiner-model:              ${color.cyan(au?.refinerModel as string ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-model <model>')}`,
-      `  refiner-fallback-profile:   ${color.cyan(au?.refinerFallbackProfile as string ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-fallback-profile <name>')}`,
+      `  refiner-provider:           ${color.cyan((au?.refinerProvider as string) ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-provider <id>')}`,
+      `  refiner-model:              ${color.cyan((au?.refinerModel as string) ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-model <model>')}`,
+      `  refiner-fallback-profile:   ${color.cyan((au?.refinerFallbackProfile as string) ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-fallback-profile <name>')}`,
       `  semver default part:        ${color.cyan(semverPart)}   ${color.dim('change: /settings semver-part patch|minor|major|auto')}`,
       `  circuit breaker:            ${breakerEnabled ? color.cyan('on') : color.dim('off')} (${breakerTimeout > 0 ? formatDelay(breakerTimeout) : color.dim('manual')})   ${color.dim('change: /settings breaker on|off')}`,
       `  context mode:               ${color.cyan(contextMode)}   ${color.dim('change: /settings context-mode balanced|frugal|deep')}`,
@@ -166,16 +182,17 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
       `  max iterations:             ${color.cyan(String(tools?.maxIterations ?? 'default'))}   ${color.dim('change: /settings max-iterations <n>')}`,
       `  auto-proceed max iters:     ${color.cyan(String(au?.autoProceedMaxIterations ?? 'unlimited'))}   ${color.dim('change: /settings auto-proceed-max-iterations <n>')}`,
       `  title animation:            ${titleAnimation ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings title-animation on|off')}`,
-      `  thinking word:              ${color.cyan(au?.thinkingWord as string ?? 'thinking')}   ${color.dim('change: /settings thinking-word <word>')}`,
-      `  statusline mode:            ${color.cyan(au?.statuslineMode as string ?? 'detailed')}   ${color.dim('change: /settings statusline minimum|detailed|no-color')}`,
-      `  animation style:            ${color.cyan(au?.animationStyle as string ?? 'rainbow')}   ${color.dim('change: /settings animation rainbow|wave|pulse|dots|breathe|cycle')}`,
+      `  thinking word:              ${color.cyan((au?.thinkingWord as string) ?? 'thinking')}   ${color.dim('change: /settings thinking-word <word>')}`,
+      `  statusline mode:            ${color.cyan((au?.statuslineMode as string) ?? 'detailed')}   ${color.dim('change: /settings statusline minimum|detailed|no-color')}`,
+      `  animation style:            ${color.cyan((au?.animationStyle as string) ?? 'rainbow')}   ${color.dim('change: /settings animation rainbow|wave|pulse|dots|breathe|cycle')}`,
+      `  read symbols:               ${au?.readAdvancedMode === true ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings read-symbols on|off')}`,
       `  reasoning mode:             ${color.cyan(reasoningMode)}   ${color.dim('change: /settings reasoning auto|on|off')}`,
       `  reasoning effort:           ${color.cyan(reasoningEffort)}   ${color.dim('change: /settings reasoning-effort <level>')}`,
       `  reasoning preserve:         ${reasoningPreserve ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings reasoning-preserve on|off')}`,
       `  cache TTL:                  ${color.cyan(cacheTtl)}   ${color.dim('change: /settings cache-ttl 5m|1h')}`,
       `  index on start:             ${idx?.onSessionStart !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings index-on-start on|off')}`,
-      `  log level:                  ${color.cyan(log?.level as string ?? 'info')}   ${color.dim('change: /settings log-level error|warn|info|debug|trace')}`,
-      `  audit level:                ${color.cyan(sess?.auditLevel as string ?? 'standard')}   ${color.dim('change: /settings audit-level minimal|standard|full')}`,
+      `  log level:                  ${color.cyan((log?.level as string) ?? 'info')}   ${color.dim('change: /settings log-level error|warn|info|debug|trace')}`,
+      `  audit level:                ${color.cyan((sess?.auditLevel as string) ?? 'standard')}   ${color.dim('change: /settings audit-level minimal|standard|full')}`,
       `  HQ publishing:              ${hqEnabled ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings hq on|off')}`,
       `  HQ URL:                     ${color.cyan(hqUrl)}   ${color.dim('change: /settings hq-url <url>')}`,
       `  HQ token:                   ${color.cyan(hqToken)}   ${color.dim('change: /settings hq-token <token>')}`,
@@ -245,15 +262,19 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
             hq.enabled = on;
             cfg.hq = hq;
           });
-          return { message: `${color.green('✓')} HQ publishing → ${on ? color.cyan('on') : color.dim('off')}` };
+          return {
+            message: `${color.green('✓')} HQ publishing → ${on ? color.cyan('on') : color.dim('off')}`,
+          };
         }
 
         if (sub === 'hq-url') {
           const raw = rest.join(' ').trim();
-          if (!raw) return { message: `${color.amber('Usage:')} /settings hq-url <http://host:3499>` };
+          if (!raw)
+            return { message: `${color.amber('Usage:')} /settings hq-url <http://host:3499>` };
           try {
             const url = new URL(raw);
-            if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('bad protocol');
+            if (url.protocol !== 'http:' && url.protocol !== 'https:')
+              throw new Error('bad protocol');
           } catch {
             return { message: `${color.red('Invalid URL')}: ${raw}` };
           }
@@ -268,14 +289,17 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
 
         if (sub === 'hq-token') {
           const token = rest.join(' ').trim();
-          if (!token) return { message: `${color.amber('Usage:')} /settings hq-token <client-token>` };
+          if (!token)
+            return { message: `${color.amber('Usage:')} /settings hq-token <client-token>` };
           await persistConfigSetting({ ...persistDeps, forceGlobal: true }, (cfg) => {
             const hq = (cfg.hq as Record<string, unknown> | undefined) ?? {};
             hq.token = token;
             hq.enabled = true;
             cfg.hq = hq;
           });
-          return { message: `${color.green('✓')} HQ token saved ${color.dim('(active profile config)')}` };
+          return {
+            message: `${color.green('✓')} HQ token saved ${color.dim('(active profile config)')}`,
+          };
         }
 
         if (sub === 'hq-raw') {
@@ -289,7 +313,9 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
             hq.rawContent = on;
             cfg.hq = hq;
           });
-          return { message: `${color.green('✓')} HQ raw content → ${on ? color.cyan('on') : color.dim('off')}` };
+          return {
+            message: `${color.green('✓')} HQ raw content → ${on ? color.cyan('on') : color.dim('off')}`,
+          };
         }
 
         if (sub === 'delay') {
@@ -580,7 +606,10 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
             const cb = (cfg as Record<string, unknown>).circuitBreaker as
               | Record<string, unknown>
               | undefined;
-            (cfg as Record<string, unknown>).circuitBreaker = { ...(cb ?? {}), autoKillResetMs: ms };
+            (cfg as Record<string, unknown>).circuitBreaker = {
+              ...(cb ?? {}),
+              autoKillResetMs: ms,
+            };
           });
           getProcessRegistry().setBreakerConfig({ autoKillResetMs: ms });
           return {
@@ -592,7 +621,9 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
           const raw = (rest[0] ?? '').toLowerCase();
           const modes = ['balanced', 'frugal', 'deep'];
           if (!modes.includes(raw)) {
-            return { message: `${color.amber('Usage:')} /settings context-mode balanced|frugal|deep` };
+            return {
+              message: `${color.amber('Usage:')} /settings context-mode balanced|frugal|deep`,
+            };
           }
           await persistConfigSetting(persistDeps, (cfg) => {
             const ctx = (cfg.context as Record<string, unknown>) ?? {};
@@ -608,7 +639,9 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
           const raw = (rest[0] ?? '').toLowerCase();
           const strategies = ['hybrid', 'intelligent', 'selective'];
           if (!strategies.includes(raw)) {
-            return { message: `${color.amber('Usage:')} /settings context-strategy hybrid|intelligent|selective` };
+            return {
+              message: `${color.amber('Usage:')} /settings context-strategy hybrid|intelligent|selective`,
+            };
           }
           await persistConfigSetting(persistDeps, (cfg) => {
             const ctx = (cfg.context as Record<string, unknown>) ?? {};
@@ -640,7 +673,9 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
           const raw = (rest[0] ?? '').toLowerCase();
           const tiers = ['off', 'minimal', 'light', 'medium', 'aggressive'];
           if (!tiers.includes(raw)) {
-            return { message: `${color.amber('Usage:')} /settings token-saving off|minimal|light|medium|aggressive` };
+            return {
+              message: `${color.amber('Usage:')} /settings token-saving off|minimal|light|medium|aggressive`,
+            };
           }
           await persistConfigSetting(persistDeps, (cfg) => {
             const feat = (cfg.features as Record<string, unknown>) ?? {};
@@ -763,62 +798,77 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
         // ── Feature toggles (features.*) ──
         if (sub === 'mcp') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings mcp on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings mcp on|off` };
           const on = raw === 'on';
           await persistConfigSetting(persistDeps, (cfg) => {
             const feats = (cfg.features as Record<string, unknown>) ?? {};
             feats.mcp = on;
             cfg.features = feats;
           });
-          return { message: `${color.green('✓')} MCP features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}` };
+          return {
+            message: `${color.green('✓')} MCP features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}`,
+          };
         }
 
         if (sub === 'plugins') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings plugins on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings plugins on|off` };
           const on = raw === 'on';
           await persistConfigSetting(persistDeps, (cfg) => {
             const feats = (cfg.features as Record<string, unknown>) ?? {};
             feats.plugins = on;
             cfg.features = feats;
           });
-          return { message: `${color.green('✓')} Plugin features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}` };
+          return {
+            message: `${color.green('✓')} Plugin features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}`,
+          };
         }
 
         if (sub === 'memory') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings memory on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings memory on|off` };
           const on = raw === 'on';
           await persistConfigSetting(persistDeps, (cfg) => {
             const feats = (cfg.features as Record<string, unknown>) ?? {};
             feats.memory = on;
             cfg.features = feats;
           });
-          return { message: `${color.green('✓')} Memory features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}` };
+          return {
+            message: `${color.green('✓')} Memory features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}`,
+          };
         }
 
         if (sub === 'skills') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings skills on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings skills on|off` };
           const on = raw === 'on';
           await persistConfigSetting(persistDeps, (cfg) => {
             const feats = (cfg.features as Record<string, unknown>) ?? {};
             feats.skills = on;
             cfg.features = feats;
           });
-          return { message: `${color.green('✓')} Skills features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}` };
+          return {
+            message: `${color.green('✓')} Skills features → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}`,
+          };
         }
 
         if (sub === 'models-registry') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings models-registry on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings models-registry on|off` };
           const on = raw === 'on';
           await persistConfigSetting(persistDeps, (cfg) => {
             const feats = (cfg.features as Record<string, unknown>) ?? {};
             feats.modelsRegistry = on;
             cfg.features = feats;
           });
-          return { message: `${color.green('✓')} Models registry → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}` };
+          return {
+            message: `${color.green('✓')} Models registry → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('restart to apply')}`,
+          };
         }
 
         // ── UX & behavior toggles (autonomy.*) ──
@@ -826,82 +876,118 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
           const raw = (rest[0] ?? '').toLowerCase();
           // Legacy boolean tokens keep working: on → full, off → off.
           const mode: FleetChatVerbosity | undefined =
-            raw === 'on' ? 'full'
-            : raw === 'off' || raw === 'full' ? (raw as FleetChatVerbosity)
-            : undefined;
-          if (!mode) return { message: `${color.amber('Usage:')} /settings stream-fleet off|full (on = full)` };
+            raw === 'on'
+              ? 'full'
+              : raw === 'off' || raw === 'full'
+                ? (raw as FleetChatVerbosity)
+                : undefined;
+          if (!mode)
+            return {
+              message: `${color.amber('Usage:')} /settings stream-fleet off|full (on = full)`,
+            };
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).fleetChatVerbosity = mode;
           });
           opts.fleetStreamController?.setMode(mode);
           const desc =
-            mode === 'full' ? 'every subagent tool call and message in chat'
-            : 'subagent chat lines hidden (F2/F3 stay live)';
-          return { message: `${color.green('✓')} fleet chat → ${color.cyan(mode)}   ${color.dim(desc)}` };
+            mode === 'full'
+              ? 'every subagent tool call and message in chat'
+              : 'subagent chat lines hidden (F2/F3 stay live)';
+          return {
+            message: `${color.green('✓')} fleet chat → ${color.cyan(mode)}   ${color.dim(desc)}`,
+          };
         }
 
         if (sub === 'chime') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings chime on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings chime on|off` };
           const on = raw === 'on';
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).chime = on;
           });
-          return { message: `${color.green('✓')} completion chime → ${on ? color.cyan('on') : color.dim('off')}` };
+          return {
+            message: `${color.green('✓')} completion chime → ${on ? color.cyan('on') : color.dim('off')}`,
+          };
         }
 
         if (sub === 'confirm-exit') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings confirm-exit on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings confirm-exit on|off` };
           const on = raw === 'on';
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).confirmExit = on;
           });
-          return { message: `${color.green('✓')} confirm before exit → ${on ? color.cyan('on') : color.dim('off')}` };
+          return {
+            message: `${color.green('✓')} confirm before exit → ${on ? color.cyan('on') : color.dim('off')}`,
+          };
         }
 
         // ── Iteration/safety limits ──
         if (sub === 'max-iterations') {
           const raw = rest[0];
-          if (raw === undefined) return { message: `${color.amber('Usage:')} /settings max-iterations <n>   ${color.dim('(0 = default)')}` };
+          if (raw === undefined)
+            return {
+              message: `${color.amber('Usage:')} /settings max-iterations <n>   ${color.dim('(0 = default)')}`,
+            };
           const n = Number.parseInt(raw, 10);
-          if (Number.isNaN(n) || n < 0) return { message: `${color.red('Invalid number')}: "${raw}". Enter a non-negative integer.` };
+          if (Number.isNaN(n) || n < 0)
+            return {
+              message: `${color.red('Invalid number')}: "${raw}". Enter a non-negative integer.`,
+            };
           await persistConfigSetting(persistDeps, (cfg) => {
             const tools = (cfg.tools as Record<string, unknown>) ?? {};
             tools.maxIterations = n;
             cfg.tools = tools;
           });
-          return { message: `${color.green('✓')} max iterations → ${color.cyan(n === 0 ? 'default' : String(n))}   ${color.dim('agent pauses after this many iterations')}` };
+          return {
+            message: `${color.green('✓')} max iterations → ${color.cyan(n === 0 ? 'default' : String(n))}   ${color.dim('agent pauses after this many iterations')}`,
+          };
         }
 
         if (sub === 'auto-proceed-max-iterations') {
           const raw = rest[0];
-          if (raw === undefined) return { message: `${color.amber('Usage:')} /settings auto-proceed-max-iterations <n>   ${color.dim('(0 = unlimited)')}` };
+          if (raw === undefined)
+            return {
+              message: `${color.amber('Usage:')} /settings auto-proceed-max-iterations <n>   ${color.dim('(0 = unlimited)')}`,
+            };
           const n = Number.parseInt(raw, 10);
-          if (Number.isNaN(n) || n < 0) return { message: `${color.red('Invalid number')}: "${raw}". Enter a non-negative integer.` };
+          if (Number.isNaN(n) || n < 0)
+            return {
+              message: `${color.red('Invalid number')}: "${raw}". Enter a non-negative integer.`,
+            };
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).autoProceedMaxIterations = n;
           });
-          return { message: `${color.green('✓')} auto-proceed max iterations → ${color.cyan(n === 0 ? 'unlimited' : String(n))}` };
+          return {
+            message: `${color.green('✓')} auto-proceed max iterations → ${color.cyan(n === 0 ? 'unlimited' : String(n))}`,
+          };
         }
 
         // ── System toggles ──
         if (sub === 'index-on-start') {
           const raw = (rest[0] ?? '').toLowerCase();
-          if (!['on', 'off'].includes(raw)) return { message: `${color.amber('Usage:')} /settings index-on-start on|off` };
+          if (!['on', 'off'].includes(raw))
+            return { message: `${color.amber('Usage:')} /settings index-on-start on|off` };
           const on = raw === 'on';
           await persistConfigSetting(persistDeps, (cfg) => {
             const idx = (cfg.indexing as Record<string, unknown>) ?? {};
             idx.onSessionStart = on;
             cfg.indexing = idx;
           });
-          return { message: `${color.green('✓')} index on session start → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('effective next session')}` };
+          return {
+            message: `${color.green('✓')} index on session start → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('effective next session')}`,
+          };
         }
 
         if (sub === 'log-level') {
           const raw = (rest[0] ?? '').toLowerCase();
           const levels = ['error', 'warn', 'info', 'debug', 'trace'];
-          if (!levels.includes(raw)) return { message: `${color.amber('Usage:')} /settings log-level error|warn|info|debug|trace` };
+          if (!levels.includes(raw))
+            return {
+              message: `${color.amber('Usage:')} /settings log-level error|warn|info|debug|trace`,
+            };
           await persistConfigSetting(persistDeps, (cfg) => {
             const log = (cfg.log as Record<string, unknown>) ?? {};
             log.level = raw;
@@ -913,20 +999,29 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
         if (sub === 'audit-level') {
           const raw = (rest[0] ?? '').toLowerCase();
           const levels = ['minimal', 'standard', 'full'];
-          if (!levels.includes(raw)) return { message: `${color.amber('Usage:')} /settings audit-level minimal|standard|full` };
+          if (!levels.includes(raw))
+            return {
+              message: `${color.amber('Usage:')} /settings audit-level minimal|standard|full`,
+            };
           await persistConfigSetting(persistDeps, (cfg) => {
             const sess = (cfg.session as Record<string, unknown>) ?? {};
             sess.auditLevel = raw;
             cfg.session = sess;
           });
-          return { message: `${color.green('✓')} audit level → ${color.cyan(raw)}   ${color.dim('restart to apply')}` };
+          return {
+            message: `${color.green('✓')} audit level → ${color.cyan(raw)}   ${color.dim('restart to apply')}`,
+          };
         }
 
         // ── TUI visual settings (autonomy.*) ──
         if (sub === 'thinking-word') {
           const raw = rest.join(' ').trim();
-          if (!raw) return { message: `${color.amber('Usage:')} /settings thinking-word <word>   ${color.dim('single short word, e.g. "thinking", "vibing", "cooking"')}` };
-          if (raw.length > 16) return { message: `${color.red('Word too long')}: max 16 characters.` };
+          if (!raw)
+            return {
+              message: `${color.amber('Usage:')} /settings thinking-word <word>   ${color.dim('single short word, e.g. "thinking", "vibing", "cooking"')}`,
+            };
+          if (raw.length > 16)
+            return { message: `${color.red('Word too long')}: max 16 characters.` };
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).thinkingWord = raw;
           });
@@ -936,17 +1031,42 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
         if (sub === 'statusline') {
           const raw = (rest[0] ?? '').toLowerCase();
           const modes = ['minimum', 'detailed', 'no-color'];
-          if (!modes.includes(raw)) return { message: `${color.amber('Usage:')} /settings statusline minimum|detailed|no-color` };
+          if (!modes.includes(raw))
+            return {
+              message: `${color.amber('Usage:')} /settings statusline minimum|detailed|no-color`,
+            };
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).statuslineMode = raw;
           });
           return { message: `${color.green('✓')} statusline mode → ${color.cyan(raw)}` };
         }
 
+        if (sub === 'read-symbols') {
+          const raw = (rest[0] ?? '').toLowerCase();
+          if (!['on', 'off'].includes(raw)) {
+            return { message: `${color.amber('Usage:')} /settings read-symbols on|off` };
+          }
+          const on = raw === 'on';
+          // Persist to config under autonomy.readAdvancedMode
+          await persistAutonomySetting(persistDeps, (autonomy) => {
+            (autonomy as Record<string, unknown>).readAdvancedMode = on;
+          });
+          // Live toggle: update ctx.meta for immediate effect
+          if (opts.context?.meta) {
+            opts.context.meta['tools.read.advancedMode'] = on;
+          }
+          return {
+            message: `${color.green('✓')} read symbols → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim(on ? 'codebase-index symbols will be included in read tool results' : 'read tool returns file content only')}`,
+          };
+        }
+
         if (sub === 'animation') {
           const raw = (rest[0] ?? '').toLowerCase();
           const styles = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'cycle'];
-          if (!styles.includes(raw)) return { message: `${color.amber('Usage:')} /settings animation rainbow|wave|pulse|dots|breathe|cycle` };
+          if (!styles.includes(raw))
+            return {
+              message: `${color.amber('Usage:')} /settings animation rainbow|wave|pulse|dots|breathe|cycle`,
+            };
           await persistAutonomySetting(persistDeps, (autonomy) => {
             (autonomy as Record<string, unknown>).animationStyle = raw;
           });
@@ -954,7 +1074,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
         }
 
         return {
-          message: `${color.red('Unknown setting')} "${sub}". ${unknownSubcommand(sub, ['delay', 'mode', 'hints', 'debug-stream', 'config-scope', 'fs-access', 'refine', 'refine-delay', 'refine-language', 'refiner-provider', 'refiner-model', 'refiner-fallback-profile', 'refiner-clear', 'semver-part', 'breaker', 'breaker-timeout', 'context-mode', 'context-strategy', 'context-auto-compact', 'token-saving', 'max-concurrent', 'title-animation', 'reasoning', 'reasoning-effort', 'reasoning-preserve', 'cache-ttl', 'stream-fleet', 'chime', 'confirm-exit', 'mcp', 'plugins', 'memory', 'skills', 'models-registry', 'max-iterations', 'auto-proceed-max-iterations', 'index-on-start', 'log-level', 'audit-level', 'thinking-word', 'statusline', 'animation', 'defaults'], 'settings')}`,
+          message: `${color.red('Unknown setting')} "${sub}". ${unknownSubcommand(sub, ['delay', 'mode', 'hints', 'debug-stream', 'config-scope', 'fs-access', 'refine', 'refine-delay', 'refine-language', 'refiner-provider', 'refiner-model', 'refiner-fallback-profile', 'refiner-clear', 'semver-part', 'breaker', 'breaker-timeout', 'context-mode', 'context-strategy', 'context-auto-compact', 'token-saving', 'max-concurrent', 'title-animation', 'reasoning', 'reasoning-effort', 'reasoning-preserve', 'cache-ttl', 'stream-fleet', 'chime', 'confirm-exit', 'mcp', 'plugins', 'memory', 'skills', 'models-registry', 'max-iterations', 'auto-proceed-max-iterations', 'index-on-start', 'log-level', 'audit-level', 'thinking-word', 'statusline', 'animation', 'read-symbols', 'defaults'], 'settings')}`,
         };
       } catch (err) {
         return {

@@ -46,7 +46,9 @@ type DeepPartial<T> = {
  * The factory is structurally equivalent to `createInitialState` in
  * `src/app-initial-state.ts`, minus the runtime `options` parameter.
  */
-export function createTestState(overrides: DeepPartial<State> & Record<string, unknown> = {}): State {
+export function createTestState(
+  overrides: DeepPartial<State> & Record<string, unknown> = {},
+): State {
   const base: State = {
     entries: [],
     archiveLoading: false,
@@ -94,7 +96,14 @@ export function createTestState(overrides: DeepPartial<State> & Record<string, u
       catIndex: 0,
       selected: 0,
     },
-    resumePicker: { open: false, sessions: [], selected: 0, busy: false, hint: undefined, error: undefined },
+    resumePicker: {
+      open: false,
+      sessions: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      error: undefined,
+    },
     settingsPicker: {
       open: false,
       field: 0,
@@ -126,7 +135,7 @@ export function createTestState(overrides: DeepPartial<State> & Record<string, u
       maxIterations: 500,
       autoProceedMaxIterations: 50,
       enhanceDelayMs: 60_000,
-    preRefineSeconds: 3,
+      preRefineSeconds: 3,
       enhanceEnabled: true,
       enhanceLanguage: 'original',
       debugStream: false,
@@ -144,14 +153,36 @@ export function createTestState(overrides: DeepPartial<State> & Record<string, u
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: true,
       showAgentSwarmPanel: true,
+      readSymbols: false,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
-    toolsPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined },
-    brainPanel: { open: false, riskLevel: 'medium', log: [], selected: 0, hint: undefined, view: 'settings', settings: undefined, row: 0, busy: false },
+    toolsPicker: {
+      open: false,
+      items: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      filter: undefined,
+    },
+    brainPanel: {
+      open: false,
+      riskLevel: 'medium',
+      log: [],
+      selected: 0,
+      hint: undefined,
+      view: 'settings',
+      settings: undefined,
+      row: 0,
+      busy: false,
+    },
     helpPanel: { open: false, entries: [], selected: 0, filter: '', hint: undefined },
-    shadowPanel: { open: false, shadow: { activeId: null, running: false, model: '', intervalMs: 30000 }, hint: undefined },
+    shadowPanel: {
+      open: false,
+      shadow: { activeId: null, running: false, model: '', intervalMs: 30000 },
+      hint: undefined,
+    },
     authPanel: {
       open: false,
       view: 'list',
@@ -168,7 +199,14 @@ export function createTestState(overrides: DeepPartial<State> & Record<string, u
       log: [],
       flowDone: false,
     },
-    projectPicker: { open: false, allItems: [], items: [], selected: 0, filter: '', hint: undefined },
+    projectPicker: {
+      open: false,
+      allItems: [],
+      items: [],
+      selected: 0,
+      filter: '',
+      hint: undefined,
+    },
     fKeyPicker: { open: false, selected: 0 },
     confirmQueue: [],
     shellCommandWarning: null,
@@ -238,7 +276,9 @@ export function createTestState(overrides: DeepPartial<State> & Record<string, u
  * Convenience: a "running" state preset for tests that need the agent
  * mid-stream.
  */
-export function createRunningState(overrides: DeepPartial<State> & Record<string, unknown> = {}): State {
+export function createRunningState(
+  overrides: DeepPartial<State> & Record<string, unknown> = {},
+): State {
   return createTestState({
     status: 'streaming',
     streamingText: 'partial response',

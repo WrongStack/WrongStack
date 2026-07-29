@@ -1,6 +1,6 @@
 import { type Dispatch, useEffect, useRef } from 'react';
-import type { AppProps } from '../app-props.js';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 
 /** Persists live SettingsPicker mutations while skipping its initial hydration. */
@@ -78,6 +78,7 @@ export function useSettingsAutoSave(
         breakerAutoKillResetMs: sp.breakerAutoKillResetMs,
         showModelReasoning: sp.showModelReasoning,
         showAgentSwarmPanel: sp.showAgentSwarmPanel,
+        readSymbols: sp.readSymbols,
       }),
     ).then((err: string | null) => {
       if (err) dispatch({ type: 'settingsHint', text: err });
@@ -126,7 +127,7 @@ export function useSettingsAutoSave(
     state.settingsPicker.breakerAutoKillResetMs,
     state.settingsPicker.showModelReasoning,
     state.settingsPicker.showAgentSwarmPanel,
+    state.settingsPicker.readSymbols,
     saveSettings,
   ]);
-
 }

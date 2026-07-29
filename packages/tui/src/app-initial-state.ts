@@ -1,12 +1,17 @@
-import type { FleetChatVerbosity, Message, SessionEvent, TokenSavingTier } from '@wrongstack/core/types';
-import type { AutonomyAgentStatus } from './components/history/types.js';
-import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
-import { replaySessionMessages } from './components/history/replay.js';
-import type { ContextMode, StatuslineMode } from './components/settings-picker.js';
-import { rehydrateHistory } from './rehydrate-history.js';
-import { retainTuiHistory } from './history-retention.js';
-import { retainCheckpoints } from './checkpoint-retention.js';
+import type {
+  FleetChatVerbosity,
+  Message,
+  SessionEvent,
+  TokenSavingTier,
+} from '@wrongstack/core/types';
 import type { State } from './app-state.js';
+import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
+import { retainCheckpoints } from './checkpoint-retention.js';
+import { replaySessionMessages } from './components/history/replay.js';
+import type { AutonomyAgentStatus } from './components/history/types.js';
+import type { ContextMode, StatuslineMode } from './components/settings-picker.js';
+import { retainTuiHistory } from './history-retention.js';
+import { rehydrateHistory } from './rehydrate-history.js';
 
 export type RestoredToolCall = {
   name: string;
@@ -270,6 +275,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: true,
       showAgentSwarmPanel: true,
+      readSymbols: false,
     },
     statuslinePicker: {
       open: false,
@@ -280,10 +286,31 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     },
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
-    toolsPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined },
-    brainPanel: { open: false, riskLevel: 'medium', log: [], selected: 0, hint: undefined, view: 'settings', settings: undefined, row: 0, busy: false },
+    toolsPicker: {
+      open: false,
+      items: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      filter: undefined,
+    },
+    brainPanel: {
+      open: false,
+      riskLevel: 'medium',
+      log: [],
+      selected: 0,
+      hint: undefined,
+      view: 'settings',
+      settings: undefined,
+      row: 0,
+      busy: false,
+    },
     helpPanel: { open: false, entries: [], selected: 0, filter: '', hint: undefined },
-    shadowPanel: { open: false, shadow: { activeId: null, running: false, model: '', intervalMs: 30000 }, hint: undefined },
+    shadowPanel: {
+      open: false,
+      shadow: { activeId: null, running: false, model: '', intervalMs: 30000 },
+      hint: undefined,
+    },
     authPanel: AUTH_PANEL_INITIAL,
     projectPicker: {
       open: false,

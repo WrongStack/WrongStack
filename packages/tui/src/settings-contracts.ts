@@ -55,4 +55,9 @@ export type SettingsPickerPatch = Partial<{
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
   showAgentSwarmPanel: boolean;
+  /**
+   * When true, the read tool includes codebase-index symbols alongside
+   * file content. Toggle via `/settings read-symbols on|off`.
+   */
+  readSymbols: boolean;
 }>;

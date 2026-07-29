@@ -120,17 +120,61 @@ export function initial(over: Partial<State> = {}): State {
     coordinator: { goals: [], timeline: [], knowledgeCount: 0, monitorOpen: false, healthy: false },
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
-    toolsPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined },
-    resumePicker: { open: false, sessions: [], selected: 0, busy: false, hint: undefined, error: undefined },
-    brainPanel: { open: false, log: [], settings: null, selected: 0, view: undefined, busy: false, hint: undefined },
-    authPanel: { open: false, view: 'list' as const, providers: [], presets: [], catalog: [], selected: 0, filter: '', busy: false, hint: '' },
-    shadowPanel: { open: false, running: false, model: '', intervalMs: 5000, activeId: null, hint: undefined },
+    toolsPicker: {
+      open: false,
+      items: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      filter: undefined,
+    },
+    resumePicker: {
+      open: false,
+      sessions: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      error: undefined,
+    },
+    brainPanel: {
+      open: false,
+      log: [],
+      settings: null,
+      selected: 0,
+      view: undefined,
+      busy: false,
+      hint: undefined,
+    },
+    authPanel: {
+      open: false,
+      view: 'list' as const,
+      providers: [],
+      presets: [],
+      catalog: [],
+      selected: 0,
+      filter: '',
+      busy: false,
+      hint: '',
+    },
+    shadowPanel: {
+      open: false,
+      running: false,
+      model: '',
+      intervalMs: 5000,
+      activeId: null,
+      hint: undefined,
+    },
     helpPanel: { open: false, entries: [], filter: '', selected: 0, hint: undefined },
     collabSession: null,
-    exitConfirm: null, slashConfirm: null, escConfirm: null, clearConfirm: null,
-    goalKanbanPanelOpen: false, goalKanbanBoard: null,
+    exitConfirm: null,
+    slashConfirm: null,
+    escConfirm: null,
+    clearConfirm: null,
+    goalKanbanPanelOpen: false,
+    goalKanbanBoard: null,
     sddBoardMonitorOpen: false,
-    viewportRows: 24, historyScrolled: false,
+    viewportRows: 24,
+    historyScrolled: false,
     ...over,
   };
   return state as unknown as State;
@@ -230,9 +274,19 @@ describe('TUI reducer', () => {
       toolsPicker: { ...initial().toolsPicker, open: true, items: [], selected: 0 },
       brainPanel: { ...initial().brainPanel, open: true },
       helpPanel: { ...initial().helpPanel, open: true, entries: [], selected: 0 },
-      shadowPanel: { ...initial().shadowPanel, open: true, shadow: { activeId: null, running: false, model: '', intervalMs: 30000 } },
+      shadowPanel: {
+        ...initial().shadowPanel,
+        open: true,
+        shadow: { activeId: null, running: false, model: '', intervalMs: 30000 },
+      },
       authPanel: { ...initial().authPanel, open: true },
-      projectPicker: { ...initial().projectPicker, open: true, allItems: [], items: [], filter: '' },
+      projectPicker: {
+        ...initial().projectPicker,
+        open: true,
+        allItems: [],
+        items: [],
+        filter: '',
+      },
       fKeyPicker: { open: true, selected: 0 },
       goalRun: {
         title: 'Plan',
@@ -292,7 +346,10 @@ describe('TUI reducer', () => {
   });
 
   it('sddBoardSnapshot stores the snapshot and stays closed on first arrival', () => {
-    const out = reducer(initial(), { type: 'sddBoardSnapshot', snapshot: sampleSnapshot() as never });
+    const out = reducer(initial(), {
+      type: 'sddBoardSnapshot',
+      snapshot: sampleSnapshot() as never,
+    });
     expect(out.sddBoard?.snapshot.runId).toBe('r1');
     expect(out.sddBoard?.monitorOpen).toBe(false);
   });
@@ -570,7 +627,8 @@ describe('TUI reducer', () => {
             toolName: 'bash',
             input: {},
             resolve: () => {},
-            destructive: false, suggestedPattern: 'test-pattern',
+            destructive: false,
+            suggestedPattern: 'test-pattern',
           },
         ],
         debugStreamStats: {
@@ -597,10 +655,9 @@ describe('TUI reducer', () => {
   });
 
   it('clearHistory drops any transient copy highlight', () => {
-    const out = reducer(
-      initial({ copiedNotice: '✓ Copied', copiedEntryId: 42 }),
-      { type: 'clearHistory' },
-    );
+    const out = reducer(initial({ copiedNotice: '✓ Copied', copiedEntryId: 42 }), {
+      type: 'clearHistory',
+    });
     expect(out.copiedNotice).toBe('');
     expect(out.copiedEntryId).toBeNull();
   });
@@ -1052,7 +1109,17 @@ describe('TUI reducer', () => {
 
   it('steerConsume clears steeringPending, steerSnapshot, and interrupts', () => {
     let s = initial();
-    s = { ...s, steeringPending: true, steerSnapshot: { runningTools: ['read'], subagents: [], subagentsTerminated: 0, partialAssistantText: '' }, interrupts: 2 };
+    s = {
+      ...s,
+      steeringPending: true,
+      steerSnapshot: {
+        runningTools: ['read'],
+        subagents: [],
+        subagentsTerminated: 0,
+        partialAssistantText: '',
+      },
+      interrupts: 2,
+    };
     s = reducer(s, { type: 'steerConsume' });
     expect(s.steeringPending).toBe(false);
     expect(s.steerSnapshot).toBeNull();
@@ -1060,7 +1127,12 @@ describe('TUI reducer', () => {
   });
 
   it('steerStart sets steeringPending + steerSnapshot, steerConsume clears them back', () => {
-    const snapshot = { runningTools: ['bash'], subagents: [{ label: 'w', status: 'running' as const, tool: 'grep' }], subagentsTerminated: 1, partialAssistantText: '...' };
+    const snapshot = {
+      runningTools: ['bash'],
+      subagents: [{ label: 'w', status: 'running' as const, tool: 'grep' }],
+      subagentsTerminated: 1,
+      partialAssistantText: '...',
+    };
     let s = reducer(initial(), { type: 'steerStart', snapshot });
     expect(s.steeringPending).toBe(true);
     expect(s.steerSnapshot).toEqual(snapshot);
@@ -1082,7 +1154,12 @@ describe('TUI reducer', () => {
     // signals are simultaneously true, the reducer must NOT clear
     // `steeringPending` (so the submit handler sees it), and the status
     // remains 'aborting' (so the gate would otherwise fire).
-    const snapshot = { runningTools: ['bash'], subagents: [], subagentsTerminated: 0, partialAssistantText: '' };
+    const snapshot = {
+      runningTools: ['bash'],
+      subagents: [],
+      subagentsTerminated: 0,
+      partialAssistantText: '',
+    };
     let s = reducer(initial(), { type: 'status', status: 'aborting' });
     s = reducer(s, { type: 'steerStart', snapshot });
     // Both signals fire together — the gate in app.tsx relies on this.
@@ -1219,48 +1296,49 @@ describe('settings picker reducer', () => {
   // cycles can dispatch the open action without re-stating 30+ fields.
   // (The reducer ignores the action's `field` — it reads the previous
   // runtime value to preserve the last-visited row.)
-  const settingsOpenPayload = (over: Record<string, unknown> = {}): Parameters<typeof reducer>[1] => ({
-    type: 'settingsOpen' as const,
-    mode: 'off',
-    delayMs: 0,
-    lastSettingsField: 0,
-    titleAnimation: true,
-    yolo: false,
-    fleetChat: 'off',
-    chime: false,
-    confirmExit: true,
-    nextPrediction: false,
-    featureMcp: true,
-    featurePlugins: true,
-    featureMemory: true,
-    featureSkills: true,
-    featureModelsRegistry: true,
-    tokenSavingTier: 'off' as const,
-    allowOutsideProjectRoot: true,
-    contextAutoCompact: true,
-    contextStrategy: 'hybrid' as const,
-    contextMode: 'balanced' as const,
-    maxConcurrent: 3,
-    logLevel: 'info' as const,
-    auditLevel: 'standard' as const,
-    indexOnStart: true,
-    multiDiffSummaryThreshold: 5,
-    maxIterations: 500,
-    autoProceedMaxIterations: 50,
-    enhanceDelayMs: 60_000,
-    enhanceEnabled: true,
-    enhanceLanguage: 'original' as const,
-    debugStream: false,
-    statuslineMode: 'detailed' as const,
-    reasoningMode: 'auto' as const,
-    reasoningEffort: 'medium' as const,
-    reasoningPreserve: false,
-    thinkingWord: 'thinking',
-    cacheTtl: 'default' as const,
-    configScope: 'global' as const,
-    showAgentSwarmPanel: true,
-    ...over,
-  }) as Parameters<typeof reducer>[1];
+  const settingsOpenPayload = (over: Record<string, unknown> = {}): Parameters<typeof reducer>[1] =>
+    ({
+      type: 'settingsOpen' as const,
+      mode: 'off',
+      delayMs: 0,
+      lastSettingsField: 0,
+      titleAnimation: true,
+      yolo: false,
+      fleetChat: 'off',
+      chime: false,
+      confirmExit: true,
+      nextPrediction: false,
+      featureMcp: true,
+      featurePlugins: true,
+      featureMemory: true,
+      featureSkills: true,
+      featureModelsRegistry: true,
+      tokenSavingTier: 'off' as const,
+      allowOutsideProjectRoot: true,
+      contextAutoCompact: true,
+      contextStrategy: 'hybrid' as const,
+      contextMode: 'balanced' as const,
+      maxConcurrent: 3,
+      logLevel: 'info' as const,
+      auditLevel: 'standard' as const,
+      indexOnStart: true,
+      multiDiffSummaryThreshold: 5,
+      maxIterations: 500,
+      autoProceedMaxIterations: 50,
+      enhanceDelayMs: 60_000,
+      enhanceEnabled: true,
+      enhanceLanguage: 'original' as const,
+      debugStream: false,
+      statuslineMode: 'detailed' as const,
+      reasoningMode: 'auto' as const,
+      reasoningEffort: 'medium' as const,
+      reasoningPreserve: false,
+      thinkingWord: 'thinking',
+      cacheTtl: 'default' as const,
+      configScope: 'global' as const,
+      showAgentSwarmPanel: true,
+      ...over,
+    }) as Parameters<typeof reducer>[1];
 
   it('opens with the supplied mode + delay and focuses the first field', () => {
     const s = reducer(base(), {
@@ -1338,7 +1416,10 @@ describe('settings picker reducer', () => {
     // This guards the "open action's lastSettingsField drives the open
     // row" contract — without it, a restart would always drop the user
     // back on row 0.
-    const s = reducer(base({ field: 0, lastSettingsField: 0 }), settingsOpenPayload({ lastSettingsField: 17 }));
+    const s = reducer(
+      base({ field: 0, lastSettingsField: 0 }),
+      settingsOpenPayload({ lastSettingsField: 17 }),
+    );
     expect(s.settingsPicker.open).toBe(true);
     expect(s.settingsPicker.field).toBe(17);
     expect(s.settingsPicker.lastSettingsField).toBe(17);
@@ -1433,18 +1514,24 @@ describe('settings picker reducer', () => {
   // 22: thinkingWord, 23-26: Reasoning, 27-29: Context, 30: Fleet, 31-32: Logging, 33-35: Debug
   it('changes the setting that matches the visible tail field order', () => {
     // Field 23: reasoningMode cycles auto → on
-    let s = reducer(base({ open: true, field: 23, reasoningMode: 'auto', thinkingWord: 'thinking' }), {
-      type: 'settingsValueChange',
-      delta: 1,
-    });
+    let s = reducer(
+      base({ open: true, field: 23, reasoningMode: 'auto', thinkingWord: 'thinking' }),
+      {
+        type: 'settingsValueChange',
+        delta: 1,
+      },
+    );
     expect(s.settingsPicker.reasoningMode).toBe('on');
     expect(s.settingsPicker.thinkingWord).toBe('thinking'); // unaffected
 
     // Field 24: reasoningEffort cycles medium → high
-    s = reducer(base({ open: true, field: 24, reasoningEffort: 'medium', statuslineMode: 'detailed' }), {
-      type: 'settingsValueChange',
-      delta: 1,
-    });
+    s = reducer(
+      base({ open: true, field: 24, reasoningEffort: 'medium', statuslineMode: 'detailed' }),
+      {
+        type: 'settingsValueChange',
+        delta: 1,
+      },
+    );
     expect(s.settingsPicker.reasoningEffort).toBe('high');
     expect(s.settingsPicker.statuslineMode).toBe('detailed'); // unaffected
 
@@ -1487,6 +1574,36 @@ describe('settings picker reducer', () => {
     expect(s.settingsPicker.cacheTtl).toBe('default'); // unaffected
   });
 
+  it('value change cycles preRefineSeconds on field 41 through [0, 2, 3, 5, 8, 10]', () => {
+    // Forward step from default 3 → 5
+    const fwd = reducer(base({ open: true, field: 41, preRefineSeconds: 3 }), {
+      type: 'settingsValueChange',
+      delta: 1,
+    });
+    expect(fwd.settingsPicker.preRefineSeconds).toBe(5);
+
+    // Backward step from 3 → 2
+    const bwd = reducer(base({ open: true, field: 41, preRefineSeconds: 3 }), {
+      type: 'settingsValueChange',
+      delta: -1,
+    });
+    expect(bwd.settingsPicker.preRefineSeconds).toBe(2);
+
+    // Forward from 10 (last) wraps to 0 (skip)
+    const wrapFwd = reducer(base({ open: true, field: 41, preRefineSeconds: 10 }), {
+      type: 'settingsValueChange',
+      delta: 1,
+    });
+    expect(wrapFwd.settingsPicker.preRefineSeconds).toBe(0);
+
+    // Backward from 0 (skip) wraps to 10 (last)
+    const wrapBwd = reducer(base({ open: true, field: 41, preRefineSeconds: 0 }), {
+      type: 'settingsValueChange',
+      delta: -1,
+    });
+    expect(wrapBwd.settingsPicker.preRefineSeconds).toBe(10);
+  });
+
   it('settingsFieldSet jumps directly to an arbitrary field (Ctrl+M target)', () => {
     // Simulates Ctrl+M dispatching `settingsFieldSet` with the multi-diff
     // summary row's index. Guards against drift between
@@ -1507,11 +1624,13 @@ describe('settings picker reducer', () => {
     // target so a row reorder in the picker that breaks a jump surfaces as
     // a failing test rather than a silent land-on-row-0.
     for (const target of [0, 3, 5, 6, 13, 17, 20, 21, 22, 23, 29, 30, 31, 32, 33, 34, 35]) {
-      const s = reducer(base({ open: true, field: 0 }), { type: 'settingsFieldSet', field: target });
+      const s = reducer(base({ open: true, field: 0 }), {
+        type: 'settingsFieldSet',
+        field: target,
+      });
       expect(s.settingsPicker.field).toBe(target);
     }
   });
-
 });
 
 describe('Monitor overlays do not block input buffer mutations', () => {
@@ -1537,10 +1656,11 @@ describe('Monitor overlays do not block input buffer mutations', () => {
       for (const k of overlayKeys) closed[k] = false;
       closed[key] = true;
 
-      const typed = reducer(
-        { ...initial(), ...closed } as Parameters<typeof reducer>[0],
-        { type: 'setBuffer', buffer: 'hello world', cursor: 11 },
-      );
+      const typed = reducer({ ...initial(), ...closed } as Parameters<typeof reducer>[0], {
+        type: 'setBuffer',
+        buffer: 'hello world',
+        cursor: 11,
+      });
       expect(typed.buffer, `setBuffer should work while ${key} is true`).toBe('hello world');
       expect(typed.cursor).toBe(11);
     }
@@ -1622,14 +1742,17 @@ describe('Monitor overlays do not block input buffer mutations', () => {
 
 describe('goalRun board reducer', () => {
   function withPhase() {
-    return reducer(initial() as never, {
-      type: 'goalRunPhaseUpdate',
-      phaseId: 'p1',
-      name: 'Alpha',
-      status: 'running',
-      completedTasks: 0,
-      totalTasks: 2,
-    } as never);
+    return reducer(
+      initial() as never,
+      {
+        type: 'goalRunPhaseUpdate',
+        phaseId: 'p1',
+        name: 'Alpha',
+        status: 'running',
+        completedTasks: 0,
+        totalTasks: 2,
+      } as never,
+    );
   }
 
   it('goalRunTaskActive adds a live worker to its phase', () => {
@@ -1644,7 +1767,9 @@ describe('goalRun board reducer', () => {
     } as never);
     const active = (
       s as never as {
-        goalRun: { phases: Record<string, { activeTasks?: Array<{ taskId: string; agent?: string }> }> };
+        goalRun: {
+          phases: Record<string, { activeTasks?: Array<{ taskId: string; agent?: string }> }>;
+        };
       }
     ).goalRun.phases['p1']!.activeTasks;
     expect(active).toEqual([{ taskId: 't1', title: 'Build login', agent: 'Einstein' }]);
@@ -1720,7 +1845,8 @@ describe('sendModePicker reducer', () => {
 
   it('move wraps the selection across the 3 options', () => {
     let s = reducer(initial() as never, { type: 'sendModePickerOpen', info: openInfo } as never);
-    const sel = () => (s as never as { sendModePicker: { selected: number } }).sendModePicker.selected;
+    const sel = () =>
+      (s as never as { sendModePicker: { selected: number } }).sendModePicker.selected;
     s = reducer(s, { type: 'sendModePickerMove', delta: 1 } as never);
     expect(sel()).toBe(1);
     s = reducer(s, { type: 'sendModePickerMove', delta: 1 } as never);

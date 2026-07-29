@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  resolveSettingsFieldValue,
   getSettingsFieldValue,
+  resolveSettingsFieldValue,
   SETTINGS_FIELD_LABELS,
   type SettingsPickerValues,
 } from '../src/components/settings-picker.js';
@@ -59,7 +59,11 @@ describe('resolveSettingsFieldValue', () => {
 
   describe('enum fields', () => {
     it('autonomy mode (0): accepts off/suggest/auto (case-insensitive)', () => {
-      for (const [v, expected] of [['off', 'off'], ['SUGGEST', 'suggest'], ['Auto', 'auto']] as const) {
+      for (const [v, expected] of [
+        ['off', 'off'],
+        ['SUGGEST', 'suggest'],
+        ['Auto', 'auto'],
+      ] as const) {
         const r = resolveSettingsFieldValue(0, v);
         expect(r.ok).toBe(true);
         if (r.ok) expect(r.patch.mode).toBe(expected);
@@ -214,8 +218,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 42 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(42);
+    it('SETTINGS_FIELD_LABELS has 43 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(43);
     });
 
     it('trims whitespace from input', () => {
@@ -224,7 +228,9 @@ describe('resolveSettingsFieldValue', () => {
     });
 
     it('all boolean field indices are covered', () => {
-      const boolFields = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18, 20, 25, 27, 33, 37, 39, 40];
+      const boolFields = [
+        2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18, 20, 25, 27, 33, 37, 39, 40, 42,
+      ];
       for (const f of boolFields) {
         const r = resolveSettingsFieldValue(f, 'on');
         expect(r.ok).toBe(true);
@@ -241,7 +247,7 @@ describe('resolveSettingsFieldValue', () => {
     });
 
     it('all preset field indices are covered', () => {
-      const presetFields = [1, 15, 16, 17, 21, 30, 38];
+      const presetFields = [1, 15, 16, 17, 21, 30, 38, 41];
       for (const f of presetFields) {
         const r = resolveSettingsFieldValue(f, '999999');
         expect(r.ok).toBe(false); // should fail with error, not crash
@@ -298,6 +304,7 @@ describe('getSettingsFieldValue', () => {
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
     showAgentSwarmPanel: false,
+    readSymbols: true,
   };
 
   describe('boolean fields', () => {
@@ -455,20 +462,33 @@ describe('formatAllSettingsSummary', () => {
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
     showAgentSwarmPanel: true,
+    readSymbols: false,
   };
 
   it('contains all 11 section headings', () => {
     const out = formatAllSettingsSummary(testValues);
-    const sections = ['Autonomy', 'UX', 'Features', 'Tools', 'Reasoning', 'Context', 'Fleet', 'Logging', 'Debug', 'Safety', 'Display'];
+    const sections = [
+      'Autonomy',
+      'UX',
+      'Features',
+      'Tools',
+      'Reasoning',
+      'Context',
+      'Fleet',
+      'Logging',
+      'Debug',
+      'Safety',
+      'Display',
+    ];
     for (const s of sections) {
       expect(out).toContain(`── ${s} ──`);
     }
   });
 
-  it('renders exactly 42 value lines (one per field)', () => {
+  it('renders exactly 43 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(42);
+    expect(fieldLines).toHaveLength(43);
   });
 
   it('includes the thinking word value', () => {
@@ -547,12 +567,12 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 42 keys', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(42);
+  it('SETTINGS_DEFAULTS has all 43 keys', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(43);
   });
 
-  it('every field 0-40 can be reset', () => {
-    for (let f = 0; f < 41; f++) {
+  it('every field 0-42 can be reset', () => {
+    for (let f = 0; f < 43; f++) {
       const r = resetSettingsFieldValue(f);
       expect(r.ok).toBe(true);
     }

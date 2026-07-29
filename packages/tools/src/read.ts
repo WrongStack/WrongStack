@@ -1,13 +1,50 @@
 import * as fs from 'node:fs/promises';
-import { FsError, ToolValidationError, type Tool } from '@wrongstack/core/types';
+import { FsError, type Tool, ToolValidationError } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { isBinaryBuffer, safeResolveReal, sha256hex } from './_util.js';
+import { getIndexState, searchCodebaseIndex } from './codebase-index/background-indexer.js';
+import type { SymbolKind } from './codebase-index/schema.js';
+import { codebaseIndexDirOverride } from './codebase-index/writer-helpers.js';
+
+/**
+ * Meta key for advanced mode. When `true` in `ctx.meta`, the read tool
+ * automatically injects codebase-index symbols for the file being read
+ * as a structured `symbols` field. Set via:
+ *   ctx.meta['tools.read.advancedMode'] = true
+ * A per-call `includeSymbols` parameter overrides this flag.
+ */
+const ADVANCED_MODE_META_KEY = 'tools.read.advancedMode';
 
 interface ReadInput {
   path: string;
   offset?: number | undefined;
   limit?: number | undefined;
   mode?: 'content' | 'summary' | undefined;
+  /**
+   * When true, include the codebase-index symbol list for this file
+   * as a structured `symbols` field in the result. Overrides the
+   * advanced-mode meta flag (`ctx.meta['tools.read.advancedMode']`)
+   * per-call when explicitly set. When omitted, the meta flag governs.
+   */
+  includeSymbols?: boolean | undefined;
+}
+
+/**
+ * A single indexed code symbol returned alongside file content when
+ * advanced mode is on or `includeSymbols` is set. The LLM must treat
+ * this as a symbol listing — not as file content.
+ */
+interface SymbolEntry {
+  /** Symbol name (e.g. myFunction, MyClass). */
+  name: string;
+  /** Kind of symbol (function, class, interface, const, etc.). */
+  kind: SymbolKind;
+  /** 1-based declaration line in the file. */
+  line: number;
+  /** 0-based column offset. */
+  col: number;
+  /** Full signature or declaration text. */
+  signature: string;
 }
 
 interface ReadOutput {
@@ -17,6 +54,12 @@ interface ReadOutput {
   truncated: boolean;
   cached?: boolean | undefined;
   note?: string | undefined;
+  /**
+   * Codebase-index symbols for this file, included when advanced mode
+   * is active or `includeSymbols` is set. One entry per indexed symbol,
+   * sorted by line number. This is a symbol listing — NOT file content.
+   */
+  symbols?: SymbolEntry[] | undefined;
 }
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -26,14 +69,18 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
   category: 'Filesystem',
   description:
     'Read the contents of a file with line numbers. This is the primary way to inspect source code, configuration, or any text file before making changes. ' +
-    'Lines are returned 1-indexed with a `   N| ` prefix for easy reference in edits.',
+    'Lines are returned 1-indexed with a `   N| ` prefix for easy reference in edits. ' +
+    'When advanced mode is on or `includeSymbols` is set, the result also includes a `symbols` field ' +
+    'listing codebase-index symbol names, kinds, and line numbers for the file (not file content).',
   usageHint:
     'FOUNDATIONAL TOOL — call this before almost any edit operation.\n\n' +
     'Best practices:\n' +
     '- Always read a file before using `edit`, `replace`, or `write` on it (the system often requires it for safety).\n' +
     '- Use `offset` + `limit` for very large files instead of reading everything at once.\n' +
     '- Default limit is generous (2000 lines) but can be increased.\n' +
-    '- The output format is designed to be directly usable as context for `edit` operations.',
+    '- The output format is designed to be directly usable as context for `edit` operations.\n' +
+    '- Set `includeSymbols: true` to also receive the codebase-index symbol listing for the file.\n' +
+    "- Enable advanced mode (`ctx.meta['tools.read.advancedMode'] = true`) to auto-inject symbols on every read.",
   selection: {
     doNotUseWhen: 'you need to search many files for matching content.',
     useInstead: ['grep'],
@@ -65,10 +112,16 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
         description:
           'Return full line-numbered content (default) or a compact file summary with imports/exports/symbols.',
       },
+      includeSymbols: {
+        type: 'boolean',
+        description:
+          'When true, include the codebase-index symbol list for this file as a structured `symbols` field ' +
+          'in the result. Overrides the advanced-mode meta flag per-call.',
+      },
     },
     required: ['path'],
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, execOpts) {
     if (!input?.path) {
       throw new ToolValidationError({
         message: 'read: path is required',
@@ -76,6 +129,11 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       });
     }
     const absPath = await safeResolveReal(input.path, ctx);
+
+    // Determine whether to include symbols: per-call param overrides meta flag.
+    const shouldIncludeSymbols =
+      input.includeSymbols === true ||
+      (input.includeSymbols !== false && ctx.meta[ADVANCED_MODE_META_KEY] === true);
 
     let stat: Awaited<ReturnType<typeof fs.stat>>;
     try {
@@ -128,6 +186,9 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       coversRange(prior, stat.mtimeMs, offset, requestedEnd)
     ) {
       ctx.recordRead(absPath, stat.mtimeMs);
+      const symResult = shouldIncludeSymbols
+        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        : undefined;
       return {
         text:
           `[unchanged since previous read: "${input.path}" mtime=${Math.round(stat.mtimeMs)}; ` +
@@ -136,7 +197,8 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
         encoding: 'utf8',
         truncated: requestedEnd < prior.totalLines,
         cached: true,
-        note: 'Repeated read suppressed to save tokens.',
+        note: mergeSymbolNote('Repeated read suppressed to save tokens.', symResult?.note),
+        ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
       };
     }
 
@@ -157,18 +219,35 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     if (input.mode === 'summary') {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, total, 1, Math.min(total, 200));
+      const symResult = shouldIncludeSymbols
+        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        : undefined;
       return {
         text: summarizeFile(input.path, stat.size, allLines),
         total_lines: total,
         encoding: 'utf8',
         truncated: total > 200,
-        note: 'Summary mode returned compact structure instead of full file content.',
+        note: mergeSymbolNote(
+          'Summary mode returned compact structure instead of full file content.',
+          symResult?.note,
+        ),
+        ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
       };
     }
     if (limit === 0) {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, total, 1, 0);
-      return { text: '', total_lines: total, encoding: 'utf8', truncated: total > 0 };
+      const symResult = shouldIncludeSymbols
+        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        : undefined;
+      return {
+        text: '',
+        total_lines: total,
+        encoding: 'utf8',
+        truncated: total > 0,
+        ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
+        ...(symResult?.note ? { note: symResult.note } : {}),
+      };
     }
     // Offset past EOF: return an explicit message instead of an empty string.
     // Without this, models with weak instruction-following (e.g. k2p7) see an
@@ -178,11 +257,16 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     if (offset > total) {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, total, total + 1, total + 1);
+      const symResult = shouldIncludeSymbols
+        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        : undefined;
       return {
         text: `[offset ${offset} is past end of file "${input.path}" — file has ${total} line(s). Do not retry this offset.]`,
         total_lines: total,
         encoding: 'utf8',
         truncated: false,
+        ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
+        ...(symResult?.note ? { note: symResult.note } : {}),
       };
     }
 
@@ -197,14 +281,77 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
     rememberReadRange(ctx, absPath, stat.mtimeMs, total, offset, offset + slice.length - 1);
 
+    const symResult = shouldIncludeSymbols
+      ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+      : undefined;
     return {
       text: numbered,
       total_lines: total,
       encoding: 'utf8',
       truncated,
+      ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
+      ...(symResult?.note ? { note: symResult.note } : {}),
     };
   },
 };
+
+/**
+ * Best-effort fetch of codebase-index symbols for a file. Returns
+ * sorted symbol entries (or `undefined` when the index is unavailable
+ * or has no symbols for this file) and an optional truncation note.
+ * Never throws — symbol injection must never break the read operation.
+ */
+async function fetchSymbolsForFile(
+  absPath: string,
+  ctx: import('@wrongstack/core/agent').Context,
+  signal?: AbortSignal,
+): Promise<{ symbols?: SymbolEntry[]; note?: string }> {
+  try {
+    const state = getIndexState();
+    if (!state.ready) return {};
+
+    const { results, total } = await searchCodebaseIndex(
+      {
+        projectRoot: ctx.projectRoot,
+        indexDir: codebaseIndexDirOverride(ctx),
+        query: '',
+        file: absPath,
+        limit: 500,
+      },
+      { signal },
+    );
+
+    if (results.length === 0) return {};
+
+    const sorted = results
+      .map((r) => ({
+        name: r.name,
+        kind: r.kind,
+        line: r.line,
+        col: r.col,
+        signature: r.signature,
+      }))
+      .sort((a, b) => a.line - b.line || a.col - b.col);
+
+    const result: { symbols: SymbolEntry[]; note?: string } = { symbols: sorted };
+    if (total > results.length) {
+      result.note = `Symbol listing truncated to ${results.length} of ${total} entries.`;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/** Merge an optional symbol-truncation note into an existing or absent note field. */
+function mergeSymbolNote(
+  note: string | undefined,
+  symNote: string | undefined,
+): string | undefined {
+  if (!symNote) return note;
+  if (!note) return symNote;
+  return `${note} ${symNote}`;
+}
 
 interface ReadRangeRecord {
   mtimeMs: number;
@@ -214,7 +361,9 @@ interface ReadRangeRecord {
 
 const READ_RANGES_META_KEY = 'tools.read.ranges.v1';
 
-function getReadRanges(ctx: import('@wrongstack/core/agent').Context): Record<string, ReadRangeRecord> {
+function getReadRanges(
+  ctx: import('@wrongstack/core/agent').Context,
+): Record<string, ReadRangeRecord> {
   const existing = ctx.meta[READ_RANGES_META_KEY];
   if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
     return existing as Record<string, ReadRangeRecord>;

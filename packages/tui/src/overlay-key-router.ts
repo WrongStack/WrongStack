@@ -5,8 +5,8 @@ import { exitConfirmationDecision } from './components/exit-confirm-panel.js';
 import type { KeyEvent } from './components/input.js';
 import { slashConfirmationDecision } from './components/slash-confirm-panel.js';
 import { escCloseAction } from './esc-close-panels.js';
-import type { SettingsCapabilities } from './tui-host-capabilities.js';
 import type { MutableCell } from './shared-types.js';
+import type { SettingsCapabilities } from './tui-host-capabilities.js';
 
 /**
  * Minimum time (ms) before the same Esc press is re-processed after a
@@ -134,7 +134,10 @@ export function routeBusyInterruptKey(host: BusyInterruptKeyHost, key: KeyEvent)
       : '';
   dispatch({
     type: 'addEntry',
-    entry: { kind: 'warn', text: `↯ Interrupted${droppedTag}${fleetTag}. Type your new direction.` },
+    entry: {
+      kind: 'warn',
+      text: `↯ Interrupted${droppedTag}${fleetTag}. Type your new direction.`,
+    },
   });
   return true;
 }
@@ -301,6 +304,7 @@ export function routeSettingsOverlayKey(
     breakerAutoKillResetMs: config.breakerAutoKillResetMs ?? 60_000,
     showModelReasoning: config.showModelReasoning ?? true,
     showAgentSwarmPanel: config.showAgentSwarmPanel ?? true,
+    readSymbols: config.readSymbols ?? false,
   });
   return true;
 }

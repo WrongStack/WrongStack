@@ -1,5 +1,10 @@
 import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
-import type { CacheTtl, ContextMode, ReasoningEffort, StatuslineMode } from './settings-contracts.js';
+import type {
+  CacheTtl,
+  ContextMode,
+  ReasoningEffort,
+  StatuslineMode,
+} from './settings-contracts.js';
 
 export type Settings = {
   mode: 'off' | 'suggest' | 'auto';
@@ -64,6 +69,8 @@ export type Settings = {
   /** Where to persist settings: 'global' or 'project'. */
   configScope: 'global' | 'project';
   animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+  /** When true, read tool includes codebase-index symbols alongside file content. */
+  readSymbols: boolean;
   /** Full mouse mode: in-app managed scroll + clickable UI (SGR tracking on). */
   mouseMode?: boolean | undefined;
   /** Whether the process circuit breaker gates bash/exec. Default false (off). */

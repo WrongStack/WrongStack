@@ -8,16 +8,17 @@ import type {
   TokenSavingTier,
 } from '@wrongstack/core/types';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
-import type { AuthPanelState } from './auth-panel-model.js';
-import type { HistoryEntry } from './history-entry.js';
-import type { BrainLogEntry, BrainRiskLevel } from './brain-contracts.js';
-import type { BrainPanelSettings } from './brain-panel-model.js';
 import type {
   GoalSummary,
   QueueItem,
   ResumeSessionEntry,
   SlashCommandMatch,
 } from './app-state-core-types.js';
+import type { FleetEntry } from './app-state-fleet.js';
+import type { AuthPanelState } from './auth-panel-model.js';
+import type { BrainLogEntry, BrainRiskLevel } from './brain-contracts.js';
+import type { BrainPanelSettings } from './brain-panel-model.js';
+import type { HistoryEntry } from './history-entry.js';
 import type {
   AuditLevel,
   CacheTtl,
@@ -47,7 +48,8 @@ import type {
   ToolPickerItem,
   WorktreeRow,
 } from './ui-contracts.js';
-import type { FleetEntry } from './app-state-fleet.js';
+
+export type { Settings } from './app-settings-type.js';
 export type {
   DraftEntry,
   GoalSummary,
@@ -55,7 +57,6 @@ export type {
   ResumeSessionEntry,
   SlashCommandMatch,
 } from './app-state-core-types.js';
-export type { Settings } from './app-settings-type.js';
 export type { FleetEntry } from './app-state-fleet.js';
 
 export type State = {
@@ -311,6 +312,8 @@ export type State = {
     showModelReasoning: boolean;
     /** Show the persistent AGENT SWARM and todo mission queue panel. Default: true. */
     showAgentSwarmPanel: boolean;
+    /** When true, read tool includes codebase-index symbols alongside file content. */
+    readSymbols: boolean;
     /** Prompt cache TTL. */
     cacheTtl: CacheTtl;
     /** Where to persist settings: 'global' or 'project'. */

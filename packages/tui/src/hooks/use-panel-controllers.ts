@@ -1,13 +1,8 @@
 import type { TokenSavingTier } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import React, {
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-  useEffect,
-} from 'react';
-import type { AppProps } from '../app-props.js';
+import React, { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 import type { ContextMode } from '../components/settings-picker.js';
 import { createPanelOpenDispatcher } from '../on-panel-open.js';
@@ -197,6 +192,7 @@ export function usePanelControllers({
       breakerAutoKillResetMs: s.breakerAutoKillResetMs ?? 60_000,
       showModelReasoning: s.showModelReasoning ?? true,
       showAgentSwarmPanel: s.showAgentSwarmPanel ?? true,
+      readSymbols: s.readSymbols ?? false,
     });
   }, [getSettings]);
 

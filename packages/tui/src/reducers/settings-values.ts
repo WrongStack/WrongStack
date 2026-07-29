@@ -2,23 +2,24 @@ import { expectDefined } from '@wrongstack/core/utils';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import {
-  type AnimationStyleChoice,
   ANIMATION_STYLE_CHOICES,
+  type AnimationStyleChoice,
   AUDIT_LEVELS,
   AUTO_PROCEED_MAX_PRESETS,
+  BREAKER_TIMEOUT_PRESETS,
   CACHE_TTLS,
   COMPACTOR_STRATEGIES,
   CONFIG_SCOPES,
   CONTEXT_MODES,
   DELAY_PRESETS_MS,
   ENHANCE_DELAY_PRESETS,
-  BREAKER_TIMEOUT_PRESETS,
   ENHANCE_LANGUAGES,
   FLEET_CHAT_MODES,
   LOG_LEVELS,
   MAX_CONCURRENT_PRESETS,
   MAX_ITERATIONS_PRESETS,
   MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS,
+  PRE_REFINE_SECONDS_PRESETS,
   REASONING_EFFORTS,
   REASONING_MODES,
   SETTINGS_MODES,
@@ -477,6 +478,28 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
         return {
           ...state,
           settingsPicker: { ...sp, showAgentSwarmPanel: !sp.showAgentSwarmPanel, hint: undefined },
+        };
+      // Field 41: pre-refine countdown (cycle presets [0, 2, 3, 5, 8, 10])
+      if (f === 41) {
+        const j = PRE_REFINE_SECONDS_PRESETS.indexOf(sp.preRefineSeconds);
+        const base = j < 0 ? 0 : j;
+        const next =
+          (base + action.delta + PRE_REFINE_SECONDS_PRESETS.length) %
+          PRE_REFINE_SECONDS_PRESETS.length;
+        return {
+          ...state,
+          settingsPicker: {
+            ...sp,
+            preRefineSeconds: expectDefined(PRE_REFINE_SECONDS_PRESETS[next]),
+            hint: undefined,
+          },
+        };
+      }
+      // Field 42: readSymbols (boolean toggle)
+      if (f === 42)
+        return {
+          ...state,
+          settingsPicker: { ...sp, readSymbols: !sp.readSymbols, hint: undefined },
         };
       return state;
     }

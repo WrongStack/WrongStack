@@ -1,5 +1,5 @@
 import { MAX_TUI_THINKING_WORD_LENGTH } from '../thinking-word.js';
-import { ANIMATION_STYLES, ANIMATION_STYLE_DESCS } from './animation-style.js';
+import { ANIMATION_STYLE_DESCS, ANIMATION_STYLES } from './animation-style.js';
 
 /** Selectable presets for the auto-proceed delay, so the field is fully
  *  keyboard-cyclable (←/→) instead of needing typed numeric input. */
@@ -32,7 +32,15 @@ export type StatuslineMode = (typeof STATUSLINE_MODES)[number];
 export const REASONING_MODES = ['auto', 'on', 'off'] as const;
 export type ReasoningMode = (typeof REASONING_MODES)[number];
 
-export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+export const REASONING_EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const;
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
 export const CACHE_TTLS = ['default', '5m', '1h'] as const;
@@ -84,7 +92,14 @@ export type EnhanceLanguage = (typeof ENHANCE_LANGUAGES)[number];
  *  `auto` is the default: it keeps all tools and picks a leaner PROMPT only on
  *  small context windows (cache-safe). The concrete tiers below force a fixed
  *  level regardless of window. */
-export const TOKEN_SAVING_TIERS = ['auto', 'off', 'minimal', 'light', 'medium', 'aggressive'] as const;
+export const TOKEN_SAVING_TIERS = [
+  'auto',
+  'off',
+  'minimal',
+  'light',
+  'medium',
+  'aggressive',
+] as const;
 export type TokenSavingTierTui = (typeof TOKEN_SAVING_TIERS)[number];
 
 export const TOKEN_SAVING_TIER_DESCS: Record<TokenSavingTierTui, string> = {
@@ -150,7 +165,7 @@ export const MODE_DESC: Record<SettingsMode, string> = {
 };
 
 /** Total number of settings rows (used for wrap-around navigation). */
-export const SETTINGS_FIELD_COUNT = 42;
+export const SETTINGS_FIELD_COUNT = 43;
 
 /**
  * Field index of the "Thinking word" row. The reducer's per-field switch and
@@ -276,6 +291,7 @@ export type SettingsPickerPatch = Partial<{
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
   showAgentSwarmPanel: boolean;
+  readSymbols: boolean;
 }>;
 
 /**
@@ -326,6 +342,7 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Show model reasoning', // 39
   'Show agent swarm panel', // 40
   'Pre-refine countdown', // 41
+  'Read symbols', // 42
 ];
 
 /**
@@ -347,27 +364,52 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
 export function resolveSettingsFieldValue(
   field: number,
   input: string,
-): { ok: true; patch: SettingsPickerPatch; label: string; displayValue: string } | { ok: false; error: string } {
+):
+  | { ok: true; patch: SettingsPickerPatch; label: string; displayValue: string }
+  | { ok: false; error: string } {
   const raw = input.trim().toLowerCase();
   const label = SETTINGS_FIELD_LABELS[field] ?? `Field ${field}`;
 
   // ── Boolean fields ──
   const BOOL_FIELDS = new Map<number, keyof SettingsPickerPatch>([
-    [2, 'titleAnimation'], [3, 'yolo'], [5, 'chime'],
-    [6, 'confirmExit'], [7, 'nextPrediction'], [8, 'featureMcp'],
-    [9, 'featurePlugins'], [10, 'featureMemory'], [11, 'featureSkills'],
-    [12, 'featureModelsRegistry'], [14, 'allowOutsideProjectRoot'],
-    [18, 'enhanceEnabled'], [20, 'indexOnStart'], [25, 'reasoningPreserve'],
-    [27, 'contextAutoCompact'], [33, 'debugStream'], [37, 'breakerEnabled'],
-    [39, 'showModelReasoning'], [40, 'showAgentSwarmPanel'],
+    [2, 'titleAnimation'],
+    [3, 'yolo'],
+    [5, 'chime'],
+    [6, 'confirmExit'],
+    [7, 'nextPrediction'],
+    [8, 'featureMcp'],
+    [9, 'featurePlugins'],
+    [10, 'featureMemory'],
+    [11, 'featureSkills'],
+    [12, 'featureModelsRegistry'],
+    [14, 'allowOutsideProjectRoot'],
+    [18, 'enhanceEnabled'],
+    [20, 'indexOnStart'],
+    [25, 'reasoningPreserve'],
+    [27, 'contextAutoCompact'],
+    [33, 'debugStream'],
+    [37, 'breakerEnabled'],
+    [39, 'showModelReasoning'],
+    [40, 'showAgentSwarmPanel'],
+    [42, 'readSymbols'],
   ]);
   const boolKey = BOOL_FIELDS.get(field);
   if (boolKey) {
     if (['on', 'true', 'yes', '1'].includes(raw)) {
-      return { ok: true, patch: { [boolKey]: true } as SettingsPickerPatch, label, displayValue: 'on' };
+      return {
+        ok: true,
+        patch: { [boolKey]: true } as SettingsPickerPatch,
+        label,
+        displayValue: 'on',
+      };
     }
     if (['off', 'false', 'no', '0'].includes(raw)) {
-      return { ok: true, patch: { [boolKey]: false } as SettingsPickerPatch, label, displayValue: 'off' };
+      return {
+        ok: true,
+        patch: { [boolKey]: false } as SettingsPickerPatch,
+        label,
+        displayValue: 'off',
+      };
     }
     return { ok: false, error: `Invalid value "${input}" for ${label}. Use on or off.` };
   }
@@ -378,15 +420,21 @@ export function resolveSettingsFieldValue(
   // "on"/"true" → 'full', "false"/"no" → 'off' — so old `/settings
   // stream-fleet on|off` muscle memory keeps working.
   if (field === 4) {
-    const legacy =
-      ['on', 'true', 'yes', '1'].includes(raw) ? 'full'
-      : ['false', 'no', '0'].includes(raw) ? 'off'
-      : undefined;
+    const legacy = ['on', 'true', 'yes', '1'].includes(raw)
+      ? 'full'
+      : ['false', 'no', '0'].includes(raw)
+        ? 'off'
+        : undefined;
     const match = (FLEET_CHAT_MODES as readonly string[]).includes(raw)
       ? (raw as FleetChatVerbosityTui)
       : legacy;
     if (match) {
-      return { ok: true, patch: { fleetChat: match as FleetChatVerbosityTui }, label, displayValue: match };
+      return {
+        ok: true,
+        patch: { fleetChat: match as FleetChatVerbosityTui },
+        label,
+        displayValue: match,
+      };
     }
     return {
       ok: false,
@@ -394,7 +442,9 @@ export function resolveSettingsFieldValue(
     };
   }
 
-  const ENUM_FIELDS: ReadonlyArray<readonly [number, keyof SettingsPickerPatch, readonly string[]]> = [
+  const ENUM_FIELDS: ReadonlyArray<
+    readonly [number, keyof SettingsPickerPatch, readonly string[]]
+  > = [
     [0, 'mode', SETTINGS_MODES],
     [13, 'tokenSavingTier', TOKEN_SAVING_TIERS],
     [19, 'enhanceLanguage', ENHANCE_LANGUAGES],
@@ -413,7 +463,12 @@ export function resolveSettingsFieldValue(
     if (field !== f) continue;
     const match = values.find((v) => v.toLowerCase() === raw);
     if (match) {
-      return { ok: true, patch: { [key]: match } as SettingsPickerPatch, label, displayValue: match };
+      return {
+        ok: true,
+        patch: { [key]: match } as SettingsPickerPatch,
+        label,
+        displayValue: match,
+      };
     }
     return {
       ok: false,
@@ -425,13 +480,20 @@ export function resolveSettingsFieldValue(
   // Each entry: [field, stateKey, presets, formatFn]
   // formatFn maps a preset number → its display name (for "unlimited", "off", etc.)
   const presetLabel = (n: number, zeroLabel: string): string => (n === 0 ? zeroLabel : String(n));
-  const PRESET_FIELDS: ReadonlyArray<readonly [number, keyof SettingsPickerPatch, readonly number[], (n: number) => string]> = [
+  const PRESET_FIELDS: ReadonlyArray<
+    readonly [number, keyof SettingsPickerPatch, readonly number[], (n: number) => string]
+  > = [
     [1, 'delayMs', DELAY_PRESETS_MS, (n) => formatSettingsDelay(n)],
     [15, 'maxIterations', MAX_ITERATIONS_PRESETS, (n) => formatMaxIterations(n)],
     [16, 'autoProceedMaxIterations', AUTO_PROCEED_MAX_PRESETS, (n) => formatMaxIterations(n)],
     [17, 'enhanceDelayMs', ENHANCE_DELAY_PRESETS, (n) => formatEnhanceDelay(n)],
     [41, 'preRefineSeconds', PRE_REFINE_SECONDS_PRESETS, (n) => formatPreRefineSeconds(n)],
-    [21, 'multiDiffSummaryThreshold', MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS, (n) => formatMultiDiffSummaryThreshold(n)],
+    [
+      21,
+      'multiDiffSummaryThreshold',
+      MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS,
+      (n) => formatMultiDiffSummaryThreshold(n),
+    ],
     [30, 'maxConcurrent', MAX_CONCURRENT_PRESETS, (n) => presetLabel(n, 'runtime default')],
     [38, 'breakerAutoKillResetMs', BREAKER_TIMEOUT_PRESETS, (n) => formatBreakerTimeout(n)],
   ];
@@ -440,12 +502,22 @@ export function resolveSettingsFieldValue(
     // Try matching as a number first.
     const asNum = Number.parseInt(raw, 10);
     if (!Number.isNaN(asNum) && presets.includes(asNum)) {
-      return { ok: true, patch: { [key]: asNum } as SettingsPickerPatch, label, displayValue: fmt(asNum) };
+      return {
+        ok: true,
+        patch: { [key]: asNum } as SettingsPickerPatch,
+        label,
+        displayValue: fmt(asNum),
+      };
     }
     // Try matching against display names (e.g. "unlimited" → 0, "30s" → 30000).
     const byName = presets.find((p) => fmt(p).toLowerCase() === raw);
     if (byName !== undefined) {
-      return { ok: true, patch: { [key]: byName } as SettingsPickerPatch, label, displayValue: fmt(byName) };
+      return {
+        ok: true,
+        patch: { [key]: byName } as SettingsPickerPatch,
+        label,
+        displayValue: fmt(byName),
+      };
     }
     const options = presets.map((p) => fmt(p)).join(', ');
     return {
@@ -500,13 +572,26 @@ export function getSettingsFieldValue(
 
   // Boolean fields — display as "on"/"off".
   const BOOL_KEYS: ReadonlyArray<readonly [number, keyof SettingsPickerPatch]> = [
-    [2, 'titleAnimation'], [3, 'yolo'], [5, 'chime'],
-    [6, 'confirmExit'], [7, 'nextPrediction'], [8, 'featureMcp'],
-    [9, 'featurePlugins'], [10, 'featureMemory'], [11, 'featureSkills'],
-    [12, 'featureModelsRegistry'], [14, 'allowOutsideProjectRoot'],
-    [18, 'enhanceEnabled'], [20, 'indexOnStart'], [25, 'reasoningPreserve'],
-    [27, 'contextAutoCompact'], [33, 'debugStream'], [37, 'breakerEnabled'],
-    [39, 'showModelReasoning'], [40, 'showAgentSwarmPanel'],
+    [2, 'titleAnimation'],
+    [3, 'yolo'],
+    [5, 'chime'],
+    [6, 'confirmExit'],
+    [7, 'nextPrediction'],
+    [8, 'featureMcp'],
+    [9, 'featurePlugins'],
+    [10, 'featureMemory'],
+    [11, 'featureSkills'],
+    [12, 'featureModelsRegistry'],
+    [14, 'allowOutsideProjectRoot'],
+    [18, 'enhanceEnabled'],
+    [20, 'indexOnStart'],
+    [25, 'reasoningPreserve'],
+    [27, 'contextAutoCompact'],
+    [33, 'debugStream'],
+    [37, 'breakerEnabled'],
+    [39, 'showModelReasoning'],
+    [40, 'showAgentSwarmPanel'],
+    [42, 'readSymbols'],
   ];
   for (const [f, key] of BOOL_KEYS) {
     if (field !== f) continue;
@@ -515,10 +600,19 @@ export function getSettingsFieldValue(
 
   // Enum fields — display the raw value.
   const ENUM_KEYS: ReadonlyArray<readonly [number, keyof SettingsPickerPatch]> = [
-    [0, 'mode'], [4, 'fleetChat'], [13, 'tokenSavingTier'], [19, 'enhanceLanguage'],
-    [23, 'reasoningMode'], [24, 'reasoningEffort'], [26, 'cacheTtl'],
-    [28, 'contextStrategy'], [29, 'contextMode'], [31, 'logLevel'],
-    [32, 'auditLevel'], [34, 'statuslineMode'], [35, 'configScope'],
+    [0, 'mode'],
+    [4, 'fleetChat'],
+    [13, 'tokenSavingTier'],
+    [19, 'enhanceLanguage'],
+    [23, 'reasoningMode'],
+    [24, 'reasoningEffort'],
+    [26, 'cacheTtl'],
+    [28, 'contextStrategy'],
+    [29, 'contextMode'],
+    [31, 'logLevel'],
+    [32, 'auditLevel'],
+    [34, 'statuslineMode'],
+    [35, 'configScope'],
     [36, 'animationStyle'],
   ];
   for (const [f, key] of ENUM_KEYS) {
@@ -528,7 +622,9 @@ export function getSettingsFieldValue(
 
   // Preset fields — display via the format function.
   const presetLabel = (n: number, zeroLabel: string): string => (n === 0 ? zeroLabel : String(n));
-  const PRESET_KEYS: ReadonlyArray<readonly [number, keyof SettingsPickerPatch, (n: number) => string]> = [
+  const PRESET_KEYS: ReadonlyArray<
+    readonly [number, keyof SettingsPickerPatch, (n: number) => string]
+  > = [
     [1, 'delayMs', formatSettingsDelay],
     [15, 'maxIterations', formatMaxIterations],
     [16, 'autoProceedMaxIterations', formatMaxIterations],
@@ -571,7 +667,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Tools',
-    fields: [15, 16, 17, 18, 19, 20, 21, 22],
+    fields: [15, 16, 17, 18, 19, 20, 21, 22, 42],
   },
   {
     name: 'Reasoning',
@@ -685,6 +781,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   breakerAutoKillResetMs: 60_000,
   showModelReasoning: true,
   showAgentSwarmPanel: true,
+  readSymbols: false,
 } as const);
 
 /**
@@ -696,7 +793,9 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
  */
 export function resetSettingsFieldValue(
   field: number,
-): { ok: true; patch: SettingsPickerPatch; label: string; displayValue: string } | { ok: false; error: string } {
+):
+  | { ok: true; patch: SettingsPickerPatch; label: string; displayValue: string }
+  | { ok: false; error: string } {
   const result = getSettingsFieldValue(SETTINGS_DEFAULTS, field);
   if (!result.ok) return result;
 
@@ -711,19 +810,49 @@ export function resetSettingsFieldValue(
  */
 function buildResetPatch(field: number): SettingsPickerPatch | null {
   const KEY_MAP: ReadonlyArray<readonly [number, keyof SettingsPickerValues]> = [
-    [0, 'mode'], [1, 'delayMs'], [2, 'titleAnimation'], [3, 'yolo'],
-    [4, 'fleetChat'], [5, 'chime'], [6, 'confirmExit'], [7, 'nextPrediction'],
-    [8, 'featureMcp'], [9, 'featurePlugins'], [10, 'featureMemory'], [11, 'featureSkills'],
-    [12, 'featureModelsRegistry'], [13, 'tokenSavingTier'], [14, 'allowOutsideProjectRoot'],
-    [15, 'maxIterations'], [16, 'autoProceedMaxIterations'], [17, 'enhanceDelayMs'],
-    [18, 'enhanceEnabled'], [19, 'enhanceLanguage'], [20, 'indexOnStart'],
-    [21, 'multiDiffSummaryThreshold'], [22, 'thinkingWord'], [23, 'reasoningMode'],
-    [24, 'reasoningEffort'], [25, 'reasoningPreserve'], [26, 'cacheTtl'],
-    [27, 'contextAutoCompact'], [28, 'contextStrategy'], [29, 'contextMode'],
-    [30, 'maxConcurrent'], [31, 'logLevel'], [32, 'auditLevel'], [33, 'debugStream'],
-    [34, 'statuslineMode'], [35, 'configScope'], [36, 'animationStyle'],
-    [37, 'breakerEnabled'], [38, 'breakerAutoKillResetMs'], [39, 'showModelReasoning'],
-    [40, 'showAgentSwarmPanel'], [41, 'preRefineSeconds'],
+    [0, 'mode'],
+    [1, 'delayMs'],
+    [2, 'titleAnimation'],
+    [3, 'yolo'],
+    [4, 'fleetChat'],
+    [5, 'chime'],
+    [6, 'confirmExit'],
+    [7, 'nextPrediction'],
+    [8, 'featureMcp'],
+    [9, 'featurePlugins'],
+    [10, 'featureMemory'],
+    [11, 'featureSkills'],
+    [12, 'featureModelsRegistry'],
+    [13, 'tokenSavingTier'],
+    [14, 'allowOutsideProjectRoot'],
+    [15, 'maxIterations'],
+    [16, 'autoProceedMaxIterations'],
+    [17, 'enhanceDelayMs'],
+    [18, 'enhanceEnabled'],
+    [19, 'enhanceLanguage'],
+    [20, 'indexOnStart'],
+    [21, 'multiDiffSummaryThreshold'],
+    [22, 'thinkingWord'],
+    [23, 'reasoningMode'],
+    [24, 'reasoningEffort'],
+    [25, 'reasoningPreserve'],
+    [26, 'cacheTtl'],
+    [27, 'contextAutoCompact'],
+    [28, 'contextStrategy'],
+    [29, 'contextMode'],
+    [30, 'maxConcurrent'],
+    [31, 'logLevel'],
+    [32, 'auditLevel'],
+    [33, 'debugStream'],
+    [34, 'statuslineMode'],
+    [35, 'configScope'],
+    [36, 'animationStyle'],
+    [37, 'breakerEnabled'],
+    [38, 'breakerAutoKillResetMs'],
+    [39, 'showModelReasoning'],
+    [40, 'showAgentSwarmPanel'],
+    [41, 'preRefineSeconds'],
+    [42, 'readSymbols'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

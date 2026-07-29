@@ -1,16 +1,16 @@
 import { expectDefined } from '@wrongstack/core/utils';
 import type React from 'react';
-import type { AppViewProps } from './app-view-contract.js';
 import { AppStatusRegion } from './app-status-region.js';
+import type { AppViewProps } from './app-view-contract.js';
 import { AuditPanel } from './components/audit-panel.js';
 import { AuthPanel } from './components/auth-panel.js';
-import { ConnectionsPanel } from './components/connections-panel.js';
 import { AutonomyPicker } from './components/autonomy-picker.js';
 import { BrainDecisionPrompt } from './components/brain-decision-prompt.js';
 import { BrainPanel } from './components/brain-panel.js';
 import { CheckpointTimeline } from './components/checkpoint-timeline.js';
 import { ClearConfirmPanel } from './components/clear-confirm-panel.js';
 import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt.js';
+import { ConnectionsPanel } from './components/connections-panel.js';
 import { ContinueConfirmPanel } from './components/continue-confirm-panel.js';
 import { CoordinatorPanel } from './components/coordinator-panel.js';
 import { DesignPicker } from './components/design-picker.js';
@@ -18,7 +18,6 @@ import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { ExitConfirmPanel } from './components/exit-confirm-panel.js';
 import { FKeyPicker } from './components/f-key-picker.js';
-import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { FilePicker } from './components/file-picker.js';
 import { HelpPanel } from './components/help-panel.js';
 import { DEFAULT_INPUT_PROMPT, Input } from './components/input.js';
@@ -28,15 +27,19 @@ import { ModelPicker } from './components/model-picker.js';
 import { PluginPicker } from './components/plugin-picker.js';
 import { ProjectPicker } from './components/project-picker.js';
 import { filterPromptPicker, PromptPicker } from './components/prompt-picker.js';
+import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
 import { SendModePicker } from './components/send-mode-picker.js';
+import { SettingsPicker } from './components/settings-picker.js';
 import { ShadowPanel } from './components/shadow-panel.js';
-import { type ShellCommandWarningDecision, ShellCommandWarning } from './components/shell-command-warning.js';
+import {
+  ShellCommandWarning,
+  type ShellCommandWarningDecision,
+} from './components/shell-command-warning.js';
 import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { SlashMenu } from './components/slash-menu.js';
-import { SettingsPicker } from './components/settings-picker.js';
 import { StatuslinePicker } from './components/statusline-picker.js';
 import { ToolsPicker } from './components/tools-picker.js';
 import { Box } from './ink.js';
@@ -82,22 +85,9 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     enhanceDelayMs,
     layoutStore,
   } = runtime;
-  const {
-    nowTick,
-    workingTimeMs,
-    enhanceDots,
-  } = activity;
-  const {
-    setYoloLive,
-    autonomyLive,
-  } = environment;
-  const {
-    inputHint,
-    composerStatus,
-    composerAnimationStyle,
-    inputHeight,
-    hideInput,
-  } = viewState;
+  const { nowTick, workingTimeMs, enhanceDots } = activity;
+  const { setYoloLive, autonomyLive } = environment;
+  const { inputHint, composerStatus, composerAnimationStyle, inputHeight, hideInput } = viewState;
 
   return (
     /* Hard viewport cap. The managed layout aims for exactly termRows
@@ -305,6 +295,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               breakerAutoKillResetMs={state.settingsPicker.breakerAutoKillResetMs}
               showModelReasoning={state.settingsPicker.showModelReasoning}
               showAgentSwarmPanel={state.settingsPicker.showAgentSwarmPanel}
+              readSymbols={state.settingsPicker.readSymbols}
               filter={state.settingsPicker.filter}
               hint={state.settingsPicker.hint}
             />
@@ -553,9 +544,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             ? (() => {
                 const info = state.refineCountdown;
                 let resolved = false;
-                const onDecision = (
-                  decision: Parameters<typeof info.resolve>[0],
-                ) => {
+                const onDecision = (decision: Parameters<typeof info.resolve>[0]) => {
                   if (resolved) return;
                   resolved = true;
                   info.resolve(decision);

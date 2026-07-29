@@ -1,10 +1,33 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isFsError, isToolValidationError } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readTool } from '../src/read.js';
 import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
+
+// ── Symbol injection mocks ──────────────────────────────────────────────────
+// Mutable state shared with the vi.mock factory. The existing tests never set
+// includeSymbols or the advanced-mode meta flag, so they never trigger
+// fetchSymbolsForFile — the mock is transparent for them.
+const mockIndexState = vi.hoisted(() => ({ ready: false }));
+const mockSymbols = vi.hoisted(() => ({
+  results: [] as Array<{
+    name: string;
+    kind: string;
+    line: number;
+    col: number;
+    signature: string;
+  }>,
+}));
+const mockSearch = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
+mockSearch.mockResolvedValue(mockSymbols);
+
+vi.mock('../src/codebase-index/background-indexer.js', () => ({
+  getIndexState: () => mockIndexState,
+  searchCodebaseIndex: mockSearch,
+}));
+// ─────────────────────────────────────────────────────────────────────────────
 
 describe('read tool', () => {
   let sb: Sandbox;
@@ -201,6 +224,215 @@ describe('read tool', () => {
     } finally {
       await fs.rm(outside, { recursive: true, force: true });
     }
+  });
+
+  describe('includeSymbols / symbols feature', () => {
+    beforeEach(() => {
+      // Default: index is not ready, no mock symbols. Reset mock function
+      // so per-test mockRejectedValueOnce calls from previous tests don't
+      // leak (the vi.fn starts with the default implementation each time).
+      mockIndexState.ready = false;
+      mockSymbols.results = [];
+      mockSearch.mockReset();
+      mockSearch.mockResolvedValue(mockSymbols);
+    });
+
+    it('omits symbols field when advanced mode is off and includeSymbols is not set', async () => {
+      const file = path.join(sb.dir, 'plain.txt');
+      await fs.writeFile(file, 'hello\n');
+      const out = await readTool.execute({ path: 'plain.txt' }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(out.symbols).toBeUndefined();
+    });
+
+    it('omits symbols field when index unavailable even if includeSymbols is set', async () => {
+      const file = path.join(sb.dir, 'req.txt');
+      await fs.writeFile(file, 'hello\n');
+      const out = await readTool.execute({ path: 'req.txt', includeSymbols: true }, sb.ctx, {
+        signal: newSignal(),
+      });
+      // Index not ready in test env, so symbols key must be absent.
+      // The important invariant is that the read itself succeeds.
+      expect(out.text).toContain('1→hello');
+      expect(out.symbols).toBeUndefined();
+      expect('symbols' in out).toBe(false);
+    });
+
+    it('omits symbols field when meta flag is on but index unavailable', async () => {
+      const file = path.join(sb.dir, 'adv.txt');
+      await fs.writeFile(file, 'hello\n');
+      sb.ctx.meta['tools.read.advancedMode'] = true;
+      const out = await readTool.execute({ path: 'adv.txt' }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(out.text).toContain('1→hello');
+      expect(out.symbols).toBeUndefined();
+    });
+
+    it('per-call includeSymbols: false suppresses symbols even with meta flag on', async () => {
+      const file = path.join(sb.dir, 'suppress.txt');
+      await fs.writeFile(file, 'hello\n');
+      sb.ctx.meta['tools.read.advancedMode'] = true;
+      const out = await readTool.execute({ path: 'suppress.txt', includeSymbols: false }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(out.symbols).toBeUndefined();
+      expect(out.text).toContain('1→hello');
+    });
+
+    it('includes symbols with summary mode when index is ready', async () => {
+      const file = path.join(sb.dir, 'sum-sym.ts');
+      await fs.writeFile(file, 'export const x = 1;\n');
+      mockIndexState.ready = true;
+      mockSymbols.results = [
+        { name: 'x', kind: 'const', line: 1, col: 12, signature: 'const x = 1' },
+      ];
+      sb.ctx.meta['tools.read.advancedMode'] = true;
+      const out = await readTool.execute({ path: 'sum-sym.ts', mode: 'summary' }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(out.text).toContain('summary:');
+      expect(out.symbols).toBeDefined();
+      expect(out.symbols).toHaveLength(1);
+      expect(out.symbols![0]!.name).toBe('x');
+    });
+
+    it('returns SymbolEntry entries with correct shape when index is ready', async () => {
+      const file = path.join(sb.dir, 'shapes.ts');
+      await fs.writeFile(file, 'function a() {}\nclass B {}\nconst C = 1;\n');
+      mockIndexState.ready = true;
+      mockSymbols.results = [
+        { name: 'a', kind: 'function', line: 1, col: 9, signature: 'function a()' },
+        { name: 'B', kind: 'class', line: 2, col: 6, signature: 'class B' },
+        { name: 'C', kind: 'const', line: 3, col: 6, signature: 'const C = 1' },
+      ];
+      const out = await readTool.execute({ path: 'shapes.ts', includeSymbols: true }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(out.symbols).toBeDefined();
+      expect(out.symbols).toHaveLength(3);
+      // Verify SymbolEntry shape: name, kind, line, col, signature
+      expect(out.symbols![0]).toEqual({
+        name: 'a',
+        kind: 'function',
+        line: 1,
+        col: 9,
+        signature: 'function a()',
+      });
+      expect(out.symbols![1]).toEqual({
+        name: 'B',
+        kind: 'class',
+        line: 2,
+        col: 6,
+        signature: 'class B',
+      });
+      expect(out.symbols![2]).toEqual({
+        name: 'C',
+        kind: 'const',
+        line: 3,
+        col: 6,
+        signature: 'const C = 1',
+      });
+    });
+
+    it('includes symbols on a cached repeated read when index is ready', async () => {
+      const file = path.join(sb.dir, 'cached-sym.ts');
+      await fs.writeFile(file, 'export const X = 1;\nexport function y() {}\n');
+      // First read — establishes cache range, no includeSymbols
+      mockIndexState.ready = true;
+      mockSymbols.results = [];
+
+      const first = await readTool.execute({ path: 'cached-sym.ts' }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(first.text).toContain('1→export');
+      expect(first.cached).toBeUndefined();
+
+      // Second read — cached hit with includeSymbols: true
+      mockSymbols.results = [
+        { name: 'X', kind: 'const', line: 1, col: 12, signature: 'const X = 1' },
+        { name: 'y', kind: 'function', line: 2, col: 15, signature: 'function y()' },
+      ];
+      const second = await readTool.execute(
+        { path: 'cached-sym.ts', includeSymbols: true },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(second.cached).toBe(true);
+      expect(second.symbols).toBeDefined();
+      expect(second.symbols).toHaveLength(2);
+      expect(second.symbols![0]!.name).toBe('X');
+      expect(second.symbols![1]!.name).toBe('y');
+    });
+
+    it('includes symbols on limit=0 read when index is ready', async () => {
+      const file = path.join(sb.dir, 'limit0-sym.ts');
+      await fs.writeFile(file, 'const A = 1;\n');
+      mockIndexState.ready = true;
+      mockSymbols.results = [
+        { name: 'A', kind: 'const', line: 1, col: 6, signature: 'const A = 1' },
+      ];
+      const out = await readTool.execute(
+        { path: 'limit0-sym.ts', limit: 0, includeSymbols: true },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.text).toBe('');
+      expect(out.total_lines).toBeGreaterThan(0);
+      expect(out.symbols).toBeDefined();
+      expect(out.symbols).toHaveLength(1);
+      expect(out.symbols![0]!.name).toBe('A');
+    });
+
+    it('includes symbols on offset>total read when index is ready', async () => {
+      const file = path.join(sb.dir, 'eof-sym.ts');
+      await fs.writeFile(file, 'const Z = 1;\n');
+      mockIndexState.ready = true;
+      mockSymbols.results = [
+        { name: 'Z', kind: 'const', line: 1, col: 6, signature: 'const Z = 1' },
+      ];
+      const out = await readTool.execute(
+        { path: 'eof-sym.ts', offset: 999, includeSymbols: true },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.text).toContain('past end of file');
+      expect(out.symbols).toBeDefined();
+      expect(out.symbols).toHaveLength(1);
+      expect(out.symbols![0]!.name).toBe('Z');
+    });
+
+    it('returns no symbols without throwing when the index is not ready', async () => {
+      const file = path.join(sb.dir, 'noindex.txt');
+      await fs.writeFile(file, 'const secret = 42;\n');
+      mockIndexState.ready = false;
+      const out = await readTool.execute({ path: 'noindex.txt', includeSymbols: true }, sb.ctx, {
+        signal: newSignal(),
+      });
+      // Index not ready — symbols key should be absent entirely.
+      expect('symbols' in out).toBe(false);
+      expect(out.symbols).toBeUndefined();
+      // The read itself must still succeed.
+      expect(out.text).toContain('1→const');
+    });
+
+    it('does not throw when searchCodebaseIndex throws (fetchSymbolsForFile catches)', async () => {
+      const file = path.join(sb.dir, 'throws.txt');
+      await fs.writeFile(file, 'const a = 1;\n');
+      mockIndexState.ready = true;
+      // Make searchCodebaseIndex throw — fetchSymbolsForFile catches all
+      // errors internally and returns { symbols: undefined }.
+      mockSearch.mockRejectedValueOnce(new Error('db fail'));
+      const out = await readTool.execute({ path: 'throws.txt', includeSymbols: true }, sb.ctx, {
+        signal: newSignal(),
+      });
+      // Index threw, so no symbols in output.
+      expect('symbols' in out).toBe(false);
+      expect(out.symbols).toBeUndefined();
+      // The read itself must still succeed.
+      expect(out.text).toContain('1→const');
+    });
   });
 
   describe('structured error shape', () => {

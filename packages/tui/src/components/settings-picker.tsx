@@ -1,24 +1,7 @@
-import { Box, Text, useStdout } from '../ink.js';
 import type React from 'react';
-import {
-  SETTINGS_PICKER_JUMP_CHORDS,
-} from './settings-picker-jumps.js';
+import { Box, Text, useStdout } from '../ink.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
-import { SettingsPickerRowList, type SettingsPickerRowData } from './settings-picker-row-list.js';
-import {
-  CONTEXT_MODE_DESCS,
-  FLEET_CHAT_MODE_DESCS,
-  MODE_DESC,
-  STATUSLINE_MODE_DESCS,
-  TOKEN_SAVING_TIER_DESCS,
-  formatAnimationStyle,
-  formatBreakerTimeout,
-  formatEnhanceDelay,
-  formatMaxIterations,
-  formatMultiDiffSummaryThreshold,
-  formatPreRefineSeconds,
-  formatSettingsDelay,
-} from './settings-picker-model.js';
+import { SETTINGS_PICKER_JUMP_CHORDS } from './settings-picker-jumps.js';
 import type {
   AnimationStyleChoice,
   AuditLevel,
@@ -35,16 +18,31 @@ import type {
   StatuslineMode,
   TokenSavingTierTui,
 } from './settings-picker-model.js';
-export * from './settings-picker-model.js';
+import {
+  CONTEXT_MODE_DESCS,
+  FLEET_CHAT_MODE_DESCS,
+  formatAnimationStyle,
+  formatBreakerTimeout,
+  formatEnhanceDelay,
+  formatMaxIterations,
+  formatMultiDiffSummaryThreshold,
+  formatPreRefineSeconds,
+  formatSettingsDelay,
+  MODE_DESC,
+  STATUSLINE_MODE_DESCS,
+  TOKEN_SAVING_TIER_DESCS,
+} from './settings-picker-model.js';
+import { type SettingsPickerRowData, SettingsPickerRowList } from './settings-picker-row-list.js';
 
 export {
   SETTINGS_PICKER_JUMP_CHORDS,
+  type SettingsPickerJumpChord,
+  type SettingsPickerJumpMod,
   settingsPickerJumpByName,
   settingsPickerJumpField,
   settingsPickerJumpNames,
-  type SettingsPickerJumpChord,
-  type SettingsPickerJumpMod,
 } from './settings-picker-jumps.js';
+export * from './settings-picker-model.js';
 
 export interface SettingsPickerProps {
   /** Focused row index. */
@@ -123,6 +121,9 @@ export interface SettingsPickerProps {
    * remain independently available through their panel shortcuts. Default: true.
    */
   showAgentSwarmPanel: boolean;
+  // ── Tools ──
+  /** When true, read tool includes codebase-index symbols alongside file content. */
+  readSymbols: boolean;
   // ── Debug ──
   /** Raw SSE stream debugging toggle — hex-dump every byte received from providers. */
   debugStream: boolean;
@@ -195,6 +196,7 @@ export function SettingsPicker({
   breakerAutoKillResetMs,
   showModelReasoning,
   showAgentSwarmPanel,
+  readSymbols,
   hint,
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
@@ -312,8 +314,12 @@ export function SettingsPicker({
     {
       label: 'Multi-diff summary',
       value: formatMultiDiffSummaryThreshold(multiDiffSummaryThreshold),
-      detail:
-        'Min files before aggregate header (0 = off, default 5, 10 for big diffs)',
+      detail: 'Min files before aggregate header (0 = off, default 5, 10 for big diffs)',
+    },
+    {
+      label: 'Read symbols',
+      value: boolVal(readSymbols),
+      detail: 'Include codebase-index symbols in read tool results',
     },
     // ── Reasoning ──
     { section: 'Reasoning' },
@@ -469,7 +475,10 @@ export function SettingsPicker({
         ━━ Settings ━━
       </Text>
       {filterActive ? (
-        <Text color="yellow" bold>{`Filter: ${filter} (${filteredFieldIndices.length} match${filteredFieldIndices.length === 1 ? '' : 'es'})`}</Text>
+        <Text
+          color="yellow"
+          bold
+        >{`Filter: ${filter} (${filteredFieldIndices.length} match${filteredFieldIndices.length === 1 ? '' : 'es'})`}</Text>
       ) : (
         <Text dimColor>↑/↓ field · ←/→ change + autosave · `/` to search · F5 to close</Text>
       )}
@@ -477,7 +486,9 @@ export function SettingsPicker({
         <Text dimColor>{`  ↑ ${windowStart} field${windowStart === 1 ? '' : 's'} above`}</Text>
       ) : null}
       {filterActive && filteredFieldIndices.length === 0 ? (
-        <Text dimColor italic>No matching settings rows.</Text>
+        <Text dimColor italic>
+          No matching settings rows.
+        </Text>
       ) : null}
       <SettingsPickerRowList
         rows={rows}
@@ -490,7 +501,9 @@ export function SettingsPicker({
         windowEnd={windowEnd}
       />
       {hasBelow && !filterActive ? (
-        <Text dimColor>{`  ↓ ${totalFields - windowEnd} field${totalFields - windowEnd === 1 ? '' : 's'} below`}</Text>
+        <Text
+          dimColor
+        >{`  ↓ ${totalFields - windowEnd} field${totalFields - windowEnd === 1 ? '' : 's'} below`}</Text>
       ) : null}
       <Text dimColor>
         {configScope === 'project'
