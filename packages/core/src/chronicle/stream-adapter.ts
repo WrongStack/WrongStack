@@ -18,6 +18,13 @@ interface StreamState {
 /** Max age in ms before an incomplete stream state is force-flushed as a failure. */
 const MAX_STATE_AGE_MS = 300_000;
 
+/**
+ * How often the independent stale-state reaper sweeps the states Map.
+ * Set to 1/6 of MAX_STATE_AGE_MS so every stale entry is caught within
+ * ~50 s of expiry regardless of whether any text delta arrives.
+ */
+const STALE_STATE_SWEEP_INTERVAL_MS = Math.round(MAX_STATE_AGE_MS / 6);
+
 /** Aggregates high-frequency streaming deltas without dropping their volume/timing/content identity. */
 export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOptions): () => void {
   const states = new Map<string, StreamState>();
@@ -28,13 +35,7 @@ export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOp
     // completion/failure. Runs on every delta to catch completely silent stale
     // states — even entries that never receive another delta for their own key
     // will eventually be swept when a delta arrives for ANY active attempt.
-    if (states.size > 0) {
-      for (const [, s] of states) {
-        if (now - s.startedAtMs > MAX_STATE_AGE_MS) {
-          flush(s.sessionId, s.agentId, 'failure');
-        }
-      }
-    }
+    sweepStaleStates(states, flush, now);
     const k = key(sessionId, agentId);
     const state = states.get(k);
     if (!state) return;
@@ -72,5 +73,41 @@ export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOp
     options.events.on('provider.attempt.completed', (event) => flush(event.sessionId, event.agentId, 'success')),
     options.events.on('provider.attempt.failed', (event) => flush(event.sessionId, event.agentId, 'failure')),
   ];
-  return () => { for (const state of [...states.values()]) flush(state.sessionId, state.agentId, 'failure'); offs.forEach((off) => { off(); }); };
+
+  // Independent stale-state reaper: catches orphaned StreamState entries
+  // that never receive a completion/failure event AND never see another
+  // text/thinking delta (the delta-triggered sweep in update() alone is
+  // not sufficient — an attempt that starts and goes silent stays in the
+  // map until a DIFFERENT attempt produces a delta for a different key).
+  const reaperTimer = setInterval(
+    () => sweepStaleStates(states, flush, Date.now()),
+    STALE_STATE_SWEEP_INTERVAL_MS,
+  );
+  if (typeof reaperTimer.unref === 'function') reaperTimer.unref();
+
+  return () => {
+    clearInterval(reaperTimer);
+    for (const state of [...states.values()]) flush(state.sessionId, state.agentId, 'failure');
+    offs.forEach((off) => { off(); });
+  };
+}
+
+/**
+ * Sweep stale states from the map — any entry past MAX_STATE_AGE_MS is
+ * force-flushed as a failure and removed. Idempotent: safe to call from
+ * both the delta-triggered path and the independent interval reaper.
+ */
+function sweepStaleStates(
+  states: Map<string, StreamState>,
+  flushFn: (sessionId: string | undefined, agentId: string | undefined, outcome: 'success' | 'failure') => void,
+  now: number,
+): void {
+  if (states.size === 0) return;
+  for (const s of states.values()) {
+    if (now - s.startedAtMs > MAX_STATE_AGE_MS) {
+      const sid = s.sessionId;
+      const aid = s.agentId;
+      flushFn(sid, aid, 'failure');
+    }
+  }
 }
