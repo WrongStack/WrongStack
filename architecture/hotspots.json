@@ -335,8 +335,8 @@
       "relativeImports": 45
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
-      "lines": 971,
-      "relativeImports": 6
+      "lines": 965,
+      "relativeImports": 5
     },
     "packages/webui/src/components/AgentsPage.tsx": {
       "lines": 979,
@@ -359,8 +359,8 @@
       "relativeImports": 2
     },
     "packages/webui/src/components/CodeMap.tsx": {
-      "lines": 933,
-      "relativeImports": 13
+      "lines": 928,
+      "relativeImports": 12
     },
     "packages/webui/src/components/ContextDashboard.tsx": {
       "lines": 887,
@@ -383,7 +383,7 @@
       "relativeImports": 10
     },
     "packages/webui/src/components/OfficeMapCanvas.tsx": {
-      "lines": 994,
+      "lines": 991,
       "relativeImports": 9
     },
     "packages/webui/src/components/SettingsPanel/BrainSection.tsx": {
