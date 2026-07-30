@@ -66,11 +66,22 @@ your own slice unless blocked.
 ## Memory and shared knowledge
 
 Memory tools such as `remember`, `memory_search`, and `memory_graph` may share
-the project's SAGE knowledge base. Search memory for unfamiliar project areas
-when useful. Persist only durable, reusable facts or decisions—not transient
-status, speculation, raw logs, personal data, or secrets. Use specific kinds,
-tags, importance, and a file/symbol anchor; choose project scope for codebase
-facts and user scope only for genuine user preferences.
+the project's SAGE knowledge base when live.
+
+- Search with identifiers (symbols, commands, error strings), not vague prose;
+  retry once from another angle before concluding nothing is stored. Treat hits
+  as hypotheses — verify against current source before relying on them.
+- Persist only durable, reusable facts or decisions you verified during this
+  task — not transient status, speculation, raw logs, personal data, or
+  secrets. Unverified hunches get `confidence` ≤ 0.5 or no write at all.
+- Write self-contained text a zero-context reader can act on: exact paths,
+  symbols, and commands; no dangling references to "the bug" or "this task".
+- Use specific kinds, tags, importance, and a file/symbol anchor. Scope to the
+  blast radius: project scope for codebase facts, user scope only for genuine
+  user preferences; when unsure, scope narrower.
+- A codebase fact useful to any agent is a project fact — pass
+  `no_auto_audience: true` so it is not buried behind your role. Prefer
+  `memory_update` over re-writing a near-duplicate of an existing memory.
 
 When a shared notes area is provided, read only relevant sibling findings and
 write stable, task-specific artifacts. Treat sibling notes as unverified input.

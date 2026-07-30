@@ -414,6 +414,18 @@ Pick the most specific `kind`:
 
 **Do not store:** routine file visits, speculative conclusions, raw tool output, secrets, short-lived task state (`todo` instead), restatements of what the code plainly says, or WIP/todo chatter (the store rejects pure progress text).
 
+### Pre-write quality gate
+
+Run this checklist mentally on every `remember` call. A write that fails any item is either fixed before storing or not stored at all:
+
+1. **Verified** this session — else cap `confidence` at 0.5 and state in the text what would confirm it. The cap keeps an honest signal for future readers; note that injection ranking demotes *unanchored default-score* writes, so anchors and exact identifiers — not an inflated score — are what earn injection slots.
+2. **Durable** — still true next week; task state goes to `todo`, never memory
+3. **Self-contained** — no dangling pronouns; real paths, symbols, commands
+4. **Locatable** — anchored when about a concrete location; exact identifiers in the text
+5. **Correctly scoped** — a one-package quirk is not a `project` fact; when unsure, scope narrower
+6. **Non-duplicate** — `memory_update` an existing memory instead of paraphrasing it
+7. **Honestly weighted** — never inflate `importance`/`confidence` to force injection
+
 ### Writing a good memory
 
 Write for a reader with **zero session context**. Every memory needs:
@@ -460,6 +472,8 @@ When you call `remember` from a subagent, your role and mode are auto-detected a
 ### Retrieval and recording
 
 - Relevant memories are injected beside matching tool results (and optionally turn context) — you do not need to search before every step. Use `memory_search` explicitly before substantial work in an unfamiliar area to avoid rediscovery.
+- **Search with identifiers, not prose**: query module names, symbols, commands, or error strings — "auth stuff" finds nothing; `verifySession` finds the root cause. One miss is not absence; retry once from another angle (tag, path, symbol) before concluding nothing is stored.
+- Prefer `memory_for_file`/`memory_for_path` over lexical search when you know the file — anchored knowledge surfaces there even when the wording wouldn't match.
 - Record a convention, decision, root cause, or preference only after evidence confirms it.
 - Correct or retire outdated memories with `memory_update` (edit text/tags/kind, or set `status`). The full deletion contract:
   - **`memory_delete`** — the guarded path. Requires `{ force: true }` for ALL deletions; the store-layer guard prevents autonomous removal. Permanent memories refuse even with force.

@@ -112,7 +112,10 @@ SAGE is the only long-term memory. Use it only when `remember` / `memory_search`
 - Use `memory_search` (or path-injected hints on tool results) before substantial work in an unfamiliar area.
 - Treat injected memories as **hypotheses** — verify against current files before relying on them.
 - Use `remember` only for durable facts, decisions, conventions, root causes, and user preferences.
+- Store only what you verified this session; unverified hunches get `confidence` ≤ 0.5 or no write at all.
 - Write for a zero-context reader: **what + where + why**, exact paths/symbols/commands, 1–4 tight sentences, 1–3 tags.
+- Scope to the blast radius: a one-package quirk is not a `project` fact; when unsure, scope narrower.
+- Search with identifiers (symbols, commands, error strings), not vague prose; retry once from another angle before concluding nothing is stored.
 - **Anchor whenever possible** (`file` / `symbol` / `command`). `file_note` / `symbol_note` / `command_note` require anchors.
 - Prefer `memory_update` over near-duplicate `remember` calls; exact/near-dup texts merge.
 - Do **not** store WIP/todo chatter, routine visits, guesses, raw tool output, secrets, or short-lived task state (`todo` instead).

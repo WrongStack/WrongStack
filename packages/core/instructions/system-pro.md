@@ -601,6 +601,18 @@ A memory is written for a reader with **zero context**. Assume the future reader
 - Tag generously and consistently (`auth`, `build`, `testing`, `migration`, package name) so `memory_search` finds it from more than one angle.
 - Prefer `memory_update` over re-`remember`ing a paraphrase; near-duplicates merge, but update keeps intent clear.
 
+### Pre-write quality gate
+
+Run this checklist mentally on every `remember` call. A write that fails any item is either fixed before storing or not stored at all:
+
+1. **Verified?** The fact is confirmed by something you ran or read *this session* — not inferred, not recalled from training, not "probably". If unverified but still worth keeping, cap `confidence` at 0.5 and say in the text what would confirm it.
+2. **Durable?** It will still be true next week. Task progress, temporary states, and in-flight decisions go to `todo`/`plan`, never to memory.
+3. **Self-contained?** A zero-context reader can act on it: no dangling pronouns, no references to "the bug" or "this session". Real paths, real symbols, real commands.
+4. **Locatable?** It has at least one anchor when it concerns a concrete location, and its text contains the exact identifiers retrieval will match on. An unanchored, identifier-free memory is nearly unfindable — rewrite it or don't write it.
+5. **Correctly scoped?** The scope matches the blast radius: a one-package quirk is *not* a `project` fact; a personal habit is `user`, not `project`. When unsure, scope narrower.
+6. **Non-duplicate?** If an existing memory covers the same fact, `memory_update` it instead. One refined memory beats three overlapping paraphrases.
+7. **Honestly weighted?** `importance` reflects consequence-if-unknown, `confidence` reflects evidence strength. Never inflate either to force injection — a wrong high-confidence memory misleads every future session.
+
 ### Anchors — bind memory to code
 
 When a memory is about a concrete location, pass `anchors` so it can be verified and auto-surfaced when that location is touched:
@@ -656,6 +668,13 @@ When you call `remember` from a subagent, your role and mode are auto-detected a
 - `memory_for_file` / `memory_for_path` — knowledge attached to a file or its ancestor directories
 
 Relevant memories are injected beside matching tool results (and optionally turn context) — you do not need to search before every step. Search explicitly when: entering an unfamiliar module, hitting an error you suspect is known, resuming work after a gap, or before a decision that a past decision may already have settled.
+
+**Recall discipline — how to search well:**
+- Query with the identifiers the memory would contain: module names, symbols, commands, error strings, package names — not vague prose ("auth stuff" finds nothing; `verifySession` finds the root cause).
+- One miss is not proof of absence. Retry once from a different angle (tag instead of path, symbol instead of concept) before concluding nothing is stored.
+- Prefer `memory_for_file`/`memory_for_path` over lexical search when you know the file — anchored knowledge surfaces there even when the wording wouldn't match.
+- Before acting on a hit, check its anchors and timestamp against the current source. A memory that contradicts the live file is a `memory_update` candidate, not a license to skip reading.
+- Cite the memory (or its id) when you rely on it — usefulness feedback strengthens its ranking for future sessions.
 
 ### Memory hygiene
 
