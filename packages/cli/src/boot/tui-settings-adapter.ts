@@ -182,6 +182,11 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
       showModelReasoning: autonomy?.showModelReasoning ?? true,
       showAgentSwarmPanel: autonomy?.showAgentSwarmPanel ?? true,
+      showSageMemoryInject: autonomy?.showSageMemoryInject ?? false,
+      readSymbols: autonomy?.readAdvancedMode ?? false,
+      sageMemoryInjectThreshold: (cfg.Sage as Record<string, unknown> | undefined)?.inject
+        ? ((cfg.Sage as Record<string, unknown>).inject as Record<string, unknown>)?.relationFloor
+        : undefined,
     };
   }
 
@@ -235,7 +240,10 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.breakerEnabled !== undefined ||
         s.breakerAutoKillResetMs !== undefined ||
         s.showModelReasoning !== undefined ||
-        s.showAgentSwarmPanel !== undefined
+        s.showAgentSwarmPanel !== undefined ||
+        s.showSageMemoryInject !== undefined ||
+        s.sageMemoryInjectThreshold !== undefined ||
+        s.readSymbols !== undefined
       ) {
         const cfg = configStore.get();
         // Delegate path resolution to the canonical resolver. This keeps
@@ -290,6 +298,10 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (s.showModelReasoning !== undefined) autonomy.showModelReasoning = s.showModelReasoning;
         if (s.showAgentSwarmPanel !== undefined)
           autonomy.showAgentSwarmPanel = s.showAgentSwarmPanel;
+        if (s.showSageMemoryInject !== undefined)
+          autonomy.showSageMemoryInject = s.showSageMemoryInject;
+        if (s.readSymbols !== undefined)
+          autonomy.readAdvancedMode = s.readSymbols;
         if (s.autonomyNextPrompt !== undefined) autonomy.autonomyNextPrompt = s.autonomyNextPrompt;
         if (s.autoProceedMaxIterations !== undefined)
           autonomy.autoProceedMaxIterations = s.autoProceedMaxIterations;
@@ -381,7 +393,14 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
             if (s.reasoningPreserve !== undefined) reasoning.preserve = s.reasoningPreserve;
             modelRuntime.reasoning = reasoning;
           }
-          if (s.cacheTtl !== undefined) {
+          if (s.sageMemoryInjectThreshold !== undefined) {
+          const sageSec = (decrypted.Sage as Record<string, unknown>) ?? {};
+          const inject = (sageSec.inject as Record<string, unknown>) ?? {};
+          inject.relationFloor = s.sageMemoryInjectThreshold;
+          sageSec.inject = inject;
+          decrypted.Sage = sageSec;
+        }
+        if (s.cacheTtl !== undefined) {
             const cache = (modelRuntime.cache as Record<string, unknown>) ?? {};
             if (s.cacheTtl === 'default') {
               delete cache.ttl;

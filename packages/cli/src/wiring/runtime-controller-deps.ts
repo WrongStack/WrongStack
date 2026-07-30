@@ -98,6 +98,9 @@ function applyLiveSettings(
     if (settings.enhanceEnabled !== undefined) {
       input.enhanceController?.setEnabled(settings.enhanceEnabled);
     }
+    if (settings.readSymbols !== undefined) {
+      input.context.meta['tools.read.advancedMode'] = settings.readSymbols;
+    }
     if (settings.maxIterations !== undefined) input.agent.maxIterations = settings.maxIterations;
     if (settings.logLevel !== undefined) input.setLogLevel(settings.logLevel as LogLevel);
     if (settings.auditLevel !== undefined) {

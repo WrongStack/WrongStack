@@ -66,4 +66,13 @@ export interface LiveSettingsInput {
   showModelReasoning?: boolean | undefined;
   /** Optionally show the persistent AGENT SWARM and todo mission queue panel; defaults to true at the storage layer. */
   showAgentSwarmPanel?: boolean | undefined;
+  /** Show SAGE Memory Inject blocks in tool results. Default: false. */
+  showSageMemoryInject?: boolean | undefined;
+  /**
+   * When true, the read tool includes codebase-index symbols alongside
+   * file content. Persisted as `autonomy.readAdvancedMode`.
+   */
+  readSymbols?: boolean | undefined;
+  /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
+  sageMemoryInjectThreshold?: number | undefined;
 }
