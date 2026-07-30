@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   createChronicleProjectAccess: vi.fn(),
   checkCodebaseIndexServerHealth: vi.fn(),
   getIndexState: vi.fn(),
+  resolveProjectIndexDaemonAvailability: vi.fn(() => ({ kind: 'available', url: new URL('file:///dummy.js') })),
   isSageProjectServerAvailable: vi.fn(),
   sageStatus: vi.fn(),
   sageClose: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('@wrongstack/core/chronicle', () => ({
 vi.mock('@wrongstack/tools', () => ({
   checkCodebaseIndexServerHealth: mocks.checkCodebaseIndexServerHealth,
   getIndexState: mocks.getIndexState,
+  resolveProjectIndexDaemonAvailability: mocks.resolveProjectIndexDaemonAvailability,
 }));
 
 vi.mock('@wrongstack/sage', () => ({
