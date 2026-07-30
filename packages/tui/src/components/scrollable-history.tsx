@@ -209,7 +209,6 @@ function buildCopyRegistry(opts: {
   viewportRows: number;
   iconCol: number;
   showModelReasoning?: boolean | undefined;
-  showSageMemoryInject?: boolean | undefined;
   liveToolVisible: boolean;
 }): CopyRegistry {
   const mountedGroupRows = opts.renderGroups.reduce(
@@ -781,7 +780,6 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     viewportRows: vp,
     iconCol: termWidth,
     showModelReasoning,
-    showSageMemoryInject,
     liveToolVisible: Boolean(plan.mountTail && toolTail && toolStream),
   });
   copyHitsRef.current = copyRegistry.hits;

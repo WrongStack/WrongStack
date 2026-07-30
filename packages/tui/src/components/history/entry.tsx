@@ -161,6 +161,7 @@ export const Entry = React.memo(function Entry({
   multiDiffSummaryThreshold,
   todos,
   showModelReasoning,
+  showSageMemoryInject,
 }: {
   entry: HistoryEntry;
   termWidth: number;
@@ -182,6 +183,12 @@ export const Entry = React.memo(function Entry({
    * `kind: 'thinking'` entries render as an empty fragment. Default: true.
    */
   showModelReasoning?: boolean | undefined;
+  /**
+   * Show SAGE Memory Inject blocks in tool results. When false,
+   * the `SageMemoryBlock` panel is hidden even when memory was injected.
+   * Default: true (shown when unset — guard is `!== false`).
+   */
+  showSageMemoryInject?: boolean | undefined;
 }): React.ReactElement | null {
   // Whether the agent still has open (pending/in_progress) todos. While it
   // does, finishing them takes priority over offering `<nextsteps>` — both
@@ -527,11 +534,13 @@ export const Entry = React.memo(function Entry({
                 />
               ) : null}
             </ToolCard>
-            <SageMemoryBlock
-              sageLines={sageLines}
-              toolName={entry.name}
-              stats={entry.sageStats}
-            />
+            {showSageMemoryInject !== false ? (
+              <SageMemoryBlock
+                sageLines={sageLines}
+                toolName={entry.name}
+                stats={entry.sageStats}
+              />
+            ) : null}
           </Box>
         );
       }
@@ -622,7 +631,9 @@ export const Entry = React.memo(function Entry({
               />
             ) : null}
           </ToolCard>
-          <SageMemoryBlock sageLines={sageLines} toolName={entry.name} stats={entry.sageStats} />
+          {showSageMemoryInject !== false ? (
+            <SageMemoryBlock sageLines={sageLines} toolName={entry.name} stats={entry.sageStats} />
+          ) : null}
         </Box>
       );
     }
