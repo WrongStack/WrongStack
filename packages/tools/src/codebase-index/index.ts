@@ -15,6 +15,10 @@
  */
 
 export {
+  resolveProjectIndexDaemonAvailability,
+  type ProjectIndexDaemonAvailability,
+} from './project-server-client.js';
+export {
   cancelPendingReindexes,
   checkCodebaseIndexServerHealth,
   codebaseIndexStats,

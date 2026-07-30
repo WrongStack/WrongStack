@@ -319,7 +319,7 @@ function warnEndpointInvalidOnce(
   process.stderr.write(
     `codebase-index: socket path is ${availability.byteLength} bytes, over this platform's ` +
       `${availability.maxBytes}-byte sun_path limit (${availability.endpoint}). ` +
-      `Falling back to a process-local index; set a shorter TMPDIR to restore the shared daemon.\n`,
+      `Subsequent calls will reject until TMPDIR is shortened to restore the shared daemon.\n`,
   );
 }
 

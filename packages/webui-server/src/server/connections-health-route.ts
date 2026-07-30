@@ -13,6 +13,7 @@ import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wron
 import {
   checkCodebaseIndexServerHealth,
   getIndexState,
+  resolveProjectIndexDaemonAvailability,
   shutdownCodebaseIndexServer,
 } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
@@ -179,6 +180,22 @@ async function codebaseIndexHealth(
   indexDir?: string,
 ): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
+  const availability = resolveProjectIndexDaemonAvailability(projectRoot, indexDir);
+  if (availability.kind === 'endpoint-invalid') {
+    return {
+      id: 'codebase-index',
+      label: 'Codebase index',
+      status: 'unavailable',
+      required: false,
+      mode: 'endpoint-invalid',
+      detail:
+        `Socket path is ${availability.byteLength} bytes — over this platform's ` +
+        `${availability.maxBytes}-byte sun_path limit. Queries fall back to a process-local ` +
+        `index. Set a shorter TMPDIR to restore the shared daemon.`,
+      endpoint: availability.endpoint,
+      latencyMs: Date.now() - startedAt,
+    };
+  }
   try {
     const health = await checkCodebaseIndexServerHealth(projectRoot, indexDir, {
       timeoutMs: 2_000,

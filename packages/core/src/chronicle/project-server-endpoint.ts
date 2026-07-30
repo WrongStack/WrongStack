@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { assertUnixSocketPathWithinLimit } from '../utils/socket-path.js';
 import { CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION } from './project-server-protocol.js';
 
 export const CHRONICLE_PROJECT_SERVER_METADATA_FILE = 'server.json';
@@ -36,6 +37,10 @@ export function chronicleProjectServerMetadataPath(projectDir: string): string {
 
 export function ensureChronicleProjectServerSocketDirectory(endpoint: string): void {
   if (process.platform !== 'win32') {
+    // 102 bytes under a canonical macOS TMPDIR — a single byte of sun_path
+    // headroom. Assert so growth fails loudly instead of as a silent bind
+    // error in the detached daemon (see the codebase-index macOS incident).
+    assertUnixSocketPathWithinLimit(endpoint, 'chronicle');
     fs.mkdirSync(path.dirname(endpoint), { recursive: true, mode: 0o700 });
   }
 }

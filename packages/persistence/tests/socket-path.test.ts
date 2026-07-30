@@ -5,7 +5,7 @@ import {
   unixSocketPathLimit,
 } from '../src/socket-path.js';
 
-/** Canonical macOS per-user temp dir shape: /var/folders/<2>/<30>/T (49 bytes). */
+/** Canonical macOS per-user temp dir shape: /var/folders/<2>/<30>/T (48 bytes). */
 const MACOS_TMPDIR = '/var/folders/zz/abcdefghijklmnopqrstuvwxyz0123/T';
 
 describe('unixSocketPathLimit', () => {

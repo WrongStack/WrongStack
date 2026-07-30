@@ -8,6 +8,20 @@ import { resolveIndexDir } from './writer.js';
 
 export const PROJECT_INDEX_SERVER_PROTOCOL_VERSION = 1;
 export const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
+/**
+ * Short directory name that owns the per-project Unix socket on Linux.
+ *
+ * The directory is created `0o700` by `ensureProjectIndexSocketDirectory`: on
+ * multi-user Linux `/tmp` the kernel's sticky bit otherwise lets a local
+ * attacker pre-bind a predictable socket name (project paths are guessable
+ * via the public `buildId` handshake), hijacking clients whose `bind()` hits
+ * EADDRINUSE. macOS is unaffected because each user already has a private
+ * TMPDIR, so the subdirectory adds no extra ownership boundary there.
+ *
+ * The name is kept short to stay under the 103-byte `sun_path` cap on macOS
+ * (48 bytes of `/var/folders/<xx>/<30 chars>/T` + 8 + 24 + 5 = 85 bytes).
+ */
+export const PROJECT_INDEX_SERVER_SOCKET_DIR = `wsci-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}`;
 
 let buildIdCache:
   | {
@@ -70,14 +84,16 @@ export function projectIndexServerKey(projectRoot: string, indexDir?: string): s
 /**
  * Deterministic per-project local IPC endpoint.
  *
- * The Unix layout is deliberately flat and short (`wsci-v1-<key>.sock`
- * directly in the temp dir): macOS's per-user TMPDIR is ~49 bytes of
- * `/var/folders/<xx>/<30 chars>/T`, and `sun_path` caps the whole socket
- * path at 104 bytes including the NUL on macOS/BSD (108 on Linux). The
- * previous `wrongstack-codebase-index-v1/<key>.sock` subdirectory layout came
- * to ~107 bytes there, so `bind()` failed with ENAMETOOLONG inside a detached
- * child whose stderr was discarded — clients saw only a 10s connect timeout.
- * The flat layout stays well under both limits; the pipe name keeps the long
+ * The Unix layout places the socket inside a short `wsci-v1/` subdirectory of
+ * the temp dir: macOS's per-user TMPDIR is ~48 bytes of
+ * `/var/folders/<xx>/<30 chars>/T`, and `sun_path` caps the whole socket path
+ * at 104 bytes including the NUL on macOS/BSD (108 on Linux). The previous
+ * `wrongstack-codebase-index-v1/<key>.sock` subdirectory layout came to ~107
+ * bytes there, so `bind()` failed with ENAMETOOLONG inside a detached child
+ * whose stderr was discarded — clients saw only a 10s connect timeout. The
+ * short `wsci-v1/` subdirectory stays well under both limits (85 bytes on the
+ * worst-case macOS TMPDIR) and restores the `0o700` ownership boundary the
+ * flat layout lost on multi-user Linux `/tmp`. The pipe name keeps the long
  * prefix because named pipes have no such limit.
  */
 export function projectIndexServerEndpoint(projectRoot: string, indexDir?: string): string {
@@ -89,7 +105,7 @@ export function projectIndexServerEndpoint(projectRoot: string, indexDir?: strin
   // degrade on an unbindable path (`resolveProjectIndexDaemonAvailability`,
   // connection-state probes). The hard length assert lives at bind time in
   // `ensureProjectIndexSocketDirectory`, platform-aware via the shared helper.
-  return path.join(os.tmpdir(), `wsci-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}-${key}.sock`);
+  return path.join(os.tmpdir(), PROJECT_INDEX_SERVER_SOCKET_DIR, `${key}.sock`);
 }
 
 export function projectIndexServerMetadataPath(projectRoot: string, indexDir?: string): string {

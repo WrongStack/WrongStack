@@ -9,7 +9,7 @@
  *
  * Every WrongStack project daemon (codebase-index, SAGE, Kanban, mailbox,
  * chronicle) derives a deterministic socket path under the platform temp
- * directory; on macOS that directory is the ~49-character per-user
+ * directory; on macOS that directory is the ~48-character per-user
  * `/var/folders/<xx>/<30 chars>/T`, which leaves little headroom. Validate
  * endpoints at derivation time so an over-long path fails loudly (or degrades
  * explicitly) instead of timing out silently.

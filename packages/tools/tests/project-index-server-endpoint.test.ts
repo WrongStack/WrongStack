@@ -13,7 +13,7 @@ import {
 
 /**
  * Canonical worst-case macOS per-user temp dir: `confstr(_CS_DARWIN_USER_TEMP_DIR)`
- * yields `/var/folders/<2 chars>/<30 chars>/T` (49 bytes). The 2026-07 macOS
+ * yields `/var/folders/<2 chars>/<30 chars>/T` (48 bytes). The 2026-07 macOS
  * incident: the old `wrongstack-codebase-index-v1/<key>.sock` subdirectory
  * layout reached 107 bytes here, over the 103 usable `sun_path` bytes, and the
  * detached daemon died silently on bind.
@@ -41,16 +41,19 @@ describe('project index server endpoint', () => {
 
   it('stays under 100 bytes with a worst-case macOS TMPDIR', () => {
     // The Unix filename layout must survive the longest legitimate temp dir.
-    // Compose the endpoint exactly as the non-win32 branch does: flat
-    // `wsci-v1-<key>.sock` file directly inside the temp dir.
+    // Compose the endpoint exactly as the non-win32 branch does: a short
+    // `wsci-v1/` subdirectory owning the `<key>.sock` file. The private
+    // subdirectory restores the `0o700` ownership boundary the original flat
+    // layout lost on multi-user Linux `/tmp`.
     const key = projectIndexServerKey('/workspace/some-project');
-    const filename = `wsci-v1-${key}.sock`;
-    const endpoint = path.posix.join(WORST_CASE_MACOS_TMPDIR, filename);
+    const endpoint = path.posix.join(WORST_CASE_MACOS_TMPDIR, 'wsci-v1', `${key}.sock`);
     const byteLength = Buffer.byteLength(endpoint, 'utf8');
     expect(byteLength).toBeLessThan(100);
     expect(checkUnixSocketPath(endpoint, 'darwin')).toMatchObject({ ok: true, maxBytes: 103 });
-    // Regression guard for the incident itself: the OLD subdirectory layout
-    // must be recognized as over-limit on macOS, or this test proves nothing.
+    // Regression guard for the incident itself: the OLD long-prefixed
+    // subdirectory layout must be recognized as over-limit on macOS, or this
+    // test proves nothing. It also proves the new short prefix was the right
+    // way to keep the subdirectory layout under the limit.
     const legacy = path.posix.join(
       WORST_CASE_MACOS_TMPDIR,
       'wrongstack-codebase-index-v1',
@@ -59,16 +62,18 @@ describe('project index server endpoint', () => {
     expect(checkUnixSocketPath(legacy, 'darwin').ok).toBe(false);
   });
 
-  it('derives the live endpoint inside the platform temp location', () => {
+  it('derives the live endpoint inside a private subdirectory of the temp dir', () => {
     const endpoint = projectIndexServerEndpoint('/workspace/project');
     if (process.platform === 'win32') {
       expect(endpoint.startsWith('\\\\.\\pipe\\')).toBe(true);
     } else {
-      expect(path.dirname(endpoint)).toBe(os.tmpdir());
-      expect(path.basename(endpoint)).toMatch(/^wsci-v\d+-[0-9a-f]{24}\.sock$/);
-      expect(Buffer.byteLength(endpoint, 'utf8')).toBeLessThanOrEqual(
-        unixSocketPathLimit(),
-      );
+      // The endpoint lives in a short `wsci-v<protocol>/` subdirectory that
+      // `ensureProjectIndexSocketDirectory` creates with mode 0o700. That
+      // subdirectory is the ownership boundary blocking pre-bind attacks on
+      // shared Linux /tmp; the socket name itself is not predictable-private.
+      expect(path.dirname(endpoint)).toBe(path.join(os.tmpdir(), 'wsci-v1'));
+      expect(path.basename(endpoint)).toMatch(/^[0-9a-f]{24}\.sock$/);
+      expect(Buffer.byteLength(endpoint, 'utf8')).toBeLessThanOrEqual(unixSocketPathLimit());
     }
   });
 

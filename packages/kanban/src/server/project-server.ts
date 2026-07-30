@@ -15,6 +15,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { assertUnixSocketPathWithinLimit } from '@wrongstack/persistence';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import { StaleWriteError } from '../manager/lifecycle.js';
 import * as kanban from '../manager.js';
@@ -172,6 +173,11 @@ async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void>
 
 async function ensureParentDir(): Promise<void> {
   if (process.platform === 'win32') return;
+  // Fail fast with an actionable message: an over-long sun_path would
+  // otherwise surface as ENAMETOOLONG/EINVAL inside a detached child whose
+  // stderr is discarded, leaving clients a bare connect timeout. Mirrors
+  // `ensureProjectIndexSocketDirectory` in packages/tools.
+  assertUnixSocketPathWithinLimit(endpoint, 'kanban');
   const dir = path.dirname(endpoint);
   await fsPromises.mkdir(dir, { recursive: true }).catch(() => undefined);
 }

@@ -115,7 +115,7 @@ export type ProjectIndexDaemonAvailability =
   | { readonly kind: 'missing-build' }
   /**
    * The derived socket path cannot be bound on this platform (over the
-   * `sun_path` byte limit — seen on macOS whose per-user TMPDIR is ~49 bytes).
+   * `sun_path` byte limit — seen on macOS whose per-user TMPDIR is ~48 bytes).
    * A daemon spawned onto this endpoint dies silently (`stdio: 'ignore'`), so
    * callers must degrade explicitly instead of entering the connect loop.
    */
@@ -133,29 +133,39 @@ export function resolveProjectIndexDaemonAvailability(
   if (process.env['WRONGSTACK_INDEX_INLINE'] || process.env['WRONGSTACK_INDEX_SERVER'] === '0') {
     return { kind: 'inline-requested' };
   }
+  let builtUrl: URL | null = null;
   for (const rel of ['./project-server.js', './codebase-index/project-server.js']) {
     try {
       const url = new URL(rel, import.meta.url);
       if (url.protocol === 'file:' && fs.existsSync(fileURLToPath(url))) {
-        if (projectRoot !== undefined) {
-          const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
-          const check = checkUnixSocketPath(endpoint);
-          if (!check.ok) {
-            return {
-              kind: 'endpoint-invalid',
-              endpoint,
-              byteLength: check.byteLength,
-              maxBytes: check.maxBytes,
-            };
-          }
-        }
-        return { kind: 'available', url };
+        builtUrl = url;
+        break;
       }
     } catch {
       /* try the next candidate */
     }
   }
-  return { kind: 'missing-build' };
+  if (builtUrl === null) return { kind: 'missing-build' };
+  // Validate the endpoint OUTSIDE the build-probing try/catch. A throw here
+  // (today: never; tomorrow: `assertUnixSocketPathWithinLimit` or a future
+  // platform guard) must surface as a real availability kind, not be silently
+  // swallowed and misreported as `missing-build`. Callers rely on the
+  // `endpoint-invalid` branch to reject loudly instead of falling through to
+  // an in-process index that would silently strip every connected client of
+  // the shared per-project daemon.
+  if (projectRoot !== undefined) {
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+    const check = checkUnixSocketPath(endpoint);
+    if (!check.ok) {
+      return {
+        kind: 'endpoint-invalid',
+        endpoint,
+        byteLength: check.byteLength,
+        maxBytes: check.maxBytes,
+      };
+    }
+  }
+  return { kind: 'available', url: builtUrl };
 }
 
 function resolveProjectServerUrl(): URL | null {

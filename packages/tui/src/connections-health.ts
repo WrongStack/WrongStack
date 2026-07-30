@@ -17,7 +17,11 @@ import {
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { getKanbanServerConnection } from '@wrongstack/kanban';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
-import { checkCodebaseIndexServerHealth, getIndexState } from '@wrongstack/tools';
+import {
+  checkCodebaseIndexServerHealth,
+  getIndexState,
+  resolveProjectIndexDaemonAvailability,
+} from '@wrongstack/tools';
 
 export type ConnectionHealthStatus =
   | 'healthy'
@@ -116,6 +120,22 @@ async function chronicleHealth(projectRoot: string): Promise<ConnectionHealthSer
 
 async function codebaseIndexHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
+  const availability = resolveProjectIndexDaemonAvailability(projectRoot);
+  if (availability.kind === 'endpoint-invalid') {
+    return {
+      id: 'codebase-index',
+      label: 'Codebase index',
+      status: 'unavailable',
+      required: false,
+      mode: 'endpoint-invalid',
+      detail:
+        `Socket path is ${availability.byteLength} bytes — over this platform's ` +
+        `${availability.maxBytes}-byte sun_path limit. Queries fall back to a process-local ` +
+        `index. Set a shorter TMPDIR to restore the shared daemon.`,
+      endpoint: availability.endpoint,
+      latencyMs: Date.now() - startedAt,
+    };
+  }
   try {
     const health = await checkCodebaseIndexServerHealth(projectRoot, undefined, { timeoutMs: 2_000 });
     const connection = getIndexState().server;

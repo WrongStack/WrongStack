@@ -1,7 +1,7 @@
 /**
  * Endpoint-length macOS-TMPDIR worst-case coverage for the project index daemon.
  *
- * On macOS the per-user TMPDIR is ~49 bytes (`/var/folders/<xx>/<30 chars>/T`)
+ * On macOS the per-user TMPDIR is ~48 bytes (`/var/folders/<xx>/<30 chars>/T`)
  * and `sun_path` caps Unix-domain socket paths at 103 usable bytes (BSD) or
  * 107 (Linux). The previous failure mode was a detached child process
  * silently dying on `bind()` (`stdio: 'ignore'` swallowed `ENAMETOOLONG`)
@@ -21,7 +21,6 @@
  */
 
 import * as os from 'node:os';
-import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const checkUnixSocketPathMock = vi.hoisted(() => vi.fn());
@@ -140,9 +139,13 @@ describe('resolveProjectIndexDaemonAvailability', () => {
     expect(checkUnixSocketPathMock).toHaveBeenCalledTimes(1);
   });
 
-  it('returns endpoint-invalid with the reported byte counts when the socket path exceeds sun_path', () => {
+  it('forwards the byte counts reported by the socket-path guard into the availability kind', () => {
+    // The guard (mocked here, real in the integration test below) is the
+    // single source of truth for `byteLength` and `maxBytes`. The resolver
+    // must forward them verbatim — no rounding, no platform inference from
+    // `projectRoot`. macOS is simulated here because BSD `sun_path` is the
+    // known trigger (103 usable bytes).
     const projectRoot = '/workspace/proj';
-    // Simulate macOS: BSD sun_path usable limit is 103 bytes.
     checkUnixSocketPathMock.mockReturnValue({ ok: false, byteLength: 142, maxBytes: 103 });
     const availability = resolveProjectIndexDaemonAvailability(projectRoot);
     expect(availability.kind).toBe('endpoint-invalid');
@@ -155,10 +158,14 @@ describe('resolveProjectIndexDaemonAvailability', () => {
     expect(availability.endpoint).toBe(expectedEndpoint);
   });
 
-  it('returns endpoint-invalid on Linux when TMPDIR is unusually deep', () => {
-    const projectRoot = path.join(os.tmpdir(), 'a'.repeat(200));
+  it('reports maxBytes from the real platform check even when indexDir or projectRoot would not push the path over the limit', () => {
+    // Socket-path length comes from `os.tmpdir()` plus a fixed-length hash —
+    // projectRoot and indexDir do NOT influence it. This test pins down the
+    // mock contract: any `ok: false` result is forwarded verbatim, and the
+    // endpoint the resolver reports is the same one the guard evaluated
+    // (never one synthesised from projectRoot).
     checkUnixSocketPathMock.mockReturnValue({ ok: false, byteLength: 260, maxBytes: 107 });
-    const availability = resolveProjectIndexDaemonAvailability(projectRoot);
+    const availability = resolveProjectIndexDaemonAvailability('/workspace/proj');
     expect(availability.kind).toBe('endpoint-invalid');
     if (availability.kind !== 'endpoint-invalid') return;
     expect(availability.maxBytes).toBe(107);
@@ -169,7 +176,7 @@ describe('resolveProjectIndexDaemonAvailability', () => {
   });
 
   it('threads indexDir into the endpoint that gets validated', () => {
-    const projectRoot = '/workspace/proj';
+    const projectRoot = '/workspace/project';
     const indexDir = '/custom/index/dir';
     checkUnixSocketPathMock.mockReturnValue({ ok: true, byteLength: 90, maxBytes: 107 });
     resolveProjectIndexDaemonAvailability(projectRoot, indexDir);
@@ -180,6 +187,44 @@ describe('resolveProjectIndexDaemonAvailability', () => {
     const expected = projectIndexServerEndpoint(projectRoot, indexDir);
     expect(arg).toBe(expected);
   });
+
+  // Socket-path length is driven by `os.tmpdir()` plus a fixed-length hash,
+  // so `projectRoot` / `indexDir` cannot push it over the platform limit on
+  // their own. Stubbing TMPDIR is the only way to exercise the real
+  // `checkUnixSocketPath` against a too-long path on every host — including
+  // Windows CI, where the named-pipe branch is always within limits.
+  it.skipIf(process.platform === 'win32')(
+    'returns endpoint-invalid from the real length check when TMPDIR is deep enough',
+    async () => {
+      const deepTmpdir = `${os.tmpdir()}/${'a'.repeat(200)}`;
+      vi.stubEnv('TMPDIR', deepTmpdir);
+      try {
+        // Reset modules so the new `os.tmpdir()` value is honoured by
+        // already-imported endpoint helpers.
+        vi.resetModules();
+        const { resolveProjectIndexDaemonAvailability: resolveFresh } = await import(
+          '../src/codebase-index/project-server-client.js'
+        );
+        const { projectIndexServerEndpoint: endpointFresh } = await import(
+          '../src/codebase-index/project-server-endpoint.js'
+        );
+        const projectRoot = '/workspace/proj';
+        const endpoint = endpointFresh(projectRoot);
+        // Sanity-check the precondition: the stubbed TMPDIR must actually
+        // produce a socket path over the platform limit, otherwise the test
+        // would silently pass for the wrong reason.
+        expect(Buffer.byteLength(endpoint, 'utf8')).toBeGreaterThan(107);
+        const availability = resolveFresh(projectRoot);
+        expect(availability.kind).toBe('endpoint-invalid');
+        if (availability.kind !== 'endpoint-invalid') return;
+        expect(availability.endpoint).toBe(endpoint);
+        expect(availability.byteLength).toBe(Buffer.byteLength(endpoint, 'utf8'));
+      } finally {
+        vi.unstubAllEnvs();
+        vi.resetModules();
+      }
+    },
+  );
 });
 
 describe('background-indexer callIndexOp — endpoint-invalid rejection', () => {
@@ -273,7 +318,7 @@ describe('warnEndpointInvalidOnce — stderr throttle', () => {
       chunk.includes('socket path is 142 bytes'),
     );
     expect(sunPathMessages).toHaveLength(1);
-    expect(sunPathMessages[0]).toMatch(/set a shorter TMPDIR/);
+    expect(sunPathMessages[0]).toMatch(/TMPDIR/);
   });
 
   it('emits a separate warning per distinct endpoint', async () => {

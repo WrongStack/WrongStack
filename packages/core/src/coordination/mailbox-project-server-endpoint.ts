@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { assertUnixSocketPathWithinLimit } from '../utils/socket-path.js';
 import { MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION } from './mailbox-project-server-protocol.js';
 
 export const MAILBOX_PROJECT_SERVER_METADATA_FILE = '.mailbox-server.json';
@@ -36,6 +37,10 @@ export function mailboxProjectServerMetadataPath(projectDir: string): string {
 
 export function ensureMailboxProjectServerSocketDirectory(endpoint: string): void {
   if (process.platform !== 'win32') {
+    // 100 bytes under a canonical macOS TMPDIR — only 3 bytes of sun_path
+    // headroom. Assert so growth fails loudly instead of as a silent bind
+    // error in the detached daemon (see the codebase-index macOS incident).
+    assertUnixSocketPathWithinLimit(endpoint, 'mailbox');
     fs.mkdirSync(path.dirname(endpoint), { recursive: true, mode: 0o700 });
   }
 }
