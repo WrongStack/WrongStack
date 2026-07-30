@@ -169,6 +169,7 @@ const PROJECT_SAFE_FIELDS = new Set([
   'circuitBreaker',
   'adaptiveConcurrency',
   'modelRuntime',
+  'Sage',
 ]);
 
 /**

@@ -393,14 +393,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
             if (s.reasoningPreserve !== undefined) reasoning.preserve = s.reasoningPreserve;
             modelRuntime.reasoning = reasoning;
           }
-          if (s.sageMemoryInjectThreshold !== undefined) {
-          const sageSec = (decrypted.Sage as Record<string, unknown>) ?? {};
-          const inject = (sageSec.inject as Record<string, unknown>) ?? {};
-          inject.relationFloor = s.sageMemoryInjectThreshold;
-          sageSec.inject = inject;
-          decrypted.Sage = sageSec;
-        }
-        if (s.cacheTtl !== undefined) {
+          if (s.cacheTtl !== undefined) {
             const cache = (modelRuntime.cache as Record<string, unknown>) ?? {};
             if (s.cacheTtl === 'default') {
               delete cache.ttl;
@@ -411,6 +404,13 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
             else delete modelRuntime.cache;
           }
           decrypted.modelRuntime = modelRuntime;
+        }
+        if (s.sageMemoryInjectThreshold !== undefined) {
+          const sageSec = (decrypted.Sage as Record<string, unknown>) ?? {};
+          const inject = (sageSec.inject as Record<string, unknown>) ?? {};
+          inject.relationFloor = s.sageMemoryInjectThreshold;
+          sageSec.inject = inject;
+          decrypted.Sage = sageSec;
         }
         if (s.breakerEnabled !== undefined || s.breakerAutoKillResetMs !== undefined) {
           const cb = (decrypted.circuitBreaker as Record<string, unknown>) ?? {};
@@ -526,6 +526,19 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
                   ...currentConfig.circuitBreaker,
                   ...((decrypted.circuitBreaker as Record<string, unknown> | undefined) ?? {}),
                 } as Config['circuitBreaker'],
+              }
+            : {}),
+          ...(s.sageMemoryInjectThreshold !== undefined
+            ? {
+                Sage: {
+                  ...currentConfig.Sage,
+                  ...((decrypted.Sage as Record<string, unknown> | undefined) ?? {}),
+                  inject: {
+                    ...(currentConfig.Sage?.inject as Record<string, unknown> | undefined) ?? {},
+                    ...(((decrypted.Sage as Record<string, unknown> | undefined)
+                      ?.inject as Record<string, unknown> | undefined) ?? {}),
+                  } as Record<string, unknown>,
+                } as Config['Sage'],
               }
             : {}),
         });

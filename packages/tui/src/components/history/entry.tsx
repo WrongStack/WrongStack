@@ -186,7 +186,7 @@ export const Entry = React.memo(function Entry({
   /**
    * Show SAGE Memory Inject blocks in tool results. When false,
    * the `SageMemoryBlock` panel is hidden even when memory was injected.
-   * Default: true (shown when unset — guard is `!== false`).
+   * Default: false.
    */
   showSageMemoryInject?: boolean | undefined;
 }): React.ReactElement | null {
