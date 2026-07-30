@@ -9,8 +9,8 @@
 
 import { FINDING_DEFAULT_PAGE_SIZE } from './review-finding-store.js';
 import { syncReportCompletion, syncReportReopen } from './review-report-integration.js';
-import type { ReviewReport } from './review-report-types.js';
-import type { ResolutionOutcome } from './review-finding-types.js';
+import type { ReviewReport, ReportLifecycleStatus } from './review-report-types.js';
+import type { FindingSeverity, FindingStatus, ResolutionOutcome } from './review-finding-types.js';
 
 /**
  * Run the review findings command.
@@ -134,8 +134,8 @@ async function listFindings(
 
   const store = await loadStore(ctx);
   const all = await store.list({
-    ...(severityFilter ? { severities: [severityFilter as any] } : {}),
-    ...(statusFilter ? { statuses: [statusFilter as any] } : {}),
+    ...(severityFilter ? { severities: [severityFilter as FindingSeverity] } : {}),
+    ...(statusFilter ? { statuses: [statusFilter as FindingStatus] } : {}),
     limit,
   });
 
@@ -401,7 +401,7 @@ async function listReports(
 
   const store = await loadReportStore(ctx);
   const reports = await store.list({
-    ...(statusFilter ? { statuses: [statusFilter as any] } : {}),
+    ...(statusFilter ? { statuses: [statusFilter as ReportLifecycleStatus] } : {}),
     limit,
   });
 

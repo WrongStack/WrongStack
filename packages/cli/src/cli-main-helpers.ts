@@ -15,20 +15,10 @@ export interface CliMainEventSource {
 export function createTeardownEventRegistrar(
   events: CliMainEventSource,
   teardownHandlers: Array<() => void>,
-): (event: string, handler: (...args: any[]) => void) => void {
-  return (
-    event: string,
-    handler: (
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic event dispatch mirrors EventBus
-      ...args: any[]
-    ) => void,
-  ) => {
-    // biome-ignore lint/suspicious/noExplicitAny: dynamic event dispatcher signature
-    (events.on as (e: string, h: (...args: any[]) => void) => void)(event, handler);
-    teardownHandlers.push(() =>
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic event dispatcher signature
-      (events.off as (e: string, h: (...args: any[]) => void) => void)(event, handler),
-    );
+): (event: string, handler: (...args: unknown[]) => void) => void {
+  return (event: string, handler: (...args: unknown[]) => void) => {
+    events.on(event, handler);
+    teardownHandlers.push(() => events.off(event, handler));
   };
 }
 

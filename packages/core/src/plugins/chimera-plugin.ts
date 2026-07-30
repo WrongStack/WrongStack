@@ -16,6 +16,7 @@ import {
 } from './review-claim-registry.js';
 import { buildReviewContext } from './review-context-builder.js';
 import type {
+  ChimeraReviewCompletePayload,
   ResolvedChimeraConfig,
   ReviewContextBundle,
   ReviewFileEntry,
@@ -288,8 +289,8 @@ async function tryPersistFindings(payload: unknown): Promise<void> {
   // Persist the report first (parent record), then findings (children).
   // If the process crashes between writes, an orphan report with no findings
   // is recoverable; orphan findings pointing at a nonexistent reportId are not.
-  await persistReviewReport(payload as any, reportId, projectDir);
-  await integrateFindings(payload as any, projectDir, reportId);
+  await persistReviewReport(payload as ChimeraReviewCompletePayload, reportId, projectDir);
+  await integrateFindings(payload as ChimeraReviewCompletePayload, projectDir, reportId);
 }
 
 // ---------------------------------------------------------------------------
