@@ -52,6 +52,22 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
+### What's new in 0.296.3
+
+- **One owner per project service.** Mailbox, Kanban, Chronicle, Codebase Index,
+  and SAGE coordinate through deterministic local IPC endpoints instead of
+  letting every client open the underlying stores.
+- **SQLite-backed coordination.** The Mailbox owner is authoritative for
+  `_mailbox.sqlite`; Kanban uses `.wrongstack/kanbans/_kanban.sqlite`; Chronicle
+  keeps its hash-chained journal in SQLite with transactional legacy import.
+- **Better visibility and interaction.** `/connections` exposes service health
+  in the TUI, retained and streaming boxes are copyable, and prompt refinement
+  has a configurable grace countdown across TUI, WebUI, and SimpleUI.
+- **SAGE anywhere.** `wstack-sage-mcp` exposes the project memory service to MCP
+  clients with a read-only default and an explicit `--writable` mode.
+
+See the complete [0.296.3 release notes](CHANGELOG.md).
+
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
 
@@ -59,6 +75,7 @@ agent to phone home to.
 
 ## Table of contents
 
+- [What's new in 0.296.3](#whats-new-in-02963)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -78,7 +95,7 @@ agent to phone home to.
 
 ## Why WrongStack
 
-- 🧠 **Five surfaces, one brain** — a plain readline REPL, an Ink/React **TUI** (`--tui`), a standalone **web UI** (`--webui`), **WrongStack Desktop** (`--desktop`), and the cross-machine **HQ Command Center** (`--hq`). Plain `wstack` opens a launch menu on a TTY (bypass with `--no-menu`).
+- 🧠 **Six surfaces, one brain** — a plain readline REPL, an Ink/React **TUI** (`--tui`), the full **WebUI** (`--webui`), lightweight **SimpleUI**, **WrongStack Desktop** (`--desktop`), and the cross-machine **HQ Command Center** (`--hq`). Plain `wstack` opens a launch menu on a TTY (bypass with `--no-menu`).
 - 🤖 **A fleet, not a lone agent** — a 47-role roster + smart dispatcher fan out under a Director, each subagent isolated with its own budget and JSONL transcript.
 - 🛰️ **HQ for the whole room** — aggregate live sessions, agents, fleets, mailbox state, cost, tools, Brain decisions, and worktrees across machines — then steer, note, queue, or stop connected clients through their own guardrails.
 - 🧠 **Brain as an authority seam** — risky Goal and Director choices can be auto-decided by policy, denied, or escalated to a human in the TUI.
@@ -271,7 +288,9 @@ Desktop, and HQ alike. Agents send typed messages (`ask`, `assign`, `steer`,
 `result`, `review`, `status`), hand off work, broadcast milestones, and see who is
 online with live presence — so parallel agents cooperate instead of colliding.
 HQ can even route mailbox traffic and steer connected clients through their own
-guardrails.
+guardrails. All production callers use a deterministic local IPC endpoint; one
+elected project owner alone opens `_mailbox.sqlite`, serializes mutations, and
+publishes health and presence. Clients never open the mailbox database directly.
 
 ### SAGE — persistent long-term memory
 
@@ -279,7 +298,10 @@ guardrails.
 `.wrongstack/memories/` backed by **SQLite/FTS5** (legacy JSONL auto-migrates on
 first open), and it is *indexed by default*. The agent uses `remember`,
 `memory_search`, and `pin_add` to persist and recall knowledge across sessions —
-and relevant memories are **auto-injected** into context every turn.
+and relevant memories are **auto-injected** into context every turn. The same
+project-owned service is available to external MCP clients through
+`wstack-sage-mcp`; it is read-only by default, while `--writable` enables the
+confirm-class mutation tools.
 
 - **Typed knowledge** — facts, decisions, conventions, preferences, anti-patterns, bug root causes, and file/symbol/command notes, each with importance + confidence.
 - **Rich anchors** — a memory can bind to almost anything concrete: a **file**, a **directory**, a **symbol** (function/class/method), a **command**, a **git commit or blob**, a **test**, or a **package**. Anchored memories are re-verified as those targets change (file existence, content hash, git blob, symbol presence) and auto-surface when you touch that location — so knowledge stays pinned to the code it describes instead of drifting.
@@ -296,7 +318,7 @@ Work is tracked with real, durable structure — not throwaway checklists:
 - **`todo`** — session-level step tracking for the task in flight.
 - **`plan`** — a persistent strategic roadmap that survives turns; promote items into todos or tasks.
 - **`task`** — structured, cross-session work items with types, priorities, and dependencies.
-- **`kanban`** — durable project boards with columns, task **chains**, dependencies, and assignment snapshots. The `@wrongstack/kanban` package provides the storage + lifecycle layer (claim, recover stale assignments, verify completion) with **lease fencing** and cost guardrails for safe multi-agent execution.
+- **`kanban`** — durable project boards with columns, task **chains**, dependencies, and assignment snapshots. One project IPC owner serializes the authoritative `.wrongstack/kanbans/_kanban.sqlite` state and broadcasts daemon events; clients do not open the database directly. The `@wrongstack/kanban` package provides the storage + lifecycle layer (claim, recover stale assignments, verify completion) with **lease fencing** and cost guardrails for safe multi-agent execution.
 
 Managed cards follow an explicit `Backlog → Todo → Running → Review → Done`
 lifecycle, and **HQ** exposes a shared, project-scoped board that reconciles live
@@ -422,6 +444,7 @@ Runtime   → Default host assembly + WrongStackPack extension composition
 Kernel    → Container · Pipeline · EventBus · RunController (the 4 primitives)
 Provider  → 4 wire families, factories built from ModelsRegistry, real SSE
 Models    → models.dev/api.json fetched + cached + classified
+Services  → deterministic local IPC → one owner each → SQLite-backed project state
 ```
 
 **Four contracts** hold the design together:

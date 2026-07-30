@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.296.3] — 2026-07-30
+
 ### Added
 
 - **Mailbox: one project owner over local IPC.** Every CLI, TUI, WebUI, SimpleUI, Desktop, HQ, agent-loop, tool, and HTTP-bridge caller now reaches one elected project service over a deterministic Unix socket or Windows named pipe. The owner alone opens `_mailbox.sqlite`, serializes messages, per-actor receipts, agent/client presence, credentials, retention, and one-time legacy imports, and exposes PID, storage, protocol, client, request, latency, and uptime health. (`9c7fad0cb`, `a0a7d0edd`)
@@ -20,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SimpleUI: project mailbox drawer.** The lightweight browser surface can inspect unread and recent messages, see online agents and mailbox health, send direct mail, and mark read, acknowledge, reopen, or soft-delete messages through the same server-backed WebSocket routes as the other surfaces.
 - **WebUI: clearer SAGE and fallback workflows.** All memories and audience-scoped guidance now occupy separate full-width tabs, tag filters collapse when inactive, SAGE tool results render as memory cards, and fallback-model references are parsed consistently across WebUI and SimpleUI.
 - **TUI: live terminal-title model updates.** `/model` and `/setmodel` immediately update the idle terminal title without waiting for the next tool or provider event. (`4c1220981`)
+- **Read tool: indexed symbols in advanced mode.** Advanced reads can include matching Codebase Index symbols, with CLI and TUI settings to control the additional context. (`ec9ea1db7`)
+- **WebUI: durable queued-message and next-step actions.** Queued sends now survive reconnects more predictably, while next-step actions expose clearer send, edit, and dismissal behavior. (`f5d7e00b5`)
+- **TUI: searchable refine-failure model picker.** Typing filters the fallback-model list so large provider catalogs remain quick to navigate. (`c86278581`)
 
 ### Changed
 
@@ -29,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI startup defers the interactive session graph.** The entry point now separates flag parsing and lightweight commands from full interactive assembly, removes the dead picker subtree, and keeps package boundaries explicit. (`f3f03a603`, `4b14fb872`)
 - **TUI statusline configuration matches the rendered four-line layout.** The picker order, navigation, chip icon registry, mailbox spacing, SAGE totals, and line-four memory pipeline counters now reflect the actual status bar. (`95e67f20e`, `c84170895`, `328243559`, `bf2bef6a3`)
 - **Resource profiles apply consistently.** Shared SQLite warning suppression and perf-profile cache/mmap defaults now cover additional stores; TechStack's registry cache is capped and prunes expired/oldest entries instead of growing for the process lifetime.
+- **Project services expose explicit lifecycle controls.** Mailbox, Kanban, Chronicle, Codebase Index, and SAGE owners clean up stale project state, support controlled shutdown, and report richer connection health; HQ also bounds stale clients and applies WebSocket backpressure. (`4836a08c5`)
+- **Codebase Index dead-code analysis follows real package entry points.** Build-output and `bin` entries map back to source, pnpm workspace parsing is scoped to the `packages:` block, and barrel re-exports are traversed without false dead-code reports. (`c69b9e95c`…`b431294d0`)
 
 ### Fixed
 
@@ -48,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Connections health probes the canonical mailbox endpoint.** TUI and WebUI now derive the mailbox pipe from the project data directory, matching the daemon owner, instead of probing a second endpoint from the repository root and reporting a healthy live service as sleeping.
 - **Security Scanner bounds file-head reads.** Large-file discovery no longer requires loading complete files when only a bounded prefix is needed.
 - **Fallback and session messages are normalized across browser surfaces.** Provider/model references, rendered next steps, SAGE blocks, and session-swap guards now preserve the active session and avoid showing protocol text as chat content.
+- **Subagents share provider quarantine state.** CLI, runtime, Chimera, and WebUI-created subagents now receive the host `ProviderModelStatusTracker`, preventing rate-limited models from being retried through an isolated fallback path. (`90bcb3738`)
+- **Todo checkpoints keep session and trace identity separate.** TUI resumes and WebUI session switches rebind the checkpoint store without leaking todos across sessions or confusing trace IDs with session IDs. (`2368e9873`)
+- **Long-running state remains bounded.** Context file-tracking collections, pending tool status, Chronicle stream state, and Kanban listeners now have caps, expiry, or independent stale-state cleanup. (`d253c0e38`, `8b52dbb97`, `499e949dd`)
+- **SAGE ignores writes to already-closed client sockets.** Broadcast and error-response paths contain socket teardown races instead of crashing the project service. (`d6369f459`)
+- **TUI branch-switch notices flow through conversation state.** Git branch changes are journaled consistently rather than bypassing the retained conversation state. (`5f8b9ad91`)
+- **CLI storage observability distinguishes routine activity from failures.** Expected persistence telemetry stays quiet while actual storage errors remain visible. (`ba60a6a56`)
 
 ### Tooling
 
