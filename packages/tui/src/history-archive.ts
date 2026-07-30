@@ -63,7 +63,7 @@ export class HistoryArchive {
 
   /** Byte-offset index: index → { offset, length }. Built on first load. */
   private index: OffsetIndexEntry[] | null = null;
-
+  /** Total entries written so far (monotonic counter). */
   // ── Write serialisation ──────────────────────────────────────────────
 
   private writeChain: Promise<void> = Promise.resolve();
@@ -80,7 +80,6 @@ export class HistoryArchive {
   append(entry: HistoryEntry): void {
     if (this.closed) return;
     const line = JSON.stringify(entry) + '\n';
-    this.entryCount++;
     this.enqueueWrite(line);
   }
 
