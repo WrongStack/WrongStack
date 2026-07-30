@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { checkUnixSocketPath } from '@wrongstack/core/utils';
 import { IndexTimeoutError, LockError } from './circuit-breaker.js';
 import {
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
@@ -111,9 +112,24 @@ export type ProjectIndexDaemonAvailability =
   /** `WRONGSTACK_INDEX_INLINE` / `WRONGSTACK_INDEX_SERVER=0` was set. */
   | { readonly kind: 'inline-requested' }
   /** No server entry point exists in any known output layout. */
-  | { readonly kind: 'missing-build' };
+  | { readonly kind: 'missing-build' }
+  /**
+   * The derived socket path cannot be bound on this platform (over the
+   * `sun_path` byte limit — seen on macOS whose per-user TMPDIR is ~49 bytes).
+   * A daemon spawned onto this endpoint dies silently (`stdio: 'ignore'`), so
+   * callers must degrade explicitly instead of entering the connect loop.
+   */
+  | {
+      readonly kind: 'endpoint-invalid';
+      readonly endpoint: string;
+      readonly byteLength: number;
+      readonly maxBytes: number;
+    };
 
-export function resolveProjectIndexDaemonAvailability(): ProjectIndexDaemonAvailability {
+export function resolveProjectIndexDaemonAvailability(
+  projectRoot?: string,
+  indexDir?: string,
+): ProjectIndexDaemonAvailability {
   if (process.env['WRONGSTACK_INDEX_INLINE'] || process.env['WRONGSTACK_INDEX_SERVER'] === '0') {
     return { kind: 'inline-requested' };
   }
@@ -121,6 +137,18 @@ export function resolveProjectIndexDaemonAvailability(): ProjectIndexDaemonAvail
     try {
       const url = new URL(rel, import.meta.url);
       if (url.protocol === 'file:' && fs.existsSync(fileURLToPath(url))) {
+        if (projectRoot !== undefined) {
+          const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+          const check = checkUnixSocketPath(endpoint);
+          if (!check.ok) {
+            return {
+              kind: 'endpoint-invalid',
+              endpoint,
+              byteLength: check.byteLength,
+              maxBytes: check.maxBytes,
+            };
+          }
+        }
         return { kind: 'available', url };
       }
     } catch {

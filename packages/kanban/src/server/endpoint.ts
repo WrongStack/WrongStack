@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
+import { assertUnixSocketPathWithinLimit } from '@wrongstack/persistence';
 
 import { KANBAN_PROJECT_SERVER_PROTOCOL_VERSION } from './protocol.js';
 
@@ -18,5 +19,13 @@ export function kanbanProjectServerEndpoint(projectRoot: string): string {
     return `\\\\.\\pipe\\wrongstack-kanban-v${KANBAN_PROJECT_SERVER_PROTOCOL_VERSION}-${key}`;
   }
   const dir = process.env['TMPDIR'] ?? '/tmp';
-  return path.join(dir, `wrongstack-kanban-v${KANBAN_PROJECT_SERVER_PROTOCOL_VERSION}-${key}.sock`);
+  const endpoint = path.join(
+    dir,
+    `wrongstack-kanban-v${KANBAN_PROJECT_SERVER_PROTOCOL_VERSION}-${key}.sock`,
+  );
+  // ~99 bytes under a canonical macOS TMPDIR — close to the 103-byte sun_path
+  // budget. Assert so growth fails loudly instead of as a silent bind error in
+  // the detached daemon (see the codebase-index macOS incident).
+  assertUnixSocketPathWithinLimit(endpoint, 'kanban');
+  return endpoint;
 }

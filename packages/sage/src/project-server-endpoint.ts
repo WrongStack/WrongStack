@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { canonicalProjectRoot } from '@wrongstack/core/utils';
+import { assertUnixSocketPathWithinLimit, canonicalProjectRoot } from '@wrongstack/core/utils';
 import { resolveSagePaths } from './paths.js';
 import { SAGE_PROJECT_SERVER_PROTOCOL_VERSION } from './project-server-protocol.js';
 
@@ -43,6 +43,10 @@ export function sageProjectServerMetadataPath(projectRoot: string, directory?: s
 
 export function ensureSageProjectServerSocketDirectory(endpoint: string): void {
   if (process.platform !== 'win32') {
+    // ~97 bytes under a canonical macOS TMPDIR — close to the 103-byte
+    // sun_path budget. Assert so growth fails loudly instead of as a silent
+    // bind error in the detached daemon (see codebase-index macOS incident).
+    assertUnixSocketPathWithinLimit(endpoint, 'sage');
     fs.mkdirSync(path.dirname(endpoint), { recursive: true, mode: 0o700 });
   }
 }

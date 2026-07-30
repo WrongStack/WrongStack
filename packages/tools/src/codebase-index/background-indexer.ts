@@ -51,12 +51,12 @@ import {
   closeProjectIndexServerClients,
   ensureProjectIndexServer,
   getProjectIndexServerConnectionState,
-  isProjectIndexServerAvailable,
-  resolveProjectIndexDaemonAvailability,
   onProjectIndexServerConnectionStateChange,
+  type ProjectIndexDaemonAvailability,
   type ProjectIndexServerClientHealth,
   type ProjectIndexServerConnectionState,
   type ProjectIndexServerShutdownResult,
+  resolveProjectIndexDaemonAvailability,
   shutdownProjectIndexServer,
 } from './project-server-client.js';
 import type { CodeMapGraph, IndexResult, IndexStats } from './schema.js';
@@ -308,6 +308,21 @@ interface CallOpts {
   onProgress?: ((current: number, total: number) => void) | undefined;
 }
 
+/** Endpoints already reported as unbindable — warn once per endpoint, not per call. */
+const warnedInvalidEndpoints = new Set<string>();
+
+function warnEndpointInvalidOnce(
+  availability: Extract<ProjectIndexDaemonAvailability, { kind: 'endpoint-invalid' }>,
+): void {
+  if (warnedInvalidEndpoints.has(availability.endpoint)) return;
+  warnedInvalidEndpoints.add(availability.endpoint);
+  process.stderr.write(
+    `codebase-index: socket path is ${availability.byteLength} bytes, over this platform's ` +
+      `${availability.maxBytes}-byte sun_path limit (${availability.endpoint}). ` +
+      `Falling back to a process-local index; set a shorter TMPDIR to restore the shared daemon.\n`,
+  );
+}
+
 /**
  * Run one operation, in the worker when available, inline otherwise. Both
  * paths share the watchdog: the returned promise ALWAYS settles within
@@ -324,7 +339,7 @@ function callIndexOp<O extends OpName>(
   // and exotic runtimes, but it has to be asked for: reaching it because the
   // build could not be located would give this process a private FTS5 database
   // and no indication that it had stopped sharing the project's index.
-  const availability = resolveProjectIndexDaemonAvailability();
+  const availability = resolveProjectIndexDaemonAvailability(args.projectRoot, args.indexDir);
   if (availability.kind === 'available') {
     return callProjectIndexServer(op, args, opts);
   }
@@ -333,6 +348,24 @@ function callIndexOp<O extends OpName>(
       new Error(
         'Built codebase-index project server is unavailable. Build @wrongstack/tools, ' +
           'or set WRONGSTACK_INDEX_INLINE=1 to explicitly accept a process-local index.',
+      ),
+    );
+  }
+  if (availability.kind === 'endpoint-invalid') {
+    // The daemon cannot bind this endpoint (socket path over the platform's
+    // sun_path limit — macOS's long per-user TMPDIR is the known trigger).
+    // Spawning would die silently (`stdio: 'ignore'`), so explicitly reject
+    // here instead of falling through to the in-process index: silently
+    // degrading would strip every connected client of the shared per-project
+    // daemon and they would all open their own private FTS5 databases, with
+    // no indication that they had stopped sharing one.
+    warnEndpointInvalidOnce(availability);
+    return Promise.reject(
+      new Error(
+        `codebase-index: socket path is ${availability.byteLength} bytes, over this platform's ` +
+          `${availability.maxBytes}-byte sun_path limit (${availability.endpoint}). ` +
+          `Set a shorter TMPDIR to relocate the shared daemon, ` +
+          `or set WRONGSTACK_INDEX_INLINE=1 to explicitly opt into a process-local index.`,
       ),
     );
   }
@@ -773,7 +806,11 @@ export function ensureCodebaseIndexServer(options: {
   watchExternal?: boolean | undefined;
   debounceMs?: number | undefined;
 }): Promise<void> {
-  if (!isProjectIndexServerAvailable()) return Promise.resolve();
+  const availability = resolveProjectIndexDaemonAvailability(options.projectRoot, options.indexDir);
+  if (availability.kind !== 'available') {
+    if (availability.kind === 'endpoint-invalid') warnEndpointInvalidOnce(availability);
+    return Promise.resolve();
+  }
   return ensureProjectIndexServer({
     projectRoot: options.projectRoot,
     indexDir: options.indexDir,
@@ -802,6 +839,7 @@ export function resetIndexStateForTesting(): void {
   indexCircuitBreaker.reset();
   cancelPendingReindexes();
   closeProjectIndexServerClients();
+  warnedInvalidEndpoints.clear();
   // Don't terminate the worker — it's expensive to respawn and tests that
   // need it will call ensureWorker() lazily. Just clear the RPC state.
   for (const [, p] of pending) p.reject(new Error('test reset'));

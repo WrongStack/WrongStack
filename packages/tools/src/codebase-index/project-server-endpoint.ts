@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertUnixSocketPathWithinLimit } from '@wrongstack/core/utils';
 import { resolveIndexDir } from './writer.js';
 
 export const PROJECT_INDEX_SERVER_PROTOCOL_VERSION = 1;
@@ -66,17 +67,29 @@ export function projectIndexServerKey(projectRoot: string, indexDir?: string): s
   return createHash('sha256').update(resolvedIndexDir).digest('hex').slice(0, 24);
 }
 
-/** Deterministic per-project local IPC endpoint. */
+/**
+ * Deterministic per-project local IPC endpoint.
+ *
+ * The Unix layout is deliberately flat and short (`wsci-v1-<key>.sock`
+ * directly in the temp dir): macOS's per-user TMPDIR is ~49 bytes of
+ * `/var/folders/<xx>/<30 chars>/T`, and `sun_path` caps the whole socket
+ * path at 104 bytes including the NUL on macOS/BSD (108 on Linux). The
+ * previous `wrongstack-codebase-index-v1/<key>.sock` subdirectory layout came
+ * to ~107 bytes there, so `bind()` failed with ENAMETOOLONG inside a detached
+ * child whose stderr was discarded — clients saw only a 10s connect timeout.
+ * The flat layout stays well under both limits; the pipe name keeps the long
+ * prefix because named pipes have no such limit.
+ */
 export function projectIndexServerEndpoint(projectRoot: string, indexDir?: string): string {
   const key = projectIndexServerKey(projectRoot, indexDir);
   if (process.platform === 'win32') {
     return `\\\\.\\pipe\\wrongstack-codebase-index-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}-${key}`;
   }
-  return path.join(
-    os.tmpdir(),
-    `wrongstack-codebase-index-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}`,
-    `${key}.sock`,
-  );
+  // Derivation stays pure: clients need the endpoint VALUE to report or
+  // degrade on an unbindable path (`resolveProjectIndexDaemonAvailability`,
+  // connection-state probes). The hard length assert lives at bind time in
+  // `ensureProjectIndexSocketDirectory`, platform-aware via the shared helper.
+  return path.join(os.tmpdir(), `wsci-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}-${key}.sock`);
 }
 
 export function projectIndexServerMetadataPath(projectRoot: string, indexDir?: string): string {
@@ -88,6 +101,10 @@ export function projectIndexServerMetadataPath(projectRoot: string, indexDir?: s
 
 export function ensureProjectIndexSocketDirectory(endpoint: string): void {
   if (process.platform !== 'win32') {
+    // Fail fast with an actionable message: an over-long sun_path would
+    // otherwise surface as ENAMETOOLONG/EINVAL inside a detached child whose
+    // stderr is discarded, leaving clients a bare 10s connect timeout.
+    assertUnixSocketPathWithinLimit(endpoint, 'codebase-index');
     fs.mkdirSync(path.dirname(endpoint), { recursive: true, mode: 0o700 });
   }
 }
