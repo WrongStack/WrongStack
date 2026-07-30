@@ -65,7 +65,15 @@ export async function initializeSqliteSageStore(input: {
         createdAt: nowIso,
         updatedAt: nowIso,
       };
-      fs.writeFileSync(paths.manifest, JSON.stringify(manifest, null, 2));
+      // Atomic temp+rename+0o600: a crash mid-write would leave the
+      // manifest as parse-bad JSON, causing the next init to read it
+      // back as invalid and reset the creator timestamp. Writing to a
+      // sibling temp file and renaming catches the partial-write case
+      // (rename is atomic on POSIX and best-effort atomic on Windows
+      // when the target does not exist).
+      const tmpPath = `${paths.manifest}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(manifest, null, 2), { mode: 0o600 });
+      fs.renameSync(tmpPath, paths.manifest);
     }
   });
 

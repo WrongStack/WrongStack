@@ -6,7 +6,7 @@ import {
   rejectIfUnsafeInput,
   resolveTargetId,
 } from './shared/candidate-lifecycle.js';
-import { sqliteRowToCandidate, sqliteRowToMemory } from './sqlite-store-codec.js';
+import { readSqliteSageRow, sqliteRowToCandidate } from './sqlite-store-codec.js';
 import {
   clamp01,
   normalizeAnchors,
@@ -244,12 +244,7 @@ export async function resolveSqliteCandidate(
 
   const targetId = resolveTargetId(snapshot);
   const target: Sage | null = targetId
-    ? await ctx.runMutation(() => {
-        const row = ctx.stmt('SELECT data FROM memories WHERE id = ?').get(targetId) as
-          | { data: string }
-          | undefined;
-        return row ? sqliteRowToMemory(row) : null;
-      })
+    ? await ctx.runMutation(() => readSqliteSageRow(ctx.stmt, targetId))
     : null;
   const policy = computeResolution(snapshot, decision, reason, target ?? null);
   const claimed = await ctx.runMutation(() => {
@@ -280,6 +275,13 @@ export async function resolveSqliteCandidate(
   let applied = false;
   if (policy.mutation.kind === 'delete_memory' && policy.mutation.targetId) {
     try {
+      // Candidate-resolved deletes go through in-process `ctx.updateSage`,
+      // not over IPC, so they do NOT need the `force: true` that the
+      // IPC dispatch guard (`project-server.ts:updateSage` case) added
+      // for `updateSage` IPC ops. The store-side permanent-guard still
+      // fires when the target is permanent at delete-time, preserving
+      // the pre-Phase-3 semantics covered by the promotion-race test
+      // in `sqlite-behavior-coverage.test.ts`.
       await ctx.updateSage(policy.mutation.targetId, { status: 'deleted' });
       applied = true;
     } catch (err) {

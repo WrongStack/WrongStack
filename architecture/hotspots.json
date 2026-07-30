@@ -159,8 +159,8 @@
       "relativeImports": 148
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
-      "lines": 899,
-      "relativeImports": 9
+      "lines": 1032,
+      "relativeImports": 10
     },
     "packages/core/src/security/permission-policy.ts": {
       "lines": 833,
@@ -215,7 +215,7 @@
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 1010,
+      "lines": 1035,
       "relativeImports": 41
     },
     "packages/sage/src/tools/memory-tools.ts": {

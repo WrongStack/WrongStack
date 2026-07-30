@@ -165,7 +165,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
     typeof autoReviewExt?.['debounceMs'] === 'number' &&
     (autoReviewExt['debounceMs'] as number) >= 0
       ? (autoReviewExt['debounceMs'] as number)
-      : 5000;
+      : 15_000;
   meta['autoReviewMaxFilesPerBatch'] =
     typeof autoReviewExt?.['maxFilesPerBatch'] === 'number' &&
     (autoReviewExt['maxFilesPerBatch'] as number) >= 1

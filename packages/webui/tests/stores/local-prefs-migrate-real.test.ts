@@ -13,19 +13,17 @@ import { useLocalPrefs } from '../../src/stores/local-prefs';
  */
 type Migrate = (persisted: unknown, version: number) => Record<string, unknown>;
 
-function migrate(persisted: unknown): Record<string, unknown> {
+function migrate(persisted: unknown, version = 1): Record<string, unknown> {
   const fn = useLocalPrefs.persist.getOptions().migrate as Migrate | undefined;
   if (!fn) throw new Error('local-prefs persist options expose no migrate()');
-  // The store ignores the version argument; pass the pre-v11 version so the
-  // call site matches how zustand invokes it for a stale payload.
-  return fn(persisted, 1);
+  return fn(persisted, version);
 }
 
 describe('local-prefs migrate() — persist option (real implementation)', () => {
   it('is wired into the persist middleware at the current version', () => {
     const opts = useLocalPrefs.persist.getOptions();
     expect(opts.name).toBe('wrongstack-local-prefs');
-    expect(opts.version).toBe(11);
+    expect(opts.version).toBe(12);
     expect(typeof opts.migrate).toBe('function');
   });
 
@@ -184,7 +182,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
 
   // ── v9: Chimera ──────────────────────────────────────────────────────────
 
-  it('defaults chimeraEnabled to true (matches the plugin\'s enabled !== false)', () => {
+  it("defaults chimeraEnabled to true (matches the plugin's enabled !== false)", () => {
     expect(migrate({}).chimeraEnabled).toBe(true);
     expect(migrate({ chimeraEnabled: false }).chimeraEnabled).toBe(false);
     expect(migrate({ chimeraEnabled: 'yes' }).chimeraEnabled).toBe(true);
@@ -251,10 +249,15 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
     expect(migrate({ autoReviewDebounceMs: 0 }).autoReviewDebounceMs).toBe(0);
   });
 
+  it('migrates the pre-v12 5000ms default once and preserves a current explicit 5000ms', () => {
+    expect(migrate({ autoReviewDebounceMs: 5_000 }, 11).autoReviewDebounceMs).toBe(15_000);
+    expect(migrate({ autoReviewDebounceMs: 5_000 }, 12).autoReviewDebounceMs).toBe(5_000);
+  });
+
   it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '5000', undefined])(
     'rejects autoReviewDebounceMs %p',
     (v) => {
-      expect(migrate({ autoReviewDebounceMs: v }).autoReviewDebounceMs).toBe(5000);
+      expect(migrate({ autoReviewDebounceMs: v }).autoReviewDebounceMs).toBe(15_000);
     },
   );
 

@@ -10,8 +10,8 @@ import {
 } from './sqlite-store-legacy.js';
 import {
   readLegacyJsonlRecords,
+  readSqliteSageRow,
   sqliteRowToCandidate,
-  sqliteRowToMemory,
 } from './sqlite-store-codec.js';
 import { LEGACY_JSONL_MIGRATION_KEY } from './sqlite-store-schema.js';
 import { normalizeTextKey } from './store-helpers.js';
@@ -80,10 +80,7 @@ export async function migrateSqliteLegacyJsonl(input: {
     }
 
     for (const incoming of latestMemories.values()) {
-      const existingRow = stmt('SELECT data FROM memories WHERE id = ?').get(incoming.id) as
-        | { data: string }
-        | undefined;
-      const existing = existingRow ? sqliteRowToMemory(existingRow) : undefined;
+      const existing = readSqliteSageRow(stmt, incoming.id);
       if (existing && !shouldReplaceMigratedMemory(existing, incoming)) continue;
       upsertMemory(incoming);
       syncAnchorEdges(incoming);

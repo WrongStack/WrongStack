@@ -4,7 +4,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from '@wrongstack/core/utils';
 
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { readSqliteSageRow } from './sqlite-store-codec.js';
 import {
   isNearDuplicateMemory,
   normalizeAudience,
@@ -110,11 +110,8 @@ export async function runSqliteSageHygiene(
 
     await ctx.runMutation(() => {
       for (const [memoryId, allValid] of verificationOutcomes) {
-        const row = ctx.stmt('SELECT data FROM memories WHERE id = ?').get(memoryId) as
-          | { data: string }
-          | undefined;
-        if (!row) continue;
-        const current = sqliteRowToMemory(row);
+        const current = readSqliteSageRow(ctx.stmt, memoryId);
+        if (!current) continue;
         if (current.status !== 'active') continue;
         if (allValid && current.anchors.length === 0) continue;
         const updated: Sage = {

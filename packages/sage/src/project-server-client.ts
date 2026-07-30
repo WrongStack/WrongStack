@@ -326,6 +326,25 @@ export class SageProjectServerConnection {
       return Promise.reject(new Error('SAGE server connection is not available'));
     }
     const id = this.nextId++;
+    // Auth stamp: every outbound `request` carries the authToken the
+    // server emitted on `hello`. The server-side gate enforces equality;
+    // sending a wrong/missing token causes an `UnauthorizedSageRequest`
+    // response. `clientId` is left to the server-assigned per-connection
+    // nonce (see `project-server.ts` `net.createServer`), so the client
+    // just forwards whatever value the caller passed in `meta.clientId`.
+    const outbound =
+      message.type === 'request'
+        ? {
+            ...message,
+            meta: {
+              clientId: message.meta.clientId,
+              authToken: this.info?.authToken,
+              ...(message.meta.sessionId !== undefined ? { sessionId: message.meta.sessionId } : {}),
+              ...(message.meta.traceId !== undefined ? { traceId: message.meta.traceId } : {}),
+            },
+            id,
+          }
+        : { ...message, id };
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         const entry = this.pending.get(id);
@@ -359,7 +378,7 @@ export class SageProjectServerConnection {
           return;
         }
       }
-      this.write({ ...message, id });
+      this.write(outbound);
     });
   }
 

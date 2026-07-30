@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { readSqliteSageRow, sqliteRowToMemory } from './sqlite-store-codec.js';
 import { findSqliteMemoriesForFile } from './sqlite-store-find-file.js';
 import {
   backfillRecoverableSqliteSage,
@@ -29,10 +29,7 @@ export interface SqliteAdminHost {
 }
 
 function getMemory(host: SqliteAdminHost, id: string): Sage | null {
-  const row = host.stmt('SELECT data FROM memories WHERE id = ?').get(id) as
-    | { data: string }
-    | undefined;
-  return row ? sqliteRowToMemory(row) : null;
+  return readSqliteSageRow(host.stmt, id);
 }
 
 function listMemories(host: SqliteAdminHost): Sage[] {

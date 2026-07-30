@@ -50,7 +50,10 @@ function makeApi(autoReviewConfig: Record<string, unknown> = {}) {
     },
     events: eventBus,
     onConfigChange: vi.fn(),
-    onEvent: (type: string, handler: (payload?: { ctx?: { todos?: never[] } }) => Promise<void>) => {
+    onEvent: (
+      type: string,
+      handler: (payload?: { ctx?: { todos?: never[] } }) => Promise<void>,
+    ) => {
       events[type] = handler;
     },
     onPattern,
@@ -117,7 +120,36 @@ describe('auto-review change detection', () => {
     });
   });
 
-  it('retains the latest debounced snapshot until a later eligible iteration', async () => {
+  it('waits for a trailing quiet window and reviews the latest content in the background', async () => {
+    const { api, events, emitCustom } = makeApi({ debounceMs: 200 });
+    createAutoReviewPlugin().setup!(api);
+    await events['agent.run.started']!();
+
+    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n');
+    await events['iteration.completed']!();
+    expect(reviewPayloads(emitCustom)).toHaveLength(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 3;\n');
+    await events['iteration.completed']!();
+    expect(reviewPayloads(emitCustom)).toHaveLength(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(reviewPayloads(emitCustom)).toHaveLength(0);
+    await vi.waitFor(() => {
+      expect(reviewPayloads(emitCustom)).toHaveLength(1);
+    });
+
+    const payloads = reviewPayloads(emitCustom);
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]!.files[0]?.content).toBe('export const value = 3;\n');
+
+    // Join any timer-started snapshot/context work before test teardown.
+    await events['session.ended']!();
+    expect(reviewPayloads(emitCustom)).toHaveLength(1);
+  });
+
+  it('hands a pending mid-session review to post-session when the session ends', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(100_000);
     const { api, events, emitCustom, log } = makeApi({ debounceMs: 5_000 });
@@ -126,19 +158,16 @@ describe('auto-review change detection', () => {
 
     await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n');
     await events['iteration.completed']!();
+    expect(reviewPayloads(emitCustom)).toHaveLength(0);
 
-    vi.setSystemTime(101_000);
-    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 3;\n');
-    await events['iteration.completed']!();
+    await events['session.ended']!();
     expect(reviewPayloads(emitCustom)).toHaveLength(1);
-    expect(log.info).toHaveBeenCalledWith(expect.stringContaining('retaining 1 pending file'));
+    expect(log.info).toHaveBeenCalledWith(
+      '[auto-review] session ended — handed 1 pending mid-session file(s) to post-session review',
+    );
 
-    vi.setSystemTime(106_000);
-    await events['iteration.completed']!();
-
-    const payloads = reviewPayloads(emitCustom);
-    expect(payloads).toHaveLength(2);
-    expect(payloads[1]!.files[0]?.content).toBe('export const value = 3;\n');
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(reviewPayloads(emitCustom)).toHaveLength(1);
   });
 
   it('never reads or includes untracked files in a review bundle', async () => {
@@ -241,6 +270,13 @@ describe('resolveAutoReviewConfig — empty/unknown fallbackProfile', () => {
     expect(resolved.fallbackModels).toEqual([]);
   });
 
+  it('defaults the mid-session quiet window to 15 seconds while preserving explicit overrides', () => {
+    expect(resolveAutoReviewConfig({ enabled: true }, sessionConfig()).debounceMs).toBe(15_000);
+    expect(
+      resolveAutoReviewConfig({ enabled: true, debounceMs: 2_500 }, sessionConfig()).debounceMs,
+    ).toBe(2_500);
+  });
+
   it('never emits a blank model string that a provider would 401 as "Model is not supported"', () => {
     // Shadow Agent observed opencode-go returning 401 "Model is not supported"
     // for an empty model string. Guard that resolveAutoReviewConfig never yields
@@ -282,10 +318,7 @@ describe('resolveAutoReviewConfig — fallback chain source', () => {
   }
 
   it('does not synthesize fallback models when the effective profile is empty', () => {
-    const resolved = resolveAutoReviewConfig(
-      { enabled: true },
-      sessionConfig(),
-    );
+    const resolved = resolveAutoReviewConfig({ enabled: true }, sessionConfig());
 
     expect(resolved.provider).toBe('session-provider');
     expect(resolved.model).toBe('session-model');
@@ -319,10 +352,7 @@ describe('resolveAutoReviewConfig — fallback chain source', () => {
       },
     } as Config;
 
-    const resolved = resolveAutoReviewConfig(
-      { enabled: true, fallbackProfile: 'good' },
-      cfg,
-    );
+    const resolved = resolveAutoReviewConfig({ enabled: true, fallbackProfile: 'good' }, cfg);
 
     expect(resolved.provider).toBe('alt-provider');
     expect(resolved.model).toBe('alt-model');
@@ -344,10 +374,7 @@ describe('resolveAutoReviewConfig — fallback chain source', () => {
       },
     } as Config;
 
-    const resolved = resolveAutoReviewConfig(
-      { enabled: true, fallbackProfile: 'alt' },
-      cfg,
-    );
+    const resolved = resolveAutoReviewConfig({ enabled: true, fallbackProfile: 'alt' }, cfg);
 
     expect(resolved.provider).toBe('alt-provider');
     expect(resolved.model).toBe('alt-model');

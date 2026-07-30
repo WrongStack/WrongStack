@@ -97,6 +97,12 @@ export function setupSage(deps: SageWiringDeps): () => Promise<void> {
     }),
   );
   return async () => {
+    // `flushPendingCounters` is a documented no-op for both the in-memory
+    // `SqliteMemoryPort` (counters write synchronously) and the IPC
+    // `ProjectSageMemoryPort` (counters go through `runCounterMutation`).
+    // The optional-chain call is retained so that, if a future
+    // optimization introduces a real pending-counter accumulator (R3b —
+    // deferred), this teardown will flush it without further change.
     await retrieval.flushPendingCounters?.();
     if (cfg?.hygiene?.autoAfterSession === false) return;
     // Throttle: skip auto-hygiene if it ran less than AUTO_HYGIENE_INTERVAL_MS ago.

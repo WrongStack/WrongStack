@@ -637,16 +637,41 @@ export class SqliteSageStore implements MemoryStore {
    * for correctness (the SQLite LIKE approach produced false negatives when a
    * memory targeted only one audience dimension).
    *
-   * **Note:** The internal query applies a hard LIMIT 1000 as a safety net to
-   * bound the in-memory filter pass. Beyond that threshold rows are silently
-   * truncated — bump the value if role/task-based scaling warrants a larger window.
+   * **Note:** The internal SQL prefilter pulls `limit * 5` rows as a safety
+   * net to bound the in-memory audience filter pass. The over-fetch factor
+   * (5) matches `AUDIENCE_OVERFETCH_FACTOR` in `sqlite-store-audience.ts`
+   * and is the trigger for the `memory.audience_truncated` audit event
+   * the onTruncated callback emits when more matching rows likely exist
+   * beyond the prefilter window. Bump the factor if narrow role/task
+   * filters warrant a larger window.
    */
   async retrieveForAudience(
     context: MemoryAudienceContext,
-    opts?: { limit?: number },
+    limit?: number,
+    /**
+     * Optional truncation callback. Fires when the SQL prefilter is fully
+     * exhausted and more matching rows likely exist beyond it. When
+     * omitted, the store still emits the internal
+     * `memory.audience_truncated` audit event so downstream observers
+     * can pick it up via the audit log without having to thread a
+     * callback through every call site. Both the callback and the
+     * audit event fire on the same condition, so callers may use
+     * whichever channel fits their observability story.
+     */
+    onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
   ): Promise<Sage[]> {
     await this.initialize();
-    return retrieveSqliteSageForAudience({ stmt: (sql) => this.stmt(sql) }, context, opts);
+    return retrieveSqliteSageForAudience(
+      {
+        stmt: (sql) => this.stmt(sql),
+        onTruncated: (info) => {
+          this.audit('memory.audience_truncated', { context, ...info });
+          onTruncated?.(info);
+        },
+      },
+      context,
+      limit === undefined ? undefined : { limit },
+    );
   }
 
   async listMemories(opts?: {

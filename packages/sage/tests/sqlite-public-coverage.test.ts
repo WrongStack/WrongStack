@@ -161,7 +161,7 @@ describe('SQLite public API completion coverage', () => {
     ).resolves.toEqual([expect.objectContaining({ id: general.id })]);
     await expect(store.retrieveForAudience({ role: 'missing' })).resolves.toEqual([]);
     await expect(
-      store.retrieveForAudience({ role: 'reviewer' }, { limit: 1 }),
+      store.retrieveForAudience({ role: 'reviewer' }, 1),
     ).resolves.toHaveLength(1);
   });
 

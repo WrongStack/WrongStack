@@ -1116,7 +1116,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3430
+      "sourceLines": 3433
     },
     {
       "directory": "middleware",
@@ -1158,7 +1158,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6078
+      "sourceLines": 6211
     },
     {
       "directory": "prompts",

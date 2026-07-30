@@ -3,8 +3,9 @@ import type { MemoryScope } from '@wrongstack/core/types';
 
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
+import { legacyScopeFilterClause } from './store-helpers.js';
 import type { Sage } from './types.js';
-import { DEFAULT_PERSISTENCE, legacyToSageScope, sageToLegacyScope } from './types.js';
+import { DEFAULT_PERSISTENCE, sageToLegacyScope } from './types.js';
 
 export interface SqliteLegacyClearContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -19,9 +20,9 @@ export function clearLegacySqliteMemory(
   ctx: SqliteLegacyClearContext,
   scope?: MemoryScope,
 ): void {
-  const sageScope = scope ? legacyToSageScope(scope) : undefined;
-  const scopeClause = scope ? ' AND (scope = ? OR legacy_scope = ?)' : '';
-  const params: string[] = scope ? [sageScope!, scope] : [];
+  const filter = scope ? legacyScopeFilterClause(scope) : undefined;
+  const scopeClause = filter ? ` AND ${filter.clause}` : '';
+  const params: string[] = filter ? [...filter.params] : [];
   const rows = ctx
     .stmt(`SELECT data FROM memories WHERE status != 'deleted'${scopeClause}`)
     .all(...params) as Array<{ data: string }>;

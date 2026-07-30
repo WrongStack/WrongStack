@@ -41,6 +41,16 @@ export interface SageProjectServerInfo {
   storageRoot: string;
   endpoint: string;
   startedAt: string;
+  /**
+   * Per-process auth token. Minted at server startup with
+   * `crypto.randomBytes(16)`, persisted to `server.json` alongside the
+   * rest of `SageProjectServerInfo`, and required on every `request`
+   * message in `meta.authToken`. Replaces the prior "0o600 socket is
+   * sufficient" trust model: the daemon must be able to refuse calls
+   * from any process on the same UID that did not read the metadata
+   * file first.
+   */
+  authToken: string;
 }
 
 export interface SageProjectServerStatus extends SageProjectServerInfo {
@@ -50,10 +60,27 @@ export interface SageProjectServerStatus extends SageProjectServerInfo {
 }
 
 export interface SageRequestMetadata {
+  /**
+   * Server-assigned from a per-connection nonce. Any value supplied by
+   * the client is silently overwritten so two different connections
+   * can never claim the same `clientId` in the audit log.
+   */
   clientId: string;
+  /**
+   * Per-message auth token. Must equal the `authToken` from the most
+   * recent `hello`. Connections that omit or send a wrong token are
+   * dropped at the `request` boundary, not silently logged.
+   */
+  authToken?: string | undefined;
   traceId?: string | undefined;
   sessionId?: string | undefined;
-  workspaceRoot?: string | undefined;
+  /**
+   * REMOVED for security: clients used to be able to set this, which
+   * let any same-UID process poison the audit log with fake workspace
+   * paths. The server now derives `workspaceRoot` from
+   * `projectRoot` and ignores any value in `meta`.
+   */
+  workspaceRoot?: never;
 }
 
 export interface SageServerOperations {

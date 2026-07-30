@@ -27,6 +27,7 @@ import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
 import type {
   Config,
+  ModelsRegistry,
   Provider,
   ProviderErrorBody,
   Request,
@@ -67,11 +68,11 @@ function rateLimitProvider(id: string): Provider {
       promptCache: false,
       systemPrompt: true,
       jsonMode: false,
-      cacheControl: false,
+      cacheControl: 'none',
       maxContext: 0,
       maxOutput: 0,
     },
-    async complete(_req: Request): Promise<Response> {
+    async complete(_req: Request, _opts: { signal: AbortSignal }): Promise<Response> {
       if (firstCall) {
         firstCall = false;
         const body: ProviderErrorBody = { type: 'error', message: 'rate limited' };
@@ -82,8 +83,8 @@ function rateLimitProvider(id: string): Provider {
       }
       return { ...okResponse, model: id };
     },
-    async *stream() {
-      yield { type: 'response', response: { ...okResponse, model: id } };
+    async *stream(_req: Request, _opts: { signal: AbortSignal }) {
+      yield { type: 'message_stop', stopReason: 'end_turn', usage: { input: 0, output: 0 } };
     },
   };
 }
@@ -100,15 +101,15 @@ function okProvider(id: string): Provider {
       promptCache: false,
       systemPrompt: true,
       jsonMode: false,
-      cacheControl: false,
+      cacheControl: 'none',
       maxContext: 0,
       maxOutput: 0,
     },
-    async complete(): Promise<Response> {
+    async complete(_req: Request, _opts: { signal: AbortSignal }): Promise<Response> {
       return { ...okResponse, model: id };
     },
-    async *stream() {
-      yield { type: 'response', response: { ...okResponse, model: id } };
+    async *stream(_req: Request, _opts: { signal: AbortSignal }) {
+      yield { type: 'message_stop', stopReason: 'end_turn', usage: { input: 0, output: 0 } };
     },
   };
 }
@@ -133,9 +134,9 @@ function sessionShim(): SessionWriter {
     get pendingToolUses() {
       return [];
     },
-    append: () => {},
-    appendBatch: () => {},
-    flush: () => {},
+    append: async () => {},
+    appendBatch: async () => {},
+    flush: async () => {},
     close: async () => {},
     recordFileChange: () => {},
     recordSideEffect: () => {},
@@ -154,7 +155,7 @@ interface Deps {
   toolRegistry: ToolRegistry;
   session: SessionWriter;
   projectRoot: string;
-  modelsRegistry: { getModel: (...a: never[]) => Promise<unknown> };
+  modelsRegistry: ModelsRegistry;
 }
 
 function makeDeps(): Deps {
@@ -176,11 +177,15 @@ function makeDeps(): Deps {
   container.bind(TOKENS.ConfigStore, () => new DefaultConfigStore(config));
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
   container.bind(TOKENS.TokenCounter, () => ({
+    account: () => undefined,
+    currentRequestTokens: () => ({ input: 0, cacheRead: 0, cacheWrite: 0 }),
+    setCurrentRequestTokens: () => {},
     count: () => 0,
     countMessages: () => 0,
     add: () => {},
-    total: () => ({ input: 0, output: 0 }),
-    estimateCost: () => ({ total: 0 }),
+    total: () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
+    estimateCost: () => ({ input: 0, output: 0, total: 0, currency: 'USD' }),
+    cacheStats: () => ({ readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }),
     reset: () => {},
   }));
   container.bind(TOKENS.SystemPromptBuilder, () => ({
@@ -191,6 +196,7 @@ function makeDeps(): Deps {
   for (const id of ['primary', 'backup']) {
     providerRegistry.register({
       type: id,
+      family: 'unsupported',
       create: () => (id === 'primary' ? rateLimitProvider(id) : okProvider(id)),
     });
   }
@@ -205,10 +211,16 @@ function makeDeps(): Deps {
     session: sessionShim(),
     projectRoot: '/proj',
     modelsRegistry: {
+      load: async () => ({}),
+      refresh: async () => ({}),
+      listProviders: async () => [],
+      getProvider: async () => undefined,
       getModel: async () => ({
-        capabilities: { reasoningConfig: reasoningCaps },
+        capabilities: { reasoningConfig: reasoningCaps, tools: true, vision: false, reasoning: false, maxContext: 0 },
       }),
-    },
+      suggestModel: async () => undefined,
+      ageSeconds: async () => Infinity,
+    } as unknown as ModelsRegistry,
   };
 }
 
@@ -252,7 +264,7 @@ describe('makeLightSubagentFactory — ProviderModelStatusTracker wiring', () =>
       ...makeDeps(),
       statusTracker: tracker,
     });
-    const result = await factory({ id: 's1', role: 'sdd-worker' } as SubagentConfig);
+    const result = await factory({ name: 's1', id: 's1', role: 'sdd-worker' } as SubagentConfig);
     expect(result.agent).toBeDefined();
     expect(result.agent.extensions.has('fallback-model')).toBe(true);
 

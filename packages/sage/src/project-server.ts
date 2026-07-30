@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
@@ -47,6 +48,13 @@ interface ClientState {
   socket: net.Socket;
   buffer: string;
   active: Map<number, AbortController>;
+  /**
+   * Server-assigned per-connection nonce. The server stamps this on
+   * every request's `meta.clientId` and never honours the client-supplied
+   * value, so two different connections can never claim the same
+   * `clientId` in the audit log.
+   */
+  clientId: string;
 }
 
 type CompleteSageStore = SqliteMemoryPort &
@@ -87,6 +95,11 @@ const idleMsInput = Number(process.env['WRONGSTACK_SAGE_SERVER_IDLE_MS']);
 const idleMs =
   Number.isFinite(idleMsInput) && idleMsInput >= 100 ? idleMsInput : DEFAULT_IDLE_MS;
 const startedAt = new Date().toISOString();
+// Per-process auth token. Minted at startup, persisted to `server.json`,
+// required on every `request` message — closes the "same-UID process can
+// invoke any op" trust boundary that the 0o600 socket alone does not
+// close (the socket only restricts non-root cross-UID processes).
+const authToken = randomBytes(16).toString('hex');
 const requestContext = new AsyncLocalStorage<SageRequestMetadata>();
 const events = new EventBus();
 const store = new SqliteMemoryPort({
@@ -112,6 +125,7 @@ const serverInfo: SageProjectServerInfo = {
   storageRoot,
   endpoint,
   startedAt,
+  authToken,
 };
 
 let resolveReady: (() => void) | undefined;
@@ -157,11 +171,23 @@ function broadcast(message: SageProjectServerMessage): void {
 }
 
 events.onPattern('memory.*', (event, payload) => {
+  const store = requestContext.getStore();
+  // Strip server-only secrets (authToken) before broadcasting to every
+  // connected client. Without this, an event listener on one client
+  // would receive another client's authToken via the broadcast meta,
+  // turning the per-connection token into a shared secret.
+  const safeMeta = store
+    ? {
+        clientId: store.clientId,
+        ...(store.sessionId !== undefined ? { sessionId: store.sessionId } : {}),
+        ...(store.traceId !== undefined ? { traceId: store.traceId } : {}),
+      }
+    : undefined;
   broadcast({
     type: 'event',
     event,
     payload,
-    meta: requestContext.getStore(),
+    meta: safeMeta,
   });
 });
 
@@ -181,7 +207,25 @@ async function importLegacyFiles(
   const result = { imported: 0, skipped: 0, files: 0 };
   let totalBytes = 0;
   for (const file of files) {
-    const resolved = path.resolve(file);
+    // Path containment: every imported file must live under `projectRoot`.
+    // This closes the threat where a same-UID caller invokes
+    // `importLegacyFiles(['/etc/passwd'])` or `['~/.ssh/id_rsa'])`. Files
+    // that legitimately live outside the project (e.g. a cross-project
+    // migration export staged in /tmp) require the operator to first copy
+    // them into the project boundary — explicit and reversible.
+    //
+    // Defense-in-depth: `path.resolve()` only normalises lexically and
+    // does NOT resolve symlinks. A symlink inside `projectRoot` that
+    // points outside it would pass the lexical check and then be read
+    // by `fsPromises.readFile()` (which follows symlinks), so we
+    // resolve to the real path first and check containment on that.
+    const resolved = await fsPromises.realpath(file);
+    const rel = path.relative(projectRoot, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      throw new Error(
+        `importLegacyFiles: file path must stay inside the project root: ${file}`,
+      );
+    }
     const stat = await fsPromises.stat(resolved);
     totalBytes += stat.size;
     if (totalBytes > MAX_LEGACY_IMPORT_BYTES) {
@@ -304,6 +348,33 @@ async function dispatch(
     }
     case 'updateSage': {
       const args = rawArgs as SageServerOperations['updateSage']['args'];
+      // Force guard: any `status:'deleted'` patch arriving over IPC must
+      // carry `force: true`. The store-side check in `sqlite-store-update.ts`
+      // only blocks permanent-persistence deletes; non-permanent memories
+      // were soft-deletable via raw `{status:'deleted'}` patch without
+      // any authorization. This dispatch-layer gate closes that gap
+      // regardless of the patch's other fields.
+      //
+      // Note: the in-process candidate-resolution path
+      // (`sqlite-store-candidates.ts:resolveSqliteCandidate`) deliberately
+      // does NOT pass `force: true`. Its target read is captured before
+      // this gate applies, and the store-side permanent-guard still fires
+      // when the target is permanent at delete-time. Adding `force: true`
+      // there would silently succeed for permanent-target deletion races,
+      // which the `sqlite-behavior-coverage.test.ts` promotion-race test
+      // covers as `applied: false`. Two paths, two contracts:
+      //   - IPC `updateSage` patch → force required.
+      //   - In-process `ctx.updateSage` from candidate resolve → force
+      //     intentionally omitted so the permanent-guard fires.
+      if (!args?.id || !args?.patch) {
+        throw new Error('SAGE IPC updateSage requires { id, patch } args.');
+      }
+      if (args.patch.status === 'deleted' && args.patch.force !== true) {
+        throw new Error(
+          `SAGE IPC updateSage cannot set status:'deleted' without force:true. ` +
+            `Pass { force: true } in the patch.`,
+        );
+      }
       return store.updateSage(args.id, args.patch);
     }
     case 'deleteSage': {
@@ -336,10 +407,7 @@ async function dispatch(
     }
     case 'retrieveForAudience': {
       const args = rawArgs as SageServerOperations['retrieveForAudience']['args'];
-      return store.retrieveForAudience(
-        args.context,
-        args.limit === undefined ? undefined : { limit: args.limit },
-      );
+      return store.retrieveForAudience(args.context, args.limit);
     }
     case 'graphFor': {
       const args = rawArgs as SageServerOperations['graphFor']['args'];
@@ -398,7 +466,34 @@ async function dispatch(
   }
 }
 
+function checkAuthToken(state: ClientState, message: SageProjectServerClientMessage): boolean {
+  if (message.type === 'request' && message.meta.authToken !== authToken) {
+    send(state, {
+      type: 'response',
+      id: message.id,
+      ok: false,
+      error:
+        'SAGE IPC request rejected: missing or invalid authToken. ' +
+        'Reconnect to refresh metadata (server.json#authToken).',
+      errorName: 'UnauthorizedSageRequest',
+    });
+    return false;
+  }
+  return true;
+}
+
 function handleMessage(state: ClientState, message: SageProjectServerClientMessage): void {
+  // Auth gate FIRST — every `request` message (the only message type
+  // that mutates SAGE state and that carries an `authToken` slot in
+  // its `meta`) is rejected if the token does not match the
+  // per-process `authToken` minted at startup. `cancel` and `shutdown`
+  // have no `meta` slot in the protocol and therefore cannot carry
+  // a token; they bypass this check by design. `shutdown` remains
+  // constrained by the 0o600 socket + same-UID boundary — a same-UID
+  // caller can stop the daemon, but the IPC trust model explicitly
+  // does not protect against that.
+  if (!checkAuthToken(state, message)) return;
+
   if (message.type === 'cancel') {
     state.active.get(message.id)?.abort(new Error('SAGE request cancelled by client'));
     return;
@@ -412,8 +507,17 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
   const controller = new AbortController();
   state.active.set(message.id, controller);
   pendingRequests++;
+  // Server-assigned `clientId` overrides any client-supplied value. The
+  // rest of the meta is forwarded as-is for `sessionId`/`traceId`, which
+  // are treated as opaque correlators by the audit log. `authToken` is
+  // intentionally NOT forwarded — it stays a server-only secret.
+  const safeMeta: SageRequestMetadata = {
+    clientId: state.clientId,
+    ...(message.meta.sessionId !== undefined ? { sessionId: message.meta.sessionId } : {}),
+    ...(message.meta.traceId !== undefined ? { traceId: message.meta.traceId } : {}),
+  };
   void requestContext
-    .run(message.meta, () => dispatch(message.op, message.args, controller.signal))
+    .run(safeMeta, () => dispatch(message.op, message.args, controller.signal))
     .then((result) => {
       send(state, { type: 'response', id: message.id, ok: true, result });
     })
@@ -521,7 +625,11 @@ const server = net.createServer((socket) => {
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
   socket.setEncoding('utf8');
-  const state: ClientState = { socket, buffer: '', active: new Map() };
+  // Server-assigned nonce. Pairs with `pid`+`endpoint` so audit log
+  // entries are correlatable to a specific connection without trusting
+  // any value the client supplied.
+  const clientId = `sage-${process.pid}-${randomBytes(8).toString('hex')}`;
+  const state: ClientState = { socket, buffer: '', active: new Map(), clientId };
   clients.add(state);
   send(state, { type: 'hello', ...serverInfo });
   socket.on('data', (chunk: string) => onData(state, chunk));

@@ -3,6 +3,7 @@ import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/uti
 import { useEffect, useMemo, useState } from 'react';
 import type { AppProps } from '../app-props.js';
 import type { FleetEntry, State } from '../app-state.js';
+import { resolveContextFill } from '../context-fill.js';
 
 interface StatusbarViewModelOptions {
   agent: AppProps['agent'];
@@ -87,18 +88,45 @@ export function useStatusbarViewModel({
   const perRequest = tokenCounter?.currentRequestTokens();
   const perRequestTokens =
     (perRequest?.input ?? 0) + (perRequest?.cacheRead ?? 0) + (perRequest?.cacheWrite ?? 0);
+  // The agent loop's own `ctx.pct` measurement, mirrored into state by the
+  // `leaderCtxPct` reducer. This is the number `/context` displays, so feeding
+  // it to `resolveContextFill` as the first-choice source is what keeps the
+  // chip and the panel from reporting two different fills. It also makes the
+  // chip *live*: it is refreshed by a reducer dispatch on every iteration,
+  // whereas `currentRequestTokens()` is a mutable snapshot read during render
+  // that only moves when some unrelated re-render happens to observe it.
+  const loopReportedTokens = state.leader.ctxTokens;
+  // Two-pass so the expensive local estimate is only computed when the cheap
+  // sources have nothing usable. `needsLocalEstimate` from the first pass is
+  // the authoritative "loop and provider both failed" signal — it replaces the
+  // old `perRequestTokens <= 0` test, which asked for a breakdown even when the
+  // loop had already reported a real number.
+  const cheapFill = resolveContextFill({ loopReportedTokens, perRequestTokens, maxContext });
   // The breakdown is consumed by two consumers:
-  //  1. The status bar's fallback when `perRequestTokens === 0` (post-model
-  //     switch, before the new model has fired its first request).
+  //  1. The status bar's fallback when neither the loop nor the provider has a
+  //     usable number (post-model switch, before the first request lands).
   //  2. The interactive ContextPanel's Composition tab, which needs the
   //     per-category breakdown while the panel is open.
   // Both conditions are independent: the panel can be open with a fresh
   // `currentRequestTokens` snapshot (and still want the breakdown), and the
   // panel can be closed while we still want the bar fallback. Compute the
   // breakdown whenever either signal is set.
-  const needLocalEstimate = perRequestTokens <= 0;
+  const needLocalEstimate = cheapFill.needsLocalEstimate;
   const panelWantsBreakdown = state.contextPanelOpen;
   const needBreakdown = needLocalEstimate || panelWantsBreakdown;
+
+  // Invalidation fingerprint for the breakdown. `getContextBreakdown` walks
+  // `ctx.systemPrompt`, `ctx.tools` and `ctx.messages`, so the snapshot goes
+  // stale the moment any of those change — but `agent.ctx` is one stable object
+  // for the whole session and `contextChipVersion` only bumps on /clear and
+  // /rewind. Keyed on those alone, the Composition tab froze at whatever it
+  // measured when the panel was first opened and never moved again. Use the
+  // same (messages, tools, revision) triple the agent loop uses to gate its own
+  // `ctx.pct` emit, so the panel and the loop agree on when the number changed.
+  const conversationRevision =
+    (agent.ctx.state as { revision?: number } | undefined)?.revision ?? 0;
+  const messageCount = agent.ctx.messages?.length ?? 0;
+  const toolDefCount = agent.ctx.tools?.length ?? 0;
 
   const contextBreakdown = useMemo<ContextBreakdown | undefined>(() => {
     if (!needBreakdown) return undefined;
@@ -107,13 +135,27 @@ export function useStatusbarViewModel({
     } catch {
       return undefined;
     }
-  }, [agent.ctx, needBreakdown, state.contextChipVersion]);
+  }, [
+    agent.ctx,
+    needBreakdown,
+    state.contextChipVersion,
+    conversationRevision,
+    messageCount,
+    toolDefCount,
+  ]);
 
-  // Bar reading: per-request snapshot, then panel-only local estimate, then
-  // 0 (bar hides via the `maxContext > 0` guard on contextWindow). Never
-  // the cumulative total — that is the bug this guard prevents.
-  const sourceTokens = perRequestTokens > 0 ? perRequestTokens : (contextBreakdown?.total ?? 0);
-  const currentContextTokens = Math.min(sourceTokens, maxContext);
+  // Bar reading: loop-reported tokens, then the per-request provider snapshot,
+  // then the local estimate, then 0 (bar hides via the `maxContext > 0` guard
+  // on contextWindow). The cumulative session total is never an input — see
+  // context-fill.ts for why clamping it pegs the bar at a false 100%.
+  const currentContextTokens = needLocalEstimate
+    ? resolveContextFill({
+        loopReportedTokens,
+        perRequestTokens,
+        localEstimate: contextBreakdown?.total,
+        maxContext,
+      }).used
+    : cheapFill.used;
   const contextWindow = useMemo(() => {
     void state.contextChipVersion;
     return maxContext > 0 ? { used: currentContextTokens, max: maxContext } : undefined;

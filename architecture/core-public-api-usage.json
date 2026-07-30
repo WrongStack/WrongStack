@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 219,
-      "typeOnly": 181,
-      "runtimeOrMixed": 53
+      "files": 222,
+      "typeOnly": 182,
+      "runtimeOrMixed": 56
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 153,
+      "files": 157,
       "typeOnly": 69,
-      "runtimeOrMixed": 134
+      "runtimeOrMixed": 138
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 187,
-      "typeOnly": 100,
-      "runtimeOrMixed": 97
+      "files": 191,
+      "typeOnly": 101,
+      "runtimeOrMixed": 100
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 14
     },
     "@wrongstack/core/registry": {
-      "files": 92,
+      "files": 94,
       "typeOnly": 48,
-      "runtimeOrMixed": 45
+      "runtimeOrMixed": 47
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 99,
+      "files": 101,
       "typeOnly": 19,
-      "runtimeOrMixed": 83
+      "runtimeOrMixed": 85
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -129,9 +129,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/storage": {
-      "files": 84,
+      "files": 86,
       "typeOnly": 26,
-      "runtimeOrMixed": 87
+      "runtimeOrMixed": 89
     },
     "@wrongstack/core/tasking": {
       "files": 28,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 811,
-      "typeOnly": 779,
-      "runtimeOrMixed": 199
+      "files": 815,
+      "typeOnly": 785,
+      "runtimeOrMixed": 202
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -611,9 +611,21 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/chimera-subagent-rate-limit-smoke.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/fallback-model.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 4
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -828,6 +840,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/tests/container.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -2009,6 +2027,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/chimera-subagent-rate-limit-smoke.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/cli-main-helpers.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2058,6 +2082,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/kanban-reliable-queue.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -2171,7 +2201,19 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/runtime/src/container.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4217,6 +4259,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/chimera-subagent-rate-limit-smoke.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/cli-eternal-flag.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4248,6 +4296,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/goal-host.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4535,6 +4589,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4742,6 +4802,12 @@
       "file": "packages/tui/tests/use-provider-event-bridge.test.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/tui/tests/use-subagent-events-ctx-throttle.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/kernel",
@@ -5489,6 +5555,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/mcp-serve.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5712,6 +5784,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/tests/host.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6173,6 +6251,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/mcp-serve.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6252,6 +6336,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/tests/container.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6683,6 +6773,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/replay-integration.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6738,6 +6834,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/tests/container.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8615,6 +8717,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/chimera-subagent-rate-limit-smoke.test.ts",
+      "typeOnly": 2,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/context-limit.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8708,6 +8816,12 @@
       "file": "packages/cli/tests/launch-hints.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10091,6 +10205,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10236,6 +10356,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sage/src/sqlite-store.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/src/store-helpers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11490,7 +11616,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/use-statusbar-view-model-context-bar.test.tsx",
-      "typeOnly": 1,
+      "typeOnly": 2,
       "runtimeOrMixed": 0
     },
     {

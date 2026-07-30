@@ -83,6 +83,21 @@ export function useSubagentEvents(
   const leaderCtxDispatchRef = useRef<
     { at: number; load: number; tokens?: number; max?: number } | undefined
   >(undefined);
+  // Pending trailing-edge flushes for the 250ms ctx-fill rate limit below.
+  // Without these the throttle was leading-edge only: a `ctx.pct` arriving
+  // inside the window was dropped and never re-delivered, so when the last
+  // emit of a turn landed within 250ms of the previous one (common — a
+  // tool-only iteration can finish in tens of milliseconds) the statusline
+  // chip and the /context panel kept showing the older, lower reading until
+  // the next turn happened to emit outside a window.
+  const leaderCtxFlushRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Latest-values buffer for the leader `ctx.pct` trailing-flush. The timer
+  // callback runs after potentially newer events, so we read the most recent
+  // payload here instead of capturing the outer `e` in closure.
+  const latestLeaderCtxPctRef = useRef<
+    { load: number; tokens: number; maxContext: number } | undefined
+  >(undefined);
+  const ctxFlushRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const gate = useFleetGenerationGate(sessionGenerationRef);
   const lbl = useCallback(
     (id: string, name?: string) => labelFor(labelsRef, id, name),
@@ -203,6 +218,11 @@ export function useSubagentEvents(
       seen.delete(e.subagentId);
       labelsRef.current.delete(e.subagentId);
       ctxDispatchRef.current.delete(e.subagentId);
+      const pendingFlush = ctxFlushRef.current.get(e.subagentId);
+      if (pendingFlush) {
+        clearTimeout(pendingFlush);
+        ctxFlushRef.current.delete(e.subagentId);
+      }
       gate.forget(e.subagentId);
       dispatch({ type: 'fleetRemove', id: e.subagentId });
     });
@@ -292,22 +312,43 @@ export function useSubagentEvents(
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
       seen.add(e.subagentId);
-      const now = Date.now();
+      const emit = (): void => {
+        ctxDispatchRef.current.set(e.subagentId, {
+          at: Date.now(),
+          load: e.load,
+          tokens: e.tokens,
+          max: e.maxContext,
+        });
+        dispatch({
+          type: 'fleetCtxPct',
+          id: e.subagentId,
+          load: e.load,
+          tokens: e.tokens,
+          maxContext: e.maxContext,
+        });
+      };
       const previous = ctxDispatchRef.current.get(e.subagentId);
-      if (previous && now - previous.at < 250) return;
-      ctxDispatchRef.current.set(e.subagentId, {
-        at: now,
-        load: e.load,
-        tokens: e.tokens,
-        max: e.maxContext,
-      });
-      dispatch({
-        type: 'fleetCtxPct',
-        id: e.subagentId,
-        load: e.load,
-        tokens: e.tokens,
-        maxContext: e.maxContext,
-      });
+      const elapsed = previous ? Date.now() - previous.at : Number.POSITIVE_INFINITY;
+      if (elapsed < 250) {
+        // Rate-limited: re-arm a trailing flush so the newest reading still
+        // lands. Replacing the pending timer keeps only the latest value.
+        const pending = ctxFlushRef.current.get(e.subagentId);
+        if (pending) clearTimeout(pending);
+        const timer = setTimeout(() => {
+          ctxFlushRef.current.delete(e.subagentId);
+          if (!gate.isLive(e.subagentId)) return;
+          emit();
+        }, 250 - elapsed);
+        timer.unref?.();
+        ctxFlushRef.current.set(e.subagentId, timer);
+        return;
+      }
+      const pending = ctxFlushRef.current.get(e.subagentId);
+      if (pending) {
+        clearTimeout(pending);
+        ctxFlushRef.current.delete(e.subagentId);
+      }
+      emit();
     });
 
     // NOTE: AgentMonitorService also emits `agent.timeline.message` (one event
@@ -331,17 +372,47 @@ export function useSubagentEvents(
 
     const offLeaderCtxPct = events.on('ctx.pct', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
-      const now = Date.now();
-      const previous = leaderCtxDispatchRef.current;
-      if (previous && now - previous.at < 250) return;
-      leaderCtxDispatchRef.current = {
-        at: now,
-        load: e.load,
-        tokens: e.tokens,
-        max: e.maxContext,
+      // Latest-values buffer for the trailing flush. Without this, the
+      // timer captures `e` from the first rate-limited event and an older
+      // reading wins when a newer event arrives before the timer fires.
+      // Mirrors the `subagent.ctx_pct` branch's per-id buffer pattern.
+      latestLeaderCtxPctRef.current = e;
+      const emit = (): void => {
+        const latest = latestLeaderCtxPctRef.current ?? e;
+        leaderCtxDispatchRef.current = {
+          at: Date.now(),
+          load: latest.load,
+          tokens: latest.tokens,
+          max: latest.maxContext,
+        };
+        setActiveMaxContext(latest.maxContext);
+        dispatch({
+          type: 'leaderCtxPct',
+          load: latest.load,
+          tokens: latest.tokens,
+          maxContext: latest.maxContext,
+        });
       };
-      setActiveMaxContext(e.maxContext);
-      dispatch({ type: 'leaderCtxPct', load: e.load, tokens: e.tokens, maxContext: e.maxContext });
+      const previous = leaderCtxDispatchRef.current;
+      const elapsed = previous ? Date.now() - previous.at : Number.POSITIVE_INFINITY;
+      if (elapsed < 250) {
+        // Rate-limited: re-arm a trailing flush so the last emit of a turn is
+        // never the one that gets dropped. Replacing the pending timer keeps
+        // only the newest reading.
+        if (leaderCtxFlushRef.current) clearTimeout(leaderCtxFlushRef.current);
+        const timer = setTimeout(() => {
+          leaderCtxFlushRef.current = undefined;
+          emit();
+        }, 250 - elapsed);
+        timer.unref?.();
+        leaderCtxFlushRef.current = timer;
+        return;
+      }
+      if (leaderCtxFlushRef.current) {
+        clearTimeout(leaderCtxFlushRef.current);
+        leaderCtxFlushRef.current = undefined;
+      }
+      emit();
     });
 
     const offLeaderMaxContext = events.on('ctx.max_context', (e) => {
@@ -382,6 +453,15 @@ export function useSubagentEvents(
       offLeaderMaxContext();
       offCompactionFired();
       offTool();
+      // Cancel pending trailing ctx-fill flushes — their `dispatch` closures
+      // belong to this effect lifetime and would fire after the listeners are
+      // gone (and, on a session switch, against the new session's reducer).
+      if (leaderCtxFlushRef.current) {
+        clearTimeout(leaderCtxFlushRef.current);
+        leaderCtxFlushRef.current = undefined;
+      }
+      for (const timer of ctxFlushRef.current.values()) clearTimeout(timer);
+      ctxFlushRef.current.clear();
       // Clear component-level ref entries for subagents tracked in this effect.
       // labelsRef and ctxDispatchRef are useRefs that outlive this effect;
       // without this, an effect re-run (dep change) leaks entries from

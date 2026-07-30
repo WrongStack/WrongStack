@@ -18,6 +18,7 @@
 // maxContext ceiling."
 
 import { renderHook } from '@testing-library/react';
+import type { Message } from '@wrongstack/core/types';
 import type { TokenCounter } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import type { AppProps } from '../src/app-props.js';
@@ -197,5 +198,162 @@ describe('useStatusbarViewModel — context bar (model-switch regression)', () =
     // maxContext = 0 means the hook returns undefined and the bar is hidden.
     // This is the current behavior and should be preserved.
     expect(result.current.contextWindow).toBeUndefined();
+  });
+});
+
+describe('useStatusbarViewModel — chip/panel agreement', () => {
+  /**
+   * The statusline chip and the `/context` panel must show the same fill. The
+   * panel reads `state.leader.ctxTokens` (the agent loop's `ctx.pct`), so the
+   * chip has to prefer that number too — via `resolveContextFill`. Before this
+   * was wired in, the chip rolled its own reading from
+   * `currentRequestTokens()` and the two surfaces disagreed.
+   */
+  it('prefers state.leader.ctxTokens over the per-request provider snapshot', () => {
+    const tokenCounter = makeTokenCounter({
+      currentRequest: { input: 40_000, cacheRead: 0, cacheWrite: 0 },
+      cumulative: { input: 900_000, cacheRead: 0, cacheWrite: 0 },
+    });
+    const state = makeState();
+    // What `/context` shows — the loop's own measurement, higher than the
+    // provider snapshot because messages were appended since the last request.
+    state.leader.ctxTokens = 52_400;
+
+    const { result } = renderHook(() =>
+      useStatusbarViewModel({
+        agent: makeAgent(200_000),
+        tokenCounter,
+        activeMaxContext: 200_000,
+        effectiveMaxContext: 200_000,
+        liveProvider: 'anthropic',
+        liveModel: 'claude-opus-5',
+        liveTodos: [],
+        state,
+      }),
+    );
+
+    expect(result.current.currentContextTokens).toBe(52_400);
+    expect(result.current.contextWindow).toEqual({ used: 52_400, max: 200_000 });
+  });
+
+  it('tracks a growing leader ctxTokens across renders', () => {
+    const tokenCounter = makeTokenCounter({
+      currentRequest: { input: 10_000, cacheRead: 0, cacheWrite: 0 },
+      cumulative: { input: 10_000, cacheRead: 0, cacheWrite: 0 },
+    });
+    const state = makeState();
+    state.leader.ctxTokens = 30_000;
+    const props = {
+      agent: makeAgent(200_000),
+      tokenCounter,
+      activeMaxContext: 200_000,
+      effectiveMaxContext: 200_000,
+      liveProvider: 'anthropic',
+      liveModel: 'claude-opus-5',
+      liveTodos: [] as readonly { status: string }[],
+      state,
+    };
+
+    const { result, rerender } = renderHook((p: typeof props) => useStatusbarViewModel(p), {
+      initialProps: props,
+    });
+    expect(result.current.currentContextTokens).toBe(30_000);
+
+    // Next `ctx.pct` lands: the reducer produces a new state object with a
+    // higher ctxTokens. The chip must follow it, not stay pinned.
+    const grown = { ...state, leader: { ...state.leader, ctxTokens: 61_500 } } as State;
+    rerender({ ...props, state: grown });
+    expect(result.current.currentContextTokens).toBe(61_500);
+  });
+
+  it('rejects a stale per-request snapshot above the ceiling instead of clamping to 100%', () => {
+    // A per-request measure cannot exceed its own ceiling. After a switch to a
+    // smaller window the old snapshot is stale — clamping it painted a false
+    // 100%. With no loop number yet, the bar must fall back rather than lie.
+    const tokenCounter = makeTokenCounter({
+      currentRequest: { input: 180_000, cacheRead: 0, cacheWrite: 0 },
+      cumulative: { input: 180_000, cacheRead: 0, cacheWrite: 0 },
+    });
+
+    const { result } = renderHook(() =>
+      useStatusbarViewModel({
+        agent: makeAgent(200_000),
+        tokenCounter,
+        activeMaxContext: 32_000,
+        effectiveMaxContext: 32_000,
+        liveProvider: 'openai',
+        liveModel: 'gpt-4o-mini',
+        liveTodos: [],
+        state: makeState(),
+      }),
+    );
+
+    expect(result.current.contextWindow!.used).toBeLessThan(32_000);
+  });
+});
+
+describe('useStatusbarViewModel — /context composition freshness', () => {
+  /**
+   * `getContextBreakdown` is a snapshot of the assembled request. Keyed only on
+   * `agent.ctx` (one stable object per session) and `contextChipVersion` (bumped
+   * only by /clear and /rewind), the memo never re-ran while the panel stayed
+   * open, so the Composition tab froze at whatever it measured on first open.
+   */
+  function makeLiveAgent(messages: Message[], revision: { current: number }): AppProps['agent'] {
+    return {
+      ctx: {
+        provider: { capabilities: { maxContext: 200_000 } },
+        meta: {},
+        systemPrompt: [],
+        tools: [],
+        messages,
+        state: {
+          get revision() {
+            return revision.current;
+          },
+        },
+      },
+    } as unknown as AppProps['agent'];
+  }
+
+  it('recomputes the breakdown when the conversation grows', () => {
+    const messages: Message[] = [{ role: 'user', content: 'hello there' }];
+    const revision = { current: 1 };
+    const state = makeState();
+    state.contextPanelOpen = true;
+
+    const props = {
+      agent: makeLiveAgent(messages, revision),
+      tokenCounter: makeTokenCounter({
+        currentRequest: { input: 5_000, cacheRead: 0, cacheWrite: 0 },
+        cumulative: { input: 5_000, cacheRead: 0, cacheWrite: 0 },
+      }),
+      activeMaxContext: 200_000,
+      effectiveMaxContext: 200_000,
+      liveProvider: 'anthropic',
+      liveModel: 'claude-opus-5',
+      liveTodos: [] as readonly { status: string }[],
+      state,
+    };
+
+    const { result, rerender } = renderHook((p: typeof props) => useStatusbarViewModel(p), {
+      initialProps: props,
+    });
+    const first = result.current.contextBreakdown;
+    expect(first).toBeDefined();
+    expect(first!.history.messageCount).toBe(1);
+
+    // Same `agent.ctx` object, same contextChipVersion — only the conversation
+    // itself changed. The breakdown must follow.
+    messages.push({
+      role: 'assistant',
+      content: 'a considerably longer reply that adds measurable token weight to the history',
+    });
+    revision.current = 2;
+    rerender({ ...props, state: { ...state } as State });
+
+    const second = result.current.contextBreakdown;
+    expect(second!.history.messageCount).toBe(2);
+    expect(second!.history.total).toBeGreaterThan(first!.history.total);
   });
 });

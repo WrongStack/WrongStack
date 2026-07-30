@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import type { DatabaseSync } from 'node:sqlite';
 import type { MemoryCandidate, Sage, SageAuditRecord } from './types.js';
 
 export interface SqliteAuditRow {
@@ -10,6 +11,42 @@ export interface SqliteAuditRow {
 
 export function sqliteRowToMemory(row: { data: string }): Sage {
   return JSON.parse(row.data) as Sage;
+}
+
+/**
+ * Read a single memory by id from the `memories` table and parse it into
+ * the typed `Sage` shape. Returns `null` when the row is missing or the
+ * JSON payload is unparseable — the helper does NOT throw, so callers
+ * branch on `null` instead of a try/catch.
+ *
+ * Pure read; does not mutate. The `stmt` is whatever the caller already
+ * threads through (typically a `SqliteStatementCache` lookup), so the
+ * helper fits the existing `Sqlite*Context` interfaces without imposing
+ * a new dependency.
+ *
+ * Replaces the seven remaining callsites that were open-coding the same
+ * query+cast pair (after the Phase 1 migration: `sqlite-store-delete`,
+ * `sqlite-store-hygiene`, `sqlite-store-jsonl-migration`, `sqlite-store-
+ * update`, `sqlite-store-verify` x2, `sqlite-store-compat`). The
+ * `sqlite-store-compat` callsite uses a custom JSON-parse warning log
+ * and is intentionally left on the raw `sqliteRowToMemory` path; the
+ * helper covers the other six files. Centralizing the cast avoids the
+ * type-narrowing traps that bit at least two of the original callsites
+ * (the cast is now in one place, not seven).
+ */
+export function readSqliteSageRow(
+  stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>,
+  id: string,
+): Sage | null {
+  const row = stmt('SELECT data FROM memories WHERE id = ?').get(id) as
+    | { data: string }
+    | undefined;
+  if (!row) return null;
+  try {
+    return sqliteRowToMemory(row);
+  } catch {
+    return null;
+  }
 }
 
 export function sqliteRowToCandidate(row: { data: string }): MemoryCandidate {

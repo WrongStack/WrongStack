@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import { rejectIfUnsafeInput } from './shared/candidate-lifecycle.js';
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
   clamp01,
@@ -31,11 +31,8 @@ export function updateSqliteSage(
   input: UpdateSageInput,
 ): Sage {
   rejectIfUnsafeInput(input);
-  const row = ctx.stmt('SELECT data FROM memories WHERE id = ?').get(id) as
-    | { data: string }
-    | undefined;
-  if (!row) throw new Error(`SAGE ${id} not found.`);
-  const existing = sqliteRowToMemory(row);
+  const existing = readSqliteSageRow(ctx.stmt, id);
+  if (!existing) throw new Error(`SAGE ${id} not found.`);
   if (
     input.status === 'deleted' &&
     !input.force &&

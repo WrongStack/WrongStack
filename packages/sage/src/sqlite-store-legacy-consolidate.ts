@@ -2,9 +2,9 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { MemoryScope } from '@wrongstack/core/types';
 
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
-import { normalizeTextKey } from './store-helpers.js';
+import { legacyScopeFilterClause, normalizeTextKey } from './store-helpers.js';
 import type { Sage } from './types.js';
-import { DEFAULT_PERSISTENCE, legacyToSageScope, sageToLegacyScope } from './types.js';
+import { DEFAULT_PERSISTENCE, sageToLegacyScope } from './types.js';
 
 export interface SqliteLegacyConsolidateContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -21,10 +21,10 @@ export function consolidateLegacySqliteMemory(
 ): void {
   // Push scope filter into SQL using the indexed `scope` and `legacy_scope`
   // columns so the consolidator does not incur O(N) full-table JSON parses.
-  const sageScope = legacyToSageScope(scope);
+  const filter = legacyScopeFilterClause(scope);
   const rows = ctx
-    .stmt("SELECT data FROM memories WHERE status IN ('active','stale') AND (scope = ? OR legacy_scope = ?)")
-    .all(sageScope, scope) as Array<{ data: string }>;
+    .stmt(`SELECT data FROM memories WHERE status IN ('active','stale') AND ${filter.clause}`)
+    .all(...filter.params) as Array<{ data: string }>;
   const groups = new Map<string, Sage[]>();
   for (const row of rows) {
     let memory: Sage;

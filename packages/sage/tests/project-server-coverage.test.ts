@@ -56,10 +56,12 @@ describe('encodeSageProjectServerMessage', () => {
       type: 'hello', protocolVersion: 1, pid: 1234,
       projectRoot: '/test', storageRoot: '/test/.ws/mem',
       endpoint: '/tmp/test.sock', startedAt: '2026-01-01T00:00:00.000Z',
+      authToken: 'fixture-token-not-real',
     };
     const parsed = JSON.parse(encodeSageProjectServerMessage(msg).trim());
     expect(parsed.type).toBe('hello');
     expect(parsed.protocolVersion).toBe(1);
+    expect(parsed.authToken).toBe('fixture-token-not-real');
   });
 
   it('encodes an error response', () => {

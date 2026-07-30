@@ -141,4 +141,84 @@ describe('project agent memory audiences', () => {
     expect((await store.getSage(reviewer.id))?.status).toBe('active');
     expect((await store.getSage(git.id))?.status).toBe('active');
   });
+
+  it('fires onTruncated when the SQL prefilter is saturated and more matching rows exist', async () => {
+    const store = openStore();
+    // Seed enough reviewer-scoped rows to saturate the prefilter at
+    // limit=2 (prefilterSize = limit * 5 = 10) AND leave more matching
+    // rows past the limit so matched.length > truncated.length.
+    for (let i = 0; i < 15; i++) {
+      await store.rememberSage({
+        text: `Reviewer policy entry #${i}.`,
+        scope: 'project',
+        audience: { roles: ['reviewer'] },
+        importance: 0.5 + i * 0.01,
+      });
+    }
+
+    const calls: Array<{ sqlRowsExamined: number; returned: number }> = [];
+    const result = await store.retrieveForAudience({ role: 'reviewer' }, 2, (info) => {
+      calls.push(info);
+    });
+
+    // Limit honored, more matches exist beyond.
+    expect(result).toHaveLength(2);
+    // Truncation signal fired exactly once with the prefilter size.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sqlRowsExamined).toBe(10);
+    expect(calls[0]?.returned).toBe(2);
+  });
+
+  it('does not fire onTruncated when fewer matching rows exist than the limit', async () => {
+    const store = openStore();
+    await store.rememberSage({
+      text: 'A lone reviewer entry.',
+      audience: { roles: ['reviewer'] },
+    });
+
+    const calls: Array<{ sqlRowsExamined: number; returned: number }> = [];
+    const result = await store.retrieveForAudience({ role: 'reviewer' }, 5, (info) => {
+      calls.push(info);
+    });
+
+    expect(result).toHaveLength(1);
+    expect(calls).toEqual([]);
+  });
+
+  it('emits the memory.audience_truncated audit event even without a callback', async () => {
+    const store = openStore();
+    for (let i = 0; i < 15; i++) {
+      await store.rememberSage({
+        text: `Reviewer audit entry #${i}.`,
+        audience: { roles: ['reviewer'] },
+        importance: 0.5 + i * 0.01,
+      });
+    }
+
+    // No callback — but the store should still emit the audit event.
+    const result = await store.retrieveForAudience({ role: 'reviewer' }, 2);
+    expect(result).toHaveLength(2);
+
+    const audit = await store.readAudit(50);
+    const truncated = audit.filter((entry) => entry.event === 'memory.audience_truncated');
+    expect(truncated).toHaveLength(1);
+  });
+
+  it('honors limit=0 by returning an empty slice without firing onTruncated', async () => {
+    const store = openStore();
+    await store.rememberSage({
+      text: 'Reviewer entry for limit=0.',
+      audience: { roles: ['reviewer'] },
+    });
+
+    const calls: Array<{ sqlRowsExamined: number; returned: number }> = [];
+    const result = await store.retrieveForAudience({ role: 'reviewer' }, 0, (info) => {
+      calls.push(info);
+    });
+
+    expect(result).toEqual([]);
+    // prefilterSize = 0 * 5 = 0. SQL LIMIT 0 returns no rows, so the
+    // truncation condition can never be satisfied.
+    expect(calls).toEqual([]);
+  });
 });

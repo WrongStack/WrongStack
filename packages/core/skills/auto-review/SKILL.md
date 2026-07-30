@@ -15,12 +15,13 @@ version: 2.0.0
 
 The **`wstack-auto-review`** plugin (built into `@wrongstack/core`) detects
 every git-tracked file change during a session and automatically dispatches
-a review subagent. It extends the Chimera review pipeline but fires
-**mid-session** on every change, not just at session end.
+a review subagent after a trailing file-quiet window. It extends the Chimera
+review pipeline with **mid-session** reviews while leaving any work still
+waiting at `session.ended` to the post-session Chimera path.
 
 ```
-iteration.completed → git diff → debounce → chimera.review_needed event
-                                                  ↓
+iteration.completed → git diff → trailing quiet window → chimera.review_needed event
+                                                   ↓
                                     Director spawns review subagent
                                     (provider/model from config)
                                                   ↓
@@ -50,7 +51,7 @@ Enable it in your config:
       "provider": "deepseek",
       "model": "deepseek-chat",
       "fallbackProfile": "reliable",
-      "debounceMs": 5000,
+      "debounceMs": 15000,
       "maxFilesPerBatch": 15,
       "cascadeOn": "high",
       "maxCascadeDepth": 2
@@ -74,7 +75,7 @@ Enable it in your config:
 | `provider` | string | session provider | LLM provider for review agents |
 | `model` | string | session model | LLM model for review agents |
 | `fallbackProfile` | string | effective fallback profile | Named profile from `fallbackProfiles`; its first valid entry supplies the primary provider/model when those are omitted |
-| `debounceMs` | number | 5000 | Min gap between review triggers |
+| `debounceMs` | number | 15000 | Required file-quiet period before a mid-session review starts |
 | `maxFilesPerBatch` | number | 15 | Files per review call |
 | `maxConcurrentReviews` | number | 2 | Parallel review subagent cap |
 | `cascadeOn` | "off"|"critical"|"high" | "off" | Follow-up agent threshold — spawns security-scanner/bug-hunter when findings cross this severity |
@@ -92,7 +93,8 @@ Enable it in your config:
 
 - **Only git-tracked files** with staged or unstaged changes; untracked (`??`) files are never read or reviewed
 - **Content-aware** — later edits to an already-modified file trigger again when its content fingerprint changes
-- **Debounced without loss** — rapid edits are retained in a pending queue, with the latest content reviewed on the next eligible iteration
+- **Debounced without loss** — rapid edits restart the quiet window; the latest content is reviewed in the background after the full window elapses
+- **Lifecycle-safe** — `session.ended` cancels a pending mid-session timer and hands those files to post-session Chimera
 - **Capped** at `maxFilesPerBatch` files per call; overflow stays pending
 - **Skipped** — `.wrongstack/` files
 - **Deleted files** are silently omitted
@@ -173,4 +175,3 @@ path traversal, hardcoded, privilege, owasp.
 - `multi-agent` — for subagent delegation and fleet management
 - `security-scanner` — for security vulnerability patterns
 - `bug-hunter` — for systematic bug detection
-

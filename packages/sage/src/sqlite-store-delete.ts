@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { readSqliteSageRow, sqliteRowToMemory } from './sqlite-store-codec.js';
 import type { Sage } from './types.js';
 import { DEFAULT_PERSISTENCE } from './types.js';
 
@@ -19,11 +19,8 @@ export function deleteSqliteSage(
   reason: string,
   options: { force?: boolean; neverInject?: boolean } = {},
 ): void {
-  const row = ctx.stmt('SELECT data FROM memories WHERE id = ?').get(id) as
-    | { data: string }
-    | undefined;
-  if (!row) throw new Error(`SAGE "${id}" not found.`);
-  const fresh = sqliteRowToMemory(row);
+  const fresh = readSqliteSageRow(ctx.stmt, id);
+  if (!fresh) throw new Error(`SAGE "${id}" not found.`);
   if (fresh.status === 'deleted') return;
 
   if (!options.force) {

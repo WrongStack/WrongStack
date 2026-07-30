@@ -34,6 +34,7 @@ import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import type {
   Config,
+  ModelsRegistry,
   Provider,
   ProviderErrorBody,
   Request,
@@ -72,11 +73,11 @@ function rateLimitProvider(id: string): Provider {
       promptCache: false,
       systemPrompt: true,
       jsonMode: false,
-      cacheControl: false,
+      cacheControl: 'none',
       maxContext: 0,
       maxOutput: 0,
     },
-    async complete(_req: Request): Promise<Response> {
+    async complete(_req: Request, _opts: { signal: AbortSignal }): Promise<Response> {
       if (firstCall) {
         firstCall = false;
         const body: ProviderErrorBody = { type: 'error', message: 'rate limited' };
@@ -87,8 +88,8 @@ function rateLimitProvider(id: string): Provider {
       }
       return { ...okResponse, model: id };
     },
-    async *stream() {
-      yield { type: 'response', response: { ...okResponse, model: id } };
+    async *stream(_req: Request, _opts: { signal: AbortSignal }) {
+      yield { type: 'message_stop', stopReason: 'end_turn', usage: { input: 0, output: 0 } };
     },
   };
 }
@@ -105,15 +106,15 @@ function okProvider(id: string): Provider {
       promptCache: false,
       systemPrompt: true,
       jsonMode: false,
-      cacheControl: false,
+      cacheControl: 'none',
       maxContext: 0,
       maxOutput: 0,
     },
-    async complete(): Promise<Response> {
+    async complete(_req: Request, _opts: { signal: AbortSignal }): Promise<Response> {
       return { ...okResponse, model: id };
     },
-    async *stream() {
-      yield { type: 'response', response: { ...okResponse, model: id } };
+    async *stream(_req: Request, _opts: { signal: AbortSignal }) {
+      yield { type: 'message_stop', stopReason: 'end_turn', usage: { input: 0, output: 0 } };
     },
   };
 }
@@ -138,9 +139,9 @@ function sessionShim(): SessionWriter {
     get pendingToolUses() {
       return [];
     },
-    append: () => {},
-    appendBatch: () => {},
-    flush: () => {},
+    append: async () => {},
+    appendBatch: async () => {},
+    flush: async () => {},
     close: async () => {},
     recordFileChange: () => {},
     recordSideEffect: () => {},
@@ -159,7 +160,7 @@ interface Deps {
   toolRegistry: ToolRegistry;
   session: SessionWriter;
   projectRoot: string;
-  modelsRegistry: { getModel: (...a: never[]) => Promise<unknown> };
+  modelsRegistry: ModelsRegistry;
 }
 
 function makeDeps(statusTracker: ProviderModelStatusTracker): Deps {
@@ -181,11 +182,15 @@ function makeDeps(statusTracker: ProviderModelStatusTracker): Deps {
   container.bind(TOKENS.ConfigStore, () => new DefaultConfigStore(config));
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
   container.bind(TOKENS.TokenCounter, () => ({
+    account: () => undefined,
+    currentRequestTokens: () => ({ input: 0, cacheRead: 0, cacheWrite: 0 }),
+    setCurrentRequestTokens: () => {},
     count: () => 0,
     countMessages: () => 0,
     add: () => {},
-    total: () => ({ input: 0, output: 0 }),
-    estimateCost: () => ({ total: 0 }),
+    total: () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
+    estimateCost: () => ({ input: 0, output: 0, total: 0, currency: 'USD' }),
+    cacheStats: () => ({ readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }),
     reset: () => {},
   }));
   container.bind(TOKENS.SystemPromptBuilder, () => ({
@@ -200,6 +205,7 @@ function makeDeps(statusTracker: ProviderModelStatusTracker): Deps {
   for (const id of ['primary', 'backup']) {
     providerRegistry.register({
       type: id,
+      family: 'unsupported',
       create: () => (id === 'primary' ? rateLimitProvider(id) : okProvider(id)),
     });
   }
@@ -214,10 +220,16 @@ function makeDeps(statusTracker: ProviderModelStatusTracker): Deps {
     session: sessionShim(),
     projectRoot: '/proj',
     modelsRegistry: {
+      load: async () => ({}),
+      refresh: async () => ({}),
+      listProviders: async () => [],
+      getProvider: async () => undefined,
       getModel: async () => ({
-        capabilities: { reasoningConfig: reasoningCaps },
+        capabilities: { reasoningConfig: reasoningCaps, tools: true, vision: false, reasoning: false, maxContext: 0 },
       }),
-    },
+      suggestModel: async () => undefined,
+      ageSeconds: async () => Infinity,
+    } as unknown as ModelsRegistry,
   };
 }
 
@@ -243,7 +255,7 @@ describe('makeLightSubagentFactory — end-to-end 429 → /provider-status waiti
       ...deps,
       statusTracker: tracker,
     });
-    const result = await factory({ id: 'sdd-worker-1', role: 'sdd' });
+    const result = await factory({ name: 'sdd-worker-1', id: 'sdd-worker-1', role: 'sdd' });
     expect(result.agent).toBeDefined();
     expect(result.agent.extensions.has('fallback-model')).toBe(true);
 
@@ -295,6 +307,7 @@ describe('makeLightSubagentFactory — end-to-end 429 → /provider-status waiti
     //    the loop end-to-end.
     const cmd = buildProviderStatusCommand(tracker);
     const view = await cmd.run('waiting');
+    if (!view) throw new Error('/provider-status waiting returned no view');
     expect(typeof view.message).toBe('string');
     expect(view.message).toContain('primary/primary-model');
     expect(view.message).toContain('blocked');
@@ -308,7 +321,7 @@ describe('makeLightSubagentFactory — end-to-end 429 → /provider-status waiti
     // `...(host.opts.statusTracker ? { statusTracker } : {})` pattern.
     const deps = makeDeps(new ProviderModelStatusTracker());
     const factory = makeLightSubagentFactory(deps);
-    const result = await factory({ id: 'sdd-worker-2' });
+    const result = await factory({ name: 'sdd-worker-2', id: 'sdd-worker-2' });
     expect(result.agent).toBeDefined();
     expect(result.agent.extensions.has('fallback-model')).toBe(true);
   });
@@ -328,7 +341,7 @@ describe('makeLightSubagentFactory — end-to-end 429 → /provider-status waiti
       ...deps,
       statusTracker: resolved,
     });
-    const result = await factory({ id: 'sdd-worker-3' });
+    const result = await factory({ name: 'sdd-worker-3', id: 'sdd-worker-3' });
     expect(result.agent).toBeDefined();
     expect(result.agent.extensions.has('fallback-model')).toBe(true);
   });

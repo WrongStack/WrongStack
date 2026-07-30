@@ -2,9 +2,10 @@ import type { DatabaseSync } from 'node:sqlite';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
 import { matchesLegacyForget } from './sqlite-store-legacy.js';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { legacyScopeFilterClause } from './store-helpers.js';
 import type { MemoryScope } from '@wrongstack/core/types';
 import type { Sage } from './types.js';
-import { DEFAULT_PERSISTENCE, legacyToSageScope, sageToLegacyScope } from './types.js';
+import { DEFAULT_PERSISTENCE, sageToLegacyScope } from './types.js';
 
 export interface SqliteLegacyForgetContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -22,10 +23,10 @@ export function forgetLegacySqliteMemory(
 ): number {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return 0;
-  const sageScope = legacyToSageScope(scope);
+  const filter = legacyScopeFilterClause(scope);
   const rows = ctx
-    .stmt('SELECT data FROM memories WHERE status != ? AND (scope = ? OR legacy_scope = ?)')
-    .all('deleted', sageScope, scope) as Array<{ data: string }>;
+    .stmt(`SELECT data FROM memories WHERE status != ? AND ${filter.clause}`)
+    .all('deleted', ...filter.params) as Array<{ data: string }>;
   let removed = 0;
   const skippedPermanent: string[] = [];
   for (const row of rows) {

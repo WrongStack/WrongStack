@@ -65,7 +65,7 @@ describe('auto-hygiene throttle', () => {
     );
   });
 
-  it('calls flushPendingCounters even when hygiene is throttled', async () => {
+  it('calls flushPendingCounters even when hygiene is throttled (defensive: real batching hook is deferred — see R3b)', async () => {
     const hygieneSpy = vi.fn().mockResolvedValue(undefined);
     const flushSpy = vi.fn().mockResolvedValue(undefined);
     const deps = makeMockDeps(hygieneSpy);
@@ -77,7 +77,11 @@ describe('auto-hygiene throttle', () => {
     expect(flushSpy).toHaveBeenCalledTimes(1);
     expect(hygieneSpy).toHaveBeenCalledTimes(1);
 
-    // Second teardown — flush still called, hygiene throttled.
+    // Second teardown — flush still called, hygiene throttled. This
+    // contract preserves the hook surface so a future real
+    // counter-batching implementation (R3b) will be drained correctly
+    // even on throttled teardowns. The current in-memory and IPC
+    // implementations make the flush a no-op.
     await teardown();
     expect(flushSpy).toHaveBeenCalledTimes(2);
     expect(hygieneSpy).toHaveBeenCalledTimes(1);

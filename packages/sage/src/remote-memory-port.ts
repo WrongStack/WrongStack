@@ -32,12 +32,28 @@ interface RemoteSageRetrievalCapability extends SageRetrieverLike {
   retrieveForAudience?(
     context: { role?: string; taskType?: string; mode?: string },
     limit?: number,
+    /**
+     * Optional truncation callback. The remote port cannot forward the
+     * callback across IPC, but the interface declares it for parity with
+     * the in-process `SageRetrievalCapability`. The server side still
+     * emits an internal `memory.audience_truncated` audit event when
+     * truncation is detected, so remote callers can observe it through
+     * the audit log.
+     */
+    onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
   ): Promise<import('./types.js').Sage[]>;
 }
 
 export interface ProjectSageMemoryPortOptions
   extends Pick<SageStoreOptions, 'projectRoot' | 'directory' | 'events'> {
   getSessionId?: (() => string | undefined) | undefined;
+  /**
+   * @deprecated The IPC server now derives `workspaceRoot` from
+   * `projectRoot` and rejects any caller-supplied value (audit-log
+   * poisoning). This option is preserved only so existing callers do not
+   * crash on type-check; it is no longer forwarded over IPC. Set
+   * `projectRoot` instead.
+   */
   workspaceRoot?: string | undefined;
   clientId?: string | undefined;
 }
@@ -47,7 +63,6 @@ export class ProjectSageMemoryPort implements MemoryPort {
   private readonly clientId: string;
   private readonly events?: EventBus | undefined;
   private readonly getSessionId?: (() => string | undefined) | undefined;
-  private readonly workspaceRoot: string;
   private traceId?: string | undefined;
   private readonly unsubscribeEvent: () => void;
 
@@ -64,7 +79,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     recordUse: (memoryIds, source, sessionId) =>
       this.call('recordUse', { memoryIds, source, sessionId }),
     flushPendingCounters: async () => {},
-    retrieveForAudience: (context, limit) =>
+    retrieveForAudience: (context, limit, _onTruncated) =>
       this.call('retrieveForAudience', { context, limit }),
   };
 
@@ -81,7 +96,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     acceptCandidate: (candidateId) => this.call('acceptCandidate', { candidateId }),
     rejectCandidate: (candidateId, reason) =>
       this.call('rejectCandidate', { candidateId, reason }),
-    retrieveForAudience: (context, limit) =>
+    retrieveForAudience: (context, limit, _onTruncated) =>
       this.call('retrieveForAudience', { context, limit }),
     hygiene: (options) =>
       this.call('hygiene', { options }, { timeoutMs: 5 * 60_000 }),
@@ -122,7 +137,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     retrieveForPath: (options) =>
       this.call('retrieveForPath', { options: options as SageForPathOptions }),
     searchSage: (query, options) => this.call('searchSage', { query, options }),
-    retrieveForAudience: (context, limit) =>
+    retrieveForAudience: (context, limit, _onTruncated) =>
       this.call('retrieveForAudience', { context, limit }),
     graphFor: (query, maxDepth, limit) => this.call('graphFor', { query, maxDepth, limit }),
     verify: (memoryId, signal) =>
@@ -150,7 +165,6 @@ export class ProjectSageMemoryPort implements MemoryPort {
     this.clientId = options.clientId ?? `sage-client-${process.pid}-${randomUUID()}`;
     this.events = options.events;
     this.getSessionId = options.getSessionId;
-    this.workspaceRoot = options.workspaceRoot ?? options.projectRoot;
     this.connection = new SageProjectServerConnection(options.projectRoot, options.directory);
     this.unsubscribeEvent = this.connection.onEvent((event, payload, meta) => {
       if (!this.events) return;
@@ -293,11 +307,13 @@ export class ProjectSageMemoryPort implements MemoryPort {
   }
 
   private meta(): SageRequestMetadata {
+    // Note: `workspaceRoot` is intentionally NOT included. IPC server
+    // derives workspace root from `projectRoot` and rejects any attempt
+    // to set it via meta (audit-log poisoning).
     return {
       clientId: this.clientId,
       traceId: this.traceId,
       sessionId: this.getSessionId?.(),
-      workspaceRoot: this.workspaceRoot,
     };
   }
 

@@ -123,6 +123,7 @@ describe('Chimera subagent 429 → /provider-status waiting room', () => {
     //    pair must surface in the output (proves the user sees the
     //    waiting-room entry, not just internal state).
     const result = await buildProviderStatusCommand(tracker).run('waiting');
+    if (!result) throw new Error('/provider-status waiting returned no view');
 
     expect(result.message).toContain('reviewer-primary/reviewer-model');
     expect(result.message).toContain('blocked');
@@ -170,6 +171,7 @@ describe('Chimera subagent 429 → /provider-status waiting room', () => {
     await ext.wrapProviderRunner?.(ctx, request, inner);
 
     const result = await buildProviderStatusCommand(tracker).run('');
+    if (!result) throw new Error('/provider-status returned no view');
 
     // The default view shows summary counts plus every tracked pair.
     expect(result.message).toContain('Summary');

@@ -27,14 +27,17 @@ const AUTOREVIEW_PROVIDER_DEFAULT = '';
 const AUTOREVIEW_MODEL_DEFAULT = '';
 const AUTOREVIEW_FALLBACK_PROFILE_DEFAULT = '';
 const AUTOREVIEW_FALLBACK_MODELS_DEFAULT: string[] = [];
-const AUTOREVIEW_DEBOUNCE_MS_DEFAULT = 5000;
+const AUTOREVIEW_DEBOUNCE_MS_DEFAULT = 15_000;
 const AUTOREVIEW_MAX_FILES_PER_BATCH_DEFAULT = 15;
 const AUTOREVIEW_MAX_CONCURRENT_REVIEWS_DEFAULT = 2;
 const VALID_AUTOREVIEW_CASCADE = ['off', 'critical', 'high'] as const;
 const AUTOREVIEW_CASCADE_DEFAULT = 'off';
 
-function migrate(persisted: Record<string, unknown> | null): Record<string, unknown> {
+function migrate(persisted: Record<string, unknown> | null, version = 12): Record<string, unknown> {
   const p = (persisted ?? {}) as Record<string, unknown>;
+  if (version < 12 && p.autoReviewDebounceMs === 5_000) {
+    p.autoReviewDebounceMs = 15_000;
+  }
   if (!VALID_STRATEGIES.includes(p.contextStrategy as string)) {
     p.contextStrategy = 'hybrid';
   }
@@ -371,12 +374,12 @@ describe('migrate — auto-review (v9)', () => {
     expect(result.autoReviewFallbackModels).toEqual(chain);
   });
 
-  it('clamps negative autoReviewDebounceMs back to 5000 (0 is valid)', () => {
+  it('clamps negative autoReviewDebounceMs back to 15000 (0 is valid)', () => {
     // 0 is a legitimate "no debounce" choice, so the lower bound is `>= 0`
-    // (not `> 0`). Negative values and NaN must reset to 5000.
+    // (not `> 0`). Negative values and NaN must reset to 15000.
     for (const v of [-1, -5000, NaN, Infinity, -Infinity]) {
       const result = migrate({ autoReviewDebounceMs: v });
-      expect(result.autoReviewDebounceMs).toBe(5000);
+      expect(result.autoReviewDebounceMs).toBe(15_000);
     }
   });
 
@@ -387,11 +390,16 @@ describe('migrate — auto-review (v9)', () => {
     }
   });
 
-  it('clamps non-number autoReviewDebounceMs back to 5000', () => {
+  it('migrates the pre-v12 5000ms default once without overriding a current explicit value', () => {
+    expect(migrate({ autoReviewDebounceMs: 5_000 }, 11).autoReviewDebounceMs).toBe(15_000);
+    expect(migrate({ autoReviewDebounceMs: 5_000 }, 12).autoReviewDebounceMs).toBe(5_000);
+  });
+
+  it('clamps non-number autoReviewDebounceMs back to 15000', () => {
     for (const v of [undefined, null, '5000', true, {}, []]) {
       // @ts-expect-error — intentionally invalid types
       const result = migrate({ autoReviewDebounceMs: v });
-      expect(result.autoReviewDebounceMs).toBe(5000);
+      expect(result.autoReviewDebounceMs).toBe(15_000);
     }
   });
 
@@ -454,7 +462,7 @@ describe('migrate — v9 null/undefined persisted', () => {
     expect(result.autoReviewModel).toBe('');
     expect(result.autoReviewFallbackProfile).toBe('');
     expect(result.autoReviewFallbackModels).toEqual([]);
-    expect(result.autoReviewDebounceMs).toBe(5000);
+    expect(result.autoReviewDebounceMs).toBe(15_000);
     expect(result.autoReviewMaxFilesPerBatch).toBe(15);
     expect(result.autoReviewMaxConcurrentReviews).toBe(2);
     expect(result.autoReviewCascadeOn).toBe('off');
@@ -465,7 +473,7 @@ describe('migrate — v9 null/undefined persisted', () => {
     expect(result.chimeraEnabled).toBe(true);
     expect(result.chimeraMaxFiles).toBe(15);
     expect(result.autoReviewEnabled).toBe(false);
-    expect(result.autoReviewDebounceMs).toBe(5000);
+    expect(result.autoReviewDebounceMs).toBe(15_000);
     expect(result.autoReviewCascadeOn).toBe('off');
   });
 });
@@ -498,7 +506,7 @@ describe('migrate — v9 combined', () => {
     expect(result.autoReviewModel).toBe('');
     expect(result.autoReviewFallbackProfile).toBe('');
     expect(result.autoReviewFallbackModels).toEqual([]);
-    expect(result.autoReviewDebounceMs).toBe(5000);
+    expect(result.autoReviewDebounceMs).toBe(15_000);
     expect(result.autoReviewMaxFilesPerBatch).toBe(15);
     expect(result.autoReviewMaxConcurrentReviews).toBe(2);
     expect(result.autoReviewCascadeOn).toBe('off');
@@ -530,10 +538,7 @@ describe('migrate — v9 combined', () => {
     expect(result.autoReviewProvider).toBe('openai');
     expect(result.autoReviewModel).toBe('gpt-4o');
     expect(result.autoReviewFallbackProfile).toBe('review-fast');
-    expect(result.autoReviewFallbackModels).toEqual([
-      'anthropic/claude-opus',
-      'openai/gpt-4o',
-    ]);
+    expect(result.autoReviewFallbackModels).toEqual(['anthropic/claude-opus', 'openai/gpt-4o']);
     expect(result.autoReviewDebounceMs).toBe(10_000);
     expect(result.autoReviewMaxFilesPerBatch).toBe(30);
     expect(result.autoReviewMaxConcurrentReviews).toBe(4);

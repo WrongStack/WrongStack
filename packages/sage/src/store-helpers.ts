@@ -3,9 +3,11 @@
  * These functions have no side effects and no dependency on the store instance.
  */
 
+import type { MemoryScope } from '@wrongstack/core/types';
 import { normalizeProjectPath, normalizeSlashes } from './paths.js';
 import {
   DEFAULT_PERSISTENCE,
+  legacyToSageScope,
   type MemoryAnchor,
   type MemoryAudienceSelector,
   type RememberSageInput,
@@ -593,4 +595,32 @@ export function collectStringValues(value: unknown, out: string[] = []): string[
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * Build a `(scope = ? OR legacy_scope = ?)` SQL fragment for legacy scope
+ * filters. The two columns exist on the `memories` table so the predicate
+ * matches both modern Sage-scope rows (`scope` column) and legacy-import
+ * rows (`legacy_scope` column) without a JSON parse.
+ *
+ * Returns the **bare** predicate (no leading `AND`); callers prefix it
+ * themselves to splice into their WHERE clause. This keeps the helper
+ * independent of the surrounding condition (`status != 'deleted'`,
+ * `status IN ('active','stale')`, etc.) that each callsite owns.
+ *
+ * Always emits the same two bind parameters so the helper is a true
+ * source of truth for the dual-column filter — eliminate the four
+ * near-identical copies that today each redeclare the same fragment.
+ *
+ * Replaces: `sqlite-store-legacy-clear.ts`, `sqlite-store-legacy-list.ts`,
+ * `sqlite-store-legacy-forget.ts`, `sqlite-store-legacy-consolidate.ts`.
+ */
+export function legacyScopeFilterClause(scope: MemoryScope): {
+  clause: string;
+  params: [SageScope, MemoryScope];
+} {
+  return {
+    clause: '(scope = ? OR legacy_scope = ?)',
+    params: [legacyToSageScope(scope), scope],
+  };
 }

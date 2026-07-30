@@ -12,6 +12,19 @@ export interface SqliteFindRelatedContext {
     starts: string[],
     opts: { maxDepth: number; limit: number },
   ) => Promise<MemoryGraphEdge[]>;
+  /**
+   * Optional truncation callback. Fires when the BFS fetch budget was
+   * saturated AND the caller requested more than the `resultCap`.
+   * Mirrors the audience-retrieval emit so both retrieval surfaces
+   * surface truncation consistently. The store-side `SqliteSageStore`
+   * typically omits this and surfaces via the audit log instead.
+   */
+  onTruncated?: ((info: {
+    bfsBudget: number;
+    requestedLimit: number;
+    scoredCount: number;
+    returned: number;
+  }) => void) | undefined;
 }
 
 export interface SqliteFindRelatedOptions {
@@ -38,6 +51,12 @@ export async function findRelatedSqliteSage(
   if (seeds.length === 0) return [];
 
   const bfsBudget = Math.max(100, (opts.limit ?? 20) * 20);
+  // The result-size cap now tracks the BFS fetch budget (limit * 20,
+  // floored at 100) so the user-requested `limit` is honored up to
+  // what the search actually explored, instead of being silently
+  // truncated to 100. The previous `Math.min(opts.limit ?? 20, 100)`
+  // swallowed any caller request above 100 with no observable signal.
+  const resultCap = Math.max(1, Math.min(opts.limit ?? 20, bfsBudget));
   const graphRelatedIds = new Set<string>();
   let candidateIds = collectRelatedSqliteCandidateIds(
     { stmt: (sql) => ctx.stmt(sql) },
@@ -84,7 +103,7 @@ export async function findRelatedSqliteSage(
     for (const row of rows) candidates.push(sqliteRowToMemory(row));
   }
 
-  return candidates
+  const scored = candidates
     .filter((memory) => !seedIds.has(memory.id))
     .filter((memory) => memory.contextPolicy !== 'never')
     .filter((memory) => opts.includeAudienceScoped !== false || !memory.audience)
@@ -95,7 +114,25 @@ export async function findRelatedSqliteSage(
         b.score - a.score ||
         b.memory.importance - a.memory.importance ||
         b.memory.confidence - a.memory.confidence,
-    )
-    .slice(0, Math.max(1, Math.min(opts.limit ?? 20, 100)))
-    .map((item) => item.memory);
+    );
+  // Emit a truncation audit event only if the BFS fetch was saturated
+  // AND the caller requested more than they got. This is the only place
+  // where the previous hard-coded 100 cap could silently truncate.
+  //
+  // `candidateIds.length` is the *post-merge* candidate set, which is the
+  // best signal we have without changing `traverseGraph`'s contract: if
+  // we have at least as many candidates as the BFS budget allowed, the
+  // budget was saturated (whether by seed expansion, graph expansion, or
+  // both). A pure graph-traversal saturated run that produced fewer
+  // candidates than `bfsBudget` is a real under-report, but fixing it
+  // would require `MemoryGraphEdge[]` to expose a truncation flag.
+  if (candidateIds.length >= bfsBudget && scored.length > resultCap) {
+    ctx.onTruncated?.({
+      bfsBudget,
+      requestedLimit: opts.limit ?? 20,
+      scoredCount: scored.length,
+      returned: resultCap,
+    });
+  }
+  return scored.slice(0, resultCap).map((item) => item.memory);
 }

@@ -1,7 +1,7 @@
+import type { FleetChatVerbosity } from '@wrongstack/core/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { detectLocale } from '@/i18n/languages';
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
 
 /**
  * Local preference store — persisted in localStorage.
@@ -176,7 +176,7 @@ export interface LocalPrefs {
   autoReviewFallbackProfile: string;
   /** Explicit fallback chain (derived when no fallbackProfile is set, surfaced for visibility). */
   autoReviewFallbackModels: string[];
-  /** Debounce window in ms — wait for quiet before firing review (default 5000). */
+  /** Debounce window in ms — wait for quiet before firing review (default 15000). */
   autoReviewDebounceMs: number;
   /** Max files per review batch (default 15). */
   autoReviewMaxFilesPerBatch: number;
@@ -270,7 +270,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   autoReviewModel: '',
   autoReviewFallbackProfile: '',
   autoReviewFallbackModels: [],
-  autoReviewDebounceMs: 5000,
+  autoReviewDebounceMs: 15_000,
   autoReviewMaxFilesPerBatch: 15,
   autoReviewMaxConcurrentReviews: 2,
   autoReviewCascadeOn: 'off',
@@ -282,11 +282,14 @@ export const useLocalPrefs = create<LocalPrefs>()(
     (set) => ({
       .../** @see LocalPrefs */ (DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>),
       set: (patch) => set(patch),
-      reset: () => set(/** @see LocalPrefs */ (DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>)),
+      reset: () => set(/** @see LocalPrefs */ DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>),
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 11,
+      version: 12,
+      // v12 (2026-07-30): raised the canonical auto-review quiet window
+      // from 5s to 15s and migrates the old default once.
+      //
       // v11 (2026-07-28): added showModelReasoning, showAgentSwarmPanel,
       // allowOutsideProjectRoot — backfill via DEFAULTS spread + defensive typeof guards.
       //
@@ -325,8 +328,12 @@ export const useLocalPrefs = create<LocalPrefs>()(
       // autoReviewMaxConcurrentReviews, autoReviewCascadeOn). Older stores
       // simply get the defaults via the spread of DEFAULTS; no explicit remap
       // is needed.
-      migrate: (persisted) => {
+      migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Partial<LocalPrefs> & Record<string, unknown>;
+
+        if (version < 12 && p.autoReviewDebounceMs === 5_000) {
+          p.autoReviewDebounceMs = 15_000;
+        }
 
         // v10: streamFleet (boolean) renamed to fleetChatVerbosity ('off'|'full').
         // Map legacy true → 'full' (was the default), legacy false → 'off'.
@@ -413,7 +420,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
           !Number.isFinite(p.autoReviewDebounceMs) ||
           p.autoReviewDebounceMs < 0
         ) {
-          p.autoReviewDebounceMs = 5000;
+          p.autoReviewDebounceMs = 15_000;
         }
         if (
           typeof p.autoReviewMaxFilesPerBatch !== 'number' ||

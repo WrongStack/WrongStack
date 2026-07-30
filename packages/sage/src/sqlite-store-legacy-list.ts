@@ -2,8 +2,9 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { MemoryEntry, MemoryScope } from '@wrongstack/core/types';
 
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { legacyScopeFilterClause } from './store-helpers.js';
 import type { Sage } from './types.js';
-import { legacyToSageScope, sageToLegacyScope, toLegacyEntry } from './types.js';
+import { sageToLegacyScope, toLegacyEntry } from './types.js';
 
 export interface SqliteLegacyListContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -14,12 +15,12 @@ export function listLegacySqliteMemory(
   scope: MemoryScope,
   limit?: number,
 ): MemoryEntry[] {
-  const sageScope = legacyToSageScope(scope);
+  const filter = legacyScopeFilterClause(scope);
   const rows = ctx
     .stmt(
-      "SELECT data, created_at FROM memories WHERE status = 'active' AND (scope = ? OR legacy_scope = ?) ORDER BY created_at DESC, id DESC",
+      `SELECT data, created_at FROM memories WHERE status = 'active' AND ${filter.clause} ORDER BY created_at DESC, id DESC`,
     )
-    .all(sageScope, scope) as Array<{ data: string; created_at: string }>;
+    .all(...filter.params) as Array<{ data: string; created_at: string }>;
   const parsed = rows
     .map((row) => {
       try {

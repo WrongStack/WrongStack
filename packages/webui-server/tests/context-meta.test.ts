@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { seedContextMeta } from '../src/server/context-meta.js';
 
 function makeConfig(overrides: Record<string, unknown> = {}): any {
@@ -41,6 +41,12 @@ describe('seedContextMeta', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
     expect(context.meta['autonomyDelayMs']).toBe(45000);
+  });
+
+  it('sets the default auto-review quiet window to 15000ms', () => {
+    const context: { meta: Record<string, unknown> } = { meta: {} };
+    seedContextMeta(makeConfig(), context);
+    expect(context.meta['autoReviewDebounceMs']).toBe(15_000);
   });
 
   it('reads autoProceedDelayMs from config', () => {
@@ -193,7 +199,18 @@ describe('seedContextMeta', () => {
 
   it('disables features when configured', () => {
     const context = { meta: {} };
-    seedContextMeta(makeConfig({ features: { mcp: false, plugins: false, memory: false, skills: false, modelsRegistry: false } }), context);
+    seedContextMeta(
+      makeConfig({
+        features: {
+          mcp: false,
+          plugins: false,
+          memory: false,
+          skills: false,
+          modelsRegistry: false,
+        },
+      }),
+      context,
+    );
     expect(context.meta['featureMcp']).toBe(false);
     expect(context.meta['featurePlugins']).toBe(false);
     expect(context.meta['featureMemory']).toBe(false);
@@ -287,12 +304,15 @@ describe('seedContextMeta', () => {
 
   it('handles modelRuntime reasoning settings', () => {
     const context = { meta: {} };
-    seedContextMeta(makeConfig({
-      modelRuntime: {
-        reasoning: { mode: 'manual', effort: 'medium', preserve: true },
-        cache: { ttl: '5m' },
-      },
-    }), context);
+    seedContextMeta(
+      makeConfig({
+        modelRuntime: {
+          reasoning: { mode: 'manual', effort: 'medium', preserve: true },
+          cache: { ttl: '5m' },
+        },
+      }),
+      context,
+    );
     expect(context.meta['reasoningMode']).toBe('manual');
     expect(context.meta['reasoningEffort']).toBe('medium');
     expect(context.meta['reasoningPreserve']).toBe(true);
@@ -310,9 +330,12 @@ describe('seedContextMeta', () => {
 
   it('handles hq config', () => {
     const context = { meta: {} };
-    seedContextMeta(makeConfig({
-      hq: { enabled: true, url: 'https://hq.example.com', token: 'secret', rawContent: true },
-    }), context);
+    seedContextMeta(
+      makeConfig({
+        hq: { enabled: true, url: 'https://hq.example.com', token: 'secret', rawContent: true },
+      }),
+      context,
+    );
     expect(context.meta['hqEnabled']).toBe(true);
     expect(context.meta['hqUrl']).toBe('https://hq.example.com');
     expect(context.meta['hqToken']).toBe('secret');
@@ -330,16 +353,19 @@ describe('seedContextMeta', () => {
 
   it('handles telegram extension settings', () => {
     const context = { meta: {} };
-    seedContextMeta(makeConfig({
-      extensions: {
-        telegram: {
-          botToken: 'tg-token-here',
-          notifyOnSessionEnd: true,
-          notifyOnDelegate: false,
-          longToolThresholdMs: 60000,
+    seedContextMeta(
+      makeConfig({
+        extensions: {
+          telegram: {
+            botToken: 'tg-token-here',
+            notifyOnSessionEnd: true,
+            notifyOnDelegate: false,
+            longToolThresholdMs: 60000,
+          },
         },
-      },
-    }), context);
+      }),
+      context,
+    );
     expect(context.meta['tgConfigured']).toBe(true);
     expect(context.meta['tgSessionEnd']).toBe(true);
     expect(context.meta['tgDelegate']).toBe(false);
@@ -348,9 +374,12 @@ describe('seedContextMeta', () => {
 
   it('handles telegram with missing bot token', () => {
     const context = { meta: {} };
-    seedContextMeta(makeConfig({
-      extensions: { telegram: { botToken: '' } },
-    }), context);
+    seedContextMeta(
+      makeConfig({
+        extensions: { telegram: { botToken: '' } },
+      }),
+      context,
+    );
     expect(context.meta['tgConfigured']).toBe(false);
   });
 

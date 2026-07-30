@@ -4,6 +4,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { FallbackProfileManager } from '../core/fallback-profile-manager.js';
 import { parseModelRef } from '../core/model-ref.js';
+import type { EventMap } from '../kernel/events.js';
 import type { Config } from '../types/config.js';
 import type { Plugin } from '../types/plugin.js';
 import type { SlashCommand } from '../types/slash-command.js';
@@ -33,7 +34,7 @@ export interface AutoReviewConfig {
    * omitted), and the remaining entries form the fallback chain.
    */
   fallbackProfile?: string | undefined;
-  /** Debounce window in ms — wait for quiet before firing review (default 5000). */
+  /** Debounce window in ms — wait for quiet before firing review (default 15000). */
   debounceMs?: number | undefined;
   /** Max files per review batch (default 15). */
   maxFilesPerBatch?: number | undefined;
@@ -66,7 +67,7 @@ export interface ResolvedAutoReviewConfig {
   maxCascadeDepth: number;
 }
 
-const DEFAULT_DEBOUNCE_MS = 5_000;
+const DEFAULT_DEBOUNCE_MS = 15_000;
 const DEFAULT_MAX_FILES_PER_BATCH = 15;
 const DEFAULT_MAX_CONCURRENT_REVIEWS = 2;
 const DEFAULT_MAX_CASCADE_DEPTH = 2;
@@ -99,8 +100,7 @@ export function buildReviewerModelPool(
 ): string[] {
   const primaryProvider = provider.trim();
   const primaryModel = model.trim();
-  const primaryRef =
-    primaryProvider && primaryModel ? `${primaryProvider}/${primaryModel}` : '';
+  const primaryRef = primaryProvider && primaryModel ? `${primaryProvider}/${primaryModel}` : '';
   const seen = new Set<string>();
   const pool: string[] = [];
   for (const raw of [primaryRef, ...fallbackModels]) {
@@ -173,12 +173,11 @@ export function resolveAutoReviewConfig(
   // bypasses the ?? fallback below.
   const rawProvider = cfg.provider?.trim();
   const rawModel = cfg.model?.trim();
-  const resolvedProvider = rawProvider || (chain.length > 0 ? chain[0]!.providerId : sessionConfig.provider);
+  const resolvedProvider =
+    rawProvider || (chain.length > 0 ? chain[0]!.providerId : sessionConfig.provider);
   const resolvedModel = rawModel || (chain.length > 0 ? chain[0]!.model : sessionConfig.model);
   const profileFallbackModels = chain
-    .filter((entry) =>
-      entry.providerId !== resolvedProvider || entry.model !== resolvedModel,
-    )
+    .filter((entry) => entry.providerId !== resolvedProvider || entry.model !== resolvedModel)
     .map((entry) => `${entry.providerId}/${entry.model}`);
 
   // Use only configured/effective fallback-profile entries plus the session's
@@ -230,10 +229,7 @@ export function parseReviewSeverity(text: string): ParsedSeverities {
 
   for (const level of ['critical', 'high', 'medium'] as const) {
     // Primary pattern: "### Critical (2)" — the canonical report format
-    const countRe = new RegExp(
-      `###\\s*${level}\\s*\\((\\d+)\\)`,
-      'i',
-    );
+    const countRe = new RegExp(`###\\s*${level}\\s*\\((\\d+)\\)`, 'i');
     const countMatch = text.match(countRe);
     if (countMatch?.[1]) {
       result[level] = Number.parseInt(countMatch[1], 10);
@@ -241,10 +237,7 @@ export function parseReviewSeverity(text: string): ParsedSeverities {
     }
     // Fallback: count ordered-list items under the heading until the next
     // heading or end. Matches "1. [BUG] ..." style entries.
-    const sectionRe = new RegExp(
-      `###\\s*${level}[^\\n]*\\n([\\s\\S]*?)(?=###|$)`,
-      'i',
-    );
+    const sectionRe = new RegExp(`###\\s*${level}[^\\n]*\\n([\\s\\S]*?)(?=###|$)`, 'i');
     const sectionMatch = text.match(sectionRe);
     if (sectionMatch?.[1]) {
       const items = sectionMatch[1].match(/^\s*\d+\.\s/gm);
@@ -292,7 +285,10 @@ const SECURITY_KEYWORDS = [
  * Both may be returned in parallel when a finding is both severe and
  * security-related.
  */
-export function decideCascadeAgents(text: string, severities: ParsedSeverities): CascadeAgentKind[] {
+export function decideCascadeAgents(
+  text: string,
+  severities: ParsedSeverities,
+): CascadeAgentKind[] {
   const agents = new Set<CascadeAgentKind>();
 
   // Any High+ finding → bug-hunter investigates the correctness concerns
@@ -356,8 +352,12 @@ async function runGit(
     }
     let stdout = '';
     let stderr = '';
-    child.stdout?.on('data', (d) => { stdout += d; });
-    child.stderr?.on('data', (d) => { stderr += d; });
+    child.stdout?.on('data', (d) => {
+      stdout += d;
+    });
+    child.stderr?.on('data', (d) => {
+      stderr += d;
+    });
     child.on('error', () => resolve({ stdout, stderr, code: 1 }));
     child.on('close', (code) => resolve({ stdout, stderr, code: code ?? 0 }));
   });
@@ -383,9 +383,8 @@ async function getChangedFiles(cwd: string): Promise<ChangedFile[]> {
     const y = line[1] ?? ' ';
     const rawPath = line.slice(3).trim();
     // R (rename) / C (copy) porcelain format: "R  old -> new"
-    const filePath = (x === 'R' || x === 'C')
-      ? rawPath.split(' -> ').pop()?.trim() ?? rawPath
-      : rawPath;
+    const filePath =
+      x === 'R' || x === 'C' ? (rawPath.split(' -> ').pop()?.trim() ?? rawPath) : rawPath;
     if (x === 'A' || y === 'A') {
       files.push({ path: filePath, status: 'added' });
     } else if (x === 'M' || y === 'M' || x === 'R' || x === 'C') {
@@ -451,7 +450,10 @@ interface InFlightReview {
 // ---------------------------------------------------------------------------
 // Slash command
 // ---------------------------------------------------------------------------
-function buildAutoReviewCommand(getConfig: () => ResolvedAutoReviewConfig, getInFlightCount: () => number): SlashCommand {
+function buildAutoReviewCommand(
+  getConfig: () => ResolvedAutoReviewConfig,
+  getInFlightCount: () => number,
+): SlashCommand {
   return {
     name: 'auto-review',
     category: 'Session',
@@ -477,7 +479,7 @@ function buildAutoReviewCommand(getConfig: () => ResolvedAutoReviewConfig, getIn
       '  provider             provider id for review agents',
       '  model                model id for review agents',
       '  fallbackProfile      named profile from config.fallbackProfiles',
-      '  debounceMs           debounce window (default 5000)',
+      '  debounceMs           debounce window (default 15000)',
       '  maxFilesPerBatch     max files per review (default 15)',
       '  maxConcurrentReviews max parallel reviews (default 2)',
       '  cascadeOn            "off" | "critical" | "high" (default off)',
@@ -490,10 +492,16 @@ function buildAutoReviewCommand(getConfig: () => ResolvedAutoReviewConfig, getIn
       const cfg = getConfig();
       const trimmed = (args ?? '').trim().toLowerCase();
       if (trimmed === 'on' || trimmed === 'enable') {
-        return { message: 'Auto-review enable/disable via config.json extensions.wstack-auto-review.enabled' };
+        return {
+          message:
+            'Auto-review enable/disable via config.json extensions.wstack-auto-review.enabled',
+        };
       }
       if (trimmed === 'off' || trimmed === 'disable') {
-        return { message: 'Auto-review enable/disable via config.json extensions.wstack-auto-review.enabled' };
+        return {
+          message:
+            'Auto-review enable/disable via config.json extensions.wstack-auto-review.enabled',
+        };
       }
 
       const inFlight = getInFlightCount();
@@ -545,17 +553,24 @@ export function createAutoReviewPlugin(): Plugin {
       let resolved = recompute();
       const inFlight: InFlightReview[] = [];
       const expireInFlight = (entry: InFlightReview): void => {
-        const timer = setTimeout(() => {
-          const idx = inFlight.indexOf(entry);
-          if (idx !== -1) inFlight.splice(idx, 1);
-        }, 5 * 60 * 1000);
+        const timer = setTimeout(
+          () => {
+            const idx = inFlight.indexOf(entry);
+            if (idx !== -1) inFlight.splice(idx, 1);
+          },
+          5 * 60 * 1000,
+        );
         timer.unref();
       };
 
       api.onConfigChange(() => {
         const old = resolved;
         resolved = recompute();
-        if (old.enabled !== resolved.enabled || old.provider !== resolved.provider || old.model !== resolved.model) {
+        if (
+          old.enabled !== resolved.enabled ||
+          old.provider !== resolved.provider ||
+          old.model !== resolved.model
+        ) {
           api.log.info(
             `[auto-review] config changed — enabled=${resolved.enabled} provider=${resolved.provider} model=${resolved.model}`,
           );
@@ -574,8 +589,11 @@ export function createAutoReviewPlugin(): Plugin {
       // ── State: track reviewed content and changes awaiting review ─
       const knownFingerprints = new Map<string, string>();
       const pendingFiles = new Map<string, ChangedFileSnapshot>();
-      let lastReviewTs = 0;
       let reviewCounter = 0;
+      let pendingReviewTimer: ReturnType<typeof setTimeout> | undefined;
+      let pendingReviewWork: Promise<void> | undefined;
+      let sessionEnded = false;
+      let latestIterationPayload: EventMap['iteration.completed'] | undefined;
 
       /**
        * A snapshot pass reads every changed file in the working tree, so it can
@@ -610,20 +628,87 @@ export function createAutoReviewPlugin(): Plugin {
             knownFingerprints.set(file.path, file.fingerprint);
           }
           api.log.info(`[auto-review] seeded ${knownFingerprints.size} known file snapshot(s)`);
-        } catch { /* best-effort */ }
+        } catch {
+          /* best-effort */
+        }
       });
 
       // ── /auto-review command ─────────────────────────────────────
-      api.slashCommands.register(buildAutoReviewCommand(
-        () => resolved,
-        () => inFlight.length,
-      ));
+      api.slashCommands.register(
+        buildAutoReviewCommand(
+          () => resolved,
+          () => inFlight.length,
+        ),
+      );
 
-      // ── iteration.completed → detect new changes → emit review ──
-      api.onEvent('iteration.completed', async (payload) => {
+      const cancelPendingReviewTimer = (): void => {
+        if (!pendingReviewTimer) return;
+        clearTimeout(pendingReviewTimer);
+        pendingReviewTimer = undefined;
+      };
+
+      let handleIterationCompleted:
+        | ((
+            payload: EventMap['iteration.completed'] | undefined,
+            fromQuietTimer?: boolean,
+          ) => Promise<void>)
+        | undefined;
+
+      const schedulePendingReview = (delayMs: number): void => {
+        cancelPendingReviewTimer();
+        if (sessionEnded || pendingFiles.size === 0) return;
+
+        const timer = setTimeout(
+          async () => {
+            if (pendingReviewTimer === timer) pendingReviewTimer = undefined;
+            if (sessionEnded) return;
+            const work = handleIterationCompleted?.(latestIterationPayload, true);
+            if (!work) return;
+            pendingReviewWork = work;
+            try {
+              await work;
+            } finally {
+              if (pendingReviewWork === work) pendingReviewWork = undefined;
+            }
+          },
+          Math.max(0, delayMs),
+        );
+        pendingReviewTimer = timer;
+        timer.unref();
+      };
+
+      const refreshPendingFiles = (snapshots: ChangedFileSnapshot[]): boolean => {
+        let pendingChanged = false;
+        const observedPaths = new Set<string>();
+        for (const file of snapshots) {
+          if (file.path.startsWith('.wrongstack/')) continue;
+          observedPaths.add(file.path);
+          if (knownFingerprints.get(file.path) !== file.fingerprint) {
+            if (pendingFiles.get(file.path)?.fingerprint !== file.fingerprint) {
+              pendingChanged = true;
+            }
+            pendingFiles.set(file.path, file);
+          } else if (pendingFiles.delete(file.path)) {
+            // The file reverted to the last reviewed content while queued.
+            pendingChanged = true;
+          }
+        }
+        for (const pendingPath of pendingFiles.keys()) {
+          if (!observedPaths.has(pendingPath)) {
+            // The path was reverted clean, deleted, or became unreadable.
+            pendingFiles.delete(pendingPath);
+            pendingChanged = true;
+          }
+        }
+        return pendingChanged;
+      };
+
+      // ── iteration.completed → detect changes → wait for quiet → emit review ──
+      handleIterationCompleted = async (payload, fromQuietTimer = false) => {
         try {
           const cfg = resolved;
-          if (!cfg.enabled) return;
+          if (!cfg.enabled || sessionEnded) return;
+          if (payload) latestIterationPayload = payload;
 
           const cwd = api.config.cwd ?? process.cwd();
           if (!(await isGitRepo(cwd))) return;
@@ -633,40 +718,52 @@ export function createAutoReviewPlugin(): Plugin {
           const ctxTodos = payload?.ctx?.todos;
 
           const snapshots = await withSnapshotLock(() => snapshotChangedFiles(cwd));
-          if (!snapshots) return; // a pass is already walking the tree
+          if (!snapshots) {
+            if (fromQuietTimer) schedulePendingReview(cfg.debounceMs);
+            return; // a pass is already walking the tree
+          }
+          if (sessionEnded) return;
           const now = Date.now();
 
           // Queue the latest content snapshot for every tracked file whose content
           // differs from the last emitted snapshot. Pending entries survive both
           // debounce and concurrency limits and are replaced by newer edits.
-          const observedPaths = new Set<string>();
-          for (const file of snapshots) {
-            if (file.path.startsWith('.wrongstack/')) continue;
-            observedPaths.add(file.path);
-            if (knownFingerprints.get(file.path) !== file.fingerprint) {
-              pendingFiles.set(file.path, file);
-            } else {
-              // The file reverted to the last reviewed content while queued.
-              pendingFiles.delete(file.path);
-            }
-          }
-          for (const pendingPath of pendingFiles.keys()) {
-            if (!observedPaths.has(pendingPath)) {
-              // The path was reverted clean, deleted, or became unreadable.
-              pendingFiles.delete(pendingPath);
-            }
-          }
+          const pendingChanged = refreshPendingFiles(snapshots);
 
-          if (pendingFiles.size === 0) return;
-
-          if (inFlight.length >= cfg.maxConcurrentReviews) {
-            api.log.info(`[auto-review] at max concurrent (${cfg.maxConcurrentReviews}), retaining ${pendingFiles.size} pending file(s)`);
+          if (pendingFiles.size === 0) {
+            cancelPendingReviewTimer();
             return;
           }
 
-          // Debounce: retain queued files until the next eligible iteration.
-          if (now - lastReviewTs < cfg.debounceMs) {
-            api.log.info(`[auto-review] debounce (${now - lastReviewTs}ms < ${cfg.debounceMs}ms), retaining ${pendingFiles.size} pending file(s)`);
+          if (cfg.debounceMs > 0) {
+            if (!fromQuietTimer) {
+              // A newly observed edit restarts the trailing quiet window. An
+              // unchanged iteration leaves the existing deadline alone.
+              if (pendingChanged || !pendingReviewTimer) {
+                schedulePendingReview(cfg.debounceMs);
+                api.log.info(
+                  `[auto-review] waiting ${cfg.debounceMs}ms for ${pendingFiles.size} pending file(s) to settle`,
+                );
+              }
+              return;
+            }
+
+            // Re-read at timer expiry. If content changed without another
+            // iteration event, wait for a fresh quiet window instead of
+            // reviewing the stale snapshot.
+            if (pendingChanged) {
+              schedulePendingReview(cfg.debounceMs);
+              api.log.info(
+                `[auto-review] file activity continued, restarting ${cfg.debounceMs}ms quiet window for ${pendingFiles.size} pending file(s)`,
+              );
+              return;
+            }
+          }
+
+          if (inFlight.length >= cfg.maxConcurrentReviews) {
+            api.log.info(
+              `[auto-review] at max concurrent (${cfg.maxConcurrentReviews}), retaining ${pendingFiles.size} pending file(s)`,
+            );
             return;
           }
 
@@ -709,6 +806,11 @@ export function createAutoReviewPlugin(): Plugin {
             trackedChangedPaths.has(file.path),
           );
 
+          // session.ended owns all work from this point forward. This second
+          // check closes the race where the quiet timer started building
+          // context immediately before the session transitioned.
+          if (sessionEnded) return;
+
           api.log.info(
             `[auto-review] #${reviewCounter} emitting review_needed (${filesWithContent.length} files, provider=${cfg.provider} model=${cfg.model})`,
           );
@@ -718,7 +820,6 @@ export function createAutoReviewPlugin(): Plugin {
             api.log.info(
               `[auto-review] #${reviewCounter} skipped — file content already has a review in progress`,
             );
-            // The debounce clock is anchored to successful emissions only.
             return;
           }
           const emittedPaths = new Set(emittedBundle.files.map((file) => file.path));
@@ -728,7 +829,6 @@ export function createAutoReviewPlugin(): Plugin {
             subagentType: 'review',
           };
           inFlight.push(inflightEntry);
-          lastReviewTs = now;
           for (const file of toReview) {
             if (!emittedPaths.has(file.path)) continue;
             knownFingerprints.set(file.path, file.fingerprint);
@@ -751,13 +851,31 @@ export function createAutoReviewPlugin(): Plugin {
           // Clean in-flight after a timeout (reviews complete asynchronously)
           expireInFlight(inflightEntry);
 
+          if (pendingFiles.size > 0 && cfg.debounceMs > 0) {
+            schedulePendingReview(cfg.debounceMs);
+          }
         } catch (err) {
           api.log.warn(`[auto-review] iteration.completed handler failed: ${toErrorMessage(err)}`);
         }
+      };
+
+      api.onEvent('iteration.completed', async (payload) => {
+        await handleIterationCompleted?.(payload);
       });
 
       // ── session.ended → final review of everything ───────────────
       api.onEvent('session.ended', async () => {
+        sessionEnded = true;
+        const handedOffFiles = pendingFiles.size;
+        cancelPendingReviewTimer();
+        if (handedOffFiles > 0) {
+          api.log.info(
+            `[auto-review] session ended — handed ${handedOffFiles} pending mid-session file(s) to post-session review`,
+          );
+        }
+        // If the quiet timer already started reading, wait for that pass to
+        // observe sessionEnded and unwind before post-session claims the files.
+        await pendingReviewWork;
         try {
           const cfg = resolved;
           if (!cfg.enabled) return;
@@ -769,7 +887,12 @@ export function createAutoReviewPlugin(): Plugin {
           const existing: ChangedFile[] = [];
           for (const f of allChanged) {
             if (f.path.startsWith('.wrongstack/')) continue;
-            try { await fsp.access(path.join(cwd, f.path)); existing.push(f); } catch { /* deleted */ }
+            try {
+              await fsp.access(path.join(cwd, f.path));
+              existing.push(f);
+            } catch {
+              /* deleted */
+            }
           }
 
           if (existing.length === 0) return;
@@ -782,14 +905,18 @@ export function createAutoReviewPlugin(): Plugin {
               const absPath = path.join(cwd, f.path);
               const content = await fsp.readFile(absPath, 'utf8');
               filesWithContent.push({ path: f.path, status: f.status, content });
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           }
 
           if (filesWithContent.length === 0) return;
 
           // Track in-flight (honors maxConcurrentReviews cap)
           if (inFlight.length >= cfg.maxConcurrentReviews) {
-            api.log.info(`[auto-review] session end — at max concurrent (${cfg.maxConcurrentReviews}), skipping final review`);
+            api.log.info(
+              `[auto-review] session end — at max concurrent (${cfg.maxConcurrentReviews}), skipping final review`,
+            );
             return;
           }
 
@@ -817,7 +944,9 @@ export function createAutoReviewPlugin(): Plugin {
 
           const emittedBundle = emitReviewIfChanged(api, bundle);
           if (!emittedBundle) {
-            api.log.info('[auto-review] session end — unchanged files already have reviews in progress');
+            api.log.info(
+              '[auto-review] session end — unchanged files already have reviews in progress',
+            );
             return;
           }
           const inflightEntry: InFlightReview = {
@@ -828,7 +957,9 @@ export function createAutoReviewPlugin(): Plugin {
           inFlight.push(inflightEntry);
           expireInFlight(inflightEntry);
 
-          api.log.info(`[auto-review] session end — final review (${emittedBundle.files.length} files)`);
+          api.log.info(
+            `[auto-review] session end — final review (${emittedBundle.files.length} files)`,
+          );
         } catch (err) {
           api.log.warn(`[auto-review] session.ended handler failed: ${toErrorMessage(err)}`);
         }
@@ -881,7 +1012,9 @@ export function createAutoReviewPlugin(): Plugin {
             `[auto-review] cascade_needed emitted — ${severities.critical} critical, ${severities.high} high, ${severities.medium} medium; agents: ${agents.join(', ')}`,
           );
         } catch (err) {
-          api.log.warn(`[auto-review] review_complete cascade handler failed: ${toErrorMessage(err)}`);
+          api.log.warn(
+            `[auto-review] review_complete cascade handler failed: ${toErrorMessage(err)}`,
+          );
         }
       });
     },

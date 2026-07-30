@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { verifyMemoryAnchors } from './anchors/verify.js';
 import { anchorsChanged } from './sqlite-store-anchor-diff.js';
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { MemoryVerificationResult, Sage } from './types.js';
 
@@ -92,11 +92,8 @@ export async function verifySqliteSage(
   if (updates.length > 0) {
     await ctx.runMutation(() => {
       for (const update of updates) {
-        const fresh = ctx.stmt('SELECT data FROM memories WHERE id = ?').get(update.id) as
-          | { data: string }
-          | undefined;
-        if (!fresh) continue;
-        const current = sqliteRowToMemory(fresh);
+        const current = readSqliteSageRow(ctx.stmt, update.id);
+        if (!current) continue;
         if (anchorsChanged(current.anchors, update.observedAnchors)) continue;
         if (current.status !== update.observedStatus && !['active', 'stale'].includes(current.status)) {
           continue;
