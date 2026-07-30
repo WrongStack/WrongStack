@@ -12,6 +12,7 @@ import {
   DefaultRetryPolicy,
   DefaultSkillLoader,
 } from '@wrongstack/core/execution';
+import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { Container, type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultModeStore } from '@wrongstack/core/models';
 import {
@@ -69,6 +70,17 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   configStore.watch((next) => fallbackProfileManager.reload(next as Config));
   container.bind(TOKENS.ConfigStore, () => configStore);
   container.bind(TOKENS.FallbackProfileManager, () => fallbackProfileManager);
+  // Shared (provider, model) health tracker. The leader's runtime wiring
+  // (brain-and-orchestration.ts) constructs its own tracker and threads it
+  // into MultiAgentHostOptions; the runtime container ships a default so
+  // makeLightSubagentFactory's fallback extension has something to write
+  // into when webui-server boots standalone. The CLI factory passes a
+  // separate leader-owned instance; the tracker singleton pattern is
+  // contractually the same. Without this binding, light-factory subagents
+  // (e.g. SDD parallel runs) silently no-op the 429 → waiting-room trigger
+  // on the first rate-limit burst — see SAGE memory
+  // 01KYSCC8A49TS9ENCVCS2J3WJ8 for the parallel gap to the CLI factory.
+  container.bind(TOKENS.ProviderModelStatusTracker, () => new ProviderModelStatusTracker());
   container.bind(TOKENS.Logger, () => logger);
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());

@@ -616,6 +616,15 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         toolRegistry,
         session: input.sessionGetter(),
         projectRoot,
+        // Thread the container-provided ProviderModelStatusTracker so a 429
+        // from this subagent's first call transitions the (provider, model)
+        // pair to `state: 'blocked'` instead of silently no-op'ing. The
+        // runtime container binds a default `ProviderModelStatusTracker`
+        // (see packages/runtime/src/container.ts); without this dep, the
+        // subagent's fallback extension's tracker hooks are undefined and
+        // round-robin keeps reassigning the doomed model. Mirrors the CLI
+        // factory wiring at host-subagent-factory.ts:337.
+        statusTracker: container.safeResolve(TOKENS.ProviderModelStatusTracker),
       }),
       paths: {
         projectSpecs: wpaths.projectSpecs,

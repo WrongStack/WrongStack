@@ -27,6 +27,7 @@ import {
 import {
   type AgentFactory,
   type AgentFactoryResult,
+  type ProviderModelStatusTracker,
   resolveSubagentModelTarget,
 } from '@wrongstack/core/coordination';
 import {
@@ -70,6 +71,16 @@ export interface LightSubagentFactoryDeps {
    * should leave this unset.
    */
   now?: (() => number) | undefined;
+  /**
+   * Shared (provider, model) health tracker. When provided, the subagent's
+   * fallback extension records 429 / 5xx / timeout / stream-hang failures
+   * into it and skips blocked entries on subsequent calls — closing the
+   * waiting-room trigger for webui-server SDD parallel runs. When unset
+   * the extension still works, but a 429 leaves no quarantine signal and
+   * round-robin keeps reassigning the doomed model. Mirrors the
+   * `host.opts.statusTracker` thread in the CLI factory.
+   */
+  statusTracker?: ProviderModelStatusTracker | undefined;
 }
 
 /**
@@ -253,6 +264,11 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
         },
         events,
         ...(deps.now ? { now: deps.now } : {}),
+        // Thread the shared ProviderModelStatusTracker so a 429 from this
+        // subagent's first call transitions the (provider, model) pair to
+        // `state: 'blocked'` instead of silently no-op'ing. Mirrors the CLI
+        // factory wiring at host-subagent-factory.ts:336.
+        ...(deps.statusTracker ? { statusTracker: deps.statusTracker } : {}),
       }),
     );
 

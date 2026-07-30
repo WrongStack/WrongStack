@@ -325,6 +325,16 @@ export function createHostSubagentFactory(
           subReasoningConfig = await resolveHostSubagentReasoningConfig(host.deps, id, model);
         },
         events,
+        // Thread the leader's shared ProviderModelStatusTracker so the
+        // subagent's fallback extension quarantines a (provider, model) pair
+        // on the first 429 (rate-limit) failure instead of silently
+        // reassigning the same doomed model on every concurrent spawn.
+        // Without this dep, deps.statusTracker in fallback-model.ts is
+        // undefined and every recordFailure / isAvailable call is a no-op,
+        // so the waiting-room transition never fires along the subagent
+        // dispatch path. The tracker is the same singleton the leader uses,
+        // populated by brain-and-orchestration.ts into host.opts.statusTracker.
+        ...(host.opts.statusTracker ? { statusTracker: host.opts.statusTracker } : {}),
         ...(mergedConfig.fallbackStickiness?.primaryProbeInterval !== undefined
           ? { primaryCooldownMs: mergedConfig.fallbackStickiness.primaryProbeInterval }
           : {}),

@@ -1,5 +1,6 @@
 import type { BrainArbiter } from '../coordination/brain.js';
 import type { FallbackProfileManager } from '../core/fallback-profile-manager.js';
+import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
 import type { HookRegistry } from '../hooks/registry.js';
 import type { Compactor } from '../types/compactor.js';
 import type { ConfigLoader, ConfigStore } from '../types/config.js';
@@ -57,6 +58,8 @@ export const TOKENS = {
   ConfigLoader: t<ConfigLoader>('ConfigLoader'),
   ConfigStore: t<ConfigStore>('ConfigStore'),
   FallbackProfileManager: t<FallbackProfileManager>('FallbackProfileManager'),
+  /** Shared (provider, model) health tracker; fallback extensions read/write it. */
+  ProviderModelStatusTracker: t<ProviderModelStatusTracker>('ProviderModelStatusTracker'),
   Renderer: t<Renderer>('Renderer'),
   InputReader: t<InputReader>('InputReader'),
   ErrorHandler: t<ErrorHandler>('ErrorHandler'),
