@@ -37,6 +37,8 @@
     "healthDisconnected": "WebUI WebSocket bağlantısı kesik.",
     "healthRestartRequired": "Bağlantı sağlık raporunu etkinleştirmek için backend'i bir kez yeniden başlatın.",
     "healthOptional": "İsteğe bağlı",
+    "endpointInvalidBadge": "socket yolu çok uzun",
+    "endpointInvalidRemedy": "IPC soket yolu bu platformun uzunluk sınırını aştığı için paylaşılan arka plan hizmeti başlatılamıyor. Sorgular daha yavaş bir işlem-yerel moduna düşüyor. Çözüm: daha kısa bir TMPDIR ayarlayın (ör. export TMPDIR=/tmp) ve WrongStack'i yeniden başlatın.",
     "healthCounts": "{{healthy}} sağlıklı · {{attention}} dikkat · {{sleeping}} uykuda",
     "healthOverall": {
       "healthy": "Zorunlu servisler sağlıklı",

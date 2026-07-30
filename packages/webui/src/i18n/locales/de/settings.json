@@ -37,6 +37,8 @@
     "healthDisconnected": "Die WebUI-WebSocket-Verbindung ist getrennt.",
     "healthRestartRequired": "Backend einmal neu starten, um den Verbindungsbericht zu aktivieren.",
     "healthOptional": "Bei Bedarf",
+    "endpointInvalidBadge": "Socket-Pfad zu lang",
+    "endpointInvalidRemedy": "Der IPC-Socket-Pfad überschreitet die Längenbeschränkung dieser Plattform, daher kann der gemeinsame Daemon nicht gestartet werden. Abfragen fallen auf einen langsameren prozesslokalen Modus zurück. Abhilfe: Setzen Sie ein kürzeres TMPDIR (z. B. export TMPDIR=/tmp) und starten Sie WrongStack neu.",
     "healthCounts": "{{healthy}} gesund · {{attention}} beachten · {{sleeping}} inaktiv",
     "healthOverall": {
       "healthy": "Erforderliche Dienste gesund",

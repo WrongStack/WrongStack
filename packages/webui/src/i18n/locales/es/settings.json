@@ -37,6 +37,8 @@
     "healthDisconnected": "El WebSocket de WebUI está desconectado.",
     "healthRestartRequired": "Reinicia el backend una vez para activar el informe de conexiones.",
     "healthOptional": "Bajo demanda",
+    "endpointInvalidBadge": "ruta de socket demasiado larga",
+    "endpointInvalidRemedy": "La ruta del socket IPC supera el límite de longitud de esta plataforma, por lo que el daemon compartido no puede iniciarse. Las consultas recurren a un modo local de proceso más lento. Solución: establezca un TMPDIR más corto (p. ej. export TMPDIR=/tmp) y reinicie WrongStack.",
     "healthCounts": "{{healthy}} sanos · {{attention}} atención · {{sleeping}} inactivos",
     "healthOverall": {
       "healthy": "Servicios requeridos sanos",
