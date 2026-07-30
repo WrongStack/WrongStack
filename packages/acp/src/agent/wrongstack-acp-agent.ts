@@ -341,7 +341,8 @@ function isLoopbackHost(host: string): boolean {
   if (version !== 6) return false;
 
   const groups = expandIPv6(literal);
-  return groups?.slice(0, 7).every((group) => group === 0) && groups[7] === 1;
+  // biome-ignore lint/complexity/useOptionalChain: optional chain would make return type boolean|undefined, breaking the bool contract
+  return groups !== null && groups.slice(0, 7).every((group) => group === 0) && groups[7] === 1;
 }
 
 /** Direct-module test seam; not re-exported by the package barrel. */
