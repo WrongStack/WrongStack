@@ -423,6 +423,7 @@
         "export * from './project-identity.js';",
         "export * from './safe-json.js';",
         "export * from './sleep.js';",
+        "export * from './socket-path.js';",
         "export * from './string.js';",
         "export * from './task-format.js';",
         "export * from './todos-format.js';",
@@ -1039,14 +1040,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 30,
-      "sourceLines": 7888
+      "sourceLines": 7912
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41367
+      "sourceLines": 41391
     },
     {
       "directory": "core",
@@ -1227,8 +1228,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 56,
-      "sourceLines": 8369
+      "sourceFiles": 57,
+      "sourceLines": 8383
     },
     {
       "directory": "worktree",

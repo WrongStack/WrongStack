@@ -79,6 +79,8 @@
     "healthDisconnected": "The WebUI WebSocket is disconnected.",
     "healthRestartRequired": "Restart the backend once to activate connection health reporting.",
     "healthOptional": "On demand",
+    "endpointInvalidBadge": "socket path too long",
+    "endpointInvalidRemedy": "The IPC socket path exceeds this platform's length limit, so the shared daemon cannot start. Queries fall back to a slower process-local mode. Remedy: set a shorter TMPDIR (e.g. export TMPDIR=/tmp) and restart WrongStack.",
     "healthCounts": "{{healthy}} healthy · {{attention}} attention · {{sleeping}} sleeping",
     "healthOverall": {
       "healthy": "Required services healthy",

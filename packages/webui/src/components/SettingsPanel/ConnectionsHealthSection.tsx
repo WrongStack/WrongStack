@@ -240,6 +240,17 @@ function ServiceCard({
             defaultValue: service.label,
           }) as string)
         : service.label;
+  // The daemon's derived socket path cannot be bound on this platform (over
+  // the sun_path byte limit — macOS's long per-user TMPDIR is the known
+  // trigger). The service silently degrades to a process-local fallback, so
+  // it deserves a louder treatment than the generic "unavailable" badge.
+  const endpointInvalid = service.mode === 'endpoint-invalid';
+  const endpointInvalidRemedy = t('settings:connection.endpointInvalidRemedy', {
+    defaultValue:
+      'The IPC socket path exceeds this platform\u2019s length limit, so the shared daemon ' +
+      'cannot start. Queries fall back to a slower process-local mode. Remedy: set a shorter ' +
+      'TMPDIR (e.g. export TMPDIR=/tmp) and restart WrongStack.',
+  }) as string;
   const fields = [
     service.ownerPid !== undefined ? ['PID', String(service.ownerPid)] : undefined,
     service.clients !== undefined ? ['clients', String(service.clients)] : undefined,
@@ -262,6 +273,18 @@ function ServiceCard({
               {!service.required && (
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings:connection.healthOptional')}
+                </span>
+              )}
+              {endpointInvalid && (
+                <span
+                  className="inline-flex cursor-help items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-warning"
+                  title={endpointInvalidRemedy}
+                  data-testid="endpoint-invalid-badge"
+                >
+                  <TriangleAlert className="h-3 w-3" />
+                  {t('settings:connection.endpointInvalidBadge', {
+                    defaultValue: 'socket path too long',
+                  })}
                 </span>
               )}
             </div>

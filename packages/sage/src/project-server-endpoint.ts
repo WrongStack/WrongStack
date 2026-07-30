@@ -22,6 +22,20 @@ export function sageProjectServerKey(projectRoot: string, directory?: string): s
   return createHash('sha256').update(storageRoot).digest('hex').slice(0, 24);
 }
 
+/**
+ * Deterministic per-project SAGE IPC endpoint.
+ *
+ * The Unix subdirectory is the short `wssg-v<V>/` (was `wrongstack-sage-v<V>/`
+ * at 97 of 103 usable macOS `sun_path` bytes — see the codebase-index macOS
+ * incident and `@wrongstack/persistence` socket-path helpers). ~86 bytes
+ * worst-case macOS now.
+ *
+ * Migration: the protocol version stays embedded in the path, so this rename
+ * behaves exactly like a protocol bump — old daemons keep listening on the old
+ * path, are never contacted again, and exit on their idle timeout. No
+ * coexistence window. The Windows pipe name keeps the long prefix — named
+ * pipes have no `sun_path` limit.
+ */
 export function sageProjectServerEndpoint(projectRoot: string, directory?: string): string {
   const key = sageProjectServerKey(projectRoot, directory);
   if (process.platform === 'win32') {
@@ -29,7 +43,7 @@ export function sageProjectServerEndpoint(projectRoot: string, directory?: strin
   }
   return path.join(
     os.tmpdir(),
-    `wrongstack-sage-v${SAGE_PROJECT_SERVER_PROTOCOL_VERSION}`,
+    `wssg-v${SAGE_PROJECT_SERVER_PROTOCOL_VERSION}`,
     `${key}.sock`,
   );
 }
@@ -43,9 +57,9 @@ export function sageProjectServerMetadataPath(projectRoot: string, directory?: s
 
 export function ensureSageProjectServerSocketDirectory(endpoint: string): void {
   if (process.platform !== 'win32') {
-    // ~97 bytes under a canonical macOS TMPDIR — close to the 103-byte
-    // sun_path budget. Assert so growth fails loudly instead of as a silent
-    // bind error in the detached daemon (see codebase-index macOS incident).
+    // ~86 bytes under a canonical macOS TMPDIR since the wssg-v1/ rename.
+    // Assert so growth fails loudly instead of as a silent bind error in the
+    // detached daemon (see the codebase-index macOS incident).
     assertUnixSocketPathWithinLimit(endpoint, 'sage');
     fs.mkdirSync(path.dirname(endpoint), { recursive: true, mode: 0o700 });
   }

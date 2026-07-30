@@ -179,7 +179,10 @@ async function ensureParentDir(): Promise<void> {
   // `ensureProjectIndexSocketDirectory` in packages/tools.
   assertUnixSocketPathWithinLimit(endpoint, 'kanban');
   const dir = path.dirname(endpoint);
-  await fsPromises.mkdir(dir, { recursive: true }).catch(() => undefined);
+  // 0o700: the wskb-v<V>/ subdirectory is the ownership boundary that keeps
+  // other local users from pre-binding the predictable socket name in a
+  // world-writable sticky-bit /tmp.
+  await fsPromises.mkdir(dir, { recursive: true, mode: 0o700 }).catch(() => undefined);
 }
 
 // ─── Method registrations ────────────────────────────────────────────────────
