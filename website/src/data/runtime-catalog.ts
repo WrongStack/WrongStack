@@ -427,6 +427,14 @@ export const toolCatalog = [
     category: 'Discovery & index',
   },
   {
+    name: 'dead-code-scan',
+    summary:
+      'Scan TypeScript/JavaScript source files for exported symbols that appear unused anywhere in the project.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
     name: 'set_working_dir',
     summary: 'Change the current working directory for all subsequent file operations.',
     permission: 'confirm',

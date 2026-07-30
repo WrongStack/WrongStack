@@ -4,6 +4,6 @@
     "rootDir": "../..",
     "noEmit": true
   },
-  "include": ["src/**/*", "bench/**/*", "tests/heap-soak-benchmark.test.ts"],
+  "include": ["src/**/*", "bench/**/*"],
   "exclude": ["dist", "node_modules"]
 }

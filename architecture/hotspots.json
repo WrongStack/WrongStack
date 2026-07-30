@@ -247,7 +247,7 @@
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 811,
+      "lines": 849,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/dead-code-scan.ts": {
@@ -255,7 +255,7 @@
       "relativeImports": 13
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 838,
+      "lines": 876,
       "relativeImports": 4
     },
     "packages/tools/src/codebase-index/writer.ts": {
