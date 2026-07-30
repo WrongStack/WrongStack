@@ -220,6 +220,11 @@
       "file": "packages/tui/tests/working-dir-chip.test.ts",
       "kind": "skipIf",
       "fingerprint": "64d5454ccdda1aab"
+    },
+    {
+      "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "69d4b3efe347daa8"
     }
   ]
 }
