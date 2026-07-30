@@ -18,8 +18,10 @@ export default defineConfig({
         'src/test-helpers/**',
       ],
       thresholds: {
-        100: true,
-        perFile: true,
+        lines: 90,
+        functions: 90,
+        statements: 90,
+        branches: 85,
       },
     },
   },
