@@ -16,62 +16,64 @@
  *
  * The log line is intentionally flat JSON so `jq`/spreadsheets can plot it.
  */
+import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { PerformanceObserver, constants as performanceConstants } from 'node:perf_hooks';
 import * as v8 from 'node:v8';
+import type {
+  HeapDiagnosticFields,
+  HeapSample,
+  HeapWatchdogOptions,
+} from './heap-watchdog-types.js';
+import { createMemoryFlightRecorder } from './memory-flight-recorder.js';
 import { wstackGlobalRoot } from './wstack-paths.js';
 
-export interface HeapSample {
-  ts: string;
-  /** Resident set size, bytes. */
-  rss: number;
-  heapUsed: number;
-  heapTotal: number;
-  /** Off-heap (buffers, etc.), bytes. */
-  external: number;
-  /** V8 hard heap limit, bytes — the OOM ceiling. */
-  heapLimit: number;
-  /** heapUsed / heapLimit, 0–1. */
-  load: number;
-}
-
-export interface HeapWatchdogOptions {
-  /** Sampling cadence. Default 60s. */
-  sampleEveryMs?: number | undefined;
-  /** Diagnostic-file append cadence. Default 5min. */
-  logEveryMs?: number | undefined;
-  /** Diagnostics file. Default ~/.wrongstack/logs/heap.jsonl */
-  logPath?: string | undefined;
-  /** Fraction of the heap limit that triggers a 'warn' callback. Default 0.6. */
-  warnAt?: number | undefined;
-  /** Fraction of the heap limit that triggers a 'critical' callback. Default 0.85. */
-  criticalAt?: number | undefined;
-  /**
-   * Extra structure sizes merged into every diagnostic line — supply cheap
-   * counters (array lengths, approximate char totals). Must not throw.
-   */
-  collectStats?: (() => Record<string, number>) | undefined;
-  /** Override the JSONL writer, primarily for deterministic tests. */
-  writeDiagnosticLine?: ((logPath: string, line: string) => Promise<void>) | undefined;
-  /** Called on threshold crossings with a human-readable message. */
-  onWarn?: ((level: 'warn' | 'critical', message: string, sample: HeapSample) => void) | undefined;
-}
+export type {
+  HeapDiagnosticFields,
+  HeapDiagnosticValue,
+  HeapSample,
+  HeapWatchdogOptions,
+} from './heap-watchdog-types.js';
 
 const MB = 1024 * 1024;
 
 export function defaultHeapLogPath(): string {
+  const override = process.env['WRONGSTACK_HEAP_LOG_PATH']?.trim();
+  if (override) return path.resolve(override);
   return path.join(wstackGlobalRoot(), 'logs', 'heap.jsonl');
 }
 
 export function takeHeapSample(): HeapSample {
   const m = process.memoryUsage();
-  const limit = v8.getHeapStatistics().heap_size_limit || 0;
+  const heap = v8.getHeapStatistics();
+  const spaces = v8.getHeapSpaceStatistics();
+  const spaceUsed = (name: string): number =>
+    spaces.find((space) => space.space_name === name)?.space_used_size ?? 0;
+  const limit = heap.heap_size_limit || 0;
+  let activeResources = 0;
+  try {
+    activeResources = process.getActiveResourcesInfo?.()?.length ?? 0;
+  } catch {
+    // getActiveResourcesInfo can throw during OOM teardown
+  }
   return {
     ts: new Date().toISOString(),
     rss: m.rss,
     heapUsed: m.heapUsed,
     heapTotal: m.heapTotal,
     external: m.external,
+    arrayBuffers: m.arrayBuffers,
+    nativeResidual: Math.max(0, m.rss - m.heapTotal - m.external),
+    oldSpaceUsed: spaceUsed('old_space'),
+    newSpaceUsed: spaceUsed('new_space'),
+    largeObjectSpaceUsed: spaceUsed('large_object_space'),
+    codeSpaceUsed: spaceUsed('code_space'),
+    mallocedMemory: heap.malloced_memory,
+    peakMallocedMemory: heap.peak_malloced_memory,
+    nativeContexts: heap.number_of_native_contexts,
+    detachedContexts: heap.number_of_detached_contexts,
+    activeResources,
     heapLimit: limit,
     load: limit > 0 ? m.heapUsed / limit : 0,
   };
@@ -83,8 +85,9 @@ export function takeHeapSample(): HeapSample {
  * serialized; a failed append never throws into the caller.
  */
 export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise<void> {
-  const sampleEveryMs = opts.sampleEveryMs ?? 60_000;
-  const logEveryMs = opts.logEveryMs ?? 300_000;
+  const profileMode = process.env['WRONGSTACK_MEMORY_PROFILE'] === '1';
+  const sampleEveryMs = opts.sampleEveryMs ?? (profileMode ? 5_000 : 30_000);
+  const logEveryMs = opts.logEveryMs ?? (profileMode ? 5_000 : 60_000);
   const logPath = opts.logPath ?? defaultHeapLogPath();
   const warnAt = opts.warnAt ?? 0.6;
   const criticalAt = opts.criticalAt ?? 0.85;
@@ -100,6 +103,50 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
   let drainPromise: Promise<void> | undefined;
   let stopped = false;
   let dirReady = false;
+  const flightRecorder = createMemoryFlightRecorder();
+  let gcMajorCount = 0;
+  let gcMinorCount = 0;
+  let gcIncrementalCount = 0;
+  let gcWeakCallbackCount = 0;
+  let gcDurationMs = 0;
+  let postGcHeapUsed = 0;
+  let postMajorGcHeapUsed = 0;
+  let lastGcAt = 0;
+  let lastMajorGcAt = 0;
+  const gcObserver = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      const kind = (entry as PerformanceEntry & { detail?: { kind?: number } }).detail?.kind ?? 0;
+      if ((kind & performanceConstants.NODE_PERFORMANCE_GC_MAJOR) !== 0) gcMajorCount++;
+      if ((kind & performanceConstants.NODE_PERFORMANCE_GC_MINOR) !== 0) gcMinorCount++;
+      if ((kind & performanceConstants.NODE_PERFORMANCE_GC_INCREMENTAL) !== 0) {
+        gcIncrementalCount++;
+      }
+      if ((kind & performanceConstants.NODE_PERFORMANCE_GC_WEAKCB) !== 0) gcWeakCallbackCount++;
+      gcDurationMs += entry.duration;
+      postGcHeapUsed = process.memoryUsage().heapUsed;
+      if ((kind & performanceConstants.NODE_PERFORMANCE_GC_MAJOR) !== 0) {
+        postMajorGcHeapUsed = postGcHeapUsed;
+        lastMajorGcAt = lastGcAt;
+      }
+      lastGcAt = Date.now();
+    }
+  });
+  try {
+    gcObserver.observe({ entryTypes: ['gc'] });
+  } catch {
+    // GC performance entries are unavailable on some runtimes.
+  }
+  const collectRuntimeStats = (): HeapDiagnosticFields => ({
+    gcMajorCount,
+    gcMinorCount,
+    gcIncrementalCount,
+    gcWeakCallbackCount,
+    gcDurationMs: Math.round(gcDurationMs),
+    postGcHeapUsed,
+    postMajorGcHeapUsed,
+    lastGcAgoMs: lastGcAt > 0 ? Date.now() - lastGcAt : -1,
+    lastMajorGcAgoMs: lastMajorGcAt > 0 ? Date.now() - lastMajorGcAt : -1,
+  });
   const writeDiagnosticLine =
     opts.writeDiagnosticLine ??
     (async (targetPath: string, line: string): Promise<void> => {
@@ -136,6 +183,51 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
     drainPromise = drainWrites(line);
   };
 
+  const appendTerminalSample = (
+    event: 'memory.flight_recorder.crash' | 'memory.flight_recorder.exit',
+    error?: unknown,
+    origin?: string,
+  ): void => {
+    if (stopped) return;
+    let extras: HeapDiagnosticFields = {};
+    try {
+      extras = opts.collectStats?.() ?? {};
+    } catch {
+      // Terminal evidence must survive a broken collector.
+    }
+    try {
+      const sample = takeHeapSample();
+      const runtimeStats = collectRuntimeStats();
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      fs.appendFileSync(
+        logPath,
+        `${JSON.stringify({
+          ...extras,
+          ...runtimeStats,
+          event,
+          ...(origin ? { crashOrigin: origin } : {}),
+          ...(error instanceof Error
+            ? { errorName: error.name, errorMessage: error.message.slice(0, 1_000) }
+            : {}),
+          pid: process.pid,
+          ...sample,
+          exitCode: process.exitCode,
+        })}\n`,
+        'utf8',
+      );
+    } catch {
+      // There is no safer fallback during process teardown.
+    }
+  };
+  const onUncaughtException = (error: Error, origin: NodeJS.UncaughtExceptionOrigin): void => {
+    appendTerminalSample('memory.flight_recorder.crash', error, origin);
+  };
+  const onProcessExit = (): void => {
+    appendTerminalSample('memory.flight_recorder.exit');
+  };
+  process.on('uncaughtExceptionMonitor', onUncaughtException);
+  process.on('exit', onProcessExit);
+
   const tick = (): void => {
     // User-timing hygiene. Node keeps every performance.mark()/measure()
     // entry in the global timeline until explicitly cleared — there is no
@@ -159,6 +251,15 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
     }
 
     const s = takeHeapSample();
+    let extras: HeapDiagnosticFields = {};
+    try {
+      extras = opts.collectStats?.() ?? {};
+    } catch {
+      // collectStats must not break sampling
+    }
+    const runtimeStats = collectRuntimeStats();
+    const diagnosticStats = { ...extras, ...runtimeStats };
+    const memoryDiagnosis = flightRecorder.observe(s, diagnosticStats);
     // Threshold callbacks — critical first so a single giant jump surfaces
     // the stronger message, not both.
     if (s.load >= criticalAt && criticalArmed) {
@@ -187,15 +288,21 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
     // the crossing itself is always on disk even between log intervals.
     const due = Date.now() - lastLogAt >= logEveryMs;
     const crossed = s.load >= warnAt;
-    if (due || crossed) {
+    const captured = typeof memoryDiagnosis['memoryCaptureReason'] === 'string';
+    if (due || crossed || captured) {
       lastLogAt = Date.now();
-      let extras: Record<string, number> = {};
-      try {
-        extras = opts.collectStats?.() ?? {};
-      } catch {
-        // collectStats must not break sampling
-      }
-      append(JSON.stringify({ pid: process.pid, ...s, userTimings, ...extras }));
+      // Put canonical fields last so a buggy collector cannot overwrite pid,
+      // timestamps or memory readings with stale values.
+      append(
+        JSON.stringify({
+          ...extras,
+          ...runtimeStats,
+          ...memoryDiagnosis,
+          pid: process.pid,
+          ...s,
+          userTimings,
+        }),
+      );
     }
   };
 
@@ -207,6 +314,96 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
   return async () => {
     stopped = true;
     clearInterval(timer);
+    gcObserver.disconnect();
+    process.removeListener('uncaughtExceptionMonitor', onUncaughtException);
+    process.removeListener('exit', onProcessExit);
     await drainPromise;
+    await flightRecorder.stop();
+  };
+}
+
+interface SharedHeapWatchdogContributor {
+  collectStats?: (() => HeapDiagnosticFields) | undefined;
+  onWarn?: HeapWatchdogOptions['onWarn'];
+}
+
+const sharedContributors = new Map<number, SharedHeapWatchdogContributor>();
+let nextSharedContributorId = 1;
+let sharedSamplerActive = false;
+let stopSharedSampler: (() => Promise<void>) | undefined;
+
+function collectSharedStats(): HeapDiagnosticFields {
+  const merged: HeapDiagnosticFields = {};
+  for (const contributor of sharedContributors.values()) {
+    try {
+      Object.assign(merged, contributor.collectStats?.() ?? {});
+    } catch {
+      // One diagnostics contributor must not hide sibling counters.
+    }
+  }
+  return merged;
+}
+
+function warnSharedContributors(
+  level: 'warn' | 'critical',
+  message: string,
+  sample: HeapSample,
+): void {
+  for (const contributor of sharedContributors.values()) {
+    try {
+      contributor.onWarn?.(level, message, sample);
+    } catch {
+      // Warning handlers are observational and must not break the sampler.
+    }
+  }
+}
+
+/**
+ * Start or join the single process-wide watchdog.
+ *
+ * WrongStack's CLI mounts downstream surfaces (TUI/WebUI) inside the same Node
+ * process. Each surface used to start its own timer and append alternating
+ * partial records for the same PID. Contributors now share one sampler while
+ * still attaching surface-specific counters and warning handlers.
+ *
+ * The first contributor owns cadence/path/writer options. Later contributors
+ * only add `collectStats` and `onWarn`. The sampler stops after the final
+ * contributor unregisters.
+ */
+export function startSharedHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise<void> {
+  if (
+    process.env['NODE_ENV'] === 'test' &&
+    !sharedSamplerActive &&
+    opts.logPath === undefined &&
+    opts.writeDiagnosticLine === undefined
+  ) {
+    return async () => undefined;
+  }
+  const id = nextSharedContributorId++;
+  sharedContributors.set(id, {
+    collectStats: opts.collectStats,
+    onWarn: opts.onWarn,
+  });
+
+  if (!sharedSamplerActive) {
+    sharedSamplerActive = true;
+    stopSharedSampler = startHeapWatchdog({
+      ...opts,
+      collectStats: collectSharedStats,
+      onWarn: warnSharedContributors,
+    });
+  }
+
+  let stopped = false;
+  return async () => {
+    if (stopped) return;
+    stopped = true;
+    sharedContributors.delete(id);
+    if (sharedContributors.size > 0 || !sharedSamplerActive) return;
+    const stop = stopSharedSampler;
+    if (!stop) return;
+    sharedSamplerActive = false;
+    stopSharedSampler = undefined;
+    await stop();
   };
 }
