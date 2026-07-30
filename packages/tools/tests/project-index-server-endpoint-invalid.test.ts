@@ -172,7 +172,7 @@ describe('resolveProjectIndexDaemonAvailability', () => {
     // The endpoint string is platform-shaped: `\\.\pipe\wrongstack-…-v1-…`
     // on Windows, `…/wsci-v1-<key>.sock` on POSIX. Both share the `v1-`
     // protocol-version segment, which is what we assert here.
-    expect(availability.endpoint).toMatch(/v1-[0-9a-f]{24}/);
+    expect(availability.endpoint).toMatch(/v1[-/][0-9a-f]{24}/);
   });
 
   it('threads indexDir into the endpoint that gets validated', () => {
@@ -330,8 +330,8 @@ describe('warnEndpointInvalidOnce — stderr throttle', () => {
       chunk.includes('socket path is 142 bytes'),
     );
     expect(sunPathMessages).toHaveLength(2);
-    expect(sunPathMessages[0]).toMatch(/v1-[0-9a-f]{24}/);
-    expect(sunPathMessages[1]).toMatch(/v1-[0-9a-f]{24}/);
+    expect(sunPathMessages[0]).toMatch(/v1[-/][0-9a-f]{24}/);
+    expect(sunPathMessages[1]).toMatch(/v1[-/][0-9a-f]{24}/);
   });
 });
 
