@@ -214,7 +214,7 @@ describe('DefaultSessionReader (L2-A)', () => {
     expect(hits[0]!.sessionId).toBe('b');
   });
 
-  it('reuses cached session data for replay/metadata/export on closed sessions', async () => {
+  it('delegates replay/metadata/export to the bounded store-level cache', async () => {
     await seedSession(dir, 'cache-me', {
       model: 'm',
       provider: 'p',
@@ -231,7 +231,13 @@ describe('DefaultSessionReader (L2-A)', () => {
     await reader.metadata('cache-me');
     await reader.export('cache-me', { format: 'text' });
 
-    expect(loadSpy).toHaveBeenCalledTimes(1);
+    // The reader deliberately owns no second SessionData cache: each public
+    // operation delegates to DefaultSessionStore, whose single bounded cache
+    // retains one entry and serves the repeated reads.
+    expect(loadSpy).toHaveBeenCalledTimes(3);
+    const storeCache = (store as unknown as { _loadCache: Map<string, unknown> })._loadCache;
+    expect(storeCache.size).toBe(1);
+    expect(storeCache.has('cache-me')).toBe(true);
   });
 
   it('export markdown renders user/assistant turns', async () => {
@@ -408,12 +414,16 @@ describe('DefaultSessionReader (L2-A)', () => {
 
   it('search filters by sessionId when provided', async () => {
     await seedSession(dir, 'sess-a', {
-      model: 'gpt-4', provider: 'openai',
-      startedAt: '2026-01-01T00:00:00.000Z', title: 'project alpha',
+      model: 'gpt-4',
+      provider: 'openai',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      title: 'project alpha',
     });
     await seedSession(dir, 'sess-b', {
-      model: 'gpt-4', provider: 'openai',
-      startedAt: '2026-01-02T00:00:00.000Z', title: 'project beta',
+      model: 'gpt-4',
+      provider: 'openai',
+      startedAt: '2026-01-02T00:00:00.000Z',
+      title: 'project beta',
     });
 
     // Search all sessions for "alpha"
@@ -428,8 +438,10 @@ describe('DefaultSessionReader (L2-A)', () => {
 
   it('search returns empty when sessionId does not exist', async () => {
     await seedSession(dir, 'sess-a', {
-      model: 'gpt-4', provider: 'openai',
-      startedAt: '2026-01-01T00:00:00.000Z', title: 'hello world',
+      model: 'gpt-4',
+      provider: 'openai',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      title: 'hello world',
     });
     const hits = await reader.search({ query: 'world' }, 'nonexistent');
     expect(hits).toEqual([]);

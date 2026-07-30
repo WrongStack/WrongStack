@@ -28,6 +28,7 @@ import {
   scrollAnchorToTop,
 } from '../scroll-anchor.js';
 import { theme } from '../theme.js';
+import { setTuiHistoryMemoryGauges } from '../tui-memory-counters.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
 import {
   COPY_ICON,
@@ -524,7 +525,11 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         // Record that truth ahead of any stored/estimated height — including
         // over a `measured` snapshot from a reasoning-on era — or the screen
         // and the prefix sums disagree by the entire reasoning text.
-        if (group.type !== 'tool-group' && group.entry.kind === 'thinking' && showModelReasoning === false) {
+        if (
+          group.type !== 'tool-group' &&
+          group.entry.kind === 'thinking' &&
+          showModelReasoning === false
+        ) {
           heightCache.record(id, 0);
           continue;
         }
@@ -566,7 +571,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
             group.entry.kind === 'thinking' &&
             showModelReasoning === false;
           if (hidden) hiddenIds.add(id);
-          return [id, hidden ? 0 : estimateRenderGroupRows(group, termWidth, showSageMemoryInject)] as const;
+          return [
+            id,
+            hidden ? 0 : estimateRenderGroupRows(group, termWidth, showSageMemoryInject),
+          ] as const;
         }),
       );
       heightCache.recordMany(
@@ -765,6 +773,19 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   planStartIdxRef.current = plan.startIdx;
 
   const totalRows = contentRows(geometry);
+  setTuiHistoryMemoryGauges({
+    historyRetainedEntries: entries.length,
+    historyGroupedEntries: groupedEntries.length,
+    historyMountedGroups: renderGroups.length,
+    historyMountedEntries: renderGroups.reduce(
+      (count, group) => count + (group.type === 'tool-group' ? group.data.entries.length : 1),
+      0,
+    ),
+    historyCachedGroups: heightCache.size,
+    historyMeasuredGroups: measuredGroupIdsRef.current.size,
+    historyViewportRows: vp,
+    historyTotalRows: totalRows,
+  });
   const offsetFromBottom = scrolled
     ? Math.max(0, maxTopRow(geometry) - anchorTopRow(geometry, effectiveAnchor))
     : 0;

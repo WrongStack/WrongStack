@@ -553,6 +553,46 @@ export interface SessionWriter {
    */
   traceId?: string | undefined;
   /**
+   * Optional callback invoked synchronously after each event is scrubbed
+   * and observed for summary, immediately before it enters the write
+   * buffer. The event has been scrubbed (PII removed) and observed
+   * (counters updated) but NOT yet written to disk.
+   *
+   * When the event originates from {@link appendBatch}, this callback is
+   * ALSO invoked for each individual event in the batch, in addition to
+   * the {@link onAppendBatch} callback (which fires once for the whole
+   * batch). Subscribing to both will therefore receive each batch event
+   * twice — design consumers to subscribe to either per-event or batch,
+   * not both, unless deduplication is handled.
+   *
+   * The callback must not throw — errors are silently swallowed to
+   * preserve the best-effort contract of session logging. If the
+   * callback needs async work, it should fire-and-forget rather than
+   * blocking the append.
+   *
+   * Used by the HQ telemetry bridge to stream events without reading
+   * them back from the JSONL file on disk.
+   */
+  onAppend?: ((event: SessionEvent) => void) | undefined;
+  /**
+   * Batch variant of {@link onAppend}. Called once per batch with
+   * the already-scrubbed event array, after all have been observed
+   * and after the per-event {@link onAppend} has already fired for
+   * each event in the batch. Subscribing to both callbacks will
+   * receive every batch event twice.
+   */
+  onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
+  /**
+   * Set or replace the {@link onAppend} callback after construction.
+   * The previous callback (if any) is discarded. Used by telemetry bridges
+   * that receive the writer as an already-created dependency.
+   */
+  setOnAppend?(cb: ((event: SessionEvent) => void) | undefined): void;
+  /**
+   * Set or replace the {@link onAppendBatch} callback after construction.
+   */
+  setOnAppendBatch?(cb: ((events: SessionEvent[]) => void) | undefined): void;
+  /**
    * Absolute path to the JSONL file this writer appends to, when one
    * exists. In-memory writers (tests, ephemeral sessions) leave it
    * undefined. Observability surfaces (`/fleet log`, FleetPanel) use

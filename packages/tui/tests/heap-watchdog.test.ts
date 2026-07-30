@@ -19,6 +19,7 @@ describe('takeHeapSample', () => {
     expect(s.nativeResidual ?? -1).toBeGreaterThanOrEqual(0);
     expect(s.oldSpaceUsed ?? -1).toBeGreaterThanOrEqual(0);
     expect(s.activeResources ?? -1).toBeGreaterThanOrEqual(0);
+    expect(s.activeResourceTypes).toEqual(expect.any(String));
     expect(() => new Date(s.ts).toISOString()).not.toThrow();
   });
 });

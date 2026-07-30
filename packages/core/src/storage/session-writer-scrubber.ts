@@ -1,6 +1,6 @@
 import type { Message } from '../types/messages.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
-import type { SessionEvent } from '../types/session.js';
+import type { FileSnapshot, SessionEvent } from '../types/session.js';
 
 export function scrubSessionWriterEvent(
   event: SessionEvent,
@@ -34,6 +34,16 @@ export function scrubSessionWriterEvent(
   }
   if (event.type === 'llm_response') {
     return { ...event, content: secretScrubber.scrubObject(event.content) };
+  }
+  if (event.type === 'file_snapshot') {
+    return {
+      ...event,
+      files: event.files.map((f: FileSnapshot) => ({
+        ...f,
+        before: f.before !== null ? secretScrubber.scrub(f.before) : null,
+        after: f.after !== null ? secretScrubber.scrub(f.after) : null,
+      })),
+    };
   }
   return event;
 }

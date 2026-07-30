@@ -1,4 +1,3 @@
-import * as fs from 'node:fs/promises';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import type { ContentBlock } from '../types/blocks.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
@@ -14,7 +13,6 @@ import type {
 } from '../types/session-reader.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { compileUserRegex } from '../utils/regex-guard.js';
-import { sessionScopedPath } from '../utils/session-scoped-path.js';
 import {
   scrubPersistedSessionData,
   scrubPersistedSessionEvent,
@@ -29,12 +27,6 @@ import {
 export class DefaultSessionReader implements SessionReader {
   private readonly store: SessionStore;
   private readonly secretScrubber: SecretScrubber;
-  private readonly eventCache = new Map<string, SessionData>();
-  private readonly eventCacheMtimes = new Map<string, number>();
-  private readonly eventCacheSizes = new Map<string, number>();
-  private eventCacheBytes = 0;
-  private static readonly EVENT_CACHE_MAX_ENTRIES = 32;
-  private static readonly EVENT_CACHE_MAX_BYTES = 32 * 1024 * 1024;
 
   constructor(opts: DefaultSessionReaderOptions) {
     this.store = opts.store;
@@ -42,68 +34,7 @@ export class DefaultSessionReader implements SessionReader {
   }
 
   private async loadCachedSessionData(sessionId: string): Promise<SessionData> {
-    const storeWithPath = this.store as SessionStore & {
-      dir?: string | undefined;
-      clearLoadCache?: ((sessionId?: string | undefined) => void) | undefined;
-    };
-    const rootDir = storeWithPath.dir;
-    if (!rootDir) {
-      return scrubPersistedSessionData(await this.store.load(sessionId), this.secretScrubber);
-    }
-    const sessionPath = sessionScopedPath(rootDir, sessionId, '.jsonl');
-    let mtimeMs: number | null = null;
-    let fileSize = 0;
-    try {
-      const stat = await fs.stat(sessionPath);
-      mtimeMs = stat.mtimeMs;
-      fileSize = stat.size;
-    } catch {
-      this.deleteEventCacheEntry(sessionId);
-      return scrubPersistedSessionData(await this.store.load(sessionId), this.secretScrubber);
-    }
-
-    const cachedMtime = this.eventCacheMtimes.get(sessionId);
-    const cachedData = this.eventCache.get(sessionId);
-    if (cachedData && cachedMtime === mtimeMs) {
-      this.eventCache.delete(sessionId);
-      this.eventCacheMtimes.delete(sessionId);
-      this.eventCacheSizes.delete(sessionId);
-      this.eventCache.set(sessionId, cachedData);
-      this.eventCacheMtimes.set(sessionId, mtimeMs);
-      this.eventCacheSizes.set(sessionId, fileSize);
-      return cachedData;
-    }
-
-    const data = scrubPersistedSessionData(await this.store.load(sessionId), this.secretScrubber);
-    this.deleteEventCacheEntry(sessionId);
-    if (fileSize <= DefaultSessionReader.EVENT_CACHE_MAX_BYTES) {
-      while (
-        this.eventCache.size >= DefaultSessionReader.EVENT_CACHE_MAX_ENTRIES ||
-        this.eventCacheBytes + fileSize > DefaultSessionReader.EVENT_CACHE_MAX_BYTES
-      ) {
-        const oldest = this.eventCache.keys().next().value;
-        if (oldest === undefined) break;
-        this.deleteEventCacheEntry(oldest);
-      }
-      this.eventCache.set(sessionId, data);
-      this.eventCacheMtimes.set(sessionId, mtimeMs);
-      this.eventCacheSizes.set(sessionId, fileSize);
-      this.eventCacheBytes += fileSize;
-    }
-
-    if (data.metadata.endedAt) {
-      storeWithPath.clearLoadCache?.(sessionId);
-    }
-
-    return data;
-  }
-
-  private deleteEventCacheEntry(sessionId: string): void {
-    const size = this.eventCacheSizes.get(sessionId) ?? 0;
-    this.eventCache.delete(sessionId);
-    this.eventCacheMtimes.delete(sessionId);
-    this.eventCacheSizes.delete(sessionId);
-    this.eventCacheBytes = Math.max(0, this.eventCacheBytes - size);
+    return scrubPersistedSessionData(await this.store.load(sessionId), this.secretScrubber);
   }
 
   async query(q: SessionQuery = {}): Promise<SessionSummaryLite[]> {
@@ -247,11 +178,12 @@ export class DefaultSessionReader implements SessionReader {
             // with any SessionStore impl — a custom store that returns raw
             // plaintext must not leak secrets into the matcher's text path.
             const ev = scrubPersistedSessionEvent(rawEvent, this.secretScrubber);
-            scrubbedByIndex.set(eventIndex, ev);
             if (allowedTypes && !allowedTypes.has(ev.type)) return false;
             const text = eventText(ev);
             if (text === null) return false;
-            return matcher(text) !== null;
+            const matched = matcher(text) !== null;
+            if (matched) scrubbedByIndex.set(eventIndex, ev);
+            return matched;
           },
           { limit: limit - hits.length },
         );

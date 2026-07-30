@@ -98,7 +98,11 @@ export default defineConfig({
       'packages/cli/tests/hq-dashboard.test.ts',
     ],
     coverage: {
-      provider: 'istanbul',
+      // Vitest 4's AST-remapped V8 provider produces Istanbul-equivalent
+      // reports without instrumenting every loaded module. The Istanbul
+      // coordinator retained ~3.9 GB RSS across the 1,947-file root suite and
+      // ran into the same 4 GB ceiling this gate is supposed to catch.
+      provider: 'v8',
       reporter: ['text', 'json', 'json-summary', 'html'],
       reportOnFailure: true,
       include: ['packages/*/src/**/*.{ts,tsx}'],

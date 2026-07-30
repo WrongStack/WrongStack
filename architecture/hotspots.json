@@ -167,11 +167,11 @@
       "relativeImports": 12
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 1078,
+      "lines": 1150,
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1045,
+      "lines": 1053,
       "relativeImports": 36
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
@@ -255,7 +255,7 @@
       "relativeImports": 13
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 876,
+      "lines": 908,
       "relativeImports": 4
     },
     "packages/tools/src/codebase-index/writer.ts": {
@@ -303,8 +303,8 @@
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 1014,
-      "relativeImports": 12
+      "lines": 1035,
+      "relativeImports": 13
     },
     "packages/tui/src/components/settings-picker-model.ts": {
       "lines": 906,

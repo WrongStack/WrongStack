@@ -8,6 +8,7 @@ import {
   recordToolProgress,
   recordTuiAppRender,
   resetTuiMemoryCounters,
+  setTuiHistoryMemoryGauges,
   snapshotTuiMemoryCounters,
 } from '../src/tui-memory-counters.js';
 
@@ -22,6 +23,16 @@ describe('TUI memory counters', () => {
     recordToolProgress(20);
     recordToolExecuted(1_024);
     recordStreamFlush();
+    setTuiHistoryMemoryGauges({
+      historyRetainedEntries: 400,
+      historyGroupedEntries: 250,
+      historyMountedGroups: 12,
+      historyMountedEntries: 18,
+      historyCachedGroups: 250,
+      historyMeasuredGroups: 45,
+      historyViewportRows: 32,
+      historyTotalRows: 1_200,
+    });
 
     expect(snapshotTuiMemoryCounters()).toEqual({
       appRenders: 1,
@@ -35,6 +46,14 @@ describe('TUI memory counters', () => {
       toolExecutedEvents: 1,
       toolOutputBytes: 1_024,
       streamFlushes: 1,
+      historyRetainedEntries: 400,
+      historyGroupedEntries: 250,
+      historyMountedGroups: 12,
+      historyMountedEntries: 18,
+      historyCachedGroups: 250,
+      historyMeasuredGroups: 45,
+      historyViewportRows: 32,
+      historyTotalRows: 1_200,
     });
   });
 

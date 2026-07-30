@@ -75,6 +75,9 @@ export interface HqPublisherOptions {
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
   maxQueuedMessages?: number;
+  /** Hard byte cap on the outbound queue (prevents RAM blow-up when HQ is
+   * offline). Older frames are dropped oldest-first when exceeded. Default 64 MB. */
+  maxQueuedBytes?: number;
   redactionPolicy?: Partial<HqRedactionPolicy>;
   commandPollIntervalMs?: number;
   commandPollLimit?: number;
@@ -142,6 +145,8 @@ const DEFAULT_RECONNECT_BASE_MS = 1_000;
 const DEFAULT_RECONNECT_MAX_MS = 30_000;
 const DEFAULT_DISCOVERY_POLL_MS = 5_000;
 const DEFAULT_MAX_QUEUED_MESSAGES = 2000;
+/** Hard byte cap on the enqueue to prevent unbounded RAM growth when HQ is offline. */
+const DEFAULT_MAX_QUEUED_BYTES = 64 * 1024 * 1024;
 // Commands originate from an interactive operator console. Keep delivery
 // close to WebSocket-real-time while retaining the existing bounded poll
 // protocol (which also provides replay after a brief disconnect).
@@ -200,11 +205,13 @@ export class HqPublisher {
   private readonly reconnectBaseMs: number;
   private readonly reconnectMaxMs: number;
   private readonly maxQueuedMessages: number;
+  private readonly maxQueuedBytes: number;
   private readonly resolvedRedactionPolicy: HqRedactionPolicy;
   private readonly logger: Logger | undefined;
   private socket: HqSocketLike | null = null;
   private seq = 0;
   private queue: string[] = [];
+  private queueBytes = 0;
   private stopped = false;
   private reconnectAttempt = 0;
   private connectWarningEmitted = false;
@@ -228,6 +235,7 @@ export class HqPublisher {
     this.reconnectBaseMs = options.reconnectBaseMs ?? DEFAULT_RECONNECT_BASE_MS;
     this.reconnectMaxMs = options.reconnectMaxMs ?? DEFAULT_RECONNECT_MAX_MS;
     this.maxQueuedMessages = options.maxQueuedMessages ?? DEFAULT_MAX_QUEUED_MESSAGES;
+    this.maxQueuedBytes = options.maxQueuedBytes ?? DEFAULT_MAX_QUEUED_BYTES;
     this.resolvedRedactionPolicy = resolveHqRedactionPolicy(options.redactionPolicy);
     this.logger = options.logger;
   }
@@ -316,6 +324,7 @@ export class HqPublisher {
     this.stopCommandPolling();
     this.stopHeartbeat();
     this.queue = [];
+    this.queueBytes = 0;
     const socket = this.socket;
     this.socket = null;
     socket?.close(1000, 'hq publisher closed');
@@ -406,6 +415,11 @@ export class HqPublisher {
   /** Effective publisher-side policy applied before any event leaves this process. */
   get redactionPolicy(): HqRedactionPolicy {
     return this.resolvedRedactionPolicy;
+  }
+
+  /** Current outbound queue pressure — useful for flow control in telemetry bridges. */
+  getQueueStats(): { entries: number; bytes: number; maxBytes: number } {
+    return { entries: this.queue.length, bytes: this.queueBytes, maxBytes: this.maxQueuedBytes };
   }
 
   /** Publish a live session/terminal snapshot (state + agents). */
@@ -524,8 +538,22 @@ export class HqPublisher {
   }
 
   private enqueue(serialized: string): void {
-    if (this.queue.length >= this.maxQueuedMessages) this.queue.shift();
+    const bytes = Buffer.byteLength(serialized, 'utf8');
+    // Drop oldest frames when either the count cap or the byte cap is
+    // exceeded. The byte cap prevents unbounded RAM growth during extended
+    // HQ outages while the count cap limits per-frame overhead.
+    while (
+      (this.queue.length >= this.maxQueuedMessages ||
+        this.queueBytes + bytes > this.maxQueuedBytes) &&
+      this.queue.length > 0
+    ) {
+      const dropped = this.queue.shift();
+      if (dropped !== undefined) {
+        this.queueBytes -= Buffer.byteLength(dropped, 'utf8');
+      }
+    }
     this.queue.push(serialized);
+    this.queueBytes += bytes;
   }
 
   /** Batch-dequeue up to 50 frames at a time, yielding to the microtask
@@ -535,6 +563,10 @@ export class HqPublisher {
     if (socket?.readyState !== OPEN_STATE || this.queue.length === 0) return;
     const batch = this.queue.splice(0, 50);
     for (const frame of batch) socket.send(frame);
+    // Recalculate remaining bytes — cheaper than tracking per-splice.
+    this.queueBytes = this.queue.reduce(
+      (sum, frame) => sum + Buffer.byteLength(frame, 'utf8'), 0,
+    );
     if (this.queue.length > 0) setImmediate(() => this.flushQueue());
   }
 

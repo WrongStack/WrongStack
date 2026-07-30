@@ -175,6 +175,14 @@ describe('useTuiActivity foreground working time', () => {
       toolExecutedEvents: expect.any(Number),
       toolOutputBytes: expect.any(Number),
       streamFlushes: expect.any(Number),
+      historyRetainedEntries: expect.any(Number),
+      historyGroupedEntries: expect.any(Number),
+      historyMountedGroups: expect.any(Number),
+      historyMountedEntries: expect.any(Number),
+      historyCachedGroups: expect.any(Number),
+      historyMeasuredGroups: expect.any(Number),
+      historyViewportRows: expect.any(Number),
+      historyTotalRows: expect.any(Number),
       attachments: 0,
       builderRefs: 0,
       directorInFlight: 0,
@@ -218,7 +226,9 @@ describe('useTuiActivity foreground working time', () => {
 
     let view!: ReturnType<typeof render>;
     await act(async () => {
-      view = render(React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }));
+      view = render(
+        React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }),
+      );
       await Promise.resolve();
     });
     expect(storageMocks.loadGoal).toHaveBeenCalledTimes(1);
@@ -240,13 +250,13 @@ describe('useTuiActivity foreground working time', () => {
     vi.useFakeTimers();
     const stale = deferred<unknown>();
     const fresh = deferred<unknown>();
-    storageMocks.loadGoal
-      .mockReturnValueOnce(stale.promise)
-      .mockReturnValueOnce(fresh.promise);
+    storageMocks.loadGoal.mockReturnValueOnce(stale.promise).mockReturnValueOnce(fresh.promise);
 
     let view!: ReturnType<typeof render>;
     act(() => {
-      view = render(React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }));
+      view = render(
+        React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }),
+      );
     });
     expect(storageMocks.loadGoal).toHaveBeenCalledTimes(1);
 

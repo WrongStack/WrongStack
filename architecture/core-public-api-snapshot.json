@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.296.4",
+  "packageVersion": "0.296.5",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1103,7 +1103,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 39,
-      "sourceLines": 7696
+      "sourceLines": 7787
     },
     {
       "directory": "infrastructure",
@@ -1201,7 +1201,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 16053
+      "sourceLines": 16086
     },
     {
       "directory": "tasking",
@@ -1222,14 +1222,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9310
+      "sourceLines": 9350
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 60,
-      "sourceLines": 9252
+      "sourceLines": 9266
     },
     {
       "directory": "worktree",

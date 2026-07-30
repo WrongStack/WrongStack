@@ -28,6 +28,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const SPAWN_CONNECT_DEADLINE_MS = 5_000;
 const SPAWN_CONNECT_RETRY_MS = 50;
 const HEARTBEAT_MS = 10_000;
+const MAX_CACHED_CONNECTIONS = 8;
 
 interface PendingRequest {
   resolve: (result: unknown) => void;
@@ -40,6 +41,16 @@ interface PendingRequest {
  * process share the connection — only one net.Socket per project.
  */
 const connections = new Map<string, KanbanServerConnection>();
+
+function trimConnectionCache(protectedConnection: KanbanServerConnection): void {
+  if (connections.size <= MAX_CACHED_CONNECTIONS) return;
+  for (const [cacheKey, connection] of connections) {
+    if (connections.size <= MAX_CACHED_CONNECTIONS) break;
+    if (connection === protectedConnection || !connection.isEvictable()) continue;
+    connections.delete(cacheKey);
+    connection.close('evicted from idle client cache');
+  }
+}
 
 class KanbanServerConnection {
   private socket: net.Socket | null = null;
@@ -192,7 +203,8 @@ class KanbanServerConnection {
             if ('ok' in parsed) {
               pending.resolve((parsed as { result?: unknown }).result);
             } else {
-              const errPayload = (parsed as { error?: { code?: unknown; message?: unknown } }).error;
+              const errPayload = (parsed as { error?: { code?: unknown; message?: unknown } })
+                .error;
               const message = errPayload?.message;
               const code = errPayload?.code;
               const error = new Error(typeof message === 'string' ? message : 'request failed');
@@ -230,6 +242,27 @@ class KanbanServerConnection {
     }
     this.disconnectListeners.clear();
     this.eventListeners.clear();
+  }
+
+  /**
+   * An idle cached connection can be recreated on the next request. Never
+   * evict a connection with an in-flight request or a live event subscriber.
+   */
+  isEvictable(): boolean {
+    return (
+      this.pending.size === 0 &&
+      this.eventListeners.size === 0 &&
+      this.disconnectListeners.size === 0
+    );
+  }
+
+  close(reason = 'client closed'): void {
+    if (this.destroyed) return;
+    const socket = this.socket;
+    this.onClose(reason);
+    if (socket && !socket.destroyed) socket.destroy();
+    this.buffer = '';
+    this.serverProcess = null;
   }
 
   async request<M extends KanbanServerMethod>(
@@ -300,14 +333,27 @@ export async function getKanbanServerConnection(
     const endpoint = kanbanProjectServerEndpoint(projectRoot);
     conn = new KanbanServerConnection(projectRoot, endpoint, cacheKey);
     connections.set(cacheKey, conn);
+  } else {
+    // Map insertion order is the LRU order.
+    connections.delete(cacheKey);
+    connections.set(cacheKey, conn);
   }
   try {
     await conn.connect();
   } catch (err) {
     if (connections.get(cacheKey) === conn) connections.delete(cacheKey);
+    conn.close('connection failed');
     throw err;
   }
+  trimConnectionCache(conn);
   return conn;
+}
+
+/** Disconnect this process from every Kanban server without stopping daemons. */
+export function closeKanbanServerConnections(): void {
+  const cached = [...connections.values()];
+  connections.clear();
+  for (const connection of cached) connection.close();
 }
 
 export async function isKanbanServerAvailable(projectRoot: string): Promise<boolean> {

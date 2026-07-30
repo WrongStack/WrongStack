@@ -82,6 +82,8 @@ export class DefaultSessionStore implements SessionStore {
   private readonly checkpointCas?: SessionCheckpointCas | undefined;
   private readonly isSessionInUse?: ((sessionId: string) => Promise<string | null>) | undefined;
   private readonly logger: Logger | undefined;
+  private readonly onAppend?: ((event: SessionEvent) => void) | undefined;
+  private readonly onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
 
   /**
    * In-memory cache for load() results, keyed by session ID. The cache is
@@ -112,6 +114,8 @@ export class DefaultSessionStore implements SessionStore {
     this.secretScrubber = opts.secretScrubber ?? new DefaultSecretScrubber();
     this.isSessionInUse = opts.isSessionInUse;
     this.logger = opts.logger;
+    this.onAppend = opts.onAppend;
+    this.onAppendBatch = opts.onAppendBatch;
   }
 
   /**
@@ -199,6 +203,8 @@ export class DefaultSessionStore implements SessionStore {
         filePath: file,
         secretScrubber: this.secretScrubber,
         checkpointCas: this.checkpointCas,
+        onAppend: this.onAppend,
+        onAppendBatch: this.onAppendBatch,
         resolveName: async () => {
           const current = await this.readSummaryManifest(id);
           if (!current) return null;
@@ -360,13 +366,15 @@ export class DefaultSessionStore implements SessionStore {
         {
           resumed: true,
           initialSummary,
-          // Shard directory (sessions/<date>/) â€” must match create() so the
+          // Shard directory (sessions/<date>/) — must match create() so the
           // .summary.json sidecar lands next to the JSONL instead of the
           // sessions root (where summaryFor() would never find it).
           dir: path.dirname(file),
           filePath: file,
           secretScrubber: this.secretScrubber,
           checkpointCas: this.checkpointCas,
+          onAppend: this.onAppend,
+          onAppendBatch: this.onAppendBatch,
           resolveName: async () => {
             const current = await this.readSummaryManifest(canonicalId);
             if (!current) return null;

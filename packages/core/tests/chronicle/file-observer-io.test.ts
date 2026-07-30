@@ -139,7 +139,9 @@ describe('Chronicle file observer I/O', () => {
     });
     io.readFile.mockClear();
 
-    await writeFile(file, 'export const a = 2;\n');
+    // Change the size as well as the content so this timing test does not
+    // depend on the filesystem exposing a distinct mtime tick under load.
+    await writeFile(file, 'export const a = 22;\n');
     io.onWatch?.('change', null);
     // Inside the interval: the rescan is queued, not run.
     await new Promise((resolve) => setTimeout(resolve, 20));

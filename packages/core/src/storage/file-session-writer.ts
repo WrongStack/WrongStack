@@ -58,6 +58,24 @@ export class FileSessionWriter implements SessionWriter {
   private lastAppendWarnAt = 0;
   private readonly secretScrubber?: SecretScrubber | undefined;
   private readonly checkpointCas?: SessionCheckpointCas | undefined;
+  /** Mutable slot for onAppend callback — constructor opts seed it, setOnAppend replaces it. */
+  private _onAppend: ((event: SessionEvent) => void) | undefined;
+  /** Implements SessionWriter.onAppend — public getter/setter for direct property access. */
+  get onAppend(): ((event: SessionEvent) => void) | undefined {
+    return this._onAppend;
+  }
+  set onAppend(cb: ((event: SessionEvent) => void) | undefined) {
+    this._onAppend = cb;
+  }
+  /** Mutable slot for onAppendBatch callback. */
+  private _onAppendBatch: ((events: SessionEvent[]) => void) | undefined;
+  /** Implements SessionWriter.onAppendBatch — public getter/setter for direct property access. */
+  get onAppendBatch(): ((events: SessionEvent[]) => void) | undefined {
+    return this._onAppendBatch;
+  }
+  set onAppendBatch(cb: ((events: SessionEvent[]) => void) | undefined) {
+    this._onAppendBatch = cb;
+  }
   private readonly onCloseCb?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
   private readonly resolveNameCb?:
     | (() => Promise<Pick<SessionSummary, 'name'> | null>)
@@ -66,6 +84,23 @@ export class FileSessionWriter implements SessionWriter {
   traceId: string | undefined;
 
   // ── Write buffer — batches events to reduce per-event disk I/O ──────────────
+  //
+
+  /**
+   * Set or replace the onAppend callback. Used by telemetry bridges that
+   * receive the writer as an already-constructed dependency.
+   */
+  setOnAppend(cb: ((event: SessionEvent) => void) | undefined): void {
+    this._onAppend = cb;
+  }
+
+  /**
+   * Set or replace the onAppendBatch callback.
+   */
+  setOnAppendBatch(cb: ((events: SessionEvent[]) => void) | undefined): void {
+    this._onAppendBatch = cb;
+  }
+
   //
   // Every append() pushes the scrubbed event into an in-memory buffer instead
   // of calling handle.appendFile() synchronously. The buffer flushes to disk
@@ -192,7 +227,17 @@ export class FileSessionWriter implements SessionWriter {
     if (this.closed) return;
     void this.ensureInit();
     this.observeForSummary(event);
-    this.pushWriteBuffer(event);
+    // Fire the onAppend callback so file_snapshot and file_observation events
+    // also reach the HQ bridge without a disk read-back. Scrub file_snapshot
+    // events through the shared scrubber (which now handles the file_snapshot
+    // type) to avoid duplicating the scrubbing logic inline. The scrubbed
+    // event is pushed to the JSONL buffer so secrets never persist at rest,
+    // matching the async append() path contract.
+    const appendEvent = event.type === 'file_snapshot'
+      ? scrubSessionWriterEvent(event, this.secretScrubber)
+      : event;
+    try { this._onAppend?.(appendEvent); } catch { /* best-effort */ }
+    this.pushWriteBuffer(appendEvent);
     if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
@@ -307,6 +352,10 @@ export class FileSessionWriter implements SessionWriter {
       filePath?: string | undefined;
       secretScrubber?: SecretScrubber | undefined;
       checkpointCas?: SessionCheckpointCas | undefined;
+      /** Called synchronously after each event is scrubbed + observed, before it enters the write buffer. */
+      onAppend?: ((event: SessionEvent) => void) | undefined;
+      /** Batch variant called after all events in the batch have been scrubbed + observed. */
+      onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
       /** Existing cumulative summary when reopening a persisted session. */
       initialSummary?: SessionSummary | undefined;
       /** Called on close() with the finalized summary for index/sidecar writes. */
@@ -324,6 +373,8 @@ export class FileSessionWriter implements SessionWriter {
     this.filePath = opts.filePath ?? '';
     this.secretScrubber = opts.secretScrubber;
     this.checkpointCas = opts.checkpointCas;
+    this._onAppend = opts.onAppend;
+    this._onAppendBatch = opts.onAppendBatch;
     this.onCloseCb = opts.onClose;
     this.resolveNameCb = opts.resolveName;
     this.summary = opts.initialSummary
@@ -383,6 +434,10 @@ export class FileSessionWriter implements SessionWriter {
     // and the session index. Deferring observation to flush time would leave
     // the summary stale if close() fires before the next timer tick.
     this.observeForSummary(scrubbed);
+    // Fire the onAppend callback with the scrubbed event so the HQ bridge
+    // can stream it without reading it back from disk. Synchronous and
+    // best-effort — the callback must not throw.
+    try { this._onAppend?.(scrubbed); } catch { /* best-effort */ }
     this.pushWriteBuffer(scrubbed);
 
     if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
@@ -405,11 +460,19 @@ export class FileSessionWriter implements SessionWriter {
   async appendBatch(events: SessionEvent[]): Promise<void> {
     if (this.closed || events.length === 0) return;
     await this.ensureInit();
+    const scrubbedBatch: SessionEvent[] = [];
     for (const event of events) {
       const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
       this.observeForSummary(scrubbed);
+      // Fire the per-event callback so subscribers to onAppend (rather than
+      // onAppendBatch) also receive batch events individually.
+      try { this._onAppend?.(scrubbed); } catch { /* best-effort */ }
       this.pushWriteBuffer(scrubbed);
+      scrubbedBatch.push(scrubbed);
     }
+    // Fire the batch callback with all scrubbed events so the HQ bridge
+    // can stream them without reading them back from disk.
+    try { this._onAppendBatch?.(scrubbedBatch); } catch { /* best-effort */ };
     if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
@@ -1026,6 +1089,15 @@ export class FileSessionWriter implements SessionWriter {
     this.activePromptIndex = null;
     this.pendingFileSnapshots = [];
     this.pendingFileSnapshotBytes = 0;
+    // initPromise is deliberately NOT reset — clearSession already wrote a
+    // session_start line directly via fsp.writeFile (above). Resetting it
+    // would cause the next append() to push a second preamble via
+    // writeSessionStartLazy(), producing duplicate session_start lines.
+    // Reset failure counters to a clean slate.
+    this.appendFailCount = 0;
+    this.lastAppendWarnAt = 0;
+    this.bufferOverflowCount = 0;
+    this.lastBufferOverflowWarnAt = 0;
   }
 
   /**

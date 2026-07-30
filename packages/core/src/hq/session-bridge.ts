@@ -26,6 +26,7 @@ import type {
 } from './protocol.js';
 import type { HqPublisher } from './publisher.js';
 import { mapSessionEventToEntries } from './transcript-mapper.js';
+import type { SessionEvent, SessionWriter } from '../types/session.js';
 
 export interface SessionTelemetryBridgeOptions {
   publisher: HqPublisher;
@@ -55,6 +56,13 @@ export interface SessionTelemetryBridgeOptions {
   /** Poll interval while the transcript fs.watch is healthy. Default 5000ms. */
   transcriptFallbackIntervalMs?: number | undefined;
   now?: (() => string) | undefined;
+  /**
+   * Optional session writer. When provided, the bridge subscribes to
+   * the writer's `onAppend` callback to receive events directly, avoiding
+   * a disk read-back of the session JSONL file. When absent, the bridge
+   * falls back to polling the file via `tail()`.
+   */
+  writer?: SessionWriter | undefined;
 }
 
 const VALID_AGENT_STATUS = new Set<HqSessionAgentLiveStatus>([
@@ -205,117 +213,168 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   // agent activity.
   publishSnapshot(true);
 
-  // ── Transcript tail ───────────────────────────────────────────────────────
-  let offset = 0;
-  let partial = '';
-  let seqEmitted = 0;
-  let tailing = false;
-  let watcher: fs.FSWatcher | null = null;
-  let watchPending = false;
+  // Captured so the disposer can restore it instead of permanently clearing.
+  let prevOnAppend: ((event: SessionEvent) => void) | undefined;
 
-  // Once the session file exists, watch it so new turns are streamed within
-  // milliseconds of being written — the interval poll is only a safety net.
-  function setupWatcher(): void {
-    if (disposed || watcher) return;
-    try {
-      const nextWatcher = fs.watch(sessionFile, () => {
-        if (watchPending || disposed) return;
-        watchPending = true;
-        setTimeout(() => {
-          watchPending = false;
-          void tail();
-        }, 25);
-      });
-      // fs.watch surfaces transient failures (EPERM/ENOENT on rename/delete,
-      // common on Windows) as async 'error' events — swallow them so they
-      // never become uncaught exceptions. The interval poll keeps us live.
-      nextWatcher.on('error', () => {
-        try {
-          nextWatcher.close();
-        } catch {
-          /* ignore */
-        }
-        if (watcher === nextWatcher) watcher = null;
-      });
-      watcher = nextWatcher;
-    } catch {
-      watcher = null;
-    }
-  }
+  // ── Direct event subscription (avoids disk read-back) ──────────────────────
+  //
+  // When a session writer is available, subscribe to its onAppend callbacks to
+  // receive events directly as they're written, instead of polling the JSONL
+  // file from disk. The tail fallback is suppressed when the writer path is
+  // active — the synchronous callback delivers every event before it enters
+  // the write buffer, so tail() would duplicate them.
+  // Subscribe directly only when the writer implements setOnAppend —
+  // otherwise the optional-chained call silently no-ops and the tail
+  // fallback below would also be suppressed (it's gated on the same
+  // condition), producing zero transcript streaming.
+  if (opts.writer?.setOnAppend) {
+    // Capture any pre-existing callback (e.g. from SessionStoreOptions) so
+    // the disposer can restore it instead of permanently clearing.
+    prevOnAppend = opts.writer.onAppend;
 
-  async function tail(): Promise<void> {
-    if (disposed || tailing) return;
-    tailing = true;
-    try {
-      const stat = await fsp.stat(sessionFile).catch(() => null);
+    // Subscribe to onAppend which fires for both single append() calls and
+    // individual events inside appendBatch(). The batch-specific callback
+    // is NOT used here — subscribing to both would cause duplicate publishing
+    // since appendBatch() now also triggers onAppend per-event.
+    opts.writer.setOnAppend((event: SessionEvent) => {
       if (disposed) return;
-      if (!stat) return;
-      setupWatcher();
-      if (stat.size <= offset) return;
-      const fd = await fsp.open(sessionFile, 'r');
+      // Also invoke the previous callback if one exists — preserves the
+      // call chain for any other subscriber wired at the store level.
+      try { prevOnAppend?.(event); } catch { /* best-effort */ }
       try {
-        if (disposed) return;
-        const len = stat.size - offset;
-        const buf = Buffer.allocUnsafe(len);
-        await fd.read(buf, 0, len, offset);
-        offset = stat.size;
-        partial += buf.toString('utf8');
-        const lines = partial.split('\n');
-        partial = lines.pop() ?? '';
-        const entries: HqTranscriptEntry[] = [];
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          let obj: Record<string, unknown>;
-          try {
-            obj = JSON.parse(trimmed) as Record<string, unknown>;
-          } catch {
-            continue;
-          }
-          for (const entry of mapSessionEventToEntries(obj)) entries.push(entry);
-        }
+        const entries = mapSessionEventToEntries(event as unknown as Record<string, unknown>);
         if (entries.length > 0) {
           publishTranscriptEntries(entries);
           lastActivityAt = now();
         }
-      } finally {
-        await fd.close();
+      } catch {
+        /* best-effort — never let the callback break the write path */
       }
-    } catch {
-      /* best-effort */
-    } finally {
-      tailing = false;
-    }
+    });
   }
 
+  // seqEmitted is used by publishTranscriptEntries — must be hoisted above
+  // the tail guard so the callback path can use it.
+  let seqEmitted = 0;
+
+  // Declared outside the tail guard so the disposer can reference them even
+  // when the tail path is skipped (writer subscription active).
+  let watcher: fs.FSWatcher | null = null;
+  let tailTimer: ReturnType<typeof setTimeout> | null = null;
   const snapshotTimer = setInterval(() => publishSnapshot(true), opts.snapshotIntervalMs ?? 2500);
   snapshotTimer.unref?.();
 
-  // Adaptive tail poll: while the per-file watcher is live it delivers changes
-  // within ~25ms, so the poll only needs to catch watcher gaps — run it at the
-  // relaxed fallback cadence. Without a watcher (file not yet created, or the
-  // watcher errored) poll at the fast cadence. An explicit
-  // `transcriptIntervalMs` pins both cadences (test determinism / opt-out).
-  const fastTailMs = opts.transcriptIntervalMs ?? 500;
-  const relaxedTailMs =
-    opts.transcriptFallbackIntervalMs ??
-    (opts.transcriptIntervalMs !== undefined ? opts.transcriptIntervalMs : 5_000);
-  let tailTimer: ReturnType<typeof setTimeout> | null = null;
-  function scheduleTail(): void {
-    if (disposed) return;
-    tailTimer = setTimeout(
-      () => {
-        void tail().finally(scheduleTail);
-      },
-      watcher ? relaxedTailMs : fastTailMs,
-    );
-    tailTimer.unref?.();
+  // ── Transcript tail (only when no direct writer subscription) ──────────────
+  //
+  // Without a writer, fall back to polling the JSONL file via stat + read.
+  // With a writer, tail() is suppressed to avoid duplicate publishing.
+  if (!opts.writer?.setOnAppend) {
+    let offset = 0;
+    let partial = '';
+    let tailing = false;
+    let watchPending = false;
+
+    // Once the session file exists, watch it so new turns are streamed within
+    // milliseconds of being written — the interval poll is only a safety net.
+    function setupWatcher(): void {
+      if (disposed || watcher) return;
+      try {
+        const nextWatcher = fs.watch(sessionFile, () => {
+          if (watchPending || disposed) return;
+          watchPending = true;
+          setTimeout(() => {
+            watchPending = false;
+            void tail();
+          }, 25);
+        });
+        // fs.watch surfaces transient failures (EPERM/ENOENT on rename/delete,
+        // common on Windows) as async 'error' events — swallow them so they
+        // never become uncaught exceptions. The interval poll keeps us live.
+        nextWatcher.on('error', () => {
+          try {
+            nextWatcher.close();
+          } catch {
+            /* ignore */
+          }
+          if (watcher === nextWatcher) watcher = null;
+        });
+        watcher = nextWatcher;
+      } catch {
+        watcher = null;
+      }
+    }
+
+    async function tail(): Promise<void> {
+      if (disposed || tailing) return;
+      tailing = true;
+      try {
+        const stat = await fsp.stat(sessionFile).catch(() => null);
+        if (disposed) return;
+        if (!stat) return;
+        setupWatcher();
+        if (stat.size <= offset) return;
+        const fd = await fsp.open(sessionFile, 'r');
+        try {
+          if (disposed) return;
+          const len = stat.size - offset;
+          const buf = Buffer.allocUnsafe(len);
+          const { bytesRead } = await fd.read(buf, 0, len, offset);
+          const actualBuf = bytesRead < len ? buf.subarray(0, bytesRead) : buf;
+          offset += bytesRead;
+          partial += actualBuf.toString('utf8');
+          const lines = partial.split('\n');
+          partial = lines.pop() ?? '';
+          const entries: HqTranscriptEntry[] = [];
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            let obj: Record<string, unknown>;
+            try {
+              obj = JSON.parse(trimmed) as Record<string, unknown>;
+            } catch {
+              continue;
+            }
+            for (const entry of mapSessionEventToEntries(obj)) entries.push(entry);
+          }
+          if (entries.length > 0) {
+            publishTranscriptEntries(entries);
+            lastActivityAt = now();
+          }
+        } finally {
+          await fd.close();
+        }
+      } catch {
+        /* best-effort */
+      } finally {
+        tailing = false;
+      }
+    }
+
+    const fastTailMs = opts.transcriptIntervalMs ?? 500;
+    const relaxedTailMs =
+      opts.transcriptFallbackIntervalMs ??
+      (opts.transcriptIntervalMs !== undefined ? opts.transcriptIntervalMs : 5_000);
+    function scheduleTail(): void {
+      if (disposed) return;
+      tailTimer = setTimeout(
+        () => {
+          void tail().finally(scheduleTail);
+        },
+        watcher ? relaxedTailMs : fastTailMs,
+      );
+      tailTimer.unref?.();
+    }
+    void tail().finally(scheduleTail);
   }
-  void tail().finally(scheduleTail);
 
   return () => {
     if (disposed) return;
     disposed = true;
+    // Unsubscribe the direct event callback, restoring any that was
+    // captured from the writer before the bridge subscribed.
+    if (opts.writer?.setOnAppend) {
+      try { opts.writer.setOnAppend(prevOnAppend); } catch { /* best-effort */ }
+    }
     offAgents?.();
     if (watcher) {
       try {

@@ -323,6 +323,11 @@ class ProjectServerConnection {
     return this.socket !== null && !this.socket.destroyed && this.info !== null;
   }
 
+  /** Safe LRU candidate: no request, connect, or health probe is in flight. */
+  isEvictable(): boolean {
+    return this.pending.size === 0 && this.connecting === null && this.healthCheck === null;
+  }
+
   async checkHealth(
     spawnIfMissing = false,
     timeoutMs = SERVER_HEALTH_TIMEOUT_MS,
@@ -785,7 +790,30 @@ class ProjectServerConnection {
 }
 
 const connections = new Map<string, ProjectServerConnection>();
+const MAX_CACHED_CONNECTIONS = 8;
 let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+
+function forgetConnection(endpoint: string, connection: ProjectServerConnection): void {
+  if (connections.get(endpoint) === connection) connections.delete(endpoint);
+  connection.close();
+  connectionStates.delete(endpoint);
+  if (latestConnectionState.endpoint !== endpoint) return;
+  latestConnectionState =
+    [...connectionStates.values()].at(-1) ??
+    ({
+      status: isProjectIndexServerAvailable() ? 'offline' : 'unavailable',
+      connected: false,
+    } satisfies ProjectIndexServerConnectionState);
+}
+
+function trimConnectionCache(protectedConnection: ProjectServerConnection): void {
+  if (connections.size <= MAX_CACHED_CONNECTIONS) return;
+  for (const [endpoint, connection] of connections) {
+    if (connections.size <= MAX_CACHED_CONNECTIONS) break;
+    if (connection === protectedConnection || !connection.isEvictable()) continue;
+    forgetConnection(endpoint, connection);
+  }
+}
 
 function ensureHeartbeatLoop(): void {
   if (heartbeatTimer) return;
@@ -810,7 +838,11 @@ function connectionFor(projectRoot: string, indexDir?: string): ProjectServerCon
   if (!connection) {
     connection = new ProjectServerConnection(projectRoot, indexDir, endpoint);
     connections.set(endpoint, connection);
+  } else {
+    connections.delete(endpoint);
+    connections.set(endpoint, connection);
   }
+  trimConnectionCache(connection);
   return connection;
 }
 

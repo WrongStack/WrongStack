@@ -139,6 +139,8 @@ function summarize(samples) {
         appRenders: last.appRenders,
         providerTextDeltaEvents: last.providerTextDeltaEvents,
         toolExecutedEvents: last.toolExecutedEvents,
+        activeResources: last.activeResources,
+        activeResourceTypes: last.activeResourceTypes,
         signals,
       };
     })

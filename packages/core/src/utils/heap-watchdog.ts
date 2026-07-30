@@ -52,8 +52,16 @@ export function takeHeapSample(): HeapSample {
     spaces.find((space) => space.space_name === name)?.space_used_size ?? 0;
   const limit = heap.heap_size_limit || 0;
   let activeResources = 0;
+  let activeResourceTypes = '';
   try {
-    activeResources = process.getActiveResourcesInfo?.()?.length ?? 0;
+    const resources = process.getActiveResourcesInfo?.() ?? [];
+    activeResources = resources.length;
+    const counts = new Map<string, number>();
+    for (const resource of resources) counts.set(resource, (counts.get(resource) ?? 0) + 1);
+    activeResourceTypes = [...counts]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([resource, count]) => `${resource}=${count}`)
+      .join(',');
   } catch {
     // getActiveResourcesInfo can throw during OOM teardown
   }
@@ -74,6 +82,7 @@ export function takeHeapSample(): HeapSample {
     nativeContexts: heap.number_of_native_contexts,
     detachedContexts: heap.number_of_detached_contexts,
     activeResources,
+    activeResourceTypes,
     heapLimit: limit,
     load: limit > 0 ? m.heapUsed / limit : 0,
   };

@@ -65,6 +65,7 @@ export {
 } from './client-domain.js';
 export * from './manager.js';
 export {
+  closeKanbanServerConnections,
   getKanbanServerConnection,
   isKanbanServerAvailable,
   KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,

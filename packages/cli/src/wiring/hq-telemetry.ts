@@ -118,6 +118,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
           projectRoot,
           projectName: path.basename(projectRoot),
           globalRoot,
+          writer: session,
           // biome-ignore lint/suspicious/noExplicitAny: initialAgents shape
           initialAgents: (tracker as any)?.getAgents?.() as any,
           startedAt: new Date().toISOString(),

@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SecretScrubber, SessionEvent, SessionMetadata } from '../../src/index.js';
 import type { EventBus } from '../../src/kernel/events.js';
-import type { SessionEvent, SessionMetadata, SecretScrubber } from '../../src/index.js';
 import { FileSessionWriter } from '../../src/storage/file-session-writer.js';
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,9 @@ describe('FileSessionWriter', () => {
 
   it('append buffers events and does not immediately flush', async () => {
     const event: SessionEvent = {
-      type: 'user_input', ts: now(), content: 'hello',
+      type: 'user_input',
+      ts: now(),
+      content: 'hello',
     } as SessionEvent;
     await writer.append(event);
     // Should have buffered session_start + user_input but not flushed yet (buffer < 50)
@@ -112,24 +114,24 @@ describe('FileSessionWriter', () => {
       await writer.append({ type: 'user_input', ts: now(), content: `msg${i}` } as SessionEvent);
     }
     // The flush is scheduled on the write chain; await a microtick
-    await vi.waitFor(() => {
-      expect(capturedWrites.length).toBeGreaterThan(0);
-    }, { timeout: 2000, interval: 50 });
+    await vi.waitFor(
+      () => {
+        expect(capturedWrites.length).toBeGreaterThan(0);
+      },
+      { timeout: 2000, interval: 50 },
+    );
   });
 
   it('append does nothing after close', async () => {
     // Create a writer and close it, then append should be a no-op
-    const w = new FileSessionWriter(
-      TEST_ID,
-      handle as any,
-      STARTED_AT,
-      makeMeta(),
-      undefined,
-      { filePath: '/tmp/test.jsonl' },
-    );
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+    });
     await w.close();
     const event: SessionEvent = {
-      type: 'user_input', ts: now(), content: 'after close',
+      type: 'user_input',
+      ts: now(),
+      content: 'after close',
     } as SessionEvent;
     // Should not throw
     await w.append(event);
@@ -157,19 +159,18 @@ describe('FileSessionWriter', () => {
 
   it('close resolves onClose callback with the summary', async () => {
     const onClose = vi.fn();
-    const w = new FileSessionWriter(
-      TEST_ID,
-      handle as any,
-      STARTED_AT,
-      makeMeta(),
-      undefined,
-      { filePath: '/tmp/test.jsonl', onClose },
-    );
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onClose,
+    });
     await w.append({ type: 'user_input', ts: now(), content: 'test' } as SessionEvent);
     await w.close();
-    await vi.waitFor(() => {
-      expect(onClose).toHaveBeenCalled();
-    }, { timeout: 2000, interval: 50 });
+    await vi.waitFor(
+      () => {
+        expect(onClose).toHaveBeenCalled();
+      },
+      { timeout: 2000, interval: 50 },
+    );
     const summary = onClose.mock.calls[0]?.[0];
     expect(summary).toHaveProperty('id', TEST_ID);
   });
@@ -193,7 +194,7 @@ describe('FileSessionWriter', () => {
   // ── writeCheckpoint() ────────────────────────────────────────────────
 
   it('writeCheckpoint flushes and writes a checkpoint event', async () => {
-    await writer.writeCheckpoint(0);
+    await writer.writeCheckpoint(0, 'test prompt');
     // Should flush buffer and write events through appendFile (session_start + checkpoint)
     expect(events.emit).toHaveBeenCalled();
   });
@@ -323,14 +324,7 @@ describe('FileSessionWriter', () => {
   // ── truncateToCheckpoint() ───────────────────────────────────────────
 
   it('truncateToCheckpoint returns 0 when filePath is empty', async () => {
-    const w = new FileSessionWriter(
-      TEST_ID,
-      handle as any,
-      STARTED_AT,
-      makeMeta(),
-      undefined,
-      {},
-    );
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {});
     const result = await w.truncateToCheckpoint(0);
     expect(result).toBe(0);
   });
@@ -338,14 +332,9 @@ describe('FileSessionWriter', () => {
   // ── EventBus edge cases ──────────────────────────────────────────────
 
   it('accepts undefined EventBus without errors', async () => {
-    const w = new FileSessionWriter(
-      TEST_ID,
-      handle as any,
-      STARTED_AT,
-      makeMeta(),
-      undefined,
-      { filePath: '/tmp/test.jsonl' },
-    );
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+    });
     await w.append({ type: 'user_input', ts: now(), content: 'test' } as SessionEvent);
     await w.clearInFlightMarker('clean');
     await w.writeInFlightMarker('context');
@@ -367,14 +356,10 @@ describe('FileSessionWriter', () => {
       }),
     };
 
-    const w = new FileSessionWriter(
-      TEST_ID,
-      handle as any,
-      STARTED_AT,
-      makeMeta(),
-      undefined,
-      { filePath: '/tmp/test.jsonl', secretScrubber: scrubber },
-    );
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      secretScrubber: scrubber,
+    });
 
     await w.append({
       type: 'user_input',
@@ -392,14 +377,10 @@ describe('FileSessionWriter', () => {
       scrubObject: vi.fn((obj: Record<string, unknown>) => obj),
     };
 
-    const w = new FileSessionWriter(
-      TEST_ID,
-      handle as any,
-      STARTED_AT,
-      makeMeta(),
-      undefined,
-      { filePath: '/tmp/test.jsonl', secretScrubber: scrubber },
-    );
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      secretScrubber: scrubber,
+    });
 
     await w.append({
       type: 'llm_response',
@@ -409,6 +390,142 @@ describe('FileSessionWriter', () => {
     } as SessionEvent);
 
     expect(scrubber.scrubObject).toHaveBeenCalled();
+  });
+
+  // ── onAppend / onAppendBatch callbacks ───────────────────────────────
+
+  it('append fires onAppend callback once per event with scrubbed value', async () => {
+    const onAppend = vi.fn();
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppend,
+    });
+
+    await w.append({ type: 'user_input', ts: now(), content: 'hello' } as SessionEvent);
+
+    expect(onAppend).toHaveBeenCalledTimes(1);
+    const event = onAppend.mock.calls[0]?.[0];
+    expect(event).toHaveProperty('type', 'user_input');
+    expect(event).toHaveProperty('content');
+    // Event is scrubbed before the callback fires
+    expect(event.content).toBe('hello');
+  });
+
+  it('appendBatch fires onAppendBatch callback once with scrubbed events', async () => {
+    const onAppendBatch = vi.fn();
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppendBatch,
+    });
+
+    const batch: SessionEvent[] = [
+      { type: 'user_input', ts: now(), content: 'first' } as SessionEvent,
+      { type: 'user_input', ts: now(), content: 'second' } as SessionEvent,
+    ];
+    await w.appendBatch(batch);
+
+    expect(onAppendBatch).toHaveBeenCalledTimes(1);
+    const events = onAppendBatch.mock.calls[0]?.[0];
+    expect(events).toHaveLength(2);
+    expect(events[0]).toHaveProperty('content', 'first');
+    expect(events[1]).toHaveProperty('content', 'second');
+  });
+
+  it('does not break when onAppend callback throws', async () => {
+    const onAppend = vi.fn().mockImplementation(() => {
+      throw new Error('callback error');
+    });
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppend,
+    });
+
+    // Should not throw despite callback failure
+    await expect(
+      w.append({ type: 'user_input', ts: now(), content: 'hello' } as SessionEvent),
+    ).resolves.toBeUndefined();
+    expect(onAppend).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not break when onAppendBatch callback throws', async () => {
+    const onAppendBatch = vi.fn().mockImplementation(() => {
+      throw new Error('batch callback error');
+    });
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppendBatch,
+    });
+
+    await expect(
+      w.appendBatch([{ type: 'user_input', ts: now(), content: 'hi' } as SessionEvent]),
+    ).resolves.toBeUndefined();
+    expect(onAppendBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('recordFileChange fires onAppend callback for file_snapshot event with active prompt', async () => {
+    const onAppend = vi.fn();
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppend,
+    });
+
+    // writeCheckpoint sets activePromptIndex so recordFileChange takes
+    // the normal (non-pending) path that constructs a file_snapshot event
+    // and fires the onAppend callback via bufferSynchronousEvent.
+    await w.writeCheckpoint(0, 'test prompt');
+
+    w.recordFileChange({
+      path: '/project/src/index.ts',
+      action: 'modified',
+      before: 'old',
+      after: 'new',
+    });
+
+    // writeCheckpoint(0) fires onAppend once for the checkpoint event,
+    // then recordFileChange fires it again for file_snapshot.
+    expect(onAppend).toHaveBeenCalledTimes(2);
+    const event = onAppend.mock.calls[1]?.[0];
+    expect(event).toHaveProperty('type', 'file_snapshot');
+    expect(event.files).toHaveLength(1);
+  });
+
+  it('recordFileChange does not fire onAppend before first checkpoint (pending path)', () => {
+    const onAppend = vi.fn();
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppend,
+    });
+
+    // activePromptIndex is null — recordFileChange buffers the change
+    // without constructing a SessionEvent, so onAppend must not fire.
+    w.recordFileChange({
+      path: '/project/src/index.ts',
+      action: 'modified',
+      before: 'old',
+      after: 'new',
+    });
+
+    expect(onAppend).toHaveBeenCalledTimes(0);
+  });
+
+  it('recordFileObservation fires onAppend callback for file_observation event', () => {
+    const onAppend = vi.fn();
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      onAppend,
+    });
+
+    w.recordFileObservation({
+      path: '/project/src/index.ts',
+      hash: 'a'.repeat(64),
+      mtimeMs: 1234567890,
+      source: 'write',
+    });
+
+    expect(onAppend).toHaveBeenCalledTimes(1);
+    const event = onAppend.mock.calls[0]?.[0];
+    expect(event).toHaveProperty('type', 'file_observation');
+    expect(event).toHaveProperty('path', '/project/src/index.ts');
   });
 
   // ── pendingToolUses tracking ─────────────────────────────────────────

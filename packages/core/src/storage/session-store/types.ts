@@ -1,7 +1,7 @@
 import type { EventBus } from '../../kernel/events.js';
 import type { Logger } from '../../types/logger.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionData, SessionSummary } from '../../types/session.js';
+import type { SessionData, SessionEvent, SessionSummary } from '../../types/session.js';
 
 export interface SessionStoreOptions {
   dir: string;
@@ -29,6 +29,17 @@ export interface SessionStoreOptions {
   isSessionInUse?: ((sessionId: string) => Promise<string | null>) | undefined;
   /** Logger for structured warnings. Falls back to console.warn when omitted. */
   logger?: Logger | undefined;
+  /**
+   * Optional callback invoked synchronously after each event is scrubbed,
+   * observed, and before it enters the write buffer. The event has been
+   * scrubbed (PII removed) and observed (counters updated) but NOT yet
+   * persisted to disk. Used by the HQ telemetry bridge to stream events
+   * without reading them back from the JSONL file.
+   */
+  onAppend?: ((event: SessionEvent) => void) | undefined;
+  /** Batch variant of {@link onAppend}. Called once per batch with
+   * all scrubbed events after all have been observed. */
+  onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
 }
 
 /**

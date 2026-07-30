@@ -26,6 +26,11 @@ export interface HeapSample {
   detachedContexts?: number | undefined;
   /** Active libuv/Node resources (timers, pipes, sockets, etc.). */
   activeResources?: number | undefined;
+  /**
+   * Bounded type histogram for active resources, e.g. "PipeWrap=4,Timeout=2".
+   * Carries no handles or payloads, so diagnostics cannot retain live work.
+   */
+  activeResourceTypes?: string | undefined;
   /** V8 hard heap limit, bytes — the OOM ceiling. */
   heapLimit: number;
   /** heapUsed / heapLimit, 0–1. */
