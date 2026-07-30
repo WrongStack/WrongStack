@@ -37,11 +37,10 @@ import { useAgentRosterData } from './useAgentRosterData.js';
  * A bulk optimize emits one event per role; without this, each would trigger
  * its own full roster reload. Reloading once after the burst settles is enough.
  */
-import {
-  type CustomRosterStats,
-  type RosterAgentEntry,
-  type RosterTab,
-  TABS,
+import type {
+  CustomRosterStats,
+  RosterAgentEntry,
+  RosterTab,
 } from './agent-roster-data.js';
 
 // ══════════════════════════════════════════════════════════════════════

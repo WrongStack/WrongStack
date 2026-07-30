@@ -1,4 +1,4 @@
-import { Activity as ActivityIcon, GitBranch, X } from 'lucide-react';
+import { Activity as ActivityIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FileActivity } from '@/stores/codemap-activity-store';
 

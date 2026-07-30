@@ -29,7 +29,6 @@ import type {
   FileEditMeta,
   ModelDescriptor,
   PendingConfirm,
-  ServerMessage,
   SessionInfo,
   SimplePrefs,
   SimpleSessionSummary,

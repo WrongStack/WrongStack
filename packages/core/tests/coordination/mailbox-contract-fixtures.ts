@@ -10,7 +10,7 @@
  * fixtures that every surface must handle equivalently.
  */
 
-import type { MailboxAudience, MailboxMessageType } from '../../src/coordination/mailbox-types.js';
+import type { MailboxMessageType } from '../../src/coordination/mailbox-types.js';
 
 /** A surface through which mailbox operations can be performed. */
 export type MailboxSurface = 'core' | 'tool' | 'http' | 'ws' | 'slash';

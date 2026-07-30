@@ -55,7 +55,7 @@ function fmtElapsed(ms: number): string {
   return `${hours}h ${minutes % 60}m`;
 }
 
-function shortSessionId(sessionId: string): string {
+function _shortSessionId(sessionId: string): string {
   const leaf = sessionId.split('/').pop() ?? sessionId;
   return leaf.length > 18 ? leaf.slice(0, 18) : leaf;
 }

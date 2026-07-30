@@ -87,7 +87,7 @@ function parseMeta(
 
 export function parseSageMemoryLine(line: string): ParsedSageMemoryLine | null {
   const match = SAGE_MEMORY_DETAIL.exec(line);
-  if (!match || !match.groups) return null;
+  if (!match?.groups) return null;
   const rawLabels = match.groups['labels'] ?? '';
   const labels = Array.from(rawLabels.matchAll(/\[([^\]]+)\]/g))
     .map((m) => m[1] ?? '')

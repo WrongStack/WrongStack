@@ -8,28 +8,20 @@ import {
   ArrowRight,
   Bot,
   Check,
-  ChevronDown,
   ChevronRight,
-  Copy,
-  ExternalLink,
-  Gift,
   Globe,
   KeyRound,
   Loader2,
   RefreshCw,
-  Share2,
   Sparkles,
   Shield,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { useShallow } from 'zustand/react/shallow';
-import QRCode from 'qrcode';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Pagination } from './ui/pagination';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { cn } from '@/lib/utils';
 import { useAppTranslation, i18n } from '@/i18n';
 import { CustomProviderSection } from './SetupScreen/CustomProviderSection';
@@ -337,7 +329,7 @@ export function SetupScreen() {
     .filter((p) => !popularIds.has(p.id))
     .sort((a, b) => a.id.localeCompare(b.id));
   const catalogPage = usePagination(additionalCatalog, 10);
-  const savedProviderPage = usePagination(savedProviders, 9);
+  const _savedProviderPage = usePagination(savedProviders, 9);
   const modelPage = usePagination(currentModels, 12, selectedProvider);
 
   return (

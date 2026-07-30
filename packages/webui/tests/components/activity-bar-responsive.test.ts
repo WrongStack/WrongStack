@@ -13,7 +13,6 @@ import {
   pairedViewForActivity,
   showPanel,
 } from '@/components/activity-bar/nav';
-import { PANEL_VIEW_BY_ACTIVITY } from '@/lib/view-navigation';
 import { useUIStore } from '@/stores';
 
 beforeEach(() => {

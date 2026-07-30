@@ -63,8 +63,6 @@ export class HistoryArchive {
 
   /** Byte-offset index: index → { offset, length }. Built on first load. */
   private index: OffsetIndexEntry[] | null = null;
-  /** Total entries written so far (monotonic counter). */
-  private entryCount = 0;
 
   // ── Write serialisation ──────────────────────────────────────────────
 

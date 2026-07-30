@@ -1,6 +1,5 @@
 import { getWSClient } from '@/lib/ws-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { useContextEditorStore } from '@/stores/context-editor-store';
 import { useChatStore } from '@/stores';
 import { useAppTranslation, i18n } from '@/i18n';
@@ -13,7 +12,6 @@ import {
   Clock,
   FileText,
   Loader2,
-  RefreshCw,
   Trash2,
   Wand2,
   X,
@@ -129,7 +127,7 @@ interface ContextWindowEditorProps {
 
 export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps): React.ReactElement | null {
   const { t } = useAppTranslation();
-  const wsRef = useRef<{ open: ReturnType<typeof getWSClient>; validate: ReturnType<typeof getWSClient>; apply: ReturnType<typeof getWSClient> } | null>(null);
+  const _wsRef = useRef<{ open: ReturnType<typeof getWSClient>; validate: ReturnType<typeof getWSClient>; apply: ReturnType<typeof getWSClient> } | null>(null);
 
   const phase = useContextEditorStore((s) => s.phase);
   const revision = useContextEditorStore((s) => s.revision);

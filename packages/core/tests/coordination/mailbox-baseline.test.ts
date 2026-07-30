@@ -26,18 +26,14 @@ import {
   buildAllRecipientForms,
   buildAllSendInputs,
   buildAllTypeMessages,
-  buildCompletedAck,
   buildCompletedMessage,
   buildCorruptLineFixture,
-  buildDeleteAck,
   buildDeletedMessage,
   buildInvalidSendInputs,
   buildLeadersOnlyMessage,
   buildMailboxJsonl,
   buildMixedV1Fixture,
   buildOrphanAckFixture,
-  buildReadAck,
-  buildReadMessage,
   buildReplyThread,
   buildV1Message,
 } from './fixtures/mailbox/index.js';
@@ -292,7 +288,7 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
       audience: 'leaders',
     });
 
-    const visibleToSubagent = await mb.query({ unreadBy: 'worker@x' });
+    const _visibleToSubagent = await mb.query({ unreadBy: 'worker@x' });
     // Subagent should NOT see the leaders-only message.
     expect(isMailboxMessageVisibleTo({ audience: 'leaders' }, 'worker@x')).toBe(false);
     expect(isMailboxMessageVisibleTo({ audience: 'leaders' }, 'leader')).toBe(true);

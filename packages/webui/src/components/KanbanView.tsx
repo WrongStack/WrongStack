@@ -1,4 +1,4 @@
-import type { KanbanBoard, KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
+import type { KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { Columns3, Copy, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
@@ -19,7 +19,7 @@ import { KanbanCleanerAlert } from './KanbanCleanerAlert';
 import { KanbanDecompositionApprovalCard } from './KanbanDecompositionPanel';
 import { KanbanColumnView } from './KanbanColumnView';
 import { KanbanQueueHealthBar } from './KanbanQueueHealthBar';
-import { RunControlBar, type RunLink, StartAsBar } from './KanbanRunControls.js';
+import { RunControlBar, StartAsBar } from './KanbanRunControls.js';
 import { KanbanTaskTree } from './KanbanTaskTree';
 import { KanbanVerificationDashboard } from './KanbanVerificationDashboard';
 import { KanbanTaskInspector } from './KanbanTaskInspector';

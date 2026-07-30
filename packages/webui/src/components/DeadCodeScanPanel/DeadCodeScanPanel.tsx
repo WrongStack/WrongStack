@@ -15,7 +15,6 @@ import { useCallback, useState } from 'react';
 import type {
   DeadCodeScanOutput,
   DeadFile,
-  DeadPackage,
   DeadSymbol,
 } from '@wrongstack/tools/codebase-index';
 

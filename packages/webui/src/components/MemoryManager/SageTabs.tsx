@@ -18,7 +18,7 @@
  * Both panels keep their own data fetching, list state, and modal flows.
  * Nothing in this file reaches into their internals.
  */
-import { BrainCircuit, ListFilter, Users2 } from 'lucide-react';
+import { type BrainCircuit, ListFilter, Users2 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';

@@ -10,14 +10,10 @@ import {
   File,
   FilePenLine,
   FolderOpen,
-  FolderSearch,
-  Globe2,
   HardDrive,
   Inbox,
   ListTodo,
-  type LucideIcon,
   Mail,
-  MemoryStick,
   MessageSquareText,
   Search,
   Send,
@@ -34,7 +30,6 @@ import {
   buildMailRoutes,
   buildSnapshotMailActivities,
   buildSnapshotToolCalls,
-  classifyOfficeTool,
   type OfficeMailActivity,
   type OfficeToolCall,
   type OfficeToolKind,
@@ -49,7 +44,6 @@ import {
   useVizStore,
 } from '@/stores';
 import { ActionDetail, type SelectedAction } from './AgentOfficeDetails';
-import type { ResolvedAgent, ResolvedClient } from './OfficeMapCanvas/resolve.js';
 import { resolveClients } from './OfficeMapCanvas/resolve.js';
 import { useRecentlyFinishedFleetAgents } from './OfficeMapCanvas/use-recently-finished.js';
 import './AgentOfficeView.css';

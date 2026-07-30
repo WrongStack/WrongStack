@@ -86,7 +86,6 @@ export function OfficeMiniMap() {
           case 'repl':
           case 'mailbox':
             return OFFICE_COLOR.warning;
-          case 'agent':
           default:
             return OFFICE_COLOR.primary;
         }

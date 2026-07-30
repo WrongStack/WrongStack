@@ -59,7 +59,7 @@ function renderFilters(
 // chip-row fieldset — that's its stable identifier.
 function getToggle(): HTMLButtonElement {
   return screen.getByRole('button', {
-    name: (accessibleName, element) =>
+    name: (_accessibleName, element) =>
       element.getAttribute('aria-controls') === 'memory-tags-panel',
   }) as HTMLButtonElement;
 }

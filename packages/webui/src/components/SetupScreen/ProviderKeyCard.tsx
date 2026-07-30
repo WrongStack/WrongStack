@@ -5,11 +5,8 @@ import {
   Copy,
   ExternalLink,
   Gift,
-  KeyRound,
   Loader2,
-  RefreshCw,
   Share2,
-  Shield,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
@@ -21,9 +18,7 @@ import { useConfigStore } from '@/stores';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
 import { waitForKeyOperationResult } from './key-operation';
-import { formatSetupRelativeTime } from './relative-time';
 import type { PopularProvider } from './popular-providers';
 import type { CatalogProvider, ProbeResult, SavedProvider } from './types';
 
@@ -248,7 +243,7 @@ export function ProviderKeyCard({
                   <Loader2 className="h-3 w-3 animate-spin" />
                   {t('setup:screen.probe.checking', 'Checking connection…')}
                 </div>
-              ) : probeResult && probeResult.ok ? (
+              ) : probeResult?.ok ? (
                 <div className="flex items-center gap-1.5 text-[11px] text-success mt-1">
                   <Check className="h-3 w-3" />
                   <span>

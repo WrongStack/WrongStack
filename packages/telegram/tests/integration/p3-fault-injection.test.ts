@@ -292,7 +292,7 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
   // ------------------------------------------------------------------
 
   it('handles rapid sendMessage calls without losing ordering', async () => {
-    let callOrder: number[] = [];
+    const callOrder: number[] = [];
     server.on('sendMessage', (body) => {
       const msgId = Number(body.message_id ?? 0) || 100 + callOrder.length;
       callOrder.push(msgId);
@@ -316,9 +316,9 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
   // ------------------------------------------------------------------
 
   it('bot poll state tracks consecutive 409 conflicts', async () => {
-    let conflictCount = 0;
+    let _conflictCount = 0;
     server.on('getUpdates', () => {
-      conflictCount++;
+      _conflictCount++;
       return FakeTelegramServer.error(409, 'Conflict');
     });
 

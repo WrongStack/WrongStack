@@ -24,7 +24,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { PassThrough } from 'node:stream';
-import { MCPServer, serveStdio } from '@wrongstack/mcp';
+import { type MCPServer, serveStdio } from '@wrongstack/mcp';
 import { SqliteMemoryPort } from '@wrongstack/sage';
 import { createSageMcpServer } from '../src/adapter.js';
 

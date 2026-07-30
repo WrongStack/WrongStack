@@ -23,14 +23,11 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import '@xyflow/react/dist/style.css';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Target } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
-import { cn } from '@/lib/utils';
 import {
   activityAgentKey,
   type FileActivity,
   groupAgentPresences,
-  type LiveAgentPresence,
   useCodemapActivityStore,
 } from '@/stores/codemap-activity-store';
 import { useCodemapIndexStore } from '@/stores/codemap-index-store';
@@ -45,7 +42,6 @@ import {
   touchClientGraphCache,
 } from './CodeMapActivityHelpers';
 import { CodeMapActivityDrawer } from './CodeMapActivityDrawer';
-import { CodeMapActivityStreamPanel } from './CodeMapActivityStreamPanel';
 import { CodeMapCanvasSurface } from './CodeMapCanvasSurface';
 import { CodeMapCanvasToolbar } from './CodeMapCanvasToolbar';
 import { CodeMapHeader } from './CodeMapHeader';
@@ -69,7 +65,6 @@ import {
   agentTrailColor,
   type CodeMapNodeData,
   EDGE_COLOR,
-  NODE_STYLE,
 } from './CodeMapVisuals';
 import {
   buildDirectoryTree,

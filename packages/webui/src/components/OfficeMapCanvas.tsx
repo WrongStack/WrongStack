@@ -23,7 +23,6 @@ import '@xyflow/react/dist/style.css';
 
 import { Building2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
 import {
   EMPTY_AGENT_TRANSCRIPT,
@@ -45,8 +44,6 @@ import {
   type ClientStatus,
   COORD_Y,
   compactFlowLabel,
-  fmtAgo,
-  fmtCompact,
   HUB_GAP,
   layoutClientClusters,
   MAILBOX_Y,

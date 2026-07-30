@@ -33,7 +33,7 @@ export function wireReviewFindingsToChronicle(
     'chimera.review_complete',
     (_event: unknown, raw: unknown) => {
       const payload = raw as ChimeraReviewCompletePayload;
-      if (!payload || !payload.reviewText) return;
+      if (!payload?.reviewText) return;
       if (payload.status !== 'success') return;
 
       const context =

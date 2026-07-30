@@ -2,7 +2,7 @@ import { ArrowLeft, ChevronRight, Home, Network, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LiveAgentPresence } from '@/stores/codemap-activity-store';
 import type { CodeMapGraphResponse, CodeMapScope } from './codemap-model';
-import { relativeFilePath, scopeKey } from './codemap-model';
+import { relativeFilePath, } from './codemap-model';
 
 interface CodeMapHeaderProps {
   scope: CodeMapScope;

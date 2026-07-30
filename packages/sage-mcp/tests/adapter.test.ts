@@ -1,7 +1,7 @@
 import * as fsPromises from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { MCPServer } from '@wrongstack/mcp';
+import type { MCPServer } from '@wrongstack/mcp';
 import { ProjectSageMemoryPort, SqliteMemoryPort } from '@wrongstack/sage';
 import type { MemoryPort } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

@@ -21,8 +21,6 @@ import {
   getBoard,
   transitionTask,
   updateTaskAssignment,
-  updateTask,
-  type KanbanBoard,
 } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';

@@ -1,5 +1,4 @@
 import {
-  Check,
   Code2,
   File,
   FilePenLine,

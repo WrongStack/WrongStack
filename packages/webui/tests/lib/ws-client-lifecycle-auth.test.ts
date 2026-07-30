@@ -44,18 +44,17 @@ const FakeWSModule = vi.hoisted(() => {
     constructor(url: string) {
       if (control.throwOnConstruct) throw control.throwOnConstruct;
       this.url = url;
-      const self = this;
-      self.sent = [];
-      self.closed = false;
-      self.close = (code?: number, reason?: string) => {
+      this.sent = [];
+      this.closed = false;
+      this.close = (_code?: number, _reason?: string) => {
         if (control.throwOnClose) throw new Error('already closing');
-        self.closed = true;
-        self.readyState = 3;
+        this.closed = true;
+        this.readyState = 3;
       };
-      self.send = (data: string) => {
-        self.sent.push(data);
+      this.send = (data: string) => {
+        this.sent.push(data);
       };
-      instances.push(self);
+      instances.push(this);
     }
   };
   return { instances, klass, control };

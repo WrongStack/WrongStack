@@ -445,7 +445,7 @@ async function bundle(config, defaults) {
  */
 async function stripBannerFromChunks(config, defaults, outdir, entries) {
   const banner = config.banner ?? defaults.banner;
-  if (!banner || !banner.startsWith('#!')) return;
+  if (!banner?.startsWith('#!')) return;
   if (!(config.splitting ?? defaults.splitting ?? false)) return;
 
   const entryBasenames = new Set(Object.keys(entries).map((name) => `${name.split('/').pop()}.js`));

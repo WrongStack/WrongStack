@@ -61,7 +61,7 @@ describe('R8 / AC-15 — Transport security', () => {
 
 describe('R7 / AC query-string — Token in URL rejected', () => {
   it('router rejects ?token= query strings for mailbox routes', () => {
-    const extractToken = (url: string, authHeader?: string): string | null => {
+    const extractToken = (_url: string, authHeader?: string): string | null => {
       if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
       if (authHeader?.startsWith('Credential ')) return authHeader;
       return null;

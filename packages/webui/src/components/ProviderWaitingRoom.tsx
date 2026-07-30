@@ -26,7 +26,7 @@ function formatAgo(ts: number | null | undefined, now: number): string {
 
 export function ProviderWaitingRoom() {
   const entriesByKey = useProviderStatusStore((state) => state.entries);
-  const summary = useProviderStatusStore((state) => state.summary);
+  const _summary = useProviderStatusStore((state) => state.summary);
   const removeEntry = useProviderStatusStore((state) => state.removeEntry);
   const calendarRules = useLocalPrefs((state) => state.modelAvailabilitySchedule);
   const [expanded, setExpanded] = useState(false);
@@ -80,7 +80,7 @@ export function ProviderWaitingRoom() {
 
   const blocked = entries.filter((entry) => entry.state === 'blocked').length;
   const degraded = entries.length - blocked;
-  const selected = selectedKey ? entriesByKey[selectedKey] : null;
+  const _selected = selectedKey ? entriesByKey[selectedKey] : null;
 
   return (
     <div className="mx-auto mb-2 max-w-6xl rounded-lg border border-amber-500/25 bg-amber-500/5 text-xs">

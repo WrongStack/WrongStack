@@ -190,7 +190,6 @@ function resolvePythonCommand(): Promise<string | null> {
         });
         return candidate;
       } catch {
-        continue;
       }
     }
     return null;
