@@ -46,10 +46,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@types/ws": "^8.18.1",
     "typescript": "^7.0.2",
-    "vite": "^8.1.5"
+    "vite": "^8.2.0"
   },
   "publishConfig": {
     "access": "public"
