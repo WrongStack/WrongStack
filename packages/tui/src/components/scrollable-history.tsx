@@ -209,6 +209,7 @@ function buildCopyRegistry(opts: {
   viewportRows: number;
   iconCol: number;
   showModelReasoning?: boolean | undefined;
+  showSageMemoryInject?: boolean | undefined;
   liveToolVisible: boolean;
 }): CopyRegistry {
   const mountedGroupRows = opts.renderGroups.reduce(
@@ -420,6 +421,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   multiDiffSummaryThreshold,
   todos,
   showModelReasoning,
+  showSageMemoryInject,
   layoutStore,
   copiedEntryId,
   onRequestOlderEntries,
@@ -493,8 +495,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // every thinking entry's rendered height (full block ↔ zero rows), so the
   // cache must re-seed or stale heights become phantom scroll space.
   const reasoningKey = showModelReasoning === false ? '|r0' : '';
+  const sageKey = showSageMemoryInject === false ? '|s0' : '';
   const cacheKey =
-    (layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey) + reasoningKey;
+    (layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey) + reasoningKey + sageKey;
   if (preparedGroupIdsRef.current !== cacheKey || preparedEstimateWidthRef.current !== termWidth) {
     // `!== null` guards the first render: on mount `preparedEstimateWidthRef`
     // is null so widthChanged stays false. On subsequent renders a real width
@@ -536,7 +539,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           if (stored.kind === 'measured') measuredGroupIdsRef.current.add(id);
         } else {
           // New entry: compute a heuristic estimate and seed the store.
-          const estimatedRows = estimateRenderGroupRows(group, termWidth);
+          const estimatedRows = estimateRenderGroupRows(group, termWidth, showSageMemoryInject);
           heightCache.record(id, estimatedRows);
           const kind = group.type === 'tool-group' ? 'tool-group' : group.entry.kind;
           const text =
@@ -564,7 +567,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
             group.entry.kind === 'thinking' &&
             showModelReasoning === false;
           if (hidden) hiddenIds.add(id);
-          return [id, hidden ? 0 : estimateRenderGroupRows(group, termWidth)] as const;
+          return [id, hidden ? 0 : estimateRenderGroupRows(group, termWidth, showSageMemoryInject)] as const;
         }),
       );
       heightCache.recordMany(
@@ -778,6 +781,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     viewportRows: vp,
     iconCol: termWidth,
     showModelReasoning,
+    showSageMemoryInject,
     liveToolVisible: Boolean(plan.mountTail && toolTail && toolStream),
   });
   copyHitsRef.current = copyRegistry.hits;
@@ -967,6 +971,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
                   multiDiffSummaryThreshold={multiDiffSummaryThreshold}
                   todos={todos}
                   showModelReasoning={showModelReasoning}
+                  showSageMemoryInject={showSageMemoryInject}
                 />
               </EntryErrorBoundary>
             );

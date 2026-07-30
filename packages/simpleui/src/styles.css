@@ -4293,3 +4293,34 @@ a:focus-visible {
   color: var(--muted);
 }
 .outage-dismiss:hover { color: var(--text); }
+
+/* ── Update available banner ────────────────────────────────────────────── */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--brand-orange);
+  background: color-mix(in srgb, var(--brand-orange) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-orange) 25%, transparent);
+}
+.update-banner code {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-size: inherit;
+}
+.update-banner-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+}
+.update-banner-dismiss:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--brand-orange) 20%, transparent);
+}

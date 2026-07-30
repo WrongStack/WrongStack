@@ -13,7 +13,11 @@ import type { Context } from '@wrongstack/core/agent';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
 import { protocolAdvertisement } from '@wrongstack/webui-server/protocol';
+import type { UpdateInfo } from '../update-check.js';
 import { getCostRates } from './cost-helpers.js';
+
+/** @see UpdateInfo in ../update-check.ts for the canonical shape. */
+export type BootUpdateInfo = UpdateInfo;
 
 /** The slice of `CliWebUIOptions` the payload builder actually reads. */
 export interface SessionStartPayloadDeps {
@@ -23,6 +27,7 @@ export interface SessionStartPayloadDeps {
   statusTracker?: import('@wrongstack/core/coordination').ProviderModelStatusTracker | undefined;
   modeId?: string | undefined;
   projectRoot?: string | undefined;
+  updateInfo?: BootUpdateInfo | undefined;
 }
 
 export type BuildSessionStartPayload = (
@@ -45,6 +50,7 @@ export function createSessionStartPayloadBuilder(
     let inputCost = 0;
     let outputCost = 0;
     let cacheReadCost = 0;
+    const updateInfo = deps.updateInfo;
     try {
       if (deps.modelsRegistry) {
         const m = await deps.modelsRegistry.getModel(
@@ -95,6 +101,10 @@ export function createSessionStartPayloadBuilder(
       cacheReadCost,
       lastInputTokens,
       providerStatuses: deps.statusTracker?.getAllStatuses() ?? [],
+      appVersion: updateInfo?.current,
+      latestVersion: updateInfo?.latest,
+      updateAvailable: updateInfo?.outdated ?? false,
+      updateCheckFailed: updateInfo?.checkFailed ?? false,
       ...protocolAdvertisement(),
       ...overrides,
     };

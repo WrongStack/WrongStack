@@ -92,6 +92,13 @@ export interface WebUIDispatchContext {
         >;
       }
     | undefined;
+  /**
+   * Pre-computed update info from the CLI's preflight version check.
+   * When present, surfaces (WebUI, SimpleUI) receive appVersion,
+   * latestVersion, and updateAvailable fields in their session.start
+   * payload to display an "update available" warning.
+   */
+  updateInfo?: import('../webui-server/session-start-payload.js').BootUpdateInfo | undefined;
   /** Per-task agent factory for the SDD wizard's multi-agent run. */
   sddSubagentFactory?: import('@wrongstack/core/coordination').AgentFactory | undefined;
   onKanbanDispatch?:
@@ -304,6 +311,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     modeId,
     needsSetup,
     sddSubagentFactory,
+    updateInfo: ctx.updateInfo,
     onKanbanDispatch,
     // Print the "open this" banner only once the server is actually
     // listening, using the RESOLVED port. Requested ports auto-advance past

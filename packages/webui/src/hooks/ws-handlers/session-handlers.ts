@@ -250,12 +250,24 @@ export function handleSessionStart(msg: WSServerMessage) {
       stateExpiresAt?: number | null | undefined;
       lastFailureAt?: number | null | undefined;
     }>;
+    appVersion?: unknown;
+    latestVersion?: unknown;
+    updateAvailable?: unknown;
   };
   const provider = sessionRouteIdentifier(payload.provider);
   const model = sessionRouteIdentifier(payload.model);
   const prev = useSessionStore.getState().session?.id;
   const isNew = !prev || prev !== payload.sessionId;
   const isReset = isNew || payload.reset;
+
+  // Persist version/update info for the UpdateBanner component.
+  if (payload.appVersion || payload.latestVersion) {
+    useSessionStore.getState().setUpdateInfo({
+      appVersion: String(payload.appVersion ?? ''),
+      latestVersion: String(payload.latestVersion ?? ''),
+      updateAvailable: Boolean(payload.updateAvailable),
+    });
+  }
 
   if (Array.isArray(payload.providerStatuses)) {
     useProviderStatusStore.getState().hydrate(

@@ -951,6 +951,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         onModelContextResolved,
         sddSubagentFactory,
         statusTracker,
+        updateInfo: bootUpdateInfo,
         ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
       });
     } else {

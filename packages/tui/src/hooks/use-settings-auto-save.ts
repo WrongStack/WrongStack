@@ -78,6 +78,8 @@ export function useSettingsAutoSave(
         breakerAutoKillResetMs: sp.breakerAutoKillResetMs,
         showModelReasoning: sp.showModelReasoning,
         showAgentSwarmPanel: sp.showAgentSwarmPanel,
+        showSageMemoryInject: sp.showSageMemoryInject,
+        sageMemoryInjectThreshold: sp.sageMemoryInjectThreshold,
         readSymbols: sp.readSymbols,
       }),
     ).then((err: string | null) => {
@@ -127,6 +129,8 @@ export function useSettingsAutoSave(
     state.settingsPicker.breakerAutoKillResetMs,
     state.settingsPicker.showModelReasoning,
     state.settingsPicker.showAgentSwarmPanel,
+    state.settingsPicker.showSageMemoryInject,
+    state.settingsPicker.sageMemoryInjectThreshold,
     state.settingsPicker.readSymbols,
     saveSettings,
   ]);

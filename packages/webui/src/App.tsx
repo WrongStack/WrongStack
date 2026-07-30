@@ -23,6 +23,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ConfirmModalHost, PromptModalHost } from './components/ConfirmModal';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { UpdateBanner } from './components/UpdateBanner';
 import { ContextBreakdownModal } from './components/ContextBreakdownModal';
 import { ContextDashboard } from './components/ContextDashboard';
 import { CronTrigger } from './components/CronTrigger';
@@ -622,6 +623,7 @@ function AppInner() {
           />
         )}
         {currentView !== 'setup' && <ConnectionBanner />}
+        {currentView !== 'setup' && <UpdateBanner />}
         {currentView === 'chat' && (
           <>
             {/* The dock stays above chat as a compact control strip; selected

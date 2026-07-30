@@ -1,5 +1,6 @@
 import {
   ArrowDown,
+  ArrowUpCircle,
   Command,
   FolderCode,
   Moon,
@@ -8,6 +9,7 @@ import {
   Sun,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
@@ -111,6 +113,11 @@ export function SimpleUiSession() {
   const { notice, showNotice: setNotice } = useStatusNotice();
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [consumedNextSteps, setConsumedNextSteps] = useState<Set<string>>(new Set());
+  const [updateInfo, setUpdateInfo] = useState<{
+    appVersion: string;
+    latestVersion: string;
+    updateAvailable: boolean;
+  }>({ appVersion: '', latestVersion: '', updateAvailable: false });
   const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
   const [worklists] = useState(createWorklistStore);
   const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
@@ -567,6 +574,7 @@ export function SimpleUiSession() {
     clearComposerDraft,
     readComposerDraft,
     worklists,
+    onUpdateInfo: setUpdateInfo,
   };
 
   const handleServerMessage = useMemo(
@@ -910,6 +918,27 @@ export function SimpleUiSession() {
           </div>
         </div>
       </header>
+
+      {updateInfo.updateAvailable && updateInfo.latestVersion ? (
+        <div className="update-banner">
+          <ArrowUpCircle size={15} />
+          <span>
+            Update available: v{updateInfo.appVersion || '?'} → v{updateInfo.latestVersion}
+            {' · '}
+            <code>wstack update</code>
+          </span>
+          <button
+            type="button"
+            className="update-banner-dismiss"
+            onClick={() =>
+              setUpdateInfo({ appVersion: '', latestVersion: '', updateAvailable: false })
+            }
+            aria-label="Dismiss update warning"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : null}
 
       <SessionAgentStrip
         activeAgentId={activeAgentId}

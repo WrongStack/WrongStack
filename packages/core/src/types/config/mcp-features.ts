@@ -227,6 +227,12 @@ export interface SageConfig {
          */
         minImportance?: number | undefined;
         /**
+         * Minimum relation strength for automatic injection. Memories whose
+         * anchor's relation strength falls below this bar are rejected before
+         * the composite score is consulted. Default: 0.85.
+         */
+        relationFloor?: number | undefined;
+        /**
          * Cooldown before an already-injected memory may be injected again.
          * Default: 0 — once per session. A positive value restores time-boxed
          * repeats.

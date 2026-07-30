@@ -194,6 +194,13 @@ export interface CliWebUIOptions {
   onAutonomySwitch?: ((mode: string) => void) | undefined;
   /** Forward browser YOLO changes to the host's live permission policy. */
   onYoloSwitch?: ((enabled: boolean) => void) | undefined;
+  /**
+   * Pre-computed update info from the CLI's preflight version check.
+   * When present, the session.start payload includes appVersion,
+   * latestVersion, and updateAvailable so all surfaces (WebUI, SimpleUI)
+   * can display an "update available" warning.
+   */
+  updateInfo?: import('./webui-server/session-start-payload.js').BootUpdateInfo | undefined;
   /** Optional kanban task dispatch hook, backed by the CLI multi-agent host. */
   onKanbanDispatch?:
     | ((

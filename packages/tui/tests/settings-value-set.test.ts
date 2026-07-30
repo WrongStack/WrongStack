@@ -218,8 +218,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 43 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(43);
+    it('SETTINGS_FIELD_LABELS has 45 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(45);
     });
 
     it('trims whitespace from input', () => {
@@ -229,7 +229,7 @@ describe('resolveSettingsFieldValue', () => {
 
     it('all boolean field indices are covered', () => {
       const boolFields = [
-        2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18, 20, 25, 27, 33, 37, 39, 40, 42,
+        2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18, 20, 25, 27, 33, 37, 39, 40, 42, 43,
       ];
       for (const f of boolFields) {
         const r = resolveSettingsFieldValue(f, 'on');
@@ -247,7 +247,7 @@ describe('resolveSettingsFieldValue', () => {
     });
 
     it('all preset field indices are covered', () => {
-      const presetFields = [1, 15, 16, 17, 21, 30, 38, 41];
+      const presetFields = [1, 15, 16, 17, 21, 30, 38, 41, 44];
       for (const f of presetFields) {
         const r = resolveSettingsFieldValue(f, '999999');
         expect(r.ok).toBe(false); // should fail with error, not crash
@@ -304,6 +304,8 @@ describe('getSettingsFieldValue', () => {
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
     showAgentSwarmPanel: false,
+    showSageMemoryInject: false,
+    sageMemoryInjectThreshold: 0.85,
     readSymbols: true,
   };
 
@@ -462,6 +464,8 @@ describe('formatAllSettingsSummary', () => {
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
     showAgentSwarmPanel: true,
+    showSageMemoryInject: false,
+    sageMemoryInjectThreshold: 0.85,
     readSymbols: false,
   };
 
@@ -485,10 +489,10 @@ describe('formatAllSettingsSummary', () => {
     }
   });
 
-  it('renders exactly 43 value lines (one per field)', () => {
+  it('renders exactly 45 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(43);
+    expect(fieldLines).toHaveLength(45);
   });
 
   it('includes the thinking word value', () => {
@@ -567,12 +571,12 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 43 keys', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(43);
+  it('SETTINGS_DEFAULTS has all 45 keys', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(45);
   });
 
-  it('every field 0-42 can be reset', () => {
-    for (let f = 0; f < 43; f++) {
+  it('every field 0-44 can be reset', () => {
+    for (let f = 0; f < 45; f++) {
       const r = resetSettingsFieldValue(f);
       expect(r.ok).toBe(true);
     }

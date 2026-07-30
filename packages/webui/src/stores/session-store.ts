@@ -59,6 +59,12 @@ interface SessionState {
    *  F5 because it's in partialize. Used by the resilience verifier view
    *  to confirm the active session round-trips through localStorage. */
   lastVisitedAt: number;
+  /** Current app version string (e.g. "0.7.0") from the boot-time update check. */
+  appVersion: string;
+  /** Latest published version on npm, when known. */
+  latestVersion: string;
+  /** True when a newer published version exists than appVersion. */
+  updateAvailable: boolean;
 
   setSession: (session: SessionInfo | null) => void;
   updateUsage: (usage: Usage) => void;
@@ -81,6 +87,7 @@ interface SessionState {
   setModes: (modes: Array<{ id: string; name: string; description: string }>) => void;
   setContextModes: (modes: SessionState['contextModes']) => void;
   setTodos: (todos: SessionState['todos']) => void;
+  setUpdateInfo: (info: { appVersion: string; latestVersion: string; updateAvailable: boolean }) => void;
 }
 
 /** Persistence schema version. Bump whenever the shape or partialize set
@@ -116,6 +123,9 @@ export const useSessionStore = create<SessionState>()(
        *  Used by the F5-resilience verifier view to confirm "most recently
        *  active session" round-trips through localStorage. 0 = unknown. */
       lastVisitedAt: 0,
+      appVersion: '',
+      latestVersion: '',
+      updateAvailable: false,
 
       setSession: (session) => set({ session, lastVisitedAt: Date.now() }),
 
@@ -180,6 +190,12 @@ export const useSessionStore = create<SessionState>()(
       setModes: (modes) => set({ modes }),
       setContextModes: (contextModes) => set({ contextModes }),
       setTodos: (todos) => set({ todos }),
+      setUpdateInfo: (info) =>
+        set({
+          appVersion: info.appVersion,
+          latestVersion: info.latestVersion,
+          updateAvailable: info.updateAvailable,
+        }),
     }),
     {
       name: 'wrongstack-session',

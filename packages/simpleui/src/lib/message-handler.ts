@@ -148,6 +148,10 @@ export interface MessageHandlerDeps {
   resetAgentNameCache: () => void;
   /** Called when a run completes and the user has chime enabled. */
   onChime?: (() => void) | undefined;
+  /** Called when session.start contains version/update info. */
+  onUpdateInfo?:
+    | ((info: { appVersion: string; latestVersion: string; updateAvailable: boolean }) => void)
+    | undefined;
 
   // Stable callbacks provided by app.tsx
   /** Returns `true` when the message was dispatched, `false` when dropped
@@ -359,6 +363,14 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         } else if (resetSessionState) {
           setMessages([]);
         }
+        if (payload['appVersion'] || payload['latestVersion']) {
+          deps.onUpdateInfo?.({
+            appVersion: String(payload['appVersion'] ?? ''),
+            latestVersion: String(payload['latestVersion'] ?? ''),
+            updateAvailable: Boolean(payload['updateAvailable']),
+          });
+        }
+
         if (!previousId || resetSessionState) {
           const agentSessions = parseAgentSessionReplays(payload['agentSessions']);
           setSubagents(
