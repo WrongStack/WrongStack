@@ -11,7 +11,27 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
 }
 
 describe('MemoryInjectorAgent', () => {
-  it('adds live todo and Kanban content to the retrieval plan', () => {
+  it('adds live todo and Kanban content to the retrieval plan when asked', () => {
+    const agent = new MemoryInjectorAgent();
+    const plan = agent.plan({
+      ctx: makeCtx({
+        todos: [{ id: 't1', content: 'Refactor authentication package', status: 'in_progress' }],
+        meta: { kanban: { title: 'Token refresh migration', tags: ['auth', 'oauth'] } },
+      }),
+      trigger: 'read',
+      toolQuery: 'src/auth/session.ts',
+      baseMaxHints: 8,
+      baseMaxChars: 2800,
+      taskAware: true,
+    });
+
+    expect(plan.queryText).toContain('Refactor authentication package');
+    expect(plan.queryText).toContain('Token refresh migration');
+    expect(plan.maxHints).toBe(8);
+    expect(plan.maxChars).toBe(2800);
+  });
+
+  it('leaves task text out of the query unless task-awareness is opted into', () => {
     const agent = new MemoryInjectorAgent();
     const plan = agent.plan({
       ctx: makeCtx({
@@ -24,10 +44,8 @@ describe('MemoryInjectorAgent', () => {
       baseMaxChars: 2800,
     });
 
-    expect(plan.queryText).toContain('Refactor authentication package');
-    expect(plan.queryText).toContain('Token refresh migration');
-    expect(plan.maxHints).toBe(8);
-    expect(plan.maxChars).toBe(2800);
+    expect(plan.taskSignals).toEqual([]);
+    expect(plan.queryText).toBe('src/auth/session.ts');
   });
 
   it('limits high-pressure injection to one compact memory', () => {
@@ -83,6 +101,7 @@ describe('MemoryInjectorAgent', () => {
       toolQuery: 'packages/sage/src/store.ts',
       baseMaxHints: 8,
       baseMaxChars: 2800,
+      taskAware: true,
     });
 
     expect(plan.queryText).toContain('Repair memory retrieval scoring');

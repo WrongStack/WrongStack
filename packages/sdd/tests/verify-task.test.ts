@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import type { TaskResult } from '@wrongstack/core/types/multi-agent.js';
 import type { TaskNode } from '@wrongstack/core/types/task-graph.js';
 import { describe, expect, it } from 'vitest';
@@ -7,7 +8,7 @@ import {
   makeAcceptanceCriteriaVerifier,
   makeCommandVerifier,
   makeCompositeVerifier,
-  verificationShell,
+  tokenizeCommand,
 } from '../src/verify-task.js';
 
 // Minimal stand-ins — the verifier only reads `task.metadata`.
@@ -16,6 +17,62 @@ function task(metadata?: Record<string, unknown>): TaskNode {
 }
 const result = {} as TaskResult;
 const cwd = os.tmpdir();
+
+// Platform-safe executable helpers (no shell builtins).
+const trueExe = process.platform === 'win32' ? 'cmd /c exit 0' : 'true';
+const falseExe = process.platform === 'win32' ? 'cmd /c exit 3' : 'false';
+// A long-running command to test timeout — killed after the verifier timeout.
+const sleepCmd = process.platform === 'win32' ? 'ping -n 61 127.0.0.1' : 'sleep 61';
+
+describe('tokenizeCommand', () => {
+  it('splits a simple command into executable + args', () => {
+    expect(tokenizeCommand('pnpm vitest run')).toEqual(['pnpm', 'vitest', 'run']);
+  });
+
+  it('handles single-quoted arguments with spaces', () => {
+    expect(tokenizeCommand("echo 'hello world'")).toEqual(['echo', 'hello world']);
+  });
+
+  it('handles double-quoted arguments with spaces', () => {
+    expect(tokenizeCommand('echo "hello world"')).toEqual(['echo', 'hello world']);
+  });
+
+  it('preserves shell metacharacters as literal argument data', () => {
+    // With shell: false, these are NOT interpreted — they become literal args.
+    expect(tokenizeCommand('echo ; rm -rf /')).toEqual(['echo', ';', 'rm', '-rf', '/']);
+    expect(tokenizeCommand('cat foo | grep bar')).toEqual(['cat', 'foo', '|', 'grep', 'bar']);
+  });
+
+  it('handles backslash escaping outside quotes', () => {
+    expect(tokenizeCommand('echo a\\ b')).toEqual(['echo', 'a b']);
+  });
+
+  it('returns undefined for empty/whitespace input', () => {
+    expect(tokenizeCommand('')).toBeUndefined();
+    expect(tokenizeCommand('   ')).toBeUndefined();
+  });
+
+  it('returns undefined for unbalanced quotes', () => {
+    expect(tokenizeCommand("echo 'unclosed")).toBeUndefined();
+    expect(tokenizeCommand('echo "unclosed')).toBeUndefined();
+  });
+
+  it('handles empty quotes as an empty-string argument', () => {
+    expect(tokenizeCommand('echo ""')).toEqual(['echo', '']);
+    expect(tokenizeCommand("echo ''")).toEqual(['echo', '']);
+  });
+
+  it('handles mixed quoting', () => {
+    expect(tokenizeCommand('pnpm test --filter "@wrongstack/core" -- --reporter=dot')).toEqual([
+      'pnpm',
+      'test',
+      '--filter',
+      '@wrongstack/core',
+      '--',
+      '--reporter=dot',
+    ]);
+  });
+});
 
 describe('makeCommandVerifier', () => {
   it('passes through (ok) when the task carries no verification command', async () => {
@@ -31,25 +88,20 @@ describe('makeCommandVerifier', () => {
 
   it('resolves ok on exit 0', async () => {
     const verify = makeCommandVerifier();
-    const out = await verify({ task: task({ verificationCommand: 'exit 0' }), result, cwd });
+    const out = await verify({ task: task({ verificationCommand: trueExe }), result, cwd });
     expect(out.ok).toBe(true);
   });
 
   it('fails with a reason on non-zero exit', async () => {
     const verify = makeCommandVerifier();
-    const out = await verify({ task: task({ verificationCommand: 'exit 3' }), result, cwd });
+    const out = await verify({ task: task({ verificationCommand: falseExe }), result, cwd });
     expect(out.ok).toBe(false);
-    expect(out.reason).toContain('exit 3');
     expect(out.reason).toContain('verification failed');
   });
 
   it('kills and fails on timeout', async () => {
     const verify = makeCommandVerifier({ timeoutMs: 150 });
-    // Use a command where the *spawned process itself* is what blocks — not a forked
-    // child that outlives the spawn.  node -e "setTimeout(...)" forks in Node 18+ so
-    // node exits immediately; ping (Windows) and sleep (Unix) run inside the shell.
-    const cmd = process.platform === 'win32' ? 'ping -n 61 127.0.0.1 >nul' : 'sleep 61';
-    const out = await verify({ task: task({ verificationCommand: cmd }), result, cwd });
+    const out = await verify({ task: task({ verificationCommand: sleepCmd }), result, cwd });
     expect(out.ok).toBe(false);
     expect(out.reason).toContain('timed out');
   });
@@ -57,28 +109,56 @@ describe('makeCommandVerifier', () => {
   it('honours a custom metadata key', async () => {
     const verify = makeCommandVerifier({ metadataKey: 'check' });
     // The default key is ignored…
-    expect(await verify({ task: task({ verificationCommand: 'exit 1' }), result, cwd })).toEqual({
+    expect(await verify({ task: task({ verificationCommand: falseExe }), result, cwd })).toEqual({
       ok: true,
     });
     // …only the configured key runs.
-    const out = await verify({ task: task({ check: 'exit 1' }), result, cwd });
+    const out = await verify({ task: task({ check: falseExe }), result, cwd });
     expect(out.ok).toBe(false);
   });
 
-  it('reports spawn errors and selects both platform shell forms', async () => {
+  it('reports spawn errors on a missing cwd', async () => {
     const verify = makeCommandVerifier();
-    const missingCwd = `${cwd}/definitely-missing-${Date.now()}`;
+    const missingCwd = path.join(cwd, `definitely-missing-${Date.now()}`);
     // Guard: the test relies on a non-existent cwd to force a spawn error.
     expect(existsSync(missingCwd)).toBe(false);
     const out = await verify({
-      task: task({ verificationCommand: 'exit 0' }),
+      task: task({ verificationCommand: trueExe }),
       result,
       cwd: missingCwd,
     });
     expect(out.ok).toBe(false);
     expect(out.reason).toContain('spawn error');
-    expect(verificationShell('win32')).toEqual(['cmd', '/d', '/c']);
-    expect(verificationShell('linux')).toEqual(['sh', '-c']);
+  });
+
+  it('rejects malformed commands with unbalanced quotes', async () => {
+    const verify = makeCommandVerifier();
+    const out = await verify({
+      task: task({ verificationCommand: "echo 'unclosed" }),
+      result,
+      cwd,
+    });
+    expect(out.ok).toBe(false);
+    expect(out.reason).toContain('malformed');
+  });
+
+  it('does not interpret shell metacharacters (defense in depth)', async () => {
+    // With shell: false, "; false" becomes literal arguments to `true`,
+    // so `true ; false` should still exit 0 (the `;` and `false` are
+    // passed as argv, not interpreted as a shell sequence).
+    const verify = makeCommandVerifier();
+    const out = await verify({
+      task: task({ verificationCommand: `${trueExe.split(' ')[0]} ; false` }),
+      result,
+      cwd,
+    });
+    // On non-Windows, `true ; false` spawns `true` with args [';', 'false'].
+    // true ignores its arguments and exits 0.
+    if (process.platform !== 'win32') {
+      expect(out.ok).toBe(true);
+    }
+    // On Windows, `cmd` is the executable — skip the assertion since
+    // cmd interprets its own args differently.
   });
 });
 

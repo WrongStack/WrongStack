@@ -113,6 +113,12 @@ export type ToolProjection =
       name: string;
       ok: boolean;
       output?: string | undefined;
+      /**
+       * SAGE Memory Injector block (header line first) split off the tool text
+       * at the emit site. Clients render it as a memory card — it must never be
+       * concatenated back into `output`.
+       */
+      sage?: string[] | undefined;
       durationMs: number;
     };
 
@@ -147,6 +153,9 @@ export function projectToolMessage(message: ProtocolEnvelope): ToolProjection | 
       ok: payload['ok'] !== false,
       durationMs: finite(payload['durationMs']),
       ...(typeof payload['output'] === 'string' ? { output: payload['output'] } : {}),
+      ...(Array.isArray(payload['sage'])
+        ? { sage: payload['sage'].filter((line): line is string => typeof line === 'string') }
+        : {}),
     };
   }
   return null;

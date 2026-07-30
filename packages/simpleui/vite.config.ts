@@ -1,6 +1,9 @@
+/// <reference types="vitest/config" />
+
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
+import { getVitestMaxWorkers } from '../../vitest.workers';
 
 /**
  * Development-only Vite plugin that injects a `<meta name="wrongstack-ws-url">`
@@ -57,6 +60,9 @@ function injectWsUrlPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), injectWsUrlPlugin()],
+  test: {
+    maxWorkers: getVitestMaxWorkers(),
+  },
   server: {
     host: '127.0.0.1',
     port: 3466,

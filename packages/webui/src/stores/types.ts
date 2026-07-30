@@ -42,6 +42,15 @@ export interface ChatMessage {
   toolName?: string | undefined;
   toolInput?: unknown | undefined;
   toolResult?: string | undefined;
+  /**
+   * SAGE Memory Injector block for this tool call — header line plus one line
+   * per injected memory — delivered as a dedicated `tool.executed.sage` field
+   * instead of being buried in `toolResult`. Rendered by `SageMemoryCard`.
+   *
+   * Absent on replayed messages, where the block is still inline in the
+   * persisted tool_result content; `extractSageBlock` recovers it there.
+   */
+  sageLines?: string[] | undefined;
   /** Wall-clock ms reported by the backend in tool.executed; rendered next
    *  to the tool name so the user can spot slow tools at a glance. */
   toolDurationMs?: number | undefined;

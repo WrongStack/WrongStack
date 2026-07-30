@@ -622,6 +622,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
               output: projection.output,
               durationMs: projection.durationMs,
               ok: projection.ok,
+              ...(projection.sage ? { sage: projection.sage } : {}),
             };
             return next;
           });

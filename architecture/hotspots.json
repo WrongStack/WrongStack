@@ -11,11 +11,11 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1057,
+      "lines": 1058,
       "relativeImports": 42
     },
     "packages/cli/src/execution.ts": {
-      "lines": 1031,
+      "lines": 1033,
       "relativeImports": 36
     },
     "packages/cli/src/fleet/host.ts": {
@@ -27,7 +27,7 @@
       "relativeImports": 1
     },
     "packages/cli/src/hq-server/routes.ts": {
-      "lines": 878,
+      "lines": 907,
       "relativeImports": 11
     },
     "packages/cli/src/picker.ts": {
@@ -55,7 +55,7 @@
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings.ts": {
-      "lines": 988,
+      "lines": 1087,
       "relativeImports": 4
     },
     "packages/cli/src/subcommands/handlers/modeldiag.ts": {
@@ -63,7 +63,7 @@
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1019,
+      "lines": 1020,
       "relativeImports": 19
     },
     "packages/core/src/chronicle/metrics-store.ts": {
@@ -211,7 +211,7 @@
       "relativeImports": 1
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
-      "lines": 1004,
+      "lines": 1236,
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
@@ -223,7 +223,7 @@
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 827,
+      "lines": 834,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -235,7 +235,7 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 828,
+      "lines": 829,
       "relativeImports": 15
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -251,7 +251,7 @@
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/dead-code-scan.ts": {
-      "lines": 878,
+      "lines": 866,
       "relativeImports": 13
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
@@ -259,7 +259,7 @@
       "relativeImports": 4
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1187,
+      "lines": 1185,
       "relativeImports": 15
     },
     "packages/tools/src/kanban.ts": {
@@ -271,7 +271,7 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 810,
+      "lines": 811,
       "relativeImports": 11
     },
     "packages/tui/src/app.tsx": {
@@ -291,11 +291,11 @@
       "relativeImports": 5
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 923,
-      "relativeImports": 10
+      "lines": 1058,
+      "relativeImports": 11
     },
     "packages/tui/src/components/history/utils.tsx": {
-      "lines": 947,
+      "lines": 950,
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {
@@ -305,6 +305,10 @@
     "packages/tui/src/components/scrollable-history.tsx": {
       "lines": 1011,
       "relativeImports": 12
+    },
+    "packages/tui/src/components/settings-picker-model.ts": {
+      "lines": 864,
+      "relativeImports": 2
     },
     "packages/tui/src/components/status-bar.tsx": {
       "lines": 1107,
@@ -343,7 +347,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1001,
+      "lines": 1069,
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
@@ -419,7 +423,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1057,
+      "lines": 1071,
       "relativeImports": 8
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -447,11 +451,11 @@
       "relativeImports": 8
     },
     "packages/webui-server/src/server/setup-events.ts": {
-      "lines": 1000,
+      "lines": 1003,
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 934,
+      "lines": 1023,
       "relativeImports": 17
     },
     "apps/desktop/src/main/runtime-manager.ts": {

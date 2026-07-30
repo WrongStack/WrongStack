@@ -150,6 +150,7 @@ export {
   makeAcceptanceCriteriaVerifier,
   makeCommandVerifier,
   makeCompositeVerifier,
+  tokenizeCommand,
   type AcceptanceCriteriaVerifierOptions,
   type CommandVerifierOptions,
   type SddVerifyTask,

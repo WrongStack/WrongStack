@@ -45,6 +45,34 @@ describe('surface semantic projections', () => {
     });
   });
 
+  it('carries SAGE memory lines beside the tool output, never merged into it', () => {
+    const sage = [
+      '--- SAGE: related project knowledge (Memory Injector) ---',
+      '- [fact] <memory id="mem-1">globbing is daemon-backed</memory>',
+    ];
+    expect(
+      projectToolMessage({
+        type: 'tool.executed',
+        payload: { id: 't1', name: 'glob', ok: true, output: 'packages/a.ts', sage },
+      }),
+    ).toMatchObject({ kind: 'executed', output: 'packages/a.ts', sage });
+  });
+
+  it('omits `sage` when absent and drops non-string entries', () => {
+    expect(
+      projectToolMessage({ type: 'tool.executed', payload: { id: 't1', ok: true } }),
+    ).not.toHaveProperty('sage');
+    expect(
+      projectToolMessage({
+        type: 'tool.executed',
+        payload: { id: 't1', ok: true, sage: ['--- SAGE: x ---', 7, null] },
+      }),
+    ).toMatchObject({ sage: ['--- SAGE: x ---'] });
+    expect(
+      projectToolMessage({ type: 'tool.executed', payload: { id: 't1', ok: true, sage: 'nope' } }),
+    ).not.toHaveProperty('sage');
+  });
+
   it('projects fleet concurrency and safe session lists', () => {
     expect(
       projectFleetMessage({

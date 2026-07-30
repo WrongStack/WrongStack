@@ -232,6 +232,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           },
         }
       : undefined,
+    { trustBoundary, logger: consoleLogger },
   );
 
   // SDD wizard — interactive "New SDD Project" flow. Available only when the

@@ -1,10 +1,16 @@
-import { defineConfig } from 'vite';
+/// <reference types="vitest/config" />
+
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import { getVitestMaxWorkers } from '../../vitest.workers';
 
 // HQ dashboard — offline React app served by the HQ server (port 3499).
 // No CDN dependencies; everything bundles into dist/ for LAN/offline use.
 export default defineConfig({
   plugins: [react()],
+  test: {
+    maxWorkers: getVitestMaxWorkers(),
+  },
   base: '/',
   // React 19 requires modern browsers; esbuild's default browser targets
   // (es2020/chrome87) can't transform its destructuring patterns.

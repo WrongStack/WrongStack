@@ -8,6 +8,7 @@ import type { SessionEvent } from '../types/session.js';
 import type { Tool } from '../types/tool.js';
 import { recordToolOutputEvidence } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
+import { capSageLines, splitSageOutputBlock } from '../utils/sage-output-block.js';
 import { sizeSignals, truncateForEvent } from '../utils/tool-output-serializer.js';
 import type { AgentInternals } from './agent-internals.js';
 import { resolveEventSessionId } from './context.js';
@@ -23,6 +24,16 @@ import { resolveEventSessionId } from './context.js';
  */
 const DIFF_TOOL_NAMES = new Set(['edit', 'write', 'replace', 'patch', 'diff']);
 const DIFF_TOOL_EVENT_PREVIEW_MAX = 16_000;
+
+/**
+ * Budget for the SAGE memory block travelling in `tool.executed.sage`. It is
+ * kept OUT of the `output` preview budget on purpose: the block is memory, not
+ * tool output, and sharing one cap is what used to cut a memory line in half
+ * and leak the fragment into the tool body (see `utils/sage-output-block.ts`).
+ * The injector itself caps a block at 2800 chars, so this only trims the
+ * largest blocks — always by whole memory lines.
+ */
+const SAGE_EVENT_MAX = 2_000;
 
 export interface AgentToolHandler {
   executeTools(toolUses: ToolUseBlock[]): Promise<ToolResultBlock[]>;
@@ -145,6 +156,14 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     content: string,
   ): void {
     const sig = sizeSignals(toolName, content);
+    // Memory the SAGE middleware appended to the result travels in its own
+    // field. `output` keeps tool text only, so a short tool result can no
+    // longer have the preview cap land inside a memory line — and surfaces
+    // without a SAGE renderer never print the block as tool output.
+    // Size signals stay computed over the full `content`: the model does see
+    // the injected block and pays tokens for it.
+    const { body, sageLines } = splitSageOutputBlock(content);
+    const sage = capSageLines(sageLines, SAGE_EVENT_MAX);
     const metadata = recordToolOutputEvidence(a.ctx, {
       toolUseId,
       toolName,
@@ -166,9 +185,10 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       ok,
       input,
       output: truncateForEvent(
-        content,
+        body,
         DIFF_TOOL_NAMES.has(toolName) ? DIFF_TOOL_EVENT_PREVIEW_MAX : undefined,
       ),
+      ...(sage.length > 0 ? { sage } : {}),
       outputBytes: sig.outputBytes,
       outputTokens: sig.outputTokens,
       outputLines: sig.outputLines,

@@ -470,7 +470,9 @@
         "import": "./dist/utils/expect-defined.js"
       },
       "source": "packages/core/src/utils/expect-defined.ts",
-      "declarations": ["export function expectDefined"]
+      "declarations": [
+        "export function expectDefined"
+      ]
     },
     {
       "subpath": "./utils/error",
@@ -479,7 +481,9 @@
         "import": "./dist/utils/error.js"
       },
       "source": "packages/core/src/utils/error.ts",
-      "declarations": ["export function toErrorMessage"]
+      "declarations": [
+        "export function toErrorMessage"
+      ]
     },
     {
       "subpath": "./utils/tree-kill",
@@ -827,6 +831,7 @@
         "export * from './alerts.js';",
         "export * from './auth-audit.js';",
         "export * from './auth-store.js';",
+        "export * from './bootstrap-store.js';",
         "export * from './brain-bridge.js';",
         "export * from './bridge-context.js';",
         "export * from './commands.js';",
@@ -1034,7 +1039,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 30,
-      "sourceLines": 7891
+      "sourceLines": 7888
     },
     {
       "directory": "coordination",
@@ -1048,7 +1053,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8522
+      "sourceLines": 8545
     },
     {
       "directory": "defaults",
@@ -1096,8 +1101,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 38,
-      "sourceLines": 7592
+      "sourceFiles": 39,
+      "sourceLines": 7696
     },
     {
       "directory": "infrastructure",
@@ -1111,7 +1116,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3406
+      "sourceLines": 3430
     },
     {
       "directory": "middleware",
@@ -1195,7 +1200,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 16036
+      "sourceLines": 16053
     },
     {
       "directory": "tasking",
@@ -1216,14 +1221,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9290
+      "sourceLines": 9304
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 55,
-      "sourceLines": 8246
+      "sourceFiles": 56,
+      "sourceLines": 8369
     },
     {
       "directory": "worktree",

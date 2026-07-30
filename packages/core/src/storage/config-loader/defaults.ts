@@ -70,13 +70,19 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
       // caused retrieval is known and the hint can be independently capped.
       turnContext: false,
       toolResults: true,
-      taskAware: true,
+      // Off: task text searches for what the operator is doing, not for the
+      // file the tool touched, and every match it adds is unrelated to the
+      // result it lands on.
+      taskAware: false,
       maxHintsPerTool: 8,
       maxCharsPerTool: 2800,
       maxTurnMemories: 8,
       maxCharsPerTurn: 2400,
-      minScore: 0.65,
-      repeatCooldownMs: 30 * 60_000,
+      minScore: 0.72,
+      minImportance: 0.5,
+      // 0 = once per session. Re-showing a memory the model has already been
+      // given spends context and adds nothing.
+      repeatCooldownMs: 0,
     },
     hygiene: {
       autoAfterSession: true,

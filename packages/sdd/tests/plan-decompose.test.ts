@@ -65,13 +65,17 @@ describe('splitGraphNode', () => {
     expect(tracker.getNode(parent.id)?.status).toBe('completed');
   });
 
-  it('maps command-marked criteria to verificationCommand and free text to description', async () => {
+  it('does not auto-extract verificationCommand from command-marked criteria (security: prevents bypass of set_task_verification authorization)', async () => {
     const tracker = await makeTracker();
     const parent = tracker.addNode(BIG);
     const leafIds = splitGraphNode(tracker, parent.id, SPECS);
     const [a, b] = leafIds.map((id) => tracker.getNode(id)!);
-    expect(a!.metadata?.verificationCommand).toBe('pnpm vitest run a');
+    // Command markers must NOT be promoted to metadata.verificationCommand
+    // — that field is later shell-executed by makeCommandVerifier and must
+    // only be set through the authorized set_task_verification control path.
+    expect(a!.metadata?.verificationCommand).toBeUndefined();
     expect(b!.metadata?.verificationCommand).toBeUndefined();
+    // Free-text criteria are still folded into the description.
     expect(b!.description).toContain('**Acceptance Criteria:**');
     expect(b!.description).toContain('B works end to end');
   });

@@ -144,7 +144,12 @@ export function handleToolExecuted(msg: WSServerMessage) {
     } else {
       useChatStore.getState().setToolResult(ownerId, payload.output ?? '', payload.ok);
     }
-    useChatStore.getState().updateMessage(ownerId, { toolDurationMs: payload.durationMs });
+    useChatStore.getState().updateMessage(ownerId, {
+      toolDurationMs: payload.durationMs,
+      // SAGE memory arrives as its own field; keep it off `toolResult` so the
+      // block can only ever render as a memory card.
+      ...(payload.sage && payload.sage.length > 0 ? { sageLines: payload.sage } : {}),
+    });
   }
   if (payload.id)
     useChatStore.getState().updateExecution(payload.id, {

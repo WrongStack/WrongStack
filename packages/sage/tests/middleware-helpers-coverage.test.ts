@@ -148,6 +148,7 @@ describe('MemoryInjectorAgent helper coverage', () => {
       toolQuery: 'alpha alpha beta',
       baseMaxHints: 8,
       baseMaxChars: 2_800,
+      taskAware: true,
     });
     expect(plan.maxHints).toBe(3);
     expect(plan.maxChars).toBe(1_400);

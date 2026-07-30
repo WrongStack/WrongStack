@@ -70,7 +70,7 @@ function waitForClose(ws: WebSocket, timeout = 3_000): Promise<number | undefine
 describe('HQ server — /ws/browser token validation', () => {
   it('first run: creates browser auth and rejects browser connections without a token', async () => {
     handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
-    expect(handle.firstRunSetup?.browserUrl).toContain('?token=');
+    expect(handle.firstRunSetup?.browserUrl).toContain('#bootstrap=');
     const ws = new WebSocket(wsUrl(handle, '/ws/browser'));
     await expect(waitForOpen(ws)).rejects.toThrow();
     ws.close();

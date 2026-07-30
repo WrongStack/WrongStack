@@ -1,4 +1,9 @@
 import type { Message } from '@wrongstack/core/types';
+import {
+  DEFAULT_MIN_IMPORTANCE,
+  DEFAULT_MIN_SCORE,
+  MIN_RELATION_STRENGTH,
+} from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
 import { buildRestoredEntries, createInitialState } from '../src/app-initial-state.js';
 import { reducer } from '../src/app-reducer.js';
@@ -180,10 +185,18 @@ describe('bounded TUI display history', () => {
             importance: 1,
             confidence: 1,
             freshness: 1,
-            persistence: 'session',
+            persistence: 'long_lived',
+            metadataScore: 1,
+            scoreTerms: [],
           },
         ],
         injectedIds: [],
+        queryPreview: 'test',
+        thresholds: {
+          minScore: DEFAULT_MIN_SCORE,
+          minImportance: DEFAULT_MIN_IMPORTANCE,
+          relationFloor: MIN_RELATION_STRENGTH,
+        },
         rejected: { duplicate: 0, belowScore: 0, alreadyVisible: 0, cooldown: 0, budget: 0 },
       },
     ]);

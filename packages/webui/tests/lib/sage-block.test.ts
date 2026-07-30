@@ -145,4 +145,39 @@ describe('extractSageBlock', () => {
       });
     }
   });
+
+  /**
+   * Live results now arrive with the block already split off, but several other
+   * paths still cap tool text by characters (fleet bridge, HQ raw-content cap,
+   * TUI history retention). A block whose last line those caps cut must still
+   * render as memory rather than decaying into raw tool output.
+   */
+  describe('caps that cut the last memory line', () => {
+    const header = '--- SAGE: related project knowledge (Memory Injector) ---';
+    const full = '- [fact] <memory id="mem-1">a fairly long remembered fact about globbing</memory> [tags=glob]';
+
+    it('accepts a truncated final memory line', () => {
+      const cut = `${full.slice(0, 60)}…`;
+      const result = extractSageBlock(`x\n\n${header}\n${cut}`);
+      expect(result.cleanOutput).toBe('x');
+      expect(result.sageLines).toEqual([header, cut]);
+    });
+
+    it('accepts a complete line followed by a truncated one', () => {
+      const cut = `${full.slice(0, 55)}…`;
+      const result = extractSageBlock(`x\n\n${header}\n${full}\n${cut}`);
+      expect(result.sageLines).toEqual([header, full, cut]);
+    });
+
+    it('rejects a truncated line that is not last — the shape is broken', () => {
+      const cut = `${full.slice(0, 55)}…`;
+      const result = extractSageBlock(`x\n\n${header}\n${cut}\n${full}`);
+      expect(result.sageLines).toEqual([]);
+    });
+
+    it('still rejects prose that merely ends in an ellipsis', () => {
+      const output = `x\n\n${header}\nsome truncated prose…`;
+      expect(extractSageBlock(output)).toEqual({ cleanOutput: output, sageLines: [] });
+    });
+  });
 });

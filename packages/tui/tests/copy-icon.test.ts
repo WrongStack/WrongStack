@@ -1,3 +1,8 @@
+import {
+  DEFAULT_MIN_IMPORTANCE,
+  DEFAULT_MIN_SCORE,
+  MIN_RELATION_STRENGTH,
+} from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
 import {
   COPY_ICON,
@@ -28,6 +33,12 @@ const ALL_ENTRY_KINDS = [
     injectedChars: 12,
     activated: [],
     injectedIds: [],
+    queryPreview: 'read',
+    thresholds: {
+      minScore: DEFAULT_MIN_SCORE,
+      minImportance: DEFAULT_MIN_IMPORTANCE,
+      relationFloor: MIN_RELATION_STRENGTH,
+    },
     rejected: { duplicate: 0, belowScore: 0, alreadyVisible: 0, cooldown: 0, budget: 0 },
   },
   { id: 11, kind: 'memory-lifecycle', action: 'entered', label: 'memory-1', detail: 'why' },

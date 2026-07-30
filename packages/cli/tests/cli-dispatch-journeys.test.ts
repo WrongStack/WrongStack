@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const surfaceMocks = vi.hoisted(() => ({
   killAll: vi.fn(),
   runTui: vi.fn(async () => 23),
-  runWebUI: vi.fn(async () => undefined),
+  runWebUI: vi.fn(async (_options?: unknown) => undefined),
 }));
 
 vi.mock('@wrongstack/tools', () => ({
@@ -117,13 +117,14 @@ describe.sequential('CLI production dispatch journeys', () => {
     expect(surfaceMocks.runTui).toHaveBeenCalledWith(options);
   });
 
-  it('maps WebUI flags into the production server boundary and shuts down cleanly', async () => {
+  it('maps WebUI flags and todo checkpoint rebinding into the production server boundary', async () => {
     const agent = { disableInteractiveConfirmation: vi.fn() };
     const renderer = {
       setSilent: vi.fn(),
       write: vi.fn(),
       writeInfo: vi.fn(),
     };
+    const rebindTodosCheckpoint = vi.fn(async () => undefined);
     const ctx = {
       agent,
       events: {},
@@ -137,7 +138,18 @@ describe.sequential('CLI production dispatch journeys', () => {
       modelsRegistry: {},
       mcpRegistry: {},
       renderer,
+      rebindTodosCheckpoint,
     } as never;
+
+    surfaceMocks.runWebUI.mockImplementationOnce(async (options) => {
+      const boundary = options as {
+        onBeforeSessionTodosReplaced?: (
+          sessionId: string,
+          sessionsDir: string,
+        ) => void | Promise<void>;
+      };
+      await boundary.onBeforeSessionTodosReplaced?.('next-session', path.join(tempRoot, 'sessions'));
+    });
 
     await expect(within(runWebUIDispatch(ctx), 5_000)).resolves.toBe(0);
 
@@ -149,7 +161,12 @@ describe.sequential('CLI production dispatch journeys', () => {
         port: 4123,
         open: true,
         projectRoot: tempRoot,
+        onBeforeSessionTodosReplaced: expect.any(Function),
       }),
+    );
+    expect(rebindTodosCheckpoint).toHaveBeenCalledWith(
+      'next-session',
+      path.join(tempRoot, 'sessions'),
     );
     expect(renderer.setSilent.mock.calls).toEqual([[true], [false]]);
   });

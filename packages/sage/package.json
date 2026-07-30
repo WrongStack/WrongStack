@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./middleware/tool-call-memory.js": {
+      "types": "./dist/middleware/tool-call-memory.d.ts",
+      "import": "./dist/middleware/tool-call-memory.js"
     }
   },
   "files": [

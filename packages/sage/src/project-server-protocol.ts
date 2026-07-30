@@ -16,6 +16,7 @@ import type {
   SageForPathOptions,
   SageHygieneOptions,
   SageHygieneReport,
+  SageSearchOptions,
   SageStats,
   SageStatus,
   SessionConsolidationInput,
@@ -106,10 +107,10 @@ export interface SageServerOperations {
   };
   retrieveForPath: { args: { options: SageForPathOptions }; result: Sage[] };
   searchSage: {
-    args: {
-      query: string;
-      options?: { limit?: number; includeStatuses?: SageStatus[] } | undefined;
-    };
+    // The full option set, not a subset: the daemon forwards these verbatim,
+    // and a narrower type here silently drops the audience and all-terms
+    // gates that automatic injection depends on.
+    args: { query: string; options?: SageSearchOptions | undefined };
     result: Sage[];
   };
   unifiedSearch: {

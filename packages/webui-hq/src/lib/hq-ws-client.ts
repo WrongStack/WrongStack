@@ -73,9 +73,10 @@ export class HqWsClient {
           ? window.location
           : { host: '127.0.0.1:3499', protocol: 'http:' };
       const wsProto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-      // Shared token source (?token= then sessionStorage) so a token entered
-      // through the gate — or one from a previous navigation — still
-      // authenticates the socket when the current URL carries no query.
+      // Cookie-first: the browser sends the HttpOnly session cookie
+      // automatically on the WS upgrade. The URL token remains as a
+      // legacy fallback for backward compatibility with older startup
+      // URLs that carried ?token= in the query string.
       const token = resolveHqToken();
       const base = `${wsProto}//${loc.host}/ws/browser`;
       this.url = token !== null ? `${base}?token=${encodeURIComponent(token)}` : base;

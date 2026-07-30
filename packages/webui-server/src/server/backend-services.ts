@@ -229,7 +229,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           memory: memoryRetrieval,
           maxHintsPerTool: config.Sage?.inject?.maxHintsPerTool,
           maxCharsPerTool: config.Sage?.inject?.maxCharsPerTool,
+          taskAware: config.Sage?.inject?.taskAware,
           minScore: config.Sage?.inject?.minScore,
+          minImportance: config.Sage?.inject?.minImportance,
           repeatCooldownMs: config.Sage?.inject?.repeatCooldownMs,
           verifyOnMutation: config.Sage?.hygiene?.autoOnFileChange,
           triggers: config.Sage?.inject?.triggers,
@@ -588,15 +590,20 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     projectRoot,
   );
   const specsHandler = new SpecsWebSocketHandler(wpaths.projectSpecs, wpaths.projectTaskGraphs);
-  const sddBoardHandler = new SddBoardWebSocketHandler(wpaths.projectSddBoards, undefined, {
-    projectRoot,
-    paths: {
-      projectSpecs: wpaths.projectSpecs,
-      projectTaskGraphs: wpaths.projectTaskGraphs,
-      projectSddSession: wpaths.projectSddSession,
-      projectSddBoards: wpaths.projectSddBoards,
+  const sddBoardHandler = new SddBoardWebSocketHandler(
+    wpaths.projectSddBoards,
+    undefined,
+    {
+      projectRoot,
+      paths: {
+        projectSpecs: wpaths.projectSpecs,
+        projectTaskGraphs: wpaths.projectTaskGraphs,
+        projectSddSession: wpaths.projectSddSession,
+        projectSddBoards: wpaths.projectSddBoards,
+      },
     },
-  });
+    { trustBoundary: input.trustBoundary, logger },
+  );
   const sddWizardHandler = new SddWizardWebSocketHandler(
     buildSddWizardDeps({
       agent,

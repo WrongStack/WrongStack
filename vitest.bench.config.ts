@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { getVitestMaxWorkers } from './vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -40,7 +41,7 @@ export default defineConfig({
     include: ['packages/**/bench/**/*.bench.ts', 'packages/**/tests/**/*.bench.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     pool: 'forks',
-    maxWorkers: '25%',
+    maxWorkers: getVitestMaxWorkers(),
     // Benches do their own warmup + iterations; the outer test timeout
     // just has to be generous enough for a slow CI worker to finish.
     testTimeout: 120_000,

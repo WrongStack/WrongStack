@@ -23,7 +23,7 @@ import { getToolVisual } from '../../tool-glyph.js';
 import { glyphs } from '../../ui-glyphs.js';
 import type { HistoryEntry } from './types.js';
 import { DIFF_MAX_LINES, MULTI_DIFF_MAX_ROWS } from './code-block.js';
-import { extractSageBlock, formatToolArgs } from './utils.js';
+import { formatToolArgs, parseSageMemoryLine, resolveEntrySage } from './utils.js';
 
 // ── Types ──
 
@@ -63,7 +63,7 @@ export const MAX_TOOL_GROUP_ENTRIES = 12;
 const STRUCTURED_DIFF_TOOLS = new Set(['edit', 'write', 'replace', 'diff', 'patch']);
 
 function hasInjectedMemory(entry: HistoryEntry & { kind: 'tool' }): boolean {
-  return extractSageBlock(entry.output ?? '').sageLines.length > 0;
+  return resolveEntrySage(entry.output, entry.sageLines).sageLines.length > 0;
 }
 
 /** Stable id used by the height cache and React keys for a render group. */
@@ -82,14 +82,35 @@ function estimateTextRows(text: string, contentWidth: number, maxRows: number): 
   if (!text) return 1;
   const width = Math.max(16, contentWidth);
   let rows = 0;
-  let lineStart = 0;
-  for (let index = 0; index <= text.length; index++) {
-    if (index < text.length && text.charCodeAt(index) !== 10) continue;
-    rows += Math.max(1, Math.ceil((index - lineStart) / width));
-    if (rows >= maxRows) return maxRows;
-    lineStart = index + 1;
+  let lineWidth = 0;
+  for (const char of text) {
+    if (char === '\n') {
+      rows += Math.max(1, Math.ceil(lineWidth / width));
+      if (rows >= maxRows) return maxRows;
+      lineWidth = 0;
+      continue;
+    }
+    lineWidth += displayWidth(char);
   }
-  return Math.max(1, rows);
+  rows += Math.max(1, Math.ceil(lineWidth / width));
+  return Math.min(maxRows, Math.max(1, rows));
+}
+
+function estimateSageKvRows(cells: readonly string[], contentWidth: number): number {
+  if (cells.length === 0) return 0;
+  const gap = 2;
+  let rows = 1;
+  let usedColumns = 0;
+  for (const cell of cells) {
+    const cellWidth = displayWidth(cell) + gap;
+    if (usedColumns > 0 && usedColumns + cellWidth > contentWidth) {
+      rows += 1;
+      usedColumns = cellWidth;
+    } else {
+      usedColumns += cellWidth;
+    }
+  }
+  return rows;
 }
 
 /** Conservative, bounded row estimate used before a group is measured. */
@@ -98,24 +119,50 @@ export function estimateRenderGroupRows(group: RenderGroup, contentWidth: number
 
   const { entry } = group;
   if (entry.kind === 'tool') {
-    const { cleanOutput, sageLines } = extractSageBlock(entry.output ?? '');
+    const { cleanOutput, sageLines } = resolveEntrySage(entry.output, entry.sageLines);
     const memoryLines = sageLines.slice(1);
     // Match the bordered panel rendered by SageMemoryBlock: two border rows,
-    // a wrapping header, and width-aware wrapping for every memory line.
+    // a wrapping header, and the structured key/value rows for each parsed
+    // memory. Per memory: 1 row for the labels line, ~1 row for the body
+    // (width-aware), 1 row for the id/anchor/relation/tags key/value line,
+    // and a 1-row gap before all but the first memory. Lines that fail to
+    // parse still fall back to the raw blob, so we keep one raw estimate as
+    // a floor.
     const panelContentWidth = Math.max(16, contentWidth - 4);
     const sagePanelRows =
       memoryLines.length > 0
         ? 2 +
           estimateTextRows(
-            `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`,
+            `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${entry.sageStats ? ` · ${entry.sageStats}` : ''}`,
             panelContentWidth,
             MAX_TEXT_ESTIMATE_ROWS,
           ) +
-          memoryLines.reduce(
-            (rows, line) =>
-              rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS),
-            0,
-          )
+          memoryLines.reduce((rows, line) => {
+            const parsed = parseSageMemoryLine(line);
+            if (!parsed) {
+              return rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
+            }
+            const labelRow = estimateTextRows(
+              parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]',
+              panelContentWidth,
+              MAX_TEXT_ESTIMATE_ROWS,
+            );
+            const bodyRow = estimateTextRows(parsed.text, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
+            // The renderer puts each kv pair in its own <Box marginRight={2}>
+            // inside a flex-wrap row, so width packing must mirror Ink's
+            // flex-wrap semantics: each cell consumes (cellWidth + 2) cols
+            // except the trailing cell on a visual row. We pack the cells
+            // greedily against panelContentWidth, same as Ink.
+            const kvCells: string[] = [];
+            kvCells.push(`id: ${parsed.id}`);
+            if (parsed.anchor) kvCells.push(`anchor: ${parsed.anchor}`);
+            if (parsed.relation) kvCells.push(`relation: ${parsed.relation}`);
+            if (parsed.tags && parsed.tags.length > 0) kvCells.push(`tags: ${parsed.tags.join(', ')}`);
+            const kvRows = estimateSageKvRows(kvCells, panelContentWidth);
+            // 1 inter-memory gap (marginTop) for every memory after the first.
+            const gap = rows > 0 ? 1 : 0;
+            return rows + labelRow + bodyRow + kvRows + gap;
+          }, 0)
         : 0;
     if (entry.resultRenderMode === 'simple') return 3 + sagePanelRows;
     if (STRUCTURED_DIFF_TOOLS.has(entry.name)) {

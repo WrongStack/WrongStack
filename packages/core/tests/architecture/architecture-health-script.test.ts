@@ -1,8 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
+  __architectureHealthTestInternals,
+  buildArchitectureHealth,
   collectModuleSpecifiers,
   findNonCommandSlashImports,
   globToRegExp,
+  loadArchitectureInputs,
+  parseTsConfigFiles,
+  renderArchitectureHealthMarkdown,
   stronglyConnectedComponents,
   validateHotspotBaseline,
 } from '../../../../scripts/lib/architecture-health.mjs';
@@ -11,7 +19,355 @@ import {
   validateRuntimeTestInventory,
 } from '../../../../scripts/lib/test-inventory.mjs';
 
+const temporaryRoots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
+});
+
 describe('architecture health scanner', () => {
+  it('builds and renders the repository architecture report end to end', async () => {
+    const repoRoot = path.resolve(import.meta.dirname, '../../../..');
+    const { registry, exceptions, hotspots } = await loadArchitectureInputs(repoRoot);
+    const report = await buildArchitectureHealth({
+      repoRoot,
+      registry,
+      exceptions,
+      hotspots,
+      now: new Date('2026-07-30T00:00:00.000Z'),
+    });
+    const markdown = renderArchitectureHealthMarkdown(report);
+
+    expect(report.generatedAt).toBe('2026-07-30T00:00:00.000Z');
+    expect(report.packages.length).toBeGreaterThan(1);
+    expect(report.summary.sourceFiles).toBeGreaterThan(100);
+    expect(report.testOwnership.runtimeAssignments.length).toBeGreaterThan(100);
+    expect(markdown).toContain('# Architecture Health Report');
+    expect(markdown).toContain('TypeScript test coverage debt');
+    expect(
+      renderArchitectureHealthMarkdown({
+        ...report,
+        errors: [],
+        scope: { ...report.scope, excludedPaths: [] },
+        cycles: { ...report.cycles, runtime: [], type: [] },
+      }),
+    ).toContain('PASS — no blocking architecture-health errors.');
+  }, 60_000);
+
+  it('exercises filesystem, resolution, graph, matching, and exception edge cases', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'architecture-health-internals-'));
+    temporaryRoots.push(root);
+    const src = path.join(root, 'src');
+    await mkdir(path.join(src, 'nested'), { recursive: true });
+    await mkdir(path.join(src, 'dist'), { recursive: true });
+    await writeFile(path.join(src, 'nested', 'index.ts'), 'export {};');
+    await writeFile(path.join(src, 'ignore.txt'), 'ignore');
+    await writeFile(path.join(src, 'dist', 'ignored.ts'), 'export {};');
+
+    expect(await __architectureHealthTestInternals.pathExists(src)).toBe(true);
+    expect(await __architectureHealthTestInternals.pathExists(path.join(root, 'missing'))).toBe(
+      false,
+    );
+    expect(
+      await __architectureHealthTestInternals.walk(path.join(root, 'missing'), () => true),
+    ).toEqual([]);
+    expect(
+      await __architectureHealthTestInternals.walk(src, (file) => file.endsWith('.ts')),
+    ).toEqual([path.join(src, 'nested', 'index.ts')]);
+    expect(__architectureHealthTestInternals.isTestFile('a.test.mts')).toBe(true);
+    expect(__architectureHealthTestInternals.isTestFile('a.ts')).toBe(false);
+    expect(
+      __architectureHealthTestInternals.stripSourceComments(
+        '\'escaped\\\' quote\' "escaped\\" quote" `escaped\\` template` // tail\n/* block */x',
+      ),
+    ).toContain('x');
+    expect(
+      __architectureHealthTestInternals.candidatePaths(
+        path.join(src, 'nested', 'index.js'),
+        new Set(['.ts']),
+      ),
+    ).toContain(path.join(src, 'nested', 'index.ts'));
+    expect(
+      __architectureHealthTestInternals.candidatePaths(path.join(src, 'nested'), new Set(['.ts'])),
+    ).toContain(path.join(src, 'nested', 'index.ts'));
+
+    const known = new Set([path.normalize(path.join(src, 'nested', 'index.ts'))]);
+    await expect(
+      __architectureHealthTestInternals.resolveRelativeModule(
+        path.join(src, 'entry.ts'),
+        'external',
+        known,
+        new Set(['.ts']),
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      __architectureHealthTestInternals.resolveRelativeModule(
+        path.join(src, 'entry.ts'),
+        './nested/index.js',
+        known,
+        new Set(['.ts']),
+      ),
+    ).resolves.toBe(path.normalize(path.join(src, 'nested', 'index.ts')));
+    await expect(
+      __architectureHealthTestInternals.resolveRelativeModule(
+        path.join(src, 'entry.ts'),
+        './missing.js',
+        known,
+        new Set(['.ts']),
+      ),
+    ).resolves.toBeNull();
+
+    const graphEdges = [
+      { from: 'a', to: 'b', typeOnly: true },
+      { from: 'b', to: 'a', typeOnly: false },
+    ];
+    expect(__architectureHealthTestInternals.findGraphCycles(['a', 'b'], graphEdges, true)).toEqual(
+      [],
+    );
+    expect(
+      __architectureHealthTestInternals.findGraphCycles(['a', 'b'], graphEdges, false),
+    ).toEqual([['a', 'b']]);
+    expect(__architectureHealthTestInternals.findGraphCycles(['orphan'], [], false)).toEqual([]);
+    expect(
+      __architectureHealthTestInternals.findPackageCycles([
+        { name: 'a', workspaceDependencies: ['b'] },
+        { name: 'b', workspaceDependencies: ['a'] },
+      ]),
+    ).toEqual([['a', 'b']]);
+
+    const project = {
+      exactFiles: ['exact.test.ts'],
+      excludeFiles: ['excluded.test.ts'],
+      excludePrefixes: ['skip/'],
+      includePrefixes: ['tests/'],
+    };
+    expect(__architectureHealthTestInternals.matchesTestProject('exact.test.ts', project)).toBe(
+      true,
+    );
+    expect(__architectureHealthTestInternals.matchesTestProject('excluded.test.ts', project)).toBe(
+      false,
+    );
+    expect(__architectureHealthTestInternals.matchesTestProject('skip/a.test.ts', project)).toBe(
+      false,
+    );
+    expect(__architectureHealthTestInternals.matchesTestProject('tests/a.test.ts', project)).toBe(
+      true,
+    );
+    expect(__architectureHealthTestInternals.matchesTestProject('other.test.ts', project)).toBe(
+      false,
+    );
+    expect(
+      JSON.parse(__architectureHealthTestInternals.stripJsonComments('{"a": 1, // x\n}')),
+    ).toEqual({ a: 1 });
+
+    const valid = {
+      id: 'valid',
+      kind: 'runtime-module-cycle',
+      members: ['b', 'a'],
+      owner: 'owner',
+      reason: 'reason',
+      introduced: '2026-01-01',
+      reviewBy: '2027-01-01',
+      removeWhen: 'fixed',
+      canonicalTask: 'task',
+    };
+    const exceptions = __architectureHealthTestInternals.validateExceptions(
+      {
+        exceptions: [
+          valid,
+          { ...valid },
+          { ...valid, id: 'duplicate-cycle' },
+          { ...valid, id: 'expired', members: ['x'], reviewBy: '2020-01-01' },
+          { ...valid, id: 'invalid-date', members: ['y'], reviewBy: 'invalid' },
+          { ...valid, id: 'missing-members', members: undefined },
+          { ...valid, id: 'slash', kind: 'slash-command-import', members: ['z'] },
+          { ...valid, id: 'unsupported', members: [], kind: 'other' },
+          {},
+        ],
+      },
+      [
+        { kind: 'runtime-module-cycle', members: ['a', 'b'] },
+        { kind: 'type-module-cycle', members: ['unmatched'] },
+      ],
+      new Date('2026-07-30T00:00:00.000Z'),
+    );
+    expect(exceptions.matched).toEqual(['duplicate-cycle']);
+    expect(exceptions.unexcepted).toEqual([{ kind: 'type-module-cycle', members: ['unmatched'] }]);
+    expect(exceptions.errors.join('\n')).toContain('duplicates exception');
+    expect(exceptions.errors.join('\n')).toContain('duplicate exception id');
+    expect(exceptions.errors.join('\n')).toContain('exception expired');
+    expect(exceptions.errors.join('\n')).toContain('invalid reviewBy');
+    expect(exceptions.errors.join('\n')).toContain('unsupported kind');
+    expect(exceptions.errors.join('\n')).toContain("missing required field 'kind'");
+    expect(exceptions.errors.join('\n')).toContain('exception no longer matches');
+  });
+
+  it('parses valid and invalid TypeScript config ownership', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'architecture-health-tsconfig-'));
+    temporaryRoots.push(root);
+    const packageDir = path.join(root, 'packages', 'sample');
+    const testsDir = path.join(packageDir, 'tests');
+    await mkdir(testsDir, { recursive: true });
+    const testFile = path.join(testsDir, 'owned.test.ts');
+    await writeFile(testFile, 'export {};');
+    await writeFile(path.join(packageDir, 'tsconfig.json'), '{}');
+    await writeFile(
+      path.join(packageDir, 'tsconfig.test.json'),
+      '{"include": ["tests/**/*.test.ts"], "exclude": ["tests/excluded/**"],}',
+    );
+    await writeFile(path.join(packageDir, 'tsconfig.invalid.json'), '{broken');
+
+    const configs = await parseTsConfigFiles(root, packageDir, [testFile]);
+    expect(configs).toEqual([
+      {
+        path: 'packages/sample/tsconfig.invalid.json',
+        error: expect.any(String),
+        testFiles: [],
+      },
+      {
+        path: 'packages/sample/tsconfig.json',
+        error: null,
+        testFiles: [],
+      },
+      {
+        path: 'packages/sample/tsconfig.test.json',
+        error: null,
+        testFiles: ['packages/sample/tests/owned.test.ts'],
+      },
+    ]);
+  });
+
+  it('collects side-effect and import-equals module forms', () => {
+    expect(
+      collectModuleSpecifiers(
+        [
+          "import './side-effect.js';",
+          "import Legacy = require('./legacy.js');",
+          "import type Contract = require('./contract.js');",
+          "const runtime = require('./runtime.cjs');",
+        ].join('\n'),
+        'fixture.ts',
+      ),
+    ).toEqual([
+      { specifier: './side-effect.js', typeOnly: false, syntax: 'import' },
+      { specifier: './legacy.js', typeOnly: false, syntax: 'require' },
+      { specifier: './contract.js', typeOnly: false, syntax: 'require' },
+      { specifier: './runtime.cjs', typeOnly: false, syntax: 'require' },
+      { specifier: './legacy.js', typeOnly: false, syntax: 'import-equals' },
+      { specifier: './contract.js', typeOnly: true, syntax: 'import-equals' },
+    ]);
+  });
+
+  it('reports every build-level architecture violation from a fixture workspace', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'architecture-health-build-'));
+    temporaryRoots.push(root);
+    const writePackage = async (
+      name: string,
+      manifest: Record<string, unknown>,
+      files: Record<string, string>,
+    ) => {
+      const dir = path.join(root, 'packages', name);
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, 'package.json'), JSON.stringify(manifest));
+      for (const [relative, source] of Object.entries(files)) {
+        const target = path.join(dir, relative);
+        await mkdir(path.dirname(target), { recursive: true });
+        await writeFile(target, source);
+      }
+    };
+    await writePackage(
+      'core',
+      { name: 'core', dependencies: { a: 'workspace:*' } },
+      {
+        'src/unclassified/a.ts': "import './b.js';",
+        'src/unclassified/b.ts': "import './a.js';",
+      },
+    );
+    await writePackage(
+      'a',
+      { name: 'a', dependencies: { b: 'workspace:*' } },
+      {
+        'src/index.ts': 'export {};',
+        'tests/a.test.ts': 'export {};',
+      },
+    );
+    await writePackage(
+      'b',
+      { name: 'b', dependencies: { a: 'workspace:*' } },
+      {
+        'src/index.ts': 'export {};',
+      },
+    );
+    await writePackage(
+      'unnamed',
+      {},
+      {
+        'src/index.ts': 'export {};',
+      },
+    );
+    await writePackage(
+      'cli',
+      { name: 'cli' },
+      {
+        'src/execution.ts': "import './slash-commands/foo.js';",
+        'src/slash-commands/foo.ts': 'export {};',
+      },
+    );
+    await writePackage(
+      'excluded',
+      { name: 'excluded' },
+      {
+        'src/index.ts': 'export {};',
+      },
+    );
+    await mkdir(path.join(root, 'packages', 'no-manifest'), { recursive: true });
+    await writeFile(path.join(root, 'packages', 'README.md'), 'not a package');
+
+    const report = await buildArchitectureHealth({
+      repoRoot: root,
+      registry: {
+        scope: {
+          workspaceRoots: ['missing', 'packages'],
+          excludedPaths: ['packages/excluded'],
+        },
+        sourceExtensions: ['.ts'],
+        coreAreas: { stale: {} },
+        testProjects: [],
+      },
+      exceptions: {},
+      hotspots: { thresholdLines: 1_000, files: {} },
+    });
+
+    expect(report.errors.join('\n')).toContain('workspace package cycle');
+    expect(report.errors.join('\n')).toContain('unclassified Core areas');
+    expect(report.errors.join('\n')).toContain('stale Core registry areas');
+    expect(report.errors.join('\n')).toContain('without exactly one runtime project');
+    expect(report.errors.join('\n')).toContain('non-command module imports');
+    expect(report.errors.join('\n')).toContain('unexcepted module cycle');
+
+    const cleanRoot = await mkdtemp(path.join(tmpdir(), 'architecture-health-clean-'));
+    temporaryRoots.push(cleanRoot);
+    await mkdir(path.join(cleanRoot, 'packages', 'core', 'src'), { recursive: true });
+    await writeFile(
+      path.join(cleanRoot, 'packages', 'core', 'package.json'),
+      JSON.stringify({ name: 'core' }),
+    );
+    const clean = await buildArchitectureHealth({
+      repoRoot: cleanRoot,
+      registry: {
+        scope: { workspaceRoots: ['packages'], excludedPaths: [] },
+        sourceExtensions: ['.ts'],
+        coreAreas: {},
+        testProjects: [],
+      },
+      exceptions: {},
+      hotspots: { thresholdLines: 1_000, files: {} },
+    });
+    expect(clean.errors).toEqual([]);
+  });
+
   it('classifies runtime and type-only module edges', () => {
     const imports = collectModuleSpecifiers(
       [
@@ -60,6 +416,7 @@ describe('architecture health scanner', () => {
     ]);
 
     expect(stronglyConnectedComponents(adjacency.keys(), adjacency)).toEqual([['a', 'b'], ['d']]);
+    expect(stronglyConnectedComponents(['missing'], new Map())).toEqual([]);
   });
 
   it('matches zero or more directories for double-star globs', () => {
@@ -67,6 +424,15 @@ describe('architecture health scanner', () => {
     expect(pattern.test('tests/direct.test.ts')).toBe(true);
     expect(pattern.test('tests/nested/example.test.ts')).toBe(true);
     expect(pattern.test('src/example.test.ts')).toBe(false);
+  });
+
+  it('matches single-star, question-mark, and escaped regex characters in globs', () => {
+    const pattern = globToRegExp('packages/*/tests/file?.test.ts');
+    expect(pattern.test('packages/core/tests/file1.test.ts')).toBe(true);
+    expect(pattern.test('packages/core/nested/tests/file1.test.ts')).toBe(false);
+    expect(pattern.test('packages/core/tests/file12.test.ts')).toBe(false);
+    expect(globToRegExp('a+b.ts').test('a+b.ts')).toBe(true);
+    expect(globToRegExp('src/**.ts').test('src/nested/file.ts')).toBe(true);
   });
 
   it('blocks reusable CLI modules from importing command adapters', () => {
@@ -128,6 +494,26 @@ describe('architecture health scanner', () => {
     ).toEqual(['packages/core/tests/a.test.ts', 'packages/core/tests/b.test.ts']);
   });
 
+  it('rejects malformed Vitest file-list output', () => {
+    expect(() => parseVitestFileList('C:\\repo', 'not-json')).toThrow(
+      'Vitest returned invalid JSON',
+    );
+    expect(() => parseVitestFileList('C:\\repo', '{}')).toThrow('must be a JSON array');
+    expect(() => parseVitestFileList('C:\\repo', '[{}]')).toThrow('without a file path');
+    expect(parseVitestFileList('/repo', JSON.stringify(['tests/a.test.ts']))).toEqual([
+      'tests/a.test.ts',
+    ]);
+    const parse = JSON.parse;
+    JSON.parse = () => {
+      throw 'plain failure';
+    };
+    try {
+      expect(() => parseVitestFileList('/repo', 'ignored')).toThrow('plain failure');
+    } finally {
+      JSON.parse = parse;
+    }
+  });
+
   it('rejects zero collection, missing files, unexpected files, and overlapping projects', () => {
     const result = validateRuntimeTestInventory(
       [
@@ -148,6 +534,38 @@ describe('architecture health scanner', () => {
       'jsdom: 1 expected test file(s) were not collected: packages/b/tests/b.test.ts',
       'duplicate: 1 unexpected test file(s) were collected: packages/a/tests/a.test.ts',
       'packages/a/tests/a.test.ts: collected by multiple runtime projects: duplicate, node',
+    ]);
+  });
+
+  it('reports unknown assignments and returns clean per-project rows', () => {
+    const result = validateRuntimeTestInventory(
+      [
+        { file: 'ignored.test.ts', projects: ['node', 'jsdom'] },
+        { file: 'unknown.test.ts', projects: ['missing'] },
+        { file: 'node.test.ts', projects: ['node'] },
+      ],
+      new Map([['node', ['node.test.ts']]]),
+      ['node'],
+    );
+    expect(result.errors).toEqual(['unknown.test.ts: assigned to unknown runtime project missing']);
+    expect(result.projects).toEqual([
+      {
+        projectId: 'node',
+        expected: 1,
+        collected: 1,
+        missing: [],
+        unexpected: [],
+      },
+    ]);
+
+    expect(validateRuntimeTestInventory([], new Map(), ['empty']).projects).toEqual([
+      {
+        projectId: 'empty',
+        expected: 0,
+        collected: 0,
+        missing: [],
+        unexpected: [],
+      },
     ]);
   });
 });

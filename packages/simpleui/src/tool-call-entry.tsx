@@ -1,5 +1,6 @@
 import { Check, ChevronDown, ChevronRight, Clock, FileEdit, LoaderCircle, X } from 'lucide-react';
 import { memo, useState } from 'react';
+import { splitSageBlock } from './lib/sage-block.js';
 import { extractFileEditMeta } from './lib/timeline-model.js';
 import type { FileEditMeta, ToolCallInfo } from './types.js';
 
@@ -66,6 +67,25 @@ export const ToolCallEntry = memo(function ToolCallEntry({
   const label = toolLabel(toolCall.name);
   const time = formatTimestamp(toolCall.ts);
   const isFileEdit = fileEdit !== null;
+  // SAGE-injected memory is not tool output. Live results arrive already split
+  // on the wire as `toolCall.sage` (set by message-handler from `projection.sage`),
+  // so prefer that and skip the inline split. Replayed history still embeds the
+  // block inline in `toolCall.output`, so fall back to `splitSageBlock()` there.
+  // Either way the block gets its own MEMORY heading, never concatenated into
+  // the OUTPUT block.
+  const liveSageLines = toolCall.sage ?? [];
+  const replaySageLines =
+    liveSageLines.length > 0 || typeof toolCall.output !== 'string'
+      ? []
+      : splitSageBlock(toolCall.output).sageLines;
+  const sageLines = liveSageLines.length > 0 ? liveSageLines : replaySageLines;
+  const outputBody =
+    liveSageLines.length > 0
+      ? toolCall.output
+      : typeof toolCall.output === 'string'
+        ? splitSageBlock(toolCall.output).body
+        : undefined;
+  const memoryLines = sageLines.slice(1);
 
   return (
     <article className={`message tool-message ${toolCall.status}`}>
@@ -137,7 +157,16 @@ export const ToolCallEntry = memo(function ToolCallEntry({
             {toolCall.output !== undefined && (
               <section>
                 <span>OUTPUT</span>
-                <pre>{displayValue(toolCall.output)}</pre>
+                <pre>{displayValue(outputBody ?? toolCall.output)}</pre>
+              </section>
+            )}
+            {memoryLines.length > 0 && (
+              <section className="timeline-tool-memory">
+                <span>
+                  🧠 SAGE MEMORY · {memoryLines.length}{' '}
+                  {memoryLines.length === 1 ? 'memory' : 'memories'}
+                </span>
+                <pre>{memoryLines.join('\n')}</pre>
               </section>
             )}
           </div>

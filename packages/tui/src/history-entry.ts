@@ -1,5 +1,11 @@
 /** Render-neutral conversation entry contracts retained by TUI state. */
 
+import {
+  DEFAULT_MIN_IMPORTANCE,
+  DEFAULT_MIN_SCORE,
+  MIN_RELATION_STRENGTH,
+} from '@wrongstack/sage';
+
 // ── Autonomy agent status — used by the banner ────────────────────────────
 
 export interface AutonomyAgentStatus {
@@ -9,6 +15,11 @@ export interface AutonomyAgentStatus {
   online: boolean;
   /** Optional detail line (risk level, interval, model, etc.). */
   detail?: string | undefined;
+}
+
+export interface MemoryScoreTerm {
+  label: string;
+  value: number;
 }
 
 export interface MemoryActivationItem {
@@ -24,7 +35,28 @@ export interface MemoryActivationItem {
   confidence: number;
   freshness: number;
   persistence: string;
+  /** Metadata floor before weighting: (importance*3 + confidence*2 + freshness) / 6. */
+  metadataScore: number;
+  /** Signed score contributions; they sum to the pre-clamp `score`. */
+  scoreTerms: MemoryScoreTerm[];
 }
+
+/**
+ * Shipped memory-gate thresholds. Used as a fallback for legacy emitters and
+ * for session replays whose `memory.injector_run` payloads predate the
+ * thresholds field. Must agree with `@wrongstack/core/kernel/events`
+ * default gating — drift here produces a card that mis-states what the
+ * gates actually were at injection time.
+ */
+export const MEMORY_GATE_DEFAULTS: {
+  minScore: number;
+  minImportance: number;
+  relationFloor: number;
+} = {
+  minScore: DEFAULT_MIN_SCORE,
+  minImportance: DEFAULT_MIN_IMPORTANCE,
+  relationFloor: MIN_RELATION_STRENGTH,
+};
 
 export type HistoryEntry =
   | {
@@ -44,6 +76,24 @@ export type HistoryEntry =
       ok: boolean;
       input?: unknown | undefined;
       output?: string | undefined;
+      /**
+       * SAGE Memory Injector block for this call — `--- SAGE: … ---` header
+       * plus one line per injected memory — carried beside `output` because
+       * the event's ~400-char preview cap used to slice a memory line in half
+       * and leak the fragment into the tool body. Rendered by
+       * `SageMemoryBlock`. Absent for replayed entries, where the block is
+       * still inline in `output` and `extractSageBlock` recovers it.
+       */
+      sageLines?: string[] | undefined;
+      /**
+       * Compact injector arithmetic for the block above (`+N chars`, and the
+       * context pressure when it was high enough to shrink the budget).
+       * Rendered on the memory panel's own header — the injector used to
+       * restate the whole run as a second card beside it, which is the same
+       * event twice. Absent on replay: the numbers live in the event, not in
+       * the persisted tool result.
+       */
+      sageStats?: string | undefined;
       /** Full byte length of the result body the model actually received
        *  (post-cap, post-scrub). Carried separately because `output` is a
        *  ~400-char preview — `outputBytes` is what the model paid for. */
@@ -98,6 +148,14 @@ export type HistoryEntry =
       injectedChars: number;
       activated: MemoryActivationItem[];
       injectedIds: string[];
+      /**
+       * The text actually searched — tool path plus, when `inject.taskAware`
+       * is on, todo/Kanban text. This is the field that explains a match the
+       * operator cannot trace to anything they typed.
+       */
+      queryPreview: string;
+      /** Gates in force; a score without its bar is unreadable. */
+      thresholds: { minScore: number; minImportance: number; relationFloor: number };
       rejected: Record<
         'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget',
         number

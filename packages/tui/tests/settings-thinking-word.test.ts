@@ -5,7 +5,7 @@ import {
   THINKING_WORD_PRESETS,
 } from '../src/components/settings-picker.js';
 
-// Minimal settingsPicker state focused on the thinking-word field (21). Other
+// Minimal settingsPicker state focused on the thinking-word field (22). Other
 // fields are valid filler the reducer doesn't read for these operations.
 function settingsBase(overrides: Record<string, unknown> = {}) {
   return {
@@ -94,6 +94,18 @@ describe('thinking word — preset cycling (←/→)', () => {
     expect(back.settingsPicker.thinkingWord).toBe(
       THINKING_WORD_PRESETS[THINKING_WORD_PRESETS.length - 1],
     );
+  });
+
+  it('keeps thinking-word and reasoning-mode field indices independent', () => {
+    expect(THINKING_WORD_FIELD).toBe(22);
+
+    const s = reducer(base({ field: 23, thinkingWord: 'thinking', reasoningMode: 'auto' }), {
+      type: 'settingsValueChange',
+      delta: 1,
+    });
+
+    expect(s.settingsPicker.thinkingWord).toBe('thinking');
+    expect(s.settingsPicker.reasoningMode).toBe('on');
   });
 });
 

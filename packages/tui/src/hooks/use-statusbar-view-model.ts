@@ -30,23 +30,27 @@ interface TaskCounts {
 }
 
 function samePlanCounts(a: PlanCounts | null, b: PlanCounts | null): boolean {
-  return a === b ||
+  return (
+    a === b ||
     (a !== null &&
       b !== null &&
       a.open === b.open &&
       a.inProgress === b.inProgress &&
-      a.done === b.done);
+      a.done === b.done)
+  );
 }
 
 function sameTaskCounts(a: TaskCounts | null, b: TaskCounts | null): boolean {
-  return a === b ||
+  return (
+    a === b ||
     (a !== null &&
       b !== null &&
       a.pending === b.pending &&
       a.inProgress === b.inProgress &&
       a.completed === b.completed &&
       a.blocked === b.blocked &&
-      a.failed === b.failed);
+      a.failed === b.failed)
+  );
 }
 
 /** Builds status-bar projections without coupling them to the root App render. */
@@ -72,32 +76,44 @@ export function useStatusbarViewModel({
   taskCounts: TaskCounts | null;
 } {
   const maxContext = activeMaxContext ?? agent.ctx.provider.capabilities.maxContext;
+  // `currentRequestTokens()` is the per-request snapshot — the right number
+  // for the status bar. `tokenCounter.total()` is cumulative across the
+  // entire session and the `TokenCounter` type contract explicitly warns
+  // it cannot be compared meaningfully against a per-request maxContext
+  // ceiling (see packages/core/src/types/token-counter.ts:22-29). We never
+  // substitute `total()` into the bar: doing so yields a 100% reading after
+  // any model switch that targets a smaller context window, because the
+  // cumulative from the previous model can dwarf the new maxContext.
   const perRequest = tokenCounter?.currentRequestTokens();
   const perRequestTokens =
-    (perRequest?.input ?? 0) +
-    (perRequest?.cacheRead ?? 0) +
-    (perRequest?.cacheWrite ?? 0);
-  const cumulative = tokenCounter?.total();
-  const cumulativeTokens =
-    (cumulative?.input ?? 0) +
-    (cumulative?.cacheRead ?? 0) +
-    (cumulative?.cacheWrite ?? 0);
-  const providerReportedTokens = perRequestTokens > 0 ? perRequestTokens : cumulativeTokens;
-  const needLocalEstimate = providerReportedTokens <= 0;
+    (perRequest?.input ?? 0) + (perRequest?.cacheRead ?? 0) + (perRequest?.cacheWrite ?? 0);
+  // The breakdown is consumed by two consumers:
+  //  1. The status bar's fallback when `perRequestTokens === 0` (post-model
+  //     switch, before the new model has fired its first request).
+  //  2. The interactive ContextPanel's Composition tab, which needs the
+  //     per-category breakdown while the panel is open.
+  // Both conditions are independent: the panel can be open with a fresh
+  // `currentRequestTokens` snapshot (and still want the breakdown), and the
+  // panel can be closed while we still want the bar fallback. Compute the
+  // breakdown whenever either signal is set.
+  const needLocalEstimate = perRequestTokens <= 0;
+  const panelWantsBreakdown = state.contextPanelOpen;
+  const needBreakdown = needLocalEstimate || panelWantsBreakdown;
 
   const contextBreakdown = useMemo<ContextBreakdown | undefined>(() => {
-    if (!state.contextPanelOpen && !needLocalEstimate) return undefined;
+    if (!needBreakdown) return undefined;
     try {
       return getContextBreakdown(agent.ctx);
     } catch {
       return undefined;
     }
-  }, [agent.ctx, state.contextPanelOpen, needLocalEstimate, state.contextChipVersion]);
+  }, [agent.ctx, needBreakdown, state.contextChipVersion]);
 
-  const currentContextTokens = Math.min(
-    providerReportedTokens > 0 ? providerReportedTokens : (contextBreakdown?.total ?? 0),
-    maxContext,
-  );
+  // Bar reading: per-request snapshot, then panel-only local estimate, then
+  // 0 (bar hides via the `maxContext > 0` guard on contextWindow). Never
+  // the cumulative total — that is the bug this guard prevents.
+  const sourceTokens = perRequestTokens > 0 ? perRequestTokens : (contextBreakdown?.total ?? 0);
+  const currentContextTokens = Math.min(sourceTokens, maxContext);
   const contextWindow = useMemo(() => {
     void state.contextChipVersion;
     return maxContext > 0 ? { used: currentContextTokens, max: maxContext } : undefined;

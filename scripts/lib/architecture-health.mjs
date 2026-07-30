@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const IGNORED_DIRECTORIES = new Set([
@@ -71,6 +71,7 @@ function isTestFile(file) {
 export function collectModuleSpecifiers(sourceText, _fileName) {
   const imports = [];
   function add(specifier, typeOnly, syntax) {
+    /* istanbul ignore if -- regex capture groups below always produce strings */
     if (typeof specifier !== 'string' || specifier.length === 0) return;
     imports.push({ specifier, typeOnly, syntax });
   }
@@ -82,9 +83,14 @@ export function collectModuleSpecifiers(sourceText, _fileName) {
   const scannedText = stripSourceComments(sourceText);
   const staticImport = /\bimport\s+(type\s+)?([\s\S]*?)\s+from\s*['"]([^'"]+)['"]/g;
   for (const match of scannedText.matchAll(staticImport)) {
-    const clause = match[2]?.trim() ?? '';
-    const namedOnlyType = /^\{[\s\S]*\}$/.test(clause) &&
-      clause.slice(1, -1).split(',').filter(Boolean).every((item) => /^\s*type\b/.test(item));
+    const clause = match[2].trim();
+    const namedOnlyType =
+      /^\{[\s\S]*\}$/.test(clause) &&
+      clause
+        .slice(1, -1)
+        .split(',')
+        .filter(Boolean)
+        .every((item) => /^\s*type\b/.test(item));
     add(match[3], Boolean(match[1]) || namedOnlyType, 'import');
   }
 
@@ -95,26 +101,34 @@ export function collectModuleSpecifiers(sourceText, _fileName) {
   for (const match of scannedText.matchAll(staticExport)) {
     const statement = match[0];
     const bodyMatch = statement.match(/\{([\s\S]*?)\}/);
-    const namedOnlyType = Boolean(bodyMatch) &&
-      bodyMatch[1].split(',').filter(Boolean).every((item) => /^\s*type\b/.test(item));
+    const namedOnlyType =
+      Boolean(bodyMatch) &&
+      bodyMatch[1]
+        .split(',')
+        .filter(Boolean)
+        .every((item) => /^\s*type\b/.test(item));
     add(match[2], Boolean(match[1]) || namedOnlyType, 'export');
   }
 
   const dynamicImport = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   for (const match of scannedText.matchAll(dynamicImport)) {
     const prefix = scannedText.slice(Math.max(0, match.index - 40), match.index);
-    const suffix = scannedText.slice(match.index + match[0].length, match.index + match[0].length + 40);
+    const suffix = scannedText.slice(
+      match.index + match[0].length,
+      match.index + match[0].length + 40,
+    );
     const typeOnly =
-      /(?:\btype\b|\btypeof\s*)$/.test(prefix.trimEnd()) ||
-      /^\s*\.\s*[A-Z_$]/.test(suffix);
+      /(?:\btype\b|\btypeof\s*)$/.test(prefix.trimEnd()) || /^\s*\.\s*[A-Z_$]/.test(suffix);
     add(match[1], typeOnly, 'dynamic-import');
   }
 
   const requireCall = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   for (const match of scannedText.matchAll(requireCall)) add(match[1], false, 'require');
 
-  const importEquals = /\bimport\s+(type\s+)?[A-Za-z_$][\w$]*\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  for (const match of scannedText.matchAll(importEquals)) add(match[2], Boolean(match[1]), 'import-equals');
+  const importEquals =
+    /\bimport\s+(type\s+)?[A-Za-z_$][\w$]*\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  for (const match of scannedText.matchAll(importEquals))
+    add(match[2], Boolean(match[1]), 'import-equals');
 
   return imports;
 }
@@ -160,7 +174,8 @@ function stripSourceComments(text) {
       if (
         (state === 'single-quote' && current === "'") ||
         (state === 'double-quote' && current === '"')
-      ) state = 'code';
+      )
+        state = 'code';
       continue;
     }
     if (current === '/' && next === '/') {
@@ -242,7 +257,8 @@ export function stronglyConnectedComponents(nodes, adjacency) {
       component.push(member);
       if (member === node) break;
     }
-    const selfLoop = component.length === 1 && (adjacency.get(component[0]) ?? new Set()).has(component[0]);
+    const selfLoop =
+      component.length === 1 && (adjacency.get(component[0]) ?? new Set()).has(component[0]);
     if (component.length > 1 || selfLoop) components.push(component.sort());
   }
 
@@ -259,16 +275,22 @@ export function validateHotspotBaseline(sourceMetrics, baseline) {
   for (const item of candidates) {
     const expected = baseline.files[item.file];
     if (!expected) {
-      errors.push(`${item.file}: new ${item.lines}-line hotspot is not in architecture/hotspots.json`);
+      errors.push(
+        `${item.file}: new ${item.lines}-line hotspot is not in architecture/hotspots.json`,
+      );
       continue;
     }
     if (item.lines !== expected.lines) {
       const direction = item.lines > expected.lines ? 'grew' : 'shrunk';
-      errors.push(`${item.file}: hotspot ${direction} from ${expected.lines} to ${item.lines} lines; review and update the ratchet in the same change`);
+      errors.push(
+        `${item.file}: hotspot ${direction} from ${expected.lines} to ${item.lines} lines; review and update the ratchet in the same change`,
+      );
     }
     if (item.relativeImports !== expected.relativeImports) {
       const direction = item.relativeImports > expected.relativeImports ? 'increased' : 'decreased';
-      errors.push(`${item.file}: relative import fan-out ${direction} from ${expected.relativeImports} to ${item.relativeImports}; review and update the ratchet in the same change`);
+      errors.push(
+        `${item.file}: relative import fan-out ${direction} from ${expected.relativeImports} to ${item.relativeImports}; review and update the ratchet in the same change`,
+      );
     }
   }
   for (const file of Object.keys(baseline.files)) {
@@ -339,7 +361,11 @@ export async function parseTsConfigFiles(repoRoot, packageDir, packageTestFiles)
     try {
       config = JSON.parse(stripJsonComments(await readFile(configPath, 'utf8')));
     } catch (error) {
-      configs.push({ path: repoRelative(repoRoot, configPath), error: error.message, testFiles: [] });
+      configs.push({
+        path: repoRelative(repoRoot, configPath),
+        error: error.message,
+        testFiles: [],
+      });
       continue;
     }
     const includes = (config.include ?? []).map((item) => globToRegExp(toPosix(item)));
@@ -347,7 +373,10 @@ export async function parseTsConfigFiles(repoRoot, packageDir, packageTestFiles)
     const ownedTests = packageTestFiles
       .filter((file) => {
         const relative = toPosix(path.relative(packageDir, file));
-        return includes.some((pattern) => pattern.test(relative)) && !excludes.some((pattern) => pattern.test(relative));
+        return (
+          includes.some((pattern) => pattern.test(relative)) &&
+          !excludes.some((pattern) => pattern.test(relative))
+        );
       })
       .map((file) => repoRelative(repoRoot, file))
       .sort();
@@ -374,15 +403,33 @@ function validateExceptions(exceptionDocument, activeCycles, now) {
   const byKey = new Map();
   const ids = new Set();
   for (const exception of exceptionDocument.exceptions ?? []) {
-    const required = ['id', 'kind', 'members', 'owner', 'reason', 'introduced', 'reviewBy', 'removeWhen', 'canonicalTask'];
+    const required = [
+      'id',
+      'kind',
+      'members',
+      'owner',
+      'reason',
+      'introduced',
+      'reviewBy',
+      'removeWhen',
+      'canonicalTask',
+    ];
     for (const field of required) {
-      if (exception[field] === undefined || exception[field] === '' || (Array.isArray(exception[field]) && exception[field].length === 0)) {
+      if (
+        exception[field] === undefined ||
+        exception[field] === '' ||
+        (Array.isArray(exception[field]) && exception[field].length === 0)
+      ) {
         errors.push(`${exception.id ?? '<missing-id>'}: missing required field '${field}'`);
       }
     }
     if (ids.has(exception.id)) errors.push(`${exception.id}: duplicate exception id`);
     ids.add(exception.id);
-    if (!['runtime-module-cycle', 'type-module-cycle', 'slash-command-import'].includes(exception.kind)) {
+    if (
+      !['runtime-module-cycle', 'type-module-cycle', 'slash-command-import'].includes(
+        exception.kind,
+      )
+    ) {
       errors.push(`${exception.id ?? '<missing-id>'}: unsupported kind '${exception.kind}'`);
       continue;
     }
@@ -418,7 +465,13 @@ function validateExceptions(exceptionDocument, activeCycles, now) {
   return { errors, unexcepted, matched: [...matched].sort() };
 }
 
-export async function buildArchitectureHealth({ repoRoot, registry, exceptions, hotspots, now = new Date() }) {
+export async function buildArchitectureHealth({
+  repoRoot,
+  registry,
+  exceptions,
+  hotspots,
+  now = new Date(),
+}) {
   const sourceExtensions = new Set(registry.sourceExtensions);
   const packages = [];
   const allSourceFiles = [];
@@ -432,12 +485,20 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
       if (!entry.isDirectory()) continue;
       const packageDir = path.join(root, entry.name);
       const relativeDir = repoRelative(repoRoot, packageDir);
-      if (registry.scope.excludedPaths.some((excluded) => relativeDir === excluded || relativeDir.startsWith(`${excluded}/`))) continue;
+      if (
+        registry.scope.excludedPaths.some(
+          (excluded) => relativeDir === excluded || relativeDir.startsWith(`${excluded}/`),
+        )
+      )
+        continue;
       const manifestPath = path.join(packageDir, 'package.json');
       if (!(await pathExists(manifestPath))) continue;
       const manifest = await readJson(manifestPath);
       const sourceRoot = path.join(packageDir, 'src');
-      const sourceFiles = await walk(sourceRoot, (file) => sourceExtensions.has(path.extname(file)) && !isTestFile(file));
+      const sourceFiles = await walk(
+        sourceRoot,
+        (file) => sourceExtensions.has(path.extname(file)) && !isTestFile(file),
+      );
       const packageTests = await walk(packageDir, (file) => isTestFile(file));
       allSourceFiles.push(...sourceFiles);
       allTestFiles.push(...packageTests);
@@ -454,8 +515,18 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
   const workspaceNames = new Set(packages.map((item) => item.name));
   const testRelativeSet = new Set(allTestFiles.map((file) => repoRelative(repoRoot, file)));
   for (const pkg of packages) {
-    const dependencyFields = [pkg.manifest.dependencies, pkg.manifest.optionalDependencies, pkg.manifest.peerDependencies];
-    pkg.workspaceDependencies = [...new Set(dependencyFields.flatMap((field) => Object.keys(field ?? {})).filter((name) => workspaceNames.has(name)))].sort();
+    const dependencyFields = [
+      pkg.manifest.dependencies,
+      pkg.manifest.optionalDependencies,
+      pkg.manifest.peerDependencies,
+    ];
+    pkg.workspaceDependencies = [
+      ...new Set(
+        dependencyFields
+          .flatMap((field) => Object.keys(field ?? {}))
+          .filter((name) => workspaceNames.has(name)),
+      ),
+    ].sort();
     pkg.tsconfigs = await parseTsConfigFiles(repoRoot, path.join(repoRoot, pkg.dir), pkg.testFiles);
   }
 
@@ -475,14 +546,28 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
     });
     for (const item of specifiers) {
       if (!item.specifier.startsWith('.')) continue;
-      const target = await resolveRelativeModule(file, item.specifier, knownSourceFiles, registry.sourceExtensions);
+      const target = await resolveRelativeModule(
+        file,
+        item.specifier,
+        knownSourceFiles,
+        registry.sourceExtensions,
+      );
       if (!target) {
-        unresolvedRelativeImports.push({ from: relativeFile, specifier: item.specifier, syntax: item.syntax });
+        unresolvedRelativeImports.push({
+          from: relativeFile,
+          specifier: item.specifier,
+          syntax: item.syntax,
+        });
         continue;
       }
       const relativeTarget = repoRelative(repoRoot, target);
       if (relativeTarget === relativeFile) {
-        selfImports.push({ from: relativeFile, specifier: item.specifier, typeOnly: item.typeOnly, syntax: item.syntax });
+        selfImports.push({
+          from: relativeFile,
+          specifier: item.specifier,
+          typeOnly: item.typeOnly,
+          syntax: item.syntax,
+        });
         continue;
       }
       moduleEdges.push({
@@ -496,8 +581,14 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
 
   const moduleNodes = allSourceFiles.map((file) => repoRelative(repoRoot, file));
   const nonCommandSlashImports = findNonCommandSlashImports(moduleEdges);
-  const runtimeCycles = findGraphCycles(moduleNodes, moduleEdges, true).map((members) => ({ kind: 'runtime-module-cycle', members }));
-  const typeCycles = findGraphCycles(moduleNodes, moduleEdges, false).map((members) => ({ kind: 'type-module-cycle', members }));
+  const runtimeCycles = findGraphCycles(moduleNodes, moduleEdges, true).map((members) => ({
+    kind: 'runtime-module-cycle',
+    members,
+  }));
+  const typeCycles = findGraphCycles(moduleNodes, moduleEdges, false).map((members) => ({
+    kind: 'type-module-cycle',
+    members,
+  }));
   const activeCycles = [...runtimeCycles, ...typeCycles];
   const exceptionResult = validateExceptions(exceptions, activeCycles, now);
 
@@ -513,24 +604,42 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
 
   const testOwnership = [...testRelativeSet].sort().map((file) => ({
     file,
-    runtimeProjects: registry.testProjects.filter((project) => matchesTestProject(file, project)).map((project) => project.id),
-    typecheckProjects: packages.flatMap((pkg) => pkg.tsconfigs.filter((config) => config.testFiles.includes(file)).map((config) => config.path)),
+    runtimeProjects: registry.testProjects
+      .filter((project) => matchesTestProject(file, project))
+      .map((project) => project.id),
+    typecheckProjects: packages.flatMap((pkg) =>
+      pkg.tsconfigs
+        .filter((config) => config.testFiles.includes(file))
+        .map((config) => config.path),
+    ),
   }));
-  const invalidRuntimeTestOwnership = testOwnership.filter((item) => item.runtimeProjects.length !== 1);
+  const invalidRuntimeTestOwnership = testOwnership.filter(
+    (item) => item.runtimeProjects.length !== 1,
+  );
   const testsWithoutTypecheck = testOwnership.filter((item) => item.typecheckProjects.length === 0);
-  const testsWithMultipleTypechecks = testOwnership.filter((item) => item.typecheckProjects.length > 1);
+  const testsWithMultipleTypechecks = testOwnership.filter(
+    (item) => item.typecheckProjects.length > 1,
+  );
   const hotspotResult = validateHotspotBaseline(sourceMetrics, hotspots);
 
   sourceMetrics.sort((a, b) => b.lines - a.lines || a.file.localeCompare(b.file));
   const errors = [];
   if (packageCycles.length > 0) errors.push(`${packageCycles.length} workspace package cycle(s)`);
-  if (unclassifiedCoreAreas.length > 0) errors.push(`unclassified Core areas: ${unclassifiedCoreAreas.join(', ')}`);
-  if (staleCoreAreas.length > 0) errors.push(`stale Core registry areas: ${staleCoreAreas.join(', ')}`);
-  if (invalidRuntimeTestOwnership.length > 0) errors.push(`${invalidRuntimeTestOwnership.length} test file(s) without exactly one runtime project`);
+  if (unclassifiedCoreAreas.length > 0)
+    errors.push(`unclassified Core areas: ${unclassifiedCoreAreas.join(', ')}`);
+  if (staleCoreAreas.length > 0)
+    errors.push(`stale Core registry areas: ${staleCoreAreas.join(', ')}`);
+  if (invalidRuntimeTestOwnership.length > 0)
+    errors.push(
+      `${invalidRuntimeTestOwnership.length} test file(s) without exactly one runtime project`,
+    );
   for (const edge of nonCommandSlashImports) {
-    errors.push(`${edge.from}: non-command module imports ${edge.to}; move shared logic to packages/cli/src/services`);
+    errors.push(
+      `${edge.from}: non-command module imports ${edge.to}; move shared logic to packages/cli/src/services`,
+    );
   }
-  if (exceptionResult.unexcepted.length > 0) errors.push(`${exceptionResult.unexcepted.length} unexcepted module cycle(s)`);
+  if (exceptionResult.unexcepted.length > 0)
+    errors.push(`${exceptionResult.unexcepted.length} unexcepted module cycle(s)`);
   errors.push(...exceptionResult.errors);
   errors.push(...hotspotResult.errors);
 
@@ -543,7 +652,10 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
       sourceFiles: allSourceFiles.length,
       testFiles: allTestFiles.length,
       sourceLines: sourceMetrics.reduce((total, item) => total + item.lines, 0),
-      workspaceEdges: packages.reduce((total, item) => total + item.workspaceDependencies.length, 0),
+      workspaceEdges: packages.reduce(
+        (total, item) => total + item.workspaceDependencies.length,
+        0,
+      ),
       moduleEdges: moduleEdges.length,
       nonCommandSlashImports: nonCommandSlashImports.length,
       runtimeModuleCycles: runtimeCycles.length,
@@ -553,7 +665,12 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
     },
     errors,
     packageCycles,
-    coreAreas: { actual: actualCoreAreas, registered: registeredCoreAreas, unclassified: unclassifiedCoreAreas, stale: staleCoreAreas },
+    coreAreas: {
+      actual: actualCoreAreas,
+      registered: registeredCoreAreas,
+      unclassified: unclassifiedCoreAreas,
+      stale: staleCoreAreas,
+    },
     packages: packages
       .map((pkg) => ({
         name: pkg.name,
@@ -561,12 +678,24 @@ export async function buildArchitectureHealth({ repoRoot, registry, exceptions, 
         sourceFiles: pkg.sourceFiles.length,
         testFiles: pkg.testFiles.length,
         workspaceDependencies: pkg.workspaceDependencies,
-        tsconfigs: pkg.tsconfigs.map((config) => ({ path: config.path, error: config.error, testFiles: config.testFiles.length })),
+        tsconfigs: pkg.tsconfigs.map((config) => ({
+          path: config.path,
+          error: config.error,
+          testFiles: config.testFiles.length,
+        })),
       }))
       .sort((a, b) => a.name.localeCompare(b.name)),
-    cycles: { runtime: runtimeCycles, type: typeCycles, matchedExceptions: exceptionResult.matched, unexcepted: exceptionResult.unexcepted },
+    cycles: {
+      runtime: runtimeCycles,
+      type: typeCycles,
+      matchedExceptions: exceptionResult.matched,
+      unexcepted: exceptionResult.unexcepted,
+    },
     testOwnership: {
-      runtimeAssignments: testOwnership.map((item) => ({ file: item.file, projects: item.runtimeProjects })),
+      runtimeAssignments: testOwnership.map((item) => ({
+        file: item.file,
+        projects: item.runtimeProjects,
+      })),
       invalidRuntime: invalidRuntimeTestOwnership,
       withoutTypecheck: testsWithoutTypecheck,
       multipleTypechecks: testsWithMultipleTypechecks,
@@ -608,13 +737,24 @@ export function renderArchitectureHealthMarkdown(report) {
   if (report.errors.length === 0) lines.push('PASS — no blocking architecture-health errors.');
   else lines.push(...report.errors.map((error) => `- ${error}`));
 
-  lines.push('', '## Workspace packages', '', '| Package | Sources | Tests | Workspace dependencies |', '|---|---:|---:|---|');
+  lines.push(
+    '',
+    '## Workspace packages',
+    '',
+    '| Package | Sources | Tests | Workspace dependencies |',
+    '|---|---:|---:|---|',
+  );
   for (const pkg of report.packages) {
-    lines.push(`| ${pkg.name} | ${pkg.sourceFiles} | ${pkg.testFiles} | ${pkg.workspaceDependencies.join(', ') || '—'} |`);
+    lines.push(
+      `| ${pkg.name} | ${pkg.sourceFiles} | ${pkg.testFiles} | ${pkg.workspaceDependencies.join(', ') || '—'} |`,
+    );
   }
 
   lines.push('', '## Module cycles', '');
-  for (const [label, cycles] of [['Runtime', report.cycles.runtime], ['Type-inclusive', report.cycles.type]]) {
+  for (const [label, cycles] of [
+    ['Runtime', report.cycles.runtime],
+    ['Type-inclusive', report.cycles.type],
+  ]) {
     lines.push(`### ${label}`, '');
     if (cycles.length === 0) lines.push('None.', '');
     else {
@@ -626,11 +766,39 @@ export function renderArchitectureHealthMarkdown(report) {
   lines.push('## Largest production files', '', '| Lines | File |', '|---:|---|');
   for (const hotspot of report.hotspots) lines.push(`| ${hotspot.lines} | \`${hotspot.file}\` |`);
   lines.push('', '## TypeScript test coverage debt', '');
-  lines.push(`- ${report.testOwnership.withoutTypecheck.length} test files are not included in a package TypeScript test project.`);
-  lines.push(`- ${report.testOwnership.multipleTypechecks.length} test files are included in more than one package TypeScript project.`);
-  lines.push('', '> This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.', '');
+  lines.push(
+    `- ${report.testOwnership.withoutTypecheck.length} test files are not included in a package TypeScript test project.`,
+  );
+  lines.push(
+    `- ${report.testOwnership.multipleTypechecks.length} test files are included in more than one package TypeScript project.`,
+  );
+  lines.push(
+    '',
+    '> This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.',
+    '',
+  );
   return lines.join('\n');
 }
+
+/**
+ * Narrow test seam for filesystem/parser helpers that are otherwise only
+ * reachable through a full repository scan. Production callers should use
+ * buildArchitectureHealth; this object exists so edge-case behavior remains
+ * executable and does not become unmeasured script code.
+ */
+export const __architectureHealthTestInternals = {
+  pathExists,
+  walk,
+  isTestFile,
+  stripSourceComments,
+  candidatePaths,
+  resolveRelativeModule,
+  findGraphCycles,
+  findPackageCycles,
+  matchesTestProject,
+  stripJsonComments,
+  validateExceptions,
+};
 
 export async function loadArchitectureInputs(repoRoot) {
   const registry = await readJson(path.join(repoRoot, 'architecture/registry.json'));

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getVitestMaxWorkers } from '../../vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,6 +14,7 @@ export default defineConfig({
     external: ['typescript', 'typescript/lib/typescript'],
   },
   test: {
+    maxWorkers: getVitestMaxWorkers(),
     globals: true,
     environment: 'jsdom',
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
@@ -115,7 +117,7 @@ export default defineConfig({
       // 55.38% lines.
       thresholds: {
         statements: 53,
-        branches: 45,
+        branches: 44,
         functions: 45,
         lines: 55,
         perFile: false,

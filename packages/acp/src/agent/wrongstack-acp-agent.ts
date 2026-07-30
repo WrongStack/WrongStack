@@ -26,8 +26,9 @@
  */
 
 import { createServer, type Server } from 'node:http';
+import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
-import { writeErr } from '@wrongstack/core/utils';
+import { expandIPv6, writeErr } from '@wrongstack/core/utils';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
   ACPProtocolHandler,
@@ -52,8 +53,8 @@ export interface WrongStackACPServerOptions {
   /**
    * Bearer token required for HTTP transport authentication. When set,
    * every HTTP request must include `Authorization: Bearer <token>` or
-   * `?token=<token>` in the query string. When unset, the server is
-   * unauthenticated (acceptable for loopback-only development).
+   * `?token=<token>` in the query string. Non-loopback HTTP binds require
+   * a token; loopback-only development may remain unauthenticated.
    */
   authToken?: string | undefined;
   /** Emit the pre-v1 startup marker on stdio. Defaults to false. */
@@ -141,7 +142,10 @@ export class WrongStackACPServer {
   private async startHttp(port: number): Promise<void> {
     const host = this.options.host ?? '127.0.0.1';
     const handler = this.handler;
-    const authToken = this.options.authToken;
+    const authToken = this.options.authToken?.trim();
+    if (!authToken && !isLoopbackHost(host)) {
+      throw new Error('ACP HTTP transport requires authToken for non-loopback hosts');
+    }
 
     // Serialize HTTP requests to prevent concurrent transport.send races.
     // The ACPProtocolHandler stores a single transport reference; without
@@ -325,8 +329,28 @@ function requestPath(value: string | undefined): string {
   return value ?? '/';
 }
 
+function isLoopbackHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  if (normalized === 'localhost') return true;
+
+  const literal = normalized.startsWith('[') && normalized.endsWith(']')
+    ? normalized.slice(1, -1)
+    : normalized;
+  const version = isIP(literal);
+  if (version === 4) return literal.startsWith('127.');
+  if (version !== 6) return false;
+
+  const groups = expandIPv6(literal);
+  return groups !== null && groups.slice(0, 7).every((group) => group === 0) && groups[7] === 1;
+}
+
 /** Direct-module test seam; not re-exported by the package barrel. */
-export const wrongStackACPServerCoverage = { defaultEchoRunTurn, headerValue, requestPath };
+export const wrongStackACPServerCoverage = {
+  defaultEchoRunTurn,
+  headerValue,
+  isLoopbackHost,
+  requestPath,
+};
 
 /**
  * Bootstrap function for `node dist/agent/wrongstack-acp-agent.js`.

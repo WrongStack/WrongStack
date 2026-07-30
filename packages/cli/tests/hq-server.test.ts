@@ -232,7 +232,6 @@ describe('HQ server', () => {
 
     expect(handle.firstRunSetup).toMatchObject({
       dataDir,
-      browserUrl: `http://127.0.0.1:${handle.port}/?token=existing-browser-token`,
       clientUrl: `ws://127.0.0.1:${handle.port}/ws/client?token=existing-client-token`,
       clientEnv: {
         WRONGSTACK_HQ_URL: `http://127.0.0.1:${handle.port}`,
@@ -240,6 +239,14 @@ describe('HQ server', () => {
       },
       createdAuth: false,
     });
+
+    // The browser link carries a single-use bootstrap code in the fragment
+    // (exchanged for an HttpOnly cookie at /api/auth/bootstrap), never the
+    // long-lived browser token.
+    expect(handle.firstRunSetup?.browserUrl).toMatch(
+      new RegExp(`^http://127\\.0\\.0\\.1:${handle.port}/#bootstrap=[A-Za-z0-9_-]{43}$`),
+    );
+    expect(handle.firstRunSetup?.browserUrl).not.toContain('existing-browser-token');
   });
 
   it('rejects with EADDRINUSE when strictPort is true and the port is busy', async () => {

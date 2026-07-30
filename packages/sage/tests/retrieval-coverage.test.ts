@@ -98,12 +98,28 @@ describe('query relevance completion coverage', () => {
   });
 
   it('scores anchor, tag, and textual term match tiers', () => {
-    const anchored = memoryQueryRelevance(
+    // Symbol/command anchors are word evidence; a *path* anchor is not. A
+    // path only counts when the query names it verbatim, or when the
+    // middleware matches it against the file a tool actually touched —
+    // otherwise every `token-validator.ts` in the repo looks like evidence
+    // for every other one.
+    const anchoredByTerms = memoryQueryRelevance(
+      sage({
+        anchors: [
+          { type: 'command', command: 'pnpm release:check' },
+          { type: 'command', command: 'pnpm typecheck' },
+        ],
+      }),
+      'release:check typecheck',
+    );
+    expect(anchoredByTerms.strength).toBeGreaterThanOrEqual(0.83);
+    expect(anchoredByTerms.evidence[0]).toContain('anchor-terms');
+
+    const anchoredByPathAlone = memoryQueryRelevance(
       sage({ anchors: [{ type: 'file', path: 'src/authentication/token-validator.ts' }] }),
       'authentication token-validator',
     );
-    expect(anchored.strength).toBeGreaterThanOrEqual(0.83);
-    expect(anchored.evidence[0]).toContain('anchor-terms');
+    expect(anchoredByPathAlone.strength).toBe(0);
 
     const tagged = memoryQueryRelevance(
       sage({ text: 'unrelated', tags: ['authentication', 'authorization', 'security'] }),
@@ -112,8 +128,9 @@ describe('query relevance completion coverage', () => {
     expect(tagged.strength).toBeGreaterThanOrEqual(0.84);
     expect(tagged.evidence).toEqual(expect.arrayContaining([expect.stringContaining('tag-terms')]));
 
-    expect(memoryQueryRelevance(sage(), 'alpha beta gamma delta').strength).toBe(0.86);
-    expect(memoryQueryRelevance(sage(), 'alpha beta').strength).toBe(0.7);
+    // Four matched terms that are the whole query: the memory answered it.
+    expect(memoryQueryRelevance(sage(), 'alpha beta gamma delta').strength).toBe(0.84);
+    expect(memoryQueryRelevance(sage(), 'alpha beta').strength).toBe(0.72);
     expect(memoryQueryRelevance(sage(), 'alpha').strength).toBe(0.66);
     expect(memoryQueryRelevance(sage(), 'alpha unmatched broad query').strength).toBe(0);
   });

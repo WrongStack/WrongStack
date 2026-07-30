@@ -30,6 +30,7 @@ import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
 import {
   handleApiAuthStatus,
+  handleApiBootstrap,
   handleApiLogin,
   handleApiLogout,
   handleApiPassword,
@@ -54,6 +55,7 @@ export const setHqSecurityHeaders = HqServerAuth.setHqSecurityHeaders;
 export const hasTrustedBrowserOrigin = HqServerAuth.hasTrustedBrowserOrigin;
 export const authenticateBrowserRequest = HqServerAuth.authenticateBrowserRequest;
 export const isTokenAuth = HqServerAuth.isTokenAuth;
+export const isCookieAuth = HqServerAuth.isCookieAuth;
 export const setHqSessionCookie = HqServerAuth.setHqSessionCookie;
 export const clearHqSessionCookie = HqServerAuth.clearHqSessionCookie;
 export const serializeHqSessionCookie = HqServerAuth.serializeHqSessionCookie;
@@ -66,6 +68,7 @@ export const readRequestBody = HqServerUtils.readRequestBody;
 export const writeInvalidBody = HqServerUtils.writeInvalidBody;
 export const sanitizeApiError = HqServerUtils.sanitizeApiError;
 export const buildHttpUrl = HqServerUtils.buildHttpUrl;
+export const buildBootstrapHttpUrl = HqServerUtils.buildBootstrapHttpUrl;
 export const buildClientWsUrl = HqServerUtils.buildClientWsUrl;
 export const agentRingKey = HqServerUtils.agentRingKey;
 export const agentMessageToEntry = HqServerUtils.agentMessageToEntry;
@@ -78,6 +81,7 @@ export const hqRuntimeMarkerPath = HqServerUtils.hqRuntimeMarkerPath;
 import type {
   ConnectedClient,
   HqRouterMutableAuth,
+  HqSessionEntry,
   HqSnapshotBroadcaster,
   ProjectDetail,
   TranscriptRing,
@@ -103,7 +107,7 @@ export interface HqRouterDeps {
   listeningPort: number;
   trustedPublicOrigins: Set<string>;
   mutableAuth: HqRouterMutableAuth;
-  sessions: Map<string, { createdAt: number }>;
+  sessions: Map<string, HqSessionEntry>;
   loginAttempts: Map<string, { count: number; blockedUntil: number; lastAttempt: number }>;
   clients: Map<WebSocket, ConnectedClient>;
   browsers: Set<WebSocket>;
@@ -126,6 +130,8 @@ export interface HqRouterDeps {
   getMailboxGateway: (projectDir: string) => HqRouterMailboxGateway;
   /** Aggregate token-expiry stats for snapshot totals + alert engine. */
   getTokenStats?: (() => HqSnapshot['totals']['tokenStats'] | undefined) | undefined;
+  /** One-time bootstrap code store for token-to-cookie exchange. */
+  bootstrapStore?: import('@wrongstack/core/hq').HqBootstrapCodeStore | undefined;
 }
 
 // ── Route handler factory ──────────────────────────────────────────────────
@@ -161,6 +167,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
     getMailboxGateway,
     getTokenStats,
     trustBoundary,
+    bootstrapStore,
   } = deps;
 
   return async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
@@ -180,6 +187,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         url.pathname.startsWith('/api/') &&
         url.pathname !== '/api/auth/status' &&
         url.pathname !== '/api/login' &&
+        url.pathname !== '/api/auth/bootstrap' &&
         (requireBrowserAuth ||
           mutableAuth.browserTokens.size > 0 ||
           mutableAuth.passwordHash)
@@ -227,6 +235,23 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
       if (url.pathname === '/api/login' && req.method === 'POST') {
         await handleApiLogin(req, res, mutableAuth, sessions, loginAttempts, secureCookies);
+        return;
+      }
+
+      if (url.pathname === '/api/auth/bootstrap' && req.method === 'POST') {
+        if (bootstrapStore) {
+          await handleApiBootstrap(req, res, mutableAuth, sessions, secureCookies, bootstrapStore);
+        } else {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: {
+                code: 'BOOTSTRAP_UNAVAILABLE',
+                message: 'Bootstrap exchange is not enabled on this HQ server.',
+              },
+            }),
+          );
+        }
         return;
       }
 
@@ -511,7 +536,7 @@ async function handleApiCommand(
   res: http.ServerResponse,
   url: URL,
   mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
   clients: Map<WebSocket, ConnectedClient>,
   browsers: Set<WebSocket>,
   auditLog: HqCommandAuditLog,
@@ -525,14 +550,13 @@ async function handleApiCommand(
     res.end(JSON.stringify({ error: 'unauthorized' }));
     return;
   }
-  const tokenObj = isTokenAuth(auth)
-    ? mutableAuth.browserTokenObjs.get(auth.token)
-    : undefined;
-  const canEnqueue =
-    auth === 'cookie' ||
-    !inBrowserTokenMode ||
-    tokenObj?.capabilities === undefined ||
-    tokenObj.capabilities.includes('control.enqueue');
+  const canEnqueue = isCookieAuth(auth)
+    ? auth.tokenId === undefined ||
+      auth.capabilities === undefined ||
+      auth.capabilities.includes('control.enqueue')
+    : isTokenAuth(auth)
+      ? auth.capabilities === undefined || auth.capabilities.includes('control.enqueue')
+      : !inBrowserTokenMode;
   if (!canEnqueue) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
@@ -609,13 +633,17 @@ async function handleApiCommand(
     return;
   }
 
-  const enqueuedBy = auth === 'cookie' ? 'password-session' : (tokenObj?.id ?? 'open-mode');
+  const enqueuedBy = isCookieAuth(auth)
+    ? (auth.tokenId ?? 'password-session')
+    : isTokenAuth(auth)
+      ? auth.id
+      : 'open-mode';
   const authorization = await authorizeHqCommand({
     boundary: trustBoundary,
     command: validated,
     commandId,
     enqueuedBy,
-    authMethod: auth === 'cookie' ? 'session' : 'bearer-token',
+    authMethod: isCookieAuth(auth) ? 'session' : 'bearer-token',
     target,
   });
   if (!authorization.allowed) {
@@ -647,7 +675,7 @@ async function handleApiMailboxSend(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
   mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
   dataDir: string,
   getMailboxGateway: (projectDir: string) => HqRouterMailboxGateway,
   hqSessionTag: string,
@@ -658,12 +686,13 @@ async function handleApiMailboxSend(
     mutableAuth,
     sessions,
   );
-  const token = isTokenAuth(auth) ? mutableAuth.browserTokenObjs.get(auth.token) : undefined;
-  const canEnqueue =
-    auth === 'cookie' ||
-    mutableAuth.browserTokens.size === 0 ||
-    token?.capabilities === undefined ||
-    token.capabilities.includes('control.enqueue');
+  const canEnqueue = isCookieAuth(auth)
+    ? auth.tokenId === undefined ||
+      auth.capabilities === undefined ||
+      auth.capabilities.includes('control.enqueue')
+    : isTokenAuth(auth)
+      ? auth.capabilities === undefined || auth.capabilities.includes('control.enqueue')
+      : mutableAuth.browserTokens.size === 0;
   if (!canEnqueue) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
@@ -789,7 +818,7 @@ async function handleMailboxAction(
   res: http.ServerResponse,
   match: RegExpMatchArray,
   _mutableAuth: HqRouterMutableAuth,
-  _sessions: Map<string, { createdAt: number }>,
+  _sessions: Map<string, HqSessionEntry>,
   dataDir: string,
   getMailboxGateway: (projectDir: string) => HqRouterMailboxGateway,
 ): Promise<void> {

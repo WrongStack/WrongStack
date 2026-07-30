@@ -129,6 +129,13 @@ interface Props {
    * map.
    */
   renderMode?: 'simple' | 'extend' | undefined;
+  /**
+   * SAGE Memory Injector lines delivered out-of-band by `tool.executed.sage`.
+   * Authoritative when present: the backend split the block off the tool text
+   * before its preview cap, so `result` carries no SAGE suffix to recover.
+   * Replayed messages have no such field and fall back to splitting `result`.
+   */
+  sageLines?: string[] | undefined;
 }
 
 /**
@@ -145,17 +152,19 @@ export const ToolResult = memo(function ToolResult({
   isError,
   className,
   renderMode,
+  sageLines: sageLinesFromEvent,
 }: Props) {
-  // The SAGE Memory Injector middleware appends a `--- SAGE: ... ---`
-  // suffix to the tool result. We extract it and render it as a separate
-  // bordered card below the normal body so the injection evidence never
-  // pollutes the tool-result text. The split mirrors the TUI's
-  // `extractSageBlock` so both surfaces agree on what counts as a SAGE
-  // suffix.
-  const { cleanOutput, sageLines } = useMemo(
-    () => extractSageBlock(result),
-    [result],
-  );
+  // SAGE-injected memory is rendered as its own bordered card, never as tool
+  // text. Live tool results carry it out-of-band (`tool.executed.sage`), split
+  // off by the backend before the event's preview cap — the cap used to land
+  // inside a memory line and leak the fragment into this body. Replayed
+  // messages still have the block inline in the persisted tool_result content,
+  // so fall back to splitting the text; that split mirrors the TUI's
+  // `extractSageBlock` so both surfaces agree on what counts as a SAGE suffix.
+  const split = useMemo(() => extractSageBlock(result), [result]);
+  const cleanOutput = split.cleanOutput;
+  const sageLines =
+    sageLinesFromEvent && sageLinesFromEvent.length > 0 ? sageLinesFromEvent : split.sageLines;
   const shape = useMemo(() => detectShape(toolName, cleanOutput), [toolName, cleanOutput]);
   const { t } = useAppTranslation();
   // `simple` starts the body collapsed so the user sees only the meta

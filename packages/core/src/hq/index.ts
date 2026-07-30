@@ -12,6 +12,7 @@ export * from './commands.js';
 export * from './alerts.js';
 export * from './transcript-mapper.js';
 export * from './auth-store.js';
+export * from './bootstrap-store.js';
 export * from './auth-audit.js';
 export * from './exposure.js';
 export * from './redaction.js';

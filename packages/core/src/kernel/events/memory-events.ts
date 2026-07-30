@@ -5,6 +5,34 @@ import type {
   MemoryRememberedPayload,
 } from '../../types/memory.js';
 
+/**
+ * One memory's decision record inside a `memory.injector_run` trace.
+ *
+ * Structural on purpose: core must not depend on the SAGE package. The
+ * producer is `toTraceMemory` in `@wrongstack/sage`; keep the two in step.
+ */
+export interface MemoryInjectorTraceMemory {
+  id: string;
+  kind: string;
+  text: string;
+  /** Final gate score, already clamped to 0..1. */
+  score: number;
+  /** The relation gate's own value — checked against `thresholds.relationFloor`. */
+  relationStrength: number;
+  anchor?: string | undefined;
+  anchors: string[];
+  tags: string[];
+  activationReasons: string[];
+  importance: number;
+  confidence: number;
+  freshness: number;
+  persistence: string;
+  /** Metadata floor before weighting: (importance*3 + confidence*2 + freshness) / 6. */
+  metadataScore: number;
+  /** Signed score contributions; they sum to the pre-clamp `score`. */
+  scoreTerms: Array<{ label: string; value: number }>;
+}
+
 export interface MemoryEventMap {
   /** Cache hit on session store load — used by observability layers. */
   'storage.cache_hit': {
@@ -183,6 +211,13 @@ export interface MemoryEventMap {
     taskSignals: string[];
     contextPressure: number;
     budget: { maxHints: number; maxChars: number };
+    /**
+     * Gates in force for this run. A score is unreadable without them — 0.78
+     * only means something once you know the bar it was measured against.
+     * `relationFloor` is usually the one that decides: it rejects a candidate
+     * before the composite score is ever consulted.
+     */
+    thresholds: { minScore: number; minImportance: number; relationFloor: number };
     candidates: number;
     eligible: number;
     rejected: {
@@ -192,36 +227,8 @@ export interface MemoryEventMap {
       cooldown: number;
       budget: number;
     };
-    activated: Array<{
-      id: string;
-      kind: string;
-      text: string;
-      score: number;
-      relationStrength: number;
-      anchor?: string | undefined;
-      anchors: string[];
-      tags: string[];
-      activationReasons: string[];
-      importance: number;
-      confidence: number;
-      freshness: number;
-      persistence: string;
-    }>;
-    injected: Array<{
-      id: string;
-      kind: string;
-      text: string;
-      score: number;
-      relationStrength: number;
-      anchor?: string | undefined;
-      anchors: string[];
-      tags: string[];
-      activationReasons: string[];
-      importance: number;
-      confidence: number;
-      freshness: number;
-      persistence: string;
-    }>;
+    activated: MemoryInjectorTraceMemory[];
+    injected: MemoryInjectorTraceMemory[];
     injectedChars: number;
     error?: string | undefined;
     sessionId?: string | undefined;

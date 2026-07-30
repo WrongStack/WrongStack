@@ -112,6 +112,13 @@ export function visibleChars(text: string): number {
 // ── Per-kind exact layout computation ────────────────────────────────────
 
 /**
+ * Mirrors `MAX_MEMORY_PROOF_ROWS` in components/history/entry.tsx. The two
+ * must agree or the memory-activation card's row estimate drifts from what
+ * Ink renders.
+ */
+const MAX_MEMORY_PROOF_ENTRIES = 4;
+
+/**
  * Compute the exact terminal rows an entry occupies at the given terminal
  * width. This is the core of the layout engine — it mirrors what the Ink
  * component tree actually produces, but runs in O(1) and does not mount
@@ -136,6 +143,10 @@ export function computeEntryRows(
     hasNextSteps?: boolean;
     /** For 'assistant' content: how many code blocks, approximate. */
     codeBlockCount?: number;
+    /** For 'memory-activation': how many memories were injected (proof rows). */
+    memoryInjectedCount?: number;
+    /** For 'memory-activation': whether the searched-query line is rendered. */
+    memoryHasQuery?: boolean;
   },
 ): number {
   const w = Math.max(MIN_CONTENT_WIDTH, termWidth);
@@ -249,11 +260,18 @@ export function computeEntryRows(
     }
 
     // ── Memory activation ──
-    // Bordered card: top (1) + header line (1) + optional injected line (1) +
-    // optional rejected line (1) + bottom (1)
+    // Bordered card: top (1) + header (1) + bottom (1) + margin (1), plus an
+    // optional query line, two rows per shown memory (verdict + score terms),
+    // an optional overflow line, and an optional rejected line. Every added
+    // line renders with wrap="truncate-end", so each is exactly one row at
+    // any terminal width — keep it that way or this count drifts.
     case 'memory-activation': {
       let rows = 4; // top + header + bottom + margin
-      if (text) rows += 1; // detail line
+      if (meta?.memoryHasQuery) rows += 1;
+      const proofs = Math.min(meta?.memoryInjectedCount ?? 0, MAX_MEMORY_PROOF_ENTRIES);
+      rows += proofs * 2;
+      if ((meta?.memoryInjectedCount ?? 0) > MAX_MEMORY_PROOF_ENTRIES) rows += 1; // overflow
+      if (text) rows += 1; // rejected/detail line
       return rows;
     }
 

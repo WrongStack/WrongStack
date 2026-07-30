@@ -44,7 +44,7 @@ export function validateRuntimeTestInventory(runtimeAssignments, collectedByProj
 
   const rows = [];
   for (const projectId of projectIds) {
-    const expected = expectedByProject.get(projectId) ?? new Set();
+    const expected = expectedByProject.get(projectId);
     const collected = new Set(collectedByProject.get(projectId) ?? []);
     const missing = [...expected].filter((file) => !collected.has(file)).sort();
     const unexpected = [...collected].filter((file) => !expected.has(file)).sort();

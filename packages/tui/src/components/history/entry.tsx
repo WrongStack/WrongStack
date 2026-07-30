@@ -20,12 +20,15 @@ import {
 } from './code-block.js';
 import { ToolCard } from './tool-card.js';
 import type { HistoryEntry } from './types.js';
+import { MEMORY_GATE_DEFAULTS } from '../../history-entry.js';
 import {
   fmtBytes,
   fmtTok,
   formatToolArgs,
   formatToolOutputSage,
   formatToolVisualOutput,
+  parseSageMemoryLine,
+  type ParsedSageMemoryLine,
   shortenPath,
   stringOf,
   ToolOutputLines,
@@ -33,6 +36,28 @@ import {
 } from './utils.js';
 
 // ── Internal helpers ──
+
+/**
+ * Per-memory proof costs two rows each, so an 8-hint run would push a 20-row
+ * card into the transcript. Show the top few (the list arrives score-sorted)
+ * and count the rest; the side panel keeps the full set.
+ */
+const MAX_MEMORY_PROOF_ROWS = 4;
+
+/**
+ * Render the signed score contributions as `metadata 0.72×0.48 +0.34 │ …`.
+ * Uses U+2212 for negatives so a minus is not mistaken for a hyphen inside
+ * the labels, which themselves contain `×` and digits.
+ */
+function formatScoreTerms(terms: ReadonlyArray<{ label: string; value: number }>): string {
+  if (terms.length === 0) return 'no score breakdown (emitted by an older core build)';
+  return terms
+    .map((term) => {
+      const magnitude = Math.abs(term.value).toFixed(2);
+      return `${term.label} ${term.value < 0 ? '−' : '+'}${magnitude}`;
+    })
+    .join(' │ ');
+}
 
 function brainStatusStyle(status: Extract<HistoryEntry, { kind: 'brain' }>['status']): {
   icon: string;
@@ -335,6 +360,7 @@ export const Entry = React.memo(function Entry({
             entry.ok,
             entry.outputBytes,
             entry.outputLines,
+            entry.sageLines,
           );
           const visualLines = formatToolVisualOutput(
             entry.name,
@@ -419,6 +445,7 @@ export const Entry = React.memo(function Entry({
         }, [
           entry.name,
           entry.output,
+          entry.sageLines,
           entry.input,
           entry.ok,
           entry.outputBytes,
@@ -500,7 +527,11 @@ export const Entry = React.memo(function Entry({
                 />
               ) : null}
             </ToolCard>
-            <SageMemoryBlock sageLines={sageLines} toolName={entry.name} />
+            <SageMemoryBlock
+              sageLines={sageLines}
+              toolName={entry.name}
+              stats={entry.sageStats}
+            />
           </Box>
         );
       }
@@ -591,23 +622,38 @@ export const Entry = React.memo(function Entry({
               />
             ) : null}
           </ToolCard>
-          <SageMemoryBlock sageLines={sageLines} toolName={entry.name} />
+          <SageMemoryBlock sageLines={sageLines} toolName={entry.name} stats={entry.sageStats} />
         </Box>
       );
     }
     case 'memory-activation': {
+      // Only a FAILED run gets its own card. A successful one is already on
+      // screen as the SAGE memory panel under the tool result — showing the
+      // injector's arithmetic beside it said the same thing twice, so the
+      // numbers moved onto that panel's header and the full decision proof
+      // (scores against their gates, the searched query, reject buckets)
+      // lives in the context panel, which also keeps the runs that injected
+      // nothing. The proof render below stays for the error path and for
+      // sessions replayed from before this split.
+      if (!entry.error) return null;
       const rejected = Object.entries(entry.rejected)
         .filter(([, count]) => count > 0)
         .map(([reason, count]) => `${reason} ${count}`)
         .join(' · ');
-      const injected = entry.activated.filter((memory) => entry.injectedIds.includes(memory.id));
-      const injectedSummary = injected
-        .slice(0, 3)
-        .map((memory) => memory.id)
-        .join(', ');
-      const why = [...new Set(injected.flatMap((memory) => memory.activationReasons))]
-        .slice(0, 3)
-        .join(' · ');
+      // On a failed run, `injectedIds` is empty (nothing made it through the
+      // gate), so filtering activated by it would blank the proof card. Show
+      // every activated candidate instead — the operator still wants to see
+      // what was considered before the rejection, with score vs gates.
+      const injected =
+        entry.outcome === 'error'
+          ? entry.activated
+          : entry.activated.filter((memory) => entry.injectedIds.includes(memory.id));
+      const shown = injected.slice(0, MAX_MEMORY_PROOF_ROWS);
+      const overflow = injected.length - shown.length;
+      // Entries rehydrated from a session recorded before the proof fields
+      // existed carry neither thresholds nor score terms. Fall back to the
+      // shipped defaults rather than crashing the whole transcript render.
+      const thresholds = entry.thresholds ?? MEMORY_GATE_DEFAULTS;
       return (
         <Box flexDirection="column" borderStyle="single" borderColor="magenta" paddingX={1}>
           <Box flexDirection="row">
@@ -620,15 +666,38 @@ export const Entry = React.memo(function Entry({
             </Text>
           </Box>
           {entry.error ? <Text color="red">{`error: ${entry.error}`}</Text> : null}
-          {injectedSummary ? (
-            <Text>
-              <Text color="green">{'injected '}</Text>
-              <Text
-                dimColor
-              >{`${injectedSummary}${injected.length > 3 ? ` +${injected.length - 3}` : ''}`}</Text>
-              {why ? <Text dimColor>{` · why: ${why}`}</Text> : null}
+          {/* The searched text, not the user's message. When task-aware
+              planning is on this carries todo/Kanban text, which is usually
+              the real reason an "unrelated" memory matched. */}
+          {entry.queryPreview ? (
+            <Text dimColor wrap="truncate-end">
+              {`query: ${entry.queryPreview}`}
             </Text>
           ) : null}
+          {shown.map((memory) => {
+            const scorePass = memory.score >= thresholds.minScore;
+            const relationPass = memory.relationStrength >= thresholds.relationFloor;
+            const reason = memory.activationReasons[0] ?? 'no recorded reason';
+            return (
+              <Box key={memory.id} flexDirection="column">
+                <Text wrap="truncate-end">
+                  <Text color="green">{`${memory.id} `}</Text>
+                  <Text color={scorePass ? 'green' : 'red'}>
+                    {`${memory.score.toFixed(2)} ${scorePass ? '✓' : '✗'} ${thresholds.minScore.toFixed(2)}`}
+                  </Text>
+                  <Text dimColor>{' · relation '}</Text>
+                  <Text color={relationPass ? 'green' : 'red'}>
+                    {`${memory.relationStrength.toFixed(2)} ${relationPass ? '✓' : '✗'} ${thresholds.relationFloor.toFixed(2)}`}
+                  </Text>
+                  <Text dimColor>{` · ${reason}`}</Text>
+                </Text>
+                <Text dimColor wrap="truncate-end">
+                  {`  ${formatScoreTerms(memory.scoreTerms ?? [])}`}
+                </Text>
+              </Box>
+            );
+          })}
+          {overflow > 0 ? <Text dimColor>{`  +${overflow} more injected`}</Text> : null}
           {rejected ? <Text dimColor>{`filtered: ${rejected}`}</Text> : null}
         </Box>
       );
@@ -885,14 +954,36 @@ export const Entry = React.memo(function Entry({
 /**
  * Compact magenta-bordered panel rendering SAGE memory-injection lines
  * appended to a tool result. Renders nothing when `sageLines` is empty.
+ *
+ * Layout:
+ *
+ *   ┌ 🧠 SAGE MEMORY INJECTED · <tool>  N memories ────────────────┐
+ *   │ [kind][importance]                                                │
+ *   │     text body (wrapped to panel width)                            │
+ *   │     id: mem_…  anchor: pkg/path  relation: about_file            │
+ *   │     tags: t1, t2, t3                                              │
+ *   │ [next memory …]                                                    │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * Each memory is parsed by `parseSageMemoryLine` and rendered as key/value
+ * rows instead of the raw `[kind] <memory id="…">text</memory> (anchor) […]`
+ * blob. Lines that fail to parse fall back to the literal text so a future
+ * SAGE format change cannot silently drop data.
  */
 function SageMemoryBlock({
   sageLines,
   toolName,
+  stats,
 }: {
-  sageLines: string[];
+  // `HistoryEntry.sageLines` is optional — replayed entries recover the block
+  // inline from `output` via `extractSageBlock`, so the structured form may be
+  // absent. Guard before slicing; an empty/null block means "no panel" here,
+  // not "renderer crash".
+  sageLines?: string[] | undefined;
   toolName: string;
+  stats?: string | undefined;
 }): React.ReactElement | null {
+  if (!sageLines || sageLines.length < 2) return null;
   const memoryLines = sageLines.slice(1);
   if (memoryLines.length === 0) return null;
   return (
@@ -908,15 +999,59 @@ function SageMemoryBlock({
         <Text bold color={theme.accent}>
           {`🧠 SAGE MEMORY INJECTED · ${toolName}  `}
         </Text>
-        <Text
-          dimColor
-        >{`${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`}</Text>
-      </Box>
-      {memoryLines.map((line, i) => (
-        <Text key={i} color={theme.accent} dimColor>
-          {line}
+        <Text dimColor>
+          {`${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${
+            stats ? ` · ${stats}` : ''
+          }`}
         </Text>
-      ))}
+      </Box>
+      {memoryLines.map((line, i) => {
+        const parsed = parseSageMemoryLine(line);
+        if (!parsed) {
+          return (
+            <Text key={i} color={theme.accent} dimColor wrap="truncate-end">
+              {line}
+            </Text>
+          );
+        }
+        return <SageMemoryRow key={i} parsed={parsed} index={i} />;
+      })}
+    </Box>
+  );
+}
+
+/** One parsed memory, rendered as a structured key/value row block. */
+function SageMemoryRow({
+  parsed,
+  index,
+}: {
+  parsed: ParsedSageMemoryLine;
+  index: number;
+}): React.ReactElement {
+  const labelText = parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]';
+  const tagText = parsed.tags && parsed.tags.length > 0 ? parsed.tags.join(', ') : undefined;
+  return (
+    <Box flexDirection="column" marginTop={index > 0 ? 1 : 0}>
+      <Text bold color={theme.accent}>
+        {labelText}
+      </Text>
+      <Text color={theme.textPrimary}>{parsed.text}</Text>
+      <Box flexDirection="row" flexWrap="wrap">
+        <SageKv label="id" value={parsed.id} />
+        {parsed.anchor ? <SageKv label="anchor" value={parsed.anchor} /> : null}
+        {parsed.relation ? <SageKv label="relation" value={parsed.relation} /> : null}
+        {tagText ? <SageKv label="tags" value={tagText} /> : null}
+      </Box>
+    </Box>
+  );
+}
+
+/** Compact key/value row used inside `SageMemoryRow`. */
+function SageKv({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <Box flexDirection="row" marginRight={2}>
+      <Text dimColor>{`${label}: `}</Text>
+      <Text color={theme.textSecondary}>{value}</Text>
     </Box>
   );
 }

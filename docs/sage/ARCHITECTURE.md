@@ -437,15 +437,16 @@ Parallel Retrieval:
   ├── retrieveForPath() per path  ← anchor matches
   └── searchSuper()               ← lexical matches
   ↓
-Graph Expansion (from strong seeds: relationStrength >= 0.7)
+Graph Expansion (from strong seeds: relationStrength >= 0.9, maxDepth 2)
   ↓
 Scoring Pipeline:
   ├── Dedupe by normalized text (normalizeTextKey)
-  ├── Filter: relationStrength >= 0.62
-  ├── contextualInjectionScore = metadata*0.52 + relation*0.48 + persistenceBoost + kindBoost - unusedPenalty
-  ├── Filter: score >= minScore (default 0.65)
+  ├── Filter: importance >= minImportance (default 0.5)
+  ├── Filter: relationStrength >= 0.75   ← the gate that usually decides
+  ├── contextualInjectionScore = metadata*0.48 + relation*0.48 + persistenceBoost + kindBoost - unusedPenalty
+  ├── Filter: score >= minScore (default 0.72)
   ├── Remove: already visible in context
-  └── Apply cooldown (30min per memory per session)
+  └── Apply cooldown (default: once per memory per session)
   ↓
 Diversity Selection (selectDiverseMemories):
   ├── At most 3 per kind

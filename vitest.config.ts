@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { getVitestMaxWorkers } from './vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -48,19 +49,16 @@ export default defineConfig({
     // NOTE: the old `poolOptions.forks.singleFork` knob was removed in
     // Vitest 4 and had been silently ignored — do not reintroduce it.
     pool: 'forks',
-    // Cap fork workers at a quarter of the logical cores. At the default (= all
-    // 32 logical cores) spawn-heavy tests (bash/git/biome/mock servers) starve:
+    // Cap fork workers explicitly. At Vitest's default (= all 32 logical cores
+    // on the main development machine), spawn-heavy tests
+    // (bash/git/biome/mock servers) starve:
     // each release:check run failed a different set with empty output, wrong
     // exit codes, or timeouts — all passing in isolation. Shells spawned BY
     // tests need free cores too, and live dev servers share this machine.
     //
-    // 50% (~16 workers) still flaked a single file per full run on this machine
-    // — system-prompt-builder / wiring-plugins / plug-lsp intermittently failed
-    // under worker contention while passing in isolation. Dropping to 25%
-    // (~8 workers) leaves headroom for test-spawned shells and the dev servers
-    // that share this box. Raise only if full-suite wall-time becomes the
-    // bottleneck and the machine is otherwise idle.
-    maxWorkers: '25%',
+    // Four workers leave headroom for test-spawned shells and shared dev
+    // servers; watch mode uses two workers to stay responsive while editing.
+    maxWorkers: getVitestMaxWorkers(),
     // 5s (the default) flakes under full-suite load on this machine: with
     // ~16 fork workers competing, wiring-plugins / system-prompt-builder /
     // plug-lsp setup intermittently time out while passing in isolation.

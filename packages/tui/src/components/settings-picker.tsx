@@ -316,11 +316,6 @@ export function SettingsPicker({
       value: formatMultiDiffSummaryThreshold(multiDiffSummaryThreshold),
       detail: 'Min files before aggregate header (0 = off, default 5, 10 for big diffs)',
     },
-    {
-      label: 'Read symbols',
-      value: boolVal(readSymbols),
-      detail: 'Include codebase-index symbols in read tool results',
-    },
     // ── Reasoning ──
     { section: 'Reasoning' },
     {
@@ -436,6 +431,13 @@ export function SettingsPicker({
       label: 'Pre-refine countdown',
       value: formatPreRefineSeconds(preRefineSeconds),
       detail: 'Grace period before refiner starts (0 = skip)',
+    },
+    // Appended to preserve the established field indices used by settings
+    // reducers, slash commands, and persisted lastSettingsField values.
+    {
+      label: 'Read symbols',
+      value: boolVal(readSymbols),
+      detail: 'Include codebase-index symbols in read tool results',
     },
   ];
 

@@ -228,6 +228,7 @@ const profiles = {
     entries: {
       index: 'src/index.ts',
       'project-server': 'src/project-server.ts',
+      'middleware/tool-call-memory': 'src/middleware/tool-call-memory.ts',
     },
     external: ['@wrongstack/core', '@wrongstack/core/utils'],
   },

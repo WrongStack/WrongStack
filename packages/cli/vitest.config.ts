@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,10 +17,7 @@ export default defineConfig({
         __dirname,
         '../../packages/core/src/coordination/agents/index.ts',
       ),
-      '@wrongstack/core/agent': path.resolve(
-        __dirname,
-        '../../packages/core/src/core/index.ts',
-      ),
+      '@wrongstack/core/agent': path.resolve(__dirname, '../../packages/core/src/core/index.ts'),
       '@wrongstack/core': path.resolve(__dirname, '../../packages/core/src'),
       '@wrongstack/tools': path.resolve(__dirname, '../../packages/tools/src'),
     },
@@ -40,7 +38,7 @@ export default defineConfig({
     // Hermes ~/.wrongstack: redirect global state to per-worker temp dir so
     // tests never read the user's real config or leak fixture project dirs.
     setupFiles: ['../../vitest.setup.ts'],
-    // Cap fork workers to prevent spawn-heavy tests from starving.
-    maxWorkers: '25%',
+    // Cap workers to prevent spawn-heavy tests from starving.
+    maxWorkers: getVitestMaxWorkers(),
   },
 });

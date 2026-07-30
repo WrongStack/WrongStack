@@ -5,20 +5,115 @@
 // the task complete on exit 0. No command → no-op. Bounded by a timeout so a
 // hung verifier can't wedge the run.
 //
-// core may use node:child_process directly — it already does for git detection.
+// SECURITY: verification commands are spawned as executable + argv with
+// `shell: false`. The command string is tokenized into an argv array *without*
+// shell interpolation, so metacharacters (;  &&  |  $()  etc.) are passed as
+// literal arguments to the executable rather than being interpreted by a shell.
+// This is defense-in-depth: even if the authorization gate on
+// `set_task_verification` were bypassed, an attacker cannot achieve shell
+// injection through the verification command.
 
 import { spawn } from 'node:child_process';
 import type { TaskNode, TaskResult } from '@wrongstack/core/types';
 
 export interface CommandVerifierOptions {
-  /** Metadata key holding the shell command to run. Default 'verificationCommand'. */
+  /** Metadata key holding the verification command. Default 'verificationCommand'. */
   metadataKey?: string;
   /** Kill + fail the verification after this many ms. Default 180_000 (3 min). */
   timeoutMs?: number;
 }
 
-export function verificationShell(platform: NodeJS.Platform): [shell: string, ...args: string[]] {
-  return platform === 'win32' ? ['cmd', '/d', '/c'] : ['sh', '-c'];
+/**
+ * Tokenize a command string into an argv array **without** shell interpolation.
+ *
+ * Splits on whitespace while respecting single and double quotes (matching
+ * POSIX shell quoting rules for the common cases). Shell metacharacters
+ * (`;`, `|`, `&&`, `$()`, backticks, `>`, `<`) that appear *inside* a token
+ * are preserved as literal characters — they are passed to the executable as
+ * argument data, never interpreted by a shell.
+ *
+ * Returns `undefined` when the input is empty/whitespace or contains
+ * unbalanced quotes (which would indicate a malformed command).
+ */
+export function tokenizeCommand(command: string): string[] | undefined {
+  const trimmed = command.trim();
+  if (!trimmed) return undefined;
+
+  const argv: string[] = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+  let hasToken = false;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed[i]!;
+
+    if (inSingle) {
+      if (ch === "'") {
+        inSingle = false;
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+
+    if (inDouble) {
+      if (ch === '"') {
+        inDouble = false;
+      } else if (ch === '\\' && i + 1 < trimmed.length) {
+        // Inside double quotes, backslash escapes only ", \, $, and `.
+        const next = trimmed[i + 1]!;
+        if (next === '"' || next === '\\' || next === '$' || next === '`') {
+          current += next;
+          i++;
+        } else {
+          current += ch;
+        }
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+
+    if (ch === "'") {
+      inSingle = true;
+      hasToken = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inDouble = true;
+      hasToken = true;
+      continue;
+    }
+
+    if (ch === '\\' && i + 1 < trimmed.length) {
+      // Outside quotes, backslash escapes the next character literally.
+      current += trimmed[i + 1]!;
+      i++;
+      hasToken = true;
+      continue;
+    }
+
+    if (ch === ' ' || ch === '\t') {
+      if (hasToken) {
+        argv.push(current);
+        current = '';
+        hasToken = false;
+      }
+      continue;
+    }
+
+    current += ch;
+    hasToken = true;
+  }
+
+  // Unbalanced quote — refuse to execute.
+  if (inSingle || inDouble) return undefined;
+
+  if (hasToken) argv.push(current);
+
+  return argv.length > 0 ? argv : undefined;
 }
 
 /** Shape shared by every SDD task verifier (matches SddParallelRunOptions.verifyTask). */
@@ -103,8 +198,13 @@ export function makeAcceptanceCriteriaVerifier(
 /**
  * Build a `verifyTask` closure (shape matches {@link SddParallelRunOptions.verifyTask}).
  * Returns `{ ok: true }` immediately when the task carries no verification command,
- * otherwise spawns the command in `cwd` (shell, output discarded) and resolves
- * `{ ok: false, reason }` on non-zero exit, spawn error, or timeout.
+ * otherwise spawns the command in `cwd` as `executable + argv` with `shell: false`
+ * (no shell interpolation), and resolves `{ ok: false, reason }` on non-zero exit,
+ * spawn error, malformed command, or timeout.
+ *
+ * Defense-in-depth: even if the authorization gate on `set_task_verification`
+ * were bypassed, shell metacharacters (`;`, `|`, `&&`, `$()`, etc.) are tokenized
+ * into literal arguments rather than being interpreted by a shell.
  */
 export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
   const metadataKey = options.metadataKey ?? 'verificationCommand';
@@ -115,17 +215,20 @@ export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
     result: TaskResult;
     cwd: string;
   }): Promise<{ ok: boolean; reason?: string }> {
-    const cmd = info.task.metadata?.[metadataKey];
-    if (typeof cmd !== 'string' || !cmd.trim()) return { ok: true };
+    const rawCommand = info.task.metadata?.[metadataKey];
+    if (typeof rawCommand !== 'string' || !rawCommand.trim()) return { ok: true };
+
+    // Tokenize the command string into executable + argv WITHOUT shell
+    // interpolation. Metacharacters become literal argument data.
+    const argv = tokenizeCommand(rawCommand);
+    if (!argv || argv.length === 0) {
+      return { ok: false, reason: `verification command is malformed: ${rawCommand}` };
+    }
+
+    const [executable, ...args] = argv;
 
     return await new Promise((resolve) => {
-      // Parse the command string through an explicit shell invocation rather than
-      // spawn(..., { shell: true }), which lets Node interpolate the whole string
-      // and exposes any metacharacters (;  &&  |  $()  etc.) as injection vectors
-      // in the command itself.  sh -c "cmd" / cmd /s /c "cmd" passes the full string
-      // to the shell as a single positional argument — the shell interprets it, not Node.
-      const [shell, ...shellArgs] = verificationShell(process.platform);
-      const child = spawn(shell, [...shellArgs, cmd], {
+      const child = spawn(executable!, args, {
         cwd: info.cwd,
         shell: false,
         windowsHide: true,
@@ -135,7 +238,7 @@ export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
       const timer = setTimeout(() => {
         timedOut = true;
         child.kill();
-        resolve({ ok: false, reason: `verification timed out: ${cmd}` });
+        resolve({ ok: false, reason: `verification timed out: ${rawCommand}` });
       }, timeoutMs);
       child.on('exit', (code) => {
         clearTimeout(timer);
@@ -144,7 +247,7 @@ export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
         resolve(
           code === 0
             ? { ok: true }
-            : { ok: false, reason: `verification failed (exit ${code}): ${cmd}` },
+            : { ok: false, reason: `verification failed (exit ${code}): ${rawCommand}` },
         );
       });
       child.on('error', (err) => {

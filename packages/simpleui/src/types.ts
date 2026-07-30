@@ -114,6 +114,14 @@ export interface ToolCallInfo {
   ok?: boolean | undefined;
   /** ISO timestamp set when the tool call starts — drives timeline ordering. */
   ts?: string | undefined;
+  /**
+   * Live SAGE Memory Injector block, header line first. Carried separately
+   * from `output` so the renderer can give it its own MEMORY heading instead
+   * of concatenating the `--- SAGE: … ---` suffix into the OUTPUT block.
+   * Replayed history still embeds the block inline in `output`; the entry
+   * renderer splits it via `splitSageBlock()` as a fallback.
+   */
+  sage?: string[] | undefined;
 }
 
 /** File edit metadata extracted from tool call output (edit/write/patch). */

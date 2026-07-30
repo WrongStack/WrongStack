@@ -60,7 +60,7 @@ export function searchSqliteSage(
         )
         .all(...statusFilter, ...scopeParams, ftsQuery, limit) as Array<{ data: string }>;
     let rows = runFts(terms.join(' '));
-    if (rows.length === 0 && terms.length > 1) {
+    if (rows.length === 0 && terms.length > 1 && !opts?.requireAllTerms) {
       rows = runFts(terms.join(' OR '));
     }
     return sqliteRowsToMemories(rows).filter(audienceFilter);

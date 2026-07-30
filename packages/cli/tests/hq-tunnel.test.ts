@@ -32,12 +32,19 @@ describe('HQ Cloudflare Quick Tunnel helpers', () => {
     ).toBe(true);
   });
 
-  it('forwards the first-run browser token only when requested', () => {
-    const local = 'http://127.0.0.1:3499/?token=secret-token';
+  it('forwards the bootstrap fragment only when requested', () => {
+    const local = 'http://127.0.0.1:3499/#bootstrap=abc123';
     expect(buildPublicHqUrl('https://quiet-river.trycloudflare.com', local, true)).toBe(
-      'https://quiet-river.trycloudflare.com/?token=secret-token',
+      'https://quiet-river.trycloudflare.com/#bootstrap=abc123',
     );
     expect(buildPublicHqUrl('https://quiet-river.trycloudflare.com', local, false)).toBe(
+      'https://quiet-river.trycloudflare.com/',
+    );
+  });
+
+  it('never forwards query-string tokens', () => {
+    const local = 'http://127.0.0.1:3499/?token=secret-token';
+    expect(buildPublicHqUrl('https://quiet-river.trycloudflare.com', local, true)).toBe(
       'https://quiet-river.trycloudflare.com/',
     );
   });

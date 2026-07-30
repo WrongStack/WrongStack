@@ -169,6 +169,19 @@ export function buildHttpUrl(host: string, port: number, token?: string): string
   return url.toString();
 }
 
+/**
+ * Build the browser startup URL with a one-time bootstrap code in the
+ * fragment (`#bootstrap=…`). Fragments never reach HTTP access logs,
+ * Referer headers, or proxy caches — unlike query-string tokens. The
+ * SPA extracts the fragment, POSTs it to `/api/auth/bootstrap`, and
+ * receives only an HttpOnly session cookie.
+ */
+export function buildBootstrapHttpUrl(host: string, port: number, bootstrapCode: string): string {
+  const url = new URL(`http://${displayHost(host)}:${port}/`);
+  url.hash = `bootstrap=${bootstrapCode}`;
+  return url.toString();
+}
+
 export function buildClientWsUrl(host: string, port: number, token?: string): string {
   const url = new URL(`ws://${displayHost(host)}:${port}/ws/client`);
   if (token) url.searchParams.set('token', token);

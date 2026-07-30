@@ -285,7 +285,9 @@ describe('SageToolCallMiddleware — tool name variants', () => {
         type: 'tool_use',
         id: 'tu_cs',
         name: 'codebase-search',
-        input: { query: 'finds', path: '.' },
+        // Enough overlap to clear the relation floor on its own: the point of
+        // this test is the hyphenated tool alias, not the scoring gate.
+        input: { query: 'codebase search finds', path: '.' },
       },
       result: {
         type: 'tool_result',
@@ -316,7 +318,7 @@ describe('SageToolCallMiddleware — tool name variants', () => {
     expect(payload.result.content).toBe('test output');
   });
 
-  it('uses the live task as a retrieval signal for an otherwise unrelated command', async () => {
+  it('does not staple a memory onto an unrelated file because the live task mentions it', async () => {
     const store = makeStore();
     await store.rememberSage({
       text: 'Authentication package refresh tokens are rotated by the session service.',
@@ -347,9 +349,14 @@ describe('SageToolCallMiddleware — tool name variants', () => {
 
     await mw.handler(payload, async (p) => p);
 
-    expect(payload.result.content).toContain('Authentication package refresh tokens');
+    // `node-version.txt` has nothing to do with the auth memory. It used to be
+    // injected anyway: task text was folded into the retrieval query by
+    // default, and an all-terms miss was retried as any-term, so one word of
+    // the todo was enough to pull the memory out of the corpus and staple it
+    // to this result.
+    expect(payload.result.content).toBe('v24');
     expect((payload.ctx.meta['memoryInjectorLastRun'] as Record<string, number>)['injected']).toBe(
-      1,
+      0,
     );
   });
 });
@@ -505,6 +512,78 @@ describe('SageToolCallMiddleware — no memories match', () => {
     await mw.handler(payload, async (p) => p);
 
     expect(payload.result.content).toBe('file content');
+  });
+});
+
+describe('SageToolCallMiddleware — anchored to the file, once per session', () => {
+  async function readOnce(store: TestMemory, file: string, session: string, mw = createSageToolCallMiddleware({ memory: store })) {
+    const payload = makePayload({
+      toolUse: { type: 'tool_use', id: `tu_${file}`, name: 'read', input: { path: file } },
+      result: { type: 'tool_result', tool_use_id: `tu_${file}`, name: 'read', content: 'source' },
+      ctx: {
+        projectRoot: tmpDir,
+        cwd: tmpDir,
+        session: { id: session },
+        signal: new AbortController().signal,
+      } as never,
+    });
+    await mw.handler(payload, async (p) => p);
+    return payload.result.content;
+  }
+
+  it('injects the memory anchored to the file and not the same-basename one from another package', async () => {
+    const store = makeStore();
+    await store.rememberSage({
+      text: 'The webui store keeps the full messages array and virtualizes the view.',
+      importance: 0.9,
+      anchors: [{ type: 'file', path: 'packages/webui/src/store.ts' }],
+    });
+    await store.rememberSage({
+      text: 'The sage store writes every row of one import in a single transaction.',
+      importance: 0.9,
+      anchors: [{ type: 'file', path: 'packages/sage/src/store.ts' }],
+    });
+
+    const content = await readOnce(store, 'packages/webui/src/store.ts', 'anchored');
+
+    expect(content).toContain('webui store keeps the full messages array');
+    // Same basename, different package. It used to arrive anyway: every
+    // memory the path lookup returned was paid a flat 0.95, and `store` alone
+    // was enough lexical overlap to clear the old floor.
+    expect(content).not.toContain('single transaction');
+  });
+
+  it('does not repeat a memory it already showed this session', async () => {
+    const store = makeStore();
+    await store.rememberSage({
+      text: 'The webui store keeps the full messages array and virtualizes the view.',
+      importance: 0.9,
+      anchors: [{ type: 'file', path: 'packages/webui/src/store.ts' }],
+    });
+    const mw = createSageToolCallMiddleware({ memory: store });
+
+    const first = await readOnce(store, 'packages/webui/src/store.ts', 'repeat', mw);
+    const second = await readOnce(store, 'packages/webui/src/store.ts', 'repeat', mw);
+
+    expect(first).toContain('webui store keeps the full messages array');
+    // The model has already been given this text. Sending it again spends
+    // context to say nothing new.
+    expect(second).toBe('source');
+  });
+
+  it('does not attach a project-wide note to every file under it', async () => {
+    const store = makeStore();
+    await store.rememberSage({
+      text: 'This repository uses pnpm workspaces.',
+      importance: 0.9,
+      anchors: [{ type: 'directory', path: 'packages' }],
+    });
+
+    const content = await readOnce(store, 'packages/webui/src/store.ts', 'broad');
+
+    // `packages/` sits above half the repository. An anchor that broad is a
+    // project note, not evidence about one file.
+    expect(content).toBe('source');
   });
 });
 

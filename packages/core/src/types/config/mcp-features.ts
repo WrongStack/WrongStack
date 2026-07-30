@@ -204,7 +204,12 @@ export interface SageConfig {
         turnContext?: boolean | undefined;
         /** Add relevant memory to read/tree/grep/bash/edit tool results. Default: true. */
         toolResults?: boolean | undefined;
-        /** Enrich tool retrieval with live todo/Kanban task state and context-pressure budgeting. Default: true. */
+        /**
+         * Fold live todo/Kanban text into the tool retrieval query.
+         * Default: false — it searches for the current task rather than the
+         * file the tool touched, and matches found that way are unrelated to
+         * the result they get appended to.
+         */
         taskAware?: boolean | undefined;
         /** Maximum diverse, structurally related hints appended to a single tool result. Default: 8. */
         maxHintsPerTool?: number | undefined;
@@ -214,9 +219,18 @@ export interface SageConfig {
         maxTurnMemories?: number | undefined;
         /** Maximum characters appended to ordinary turn context. Default: 2400. */
         maxCharsPerTurn?: number | undefined;
-        /** Minimum retrieval score for ordinary hints. Default: 0.65. */
+        /** Minimum retrieval score for ordinary hints. Default: 0.72. */
         minScore?: number | undefined;
-        /** Cooldown before the same memory can be injected again. Default: 30 minutes. */
+        /**
+         * Hard importance floor for automatic injection. Default: 0.5.
+         * Memories below it stay searchable but are never auto-injected.
+         */
+        minImportance?: number | undefined;
+        /**
+         * Cooldown before an already-injected memory may be injected again.
+         * Default: 0 — once per session. A positive value restores time-boxed
+         * repeats.
+         */
         repeatCooldownMs?: number | undefined;
         triggers?:
           | Partial<

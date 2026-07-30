@@ -1,12 +1,16 @@
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { TrustBoundary } from '@wrongstack/core/security';
+import type { Logger } from '@wrongstack/core/types';
 import { listBoards } from '@wrongstack/kanban';
 import {
   applySddLifecycle,
+  extractVerificationCommand,
   type SddBoardSnapshot,
   SddBoardStore,
   type SddLifecycleOp,
 } from '@wrongstack/sdd';
 import type { WebSocket } from 'ws';
+import { authorizeWebUIAction } from './privileged-actions.js';
 import { sendSerialized } from './ws-utils.js';
 
 interface WSClient {
@@ -59,6 +63,11 @@ export interface SddBoardLifecycleDeps {
   };
 }
 
+export interface SddBoardSecurityDeps {
+  trustBoundary: TrustBoundary;
+  logger?: Logger | undefined;
+}
+
 /**
  * SddBoardWebSocketHandler — streams the live SDD multi-agent board to clients
  * and relays control commands back to the CLI-owned run.
@@ -77,15 +86,22 @@ export class SddBoardWebSocketHandler {
   private readonly store: SddBoardStore;
   private readonly clients = new Set<WSClient>();
   private readonly lifecycle?: SddBoardLifecycleDeps | undefined;
+  private readonly security?: SddBoardSecurityDeps | undefined;
   private readonly diskPollingEnabled: boolean;
   private latest: SddBoardSnapshot | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private pollInFlight = false;
   private unsub: (() => void) | null = null;
 
-  constructor(boardsDir: string, events?: EventBus, lifecycle?: SddBoardLifecycleDeps) {
+  constructor(
+    boardsDir: string,
+    events?: EventBus,
+    lifecycle?: SddBoardLifecycleDeps,
+    security?: SddBoardSecurityDeps,
+  ) {
     this.store = new SddBoardStore({ baseDir: boardsDir });
     this.lifecycle = lifecycle;
+    this.security = security;
     this.diskPollingEnabled = events === undefined;
 
     if (events) {
@@ -142,6 +158,43 @@ export class SddBoardWebSocketHandler {
     }
 
     if (CONTROL_TYPES.has(action)) {
+      const verificationCommands: Array<{ command: string; operation: string }> = [];
+      if (action === 'set_task_verification') {
+        const command = msg.payload?.verificationCommand;
+        if (command !== undefined && (typeof command !== 'string' || command.length > 8_192)) return;
+        if (typeof command === 'string' && command.trim()) {
+          verificationCommands.push({ command, operation: 'sdd.set_task_verification' });
+        }
+      } else if (action === 'split_task') {
+        const subtasks = msg.payload?.subtasks;
+        if (Array.isArray(subtasks)) {
+          for (const subtask of subtasks) {
+            if (!subtask || typeof subtask !== 'object') continue;
+            const criterion = (subtask as Record<string, unknown>).successCriterion;
+            if (criterion === undefined) continue;
+            if (typeof criterion !== 'string') return;
+            const command = extractVerificationCommand([criterion]);
+            if (!command) continue;
+            if (command.length > 8_192) return;
+            verificationCommands.push({ command, operation: 'sdd.split_task_verification' });
+          }
+        }
+      }
+      for (const { command, operation } of verificationCommands) {
+        if (!this.security) return;
+        const authorization = await authorizeWebUIAction(
+          this.security.trustBoundary,
+          {
+            capability: 'process.spawn',
+            subject: { kind: 'command', id: command },
+            risk: 'high',
+            cwd: this.lifecycle?.projectRoot,
+            metadata: { operation },
+          },
+          this.security.logger,
+        );
+        if (!authorization.allowed) return;
+      }
       const runId =
         (msg.payload?.runId as string | undefined) ??
         this.latest?.runId ??

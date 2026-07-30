@@ -192,6 +192,9 @@ describe('tool-call memory selection and scoring helpers', () => {
 
     expect(coverage.scoreForInjection(sage('score'))).toBeCloseTo(4.8);
     expect(coverage.normalizedInjectionScore(sage('score'))).toBeCloseTo(0.8);
+    expect(coverage.computeInjectionProof(sage('proof'), 0.8).score).toBeCloseTo(
+      coverage.contextualInjectionScore(sage('proof'), 0.8),
+    );
     expect(
       coverage.contextualInjectionScore(
         sage('permanent', { persistence: 'permanent', injectionCount: 20, useCount: 0 }),
@@ -436,7 +439,9 @@ describe('triggered retrieval helper', () => {
 
   it('supports empty mutation queries without graph expansion', async () => {
     const memory = {
-      retrieveForPath: vi.fn(async () => [sage('stale', { status: 'stale' })]),
+      retrieveForPath: vi.fn(async () => [
+        sage('stale', { status: 'stale', anchors: [{ type: 'file', path: 'src/a.ts' }] }),
+      ]),
       searchSage: vi.fn(async () => []),
     } as SageRetrieverLike;
     const result = await coverage.retrieveTriggeredMemories(
@@ -531,6 +536,10 @@ describe('tool-call middleware failure coverage', () => {
       const events = { emit: vi.fn() };
       const memory = sage('audit', {
         text: 'authentication token validation convention',
+        // The anchor is what earns the injection now: a path lookup only
+        // contributes relation strength for memories that actually point at
+        // the file the tool touched.
+        anchors: [{ type: 'file', path: 'src/a.ts' }],
         importance: 1,
         confidence: 1,
         freshness: 1,
@@ -556,6 +565,63 @@ describe('tool-call middleware failure coverage', () => {
           error: failure instanceof Error ? failure.message : failure,
         }),
       );
+    }
+  });
+
+  it('decomposes the score into terms that sum back to it', () => {
+    // The displayed proof is only trustworthy if the parts add up to the
+    // number the gate used. Anything added to the score without a matching
+    // term silently makes the UI lie about why a memory was injected.
+    const cases: Array<[string, Partial<Sage>, number]> = [
+      ['plain', {}, 0.8],
+      ['anchored', { anchors: [{ type: 'file', path: 'a.ts' }] }, 0.95],
+      ['permanent-used', { persistence: 'permanent', useCount: 4 }, 0.7],
+      ['short-lived-unused', { persistence: 'short_lived', injectionCount: 6 }, 0.62],
+      ['preference-kind', { kind: 'preference' }, 0.5],
+    ];
+    for (const [label, overrides, relation] of cases) {
+      const proof = coverage.computeInjectionProof(sage(label, overrides), relation);
+      const sum = proof.terms.reduce((total, term) => total + term.value, 0);
+      expect(Math.max(0, Math.min(1, sum))).toBeCloseTo(proof.score, 10);
+      expect(proof.relationStrength).toBe(relation);
+    }
+  });
+
+  it('keeps the refactored score identical to the original weighting', () => {
+    // Independent restatement of the pre-refactor formula. If someone retunes
+    // the weights, this fails and forces the change to be deliberate.
+    const legacy = (memory: Sage, relation: number): number => {
+      const metadata = (memory.importance * 3 + memory.confidence * 2 + memory.freshness) / 6;
+      const persistence = memory.persistence ?? 'long_lived';
+      const persistenceBoost =
+        persistence === 'permanent' ? 0.08 : persistence === 'long_lived' ? 0.04 : -0.08;
+      const durable = ['fact', 'decision', 'convention', 'warning', 'anti_pattern', 'workflow',
+        'bug_root_cause', 'file_note', 'symbol_note', 'command_note'].includes(memory.kind);
+      const uses = memory.useCount ?? 0;
+      const injections = memory.injectionCount ?? 0;
+      return Math.max(0, Math.min(1,
+        metadata * 0.48 +
+          relation * 0.48 +
+          persistenceBoost +
+          (durable ? 0.04 : 0) +
+          (uses > 0 ? Math.min(0.14, 0.05 + uses * 0.02) : 0) +
+          (memory.anchors.length > 0 ? 0.04 : -0.05) -
+          (injections >= 3 && uses === 0 ? Math.min(0.18, 0.05 + injections * 0.012) : 0)));
+    };
+    for (const relation of [0, 0.62, 0.8, 0.95, 1]) {
+      for (const overrides of [
+        {},
+        { anchors: [{ type: 'file' as const, path: 'a.ts' }] },
+        { persistence: 'permanent' as const, useCount: 3 },
+        { persistence: 'short_lived' as const, injectionCount: 9 },
+        { kind: 'preference' as const },
+      ]) {
+        const memory = sage('parity', overrides);
+        expect(coverage.contextualInjectionScore(memory, relation)).toBeCloseTo(
+          legacy(memory, relation),
+          10,
+        );
+      }
     }
   });
 });

@@ -31,6 +31,18 @@ const SAGE_INJECTOR_HEADINGS = new Set([
 const SAGE_MEMORY_LINE =
   /^- \[[^\]]+\](?:\[[^\]]+\])* <memory id="[^"]+">.*<\/memory>(?: .*)?$/;
 
+/**
+ * A memory line whose tail was cut by a character cap upstream (the `…` marker
+ * appended by an event preview, the fleet bridge, or the HQ raw-content cap).
+ * Accepted only as the LAST line of a candidate block: the
+ * `- [labels] <memory id="…">` prefix is specific enough that no ordinary tool
+ * output produces it, so recognising the fragment keeps a truncated block
+ * rendering as a memory card instead of decaying into raw tool text. Mirrors
+ * `packages/core/src/utils/sage-output-block.ts`.
+ */
+const SAGE_MEMORY_LINE_TRUNCATED =
+  /^- \[[^\]]+\](?:\[[^\]]+\])* <memory id="[^"]+">.*…$/;
+
 export interface SageSplit {
   /** Tool result text with the SAGE block removed (trailing whitespace trimmed). */
   cleanOutput: string;
@@ -64,7 +76,14 @@ export function extractSageBlock(output: string): SageSplit {
     const candidate = lines.slice(sageIdx);
     if (candidate.length < 2) continue;
     const memoryLines = candidate.slice(1).filter((line) => line.trim().length > 0);
-    if (memoryLines.length === 0 || !memoryLines.every((line) => SAGE_MEMORY_LINE.test(line))) {
+    if (
+      memoryLines.length === 0 ||
+      !memoryLines.every(
+        (line, index) =>
+          SAGE_MEMORY_LINE.test(line) ||
+          (index === memoryLines.length - 1 && SAGE_MEMORY_LINE_TRUNCATED.test(line)),
+      )
+    ) {
       continue;
     }
     let end = candidate.length;

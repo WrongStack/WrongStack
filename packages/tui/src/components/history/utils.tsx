@@ -73,7 +73,7 @@ import { formatToolOutputSageWith } from './sage-output-format.js';
 import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 export { formatToolArgs } from './tool-arg-format.js';
-export { extractSageBlock, type SageSplit } from './sage-output-format.js';
+export { extractSageBlock, resolveEntrySage, type SageSplit, parseSageMemoryLine, type ParsedSageMemoryLine } from './sage-output-format.js';
 
 /**
  * Like `formatToolOutput` but strips SAGE-injected memory lines first.
@@ -85,11 +85,14 @@ export function formatToolOutputSage(
   ok: boolean,
   outputBytes?: number | undefined,
   outputLines?: number | undefined,
+  /** Structured SAGE lines from `tool.executed.sage`, when the entry has them. */
+  sageLines?: readonly string[] | undefined,
 ): { cleanOutput: string; outLines: string[]; sageLines: string[] } {
   return formatToolOutputSageWith({
     toolName,
     output,
     ok,
+    sageLines,
     outputBytes,
     outputLines,
     formatToolOutput,

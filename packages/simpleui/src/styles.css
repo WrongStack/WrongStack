@@ -3178,6 +3178,15 @@ a:focus-visible {
   border-top: 1px solid var(--line);
 }
 
+.timeline-tool-memory {
+  box-shadow: inset 2px 0 0 var(--brand-orange);
+  background: color-mix(in srgb, var(--brand-orange) 6%, transparent);
+}
+
+.timeline-tool-memory > span {
+  color: var(--brand-orange);
+}
+
 .timeline-tool-detail span {
   display: block;
   margin-bottom: 4px;

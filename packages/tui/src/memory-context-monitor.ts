@@ -3,6 +3,12 @@ export interface MemoryContextDetail {
   kind: string;
   text: string;
   score: number;
+  /**
+   * The relation gate's own value. `score` alone cannot explain an injection
+   * because metadata boosts can carry a weak relation over the score bar —
+   * this is the number the `relationFloor` gate actually tested.
+   */
+  relationStrength: number;
   confidence: number;
   freshness: number;
   importance: number;
@@ -156,6 +162,7 @@ export function applyMemoryInjectorRun(
       kind: stringValue(item.kind) ?? 'unknown',
       text: capMemoryDetailText(stringValue(item.text) ?? ''),
       score: numberValue(item.score),
+      relationStrength: numberValue(item.relationStrength),
       confidence: numberValue(item.confidence),
       freshness: numberValue(item.freshness),
       importance: numberValue(item.importance),
@@ -266,6 +273,7 @@ function placeholder(
     kind: 'unknown',
     text: 'Details unavailable in this TUI process.',
     score: 0,
+    relationStrength: 0,
     confidence: 0,
     freshness: 0,
     importance: 0,

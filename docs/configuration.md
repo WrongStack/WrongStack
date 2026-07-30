@@ -1493,12 +1493,30 @@ SQLite is the only runtime backend and needs no engine configuration. On first o
 
 By default, SAGE memory waits for a relevant tool call and appends a bounded
 hint block to that tool result. It does not add memory to every ordinary turn.
-The task-aware Memory Injector enriches retrieval with live todo/Kanban state,
-expands direct matches through file/symbol/package/command relationships, and
-measures current context pressure before choosing its budget. Defaults are up
-to 8 diverse hints / 2800 characters at normal pressure, shrinking safely near
-the context ceiling. Set `Sage.inject.taskAware: false` to use only the
-concrete tool path/query.
+The Memory Injector expands direct matches through file/symbol/package/command
+relationships and measures current context pressure before choosing its budget.
+Defaults are up to 8 diverse hints / 2800 characters at normal pressure,
+shrinking safely near the context ceiling.
+
+What actually earns an injection is **evidence about the thing the tool
+touched**, not word overlap:
+
+- the memory is anchored to that file, or to its immediate parent directory;
+- the query names the memory's file, symbol, or command verbatim;
+- two independent signals agree (two anchor terms, two tags), or the memory
+  covers most of a deliberate search query.
+
+A single coincidental token — `store`, `session`, `middleware` — is deliberately
+below the bar. So is a memory whose importance is under
+`Sage.inject.minImportance`: it stays fully searchable through `memory_*` and
+`/memory search`, it just never arrives uninvited.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `Sage.inject.minScore` | `number` | `0.72` | Composite score gate for an automatic hint. |
+| `Sage.inject.minImportance` | `number` | `0.5` | Hard importance floor; below it a memory is never auto-injected. |
+| `Sage.inject.repeatCooldownMs` | `number` | `0` | `0` = inject a given memory **once per session**. A positive value restores time-boxed repeats. |
+| `Sage.inject.taskAware` | `boolean` | `false` | Fold live todo/Kanban text into the retrieval query. Opt-in: it searches for what you are doing rather than for the file the tool touched. |
 Turn-level system-context injection is an explicit opt-in (default **off** in both
 the CLI and WebUI). It appends a query-dependent block to the system prompt every
 turn, which moves the provider's cache breakpoint and defeats prefix caching — so

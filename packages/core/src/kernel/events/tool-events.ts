@@ -201,6 +201,17 @@ export interface ToolEventMap {
     input?: unknown | undefined;
     output?: string | undefined;
     /**
+     * The `--- SAGE: … (Memory Injector) ---` block the SAGE middleware
+     * appended to the result, split off `output` BEFORE the preview cap and
+     * carried as whole lines (header first). Absent when nothing was injected.
+     *
+     * Surfaces render it as a memory card, never as tool output: sharing the
+     * `output` budget used to cut a memory line mid-fence on short tool
+     * results, and the mangled block then fell through to the plain-text
+     * renderer. See `utils/sage-output-block.ts`.
+     */
+    sage?: string[] | undefined;
+    /**
      * Full UTF-8 byte length of the serialized tool result that the model
      * actually sees (post-cap, post-scrub). The `output` preview is capped
      * at ~400 chars for transport; this number lets UIs surface what the

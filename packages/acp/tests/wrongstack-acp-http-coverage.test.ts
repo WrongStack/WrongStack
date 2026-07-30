@@ -170,12 +170,26 @@ describe('WrongStackACPServer HTTP transport coverage', () => {
     expect(requestResult.status).toBe(500);
   });
 
-  it('normalizes optional headers and request paths', () => {
+  it('rejects unauthenticated non-loopback HTTP binds', async () => {
+    const server = new WrongStackACPServer({ transport: 0, host: '0.0.0.0' });
+    await expect(server.start()).rejects.toThrow(/requires authToken for non-loopback hosts/);
+  });
+
+  it('normalizes optional headers, request paths, and loopback hosts', () => {
     expect(wrongStackACPServerCoverage.headerValue(['first', 'second'])).toBe('first');
     expect(wrongStackACPServerCoverage.headerValue('single')).toBe('single');
     expect(wrongStackACPServerCoverage.headerValue(undefined)).toBeUndefined();
     expect(wrongStackACPServerCoverage.requestPath('/rpc')).toBe('/rpc');
     expect(wrongStackACPServerCoverage.requestPath(undefined)).toBe('/');
+    expect(wrongStackACPServerCoverage.isLoopbackHost('localhost')).toBe(true);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('127.0.0.42')).toBe(true);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('::1')).toBe(true);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('[::1]')).toBe(true);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('0:0:0:0:0:0:0:1')).toBe(true);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('[0:0:0:0:0:0:0:1]')).toBe(true);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('0:0:0:0:0:0:0:2')).toBe(false);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('127.999.0.1')).toBe(false);
+    expect(wrongStackACPServerCoverage.isLoopbackHost('0.0.0.0')).toBe(false);
   });
 
   it('provides an end-turn default implementation', async () => {

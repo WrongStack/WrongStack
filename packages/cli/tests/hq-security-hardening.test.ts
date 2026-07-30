@@ -137,7 +137,7 @@ async function postCommand(
 }
 
 describe('HQ security and control-plane hardening', () => {
-  it('prints browser and client tokens in startup logs for local operator setup', async () => {
+  it('prints a bootstrap browser link and the client token in startup logs', async () => {
     const browserToken = 'startup-browser-secret';
     const clientToken = 'startup-client-secret';
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -149,7 +149,12 @@ describe('HQ security and control-plane hardening', () => {
         }),
       );
       const output = log.mock.calls.flat().join('\n');
-      expect(output).toContain(`?token=${browserToken}`);
+      // The browser link carries a one-time bootstrap code in the fragment;
+      // the long-lived browser token itself is never put in a URL.
+      expect(output).toMatch(/#bootstrap=[A-Za-z0-9_-]{43}\b/);
+      expect(output).not.toContain(browserToken);
+      // Client tokens stay in the printed WS URL and env block — CLI clients
+      // authenticate with the raw token, they have no cookie jar.
       expect(output).toContain(`?token=${clientToken}`);
       expect(output).toContain(`WRONGSTACK_HQ_TOKEN=${clientToken}`);
       expect(output).not.toContain('[REDACTED]');

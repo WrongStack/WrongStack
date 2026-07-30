@@ -15,13 +15,14 @@ import {
   authenticateBrowserRequest,
   clearHqSessionCookie,
   HQ_SESSION_COOKIE,
+  isCookieAuth,
   isTokenAuth,
   parseCookieHeader,
   parseHqSessionCookie,
   serializeHqSessionCookie,
   setHqSessionCookie,
 } from '../auth.js';
-import type { HqRouterMutableAuth } from '../types.js';
+import type { HqRouterMutableAuth, HqSessionEntry } from '../types.js';
 import { readRequestBody, writeInvalidBody } from '../utils.js';
 
 function isLoopbackRequest(req: http.IncomingMessage): boolean {
@@ -34,7 +35,7 @@ export async function handleApiAuthStatus(
   res: http.ServerResponse,
   url: URL,
   mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
   requireBrowserAuth: boolean | undefined,
   trustedPublicOrigins: Set<string>,
   secureCookies: boolean | undefined,
@@ -54,7 +55,7 @@ export async function handleApiAuthStatus(
       secureCookies: secureCookies === true,
       loggedIn: auth !== undefined || localOpenMode,
       authKind:
-        auth === 'cookie'
+        isCookieAuth(auth)
           ? 'password'
           : isTokenAuth(auth)
             ? 'token'
@@ -69,7 +70,7 @@ export async function handleApiLogin(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
   loginAttempts: Map<string, { count: number; blockedUntil: number; lastAttempt: number }>,
   secureCookies: boolean | undefined,
 ): Promise<void> {
@@ -140,7 +141,7 @@ export async function handleApiLogin(
 
   loginAttempts.delete(clientIp);
   const sessionId = randomUUID();
-  sessions.set(sessionId, { createdAt: Date.now() });
+  sessions.set(sessionId, { createdAt: Date.now(), kind: 'password' });
   setHqSessionCookie(
     res,
     serializeHqSessionCookie(sessionId, mutableAuth.cookieSecret),
@@ -154,7 +155,7 @@ export async function handleApiLogout(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
   secureCookies: boolean | undefined,
 ): Promise<void> {
   const auth = authenticateBrowserRequest(
@@ -163,7 +164,7 @@ export async function handleApiLogout(
     mutableAuth,
     sessions,
   );
-  if (auth === 'cookie') {
+  if (isCookieAuth(auth)) {
     const cookies = parseCookieHeader(req.headers.cookie);
     const raw = cookies[HQ_SESSION_COOKIE];
     if (raw) {
@@ -180,7 +181,7 @@ export async function handleApiPassword(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
   dataDir: string,
   secureCookies: boolean | undefined,
   requireBrowserAuth: boolean | undefined,
@@ -221,7 +222,7 @@ export async function handleApiPassword(
     return;
   }
 
-  if (auth === 'cookie' && mutableAuth.passwordHash !== undefined) {
+  if (isCookieAuth(auth) && mutableAuth.passwordHash !== undefined) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
     if (
       !currentPassword ||
@@ -265,7 +266,7 @@ export async function handleApiPassword(
       JSON.stringify({
         passwordMode: false,
         tokenMode: mutableAuth.browserTokens.size > 0,
-        loggedIn: auth !== 'cookie' && isTokenAuth(auth),
+        loggedIn: !isCookieAuth(auth) && isTokenAuth(auth),
       }),
     );
     return;
@@ -292,9 +293,9 @@ export async function handleApiPassword(
   applyAuthFile(mutableAuth, next);
   sessions.clear();
 
-  if (auth === 'cookie' || localOpenBootstrap) {
+  if (isCookieAuth(auth) || localOpenBootstrap) {
     const sessionId = randomUUID();
-    sessions.set(sessionId, { createdAt: Date.now() });
+    sessions.set(sessionId, { createdAt: Date.now(), kind: 'password' });
     setHqSessionCookie(
       res,
       serializeHqSessionCookie(sessionId, cookieSecret),
@@ -341,4 +342,90 @@ export function applyAuthFile(
   mutableAuth.passwordHash = next.passwordHash;
   mutableAuth.cookieSecret = next.cookieSecret;
   mutableAuth.alertRules = next.alertRules;
+}
+
+// ── Bootstrap exchange ──────────────────────────────────────────────────────
+
+export async function handleApiBootstrap(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  mutableAuth: HqRouterMutableAuth,
+  sessions: Map<string, HqSessionEntry>,
+  secureCookies: boolean | undefined,
+  bootstrapStore: import('@wrongstack/core/hq').HqBootstrapCodeStore,
+): Promise<void> {
+  if (!mutableAuth.cookieSecret) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'BOOTSTRAP_UNAVAILABLE',
+          message: 'Cookie signing is not configured on this HQ server.',
+        },
+      }),
+    );
+    return;
+  }
+
+  let body: { code?: unknown };
+  try {
+    body = JSON.parse(await readRequestBody(req)) as { code?: unknown };
+  } catch (error) {
+    writeInvalidBody(res, error);
+    return;
+  }
+
+  if (typeof body.code !== 'string' || body.code.length === 0) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'code is required' } }),
+    );
+    return;
+  }
+
+  const entry = bootstrapStore.consume(body.code);
+  if (!entry) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'INVALID_OR_EXPIRED_CODE',
+          message: 'The bootstrap code is invalid, already used, or expired.',
+        },
+      }),
+    );
+    return;
+  }
+
+  // Verify the originating token is still live.
+  const tokenLive = [...mutableAuth.browserTokenObjs.values()].some(
+    (obj) => obj.id === entry.tokenId,
+  );
+  if (!tokenLive) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'TOKEN_REVOKED',
+          message: 'The token that issued this bootstrap code has been revoked.',
+        },
+      }),
+    );
+    return;
+  }
+
+  const sessionId = randomUUID();
+  sessions.set(sessionId, {
+    createdAt: Date.now(),
+    kind: 'token',
+    tokenId: entry.tokenId,
+    ...(entry.capabilities !== undefined ? { capabilities: entry.capabilities } : {}),
+  });
+  setHqSessionCookie(
+    res,
+    serializeHqSessionCookie(sessionId, mutableAuth.cookieSecret),
+    secureCookies,
+  );
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ loggedIn: true }));
 }

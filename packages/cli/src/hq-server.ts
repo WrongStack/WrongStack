@@ -32,6 +32,9 @@ import {
   HqCommandAuditLog,
   type HqEventEnvelope,
   type HqTranscriptEntry,
+  HqBootstrapCodeStore,
+  mintHqCookieSecret,
+  mutateHqAuthFile,
   toAlertMessage,
   watchHqAuthFile,
 } from '@wrongstack/core/hq';
@@ -46,6 +49,7 @@ import {
   agentRingKey,
   authenticateBrowserRequest,
   buildClientWsUrl,
+  buildBootstrapHttpUrl,
   buildHttpUrl,
   createHqRouter,
   decodePathSegment,
@@ -53,6 +57,7 @@ import {
   type HqRouterDeps,
   type HqRouterMailboxGateway,
   hasTrustedBrowserOrigin,
+  isCookieAuth,
   isTokenAuth,
   parseCookieHeader,
   parseHqSessionCookie,
@@ -65,7 +70,7 @@ import {
   writeHqRuntimeMarker,
   writeHqStartupInfo,
 } from './hq-server/startup.js';
-import type { ConnectedClient, TranscriptRing } from './hq-server/types.js';
+import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './hq-server/types.js';
 import * as HqServerWs from './hq-server/ws.js';
 
 export { HqInsecureExposureError } from '@wrongstack/core/hq';
@@ -155,7 +160,7 @@ export async function startHqServer(options: HqServerOptions = {}): Promise<HqSe
   return startHqServerWithAuth(options, host, port, dataDir, firstRunAuth);
 }
 
-function startHqServerWithAuth(
+async function startHqServerWithAuth(
   options: HqServerOptions,
   host: string,
   port: number,
@@ -169,6 +174,28 @@ function startHqServerWithAuth(
 
   const authState = createHqAuthState(authFile, dataDir);
   const { mutableAuth } = authState;
+
+  // Provision a cookie-signing secret for token-only mode so bootstrap
+  // exchange can produce signed session cookies without a password.
+  if (!mutableAuth.cookieSecret && mutableAuth.browserTokens.size > 0) {
+    const secret = mintHqCookieSecret();
+    const next = await mutateHqAuthFile(dataDir, (current) => ({
+      ...current,
+      cookieSecret: secret,
+    }));
+    mutableAuth.cookieSecret = next.cookieSecret;
+    console.warn(
+      JSON.stringify({
+        level: 'info',
+        event: 'hq.cookie_secret_provisioned',
+        message: 'Cookie signing secret provisioned for token-mode bootstrap exchange.',
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
+
+  // Bootstrap code store for one-time token-to-cookie exchange.
+  const bootstrapStore = new HqBootstrapCodeStore();
 
   console.warn(
     JSON.stringify({
@@ -191,7 +218,7 @@ function startHqServerWithAuth(
     let listeningPort = port;
     const clients = new Map<WebSocket, ConnectedClient>();
     const browsers = new Set<WebSocket>();
-    const sessions = new Map<string, { createdAt: number }>();
+    const sessions = new Map<string, HqSessionEntry>();
     const eventLog: HqEventEnvelope[] = [];
     const transcripts = new Map<string, TranscriptRing>();
     const agentMessages = new Map<string, HqTranscriptEntry[]>();
@@ -305,11 +332,11 @@ function startHqServerWithAuth(
         };
       }
       const token = isTokenAuth(auth) ? mutableAuth.browserTokenObjs.get(auth.token) : undefined;
-      const canUseMailbox =
-        auth === 'cookie' ||
-        !tokenMode ||
-        token?.capabilities === undefined ||
-        token.capabilities.includes('control.enqueue');
+      const canUseMailbox = isCookieAuth(auth)
+        ? auth.capabilities === undefined || auth.capabilities.includes('control.enqueue')
+        : isTokenAuth(auth)
+          ? token?.capabilities === undefined || !!token?.capabilities.includes('control.enqueue')
+          : !tokenMode;
       if (!canUseMailbox) {
         return {
           allowed: false,
@@ -322,7 +349,7 @@ function startHqServerWithAuth(
           },
         };
       }
-      const identity = isTokenAuth(auth) ? auth.id : auth === 'cookie' ? 'cookie' : 'open';
+      const identity = isTokenAuth(auth) ? auth.id : isCookieAuth(auth) ? 'cookie' : 'open';
       return { allowed: true, rateLimitKey: `hq:${identity}:${projectDir}` };
     };
 
@@ -470,6 +497,7 @@ function startHqServerWithAuth(
       authorizeMailboxGateway,
       getMailboxGateway,
       getTokenStats: () => authState.tokenStats(),
+      bootstrapStore,
     };
     const handleRequest = createHqRouter(routerDeps);
 
@@ -527,14 +555,23 @@ function startHqServerWithAuth(
         const tokenValid = HqServerAuth.timingSafeTokenMatch(tokenSet, supplied) !== undefined;
         const cookieValid =
           pathname === '/ws/browser' &&
-          mutableAuth.passwordHash !== undefined &&
           mutableAuth.cookieSecret !== undefined &&
           (() => {
             const cookies = parseCookieHeader(req.headers.cookie);
             const raw = cookies[HQ_SESSION_COOKIE];
             if (!raw) return false;
             const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret!);
-            return sessionId !== undefined && sessions.has(sessionId);
+            if (sessionId === undefined) return false;
+            const session = sessions.get(sessionId);
+            if (!session || Date.now() - session.createdAt >= HqServerAuth.HQ_SESSION_MAX_AGE_MS)
+              return false;
+            // For token-origin sessions, verify the source token is still live.
+            if (session.kind === 'token' && session.tokenId !== undefined) {
+              return [...mutableAuth.browserTokenObjs.values()].some(
+                (obj) => obj.id === session.tokenId,
+              );
+            }
+            return true;
           })();
         if (!tokenValid && !cookieValid) {
           socket.write(
@@ -661,9 +698,26 @@ function startHqServerWithAuth(
         const hqUrl = `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${actualPort}`;
         await writeHqRuntimeMarker(dataDir, hqUrl).catch(() => {});
 
+        // Build the browser URL with a one-time bootstrap code (in the
+        // fragment) when a browser token exists. The code is exchanged for
+        // a session cookie on first load and never appears in HTTP traffic.
+        const browserTokenObj = mutableAuth.browserTokenObjs.get(browserToken ?? '');
+        let browserUrl: string;
+        if (browserToken && browserTokenObj) {
+          const code = bootstrapStore.issue({
+            tokenId: browserTokenObj.id,
+            ...(browserTokenObj.capabilities !== undefined
+              ? { capabilities: browserTokenObj.capabilities }
+              : {}),
+          });
+          browserUrl = buildBootstrapHttpUrl(host, actualPort, code);
+        } else {
+          browserUrl = buildHttpUrl(host, actualPort);
+        }
+
         const startupInfo: HqStartupConnectionInfo = {
           dataDir,
-          browserUrl: buildHttpUrl(host, actualPort, browserToken),
+          browserUrl,
           clientUrl: buildClientWsUrl(host, actualPort, clientToken),
           clientEnv: {
             WRONGSTACK_HQ_URL: hqUrl,
@@ -703,6 +757,7 @@ function startHqServerWithAuth(
               stopAlertEngine();
               authWatcher.close();
               snapshotBroadcaster.close();
+              bootstrapStore.clear();
               persistence.timeseries.flush();
               for (const ws of browsers) ws.close(1001, 'HQ shutting down');
               for (const ws of clients.keys()) ws.close(1001, 'HQ shutting down');

@@ -1,10 +1,11 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": "../..",
     "noEmit": true,
-    "rootDir": ".",
+    "allowImportingTsExtensions": true,
     "types": ["node", "react", "vitest"]
   },
-  "include": ["src/**/*", "tests/**/*", "vitest.config.ts"],
+  "include": ["src/**/*", "tests/**/*", "vitest.config.ts", "../../vitest.workers.ts"],
   "exclude": ["dist", "node_modules"]
 }

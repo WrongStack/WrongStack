@@ -141,6 +141,12 @@ export interface WSToolExecuted {
     input?: unknown | undefined;
     fileTargets?: WSCodeMapFileTarget[] | undefined;
     output?: string | undefined;
+    /**
+     * SAGE Memory Injector block (`--- SAGE: … ---` header first, then one line
+     * per memory) split off `output` by the backend before its preview cap.
+     * Rendered as a memory card — never appended back onto the tool body.
+     */
+    sage?: string[] | undefined;
     outputBytes?: number | undefined;
     outputTokens?: number | undefined;
     outputLines?: number | undefined;

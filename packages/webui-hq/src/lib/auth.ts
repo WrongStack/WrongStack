@@ -1,18 +1,14 @@
 /**
- * HQ browser auth — single source of truth for the dashboard token.
+ * HQ browser auth — single source of truth for the dashboard credential.
  *
- * The browser token arrives once via `?token=` on the startup URL printed by
- * `wstack --hq`. Every other consumer (SPA fetches, the WS client, reloads)
- * reads it through {@link resolveHqToken}, which persists a URL-supplied
- * token to `sessionStorage` so the dashboard keeps working after the query
- * string is lost (navigation, copy/paste of a bare URL, reload).
+ * Primary flow (bootstrap exchange): the startup URL carries a one-time code
+ * in the fragment (`#bootstrap=…`). The SPA extracts it, POSTs it to
+ * `/api/auth/bootstrap`, and receives an HttpOnly session cookie. The code
+ * is consumed atomically and never persisted client-side.
  *
- * HTTP requests attach it as `Authorization: Bearer` via
- * {@link authorizedFetch}; the WS client appends it as `?token=` because the
- * browser `WebSocket` constructor cannot set headers.
- *
- * sessionStorage (not localStorage) on purpose: the token is a live
- * credential and should not outlive the tab.
+ * Legacy fallback: `?token=` URLs and sessionStorage remain supported for
+ * backward compatibility with older startup URLs and manual token entry.
+ * HTTP requests attach the token as `Authorization: Bearer`.
  */
 
 const STORAGE_KEY = 'wrongstack.hq.token.v1';
@@ -119,6 +115,73 @@ export function authorizedFetch(input: string, init?: RequestInit): Promise<Resp
     ...authHeaders(),
   };
   return fetch(input, { ...init, headers });
+}
+
+// ── Bootstrap exchange ──────────────────────────────────────────────────────
+
+/**
+ * Read the one-time bootstrap code from the URL fragment (`#bootstrap=…`).
+ * Fragments never reach HTTP access logs, Referer headers, or proxy caches.
+ * Returns null when no fragment or not in a browser.
+ */
+function readBootstrapCode(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#bootstrap=')) return null;
+    const code = hash.slice('#bootstrap='.length);
+    return code.length > 0 ? code : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Scrub the bootstrap fragment from the address bar so the one-time code
+ * can't be read from browser history, screenshots, or copied links.
+ */
+function scrubBootstrapFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (url.hash.startsWith('#bootstrap=')) {
+      url.hash = '';
+      window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
+ * Extract the bootstrap code from the URL fragment, POST it to
+ * `/api/auth/bootstrap`, and scrub the fragment on success. The server
+ * atomically consumes the code and returns an HttpOnly session cookie —
+ * no persistent client-side credential is stored.
+ *
+ * Returns true when the exchange succeeded (or was already done and the
+ * server reports a valid cookie session).
+ */
+export async function exchangeBootstrapIfNeeded(): Promise<boolean> {
+  const code = readBootstrapCode();
+  if (code === null) return false;
+  try {
+    const res = await fetch('/api/auth/bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) {
+      scrubBootstrapFromUrl();
+      clearHqToken();
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 export const __test__ = { STORAGE_KEY };

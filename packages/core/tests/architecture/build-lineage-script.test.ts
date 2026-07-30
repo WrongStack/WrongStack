@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -17,6 +17,21 @@ afterEach(async () => {
 });
 
 describe('build lineage', () => {
+  it('returns no files for absent workspace roots and ignores non-directory entries', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'wrongstack-lineage-empty-'));
+    temporaryRoots.push(root);
+    await mkdir(path.join(root, 'packages'), { recursive: true });
+    await writeFile(path.join(root, 'packages', 'README.md'), 'not a package');
+    await mkdir(path.join(root, 'external'), { recursive: true });
+    await mkdir(path.join(root, 'packages', 'linked-package', 'dist'), { recursive: true });
+    await symlink(
+      path.join(root, 'external'),
+      path.join(root, 'packages', 'linked-package', 'dist', 'linked-entry'),
+      'junction',
+    );
+    await expect(collectScopedDistFiles(root, ['missing', 'packages'])).resolves.toEqual([]);
+  });
+
   it('collects only immediate in-scope workspace dist artifacts', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'wrongstack-lineage-'));
     temporaryRoots.push(root);
@@ -60,5 +75,29 @@ describe('build lineage', () => {
     await expect(validateBuildManifest(root, manifest, [])).resolves.toEqual([
       'packages/core/dist/index.js: missing build artifact',
     ]);
+  });
+
+  it('preserves metadata and accepts a matching manifest', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'wrongstack-lineage-valid-'));
+    temporaryRoots.push(root);
+    const dist = path.join(root, 'packages/core/dist');
+    await mkdir(path.join(dist, 'nested'), { recursive: true });
+    await writeFile(path.join(dist, 'nested/index.js'), 'same');
+    const files = await collectScopedDistFiles(root);
+    const manifest = await createBuildManifest(root, files, {
+      commit: 'abc123',
+      schemaVersion: 2,
+    });
+
+    expect(manifest).toMatchObject({
+      schemaVersion: 2,
+      commit: 'abc123',
+      scope: ['packages', 'apps'],
+      excludedPaths: ['website'],
+    });
+    await expect(validateBuildManifest(root, manifest, files)).resolves.toEqual([]);
+    await expect(
+      validateBuildManifest(root, { files: undefined } as never, []),
+    ).resolves.toEqual([]);
   });
 });

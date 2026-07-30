@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { getVitestMaxWorkers } from '../../vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,6 +19,7 @@ export default defineConfig({
     },
   },
   test: {
+    maxWorkers: getVitestMaxWorkers(),
     include: ['tests/**/*.test.ts'],
     setupFiles: ['../../vitest.setup.ts'],
     coverage: {

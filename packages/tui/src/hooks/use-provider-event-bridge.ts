@@ -1,5 +1,10 @@
 import { tuiStreamFlushMs } from '@wrongstack/core/utils';
 import {
+  DEFAULT_MIN_IMPORTANCE,
+  DEFAULT_MIN_SCORE,
+  MIN_RELATION_STRENGTH,
+} from '@wrongstack/sage';
+import {
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -42,6 +47,24 @@ function canonicalStreamSegments(content: readonly ContentBlock[]): Array<{
   return segments;
 }
 
+/**
+ * The one line of injector arithmetic worth carrying inline: what the block
+ * cost, plus the context pressure when it was high enough to have shrunk the
+ * budget (below that it is a constant nobody reads). Everything else — per
+ * memory scores, gates, the searched query, reject buckets — lives in the
+ * context panel, which keeps every run rather than only the injecting ones.
+ */
+function formatSageInjectionStats(run: {
+  injectedChars: number;
+  contextPressure: number;
+}): string {
+  const parts = [`+${run.injectedChars} chars`];
+  if (run.contextPressure >= 0.65) {
+    parts.push(`ctx ${Math.round(run.contextPressure * 100)}%`);
+  }
+  return parts.join(' · ');
+}
+
 interface ProviderEventBridgeOptions {
   events: AppProps['events'];
   agent: AppProps['agent'];
@@ -79,6 +102,12 @@ export function useProviderEventBridge({
     let pendingToolStream:
       | { toolUseId: string; name: string; text: string; startedAt: number }
       | null = null;
+    // Injector stats waiting for the tool entry they belong to. The injector
+    // runs inside the tool-call pipeline, so `memory.injector_run` always
+    // lands before the `tool.executed` that carries the injected block —
+    // stash the numbers here and render them on the memory panel itself
+    // instead of as a second, separate card saying the same thing.
+    const pendingSageStats = new Map<string, string>();
     const appendStreamSegment = (kind: 'assistant' | 'thinking', text: string) => {
       const last = streamSegmentsRef.current.at(-1);
       if (last?.kind === kind) {
@@ -201,6 +230,12 @@ export function useProviderEventBridge({
             ok: e.ok,
             input: e.input,
             output: e.output,
+            // SAGE-injected memory travels beside the output preview so it
+            // always renders as a memory block, never as tool text.
+            sageLines: e.sage,
+            ...(pendingSageStats.has(e.name)
+              ? { sageStats: pendingSageStats.get(e.name)! }
+              : {}),
             // Real model-visible sizes — forwarded so the size chip beside
             // the tool header can show what the model paid for instead of
             // the misleading preview-byte count we used to surface.
@@ -210,6 +245,7 @@ export function useProviderEventBridge({
           },
         });
       }
+      pendingSageStats.delete(e.name);
       // Prefer the tool_use id (paired with `tool.started.id`) so parallel
       // same-name calls clear their own entry; the reducer still falls back
       // to the oldest matching name for legacy emit sites without an id.
@@ -395,6 +431,7 @@ export function useProviderEventBridge({
       const e = payload as {
         outcome: 'injected' | 'empty' | 'error';
         trigger: string;
+        toolName: string;
         candidates: number;
         contextPressure: number;
         injectedChars: number;
@@ -403,6 +440,8 @@ export function useProviderEventBridge({
           'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget',
           number
         >;
+        queryPreview?: string | undefined;
+        thresholds?: { minScore: number; minImportance: number; relationFloor: number } | undefined;
         activated: Array<{
           id: string;
           kind: string;
@@ -416,6 +455,8 @@ export function useProviderEventBridge({
           confidence: number;
           freshness: number;
           persistence: string;
+          metadataScore?: number | undefined;
+          scoreTerms?: Array<{ label: string; value: number }> | undefined;
         }>;
         injected: Array<{ id: string }>;
         sessionId?: string | undefined;
@@ -424,6 +465,45 @@ export function useProviderEventBridge({
       setMemoryContextMonitor((current) =>
         applyMemoryInjectorRun(current, e as unknown as Record<string, unknown>),
       );
+      if (e.injected.length > 0) {
+        pendingSageStats.set(e.toolName, formatSageInjectionStats(e));
+      }
+      // Only a run with an error becomes a transcript entry. A successful one
+      // is already on screen as the SAGE panel under the tool result, and an
+      // empty one is the healthy gates-did-their-job case; both belong in the
+      // context panel, which `setMemoryContextMonitor` above keeps current.
+      // Dispatching them anyway and collapsing the card to null would leave
+      // an invisible entry per tool call in history — one the layout engine
+      // still budgets rows for, and one retention would carry forever.
+      if (!e.error) return;
+      dispatch({
+        type: 'addEntry',
+        entry: {
+          kind: 'memory-activation',
+          trigger: e.trigger,
+          outcome: e.outcome,
+          candidates: e.candidates,
+          contextPressure: e.contextPressure,
+          injectedChars: e.injectedChars,
+          // The core event payload types declare these as REQUIRED, so the
+          // `??` defaults are a stream-boundary fallback for legacy emitters
+          // that omit them — not a current-build safety net.
+          queryPreview: e.queryPreview ?? '',
+          thresholds: e.thresholds ?? {
+            minScore: DEFAULT_MIN_SCORE,
+            minImportance: DEFAULT_MIN_IMPORTANCE,
+            relationFloor: MIN_RELATION_STRENGTH,
+          },
+          activated: e.activated.map((item) => ({
+            ...item,
+            metadataScore: item.metadataScore ?? 0,
+            scoreTerms: item.scoreTerms ?? [],
+          })),
+          injectedIds: e.injected.map((item) => item.id),
+          rejected: e.rejected,
+          ...(e.error ? { error: e.error } : {}),
+        },
+      });
     });
     const offMemoryContextSnapshot = events.onPattern(
       'memory.context_snapshot',
@@ -441,6 +521,10 @@ export function useProviderEventBridge({
       const eventSessionId = (payload as { sessionId?: unknown } | undefined)?.sessionId;
       if (typeof eventSessionId !== 'string' || eventSessionId !== agent.ctx.session.id) return;
       setMemoryContextMonitor(emptyMemoryContextMonitor());
+      // Drop any stashed SAGE stats for tools that never reached
+      // `tool.executed` (cancelled, mismatch) so they can't ride the next
+      // same-name tool result with stale numbers from the prior session.
+      pendingSageStats.clear();
     });
     const offMemoryLifecycle = events.onPattern('memory.*', (event, payload) => {
       const lifecycle = memoryLifecycleEntry(event, payload as Record<string, unknown>);

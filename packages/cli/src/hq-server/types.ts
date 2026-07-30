@@ -101,6 +101,23 @@ export interface HqRouterMutableAuth {
   alertRules: HqAlertRuleConfig | undefined;
 }
 
+/**
+ * Session record stored in the server-side `sessions` Map.
+ *
+ * - `kind: 'password'` — created by `/api/login`; full browser access.
+ * - `kind: 'token'` — created by `/api/auth/bootstrap`; scoped to the
+ *   originating browser token's ID and capabilities so revocation/expiry
+ *   of that token invalidates the session too.
+ */
+export interface HqSessionEntry {
+  readonly createdAt: number;
+  readonly kind: 'password' | 'token';
+  /** For token sessions: the browser-token ID this session was minted from. */
+  readonly tokenId?: string | undefined;
+  /** For token sessions: capabilities inherited from the source token. */
+  readonly capabilities?: string[] | undefined;
+}
+
 // ── Transcript ring buffer ─────────────────────────────────────────────────
 
 export interface TranscriptRing {

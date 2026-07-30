@@ -1,12 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const pnpmCli = process.env.npm_execpath;
-
-if (!pnpmCli) {
-  throw new Error('test:coverage must be started through pnpm');
-}
-
-const runs = [
+export const COVERAGE_RUNS = [
   {
     label: 'Node packages',
     args: ['test:coverage:root'],
@@ -19,25 +15,51 @@ const runs = [
     label: 'WebUI package',
     args: ['--filter', '@wrongstack/webui', 'test:coverage'],
   },
+  {
+    label: 'Coverage runtime scripts',
+    args: ['test:coverage:scripts'],
+  },
 ];
 
-let failed = false;
-
-for (const run of runs) {
-  console.log(`\n=== Coverage: ${run.label} ===\n`);
-  const result = spawnSync(process.execPath, [pnpmCli, ...run.args], {
-    cwd: process.cwd(),
-    env: process.env,
-    stdio: 'inherit',
-  });
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status !== 0) {
-    failed = true;
-  }
+export function isDirectRun(metaUrl = import.meta.url, argvEntry = process.argv[1]) {
+  return typeof argvEntry === 'string' && path.resolve(argvEntry) === fileURLToPath(metaUrl);
 }
 
-process.exitCode = failed ? 1 : 0;
+export function runCoverage(options = {}) {
+  const pnpmCli = options.pnpmCli ?? process.env.npm_execpath;
+  const runs = options.runs ?? COVERAGE_RUNS;
+  const spawnPnpm = options.spawnPnpm ?? spawnSync;
+  const execPath = options.execPath ?? process.execPath;
+  const cwd = options.cwd ?? process.cwd();
+  const env = options.env ?? process.env;
+  const log = options.log ?? console.log;
+
+  if (!pnpmCli) {
+    throw new Error('test:coverage must be started through pnpm');
+  }
+
+  let failed = false;
+
+  for (const run of runs) {
+    log(`\n=== Coverage: ${run.label} ===\n`);
+    const result = spawnPnpm(execPath, [pnpmCli, ...run.args], {
+      cwd,
+      env,
+      stdio: 'inherit',
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    if (result.status !== 0) {
+      failed = true;
+    }
+  }
+
+  return failed ? 1 : 0;
+}
+
+if (isDirectRun()) {
+  process.exitCode = runCoverage();
+}

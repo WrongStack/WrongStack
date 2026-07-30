@@ -31,7 +31,11 @@ export interface MemoryInjectorMeasurement {
  */
 export class MemoryInjectorAgent {
   plan(input: MemoryInjectorPlanInput): MemoryInjectorPlan {
-    const taskSignals = input.taskAware === false ? [] : collectTaskSignals(input.ctx);
+    // Opt-in, not opt-out: splicing todo/Kanban text into the query searches
+    // for what the operator is doing rather than for the file the tool
+    // touched, and a memory that matches only that text is unrelated to the
+    // result it gets stapled to.
+    const taskSignals = input.taskAware === true ? collectTaskSignals(input.ctx) : [];
     const queryText = uniqueTerms([input.toolQuery, ...taskSignals].join(' '), 1_600);
     const contextPressure = readContextPressure(input.ctx);
     const budget =

@@ -3,6 +3,7 @@ import {
   MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS,
   settingsPickerJumpByName,
   settingsPickerJumpNames,
+  SETTINGS_FIELD_LABELS,
   SETTINGS_PICKER_JUMP_CHORDS,
 } from '../src/components/settings-picker.js';
 
@@ -88,12 +89,9 @@ describe('settingsPickerJumpNames', () => {
     expect(names.at(-1)).toBe('pre-refine-countdown');
   });
 
-  it('every name resolves back to a field via the by-name lookup', () => {
-    // Round-trip: the surface that the help text shows is the same one
-    // the slash command accepts. If a chord is added/renamed, both must
-    // update together — this test guards against drift.
-    for (const name of settingsPickerJumpNames()) {
-      expect(settingsPickerJumpByName(name)).toBeDefined();
+  it('every jump label stays aligned with the canonical setting at its field index', () => {
+    for (const chord of SETTINGS_PICKER_JUMP_CHORDS) {
+      expect(SETTINGS_FIELD_LABELS[chord.field]).toBe(chord.label);
     }
   });
 });

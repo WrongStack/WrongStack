@@ -650,6 +650,13 @@ export interface SageSearchOptions {
   includeStatuses?: SageStatus[] | undefined;
   /** Default true for management/search surfaces; automatic injection opts out explicitly. */
   includeAudienceScoped?: boolean | undefined;
+  /**
+   * Require every FTS term to match. Default false: an all-terms query that
+   * finds nothing is retried as any-term, which is what an operator typing a
+   * phrase into search expects. Automatic injection sets this so a zero-result
+   * query stays a zero-result query instead of becoming a corpus scan.
+   */
+  requireAllTerms?: boolean | undefined;
 }
 
 export interface SageForAudienceOptions extends MemoryAudienceContext {

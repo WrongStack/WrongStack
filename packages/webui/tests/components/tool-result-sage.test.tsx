@@ -132,3 +132,45 @@ describe('<ToolResult /> — SAGE memory injection as separate card', () => {
     expect(screen.queryByTestId('sage-memory-card')).toBeNull();
   });
 });
+
+/**
+ * Live tool results carry the block out-of-band in `tool.executed.sage`; the
+ * backend splits it off before the event's ~400-char preview cap. `result` then
+ * holds tool text only, so the card must come from the prop.
+ */
+describe('<ToolResult /> — SAGE lines delivered out-of-band', () => {
+  const sageLines = SAGE_BLOCK.split('\n');
+
+  it('renders the memory card from the prop when the body has no SAGE suffix', () => {
+    const { container } = render(
+      <ToolResult toolName="glob" result="src/a.ts\nsrc/b.tsx" sageLines={sageLines} />,
+    );
+    expect(screen.getByTestId('sage-memory-card')).toBeTruthy();
+    expect(screen.getByTestId('sage-memory-header').textContent).toContain('glob');
+    expect(container.textContent).not.toContain('--- SAGE:');
+  });
+
+  it('renders the card even when the preview cap truncated the tool body away', () => {
+    // Short body + long memory line was the shape that used to straddle the cut.
+    render(<ToolResult toolName="grep" result={`${'x'.repeat(399)}…`} sageLines={sageLines} />);
+    expect(screen.getByTestId('sage-memory-card')).toBeTruthy();
+  });
+
+  it('prefers the out-of-band lines over anything parsed from the body', () => {
+    const stale = [
+      '--- SAGE: task-aware project knowledge (Memory Injector) ---',
+      '- [fact] <memory id="mem-stale">stale inline memory</memory>',
+    ].join('\n');
+    const { container } = render(
+      <ToolResult toolName="glob" result={`files\n\n${stale}`} sageLines={sageLines} />,
+    );
+    expect(container.textContent).toContain('remembered glob fact');
+    expect(container.textContent).not.toContain('stale inline memory');
+    expect(container.textContent).not.toContain('--- SAGE:');
+  });
+
+  it('falls back to the inline split when no lines are supplied (replay path)', () => {
+    render(<ToolResult toolName="glob" result={`files\n\n${SAGE_BLOCK}`} sageLines={[]} />);
+    expect(screen.getByTestId('sage-memory-card')).toBeTruthy();
+  });
+});

@@ -128,12 +128,20 @@ export function startHqQuickTunnel(
 export function buildPublicHqUrl(
   tunnelUrl: string,
   localBrowserUrl: string | undefined,
-  includeToken: boolean,
+  includeBootstrap: boolean,
 ): string {
   const publicUrl = new URL(tunnelUrl);
-  if (includeToken && localBrowserUrl) {
-    const token = new URL(localBrowserUrl).searchParams.get('token');
-    if (token) publicUrl.searchParams.set('token', token);
+  if (includeBootstrap && localBrowserUrl) {
+    // Preserve the bootstrap fragment (#bootstrap=…) from the local URL so
+    // the tunnel user gets the same one-time code exchange path. Never copy
+    // query-string tokens — those are the reusable credential we are
+    // eliminating.
+    try {
+      const localHash = new URL(localBrowserUrl).hash;
+      if (localHash.startsWith('#bootstrap=')) publicUrl.hash = localHash.slice(1);
+    } catch {
+      // Malformed local URL — skip.
+    }
   }
   return publicUrl.toString();
 }

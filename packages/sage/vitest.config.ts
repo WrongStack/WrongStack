@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { getVitestMaxWorkers } from '../../vitest.workers';
 
 export default defineConfig({
   test: {
+    maxWorkers: getVitestMaxWorkers(),
     include: ['tests/**/*.test.ts'],
     environment: 'node',
     // Use the root setup for hermetic ~/.wrongstack (WRONGSTACK_HOME to temp dir)

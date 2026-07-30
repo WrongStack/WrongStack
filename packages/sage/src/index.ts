@@ -43,7 +43,14 @@ export {
   type MemoryInjectorPlan,
   type MemoryInjectorPlanInput,
 } from './middleware/memory-injector-agent.js';
+// Canonical defaults for the SAGE memory injector gates. These are the
+// authoritative values: any consumer (TUI, CLI, WebUI) that needs to render
+// a fallback proof should import from here so drift between the wrapper and
+// the runtime emitter is impossible.
 export {
+  DEFAULT_MIN_IMPORTANCE,
+  DEFAULT_MIN_SCORE,
+  MIN_RELATION_STRENGTH,
   createSageToolCallMiddleware,
   type MemoryToolTrigger,
   type SageRetrieverLike,

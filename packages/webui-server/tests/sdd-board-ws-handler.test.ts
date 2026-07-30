@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
+import type { TrustBoundary } from '@wrongstack/core/security';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SddBoardWebSocketHandler } from '../src/index.js';
@@ -54,6 +55,16 @@ function lifecyclePaths(root: string, boardsDir: string) {
       projectSddBoards: boardsDir,
     },
   };
+}
+
+function trustBoundary(kind: 'allow' | 'deny'): TrustBoundary {
+  return {
+    evaluate: async () => ({ kind, reason: kind === 'allow' ? 'test allow' : 'test deny' }),
+  };
+}
+
+async function readControl(boardsDir: string, runId: string): Promise<string> {
+  return fs.readFile(path.join(boardsDir, `${runId}.control.jsonl`), 'utf8').catch(() => '');
 }
 
 describe('SddBoardWebSocketHandler — lifecycle', () => {
@@ -130,5 +141,116 @@ describe('SddBoardWebSocketHandler — lifecycle', () => {
     expect(res?.payload.ok).toBe(false);
     expect(res?.payload.reason).toMatch(/stop the run first/i);
     handler.dispose();
+  });
+
+  it('authorizes non-empty verification commands before appending control', async () => {
+    const root = await tmpDir();
+    const boardsDir = path.join(root, 'sdd-boards');
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      undefined,
+      lifecyclePaths(root, boardsDir),
+      { trustBoundary: trustBoundary('allow') },
+    );
+
+    await handler.handleMessage({
+      type: 'sdd.board.set_task_verification',
+      payload: { runId: 'r1', taskId: 't1', verificationCommand: 'pnpm test' },
+    });
+
+    expect(await readControl(boardsDir, 'r1')).toContain('pnpm test');
+  });
+
+  it.each([
+    ['denied by the trust boundary', trustBoundary('deny'), 'pnpm test'],
+    ['missing security dependencies', undefined, 'pnpm test'],
+    ['a non-string command', trustBoundary('allow'), 42],
+    ['an oversized command', trustBoundary('allow'), 'x'.repeat(8_193)],
+  ])('does not append verification control when %s', async (_label, boundary, command) => {
+    const root = await tmpDir();
+    const boardsDir = path.join(root, 'sdd-boards');
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      undefined,
+      lifecyclePaths(root, boardsDir),
+      boundary ? { trustBoundary: boundary } : undefined,
+    );
+
+    await handler.handleMessage({
+      type: 'sdd.board.set_task_verification',
+      payload: { runId: 'r1', taskId: 't1', verificationCommand: command },
+    });
+
+    expect(await readControl(boardsDir, 'r1')).toBe('');
+  });
+
+  it.each([undefined, '', 'x'.repeat(8_192)])(
+    'preserves valid verification-control values %#',
+    async (verificationCommand) => {
+      const root = await tmpDir();
+      const boardsDir = path.join(root, 'sdd-boards');
+      const handler = new SddBoardWebSocketHandler(
+        boardsDir,
+        undefined,
+        lifecyclePaths(root, boardsDir),
+        { trustBoundary: trustBoundary('allow') },
+      );
+
+      await handler.handleMessage({
+        type: 'sdd.board.set_task_verification',
+        payload: { runId: 'r1', taskId: 't1', verificationCommand },
+      });
+
+      expect(await readControl(boardsDir, 'r1')).not.toBe('');
+    },
+  );
+
+  it('authorizes command-bearing split criteria before appending control', async () => {
+    const root = await tmpDir();
+    const boardsDir = path.join(root, 'sdd-boards');
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      undefined,
+      lifecyclePaths(root, boardsDir),
+      { trustBoundary: trustBoundary('allow') },
+    );
+
+    await handler.handleMessage({
+      type: 'sdd.board.split_task',
+      payload: {
+        runId: 'r1',
+        taskId: 't1',
+        subtasks: [{ title: 'child', description: 'work', successCriterion: 'run: pnpm test' }],
+      },
+    });
+
+    expect(await readControl(boardsDir, 'r1')).toContain('run: pnpm test');
+  });
+
+  it.each([
+    ['denied by the trust boundary', trustBoundary('deny'), 'run: pnpm test'],
+    ['missing security dependencies', undefined, '$ pnpm test'],
+    ['a non-string criterion', trustBoundary('allow'), 42],
+    ['an oversized command', trustBoundary('allow'), `run: ${'x'.repeat(8_193)}`],
+  ])('does not append split control when a verification command is %s', async (_label, boundary, criterion) => {
+    const root = await tmpDir();
+    const boardsDir = path.join(root, 'sdd-boards');
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      undefined,
+      lifecyclePaths(root, boardsDir),
+      boundary ? { trustBoundary: boundary } : undefined,
+    );
+
+    await handler.handleMessage({
+      type: 'sdd.board.split_task',
+      payload: {
+        runId: 'r1',
+        taskId: 't1',
+        subtasks: [{ title: 'child', description: 'work', successCriterion: criterion }],
+      },
+    });
+
+    expect(await readControl(boardsDir, 'r1')).toBe('');
   });
 });

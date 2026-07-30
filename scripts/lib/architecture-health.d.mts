@@ -10,17 +10,38 @@ export function stronglyConnectedComponents(
   adjacency: Map<string, Set<string>>,
 ): string[][];
 export function globToRegExp(pattern: string): RegExp;
+export function parseTsConfigFiles(
+  repoRoot: string,
+  packageDir: string,
+  packageTestFiles: string[],
+): Promise<Array<{ path: string; error: string | null; testFiles: string[] }>>;
 export function findNonCommandSlashImports<T extends { from: string; to: string }>(edges: T[]): T[];
 export function validateHotspotBaseline(
   sourceMetrics: Array<{ file: string; lines: number; relativeImports: number }>,
-  baseline: { thresholdLines: number; files: Record<string, { lines: number; relativeImports: number }> },
+  baseline: {
+    thresholdLines: number;
+    files: Record<string, { lines: number; relativeImports: number }>;
+  },
 ): {
   errors: string[];
   candidates: Array<{ file: string; lines: number; relativeImports: number }>;
 };
 
 export interface ArchitectureHealthReport {
+  generatedAt: string;
   errors: string[];
+  scope: { workspaceRoots: string[]; excludedPaths: string[] };
+  summary: { sourceFiles: number; [key: string]: number };
+  packages: unknown[];
+  testOwnership: {
+    runtimeAssignments: unknown[];
+    [key: string]: unknown;
+  };
+  cycles: {
+    runtime: unknown[];
+    type: unknown[];
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -37,3 +58,38 @@ export function loadArchitectureInputs(repoRoot: string): Promise<{
   exceptions: unknown;
   hotspots: unknown;
 }>;
+
+export const __architectureHealthTestInternals: {
+  pathExists(value: string): Promise<boolean>;
+  walk(dir: string, predicate: (file: string, name: string) => boolean): Promise<string[]>;
+  isTestFile(file: string): boolean;
+  stripSourceComments(text: string): string;
+  candidatePaths(basePath: string, sourceExtensions: Set<string>): string[];
+  resolveRelativeModule(
+    fromFile: string,
+    specifier: string,
+    knownFiles: Set<string>,
+    sourceExtensions: Set<string>,
+  ): Promise<string | null>;
+  findGraphCycles(
+    nodes: string[],
+    edges: Array<{ from: string; to: string; typeOnly: boolean }>,
+    runtimeOnly: boolean,
+  ): string[][];
+  findPackageCycles(packages: Array<{ name: string; workspaceDependencies: string[] }>): string[][];
+  matchesTestProject(
+    file: string,
+    project: {
+      exactFiles?: string[];
+      excludeFiles?: string[];
+      excludePrefixes?: string[];
+      includePrefixes?: string[];
+    },
+  ): boolean;
+  stripJsonComments(text: string): string;
+  validateExceptions(
+    exceptionDocument: { exceptions?: Array<Record<string, unknown>> },
+    activeCycles: Array<{ kind: string; members: string[] }>,
+    now: Date,
+  ): { errors: string[]; unexcepted: unknown[]; matched: string[] };
+};

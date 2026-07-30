@@ -7,6 +7,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type * as http from 'node:http';
 import { isIP } from 'node:net';
+import type { HqSessionEntry } from './types.js';
 
 // ── Cookie / session constants ─────────────────────────────────────────────
 
@@ -22,7 +23,19 @@ export interface HqBrowserAuthContext {
   capabilities?: string[];
 }
 
-export type HqBrowserAuthResult = HqBrowserAuthContext | 'cookie' | undefined;
+/**
+ * Cookie-session auth context — returned when a valid `hq.session` cookie
+ * is presented. Password-origin cookies have `kind: 'cookie'` (full
+ * access). Token-origin cookies carry the source token's capabilities
+ * so capability checks (e.g. `control.enqueue`) still apply.
+ */
+export interface HqCookieAuthContext {
+  kind: 'cookie';
+  tokenId?: string;
+  capabilities?: string[];
+}
+
+export type HqBrowserAuthResult = HqBrowserAuthContext | HqCookieAuthContext | undefined;
 
 // ── Security headers ───────────────────────────────────────────────────────
 
@@ -223,7 +236,11 @@ export function clearHqSessionCookie(res: http.ServerResponse, secure?: boolean)
 // ── Auth result helpers ─────────────────────────────────────────────────────
 
 export function isTokenAuth(auth: HqBrowserAuthResult): auth is HqBrowserAuthContext {
-  return auth !== undefined && auth !== 'cookie';
+  return auth !== undefined && auth.kind === 'token';
+}
+
+export function isCookieAuth(auth: HqBrowserAuthResult): auth is HqCookieAuthContext {
+  return auth !== undefined && auth.kind === 'cookie';
 }
 
 // ── Request auth ───────────────────────────────────────────────────────────
@@ -282,7 +299,7 @@ export function authenticateBrowserRequest(
     passwordHash?: string | undefined;
     cookieSecret?: string | undefined;
   },
-  sessions: Map<string, { createdAt: number }>,
+  sessions: Map<string, HqSessionEntry>,
 ): HqBrowserAuthResult {
   const token = extractBrowserToken(req, url);
   if (token) {
@@ -298,7 +315,7 @@ export function authenticateBrowserRequest(
       return ctx;
     }
   }
-  if (mutableAuth.passwordHash && mutableAuth.cookieSecret) {
+  if (mutableAuth.cookieSecret) {
     const cookies = parseCookieHeader(req.headers.cookie);
     const raw = cookies[HQ_SESSION_COOKIE];
     if (raw) {
@@ -308,7 +325,24 @@ export function authenticateBrowserRequest(
       if (sessionId) {
         const session = sessions.get(sessionId);
         if (session && Date.now() - session.createdAt < HQ_SESSION_MAX_AGE_MS) {
-          return 'cookie';
+          // For token-origin sessions, resolve capabilities from the LIVE
+          // token record (not the cached session entry) so that a capability
+          // change in auth.json takes effect immediately rather than at
+          // session expiry.
+          if (session.kind === 'token' && session.tokenId !== undefined) {
+            const liveToken = [...mutableAuth.browserTokenObjs.values()].find(
+              (obj) => obj.id === session.tokenId,
+            );
+            if (!liveToken) {
+              sessions.delete(sessionId);
+              return undefined;
+            }
+            const ctx: HqCookieAuthContext = { kind: 'cookie', tokenId: session.tokenId };
+            if (liveToken.capabilities !== undefined) ctx.capabilities = liveToken.capabilities;
+            return ctx;
+          }
+          // Password-origin sessions have full access.
+          return { kind: 'cookie' as const };
         }
         // Stale session — evict so a replayed cookie doesn't linger.
         if (session) sessions.delete(sessionId);

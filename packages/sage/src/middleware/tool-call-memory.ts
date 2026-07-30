@@ -15,9 +15,36 @@ export interface SageToolCallMiddlewareOptions {
   maxHintsPerTool?: number | undefined;
   maxCharsPerTool?: number | undefined;
   minScore?: number | undefined;
+  /**
+   * Hard importance gate. A memory below it is never auto-injected no matter
+   * how exactly its anchor matches — importance used to be a purely additive
+   * term, so a trivial note with a file anchor outranked an important
+   * unanchored one. Still fully searchable; this gates automatic injection only.
+   */
+  minImportance?: number | undefined;
+  /**
+   * Milliseconds before an already-injected memory may be injected again in
+   * the same session. `0` or a non-finite value means "once per session" —
+   * the default. Repeating a memory the model has already been shown spends
+   * context to say nothing new.
+   *
+   * Note: prior versions defaulted to a 30-minute time-boxed cooldown. The
+   * default changed to once-per-session; operators upgrading without setting
+   * this option will see memories re-injected every turn instead of every
+   * 30 minutes. Set a positive millisecond value to restore the old behaviour.
+   *
+   * Sessionless payloads are keyed under the synthetic `<no-session>` token,
+   * so two distinct sessions sharing one process will collide on that ledger.
+   * Callers that route sessionless work through multiple logical sessions
+   * should pass a unique `ctx.session.id` per session.
+   */
   repeatCooldownMs?: number | undefined;
   verifyOnMutation?: boolean | undefined;
-  /** Enrich retrieval with live todo/Kanban task state. Default: true. */
+  /**
+   * Fold live todo/Kanban text into the retrieval query. Default: false —
+   * it searches for the operator's task rather than the file the tool
+   * touched, which is the single largest source of unrelated matches.
+   */
   taskAware?: boolean | undefined;
   triggers?: Partial<Record<MemoryToolTrigger, boolean>> | undefined;
   /**
@@ -41,7 +68,7 @@ export interface SageRetrieverLike {
   }): Promise<Sage[]>;
   searchSage(
     query: string,
-    opts?: { limit?: number; includeAudienceScoped?: boolean },
+    opts?: { limit?: number; includeAudienceScoped?: boolean; requireAllTerms?: boolean },
   ): Promise<Sage[]>;
   findRelatedSage?(
     memoryIds: string[],
@@ -88,8 +115,29 @@ interface RetrievedMemory {
 
 const DEFAULT_MAX_HINTS = 8;
 const DEFAULT_MAX_CHARS = 2800;
-const DEFAULT_REPEAT_COOLDOWN_MS = 30 * 60_000;
-const MIN_RELATION_STRENGTH = 0.62;
+/** `0` = once per session. See `applyCooldown`. */
+const DEFAULT_REPEAT_COOLDOWN_MS = 0;
+/**
+ * Evidence floor for automatic injection.
+ *
+ * Measured 2026-07-30: at the old 0.62 floor the `minScore` gate was dead —
+ * the weakest relation that could reach the scorer already produced 0.672
+ * against a 0.65 bar, so nothing was ever rejected on score. The floor is the
+ * gate that actually decides, so it carries the bar: 0.75 admits an exact
+ * file/symbol/command anchor (0.95+), an immediate-parent directory anchor
+ * (0.84), and a query that matched a memory's own anchor or tag terms
+ * (0.78+) — and rejects single-term lexical overlap and shared-tag graph
+ * neighbours, which is where the noise came from.
+ */
+export const MIN_RELATION_STRENGTH = 0.75;
+export const DEFAULT_MIN_SCORE = 0.72;
+export const DEFAULT_MIN_IMPORTANCE = 0.5;
+/**
+ * Cap on the once-per-session ledger. It is keyed by session+memory and never
+ * expires by age, so it only needs a backstop against an unbounded process
+ * lifetime; at this size eviction is unreachable in a real session.
+ */
+const MAX_TRACKED_INJECTIONS = 20_000;
 
 export function createSageToolCallMiddleware(
   opts: SageToolCallMiddlewareOptions,
@@ -97,6 +145,11 @@ export function createSageToolCallMiddleware(
   const seen = new Map<string, number>();
   const pruneState = { lastPruneAt: 0 };
   const injector = new MemoryInjectorAgent();
+  // Hoisted out of the handler so the catch-path trace can report the same
+  // gates the try-path used — a proof emitted without its threshold is noise.
+  const minScore = opts.minScore ?? DEFAULT_MIN_SCORE;
+  const minImportance = opts.minImportance ?? DEFAULT_MIN_IMPORTANCE;
+  const thresholds = { minScore, minImportance, relationFloor: MIN_RELATION_STRENGTH };
   return {
     name: 'sage.tool-result-injection',
     owner: 'sage',
@@ -137,12 +190,17 @@ export function createSageToolCallMiddleware(
         attemptedPlan = plan;
         trigger.queryText = plan.queryText;
         const maxHints = plan.maxHints;
-        const memories = await retrieveTriggeredMemories(opts.memory, trigger, maxHints);
-        const minScore = opts.minScore ?? 0.65;
+        const memories = await retrieveTriggeredMemories(
+          opts.memory,
+          trigger,
+          maxHints,
+          nextPayload.ctx.projectRoot,
+        );
         const alreadyVisible = visibleContextText(nextPayload);
         const deduped = dedupeRetrievedByText(memories);
         const scoreEligible = deduped.filter(
           ({ memory, relationStrength }) =>
+            memory.importance >= minImportance &&
             relationStrength >= MIN_RELATION_STRENGTH &&
             contextualInjectionScore(memory, relationStrength) >= minScore,
         );
@@ -187,6 +245,7 @@ export function createSageToolCallMiddleware(
             activated: [],
             injected: [],
             injectedChars: 0,
+            thresholds,
           });
           return nextPayload;
         }
@@ -228,6 +287,7 @@ export function createSageToolCallMiddleware(
             ),
             injected: [],
             injectedChars: 0,
+            thresholds,
           });
           return nextPayload;
         }
@@ -282,6 +342,7 @@ export function createSageToolCallMiddleware(
             return [toTraceMemory(selectedById.get(id)!, plan)];
           }),
           injectedChars: rendered.text.length,
+          thresholds,
           error: auditError,
         });
         return nextPayload;
@@ -308,6 +369,7 @@ export function createSageToolCallMiddleware(
             activated: [],
             injected: [],
             injectedChars: 0,
+            thresholds,
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -333,6 +395,10 @@ interface InjectorTraceMemory {
   confidence: number;
   freshness: number;
   persistence: string;
+  /** Metadata floor before weighting — lets the UI show the score's operands. */
+  metadataScore: number;
+  /** Signed score contributions; they sum to the pre-clamp `score`. */
+  scoreTerms: InjectionScoreTerm[];
 }
 
 interface InjectorTraceInput {
@@ -352,6 +418,11 @@ interface InjectorTraceInput {
   activated: InjectorTraceMemory[];
   injected: InjectorTraceMemory[];
   injectedChars: number;
+  /**
+   * The gates in force for this run. Without them a displayed score is
+   * unreadable — 0.67 means nothing until you know the bar was 0.65.
+   */
+  thresholds: { minScore: number; minImportance: number; relationFloor: number };
   error?: string | undefined;
 }
 
@@ -371,11 +442,16 @@ function emitInjectorTrace(events: EventBus | undefined, input: InjectorTraceInp
     outcome: input.outcome,
     trigger: input.trigger.trigger,
     toolName: input.nextPayload.toolUse.name,
-    queryPreview: boundedText(input.plan.queryText, 240),
+    // The query is the single most diagnostic field here: task-aware planning
+    // splices todo/Kanban text onto the tool path, so a memory that looks
+    // unrelated to the conversation is often a legitimate match against text
+    // the operator never typed. Truncating at 240 hid exactly that tail.
+    queryPreview: boundedText(input.plan.queryText, 600),
     paths: input.trigger.paths.slice(0, 8),
     taskSignals: input.plan.taskSignals.slice(0, 6).map((signal) => boundedText(signal, 160)),
     contextPressure: Number(input.plan.contextPressure.toFixed(3)),
     budget: { maxHints: input.plan.maxHints, maxChars: input.plan.maxChars },
+    thresholds: input.thresholds,
     candidates: input.candidates,
     eligible: input.eligible,
     rejected: input.rejected,
@@ -405,12 +481,18 @@ function toTraceMemory(
     ...matchedTags.map((tag) => `tag:#${tag}`),
     ...taskTags.map((tag) => `task:#${tag}`),
   ];
+  const proof = computeInjectionProof(item.memory, item.relationStrength);
   return {
     id: item.memory.id,
     kind: item.memory.kind,
     text: boundedText(item.memory.text, 180),
-    score: Number(contextualInjectionScore(item.memory, item.relationStrength).toFixed(3)),
+    score: Number(proof.score.toFixed(3)),
     relationStrength: Number(item.relationStrength.toFixed(3)),
+    metadataScore: Number(proof.metadataScore.toFixed(3)),
+    scoreTerms: proof.terms.map((term) => ({
+      label: term.label,
+      value: Number(term.value.toFixed(3)),
+    })),
     anchor: anchor ? formatTraceAnchor(anchor) : undefined,
     anchors: item.memory.anchors.slice(0, 5).map(formatTraceAnchor),
     tags: item.memory.tags.slice(0, 8),
@@ -441,6 +523,7 @@ async function retrieveTriggeredMemories(
   memory: SageRetrieverLike,
   trigger: ExtractedTriggerContext,
   limit: number,
+  projectRoot?: string | undefined,
 ): Promise<RetrievedMemory[]> {
   // Path lookups and the lexical query lookup are independent reads — run
   // them concurrently instead of serially awaiting each path in turn.
@@ -460,11 +543,22 @@ async function retrieveTriggeredMemories(
         includeAudienceScoped: false,
       })
       .then((matches) =>
-        matches.map((item) => ({
-          memory: item,
-          relationStrength: 0.95,
-          retrievalReasons: ['anchor:path-match'],
-        })),
+        // The store matches ancestors, so this answer also contains memories
+        // anchored to a directory far above the file. Measure each one against
+        // the path that was actually touched instead of paying every hit the
+        // flat 0.95 an exact anchor earns — that flat rate is what put
+        // project-wide notes on every single read.
+        matches.flatMap((item) => {
+          const relation = pathAnchorRelation(item, relativeProjectPath(projectRoot, p));
+          if (!relation) return [];
+          return [
+            {
+              memory: item,
+              relationStrength: relation.strength,
+              retrievalReasons: [relation.reason],
+            },
+          ];
+        }),
       ),
   );
   if (trigger.queryText.trim()) {
@@ -475,6 +569,11 @@ async function retrieveTriggeredMemories(
           // Pull a wider pool here, then apply the inject-only evidence gate below.
           limit: Math.max(candidateLimit * 4, 64),
           includeAudienceScoped: false,
+          // Never widen an automatic query to OR. The store's any-term retry
+          // exists for the operator typing into `/memory search`; here it
+          // turns a zero-result query into a corpus scan whose hits share one
+          // incidental word with the tool path.
+          requireAllTerms: true,
         })
         .then((matches) =>
           matches.map((item) => {
@@ -511,9 +610,9 @@ async function retrieveTriggeredMemories(
   // shares one weak term must not open a three-hop walk across the project.
   const graphSeeds = [...byId.values()].filter(
     (item) =>
-      item.relationStrength >= 0.7 &&
+      item.relationStrength >= 0.9 &&
       item.retrievalReasons.some(
-        (reason) => reason === 'anchor:path-match' || reason.startsWith('query:exact-'),
+        (reason) => reason.startsWith('anchor:') || reason.startsWith('query:exact-'),
       ),
   );
   if (memory.findRelatedSage && graphSeeds.length > 0) {
@@ -521,7 +620,8 @@ async function retrieveTriggeredMemories(
       graphSeeds.map((item) => item.memory.id),
       {
         limit: candidateLimit,
-        maxDepth: 3,
+        // Two hops from an exact anchor is already a memory nobody asked for.
+        maxDepth: 2,
         includeStatuses: isMutationTrigger(trigger.trigger) ? ['active', 'stale'] : ['active'],
         includeAudienceScoped: false,
       },
@@ -555,6 +655,87 @@ async function retrieveTriggeredMemories(
     );
 }
 
+/**
+ * Least broad directory anchor allowed to carry a match, in path segments.
+ * `.` (0) and `packages` (1) sit above half the repository; a memory anchored
+ * there is a project-wide note, and treating it as evidence for one file is
+ * how every tool call ended up with a memory attached.
+ */
+const MIN_ANCESTOR_ANCHOR_SEGMENTS = 2;
+/** Relation lost per directory level between the anchor and the touched file. */
+const ANCESTOR_DECAY_PER_SEGMENT = 0.11;
+
+/**
+ * Strength of the tie between one memory's own anchors and the path a tool
+ * touched. `undefined` means the memory carries no anchor evidence for this
+ * path — the store's ancestor/LIKE matching returned it, but nothing in the
+ * record actually points here, so the path branch contributes nothing and the
+ * memory must earn its place through the lexical query instead.
+ */
+function pathAnchorRelation(
+  memory: Sage,
+  relPath: string,
+): { strength: number; reason: string } | undefined {
+  if (!relPath || relPath === '.') return undefined;
+  const targetDepth = relPath.split('/').filter(Boolean).length;
+  let best: { strength: number; reason: string } | undefined;
+  const keep = (candidate: { strength: number; reason: string }): void => {
+    if (!best || candidate.strength > best.strength) best = candidate;
+  };
+  for (const anchor of memory.anchors) {
+    const anchorPath = normalizeAnchorPath(anchor.path);
+    if (!anchorPath) continue;
+    if (anchorPath === relPath) {
+      keep({
+        strength: anchor.symbol || anchor.command ? 0.98 : 0.95,
+        reason: `anchor:${anchor.type}-exact`,
+      });
+      continue;
+    }
+    if (!relPath.startsWith(`${anchorPath}/`)) continue;
+    const anchorDepth = anchorPath.split('/').filter(Boolean).length;
+    if (anchorDepth < MIN_ANCESTOR_ANCHOR_SEGMENTS) continue;
+    const distance = targetDepth - anchorDepth;
+    keep({
+      strength: Math.max(0, 0.95 - distance * ANCESTOR_DECAY_PER_SEGMENT),
+      reason: `anchor:ancestor-${distance}`,
+    });
+  }
+  return best;
+}
+
+function normalizeAnchorPath(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const normalized = value
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/$/, '')
+    .toLowerCase();
+  return normalized && normalized !== '.' ? normalized : undefined;
+}
+
+/**
+ * Tool path → the project-relative, forward-slashed form anchors are stored
+ * in. Total by construction: an already-relative path passes through, and a
+ * path outside the root resolves to `''`, which carries no anchor evidence.
+ */
+function relativeProjectPath(projectRoot: string | undefined, toolPath: string): string {
+  const normalized = toolPath.replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase();
+  if (!projectRoot || !path.isAbsolute(toolPath)) return normalized;
+  const relative = path.relative(path.resolve(projectRoot), toolPath);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return '';
+  return relative.replace(/\\/g, '/').toLowerCase();
+}
+
+/**
+ * Drop memories this session has already been shown.
+ *
+ * A repeat costs context and carries no new information — the model saw the
+ * text the first time. With `cooldownMs <= 0` (the default) the ledger is
+ * permanent for the session; a positive value restores the old time-boxed
+ * behaviour for operators who want it.
+ */
 function applyCooldown(
   memories: Sage[],
   seen: Map<string, number>,
@@ -562,10 +743,11 @@ function applyCooldown(
   sessionId?: string,
 ): Sage[] {
   const now = Date.now();
+  const permanent = !Number.isFinite(cooldownMs) || cooldownMs <= 0;
   return memories.filter((memory) => {
     const last = seen.get(cooldownKey(memory.id, sessionId));
-    if (!last) return true;
-    return now - last >= cooldownMs;
+    if (last === undefined) return true;
+    return permanent ? false : now - last >= cooldownMs;
   });
 }
 
@@ -587,10 +769,19 @@ function pruneCooldowns(
 ): void {
   if (now - state.lastPruneAt < PRUNE_COOLDOWNS_INTERVAL_MS) return;
   state.lastPruneAt = now;
-  const oldestUseful = now - Math.max(cooldownMs, 60 * 60_000);
-  for (const [key, at] of seen) {
-    if (at < oldestUseful) seen.delete(key);
+  if (Number.isFinite(cooldownMs) && cooldownMs > 0) {
+    const oldestUseful = now - Math.max(cooldownMs, 60 * 60_000);
+    for (const [key, at] of seen) {
+      if (at < oldestUseful) seen.delete(key);
+    }
+    return;
   }
+  // Once-per-session mode: age says nothing about whether an entry is still
+  // needed, so evicting by time would silently re-enable repeat injection.
+  // Bound the map by size instead, oldest first.
+  if (seen.size <= MAX_TRACKED_INJECTIONS) return;
+  const ordered = [...seen.entries()].sort((a, b) => a[1] - b[1]);
+  for (const [key] of ordered.slice(0, seen.size - MAX_TRACKED_INJECTIONS)) seen.delete(key);
 }
 
 function scoreForInjection(memory: Sage): number {
@@ -601,8 +792,36 @@ function normalizedInjectionScore(memory: Sage): number {
   return scoreForInjection(memory) / 6;
 }
 
-function contextualInjectionScore(memory: Sage, relationStrength: number): number {
-  const metadata = normalizedInjectionScore(memory);
+/**
+ * One signed contribution to the injection score. `label` is UI-facing and
+ * carries the raw operand (e.g. `metadata 0.72×0.48`) so an operator can see
+ * *which* term carried a memory over the threshold rather than only the sum.
+ */
+export interface InjectionScoreTerm {
+  label: string;
+  value: number;
+}
+
+export interface InjectionProof {
+  score: number;
+  /** The metadata floor before weighting — (importance*3 + confidence*2 + freshness) / 6. */
+  metadataScore: number;
+  relationStrength: number;
+  /** Signed contributions; they sum to the pre-clamp score. */
+  terms: InjectionScoreTerm[];
+}
+
+/**
+ * Decompose the injection score into its contributing terms.
+ *
+ * This is the authority for the score — `contextualInjectionScore` is a thin
+ * wrapper over it — so the number an operator is shown can never drift from
+ * the number the gate used. The term sum is the pre-clamp score by
+ * construction; do not add a contribution here without pushing it onto
+ * `terms`, or the displayed proof stops adding up to the verdict.
+ */
+function computeInjectionProof(memory: Sage, relationStrength: number): InjectionProof {
+  const metadataScore = normalizedInjectionScore(memory);
   const persistence = memory.persistence ?? DEFAULT_PERSISTENCE;
   const persistenceBoost =
     persistence === 'permanent' ? 0.08 : persistence === 'long_lived' ? 0.04 : -0.08;
@@ -617,19 +836,31 @@ function contextualInjectionScore(memory: Sage, relationStrength: number): numbe
   const injections = memory.injectionCount ?? 0;
   const unusedPenalty =
     injections >= 3 && uses === 0 ? Math.min(0.18, 0.05 + injections * 0.012) : 0;
-  return Math.max(
-    0,
-    Math.min(
-      1,
-      metadata * 0.48 +
-        relationStrength * 0.48 +
-        persistenceBoost +
-        durableKindBoost +
-        useBoost +
-        anchorBoost -
-        unusedPenalty,
-    ),
-  );
+
+  const terms: InjectionScoreTerm[] = [
+    { label: `metadata ${metadataScore.toFixed(2)}×0.48`, value: metadataScore * 0.48 },
+    { label: `relation ${relationStrength.toFixed(2)}×0.48`, value: relationStrength * 0.48 },
+    { label: persistence, value: persistenceBoost },
+  ];
+  if (durableKindBoost !== 0) {
+    terms.push({ label: `durable(${memory.kind})`, value: durableKindBoost });
+  }
+  if (useBoost !== 0) terms.push({ label: `used×${uses}`, value: useBoost });
+  terms.push({
+    label: memory.anchors.length > 0 ? `anchored×${memory.anchors.length}` : 'unanchored',
+    value: anchorBoost,
+  });
+  if (unusedPenalty !== 0) {
+    terms.push({ label: `unused after ${injections} injections`, value: -unusedPenalty });
+  }
+
+  let raw = 0;
+  for (const term of terms) raw += term.value;
+  return { score: Math.max(0, Math.min(1, raw)), metadataScore, relationStrength, terms };
+}
+
+function contextualInjectionScore(memory: Sage, relationStrength: number): number {
+  return computeInjectionProof(memory, relationStrength).score;
 }
 
 function durableMemoryKind(kind: Sage['kind']): boolean {
@@ -932,7 +1163,7 @@ function selectDiverseMemories(
   let graphOnly = 0;
   for (const memory of memories) {
     const reasons = reasonsById.get(memory.id) ?? [];
-    const hasPath = reasons.some((reason) => reason.startsWith('anchor:path-match'));
+    const hasPath = reasons.some((reason) => reason.startsWith('anchor:'));
     const hasGraph = reasons.some((reason) => reason.startsWith('graph:'));
     const hasQuery = reasons.some((reason) => reason.startsWith('query:'));
     if (!hasPath && hasGraph && graphOnly >= 1) continue;
@@ -950,7 +1181,7 @@ function selectDiverseMemories(
   }
   for (const memory of deferred) {
     const reasons = reasonsById.get(memory.id) ?? [];
-    const hasPath = reasons.some((reason) => reason.startsWith('anchor:path-match'));
+    const hasPath = reasons.some((reason) => reason.startsWith('anchor:'));
     const hasGraph = reasons.some((reason) => reason.startsWith('graph:'));
     const hasQuery = reasons.some((reason) => reason.startsWith('query:'));
     if (!hasPath && hasGraph && graphOnly >= 1) continue;
@@ -985,6 +1216,7 @@ export const toolCallMemoryCoverage = {
   scoreForInjection,
   normalizedInjectionScore,
   contextualInjectionScore,
+  computeInjectionProof,
   durableMemoryKind,
   isMutationTrigger,
   didMutate,

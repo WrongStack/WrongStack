@@ -257,6 +257,9 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         input: scrub(e.input),
         fileTargets: extractCodeMapFileTargets(projectRoot || '.', e.name, e.input),
         output: scrub(e.output),
+        // SAGE-injected memory rides beside the tool text so the client renders
+        // it as a memory card. Never folded back into `output`.
+        ...(e.sage && e.sage.length > 0 ? { sage: e.sage.map((line) => scrub(line)) } : {}),
         outputBytes: e.outputBytes,
         outputTokens: e.outputTokens,
         outputLines: e.outputLines,

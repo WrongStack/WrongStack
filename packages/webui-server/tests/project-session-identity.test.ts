@@ -25,6 +25,7 @@ vi.mock('@wrongstack/core/storage', async (original) => {
 });
 
 import { createProjectHandlers } from '../src/server/project-handlers.js';
+import type { SessionIdentityTarget } from '../src/server/standalone-session-identity.js';
 
 function writer(id: string) {
   return {
@@ -52,8 +53,12 @@ describe('WebUI project switch session identity', () => {
   });
 
   function makeHarness(
-    onSessionSwapped = vi.fn(async () => undefined),
-    onBeforeSessionTodosReplaced = vi.fn(async () => undefined),
+    onSessionSwapped = vi.fn<(sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>>(
+      async () => undefined,
+    ),
+    onBeforeSessionTodosReplaced = vi.fn<(sessionId: string, sessionsDir: string) => void | Promise<void>>(
+      async () => undefined,
+    ),
   ) {
     const old = writer('2026-07-27/sess_old');
     const next = writer('2026-07-27/sess_new');
@@ -129,7 +134,9 @@ describe('WebUI project switch session identity', () => {
   }
 
   it('publishes the new project identity before swapping the runtime writer', async () => {
-    const onSessionSwapped = vi.fn(async () => undefined);
+    const onSessionSwapped = vi.fn<
+      (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>
+    >(async () => undefined);
     const h = makeHarness(onSessionSwapped);
 
     await h.routes.selectProject(h.ws, {
@@ -153,8 +160,15 @@ describe('WebUI project switch session identity', () => {
   });
 
   it('rebinds todo persistence before clearing todos for the selected project', async () => {
-    const onBeforeSessionTodosReplaced = vi.fn(async () => undefined);
-    const h = makeHarness(vi.fn(async () => undefined), onBeforeSessionTodosReplaced);
+    const onBeforeSessionTodosReplaced = vi.fn<
+      (sessionId: string, sessionsDir: string) => void | Promise<void>
+    >(async () => undefined);
+    const h = makeHarness(
+      vi.fn<(sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>>(
+        async () => undefined,
+      ),
+      onBeforeSessionTodosReplaced,
+    );
 
     await h.routes.selectProject(h.ws, {
       type: 'projects.select',
@@ -174,9 +188,13 @@ describe('WebUI project switch session identity', () => {
   });
 
   it('rolls identity and todo persistence back when project checkpoint rebinding fails', async () => {
-    const onSessionSwapped = vi.fn(async () => undefined);
+    const onSessionSwapped = vi.fn<
+      (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>
+    >(async () => undefined);
     let rebindCalls = 0;
-    const onBeforeSessionTodosReplaced = vi.fn(async () => {
+    const onBeforeSessionTodosReplaced = vi.fn<
+      (sessionId: string, sessionsDir: string) => void | Promise<void>
+    >(async () => {
       rebindCalls++;
       if (rebindCalls === 1) throw new Error('checkpoint unavailable');
     });
@@ -216,7 +234,9 @@ describe('WebUI project switch session identity', () => {
   });
 
   it('keeps the old runtime and deletes the fresh writer when identity update fails', async () => {
-    const onSessionSwapped = vi.fn(async () => {
+    const onSessionSwapped = vi.fn<
+      (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>
+    >(async () => {
       throw new Error('registry unavailable');
     });
     const h = makeHarness(onSessionSwapped);

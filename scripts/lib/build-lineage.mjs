@@ -6,12 +6,14 @@ async function pathExists(file) {
   try {
     await stat(file);
     return true;
+    /* istanbul ignore next -- filesystem disappearance/permission race */
   } catch {
     return false;
   }
 }
 
 async function walkFiles(root) {
+  /* istanbul ignore if -- callers preflight roots; recursive entries are known directories */
   if (!(await pathExists(root))) return [];
   const files = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {

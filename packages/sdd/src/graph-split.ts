@@ -13,7 +13,6 @@
  */
 
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import { extractVerificationCommand } from './task-generator.js';
 import type { SddSubtaskSpec } from './sdd-parallel-run.js';
 
 export interface SplitGraphNodeOptions {
@@ -41,13 +40,9 @@ export function splitGraphNode(
 
   const leafIds = subtasks.map((s) => {
     const criterion = s.successCriterion?.trim();
-    const verificationCommand = criterion
-      ? extractVerificationCommand([criterion])
-      : undefined;
-    const description =
-      criterion && !verificationCommand
-        ? `${s.description}\n\n**Acceptance Criteria:**\n- ${criterion}`
-        : s.description;
+    const description = criterion
+      ? `${s.description}\n\n**Acceptance Criteria:**\n- ${criterion}`
+      : s.description;
     return tracker.addNode({
       title: s.title,
       description,
@@ -55,7 +50,6 @@ export function splitGraphNode(
       priority: s.priority ?? node.priority,
       status: 'pending',
       parentId: taskId,
-      ...(verificationCommand ? { metadata: { verificationCommand } } : {}),
     } as never).id;
   });
 

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +22,6 @@ export default defineConfig({
     testTimeout: 60_000,
     hookTimeout: 60_000,
     setupFiles: ['../../vitest.setup.ts'],
-    maxWorkers: '25%',
+    maxWorkers: getVitestMaxWorkers(),
   },
 });

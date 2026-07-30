@@ -186,6 +186,7 @@ export const ToolLedgerCard = memo(function ToolLedgerCard({
                 toolName={message.toolName}
                 result={message.toolResult}
                 isError={message.isError}
+                sageLines={message.sageLines}
               />
             </div>
           )}

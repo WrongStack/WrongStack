@@ -88,11 +88,15 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
 
   const textTerms = new Set(informativeTerms(memory.text));
   const tagTerms = new Set(memory.tags.flatMap(informativeTerms));
+  // Symbols, commands and roles only — deliberately NOT anchor paths. A path
+  // is matched as a path (verbatim in the query above, or by the tool-call
+  // middleware against the file the tool actually touched); letting its
+  // segments also feed fuzzy word matching double-counts the same anchor and
+  // makes any memory about `<pkg>/src/store.ts` look like evidence for every
+  // other `store.ts` in the repository.
   const anchorTerms = new Set(
     memory.anchors.flatMap((anchor) =>
-      informativeTerms(
-        [anchor.path, anchor.symbol, anchor.command, anchor.role].filter(Boolean).join(' '),
-      ),
+      informativeTerms([anchor.symbol, anchor.command, anchor.role].filter(Boolean).join(' ')),
     ),
   );
   const allTerms = new Set([...textTerms, ...tagTerms, ...anchorTerms]);
@@ -107,16 +111,35 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
   if (tagMatches.length > 0) evidence.push(`query:tag-terms:${tagMatches.slice(0, 3).join(',')}`);
   evidence.push(`query:text-terms:${matched.slice(0, 4).join(',')}`);
 
-  if (anchorMatches.length > 0) {
+  // Evidence tiers, deliberately split around the tool-call middleware's
+  // relation floor. What lifts a tier is not how many words coincided but how
+  // much of the question they answered: three shared words out of a
+  // three-word search is the memory the caller asked for, while the same
+  // three out of a twelve-term enriched path query is a coincidence. One
+  // isolated token — `store`, `session`, `middleware` — is why unrelated
+  // memories used to arrive stapled to files they say nothing about.
+  const answersTheQuery = matched.length / queryTerms.length >= 0.6 || matched.length >= 4;
+  if (anchorMatches.length >= 2) {
     return { strength: Math.min(0.92, 0.78 + anchorMatches.length * 0.05), evidence };
   }
-  if (tagMatches.length > 0) {
+  if (anchorMatches.length === 1) {
+    return { strength: answersTheQuery ? 0.82 : 0.72, evidence };
+  }
+  if (tagMatches.length >= 2) {
     return { strength: Math.min(0.88, 0.74 + tagMatches.length * 0.05), evidence };
   }
-  if (matched.length >= 3) {
-    return { strength: Math.min(0.86, 0.74 + matched.length * 0.03), evidence };
+  if (tagMatches.length === 1) {
+    return { strength: answersTheQuery ? 0.78 : 0.7, evidence };
   }
-  if (matched.length === 2) return { strength: 0.7, evidence };
+  if (matched.length >= 3) {
+    return { strength: answersTheQuery ? Math.min(0.86, 0.76 + matched.length * 0.02) : 0.72, evidence };
+  }
+  if (matched.length === 2) return { strength: answersTheQuery ? 0.72 : 0.68, evidence };
+  // One shared word out of a one- or two-word query. Real evidence when a
+  // person typed the query — half of what they asked about — but far too
+  // little to staple a memory onto a tool result, so it sits deliberately
+  // below the tool-call middleware's relation floor and can only ever reach
+  // the (opt-in) turn-context path.
   if (queryTerms.length <= 2) return { strength: 0.66, evidence };
   return { strength: 0, evidence: [] };
 }
