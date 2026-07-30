@@ -142,16 +142,16 @@ export class SddInterviewDriver {
     this.resumedFromDisk = false;
   }
 
-  setLastAgentText(text: string): void {
-    this.builder.setLastAgentText(text);
+  setLastAgentText(text: string): Promise<void> {
+    return this.builder.setLastAgentText(text);
   }
 
   getLastAgentText(): string | undefined {
     return this.builder.getLastAgentText();
   }
 
-  setLastRunId(runId: string): void {
-    this.builder.setLastRunId(runId);
+  setLastRunId(runId: string): Promise<void> {
+    return this.builder.setLastRunId(runId);
   }
 
   getLastRunId(): string | undefined {
@@ -261,9 +261,10 @@ export class SddInterviewDriver {
     this.tracker = tracker;
     this.graph = graph;
     await this.persistGraph(graph);
-    this.builder.setTaskGraphId(graph.id);
+    await this.builder.setTaskGraphId(graph.id);
     // Flush the session synchronously so a reconnect (loadExisting) sees the
-    // graphId — setTaskGraphId's own auto-save is fire-and-forget.
+    // graphId — setTaskGraphId's own save is awaited; this is a defensive
+    // double-flush that also keeps resume behaviour robust across edge cases.
     await this.builder.saveSession();
     return graph;
   }
@@ -401,7 +402,7 @@ export class SddInterviewDriver {
       }
     }
     await this.persistGraph(graph);
-    this.builder.setTaskGraphId(graph.id);
+    await this.builder.setTaskGraphId(graph.id);
     // Flush so a reconnect resumes with the graph linked (see ensureTaskGraph).
     await this.builder.saveSession();
     return graph.id;

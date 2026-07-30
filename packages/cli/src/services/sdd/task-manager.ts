@@ -72,7 +72,12 @@ export async function trySaveTasksFromAIOutput(aiOutput: string): Promise<boolea
   sddState.setTaskStore(store);
   sddState.setTaskTracker(tracker);
   sddState.setTaskGraphId(graph.id);
-  builder.setTaskGraphId(graph.id);
+  // Fire-and-forget save is unsafe here — `setTaskGraphId` is awaited precisely
+  // because the next mutation or caller's own `await saveSession()` must not
+  // race a stale fire-and-forget rename that silently reverts the persisted
+  // taskGraphId. The awaited save ensures the persisted snapshot matches
+  // sddState.setTaskGraphId before this function returns.
+  await builder.setTaskGraphId(graph.id);
   return true;
 }
 

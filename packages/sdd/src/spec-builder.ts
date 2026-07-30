@@ -311,8 +311,9 @@ export class AISpecBuilder {
       // atomicWrite: torn save would corrupt the SDD session JSON and the
       // next load would silently fall back to a fresh session.
       await atomicWrite(this.sessionPath, JSON.stringify(this.session, null, 2));
-    } catch {
+    } catch (error) {
       // Best-effort persistence — don't crash if save fails
+      console.error('[sdd] Failed to persist session', error);
     }
   }
 
@@ -496,11 +497,15 @@ export class AISpecBuilder {
   }
 
   /**
-   * Set the task graph ID for this session.
+   * Set the task graph ID for this session. Awaits the save so a caller that
+   * immediately follows with `await saveSession()` cannot end up with the
+   * awaited write committing first and the fire-and-forget rename reverting
+   * the persisted `taskGraphId` to its pre-set value. Same race window that
+   * broke `setLastAgentText`/`setLastRunId` on the resume test.
    */
-  setTaskGraphId(graphId: string): void {
+  async setTaskGraphId(graphId: string): Promise<void> {
     this.session.taskGraphId = graphId;
-    this.autoSave();
+    await this.saveSession();
   }
 
   /**
@@ -510,22 +515,29 @@ export class AISpecBuilder {
     return this.session.taskGraphId;
   }
 
-  /** Persist the last agent utterance so resume can rehydrate the UI + Q/A pairing. */
-  setLastAgentText(text: string): void {
+  /**
+   * Persist the last agent utterance so resume can rehydrate the UI + Q/A
+   * pairing. Awaits the save so the next mutation in the call chain (e.g.
+   * `setLastRunId`) cannot fire a concurrent save that overwrites this one
+   * with a stale snapshot — the fire-and-forget `autoSave()` pattern leaves
+   * a race window where an earlier queued save may commit its rename after
+   * a later one, silently reverting the persisted state.
+   */
+  async setLastAgentText(text: string): Promise<void> {
     this.session.lastAgentText = text;
     this.session.updatedAt = Date.now();
-    this.autoSave();
+    await this.saveSession();
   }
 
   getLastAgentText(): string | undefined {
     return this.session.lastAgentText;
   }
 
-  /** Record a run kicked off from this interview (board deep-link after restart). */
-  setLastRunId(runId: string): void {
+  /** Record a run kicked off from this interview (board deep-link after restart). See {@link setLastAgentText} for the awaited-save rationale. */
+  async setLastRunId(runId: string): Promise<void> {
     this.session.lastRunId = runId;
     this.session.updatedAt = Date.now();
-    this.autoSave();
+    await this.saveSession();
   }
 
   getLastRunId(): string | undefined {

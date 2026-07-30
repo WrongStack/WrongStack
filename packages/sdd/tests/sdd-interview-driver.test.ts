@@ -219,8 +219,8 @@ describe('SddInterviewDriver', () => {
     a.driver.start('OAuth login');
     await a.driver.ingestAgentOutput(SPEC_OUTPUT);
     await a.driver.ingestAgentOutput(TASKS_OUTPUT);
-    a.driver.setLastAgentText('Which providers?');
-    a.driver.setLastRunId('run-99');
+    await a.driver.setLastAgentText('Which providers?');
+    await a.driver.setLastRunId('run-99');
     await a.driver.builder.saveSession();
     const graphId = a.driver.getGraph()?.id;
 

@@ -247,7 +247,7 @@ describe('AISpecBuilder', () => {
     try {
       const builder = new AISpecBuilder({ store: mockStore(), sessionPath });
       builder.startSession('Saved', 'Intent');
-      builder.setTaskGraphId('graph-1');
+      await builder.setTaskGraphId('graph-1');
       await builder.saveSession();
 
       const restored = new AISpecBuilder({ store: mockStore(), sessionPath });
@@ -429,7 +429,7 @@ describe('AISpecBuilder', () => {
       requirements: [
         {
           id: 'REQ-1',
-          type: 'functional',
+          type: 'security',
           priority: 'critical',
           description: 'Login',
           acceptanceCriteria: [],

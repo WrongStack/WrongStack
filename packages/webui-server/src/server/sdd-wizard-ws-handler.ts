@@ -315,7 +315,7 @@ export class SddWizardWebSocketHandler {
       return;
     }
     const { runId } = await this.deps.startRun(this.driver, opts);
-    this.driver.setLastRunId(runId);
+    await this.driver.setLastRunId(runId);
     // Persist "executing" so a restart can deep-link to the live board.
     if (this.driver.phase() !== 'executing' && this.driver.phase() !== 'done') {
       try {
@@ -381,7 +381,7 @@ export class SddWizardWebSocketHandler {
       this.lastAgentText = text;
       if (this.driver) {
         await this.driver.ingestAgentOutput(text);
-        this.driver.setLastAgentText(text);
+        await this.driver.setLastAgentText(text);
       }
       this.broadcast({ type: 'sdd.spec.agent_text', payload: { text } });
     } finally {
