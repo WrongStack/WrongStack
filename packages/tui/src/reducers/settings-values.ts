@@ -22,6 +22,7 @@ import {
   PRE_REFINE_SECONDS_PRESETS,
   REASONING_EFFORTS,
   REASONING_MODES,
+  SAGE_THRESHOLD_PRESETS,
   SETTINGS_MODES,
   STATUSLINE_MODES,
   THINKING_WORD_FIELD,
@@ -501,6 +502,27 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state,
           settingsPicker: { ...sp, readSymbols: !sp.readSymbols, hint: undefined },
         };
+      // Field 43: showSageMemoryInject (boolean toggle)
+      if (f === 43)
+        return {
+          ...state,
+          settingsPicker: { ...sp, showSageMemoryInject: !sp.showSageMemoryInject, hint: undefined },
+        };
+      // Field 44: sageMemoryInjectThreshold (cycle SAGE_THRESHOLD_PRESETS)
+      if (f === 44) {
+        const j = SAGE_THRESHOLD_PRESETS.indexOf(sp.sageMemoryInjectThreshold);
+        const base = j < 0 ? 0 : j;
+        const next =
+          (base + action.delta + SAGE_THRESHOLD_PRESETS.length) % SAGE_THRESHOLD_PRESETS.length;
+        return {
+          ...state,
+          settingsPicker: {
+            ...sp,
+            sageMemoryInjectThreshold: expectDefined(SAGE_THRESHOLD_PRESETS[next]),
+            hint: undefined,
+          },
+        };
+      }
       return state;
     }
     case 'settingsValueSet': {

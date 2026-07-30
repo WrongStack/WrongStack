@@ -96,7 +96,7 @@ export class Context implements RunEnv {
    * (e.g., during a /rewind, provider error storm, or custom embedder).
    * Set to 0 for unlimited (legacy/test behaviour).
    */
-  static readonly MAX_MESSAGES = 2_000;
+  static readonly MAX_MESSAGES = 1_000;
   /**
    * Companion size cap on the same history, in estimated tokens.
    *
@@ -106,12 +106,12 @@ export class Context implements RunEnv {
    * conversation, reached without ever tripping the count cap. Both caps guard
    * the same failure — compaction not running — so both belong here.
    *
-   * 8M tokens is roughly 32M characters, i.e. ~64 MB of text before JS object
-   * overhead. That is ~40x a full 200k-token context window, so this never
-   * engages while compaction is doing its job; it only bounds the runaway.
+   * 1M tokens is roughly 4M characters, i.e. ~8 MB of UTF-16 text before JS
+   * object overhead. That is still 5x a full 200k-token context window, so normal
+   * compaction runs first; a broken compactor cannot retain tens of millions of characters.
    * Set to 0 for unlimited (legacy/test behaviour).
    */
-  static readonly MAX_MESSAGE_TOKENS = 8_000_000;
+  static readonly MAX_MESSAGE_TOKENS = 1_000_000;
   /**
    * Hard cap on distinct tracked-file paths retained in memory per session.
    * Past this limit the oldest (least-recently-entered) path is dropped.

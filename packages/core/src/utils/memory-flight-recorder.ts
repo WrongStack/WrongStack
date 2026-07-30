@@ -1,6 +1,10 @@
 import * as fsp from 'node:fs/promises';
-import { Session } from 'node:inspector/promises';
 import * as path from 'node:path';
+import {
+  type ContinuousMemoryProfiler,
+  type MemoryProfileArtifact,
+  startContinuousMemoryProfiler,
+} from './continuous-memory-profiler.js';
 import type { HeapDiagnosticFields, HeapSample } from './heap-watchdog-types.js';
 import { wstackGlobalRoot } from './wstack-paths.js';
 
@@ -9,6 +13,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DEFAULT_WINDOW_MS = 5 * 60 * 1000;
 const DEFAULT_MINIMUM_WINDOW_MS = 2 * 60 * 1000;
 const DEFAULT_COOLDOWN_MS = 15 * 60 * 1000;
+const DEFAULT_CONTINUOUS_CAPTURE_MS = 5 * 60 * 1000;
 const MAX_OBSERVATIONS = 24;
 const MAX_CAPTURE_SESSIONS = 12;
 const MAX_CAPTURES_PER_SESSION = 6;
@@ -19,6 +24,7 @@ type CaptureReason =
   | 'detached-contexts'
   | 'heap-growth'
   | 'heap-load'
+  | 'interval'
   | 'native-rss-growth';
 
 export interface MemoryFlightObservation {
@@ -41,6 +47,7 @@ export interface MemoryCaptureEvent {
 export interface MemoryCaptureWriter {
   readonly artifactDir: string;
   capture(event: MemoryCaptureEvent): Promise<void>;
+  diagnostics?(): HeapDiagnosticFields;
   stop(): Promise<void>;
 }
 
@@ -56,6 +63,7 @@ export interface MemoryFlightRecorderOptions {
   windowMs?: number | undefined;
   minimumWindowMs?: number | undefined;
   cooldownMs?: number | undefined;
+  continuousCaptureMs?: number | undefined;
   warmupMs?: number | undefined;
   absoluteHeapBytes?: number | undefined;
   heapGrowthBytes?: number | undefined;
@@ -85,6 +93,7 @@ async function pruneCaptureFiles(artifactDir: string): Promise<void> {
       return [
         fsp.rm(path.join(artifactDir, eventName), { force: true }),
         fsp.rm(path.join(artifactDir, `allocations-${stem}.heapprofile`), { force: true }),
+        fsp.rm(path.join(artifactDir, `allocations-${stem}.pb.gz`), { force: true }),
       ];
     }),
   );
@@ -114,12 +123,23 @@ async function pruneOldSessions(root: string, currentDir: string): Promise<void>
   );
 }
 
-class InspectorMemoryCaptureWriter implements MemoryCaptureWriter {
+class ContinuousMemoryCaptureWriter implements MemoryCaptureWriter {
   readonly artifactDir: string;
   private readonly root: string;
-  private readonly session = new Session();
   private readonly ready: Promise<void>;
+  private profiler: ContinuousMemoryProfiler | undefined;
+  private profilerBackend = 'initializing';
+  private fallbackReason: string | undefined;
   private startError: string | undefined;
+  private lastSummary:
+    | {
+        sampledBytes: number;
+        sampledObjects: number;
+        sampleCount: number;
+        topStack?: string | undefined;
+        topStackBytes?: number | undefined;
+      }
+    | undefined;
   private stopped = false;
 
   constructor(root: string) {
@@ -127,33 +147,52 @@ class InspectorMemoryCaptureWriter implements MemoryCaptureWriter {
     this.artifactDir = path.join(root, `${timestampSlug()}-pid-${process.pid}`);
     this.ready = this.start().catch((error) => {
       this.startError = error instanceof Error ? error.message : String(error);
+      this.profilerBackend = 'unavailable';
     });
   }
 
   private async start(): Promise<void> {
-    this.session.connect();
-    await this.session.post('HeapProfiler.enable');
-    await this.session.post('HeapProfiler.startSampling', {
-      samplingInterval: 64 * 1024,
-      includeObjectsCollectedByMajorGC: false,
-      includeObjectsCollectedByMinorGC: false,
-    });
+    const started = await startContinuousMemoryProfiler();
+    this.profiler = started.profiler;
+    this.profilerBackend = started.profiler.backend;
+    this.fallbackReason = started.fallbackReason;
+  }
+
+  diagnostics(): HeapDiagnosticFields {
+    return {
+      memoryProfilerBackend: this.profilerBackend,
+      ...(this.fallbackReason ? { memoryProfilerFallbackReason: this.fallbackReason } : {}),
+      ...(this.startError ? { memoryProfilerStartError: this.startError } : {}),
+      ...(this.lastSummary
+        ? {
+            memoryProfileSampledBytes: this.lastSummary.sampledBytes,
+            memoryProfileSampledObjects: this.lastSummary.sampledObjects,
+            memoryProfileSampleCount: this.lastSummary.sampleCount,
+            memoryProfileTopStack: this.lastSummary.topStack,
+            memoryProfileTopStackBytes: this.lastSummary.topStackBytes,
+          }
+        : {}),
+    };
   }
 
   async capture(event: MemoryCaptureEvent): Promise<void> {
     await this.ready;
     if (this.stopped) return;
-    let profile: unknown;
+    let profile: MemoryProfileArtifact | undefined;
     let captureError = this.startError;
-    if (!captureError) {
+    if (!captureError && this.profiler) {
       try {
-        const result = await this.session.post('HeapProfiler.stopSampling');
-        profile = result.profile;
-        await this.session.post('HeapProfiler.startSampling', {
-          samplingInterval: 64 * 1024,
-          includeObjectsCollectedByMajorGC: false,
-          includeObjectsCollectedByMinorGC: false,
-        });
+        profile = await this.profiler.capture();
+        const top = profile.summary?.topStacks[0];
+        if (profile.summary) {
+          this.lastSummary = {
+            sampledBytes: profile.summary.sampledBytes,
+            sampledObjects: profile.summary.sampledObjects,
+            sampleCount: profile.summary.sampleCount,
+            topStack: top?.frames.join(' <- '),
+            topStackBytes: top?.bytes,
+          };
+        }
       } catch (error) {
         captureError = error instanceof Error ? error.message : String(error);
       }
@@ -163,14 +202,23 @@ class InspectorMemoryCaptureWriter implements MemoryCaptureWriter {
     const stem = `${timestampSlug(new Date(event.capturedAt))}-${event.reason}`;
     await fsp.writeFile(
       path.join(this.artifactDir, `event-${stem}.json`),
-      `${JSON.stringify({ ...event, ...(captureError ? { captureError } : {}) }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          ...event,
+          profilerBackend: profile?.backend ?? this.profilerBackend,
+          ...(profile?.summary ? { allocationSummary: profile.summary } : {}),
+          ...(this.fallbackReason ? { profilerFallbackReason: this.fallbackReason } : {}),
+          ...(captureError ? { captureError } : {}),
+        },
+        null,
+        2,
+      )}\n`,
       'utf8',
     );
     if (profile) {
       await fsp.writeFile(
-        path.join(this.artifactDir, `allocations-${stem}.heapprofile`),
-        JSON.stringify(profile),
-        'utf8',
+        path.join(this.artifactDir, `allocations-${stem}${profile.extension}`),
+        profile.data,
       );
     }
     await Promise.all([
@@ -185,16 +233,7 @@ class InspectorMemoryCaptureWriter implements MemoryCaptureWriter {
     if (this.stopped) return;
     this.stopped = true;
     await this.ready;
-    try {
-      await this.session.post('HeapProfiler.disable');
-    } catch {
-      // The flight recorder is diagnostic-only; shutdown must remain reliable.
-    }
-    try {
-      this.session.disconnect();
-    } catch {
-      // Already disconnected.
-    }
+    await this.profiler?.stop();
   }
 }
 
@@ -219,14 +258,16 @@ export function createMemoryFlightRecorder(
   const writer =
     options.captureWriter ??
     (enabled
-      ? new InspectorMemoryCaptureWriter(root)
+      ? new ContinuousMemoryCaptureWriter(root)
       : disabledWriter(path.join(root, `${timestampSlug()}-pid-${process.pid}`)));
   const observations: MemoryFlightObservation[] = [];
   const windowMs = options.windowMs ?? DEFAULT_WINDOW_MS;
   const minimumWindowMs = options.minimumWindowMs ?? DEFAULT_MINIMUM_WINDOW_MS;
   const cooldownMs = options.cooldownMs ?? DEFAULT_COOLDOWN_MS;
+  const continuousCaptureMs = options.continuousCaptureMs ?? DEFAULT_CONTINUOUS_CAPTURE_MS;
   const warmupMs = options.warmupMs ?? 60_000;
-  let lastCaptureAt = Number.NEGATIVE_INFINITY;
+  let lastSignalCaptureAt = Number.NEGATIVE_INFINITY;
+  let lastContinuousCaptureAt = startedAt;
   let captureInFlight = false;
   let capturePromise: Promise<void> | undefined;
 
@@ -287,6 +328,7 @@ export function createMemoryFlightRecorder(
       rssGrowthBytesPerHour,
       nativeGrowthBytesPerHour,
       memoryArtifactDir: writer.artifactDir,
+      ...(writer.diagnostics?.() ?? {}),
     };
 
     let reason: CaptureReason | undefined;
@@ -310,13 +352,17 @@ export function createMemoryFlightRecorder(
       }
     }
 
-    if (enabled && reason && !captureInFlight && at - lastCaptureAt >= cooldownMs) {
-      lastCaptureAt = at;
+    const signalCaptureDue = reason !== undefined && at - lastSignalCaptureAt >= cooldownMs;
+    const intervalCaptureDue = at - lastContinuousCaptureAt >= continuousCaptureMs;
+    const captureReason = signalCaptureDue ? reason : intervalCaptureDue ? 'interval' : undefined;
+    if (enabled && captureReason && !captureInFlight) {
+      if (captureReason !== 'interval') lastSignalCaptureAt = at;
+      lastContinuousCaptureAt = at;
       captureInFlight = true;
-      diagnosis['memoryCaptureReason'] = reason;
+      diagnosis['memoryCaptureReason'] = captureReason;
       capturePromise = writer
         .capture({
-          reason,
+          reason: captureReason,
           capturedAt: new Date(at).toISOString(),
           pid: process.pid,
           sample,

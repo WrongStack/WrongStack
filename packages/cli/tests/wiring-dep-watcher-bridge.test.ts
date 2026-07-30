@@ -18,9 +18,7 @@ type AttachDepWatcherBridgeArgs = [{ mailbox?: unknown }];
 // ── Mocks ──────────────────────────────────────────────────────────────
 const t = vi.hoisted(() => {
   const disposeMock = vi.fn();
-  const attachDepWatcherBridgeMock = vi.fn(function () {
-    return disposeMock;
-  });
+  const attachDepWatcherBridgeMock = vi.fn(() => disposeMock);
   const mailboxStub = {};
   const getSharedProjectMailboxMock = vi.fn(() => mailboxStub);
   return {
@@ -71,9 +69,7 @@ beforeEach(() => {
 
   // Re-apply mock implementations (clearAllMocks resets call history but
   // not mockImplementation — error-case tests would pollute later tests).
-  t.attachDepWatcherBridgeMock.mockImplementation(function () {
-    return t.disposeMock;
-  });
+  t.attachDepWatcherBridgeMock.mockImplementation(() => t.disposeMock);
   t.getSharedProjectMailboxMock.mockReturnValue(t.mailboxStub);
 });
 

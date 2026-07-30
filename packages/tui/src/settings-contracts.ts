@@ -60,4 +60,8 @@ export type SettingsPickerPatch = Partial<{
    * file content. Toggle via `/settings read-symbols on|off`.
    */
   readSymbols: boolean;
+  /** Show SAGE Memory Inject blocks in tool results. Default: false. */
+  showSageMemoryInject: boolean;
+  /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
+  sageMemoryInjectThreshold: number;
 }>;

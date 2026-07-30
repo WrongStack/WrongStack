@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 222,
-      "typeOnly": 182,
+      "files": 223,
+      "typeOnly": 183,
       "runtimeOrMixed": 56
     },
     "@wrongstack/core/agent-catalog": {
@@ -780,6 +780,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/tui-project-switch-identity.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/webui-server/session-start-payload.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

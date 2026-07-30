@@ -153,6 +153,8 @@ export function createTestState(
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: true,
       showAgentSwarmPanel: true,
+      showSageMemoryInject: false,
+      sageMemoryInjectThreshold: 0.85,
       readSymbols: false,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },

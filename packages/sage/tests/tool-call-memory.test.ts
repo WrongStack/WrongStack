@@ -279,7 +279,14 @@ describe('SageToolCallMiddleware — tool name variants', () => {
       text: 'Codebase search finds this memory.',
       importance: 0.95,
     });
-    const mw = createSageToolCallMiddleware({ memory: store, repeatCooldownMs: 0 });
+    const mw = createSageToolCallMiddleware({
+      memory: store,
+      repeatCooldownMs: 0,
+      // This test pins the tool-name alias. Opt into lexical injection so the
+      // default evidence/score gates do not turn it into a relevance test.
+      relationFloor: 0.8,
+      minScore: 0,
+    });
     const payload = makePayload({
       toolUse: {
         type: 'tool_use',
@@ -676,7 +683,7 @@ describe('SageToolCallMiddleware — relevance gates', () => {
     expect(payload.result.content).not.toContain('Telegram outbound queue');
   });
 
-  it('caps lexical-only injection at two memories per tool result', async () => {
+  it('caps opted-in lexical-only injection at two memories per tool result', async () => {
     const candidates = [
       memoryRecord({
         id: 'mem_query_1',
@@ -699,7 +706,13 @@ describe('SageToolCallMiddleware — relevance gates', () => {
       searchSage: async () => candidates,
       findRelatedSage,
     };
-    const mw = createSageToolCallMiddleware({ memory, repeatCooldownMs: 0 });
+    const mw = createSageToolCallMiddleware({
+      memory,
+      repeatCooldownMs: 0,
+      // The production default rejects unanchored lexical matches. Lower the
+      // floor deliberately to exercise the injector's independent budget cap.
+      relationFloor: 0.8,
+    });
     const payload = makePayload({
       toolUse: {
         type: 'tool_use',

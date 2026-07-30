@@ -66,7 +66,7 @@ describe('memory flight recorder', () => {
     expect(stop).toHaveBeenCalledOnce();
   });
 
-  it('writes an allocation profile and evidence event without an inspector port', async () => {
+  it('writes a continuous allocation profile and evidence event without an inspector port', async () => {
     const diagnosticsRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'wrongstack-flight-'));
     tempDirs.push(diagnosticsRoot);
     const recorder = createMemoryFlightRecorder({
@@ -81,8 +81,74 @@ describe('memory flight recorder', () => {
 
     const files = await fsp.readdir(recorder.artifactDir);
     expect(diagnosis['memoryCaptureReason']).toBe('absolute-heap');
-    expect(files.some((file) => file.endsWith('.heapprofile'))).toBe(true);
+    expect(files.some((file) => file.endsWith('.pb.gz') || file.endsWith('.heapprofile'))).toBe(
+      true,
+    );
     expect(files.some((file) => file.startsWith('event-') && file.endsWith('.json'))).toBe(true);
+
+    const eventName = files.find((file) => file.startsWith('event-') && file.endsWith('.json'));
+    const event = JSON.parse(
+      await fsp.readFile(path.join(recorder.artifactDir, eventName ?? ''), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(event['profilerBackend']).toMatch(/^(datadog-pprof|node-inspector)$/u);
+  });
+
+  it('keeps rolling profiles even before a leak threshold is crossed', async () => {
+    let now = 0;
+    const captures: MemoryCaptureEvent[] = [];
+    const recorder = createMemoryFlightRecorder({
+      enabled: true,
+      now: () => now,
+      warmupMs: 0,
+      continuousCaptureMs: 60_000,
+      captureWriter: {
+        artifactDir: 'memory-artifacts',
+        capture: async (event) => {
+          captures.push(event);
+        },
+        stop: async () => undefined,
+      },
+    });
+
+    recorder.observe(sample(), { surface: 'simpleui' });
+    now = 60_000;
+    const diagnosis = recorder.observe(sample(), { surface: 'simpleui' });
+    await recorder.stop();
+
+    expect(diagnosis['memorySignal']).toBe('stable');
+    expect(diagnosis['memoryCaptureReason']).toBe('interval');
+    expect(captures).toHaveLength(1);
+    expect(captures[0]?.reason).toBe('interval');
+  });
+
+  it('does not let a sustained alarm starve rolling interval profiles', async () => {
+    let now = 0;
+    const captures: MemoryCaptureEvent[] = [];
+    const recorder = createMemoryFlightRecorder({
+      enabled: true,
+      now: () => now,
+      warmupMs: 0,
+      cooldownMs: 15 * 60_000,
+      continuousCaptureMs: 60_000,
+      absoluteHeapBytes: 1,
+      captureWriter: {
+        artifactDir: 'memory-artifacts',
+        capture: async (event) => {
+          captures.push(event);
+        },
+        stop: async () => undefined,
+      },
+    });
+
+    recorder.observe(sample(), { surface: 'tui' });
+    await vi.waitFor(() => expect(captures).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    now = 60_000;
+    const diagnosis = recorder.observe(sample(), { surface: 'tui' });
+    await recorder.stop();
+
+    expect(diagnosis['memoryCaptureReason']).toBe('interval');
+    expect(captures.map((capture) => capture.reason)).toEqual(['absolute-heap', 'interval']);
   });
 
   it('uses post-major-GC heap for retention growth instead of transient peaks', async () => {

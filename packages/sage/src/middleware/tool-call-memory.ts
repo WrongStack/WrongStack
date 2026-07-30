@@ -23,6 +23,12 @@ export interface SageToolCallMiddlewareOptions {
    */
   minImportance?: number | undefined;
   /**
+   * Minimum relation strength for automatic injection. Memories whose
+   * relationStrength falls below this bar are rejected before the composite
+   * score is consulted. Defaults to {@link MIN_RELATION_STRENGTH}.
+   */
+  relationFloor?: number | undefined;
+  /**
    * Milliseconds before an already-injected memory may be injected again in
    * the same session. `0` or a non-finite value means "once per session" —
    * the default. Repeating a memory the model has already been shown spends
@@ -123,13 +129,15 @@ const DEFAULT_REPEAT_COOLDOWN_MS = 0;
  * Measured 2026-07-30: at the old 0.62 floor the `minScore` gate was dead —
  * the weakest relation that could reach the scorer already produced 0.672
  * against a 0.65 bar, so nothing was ever rejected on score. The floor is the
- * gate that actually decides, so it carries the bar: 0.75 admits an exact
- * file/symbol/command anchor (0.95+), an immediate-parent directory anchor
- * (0.84), and a query that matched a memory's own anchor or tag terms
- * (0.78+) — and rejects single-term lexical overlap and shared-tag graph
- * neighbours, which is where the noise came from.
+ * gate that actually decides, so it carries the bar. At 0.85 the gate admits
+ * exact file/symbol/command anchors (0.95+), multi-tag strong matches
+ * (≥0.89), and two-plus anchor-term matches (~0.88+) — and rejects
+ * single/double tag-term matches (0.78/0.84), immediate-parent directory
+ * anchors (0.84), lexical overlaps, and shared-tag graph neighbours,
+ * which is where the noise came from. Configurable via the
+ * `Sage.inject.relationFloor` config key or the TUI `/settings` picker.
  */
-export const MIN_RELATION_STRENGTH = 0.75;
+export const MIN_RELATION_STRENGTH = 0.85;
 export const DEFAULT_MIN_SCORE = 0.72;
 export const DEFAULT_MIN_IMPORTANCE = 0.5;
 /**
@@ -149,7 +157,8 @@ export function createSageToolCallMiddleware(
   // gates the try-path used — a proof emitted without its threshold is noise.
   const minScore = opts.minScore ?? DEFAULT_MIN_SCORE;
   const minImportance = opts.minImportance ?? DEFAULT_MIN_IMPORTANCE;
-  const thresholds = { minScore, minImportance, relationFloor: MIN_RELATION_STRENGTH };
+  const relationFloor = opts.relationFloor ?? MIN_RELATION_STRENGTH;
+  const thresholds = { minScore, minImportance, relationFloor };
   return {
     name: 'sage.tool-result-injection',
     owner: 'sage',
@@ -195,13 +204,14 @@ export function createSageToolCallMiddleware(
           trigger,
           maxHints,
           nextPayload.ctx.projectRoot,
+          relationFloor,
         );
         const alreadyVisible = visibleContextText(nextPayload);
         const deduped = dedupeRetrievedByText(memories);
         const scoreEligible = deduped.filter(
           ({ memory, relationStrength }) =>
             memory.importance >= minImportance &&
-            relationStrength >= MIN_RELATION_STRENGTH &&
+            relationStrength >= relationFloor &&
             contextualInjectionScore(memory, relationStrength) >= minScore,
         );
         const eligibleItems = scoreEligible
@@ -524,6 +534,7 @@ async function retrieveTriggeredMemories(
   trigger: ExtractedTriggerContext,
   limit: number,
   projectRoot?: string | undefined,
+  relationFloor?: number | undefined,
 ): Promise<RetrievedMemory[]> {
   // Path lookups and the lexical query lookup are independent reads — run
   // them concurrently instead of serially awaiting each path in turn.
@@ -631,7 +642,7 @@ async function retrieveTriggeredMemories(
         item,
         graphSeeds.map((seed) => seed.memory),
       );
-      if (!byId.has(item.id) && relevance.strength >= MIN_RELATION_STRENGTH) {
+      if (!byId.has(item.id) && relevance.strength >= (relationFloor ?? MIN_RELATION_STRENGTH)) {
         byId.set(item.id, {
           memory: item,
           relationStrength: relevance.strength,

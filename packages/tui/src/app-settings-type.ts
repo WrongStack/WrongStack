@@ -64,6 +64,10 @@ export type Settings = {
   showModelReasoning: boolean;
   /** Show the persistent AGENT SWARM and todo mission queue panel. Default: true. */
   showAgentSwarmPanel: boolean;
+  /** Show SAGE Memory Inject blocks in tool results. Default: false (hidden). */
+  showSageMemoryInject: boolean;
+  /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
+  sageMemoryInjectThreshold: number;
   /** Prompt cache TTL. */
   cacheTtl: CacheTtl;
   /** Where to persist settings: 'global' or 'project'. */

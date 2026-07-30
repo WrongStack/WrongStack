@@ -11,6 +11,7 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import { type ChronicleContext, createChronicleContext } from './context.js';
 import { type ChronicleFileObserver, startChronicleFileObserver } from './file-observer.js';
@@ -127,6 +128,17 @@ let metricsRefresh:
   | Promise<ChronicleServerOperations['metrics']['result']['refreshed']>
   | undefined;
 const pendingMutationHints: Parameters<ChronicleFileObserver['noteToolMutation']>[0][] = [];
+const stopMemoryWatchdog = startSharedHeapWatchdog({
+  collectStats: () => ({
+    surface: 'chronicle-project-server',
+    clients: clients.size,
+    journals: journals.size,
+    activeRequests,
+    pendingMutationHints: pendingMutationHints.length,
+    queryGeneration,
+    cachedQuery: cachedQuery !== undefined,
+  }),
+});
 
 /**
  * Days of journal to keep open. Yesterday stays available because events can
@@ -587,6 +599,7 @@ async function stop(_reason: string): Promise<void> {
   metricsStore = undefined;
   await removeOwnedMetadata();
   if (process.platform !== 'win32') await fsp.rm(endpoint, { force: true }).catch(() => {});
+  await stopMemoryWatchdog();
 }
 
 ensureChronicleProjectServerSocketDirectory(endpoint);

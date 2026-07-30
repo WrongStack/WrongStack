@@ -313,7 +313,7 @@ export class AISpecBuilder {
       await atomicWrite(this.sessionPath, JSON.stringify(this.session, null, 2));
     } catch (error) {
       // Best-effort persistence — don't crash if save fails
-      console.error('[sdd] Failed to persist session', error);
+      console.warn(JSON.stringify({ level: 'warn', event: 'sdd.persist.failed', message: String(error), timestamp: Date.now() }));
     }
   }
 

@@ -53,6 +53,12 @@ export interface HistoryProps {
    * `kind: 'thinking'` entries are hidden. Default: true.
    */
   showModelReasoning?: boolean | undefined;
+  /**
+   * Show SAGE Memory Inject blocks in tool results. When false,
+   * the `SageMemoryBlock` panel is hidden even when memory was injected.
+   * Default: false.
+   */
+  showSageMemoryInject?: boolean | undefined;
 }
 
 export interface BodySegment {

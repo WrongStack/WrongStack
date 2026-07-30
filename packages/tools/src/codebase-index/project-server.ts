@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import {
   DEFAULT_WALK_IGNORE_SET,
   type ProjectWatchSubscription,
+  startSharedHeapWatchdog,
   useDaemonPerfDefaults,
   watchProjectTree,
 } from '@wrongstack/core/utils';
@@ -144,6 +145,20 @@ let indexActivity: ProjectIndexServerActivity = {
   updatedAt: null,
   lastError: null,
 };
+const stopMemoryWatchdog = startSharedHeapWatchdog({
+  collectStats: () => ({
+    surface: 'codebase-index-project-server',
+    clients: clients.size,
+    activeRequests,
+    activeWrites,
+    queuedWrites,
+    searchCache: searchCache.size,
+    statsCache: statsCache.size,
+    packageGraphCache: packageGraphCache.size,
+    fileGraphCache: fileGraphCache.size,
+    symbolGraphCache: symbolGraphCache.size,
+  }),
+});
 let lastProgressBroadcastAt = 0;
 let externalWatcher: ProjectWatchSubscription | undefined;
 const DEFAULT_EXTERNAL_DEBOUNCE_MS = 400;
@@ -701,6 +716,7 @@ async function stop(_reason: string): Promise<void> {
       /* already removed */
     }
   }
+  await stopMemoryWatchdog();
 }
 
 ensureProjectIndexSocketDirectory(endpoint);

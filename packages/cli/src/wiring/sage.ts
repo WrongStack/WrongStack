@@ -66,6 +66,7 @@ export function setupSage(deps: SageWiringDeps): () => Promise<void> {
         taskAware: cfg?.inject?.taskAware,
         minScore: cfg?.inject?.minScore,
         minImportance: cfg?.inject?.minImportance,
+        relationFloor: cfg?.inject?.relationFloor,
         repeatCooldownMs: cfg?.inject?.repeatCooldownMs,
         verifyOnMutation: cfg?.hygiene?.autoOnFileChange,
         triggers: cfg?.inject?.triggers,

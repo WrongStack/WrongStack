@@ -6,9 +6,13 @@ import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as os from 'node:os';
 import type { Action, State } from '../app-reducer.js';
-import { type HeapSample, startHeapWatchdog, takeHeapSample } from '../heap-watchdog.js';
+import { type HeapSample, startSharedHeapWatchdog, takeHeapSample } from '../heap-watchdog.js';
 import { useAnimation } from '../ink.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
+import {
+  recordTuiAppRender,
+  snapshotTuiMemoryCounters,
+} from '../tui-memory-counters.js';
 
 // ── Shallow retention sentinels (RAM audit) ────────────────────────────────
 // Each helper reads a known Map/Array length without traversing the graph,
@@ -84,6 +88,7 @@ export function useTuiActivity({
   attachments,
   builderRef,
 }: UseTuiActivityOptions) {
+  recordTuiAppRender();
   const [rolledThinkingWord, setRolledThinkingWord] = useState(() => pickRandomTuiThinkingWord());
   const thinkingWorking = status === 'running' || status === 'streaming';
   const prevThinkingWorkingRef = useRef(false);
@@ -198,30 +203,38 @@ export function useTuiActivity({
     return Math.min(100, Math.round((cpuDeltaUsec / 1000) / wallMs / CPU_CORES * 100));
   }, [nowTick]);
   useEffect(() => {
-    const stopHeapWatchdog = startHeapWatchdog({
-      collectStats: () => ({
-        // Keep this slice to shallow cardinalities: serializing the full
-        // retained graphs created a second allocation spike precisely when
-        // the heap was already high.
-        historyEntries: stateRef.current.entries.length,
-        messages: agentContext.state.messages.length,
-        runningTools: stateRef.current.runningTools.size,
-        stdoutQueued: process.stdout.writableLength ?? 0,
-        fleetSize: Object.keys(stateRef.current.fleet ?? {}).length,
-        queued: stateRef.current.queue?.length ?? 0,
-        inputHistory: stateRef.current.inputHistory?.length ?? 0,
-        // RAM retention sentinels — distinguish which layer holds old graphs
-        // after /clear so we know where to add cleanup wiring.
-        // attachments: DefaultAttachmentStore.items.size (cumulative
-        //   pastes/files/images for the lifetime of this process).
-        // builderRefs: InputBuilder.refs.length (refs retained by the
-        //   mounted builder until reset() is called).
-        // directorInFlight: coordinator in-flight task count, used to
-        //   detect that `/clear` did not actually drain subagent work.
-        attachments: attachmentsSize(attachments),
-        builderRefs: builderRefsLength(builderRef.current),
-        directorInFlight: directorInFlight(agentContext),
-      }),
+    const stopHeapWatchdog = startSharedHeapWatchdog({
+      collectStats: () => {
+        const currentState = stateRef.current;
+        const messages = agentContext.state.messages;
+        return {
+          surface: 'tui',
+          sessionId: agentContext.session.id,
+          // Keep this slice to shallow cardinalities: serializing the full
+          // retained graphs created a second allocation spike precisely when
+          // the heap was already high.
+          historyEntries: currentState.entries.length,
+          messages: messages.length,
+          runningTools: currentState.runningTools.size,
+          stdoutQueued: process.stdout.writableLength ?? 0,
+          fleetSize: Object.keys(currentState.fleet ?? {}).length,
+          queued: currentState.queue?.length ?? 0,
+          inputHistory: currentState.inputHistory?.length ?? 0,
+          toolStreamChars: currentState.toolStream?.text.length ?? 0,
+          ...snapshotTuiMemoryCounters(),
+          // RAM retention sentinels — distinguish which layer holds old graphs
+          // after /clear so we know where to add cleanup wiring.
+          // attachments: DefaultAttachmentStore.items.size (cumulative
+          //   pastes/files/images for the lifetime of this process).
+          // builderRefs: InputBuilder.refs.length (refs retained by the
+          //   mounted builder until reset() is called).
+          // directorInFlight: coordinator in-flight task count, used to
+          //   detect that `/clear` did not actually drain subagent work.
+          attachments: attachmentsSize(attachments),
+          builderRefs: builderRefsLength(builderRef.current),
+          directorInFlight: directorInFlight(agentContext),
+        };
+      },
       onWarn: (level, message) => {
         dispatch({
           type: 'addEntry',

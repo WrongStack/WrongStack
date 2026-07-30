@@ -27,6 +27,8 @@ export interface WSClientMessage {
 }
 
 export interface WebUIOptions {
+  /** Runtime surface label used by instance registration and memory diagnostics. */
+  surface?: 'webui' | 'simpleui' | undefined;
   /** Policy authority for terminal/process/native-shell actions. */
   trustBoundary?: TrustBoundary | undefined;
   /** HTTP frontend port. Prefer `httpPort`; `port` is kept for compatibility. */

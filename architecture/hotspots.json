@@ -15,7 +15,7 @@
       "relativeImports": 42
     },
     "packages/cli/src/execution.ts": {
-      "lines": 1033,
+      "lines": 1034,
       "relativeImports": 36
     },
     "packages/cli/src/fleet/host.ts": {
@@ -211,7 +211,7 @@
       "relativeImports": 1
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
-      "lines": 1236,
+      "lines": 1247,
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
@@ -235,11 +235,11 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 829,
+      "lines": 841,
       "relativeImports": 15
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1089,
+      "lines": 1118,
       "relativeImports": 47
     },
     "packages/telegram/src/bot.ts": {
@@ -271,7 +271,7 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 811,
+      "lines": 815,
       "relativeImports": 11
     },
     "packages/tui/src/app.tsx": {
@@ -291,7 +291,7 @@
       "relativeImports": 5
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 1058,
+      "lines": 1069,
       "relativeImports": 11
     },
     "packages/tui/src/components/history/utils.tsx": {
@@ -303,11 +303,11 @@
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 1011,
+      "lines": 1014,
       "relativeImports": 12
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 864,
+      "lines": 906,
       "relativeImports": 2
     },
     "packages/tui/src/components/status-bar.tsx": {
@@ -331,8 +331,8 @@
       "relativeImports": 1
     },
     "packages/webui/src/App.tsx": {
-      "lines": 949,
-      "relativeImports": 45
+      "lines": 951,
+      "relativeImports": 46
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
       "lines": 965,
@@ -415,7 +415,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1027,
+      "lines": 1039,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {

@@ -158,8 +158,11 @@ export {
 export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';
 export * from './wstack-paths.js';
 export {
+  type HeapDiagnosticFields,
+  type HeapDiagnosticValue,
   type HeapSample,
   type HeapWatchdogOptions,
+  startSharedHeapWatchdog,
   startHeapWatchdog,
   takeHeapSample,
   defaultHeapLogPath,

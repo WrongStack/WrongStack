@@ -2,7 +2,11 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHeapWatchdog, takeHeapSample } from '../src/heap-watchdog.js';
+import {
+  startHeapWatchdog,
+  startSharedHeapWatchdog,
+  takeHeapSample,
+} from '../src/heap-watchdog.js';
 
 describe('takeHeapSample', () => {
   it('returns a coherent sample with a positive heap limit', () => {
@@ -11,6 +15,10 @@ describe('takeHeapSample', () => {
     expect(s.heapLimit).toBeGreaterThan(s.heapUsed);
     expect(s.load).toBeGreaterThan(0);
     expect(s.load).toBeLessThan(1);
+    expect(s.arrayBuffers ?? -1).toBeGreaterThanOrEqual(0);
+    expect(s.nativeResidual ?? -1).toBeGreaterThanOrEqual(0);
+    expect(s.oldSpaceUsed ?? -1).toBeGreaterThanOrEqual(0);
+    expect(s.activeResources ?? -1).toBeGreaterThanOrEqual(0);
     expect(() => new Date(s.ts).toISOString()).not.toThrow();
   });
 });
@@ -54,6 +62,10 @@ describe('startHeapWatchdog', () => {
     expect(line['pid']).toBe(process.pid);
     expect(line['heapUsed']).toBeGreaterThan(0);
     expect(line['historyEntries']).toBe(7);
+    expect(line['memorySignal']).toBe('stable');
+    expect(line['memoryArtifactDir']).toEqual(expect.any(String));
+    expect(line['gcMajorCount']).toBe(0);
+    expect(line['retainedHeapUsed']).toBe(line['heapUsed']);
   });
 
   it('fires warn then critical once per crossing', () => {
@@ -130,7 +142,9 @@ describe('startHeapWatchdog', () => {
     await vi.waitFor(() => expect(writeDiagnosticLine).toHaveBeenCalledTimes(2));
     await stop();
 
-    expect(JSON.parse(writtenLines[1] ?? '{}') as Record<string, unknown>).toMatchObject({ sample: 11 });
+    expect(JSON.parse(writtenLines[1] ?? '{}') as Record<string, unknown>).toMatchObject({
+      sample: 11,
+    });
   });
 
   it('flushes a coalesced pending sample when stopped during a blocked write', async () => {
@@ -157,5 +171,56 @@ describe('startHeapWatchdog', () => {
     await stopped;
 
     expect(writeDiagnosticLine).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares one sampler while merging surface contributors', async () => {
+    vi.useFakeTimers();
+    const writtenLines: string[] = [];
+    const writeDiagnosticLine = vi.fn(async (_targetPath: string, line: string) => {
+      writtenLines.push(line);
+    });
+    const stopCli = startSharedHeapWatchdog({
+      logPath,
+      sampleEveryMs: 1_000,
+      logEveryMs: 0,
+      writeDiagnosticLine,
+      collectStats: () => ({ surface: 'cli', cliSamples: 1 }),
+    });
+    const stopTui = startSharedHeapWatchdog({
+      collectStats: () => ({ surface: 'tui', historyEntries: 7 }),
+    });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.waitFor(() => expect(writtenLines.length).toBeGreaterThanOrEqual(2));
+    expect(JSON.parse(writtenLines.at(-1) ?? '{}')).toMatchObject({
+      surface: 'tui',
+      cliSamples: 1,
+      historyEntries: 7,
+    });
+
+    await stopCli();
+    const before = writtenLines.length;
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.waitFor(() => expect(writtenLines.length).toBeGreaterThan(before));
+    expect(JSON.parse(writtenLines.at(-1) ?? '{}')).toMatchObject({
+      surface: 'tui',
+      historyEntries: 7,
+    });
+
+    await stopTui();
+    const stoppedAt = writtenLines.length;
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(writtenLines).toHaveLength(stoppedAt);
+  });
+
+  it('does not start an implicit production recorder in test processes', async () => {
+    vi.useFakeTimers();
+    const collectStats = vi.fn(() => ({ surface: 'test' }));
+    const stop = startSharedHeapWatchdog({ collectStats });
+
+    await vi.advanceTimersByTimeAsync(120_000);
+    await stop();
+
+    expect(collectStats).not.toHaveBeenCalled();
   });
 });

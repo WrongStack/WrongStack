@@ -14,6 +14,7 @@ const storageMocks = vi.hoisted(() => ({ loadGoal: vi.fn() }));
 vi.mock('@wrongstack/core/storage', () => ({ loadGoal: storageMocks.loadGoal }));
 vi.mock('../src/heap-watchdog.js', () => ({
   startHeapWatchdog: heapWatchdogMocks.start,
+  startSharedHeapWatchdog: heapWatchdogMocks.start,
   takeHeapSample: () => ({
     ts: '2026-07-15T00:00:00.000Z',
     rss: 0,
@@ -28,7 +29,7 @@ vi.mock('../src/heap-watchdog.js', () => ({
 const stateRef = {
   current: { entries: [], runningTools: new Set() },
 } as never;
-const agentContext = { state: { messages: [] } } as never;
+const agentContext = { state: { messages: [] }, session: { id: 'test-session' } } as never;
 const dispatchMock = vi.fn();
 const dispatch = dispatchMock as never;
 const attachments = {} as never;
@@ -88,7 +89,7 @@ interface WatchdogOptions {
 
 function latestWatchdogOptions(): WatchdogOptions {
   const call = heapWatchdogMocks.start.mock.calls.at(-1);
-  if (!call) throw new Error('startHeapWatchdog was not called');
+  if (!call) throw new Error('startSharedHeapWatchdog was not called');
   return call[0] as WatchdogOptions;
 }
 
@@ -126,7 +127,10 @@ describe('useTuiActivity foreground working time', () => {
         throw new Error('message element was traversed');
       },
     };
-    const localAgentContext = { state: { messages: [hostileMessage] } } as never;
+    const localAgentContext = {
+      state: { messages: [hostileMessage] },
+      session: { id: 'test-session' },
+    } as never;
 
     function StatsHarness(): React.ReactElement {
       useTuiActivity({
@@ -150,6 +154,8 @@ describe('useTuiActivity foreground working time', () => {
     });
     const stats = latestWatchdogOptions().collectStats?.();
     expect(stats).toEqual({
+      surface: 'tui',
+      sessionId: 'test-session',
       historyEntries: 1,
       messages: 1,
       runningTools: 1,
@@ -157,6 +163,18 @@ describe('useTuiActivity foreground working time', () => {
       fleetSize: 1,
       queued: 1,
       inputHistory: 2,
+      toolStreamChars: 0,
+      appRenders: expect.any(Number),
+      providerTextDeltaEvents: expect.any(Number),
+      providerTextDeltaChars: expect.any(Number),
+      providerThinkingDeltaEvents: expect.any(Number),
+      providerThinkingDeltaChars: expect.any(Number),
+      providerResponses: expect.any(Number),
+      toolProgressEvents: expect.any(Number),
+      toolProgressChars: expect.any(Number),
+      toolExecutedEvents: expect.any(Number),
+      toolOutputBytes: expect.any(Number),
+      streamFlushes: expect.any(Number),
       attachments: 0,
       builderRefs: 0,
       directorInFlight: 0,

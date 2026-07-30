@@ -1,4 +1,6 @@
+import type { Context } from '@wrongstack/core/agent';
 import { describe, expect, it } from 'vitest';
+import type { SessionStartPayloadDeps } from '../../src/webui-server/session-start-payload.js';
 
 /**
  * Tests for the session.start payload builder.
@@ -14,7 +16,7 @@ import { describe, expect, it } from 'vitest';
  */
 
 // Minimal agent context mock — the payload builder only reads a few fields.
-function mockAgentCtx(overrides?: Record<string, unknown>) {
+function mockAgentCtx(overrides?: Record<string, unknown>): Context {
   return {
     provider: {
       id: 'test-provider',
@@ -25,10 +27,10 @@ function mockAgentCtx(overrides?: Record<string, unknown>) {
     meta: {},
     lastRequestTokens: 0,
     ...overrides,
-  };
+  } as unknown as Context;
 }
 
-function mockDeps(overrides?: Record<string, unknown>) {
+function mockDeps(overrides?: Partial<SessionStartPayloadDeps>): SessionStartPayloadDeps {
   return {
     agent: { ctx: mockAgentCtx() },
     session: { id: 'sess_test' },

@@ -8,7 +8,11 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
 import type { ScoredEntry } from '@wrongstack/core/types';
-import { canonicalProjectRoot, useDaemonPerfDefaults } from '@wrongstack/core/utils';
+import {
+  canonicalProjectRoot,
+  startSharedHeapWatchdog,
+  useDaemonPerfDefaults,
+} from '@wrongstack/core/utils';
 import {
   ensureSageProjectServerSocketDirectory,
   resolveProjectSageStorageRoot,
@@ -117,6 +121,20 @@ let lastAutomaticHygieneReport: SageServerOperations['hygiene']['result'] | unde
 let automaticHygieneInFlight:
   | Promise<SageServerOperations['hygiene']['result']>
   | undefined;
+function activeClientRequests(): number {
+  let total = 0;
+  for (const client of clients) total += client.active.size;
+  return total;
+}
+const stopMemoryWatchdog = startSharedHeapWatchdog({
+  collectStats: () => ({
+    surface: 'sage-project-server',
+    clients: clients.size,
+    pendingRequests,
+    activeRequests: activeClientRequests(),
+    automaticHygieneInFlight: automaticHygieneInFlight !== undefined,
+  }),
+});
 
 const serverInfo: SageProjectServerInfo = {
   protocolVersion: SAGE_PROJECT_SERVER_PROTOCOL_VERSION,
@@ -614,6 +632,7 @@ async function stop(_reason: string): Promise<void> {
   if (process.platform !== 'win32') {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
   }
+  await stopMemoryWatchdog();
 }
 
 ensureSageProjectServerSocketDirectory(endpoint);

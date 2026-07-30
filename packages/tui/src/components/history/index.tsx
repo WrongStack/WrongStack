@@ -89,6 +89,7 @@ export const History = memo(function History({
   multiDiffSummaryThreshold,
   todos,
   showModelReasoning,
+  showSageMemoryInject,
 }: HistoryProps): React.ReactElement {
   const { stdout } = useStdout();
   const [termSize, setTermSize] = useState({
@@ -207,6 +208,7 @@ export const History = memo(function History({
               multiDiffSummaryThreshold={multiDiffSummaryThreshold}
               todos={todos}
               showModelReasoning={showModelReasoning}
+              showSageMemoryInject={showSageMemoryInject}
             />
           </Box>
         )}

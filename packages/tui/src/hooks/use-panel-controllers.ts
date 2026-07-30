@@ -192,6 +192,8 @@ export function usePanelControllers({
       breakerAutoKillResetMs: s.breakerAutoKillResetMs ?? 60_000,
       showModelReasoning: s.showModelReasoning ?? true,
       showAgentSwarmPanel: s.showAgentSwarmPanel ?? true,
+      showSageMemoryInject: s.showSageMemoryInject ?? false,
+      sageMemoryInjectThreshold: s.sageMemoryInjectThreshold ?? 0.85,
       readSymbols: s.readSymbols ?? false,
     });
   }, [getSettings]);

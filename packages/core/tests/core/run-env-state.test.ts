@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Context } from '../../src/core/context.js';
 import { ConversationState, wrapAsState } from '../../src/core/conversation-state.js';
 import { extractRunEnv } from '../../src/core/run-env.js';
-import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import type { Message, Provider, SessionWriter, TextBlock } from '../../src/index.js';
+import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 
 const fakeProvider = {} as Provider;
 const fakeSession: SessionWriter = {
@@ -144,7 +144,10 @@ describe('ConversationState — write API and onChange', () => {
     // Last message now has two content blocks.
     const last = ctx.messages[1]!;
     expect(Array.isArray(last.content)).toBe(true);
-    expect((last.content as Array<{ text?: string }>).map((b) => b.text)).toEqual(['second', 'btw note']);
+    expect((last.content as Array<{ text?: string }>).map((b) => b.text)).toEqual([
+      'second',
+      'btw note',
+    ]);
     // Recomputed token estimate is cached for the one changed message.
     expect(last._estTokens).toBeGreaterThan(0);
     // First message's cache is untouched.
@@ -351,6 +354,27 @@ describe('ConversationState — write API and onChange', () => {
       state.appendMessage(userMessage('only-one'));
       expect(ctx.toolAdjacencyDirty).toBe(false);
     });
+
+    it('applies the same cap to replaceMessages used by resume and rewind', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      const cb = vi.fn();
+      state.onChange(cb);
+
+      state.replaceMessages(Array.from({ length: 8 }, (_, i) => userMessage(`resume-${i}`)));
+
+      expect(ctx.messages).toHaveLength(3);
+      expect(JSON.stringify(ctx.messages)).toContain('resume-7');
+      expect(JSON.stringify(ctx.messages)).not.toContain('resume-0');
+      expect(ctx.toolAdjacencyDirty).toBe(true);
+      expect(cb).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          kind: 'messages_replaced',
+          messages: expect.arrayContaining([expect.objectContaining({ role: 'user' })]),
+        }),
+        expect.anything(),
+      );
+    });
   });
 
   describe('MAX_MESSAGE_TOKENS cap', () => {
@@ -395,6 +419,19 @@ describe('ConversationState — write API and onChange', () => {
       // an empty history would break the request that is being built.
       expect(ctx.messages).toHaveLength(1);
       expect(JSON.stringify(ctx.messages)).toContain('huge');
+    });
+
+    it('bounds an oversized replacement while retaining its newest message', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+
+      state.replaceMessages(Array.from({ length: 6 }, (_, i) => fatMessage(`replace-${i}`)));
+
+      const total = ctx.messages.reduce((sum, m) => sum + (m._estTokens ?? 0), 0);
+      expect(total).toBeLessThanOrEqual(100);
+      expect(JSON.stringify(ctx.messages)).toContain('replace-5');
+      expect(JSON.stringify(ctx.messages)).not.toContain('replace-0');
+      expect(ctx.toolAdjacencyDirty).toBe(true);
     });
 
     it('leaves an ordinary history untouched', () => {

@@ -86,7 +86,7 @@ describe('settingsPickerJumpNames', () => {
     expect(names).toHaveLength(SETTINGS_PICKER_JUMP_CHORDS.length);
     // First and last entries match the order in SETTINGS_PICKER_JUMP_CHORDS.
     expect(names[0]).toBe('index-on-session-start');
-    expect(names.at(-1)).toBe('pre-refine-countdown');
+    expect(names.at(-1)).toBe('sage-memory-inject-threshold');
   });
 
   it('every jump label stays aligned with the canonical setting at its field index', () => {

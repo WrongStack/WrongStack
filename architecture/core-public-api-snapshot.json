@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.296.3",
+  "packageVersion": "0.296.4",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -458,7 +458,7 @@
         "export { type CompileFail, type CompileResult, compileUserRegex } from './regex-guard.js';",
         "export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';",
         "export { type DeepMergeOptions, deepMerge, FORBIDDEN_PROTO_KEYS, isPrimitiveArray, } from './deep-merge.js';",
-        "export { type HeapSample, type HeapWatchdogOptions, startHeapWatchdog, takeHeapSample, defaultHeapLogPath, } from './heap-watchdog.js';",
+        "export { type HeapDiagnosticFields, type HeapDiagnosticValue, type HeapSample, type HeapWatchdogOptions, startSharedHeapWatchdog, startHeapWatchdog, takeHeapSample, defaultHeapLogPath, } from './heap-watchdog.js';",
         "export { type ProjectWatchEvent, type ProjectWatchSubscription, watchProjectTree, } from './project-watch.js';",
         "export { withSqliteExperimentalWarningSuppressed } from './sqlite-warning.js';",
         "export { writeErr, writeOut } from './term.js';"
@@ -1040,21 +1040,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 30,
-      "sourceLines": 7912
+      "sourceLines": 7925
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41391
+      "sourceLines": 41400
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8545
+      "sourceLines": 8552
     },
     {
       "directory": "defaults",
@@ -1222,14 +1222,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9304
+      "sourceLines": 9310
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 57,
-      "sourceLines": 8383
+      "sourceFiles": 60,
+      "sourceLines": 9252
     },
     {
       "directory": "worktree",

@@ -304,6 +304,8 @@ export function routeSettingsOverlayKey(
     breakerAutoKillResetMs: config.breakerAutoKillResetMs ?? 60_000,
     showModelReasoning: config.showModelReasoning ?? true,
     showAgentSwarmPanel: config.showAgentSwarmPanel ?? true,
+    showSageMemoryInject: config.showSageMemoryInject ?? false,
+    sageMemoryInjectThreshold: config.sageMemoryInjectThreshold ?? 0.85,
     readSymbols: config.readSymbols ?? false,
   });
   return true;

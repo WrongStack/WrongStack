@@ -312,6 +312,10 @@ export type State = {
     showModelReasoning: boolean;
     /** Show the persistent AGENT SWARM and todo mission queue panel. Default: true. */
     showAgentSwarmPanel: boolean;
+    /** Show SAGE Memory Inject blocks in tool results. Default: false. */
+    showSageMemoryInject: boolean;
+    /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
+    sageMemoryInjectThreshold: number;
     /** When true, read tool includes codebase-index symbols alongside file content. */
     readSymbols: boolean;
     /** Prompt cache TTL. */

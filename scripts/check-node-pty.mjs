@@ -39,10 +39,8 @@ const SHELL = PLATFORM === 'win32' ? process.env.COMSPEC || 'cmd.exe' : '/bin/sh
 // `printf` is POSIX-mandated and prints without the trailing newline
 // surprises of `echo`.
 const SENTINEL = 'node-pty-smoke-' + Date.now().toString(36);
-const COMMAND =
-  PLATFORM === 'win32'
-    ? `echo ${SENTINEL}`
-    : `printf '%s\\n' ${SENTINEL}`;
+const COMMAND = PLATFORM === 'win32' ? `echo ${SENTINEL}` : `printf '%s\\n' ${SENTINEL}`;
+const SHELL_ARGS = PLATFORM === 'win32' ? ['/d', '/s', '/c', COMMAND] : ['-c', COMMAND];
 
 const checks = [
   {
@@ -119,7 +117,7 @@ if (pty && typeof pty.spawn === 'function') {
   let output = '';
   let exited = false;
   try {
-    proc = pty.spawn(SHELL, [], {
+    proc = pty.spawn(SHELL, SHELL_ARGS, {
       name: 'xterm-color',
       cols: 80,
       rows: 24,
@@ -137,9 +135,6 @@ if (pty && typeof pty.spawn === 'function') {
     proc.onExit(() => {
       exited = true;
     });
-    // Drive the shell. On Windows cmd.exe needs a newline to flush;
-    // POSIX sh reacts to the same.
-    proc.write(COMMAND + (PLATFORM === 'win32' ? '\r\n' : '\n'));
   } catch (err) {
     checks.push({ name: 'pty.spawn', pass: false, detail: err.message });
   }
@@ -150,7 +145,11 @@ if (pty && typeof pty.spawn === 'function') {
     await new Promise((r) => setTimeout(r, 50));
   }
   if (proc) {
-    try { proc.kill(); } catch {}
+    if (!exited) {
+      try {
+        proc.kill();
+      } catch {}
+    }
   }
   checks.push({
     name: 'sentinel echoed back',

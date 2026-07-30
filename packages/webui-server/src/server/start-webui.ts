@@ -24,7 +24,7 @@ import { DEFAULT_CONTEXT_WINDOW_MODE_ID, type ProviderConfig } from '@wrongstack
 import {
   expectDefined,
   sessionScopedPath,
-  startHeapWatchdog,
+  startSharedHeapWatchdog,
   toErrorMessage,
   wstackGlobalRoot,
 } from '@wrongstack/core/utils';
@@ -866,10 +866,10 @@ export async function startWebUI(
     credentialWatcherClose = credentialWatcher.close;
   }
 
-  // Start heap-watchdog for long-running WebUI server sessions so memory
-  // growth is diagnosable via ~/.wrongstack/logs/heap.jsonl even when no
-  // TUI or CLI surface is attached.
-  const stopHeapWatchdog = startHeapWatchdog();
+  // WebUI/SimpleUI joins the process flight recorder, including standalone servers.
+  const stopHeapWatchdog = startSharedHeapWatchdog({
+    collectStats: () => ({ surface: opts.surface ?? 'webui', sessionId: context.session.id, messages: context.state.messages.length, messageEstimatedTokens: context.state.messages.reduce((sum, message) => sum + (message._estTokens ?? 0), 0), webClients: clients.size, pendingConfirms: pendingConfirms.size, runActive: runLockControl.get() !== null }),
+  });
   // Build the route table (Phase 1a) + the message dispatcher and connection
   // handler (Phase 1b). The dispatcher owns the inbound `switch (msg.type)`
   // and the runLock guard; the connection handler owns rate-limiting, F5

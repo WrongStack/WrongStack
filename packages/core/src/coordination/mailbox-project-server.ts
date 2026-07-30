@@ -11,6 +11,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { EventBus } from '../kernel/events.js';
+import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import { MailboxEventEmitter } from './mailbox-events.js';
 import {
@@ -90,6 +91,13 @@ let pendingRequests = 0;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let stopping = false;
 let stopAutoCompact: (() => void) | undefined;
+const stopMemoryWatchdog = startSharedHeapWatchdog({
+  collectStats: () => ({
+    surface: 'mailbox-project-server',
+    clients: clients.size,
+    pendingRequests,
+  }),
+});
 
 const serverInfo: MailboxProjectServerInfo = {
   protocolVersion: MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION,
@@ -391,6 +399,7 @@ async function stop(_reason: string): Promise<void> {
   if (process.platform !== 'win32') {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
   }
+  await stopMemoryWatchdog();
 }
 
 ensureMailboxProjectServerSocketDirectory(endpoint);

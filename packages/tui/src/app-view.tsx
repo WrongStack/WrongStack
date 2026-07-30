@@ -134,6 +134,11 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               ? state.settingsPicker.showModelReasoning
               : (liveSettings?.showModelReasoning ?? true)
           }
+          showSageMemoryInject={
+            state.settingsPicker.open
+              ? state.settingsPicker.showSageMemoryInject
+              : (liveSettings?.showSageMemoryInject ?? false)
+          }
           layoutStore={layoutStore}
           copiedEntryId={state.copiedEntryId}
           onRequestOlderEntries={runtime.onRequestOlderEntries}
@@ -295,6 +300,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               breakerAutoKillResetMs={state.settingsPicker.breakerAutoKillResetMs}
               showModelReasoning={state.settingsPicker.showModelReasoning}
               showAgentSwarmPanel={state.settingsPicker.showAgentSwarmPanel}
+              showSageMemoryInject={state.settingsPicker.showSageMemoryInject}
+              sageMemoryInjectThreshold={state.settingsPicker.sageMemoryInjectThreshold}
               readSymbols={state.settingsPicker.readSymbols}
               filter={state.settingsPicker.filter}
               hint={state.settingsPicker.hint}

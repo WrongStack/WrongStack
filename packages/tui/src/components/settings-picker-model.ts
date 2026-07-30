@@ -165,7 +165,7 @@ export const MODE_DESC: Record<SettingsMode, string> = {
 };
 
 /** Total number of settings rows (used for wrap-around navigation). */
-export const SETTINGS_FIELD_COUNT = 43;
+export const SETTINGS_FIELD_COUNT = 45;
 
 /**
  * Field index of the "Thinking word" row. The reducer's per-field switch and
@@ -292,6 +292,8 @@ export type SettingsPickerPatch = Partial<{
   showModelReasoning: boolean;
   showAgentSwarmPanel: boolean;
   readSymbols: boolean;
+  showSageMemoryInject: boolean;
+  sageMemoryInjectThreshold: number;
 }>;
 
 /**
@@ -343,6 +345,8 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Show agent swarm panel', // 40
   'Pre-refine countdown', // 41
   'Read symbols', // 42
+  'Show SAGE Memory Inject', // 43
+  'SAGE Memory Inject threshold', // 44
 ];
 
 /**
@@ -392,6 +396,7 @@ export function resolveSettingsFieldValue(
     [39, 'showModelReasoning'],
     [40, 'showAgentSwarmPanel'],
     [42, 'readSymbols'],
+    [43, 'showSageMemoryInject'],
   ]);
   const boolKey = BOOL_FIELDS.get(field);
   if (boolKey) {
@@ -473,6 +478,29 @@ export function resolveSettingsFieldValue(
     return {
       ok: false,
       error: `Invalid value "${input}" for ${label}. Valid: ${values.join(', ')}.`,
+    };
+  }
+
+  // ── SAGE threshold (float presets) ──
+  // Uses parseFloat because the values are 0.72–0.95, not integers.
+  if (field === 44) {
+    const presets = SAGE_THRESHOLD_PRESETS;
+    const rawMatch = raw.match(/^(\d+(?:\.\d+)?)$/);
+    if (rawMatch) {
+      const asFloat = Number.parseFloat(rawMatch[1]!);
+      if (presets.includes(asFloat)) {
+        return {
+          ok: true,
+          patch: { sageMemoryInjectThreshold: asFloat },
+          label,
+          displayValue: formatSageThreshold(asFloat),
+        };
+      }
+    }
+    const options = presets.map((p) => formatSageThreshold(p)).join(', ');
+    return {
+      ok: false,
+      error: `Invalid value "${input}" for ${label}. Available: ${options}.`,
     };
   }
 
@@ -592,6 +620,7 @@ export function getSettingsFieldValue(
     [39, 'showModelReasoning'],
     [40, 'showAgentSwarmPanel'],
     [42, 'readSymbols'],
+    [43, 'showSageMemoryInject'],
   ];
   for (const [f, key] of BOOL_KEYS) {
     if (field !== f) continue;
@@ -633,6 +662,7 @@ export function getSettingsFieldValue(
     [21, 'multiDiffSummaryThreshold', formatMultiDiffSummaryThreshold],
     [30, 'maxConcurrent', (n) => presetLabel(n, 'runtime default')],
     [38, 'breakerAutoKillResetMs', formatBreakerTimeout],
+    [44, 'sageMemoryInjectThreshold', formatSageThreshold],
   ];
   for (const [f, key, fmt] of PRESET_KEYS) {
     if (field !== f) continue;
@@ -695,7 +725,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Display',
-    fields: [39, 40, 41],
+    fields: [39, 40, 41, 43, 44],
   },
 ];
 
@@ -727,6 +757,14 @@ export function formatAllSettingsSummary(values: SettingsPickerValues): string {
     }
   }
   return lines.join('\n');
+}
+
+/** Presets for the SAGE memory injection threshold. Values 0.72–0.95. */
+export const SAGE_THRESHOLD_PRESETS = [0.72, 0.75, 0.85, 0.9, 0.95];
+
+/** Format the threshold value. All valid values are in {@link SAGE_THRESHOLD_PRESETS}. */
+export function formatSageThreshold(t: number): string {
+  return t.toFixed(2);
 }
 
 /**
@@ -782,6 +820,8 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   showModelReasoning: true,
   showAgentSwarmPanel: true,
   readSymbols: false,
+  showSageMemoryInject: false,
+  sageMemoryInjectThreshold: 0.85,
 } as const);
 
 /**
@@ -853,6 +893,8 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     [40, 'showAgentSwarmPanel'],
     [41, 'preRefineSeconds'],
     [42, 'readSymbols'],
+    [43, 'showSageMemoryInject'],
+    [44, 'sageMemoryInjectThreshold'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

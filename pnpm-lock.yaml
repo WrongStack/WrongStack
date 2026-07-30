@@ -227,6 +227,10 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+    optionalDependencies:
+      '@datadog/pprof':
+        specifier: 5.17.0
+        version: 5.17.0
 
   packages/kanban:
     dependencies:
@@ -1101,6 +1105,10 @@ packages:
   '@csstools/css-tokenizer@4.0.0':
     resolution: {integrity: sha512-QxULHAm7cNu72w97JUNCBFODFaXpbDg+dP8b/oWFAZ2MTRppA3U00Y2L1HqaS4J6yBqxwa/Y3nMBaxVKbB/NsA==}
     engines: {node: '>=20.19.0'}
+
+  '@datadog/pprof@5.17.0':
+    resolution: {integrity: sha512-BuedZ4vHzmQkitMMdIhVLQ+nPpHl7WRwcuumJeXt0ylhwGGwt7Kf+4CoS1tDB0FljJXi4izweFfFFTirrijP5w==}
+    engines: {node: '>=16'}
 
   '@electron-internal/extract-zip@1.0.4':
     resolution: {integrity: sha512-Zr1Vs7E9tpCNhZHDAbFVXc2gEVCG9RqPDjrno5+bdgB6LRAuvgyMHJut4NCVyYwtAieapMzc3fiQ3CSTi75ARg==}
@@ -3108,6 +3116,10 @@ packages:
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
 
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
+    hasBin: true
+
   node-pty@1.2.0-beta.14:
     resolution: {integrity: sha512-XORU9BQgpxVgqr7WivjJ17mLenOHUgKKWzuZZNaw3NDYgHc/wPJQMSaoLDrpEgqV6aU1nNwil1o/OqYj6lWmUA==}
 
@@ -3192,6 +3204,9 @@ packages:
   postcss@8.5.23:
     resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
+
+  pprof-format@2.3.0:
+    resolution: {integrity: sha512-ovChRLoV4H3k0zKWq0AXewtnuPGskzBLjBPmF2N0DZu+H65PYuo51+6e/1GTb8Olm7oC0xvhhLdqPL4/XhCl4A==}
 
   pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
@@ -3395,6 +3410,10 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  source-map@0.8.0:
+    resolution: {integrity: sha512-d8EqvL+k/SOXCreS/SUzg2ciyHqBBLcN/yuRjFsbvVhHTE2pgei7oAhmPM7kWFbkX6OSMQfUq4KbkF3au9lhYQ==}
+    engines: {node: '>= 12'}
 
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
@@ -4037,6 +4056,13 @@ snapshots:
       css-tree: 3.2.1
 
   '@csstools/css-tokenizer@4.0.0': {}
+
+  '@datadog/pprof@5.17.0':
+    dependencies:
+      node-gyp-build: 4.8.4
+      pprof-format: 2.3.0
+      source-map: 0.8.0
+    optional: true
 
   '@electron-internal/extract-zip@1.0.4': {}
 
@@ -6043,6 +6069,9 @@ snapshots:
   node-addon-api@7.1.1:
     optional: true
 
+  node-gyp-build@4.8.4:
+    optional: true
+
   node-pty@1.2.0-beta.14:
     dependencies:
       node-addon-api: 7.1.1
@@ -6121,6 +6150,9 @@ snapshots:
       nanoid: 3.3.16
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  pprof-format@2.3.0:
+    optional: true
 
   pretty-format@27.5.1:
     dependencies:
@@ -6380,6 +6412,9 @@ snapshots:
       is-fullwidth-code-point: 5.1.0
 
   source-map-js@1.2.1: {}
+
+  source-map@0.8.0:
+    optional: true
 
   space-separated-tokens@2.0.2: {}
 

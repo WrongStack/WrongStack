@@ -114,56 +114,47 @@ function estimateSageKvRows(cells: readonly string[], contentWidth: number): num
 }
 
 /** Conservative, bounded row estimate used before a group is measured. */
-export function estimateRenderGroupRows(group: RenderGroup, contentWidth: number): number {
+export function estimateRenderGroupRows(
+  group: RenderGroup,
+  contentWidth: number,
+  showSageMemoryInject?: boolean,
+): number {
   if (group.type === 'tool-group') return group.data.entries.length + 2;
 
   const { entry } = group;
   if (entry.kind === 'tool') {
     const { cleanOutput, sageLines } = resolveEntrySage(entry.output, entry.sageLines);
     const memoryLines = sageLines.slice(1);
-    // Match the bordered panel rendered by SageMemoryBlock: two border rows,
-    // a wrapping header, and the structured key/value rows for each parsed
-    // memory. Per memory: 1 row for the labels line, ~1 row for the body
-    // (width-aware), 1 row for the id/anchor/relation/tags key/value line,
-    // and a 1-row gap before all but the first memory. Lines that fail to
-    // parse still fall back to the raw blob, so we keep one raw estimate as
-    // a floor.
+    // When sage inject is hidden, skip the panel entirely in height estimation.
     const panelContentWidth = Math.max(16, contentWidth - 4);
-    const sagePanelRows =
-      memoryLines.length > 0
-        ? 2 +
-          estimateTextRows(
-            `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${entry.sageStats ? ` · ${entry.sageStats}` : ''}`,
+    const sagePanelRows = showSageMemoryInject === false || memoryLines.length === 0
+      ? 0
+      : 2 +
+        estimateTextRows(
+          `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${entry.sageStats ? ` · ${entry.sageStats}` : ''}`,
+          panelContentWidth,
+          MAX_TEXT_ESTIMATE_ROWS,
+        ) +
+        memoryLines.reduce((rows, line) => {
+          const parsed = parseSageMemoryLine(line);
+          if (!parsed) {
+            return rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
+          }
+          const labelRow = estimateTextRows(
+            parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]',
             panelContentWidth,
             MAX_TEXT_ESTIMATE_ROWS,
-          ) +
-          memoryLines.reduce((rows, line) => {
-            const parsed = parseSageMemoryLine(line);
-            if (!parsed) {
-              return rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
-            }
-            const labelRow = estimateTextRows(
-              parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]',
-              panelContentWidth,
-              MAX_TEXT_ESTIMATE_ROWS,
-            );
-            const bodyRow = estimateTextRows(parsed.text, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
-            // The renderer puts each kv pair in its own <Box marginRight={2}>
-            // inside a flex-wrap row, so width packing must mirror Ink's
-            // flex-wrap semantics: each cell consumes (cellWidth + 2) cols
-            // except the trailing cell on a visual row. We pack the cells
-            // greedily against panelContentWidth, same as Ink.
-            const kvCells: string[] = [];
-            kvCells.push(`id: ${parsed.id}`);
-            if (parsed.anchor) kvCells.push(`anchor: ${parsed.anchor}`);
-            if (parsed.relation) kvCells.push(`relation: ${parsed.relation}`);
-            if (parsed.tags && parsed.tags.length > 0) kvCells.push(`tags: ${parsed.tags.join(', ')}`);
-            const kvRows = estimateSageKvRows(kvCells, panelContentWidth);
-            // 1 inter-memory gap (marginTop) for every memory after the first.
-            const gap = rows > 0 ? 1 : 0;
-            return rows + labelRow + bodyRow + kvRows + gap;
-          }, 0)
-        : 0;
+          );
+          const bodyRow = estimateTextRows(parsed.text, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
+          const kvCells: string[] = [];
+          kvCells.push(`id: ${parsed.id}`);
+          if (parsed.anchor) kvCells.push(`anchor: ${parsed.anchor}`);
+          if (parsed.relation) kvCells.push(`relation: ${parsed.relation}`);
+          if (parsed.tags && parsed.tags.length > 0) kvCells.push(`tags: ${parsed.tags.join(', ')}`);
+          const kvRows = estimateSageKvRows(kvCells, panelContentWidth);
+          const gap = rows > 0 ? 1 : 0;
+          return rows + labelRow + bodyRow + kvRows + gap;
+        }, 0);
     if (entry.resultRenderMode === 'simple') return 3 + sagePanelRows;
     if (STRUCTURED_DIFF_TOOLS.has(entry.name)) {
       const previewCap =

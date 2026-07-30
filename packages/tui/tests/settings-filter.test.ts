@@ -53,6 +53,8 @@ function baseProps(over: Record<string, unknown> = {}) {
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
     showAgentSwarmPanel: true,
+    showSageMemoryInject: false,
+    sageMemoryInjectThreshold: 0.85,
     filter: '',
     ...over,
   } as never as React.ComponentProps<typeof SettingsPicker>;

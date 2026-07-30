@@ -24,8 +24,17 @@ import { memoryLifecycleEntry } from '../memory-lifecycle-entry.js';
 import { contentBlocksText } from '../rehydrate-history.js';
 import {
   MAX_ASSISTANT_STREAM_RETAINED_CHARS,
+  MAX_TOOL_STREAM_RETAINED_CHARS,
   retainStreamTail,
 } from '../reducers/helpers.js';
+import {
+  recordProviderResponse,
+  recordProviderTextDelta,
+  recordProviderThinkingDelta,
+  recordStreamFlush,
+  recordToolExecuted,
+  recordToolProgress,
+} from '../tui-memory-counters.js';
 import {
   formatDelegateStartedText,
   formatDelegateSuccessText,
@@ -123,14 +132,11 @@ export function useProviderEventBridge({
       }
     };
     const flush = () => {
-      if (pendingDeltaRef.current) {
-        dispatch({ type: 'streamDelta', delta: pendingDeltaRef.current });
-        pendingDeltaRef.current = '';
-      }
       if (pendingToolStream) {
         dispatch({ type: 'toolStreamAppend', ...pendingToolStream });
         pendingToolStream = null;
       }
+      recordStreamFlush();
       flushTimerRef.current = null;
     };
     const scheduleFlush = () => {
@@ -144,18 +150,13 @@ export function useProviderEventBridge({
       // matched optionally — a stripped/split ESC would otherwise leave a
       // bare `[200~` in the rendered text (same failure as the input path).
       const text = e.text.replace(/\x1b?\[200~|\x1b?\[201~/g, '');
+      recordProviderTextDelta(text.length);
       streamingTextRef.current = retainStreamTail(
         streamingTextRef.current,
         text,
         MAX_ASSISTANT_STREAM_RETAINED_CHARS,
       );
-      pendingDeltaRef.current = retainStreamTail(
-        pendingDeltaRef.current,
-        text,
-        MAX_ASSISTANT_STREAM_RETAINED_CHARS,
-      );
       appendStreamSegment('assistant', text);
-      scheduleFlush();
     });
     const offThinking = events.on('provider.thinking_delta', (e) => {
       if (activeRunGenerationRef.current !== sessionGenerationRef.current) return;
@@ -165,13 +166,8 @@ export function useProviderEventBridge({
       // commits them as a THINKING entry BEFORE the next tool entry, and
       // the live tail mirrors whatever segment type is currently streaming.
       const text = e.text.replace(/\x1b?\[200~|\x1b?\[201~/g, '');
+      recordProviderThinkingDelta(text.length);
       appendStreamSegment('thinking', text);
-      pendingDeltaRef.current = retainStreamTail(
-        pendingDeltaRef.current,
-        text,
-        MAX_ASSISTANT_STREAM_RETAINED_CHARS,
-      );
-      scheduleFlush();
     });
     const offToolStart = events.on('tool.started', (e) => {
       dispatch({ type: 'toolStarted', id: e.id, name: e.name });
@@ -190,13 +186,18 @@ export function useProviderEventBridge({
       // estate from the assistant text. They still flow through EventBus
       // for observability/metrics consumers.
       if (e.event.type !== 'partial_output' || !e.event.text) return;
+      recordToolProgress(e.event.text.length);
       // Coalesce tool stream paints with the same flush window as assistant
       // text — every partial_output used to force a full history re-render.
       const prev = pendingToolStream;
       if (prev && prev.toolUseId === e.id) {
         pendingToolStream = {
           ...prev,
-          text: prev.text + e.event.text,
+          text: retainStreamTail(
+            prev.text,
+            e.event.text,
+            MAX_TOOL_STREAM_RETAINED_CHARS,
+          ),
           startedAt: prev.startedAt,
         };
       } else {
@@ -212,6 +213,7 @@ export function useProviderEventBridge({
       scheduleFlush();
     });
     const offTool = events.on('tool.executed', (e) => {
+      recordToolExecuted(e.outputBytes);
       // Flush any coalesced tool stream before the completed entry lands.
       if (pendingToolStream) {
         dispatch({ type: 'toolStreamAppend', ...pendingToolStream });
@@ -308,6 +310,7 @@ export function useProviderEventBridge({
     // flushes have already done so.
     const offProvResp = events.on('provider.response', (e) => {
       if (activeRunGenerationRef.current !== sessionGenerationRef.current) return;
+      recordProviderResponse();
       const segments = canonicalStreamSegments(e.content ?? []);
       const fallbackText = contentBlocksText(e.content);
       streamingTextRef.current = '';

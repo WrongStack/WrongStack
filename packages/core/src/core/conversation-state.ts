@@ -102,7 +102,7 @@ export class ConversationState {
     // run (provider error storms, rewinds, custom embedders). Oldest
     // messages are dropped first — the compaction digest lives at index 0
     // and is dropped with them.
-    const overflow = this.overflowCount();
+    const overflow = this.overflowCount(this.ctx.messages);
     if (overflow > 0) {
       this.ctx.messages.splice(0, overflow);
       // Dropping messages may orphan a tool_use or tool_result, breaking
@@ -128,8 +128,7 @@ export class ConversationState {
    * content blocks.  It runs whenever the token cap is enabled; the count
    * cap determines the starting index for the sum but does not gate it.
    */
-  private overflowCount(): number {
-    const arr = this.ctx.messages;
+  private overflowCount(arr: readonly Message[]): number {
     let drop = Context.MAX_MESSAGES > 0 ? Math.max(0, arr.length - Context.MAX_MESSAGES) : 0;
     if (Context.MAX_MESSAGE_TOKENS <= 0) return drop;
 
@@ -193,31 +192,39 @@ export class ConversationState {
     for (const m of messages) {
       if (m._estTokens === undefined) {
         m._estTokens = computeMessageTokens(m);
-        // Scan for tool blocks only while already walking content to compute
-        // tokens — avoids a separate O(n·m) pass over already-cached messages.
-        // The `!hasToolBlock` guard on the outer loop skips messages after the
-        // first tool block is found, so worst case is one full content scan.
-        if (Array.isArray(m.content)) {
-          for (const b of m.content) {
-            if (b.type === 'tool_use' || b.type === 'tool_result') {
-              hasToolBlock = true;
-              break;
-            }
+      }
+      // Cached messages still need the adjacency scan. Resume/rewind commonly
+      // replaces state with messages carrying `_estTokens`; gating this scan
+      // on cache misses silently skipped tool repair for exactly those paths.
+      if (!hasToolBlock && Array.isArray(m.content)) {
+        for (const b of m.content) {
+          if (b.type === 'tool_use' || b.type === 'tool_result') {
+            hasToolBlock = true;
+            break;
           }
         }
       }
     }
+
+    // `replaceMessages()` is used by resume, rewind, WebUI context editing and
+    // compaction. It must enforce the same safety boundary as appendMessage;
+    // otherwise a large journal/context replacement bypasses retention in one
+    // call and remains live until the process exits.
+    const overflow = this.overflowCount(messages);
+    const retained = overflow > 0 ? messages.slice(overflow) : messages;
+    if (overflow > 0) this.ctx.toolAdjacencyDirty = true;
+
     // In-place replacement without array spread to avoid a temporary
     // allocation of 200+ elements on large compaction rewrites.
     // When messages.length > arr.length, JavaScript auto-extends the array
     // on indexed assignment (arr[i] = val where i >= arr.length sets
     // arr.length = i + 1 per ECMAScript §9.4.2.1).
     const arr = this.ctx.messages;
-    if (messages.length < arr.length) {
-      arr.length = messages.length;
+    if (retained.length < arr.length) {
+      arr.length = retained.length;
     }
-    for (let i = 0; i < messages.length; i++) {
-      arr[i] = messages[i]!;
+    for (let i = 0; i < retained.length; i++) {
+      arr[i] = retained[i]!;
     }
 
     // Mark adjacency dirty when the replacement contains tool-use
@@ -229,7 +236,7 @@ export class ConversationState {
       this.ctx.toolAdjacencyDirty = true;
     }
 
-    this.emit({ kind: 'messages_replaced', messages: [...messages] });
+    this.emit({ kind: 'messages_replaced', messages: [...retained] });
   }
 
   replaceTodos(todos: TodoItem[]): void {

@@ -275,6 +275,8 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: true,
       showAgentSwarmPanel: true,
+      showSageMemoryInject: false,
+      sageMemoryInjectThreshold: 0.85,
       readSymbols: false,
     },
     statuslinePicker: {

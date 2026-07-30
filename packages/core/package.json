@@ -178,5 +178,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "optionalDependencies": {
+    "@datadog/pprof": "5.17.0"
   }
 }

@@ -80,7 +80,7 @@ import {
   release,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { startCliHqConnection, type CliHqConnection } from '../../hq-publisher.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
@@ -339,6 +339,13 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     },
   });
   writeStartupInfo(deps, { host, port: boundPort, projectDir, tokenPath: acquireResult.tokenPath });
+  const stopMemoryWatchdog = startSharedHeapWatchdog({
+    collectStats: () => ({
+      surface: 'mailbox-http-server',
+      projectId,
+      boundPort,
+    }),
+  });
 
   // Keep the process alive until SIGINT/SIGTERM. We resolve once the
   // server has fully closed and the lock + token files are gone.
@@ -361,6 +368,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       // acquire, release() will detect the generation mismatch and
       // leave their lock alone.
       await release(projectDir, finalized.generation);
+      await stopMemoryWatchdog();
       resolve();
     };
     process.on('SIGINT', shutdown);

@@ -198,6 +198,8 @@ export type Action =
       showModelReasoning: boolean;
       showAgentSwarmPanel: boolean;
       readSymbols: boolean;
+      showSageMemoryInject: boolean;
+      sageMemoryInjectThreshold: number;
     }
   | { type: 'settingsClose' }
   | { type: 'settingsFieldMove'; delta: number }

@@ -17,6 +17,8 @@
     "bench": "vitest bench --run --config vitest.bench.config.ts",
     "bench:perf": "node scripts/bench.mjs",
     "bench:tui-heap": "node scripts/tui-heap-soak.mjs",
+    "profile:memory": "node scripts/memory-profile.mjs",
+    "analyze:memory": "node scripts/analyze-memory-log.mjs",
     "brain:workload": "node scripts/brain-workload-report.mjs",
     "test:coverage": "node scripts/coverage-lock.mjs node scripts/test-coverage.mjs",
     "test:coverage:root": "node scripts/coverage-lock.mjs cross-env NODE_OPTIONS=--max-old-space-size=4096 vitest run --coverage",

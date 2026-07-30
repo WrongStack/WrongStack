@@ -27,6 +27,7 @@ import {
   formatMaxIterations,
   formatMultiDiffSummaryThreshold,
   formatPreRefineSeconds,
+  formatSageThreshold,
   formatSettingsDelay,
   MODE_DESC,
   STATUSLINE_MODE_DESCS,
@@ -121,6 +122,10 @@ export interface SettingsPickerProps {
    * remain independently available through their panel shortcuts. Default: true.
    */
   showAgentSwarmPanel: boolean;
+  /** Show SAGE Memory Inject blocks in tool results. Default: false. */
+  showSageMemoryInject: boolean;
+  /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
+  sageMemoryInjectThreshold: number;
   // ── Tools ──
   /** When true, read tool includes codebase-index symbols alongside file content. */
   readSymbols: boolean;
@@ -196,6 +201,8 @@ export function SettingsPicker({
   breakerAutoKillResetMs,
   showModelReasoning,
   showAgentSwarmPanel,
+  showSageMemoryInject,
+  sageMemoryInjectThreshold,
   readSymbols,
   hint,
 }: SettingsPickerProps): React.ReactElement {
@@ -438,6 +445,16 @@ export function SettingsPicker({
       label: 'Read symbols',
       value: boolVal(readSymbols),
       detail: 'Include codebase-index symbols in read tool results',
+    },
+    {
+      label: 'Show SAGE Memory Inject',
+      value: boolVal(showSageMemoryInject),
+      detail: 'Show SAGE memory injection blocks in tool results',
+    },
+    {
+      label: 'SAGE Memory Inject threshold',
+      value: formatSageThreshold(sageMemoryInjectThreshold),
+      detail: 'Min relation strength for injection (0.72–0.95)',
     },
   ];
 
