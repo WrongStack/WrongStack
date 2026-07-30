@@ -261,6 +261,88 @@
       "reviewBy": "2026-09-15",
       "removeWhen": "Persisted Kanban domain contracts move to a dependency-leaf module consumed by both facade files.",
       "canonicalTask": "K1"
+    },
+    {
+      "id": "ARCH-CYCLE-RUNTIME-01",
+      "kind": "runtime-module-cycle",
+      "members": [
+        "packages/core/src/core/context.ts",
+        "packages/core/src/core/conversation-state.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Pre-existing runtime module SCC: context.ts imports conversation-state.ts which re-exports a Context invariant from context.ts. Tracked alongside ARCH-CYCLE-TYPE-12 (the type-level variant includes run-env and types/ utils).",
+      "introduced": "2026-07-30",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",
+      "canonicalTask": "R1"
+    },
+    {
+      "id": "ARCH-CYCLE-RUNTIME-02",
+      "kind": "runtime-module-cycle",
+      "members": [
+        "packages/kanban/src/manager/_internal.ts",
+        "packages/kanban/src/manager/lifecycle.ts",
+        "packages/kanban/src/server/remote-storage.ts",
+        "packages/kanban/src/storage.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Pre-existing runtime module SCC: the kanban IPC daemon, storage backend, and manager lifecycle share bidirectional import paths. Mirrors the type-level cycle ARCH-CYCLE-TYPE-XX (same members).",
+      "introduced": "2026-07-30",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "Kanban storage and lifecycle modules have one-way runtime and type dependencies.",
+      "canonicalTask": "K1"
+    },
+    {
+      "id": "ARCH-CYCLE-RUNTIME-03",
+      "kind": "runtime-module-cycle",
+      "members": [
+        "packages/tools/src/builtin.ts",
+        "packages/tools/src/codebase-index/dead-code-scan.ts",
+        "packages/tools/src/codebase-index/index.ts",
+        "packages/tools/src/index.ts",
+        "packages/tools/src/pack.ts",
+        "packages/tools/src/tool-tier.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Pre-existing runtime module SCC: builtin.ts imports dead-code-scan which re-exports through codebase-index/index.ts → tools/index.ts → tool-tier.ts → pack.ts → builtin.ts (tool-tier's pack dependency). Mirrors the type-level cycle with the same members.",
+      "introduced": "2026-07-30",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "Tools barrel, packing, and tool-tier modules have one-way runtime and type dependencies.",
+      "canonicalTask": "G1"
+    },
+    {
+      "id": "ARCH-CYCLE-TYPE-27",
+      "kind": "type-module-cycle",
+      "members": [
+        "packages/kanban/src/manager/_internal.ts",
+        "packages/kanban/src/manager/lifecycle.ts",
+        "packages/kanban/src/server/remote-storage.ts",
+        "packages/kanban/src/storage.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Pre-existing type-level module SCC in the kanban IPC daemon and storage backend. Matches the members of ARCH-CYCLE-RUNTIME-02. Type-only imports (LifecycleEvent, StorageConfig, etc.) create the reverse edge.",
+      "introduced": "2026-07-30",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "Kanban storage and lifecycle modules have one-way runtime and type dependencies.",
+      "canonicalTask": "K1"
+    },
+    {
+      "id": "ARCH-CYCLE-TYPE-28",
+      "kind": "type-module-cycle",
+      "members": [
+        "packages/tools/src/builtin.ts",
+        "packages/tools/src/codebase-index/dead-code-scan.ts",
+        "packages/tools/src/codebase-index/index.ts",
+        "packages/tools/src/index.ts",
+        "packages/tools/src/pack.ts",
+        "packages/tools/src/tool-tier.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Pre-existing type-level module SCC in the tools barrel and tool-tier. Matches the members of ARCH-CYCLE-RUNTIME-03. Type-level re-exports through the barrel chain create bidirectional type edges.",
+      "introduced": "2026-07-30",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "Tools barrel, packing, and tool-tier modules have one-way runtime and type dependencies.",
+      "canonicalTask": "G1"
     }
   ]
 }
