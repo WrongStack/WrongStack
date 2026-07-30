@@ -67,7 +67,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `favoriteModels` | `string[]` | `[]` | User-curated model refs prioritized by pickers and smart fallback derivation. |
 | `favoriteModelsOnly` | `boolean` | `false` | Restrict the **auto-derived** smart-default fallback chain to `favoriteModels`. **Explicit** settings are always honored as written — this includes `fallbackModels`, `fallbackProfiles`, and matrix model-only entries (`agent_model_assign` with `model=...`, no `profile=...`). The smart-default chain is at most as strict as the matrix model-only mode: the matrix already requires favorites whenever `favoriteModels` is non-empty (via `isFavoriteRef`), regardless of this toggle. The toggle only narrows the auto-derivation path, and only when `favoriteModels` is non-empty — an empty `favoriteModels` list means the smart default falls back to including every usable provider/model pair. Toggle with `/fallback fav only on\|off`. |
 | `modelRuntime` | `object` | — | Runtime request controls for the leader/default request path: reasoning, prompt-cache TTL, and gated generation parameters. |
-| `systemPrompt` | `object` | `{ "variant": "default" }` | Baseline system prompt selection. `variant: "default"` loads `system.md`; `variant: "pro"` loads `system-pro.md`. Overridden for one launch by `--system-pro` or `--system-prompt pro`. |
+| `systemPrompt` | `object` | `{ "variant": "default" }` | Baseline system prompt selection. `variant: "default"` loads `system.md`; `variant: "lite"` loads the compact `system-lite.md`; `variant: "pro"` loads `system-pro.md`. Overridden for one launch by `--system-pro`, `--system-lite`, or `--system-prompt default\|lite\|pro`. |
 | `modelMatrix` | `Record<string, ModelMatrixEntry>` | — | Per-role/phase/`*` subagent routing matrix. Entries can override provider/model/fallback profile and role-specific runtime controls. |
 | `fleet` | `FleetConfig` | — | Fleet budgets, supervision, worktrees, peer awareness, and subagent lifecycle. User config only; stripped from in-project config. |
 | `brain` | `BrainConfig` | — | Decision layer: autonomy ceiling, deterministic rules, heuristics, LLM quality gate + circuit breaker, council, decision cache, replay trace, ledger, monitor. See [`brain`](#brain--decision-layer-autonomy-rules-council-trace). User config only; stripped from in-project config. |
@@ -654,7 +654,8 @@ implementation keeps the wider tool set on purpose — dropping more tools at
 `medium`. The savings estimates above are empirical, measured by
 `packages/cli/tests/token-saving-measurement.test.ts`.
 
-Memory tools (`remember`, `forget`, `searchMemory`, `relatedMemory`) are gated on
+Memory tools (`remember`, `forget`, `memory_search`, `memory_for_file`,
+`memory_for_path`, and the other `memory_*` tools) are gated on
 `features.memory`, not on the tier — they appear at every tier when memory is enabled
 and at no tier when it is disabled.
 

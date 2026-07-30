@@ -16,6 +16,7 @@ Use Markdown for the common system prompt sections:
 
 - `system.md` — replaces the default baseline system identity/instructions block.
 - `system-pro.md` — replaces the pro baseline system identity/instructions block when `systemPrompt.variant` is `"pro"` or the launch uses `--system-pro` / `--system-prompt pro`.
+- `system-lite.md` — replaces the compact baseline system identity/instructions block when `systemPrompt.variant` is `"lite"`.
 - `leader-after-task.md` — replaces the host-only after-task guidance block.
 - `sections/**/*.md` — replaces named reusable prompt sections.
 - `agents/<agent-id>.md` — bundled subagent role prompts used by the fleet catalog.
