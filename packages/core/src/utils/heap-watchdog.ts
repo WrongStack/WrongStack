@@ -126,7 +126,7 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
       postGcHeapUsed = process.memoryUsage().heapUsed;
       if ((kind & performanceConstants.NODE_PERFORMANCE_GC_MAJOR) !== 0) {
         postMajorGcHeapUsed = postGcHeapUsed;
-        lastMajorGcAt = lastGcAt;
+        lastMajorGcAt = Date.now();
       }
       lastGcAt = Date.now();
     }
