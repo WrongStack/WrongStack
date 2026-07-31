@@ -401,9 +401,10 @@ export class GoalWebSocketHandler {
         const cwd = env?.cwd ?? this.projectRoot!;
         try {
           // Run typecheck in the phase worktree (or project root).
-          const { exec } = await import('node:child_process');
+          const { execFile } = await import('node:child_process');
           const result = await new Promise<string>((resolve) => {
-            exec('npx tsc --noEmit', { cwd, timeout: 60_000 }, (err, stdout, stderr) => {
+            const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+            execFile(npxCommand, ['tsc', '--noEmit'], { cwd, timeout: 60_000 }, (err, stdout, stderr) => {
               if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
                 resolve('[verify] tsc not found — skipping');
                 return;
