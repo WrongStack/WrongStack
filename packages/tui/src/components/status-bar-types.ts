@@ -107,12 +107,28 @@ export interface StatusBarProps {
    */
   provider?: string | undefined;
   /**
-   * App version string (e.g. "0.7.0"). Previously rendered a `WS v{version}`
-   * chip at the head of line 1. Now shown in the composer top rail instead
-   * (`WRONGSTACK v{version}`). Kept in the interface for callers that may
-   * use `version` in derived props — no longer rendered by StatusBar itself.
+   * App version string (e.g. "0.7.0"). Rendered as a right-anchored version
+   * chip on the status bar (line 1, and the minimum-mode rail) so it stays
+   * visible after the startup banner scrolls off — in addition to the
+   * composer top rail (`WRONGSTACK v{version}`). When omitted, the chip is
+   * hidden — keeps tests / legacy callers quiet.
    */
   version?: string | undefined;
+  /**
+   * Latest version published to the npm registry, when known. When paired
+   * with {@link updateAvailable} (and not equal to {@link version}), the
+   * version chip on the right edge of the status bar gains an orange
+   * "(update v…)" suffix so the operator notices the upgrade without
+   * scrolling back through history to find the startup banner. Sourced from
+   * the CLI's preflight update-check.
+   */
+  latestVersion?: string | undefined;
+  /**
+   * True when the preflight update-check found a newer published version
+   * than {@link version}. Both must be present (and non-equal) to render the
+   * orange update notice on the status bar.
+   */
+  updateAvailable?: boolean | undefined;
   state: 'idle' | 'running' | 'streaming' | 'aborting';
   /** Single word rendered in the rainbow working-state chip. */
   thinkingWord?: string | undefined;

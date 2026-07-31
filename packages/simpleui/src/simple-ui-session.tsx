@@ -936,6 +936,16 @@ export function SimpleUiSession() {
     if (sessionId) socketRef.current?.send('plan.item.update', { sessionId, target, status });
   }, []);
 
+  // Single source of truth for "a genuine newer version is available" — the
+  // version chip (class / title / suffix) and the update banner all gate on
+  // this exact condition. Keeping it in one const prevents the four call
+  // sites from silently diverging on a future edit (e.g. dropping the
+  // equality guard, which would re-introduce a bogus "vX → vX" notice).
+  const hasUpdate =
+    updateInfo.updateAvailable &&
+    Boolean(updateInfo.latestVersion) &&
+    updateInfo.latestVersion !== updateInfo.appVersion;
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -1067,6 +1077,28 @@ export function SimpleUiSession() {
           >
             <Settings size={15} />
           </button>
+          {/* Persistent version chip — mirrors the WebUI WorkbenchTopbar
+              placement. The full-width update banner above already shows the
+              upgrade prompt when an update is available; this chip keeps the
+              version visible at all times so users see *something* even when
+              they've dismissed the banner or are on the latest release. The
+              `latestVersion !== appVersion` guard prevents a stale
+              `updateAvailable: true` from flagging a bogus upgrade. */}
+          {updateInfo.appVersion ? (
+            <span
+              className={`version-chip ${hasUpdate ? 'outdated' : ''}`}
+              title={
+                hasUpdate
+                  ? `Update available: v${updateInfo.appVersion} → v${updateInfo.latestVersion} — run wstack update`
+                  : `WrongStack v${updateInfo.appVersion}`
+              }
+            >
+              v{updateInfo.appVersion}
+              {hasUpdate ? (
+                <span className="version-chip-update">→ v{updateInfo.latestVersion}</span>
+              ) : null}
+            </span>
+          ) : null}
           <div className={`connection ${connection}`} title={`WebSocket: ${connection}`}>
             <span
               className={`connection-ping-dot ${connection === 'open' ? 'good' : connection === 'connecting' ? 'poor' : 'bad'}`}
@@ -1079,7 +1111,7 @@ export function SimpleUiSession() {
         </div>
       </header>
 
-      {updateInfo.updateAvailable && updateInfo.latestVersion ? (
+      {hasUpdate ? (
         <div className="update-banner">
           <ArrowUpCircle size={15} />
           <span>
@@ -1091,7 +1123,19 @@ export function SimpleUiSession() {
             type="button"
             className="update-banner-dismiss"
             onClick={() =>
-              setUpdateInfo({ appVersion: '', latestVersion: '', updateAvailable: false })
+              // Dismiss the *update banner* only — preserve `appVersion` so
+              // the persistent topbar version chip stays visible (functional
+              // form avoids a stale-closure race if a newer `session.start`
+              // lands between render and click). Clearing `appVersion` here
+              // would unmount the chip the moment the user dismisses the
+              // upgrade call-to-action, contradicting its "visible at all
+              // times" contract and diverging from the WebUI sibling
+              // (UpdateBanner.tsx keeps appVersion after dismissal).
+              setUpdateInfo((prev) => ({
+                ...prev,
+                latestVersion: '',
+                updateAvailable: false,
+              }))
             }
             aria-label="Dismiss update warning"
           >

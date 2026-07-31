@@ -4499,3 +4499,34 @@ a:focus-visible {
   opacity: 1;
   background: color-mix(in srgb, var(--brand-orange) 20%, transparent);
 }
+
+/* ── Persistent version chip (topbar) ───────────────────────────────────── */
+.version-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  white-space: nowrap;
+  cursor: default;
+  user-select: text;
+}
+
+.version-chip-update {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* Outdated state: orange-tinted chip mirroring the WebUI WorkbenchTopbar
+   `text-warning` variant and the full-width update banner accent. */
+.version-chip.outdated {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--brand-orange) 14%, transparent);
+  border-color: color-mix(in srgb, var(--brand-orange) 30%, transparent);
+}

@@ -40,6 +40,8 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
     agent,
     agentTranscripts,
     appVersion,
+    latestVersion,
+    updateAvailable,
     director,
     events,
     fleetRoster,
@@ -122,6 +124,8 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
               provider={liveProvider}
               model={liveModel}
               version={appVersion}
+              latestVersion={latestVersion}
+              updateAvailable={updateAvailable}
               state={state.status}
               thinkingWord={displayThinkingWord}
               thinkingAnimationStyle={

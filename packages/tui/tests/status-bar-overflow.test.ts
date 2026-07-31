@@ -129,3 +129,108 @@ describe('StatusBar overflow handling (width-budget)', () => {
     expect(line).toContain('∞ ETERNAL');
   });
 });
+
+describe('StatusBar version chip + update notice', () => {
+  it('renders `v{version}` when version is provided', () => {
+    const frame = frameOf({ version: '0.7.0' });
+    expect(frame).toContain('v0.7.0');
+    // No update notice suffix when updateAvailable is falsy.
+    expect(frame).not.toContain('(update v');
+  });
+
+  it('appends the orange `(update v{latest})` suffix when updateAvailable + latestVersion are set', () => {
+    const frame = frameOf({
+      version: '0.7.0',
+      latestVersion: '0.8.1',
+      updateAvailable: true,
+    });
+    expect(frame).toContain('v0.7.0');
+    expect(frame).toContain('(update v0.8.1)');
+    // The update suffix must be tinted with STACK_ORANGE (#FD9F02 = truecolor
+    // \x1b[38;2;253;159;2m). Render a raw (non-ANSI-stripped) frame here —
+    // frameOf() strips SGR before matching, which would silently swallow this
+    // assertion. Pinning the escape stops a future refactor from swapping the
+    // brand orange for theme.warn (pastel yellow) unnoticed.
+    const { lastFrame, unmount } = render(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        version: '0.7.0',
+        latestVersion: '0.8.1',
+        updateAvailable: true,
+      } as StatusBarProps),
+    );
+    const raw = lastFrame() ?? '';
+    unmount();
+    expect(raw).toMatch(/\x1b\[38;2;253;159;2m.*\(update v0\.8\.1\)/);
+  });
+
+  it('omits the update suffix when updateAvailable is false even if latestVersion is set', () => {
+    const frame = frameOf({
+      version: '0.7.0',
+      latestVersion: '0.7.0',
+      updateAvailable: false,
+    });
+    expect(frame).toContain('v0.7.0');
+    expect(frame).not.toContain('(update v');
+  });
+
+  it('omits the update suffix when latestVersion is empty', () => {
+    const frame = frameOf({
+      version: '0.7.0',
+      latestVersion: '',
+      updateAvailable: true,
+    });
+    expect(frame).toContain('v0.7.0');
+    expect(frame).not.toContain('(update v');
+  });
+
+  it('omits the update suffix when latestVersion equals version (already on latest)', () => {
+    // Defensive guard: if the preflight check returns the running version as
+    // `latestVersion` but a stale `updateAvailable: true`, the chip must not
+    // claim an update is needed. (The npm-registry path already filters this
+    // via semver, but the boot session-start payload is upstream-trusted.)
+    const frame = frameOf({
+      version: '0.7.0',
+      latestVersion: '0.7.0',
+      updateAvailable: true,
+    });
+    expect(frame).toContain('v0.7.0');
+    expect(frame).not.toContain('(update v');
+  });
+
+  it('omits the version chip entirely when no version is provided', () => {
+    const frame = frameOf({});
+    expect(frame).not.toMatch(/\bv\d+\.\d+\.\d+\b/);
+  });
+
+  it('renders the chip monochrome (no orange SGR) in no-color mode', () => {
+    // Render a raw (non-ANSI-stripped) frame — frameOf() strips SGR before
+    // matching, which would make a negative SGR assertion vacuous (it could
+    // never fail). Asserting on the raw frame actually catches a regression
+    // where no-color mode still emits orange truecolor.
+    const { lastFrame, unmount } = render(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        version: '0.7.0',
+        latestVersion: '0.8.1',
+        updateAvailable: true,
+        mode: 'no-color',
+      } as StatusBarProps),
+    );
+    const raw = lastFrame() ?? '';
+    unmount();
+    expect(raw).toContain('v0.7.0');
+    expect(raw).toContain('(update v0.8.1)');
+    // The brand-orange truecolor (STACK_ORANGE #FD9F02 = 253;159;2) must not
+    // survive in no-color mode. Assert the specific orange SGR rather than
+    // "any truecolor": the unrelated `+N dropped` overflow marker emits
+    // theme.textMuted truecolor unconditionally (not gated by monochrome), so
+    // a blanket `not.toMatch(/\x1b\[38;2;/)` would fail spuriously the moment
+    // line 1 widens enough to overflow — even though the chip is correctly
+    // monochrome. (The marker's unconditional color is a separate pre-existing
+    // powerline-rail concern, not a version-chip regression.)
+    expect(raw).not.toMatch(/\x1b\[38;2;253;159;2m/);
+  });
+});

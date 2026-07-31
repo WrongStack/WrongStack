@@ -128,6 +128,18 @@ function chipColor(color: string, isNoColor: boolean): string | undefined {
   return isNoColor ? undefined : color;
 }
 
+/**
+ * Brand orange for the version chip's `(update v…)` suffix — the canonical
+ * WrongStack orange (#FD9F02), matching the startup banner's own update
+ * indicator (banner.tsx) so the warning stays visually consistent across the
+ * boot-time and steady-state TUI. Deliberately a literal rather than
+ * `theme.warn` (Catppuccin pastel yellow) so the update notice reads as the
+ * brand orange the design system specifies, not a generic warning tint. The
+ * TUI ships a single dark Catppuccin-Mocha theme, so the light-surface
+ * contrast concern does not apply here.
+ */
+const STACK_ORANGE = '#FD9F02';
+
 const LINE_BG_COLORS = [theme.surface, theme.surface, theme.surface, theme.surface] as const;
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -143,6 +155,9 @@ const SPINNER_INTERVAL_MS = 1_000;
 export function StatusBar({
   model,
   provider,
+  version,
+  latestVersion,
+  updateAvailable,
   state,
   thinkingWord,
   thinkingAnimationStyle,
@@ -628,6 +643,29 @@ export function StatusBar({
     ) : null,
   ].filter((c): c is React.ReactElement => c !== null);
 
+  // ── Version chip (right-anchored on line 1 + minimum-mode rail) ─────────
+  // Stays visible after the startup banner scrolls off, and gains an orange
+  // "update v…" suffix when a newer published version is known. Uses
+  // STACK_ORANGE (#FD9F02) so the warning matches the brand palette and the
+  // startup banner's own update indicator. The `latestVersion !== version`
+  // guard prevents a stale `updateAvailable: true` (with latest === current)
+  // from rendering a bogus "(update v…)" suffix.
+  const showUpdateNotice =
+    Boolean(updateAvailable) &&
+    typeof latestVersion === 'string' &&
+    latestVersion.length > 0 &&
+    latestVersion !== version;
+  const versionStatusChip = version ? (
+    <Text>
+      <Text color={isNoColor ? undefined : theme.textSecondary} dimColor={!isNoColor}>
+        v{version}
+      </Text>
+      {showUpdateNotice ? (
+        <Text color={isNoColor ? undefined : STACK_ORANGE}> · (update v{latestVersion})</Text>
+      ) : null}
+    </Text>
+  ) : null;
+
   const minimumChips: React.ReactElement[] = [
     // State with animation
     showChip('state') && thinking ? (
@@ -789,6 +827,7 @@ export function StatusBar({
       <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={1}>
         <PowerlineRail
           segments={minimumChips}
+          rightAnchor={versionStatusChip}
           budget={Math.max(12, termWidth)}
           monochrome={isNoColor}
           fillBg={LINE_BG_COLORS[0]}
@@ -801,9 +840,12 @@ export function StatusBar({
     <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={0}>
       {/* Line 1 — Runtime + mode chips: YOLO, autonomy, project/workdir,
           provider/model, context, tokens, cost, queue, processes, hint,
-          breaker, state, elapsed */}
+          breaker, state, elapsed. The version chip is right-anchored so it
+          stays visible at the trailing edge regardless of how many runtime
+          chips are active, and tints orange when an update is available. */}
       <PowerlineRail
         segments={isCompact ? modeChips.slice(0, 5) : modeChips}
+        rightAnchor={versionStatusChip}
         budget={Math.max(12, termWidth)}
         monochrome={isNoColor}
         fillBg={LINE_BG_COLORS[0]}

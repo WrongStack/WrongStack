@@ -218,6 +218,17 @@ function WorkbenchTopbar({
 }) {
   const { theme, setTheme } = useTheme();
   const wsConnected = useConfigStore((s) => s.wsConnected);
+  // Persistent version chip + inline update notice. The full-width
+  // `UpdateBanner` (rendered below the topbar) still owns the dismissable
+  // call-to-action; this chip keeps the version and the upgrade nudge
+  // visible at all times so users see *something* even when they've
+  // dismissed the banner or are on the latest release. The
+  // `latestVersion !== appVersion` guard prevents a stale
+  // `updateAvailable: true` (latest === current) from showing a bogus
+  // "Update available: vX → vX".
+  const appVersion = useSessionStore((s) => s.appVersion);
+  const latestVersion = useSessionStore((s) => s.latestVersion);
+  const updateAvailable = useSessionStore((s) => s.updateAvailable);
   const effectiveTheme =
     theme === 'system'
       ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -241,6 +252,26 @@ function WorkbenchTopbar({
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <span className="truncate text-sm font-semibold">{projectName || 'WrongStack'}</span>
+              {appVersion ? (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium tabular-nums',
+                    updateAvailable && latestVersion && latestVersion !== appVersion
+                      ? 'border-warning/40 bg-warning/10 text-warning'
+                      : 'border-border/70 bg-muted/50 text-muted-foreground',
+                  )}
+                  title={
+                    updateAvailable && latestVersion && latestVersion !== appVersion
+                      ? `Update available: v${appVersion} → v${latestVersion} — run wstack update`
+                      : `WrongStack v${appVersion}`
+                  }
+                >
+                  v{appVersion}
+                  {updateAvailable && latestVersion && latestVersion !== appVersion ? (
+                    <span className="text-[10px] opacity-80">→ v{latestVersion}</span>
+                  ) : null}
+                </span>
+              ) : null}
               <span className="rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 text-[11px] text-muted-foreground">
                 {viewLabel(currentView)}
               </span>
