@@ -55,11 +55,12 @@ export interface SddBoardEvent {
 }
 
 /**
- * File-backed SDD board storage. Each board (= one parallel run) has:
- *   - `<runId>.json`        — latest full snapshot (atomic; resume + standalone-webui mirror)
+ * Legacy-compatible SDD board storage. A board (= one parallel run) may have:
+ *   - `<runId>.json`        — legacy snapshot imported into Kanban workflow state
  *   - `<runId>.events.jsonl`— bounded tail event log (audit / recent replay)
- *   - `<runId>.control.jsonl` — append-only command queue (cross-process control, written by readers)
- * plus `_index.json` for fast listing. JSON for state, JSONL for streams.
+ *   - `<runId>.control.jsonl` — legacy command queue imported once by new runs
+ * plus legacy `_index.json`. Production snapshot/control authority lives in the
+ * project-scoped Kanban daemon; JSONL remains the append-only audit stream.
  */
 export class SddBoardStore {
   private readonly baseDir: string;
@@ -148,7 +149,7 @@ export class SddBoardStore {
     if (this.eventChains.get(filePath) === write) this.eventChains.delete(filePath);
   }
 
-  /** Append a control command (used by readers to steer a CLI-owned run). */
+  /** Append a legacy control command. Production readers use Kanban IPC. */
   async appendControl(
     runId: string,
     command: { ts: number; type: string; payload?: unknown },
@@ -160,7 +161,7 @@ export class SddBoardStore {
     );
   }
 
-  /** Read + truncate the control queue (the run drains it). Returns parsed commands. */
+  /** Read + truncate the legacy control queue for one-time migration. */
   async drainControl(
     runId: string,
   ): Promise<Array<{ ts: number; type: string; payload?: unknown }>> {

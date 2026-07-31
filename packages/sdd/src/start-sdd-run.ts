@@ -15,6 +15,12 @@ import { TOKENS } from '@wrongstack/core/kernel';
 import type { TaskTracker } from '@wrongstack/core/tasking';
 import type { SecretScrubber, TaskGraph } from '@wrongstack/core/types';
 import type { WorktreeManager } from '@wrongstack/core/worktree';
+import {
+  drainKanbanWorkflowCommands,
+  kanbanWorkflowId,
+  subscribeKanbanWorkflowCommands,
+  writeKanbanWorkflowState,
+} from '@wrongstack/kanban';
 import { SddBoardProjector } from './sdd-board-projector.js';
 import type { SddBoardStore } from './sdd-board-store.js';
 import {
@@ -36,7 +42,7 @@ export interface StartSddRunOptions {
   sessionId?: string | (() => string | undefined) | undefined;
   /** Per-task agent factory. Omit to run every task on the leader agent. */
   subagentFactory?: AgentFactory | undefined;
-  /** Board snapshot/event persistence (also drained for cross-process control). */
+  /** Board snapshot/event compatibility cache. Durable control is owned by Kanban IPC. */
   boardStore: SddBoardStore;
   /** Registry the run is registered with for in-process control. */
   registry?: SddRunRegistry | undefined;
@@ -63,8 +69,12 @@ export interface StartSddRunOptions {
   maxRecoveryRounds?: number | undefined;
   /** Progress callback (e.g. CLI renderer line). */
   onProgress?: ((p: SddProgress) => void) | undefined;
-  /** Control-file drain interval in ms (default 500). */
+  /** Durable workflow-queue reconciliation interval in ms (default 500). */
   controlDrainMs?: number | undefined;
+  /** Explicit compatibility mode for legacy file-codec tests and old hosts. */
+  controlTransport?: 'kanban' | 'legacy-file' | undefined;
+  /** Snapshot owner; defaults to Kanban IPC unless legacy control was requested. */
+  boardStateTransport?: 'kanban' | 'legacy-file' | undefined;
 }
 
 export interface SddRunHandle {
@@ -148,13 +158,31 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     fallbackModels: opts.fallbackModels,
   });
 
-  // Live board projector: streams sdd.board.snapshot + persists JSON/JSONL.
+  const workflowId = kanbanWorkflowId('sdd', run.runId);
+  const legacyControl = opts.controlTransport === 'legacy-file';
+  const legacyBoardState =
+    opts.boardStateTransport === 'legacy-file' ||
+    (opts.boardStateTransport === undefined && legacyControl);
+  const boardPersistence = legacyBoardState
+    ? opts.boardStore
+    : {
+        saveSnapshot: async (snapshot: import('./board-types.js').SddBoardSnapshot) => {
+          await writeKanbanWorkflowState(opts.projectRoot, workflowId, snapshot);
+        },
+        // Detailed events remain append-only audit artifacts; they are not read
+        // back as workflow authority.
+        appendEvent: (runId: string, event: import('./sdd-board-store.js').SddBoardEvent) =>
+          opts.boardStore.appendEvent(runId, event),
+      };
+
+  // Live board projector: streams sdd.board.snapshot, persists authoritative
+  // state through Kanban IPC, and retains append-only audit events on disk.
   const projector = new SddBoardProjector({
     runId: run.runId,
     graph: opts.graph,
     tracker: opts.tracker,
     events: opts.events,
-    store: opts.boardStore,
+    store: boardPersistence,
     sessionId: opts.sessionId,
     specId: opts.graph.specId,
     defaultModel: opts.defaultModel,
@@ -188,19 +216,97 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     isRunning: () => run.isRunning(),
   });
 
-  // Cross-process control channel: any board surface (e.g. the standalone WebUI
-  // in another process) appends a command to <runId>.control.jsonl; we drain +
-  // apply it here so this run stays the single driver.
-  const drainMs = opts.controlDrainMs ?? 500;
-  const controlTimer = setInterval(() => {
-    void opts.boardStore
-      .drainControl(run.runId)
-      .then((cmds) => {
-        for (const c of cmds) {
-          applySddControlCommand(run, c);
+  // Cross-process control channel: Kanban's elected project daemon owns an
+  // atomic SQLite queue. Push notifications provide the fast path; a slow
+  // reconciliation drain covers startup races and daemon restarts.
+  let controlDrainInFlight = false;
+  let controlDisposed = false;
+  let unsubscribeControl: (() => void) | undefined;
+  const drainControl = async (): Promise<void> => {
+    if (controlDrainInFlight || controlDisposed) return;
+    controlDrainInFlight = true;
+    try {
+      const commands = legacyControl
+        ? await opts.boardStore.drainControl(run.runId)
+        : await drainKanbanWorkflowCommands(opts.projectRoot, workflowId);
+      for (const command of commands) applySddControlCommand(run, command);
+    } catch (error) {
+      // Kanban IPC is the SDD run's only cross-process control channel.
+      // Silently swallowing a rejection here means a daemon outage, a
+      // dropped socket, or a permissions error becomes a silent no-op
+      // for the duration of the run — operators see a frozen board and
+      // the run keeps running blind. Surface the error so the SDD log
+      // records the loss and a follow-up reconciliation can retry.
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'sdd.control_drain_failed',
+          runId: run.runId,
+          workflowId,
+          transport: legacyControl ? 'legacy-file' : 'kanban',
+          message,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    } finally {
+      controlDrainInFlight = false;
+    }
+  };
+
+  if (!legacyControl) {
+    void subscribeKanbanWorkflowCommands(opts.projectRoot, workflowId, () => {
+      // `drainControl` already logs a structured warning on rejection;
+      // the trailing `.catch` here only guards against unexpected throws
+      // *outside* the drain (defensive — should never fire).
+      void drainControl().catch(() => undefined);
+    })
+      .then((unsubscribe) => {
+        if (controlDisposed) unsubscribe();
+        else {
+          unsubscribeControl = unsubscribe;
+          void drainControl().catch(() => undefined);
         }
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'sdd.control_subscribe_failed',
+            runId: run.runId,
+            workflowId,
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      });
+  } else {
+    // One-time compatibility import for commands left by a pre-IPC WebUI. New
+    // commands are never written here in production. Same contract as the
+    // kanban path: surface drain failures instead of swallowing them.
+    void opts.boardStore
+      .drainControl(run.runId)
+      .then((commands) => {
+        for (const command of commands) applySddControlCommand(run, command);
+      })
+      .catch((error) => {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'sdd.control_drain_failed',
+            runId: run.runId,
+            workflowId,
+            transport: 'legacy-file',
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      });
+  }
+
+  const drainMs = opts.controlDrainMs ?? 500;
+  const controlTimer = setInterval(() => {
+    void drainControl().catch(() => undefined);
   }, drainMs);
   // Best-effort: don't keep the event loop alive solely for the drain timer.
   (controlTimer as { unref?: () => void }).unref?.();
@@ -209,7 +315,9 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     try {
       return await run.run();
     } finally {
+      controlDisposed = true;
       clearInterval(controlTimer);
+      unsubscribeControl?.();
       await projector.drain().catch(() => {});
       projector.dispose();
       opts.registry?.clear(run.runId);

@@ -391,7 +391,8 @@ a {
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
-.hq-update-notice {
+.hq-update-notice,
+.hq-peer-rehydrate-notice {
   display: flex;
   min-height: 42px;
   align-items: center;
@@ -401,19 +402,27 @@ a {
   background: color-mix(in srgb, var(--amber) 10%, var(--panel));
   color: var(--amber);
 }
-.hq-update-notice > div {
+.hq-peer-rehydrate-notice {
+  border-bottom-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+  background: color-mix(in srgb, var(--primary) 12%, var(--panel));
+  color: var(--primary);
+}
+.hq-update-notice > div,
+.hq-peer-rehydrate-notice > div {
   display: flex;
   min-width: 0;
   flex: 1;
   align-items: baseline;
   gap: 8px;
 }
-.hq-update-notice strong {
+.hq-update-notice strong,
+.hq-peer-rehydrate-notice strong {
   color: var(--bright);
   font-size: 11px;
   white-space: nowrap;
 }
-.hq-update-notice span {
+.hq-update-notice span,
+.hq-peer-rehydrate-notice span {
   overflow: hidden;
   color: var(--muted);
   font-size: 10px;
@@ -424,7 +433,8 @@ a {
   color: var(--bright);
   font-family: var(--font-mono);
 }
-.hq-update-notice button {
+.hq-update-notice button,
+.hq-peer-rehydrate-notice button {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -439,8 +449,14 @@ a {
   text-transform: uppercase;
   cursor: pointer;
 }
+.hq-peer-rehydrate-notice button {
+  border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+}
 .hq-update-notice button:hover {
   border-color: var(--amber);
+}
+.hq-peer-rehydrate-notice button:hover {
+  border-color: var(--primary);
 }
 .hq-sidebar-toggle {
   display: inline-grid;

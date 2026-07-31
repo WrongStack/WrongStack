@@ -72,6 +72,22 @@ const DEFAULT_MAX_FILES_PER_BATCH = 15;
 const DEFAULT_MAX_CONCURRENT_REVIEWS = 2;
 const DEFAULT_MAX_CASCADE_DEPTH = 2;
 
+/** Hard cap on `knownFingerprints` retention (RAM-leak audit 2026-07-31, MEDIUM). */
+const MAX_KNOWN_FINGERPRINTS = 5_000;
+
+/**
+ * Evict the oldest fingerprint entries past the cap (Map insertion order =
+ * oldest first). Exported as a pure helper so the cap is unit-testable; the
+ * plugin applies it on every `knownFingerprints` write.
+ */
+export function trimKnownFingerprints(map: Map<string, string>, max: number): void {
+  while (map.size > max) {
+    const oldest = map.keys().next().value;
+    if (oldest === undefined) break;
+    map.delete(oldest);
+  }
+}
+
 /**
  * Primary + fallback assignment for a single Chimera reviewer spawn.
  * Produced by {@link selectRoundRobinReviewerAssignment} so concurrent
@@ -596,6 +612,19 @@ export function createAutoReviewPlugin(): Plugin {
       let latestIterationPayload: EventMap['iteration.completed'] | undefined;
 
       /**
+       * Record a reviewed file fingerprint with LRU semantics (re-insert so a
+       * hot file is least likely evicted) and oldest-first eviction past the
+       * cap — mirroring Context.MAX_TRACKED_FILES discipline. Without the cap,
+       * one entry per distinct file path ever touched accumulates for the
+       * whole session (RAM-leak audit 2026-07-31, MEDIUM).
+       */
+      const rememberKnownFingerprint = (filePath: string, fingerprint: string): void => {
+        if (knownFingerprints.has(filePath)) knownFingerprints.delete(filePath);
+        knownFingerprints.set(filePath, fingerprint);
+        trimKnownFingerprints(knownFingerprints, MAX_KNOWN_FINGERPRINTS);
+      };
+
+      /**
        * A snapshot pass reads every changed file in the working tree, so it can
        * easily outlast one agent iteration. Without this guard the passes
        * overlap and each in-flight pass retains every file it has read so far —
@@ -625,7 +654,7 @@ export function createAutoReviewPlugin(): Plugin {
           const snapshots = await withSnapshotLock(() => snapshotChangedFiles(cwd));
           if (!snapshots) return;
           for (const file of snapshots) {
-            knownFingerprints.set(file.path, file.fingerprint);
+            rememberKnownFingerprint(file.path, file.fingerprint);
           }
           api.log.info(`[auto-review] seeded ${knownFingerprints.size} known file snapshot(s)`);
         } catch {
@@ -831,7 +860,7 @@ export function createAutoReviewPlugin(): Plugin {
           inFlight.push(inflightEntry);
           for (const file of toReview) {
             if (!emittedPaths.has(file.path)) continue;
-            knownFingerprints.set(file.path, file.fingerprint);
+            rememberKnownFingerprint(file.path, file.fingerprint);
             pendingFiles.delete(file.path);
           }
           // requires the Director (--director flag). Without it, reviews are

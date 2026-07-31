@@ -117,6 +117,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       subagentFactory: gatedFactoryForTest(gate),
       boardStore,
       controlDrainMs: 5,
+      controlTransport: 'legacy-file',
     });
     vi.spyOn(handle.projector, 'drain').mockRejectedValueOnce(new Error('projector drain failed'));
 
@@ -154,6 +155,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
         };
       },
       boardStore: new SddBoardStore({ baseDir: tmp() }),
+      controlTransport: 'legacy-file',
       registry,
     });
     const control = registry.getActive()!;
@@ -198,6 +200,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       subagentFactory: successFactory(calls),
       boardStore,
       registry,
+      controlTransport: 'legacy-file',
     });
 
     expect(handle.runId).toBeTruthy();
@@ -258,6 +261,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     await boardStore.appendControl(handle.runId, {
@@ -336,6 +340,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     await expect
@@ -381,6 +386,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       events,
       subagentFactory: successFactory({ count: 0 }),
       boardStore: new SddBoardStore({ baseDir: tmp() }),
+      controlTransport: 'legacy-file',
       verifyTask: makeCommandVerifier(),
     });
 
@@ -413,6 +419,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       sessionId: () => '2026-06-29/sess_sdd',
       subagentFactory: successFactory({ count: 0 }),
       boardStore: new SddBoardStore({ baseDir: tmp() }),
+      controlTransport: 'legacy-file',
     });
     await handle.completion;
     expect(seen).toContain('started');

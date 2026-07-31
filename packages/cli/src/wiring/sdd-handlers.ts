@@ -22,8 +22,10 @@ type SddParallelRunGlobal = typeof globalThis & {
   __sddParallelRun?: import('@wrongstack/sdd').SddParallelRun | undefined;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: intentional loose typing for extraction boundary
-export function createSddHandlers(deps: Record<string, any>): Record<string, (...args: never[]) => unknown> {
+export function createSddHandlers(
+  // biome-ignore lint/suspicious/noExplicitAny: intentional loose typing for extraction boundary
+  deps: Record<string, any>,
+): Record<string, (...args: never[]) => unknown> {
   const {
     wpaths,
     projectRoot,
@@ -39,7 +41,9 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
     getSddRuntimeState,
   } = deps;
 
-  const onSddParallelRun = async (opts?: { parallelSlots?: number | undefined }): Promise<string> => {
+  const onSddParallelRun = async (opts?: {
+    parallelSlots?: number | undefined;
+  }): Promise<string> => {
     const { tracker, builder, graphId } = await getSddRuntimeState();
     if (!tracker || !builder) {
       return 'No active SDD session with tasks. Use /sdd new to start one.';
@@ -99,7 +103,11 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
       });
       if (inGit) {
         await sddApi
-          .cleanupStaleSddWorktrees({ projectRoot, boardsDir: wpaths.projectSddBoards })
+          .cleanupStaleSddWorktrees({
+            projectRoot,
+            boardsDir: wpaths.projectSddBoards,
+            stateTransport: 'kanban',
+          })
           .catch(() => undefined);
         worktrees = new worktreeCore.WorktreeManager({
           projectRoot,
@@ -191,6 +199,7 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
       },
     });
     (globalThis as SddParallelRunGlobal).__sddParallelRun = handle.run;
+    await builder.setLastRunId(handle.runId);
     try {
       const result = await handle.completion;
       const lines = [
@@ -198,8 +207,7 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
         `  ${result.totalWaves} waves · ${result.totalCompleted} done · ${result.totalFailed} failed`,
         `  ${(result.totalDurationMs / 1000).toFixed(1)}s total`,
       ];
-      if (result.deadlocked)
-        lines.push(color.red('  ⚠ deadlock — tasks blocked by failed tasks.'));
+      if (result.deadlocked) lines.push(color.red('  ⚠ deadlock — tasks blocked by failed tasks.'));
       if (result.stopRequested) lines.push(color.yellow('  ⚡ stopped by user.'));
       return lines.join('\n');
     } finally {
@@ -214,11 +222,16 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
       run?.stop();
     },
     onSddRetryAllFailed: () => sddRunRegistry.getActive()?.retryAllFailed() ?? 0,
-    onSddSplitTask: (taskId: string, subtasks: Array<{ title: string; description: string }>): string[] | null => {
+    onSddSplitTask: (
+      taskId: string,
+      subtasks: Array<{ title: string; description: string }>,
+    ): string[] | null => {
       const active = sddRunRegistry.getActive();
       if (!active) return null;
       const snap = active.snapshot();
-      const match = snap.tasks.find((t: { id: string; shortId?: string }) => t.id === taskId || t.shortId === taskId);
+      const match = snap.tasks.find(
+        (t: { id: string; shortId?: string }) => t.id === taskId || t.shortId === taskId,
+      );
       const ids = active.splitTask(match?.id ?? taskId, subtasks);
       return ids.length ? ids : null;
     },
@@ -233,13 +246,18 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
       const active = sddRunRegistry.getActive();
       if (active) return active.rollback();
       const sddApi = await import('@wrongstack/sdd');
-      return sddApi.rollbackSddRunFromDisk({ projectRoot, boardsDir: wpaths.projectSddBoards });
+      return sddApi.rollbackSddRunFromDisk({
+        projectRoot,
+        boardsDir: wpaths.projectSddBoards,
+        stateTransport: 'kanban',
+      });
     },
     onSddDestroy: async (destroyOpts?: { revertMerged?: boolean | undefined }) => {
       sddRunRegistry.getActive()?.stop();
       const sddApi = await import('@wrongstack/sdd');
       return sddApi.destroySddProject({
         projectRoot,
+        stateTransport: 'kanban',
         revertMerged: destroyOpts?.revertMerged === true,
         paths: {
           projectSpecs: wpaths.projectSpecs,

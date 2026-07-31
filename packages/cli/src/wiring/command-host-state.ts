@@ -73,7 +73,7 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     getConfig: input.getConfig,
     events: input.events,
     getSessionId: () => input.sessionRef.current?.id ?? input.session.id,
-    storeDir: input.paths.projectGoal,
+    storeDir: input.paths.projectAutophase,
     projectRoot: input.projectRoot,
     brain: input.brain,
     log: (line) => input.renderer.write(`${line}\n`),
@@ -97,6 +97,7 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
       sdd.cleanupStaleSddWorktrees({
         projectRoot: input.projectRoot,
         boardsDir: input.paths.projectSddBoards,
+        stateTransport: 'kanban',
       }),
     )
     .catch(() => undefined);

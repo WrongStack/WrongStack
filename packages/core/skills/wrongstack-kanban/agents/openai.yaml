@@ -1,0 +1,4 @@
+interface:
+  display_name: "WrongStack Kanban"
+  short_description: "Monitor and manage WrongStack Kanban boards"
+  default_prompt: "Use $wrongstack-kanban to inspect the project Kanban, claim an appropriate task, and keep its state current."

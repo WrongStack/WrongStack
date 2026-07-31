@@ -1,10 +1,10 @@
-// SDD run lifecycle — post-run, disk-level operations.
+// SDD run lifecycle — post-run, durable-state operations.
 //
 // While a run is live, the in-process `SddRunControl` (registered in
 // `SddRunRegistry`) owns stop / cleanup / rollback. Once a run finishes the
 // registry is cleared and its `WorktreeManager` is gone, so these helpers
-// re-derive everything from disk: a fresh `WorktreeManager` for git surgery and
-// the persisted board snapshot for the run's base branch + merged commits.
+// re-derive everything from durable state: a fresh `WorktreeManager` for git
+// surgery and the persisted board snapshot for base branch + merged commits.
 //
 // Used by the CLI/WebUI when there is no active run (e.g. `/sdd rollback` after
 // the run already settled, or `/sdd destroy` to wipe the project).
@@ -13,8 +13,84 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
-import { listBoards, removeBoard } from '@wrongstack/kanban';
+import {
+  deleteKanbanWorkflowState,
+  kanbanWorkflowId,
+  listBoards,
+  listKanbanWorkflowStates,
+  readKanbanWorkflowState,
+  removeBoard,
+  writeKanbanWorkflowState,
+} from '@wrongstack/kanban';
+import type { SddBoardSnapshot } from './board-types.js';
 import { SddBoardStore } from './sdd-board-store.js';
+
+type SddStateTransport = 'kanban' | 'legacy-file';
+
+async function listSddSnapshots(
+  projectRoot: string,
+  boardsDir: string,
+  transport: SddStateTransport | undefined,
+): Promise<SddBoardSnapshot[]> {
+  const legacyStore = new SddBoardStore({ baseDir: boardsDir });
+  if (transport === 'kanban') {
+    const states = await listKanbanWorkflowStates(projectRoot, 'sdd:');
+    const snapshots = states
+      .map((state) => state.value)
+      .filter(isSddBoardSnapshot)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    if (snapshots.length > 0) return snapshots;
+
+    // One-time compatibility migration for runs persisted before workflow state.
+    const legacy = await loadLegacySnapshots(legacyStore);
+    for (const snapshot of legacy) {
+      await writeKanbanWorkflowState(
+        projectRoot,
+        kanbanWorkflowId('sdd', snapshot.runId),
+        snapshot,
+      );
+    }
+    return legacy;
+  }
+  return loadLegacySnapshots(legacyStore);
+}
+
+async function loadSddSnapshot(
+  projectRoot: string,
+  boardsDir: string,
+  runId: string,
+  transport: SddStateTransport | undefined,
+): Promise<SddBoardSnapshot | null> {
+  const legacyStore = new SddBoardStore({ baseDir: boardsDir });
+  if (transport !== 'kanban') return legacyStore.load(runId);
+  const state = await readKanbanWorkflowState(projectRoot, kanbanWorkflowId('sdd', runId));
+  if (isSddBoardSnapshot(state?.value)) return state.value;
+  const legacy = await legacyStore.load(runId);
+  if (legacy) {
+    await writeKanbanWorkflowState(projectRoot, kanbanWorkflowId('sdd', runId), legacy);
+  }
+  return legacy;
+}
+
+async function loadLegacySnapshots(store: SddBoardStore): Promise<SddBoardSnapshot[]> {
+  const snapshots: SddBoardSnapshot[] = [];
+  for (const entry of await store.list()) {
+    const snapshot = await store.load(entry.runId);
+    if (snapshot) snapshots.push(snapshot);
+  }
+  return snapshots.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function isSddBoardSnapshot(value: unknown): value is SddBoardSnapshot {
+  if (!value || typeof value !== 'object') return false;
+  const snapshot = value as Partial<SddBoardSnapshot>;
+  return (
+    typeof snapshot.runId === 'string' &&
+    typeof snapshot.updatedAt === 'number' &&
+    typeof snapshot.status === 'string' &&
+    Array.isArray(snapshot.tasks)
+  );
+}
 
 /** Force-remove every git worktree + branch a previous run left behind. */
 export async function cleanupSddWorktrees(projectRoot: string): Promise<{ removed: number }> {
@@ -41,6 +117,8 @@ export interface CleanupStaleSddOptions {
   projectRoot: string;
   /** Board snapshot dir (`wpaths.projectSddBoards`) — read for the liveness guard. */
   boardsDir: string;
+  /** Durable snapshot owner. Legacy remains the default for API compatibility. */
+  stateTransport?: SddStateTransport | undefined;
   /** A `running` board updated within this window is treated as live → skip. Default 120_000 (2 min). */
   runningLiveMs?: number | undefined;
   /** A `paused` board updated within this window is treated as live → skip. Default 1_800_000 (30 min). */
@@ -73,8 +151,19 @@ export async function cleanupStaleSddWorktrees(
   opts: CleanupStaleSddOptions,
 ): Promise<CleanupStaleSddResult> {
   const now = opts.now?.() ?? Date.now();
-  const store = new SddBoardStore({ baseDir: opts.boardsDir });
-  const latest = (await store.list())[0];
+  let latest: SddBoardSnapshot | undefined;
+  try {
+    latest = (await listSddSnapshots(opts.projectRoot, opts.boardsDir, opts.stateTransport))[0];
+  } catch {
+    // A failed authoritative-state read cannot prove that no run is live.
+    // Fail closed instead of force-removing another process's worktrees.
+    return {
+      swept: false,
+      removed: 0,
+      detected: 0,
+      skippedReason: 'SDD workflow state is unavailable',
+    };
+  }
   if (latest) {
     const age = now - latest.updatedAt;
     if (latest.status === 'running' && age < (opts.runningLiveMs ?? 120_000)) {
@@ -104,6 +193,8 @@ export interface RollbackFromDiskOptions {
   boardsDir: string;
   /** Specific run to roll back. Omit → the most recently updated board. */
   runId?: string | undefined;
+  /** Durable snapshot owner. Legacy remains the default for API compatibility. */
+  stateTransport?: SddStateTransport | undefined;
 }
 
 /**
@@ -116,11 +207,13 @@ export interface RollbackFromDiskOptions {
 export async function rollbackSddRunFromDisk(
   opts: RollbackFromDiskOptions,
 ): Promise<{ ok: boolean; reverted: number; reason?: string }> {
-  const store = new SddBoardStore({ baseDir: opts.boardsDir });
-  const runId = opts.runId ?? (await store.list())[0]?.runId;
+  const snapshots = await listSddSnapshots(opts.projectRoot, opts.boardsDir, opts.stateTransport);
+  const runId = opts.runId ?? snapshots[0]?.runId;
   if (!runId) return { ok: false, reverted: 0, reason: 'no SDD board found to roll back' };
 
-  const snap = await store.load(runId);
+  const snap =
+    snapshots.find((snapshot) => snapshot.runId === runId) ??
+    (await loadSddSnapshot(opts.projectRoot, opts.boardsDir, runId, opts.stateTransport));
   if (!snap) return { ok: false, reverted: 0, reason: `board "${runId}" not found` };
   if (!snap.baseBranch) {
     return {
@@ -158,6 +251,8 @@ export interface DestroySddProjectOptions {
   revertMerged?: boolean | undefined;
   /** Which run's merged commits to revert. Omit → the most recently updated board. */
   runId?: string | undefined;
+  /** Durable snapshot owner. Legacy remains the default for API compatibility. */
+  stateTransport?: SddStateTransport | undefined;
 }
 
 export interface DestroySddProjectResult {
@@ -192,6 +287,7 @@ export async function destroySddProject(
       projectRoot: opts.projectRoot,
       boardsDir: opts.paths.projectSddBoards,
       runId: opts.runId,
+      stateTransport: opts.stateTransport,
     }).catch((err) => ({ ok: false, reverted: 0, reason: toErrorMessage(err) }));
     reverted = r.reverted;
     revertOk = r.ok;
@@ -230,6 +326,17 @@ export async function destroySddProject(
   await rmDir(opts.paths.projectTaskGraphs, 'task-graphs');
   await rmDir(opts.paths.projectSddBoards, 'boards');
 
+  if (opts.stateTransport === 'kanban') {
+    const states = await listKanbanWorkflowStates(opts.projectRoot, 'sdd:').catch(() => []);
+    let removedStates = 0;
+    for (const state of states) {
+      if (await deleteKanbanWorkflowState(opts.projectRoot, state.workflowId).catch(() => false)) {
+        removedStates++;
+      }
+    }
+    if (removedStates > 0) deleted.push(`workflow-states(${removedStates})`);
+  }
+
   // 4. Drop KanbanRunMirror boards tagged `sdd` so the Kanban view does not
   // keep stale run cards after the project is wiped.
   try {
@@ -262,6 +369,8 @@ export interface SddLifecycleOptions {
   runId?: string | undefined;
   /** `destroy` only: also revert merged commits before wiping. */
   revertMerged?: boolean | undefined;
+  /** Durable snapshot owner. Legacy remains the default for API compatibility. */
+  stateTransport?: SddStateTransport | undefined;
 }
 
 /** Uniform result for any lifecycle op — drives identical UI wording everywhere. */
@@ -279,7 +388,7 @@ export interface SddLifecycleResult {
 }
 
 /**
- * Apply a post-run SDD lifecycle operation from disk and return a uniform result.
+ * Apply a post-run SDD lifecycle operation from durable state and return a uniform result.
  * The single entry point shared by the WebUI board handler, the TUI overlay, and
  * the CLI `/sdd` host so every surface reports the same thing. The caller must
  * ensure no run is active (these operate on git + on-disk state, not the live
@@ -300,6 +409,7 @@ export async function applySddLifecycle(
         projectRoot: opts.projectRoot,
         boardsDir: opts.paths.projectSddBoards,
         runId: opts.runId,
+        stateTransport: opts.stateTransport,
       });
       return { op, ok: r.ok, reverted: r.reverted, reason: r.reason };
     }
@@ -309,6 +419,7 @@ export async function applySddLifecycle(
       paths: opts.paths,
       revertMerged: opts.revertMerged,
       runId: opts.runId,
+      stateTransport: opts.stateTransport,
     });
     return {
       op,

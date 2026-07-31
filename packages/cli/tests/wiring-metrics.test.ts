@@ -97,6 +97,11 @@ describe('setupMetrics', () => {
         collectionEnabled: true,
         httpExporter: 'disabled',
       });
+      for (let index = 0; index < 501; index += 1) {
+        out.metricsSink?.counter('plugin.dynamic', 1, { value: String(index) });
+      }
+      expect(out.metricsSink?.snapshot().series).toHaveLength(500);
+      expect(out.metricsSink?.droppedObservations()).toBe(1);
     } finally {
       await fs.rm(tmp, { recursive: true, force: true });
     }

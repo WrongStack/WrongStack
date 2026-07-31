@@ -34,6 +34,8 @@ import {
   type KanbanProjectServerInfo,
   type KanbanRequest,
   type KanbanServerEvent,
+  type KanbanWorkflowCommand,
+  type KanbanWorkflowState,
 } from './protocol.js';
 import { SqliteKanbanStorage } from './sqlite-storage.js';
 
@@ -251,6 +253,54 @@ defineMethod(
     return { written: true };
   },
 );
+defineMethod('workflowReadState', async ({ workflowId }: { workflowId: string }) => {
+  assertWorkflowId(workflowId);
+  return ownerStorage().readWorkflowState(workflowId);
+});
+defineMethod(
+  'workflowWriteState',
+  async ({
+    workflowId,
+    value,
+    expectedRevision,
+  }: {
+    workflowId: string;
+    value: unknown;
+    expectedRevision?: number;
+  }): Promise<KanbanWorkflowState> => {
+    assertWorkflowId(workflowId);
+    if (value === undefined) invalid('workflowWriteState requires a JSON value');
+    if (
+      expectedRevision !== undefined &&
+      (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
+    ) {
+      invalid('workflowWriteState expectedRevision must be a non-negative integer');
+    }
+    const state = await ownerStorage().writeWorkflowState(workflowId, value, expectedRevision);
+    emitBoardEvent('workflow.state.updated', workflowId, {
+      workflowId,
+      revision: state.revision,
+    });
+    return state;
+  },
+);
+defineMethod(
+  'workflowListStates',
+  async ({ prefix, limit }: { prefix: string; limit?: number }) => {
+    assertWorkflowPrefix(prefix);
+    const normalizedLimit = limit === undefined ? 100 : Math.floor(limit);
+    if (!Number.isFinite(normalizedLimit) || normalizedLimit < 1 || normalizedLimit > 1_000) {
+      invalid('workflowListStates limit must be between 1 and 1000');
+    }
+    return ownerStorage().listWorkflowStates(prefix, normalizedLimit);
+  },
+);
+defineMethod('workflowDeleteState', async ({ workflowId }: { workflowId: string }) => {
+  assertWorkflowId(workflowId);
+  const deleted = await ownerStorage().deleteWorkflowState(workflowId);
+  if (deleted) emitBoardEvent('workflow.state.deleted', workflowId, { workflowId });
+  return deleted;
+});
 defineMethod(
   'storageAppendEvent',
   async ({ boardId, event }: { boardId: string; event: KanbanEvent }) => {
@@ -278,6 +328,68 @@ defineMethod('storageWriteMetadata', async ({ key, value }: { key: string; value
   await ownerStorage().writeMetadata(key, value);
   return { written: true };
 });
+defineMethod(
+  'workflowEnqueueCommand',
+  async ({ workflowId, command }: { workflowId: string; command: KanbanWorkflowCommand }) => {
+    assertWorkflowId(workflowId);
+    if (
+      !command ||
+      command.workflowId !== workflowId ||
+      typeof command.id !== 'string' ||
+      command.id.length === 0 ||
+      command.id.length > 128 ||
+      typeof command.createdAt !== 'string' ||
+      !Number.isFinite(Date.parse(command.createdAt)) ||
+      typeof command.type !== 'string' ||
+      command.type.length === 0 ||
+      command.type.length > 128
+    ) {
+      invalid('workflowEnqueueCommand requires a valid command');
+    }
+    const enqueued = await ownerStorage().enqueueWorkflowCommand(workflowId, command);
+    if (enqueued) {
+      emitBoardEvent('workflow.command', workflowId, {
+        workflowId,
+        commandId: command.id,
+        type: command.type,
+      });
+    }
+    return { enqueued };
+  },
+);
+defineMethod(
+  'workflowDrainCommands',
+  async ({ workflowId, limit }: { workflowId: string; limit?: number }) => {
+    assertWorkflowId(workflowId);
+    const normalizedLimit = limit === undefined ? 100 : Math.floor(limit);
+    if (!Number.isFinite(normalizedLimit) || normalizedLimit < 1 || normalizedLimit > 1_000) {
+      invalid('workflowDrainCommands limit must be between 1 and 1000');
+    }
+    return ownerStorage().drainWorkflowCommands(workflowId, normalizedLimit);
+  },
+);
+
+function assertWorkflowId(workflowId: string): void {
+  if (
+    typeof workflowId !== 'string' ||
+    workflowId.length === 0 ||
+    workflowId.length > 256 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(workflowId)
+  ) {
+    invalid('workflowId must be a safe non-empty project-local identifier');
+  }
+}
+
+function assertWorkflowPrefix(prefix: string): void {
+  if (
+    typeof prefix !== 'string' ||
+    prefix.length === 0 ||
+    prefix.length > 128 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(prefix)
+  ) {
+    invalid('workflow prefix must be a safe non-empty project-local prefix');
+  }
+}
 
 function sumActive(): number {
   let total = 0;

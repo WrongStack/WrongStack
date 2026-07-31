@@ -83,6 +83,15 @@ export function applyGoalDeliverableCompletions(
       completedIndices.has(index) && !isGoalDeliverableComplete(item) ? `✅ ${item}` : item,
     ),
   };
+  next = appendGoalDeliverableJournals(next, completed);
+  return recomputeGoalProgress(next);
+}
+
+function appendGoalDeliverableJournals(
+  goal: GoalFile,
+  completed: readonly CompletedGoalDeliverable[],
+): GoalFile {
+  let next = goal;
   for (const item of completed) {
     next = appendJournal(next, {
       source: 'deliverable',
@@ -91,7 +100,7 @@ export function applyGoalDeliverableCompletions(
       note: `[DONE: ${item.index + 1}]`,
     });
   }
-  return recomputeGoalProgress(next);
+  return next;
 }
 
 export function recomputeGoalProgress(goal: GoalFile): GoalFile {
@@ -114,11 +123,24 @@ export async function coordinateGoalIteration(
   if (!current) return null;
 
   const completed = parseCompletedGoalDeliverables(options.finalText, current.deliverables ?? []);
-  let goal = applyGoalDeliverableCompletions(current, completed);
-  await saveGoal(options.goalPath, goal, options.events);
-
-  const kanbanUpdatedTaskIds = await refreshGoalKanban(options.projectRoot, goal, completed);
-  goal = await recomputeGoalProgressFromKanban(options.projectRoot, goal);
+  const board = await resolveGoalBoard(options.projectRoot, current);
+  let kanbanUpdatedTaskIds: string[] = [];
+  let goal: GoalFile;
+  if (board) {
+    // Kanban owns durable deliverable status. Marker output is a requested
+    // transition; goal.json is rebuilt from the committed board state.
+    kanbanUpdatedTaskIds = await refreshGoalKanban(options.projectRoot, current, completed, board);
+    goal = await recomputeGoalProgressFromKanban(options.projectRoot, current);
+    const confirmed = completed.filter(
+      (item) =>
+        !isGoalDeliverableComplete(current.deliverables?.[item.index] ?? '') &&
+        isGoalDeliverableComplete(goal.deliverables?.[item.index] ?? ''),
+    );
+    goal = appendGoalDeliverableJournals(goal, confirmed);
+  } else {
+    // Pre-Kanban goals keep their existing file-backed checklist semantics.
+    goal = applyGoalDeliverableCompletions(current, completed);
+  }
 
   let reached = false;
   const allComplete =
@@ -193,9 +215,10 @@ async function refreshGoalKanban(
   projectRoot: string,
   goal: GoalFile,
   completed: readonly CompletedGoalDeliverable[],
+  resolvedBoard?: Awaited<ReturnType<typeof resolveGoalBoard>>,
 ): Promise<string[]> {
   if (completed.length === 0) return [];
-  const board = await resolveGoalBoard(projectRoot, goal);
+  const board = resolvedBoard ?? (await resolveGoalBoard(projectRoot, goal));
   if (!board) return [];
   const doneColumn = board.columns.find((column) => column.title.toLowerCase() === 'done');
   if (!doneColumn) return [];
@@ -215,7 +238,7 @@ async function refreshGoalKanban(
       task.origin?.system === 'goal' && task.origin?.taskId
         ? originKeys.has(task.origin.taskId)
         : false;
-    const titleMatch = completedTitles.has(normalizeTitle(task.title));
+    const titleMatch = !task.origin?.taskId && completedTitles.has(normalizeTitle(task.title));
     if (!originMatch && !titleMatch) continue;
     const result = await updateTask(
       projectRoot,
@@ -240,14 +263,23 @@ async function recomputeGoalProgressFromKanban(
 ): Promise<GoalFile> {
   const board = await resolveGoalBoard(projectRoot, goal);
   if (!board || !goal.deliverables?.length) return recomputeGoalProgress(goal);
-  const completedTitles = new Set(
+  const tasksByOrigin = new Map(
     board.tasks
-      .filter((task) => task.status === 'completed')
+      .filter((task) => task.origin?.system === 'goal' && task.origin.taskId)
+      .map((task) => [task.origin!.taskId!, task]),
+  );
+  const completedLegacyTitles = new Set(
+    board.tasks
+      .filter((task) => !task.origin?.taskId && task.status === 'completed')
       .map((task) => normalizeTitle(task.title)),
   );
-  const deliverables = goal.deliverables.map((item) => {
-    if (isGoalDeliverableComplete(item)) return item;
-    return completedTitles.has(normalizeTitle(item)) ? `✅ ${item}` : item;
+  const deliverables = goal.deliverables.map((item, index) => {
+    const text = stripGoalDeliverableMarker(item);
+    const originTask = tasksByOrigin.get(`deliverable:${index}`);
+    const complete = originTask
+      ? originTask.status === 'completed'
+      : completedLegacyTitles.has(normalizeTitle(text)) || isGoalDeliverableComplete(item);
+    return complete ? `✅ ${text}` : text;
   });
   return recomputeGoalProgress({ ...goal, deliverables });
 }

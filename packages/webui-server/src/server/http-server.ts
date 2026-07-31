@@ -34,9 +34,9 @@ import {
   handleCodemapSymbols,
 } from './codemap-handlers.js';
 import {
+  type DeadCodeHandlerDeps,
   handleDeadCodeActionPlan,
   handleDeadCodeScan,
-  type DeadCodeHandlerDeps,
 } from './deadcode-handlers.js';
 import {
   handleApiAnalyticsGet,
@@ -52,6 +52,7 @@ import {
   handleApiSessionMessage,
   handleApiSessions,
 } from './http-server/api-handlers.js';
+import { readRecentProcessMemoryDiagnostics } from './memory-diagnostics.js';
 import { generateProjectSlug } from './projects-manifest.js';
 import type { FileWatcherMetrics } from './setup-events.js';
 import {
@@ -329,10 +330,7 @@ export function decodeSessionId(segment: string): string {
  * Decode a URI-encoded path segment and return 400 on failure.
  * Use this when the caller should not silently accept malformed input.
  */
-function strictDecodeParam(
-  segment: string,
-  res: http.ServerResponse,
-): string | null {
+function strictDecodeParam(segment: string, res: http.ServerResponse): string | null {
   try {
     return decodeURIComponent(segment);
   } catch {
@@ -745,11 +743,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           if (researchMatch && req.method === 'POST') {
             const pkg = strictDecodeParam(researchMatch[1]!, res);
             if (pkg === null) return;
-            await handleTechStackDependencyResearch(
-              res,
-              deps,
-              pkg,
-            );
+            await handleTechStackDependencyResearch(res, deps, pkg);
             return;
           }
         } catch (error) {
@@ -797,6 +791,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
       // Node process behind the page (not the browser tab's JavaScript heap),
       // so operators can spot long-running RSS/heap growth from the UI.
       if (url.pathname === '/debug/system' && req.method === 'GET') {
+        const processes = await readRecentProcessMemoryDiagnostics(opts.globalRoot);
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
@@ -809,6 +804,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
             uptime: process.uptime(),
             cpuUsage: process.cpuUsage(),
             codebaseIndexServer: getIndexState().server,
+            processes,
             timestamp: Date.now(),
           }),
         );

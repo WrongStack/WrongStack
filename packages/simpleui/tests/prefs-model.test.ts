@@ -6,7 +6,6 @@ const seeded: SimplePrefs = {
   autonomy: 'auto',
   yolo: true,
   enhanceEnabled: true,
-  enhanceLanguage: 'turkish',
   showModelReasoning: true,
   chime: true,
   confirmExit: true,
@@ -19,7 +18,6 @@ describe('parsePrefs', () => {
         autonomy: 'suggest',
         yolo: true,
         enhanceEnabled: true,
-        enhanceLanguage: 'turkish',
         chime: true,
         confirmExit: false,
       }),
@@ -28,7 +26,6 @@ describe('parsePrefs', () => {
       autonomy: 'suggest',
       yolo: true,
       enhanceEnabled: true,
-      enhanceLanguage: 'turkish',
       showModelReasoning: true,
       chime: true,
       confirmExit: false,
@@ -53,10 +50,6 @@ describe('parsePrefs', () => {
 
   it('falls back to the previous value for malformed types', () => {
     expect(parsePrefs({ yolo: 'yes', chime: 1 }, seeded)).toEqual(seeded);
-  });
-
-  it('keeps the previous language rather than accepting an empty string', () => {
-    expect(parsePrefs({ enhanceLanguage: '' }, seeded).enhanceLanguage).toBe('turkish');
   });
 
   it('returns the previous prefs for a non-object payload', () => {

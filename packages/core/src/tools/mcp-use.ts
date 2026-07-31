@@ -1,5 +1,6 @@
 import type { JSONSchema, ToolRegistry } from '../index.js';
 import { ToolCapabilities } from '../security/capabilities.js';
+import { mcpQualifiedToolName, mcpServerToolPrefix } from '../utils/tool-name.js';
 import type { MCPRegistryHandle } from './mcp-control.js';
 import type { Tool } from '../types/tool.js';
 
@@ -84,14 +85,14 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
 
       try {
         // Resolve the qualified tool name
-        const qualifiedName = `mcp__${serverName}__${toolName}`;
+        const qualifiedName = mcpQualifiedToolName(serverName, toolName);
         const mcpTool = toolRegistry.get(qualifiedName);
         if (!mcpTool) {
           // Tool not found — list available tools for helpful error
           const allTools = toolRegistry
             .list()
-            .filter((t) => t.name.startsWith(`mcp__${serverName}__`))
-            .map((t) => t.name.replace(`mcp__${serverName}__`, ''));
+            .filter((t) => t.name.startsWith(mcpServerToolPrefix(serverName)))
+            .map((t) => t.name.replace(mcpServerToolPrefix(serverName), ''));
           const hint =
             allTools.length > 0
               ? `Available tools on "${serverName}": ${allTools.join(', ')}.`

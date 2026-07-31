@@ -7,14 +7,19 @@
  * postCommand) remain as standalone exports that access store state via
  * useHqStore.getState().
  */
-import type {
-  HqAlertMessage,
-  HqCommandAuditEntry,
-  HqEventEnvelope,
-  HqSnapshot,
+import {
+  type HqAlertMessage,
+  type HqCommandAuditEntry,
+  type HqEventEnvelope,
+  type HqPeerLostPayload,
+  type HqPeerRehydratePayload,
+  type HqSnapshot,
+  isHqPeerLostPayload,
+  isHqPeerRehydratePayload,
 } from '@wrongstack/core/hq';
 import { create } from 'zustand';
 import { authorizedFetch } from './lib/auth.js';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from './lib/peer-resume-id.js';
 
 export type ViewId =
   | 'cockpit'
@@ -30,6 +35,17 @@ export type ViewId =
   | 'control'
   | 'settings';
 
+/**
+ * Most recent peer-lifecycle envelope the dashboard has seen. Either a
+ * `peer.rehydrate` (the project lost its leader but has survivors) or a
+ * `peer.lost` (the project lost its leader and has no survivors). The
+ * `receivedAt` field is the local wall-clock at surface time — useful for
+ * the disconnect banner that asks "is this stale?".
+ */
+export type PeerEnvelope =
+  | { kind: 'peer.rehydrate'; payload: HqPeerRehydratePayload; receivedAt: string }
+  | { kind: 'peer.lost'; payload: HqPeerLostPayload; receivedAt: string };
+
 interface HqState {
   snapshot: HqSnapshot | null;
   events: HqEventEnvelope[];
@@ -41,6 +57,13 @@ interface HqState {
   selectedClientId: string | null;
   connected: boolean;
   authRequired: boolean;
+  /** Highest HQ event sequence the browser has already applied, keyed by publisher/resume clientId. */
+  resumeCursors: Readonly<Record<string, number>>;
+  /** Set after `hq.resume_reject` or a truncated `hq.resume_gap` so the next
+   * snapshot fetch happens exactly once per reconnect. */
+  needsSnapshotRefresh: boolean;
+  /** Most recent peer-lifecycle envelope; cleared by `_dismissPeerRehydrate`. */
+  peerRehydrate: PeerEnvelope | null;
 }
 
 interface HqActions {
@@ -56,6 +79,15 @@ interface HqActions {
   _onAlert: (alert: HqAlertMessage) => void;
   _onCommandStatus: (command: HqCommandAuditEntry) => void;
   _setConnected: (connected: boolean) => void;
+  /** Mark that the next snapshot fetch is required (set after a resume
+   * reject / truncated gap). The fetch itself runs in `main.tsx`. */
+  _setNeedsSnapshotRefresh: (needed: boolean) => void;
+  /** Allow the user to dismiss the banner without affecting the events ring. */
+  _dismissPeerRehydrate: () => void;
+  /** Drop per-publisher resume cursors. Called by `main.tsx` after the
+   * authoritative `/api/snapshot` refresh completes, so the next reconnect
+   * starts a fresh gap-fill against the post-refresh state. */
+  _resetResumeCursors: () => void;
 }
 
 const MAX_EVENTS = 500;
@@ -105,6 +137,9 @@ export const useHqStore = create<HqState & HqActions>()((set) => ({
   selectedClientId: null,
   connected: false,
   authRequired: false,
+  resumeCursors: {},
+  needsSnapshotRefresh: false,
+  peerRehydrate: null,
 
   setActiveView: (view) => set({ activeView: view }),
 
@@ -126,14 +161,95 @@ export const useHqStore = create<HqState & HqActions>()((set) => ({
     ),
 
   _onSnapshot: (snapshot) =>
-    set((state) => ({ ...snapshotPatch(state, snapshot), connected: true })),
+    set((state) => {
+      // Guard against a stale snapshot arriving after a newer one (e.g. a
+      // broadcast arrives while the reconnect-refresh fetch is in flight).
+      const current = state.snapshot;
+      if (
+        current !== null &&
+        typeof current.generatedAt === 'string' &&
+        typeof snapshot.generatedAt === 'string' &&
+        Date.parse(snapshot.generatedAt) < Date.parse(current.generatedAt)
+      ) {
+        return {};
+      }
+      // Routine broadcasts keep the live resume cursors so a subsequent
+      // reconnect can still advertise a meaningful gap to the server. The
+      // authoritative refresh path (post `hq.resume_reject`) explicitly
+      // calls `_resetResumeCursors()` after applying the snapshot.
+      //
+      // `needsSnapshotRefresh` is NOT touched here. The HQ server mints
+      // `generatedAt = new Date().toISOString()` at every `buildSnapshot()`
+      // call, so the HTTP response to the `/api/snapshot` refresh is
+      // always strictly newer than the WS broadcast that triggered the
+      // refresh. A previous iteration tried to gate on a "strict epoch
+      // advance" (incomingTs > currentTs), but that condition is true on
+      // every refresh response — the gate stayed open and the loop
+      // persisted. The right contract: `needsSnapshotRefresh` is set
+      // exactly once per WS reconnect by `hq.resume_reject`, and the
+      // subscriber in `main.tsx` consumes it exactly once. `_onSnapshot`
+      // only updates the rendered snapshot.
+      return {
+        ...snapshotPatch(state, snapshot),
+        connected: true,
+      };
+    }),
+
+  /** Drop per-publisher resume cursors. Called by `main.tsx` after the
+   * authoritative `/api/snapshot` refresh completes, so the next reconnect
+   * starts a fresh gap-fill against the post-refresh state. */
+  _resetResumeCursors: () => set({ resumeCursors: {} }),
 
   _onEvent: (event) =>
-    set((state) =>
-      state.events.some((candidate) => candidate.id === event.id)
-        ? {}
-        : { events: [...state.events, event].slice(-MAX_EVENTS) },
-    ),
+    set((state) => {
+      // Push the envelope into the events ring buffer (existing behavior).
+      // `peer.*` envelopes are server-generated lifecycle notices, so the
+      // browser tracks them under a synthetic resume key instead of a
+      // publisher clientId cursor.
+      const alreadySeen = state.events.some((candidate) => candidate.id === event.id);
+      const eventPatch = alreadySeen ? {} : { events: [...state.events, event].slice(-MAX_EVENTS) };
+      const resumePatch = (resumeKey: string): Pick<HqState, 'resumeCursors'> | {} => {
+        const previousSeq = state.resumeCursors[resumeKey] ?? 0;
+        const nextSeq = event.seq;
+        // Skip the restart heuristic for `client.hello` (seq=0) and any
+        // server-minted envelope that lands at seq=0 — those aren't
+        // publisher events and must not zero a real cursor.
+        const publisherRestarted =
+          nextSeq < previousSeq && nextSeq > 0 && event.type !== 'client.hello';
+        return nextSeq > previousSeq || publisherRestarted
+          ? { resumeCursors: { ...state.resumeCursors, [resumeKey]: nextSeq } }
+          : {};
+      };
+      // Surface peer-lifecycle envelopes into the dedicated `peerRehydrate`
+      // field so views can subscribe without scanning the events ring.
+      if (event.type === 'peer.rehydrate') {
+        if (!isHqPeerRehydratePayload(event.payload)) return eventPatch;
+        const peerRehydrate: PeerEnvelope = {
+          kind: 'peer.rehydrate',
+          payload: event.payload,
+          receivedAt: new Date().toISOString(),
+        };
+        return {
+          ...eventPatch,
+          ...resumePatch(HQ_BROWSER_PEER_RESUME_CLIENT_ID),
+          ...(alreadySeen ? {} : { peerRehydrate }),
+        };
+      }
+      if (event.type === 'peer.lost') {
+        if (!isHqPeerLostPayload(event.payload)) return eventPatch;
+        const peerRehydrate: PeerEnvelope = {
+          kind: 'peer.lost',
+          payload: event.payload,
+          receivedAt: new Date().toISOString(),
+        };
+        return {
+          ...eventPatch,
+          ...resumePatch(HQ_BROWSER_PEER_RESUME_CLIENT_ID),
+          ...(alreadySeen ? {} : { peerRehydrate }),
+        };
+      }
+      return { ...eventPatch, ...resumePatch(event.clientId) };
+    }),
 
   _onAlert: (alert) =>
     set((state) =>
@@ -158,6 +274,11 @@ export const useHqStore = create<HqState & HqActions>()((set) => ({
     }),
 
   _setConnected: (connected) => set({ connected }),
+
+  _setNeedsSnapshotRefresh: (needed) =>
+    set((state) => (state.needsSnapshotRefresh === needed ? {} : { needsSnapshotRefresh: needed })),
+
+  _dismissPeerRehydrate: () => set({ peerRehydrate: null }),
 }));
 
 // ── API helpers ──────────────────────────────────────────────────────

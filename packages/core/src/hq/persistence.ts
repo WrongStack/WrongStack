@@ -34,7 +34,13 @@ import { HqSnapshotStore } from './persistence/snapshot-store.js';
 import { HqTimeseriesStore } from './persistence/timeseries-store.js';
 
 export { HqKanbanStore } from './kanban-store.js';
-export { HqEventLog, type HqEventLogOptions } from './persistence/event-log.js';
+export {
+  HqEventLog,
+  HQ_EVENT_LOG_PRESETS,
+  hqEventLogPresetFields,
+  type HqEventLogOptions,
+  type HqEventLogPreset,
+} from './persistence/event-log.js';
 export { HqSimpleLog, type HqSimpleLogOptions } from './persistence/simple-log.js';
 export { HqSnapshotStore, type HqSnapshotStoreOptions } from './persistence/snapshot-store.js';
 export {

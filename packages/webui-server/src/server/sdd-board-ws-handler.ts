@@ -1,10 +1,16 @@
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger } from '@wrongstack/core/types';
-import { listBoards } from '@wrongstack/kanban';
+import {
+  enqueueKanbanWorkflowCommand,
+  kanbanWorkflowId,
+  listBoards,
+  listKanbanWorkflowStates,
+} from '@wrongstack/kanban';
 import {
   applySddLifecycle,
   extractVerificationCommand,
+  type SddBoardIndexEntry,
   type SddBoardSnapshot,
   SddBoardStore,
   type SddLifecycleOp,
@@ -24,9 +30,8 @@ interface SddBoardWSMessage {
 }
 
 /**
- * Commands appended to `<runId>.control.jsonl` and drained by the live run
- * (start-sdd-run's in-process timer). Only meaningful while the run is active —
- * the drain timer is gone once it finishes.
+ * Commands enqueued through the project-scoped Kanban IPC owner and drained by
+ * the live run. Only meaningful while the run is active.
  */
 const CONTROL_TYPES = new Set([
   'pause',
@@ -45,9 +50,9 @@ const CONTROL_TYPES = new Set([
 ]);
 
 /**
- * Post-run lifecycle ops applied DIRECTLY from disk by this handler (not via the
- * control file — nothing drains it once the run settles). Each operates on git +
- * on-disk state and is gated on "no active run". `destroy` accepts a
+ * Post-run lifecycle ops applied directly from durable workflow state by this
+ * handler (not via the command queue — nothing drains it once the run settles).
+ * Each operates on git + persisted state and is gated on "no active run". `destroy` accepts a
  * `revertMerged` flag to also undo merged commits.
  */
 const LIFECYCLE_TYPES = new Set<SddLifecycleOp>(['cleanup_worktrees', 'rollback', 'destroy']);
@@ -55,6 +60,10 @@ const LIFECYCLE_TYPES = new Set<SddLifecycleOp>(['cleanup_worktrees', 'rollback'
 /** Project paths the handler needs to apply lifecycle ops directly. */
 export interface SddBoardLifecycleDeps {
   projectRoot: string;
+  /** Explicit compatibility hook for file-codec tests and old integrations. */
+  controlTransport?: 'kanban' | 'legacy-file' | undefined;
+  /** Explicit compatibility hook for legacy snapshot-file readers. */
+  stateTransport?: 'kanban' | 'legacy-file' | undefined;
   paths: {
     projectSpecs: string;
     projectTaskGraphs: string;
@@ -75,19 +84,19 @@ export interface SddBoardSecurityDeps {
  * Two observe modes (one class, shared by both webui servers):
  *  • in-process (CLI-hosted): subscribe the shared EventBus `sdd.board.snapshot`
  *    for instant updates;
- *  • standalone (separate process): poll the on-disk snapshot store (the CLI
- *    run persists JSON every change).
+ *  • standalone (separate process): poll the project-scoped Kanban workflow
+ *    state owned by the daemon.
  *
- * Control is uniform + cross-process: every command is appended to the run's
- * `<runId>.control.jsonl`, which the CLI run drains and applies — so the run
- * stays the single driver and nothing races on shared state.
+ * Control is uniform + cross-process: every command is durably enqueued in the
+ * Kanban project daemon, which the CLI run drains and applies — so the run stays
+ * the single driver and nothing races on shared state.
  */
 export class SddBoardWebSocketHandler {
   private readonly store: SddBoardStore;
   private readonly clients = new Set<WSClient>();
   private readonly lifecycle?: SddBoardLifecycleDeps | undefined;
   private readonly security?: SddBoardSecurityDeps | undefined;
-  private readonly diskPollingEnabled: boolean;
+  private readonly standalonePollingEnabled: boolean;
   private latest: SddBoardSnapshot | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private pollInFlight = false;
@@ -102,7 +111,7 @@ export class SddBoardWebSocketHandler {
     this.store = new SddBoardStore({ baseDir: boardsDir });
     this.lifecycle = lifecycle;
     this.security = security;
-    this.diskPollingEnabled = events === undefined;
+    this.standalonePollingEnabled = events === undefined;
 
     if (events) {
       // Instant updates in the CLI-hosted server (shared bus).
@@ -124,7 +133,7 @@ export class SddBoardWebSocketHandler {
     ws.on('close', remove);
     ws.on('error', remove);
     this.startPolling();
-    // Send the current board immediately (from memory or disk). Best-effort:
+    // Send the current board immediately (from memory or project state). Best-effort:
     // a corrupt/locked snapshot must not become an unhandled rejection.
     void this.sendCurrent(client).catch((err) => {
       console.warn(
@@ -143,15 +152,15 @@ export class SddBoardWebSocketHandler {
       return;
     }
     if (msg.type === 'sdd.board.list') {
-      const boards = await this.store.list();
+      const boards = await this.listBoardEntries();
       this.broadcast({ type: 'sdd.board.list', payload: { boards } });
       return;
     }
     const action = msg.type.replace(/^sdd\.board\./, '');
 
-    // Post-run lifecycle ops are applied here, directly from disk — the run's
-    // control-file drain timer is gone once it finishes, so routing these
-    // through control.jsonl (as the old Clean/Rollback buttons did) was a no-op.
+    // Post-run lifecycle ops are applied here from durable workflow state. The
+    // live run's command drain is gone once it finishes, so queueing these
+    // operations (as the old Clean/Rollback buttons did) would be a no-op.
     if (LIFECYCLE_TYPES.has(action as SddLifecycleOp)) {
       await this.applyLifecycle(action as SddLifecycleOp, msg.payload);
       return;
@@ -161,7 +170,8 @@ export class SddBoardWebSocketHandler {
       const verificationCommands: Array<{ command: string; operation: string }> = [];
       if (action === 'set_task_verification') {
         const command = msg.payload?.verificationCommand;
-        if (command !== undefined && (typeof command !== 'string' || command.length > 8_192)) return;
+        if (command !== undefined && (typeof command !== 'string' || command.length > 8_192))
+          return;
         if (typeof command === 'string' && command.trim()) {
           verificationCommands.push({ command, operation: 'sdd.set_task_verification' });
         }
@@ -198,28 +208,43 @@ export class SddBoardWebSocketHandler {
       const runId =
         (msg.payload?.runId as string | undefined) ??
         this.latest?.runId ??
-        (await this.store.list())[0]?.runId;
+        (await this.listBoardEntries())[0]?.runId;
       if (runId) {
-        await this.store.appendControl(runId, {
-          ts: Date.now(),
-          type: action,
-          payload: msg.payload,
-        });
+        if (this.lifecycle && this.lifecycle.controlTransport !== 'legacy-file') {
+          await enqueueKanbanWorkflowCommand(
+            this.lifecycle.projectRoot,
+            kanbanWorkflowId('sdd', runId),
+            { type: action, payload: msg.payload },
+          );
+        } else {
+          await this.store.appendControl(runId, {
+            ts: Date.now(),
+            type: action,
+            payload: msg.payload,
+          });
+        }
       }
     }
   }
 
   /**
-   * Apply a cleanup/rollback/destroy from disk and broadcast a structured
+   * Apply a cleanup/rollback/destroy from durable state and broadcast a structured
    * `sdd.board.lifecycle_result`. Refuses (no-op) while a run is still active —
    * the user must stop it first; the UI gates the buttons on `!active` and the
    * Destroy flow auto-stops then waits before sending `destroy`.
    */
-  private async applyLifecycle(op: SddLifecycleOp, payload?: Record<string, unknown>): Promise<void> {
+  private async applyLifecycle(
+    op: SddLifecycleOp,
+    payload?: Record<string, unknown>,
+  ): Promise<void> {
     if (!this.lifecycle) {
       this.broadcast({
         type: 'sdd.board.lifecycle_result',
-        payload: { op, ok: false, reason: 'Lifecycle operations are not available in this session.' },
+        payload: {
+          op,
+          ok: false,
+          reason: 'Lifecycle operations are not available in this session.',
+        },
       });
       return;
     }
@@ -237,6 +262,7 @@ export class SddBoardWebSocketHandler {
       projectRoot: this.lifecycle.projectRoot,
       paths: this.lifecycle.paths,
       runId,
+      stateTransport: this.lifecycle.stateTransport ?? 'kanban',
       revertMerged: payload?.revertMerged === true,
     });
 
@@ -275,27 +301,32 @@ export class SddBoardWebSocketHandler {
     if (this.pollInFlight) return;
     this.pollInFlight = true;
     try {
-      const entry = await this.store.latest();
-      if (!entry) return;
+      const snap = await this.loadLatestSnapshot();
+      if (!snap) return;
       if (
         this.latest &&
-        this.latest.updatedAt >= entry.updatedAt &&
-        this.latest.runId === entry.runId
+        this.latest.updatedAt >= snap.updatedAt &&
+        this.latest.runId === snap.runId
       ) {
         return; // nothing newer
       }
-      const snap = await this.store.load(entry.runId);
-      if (snap) {
-        this.latest = snap;
-        this.broadcast({ type: 'sdd.board.snapshot', payload: snap });
-      }
+      this.latest = snap;
+      this.broadcast({ type: 'sdd.board.snapshot', payload: snap });
+    } catch (err) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'sdd_board.poll_failed',
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      );
     } finally {
       this.pollInFlight = false;
     }
   }
 
   private startPolling(): void {
-    if (!this.diskPollingEnabled || this.poll !== null || this.clients.size === 0) return;
+    if (!this.standalonePollingEnabled || this.poll !== null || this.clients.size === 0) return;
     this.poll = setInterval(() => void this.pollLatest(), 1000);
     this.poll.unref?.();
   }
@@ -307,18 +338,50 @@ export class SddBoardWebSocketHandler {
   }
 
   private async sendCurrent(client: WSClient): Promise<void> {
-    const snap = this.latest ?? (await this.loadLatestFromDisk());
+    const snap = this.latest ?? (await this.loadLatestSnapshot());
     if (snap) this.send(client, { type: 'sdd.board.snapshot', payload: snap });
   }
 
   private async broadcastCurrent(): Promise<void> {
-    const snap = this.latest ?? (await this.loadLatestFromDisk());
+    const snap = this.latest ?? (await this.loadLatestSnapshot());
     if (snap) this.broadcast({ type: 'sdd.board.snapshot', payload: snap });
   }
 
-  private async loadLatestFromDisk(): Promise<SddBoardSnapshot | null> {
+  private async loadLatestSnapshot(): Promise<SddBoardSnapshot | null> {
+    if (this.usesKanbanState()) {
+      const states = await listKanbanWorkflowStates(this.lifecycle!.projectRoot, 'sdd:');
+      const snapshots = states
+        .map((state) => state.value)
+        .filter(isSddBoardSnapshot)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+      return snapshots[0] ?? null;
+    }
     const entry = await this.store.latest();
     return entry ? this.store.load(entry.runId) : null;
+  }
+
+  private async listBoardEntries(): Promise<SddBoardIndexEntry[]> {
+    if (!this.usesKanbanState()) return this.store.list();
+    const states = await listKanbanWorkflowStates(this.lifecycle!.projectRoot, 'sdd:');
+    return states.flatMap((state) => {
+      if (!isSddBoardSnapshot(state.value)) return [];
+      const snapshot = state.value;
+      return [
+        {
+          runId: snapshot.runId,
+          ...(snapshot.specId ? { specId: snapshot.specId } : {}),
+          title: snapshot.title,
+          status: snapshot.status,
+          total: snapshot.progress.total,
+          completed: snapshot.progress.completed,
+          updatedAt: snapshot.updatedAt,
+        },
+      ];
+    });
+  }
+
+  private usesKanbanState(): boolean {
+    return Boolean(this.lifecycle && this.lifecycle.stateTransport !== 'legacy-file');
   }
 
   private broadcast(msg: { type: string; payload: unknown }): void {
@@ -331,4 +394,17 @@ export class SddBoardWebSocketHandler {
   private send(client: WSClient, msg: { type: string; payload: unknown }): void {
     sendSerialized(client.ws, JSON.stringify(msg));
   }
+}
+
+function isSddBoardSnapshot(value: unknown): value is SddBoardSnapshot {
+  if (!value || typeof value !== 'object') return false;
+  const snapshot = value as Partial<SddBoardSnapshot>;
+  return (
+    typeof snapshot.runId === 'string' &&
+    typeof snapshot.title === 'string' &&
+    typeof snapshot.status === 'string' &&
+    typeof snapshot.updatedAt === 'number' &&
+    Array.isArray(snapshot.tasks) &&
+    Boolean(snapshot.progress && typeof snapshot.progress.total === 'number')
+  );
 }

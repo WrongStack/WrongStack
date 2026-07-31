@@ -9,8 +9,11 @@
  *  - Double-close guard (onerror + onclose race)
  */
 
-type Handler = (msg: HqBrowserMessage) => void;
+type HqWsBrowserMessage = HqBrowserMessage | HqResumeMessage;
+type Handler = (msg: HqWsBrowserMessage) => void;
 type StateHandler = (state: HqWsConnectionState) => void;
+export type HqResumeCursor = ReadonlyMap<string, number> | Readonly<Record<string, number>>;
+type ResumeCursorProvider = () => HqResumeCursor;
 
 export type HqWsConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -19,11 +22,19 @@ export interface HqWsClientOptions {
   heartbeatIntervalMs?: number;
   heartbeatTimeoutMs?: number;
   maxBackoffMs?: number;
+  /** Highest HQ event seq the browser has already applied. */
+  resumeCursor?: ResumeCursorProvider;
   /** Override the WS URL (used in tests). */
   url?: string;
 }
 
-import type { HqBrowserMessage, HqEventEnvelope, HqSnapshot } from '@wrongstack/core/hq';
+import type {
+  HqBrowserMessage,
+  HqClientResumeMessage,
+  HqEventEnvelope,
+  HqResumeMessage,
+  HqSnapshot,
+} from '@wrongstack/core/hq';
 import {
   createSurfaceConnectionState,
   DEFAULT_SURFACE_CONNECTION_CONFIG,
@@ -36,10 +47,20 @@ import {
   stopConnection,
 } from '@wrongstack/webui-server/protocol';
 import { resolveHqToken } from './auth.js';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from './peer-resume-id.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 25_000;
 const DEFAULT_HEARTBEAT_TIMEOUT = 10_000;
 const DEFAULT_MAX_BACKOFF = 30_000;
+const MAX_RESUME_FRAMES = 32;
+
+export { HQ_BROWSER_PEER_RESUME_CLIENT_ID };
+
+function normalizeResumeSeq(seq: number): number {
+  if (!Number.isFinite(seq)) return 0;
+  const normalized = Math.max(0, Math.trunc(seq));
+  return Number.isSafeInteger(normalized) ? normalized : 0;
+}
 
 export class HqWsClient {
   private ws: WebSocket | null = null;
@@ -52,7 +73,8 @@ export class HqWsClient {
   private lastMessageAt = 0;
   private stopped = false;
   private _state: HqWsConnectionState = 'disconnected';
-  private readonly url: string;
+  private _url: string;
+  private resumeCursor: ResumeCursorProvider;
 
   readonly maxRetries: number;
   readonly heartbeatIntervalMs: number;
@@ -64,9 +86,10 @@ export class HqWsClient {
     this.heartbeatIntervalMs = opts?.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL;
     this.heartbeatTimeoutMs = opts?.heartbeatTimeoutMs ?? DEFAULT_HEARTBEAT_TIMEOUT;
     this.maxBackoffMs = opts?.maxBackoffMs ?? DEFAULT_MAX_BACKOFF;
+    this.resumeCursor = opts?.resumeCursor ?? (() => ({}));
 
     if (opts?.url) {
-      this.url = opts.url;
+      this._url = opts.url;
     } else {
       const loc =
         typeof window !== 'undefined'
@@ -79,8 +102,13 @@ export class HqWsClient {
       // URLs that carried ?token= in the query string.
       const token = resolveHqToken();
       const base = `${wsProto}//${loc.host}/ws/browser`;
-      this.url = token !== null ? `${base}?token=${encodeURIComponent(token)}` : base;
+      this._url = token !== null ? `${base}?token=${encodeURIComponent(token)}` : base;
     }
+  }
+
+  /** Effective WS URL — exposed for singleton conflict detection in `getHqClient`. */
+  get url(): string {
+    return this._url;
   }
 
   get state(): HqWsConnectionState {
@@ -100,7 +128,7 @@ export class HqWsClient {
 
     let ws: WebSocket;
     try {
-      ws = new WebSocket(this.url);
+      ws = new WebSocket(this._url);
     } catch {
       this.scheduleReconnect();
       return;
@@ -108,20 +136,32 @@ export class HqWsClient {
     this.ws = ws;
 
     ws.onopen = () => {
+      if (this.ws !== ws) return;
       this.reconnectAttempt = 0;
       this.connectionState = markConnectionOpen(this.connectionState);
       this.lastMessageAt = Date.now();
       this.connectionState = markConnectionActivity(this.connectionState, this.lastMessageAt);
       this.emitState('connected');
+      this.sendResume();
       this.startHeartbeat();
     };
 
     ws.onmessage = (event) => {
+      if (this.ws !== ws) return;
       this.lastMessageAt = Date.now();
+      // Refresh the surface-connection staleness clock so the heartbeat
+      // does not flag a healthy socket as silent. Without this,
+      // `lastMessageAt` advances but `connectionState.lastActivityAt` stays
+      // pinned to the `onopen` time, so a connection with steady low-rate
+      // traffic (a quiet cockpit) still trips the heartbeat-timeout and
+      // force-closes ~35 s after open. `markConnectionActivity` is the
+      // single source of truth that the heartbeat reads — pair it with
+      // every wall-clock advance.
+      this.connectionState = markConnectionActivity(this.connectionState, this.lastMessageAt);
       try {
         const msg = JSON.parse(
           typeof event.data === 'string' ? event.data : '',
-        ) as HqBrowserMessage;
+        ) as HqWsBrowserMessage;
         for (const h of this.handlers) {
           try {
             h(msg);
@@ -134,8 +174,8 @@ export class HqWsClient {
       }
     };
 
-    ws.onclose = () => this.handleClose('close');
-    ws.onerror = () => this.handleClose('error');
+    ws.onclose = () => this.handleClose(ws, 'close');
+    ws.onerror = () => this.handleClose(ws, 'error');
   }
 
   close(): void {
@@ -153,6 +193,10 @@ export class HqWsClient {
 
   // ── Subscriptions ──────────────────────────────────────────────────────
 
+  setResumeCursorProvider(provider: ResumeCursorProvider): void {
+    this.resumeCursor = provider;
+  }
+
   on(handler: Handler): () => void {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
@@ -166,10 +210,10 @@ export class HqWsClient {
 
   // ── Internal ───────────────────────────────────────────────────────────
 
-  private handleClose(_source: 'close' | 'error'): void {
-    // Guard: onerror fires before onclose — the ws reference is already null
-    // when onclose arrives, preventing double-scheduling.
-    if (this.ws === null) return;
+  private handleClose(socket: WebSocket, _source: 'close' | 'error'): void {
+    // Guard: ignore stale close/error events from a socket that has already
+    // been replaced, and avoid double-scheduling on error+close for one socket.
+    if (this.ws !== socket) return;
     this.ws = null;
     this.stopHeartbeat();
     this.scheduleReconnect();
@@ -196,6 +240,56 @@ export class HqWsClient {
       this.reconnectTimer = null;
       this.connect();
     }, reconnect.plan.delayMs);
+  }
+
+  private sendResume(): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    try {
+      for (const frame of this.resumeFrames()) {
+        this.ws.send(JSON.stringify(frame));
+      }
+    } catch {
+      /* resume is best-effort; heartbeat setup must still run */
+    }
+  }
+
+  private resumeFrames(): HqClientResumeMessage[] {
+    try {
+      const cursor = this.resumeCursor();
+      const entries =
+        typeof (cursor as { entries?: unknown }).entries === 'function'
+          ? (cursor as { entries: () => IterableIterator<[string, number]> }).entries()
+          : Object.entries(cursor);
+      const parsed: { clientId: string; lastSeqSeen: number }[] = [];
+      for (const [clientId, seq] of entries) {
+        if (typeof clientId !== 'string' || clientId.length === 0) continue;
+        const lastSeqSeen = normalizeResumeSeq(seq);
+        parsed.push({ clientId, lastSeqSeen });
+      }
+      // Cap to the most-recent K publishers so a stale `resumeCursors` map
+      // (long-lived dashboard with many historical publishers) cannot blow
+      // the WS frame budget. Ties broken by clientId for deterministic order.
+      parsed.sort((a, b) =>
+        b.lastSeqSeen !== a.lastSeqSeen
+          ? b.lastSeqSeen - a.lastSeqSeen
+          : a.clientId.localeCompare(b.clientId),
+      );
+      const peerCursor = parsed.find(
+        ({ clientId }) => clientId === HQ_BROWSER_PEER_RESUME_CLIENT_ID,
+      );
+      const nonPeerLimit = peerCursor === undefined ? MAX_RESUME_FRAMES : MAX_RESUME_FRAMES - 1;
+      const trimmed = parsed
+        .filter(({ clientId }) => clientId !== HQ_BROWSER_PEER_RESUME_CLIENT_ID)
+        .slice(0, nonPeerLimit);
+      if (peerCursor !== undefined) trimmed.unshift(peerCursor);
+      return trimmed.map(({ clientId, lastSeqSeen }) => ({
+        type: 'client.resume',
+        clientId,
+        lastSeqSeen,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   // ── Heartbeat ──────────────────────────────────────────────────────────
@@ -246,12 +340,82 @@ export class HqWsClient {
 
 /** Singleton client for the app. */
 let client: HqWsClient | null = null;
-export function getHqClient(): HqWsClient {
+
+/**
+ * Returns the cached singleton `HqWsClient`. If a singleton already exists,
+ * the supplied `opts` are reconciled against the live instance:
+ *  - `resumeCursor` is forwarded via `setResumeCursorProvider` (existing path).
+ *  - Any other supplied option that does not match the live instance logs a
+ *    warning and is ignored. The singleton cannot be reconfigured around an
+ *    open socket (the URL + heartbeat params were already applied at
+ *    construction); silently dropping conflicting opts is the original bug.
+ *
+ * To tear down the singleton (logout, unmount, test reset), call
+ * `closeHqClient()` — `HqWsClient.close()` only closes the live socket; it
+ * does NOT clear the cached reference, so a subsequent `getHqClient()`
+ * would return the same (now dead) instance. `closeHqClient()` does both.
+ */
+export function getHqClient(opts?: HqWsClientOptions): HqWsClient {
   if (client === null) {
-    client = new HqWsClient();
+    client = new HqWsClient(opts);
     client.connect();
+    return client;
+  }
+  if (opts?.resumeCursor !== undefined) {
+    client.setResumeCursorProvider(opts.resumeCursor);
+  }
+  if (opts === undefined) {
+    return client;
+  }
+  // Conflict detection — every other OptionSide besides `resumeCursor` is part
+  // of the construction-time contract (URL, heartbeat cadence, retry policy).
+  // A mismatch is a sign that the caller is unaware of the singleton. Log the
+  // diff so the divergence is visible during dev, but never throw — the
+  // existing connection is more valuable than a clean error.
+  const mismatches: string[] = [];
+  if (opts.url !== undefined && opts.url !== client.url) {
+    mismatches.push(`url: ${opts.url} vs ${client.url}`);
+  }
+  if (
+    opts.heartbeatIntervalMs !== undefined &&
+    opts.heartbeatIntervalMs !== client.heartbeatIntervalMs
+  ) {
+    mismatches.push(
+      `heartbeatIntervalMs: ${opts.heartbeatIntervalMs} vs ${client.heartbeatIntervalMs}`,
+    );
+  }
+  if (
+    opts.heartbeatTimeoutMs !== undefined &&
+    opts.heartbeatTimeoutMs !== client.heartbeatTimeoutMs
+  ) {
+    mismatches.push(
+      `heartbeatTimeoutMs: ${opts.heartbeatTimeoutMs} vs ${client.heartbeatTimeoutMs}`,
+    );
+  }
+  if (opts.maxBackoffMs !== undefined && opts.maxBackoffMs !== client.maxBackoffMs) {
+    mismatches.push(`maxBackoffMs: ${opts.maxBackoffMs} vs ${client.maxBackoffMs}`);
+  }
+  if (opts.maxRetries !== undefined && opts.maxRetries !== client.maxRetries) {
+    mismatches.push(`maxRetries: ${opts.maxRetries} vs ${client.maxRetries}`);
+  }
+  if (mismatches.length > 0 && typeof console !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[hq-ws-client] getHqClient() called with options that conflict with the live singleton; ignoring: ${mismatches.join(', ')}. Call closeHqClient() first if you need to reconfigure.`,
+    );
   }
   return client;
+}
+
+/**
+ * Tears down the cached singleton (if any). After this, `getHqClient()` will
+ * construct a fresh client. Idempotent. Use this from logout / unmount paths
+ * so the next user of the singleton does not inherit a dead socket.
+ */
+export function closeHqClient(): void {
+  if (client === null) return;
+  client.close();
+  client = null;
 }
 
 // Re-export the HQ types the dashboard consumes.

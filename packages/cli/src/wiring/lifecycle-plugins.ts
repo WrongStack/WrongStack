@@ -1,19 +1,30 @@
 import * as path from 'node:path';
-import { allServers } from '@wrongstack/core/infrastructure';
-import type { Config, Logger, MetricsRuntimeStatus, ModelsRegistry, PromptLoader, Provider, ProviderConfig, SecretVault, SessionWriter, SkillLoader } from '@wrongstack/core/types';
-import type { HqPublisher } from '@wrongstack/core/hq';
+import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/core/coordination';
 import { countShellHooks, HookRegistry, HookRunner, shellHooksEqual } from '@wrongstack/core/hooks';
-import {
-  getSharedProjectMailbox,
-  type RemoteMailbox,
-} from '@wrongstack/core/coordination';
-import type { HealthRegistry } from '@wrongstack/core/types';
+import { allServers } from '@wrongstack/core/infrastructure';
+import { TOKENS } from '@wrongstack/core/kernel';
 import { NotifierImpl } from '@wrongstack/core/notifications';
+import type { PluginHostHandle } from '@wrongstack/core/plugin';
+import {
+  type ProviderRegistry,
+  SlashCommandRegistry,
+  type ToolRegistry,
+} from '@wrongstack/core/registry';
+import type {
+  Config,
+  HealthRegistry,
+  Logger,
+  MetricsRuntimeStatus,
+  ModelsRegistry,
+  PromptLoader,
+  Provider,
+  ProviderConfig,
+  SecretVault,
+  SessionWriter,
+  SkillLoader,
+} from '@wrongstack/core/types';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import type { PluginHostHandle } from '@wrongstack/core/plugin';
-import { type ProviderRegistry, SlashCommandRegistry, type ToolRegistry } from '@wrongstack/core/registry';
-import { TOKENS } from '@wrongstack/core/kernel';
 import {
   createVaultBackedMcpAuthorizationProviderFactory,
   MCPAuthorizationManager,
@@ -33,6 +44,7 @@ import {
 } from '../hooks-wiring.js';
 import { makeConfirmAwaiter } from '../permission-prompt.js';
 import { installDesignStudio } from './design-studio.js';
+import type { HqPublisherRef } from './hq-telemetry.js';
 import { registerMcpObservability } from './metrics.js';
 import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
@@ -104,7 +116,7 @@ export interface LifecyclePluginsResult {
   agent: any;
   mcpRegistry: MCPRegistry;
   slashRegistry: SlashCommandRegistry;
-  hqPublisherRef: { current: HqPublisher | undefined };
+  hqPublisherRef: HqPublisherRef;
   brainMailbox: RemoteMailbox;
   pluginHost: PluginHostHandle | undefined;
 }
@@ -343,7 +355,7 @@ export async function setupLifecycleAndPlugins(
 
   // ── Slash registry + mailbox + plugins ───────────────────────────────────
   const slashRegistry = new SlashCommandRegistry();
-  const hqPublisherRef: { current: HqPublisher | undefined } = { current: undefined };
+  const hqPublisherRef: HqPublisherRef = { current: undefined };
   const brainMailbox = getSharedProjectMailbox(
     wpaths.projectDir,
     events,

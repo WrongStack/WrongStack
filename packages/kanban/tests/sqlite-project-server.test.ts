@@ -9,12 +9,19 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   bridgeKanbanSupervisor,
   createBoard,
+  deleteKanbanWorkflowState,
+  drainKanbanWorkflowCommands,
+  enqueueKanbanWorkflowCommand,
   exportBoardToTaskGraph,
   getBoard,
   getKanbanServerConnection,
   getServerKanbanStore,
   kanbanProjectServerEndpoint,
+  kanbanWorkflowId,
   listKanbanEvents,
+  listKanbanWorkflowStates,
+  readKanbanWorkflowState,
+  writeKanbanWorkflowState,
 } from '../src/index.js';
 import { SqliteKanbanStorage } from '../src/server/sqlite-storage.js';
 import { appendKanbanEvent, createBoardObject, getKanbanDir, writeBoard } from '../src/storage.js';
@@ -214,6 +221,18 @@ describe('SQLite Kanban storage', () => {
     const pushedEvents: Array<{ event: string; data: unknown }> = [];
     const unsubscribe = connection!.subscribe((event) => pushedEvents.push(event));
     const board = await createBoard(root, { title: 'IPC board' });
+    const workflowId = kanbanWorkflowId('sdd', 'run-1');
+    await enqueueKanbanWorkflowCommand(root, workflowId, {
+      id: 'command-1',
+      type: 'pause',
+      payload: { reason: 'test' },
+    });
+    // Retrying the same command id is idempotent within one workflow.
+    await enqueueKanbanWorkflowCommand(root, workflowId, {
+      id: 'command-1',
+      type: 'pause',
+      payload: { reason: 'test' },
+    });
     const store = getServerKanbanStore(root);
     await store.addTask(board.id, { title: 'SQLite task' });
     const loaded = await store.getBoard(board.id);
@@ -227,6 +246,11 @@ describe('SQLite Kanban storage', () => {
           (event) =>
             event.event === 'board.created' &&
             (event.data as { boardId?: string }).boardId === board.id,
+        ) &&
+        pushedEvents.some(
+          (event) =>
+            event.event === 'workflow.command' &&
+            (event.data as { boardId?: string }).boardId === workflowId,
         ) &&
         pushedEvents.some(
           (event) =>
@@ -253,6 +277,25 @@ describe('SQLite Kanban storage', () => {
     ).toEqual(['board.created', 'board.updated']);
     expect(await getBoard(root, board.id)).toEqual(loaded);
     expect((await exportBoardToTaskGraph(root, board.id))?.graph.nodes).toBeInstanceOf(Map);
+    expect(await drainKanbanWorkflowCommands(root, workflowId)).toMatchObject([
+      { id: 'command-1', workflowId, type: 'pause', payload: { reason: 'test' } },
+    ]);
+    expect(await drainKanbanWorkflowCommands(root, workflowId)).toEqual([]);
+
+    const firstState = await writeKanbanWorkflowState(root, workflowId, { status: 'running' }, 0);
+    const secondState = await writeKanbanWorkflowState(
+      root,
+      workflowId,
+      { status: 'completed' },
+      firstState.revision,
+    );
+    await expect(
+      writeKanbanWorkflowState(root, workflowId, { status: 'stale' }, firstState.revision),
+    ).rejects.toMatchObject({ code: 'STALE_WRITE' });
+    expect(await readKanbanWorkflowState(root, workflowId)).toEqual(secondState);
+    expect(await listKanbanWorkflowStates(root, 'sdd:')).toEqual([secondState]);
+    expect(await deleteKanbanWorkflowState(root, workflowId)).toBe(true);
+    expect(await readKanbanWorkflowState(root, workflowId)).toBeNull();
 
     const entries = await fs.readdir(getKanbanDir(root));
     expect(entries).toContain('_kanban.sqlite');
@@ -296,6 +339,19 @@ describe('SQLite Kanban storage', () => {
     );
     await waitForCondition(() => connected === 1, 'initial event subscription');
 
+    const workflowId = kanbanWorkflowId('sdd', 'restart-recovery');
+    const persistedState = await writeKanbanWorkflowState(
+      root,
+      workflowId,
+      { status: 'running', taskGraphId: 'graph-1' },
+      0,
+    );
+    await enqueueKanbanWorkflowCommand(root, workflowId, {
+      id: 'restart-command',
+      createdAt: new Date().toISOString(),
+      type: 'pause',
+    });
+
     const firstConnection = await getKanbanServerConnection(root);
     await firstConnection!.request('shutdown', { reason: 'restart-test' });
     await waitForExit(firstChild);
@@ -303,6 +359,10 @@ describe('SQLite Kanban storage', () => {
     const secondChild = startDaemon(root);
     await waitForEndpoint(daemonEndpoint);
     await waitForCondition(() => connected === 2, 'replacement event subscription');
+    expect(await readKanbanWorkflowState(root, workflowId)).toEqual(persistedState);
+    expect(await drainKanbanWorkflowCommands(root, workflowId)).toMatchObject([
+      { id: 'restart-command', workflowId, type: 'pause' },
+    ]);
 
     const board = await createBoard(root, { title: 'After restart' });
     await waitForCondition(

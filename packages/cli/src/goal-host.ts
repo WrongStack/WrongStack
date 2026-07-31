@@ -258,7 +258,7 @@ export interface GoalHostDeps {
   events: EventBus;
   /** Current parent session id for worktree lifecycle events. */
   getSessionId?: (() => string | undefined) | undefined;
-  /** Directory for per-project phase-graph JSON (wpaths.projectGoal). */
+  /** Directory for per-project phase-graph engine checkpoints. */
   storeDir: string;
   /** Project root — base for git-worktree isolation. */
   projectRoot: string;

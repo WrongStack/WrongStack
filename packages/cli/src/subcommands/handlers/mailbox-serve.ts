@@ -70,18 +70,18 @@ import * as path from 'node:path';
 import {
   acquireOrJoin,
   authorizeMailboxBearerToken,
-  createProjectMailbox,
   createMailboxHttpRouter,
+  createProjectMailbox,
   finalize,
   MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
+  type MailboxCredentialVerifier,
   MailboxEventEmitter,
   MailboxHttpRateLimiter,
-  type MailboxCredentialVerifier,
   release,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import { startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
-import { startCliHqConnection, type CliHqConnection } from '../../hq-publisher.js';
+import { type CliHqConnection, startCliHqConnection } from '../../hq-publisher.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -106,7 +106,8 @@ export const mailboxServeCmd: SubcommandHandler = async (args, deps) => {
 async function startServer(deps: SubcommandDeps): Promise<number> {
   const flags = deps.flags ?? {};
   const host = typeof flags['host'] === 'string' ? flags['host'] : DEFAULT_HOST;
-  const portRaw = typeof flags['port'] === 'string' ? Number.parseInt(flags['port'], 10) : DEFAULT_PORT;
+  const portRaw =
+    typeof flags['port'] === 'string' ? Number.parseInt(flags['port'], 10) : DEFAULT_PORT;
   const strictPort = flags['strict-port'] === true;
   // `--port 0` is valid and means "let the OS assign a free port" — the
   // same thing the non-strict default does. Reject only NaN, negative,
@@ -143,9 +144,9 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     // effectively satisfied.
     deps.renderer.write(
       `Mailbox bridge already running (PID ${lock.pid}).\n` +
-      `  URL:        ${lock.url}\n` +
-      `  Token file: ${acquireResult.tokenPath}\n` +
-      `  Lock:       ${projectDir}${process.platform === 'win32' ? '\\' : '/'}.mailbox-bridge.lock\n\n`,
+        `  URL:        ${lock.url}\n` +
+        `  Token file: ${acquireResult.tokenPath}\n` +
+        `  Lock:       ${projectDir}${process.platform === 'win32' ? '\\' : '/'}.mailbox-bridge.lock\n\n`,
     );
     return 0;
   }
@@ -159,11 +160,11 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     const existing = acquireResult.existing;
     deps.renderer.writeError(
       `Port ${portRaw} already in use by another mailbox bridge on a different project.\n` +
-      `  Owner project: ${projectDir} (us)\n` +
-      `  Owner URL:     ${existing.url}\n` +
-      `  Owner PID:     ${existing.pid}\n\n` +
-      `Either pick a different --port, run without --strict-port (OS will assign a free one),\n` +
-      `or stop the conflicting process and retry.\n`,
+        `  Owner project: ${projectDir} (us)\n` +
+        `  Owner URL:     ${existing.url}\n` +
+        `  Owner PID:     ${existing.pid}\n\n` +
+        `Either pick a different --port, run without --strict-port (OS will assign a free one),\n` +
+        `or stop the conflicting process and retry.\n`,
     );
     // No tentative lock was written in this branch — acquireOrJoin
     // returns port-conflict before the write step. Nothing to
@@ -192,8 +193,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   const credentialStore: MailboxCredentialVerifier = {
     load: async () => mailbox.initialize(),
     verify: (credentialId, secret) => mailbox.credentialVerify(credentialId, secret),
-    verifyPersisted: (credentialId, secret) =>
-      mailbox.credentialVerify(credentialId, secret),
+    verifyPersisted: (credentialId, secret) => mailbox.credentialVerify(credentialId, secret),
   };
   // Identity credentials must be ready before the socket starts accepting
   // requests. `verify()` intentionally fails closed while the store is
@@ -295,7 +295,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
         await release(projectDir, tentative.generation);
         deps.renderer.writeError(
           `Failed to bind ${host}: ${msg}\n` +
-          `This usually means no port is available (extremely rare). Retry or pick an explicit --port.\n`,
+            `This usually means no port is available (extremely rare). Retry or pick an explicit --port.\n`,
         );
         return 1;
       }
@@ -306,12 +306,12 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       if (strictPort) {
         deps.renderer.writeError(
           `Failed to bind ${host}:${portRaw}: ${msg}\n` +
-          `Either pick a different --port, drop --strict-port to allow OS fallback, or stop the process holding this port.\n`,
+            `Either pick a different --port, drop --strict-port to allow OS fallback, or stop the process holding this port.\n`,
         );
       } else {
         deps.renderer.writeError(
           `Failed to bind ${host} on an OS-assigned port: ${msg}\n` +
-          `This usually means no port is available (extremely rare). Retry or pick an explicit --port.\n`,
+            `This usually means no port is available (extremely rare). Retry or pick an explicit --port.\n`,
         );
       }
       return 1;
@@ -340,11 +340,41 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   });
   writeStartupInfo(deps, { host, port: boundPort, projectDir, tokenPath: acquireResult.tokenPath });
   const stopMemoryWatchdog = startSharedHeapWatchdog({
-    collectStats: () => ({
-      surface: 'mailbox-http-server',
-      projectId,
-      boundPort,
-    }),
+    collectStats: () => {
+      const hqQueue = hqConnection?.getPublisher()?.getQueueStats();
+      const hqSnapshot = mailbox.getHqSnapshotStats();
+      const kanbanSync = hqConnection?.getKanbanSyncStats();
+      return {
+        surface: 'mailbox-http-server',
+        projectId,
+        boundPort,
+        ...(hqQueue
+          ? {
+              hqQueueEntries: hqQueue.entries,
+              hqQueueBytes: hqQueue.bytes,
+              hqQueueMaxBytes: hqQueue.maxBytes,
+              hqQueueDroppedFrames: hqQueue.droppedFrames,
+              hqQueueDroppedBytes: hqQueue.droppedBytes,
+              hqQueueCoalescedFrames: hqQueue.coalescedFrames,
+              hqQueueCoalescedBytes: hqQueue.coalescedBytes,
+            }
+          : {}),
+        hqSnapshotInFlight: hqSnapshot.inFlight ? 1 : 0,
+        hqSnapshotPending: hqSnapshot.pending ? 1 : 0,
+        hqSnapshotTimerScheduled: hqSnapshot.timerScheduled ? 1 : 0,
+        hqEventInFlight: hqSnapshot.eventInFlight ? 1 : 0,
+        hqEventPending: hqSnapshot.pendingEvents,
+        hqEventCoalesced: hqSnapshot.coalescedEvents,
+        hqEventDropped: hqSnapshot.droppedEvents,
+        kanbanSyncActive: kanbanSync?.localPublishActive ? 1 : 0,
+        kanbanSyncPendingBoards: kanbanSync?.pendingBoardIds ?? 0,
+        kanbanSyncFullRescanPending: kanbanSync?.fullRescanPending ? 1 : 0,
+        kanbanSyncRemoteApplyQueued: kanbanSync?.remoteApplyQueued ? 1 : 0,
+        kanbanSyncPendingRemoteBoards: kanbanSync?.pendingRemoteBoards ?? 0,
+        kanbanSyncPublishRuns: kanbanSync?.localPublishRuns ?? 0,
+        kanbanSyncCoalescedRefreshes: kanbanSync?.coalescedLocalRefreshes ?? 0,
+      };
+    },
   });
 
   // Keep the process alive until SIGINT/SIGTERM. We resolve once the
@@ -356,7 +386,9 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       shuttingDown = true;
       clearInterval(rateLimitCleanup);
       hqConnection?.stop();
-      console.log(JSON.stringify({ event: 'mailbox_serve_stopping', signal: sig, host, port: boundPort }));
+      console.log(
+        JSON.stringify({ event: 'mailbox_serve_stopping', signal: sig, host, port: boundPort }),
+      );
       // Close long-lived SSE responses before waiting for server.close().
       router.close();
       // Stop accepting new connections; in-flight requests get to finish.
@@ -405,7 +437,9 @@ function writeStartupInfo(deps: SubcommandDeps, info: StartupInfo): void {
   deps.renderer.write('Routes:\n');
   deps.renderer.write('  POST /mailbox/send              send a message\n');
   deps.renderer.write('  POST /mailbox/query             query messages\n');
-  deps.renderer.write('  POST /mailbox/check             check inbox and optionally mark read/completed\n');
+  deps.renderer.write(
+    '  POST /mailbox/check             check inbox and optionally mark read/completed\n',
+  );
   deps.renderer.write('  POST /mailbox/ack               acknowledge one message\n');
   deps.renderer.write('  POST /mailbox/ack-many          acknowledge many in one batch\n');
   deps.renderer.write('  POST /mailbox/unread-count      count unread messages for an agent\n');
@@ -430,7 +464,9 @@ function printHelp(deps: SubcommandDeps): void {
   deps.renderer.write(`  wstack mailbox serve           Start the loopback HTTP bridge.\n`);
   deps.renderer.write('\n');
   deps.renderer.write('Flags:\n');
-  deps.renderer.write(`  --host <ip>         Bind host (default ${DEFAULT_HOST}). Exposing beyond\n`);
+  deps.renderer.write(
+    `  --host <ip>         Bind host (default ${DEFAULT_HOST}). Exposing beyond\n`,
+  );
   deps.renderer.write('                     loopback requires network-layer protection.\n');
   deps.renderer.write(`  --port <n>          Bind port (default ${DEFAULT_PORT}).\n`);
   deps.renderer.write('  --strict-port       Fail if the requested port is already in use.\n');

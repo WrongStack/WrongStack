@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { SddInterviewDriver, SpecStore, TaskGraphStore } from '@wrongstack/sdd';
@@ -79,6 +79,27 @@ function makeHandler(turnScript?: string[]) {
 }
 
 describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
+  it('fails closed when authoritative interview state cannot be read', async () => {
+    const runInterviewTurn = vi.fn(async () => QUESTION);
+    const handler = new SddWizardWebSocketHandler({
+      makeDriver: () =>
+        ({
+          loadExisting: async () => {
+            throw new Error('project daemon unavailable');
+          },
+        }) as never,
+      runInterviewTurn,
+      startRun: async () => ({ runId: 'unreachable' }),
+    });
+    const ws = fakeWs();
+    handler.addClient(ws);
+
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'Do not overwrite' } });
+
+    expect(lastOfType(ws, 'sdd.spec.error').payload.message).toBe('project daemon unavailable');
+    expect(runInterviewTurn).not.toHaveBeenCalled();
+  });
+
   it('drives goal → question → spec → tasks → run.start over WS', async () => {
     const { handler, startRunCalls } = makeHandler();
     const ws = fakeWs();

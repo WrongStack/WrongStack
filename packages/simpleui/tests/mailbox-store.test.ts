@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMailboxStore } from '../src/lib/mailbox-store.js';
+import { createMailboxStore, isUnreadIncomingMailboxMessage } from '../src/lib/mailbox-store.js';
 
 describe('SimpleUI mailbox store', () => {
   beforeEach(() => {
@@ -44,6 +44,79 @@ describe('SimpleUI mailbox store', () => {
       lastEventAt: new Date('2026-07-28T12:00:00.000Z').getTime(),
       error: null,
     });
+  });
+
+  it('filters self-sent WebUI messages out of the client-visible unread count', () => {
+    const store = createMailboxStore();
+    store.applyMessage({
+      type: 'mailbox.messages',
+      payload: {
+        messages: [
+          {
+            id: 'mail-peer',
+            from: 'worker@one',
+            to: 'simpleui',
+            type: 'note',
+            subject: 'Peer note',
+            body: 'Needs attention.',
+            priority: 'normal',
+            timestamp: '2026-07-28T12:00:00.000Z',
+            completed: false,
+            readByCount: 0,
+          },
+          {
+            id: 'mail-webui',
+            from: 'webui',
+            to: 'leader',
+            type: 'note',
+            subject: 'Self sent',
+            body: 'Sent from SimpleUI via the WebUI server.',
+            priority: 'normal',
+            timestamp: '2026-07-28T12:00:00.000Z',
+            completed: false,
+            readByCount: 0,
+          },
+          {
+            id: 'mail-simpleui',
+            from: 'simpleui',
+            to: 'leader',
+            type: 'note',
+            subject: 'Local echo',
+            body: 'Already authored locally.',
+            priority: 'normal',
+            timestamp: '2026-07-28T12:00:00.000Z',
+            completed: false,
+            readByCount: 0,
+          },
+          {
+            id: 'mail-read',
+            from: 'worker@two',
+            to: 'simpleui',
+            type: 'note',
+            subject: 'Read peer note',
+            body: 'Already read.',
+            priority: 'normal',
+            timestamp: '2026-07-28T12:00:00.000Z',
+            completed: false,
+            readByCount: 1,
+          },
+        ],
+      },
+    });
+
+    const clientUnread = store.getSnapshot().messages.filter(isUnreadIncomingMailboxMessage);
+
+    expect(clientUnread.map((message) => message.id)).toEqual(['mail-peer']);
+
+    store.applyMessage({
+      type: 'mailbox.messages',
+      payload: {
+        unreadOnly: true,
+        messages: store.getSnapshot().messages,
+      },
+    });
+
+    expect(store.getSnapshot().unreadCount).toBe(1);
   });
 
   it('ignores legacy mailbox.status frames — server does not broadcast them', () => {

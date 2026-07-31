@@ -35,6 +35,15 @@ export function buildRestoredEntries(
   // system messages itself (→ info), so pass the full list including the
   // resume file-validation / interrupted-tool notices injected by the store.
   if (restoredEvents && restoredEvents.length > 0) {
+    // Runs once per resume. The transient `dummyPending` / `dummyCompleted` /
+    // `toolEntries` Maps inside `replaySessionMessages` are GC'd after init;
+    // `retainTuiHistory` then collapses the output to the per-entry + aggregate
+    // byte budget (TUI_HISTORY_MAX_{ENTRIES,BYTES,ENTRY_BYTES}). Do not move
+    // this into render — that would rebuild the transient Maps on every render
+    // and defeat the once-per-resume GC. If large-resume init GC pressure ever
+    // surfaces in heap-watchdog logs, the right fix is truncate-then-replay
+    // (slice `messages` / `restoredEvents` to the retained window first) —
+    // which requires preserving tool_use/tool_result pairing across the window.
     return retainTuiHistory(replaySessionMessages(messages, restoredEvents, 1));
   }
   // Legacy fallback (no events — older callers / unit tests): meta-only tool

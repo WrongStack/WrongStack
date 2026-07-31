@@ -1,15 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { WebSocket } from 'ws';
 import type { CollaborationBus, ConsumedInjectionInfo } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
 import type { AnnotationsStore, SessionReader } from '@wrongstack/core/storage';
+import type { Logger } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import type {
-  CollabRole,
-  WSCollabState,
-  WSServerMessage,
-} from './types.js';
+import type { WebSocket } from 'ws';
+import type { CollabRole, WSCollabState, WSServerMessage } from './types.js';
 import { sendSerialized } from './ws-utils.js';
 
 /** How many historical events to replay to a late-joining observer. */
@@ -29,7 +25,11 @@ export interface CollaborationHandlerOptions {
    * Omission is intentionally fail-closed: clients may only join as observers.
    */
   authorizeRole?:
-    | ((input: { ws: WebSocket; sessionId: string; requestedRole: Exclude<CollabRole, 'observer'> }) => boolean)
+    | ((input: {
+        ws: WebSocket;
+        sessionId: string;
+        requestedRole: Exclude<CollabRole, 'observer'>;
+      }) => boolean)
     | undefined;
 }
 
@@ -113,6 +113,7 @@ export class CollaborationWebSocketHandler {
     for (const off of this.offs) off();
     this.offs.length = 0;
     this.stopBroadcast();
+    this.clients.clear();
   }
 
   // ── Inbound client messages ────────────────────────────────────────────
@@ -123,12 +124,11 @@ export class CollaborationWebSocketHandler {
    * Phase 1 only knows `collab.join` and `collab.leave`; unknown types
    * return false so the upstream router can decide.
    */
-  handleMessage(
-    ws: WebSocket,
-    msg: { type: string; payload?: unknown | undefined },
-  ): boolean {
+  handleMessage(ws: WebSocket, msg: { type: string; payload?: unknown | undefined }): boolean {
     if (msg.type === 'collab.join') {
-      const payload = msg.payload as { sessionId?: string | undefined; role?: CollabRole | undefined } | undefined;
+      const payload = msg.payload as
+        | { sessionId?: string | undefined; role?: CollabRole | undefined }
+        | undefined;
       if (typeof payload?.sessionId !== 'string' || payload.sessionId.trim().length === 0) {
         this.send(ws, this.errorMessage('collab.join requires sessionId'));
         return true;
@@ -179,9 +179,7 @@ export class CollaborationWebSocketHandler {
     if (activeSessionId !== undefined && sessionId !== activeSessionId) {
       this.send(
         ws,
-        this.errorMessage(
-          `collab.join sessionId mismatch (active: ${activeSessionId})`,
-        ),
+        this.errorMessage(`collab.join sessionId mismatch (active: ${activeSessionId})`),
       );
       return;
     }
@@ -192,29 +190,22 @@ export class CollaborationWebSocketHandler {
     if (role === 'controller' && !this.bus) {
       this.send(
         ws,
-        this.errorMessage(
-          `role 'controller' is not available: server has no CollaborationBus`,
-        ),
+        this.errorMessage(`role 'controller' is not available: server has no CollaborationBus`),
       );
       return;
     }
     if (role === 'annotator' && !this.annotations) {
       this.send(
         ws,
-        this.errorMessage(
-          `role 'annotator' is not available: server has no annotations store`,
-        ),
+        this.errorMessage(`role 'annotator' is not available: server has no annotations store`),
       );
       return;
     }
     if (
-      role !== 'observer'
-      && this.options.authorizeRole?.({ ws, sessionId, requestedRole: role }) !== true
+      role !== 'observer' &&
+      this.options.authorizeRole?.({ ws, sessionId, requestedRole: role }) !== true
     ) {
-      this.send(
-        ws,
-        this.errorMessage(`role '${role}' requires explicit server authorization`),
-      );
+      this.send(ws, this.errorMessage(`role '${role}' requires explicit server authorization`));
       return;
     }
     const participant: Participant = {
@@ -253,16 +244,10 @@ export class CollaborationWebSocketHandler {
     // mirror continues regardless.
     if (this.reader) {
       this.replayHistory(ws, sessionId).catch((err) => {
-        this.logger.debug?.(
-          `collab: replay failed for ${sessionId}: ${
-            toErrorMessage(err)
-          }`,
-        );
+        this.logger.debug?.(`collab: replay failed for ${sessionId}: ${toErrorMessage(err)}`);
       });
     }
-    this.logger.debug?.(
-      `collab: participant ${participant.participantId} joined ${sessionId}`,
-    );
+    this.logger.debug?.(`collab: participant ${participant.participantId} joined ${sessionId}`);
   }
 
   private leave(ws: WebSocket): void {
@@ -352,25 +337,24 @@ export class CollaborationWebSocketHandler {
       return;
     }
     const payload = raw as
-      | { sessionId?: string | undefined; atEventIndex?: number | undefined; text?: string | undefined }
+      | {
+          sessionId?: string | undefined;
+          atEventIndex?: number | undefined;
+          text?: string | undefined;
+        }
       | undefined;
     if (
       !payload?.sessionId ||
       typeof payload.atEventIndex !== 'number' ||
       typeof payload.text !== 'string'
     ) {
-      this.send(
-        ws,
-        this.errorMessage('annotate requires { sessionId, atEventIndex, text }'),
-      );
+      this.send(ws, this.errorMessage('annotate requires { sessionId, atEventIndex, text }'));
       return;
     }
     if (payload.sessionId !== participant.sessionId) {
       this.send(
         ws,
-        this.errorMessage(
-          `annotate sessionId mismatch (joined: ${participant.sessionId})`,
-        ),
+        this.errorMessage(`annotate sessionId mismatch (joined: ${participant.sessionId})`),
       );
       return;
     }
@@ -397,14 +381,7 @@ export class CollaborationWebSocketHandler {
         },
       });
     } catch (err) {
-      this.send(
-        ws,
-        this.errorMessage(
-          `annotation rejected: ${
-            toErrorMessage(err)
-          }`,
-        ),
-      );
+      this.send(ws, this.errorMessage(`annotation rejected: ${toErrorMessage(err)}`));
     }
   }
 
@@ -421,9 +398,7 @@ export class CollaborationWebSocketHandler {
     if (participant.role !== 'annotator') {
       this.send(
         ws,
-        this.errorMessage(
-          `resolve requires the 'annotator' role (current: '${participant.role}')`,
-        ),
+        this.errorMessage(`resolve requires the 'annotator' role (current: '${participant.role}')`),
       );
       return;
     }
@@ -431,18 +406,13 @@ export class CollaborationWebSocketHandler {
       | { sessionId?: string | undefined; annotationId?: string | undefined }
       | undefined;
     if (!payload?.sessionId || !payload.annotationId) {
-      this.send(
-        ws,
-        this.errorMessage('resolve requires { sessionId, annotationId }'),
-      );
+      this.send(ws, this.errorMessage('resolve requires { sessionId, annotationId }'));
       return;
     }
     if (payload.sessionId !== participant.sessionId) {
       this.send(
         ws,
-        this.errorMessage(
-          `resolve sessionId mismatch (joined: ${participant.sessionId})`,
-        ),
+        this.errorMessage(`resolve sessionId mismatch (joined: ${participant.sessionId})`),
       );
       return;
     }
@@ -453,10 +423,7 @@ export class CollaborationWebSocketHandler {
         resolvedBy: participant.participantId,
       });
       if (!updated) {
-        this.send(
-          ws,
-          this.errorMessage(`annotation not found: ${payload.annotationId}`),
-        );
+        this.send(ws, this.errorMessage(`annotation not found: ${payload.annotationId}`));
         return;
       }
       this.broadcast(payload.sessionId, {
@@ -469,14 +436,7 @@ export class CollaborationWebSocketHandler {
         },
       });
     } catch (err) {
-      this.send(
-        ws,
-        this.errorMessage(
-          `resolve failed: ${
-            toErrorMessage(err)
-          }`,
-        ),
-      );
+      this.send(ws, this.errorMessage(`resolve failed: ${toErrorMessage(err)}`));
     }
   }
 
@@ -575,11 +535,7 @@ export class CollaborationWebSocketHandler {
         seen++;
       }
     } catch (err) {
-      this.logger.debug?.(
-        `collab: session reader rejected ${sessionId}: ${
-          toErrorMessage(err)
-        }`,
-      );
+      this.logger.debug?.(`collab: session reader rejected ${sessionId}: ${toErrorMessage(err)}`);
       return;
     }
     const tail =
@@ -589,7 +545,11 @@ export class CollaborationWebSocketHandler {
           [...ring.slice(seen % REPLAY_LIMIT), ...ring.slice(0, seen % REPLAY_LIMIT)];
     if (tail.length === 0) return; // nothing to replay
     for (const raw of tail) {
-      const ev = raw as { type?: string | undefined; ts?: string | undefined; [k: string]: unknown };
+      const ev = raw as {
+        type?: string | undefined;
+        ts?: string | undefined;
+        [k: string]: unknown;
+      };
       const kind = this.historyEventToKind(ev);
       if (!kind) continue; // skip events we don't know how to mirror
       this.send(ws, {
@@ -670,11 +630,7 @@ export class CollaborationWebSocketHandler {
       try {
         sendSerialized(p.ws, data);
       } catch (err) {
-        this.logger.debug?.(
-          `collab broadcast failed: ${
-            toErrorMessage(err)
-          }`,
-        );
+        this.logger.debug?.(`collab broadcast failed: ${toErrorMessage(err)}`);
       }
     }
   }
@@ -706,9 +662,7 @@ export class CollaborationWebSocketHandler {
     if (participant.role !== 'controller') {
       this.send(
         ws,
-        this.errorMessage(
-          `pause requires the 'controller' role (current: '${participant.role}')`,
-        ),
+        this.errorMessage(`pause requires the 'controller' role (current: '${participant.role}')`),
       );
       return;
     }
@@ -758,9 +712,7 @@ export class CollaborationWebSocketHandler {
     if (participant.role !== 'controller') {
       this.send(
         ws,
-        this.errorMessage(
-          `resume requires the 'controller' role (current: '${participant.role}')`,
-        ),
+        this.errorMessage(`resume requires the 'controller' role (current: '${participant.role}')`),
       );
       return;
     }
@@ -885,9 +837,7 @@ export class CollaborationWebSocketHandler {
     if (payload.sessionId !== participant.sessionId) {
       this.send(
         ws,
-        this.errorMessage(
-          `inject_tool sessionId mismatch (joined: ${participant.sessionId})`,
-        ),
+        this.errorMessage(`inject_tool sessionId mismatch (joined: ${participant.sessionId})`),
       );
       return;
     }
@@ -901,9 +851,7 @@ export class CollaborationWebSocketHandler {
     if (!queued) {
       this.send(
         ws,
-        this.errorMessage(
-          `an injection for toolUseId ${payload.toolUseId} is already queued`,
-        ),
+        this.errorMessage(`an injection for toolUseId ${payload.toolUseId} is already queued`),
       );
       return;
     }

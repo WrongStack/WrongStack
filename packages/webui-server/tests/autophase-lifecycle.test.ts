@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GoalWebSocketHandler } from '@wrongstack/webui-server';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /** Minimal fake WS that records every JSON message the handler sends. */
 function mockWs() {
@@ -60,6 +60,29 @@ describe('GoalWebSocketHandler lifecycle', () => {
     expect(startedBoard).toBe(false);
   });
 
+  it('dispose during planning aborts host-owned work without launching the orchestrator', async () => {
+    let release: (value: unknown) => void = () => {};
+    const planning = new Promise((resolve) => {
+      release = resolve;
+    });
+    const handler = makeHandler(async () => {
+      await planning;
+      return { status: 'done', finalText: 'not parseable json' };
+    });
+    const ws = mockWs();
+    handler.addClient(ws);
+
+    const start = handler.handleMessage(ws, {
+      type: 'goal.start',
+      payload: { title: 'dispose demo' },
+    });
+    handler.dispose();
+    release(undefined);
+    await start;
+
+    expect(sentTypes(ws)).not.toContain('goal.completed');
+  });
+
   it('clear broadcasts a cleared event + an empty board state', async () => {
     const h = makeHandler(async () => ({ status: 'done', finalText: '' }));
     const ws = mockWs();
@@ -83,7 +106,10 @@ describe('GoalWebSocketHandler lifecycle', () => {
     await h.handleMessage(ws, { type: 'goal.revert', payload: {} });
 
     const reverted = ws.send.mock.calls
-      .map(([raw]) => JSON.parse(String(raw)) as { type: string; payload?: { ok?: boolean; reason?: string } })
+      .map(
+        ([raw]) =>
+          JSON.parse(String(raw)) as { type: string; payload?: { ok?: boolean; reason?: string } },
+      )
       .find((m) => m.type === 'goal.reverted');
     expect(reverted?.payload?.ok).toBe(false);
     expect(reverted?.payload?.reason).toBeTruthy();

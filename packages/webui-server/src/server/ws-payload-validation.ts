@@ -102,6 +102,48 @@ interface MailboxAgentsPayload {
   onlineOnly?: boolean;
 }
 
+const MAILBOX_ACTIONS = new Set(['mark-read', 'acknowledge', 'reopen', 'soft-delete']);
+
+export interface MailboxActionPayload {
+  requestId: string;
+  mailId: string;
+  action: 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete';
+  readerId: string;
+}
+
+export function validateMailboxActionPayload(
+  payload: unknown,
+): PayloadValidationResult<MailboxActionPayload> {
+  if (!isRecord(payload)) {
+    return { ok: false, message: 'mailbox.action payload must be an object' };
+  }
+  const requestId = payload['requestId'];
+  const mailId = payload['mailId'];
+  const action = payload['action'];
+  const readerId = payload['readerId'];
+  if (typeof requestId !== 'string' || requestId.trim().length === 0) {
+    return { ok: false, message: 'mailbox.action payload.requestId must be a non-empty string' };
+  }
+  if (typeof mailId !== 'string' || mailId.trim().length === 0) {
+    return { ok: false, message: 'mailbox.action payload.mailId must be a non-empty string' };
+  }
+  if (typeof action !== 'string' || !MAILBOX_ACTIONS.has(action)) {
+    return { ok: false, message: 'mailbox.action payload.action must be a supported action' };
+  }
+  if (typeof readerId !== 'string' || readerId.trim().length === 0) {
+    return { ok: false, message: 'mailbox.action payload.readerId must be a non-empty string' };
+  }
+  return {
+    ok: true,
+    value: {
+      requestId: requestId.trim(),
+      mailId: mailId.trim(),
+      action: action as MailboxActionPayload['action'],
+      readerId: readerId.trim(),
+    },
+  };
+}
+
 const MAILBOX_SEND_TYPES = new Set([
   'note',
   'ask',
@@ -116,6 +158,7 @@ const MAILBOX_SEND_TYPES = new Set([
 
 export interface MailboxSendPayload {
   requestId: string;
+  from?: string | undefined;
   to: string;
   type: 'note' | 'ask' | 'assign' | 'steer' | 'btw' | 'broadcast' | 'status' | 'result' | 'review';
   audience: 'all' | 'leaders';
@@ -132,6 +175,7 @@ export function validateMailboxSendPayload(
     return { ok: false, message: 'mailbox.send payload must be an object' };
   }
   const requestId = payload['requestId'];
+  const rawFrom = payload['from'];
   const rawTo = payload['to'];
   const rawType = payload['type'];
   const rawAudience = payload['audience'];
@@ -142,6 +186,9 @@ export function validateMailboxSendPayload(
 
   if (typeof requestId !== 'string' || requestId.trim().length === 0) {
     return { ok: false, message: 'mailbox.send payload.requestId must be a non-empty string' };
+  }
+  if (rawFrom !== undefined && (typeof rawFrom !== 'string' || rawFrom.trim().length === 0)) {
+    return { ok: false, message: 'mailbox.send payload.from must be a non-empty string when provided' };
   }
   if (typeof rawTo !== 'string' || rawTo.trim().length === 0) {
     return { ok: false, message: 'mailbox.send payload.to must be a non-empty string' };
@@ -181,6 +228,7 @@ export function validateMailboxSendPayload(
     ok: true,
     value: {
       requestId: requestId.trim(),
+      ...(rawFrom !== undefined ? { from: rawFrom.trim() } : {}),
       to,
       type,
       audience: rawAudience,

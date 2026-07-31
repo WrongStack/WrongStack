@@ -6,6 +6,7 @@
  */
 import type { HqAlertMessage, HqEventEnvelope, HqSnapshot } from '@wrongstack/core/hq';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from '../src/lib/peer-resume-id.js';
 
 // Mock the WS client module so store.ts doesn't try to create a real WS.
 vi.mock('../src/lib/hq-ws-client.js', () => ({
@@ -14,6 +15,7 @@ vi.mock('../src/lib/hq-ws-client.js', () => ({
     onStateChange: vi.fn(() => () => {}),
     close: vi.fn(),
   }),
+  HQ_BROWSER_PEER_RESUME_CLIENT_ID: '__hq_peer__',
 }));
 
 // ESM top-level await for the imports.
@@ -33,6 +35,15 @@ afterEach(() => {
     selectedClientId: null,
     connected: false,
     authRequired: false,
+    resumeCursors: {},
+    // Reset `needsSnapshotRefresh` so the loop-closure test (which arms
+    // the flag to `true` and never restores it) does not leak the
+    // armed state into later tests in the suite. Without this, the
+    // `_setNeedsSnapshotRefresh sets and clears the flag` companion test
+    // is order-dependent — it would start in the `true` state the
+    // previous test left behind.
+    needsSnapshotRefresh: false,
+    peerRehydrate: null,
   });
 });
 
@@ -122,6 +133,235 @@ describe('live telemetry ingestion', () => {
     state._onEvent({ ...event('event-1'), seq: 2 });
 
     expect(storeModule.useHqStore.getState().events).toHaveLength(1);
+  });
+
+  it('tracks resume cursors per publishing client as each client advances', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 5 });
+    state._onEvent({ ...event('event-2'), clientId: 'client-b', seq: 2 });
+    state._onEvent({ ...event('event-3'), clientId: 'client-a', seq: 6 });
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({
+      'client-a': 6,
+      'client-b': 2,
+    });
+  });
+
+  it('resets the per-client cursor when the first observed post-restart seq is lower but not 1', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 9 });
+    // Publisher restarts; the dashboard may miss seq 1, so any lower seq must
+    // replace the stale reconnect anchor instead of preserving the old cursor.
+    state._onEvent({ ...event('event-2'), clientId: 'client-a', seq: 2 });
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({ 'client-a': 2 });
+  });
+
+  it('does not regress the cursor when client.hello (seq=0) arrives for an already-known publisher', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 6 });
+    state._onEvent({
+      ...event('event-hello'),
+      clientId: 'client-a',
+      seq: 0,
+      type: 'client.hello',
+    });
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({ 'client-a': 6 });
+  });
+
+  it('keeps live resume cursors across routine hq.snapshot broadcasts', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 9 });
+    state._onEvent({ ...event('event-2'), clientId: HQ_BROWSER_PEER_RESUME_CLIENT_ID, seq: 3 });
+
+    state._onSnapshot(snapshot('2026-07-31T12:00:00.000Z'));
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({
+      'client-a': 9,
+      [HQ_BROWSER_PEER_RESUME_CLIENT_ID]: 3,
+    });
+  });
+
+  it('never flips needsSnapshotRefresh on a snapshot broadcast (closes the /api/snapshot fetch loop)', () => {
+    // Deterministic gate for the High-severity bug:
+    // `_onSnapshot` must NOT touch `needsSnapshotRefresh` on any broadcast,
+    // because the subscriber in main.tsx reacts by calling
+    // `fetchJson('/api/snapshot')` and the HTTP response is itself an
+    // `_onSnapshot`, which would otherwise re-arm the flag and trigger
+    // another fetch. The refresh flag is owned exclusively by
+    // `hq.resume_reject` (`main.tsx` sets it once per WS reconnect) and
+    // is consumed exactly once by the `false → true` transition
+    // subscriber.
+    const state = storeModule.useHqStore.getState();
+    state._onSnapshot(snapshot('2026-08-01T00:00:00.000Z'));
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(false);
+
+    // Routine same-epoch broadcast — must stay false.
+    state._onSnapshot(snapshot('2026-08-01T00:00:00.000Z'));
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(false);
+
+    // Forward epoch jump (server restart, post-resume epoch advance) —
+    // also must stay false. The WS broadcast is not a refresh trigger;
+    // the server explicitly tells us when a refresh is required via
+    // `hq.resume_reject`.
+    state._onSnapshot(snapshot('2026-08-01T00:00:01.000Z'));
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(false);
+  });
+
+  it('_setNeedsSnapshotRefresh sets and clears the flag (the only legitimate trigger)', () => {
+    // Companion to the loop-prevention test: `_setNeedsSnapshotRefresh`
+    // is the *only* entry point that may arm the refresh. The subscriber
+    // in main.tsx consumes the `false → true` transition exactly once.
+    const state = storeModule.useHqStore.getState();
+    state._setNeedsSnapshotRefresh(true);
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(true);
+    state._setNeedsSnapshotRefresh(false);
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(false);
+    // Idempotent setter: setting the same value is a no-op.
+    state._setNeedsSnapshotRefresh(false);
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(false);
+  });
+
+  it('remains refresh-rearmable after a refresh-path snapshot application (no latch)', () => {
+    // Production failure mode the prior tests did not cover: the HTTP
+    // response to the `/api/snapshot` refresh is itself an `_onSnapshot`,
+    // whose `generatedAt` is strictly newer than the broadcast that
+    // triggered the refresh. The latch scenario this guards against:
+    //   1. `hq.resume_reject` → flag false→true → subscriber fetches.
+    //   2. Fetch resolves → `_onSnapshot(refresh)` applies a strictly-newer
+    //      epoch. A previous iteration's `epochAdvanced` gate re-armed
+    //      the flag here, latching it true forever and dead-ending every
+    //      subsequent `resume_reject`.
+    // The current contract (`_onSnapshot` must not touch the flag) means
+    // the flag is cleared by `triggerRefresh` (main.tsx) before the fetch
+    // and stays clear after the refresh response applies. A second
+    // `hq.resume_reject` must still be able to re-arm it.
+    const state = storeModule.useHqStore.getState();
+
+    // Step 1: broadcast arms the gate (via the WS message handler).
+    state._setNeedsSnapshotRefresh(true);
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(true);
+
+    // Step 2: `triggerRefresh` clears the flag before fetching.
+    state._setNeedsSnapshotRefresh(false);
+
+    // Step 3: the HTTP refresh response arrives with a strictly-newer
+    // epoch. The flag must stay clear — this is the regression case.
+    state._onSnapshot(snapshot('2026-08-01T00:00:00.000Z'));
+    state._onSnapshot(snapshot('2026-08-01T00:00:01.000Z'));
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(false);
+
+    // Step 4: a later reconnect fires `hq.resume_reject` again. The flag
+    // must still be armable — the recovery path cannot be permanently dead.
+    state._setNeedsSnapshotRefresh(true);
+    expect(storeModule.useHqStore.getState().needsSnapshotRefresh).toBe(true);
+  });
+
+  it('_resetResumeCursors clears cursors without touching the snapshot', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 9 });
+    state._onSnapshot(snapshot('2026-07-31T12:00:00.000Z'));
+
+    state._resetResumeCursors();
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({});
+    expect(storeModule.useHqStore.getState().snapshot?.generatedAt).toBe(
+      '2026-07-31T12:00:00.000Z',
+    );
+  });
+
+  it('ignores a snapshot that is older than the currently held one', () => {
+    storeModule.useHqStore.getState()._onSnapshot(snapshot('2026-07-31T12:00:00.000Z'));
+    const fresh = storeModule.useHqStore.getState().snapshot;
+    expect(fresh?.generatedAt).toBe('2026-07-31T12:00:00.000Z');
+
+    storeModule.useHqStore.getState()._onSnapshot(snapshot('2026-07-31T11:00:00.000Z'));
+    expect(storeModule.useHqStore.getState().snapshot?.generatedAt).toBe(
+      '2026-07-31T12:00:00.000Z',
+    );
+  });
+
+  it('does not promote a stale peer.* envelope into peerRehydrate after the live banner has been dismissed', () => {
+    const state = storeModule.useHqStore.getState();
+    const stalePeer = {
+      ...event('peer-stale'),
+      type: 'peer.rehydrate' as const,
+      payload: {
+        projectId: 'project-1',
+        machineId: 'machine-1',
+        leaderClientId: 'leader-1',
+        previousLeaderHandle: 'leader-1',
+        reason: 'graceful' as const,
+        detectedAt: '2026-07-14T12:00:00.000Z',
+      },
+    };
+    state._onEvent(stalePeer);
+    state._dismissPeerRehydrate();
+    // Gap-fill replay of the same envelope must not raise the banner.
+    storeModule.useHqStore.getState()._onEvent(stalePeer);
+
+    expect(storeModule.useHqStore.getState().peerRehydrate).toBeNull();
+  });
+
+  it('ignores malformed peer lifecycle payloads for the banner without advancing resume cursors', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({
+      ...event('peer-1'),
+      type: 'peer.rehydrate',
+      seq: 8,
+      payload: { projectId: 'missing-required-fields' },
+    });
+
+    expect(storeModule.useHqStore.getState().peerRehydrate).toBeNull();
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({});
+  });
+
+  it('surfaces valid peer lifecycle payloads into peerRehydrate', () => {
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({
+      ...event('peer-2'),
+      type: 'peer.rehydrate',
+      payload: {
+        projectId: 'project-1',
+        machineId: 'machine-1',
+        leaderClientId: 'leader-1',
+        previousLeaderHandle: 'leader-1',
+        reason: 'graceful',
+        detectedAt: '2026-07-14T12:00:00.000Z',
+      },
+    });
+
+    expect(storeModule.useHqStore.getState().peerRehydrate).toEqual(
+      expect.objectContaining({
+        kind: 'peer.rehydrate',
+        payload: expect.objectContaining({ leaderClientId: 'leader-1' }),
+      }),
+    );
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({
+      __hq_peer__: 1,
+    });
+  });
+
+  it('does not resurface duplicate peer lifecycle envelopes after dismissal', () => {
+    const state = storeModule.useHqStore.getState();
+    const peerEvent = {
+      ...event('peer-3'),
+      type: 'peer.rehydrate' as const,
+      payload: {
+        projectId: 'project-1',
+        machineId: 'machine-1',
+        leaderClientId: 'leader-1',
+        previousLeaderHandle: 'leader-1',
+        reason: 'graceful' as const,
+        detectedAt: '2026-07-14T12:00:00.000Z',
+      },
+    };
+    state._onEvent(peerEvent);
+    state._dismissPeerRehydrate();
+    storeModule.useHqStore.getState()._onEvent(peerEvent);
+
+    expect(storeModule.useHqStore.getState().peerRehydrate).toBeNull();
   });
 
   it('bounds the live event ring to the latest 500 envelopes', () => {

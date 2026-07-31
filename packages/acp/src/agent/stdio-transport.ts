@@ -233,6 +233,19 @@ export class ClientTransport implements ACPClientTransport {
     ]);
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        // Reject the start promise, but first tear down the child we just
+        // spawned — otherwise a slow-spawning npx/uvx leaves a real process
+        // holding pipes open, with the handshake timer the only handle
+        // (RAM-leak audit 2026-07-31, LOW).
+        const child = this.child;
+        this.child = null;
+        if (child) {
+          try {
+            treeKill(child);
+          } catch {
+            // best effort — child may have already exited
+          }
+        }
         reject(
           new Error(`ACP child process failed to start within ${this.opts.handshakeTimeoutMs}ms`),
         );

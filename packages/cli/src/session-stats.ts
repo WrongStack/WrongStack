@@ -11,6 +11,28 @@ interface ToolStat {
 }
 
 /**
+ * Hard cap on the per-session "which paths were touched" Sets. Past this,
+ * older paths are evicted so a session that sweeps a huge repo cannot push
+ * the closure's RAM linearly with the number of distinct files. The cap
+ * is generous — most sessions touch a small fraction — but bounded.
+ * RAM-leak audit 2026-07-31, LOW.
+ */
+const SESSION_STATS_MAX_PATHS = 10_000;
+
+/**
+ * Add `path` to a bounded Set, evicting the oldest entry past the cap.
+ * Set preserves insertion order, so the first iterator value is the oldest.
+ */
+function addBoundedPath(set: Set<string>, path: string): void {
+  if (set.has(path)) return;
+  if (set.size >= SESSION_STATS_MAX_PATHS) {
+    const oldest = set.values().next().value;
+    if (oldest !== undefined) set.delete(oldest);
+  }
+  set.add(path);
+}
+
+/**
  * Accumulates per-session stats by listening to EventBus events. Designed
  * to be created once in main(), live for the whole CLI invocation (single-shot
  * or REPL), and produce the closing report when asked.
@@ -67,10 +89,10 @@ export class SessionStats {
 
       if (!tool.ok) return;
       const path = typeof input?.path === 'string' ? input.path : undefined;
-      if (tool.name === 'read' && path) this.readPaths.add(path);
-      else if (tool.name === 'edit' && path) this.editedPaths.add(path);
+      if (tool.name === 'read' && path) addBoundedPath(this.readPaths, path);
+      else if (tool.name === 'edit' && path) addBoundedPath(this.editedPaths, path);
       else if (tool.name === 'write' && path) {
-        this.writtenPaths.add(path);
+        addBoundedPath(this.writtenPaths, path);
         const content = typeof input?.content === 'string' ? input.content : '';
         this.bytesWritten += Buffer.byteLength(content, 'utf8');
       }

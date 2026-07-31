@@ -1,8 +1,7 @@
+import type { CreateHqPublisherOptions, HqPublisher, HqSocketLike } from '@wrongstack/core/hq';
 import { createHqPublisherFromEnv, resolveHqConfig } from '@wrongstack/core/hq';
-import type { CreateHqPublisherOptions } from '@wrongstack/core/hq';
-import type { HqPublisher, HqSocketLike } from '@wrongstack/core/hq';
 import { WebSocket } from 'ws';
-import { createKanbanHqSync } from './kanban-hq-sync.js';
+import { createKanbanHqSync, type KanbanHqSyncStats } from './kanban-hq-sync.js';
 
 type CliHqPublisherOptions = Omit<CreateHqPublisherOptions, 'socketFactory'> & {
   socketFactory?: CreateHqPublisherOptions['socketFactory'];
@@ -10,6 +9,7 @@ type CliHqPublisherOptions = Omit<CreateHqPublisherOptions, 'socketFactory'> & {
 
 export interface CliHqConnection {
   getPublisher(): HqPublisher | undefined;
+  getKanbanSyncStats(): KanbanHqSyncStats | undefined;
   stop(): void;
 }
 
@@ -98,6 +98,7 @@ export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConn
 
   return {
     getPublisher: () => publisher,
+    getKanbanSyncStats: () => kanbanSync?.getStats(),
     stop: () => {
       if (timer !== undefined) {
         clearInterval(timer);

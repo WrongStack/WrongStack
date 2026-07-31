@@ -380,6 +380,16 @@ export type WSServerMessage =
         error?: string | undefined;
       };
     }
+  | {
+      type: 'mailbox.action_result';
+      payload: {
+        requestId: string;
+        success: boolean;
+        action?: 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete' | undefined;
+        mailId?: string | undefined;
+        error?: string | undefined;
+      };
+    }
   // Reply to a client `ping` (liveness probe). The payload is absent on the
   // wire; typed as optional so union-wide `msg.payload` access keeps
   // compiling.

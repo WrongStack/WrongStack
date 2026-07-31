@@ -216,6 +216,26 @@ describe('WebSocketClientTransport', () => {
     expect(() => closing.stop()).not.toThrow();
   });
 
+  it('settles a pending start when stopped or closed before opening', async () => {
+    const stopped = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    const stoppedStart = stopped.start();
+    stopped.stop();
+    await expect(stoppedStart).rejects.toThrow('stopped while connecting');
+
+    const closed = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    const closedStart = closed.start();
+    last().fire('close');
+    await expect(closedStart).rejects.toThrow('closed before the connection opened');
+  });
+
+  it('rejects duplicate starts instead of orphaning the first handshake promise', async () => {
+    const transport = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    const firstStart = transport.start();
+    await expect(transport.start()).rejects.toThrow('already been started');
+    last().fire('open');
+    await expect(firstStart).resolves.toBeUndefined();
+  });
+
   it('normalizes buffers, array buffers, other data, whitespace, and faulty handlers', async () => {
     const t = new WebSocketClientTransport({
       url: 'ws://agent.test',

@@ -1,6 +1,7 @@
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { WebSocket } from 'ws';
 import {
+  handleMailboxAction,
   handleMailboxAgents,
   handleMailboxClear,
   handleMailboxCompact,
@@ -11,6 +12,7 @@ import {
 } from './mailbox-handlers.js';
 import type { WSClientMessage } from './types.js';
 import {
+  validateMailboxActionPayload,
   validateMailboxAgentsPayload,
   validateMailboxMessagesPayload,
   validateMailboxPurgePayload,
@@ -19,6 +21,7 @@ import {
 import { send, sendResult } from './ws-utils.js';
 
 export interface MailboxRouteHandlers {
+  action: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
   send: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
   messages: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
   agents: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
@@ -40,6 +43,14 @@ export function createMailboxRouteHandlers(ctx: MailboxRouteContext): MailboxRou
     ...(ctx.events ? { events: ctx.events } : {}),
   };
   return {
+    action: (ws, msg) => {
+      const parsed = validateMailboxActionPayload(msg.payload);
+      if (!parsed.ok) {
+        sendResult(ws, false, parsed.message);
+        return;
+      }
+      return handleMailboxAction(ws, deps, parsed.value);
+    },
     send: (ws, msg) => {
       const parsed = validateMailboxSendPayload(msg.payload);
       if (!parsed.ok) {
@@ -106,6 +117,9 @@ export async function handleMailboxRoute(
   handlers: MailboxRouteHandlers,
 ): Promise<boolean> {
   switch (msg.type) {
+    case 'mailbox.action':
+      await handlers.action(ws, msg);
+      return true;
     case 'mailbox.send':
       await handlers.send(ws, msg);
       return true;

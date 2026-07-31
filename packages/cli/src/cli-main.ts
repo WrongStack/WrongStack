@@ -1,12 +1,11 @@
 /** Top-level CLI phase orchestrator. */
 import * as path from 'node:path';
-import { mailboxSessionTag } from '@wrongstack/core/coordination';
-import type { SystemPromptBuilder } from '@wrongstack/core/types';
-import { FLEET_ROSTER } from '@wrongstack/core/coordination';
+import { FLEET_ROSTER, mailboxSessionTag } from '@wrongstack/core/coordination';
 import { gatedEnhancerReasoning } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { getSessionRegistry } from '@wrongstack/core/storage';
+import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { startSharedHeapWatchdog, writeErr } from '@wrongstack/core/utils';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { wireEventWiring } from './boot/event-wiring.js';
@@ -25,12 +24,12 @@ import {
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { SessionStats } from './session-stats.js';
-import { buildCommandHostSlashCommands } from './wiring/slash-commands.js';
 import { CLI_VERSION } from './version.js';
 import { setupBrainAndOrchestration } from './wiring/brain-and-orchestration.js';
 import { createCommandHostAdapters } from './wiring/command-host-adapters.js';
 import { setupCommandHostState } from './wiring/command-host-state.js';
 import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
+import { setupDepWatcherBridge } from './wiring/dep-watcher-bridge.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
 import { createEternalCommandHandlers } from './wiring/eternal-command-handlers.js';
 import { createFleetCommandHandlers } from './wiring/fleet-command-handlers.js';
@@ -39,8 +38,6 @@ import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
 import { registerCliManagementTools } from './wiring/management-tools.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { setupPipelines } from './wiring/pipeline.js';
-import { setupSessionRegistry } from './wiring/session-registry.js';
-import { setupDepWatcherBridge } from './wiring/dep-watcher-bridge.js';
 import {
   buildProviderForId as buildProviderForIdRuntime,
   resolveProviderCfg as resolveProviderCfgRuntime,
@@ -52,12 +49,14 @@ import {
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
 import { createRuntimeControllerDeps } from './wiring/runtime-controller-deps.js';
+import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { createRuntimeLifecycleDeps } from './wiring/runtime-lifecycle-deps.js';
 import { createRuntimePickerDeps } from './wiring/runtime-picker-deps.js';
-import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
-import { createSessionCommandHandlers } from './wiring/session-command-handlers.js';
 import { createSddHandlers } from './wiring/sdd-handlers.js';
 import { setupSession } from './wiring/session.js';
+import { createSessionCommandHandlers } from './wiring/session-command-handlers.js';
+import { setupSessionRegistry } from './wiring/session-registry.js';
+import { buildCommandHostSlashCommands } from './wiring/slash-commands.js';
 import { toExecuteDeps } from './wiring/to-execute-deps.js';
 
 export { CLI_VERSION };
@@ -246,7 +245,10 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // Fetch online agents from the shared mailbox to include in system prompt.
   // HQ telemetry is owned by setupHqTelemetry below; opening a publisher here
   // created a second client for the same process with no live session bridge.
-  const onlineAgents = await loadOnlineAgentsForPrompt(wpaths.projectDir, flags['simpleui'] === true);
+  const onlineAgents = await loadOnlineAgentsForPrompt(
+    wpaths.projectDir,
+    flags['simpleui'] === true,
+  );
 
   const systemPrompt = await promptBuilder.build({
     cwd,
@@ -871,10 +873,57 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const { execute } = await import('./execution.js');
   // Keep one shared watchdog for CLI and any UI surface mounted by this process.
   const stopHeapWatchdog = startSharedHeapWatchdog({
-    collectStats: () => ({ surface: flags.simpleui ? 'simpleui' : flags.webui ? 'webui' : tuiOwnsScreen ? 'tui' : 'cli', sessionId: context.session.id, messages: context.state.messages.length, messageEstimatedTokens: context.state.messages.reduce((sum, message) => sum + (message._estTokens ?? 0), 0) }),
+    collectStats: () => {
+      const hqQueue = hqPublisherRef.current?.getQueueStats();
+      const hqSnapshot = brainMailbox.getHqSnapshotStats();
+      const kanbanSync = hqPublisherRef.getKanbanSyncStats?.();
+      return {
+        surface: flags.simpleui
+          ? 'simpleui'
+          : flags.webui
+            ? 'webui'
+            : tuiOwnsScreen
+              ? 'tui'
+              : 'cli',
+        sessionId: context.session.id,
+        messages: context.state.messages.length,
+        messageEstimatedTokens: context.state.messages.reduce(
+          (sum, message) => sum + (message._estTokens ?? 0),
+          0,
+        ),
+        metricsDroppedObservations: metricsSink?.droppedObservations() ?? 0,
+        ...(hqQueue
+          ? {
+              hqQueueEntries: hqQueue.entries,
+              hqQueueBytes: hqQueue.bytes,
+              hqQueueMaxBytes: hqQueue.maxBytes,
+              hqQueueDroppedFrames: hqQueue.droppedFrames,
+              hqQueueDroppedBytes: hqQueue.droppedBytes,
+              hqQueueCoalescedFrames: hqQueue.coalescedFrames,
+              hqQueueCoalescedBytes: hqQueue.coalescedBytes,
+            }
+          : {}),
+        hqSnapshotInFlight: hqSnapshot.inFlight ? 1 : 0,
+        hqSnapshotPending: hqSnapshot.pending ? 1 : 0,
+        hqSnapshotTimerScheduled: hqSnapshot.timerScheduled ? 1 : 0,
+        hqEventInFlight: hqSnapshot.eventInFlight ? 1 : 0,
+        hqEventPending: hqSnapshot.pendingEvents,
+        hqEventCoalesced: hqSnapshot.coalescedEvents,
+        hqEventDropped: hqSnapshot.droppedEvents,
+        kanbanSyncActive: kanbanSync?.localPublishActive ? 1 : 0,
+        kanbanSyncPendingBoards: kanbanSync?.pendingBoardIds ?? 0,
+        kanbanSyncFullRescanPending: kanbanSync?.fullRescanPending ? 1 : 0,
+        kanbanSyncRemoteApplyQueued: kanbanSync?.remoteApplyQueued ? 1 : 0,
+        kanbanSyncPendingRemoteBoards: kanbanSync?.pendingRemoteBoards ?? 0,
+        kanbanSyncPublishRuns: kanbanSync?.localPublishRuns ?? 0,
+        kanbanSyncCoalescedRefreshes: kanbanSync?.coalescedLocalRefreshes ?? 0,
+      };
+    },
   });
   // teardownHandlers are sync-only; watchdog stop is best-effort.
-  teardownHandlers.push(() => { void stopHeapWatchdog(); });
+  teardownHandlers.push(() => {
+    void stopHeapWatchdog();
+  });
   return execute(
     toExecuteDeps({
       core: {
@@ -916,7 +965,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
         statusTracker,
         sddSubagentFactory: multiAgentHost.makeSubagentFactory(config),
         modelsRegistry,
-        savedProviderCfg: savedProviderCfg as import('@wrongstack/core/types').ProviderConfig | undefined,
+        savedProviderCfg: savedProviderCfg as
+          | import('@wrongstack/core/types').ProviderConfig
+          | undefined,
         resolvedProvider: resolvedProvider ?? undefined,
         getPickableProviders: createPickableProvidersLoader({
           modelsRegistry,

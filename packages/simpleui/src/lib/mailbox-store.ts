@@ -26,6 +26,7 @@ export interface SimpleMailboxAgent {
 
 export interface MailboxSnapshot {
   messages: SimpleMailboxMessage[];
+  unreadCount: number;
   agents: SimpleMailboxAgent[];
   /**
    * Wall-clock ms of the most recent mailbox.* event the store consumed
@@ -42,6 +43,18 @@ export interface MailboxStore {
   getSnapshot: () => MailboxSnapshot;
   subscribe: (listener: () => void) => () => void;
   applyMessage: (message: MailboxWireMessage) => boolean;
+}
+
+export function isUnreadIncomingMailboxMessage(
+  message: Pick<SimpleMailboxMessage, 'completed' | 'readByCount' | 'from'>,
+): boolean {
+  return (
+    !message.completed &&
+    message.readByCount === 0 &&
+    message.from !== '' &&
+    message.from !== 'webui' &&
+    message.from !== 'simpleui'
+  );
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -116,6 +129,7 @@ const MAX_MAILBOX_AGENTS = 50;
 export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
   let snapshot: MailboxSnapshot = {
     messages: [],
+    unreadCount: 0,
     agents: [],
     lastEventAt: null,
     error: null,
@@ -137,9 +151,12 @@ export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
       const observedAt = Date.now();
       if (message.type === 'mailbox.messages') {
         const parsed = parseMessages(payload['messages']);
+        const isUnreadCountResponse = payload['unreadOnly'] === true;
         publish({
           ...snapshot,
-          messages: parsed.slice(-MAX_MAILBOX_MESSAGES),
+          ...(isUnreadCountResponse
+            ? { unreadCount: parsed.filter(isUnreadIncomingMailboxMessage).length }
+            : { messages: parsed.slice(-MAX_MAILBOX_MESSAGES) }),
           lastEventAt: observedAt,
           error: text(payload['error']) || null,
         });

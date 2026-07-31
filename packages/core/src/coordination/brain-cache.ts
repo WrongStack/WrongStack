@@ -87,6 +87,13 @@ export function brainCacheKey(request: BrainDecisionRequest): string {
 const CACHEABLE_TIERS = new Set(['council', 'llm']);
 
 export class BrainDecisionCache {
+  /**
+   * Max request ids retained per cached entry. Served (replayed) request ids
+   * are kept only so a later `brain.outcome` failure can evict the verdict;
+   * past this cap the oldest ids are dropped — the entry itself stays.
+   */
+  private static readonly MAX_REQUEST_IDS_PER_ENTRY = 500;
+
   private readonly entries = new Map<string, CacheEntry>();
   private readonly keyByRequestId = new Map<string, string>();
   private readonly unsubscribers: Array<() => void> = [];
@@ -104,6 +111,25 @@ export class BrainDecisionCache {
     this.now = opts.now ?? Date.now;
   }
 
+  /**
+   * Delete an entry and every request-id index mapping that points at it.
+   * Every eviction path (TTL expiry, max-entry eviction, outcome failure,
+   * same-key replacement) must go through this so `keyByRequestId` cannot
+   * outlive its entry — otherwise the index grows one string per unique
+   * request id for the process lifetime.
+   */
+  private removeEntry(key: string): boolean {
+    const entry = this.entries.get(key);
+    if (!entry) return false;
+    // Only drop index mappings that still point at THIS entry. A request id
+    // that was re-stored under a different key keeps its newer mapping.
+    for (const requestId of entry.requestIds) {
+      if (this.keyByRequestId.get(requestId) === key) this.keyByRequestId.delete(requestId);
+    }
+    this.entries.delete(key);
+    return true;
+  }
+
   /** Subscribe to the outcome feed so failures evict their decision. */
   start(): void {
     if (!this.enabled || !this.opts.events) return;
@@ -113,7 +139,7 @@ export class BrainDecisionCache {
         const key = this.keyByRequestId.get(e.requestId);
         if (key === undefined) return;
         // The world disagreed with this verdict — do not serve it again.
-        if (this.entries.delete(key)) this.stats.evictions += 1;
+        if (this.removeEntry(key)) this.stats.evictions += 1;
       }),
     );
   }
@@ -132,10 +158,19 @@ export class BrainDecisionCache {
       return undefined;
     }
     if (this.now() - entry.storedAt > this.ttlMs) {
-      this.entries.delete(key);
+      this.removeEntry(key);
       this.stats.evictions += 1;
       this.stats.misses += 1;
       return undefined;
+    }
+    // Bound the per-entry served-request-id set so replay tracking cannot grow
+    // without limit on hot entries (outcome eviction needs only recent ids).
+    if (entry.requestIds.size >= BrainDecisionCache.MAX_REQUEST_IDS_PER_ENTRY) {
+      const oldest = entry.requestIds.values().next().value;
+      if (oldest !== undefined) {
+        entry.requestIds.delete(oldest);
+        this.keyByRequestId.delete(oldest);
+      }
     }
     entry.requestIds.add(request.id);
     this.keyByRequestId.set(request.id, key);
@@ -154,7 +189,9 @@ export class BrainDecisionCache {
     if (tier === undefined || !CACHEABLE_TIERS.has(tier)) return false;
 
     const key = brainCacheKey(request);
-    this.entries.delete(key);
+    // Replace any existing entry for this key first, so the superseded
+    // entry's request-id index mappings do not outlive it.
+    this.removeEntry(key);
     this.entries.set(key, {
       decision,
       storedAt: this.now(),
@@ -166,7 +203,7 @@ export class BrainDecisionCache {
     while (this.entries.size > this.maxEntries) {
       const oldest = this.entries.keys().next();
       if (oldest.done) break;
-      this.entries.delete(oldest.value);
+      this.removeEntry(oldest.value);
       this.stats.evictions += 1;
     }
     return true;

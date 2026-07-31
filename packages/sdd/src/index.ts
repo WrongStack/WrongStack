@@ -55,7 +55,11 @@ export {
   type SddBoardIndexEntry,
   type SddBoardEvent,
 } from './sdd-board-store.js';
-export { SddBoardProjector, type SddBoardProjectorOptions } from './sdd-board-projector.js';
+export {
+  SddBoardProjector,
+  type SddBoardPersistence,
+  type SddBoardProjectorOptions,
+} from './sdd-board-projector.js';
 export { SddRunRegistry, type SddRunControl } from './sdd-run-registry.js';
 export {
   SddInterviewDriver,
@@ -92,8 +96,11 @@ export {
   type AISpecBuilderOptions,
   type AISpecPhase,
   type AISpecSession,
+  type AISpecSessionPersistence,
   type CollectedAnswer,
+  isAISpecSession,
 } from './spec-builder.js';
+export { createKanbanSddSessionPersistence } from './kanban-sdd-session.js';
 
 // Project footprint for interview prompts (CLI + WebUI wizard share this)
 export { gatherProjectContext } from './project-context.js';

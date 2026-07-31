@@ -182,7 +182,21 @@ export class ACPSession {
     if (opts.env !== undefined) transportOpts.env = opts.env;
     if (opts.cwd !== undefined) transportOpts.cwd = opts.cwd;
     const transport = new ClientTransport(transportOpts);
-    return ACPSession.attach(opts, transport, `failed to spawn ${opts.command}`);
+    try {
+      return await ACPSession.attach(opts, transport, `failed to spawn ${opts.command}`);
+    } catch (err) {
+      // `attach` already tears down the transport on handshake failure, but a
+      // throw that escapes before `attach` runs (e.g. a future constructor
+      // error) would leave a started transport dangling. Defensive stop here
+      // keeps spawn failures from leaking the transport's IPC + handlers.
+      // RAM-leak audit 2026-07-31, LOW.
+      try {
+        transport.stop();
+      } catch {
+        // best effort
+      }
+      throw err;
+    }
   }
 
   /**

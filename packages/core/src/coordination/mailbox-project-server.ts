@@ -13,6 +13,7 @@ import * as path from 'node:path';
 import { EventBus } from '../kernel/events.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
+import type { IssueCredentialOptions } from './mailbox-credential-store.js';
 import { MailboxEventEmitter } from './mailbox-events.js';
 import {
   ensureMailboxProjectServerSocketDirectory,
@@ -157,6 +158,21 @@ function serverStatus(): MailboxServerOperations['ping']['result'] {
   };
 }
 
+function reviveCredentialOptions(
+  options: IssueCredentialOptions | Partial<IssueCredentialOptions>,
+): IssueCredentialOptions | Partial<IssueCredentialOptions> {
+  const wireNotBefore = (options as { notBefore?: unknown }).notBefore;
+  if (wireNotBefore === undefined || wireNotBefore instanceof Date) return options;
+  if (typeof wireNotBefore !== 'string') {
+    throw new Error('Credential notBefore must be an ISO date-time string');
+  }
+  const notBefore = new Date(wireNotBefore);
+  if (!Number.isFinite(notBefore.getTime())) {
+    throw new Error('Credential notBefore must be an ISO date-time string');
+  }
+  return { ...options, notBefore };
+}
+
 async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promise<unknown> {
   const activeMailbox = mailbox;
   if (activeMailbox === undefined) throw new Error('Mailbox SQLite owner is not initialized');
@@ -243,7 +259,9 @@ async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promi
     }
     case 'credentialIssue': {
       const args = rawArgs as MailboxServerOperations['credentialIssue']['args'];
-      return activeMailbox.credentialIssue(args.options);
+      return activeMailbox.credentialIssue(
+        reviveCredentialOptions(args.options) as IssueCredentialOptions,
+      );
     }
     case 'credentialVerify': {
       const args = rawArgs as MailboxServerOperations['credentialVerify']['args'];
@@ -255,7 +273,12 @@ async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promi
     }
     case 'credentialRotate': {
       const args = rawArgs as MailboxServerOperations['credentialRotate']['args'];
-      return activeMailbox.credentialRotate(args.credentialId, args.options);
+      return activeMailbox.credentialRotate(
+        args.credentialId,
+        args.options === undefined
+          ? undefined
+          : (reviveCredentialOptions(args.options) as Partial<IssueCredentialOptions>),
+      );
     }
     case 'credentialGet': {
       const args = rawArgs as MailboxServerOperations['credentialGet']['args'];

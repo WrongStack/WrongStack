@@ -73,4 +73,32 @@ describe('PhaseStore', () => {
     const loaded = await store.load('non-existent-id');
     expect(loaded).toBeNull();
   });
+
+  it('migrates legacy goal.json directory checkpoints into autophase', async () => {
+    const legacyDir = path.join(tmpDir, 'goal.json');
+    const currentDir = path.join(tmpDir, 'autophase');
+    const legacy = new PhaseStore({ baseDir: legacyDir });
+    const builder = new PhaseGraphBuilder({
+      title: 'Legacy checkpoint',
+      phases: [
+        {
+          name: 'P1',
+          description: 'P1',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
+      ],
+    });
+    const graph = await builder.build();
+    await legacy.save(graph);
+
+    const migrating = new PhaseStore({
+      baseDir: currentDir,
+      legacyBaseDirs: [legacyDir],
+    });
+    expect((await migrating.load(graph.id))?.title).toBe('Legacy checkpoint');
+    expect(fs.existsSync(path.join(currentDir, `${graph.id}.json`))).toBe(true);
+    expect(fs.existsSync(legacyDir)).toBe(false);
+  });
 });

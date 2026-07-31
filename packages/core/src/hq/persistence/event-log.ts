@@ -31,9 +31,14 @@ const DEFAULT_EVENT_LOG_ROTATE_KEEP = 20_000;
  * a few MB to ~700 MB in practice (measured: 429 MB at 30,809 lines, average
  * line 14.5 KB — the line cap had never once fired). Rotation now triggers on
  * whichever cap binds first, and the retained tail is bounded the same way.
+ *
+ * Defaults per HQ Evolution 2026-08 §10.3: cap lowered from 64 MB to 32 MB
+ * to keep on-disk footprint bounded for VPS deployments; still safely above
+ * the 1 MB tail-scan threshold. Both numbers remain configurable per HQ
+ * instance via {@link HqEventLogOptions}.
  */
-const DEFAULT_EVENT_LOG_MAX_BYTES = 64 * 1024 * 1024;
-const DEFAULT_EVENT_LOG_ROTATE_KEEP_BYTES = 24 * 1024 * 1024;
+const DEFAULT_EVENT_LOG_MAX_BYTES = 32 * 1024 * 1024;
+const DEFAULT_EVENT_LOG_ROTATE_KEEP_BYTES = 16 * 1024 * 1024;
 /** Switch to one bulk prefix read when a selective filter requires a deep scan. */
 const RECENT_TAIL_SCAN_BYTES = 1024 * 1024;
 const FILTERED_RECENT_TAIL_SCAN_BYTES = 256 * 1024;
@@ -52,6 +57,46 @@ export interface HqEventLogOptions {
   rotateKeep?: number;
   maxBytes?: number;
   rotateKeepBytes?: number;
+}
+
+/**
+ * Named presets for the byte cap. The default (no preset) is the 32 MB cap
+ * per HQ Evolution 2026-08 §10.3. Pick a preset when you want to make
+ * the override path explicit in code review.
+ *
+ *   - `'vps8'`    — 8 MB cap, 2 MB retained. Tightest cap for memory-constrained
+ *                    VPS deployments.
+ *   - `'vps32'`   — 32 MB cap, 16 MB retained. Same as the default.
+ *   - `'desktop'` — 64 MB cap, 24 MB retained. The pre-§10.3 default; for
+ *                    workstations with disk to spare.
+ */
+export type HqEventLogPreset = 'vps8' | 'vps32' | 'desktop';
+
+export const HQ_EVENT_LOG_PRESETS: Readonly<Record<HqEventLogPreset, {
+  maxBytes: number;
+  rotateKeepBytes: number;
+}>> = Object.freeze({
+  vps8: { maxBytes: 8 * 1024 * 1024, rotateKeepBytes: 2 * 1024 * 1024 },
+  vps32: { maxBytes: 32 * 1024 * 1024, rotateKeepBytes: 16 * 1024 * 1024 },
+  desktop: { maxBytes: 64 * 1024 * 1024, rotateKeepBytes: 24 * 1024 * 1024 },
+});
+
+/**
+ * Return the byte-cap fields for a named preset. Throws on unknown preset
+ * names so callers get a clear error at construction time rather than
+ * silently falling back to the default.
+ */
+export function hqEventLogPresetFields(preset: HqEventLogPreset): {
+  maxBytes: number;
+  rotateKeepBytes: number;
+} {
+  const fields = HQ_EVENT_LOG_PRESETS[preset];
+  if (fields === undefined) {
+    throw new Error(
+      `Unknown HqEventLogPreset: ${String(preset)}. Allowed: ${Object.keys(HQ_EVENT_LOG_PRESETS).join(', ')}.`,
+    );
+  }
+  return fields;
 }
 
 /**

@@ -392,6 +392,59 @@ describe('parseHqFrame', () => {
       ),
     ).toEqual({ ok: false, reason: 'malformed' });
   });
+
+  // ── client.resume (sync ladder — workstream B1) ──────────────────────────
+
+  it('parses a valid client.resume frame with the required lastSeqSeen field', () => {
+    const frame = { type: 'client.resume', lastSeqSeen: 42 };
+    const result = parseHqFrame(JSON.stringify(frame));
+    expect(result.ok).toBe(true);
+    if (result.ok && result.frame.type === 'client.resume') {
+      expect(result.frame.lastSeqSeen).toBe(42);
+    }
+  });
+
+  it('parses client.resume with optional clientId and projectId', () => {
+    const frame = {
+      type: 'client.resume',
+      lastSeqSeen: 100,
+      clientId: 'c1',
+      projectId: 'p1',
+    };
+    const result = parseHqFrame(JSON.stringify(frame));
+    expect(result.ok).toBe(true);
+    if (result.ok && result.frame.type === 'client.resume') {
+      expect(result.frame.clientId).toBe('c1');
+      expect(result.frame.projectId).toBe('p1');
+    }
+  });
+
+  it('rejects client.resume with negative lastSeqSeen', () => {
+    const frame = { type: 'client.resume', lastSeqSeen: -1 };
+    const result = parseHqFrame(JSON.stringify(frame));
+    expect(result).toEqual({ ok: false, reason: 'malformed' });
+  });
+
+  it('rejects client.resume with non-integer lastSeqSeen', () => {
+    const frame = { type: 'client.resume', lastSeqSeen: 'high' };
+    const result = parseHqFrame(JSON.stringify(frame));
+    expect(result).toEqual({ ok: false, reason: 'malformed' });
+  });
+
+  it('rejects client.resume with float lastSeqSeen (Number.isSafeInteger arm)', () => {
+    // Pins the integer-fraction check: a regression that drops just
+    // `typeof === 'number'` but keeps `Number.isSafeInteger` would let
+    // this through. `'high'` (string) covers the typeof arm; `1.5`
+    // covers the integer-arm.
+    const frame = { type: 'client.resume', lastSeqSeen: 1.5 };
+    const result = parseHqFrame(JSON.stringify(frame));
+    expect(result).toEqual({ ok: false, reason: 'malformed' });
+  });
+
+  it('rejects client.resume with missing lastSeqSeen', () => {
+    const result = parseHqFrame('{"type": "client.resume"}');
+    expect(result).toEqual({ ok: false, reason: 'malformed' });
+  });
 });
 
 describe('parseHqEventPayload', () => {
@@ -559,5 +612,236 @@ describe('parseHqEventPayload', () => {
     expect(parseHqEventPayload('session.usage', {}).ok).toBe(true);
     expect(parseHqEventPayload('session.usage', [1, 2, 3]).ok).toBe(false);
     expect(parseHqEventPayload('session.usage', null).ok).toBe(false);
+  });
+
+  // ── peer.rehydrate (workstream A1) ──────────────────────────────────────
+
+  it('validates a well-formed peer.rehydrate payload', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(true);
+  });
+
+  // Locks enum closure: every value in HQ_PEER_REHYDRATE_REASONS must be
+  // accepted by the guard. A future regression that drops a reason from
+  // the enum would otherwise go undetected.
+  it('accepts every HqPeerRehydrateReason enum value for peer.rehydrate', () => {
+    const reasons = ['graceful', 'crash', 'heartbeat-timeout', 'auth-revoked'] as const;
+    for (const reason of reasons) {
+      const payload = {
+        projectId: 'p1',
+        machineId: 'm1',
+        leaderClientId: 'c1',
+        previousLeaderHandle: 'leader-1',
+        reason,
+        detectedAt: '2026-01-01T00:00:00Z',
+      };
+      expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(true);
+    }
+  });
+
+  it('accepts peer.rehydrate with optional rehydrateHint and rehydrateCommandId', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+      rehydrateHint: 'open the last-active SDD spec',
+      rehydrateCommandId: 'cmd-42',
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(true);
+  });
+
+  it('rejects peer.rehydrate with rehydrateHint exceeding 280 chars', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+      rehydrateHint: 'x'.repeat(281),
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(false);
+  });
+
+  it('accepts peer.rehydrate with rehydrateHint at the exact 280-char boundary', () => {
+    // Pins the boundary: 280 must be accepted (the limit is inclusive),
+    // 281 must be rejected. A regression that changed the comparison to
+    // `>=` would break 280-character hints.
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+      rehydrateHint: 'x'.repeat(280),
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(true);
+  });
+
+  it('rejects peer.rehydrate with invalid reason', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'not-a-valid-reason',
+      detectedAt: '2026-01-01T00:00:00Z',
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(false);
+  });
+
+  it('rejects peer.rehydrate with missing required fields', () => {
+    const base = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+    };
+    for (const field of [
+      'projectId',
+      'machineId',
+      'leaderClientId',
+      'previousLeaderHandle',
+      'reason',
+      'detectedAt',
+    ]) {
+      const dropped = { ...base };
+      delete (dropped as Record<string, unknown>)[field];
+      expect(parseHqEventPayload('peer.rehydrate', dropped).ok).toBe(false);
+    }
+  });
+
+  it('rejects peer.rehydrate with malformed detectedAt', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: 'not-a-date',
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(false);
+  });
+
+  it('rejects peer.rehydrate with non-object payload', () => {
+    expect(parseHqEventPayload('peer.rehydrate', 'string').ok).toBe(false);
+    expect(parseHqEventPayload('peer.rehydrate', 42).ok).toBe(false);
+    expect(parseHqEventPayload('peer.rehydrate', null).ok).toBe(false);
+    expect(parseHqEventPayload('peer.rehydrate', [1, 2, 3]).ok).toBe(false);
+  });
+
+  it('explicitly asserts peer.rehydrate guard is permissive about extra fields (genuinely unknown key)', () => {
+    // This test pins the deliberate behavior: the guard ignores unknown
+    // fields. The `unknownExtraField` key is NOT in the typed
+    // HqPeerRehydratePayload interface, so it is a genuinely unknown
+    // field that the guard does not validate. If a future author
+    // hardens the guard to reject unknown fields, this test will fail —
+    // that is the intent. The test body asserts `.ok === true` because
+    // the guard is permissive about extra fields.
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+      unknownExtraField: 'genuinely unknown to the guard',
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(true);
+  });
+
+  it('rejects peer.rehydrate with wrong rehydrateHint type', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+      rehydrateHint: 42, // wrong type
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(false);
+  });
+
+  it('rejects peer.rehydrate with wrong rehydrateCommandId type', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+      rehydrateCommandId: true, // wrong type
+    };
+    expect(parseHqEventPayload('peer.rehydrate', payload).ok).toBe(false);
+  });
+
+  // ── peer.lost (workstream A1) ──────────────────────────────────────────
+
+  it('validates a well-formed peer.lost payload', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'heartbeat-timeout',
+      detectedAt: '2026-01-01T00:00:00Z',
+    };
+    expect(parseHqEventPayload('peer.lost', payload).ok).toBe(true);
+  });
+
+  it('rejects peer.lost with missing required fields', () => {
+    const base = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'graceful',
+      detectedAt: '2026-01-01T00:00:00Z',
+    };
+    for (const field of [
+      'projectId',
+      'machineId',
+      'leaderClientId',
+      'previousLeaderHandle',
+      'reason',
+      'detectedAt',
+    ]) {
+      const dropped = { ...base };
+      delete (dropped as Record<string, unknown>)[field];
+      expect(parseHqEventPayload('peer.lost', dropped).ok).toBe(false);
+    }
+  });
+
+  it('rejects peer.lost with invalid reason', () => {
+    const payload = {
+      projectId: 'p1',
+      machineId: 'm1',
+      leaderClientId: 'c1',
+      previousLeaderHandle: 'leader-1',
+      reason: 'mystery',
+      detectedAt: '2026-01-01T00:00:00Z',
+    };
+    expect(parseHqEventPayload('peer.lost', payload).ok).toBe(false);
+  });
+
+  it('rejects peer.lost with non-object payload', () => {
+    expect(parseHqEventPayload('peer.lost', 'string').ok).toBe(false);
+    expect(parseHqEventPayload('peer.lost', 42).ok).toBe(false);
+    expect(parseHqEventPayload('peer.lost', null).ok).toBe(false);
+    expect(parseHqEventPayload('peer.lost', [1, 2, 3]).ok).toBe(false);
   });
 });

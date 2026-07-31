@@ -14,10 +14,10 @@
 // and feeds the output back via `ingestAgentOutput`. That keeps core free of any
 // agent-loop / provider coupling.
 
-import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
+import { TaskTracker } from '@wrongstack/core/tasking';
 import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { buildBoardTasks, type SddBoardColumn, type SddBoardTask } from './board-types.js';
-import { AISpecBuilder, type AISpecPhase } from './spec-builder.js';
+import { AISpecBuilder, type AISpecPhase, type AISpecSessionPersistence } from './spec-builder.js';
 import type { SpecStore } from './spec-store.js';
 import { TaskGenerator } from './task-generator.js';
 import type { TaskGraphStore } from './task-graph-store.js';
@@ -29,6 +29,8 @@ export interface SddInterviewDriverOptions {
   graphStore: TaskGraphStore;
   /** Persist the interview session here so a reconnect can resume it. */
   sessionPath?: string | undefined;
+  /** Durable interview session owner. Takes precedence over `sessionPath`. */
+  sessionPersistence?: AISpecSessionPersistence | undefined;
   /** Project context string injected into the questioning prompt. */
   projectContext?: string | undefined;
   minQuestions?: number | undefined;
@@ -86,7 +88,7 @@ export class SddInterviewDriver {
   private readonly maxQuestions: number;
   private tracker: TaskTracker | null = null;
   private graph: TaskGraph | null = null;
-  /** Set when {@link loadExisting} successfully rehydrated a session from disk. */
+  /** Set when {@link loadExisting} successfully rehydrated a durable session. */
   private resumedFromDisk = false;
 
   constructor(opts: SddInterviewDriverOptions) {
@@ -96,6 +98,7 @@ export class SddInterviewDriver {
     this.builder = new AISpecBuilder({
       store: opts.specStore,
       sessionPath: opts.sessionPath,
+      sessionPersistence: opts.sessionPersistence,
       projectContext: opts.projectContext,
       minQuestions: this.minQuestions,
       maxQuestions: this.maxQuestions,
@@ -113,7 +116,7 @@ export class SddInterviewDriver {
   }
 
   /**
-   * Resume a previously-persisted interview from disk. Re-hydrates the task
+   * Resume a previously-persisted interview. Re-hydrates the task
    * graph too when one was already produced. Returns true if a session loaded.
    */
   async loadExisting(): Promise<boolean> {
@@ -124,7 +127,7 @@ export class SddInterviewDriver {
       const graph = await this.o.graphStore.load(graphId);
       if (graph) {
         this.graph = graph;
-        const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+        const tracker = new TaskTracker({ store: this.o.graphStore });
         tracker.setGraph(graph);
         this.tracker = tracker;
       }
@@ -133,7 +136,7 @@ export class SddInterviewDriver {
     return true;
   }
 
-  /** Drop the on-disk session (if any) and clear in-memory interview state. */
+  /** Drop the durable session (if any) and clear in-memory interview state. */
   async discard(): Promise<void> {
     await this.builder.deleteSession();
     this.builder.resetForNewInterview();
@@ -252,7 +255,7 @@ export class SddInterviewDriver {
     const spec = this.builder.getSession().spec;
     if (!spec) return null;
 
-    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const tracker = new TaskTracker({ store: this.o.graphStore });
     const generator = new TaskGenerator({
       taskTracker: tracker,
       verificationFromAcceptance: process.env['WRONGSTACK_SDD_VERIFY_FROM_ACCEPTANCE'] === '1',
@@ -370,7 +373,7 @@ export class SddInterviewDriver {
     const spec = this.builder.getSession().spec!;
 
     if (!this.tracker) {
-      const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+      const tracker = new TaskTracker({ store: this.o.graphStore });
       this.graph = await tracker.createGraph(spec.id, spec.title);
       this.tracker = tracker;
     }

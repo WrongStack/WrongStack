@@ -1,4 +1,8 @@
-export { InMemoryMetricsSink, NoopMetricsSink } from './metrics.js';
+export {
+  InMemoryMetricsSink,
+  type InMemoryMetricsSinkOptions,
+  NoopMetricsSink,
+} from './metrics.js';
 export { DefaultHealthRegistry } from './health.js';
 export { NoopTracer } from './tracer.js';
 export { OTelTracer } from './otel-tracer.js';

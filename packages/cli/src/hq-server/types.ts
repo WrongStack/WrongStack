@@ -87,6 +87,14 @@ export interface ConnectedClient {
   mcpSnapshots: Map<string, { servers: HqMcpServerHealth[]; receivedAt: number }>;
   /** Pending outbound commands (Phase 3 — control plane). */
   commandQueue: HqQueuedCommand[];
+  /**
+   * Whether this client is the project's leader (the client with
+   * `control.receive` capability that other clients coordinate with).
+   * Live tracking lives in `HqServer`; this field is the snapshot.
+   * Used by the leader-deposed detector in `peer.rehydrate` emission.
+   * Defaults to `false` for clients without `control.receive`.
+   */
+  isLeader: boolean;
 }
 
 export interface HqRouterMutableAuth {

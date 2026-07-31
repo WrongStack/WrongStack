@@ -88,13 +88,19 @@ class FakeSocket implements HqSocketLike {
     this.emit('close', {});
   }
 
-  addEventListener(type: 'open' | 'close' | 'error' | 'message', listener: (event: unknown) => void): void {
+  addEventListener(
+    type: 'open' | 'close' | 'error' | 'message',
+    listener: (event: unknown) => void,
+  ): void {
     const existing = this.listeners.get(type) ?? new Set();
     existing.add(listener);
     this.listeners.set(type, existing);
   }
 
-  removeEventListener(type: 'open' | 'close' | 'error' | 'message', listener: (event: unknown) => void): void {
+  removeEventListener(
+    type: 'open' | 'close' | 'error' | 'message',
+    listener: (event: unknown) => void,
+  ): void {
     this.listeners.get(type)?.delete(listener);
   }
 
@@ -178,7 +184,9 @@ describe('HqPublisher', () => {
       },
     });
 
-    expect((event.payload as { entries: Array<{ text: string }> }).entries[0]?.text).toBe('private prompt');
+    expect((event.payload as { entries: Array<{ text: string }> }).entries[0]?.text).toBe(
+      'private prompt',
+    );
     const hello = parseSent(socket)[0] as { payload: { redactionPolicy: unknown } };
     expect(hello.payload.redactionPolicy).toEqual({
       rawContent: true,
@@ -254,7 +262,11 @@ describe('HqPublisher', () => {
       },
     });
 
-    const event = publisher.publishMailboxEvent({ mailboxId: 'project_1:mailbox', action: 'message.sent', message });
+    const event = publisher.publishMailboxEvent({
+      mailboxId: 'project_1:mailbox',
+      action: 'message.sent',
+      message,
+    });
     expect(event.type).toBe('mailbox.event');
     expect(sockets).toHaveLength(1);
     expect(sockets[0]?.sent).toEqual([]);
@@ -263,7 +275,10 @@ describe('HqPublisher', () => {
     const frames = parseSent(sockets[0]!);
     expect(frames).toMatchObject([
       { type: 'client.hello' },
-      { type: 'client.event', event: { type: 'mailbox.event', payload: { action: 'message.sent' } } },
+      {
+        type: 'client.event',
+        event: { type: 'mailbox.event', payload: { action: 'message.sent' } },
+      },
     ]);
     expect(JSON.stringify(frames)).toContain('abcdefghijklmnopqrstuvwxyz');
   });
@@ -315,7 +330,118 @@ describe('HqPublisher', () => {
     });
 
     expect(() => publisher.connect()).not.toThrow();
-    expect(() => publisher.publishMailboxEvent({ mailboxId: 'project_1:mailbox', action: 'message.sent', message })).not.toThrow();
+    expect(() =>
+      publisher.publishMailboxEvent({
+        mailboxId: 'project_1:mailbox',
+        action: 'message.sent',
+        message,
+      }),
+    ).not.toThrow();
+
+    publisher.close();
+    vi.useRealTimers();
+  });
+
+  it('counts frames dropped by the bounded outbound queue on overflow', () => {
+    vi.useFakeTimers();
+    const publisher = new HqPublisher({
+      url: 'http://127.0.0.1:3499',
+      client,
+      project,
+      reconnectBaseMs: 1_000,
+      maxQueuedMessages: 1,
+      socketFactory: () => {
+        throw new Error('socket unavailable');
+      },
+    });
+
+    // Offline (socket factory throws): connect() schedules a reconnect and
+    // enqueues nothing itself, so every publish queues exactly one frame.
+    publisher.connect();
+    expect(publisher.getQueueStats().droppedFrames).toBe(0);
+
+    publisher.publishMailboxEvent({
+      mailboxId: 'project_1:mailbox',
+      action: 'message.sent',
+      message,
+    });
+    publisher.publishMailboxEvent({
+      mailboxId: 'project_1:mailbox',
+      action: 'message.sent',
+      message,
+    });
+    publisher.publishMailboxEvent({
+      mailboxId: 'project_1:mailbox',
+      action: 'message.sent',
+      message,
+    });
+
+    // Cap of 1 → the first two frames are dropped oldest-first, one retained.
+    const stats = publisher.getQueueStats();
+    expect(stats.entries).toBe(1);
+    expect(stats.droppedFrames).toBe(2);
+    expect(stats.droppedBytes).toBeGreaterThan(0);
+
+    publisher.close();
+    vi.useRealTimers();
+  });
+
+  it('coalesces obsolete snapshots while HQ is offline', () => {
+    vi.useFakeTimers();
+    const publisher = new HqPublisher({
+      url: 'http://127.0.0.1:3499',
+      client,
+      project,
+      reconnectBaseMs: 1_000,
+      maxQueuedBytes: 1024 * 1024,
+      socketFactory: () => {
+        throw new Error('socket unavailable');
+      },
+    });
+
+    publisher.connect();
+    for (let revision = 1; revision <= 3; revision += 1) {
+      publisher.publishEvent({
+        type: 'mailbox.snapshot',
+        payload: { mailboxId: 'project_1:mailbox', revision, body: 'x'.repeat(4096) },
+      });
+    }
+
+    const stats = publisher.getQueueStats();
+    expect(stats.entries).toBe(1);
+    expect(stats.bytes).toBeLessThan(8 * 1024);
+    expect(stats.coalescedFrames).toBe(2);
+    expect(stats.coalescedBytes).toBeGreaterThan(0);
+    expect(stats.droppedFrames).toBe(0);
+
+    publisher.close();
+    vi.useRealTimers();
+  });
+
+  it('drops a single telemetry frame larger than the byte cap', () => {
+    vi.useFakeTimers();
+    const publisher = new HqPublisher({
+      url: 'http://127.0.0.1:3499',
+      client,
+      project,
+      reconnectBaseMs: 1_000,
+      maxQueuedBytes: 256,
+      socketFactory: () => {
+        throw new Error('socket unavailable');
+      },
+    });
+
+    publisher.connect();
+    publisher.publishEvent({
+      type: 'mailbox.snapshot',
+      payload: { mailboxId: 'project_1:mailbox', body: 'x'.repeat(1024) },
+    });
+
+    const stats = publisher.getQueueStats();
+    expect(stats.entries).toBe(0);
+    expect(stats.bytes).toBe(0);
+    expect(stats.droppedFrames).toBe(1);
+    expect(stats.droppedBytes).toBeGreaterThan(256);
 
     publisher.close();
     vi.useRealTimers();
@@ -332,7 +458,13 @@ describe('HqPublisher', () => {
     });
 
     expect(() => publisher.connect()).not.toThrow();
-    expect(() => publisher.publishMailboxEvent({ mailboxId: 'project_1:mailbox', action: 'message.sent', message })).not.toThrow();
+    expect(() =>
+      publisher.publishMailboxEvent({
+        mailboxId: 'project_1:mailbox',
+        action: 'message.sent',
+        message,
+      }),
+    ).not.toThrow();
 
     publisher.close();
     vi.useRealTimers();
@@ -400,10 +532,19 @@ describe('HqPublisher', () => {
       limit: 25,
     });
 
-    socket.message(JSON.stringify({
-      type: 'hq.command_batch',
-      commands: [{ commandId: 'cmd_1', type: 'refresh', createdAt: '2026-06-21T12:00:00.000Z', payload: {} }],
-    }));
+    socket.message(
+      JSON.stringify({
+        type: 'hq.command_batch',
+        commands: [
+          {
+            commandId: 'cmd_1',
+            type: 'refresh',
+            createdAt: '2026-06-21T12:00:00.000Z',
+            payload: {},
+          },
+        ],
+      }),
+    );
     await Promise.resolve();
 
     expect(handled).toEqual(['cmd_1']);

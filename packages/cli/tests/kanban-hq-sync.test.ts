@@ -367,6 +367,59 @@ describe('CLI Kanban HQ synchronization', () => {
     sync.stop();
   });
 
+  it('keeps local publishes single-flight and retains one trailing batch', async () => {
+    const root = await tempProject();
+    const board = createBoardObject({ title: 'Slow local publish' });
+    await writeBoard(root, board);
+    let releaseSlowPublish!: () => void;
+    let blockNextPublish = false;
+    const slowPublish = new Promise<void>((resolve) => {
+      releaseSlowPublish = resolve;
+    });
+    const sync = createKanbanHqSync(root, 'single-flight-project', {
+      beforeLocalPublish: async () => {
+        if (blockNextPublish) await slowPublish;
+      },
+    });
+    await sync.attachPublisher({ publishEvent: vi.fn() } as unknown as HqPublisher);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    blockNextPublish = true;
+    sync.refresh(board.id);
+    await vi.advanceTimersByTimeAsync(150);
+    await waitForCondition(
+      () => sync.getStats().localPublishActive,
+      'expected first local publish to remain active',
+    );
+
+    for (let index = 0; index < 5_000; index++) sync.refresh(board.id);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(sync.getStats()).toMatchObject({
+      localPublishActive: true,
+      pendingBoardIds: 1,
+      localPublishRuns: 1,
+      coalescedLocalRefreshes: 5_000,
+    });
+
+    blockNextPublish = false;
+    releaseSlowPublish();
+    await waitForCondition(
+      () => !sync.getStats().localPublishActive && vi.getTimerCount() > 0,
+      'expected one trailing local publish timer',
+    );
+    await vi.advanceTimersByTimeAsync(150);
+    await waitForCondition(
+      () => sync.getStats().localPublishRuns === 2 && !sync.getStats().localPublishActive,
+      'expected exactly one trailing local publish',
+    );
+    expect(sync.getStats()).toMatchObject({
+      pendingBoardIds: 0,
+      localPublishRuns: 2,
+      coalescedLocalRefreshes: 5_000,
+    });
+    sync.stop();
+  });
+
   it('ignores remote snapshots for other projects', async () => {
     const root = await tempProject();
     const sync = createKanbanHqSync(root, 'this-project');

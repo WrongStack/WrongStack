@@ -43,6 +43,13 @@ export interface ServerContext {
 }
 
 export class LSPServer {
+  /**
+   * Hard cap on retained diagnostics entries. Each entry holds a `Diagnostic[]`
+   * for one file URI; without a cap a long-lived server keeps one entry per
+   * distinct URI ever opened (RAM-leak audit 2026-07-31, MEDIUM). Oldest
+   * entries are evicted first; `notifyDidClose` drops entries eagerly.
+   */
+  static readonly MAX_DIAGNOSTICS_ENTRIES = 500;
   state: ServerState = 'exited';
   capabilities: ServerCapabilities | null = null;
   readonly diagnostics = new Map<string, Diagnostic[]>();
@@ -108,7 +115,7 @@ export class LSPServer {
     this.connection.onNotification('textDocument/publishDiagnostics', (params) => {
       const p = params as { uri?: string | undefined; diagnostics?: Diagnostic[] | undefined };
       if (!p.uri || !Array.isArray(p.diagnostics)) return;
-      this.diagnostics.set(p.uri, p.diagnostics);
+      this.setDiagnostics(p.uri, p.diagnostics);
       this.ctx.events.emit('lsp.diagnostics.updated', {
         path: p.uri.startsWith('file:') ? uriToPath(p.uri) : p.uri,
         count: p.diagnostics.length,
@@ -266,7 +273,7 @@ export class LSPServer {
       signal,
     );
     const items = result?.items ?? [];
-    this.diagnostics.set(uri, items);
+    this.setDiagnostics(uri, items);
     return items;
   }
 
@@ -286,6 +293,9 @@ export class LSPServer {
   }
 
   notifyDidClose(uri: string): void {
+    // Eagerly drop the entry — the closed document's diagnostics are stale and
+    // would otherwise be retained (and counted against the cap) forever.
+    this.diagnostics.delete(uri);
     this.notification('textDocument/didClose', { textDocument: { uri } });
   }
 
@@ -308,6 +318,20 @@ export class LSPServer {
   private notification(method: string, params: unknown): void {
     if (this.state !== 'ready' || !this.connection) return;
     this.connection.sendNotification(method, params);
+  }
+
+  /**
+   * Store diagnostics with LRU semantics: re-insert so the entry becomes
+   * most-recently-used, then evict the oldest entries past the cap.
+   */
+  private setDiagnostics(uri: string, diagnostics: Diagnostic[]): void {
+    if (this.diagnostics.has(uri)) this.diagnostics.delete(uri);
+    this.diagnostics.set(uri, diagnostics);
+    while (this.diagnostics.size > LSPServer.MAX_DIAGNOSTICS_ENTRIES) {
+      const oldest = this.diagnostics.keys().next().value;
+      if (oldest === undefined) break;
+      this.diagnostics.delete(oldest);
+    }
   }
 
   private captureStderr(chunk: Buffer): void {

@@ -26,7 +26,18 @@ export interface KanbanHqSync {
   handleRemote(snapshot: HqKanbanSnapshotPayload): Promise<void>;
   /** Explicit refresh seam for hosts/tests; daemon events call the same path. */
   refresh(boardId?: string): void;
+  getStats(): KanbanHqSyncStats;
   stop(): void;
+}
+
+export interface KanbanHqSyncStats {
+  localPublishActive: boolean;
+  pendingBoardIds: number;
+  fullRescanPending: boolean;
+  remoteApplyQueued: boolean;
+  pendingRemoteBoards: number;
+  localPublishRuns: number;
+  coalescedLocalRefreshes: number;
 }
 
 const SYNC_STATE_KEY = 'hq-sync-state-v1';
@@ -58,6 +69,7 @@ function warnSyncFailure(error: unknown): void {
 export function createKanbanHqSync(
   projectRoot: string,
   projectId = deriveHqProjectId(projectRoot),
+  testHooks: { beforeLocalPublish?: (() => Promise<void>) | undefined } = {},
 ): KanbanHqSync {
   let publisher: HqPublisher | undefined;
   let unsubscribeDaemon: (() => void) | undefined;
@@ -68,6 +80,9 @@ export function createKanbanHqSync(
   let applyingRemote = false;
   let stopped = false;
   let operationChain: Promise<void> = Promise.resolve();
+  let localPublishActive = false;
+  let localPublishRuns = 0;
+  let coalescedLocalRefreshes = 0;
   // Remote snapshots waiting to be applied, coalesced per boardId (latest
   // revision wins). Applying a snapshot does one IPC read/write per board;
   // when snapshots arrive faster than the owner can commit them, queueing each one
@@ -100,16 +115,25 @@ export function createKanbanHqSync(
   // needed because the 100ms debounce plus serialization chain already
   // prevents back-to-back publish bursts.
   const scheduleNext = (): void => {
-    if (stopped || timer !== undefined || applyingRemote) return;
+    if (stopped || timer !== undefined || localPublishActive || applyingRemote) return;
     timer = setTimeout(() => {
       timer = undefined;
-      const rescan = fullRescanPending;
-      const dirtyBoardIds = [...pendingBoardIds];
-      fullRescanPending = false;
-      pendingBoardIds.clear();
-      runExclusive(() => publishLocal(false, rescan ? undefined : dirtyBoardIds)).catch(
-        warnSyncFailure,
-      );
+      if (stopped || localPublishActive) return;
+      localPublishActive = true;
+      void runExclusive(async () => {
+        const rescan = fullRescanPending;
+        const dirtyBoardIds = [...pendingBoardIds];
+        fullRescanPending = false;
+        pendingBoardIds.clear();
+        localPublishRuns++;
+        await testHooks.beforeLocalPublish?.();
+        await publishLocal(false, rescan ? undefined : dirtyBoardIds);
+      })
+        .catch(warnSyncFailure)
+        .finally(() => {
+          localPublishActive = false;
+          if (!stopped && (fullRescanPending || pendingBoardIds.size > 0)) scheduleNext();
+        });
     }, 100);
     timer.unref?.();
   };
@@ -118,6 +142,7 @@ export function createKanbanHqSync(
     if (stopped || applyingRemote || publisher === undefined) return;
     if (boardId === null) fullRescanPending = true;
     else pendingBoardIds.add(boardId);
+    if (timer !== undefined || localPublishActive) coalescedLocalRefreshes++;
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
     scheduleNext();
@@ -335,6 +360,15 @@ export function createKanbanHqSync(
     attachPublisher,
     handleRemote,
     refresh: (boardId?: string) => schedulePublish(boardId ?? null),
+    getStats: () => ({
+      localPublishActive,
+      pendingBoardIds: pendingBoardIds.size,
+      fullRescanPending,
+      remoteApplyQueued,
+      pendingRemoteBoards: pendingRemote?.boards.length ?? 0,
+      localPublishRuns,
+      coalescedLocalRefreshes,
+    }),
     stop: () => {
       stopped = true;
       if (timer !== undefined) clearTimeout(timer);

@@ -1,5 +1,5 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import type { TaskProgress } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 import { DefaultTaskStore, renderProgress, TaskTracker } from '@wrongstack/sdd';
 import { sddState } from './state.js';
 
@@ -65,9 +65,28 @@ export async function trySaveTasksFromAIOutput(aiOutput: string): Promise<boolea
     return true;
   }
 
-  const store = new DefaultTaskStore();
+  const store = sddState.getTaskStore() ?? new DefaultTaskStore();
   const tracker = new TaskTracker({ store });
-  const graph = await tracker.createGraph(session.spec.id, session.spec.title);
+  // `createGraph` now awaits `store.saveGraph` (real fs I/O for
+  // TaskGraphStore). ENOSPC / EACCES on the on-disk store used to be
+  // unreachable because the legacy DefaultTaskStore was a no-op; the
+  // contract documented "best-effort persistence" so a failed write must
+  // not reject through the caller. Fall back to tracking in-memory only
+  // when the store rejects — the in-memory tracker still drives the run.
+  let graph: Awaited<ReturnType<typeof tracker.createGraph>>;
+  try {
+    graph = await tracker.createGraph(session.spec.id, session.spec.title);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'sdd.task_graph_create_failed',
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    return false;
+  }
   for (const task of validTasks) addTaskToTracker(tracker, task);
   sddState.setTaskStore(store);
   sddState.setTaskTracker(tracker);

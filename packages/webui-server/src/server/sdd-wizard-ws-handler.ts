@@ -1,5 +1,5 @@
-import type { WebSocket } from 'ws';
 import type { SddInterviewDriver, SddInterviewSnapshot } from '@wrongstack/sdd';
+import type { WebSocket } from 'ws';
 import { sendSerialized } from './ws-utils.js';
 
 interface WSClient {
@@ -42,11 +42,11 @@ export interface SddRunStartOpts {
  * light factory). This keeps the wizard protocol identical across both servers.
  */
 export interface SddWizardDeps {
-  /** Build a fresh interview driver (disk spec/graph stores + session path). */
+  /** Build a fresh interview driver (artifact stores + durable session owner). */
   makeDriver: () => SddInterviewDriver;
   /**
    * Await before the first message / client snapshot so project context and any
-   * disk resume finish loading. Optional for unit tests that inject a ready driver.
+   * durable resume finish loading. Optional for unit tests that inject a ready driver.
    */
   ensureReady?: (() => Promise<void>) | undefined;
   /**
@@ -81,7 +81,7 @@ export interface SddWizardDeps {
  * {@link SddWizardDeps}.
  *
  * Continuity: on construction (and before the first client message) the handler
- * rehydrates any on-disk interview session so a browser refresh or process
+ * rehydrates the durable interview session so a browser refresh or process
  * restart resumes mid-Q&A / mid-review without re-running the model.
  */
 export class SddWizardWebSocketHandler {
@@ -91,8 +91,18 @@ export class SddWizardWebSocketHandler {
   private lastAgentText = '';
   /** Guards against overlapping interview turns (one in flight at a time). */
   private busy = false;
-  /** Resolves once project-context gather + disk resume finish. */
+  /** Set when authoritative session state could not be read during bootstrap. */
+  private resumeError: string | null = null;
+  /** Resolves once project-context gather + durable resume finish. */
   private readonly ready: Promise<void>;
+  /**
+   * Single-flight slot for the resume probe. `handleMessage` awaits this
+   * when `resumeError` is set, so concurrent frames cannot race the retry
+   * — one probe either clears the gate or re-latches it, then every
+   * queued frame re-checks and proceeds. `null` when no probe is in
+   * flight (or after the probe has settled).
+   */
+  private resumeProbe: Promise<void> | null = null;
 
   constructor(private readonly deps: SddWizardDeps) {
     this.ready = this.bootstrap();
@@ -107,19 +117,26 @@ export class SddWizardWebSocketHandler {
     await this.tryResume();
   }
 
-  /** Rehydrate a persisted interview if one exists on disk. */
+  /** Rehydrate a persisted interview if one exists. */
   private async tryResume(): Promise<void> {
     if (this.driver) return;
+    // Keep any previous error latched while the probe is in flight. Clearing
+    // it before `loadExisting()` settles would let another concurrent frame
+    // bypass the fail-closed gate and start a second session. The error is
+    // released only after the authoritative read succeeds.
     try {
       const driver = this.deps.makeDriver();
       if (await driver.loadExisting()) {
         this.driver = driver;
         this.lastAgentText = driver.getLastAgentText() ?? '';
       }
-    } catch {
-      // Corrupt session file → start fresh on next user action.
+      this.resumeError = null;
+    } catch (error) {
+      // IPC failure cannot prove that no session exists. Fail closed so a fresh
+      // start cannot overwrite another process's interview.
       this.driver = null;
       this.lastAgentText = '';
+      this.resumeError = error instanceof Error ? error.message : String(error);
     }
   }
 
@@ -130,6 +147,10 @@ export class SddWizardWebSocketHandler {
     ws.on('error', () => this.clients.delete(client));
     // Catch up reconnecting clients after resume completes.
     void this.ready.then(() => {
+      if (this.resumeError) {
+        this.send(client, { type: 'sdd.spec.error', payload: { message: this.resumeError } });
+        return;
+      }
       if (this.driver) {
         this.send(client, this.snapshotMsg());
         if (this.lastAgentText) {
@@ -142,6 +163,34 @@ export class SddWizardWebSocketHandler {
   async handleMessage(msg: WizardMessage): Promise<void> {
     try {
       await this.ready;
+      if (this.resumeError) {
+        // Latched transient failure. A surviving client message must not
+        // be silently dropped — re-probe the IPC layer so a recovered
+        // daemon unblocks the wizard on the very next frame. Concurrent
+        // frames await the same in-flight probe to avoid stampeding the
+        // IPC client (single-flight via `resumeProbe`).
+        if (this.resumeProbe === null) {
+          // Defer the actual probe by one microtask so the single-flight slot
+          // is published before `makeDriver` or `loadExisting` can re-enter.
+          const probe = Promise.resolve().then(() => this.tryResume());
+          this.resumeProbe = probe;
+          void probe.finally(() => {
+            // Keep a settled probe visible through the rest of this event-loop
+            // turn. Concurrent WebSocket frames may resume from `await ready`
+            // in separate microtasks; clearing immediately would let the later
+            // frame start a duplicate IPC probe after the first one settled.
+            setTimeout(() => {
+              if (this.resumeProbe === probe) this.resumeProbe = null;
+            }, 0);
+          });
+        }
+        await this.resumeProbe;
+        if (this.resumeError) {
+          // Re-probe did not recover; broadcast the error and reject.
+          this.broadcast({ type: 'sdd.spec.error', payload: { message: this.resumeError } });
+          return;
+        }
+      }
       switch (msg.type) {
         case 'sdd.spec.start':
           await this.onStart(String(msg.payload?.goal ?? '').trim(), {
@@ -158,7 +207,10 @@ export class SddWizardWebSocketHandler {
           if (this.driver) {
             this.broadcast(this.snapshotMsg());
             if (this.lastAgentText) {
-              this.broadcast({ type: 'sdd.spec.agent_text', payload: { text: this.lastAgentText } });
+              this.broadcast({
+                type: 'sdd.spec.agent_text',
+                payload: { text: this.lastAgentText },
+              });
             }
           }
           break;
@@ -195,9 +247,11 @@ export class SddWizardWebSocketHandler {
   private parseRunOpts(payload?: Record<string, unknown>): SddRunStartOpts {
     return {
       parallelSlots: payload?.parallelSlots as number | undefined,
-      defaultModel: (payload?.model as string | undefined) ?? (payload?.defaultModel as string | undefined),
+      defaultModel:
+        (payload?.model as string | undefined) ?? (payload?.defaultModel as string | undefined),
       defaultProvider:
-        (payload?.provider as string | undefined) ?? (payload?.defaultProvider as string | undefined),
+        (payload?.provider as string | undefined) ??
+        (payload?.defaultProvider as string | undefined),
       fallbackModels: Array.isArray(payload?.fallbackModels)
         ? (payload?.fallbackModels as string[])
         : undefined,

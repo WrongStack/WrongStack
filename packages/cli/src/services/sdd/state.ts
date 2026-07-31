@@ -2,8 +2,8 @@ import type { Context } from '@wrongstack/core/agent';
 import {
   type AISpecBuilder,
   type AISpecPhase,
-  type DefaultTaskStore,
   SpecVersioning,
+  type TaskStore,
   type TaskTracker,
 } from '@wrongstack/sdd';
 
@@ -13,7 +13,7 @@ export const SDD_META_KEY = 'sdd.state';
 /** Single shared SDD session state for the process lifetime. */
 export class SDDState {
   private builder: AISpecBuilder | null = null;
-  private taskStore: DefaultTaskStore | null = null;
+  private taskStore: TaskStore | null = null;
   private taskTracker: TaskTracker | null = null;
   private taskGraphId: string | null = null;
   private sessionStartTime: number = Date.now();
@@ -26,10 +26,10 @@ export class SDDState {
   setBuilder(b: AISpecBuilder | null) {
     this.builder = b;
   }
-  getTaskStore(): DefaultTaskStore | null {
+  getTaskStore(): TaskStore | null {
     return this.taskStore;
   }
-  setTaskStore(s: DefaultTaskStore | null) {
+  setTaskStore(s: TaskStore | null) {
     this.taskStore = s;
   }
   getTaskTracker(): TaskTracker | null {

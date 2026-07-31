@@ -472,9 +472,14 @@ describe('serveStdio', () => {
     // close the process while the last response line is still buffered.
     const stdin = new PassThrough();
     const stdout = new PassThrough();
+    let responseArrived = false;
     const sawResponseLine = new Promise<void>((resolve) => {
       stdout.on('data', (c: Buffer) => {
-        for (const l of c.toString('utf8').split('\n')) if (l.trim()) resolve();
+        for (const l of c.toString('utf8').split('\n')) {
+          if (!l.trim()) continue;
+          responseArrived = true;
+          resolve();
+        }
       });
     });
     const host: MCPServerToolHost = {
@@ -492,6 +497,7 @@ describe('serveStdio', () => {
     );
     stdin.end();
     await expect(handle.done).resolves.toBeUndefined();
+    expect(responseArrived).toBe(true);
     await expect(sawResponseLine).resolves.toBeUndefined();
   });
 

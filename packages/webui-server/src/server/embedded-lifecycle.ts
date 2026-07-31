@@ -4,10 +4,10 @@ import {
   unregisterInstance,
   type WebUIInstanceRecord,
 } from './instance-registry.js';
+import { formatExternalAccessUrls } from './network-info.js';
 import { openBrowser } from './open-browser.js';
 import type { SurfaceKind } from './port-utils.js';
 import { buildWebUIAccessUrl } from './ws-utils.js';
-import { formatExternalAccessUrls } from './network-info.js';
 
 /**
  * PR 7 of Issue #30 (webui-server 8-PR refactor): process lifecycle.
@@ -123,9 +123,10 @@ export function announceWebuiReady(p: AnnounceWebuiReadyParams): void {
       token: p.wsToken,
       publicUrl: p.publicUrl,
     });
-    const extraBlock = extraUrls.length > 0
-      ? `\n  Also reachable on external interfaces:\n${extraUrls.join('\n')}\n`
-      : '';
+    const extraBlock =
+      extraUrls.length > 0
+        ? `\n  Also reachable on external interfaces:\n${extraUrls.join('\n')}\n`
+        : '';
     log(
       `\n  ▸ ${p.surface === 'webui' ? 'WebUI' : 'SimpleUI'} ready — open \x1b[1m${openUrl}\x1b[0m in your browser` +
         `    (same agent as this terminal)\n${extraBlock}`,
@@ -141,6 +142,8 @@ export interface WebuiShutdownResources {
   abortInFlight: () => void;
   /** Run and drop every event-bus unsubscriber. */
   unsubscribeEvents: () => void;
+  /** Dispose long-lived handlers, timers, watchers, and project services owned by the host. */
+  disposeResources?: (() => void) | undefined;
   /** Close every connected socket and clear the client map. */
   closeClients: () => void;
   /** Close the static HTTP server (no-op when WS-only). */
@@ -182,6 +185,7 @@ export function createWebuiShutdown(res: WebuiShutdownResources): () => void {
     log('[WebUI] Shutting down...');
     res.abortInFlight();
     res.unsubscribeEvents();
+    res.disposeResources?.();
     res.closeClients();
     // Drop ourselves from the running-instance registry; the run promise
     // resolves only after the write settles so callers can safely remove

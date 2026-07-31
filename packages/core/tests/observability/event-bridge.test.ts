@@ -7,7 +7,14 @@ const makeSink = () => {
   const counter = vi.fn();
   const histogram = vi.fn();
   const gauge = vi.fn();
-  const sink: MetricsSink = { counter, histogram, gauge };
+  const sink: MetricsSink = {
+    counter,
+    histogram,
+    gauge,
+    droppedObservations: () => 0,
+    snapshot: () => ({ timestamp: Date.now(), series: [] }),
+    reset: () => {},
+  };
   return { sink, counter, histogram, gauge };
 };
 

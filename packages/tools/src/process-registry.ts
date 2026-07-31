@@ -234,6 +234,7 @@ export class ProcessRegistryImpl {
 
   /** Get all tracked processes. */
   list(): TrackedProcess[] {
+    this._pruneAllStale();
     return Array.from(this.processes.values());
   }
 
@@ -269,6 +270,7 @@ export class ProcessRegistryImpl {
    * Combined stats for observability — used by /ps and the TUI status bar.
    */
   stats(): RegistryStats {
+    this._pruneAllStale();
     return {
       activeCount: this.activeCount,
       backgroundCount: this.activeBackgroundCount,
@@ -557,6 +559,20 @@ export class ProcessRegistryImpl {
     const entry = this.processes.get(pid);
     if (entry && this._isStaleEntry(entry)) {
       this.processes.delete(pid);
+    }
+  }
+
+  /**
+   * Remove every stale entry, not just one PID. `list()`/`stats()` — the
+   * surfaces the TUI status bar and `/ps` poll — must prune too: a child
+   * whose 'close' event never fires (e.g. Windows grandchildren holding stdio
+   * open) would otherwise linger in the registry until someone looks up its
+   * exact PID, and PID reuse meanwhile makes `get()`/`kill()` target the
+   * wrong process. RAM-leak audit 2026-07-31, MEDIUM.
+   */
+  private _pruneAllStale(): void {
+    for (const [pid, entry] of this.processes) {
+      if (this._isStaleEntry(entry)) this.processes.delete(pid);
     }
   }
 }

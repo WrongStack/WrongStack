@@ -11,16 +11,15 @@ import {
   Users,
 } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
-import type { MailboxStore } from './lib/mailbox-store.js';
+import { isUnreadIncomingMailboxMessage, type MailboxStore } from './lib/mailbox-store.js';
+
+type SimpleUIMailboxAction = 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete';
 
 interface MailboxSidebarProps {
   store: MailboxStore;
   onRefresh: () => void;
-  onSend: (input: { to: string; subject: string; body: string }) => void;
-  onAction: (
-    mailId: string,
-    action: 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete',
-  ) => void;
+  onSend: (input: { to: string; subject: string; body: string }) => boolean;
+  onAction: (mailId: string, action: SimpleUIMailboxAction) => void;
 }
 
 function timeLabel(timestamp: string): string {
@@ -39,9 +38,7 @@ export function MailboxSidebar({ store, onRefresh, onSend, onAction }: MailboxSi
   const [to, setTo] = useState('leader');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const unread = snapshot.messages.filter(
-    (message) => !message.completed && message.readByCount === 0,
-  ).length;
+  const unread = snapshot.messages.filter(isUnreadIncomingMailboxMessage).length;
   const online = snapshot.agents.filter((agent) => agent.online);
   // Derive "online" from real server traffic — the WebUI server does not
   // broadcast a `mailbox.status` service-info frame, so we light the chip
@@ -55,11 +52,12 @@ export function MailboxSidebar({ store, onRefresh, onSend, onAction }: MailboxSi
     const trimmedBody = body.trim();
     const trimmedTo = to.trim();
     if (!trimmedBody || !trimmedTo) return;
-    onSend({
+    const sent = onSend({
       to: trimmedTo,
       subject: subject.trim() || 'SimpleUI message',
       body: trimmedBody,
     });
+    if (!sent) return;
     setSubject('');
     setBody('');
     setCompose(false);

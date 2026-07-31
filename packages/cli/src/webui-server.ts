@@ -17,13 +17,16 @@ import { findPackageJSON } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { TOKENS } from '@wrongstack/core/kernel';
+import { createCompatibilityTrustBoundary, DefaultSecretScrubber } from '@wrongstack/core/security';
+import { SkillInstaller } from '@wrongstack/core/skills';
 import { PromptUsageStore, watchProviderConfig } from '@wrongstack/core/storage';
 import type { ProviderConfig } from '@wrongstack/core/types';
-import { resolveWstackPaths, wstackGlobalRoot } from '@wrongstack/core/utils';
-import { TOKENS } from '@wrongstack/core/kernel';
-import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import { SkillInstaller } from '@wrongstack/core/skills';
+import {
+  resolveWstackPaths,
+  startSharedHeapWatchdog,
+  wstackGlobalRoot,
+} from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import {
@@ -78,7 +81,9 @@ import {
   registerWebuiInstance,
   registerWebuiSignalHandlers,
 } from './webui-server/lifecycle.js';
+import { startDeferredHttpListen, startIpv6LoopbackProxy } from './webui-server/listen-helpers.js';
 import { consoleLogger } from './webui-server/logger-shim.js';
+import { createNodePtyLoader } from './webui-server/node-pty-loader.js';
 import { createPrefsSeeding, seedConfigToMeta } from './webui-server/prefs-seeding.js';
 import {
   createProviderConfigStore,
@@ -90,13 +95,9 @@ import { createSetupEvents } from './webui-server/setup-events.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import { createStreamCoalescer } from './webui-server/stream-coalescer.js';
 import { startBoundedTerminalLogView } from './webui-server/terminal-log-view.js';
-import { createNodePtyLoader } from './webui-server/node-pty-loader.js';
-import {
-  startDeferredHttpListen,
-  startIpv6LoopbackProxy,
-} from './webui-server/listen-helpers.js';
 
 import type { CliWebUIOptions } from './webui-server-options.js';
+
 export type { CliWebUIOptions } from './webui-server-options.js';
 export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const trustBoundary =
@@ -184,6 +185,19 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         log: (message) => consoleLogger.info(message),
       })
     : null;
+  const stopKanbanSupervisorMemoryStats = kanbanSupervisor
+    ? startSharedHeapWatchdog({
+        collectStats: () => {
+          const stats = kanbanSupervisor.getStats();
+          return {
+            kanbanSupervisorSnapshots: stats.snapshots,
+            kanbanSupervisorScheduledBoards: stats.scheduledBoards,
+            kanbanSupervisorAgentCooldowns: stats.agentCooldowns,
+            kanbanSupervisorRunningAgents: stats.runningAgents,
+          };
+        },
+      })
+    : undefined;
   const goalHandler = new GoalWebSocketHandler(
     opts.agent,
     opts.agent.ctx as Context,
@@ -215,7 +229,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   );
 
   // SDD live board handler — same process as the run, so it streams instantly
-  // off the shared EventBus (no disk polling) and steers via the control file.
+  // off the shared EventBus (no disk polling) and steers via Kanban IPC.
   // Lifecycle deps enable Clean / Rollback / Destroy from the WebUI (same as
   // standalone server) — without them those buttons only report "unavailable".
   const sddBoardHandler = new SddBoardWebSocketHandler(
@@ -821,6 +835,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     ...(kanbanSupervisor ? { kanbanSupervisor } : {}),
     ...(kanbanRunMirror ? { kanbanRunMirror } : {}),
   });
+  let signalShutdown: (() => void) | undefined;
+  const shutdown = (): void => signalShutdown?.();
   const handleMessage = createEmbeddedMessageRouter({
     trustBoundary,
     opts,
@@ -937,7 +953,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     // sequence (abort in-flight runs → unsubscribe events → close clients →
     // unregister → close HTTP/WS → resolve) lives in lifecycle.ts; the
     // run-loop state stays here and is threaded in as callbacks.
-    const signalShutdown = createWebuiShutdown({
+    signalShutdown = createWebuiShutdown({
       abortInFlight: () => {
         // Both the legacy single slot (project-switch path) and every
         // per-socket controller must be aborted — they are independent.
@@ -951,6 +967,18 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       unsubscribeEvents: () => {
         flushAllStreamBuffers();
         for (const unsub of eventUnsubscribers) unsub();
+      },
+      disposeResources: () => {
+        credentialWatcherClose?.();
+        credentialWatcherClose = undefined;
+        goalHandler.dispose();
+        sddBoardHandler.dispose();
+        worktreeHandler.dispose();
+        terminalHandler.dispose();
+        kanbanRunMirror?.dispose();
+        kanbanSupervisor?.dispose();
+        void stopKanbanSupervisorMemoryStats?.();
+        unregisterWebuiClient();
       },
       closeClients: () => {
         for (const [ws] of clients) ws.close();
@@ -966,6 +994,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       onStopped: () => {
         terminalLogView.redraw();
         terminalLogView.stop();
+        opts.onExit?.();
         resolve();
       },
     });
@@ -977,22 +1006,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }
-  }
-
-  function shutdown(): void {
-    console.log('[WebUI] Shutting down...');
-    terminalLogView.redraw();
-    terminalLogView.stop();
-    credentialWatcherClose?.();
-    flushAllStreamBuffers();
-    worktreeHandler.dispose();
-    terminalHandler.dispose();
-    kanbanRunMirror?.dispose();
-    kanbanSupervisor?.dispose();
-    unregisterWebuiClient();
-    ipv6LoopbackServer?.close();
-    httpServer?.server.close();
-    opts.onExit?.();
   }
 
   function broadcast(msg: WSServerMessage): void {

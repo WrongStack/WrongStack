@@ -10,6 +10,7 @@ import {
   createAutoReviewPlugin,
   resolveAutoReviewConfig,
   selectRoundRobinReviewerAssignment,
+  trimKnownFingerprints,
 } from '../../src/plugins/auto-review-plugin.js';
 import type { Config } from '../../src/types/config.js';
 
@@ -85,6 +86,24 @@ afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   await fs.rm(tmp, { recursive: true, force: true });
+});
+
+describe('trimKnownFingerprints', () => {
+  it('evicts the oldest entries past the cap and keeps the newest', () => {
+    const map = new Map<string, string>();
+    for (let i = 0; i < 5; i += 1) map.set(`f-${i}`, `h-${i}`);
+    trimKnownFingerprints(map, 2);
+    expect([...map.keys()]).toEqual(['f-3', 'f-4']);
+  });
+
+  it('is a no-op while under the cap', () => {
+    const map = new Map<string, string>([
+      ['a', '1'],
+      ['b', '2'],
+    ]);
+    trimKnownFingerprints(map, 5);
+    expect(map.size).toBe(2);
+  });
 });
 
 describe('auto-review change detection', () => {

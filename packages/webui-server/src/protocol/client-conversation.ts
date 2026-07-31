@@ -46,6 +46,7 @@ export const CLIENT_COLLABORATION_MESSAGE_TYPES = [
   'collab.resume',
   'collab.grant_control',
   'collab.inject_tool',
+  'mailbox.action',
   'mailbox.agents',
   'mailbox.clear',
   'mailbox.compact',

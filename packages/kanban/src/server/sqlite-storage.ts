@@ -14,6 +14,7 @@ import {
 } from '../storage.js';
 import type { KanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanEvent } from '../types.js';
+import type { KanbanWorkflowCommand, KanbanWorkflowState } from './protocol.js';
 
 export const KANBAN_SQLITE_FILE = '_kanban.sqlite';
 const LEGACY_MIGRATION_KEY = 'legacy-json-v1';
@@ -190,6 +191,142 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
     });
   }
 
+  async enqueueWorkflowCommand(
+    workflowId: string,
+    command: KanbanWorkflowCommand,
+  ): Promise<boolean> {
+    return this.exclusive(() => {
+      const result = this.db
+        .prepare(
+          `INSERT OR IGNORE INTO kanban_workflow_commands
+             (workflow_id, command_id, created_at, type, payload)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          workflowId,
+          command.id,
+          command.createdAt,
+          command.type,
+          command.payload === undefined ? null : JSON.stringify(command.payload),
+        );
+      return Number(result.changes) > 0;
+    });
+  }
+
+  async drainWorkflowCommands(workflowId: string, limit = 100): Promise<KanbanWorkflowCommand[]> {
+    return this.exclusive(() => {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const rows = this.db
+          .prepare(
+            `SELECT seq, command_id, created_at, type, payload
+             FROM kanban_workflow_commands
+             WHERE workflow_id = ?
+             ORDER BY seq
+             LIMIT ?`,
+          )
+          .all(workflowId, limit) as Array<{
+          seq: number;
+          command_id: string;
+          created_at: string;
+          type: string;
+          payload: string | null;
+        }>;
+        if (rows.length > 0) {
+          const placeholders = rows.map(() => '?').join(', ');
+          this.db
+            .prepare(`DELETE FROM kanban_workflow_commands WHERE seq IN (${placeholders})`)
+            .run(...rows.map((row) => row.seq));
+        }
+        this.db.exec('COMMIT');
+        return rows.map((row) => ({
+          id: row.command_id,
+          workflowId,
+          createdAt: row.created_at,
+          type: row.type,
+          ...(row.payload === null ? {} : { payload: JSON.parse(row.payload) as unknown }),
+        }));
+      } catch (error) {
+        this.db.exec('ROLLBACK');
+        throw error;
+      }
+    });
+  }
+
+  async readWorkflowState(workflowId: string): Promise<KanbanWorkflowState | null> {
+    return this.exclusive(() => this.readWorkflowStateUnlocked(workflowId));
+  }
+
+  async writeWorkflowState(
+    workflowId: string,
+    value: unknown,
+    expectedRevision?: number,
+  ): Promise<KanbanWorkflowState> {
+    return this.exclusive(() => {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const current = this.readWorkflowStateUnlocked(workflowId);
+        const currentRevision = current?.revision ?? 0;
+        if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+          throw new StaleWriteError(
+            `${STALE_WRITE_PREFIX} for workflow "${workflowId}": current revision ` +
+              `${currentRevision} does not match expected revision ${expectedRevision}.`,
+          );
+        }
+        const state: KanbanWorkflowState = {
+          workflowId,
+          revision: currentRevision + 1,
+          updatedAt: new Date().toISOString(),
+          value,
+        };
+        this.db
+          .prepare(
+            `INSERT INTO kanban_workflow_state(workflow_id, revision, updated_at, payload)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(workflow_id) DO UPDATE SET
+               revision = excluded.revision,
+               updated_at = excluded.updated_at,
+               payload = excluded.payload`,
+          )
+          .run(workflowId, state.revision, state.updatedAt, JSON.stringify(value));
+        this.db.exec('COMMIT');
+        return state;
+      } catch (error) {
+        this.db.exec('ROLLBACK');
+        throw error;
+      }
+    });
+  }
+
+  async listWorkflowStates(prefix: string, limit = 100): Promise<KanbanWorkflowState[]> {
+    return this.exclusive(() => {
+      const rows = this.db
+        .prepare(
+          `SELECT workflow_id, revision, updated_at, payload
+           FROM kanban_workflow_state
+           WHERE workflow_id LIKE ? ESCAPE '\\'
+           ORDER BY updated_at DESC, workflow_id
+           LIMIT ?`,
+        )
+        .all(`${escapeLike(prefix)}%`, limit) as Array<{
+        workflow_id: string;
+        revision: number;
+        updated_at: string;
+        payload: string;
+      }>;
+      return rows.map((row) => this.workflowStateFromRow(row));
+    });
+  }
+
+  async deleteWorkflowState(workflowId: string): Promise<boolean> {
+    return this.exclusive(() => {
+      const result = this.db
+        .prepare('DELETE FROM kanban_workflow_state WHERE workflow_id = ?')
+        .run(workflowId);
+      return Number(result.changes) > 0;
+    });
+  }
+
   async mutateBoard<T>(
     boardRef: string,
     mutator: (board: KanbanBoard) => T | Promise<T>,
@@ -255,7 +392,56 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
 
       CREATE INDEX IF NOT EXISTS idx_kanban_events_board_seq
         ON kanban_events(board_id, seq);
+
+      CREATE TABLE IF NOT EXISTS kanban_workflow_commands (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        workflow_id TEXT NOT NULL,
+        command_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        type TEXT NOT NULL,
+        payload TEXT,
+        UNIQUE (workflow_id, command_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_kanban_workflow_commands_workflow_seq
+        ON kanban_workflow_commands(workflow_id, seq);
+
+      CREATE TABLE IF NOT EXISTS kanban_workflow_state (
+        workflow_id TEXT PRIMARY KEY,
+        revision INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_kanban_workflow_state_updated
+        ON kanban_workflow_state(updated_at DESC);
     `);
+  }
+
+  private readWorkflowStateUnlocked(workflowId: string): KanbanWorkflowState | null {
+    const row = this.db
+      .prepare(
+        `SELECT workflow_id, revision, updated_at, payload
+         FROM kanban_workflow_state WHERE workflow_id = ?`,
+      )
+      .get(workflowId) as
+      | { workflow_id: string; revision: number; updated_at: string; payload: string }
+      | undefined;
+    return row ? this.workflowStateFromRow(row) : null;
+  }
+
+  private workflowStateFromRow(row: {
+    workflow_id: string;
+    revision: number;
+    updated_at: string;
+    payload: string;
+  }): KanbanWorkflowState {
+    return {
+      workflowId: row.workflow_id,
+      revision: row.revision,
+      updatedAt: row.updated_at,
+      value: JSON.parse(row.payload) as unknown,
+    };
   }
 
   private async migrateLegacyFiles(): Promise<void> {

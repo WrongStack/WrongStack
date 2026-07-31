@@ -28,9 +28,11 @@ import type {
   BrainAutoRisk,
   BrainRuntime,
 } from '@wrongstack/core/execution';
+import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { TrustBoundary } from '@wrongstack/core/security';
 import type { SkillInstaller } from '@wrongstack/core/skills';
 import type { ConsolidatorSage, SessionReader } from '@wrongstack/core/storage';
 import type {
@@ -43,15 +45,11 @@ import type {
   SessionStore,
   SkillLoader,
 } from '@wrongstack/core/types';
-import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import type { TrustBoundary } from '@wrongstack/core/security';
 
 /** Session shape returned by `SessionStore.create()`. */
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 
-import {
-  Agent,
-} from '@wrongstack/core/agent';
+import { Agent } from '@wrongstack/core/agent';
 import {
   BrainDecisionLedger,
   BrainMonitor,
@@ -63,8 +61,8 @@ import {
   mailboxSessionTag,
   ObservableBrainArbiter as ObservableBrainArbiterCtor,
 } from '@wrongstack/core/coordination';
-import { installDesignStudioMiddleware } from '@wrongstack/core/design';
 import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/core/defaults';
+import { installDesignStudioMiddleware } from '@wrongstack/core/design';
 import {
   AutoCompactionMiddleware as AutoCompactionMiddlewareCtor,
   createBrainRuntime,
@@ -73,8 +71,12 @@ import {
   ToolExecutor,
 } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
-import { SessionMemoryConsolidator, type AnnotationsStore } from '@wrongstack/core/storage';
-import { resolveContextWindowPolicy, type Config, type ProviderConfig } from '@wrongstack/core/types';
+import { type AnnotationsStore, SessionMemoryConsolidator } from '@wrongstack/core/storage';
+import {
+  type Config,
+  type ProviderConfig,
+  resolveContextWindowPolicy,
+} from '@wrongstack/core/types';
 import {
   estimateRequestTokensCalibrated,
   toErrorMessage,
@@ -166,6 +168,10 @@ interface AgentServices {
   worktreeHandler: WorktreeWebSocketHandler;
   terminalHandler: TerminalWebSocketHandler;
   collabHandler: CollaborationWebSocketHandler;
+  /** Release event subscriptions, timers, subprocesses and socket references
+   * owned by the per-feature handlers. Idempotent handler disposers make this
+   * safe during both signal shutdown and programmatic server restarts. */
+  disposeRealtimeHandlers(): void;
   /** Refresh auto-compaction denominator on model switch. */
   updateAutoCompactionMaxContext: (
     newProvider: Provider,
@@ -218,11 +224,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // Design Studio — per-turn UI-intent detection + kit-menu injection.
   installDesignStudioMiddleware({ pipelines, ctx: context });
   const memoryRetrieval = getSageRetrieval(memoryStore);
-  if (
-    config.features.memory !== false &&
-    config.Sage?.enabled !== false &&
-    memoryRetrieval
-  ) {
+  if (config.features.memory !== false && config.Sage?.enabled !== false && memoryRetrieval) {
     if (config.Sage?.inject?.toolResults !== false) {
       pipelines.toolCall.use(
         createSageToolCallMiddleware({
@@ -419,9 +421,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     toolExecutor,
   });
   if (config.features.memory && config.features.memoryConsolidation !== false) {
-    const consSage = getSageService(memoryStore) as
-      | ConsolidatorSage
-      | undefined;
+    const consSage = getSageService(memoryStore) as ConsolidatorSage | undefined;
     agent.extensions.register(
       new SessionMemoryConsolidator({
         memoryStore,
@@ -515,30 +515,32 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     brainLog.push(entry);
     if (brainLog.length > 20) brainLog.shift();
   };
-  events.on('brain.decision_answered', (e) =>
-    pushBrainLog({
-      at: e.at,
-      kind: 'answered',
-      question: e.request.question,
-      outcome: e.decision.type === 'answer' ? (e.decision.optionId ?? e.decision.text) : '',
-    }),
-  );
-  events.on('brain.decision_ask_human', (e) =>
-    pushBrainLog({
-      at: e.at,
-      kind: 'ask_human',
-      question: e.request.question,
-      outcome: 'needs human judgement',
-    }),
-  );
-  events.on('brain.decision_denied', (e) =>
-    pushBrainLog({
-      at: e.at,
-      kind: 'denied',
-      question: e.request.question,
-      outcome: e.decision.type === 'deny' ? e.decision.reason : '',
-    }),
-  );
+  const brainLogOffs = [
+    events.on('brain.decision_answered', (e) =>
+      pushBrainLog({
+        at: e.at,
+        kind: 'answered',
+        question: e.request.question,
+        outcome: e.decision.type === 'answer' ? (e.decision.optionId ?? e.decision.text) : '',
+      }),
+    ),
+    events.on('brain.decision_ask_human', (e) =>
+      pushBrainLog({
+        at: e.at,
+        kind: 'ask_human',
+        question: e.request.question,
+        outcome: 'needs human judgement',
+      }),
+    ),
+    events.on('brain.decision_denied', (e) =>
+      pushBrainLog({
+        at: e.at,
+        kind: 'denied',
+        question: e.request.question,
+        outcome: e.decision.type === 'deny' ? e.decision.reason : '',
+      }),
+    ),
+  ];
 
   // Self-activation: watch for tool-failure streaks / error storms. `session`
   // is read at send time via the getter the caller passes, so the steer
@@ -656,6 +658,17 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       getActiveSessionId: () => context.session.id,
     },
   );
+  let realtimeHandlersDisposed = false;
+  const disposeRealtimeHandlers = () => {
+    if (realtimeHandlersDisposed) return;
+    realtimeHandlersDisposed = true;
+    for (const off of brainLogOffs) off();
+    goalHandler.dispose();
+    sddBoardHandler.dispose();
+    worktreeHandler.dispose();
+    terminalHandler.dispose();
+    collabHandler.dispose();
+  };
 
   return {
     collabBus,
@@ -682,6 +695,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     worktreeHandler,
     terminalHandler,
     collabHandler,
+    disposeRealtimeHandlers,
     updateAutoCompactionMaxContext,
   };
 }

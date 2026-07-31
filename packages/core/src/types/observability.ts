@@ -16,6 +16,12 @@ export interface MetricsSink {
   gauge(name: string, value: number, labels?: MetricLabels): void | undefined;
   /** Point-in-time export — for /metrics scrape, debug dumps, tests. */
   snapshot(): MetricsSnapshot;
+  /**
+   * Cumulative count of observations dropped by the sink (e.g. a
+   * high-cardinality label guard that refused new series). Returns 0 for
+   * sinks without a cap.
+   */
+  droppedObservations(): number;
   /** Reset all metrics. Useful for tests; production code should rarely use. */
   reset(): void;
 }
@@ -29,8 +35,15 @@ export interface MetricSeries {
 }
 
 export interface MetricsSnapshot {
+  /** Snapshot time (epoch ms). */
   timestamp: number;
   series: MetricSeries[];
+  /**
+   * Per-metric observation drops since the sink was created (or last reset).
+   * Names mirror `MetricSeries.name`. `droppedObservations` is undefined on
+   * sinks without a cardinality cap.
+   */
+  droppedObservations?: Record<string, number> | undefined;
 }
 
 /** Safe host-level status surfaced by `/metrics`; contains no endpoint or credentials. */

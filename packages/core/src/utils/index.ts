@@ -142,6 +142,13 @@ export {
 } from './tool-result-render-mode.js';
 export * from './tool-subject.js';
 export {
+  mcpQualifiedToolName,
+  mcpServerToolPrefix,
+  sanitizeWireToolName,
+  WIRE_TOOL_NAME_MAX_LENGTH,
+  WIRE_TOOL_NAME_PATTERN,
+} from './tool-name.js';
+export {
   type CompactToolDefinitionForWireOptions,
   type CompactWireToolDefinition,
   compactSchemaDescriptions,

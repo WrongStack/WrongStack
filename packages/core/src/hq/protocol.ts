@@ -8,4 +8,6 @@ export * from './protocol/tool.js';
 export * from './protocol/project.js';
 export * from './protocol/browser.js';
 export * from './protocol/kanban.js';
+export * from './protocol/peer.js';
+export * from './protocol/resume.js';
 export * from './protocol/core.js';

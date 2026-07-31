@@ -8,6 +8,11 @@ import {
   HqSnapshotStore,
   HqTimeseriesStore,
 } from '../../src/hq/persistence.js';
+import {
+  HQ_EVENT_LOG_PRESETS,
+  hqEventLogPresetFields,
+  type HqEventLogPreset,
+} from '../../src/hq/persistence/event-log.js';
 import type { HqEventEnvelope, HqSnapshot } from '../../src/hq/protocol.js';
 
 let dataDir: string;
@@ -228,5 +233,68 @@ describe('createHqPersistence facade', () => {
     expect(p.eventLog).toBeInstanceOf(HqEventLog);
     expect(p.snapshotStore).toBeInstanceOf(HqSnapshotStore);
     expect(p.timeseries).toBeInstanceOf(HqTimeseriesStore);
+  });
+});
+
+// ── D1 — HQ hardening: log-cap default lowered per HQ Evolution §10.3 ────
+
+describe('HqEventLog byte cap (D1)', () => {
+  it('defaults maxBytes to 32 MB and rotateKeepBytes to 16 MB', () => {
+    const log = new HqEventLog({ dataDir });
+    const opts = log as unknown as {
+      maxBytes: number;
+      rotateKeepBytes: number;
+    };
+    expect(opts.maxBytes).toBe(32 * 1024 * 1024);
+    expect(opts.rotateKeepBytes).toBe(16 * 1024 * 1024);
+  });
+
+  it('still allows an explicit override for VPS-deployed instances', () => {
+    const log = new HqEventLog({
+      dataDir,
+      maxBytes: 8 * 1024 * 1024,
+      rotateKeepBytes: 2 * 1024 * 1024,
+    });
+    const opts = log as unknown as {
+      maxBytes: number;
+      rotateKeepBytes: number;
+    };
+    expect(opts.maxBytes).toBe(8 * 1024 * 1024);
+    expect(opts.rotateKeepBytes).toBe(2 * 1024 * 1024);
+  });
+});
+
+describe('HqEventLog presets (D1 follow-up)', () => {
+  it('exposes vps8 / vps32 / desktop presets', () => {
+    expect(HQ_EVENT_LOG_PRESETS.vps8).toEqual({ maxBytes: 8 * 1024 * 1024, rotateKeepBytes: 2 * 1024 * 1024 });
+    expect(HQ_EVENT_LOG_PRESETS.vps32).toEqual({ maxBytes: 32 * 1024 * 1024, rotateKeepBytes: 16 * 1024 * 1024 });
+    expect(HQ_EVENT_LOG_PRESETS.desktop).toEqual({ maxBytes: 64 * 1024 * 1024, rotateKeepBytes: 24 * 1024 * 1024 });
+  });
+
+  it('hqEventLogPresetFields returns the same numbers the preset declares', () => {
+    expect(hqEventLogPresetFields('vps8').maxBytes).toBe(8 * 1024 * 1024);
+    expect(hqEventLogPresetFields('vps32').rotateKeepBytes).toBe(16 * 1024 * 1024);
+    expect(hqEventLogPresetFields('desktop').maxBytes).toBe(64 * 1024 * 1024);
+  });
+
+  it('throws on unknown preset names so the call site fails loudly', () => {
+    expect(() =>
+      hqEventLogPresetFields('vps128' as unknown as HqEventLogPreset),
+    ).toThrow(/Unknown HqEventLogPreset/);
+  });
+
+  it('a HqEventLog built with a preset matches the preset numbers', () => {
+    const fields = hqEventLogPresetFields('vps8');
+    const log = new HqEventLog({
+      dataDir,
+      maxBytes: fields.maxBytes,
+      rotateKeepBytes: fields.rotateKeepBytes,
+    });
+    const opts = log as unknown as {
+      maxBytes: number;
+      rotateKeepBytes: number;
+    };
+    expect(opts.maxBytes).toBe(8 * 1024 * 1024);
+    expect(opts.rotateKeepBytes).toBe(2 * 1024 * 1024);
   });
 });

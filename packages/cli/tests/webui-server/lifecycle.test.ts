@@ -193,6 +193,7 @@ describe('createWebuiShutdown', () => {
     const res = {
       abortInFlight: () => order.push('abort'),
       unsubscribeEvents: () => order.push('unsub'),
+      disposeResources: () => order.push('dispose'),
       closeClients: () => order.push('closeClients'),
       closeHttpServer: () => order.push('closeHttp'),
       wss: {
@@ -218,10 +219,11 @@ describe('createWebuiShutdown', () => {
     const { res, order, fireWssClose } = makeRes();
     const shutdown = createWebuiShutdown(res);
     shutdown();
-    // synchronous portion: abort → unsub → closeClients → (unregister kicks off) → closeHttp → wssClose
+    // synchronous portion: abort → unsub → dispose → closeClients → unregister → closeHttp → wssClose
     expect(order).toEqual([
       'abort',
       'unsub',
+      'dispose',
       'closeClients',
       'unregister',
       'closeHttp',

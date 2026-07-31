@@ -240,6 +240,37 @@ describe('useSimpleSocket — cleanup', () => {
     expect(first.close).toHaveBeenCalled();
   });
 
+  it('does NOT recreate the socket across consumer re-renders when onMessage is stable', () => {
+    // SimpleUiSession wraps its mailbox/message-handler bridge in useCallback;
+    // this pins the contract that ordinary state-driven re-renders must not
+    // close and recreate the socket unless that stable handler identity changes.
+    const onMessage = vi.fn();
+    const sessionIdRef = { current: null };
+    const socketRef = { current: null as MockSocket | null };
+    function Probe(props: { renderMarker: number }) {
+      void props.renderMarker;
+      useSimpleSocket({
+        onMessage,
+        sessionIdRef,
+        socketRef: socketRef as unknown as React.RefObject<SimpleSocket | null>,
+      } satisfies UseSimpleSocketOptions);
+      return null;
+    }
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    act(() => root.render(<Probe renderMarker={1} />));
+    expect(instances).toHaveLength(1);
+    const first = lastSocket();
+
+    act(() => root.render(<Probe renderMarker={2} />));
+
+    expect(instances).toHaveLength(1);
+    expect(socketRef.current).toBe(first);
+    expect(first.close).not.toHaveBeenCalled();
+  });
+
   it('does NOT recreate the socket when onDisconnect/onConnectionChange identity changes', () => {
     // Call sites pass these as inline arrows (new identity every render).
     // If they re-entered the effect deps, every consumer render would tear

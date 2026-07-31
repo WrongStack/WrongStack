@@ -7,6 +7,7 @@
  */
 
 import {
+  actionToAckInput,
   getSharedProjectMailbox,
   isMailboxMessageVisibleTo,
   MAILBOX_TYPE_PROPERTIES,
@@ -16,7 +17,7 @@ import {
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { WebSocket } from 'ws';
-import type { MailboxSendPayload } from './ws-payload-validation.js';
+import type { MailboxActionPayload, MailboxSendPayload } from './ws-payload-validation.js';
 import { errMessage, send } from './ws-utils.js';
 
 export interface MailboxHandlerDeps {
@@ -42,6 +43,51 @@ export function getMailboxForDeps(deps: MailboxHandlerDeps): RemoteMailbox | nul
 
 // ── Handlers ──────────────────────────────────────────────────────────
 
+export async function handleMailboxAction(
+  ws: WebSocket,
+  deps: MailboxHandlerDeps,
+  payload: MailboxActionPayload,
+): Promise<void> {
+  const mb = getMailboxForDeps(deps);
+  if (!mb) {
+    send(ws, {
+      type: 'mailbox.action_result',
+      payload: {
+        requestId: payload.requestId,
+        success: false,
+        error: 'No project root available',
+      },
+    });
+    return;
+  }
+  try {
+    const message =
+      payload.action === 'soft-delete'
+        ? await mb.softDelete(payload.mailId, payload.readerId)
+        : await mb.ack(actionToAckInput(payload.action, payload));
+    send(ws, {
+      type: 'mailbox.action_result',
+      payload: {
+        requestId: payload.requestId,
+        success: message !== null,
+        action: payload.action,
+        mailId: payload.mailId,
+      },
+    });
+  } catch (err) {
+    send(ws, {
+      type: 'mailbox.action_result',
+      payload: {
+        requestId: payload.requestId,
+        success: false,
+        action: payload.action,
+        mailId: payload.mailId,
+        error: errMessage(err),
+      },
+    });
+  }
+}
+
 /** Persist a human-authored WebUI message in the shared project mailbox. */
 export async function handleMailboxSend(
   ws: WebSocket,
@@ -62,7 +108,7 @@ export async function handleMailboxSend(
   }
   try {
     const message = await mb.send({
-      from: 'webui',
+      from: payload.from ?? 'webui',
       to: payload.to,
       type: payload.type,
       audience: payload.audience,
@@ -77,6 +123,7 @@ export async function handleMailboxSend(
         requestId: payload.requestId,
         success: true,
         messageId: message.id,
+        from: message.from,
         to: message.to,
         audience: message.audience ?? 'all',
       },
@@ -150,6 +197,7 @@ export async function handleMailboxMessages(
     send(ws, {
       type: 'mailbox.messages',
       payload: {
+        ...(payload?.unreadOnly === true ? { unreadOnly: true } : {}),
         messages: visibleMessages.map((m) => {
           const readByMe = payload?.agentId !== undefined ? (payload.agentId as string) in m.readBy : false;
           const completedByMe = payload?.agentId !== undefined ? m.completedBy === payload.agentId : false;

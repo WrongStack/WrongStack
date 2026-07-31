@@ -189,4 +189,29 @@ describe('LSP server completion coverage', () => {
       await fs.rm(root, { recursive: true, force: true }).catch(() => {});
     }
   });
+
+  it('caps diagnostics retention at MAX_DIAGNOSTICS_ENTRIES (oldest-first)', () => {
+    const value = server();
+    const withSet = value as unknown as {
+      setDiagnostics(uri: string, diagnostics: unknown[]): void;
+    };
+    for (let i = 0; i < LSPServer.MAX_DIAGNOSTICS_ENTRIES + 10; i += 1) {
+      withSet.setDiagnostics(`file:///doc-${i}.ts`, []);
+    }
+    expect(value.diagnostics.size).toBe(LSPServer.MAX_DIAGNOSTICS_ENTRIES);
+    expect(value.diagnostics.has('file:///doc-0.ts')).toBe(false);
+    expect(
+      value.diagnostics.has(`file:///doc-${LSPServer.MAX_DIAGNOSTICS_ENTRIES + 9}.ts`),
+    ).toBe(true);
+  });
+
+  it('notifyDidClose drops the diagnostics entry for the closed document', () => {
+    const value = server();
+    (
+      value as unknown as { setDiagnostics(uri: string, diagnostics: unknown[]): void }
+    ).setDiagnostics('file:///a.ts', [{ severity: 1 }]);
+    expect(value.getDiagnostics('file:///a.ts')).toHaveLength(1);
+    value.notifyDidClose('file:///a.ts');
+    expect(value.getDiagnostics('file:///a.ts')).toEqual([]);
+  });
 });

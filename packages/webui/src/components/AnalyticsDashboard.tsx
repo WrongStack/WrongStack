@@ -201,24 +201,30 @@ export function AnalyticsDashboard() {
   const fetchStats = useCallback(async () => {
     if (statsLoading) return;
     setStatsLoading(true);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cleanup: (() => void) | null = null;
     try {
       const ws = getWSClient(useConfigStore.getState().wsUrl);
       wsRef.current = ws;
 
-      const cleanup = ws.on('stats.get', (msg: unknown) => {
+      cleanup = ws.on('stats.get', (msg: unknown) => {
         const payload = (msg as { payload: StatsPayload }).payload;
         setStats(payload);
         setStatsLoading(false);
-        cleanup();
+        cleanup?.();
+        if (timer !== null) clearTimeout(timer);
       });
       ws.getStats({ echoToChat: false });
 
-      // Timeout guard: remove listener after 8s so stale handlers don't pile up
-      setTimeout(() => {
+      // Timeout guard: clear listener after 8s so stale handlers don't pile up.
+      // Stored in a local so a later refactor can clear it on unmount.
+      timer = setTimeout(() => {
+        cleanup?.();
         setStatsLoading(false);
-        cleanup();
       }, 8000);
     } catch {
+      cleanup?.();
+      if (timer !== null) clearTimeout(timer);
       setStatsLoading(false);
     }
   }, [statsLoading]);

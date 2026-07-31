@@ -7,6 +7,7 @@ import type {
   HqClientIdentity,
   HqClientKind,
   HqClientMessage,
+  HqClientResumeMessage,
 } from './client.js';
 import type { HqBrainEventPayload } from './brain.js';
 import type {
@@ -30,6 +31,8 @@ import type {
   HqMcpServerHealth,
 } from './mcp.js';
 import { isHqKanbanSnapshotPayload, type HqServerKanbanSnapshotMessage } from './kanban.js';
+import { isHqPeerLostPayload, isHqPeerRehydratePayload } from './peer.js';
+import type { HqResumeMessage } from './resume.js';
 import type { HqProjectIdentity, HqWorkspaceKind } from './project.js';
 import type {
   HqSessionAgentSummary,
@@ -93,7 +96,9 @@ export type HqEventType =
   | 'brain.event'
   | 'worktree.event'
   | 'mcp.health.snapshot'
-  | 'mcp.operation';
+  | 'mcp.operation'
+  | 'peer.rehydrate'
+  | 'peer.lost';
 
 export interface HqUsagePayload {
   inputTokens?: number;
@@ -150,7 +155,8 @@ export interface HqServerCommandBatchMessage {
 export type HqServerMessage =
   | HqServerCommandBatchMessage
   | HqServerKanbanSnapshotMessage
-  | HqWelcomePayload;
+  | HqWelcomePayload
+  | HqResumeMessage;
 
 /**
  * Discriminated parse result for {@link parseHqFrame}. The `reason` field
@@ -167,6 +173,7 @@ const KNOWN_HQ_CLIENT_FRAME_TYPES = new Set<HqClientMessage['type']>([
   'client.event',
   'client.command_poll',
   'client.command_ack',
+  'client.resume',
 ]);
 
 const HQ_CLIENT_KINDS = new Set<HqClientKind>([
@@ -294,6 +301,19 @@ function isHqClientCommandAckMessage(x: unknown): x is HqClientCommandAckMessage
   );
 }
 
+function isHqClientResumeMessage(x: unknown): x is HqClientResumeMessage {
+  if (typeof x !== 'object' || x === null) return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v.type === 'string' &&
+    v.type === 'client.resume' &&
+    Number.isSafeInteger(v.lastSeqSeen) &&
+    (v.lastSeqSeen as number) >= 0 &&
+    (v.clientId === undefined || typeof v.clientId === 'string') &&
+    (v.projectId === undefined || typeof v.projectId === 'string')
+  );
+}
+
 /**
  * Strictly parse a raw client → server frame into a {@link HqParseResult}.
  *
@@ -366,6 +386,19 @@ export function parseHqFrame(raw: string | Buffer): HqParseResult {
           ...(typeof obj.message === 'string' ? { message: obj.message } : {}),
         },
       };
+    case 'client.resume':
+      if (!isHqClientResumeMessage(obj)) {
+        return { ok: false, reason: 'malformed' };
+      }
+      return {
+        ok: true,
+        frame: {
+          type: 'client.resume',
+          lastSeqSeen: obj.lastSeqSeen,
+          ...(typeof obj.clientId === 'string' ? { clientId: obj.clientId } : {}),
+          ...(typeof obj.projectId === 'string' ? { projectId: obj.projectId } : {}),
+        },
+      };
     default: {
       // Unreachable: KNOWN_HQ_CLIENT_FRAME_TYPES membership guarantees
       // `obj.type` is one of the cases above. Return `unknown-type` defensively
@@ -395,6 +428,8 @@ const KNOWN_HQ_EVENT_PAYLOAD_TYPES = new Set<string>([
   'client.heartbeat',
   'mcp.health.snapshot',
   'mcp.operation',
+  'peer.rehydrate',
+  'peer.lost',
 ]);
 
 function isHqMcpLatencySummary(x: unknown): x is HqMcpLatencySummary {
@@ -886,6 +921,14 @@ export function parseHqEventPayload(
         : { ok: false, reason: 'malformed-payload' };
     case 'mcp.operation':
       return isHqMcpOperationPayload(payload)
+        ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'peer.rehydrate':
+      return isHqPeerRehydratePayload(payload)
+        ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'peer.lost':
+      return isHqPeerLostPayload(payload)
         ? { ok: true, payload }
         : { ok: false, reason: 'malformed-payload' };
     default: {

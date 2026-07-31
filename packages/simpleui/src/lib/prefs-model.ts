@@ -13,7 +13,6 @@ export interface SimplePrefs {
   autonomy: AutonomyMode;
   yolo: boolean;
   enhanceEnabled: boolean;
-  enhanceLanguage: string;
   /** Pre-refine grace countdown (seconds). 0 = skip. */
   preRefineSeconds: number;
   showModelReasoning: boolean;
@@ -29,7 +28,6 @@ export const DEFAULT_PREFS: SimplePrefs = {
   autonomy: 'off',
   yolo: false,
   enhanceEnabled: false,
-  enhanceLanguage: 'english',
   preRefineSeconds: 3,
   showModelReasoning: true,
   chime: false,
@@ -62,10 +60,6 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
         previous.autonomy,
     yolo: bool(raw['yolo'], previous.yolo),
     enhanceEnabled: bool(raw['enhanceEnabled'], previous.enhanceEnabled),
-    enhanceLanguage:
-      typeof raw['enhanceLanguage'] === 'string' && raw['enhanceLanguage']
-        ? raw['enhanceLanguage']
-        : previous.enhanceLanguage,
     preRefineSeconds:
       typeof raw['preRefineSeconds'] === 'number' && raw['preRefineSeconds'] >= 0
         ? raw['preRefineSeconds']

@@ -48,7 +48,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { authorizedFetch, clearHqToken, resolveHqToken } from './lib/auth.js';
 import { ToastOverlay } from './lib/toast-notification.js';
 import { useToastStore } from './lib/toast-store.js';
-import { fetchJson, useHqStore, type ViewId } from './store.js';
+import { fetchJson, useHqStore, type PeerEnvelope, type ViewId } from './store.js';
 import { setHqAppearancePrefs, useHqLocalPrefs } from './stores/hq-local-prefs.js';
 import { TokenGate } from './views/token-gate.js';
 import './app.css';
@@ -280,13 +280,14 @@ class HqViewBoundary extends Component<ViewBoundaryProps, ViewBoundaryState> {
 }
 
 export function HqApp(): React.ReactElement {
-  const { snapshot, alerts, activeView, authRequired, connected } = useHqStore(
+  const { snapshot, alerts, activeView, authRequired, connected, peerRehydrate } = useHqStore(
     useShallow((state) => ({
       snapshot: state.snapshot,
       alerts: state.alerts,
       activeView: state.activeView,
       authRequired: state.authRequired,
       connected: state.connected,
+      peerRehydrate: state.peerRehydrate,
     })),
   );
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -554,6 +555,7 @@ export function HqApp(): React.ReactElement {
         </header>
 
         {updateStatus?.outdated ? <UpdateNotice status={updateStatus} /> : null}
+        {peerRehydrate ? <PeerRehydrateNotice envelope={peerRehydrate} /> : null}
 
         <main className="hq-main" id="hq-main" tabIndex={-1}>
           <HqViewBoundary view={activeView}>
@@ -565,6 +567,34 @@ export function HqApp(): React.ReactElement {
       </section>
       <ToastOverlay />
     </div>
+  );
+}
+
+function PeerRehydrateNotice({ envelope }: { envelope: PeerEnvelope }): React.ReactElement {
+  const title =
+    envelope.kind === 'peer.rehydrate'
+      ? 'Leader session lost — survivor clients can rehydrate'
+      : 'Leader session lost — no survivor clients reported';
+  const detail =
+    envelope.kind === 'peer.rehydrate' && envelope.payload.rehydrateHint
+      ? envelope.payload.rehydrateHint
+      : `${envelope.payload.previousLeaderHandle} on ${envelope.payload.machineId} ended (${envelope.payload.reason}).`;
+
+  return (
+    <aside className="hq-peer-rehydrate-notice" role="status" aria-live="polite">
+      <TriangleAlert size={16} aria-hidden="true" />
+      <div>
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => useHqStore.getState()._dismissPeerRehydrate()}
+        title="Dismiss peer lifecycle notice"
+      >
+        Dismiss
+      </button>
+    </aside>
   );
 }
 

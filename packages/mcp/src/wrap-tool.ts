@@ -1,5 +1,6 @@
 import { ToolCapabilities } from '@wrongstack/core/security';
 import type { Permission, Tool } from '@wrongstack/core/types';
+import { mcpQualifiedToolName } from '@wrongstack/core/utils';
 import type { MCPClient, MCPTool } from './client.js';
 
 /**
@@ -43,7 +44,11 @@ export function wrapMCPTool(
   permission: Permission = 'confirm',
   observer?: MCPToolCallObserver | undefined,
 ): Tool {
-  const qualifiedName = `mcp__${serverName}__${mcpTool.name}`;
+  // Sanitized to the provider-wire pattern ^[a-zA-Z0-9_-]{1,128}$ — server
+  // names and remote tool names may contain dots/colons/spaces that
+  // Anthropic-family endpoints reject with a 400. The remote call below
+  // still uses the original `mcpTool.name`.
+  const qualifiedName = mcpQualifiedToolName(serverName, mcpTool.name);
   return {
     name: qualifiedName,
     description: mcpTool.description ?? `${qualifiedName} (MCP tool)`,

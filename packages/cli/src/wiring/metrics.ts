@@ -1,8 +1,14 @@
 import { constants as fsConstants, writeFileSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { DefaultHealthRegistry, InMemoryMetricsSink, type MetricsServerHandle, startMetricsServer, wireMetricsToEvents } from '@wrongstack/core/observability';
 import type { EventBus } from '@wrongstack/core/kernel';
+import {
+  DefaultHealthRegistry,
+  InMemoryMetricsSink,
+  type MetricsServerHandle,
+  startMetricsServer,
+  wireMetricsToEvents,
+} from '@wrongstack/core/observability';
 import type { HealthRegistry, MetricsRuntimeStatus, MetricsSink } from '@wrongstack/core/types';
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
 import type {
@@ -187,6 +193,10 @@ function renderCounts<T extends string>(counts: ReadonlyMap<T, number>): string 
     .join(', ');
 }
 
+// Labels can contain provider/model/tool/session identifiers. Keep the
+// production sink bounded even if a plugin emits a high-cardinality value.
+const MAX_METRIC_SERIES_PER_NAME = 500;
+
 export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
   const { flags, wpaths, events, logger, config } = params;
   let metricsSink: MetricsSink | undefined;
@@ -206,7 +216,9 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
 
   if (!flags.metrics) return { metricsSink, healthRegistry, metricsServerHandle, metricsStatus };
 
-  metricsSink = new InMemoryMetricsSink();
+  metricsSink = new InMemoryMetricsSink({
+    maxSeriesPerMetric: MAX_METRIC_SERIES_PER_NAME,
+  });
   metricsStatus.collectionEnabled = true;
   wireMetricsToEvents(events, metricsSink);
   healthRegistry = new DefaultHealthRegistry();

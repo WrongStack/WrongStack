@@ -25,7 +25,12 @@ import {
   type SddDeadlockChain,
   shortIdMap,
 } from './board-types.js';
-import type { SddBoardStore } from './sdd-board-store.js';
+import type { SddBoardEvent } from './sdd-board-store.js';
+
+export interface SddBoardPersistence {
+  saveSnapshot(snapshot: SddBoardSnapshot): Promise<void>;
+  appendEvent(runId: string, event: SddBoardEvent): Promise<void>;
+}
 
 function summarizeToolInput(input: unknown, scrubber: SecretScrubber): string | undefined {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return undefined;
@@ -59,8 +64,8 @@ export interface SddBoardProjectorOptions {
   events: EventBus;
   /** Parent session id for emitted `sdd.board.snapshot` events. */
   sessionId?: string | (() => string | undefined) | undefined;
-  /** Persist snapshots + JSONL events (optional — omit for in-memory only). */
-  store?: SddBoardStore | undefined;
+  /** Persist snapshots + audit events (optional — omit for in-memory only). */
+  store?: SddBoardPersistence | undefined;
   specId?: string | undefined;
   /** Run-level default worker model/provider/fallbacks (shown in the board header). */
   defaultModel?: string | undefined;
@@ -478,7 +483,7 @@ export class SddBoardProjector {
     }
   }
 
-  private startSaveLoop(store: SddBoardStore): void {
+  private startSaveLoop(store: SddBoardPersistence): void {
     if (this.saveLoop) return;
     const loop = this.persistPendingSnapshots(store);
     this.saveLoop = loop;
@@ -487,7 +492,7 @@ export class SddBoardProjector {
     });
   }
 
-  private async persistPendingSnapshots(store: SddBoardStore): Promise<void> {
+  private async persistPendingSnapshots(store: SddBoardPersistence): Promise<void> {
     while (this.pendingSnapshot) {
       const snapshot = this.pendingSnapshot;
       this.pendingSnapshot = undefined;

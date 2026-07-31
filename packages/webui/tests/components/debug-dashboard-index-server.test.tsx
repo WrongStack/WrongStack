@@ -38,6 +38,47 @@ describe('DebugDashboard codebase index health', () => {
             uptime: 10,
             cpuUsage: { user: 0, system: 0 },
             timestamp: Date.now(),
+            processes: [
+              {
+                pid: 777,
+                surface: 'tui',
+                ts: '2026-07-31T00:00:00.000Z',
+                memory: {
+                  rss: 512 * 1024 * 1024,
+                  heapUsed: 220 * 1024 * 1024,
+                  heapTotal: 300 * 1024 * 1024,
+                  retainedHeapUsed: 180 * 1024 * 1024,
+                },
+                signal: 'js-retention',
+                heapGrowthBytesPerHour: 12 * 1024 * 1024,
+                rssGrowthBytesPerHour: -4 * 1024 * 1024,
+                workload: {
+                  messages: 117,
+                  historyEntries: 208,
+                  historyMountedEntries: 17,
+                  appRenders: 21_618,
+                  metricsDroppedObservations: 7,
+                },
+                resources: {
+                  active: 35,
+                  types: 'Timeout=14,PipeWrap=8',
+                },
+                hqQueue: {
+                  entries: 1,
+                  bytes: 4096,
+                  maxBytes: 16 * 1024 * 1024,
+                  droppedFrames: 2,
+                  droppedBytes: 8192,
+                  coalescedFrames: 42,
+                  coalescedBytes: 1024 * 1024,
+                },
+                hqSnapshot: {
+                  inFlight: true,
+                  pending: true,
+                  timerScheduled: false,
+                },
+              },
+            ],
             codebaseIndexServer: {
               status: 'connected',
               connected: true,
@@ -75,5 +116,11 @@ describe('DebugDashboard codebase index health', () => {
     expect(screen.getByText('64.0 MB')).toBeTruthy();
     expect(screen.getByText('2 requests')).toBeTruthy();
     expect(screen.getByText('1 owners · 4 pending')).toBeTruthy();
+    expect(screen.getByText('Live WrongStack Processes')).toBeTruthy();
+    expect(screen.getByText('PID 777')).toBeTruthy();
+    expect(screen.getByText(/17\/208 history mounted/u)).toBeTruthy();
+    expect(screen.getByText(/7 metric drops/u)).toBeTruthy();
+    expect(screen.getByText('42 coalesced · 2 dropped')).toBeTruthy();
+    expect(screen.getByText('snapshot in-flight')).toBeTruthy();
   });
 });

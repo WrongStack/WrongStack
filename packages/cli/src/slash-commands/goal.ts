@@ -8,14 +8,17 @@ import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
 
 function getStore(opts: SlashCommandContext): PhaseStore {
-  // Per-project: ~/.wrongstack/projects/<hash>/goal
+  // Engine checkpoints live apart from the canonical mission goal.json file.
   if (!opts.paths)
     throw new ConfigError({
       message: 'PhaseStore not available — paths not configured.',
       code: 'CONFIG_INVALID',
       context: { missing: 'paths' },
     });
-  return new PhaseStore({ baseDir: opts.paths.projectGoal });
+  return new PhaseStore({
+    baseDir: opts.paths.projectAutophase,
+    legacyBaseDirs: [opts.paths.projectGoal],
+  });
 }
 
 function formatProgress(p: PhaseProgress): string {
@@ -75,7 +78,7 @@ async function gatherProjectContext(projectRoot: string): Promise<string | undef
  *
  * Goal turns a free-text goal into a real, LLM-driven build: the host
  * plans phases (each holding many todos), persists the phase-graph as
- * per-project JSON under ~/.wrongstack/projects/<hash>/goal, and drives
+ * per-project JSON under ~/.wrongstack/projects/<slug>/autophase, and drives
  * the orchestrator — one subagent per task — in the background. Live progress
  * is shown in the TUI PhaseMonitor.
  */

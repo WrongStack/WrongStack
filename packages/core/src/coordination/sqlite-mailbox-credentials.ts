@@ -9,8 +9,8 @@
  */
 import type { DatabaseSync } from 'node:sqlite';
 import {
-  createMailboxCredential,
   type CredentialValidation,
+  createMailboxCredential,
   type IssueCredentialOptions,
   MAX_CREDENTIAL_TTL,
   type MailboxCredential,
@@ -20,9 +20,9 @@ import {
 import { persistCredential } from './sqlite-mailbox-rows.js';
 
 export function credentialGet(db: DatabaseSync, credentialId: string): MailboxCredential | null {
-  const row = db.prepare('SELECT data FROM credentials WHERE credential_id = ?').get(credentialId) as
-    | { data: string }
-    | undefined;
+  const row = db
+    .prepare('SELECT data FROM credentials WHERE credential_id = ?')
+    .get(credentialId) as { data: string } | undefined;
   return row === undefined ? null : (JSON.parse(row.data) as MailboxCredential);
 }
 
@@ -107,6 +107,7 @@ export function credentialRotate(
     kind: old.kind,
     capabilities: options?.capabilities ?? old.capabilities,
     ttlMs: options?.ttlMs ?? MAX_CREDENTIAL_TTL[old.kind],
+    notBefore: options?.notBefore,
     supersedes: credentialId,
     issuedBy: options?.issuedBy,
   });

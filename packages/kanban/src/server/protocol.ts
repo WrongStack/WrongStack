@@ -18,7 +18,7 @@
 import type { KanbanDomainOperation } from '../domain-operations.js';
 import type { KanbanBoard, KanbanEvent } from '../types.js';
 
-export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 4;
+export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 6;
 
 export type KanbanDomainWireValue =
   | ['null']
@@ -161,6 +161,23 @@ export interface KanbanProjectServerStatus extends KanbanProjectServerInfo {
   pendingRequests: number;
 }
 
+/** Durable cross-process command owned by the project-scoped Kanban daemon. */
+export interface KanbanWorkflowCommand {
+  id: string;
+  workflowId: string;
+  createdAt: string;
+  type: string;
+  payload?: unknown;
+}
+
+/** Revisioned durable state for a project-local workflow instance. */
+export interface KanbanWorkflowState {
+  workflowId: string;
+  revision: number;
+  updatedAt: string;
+  value: unknown;
+}
+
 // ─── Operations exposed by the server ──────────────────────────────────────
 
 export interface KanbanServerOperations {
@@ -194,6 +211,34 @@ export interface KanbanServerOperations {
     args: { key: string; value: string };
     result: { written: boolean };
   };
+
+  // Generic workflow control plane. SDD and Goal keep their engine-specific
+  // checkpoints, while cross-process commands share the same project owner as
+  // their authoritative Kanban task state.
+  workflowEnqueueCommand: {
+    args: { workflowId: string; command: KanbanWorkflowCommand };
+    result: { enqueued: boolean };
+  };
+  workflowDrainCommands: {
+    args: { workflowId: string; limit?: number };
+    result: KanbanWorkflowCommand[];
+  };
+  workflowReadState: {
+    args: { workflowId: string };
+    result: KanbanWorkflowState | null;
+  };
+  workflowWriteState: {
+    args: { workflowId: string; value: unknown; expectedRevision?: number };
+    result: KanbanWorkflowState;
+  };
+  workflowListStates: {
+    args: { prefix: string; limit?: number };
+    result: KanbanWorkflowState[];
+  };
+  workflowDeleteState: {
+    args: { workflowId: string };
+    result: boolean;
+  };
 }
 
 export type KanbanServerMethod = keyof KanbanServerOperations;
@@ -209,6 +254,12 @@ export const KANBAN_SERVER_METHODS = [
   'storageDeleteBoard',
   'storageReadMetadata',
   'storageWriteMetadata',
+  'workflowEnqueueCommand',
+  'workflowDrainCommands',
+  'workflowReadState',
+  'workflowWriteState',
+  'workflowListStates',
+  'workflowDeleteState',
 ] as const satisfies readonly KanbanServerMethod[];
 
 // ─── Wire frames ────────────────────────────────────────────────────────────
@@ -254,7 +305,10 @@ export interface KanbanServerEvent {
 export type KanbanEventName =
   | 'board.created'
   | 'board.updated'
-  | 'board.deleted';
+  | 'board.deleted'
+  | 'workflow.command'
+  | 'workflow.state.updated'
+  | 'workflow.state.deleted';
 
 export interface KanbanHelloFrame extends KanbanProjectServerInfo {
   type: 'hello';

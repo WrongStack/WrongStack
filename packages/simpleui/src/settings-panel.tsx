@@ -149,16 +149,9 @@ export function SettingsPanel({
               disabled={offline}
               onChange={(enhanceEnabled) => onPrefChange({ enhanceEnabled })}
             />
-            <label className="settings-field">
-              <span>Refine language</span>
-              <input
-                type="text"
-                value={prefs.enhanceLanguage}
-                disabled={offline || !prefs.enhanceEnabled}
-                placeholder="english"
-                onChange={(event) => onPrefChange({ enhanceLanguage: event.target.value })}
-              />
-            </label>
+            <small className="settings-hint">
+              Refine adds a review step before sending. Language follows the saved server preference.
+            </small>
           </section>
 
           <section className="settings-group" aria-label="Mode">

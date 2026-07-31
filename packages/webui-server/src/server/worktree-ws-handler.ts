@@ -179,6 +179,7 @@ export class WorktreeWebSocketHandler {
     const res = await cleanupStaleSddWorktrees({
       projectRoot: this.management.projectRoot,
       boardsDir: this.management.boardsDir,
+      stateTransport: 'kanban',
     });
     if (res.skippedReason) {
       this.broadcast({

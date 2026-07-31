@@ -16,6 +16,8 @@ export interface SlashCommandContext {
   /** Resolved path helpers — use instead of constructing paths inline.
    *  Optional for unit tests that don't exercise commands requiring paths. */
   paths?: WstackPaths | undefined;
+  /** Explicit legacy SDD session codec for compatibility tests/old hosts. */
+  sddSessionTransport?: 'kanban' | 'legacy-file' | undefined;
   compactor?: {
     compact(ctx: Context, opts?: { aggressive?: boolean | undefined }): Promise<CompactReport>;
   };

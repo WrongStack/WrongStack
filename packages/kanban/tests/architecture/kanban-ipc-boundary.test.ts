@@ -67,6 +67,12 @@ describe('Kanban IPC ownership boundary', () => {
       'storageDeleteBoard',
       'storageReadMetadata',
       'storageWriteMetadata',
+      'workflowEnqueueCommand',
+      'workflowDrainCommands',
+      'workflowReadState',
+      'workflowWriteState',
+      'workflowListStates',
+      'workflowDeleteState',
     ]);
   });
 

@@ -65,6 +65,15 @@ const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
 
 const CHAT_ECHO_SUPPRESSION_TTL_MS = 30_000;
 
+/**
+ * Hard cap on the per-response-type suppression array. A response type that
+ * is suppressed but never consumed (e.g. the chat view is unmounted or the
+ * user is on a different screen) would otherwise keep every push until the
+ * TTL expires; cap the array so RAM stays bounded across long sessions.
+ * RAM-leak audit 2026-07-31, LOW.
+ */
+const CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE = 32;
+
 // C-2 fix (Phase 1.4): the auth token is delivered via the HttpOnly
 // cookie set by `/ws-auth` (preferred) OR via the `?token=…` query param
 // (non-browser fallback). The legacy in-sessionStorage path has been
@@ -529,6 +538,9 @@ class WrongStackWebSocketClientBase {
       if (responseType) {
         const pending = this.suppressedChatEchoes.get(responseType) ?? [];
         pending.push(Date.now() + CHAT_ECHO_SUPPRESSION_TTL_MS);
+        // Drop oldest past the cap so a never-consumed response type can't
+        // grow unboundedly. See CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE.
+        while (pending.length > CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE) pending.shift();
         this.suppressedChatEchoes.set(responseType, pending);
       }
     }

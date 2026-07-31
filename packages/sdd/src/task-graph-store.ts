@@ -1,7 +1,8 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
+import type { TaskStore } from '@wrongstack/core/tasking';
 import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
+import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
 export interface TaskGraphStoreOptions {
   /** Directory where task graph files are stored. Defaults to `.wrongstack/task-graphs`. */
@@ -46,9 +47,10 @@ function graphFromJSON(raw: string): TaskGraph {
  * File-backed task graph storage. Each graph is a JSON file under `baseDir/`.
  * An index file (`_index.json`) tracks all graphs for fast listing.
  */
-export class TaskGraphStore {
+export class TaskGraphStore implements TaskStore {
   private readonly baseDir: string;
   private readonly indexPath: string;
+  private writeChain: Promise<void> = Promise.resolve();
 
   constructor(opts: TaskGraphStoreOptions) {
     this.baseDir = opts.baseDir;
@@ -56,13 +58,19 @@ export class TaskGraphStore {
   }
 
   async save(graph: TaskGraph): Promise<void> {
-    await ensureDir(this.baseDir);
-    const filePath = this.filePath(graph.id);
-    await atomicWrite(filePath, graphToJSON(graph), { mode: 0o600 });
-    await this.updateIndex(graph);
+    const snapshot = graphFromJSON(graphToJSON(graph));
+    const pending = this.writeChain.then(async () => {
+      await ensureDir(this.baseDir);
+      const filePath = this.filePath(snapshot.id);
+      await atomicWrite(filePath, graphToJSON(snapshot), { mode: 0o600 });
+      await this.updateIndex(snapshot);
+    });
+    this.writeChain = pending.catch(() => undefined);
+    await pending;
   }
 
   async load(id: string): Promise<TaskGraph | null> {
+    await this.writeChain;
     try {
       const raw = await fsp.readFile(this.filePath(id), 'utf8');
       return graphFromJSON(raw);
@@ -72,11 +80,13 @@ export class TaskGraphStore {
   }
 
   async list(): Promise<TaskGraphIndexEntry[]> {
+    await this.writeChain;
     const index = await this.readIndex();
     return index.entries.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   async delete(id: string): Promise<boolean> {
+    await this.writeChain;
     try {
       await fsp.unlink(this.filePath(id));
       await this.removeFromIndex(id);
@@ -87,12 +97,29 @@ export class TaskGraphStore {
   }
 
   async exists(id: string): Promise<boolean> {
+    await this.writeChain;
     try {
       await fsp.access(this.filePath(id));
       return true;
     } catch {
       return false;
     }
+  }
+
+  saveGraph(graph: TaskGraph): Promise<void> {
+    return this.save(graph);
+  }
+
+  loadGraph(id: string): Promise<TaskGraph | null> {
+    return this.load(id);
+  }
+
+  async listGraphs(): Promise<Array<{ id: string; title: string; updatedAt: number }>> {
+    return (await this.list()).map(({ id, title, updatedAt }) => ({ id, title, updatedAt }));
+  }
+
+  async deleteGraph(id: string): Promise<void> {
+    await this.delete(id);
   }
 
   private filePath(id: string): string {

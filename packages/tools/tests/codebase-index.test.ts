@@ -11,28 +11,27 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { resetIndexStateForTesting } from '../src/codebase-index/background-indexer.js';
 import { buildBm25Index, tokenise } from '../src/codebase-index/bm25.js';
 import { codebaseIndexTool } from '../src/codebase-index/codebase-index-tool.js';
 import { codebaseSearchTool } from '../src/codebase-index/codebase-search-tool.js';
 import { codebaseStatsTool } from '../src/codebase-index/codebase-stats-tool.js';
-import { resetIndexStateForTesting } from '../src/codebase-index/background-indexer.js';
+import { runIndexer } from '../src/codebase-index/indexer.js';
 import {
-  LSPSymbolKind,
   internalKindToLspKind,
   isLspKind,
+  LSPSymbolKind,
   lspKindToInternalKind,
 } from '../src/codebase-index/lsp-kind.js';
+import { SCHEMA_VERSION } from '../src/codebase-index/schema.js';
 import { detectLang, parseSymbols } from '../src/codebase-index/ts-parser.js';
 import { IndexStore, indexStorePool } from '../src/codebase-index/writer.js';
-import { runIndexer } from '../src/codebase-index/indexer.js';
-import { SCHEMA_VERSION } from '../src/codebase-index/schema.js';
 
 // This suite drives the codebase index in-process. The project daemon now
 // fails closed when its build cannot be located, so the in-process path has to
 // be requested rather than fallen into — the same declaration a user would make
 // with WRONGSTACK_INDEX_INLINE=1.
 process.env['WRONGSTACK_INDEX_INLINE'] = '1';
-
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -276,36 +275,34 @@ describe('IndexStore', () => {
   });
 
   it('inserts symbols and returns them with assigned ids', async () => {
-    const inserted = store.insertSymbols(
-      [
-        {
-          id: 0,
-          lang: 'ts',
-          kind: 'class',
-          name: 'Foo',
-          file: '/p/Foo.ts',
-          line: 1,
-          col: 0,
-          signature: 'class Foo',
-          docComment: '',
-          scope: '',
-          text: 'class Foo',
-        },
-        {
-          id: 0,
-          lang: 'ts',
-          kind: 'function',
-          name: 'bar',
-          file: '/p/foo.ts',
-          line: 2,
-          col: 0,
-          signature: 'function bar()',
-          docComment: '',
-          scope: '',
-          text: 'function bar()',
-        },
-      ],
-    );
+    const inserted = store.insertSymbols([
+      {
+        id: 0,
+        lang: 'ts',
+        kind: 'class',
+        name: 'Foo',
+        file: '/p/Foo.ts',
+        line: 1,
+        col: 0,
+        signature: 'class Foo',
+        docComment: '',
+        scope: '',
+        text: 'class Foo',
+      },
+      {
+        id: 0,
+        lang: 'ts',
+        kind: 'function',
+        name: 'bar',
+        file: '/p/foo.ts',
+        line: 2,
+        col: 0,
+        signature: 'function bar()',
+        docComment: '',
+        scope: '',
+        text: 'function bar()',
+      },
+    ]);
     expect(inserted).toHaveLength(2);
     expect(inserted[0].id).toBe(1);
     expect(inserted[1].id).toBe(2);
@@ -508,8 +505,25 @@ describe('IndexStore.searchRanked', () => {
   let store: IndexStore;
   let tmpDir: string;
 
-  function sym(id: number, name: string, kind: 'class' | 'function', signature: string): Parameters<IndexStore['insertSymbols']>[0][number] {
-    return { id, lang: 'ts', kind, name, file: `/p/${name}.ts`, line: 1, col: 0, signature, docComment: '', scope: '', text: `${name} ${signature}` };
+  function sym(
+    id: number,
+    name: string,
+    kind: 'class' | 'function',
+    signature: string,
+  ): Parameters<IndexStore['insertSymbols']>[0][number] {
+    return {
+      id,
+      lang: 'ts',
+      kind,
+      name,
+      file: `/p/${name}.ts`,
+      line: 1,
+      col: 0,
+      signature,
+      docComment: '',
+      scope: '',
+      text: `${name} ${signature}`,
+    };
   }
 
   beforeEach(async () => {
@@ -524,7 +538,10 @@ describe('IndexStore.searchRanked', () => {
 
   it('matches camelCase parts of a symbol name with score and snippet', async () => {
     store.insertSymbols(
-      [sym(0, 'complexOperation', 'function', 'function complexOperation(): Promise<void>'), sym(0, 'TreeNode', 'class', 'class TreeNode')],
+      [
+        sym(0, 'complexOperation', 'function', 'function complexOperation(): Promise<void>'),
+        sym(0, 'TreeNode', 'class', 'class TreeNode'),
+      ],
       1,
     );
     const { results, total } = store.searchRanked('complex', undefined, 20);
@@ -542,7 +559,10 @@ describe('IndexStore.searchRanked', () => {
 
   it('applies kind/lang filters on top of the match', async () => {
     store.insertSymbols(
-      [sym(0, 'fooHandler', 'function', 'function fooHandler()'), sym(0, 'FooHandler', 'class', 'class FooHandler')],
+      [
+        sym(0, 'fooHandler', 'function', 'function fooHandler()'),
+        sym(0, 'FooHandler', 'class', 'class FooHandler'),
+      ],
       1,
     );
     const { results } = store.searchRanked('handler', { kind: 'class' }, 20);
@@ -551,7 +571,10 @@ describe('IndexStore.searchRanked', () => {
   });
 
   it('empty query lists by filter only (legacy search("") semantics)', async () => {
-    store.insertSymbols([sym(0, 'A', 'class', 'class A'), sym(0, 'b', 'function', 'function b()')], 1);
+    store.insertSymbols(
+      [sym(0, 'A', 'class', 'class A'), sym(0, 'b', 'function', 'function b()')],
+      1,
+    );
     const { results, total } = store.searchRanked('', { kind: 'class' }, 20);
     expect(total).toBe(1);
     expect(results[0]?.name).toBe('A');
@@ -559,7 +582,9 @@ describe('IndexStore.searchRanked', () => {
 
   it('respects the limit while reporting the full total', async () => {
     store.insertSymbols(
-      Array.from({ length: 10 }, (_, i) => sym(0, `widget${i}`, 'function', `function widget${i}()`)),
+      Array.from({ length: 10 }, (_, i) =>
+        sym(0, `widget${i}`, 'function', `function widget${i}()`),
+      ),
       1,
     );
     const { results, total } = store.searchRanked('widget', undefined, 3);
@@ -588,7 +613,21 @@ describe('schema migration', () => {
     try {
       const store = new IndexStore(tmpDir, { indexDir });
       store.insertSymbols(
-        [{ id: 0, lang: 'ts', kind: 'class', name: 'Old', file: '/p/Old.ts', line: 1, col: 0, signature: 'class Old', docComment: '', scope: '', text: 'class Old' }],
+        [
+          {
+            id: 0,
+            lang: 'ts',
+            kind: 'class',
+            name: 'Old',
+            file: '/p/Old.ts',
+            line: 1,
+            col: 0,
+            signature: 'class Old',
+            docComment: '',
+            scope: '',
+            text: 'class Old',
+          },
+        ],
         1,
       );
       // Simulate a database written by an older schema.
@@ -654,11 +693,29 @@ describe('codebase-index tool', () => {
     const first = await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
     const firstSymCount = first.symbolsIndexed;
 
-    // Same file, no changes — should be fast and skip indexing
+    // Stamp the persisted row with a sentinel. An unchanged incremental run
+    // must reuse that metadata; reparsing the file would overwrite it with
+    // Date.now(). This checks the skip contract directly instead of comparing
+    // wall-clock durations, which is flaky under Windows coverage contention.
+    const indexDir = path.join(tmpDir, '.codebase-index');
+    const store = indexStorePool.acquire(tmpDir, { indexDir });
+    try {
+      const firstMeta = store.getFileMeta(filePath);
+      expect(firstMeta).not.toBeNull();
+      if (firstMeta !== null) store.upsertFile({ ...firstMeta, lastIndexed: 1 });
+    } finally {
+      indexStorePool.release(store);
+    }
+
     const second = await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
-    expect(second.durationMs).toBeLessThan(first.durationMs + 100);
-    // symbols should be the same count
     expect(second.symbolsIndexed).toBe(firstSymCount);
+
+    const verificationStore = indexStorePool.acquire(tmpDir, { indexDir });
+    try {
+      expect(verificationStore.getFileMeta(filePath)?.lastIndexed).toBe(1);
+    } finally {
+      indexStorePool.release(verificationStore);
+    }
   });
 
   it('reindexing a low-id file after others were added does not collide ids', async () => {
@@ -702,13 +759,19 @@ describe('codebase-index tool', () => {
     const result = await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
     expect(result.errors).toHaveLength(0);
 
-    const visible = await codebaseSearchTool.execute({ query: 'VisibleSymbol' }, ctx, { signal: newSignal() });
+    const visible = await codebaseSearchTool.execute({ query: 'VisibleSymbol' }, ctx, {
+      signal: newSignal(),
+    });
     expect(visible.results.some((r) => r.name === 'VisibleSymbol')).toBe(true);
 
-    const hidden = await codebaseSearchTool.execute({ query: 'HiddenSymbol' }, ctx, { signal: newSignal() });
+    const hidden = await codebaseSearchTool.execute({ query: 'HiddenSymbol' }, ctx, {
+      signal: newSignal(),
+    });
     expect(hidden.results.some((r) => r.name === 'HiddenSymbol')).toBe(false);
 
-    const secret = await codebaseSearchTool.execute({ query: 'SecretSymbol' }, ctx, { signal: newSignal() });
+    const secret = await codebaseSearchTool.execute({ query: 'SecretSymbol' }, ctx, {
+      signal: newSignal(),
+    });
     expect(secret.results.some((r) => r.name === 'SecretSymbol')).toBe(false);
   });
 

@@ -17,6 +17,7 @@ function sentMessages(ws: { send: ReturnType<typeof vi.fn> }): unknown[] {
 
 function handlers(): MailboxRouteHandlers {
   return {
+    action: vi.fn(),
     send: vi.fn(),
     messages: vi.fn(),
     agents: vi.fn(),
@@ -41,6 +42,7 @@ describe('handleMailboxRoute', () => {
   });
 
   it.each([
+    ['mailbox.action', 'action'],
     ['mailbox.messages', 'messages'],
     ['mailbox.send', 'send'],
     ['mailbox.agents', 'agents'],

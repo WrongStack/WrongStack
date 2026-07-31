@@ -1,11 +1,13 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { TaskGraph, TaskNode, TaskEdge } from '../types/task-graph.js';
+import type { TaskEdge, TaskGraph, TaskNode } from '../types/task-graph.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type { PhaseGraph, PhaseNode } from './types.js';
 
 export interface PhaseStoreOptions {
   baseDir: string;
+  /** Previous directories read and migrated into baseDir on load/list. */
+  legacyBaseDirs?: string[] | undefined;
 }
 
 /** Current schema version for SerializedPhaseGraph. Increment on breaking changes. */
@@ -87,9 +89,13 @@ interface SerializedTaskNode {
  */
 export class PhaseStore {
   readonly baseDir: string;
+  private readonly legacyBaseDirs: string[];
 
   constructor(opts: PhaseStoreOptions) {
     this.baseDir = opts.baseDir;
+    this.legacyBaseDirs = (opts.legacyBaseDirs ?? []).filter(
+      (dir) => path.resolve(dir) !== path.resolve(this.baseDir),
+    );
   }
 
   async save(graph: PhaseGraph): Promise<void> {
@@ -103,26 +109,34 @@ export class PhaseStore {
 
   async load(graphId: string): Promise<PhaseGraph | null> {
     const filePath = this.getFilePath(graphId);
-    try {
-      const raw = await fsp.readFile(filePath, 'utf8');
-      const serialized = JSON.parse(raw) as SerializedPhaseGraph;
-      return this.deserializeGraph(serialized);
-    } catch {
-      return null;
+    const current = await this.loadFromPath(filePath);
+    if (current) return current;
+    for (const legacyDir of this.legacyBaseDirs) {
+      const legacyPath = path.join(legacyDir, `${graphId}.json`);
+      const legacy = await this.loadFromPath(legacyPath);
+      if (!legacy) continue;
+      try {
+        await this.save(legacy);
+        await this.removeMigratedLegacyFile(legacyDir, legacyPath);
+      } catch {
+        return null;
+      }
+      return legacy;
     }
+    return null;
   }
 
   async delete(graphId: string): Promise<void> {
-    const filePath = this.getFilePath(graphId);
-    try {
-      await fsp.unlink(filePath);
-    } catch {
-      // File might not exist
-    }
+    const paths = [
+      this.getFilePath(graphId),
+      ...this.legacyBaseDirs.map((dir) => path.join(dir, `${graphId}.json`)),
+    ];
+    await Promise.all(paths.map((filePath) => fsp.unlink(filePath).catch(() => undefined)));
   }
 
   async list(): Promise<Array<{ id: string; title: string; updatedAt: number; status: string }>> {
     try {
+      await this.migrateLegacyGraphs();
       const entries = await fsp.readdir(this.baseDir, { withFileTypes: true });
       const graphs: Array<{ id: string; title: string; updatedAt: number; status: string }> = [];
 
@@ -152,6 +166,49 @@ export class PhaseStore {
 
   private getFilePath(graphId: string): string {
     return path.join(this.baseDir, `${graphId}.json`);
+  }
+
+  private async loadFromPath(filePath: string): Promise<PhaseGraph | null> {
+    try {
+      const raw = await fsp.readFile(filePath, 'utf8');
+      const serialized = JSON.parse(raw) as SerializedPhaseGraph;
+      return this.deserializeGraph(serialized);
+    } catch {
+      return null;
+    }
+  }
+
+  private async migrateLegacyGraphs(): Promise<void> {
+    for (const legacyDir of this.legacyBaseDirs) {
+      const entries = await fsp.readdir(legacyDir, { withFileTypes: true }).catch(() => []);
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+        const legacyPath = path.join(legacyDir, entry.name);
+        const currentPath = this.getFilePath(path.basename(entry.name, '.json'));
+        if (await this.pathExists(currentPath)) {
+          await this.removeMigratedLegacyFile(legacyDir, legacyPath);
+          continue;
+        }
+        const graph = await this.loadFromPath(legacyPath);
+        if (!graph) continue;
+        await this.save(graph);
+        await this.removeMigratedLegacyFile(legacyDir, legacyPath);
+      }
+    }
+  }
+
+  private async pathExists(filePath: string): Promise<boolean> {
+    try {
+      await fsp.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async removeMigratedLegacyFile(legacyDir: string, legacyPath: string): Promise<void> {
+    await fsp.unlink(legacyPath).catch(() => undefined);
+    await fsp.rmdir(legacyDir).catch(() => undefined);
   }
 
   private serializeGraph(graph: PhaseGraph): SerializedPhaseGraph {
@@ -219,7 +276,7 @@ export class PhaseStore {
     if (fileVersion > PHASE_STORE_VERSION) {
       throw new Error(
         `Cannot load phase graph: file version ${fileVersion} is newer than ` +
-        `supported version ${PHASE_STORE_VERSION}. Upgrade WrongStack to load this file.`,
+          `supported version ${PHASE_STORE_VERSION}. Upgrade WrongStack to load this file.`,
       );
     }
     // Future: add per-version migration logic here when fileVersion < PHASE_STORE_VERSION.

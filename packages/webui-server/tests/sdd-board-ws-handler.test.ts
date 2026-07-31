@@ -48,6 +48,8 @@ function snapshot(over: Partial<SddBoardSnapshot> = {}): SddBoardSnapshot {
 function lifecyclePaths(root: string, boardsDir: string) {
   return {
     projectRoot: root,
+    controlTransport: 'legacy-file' as const,
+    stateTransport: 'legacy-file' as const,
     paths: {
       projectSpecs: path.join(root, 'specs'),
       projectTaskGraphs: path.join(root, 'task-graphs'),

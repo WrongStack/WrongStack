@@ -366,6 +366,7 @@ export async function startWebUI(
     worktreeHandler,
     terminalHandler,
     collabHandler,
+    disposeRealtimeHandlers,
     updateAutoCompactionMaxContext,
   } = agentServices;
   if (typeof context.meta['yolo'] === 'boolean') {
@@ -868,7 +869,18 @@ export async function startWebUI(
 
   // WebUI/SimpleUI joins the process flight recorder, including standalone servers.
   const stopHeapWatchdog = startSharedHeapWatchdog({
-    collectStats: () => ({ surface: opts.surface ?? 'webui', sessionId: context.session.id, messages: context.state.messages.length, messageEstimatedTokens: context.state.messages.reduce((sum, message) => sum + (message._estTokens ?? 0), 0), webClients: clients.size, pendingConfirms: pendingConfirms.size, runActive: runLockControl.get() !== null }),
+    collectStats: () => ({
+      surface: opts.surface ?? 'webui',
+      sessionId: context.session.id,
+      messages: context.state.messages.length,
+      messageEstimatedTokens: context.state.messages.reduce(
+        (sum, message) => sum + (message._estTokens ?? 0),
+        0,
+      ),
+      webClients: clients.size,
+      pendingConfirms: pendingConfirms.size,
+      runActive: runLockControl.get() !== null,
+    }),
   });
   // Build the route table (Phase 1a) + the message dispatcher and connection
   // handler (Phase 1b). The dispatcher owns the inbound `switch (msg.type)`
@@ -968,6 +980,7 @@ export async function startWebUI(
       await todosCheckpoint.detach();
       await stopHeapWatchdog();
       credentialWatcherClose?.();
+      disposeRealtimeHandlers();
       brainMonitor.stop();
       // Read via the services getter — ledger toggles swap the instance.
       await agentServices.brainLedger?.stop().catch(() => {});

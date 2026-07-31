@@ -238,7 +238,31 @@ const profiles = {
       cli: 'src/cli.ts',
     },
     workspaceExternal: true,
-    postBuild: prependSageMcpCliShebang,
+    postBuild: prependMcpCliShebang,
+  },
+  '@wrongstack/kanban-mcp': {
+    entries: {
+      index: 'src/index.ts',
+      cli: 'src/cli.ts',
+    },
+    workspaceExternal: true,
+    postBuild: prependMcpCliShebang,
+  },
+  '@wrongstack/mailbox-mcp': {
+    entries: {
+      index: 'src/index.ts',
+      cli: 'src/cli.ts',
+    },
+    workspaceExternal: true,
+    postBuild: prependMcpCliShebang,
+  },
+  '@wrongstack/codebase-index-mcp': {
+    entries: {
+      index: 'src/index.ts',
+      cli: 'src/cli.ts',
+    },
+    workspaceExternal: true,
+    postBuild: prependMcpCliShebang,
   },
   '@wrongstack/sdd': standard(['@wrongstack/core']),
   '@wrongstack/security-scanner': standard(['@wrongstack/core']),
@@ -326,7 +350,7 @@ function prependServerShebang() {
   if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env node\n${source}`);
 }
 
-function prependSageMcpCliShebang() {
+function prependMcpCliShebang() {
   const path = join(packageRoot, 'dist/cli.js');
   const source = readFileSync(path, 'utf8');
   if (!source.startsWith('#!')) writeFileSync(path, `#!/usr/bin/env node\n${source}`);

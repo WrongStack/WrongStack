@@ -226,6 +226,13 @@ export class FleetStatusLine {
           }, 800);
         }
       }),
+      this.events.on('subagent.removed', (e) => {
+        // Drop terminal-state entries so a long-running REPL doesn't keep one
+        // entry per retired subagent for the process lifetime (RAM-leak audit
+        // 2026-07-31, LOW). Mirrors `cli/src/fleet/status-broadcast.ts`.
+        this.states.delete(e.subagentId);
+        this.schedulePaint();
+      }),
     );
   }
 

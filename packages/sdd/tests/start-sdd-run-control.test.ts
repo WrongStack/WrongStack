@@ -1,17 +1,72 @@
+import { type ChildProcess, spawn } from 'node:child_process';
+import * as fs from 'node:fs/promises';
+import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { AgentFactory } from '@wrongstack/core/coordination/agent-subagent-runner.js';
 import { EventBus } from '@wrongstack/core/kernel/events.js';
 import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import {
+  closeKanbanServerConnections,
+  enqueueKanbanWorkflowCommand,
+  getKanbanServerConnection,
+  kanbanProjectServerEndpoint,
+  kanbanWorkflowId,
+  readKanbanWorkflowState,
+} from '@wrongstack/kanban';
 import { describe, expect, it, vi } from 'vitest';
 import type { Agent } from '../../src/core/agent.js';
+import { createKanbanSddSessionPersistence } from '../src/kanban-sdd-session.js';
 import { SddBoardStore } from '../src/sdd-board-store.js';
+import { rollbackSddRunFromDisk } from '../src/sdd-lifecycle.js';
 import type { SddParallelRun } from '../src/sdd-parallel-run.js';
+import type { AISpecSession } from '../src/spec-builder.js';
 import { applySddControlCommand, startSddRun } from '../src/start-sdd-run.js';
 import { TaskTracker } from '../src/task-tracker.js';
 
+const kanbanDistServer = fileURLToPath(
+  new URL('../../kanban/dist/project-server.js', import.meta.url),
+);
+
 function tmp(): string {
   return path.join(os.tmpdir(), `sdd-ctrl-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+}
+
+function startKanbanDaemon(projectRoot: string): ChildProcess {
+  return spawn(process.execPath, [kanbanDistServer, '--project-root', projectRoot], {
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+}
+
+async function waitForKanban(endpoint: string): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const connected = await new Promise<boolean>((resolve) => {
+      const socket = net.createConnection(endpoint);
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once('error', () => resolve(false));
+    });
+    if (connected) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Kanban daemon did not bind ${endpoint}`);
+}
+
+async function stopChild(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  child.kill();
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 2_000);
+    child.once('exit', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 function makeFakeStore(): TaskStore {
@@ -79,6 +134,98 @@ function gatedFactory(gate: Promise<void>): AgentFactory {
 }
 
 describe('startSddRun — control-drain branches', () => {
+  it('drains live commands from the project-scoped Kanban IPC queue', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-kanban-control-'));
+    const daemon = startKanbanDaemon(projectRoot);
+    await waitForKanban(kanbanProjectServerEndpoint(projectRoot));
+    const legacySessionPath = path.join(projectRoot, 'sdd-session.json');
+    const session: AISpecSession = {
+      id: 'session-1',
+      phase: 'questioning',
+      title: 'IPC session',
+      userIntent: 'prove project ownership',
+      projectContext: '',
+      answers: [],
+      questionCount: 0,
+      approved: false,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await fs.writeFile(legacySessionPath, JSON.stringify(session));
+    const sessionPersistence = createKanbanSddSessionPersistence(projectRoot, legacySessionPath);
+    await expect(sessionPersistence.load()).resolves.toEqual(session);
+    await expect(fs.stat(legacySessionPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    const concurrentSession = createKanbanSddSessionPersistence(projectRoot);
+    await expect(concurrentSession.load()).resolves.toEqual(session);
+    await sessionPersistence.save({ ...session, title: 'IPC session updated', updatedAt: 2 });
+    await expect(
+      concurrentSession.save({ ...session, title: 'stale writer', updatedAt: 3 }),
+    ).rejects.toMatchObject({ code: 'STALE_WRITE' });
+    const { tracker, graph } = await makeGraph(2);
+    const boardStore = new SddBoardStore({ baseDir: path.join(projectRoot, 'sdd-boards') });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const handle = startSddRun({
+      tracker,
+      graph,
+      agent: fakeLeader(),
+      projectRoot,
+      events: new EventBus(),
+      subagentFactory: gatedFactory(gate),
+      boardStore,
+      parallelSlots: 1,
+      controlDrainMs: 25,
+    });
+
+    try {
+      const tasks = tracker.getAllNodes().sort((a, b) => a.createdAt - b.createdAt);
+      await expect
+        .poll(() => tracker.getNode(tasks[0]!.id)?.status === 'in_progress', { timeout: 3_000 })
+        .toBe(true);
+
+      await enqueueKanbanWorkflowCommand(projectRoot, kanbanWorkflowId('sdd', handle.runId), {
+        type: 'reassign',
+        payload: { taskId: tasks[1]!.id, agentName: 'ipc-agent' },
+      });
+      await expect
+        .poll(() => tracker.getNode(tasks[1]!.id)?.assignee, { timeout: 3_000 })
+        .toBe('ipc-agent');
+
+      release();
+      await handle.completion;
+      const workflowState = await readKanbanWorkflowState(
+        projectRoot,
+        kanbanWorkflowId('sdd', handle.runId),
+      );
+      expect(workflowState).toMatchObject({
+        workflowId: kanbanWorkflowId('sdd', handle.runId),
+        value: { runId: handle.runId, status: 'completed' },
+      });
+      await expect(fs.stat(boardStore.snapshotPath(handle.runId))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+      await expect(
+        rollbackSddRunFromDisk({
+          projectRoot,
+          boardsDir: path.join(projectRoot, 'sdd-boards'),
+          runId: handle.runId,
+          stateTransport: 'kanban',
+        }),
+      ).resolves.toMatchObject({ ok: false, reason: expect.stringMatching(/base branch/i) });
+      const connection = await getKanbanServerConnection(projectRoot);
+      await connection?.request('shutdown', { reason: 'test-complete' });
+    } finally {
+      release();
+      handle.stop();
+      await handle.completion.catch(() => {});
+      closeKanbanServerConnections();
+      await stopChild(daemon);
+      await fs.rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it('applies every control command and safely ignores incomplete commands', async () => {
     const run = {
       pause: vi.fn(),
@@ -169,6 +316,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     // Wait for t1 to be running
@@ -207,6 +355,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     const t1 = tracker.getAllNodes().sort((a, b) => a.createdAt - b.createdAt)[0]!;
@@ -242,6 +391,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     const [t1, t2] = tracker
@@ -288,6 +438,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     const [t1, t2] = tracker
@@ -335,6 +486,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     const [t1, t2] = tracker
@@ -393,6 +545,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     await expect
@@ -441,6 +594,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     const t1 = tracker.getAllNodes()[0]!;
@@ -476,6 +630,7 @@ describe('startSddRun — control-drain branches', () => {
       boardStore,
       parallelSlots: 1,
       controlDrainMs: 15,
+      controlTransport: 'legacy-file',
     });
 
     const t1 = tracker.getAllNodes()[0]!;

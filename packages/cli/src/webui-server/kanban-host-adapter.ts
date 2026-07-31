@@ -1,11 +1,12 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory, BrainArbiter } from '@wrongstack/core/coordination';
-import type { Config, SkillLoader } from '@wrongstack/core/types';
 import type { PhaseTemplate } from '@wrongstack/core/goal';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { PhaseGraphBuilder } from '@wrongstack/core/goal';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { Config, SkillLoader } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { exportBoardToTaskGraph } from '@wrongstack/kanban';
+import { TaskGraphStore } from '@wrongstack/sdd';
 import {
   type GoalWebSocketHandler,
   type KanbanHostRouteHandlers,
@@ -179,6 +180,8 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
           return failRun('SDD runs need the multi-agent host, which is not available here.');
         }
         const paths = resolveWstackPaths({ projectRoot });
+        const taskStore = new TaskGraphStore({ baseDir: paths.projectTaskGraphs });
+        await taskStore.save(exported.graph);
         // Bind BEFORE start so the first snapshot lands on this board, not a new one.
         // runId is only known after startSddRunFromGraph — bind once we have it.
         const handle = await startSddRunFromGraph(
@@ -189,6 +192,7 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
             projectRoot,
             subagentFactory: opts.sddSubagentFactory,
             projectSddBoards: paths.projectSddBoards,
+            taskStore,
             ...(opts.brain ? { brain: opts.brain } : {}),
             ...(runIsolatedTurn ? { runIsolatedTurn } : {}),
           },

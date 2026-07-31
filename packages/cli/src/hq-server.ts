@@ -28,11 +28,11 @@ import {
   type HqAlert,
   HqAlertEngine,
   type HqAlertRuleConfig,
+  HqBootstrapCodeStore,
   type HqCommandAuditEntry,
   HqCommandAuditLog,
   type HqEventEnvelope,
   type HqTranscriptEntry,
-  HqBootstrapCodeStore,
   mintHqCookieSecret,
   mutateHqAuthFile,
   toAlertMessage,
@@ -48,8 +48,8 @@ import {
   agentMessageToEntry,
   agentRingKey,
   authenticateBrowserRequest,
-  buildClientWsUrl,
   buildBootstrapHttpUrl,
+  buildClientWsUrl,
   buildHttpUrl,
   createHqRouter,
   decodePathSegment,
@@ -223,6 +223,15 @@ async function startHqServerWithAuth(
     const transcripts = new Map<string, TranscriptRing>();
     const agentMessages = new Map<string, HqTranscriptEntry[]>();
     const mailboxGateways = new Map<string, HqRouterMailboxGateway>();
+    // Idle-TTL eviction for mailbox gateways (RAM-leak audit 2026-07-31, HIGH).
+    // Each gateway holds a persistent IPC connection that keeps the project's
+    // mailbox daemon alive (its idle-stop is gated on clients.size === 0), so a
+    // gateway that is never evicted pins one ~63 MB daemon for the HQ lifetime.
+    // The daemon self-stops ~5 min after its last connection closes, so a
+    // 15-minute idle window bounds the pin to ~20 minutes after last use.
+    const MAILBOX_GATEWAY_IDLE_TTL_MS = 15 * 60_000;
+    const MAILBOX_GATEWAY_SWEEP_INTERVAL_MS = 60_000;
+    const mailboxGatewayLastUsed = new Map<string, number>();
     const mailboxGatewayRateLimiter = new MailboxHttpRateLimiter();
     const mailboxGatewayRateLimitCleanup = setInterval(
       () => mailboxGatewayRateLimiter.cleanup(),
@@ -355,7 +364,10 @@ async function startHqServerWithAuth(
 
     const getMailboxGateway = (projectDir: string): HqRouterMailboxGateway => {
       const existing = mailboxGateways.get(projectDir);
-      if (existing) return existing;
+      if (existing) {
+        mailboxGatewayLastUsed.set(projectDir, Date.now());
+        return existing;
+      }
       const eventEmitter = new MailboxEventEmitter();
       const mailbox = createProjectMailbox({ projectDir, eventEmitter });
       const router = createMailboxHttpRouter({
@@ -372,8 +384,30 @@ async function startHqServerWithAuth(
       });
       const gateway = { mailbox, router };
       mailboxGateways.set(projectDir, gateway);
+      mailboxGatewayLastUsed.set(projectDir, Date.now());
       return gateway;
     };
+
+    // Evict gateways idle past the TTL, releasing their IPC connection so the
+    // project mailbox daemon can idle-stop itself. A router with an open SSE
+    // stream is never evicted — it is retried on the next sweep. A later
+    // request recreates the gateway lazily (same path as the first touch).
+    const evictIdleMailboxGateways = (): void => {
+      const cutoff = Date.now() - MAILBOX_GATEWAY_IDLE_TTL_MS;
+      for (const [projectDir, gateway] of [...mailboxGateways]) {
+        if ((mailboxGatewayLastUsed.get(projectDir) ?? 0) > cutoff) continue;
+        if (gateway.router.hasActiveStreams()) continue;
+        mailboxGateways.delete(projectDir);
+        mailboxGatewayLastUsed.delete(projectDir);
+        gateway.router.close();
+        void gateway.mailbox.close().catch(() => undefined);
+      }
+    };
+    const mailboxGatewaySweepTimer = setInterval(
+      evictIdleMailboxGateways,
+      MAILBOX_GATEWAY_SWEEP_INTERVAL_MS,
+    );
+    mailboxGatewaySweepTimer.unref?.();
 
     // ── Alerting ───────────────────────────────────────────────────────────
     const alertEngine = new HqAlertEngine({
@@ -433,8 +467,16 @@ async function startHqServerWithAuth(
       let changed = false;
       for (const [ws, client] of clients.entries()) {
         if (new Date(client.lastSeenAt).getTime() < cutoff) {
+          // Heartbeat-timeout: capture the lost client before deletion so
+          // the leader-deposed detector can emit `peer.rehydrate` /
+          // `peer.lost` if this client was the project's leader.
+          const lostClient = client;
           ws.terminate();
           clients.delete(ws);
+          HqServerWs.detectLeaderLoss(lostClient, clients, browsers, 'heartbeat-timeout', {
+            eventLog,
+            persistence,
+          });
           changed = true;
           continue;
         }
@@ -458,8 +500,17 @@ async function startHqServerWithAuth(
           client.sessions.size === 0 &&
           Date.now() - Date.parse(client.connectedAt) > sessionSnapshotTtlMs
         ) {
+          // Session-summary TTL eviction: same leader-loss detection as
+          // heartbeat-timeout (the leader is gone even if the socket is
+          // still alive; from the project's perspective the leader is
+          // unreachable).
+          const lostClient = client;
           ws.terminate();
           clients.delete(ws);
+          HqServerWs.detectLeaderLoss(lostClient, clients, browsers, 'heartbeat-timeout', {
+            eventLog,
+            persistence,
+          });
           changed = true;
         }
       }
@@ -598,7 +649,7 @@ async function startHqServerWithAuth(
 
     wss.on('connection', (ws: WebSocket, req: http.IncomingMessage, pathname: string) => {
       if (pathname === '/ws/browser') {
-        HqServerWs.handleBrowser(ws, snapshotBroadcaster, browsers);
+        HqServerWs.handleBrowser(ws, snapshotBroadcaster, browsers, eventLog);
       } else {
         const token = new URL(req.url ?? '/', `http://${host}:${port}`).searchParams.get('token');
         HqServerWs.handleClient(
@@ -753,6 +804,7 @@ async function startHqServerWithAuth(
               clearInterval(browserHeartbeatTimer);
               clearInterval(timeseriesFlushTimer);
               clearInterval(mailboxGatewayRateLimitCleanup);
+              clearInterval(mailboxGatewaySweepTimer);
               clearInterval(sessionCleanupTimer);
               stopAlertEngine();
               authWatcher.close();
@@ -768,6 +820,7 @@ async function startHqServerWithAuth(
                   mailbox.close().catch(() => undefined),
                 );
                 mailboxGateways.clear();
+                mailboxGatewayLastUsed.clear();
                 void Promise.all([
                   ...mailboxCloses,
                   persistence.eventLog.drain(),

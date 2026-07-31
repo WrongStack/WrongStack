@@ -1,7 +1,8 @@
+import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
 import { useFileStore } from '@/stores';
 import type { TreeNode } from '@/stores/file-store';
-import { useMailboxStore, type MailboxAgent, type MailboxMessage } from '@/stores/mailbox-store';
+import { type MailboxAgent, type MailboxMessage, useMailboxStore } from '@/stores/mailbox-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 
@@ -26,7 +27,7 @@ function debouncedRefresh(): void {
   }, 300);
 }
 
-export { queryMailbox, debouncedRefresh };
+export { debouncedRefresh, queryMailbox };
 
 export function handleFilesTree(msg: WSServerMessage) {
   const p = msg.payload as { root: string; tree: TreeNode[]; error?: string | undefined };
@@ -99,7 +100,15 @@ export function handleMailboxPurged(_msg: WSServerMessage) {
 }
 
 export function handleMailboxCompacted(msg: WSServerMessage) {
-  const p = msg.payload as { readByAllRemoved?: number; expiredRemoved?: number; stalePurged?: number; totalRemoved?: number; remaining?: number } | undefined;
+  const p = msg.payload as
+    | {
+        readByAllRemoved?: number;
+        expiredRemoved?: number;
+        stalePurged?: number;
+        totalRemoved?: number;
+        remaining?: number;
+      }
+    | undefined;
   if (p && typeof p.totalRemoved === 'number') {
     useMailboxStore.getState().setLastCompaction({
       readByAllRemoved: p.readByAllRemoved ?? 0,
@@ -110,6 +119,15 @@ export function handleMailboxCompacted(msg: WSServerMessage) {
     });
   }
   debouncedRefresh();
+}
+
+export function handleMailboxActionResult(msg: WSServerMessage) {
+  const p = msg.payload as { success?: boolean; error?: string | undefined } | undefined;
+  if (p?.success) {
+    debouncedRefresh();
+    return;
+  }
+  toast.error(`Mailbox action failed: ${p?.error ?? 'unknown error'}`);
 }
 
 export const filesMailboxHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
@@ -124,4 +142,5 @@ export const filesMailboxHandlerMap: Partial<Record<string, (msg: WSServerMessag
   'mailbox.cleared': handleMailboxCleared,
   'mailbox.purged': handleMailboxPurged,
   'mailbox.compacted': handleMailboxCompacted,
+  'mailbox.action_result': handleMailboxActionResult,
 };

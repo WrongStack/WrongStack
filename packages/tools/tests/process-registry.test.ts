@@ -27,6 +27,10 @@ const fakeChild = (): ChildProcess => {
   return c as never as ChildProcess;
 };
 
+/** A child that has exited but whose 'close' event never fired (orphan case). */
+const staleChild = (): ChildProcess =>
+  ({ killed: false, kill: vi.fn(() => true), exitCode: 0 }) as never as ChildProcess;
+
 const makeProc = (overrides: Partial<Tracked> = {}): Tracked => ({
   pid: overrides.pid ?? 1000 + Math.floor(Math.random() * 9000),
   name: overrides.name ?? 'bash',
@@ -341,5 +345,28 @@ describe('ProcessRegistry circuit-breaker config', () => {
     // At least one armed snapshot then a null (cancel) snapshot.
     expect(events.some((e) => e !== null && e.remainingMs > 0)).toBe(true);
     expect(events.at(-1)).toBeNull();
+  });
+
+  it('list() prunes entries whose child exited but whose close never fired', () => {
+    const r = getProcessRegistry();
+    r.register(makeProc({ pid: 30001, startedAt: Date.now() - 120_000, child: staleChild() }));
+    r.register(makeProc({ pid: 30002 }));
+    expect(r.list().map((p) => p.pid)).toEqual([30002]);
+    expect(r.activeCount).toBe(1);
+  });
+
+  it('stats() prunes stale entries before counting', () => {
+    const r = getProcessRegistry();
+    r.register(makeProc({ pid: 30011, startedAt: Date.now() - 120_000, child: staleChild() }));
+    r.register(makeProc({ pid: 30012 }));
+    const s = r.stats();
+    expect(s.totalCount).toBe(1);
+    expect(s.activeCount).toBe(1);
+  });
+
+  it('get() keeps pruning a single stale PID (existing behavior)', () => {
+    const r = getProcessRegistry();
+    r.register(makeProc({ pid: 30021, startedAt: Date.now() - 120_000, child: staleChild() }));
+    expect(r.get(30021)).toBeUndefined();
   });
 });

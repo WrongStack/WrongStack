@@ -447,6 +447,7 @@
         "export { hasMeaningfulContent, type MessageRepairReport, type MessageRepairResult, repairToolUseAdjacency, } from './message-invariants.js';",
         "export { isPidAlive } from './pid.js';",
         "export { isUlid, ulid } from './ulid.js';",
+        "export { mcpQualifiedToolName, mcpServerToolPrefix, sanitizeWireToolName, WIRE_TOOL_NAME_MAX_LENGTH, WIRE_TOOL_NAME_PATTERN, } from './tool-name.js';",
         "export { mergeCustomModelDefs } from './merge-custom-models.js';",
         "export { mergeModelsPayload } from './merge-models-payload.js';",
         "export { readBundledInstructionText, renderInstructionTemplate } from './instruction-file.js';",
@@ -809,7 +810,7 @@
       "source": "packages/core/src/observability/index.ts",
       "declarations": [
         "export { DefaultHealthRegistry } from './health.js';",
-        "export { InMemoryMetricsSink, NoopMetricsSink } from './metrics.js';",
+        "export { InMemoryMetricsSink, type InMemoryMetricsSinkOptions, NoopMetricsSink, } from './metrics.js';",
         "export { NoopTracer } from './tracer.js';",
         "export { OTelTracer } from './otel-tracer.js';",
         "export { buildOtlpMetricsRequest, startOtlpMetricsExporter, type OtlpMetricsExporterOptions, type OtlpMetricsExporterHandle, } from './otlp-metrics.js';",
@@ -1047,7 +1048,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41400
+      "sourceLines": 41546
     },
     {
       "directory": "core",
@@ -1089,7 +1090,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 14,
-      "sourceLines": 3315
+      "sourceLines": 3372
     },
     {
       "directory": "hooks",
@@ -1102,8 +1103,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 39,
-      "sourceLines": 7787
+      "sourceFiles": 41,
+      "sourceLines": 8186
     },
     {
       "directory": "infrastructure",
@@ -1145,7 +1146,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 12,
-      "sourceLines": 1431
+      "sourceLines": 1524
     },
     {
       "directory": "plugin",
@@ -1159,7 +1160,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6212
+      "sourceLines": 6241
     },
     {
       "directory": "prompts",
@@ -1201,7 +1202,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 16086
+      "sourceLines": 16118
     },
     {
       "directory": "tasking",
@@ -1215,21 +1216,21 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 2958
+      "sourceLines": 2959
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9350
+      "sourceLines": 9363
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 60,
-      "sourceLines": 9266
+      "sourceFiles": 61,
+      "sourceLines": 9321
     },
     {
       "directory": "worktree",

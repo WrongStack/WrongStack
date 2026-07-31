@@ -58,7 +58,17 @@ export class WebSocketClientTransport implements ACPClientTransport {
     this.maxMessageChars = finitePositiveLimit(opts.maxMessageChars, 20 * 1024 * 1024);
   }
 
+  /** Pending start() promise resolve/reject — settled in stop() to avoid leaking. */
+  private pendingStart: {
+    resolve: () => void;
+    reject: (e: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  } | null = null;
+
   start(): Promise<void> {
+    if (this.closed || this.ws !== null || this.pendingStart !== null) {
+      return Promise.reject(new Error('WebSocket transport has already been started or stopped'));
+    }
     const WS = (globalThis as { WebSocket?: WSConstructor }).WebSocket;
     if (!WS) {
       return Promise.reject(
@@ -69,41 +79,51 @@ export class WebSocketClientTransport implements ACPClientTransport {
     }
     const timeoutMs = this.opts.handshakeTimeoutMs ?? 30_000;
     return new Promise<void>((resolve, reject) => {
-      let settled = false;
       const ws = new WS(this.opts.url, this.opts.protocols);
       this.ws = ws;
       const timer = setTimeout(() => {
-        settled = true;
+        const pending = this.pendingStart;
+        if (pending === null) return;
+        this.pendingStart = null;
         try {
           ws.close();
         } catch {
           // ignore
         }
-        reject(new Error(`WebSocket failed to open within ${timeoutMs}ms`));
+        pending.reject(new Error(`WebSocket failed to open within ${timeoutMs}ms`));
       }, timeoutMs);
+      this.pendingStart = { resolve, reject, timer };
 
       ws.addEventListener('open', () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve();
+        const pending = this.pendingStart;
+        if (pending === null) return;
+        this.pendingStart = null;
+        clearTimeout(pending.timer);
+        pending.resolve();
       });
       ws.addEventListener('error', (ev: unknown) => {
-        if (settled) {
+        const pending = this.pendingStart;
+        if (pending === null) {
           // Post-open errors just tear the connection down.
           this.closed = true;
           return;
         }
-        settled = true;
-        clearTimeout(timer);
+        this.pendingStart = null;
+        clearTimeout(pending.timer);
         const message =
           ev && typeof ev === 'object' && 'message' in ev
             ? String((ev as { message: unknown }).message)
             : 'WebSocket error';
-        reject(new Error(message));
+        pending.reject(new Error(message));
       });
       ws.addEventListener('close', () => {
         this.closed = true;
+        const pending = this.pendingStart;
+        if (pending !== null) {
+          this.pendingStart = null;
+          clearTimeout(pending.timer);
+          pending.reject(new Error('WebSocket closed before the connection opened'));
+        }
       });
       ws.addEventListener('message', (ev: { data: unknown }) => {
         this.onData(ev.data);
@@ -138,6 +158,18 @@ export class WebSocketClientTransport implements ACPClientTransport {
 
   stop(): void {
     this.closed = true;
+    // If start() is still pending, reject it now so the caller's await unblocks
+    // instead of waiting up to `handshakeTimeoutMs` for the timer.
+    if (this.pendingStart !== null) {
+      const pending = this.pendingStart;
+      this.pendingStart = null;
+      clearTimeout(pending.timer);
+      try {
+        pending.reject(new Error('WebSocket transport stopped while connecting'));
+      } catch {
+        // ignore
+      }
+    }
     if (this.ws) {
       try {
         this.ws.close();

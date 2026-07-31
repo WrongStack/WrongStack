@@ -1,5 +1,6 @@
 import type { HqAlertMessage, HqEventEnvelope, HqHeartbeatMessage } from './core.js';
 import type { HqCommandAuditEntry } from '../commands.js';
+import type { HqResumeMessage } from './resume.js';
 import type { HqSnapshot } from './session.js';
 
 export interface HqBrowserSnapshotMessage {
@@ -24,5 +25,6 @@ export type HqBrowserMessage =
   | HqBrowserSnapshotMessage
   | HqBrowserEventMessage
   | HqBrowserCommandStatusMessage
+  | HqResumeMessage
   | HqAlertMessage
   | HqHeartbeatMessage;

@@ -133,6 +133,12 @@ export interface MailboxHttpRouter {
   handle(request: IncomingMessage, response: ServerResponse, routePath?: string): Promise<void>;
   /** Close every active SSE stream owned by this router. Idempotent. */
   close(): void;
+  /**
+   * True while at least one SSE stream is open. Hosts that cache routers
+   * (e.g. HQ's per-project mailbox gateway map) use this to skip evicting a
+   * router that still has a live stream — closing it would cut the client.
+   */
+  hasActiveStreams(): boolean;
 }
 
 export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): MailboxHttpRouter {
@@ -283,6 +289,9 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
     close(): void {
       for (const close of [...closeSseStreams]) close();
       closeSseStreams.clear();
+    },
+    hasActiveStreams(): boolean {
+      return closeSseStreams.size > 0;
     },
   };
 }

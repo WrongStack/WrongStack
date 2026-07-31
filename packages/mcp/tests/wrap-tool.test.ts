@@ -22,6 +22,29 @@ describe('wrapMCPTool', () => {
     expect(wrapped.name).toBe('mcp__postgres__list');
   });
 
+  it('sanitizes server/tool names to the provider wire pattern', async () => {
+    const callTool = vi.fn(async () => ({ content: 'ok', isError: false }));
+    const client = { callTool } as never as MCPClient;
+    const wrapped = wrapMCPTool('claude.ai Gmail', { name: 'search:messages', inputSchema: { type: 'object' } }, client);
+    expect(wrapped.name).toBe('mcp__claude_ai_Gmail__search_messages');
+    expect(wrapped.name).toMatch(/^[a-zA-Z0-9_-]{1,128}$/);
+
+    // The remote call must still use the ORIGINAL tool name.
+    const ctx = {} as Parameters<typeof wrapped.execute>[1];
+    await wrapped.execute({}, ctx, { signal: new AbortController().signal });
+    expect(callTool).toHaveBeenCalledWith('search:messages', {}, expect.anything());
+  });
+
+  it('clamps oversized qualified names to 128 chars keeping the prefix', () => {
+    const wrapped = wrapMCPTool(
+      'srv',
+      { name: 'x'.repeat(300), inputSchema: { type: 'object' } },
+      mkClient(async () => 'ok'),
+    );
+    expect(wrapped.name).toHaveLength(128);
+    expect(wrapped.name.startsWith('mcp__srv__')).toBe(true);
+  });
+
   it('declares the MCP proxy capability for permission boundaries', () => {
     const wrapped = wrapMCPTool(
       'ssh',

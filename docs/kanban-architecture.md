@@ -98,6 +98,8 @@ Primary implementation files:
 | Presence | `packages/kanban/src/manager/presence.ts` | Per-session/agent heartbeat, TTL-based active/inactive derivation |
 | Session mirror | `packages/tools/src/session-kanban.ts` | Bidirectional projection between session todo list and session-owned board |
 | Agent tool | `packages/tools/src/kanban.ts` | LLM-callable `kanban` tool actions; records presence on every successful mutation |
+| External MCP | `packages/kanban-mcp` | Project-bound stdio/HTTP server with read, manage, destructive, and long-poll watch tiers |
+| External-agent skill | `packages/core/skills/wrongstack-kanban/SKILL.md` | Portable inspect/claim/heartbeat/verify/reconcile workflow for MCP-capable coding agents |
 | Director tool | `packages/core/src/coordination/director-tools.ts` | `kanban_queue` fleet dispatch bridge; subagent prompt includes reassessment contract |
 | CLI | `packages/cli/src/slash-commands/kanban.ts` | Human slash-command surface |
 | Embedded WebUI WS | `packages/cli/src/webui-server/ws-handlers/kanban.ts` | CLI-hosted WebUI messages |
@@ -248,6 +250,21 @@ surface inside the project server. Tools, CLI, TUI, Director, and WebUI import
 the package-level API; stateful exports are overridden by
 `packages/kanban/src/client-domain.ts` and run through the daemon's explicit
 operation allowlist. Clients never execute manager mutations or open storage.
+
+### External MCP boundary
+
+`wstack-kanban-mcp --project-root <path>` connects to the same deterministic project server as
+WrongStack's own tools. The MCP process does not construct `SqliteKanbanStorage` and has no
+direct-file fallback.
+
+The default surface exposes `kanban_read` and `kanban_watch`. `--writable` adds non-destructive
+board/task management; `--destructive` additionally exposes delete, merge, and cross-board transfer
+operations and implies writable mode. Non-loopback HTTP binds require a bearer token.
+
+`kanban_watch` is a bounded long poll over daemon mutation events. Callers must re-read the board
+after an event, timeout, or disconnect because the event is a wake-up hint rather than an
+authoritative snapshot. The bundled `wrongstack-kanban` skill teaches this reconciliation contract
+to external coding agents.
 
 ### Board and column operations
 
@@ -495,6 +512,39 @@ SDD TaskGraph -> Kanban board -> human/agent edits -> TaskGraph export
 `createBoardsFromPhaseGraph()` creates one board per phase. Each board is tagged
 with `goal`, the phase graph id, and phase id, and task origins include the
 phase id.
+
+### Workflow runtime state
+
+Shared mutable workflow state follows the same project-owner boundary as board
+mutations. The Kanban daemon stores revisioned `workflowId` records in SQLite
+and exposes read/write/list/delete plus an atomic command queue over IPC.
+
+- SDD uses `sdd:<runId>` for the authoritative live board snapshot and its
+  cross-process control queue, plus `sdd:session` for the shared interview.
+  CLI and standalone WebUI read that state through IPC; `sdd-session.json`,
+  `<runId>.json`, and `<runId>.control.jsonl` are legacy import formats only.
+- Goal completion is committed to the phase Kanban board first; `goal.json` is
+  rebuilt as a compatibility projection after the board transition succeeds.
+- Specs, task graphs, checkpoints, and append-only audit logs remain files:
+  they are versionable artifacts or engine recovery data, not competing
+  cross-process authorities.
+
+Recovery is project-scoped rather than chat-session-scoped:
+
+- A replacement WebUI process rehydrates an existing `sdd:session`; CLI users
+  select it explicitly with `/sdd resume`.
+- SDD task status changes are persisted in the project task-graph store.
+  Restart recovery retains completed tasks and resets orphaned `in_progress`
+  tasks to `pending` before an explicitly started run continues.
+- Goal phase graphs follow the same explicit-resume rule: completed phases and
+  tasks are retained, while interrupted running work is normalized to pending.
+- The daemon never auto-launches execution after restart. This avoids duplicate
+  workers; a user or orchestration surface must explicitly resume/start work.
+
+Workflow writes support an expected revision so independent clients cannot
+silently overwrite a newer value. Production constructors bind to the
+project-scoped daemon; compatibility file transports must be selected
+explicitly.
 
 ---
 

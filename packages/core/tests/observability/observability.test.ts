@@ -60,6 +60,129 @@ describe('InMemoryMetricsSink', () => {
     expect(series[0].values.value).toBe(2);
   });
 
+  it('does not cap series when maxSeriesPerMetric is unset (default behavior)', () => {
+    const sink = new InMemoryMetricsSink();
+    // 50 distinct label combinations — well over any reasonable cap, but
+    // the default sink must accept every one to preserve existing telemetry.
+    for (let i = 0; i < 50; i += 1) sink.counter('high-card', 1, { user: `u${i}` });
+    expect(sink.snapshot().series).toHaveLength(50);
+    expect(sink.droppedObservations()).toBe(0);
+  });
+
+  it('drops new series past maxSeriesPerMetric and counts the drops', () => {
+    const sink = new InMemoryMetricsSink({ maxSeriesPerMetric: 3 });
+    // Fill the cap.
+    sink.counter('card', 1, { u: 'a' });
+    sink.counter('card', 1, { u: 'b' });
+    sink.counter('card', 1, { u: 'c' });
+    // The 4th and 5th observations should be dropped, NOT create new series.
+    sink.counter('card', 1, { u: 'd' });
+    sink.counter('card', 1, { u: 'e' });
+    // Existing series must continue to accumulate.
+    sink.counter('card', 7, { u: 'a' });
+
+    expect(sink.snapshot().series).toHaveLength(3);
+    expect(sink.droppedObservations()).toBe(2);
+    const a = sink.snapshot().series.find((s) => s.labels.u === 'a');
+    expect(a?.values.value).toBe(8);
+  });
+
+  it('applies the cap independently to counters, gauges, and histograms', () => {
+    const sink = new InMemoryMetricsSink({ maxSeriesPerMetric: 2 });
+    // Reuse the same name across families so this test actually exercises the
+    // cap-and-reject path; the previous version used distinct names and only
+    // confirmed "second label set rejected", not "drop lands on this metric".
+    sink.counter('m', 1, { u: 'a' });
+    sink.counter('m', 1, { u: 'b' });
+    sink.counter('m', 1, { u: 'c' }); // dropped — counter cap
+    sink.gauge('m', 1, { u: 'a' });
+    sink.gauge('m', 1, { u: 'b' });
+    sink.gauge('m', 1, { u: 'c' }); // dropped — gauge cap
+    sink.histogram('m', 1, { u: 'a' });
+    sink.histogram('m', 1, { u: 'b' });
+    sink.histogram('m', 1, { u: 'c' }); // dropped — histogram cap
+
+    // Three drops total, one per family, all attributed to the same name.
+    expect(sink.droppedObservations()).toBe(3);
+    expect(sink.droppedFor('m')).toBe(3);
+    // Existing series continue to accumulate; none of the dropped observations
+    // ever inserted a `u: 'c'` series.
+    const snap = sink.snapshot();
+    const byFamily = {
+      counter: snap.series.filter((s) => s.name === 'm' && s.type === 'counter'),
+      gauge: snap.series.filter((s) => s.name === 'm' && s.type === 'gauge'),
+      histogram: snap.series.filter((s) => s.name === 'm' && s.type === 'histogram'),
+    };
+    for (const family of Object.values(byFamily)) {
+      expect(family).toHaveLength(2);
+      expect(family.some((s) => s.labels.u === 'c')).toBe(false);
+    }
+  });
+
+  it('drop count resets with reset()', () => {
+    const sink = new InMemoryMetricsSink({ maxSeriesPerMetric: 1 });
+    sink.counter('x', 1, { u: 'a' });
+    sink.counter('x', 1, { u: 'b' });
+    sink.counter('x', 1, { u: 'c' });
+    expect(sink.droppedObservations()).toBe(2);
+    sink.reset();
+    expect(sink.droppedObservations()).toBe(0);
+    sink.counter('x', 1, { u: 'd' });
+    expect(sink.droppedObservations()).toBe(0);
+  });
+
+  it('treats maxSeriesPerMetric of 0 or negative as no cap (defensive default)', () => {
+    const zero = new InMemoryMetricsSink({ maxSeriesPerMetric: 0 });
+    const negative = new InMemoryMetricsSink({ maxSeriesPerMetric: -5 });
+    for (let i = 0; i < 50; i += 1) {
+      zero.counter('m', 1, { u: `u${i}` });
+      negative.counter('m', 1, { u: `u${i}` });
+    }
+    expect(zero.snapshot().series).toHaveLength(50);
+    expect(negative.snapshot().series).toHaveLength(50);
+    // No cap ⇒ no drops, and droppedObservations() must report 0.
+    expect(zero.droppedObservations()).toBe(0);
+    expect(negative.droppedObservations()).toBe(0);
+  });
+
+  it('exposes droppedObservations via the MetricsSink interface', () => {
+    const sink: import('../../src/types/observability.js').MetricsSink = new InMemoryMetricsSink({
+      maxSeriesPerMetric: 2,
+    });
+    sink.counter('c', 1, { u: 'a' });
+    sink.counter('c', 1, { u: 'b' });
+    sink.counter('c', 1, { u: 'c' }); // dropped
+    sink.counter('c', 1, { u: 'd' }); // dropped
+    expect(sink.droppedObservations?.()).toBe(2);
+  });
+
+  it('aggregates drops across all three metric families', () => {
+    const sink = new InMemoryMetricsSink({ maxSeriesPerMetric: 1 });
+    // Each family contributes one drop on its second distinct label set.
+    sink.counter('c', 1, { u: 'a' });
+    sink.counter('c', 1, { u: 'b' });
+    sink.gauge('g', 1, { u: 'a' });
+    sink.gauge('g', 1, { u: 'b' });
+    sink.histogram('h', 1, { u: 'a' });
+    sink.histogram('h', 1, { u: 'b' });
+    expect(sink.droppedObservations()).toBe(3);
+  });
+
+  it('surfaces per-metric drop counts in the snapshot for capped sinks', () => {
+    const capped = new InMemoryMetricsSink({ maxSeriesPerMetric: 1 });
+    capped.counter('a', 1, { u: '1' });
+    capped.counter('a', 1, { u: '2' }); // dropped
+    capped.counter('b', 1, { u: '1' });
+    capped.counter('b', 1, { u: '2' }); // dropped
+    const drops = capped.snapshot().droppedObservations;
+    expect(drops).toEqual({ a: 1, b: 1 });
+
+    // Uncapped sink → no drop field on the snapshot.
+    const uncapped = new InMemoryMetricsSink();
+    uncapped.counter('a', 1, { u: '1' });
+    expect(uncapped.snapshot().droppedObservations).toBeUndefined();
+  });
+
   it('reset clears state', () => {
     const sink = new InMemoryMetricsSink();
     sink.counter('foo', 5);

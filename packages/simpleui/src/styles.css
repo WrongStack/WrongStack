@@ -579,6 +579,7 @@ a:focus-visible {
 }
 
 .theme-toggle {
+  position: relative;
   width: 32px;
   height: 32px;
   display: grid;
@@ -2431,7 +2432,8 @@ a:focus-visible {
   box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 65%, transparent);
 }
 
-.tool-sidebar {
+.tool-sidebar,
+.email-panel {
   position: fixed;
   top: 66px;
   right: 12px;
@@ -2513,6 +2515,179 @@ a:focus-visible {
   color: var(--muted);
   font-size: 12px;
   text-align: center;
+}
+
+.mail-notification-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border: 1px solid var(--surface);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+}
+
+.simple-mailbox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text);
+}
+
+.simple-mailbox-summary,
+.simple-mailbox-health,
+.simple-mailbox-message > div,
+.simple-mailbox-message > span,
+.simple-mailbox-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.simple-mailbox-summary {
+  justify-content: space-between;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.simple-mailbox-summary button,
+.simple-mailbox-compose-toggle,
+.simple-mailbox-compose button,
+.simple-mailbox-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.simple-mailbox-summary button,
+.simple-mailbox-actions button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+.simple-mailbox-summary button:hover,
+.simple-mailbox-compose-toggle:hover,
+.simple-mailbox-compose button:hover:not(:disabled),
+.simple-mailbox-actions button:hover {
+  border-color: var(--line-strong);
+  color: var(--accent);
+}
+
+.simple-mailbox-health {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.simple-mailbox-health.online {
+  color: var(--success);
+}
+
+.simple-mailbox-health.offline {
+  color: var(--warning);
+}
+
+.simple-mailbox-compose-toggle,
+.simple-mailbox-compose button {
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.simple-mailbox-compose {
+  display: grid;
+  gap: 6px;
+}
+
+.simple-mailbox-compose input,
+.simple-mailbox-compose textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 8px;
+  font: inherit;
+}
+
+.simple-mailbox-compose textarea {
+  resize: vertical;
+}
+
+.simple-mailbox-compose button:disabled {
+  color: var(--subtle);
+  cursor: default;
+}
+
+.simple-mailbox-messages {
+  display: grid;
+  gap: 7px;
+}
+
+.simple-mailbox-message {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  padding: 8px;
+  background: var(--surface-2);
+}
+
+.simple-mailbox-message.completed {
+  opacity: 0.65;
+}
+
+.simple-mailbox-message > div:first-child {
+  justify-content: space-between;
+}
+
+.simple-mailbox-message strong,
+.simple-mailbox-message time,
+.simple-mailbox-message > span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.simple-mailbox-message strong,
+.simple-mailbox-message p {
+  overflow-wrap: anywhere;
+}
+
+.simple-mailbox-message > span {
+  color: var(--muted);
+}
+
+.simple-mailbox-message p {
+  margin: 7px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.simple-mailbox-message.high,
+.simple-mailbox-message.critical {
+  border-left-color: var(--danger);
+}
+
+.simple-mailbox-message.low {
+  border-left-color: var(--line-strong);
 }
 
 /* Compact meta-tool status row (todo, task, plan, delegate, …). */

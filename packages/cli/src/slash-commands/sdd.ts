@@ -1,10 +1,10 @@
 import * as fsp from 'node:fs/promises';
-import { expectDefined } from '@wrongstack/core/utils';
 import type { SlashCommand, SpecRequirement } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 import {
   AISpecBuilder,
   analyzeCriticalPath,
-  DefaultTaskStore,
+  createKanbanSddSessionPersistence,
   getTemplate,
   listTemplates,
   renderProgress,
@@ -25,8 +25,15 @@ import {
   getTaskProgress,
   matchTaskNode,
 } from '../services/sdd/task-manager.js';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
+import {
+  formatExistingSddSessionMessage,
+  formatSddDestroyResult,
+  parseParallelSlots,
+  parseSddSubtasks,
+  SDD_KNOWN_SUBCOMMANDS,
+} from './sdd-command-helpers.js';
 import {
   formatBlockedTasks,
   formatCriticalPathAnalysis,
@@ -38,13 +45,6 @@ import {
   formatTaskListView,
   sortTasksForSddDisplay,
 } from './sdd-format.js';
-import {
-  formatExistingSddSessionMessage,
-  formatSddDestroyResult,
-  parseParallelSlots,
-  parseSddSubtasks,
-  SDD_KNOWN_SUBCOMMANDS,
-} from './sdd-command-helpers.js';
 
 export type { TaskProgress } from '@wrongstack/core/types';
 export {
@@ -75,6 +75,7 @@ export {
   trySaveTasksFromAIOutput,
 } from '../services/sdd/task-manager.js';
 export { renderProgress };
+
 import { getTaskTrackerExport as _getTaskTracker } from '../services/sdd/task-manager.js';
 export function getTaskTracker(): TaskTracker | null {
   return _getTaskTracker();
@@ -97,7 +98,14 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
     async run(args) {
       if (!opts.paths) return { message: 'SDD not available — paths not configured.' };
       const specsDir = opts.paths.projectSpecs;
-
+      const projectRoot = opts.projectRoot || opts.context?.projectRoot || process.cwd();
+      const legacySession = opts.sddSessionTransport === 'legacy-file';
+      const sessionPersistence = legacySession
+        ? undefined
+        : createKanbanSddSessionPersistence(projectRoot, opts.paths.projectSddSession);
+      const sessionPersistenceOptions = sessionPersistence
+        ? { sessionPersistence }
+        : { sessionPath: opts.paths.projectSddSession };
       const specStore = new SpecStore({ baseDir: specsDir });
       const versioning = sddState.getVersioning();
 
@@ -122,17 +130,12 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
 
           // Check for existing session and offer to resume (unless --force)
           if (!sessionState.getBuilder() && !forceFlag) {
-            const sessionPath = opts.paths.projectSddSession;
             try {
-              await fsp.access(sessionPath);
-              // Session file exists — try to load it
-              const projectContext = await gatherProjectContext(
-                opts.context?.projectRoot ?? process.cwd(),
-              );
+              const projectContext = await gatherProjectContext(projectRoot);
               const tempBuilder = new AISpecBuilder({
                 store: specStore,
                 projectContext,
-                sessionPath,
+                ...sessionPersistenceOptions,
               });
               const loaded = await tempBuilder.loadSession();
               if (loaded) {
@@ -143,18 +146,19 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
                   };
                 }
               }
-            } catch {
-              // No existing session — continue
+            } catch (error) {
+              return {
+                message: `SDD session state is unavailable: ${error instanceof Error ? error.message : String(error)}`,
+              };
             }
           }
 
           // Reset task state from previous session
           sddState.clearTaskState();
+          sddState.setTaskStore(new TaskGraphStore({ baseDir: opts.paths.projectTaskGraphs }));
 
           // Gather project context for smarter AI questions
-          const projectContext = await gatherProjectContext(
-            opts.context?.projectRoot ?? process.cwd(),
-          );
+          const projectContext = await gatherProjectContext(projectRoot);
 
           sddState.setBuilder(
             new AISpecBuilder({
@@ -162,7 +166,7 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
               projectContext,
               minQuestions: 2,
               maxQuestions: 10,
-              sessionPath: opts.paths.projectSddSession,
+              ...sessionPersistenceOptions,
             }),
           );
           // Reset session and phase timers for the new session
@@ -752,12 +756,12 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
             const res = await opts.onSddDestroy();
             deletedFromDisk = res.deleted.length > 0 || res.worktreesRemoved > 0;
           } else {
-            const sessionPath = opts.paths.projectSddSession;
             try {
-              await fsp.unlink(sessionPath);
+              if (sessionPersistence) await sessionPersistence.delete();
+              else await fsp.unlink(opts.paths.projectSddSession);
               deletedFromDisk = true;
             } catch {
-              // No file on disk
+              // No project workflow owner in minimal test harnesses.
             }
             try {
               await fsp.rm(opts.paths.projectSpecs, { recursive: true, force: true });
@@ -774,7 +778,12 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
           const cancelBuilder = sddState.getBuilder();
           if (cancelBuilder) {
             const title = cancelBuilder.getSession().title;
-            await cancelBuilder.deleteSession();
+            // Mirror /sdd destroy's bounded-error handling: if the kanban
+            // daemon is unreachable, the IPC delete throws, and the async
+            // call would short-circuit before `setBuilder(null)` /
+            // `clearTaskState()` run — leaving a stale "active" session in
+            // memory that blocks every later `/sdd resume` / `new`.
+            await cancelBuilder.deleteSession().catch(() => {});
             sddState.setBuilder(null);
             sddState.clearTaskState();
             return { message: `SDD session for "${title}" cancelled.` };
@@ -792,10 +801,7 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
             return { message: 'An SDD session is already active. Use /sdd cancel first.' };
           }
 
-          const sessionPath = opts.paths.projectSddSession;
-          const projectContext = await gatherProjectContext(
-            opts.context?.projectRoot ?? process.cwd(),
-          );
+          const projectContext = await gatherProjectContext(projectRoot);
 
           sddState.setBuilder(
             new AISpecBuilder({
@@ -803,14 +809,23 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
               projectContext,
               minQuestions: 2,
               maxQuestions: 10,
-              sessionPath,
+              ...sessionPersistenceOptions,
             }),
           );
           const resumeBuilder = expectDefined(sddState.getBuilder());
-          const loaded = await resumeBuilder.loadSession();
+          // `sessionPersistence.load()` is an awaited IPC call against the
+          // kanban daemon; when the daemon is down it rejects, and the
+          // builder we just attached at line 801 would dangle — blocking
+          // every later `/sdd resume`/`new` until the process restarts.
+          // The legacy `sessionPath` branch inside `loadSession` swallows
+          // disk errors via its own try/catch; the persistence branch does
+          // not. Mirror /sdd destroy's bounded-error handling here.
+          const loaded = await resumeBuilder.loadSession().catch(() => false);
           if (!loaded) {
             sddState.setBuilder(null);
-            return { message: 'No saved SDD session found. Use /sdd new to start one.' };
+            return {
+              message: 'No saved SDD session found. Use /sdd new to start one.',
+            };
           }
 
           const session = resumeBuilder.getSession();
@@ -821,7 +836,7 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
           const taskGraphId = resumeBuilder.getTaskGraphId();
           if (taskGraphId) {
             try {
-              const store = new DefaultTaskStore();
+              const store = new TaskGraphStore({ baseDir: opts.paths.projectTaskGraphs });
               const tracker = new TaskTracker({ store });
               const graph = await tracker.loadGraph(taskGraphId);
               if (graph) {

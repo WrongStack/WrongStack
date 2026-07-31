@@ -1,21 +1,35 @@
-import { describe, expect, it } from 'vitest';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import { SddInterviewDriver, SpecStore, TaskGraphStore } from '@wrongstack/sdd';
 import { SddWizardWebSocketHandler } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 /** Minimal ws stub capturing sent JSON messages. */
 function fakeWs() {
   const sent: Array<{ type: string; payload: Record<string, unknown> }> = [];
   return {
     readyState: 1,
+    // `sendSerialized` reads `bufferedAmount` to enforce the
+    // `WEBUI_WS_MAX_BUFFERED_BYTES` backpressure cap, and may call
+    // `terminate()` / `close()` when a client cannot keep up. The
+    // production WebSocket type treats `undefined` as `0`, so these
+    // methods are functionally redundant for unit tests that never
+    // approach 32 MiB of buffered frames — but adding them keeps the
+    // stub in lockstep with the real `ws` surface so future tests
+    // can exercise the backpressure path without a refactor.
+    bufferedAmount: 0,
+    terminate: () => {},
+    close: () => {},
     send: (data: string) => sent.push(JSON.parse(data)),
     on: () => {},
     sent,
   } as never;
 }
 
-function requireLastOfType(ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> }, type: string) {
+function requireLastOfType(
+  ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> },
+  type: string,
+) {
   const matches = ws.sent.filter((x) => x.type === type);
   const match = matches[matches.length - 1];
   if (!match) throw new Error(`expected at least one ${type} frame, got none`);
@@ -35,7 +49,13 @@ const SPEC_OUTPUT = [
     overview: 'Add OAuth login with session management.',
     sections: [{ type: 'overview', title: 'Overview', content: 'flow', level: 1 }],
     requirements: [
-      { id: 'REQ-1', type: 'security', priority: 'critical', description: 'Verify tokens', acceptanceCriteria: [] },
+      {
+        id: 'REQ-1',
+        type: 'security',
+        priority: 'critical',
+        description: 'Verify tokens',
+        acceptanceCriteria: [],
+      },
     ],
   }),
   '```',
@@ -122,7 +142,10 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     handler.addClient(ws);
 
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
-    await handler.handleMessage({ type: 'sdd.spec.message', payload: { text: 'Google and GitHub' } });
+    await handler.handleMessage({
+      type: 'sdd.spec.message',
+      payload: { text: 'Google and GitHub' },
+    });
     await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
 
     // Start with explicit parallel slots + worktrees disabled + plan decompose on.
@@ -157,7 +180,9 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     expect(discarded.discarded).toBe(true);
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'New feature' } });
     expect(turnPrompts.length).toBeGreaterThan(turnsBefore);
-    expect((requireLastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(/New feature/);
+    expect((requireLastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(
+      /New feature/,
+    );
   });
 
   it('starts a run from a graph id when startRunFromGraphId is wired', async () => {
@@ -258,6 +283,98 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
       { question: 'Q1: providers?', answer: 'Google + GitHub' },
       { question: 'Q2: session store?', answer: 'Redis' },
     ]);
-    expect((requireLastOfType(ws, 'sdd.spec.snapshot').payload as { phase: string }).phase).toBe('spec_review');
+    expect((requireLastOfType(ws, 'sdd.spec.snapshot').payload as { phase: string }).phase).toBe(
+      'spec_review',
+    );
+  });
+
+  it('recovers from a latched resume failure on the next handleMessage', async () => {
+    // First call: makeDriver() returns a driver whose loadExisting() rejects
+    // (simulates the kanban daemon being unreachable during bootstrap). The
+    // handler latches resumeError and refuses the first user frame. The
+    // second call returns a driver that loads successfully (no prior
+    // session), so the gate releases and the next start can proceed.
+    let attempt = 0;
+    const recoveredDir = tmp();
+    const recoveredDriver = () =>
+      new SddInterviewDriver({
+        specStore: new SpecStore({ baseDir: path.join(recoveredDir, 'specs') }),
+        graphStore: new TaskGraphStore({ baseDir: path.join(recoveredDir, 'graphs') }),
+        minQuestions: 1,
+        maxQuestions: 3,
+      });
+    const handler = new SddWizardWebSocketHandler({
+      makeDriver: () => {
+        attempt += 1;
+        if (attempt === 1) {
+          return {
+            loadExisting: async () => {
+              throw new Error('kanban daemon unreachable');
+            },
+          } as never;
+        }
+        return recoveredDriver();
+      },
+      runInterviewTurn: async () => '',
+      startRun: async () => ({ runId: 'unused' }),
+    });
+    const ws = fakeWs();
+    handler.addClient(ws);
+
+    // Bootstrap has the first attempt fail → resumeError is latched.
+    await handler['ready'].catch(() => {});
+    // First user frame after a latched failure: kicks the single-flight
+    // re-probe, which recovers (attempt === 2 returns false). The gate
+    // releases; the start handler proceeds and a snapshot is broadcast.
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
+    // The successful start produces a snapshot, not another error.
+    expect(requireLastOfType(ws, 'sdd.spec.snapshot').payload).toBeDefined();
+    expect(attempt).toBeGreaterThanOrEqual(2);
+  });
+
+  it('stays latched when the first throw AND the retry also throw', async () => {
+    // Both probe attempts reject — the gate must stay latched and every
+    // surviving frame must surface the same error until recovery (which
+    // never happens in this test).
+    let probeCalls = 0;
+    const handler = new SddWizardWebSocketHandler({
+      makeDriver: () => {
+        probeCalls += 1;
+        return {
+          loadExisting: async () => {
+            throw new Error('persistent failure');
+          },
+          getLastAgentText: () => undefined,
+          getPhase: () => 'questioning' as const,
+          getSession: () => ({
+            id: 's1',
+            phase: 'questioning' as const,
+            title: '',
+            userIntent: '',
+          }),
+          getAIPrompt: () => '',
+        } as never;
+      },
+      runInterviewTurn: async () => '',
+      startRun: async () => ({ runId: 'unused' }),
+    });
+    const ws = fakeWs();
+    handler.addClient(ws);
+
+    // Bootstrap → latched initial failure.
+    await handler['ready'].catch(() => {});
+    expect(probeCalls).toBe(1);
+
+    // Two surviving frames fire concurrently. The single-flight slot
+    // guarantees the second one re-uses the same in-flight probe promise
+    // instead of stampeding the IPC client with a third makeDriver() call.
+    await Promise.all([
+      handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } }),
+      handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } }),
+    ]);
+    // Both frames share exactly one re-probe (not two).
+    expect(probeCalls).toBe(2);
+    // Both frames broadcast the preserved latched error.
+    expect(requireLastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/persistent failure/);
   });
 });

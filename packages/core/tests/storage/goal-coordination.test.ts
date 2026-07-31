@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { updateTask } from '@wrongstack/kanban';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BrainArbiter } from '../../src/coordination/brain.js';
 import {
@@ -41,6 +42,30 @@ describe('goal coordination', () => {
     expect(next.progressNote).toBe('2/4 deliverables complete');
     expect(next.journal.filter((entry) => entry.source === 'deliverable')).toHaveLength(2);
     expect(recomputeGoalProgress(next).progress).toBe(50);
+  });
+
+  it('treats Kanban task status as authoritative over stale goal markers', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-goal-authority-'));
+    roots.push(projectRoot);
+    const goalPath = goalFilePath(projectRoot);
+    await fs.mkdir(path.dirname(goalPath), { recursive: true });
+    const goal = { ...emptyGoal('Authority'), deliverables: ['✅ Ship the task'] };
+    const boardId = await createGoalKanbanBoard(projectRoot, goal);
+    await saveGoal(goalPath, goal);
+
+    const repaired = await coordinateGoalIteration({ projectRoot, goalPath, finalText: '' });
+    expect(repaired?.goal.deliverables).toEqual(['Ship the task']);
+    expect(repaired?.goal.progress).toBe(0);
+
+    const board = await findGoalKanbanBoard(projectRoot, boardId ?? '');
+    const done = board?.columns.find((column) => column.title.toLowerCase() === 'done');
+    await updateTask(projectRoot, board!.id, board!.tasks[0]!.id, {
+      columnId: done!.id,
+      status: 'completed',
+    });
+    const projected = await coordinateGoalIteration({ projectRoot, goalPath, finalText: '' });
+    expect(projected?.goal.deliverables).toEqual(['✅ Ship the task']);
+    expect(projected?.goal.progress).toBe(100);
   });
 
   it('closes Kanban ↔ goal ↔ Brain end-to-end and persists goal reached', async () => {

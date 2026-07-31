@@ -10,7 +10,7 @@ The source of truth is the code under
 All production mailbox data is project-scoped and server-owned:
 
 ```text
-CLI / agent loop / tools / TUI / WebUI / HQ / HTTP bridge
+CLI / agent loop / tools / TUI / WebUI / HQ / HTTP bridge / Mailbox MCP
                          │
                          ▼
                     RemoteMailbox
@@ -30,6 +30,7 @@ Mailbox data means:
 - actor-scoped read, completion, and outcome receipts;
 - agent registrations and heartbeats;
 - client registrations and heartbeats;
+- external identity credentials and their lifecycle state;
 - schema and legacy-import metadata.
 
 No production component opens `_mailbox.sqlite` directly. Only
@@ -123,6 +124,7 @@ Schema version 1 contains:
 | `message_receipts` | Per-message, per-actor read/completion/outcome state |
 | `agents` | Agent identity, session, role, status, task/tool counters, heartbeat |
 | `clients` | TUI/WebUI/REPL/HTTP client identity and heartbeat |
+| `credentials` | Hashed external credentials, capabilities, expiry, rotation, and revocation state |
 
 Receipt writes and message projections are transactional. Broadcast and alias
 messages do not have one global completion state: every actor owns an
@@ -152,6 +154,10 @@ clientHeartbeat         getClientStatuses
 purgeClients
 clearAll                purgeStale
 autoCompact
+credentialIssue         credentialVerify
+credentialRevoke        credentialRotate
+credentialGet           credentialList
+credentialStatusCounts
 shutdown
 ```
 
@@ -218,6 +224,33 @@ code.
   history, clear, and stale purge.
 - **HTTP bridge:** `wstack mailbox serve` is a network façade. Its handlers
   call `RemoteMailbox`; external clients never open SQLite.
+
+## External MCP boundary
+
+`wstack-mailbox-mcp` exposes Mailbox-specific MCP tools to third-party coding agents while keeping
+the same ownership chain as every in-process surface:
+
+```text
+external MCP client → wstack-mailbox-mcp → RemoteMailbox → project IPC owner → _mailbox.sqlite
+```
+
+It has no SQLite or legacy-file storage path. The configured `--actor` is bound server-side to
+sender identity, receipts, deletion attribution, self-registration, and heartbeats; payload fields
+cannot impersonate another actor. The external surface is split into explicit tiers:
+
+| Tier | Enabled by | Operations |
+|---|---|---|
+| `mailbox_read` | default | Query, unread count, agents, online agents, clients, owner status |
+| `mailbox_watch` | default | Bounded long-poll wake-up hints for sent, acked, deleted, and restored events |
+| `mailbox_manage` | `--writable` or `--admin` | Send, acknowledge, soft-delete, restore, and self-presence |
+| `mailbox_admin` | `--admin` | Clear, retention/compaction, presence cleanup, and credential lifecycle |
+
+`--admin` implies writable access. The MCP adapter never exposes runtime `control` messages; an
+external agent uses `steer` for ordinary redirection. Watch events contain identifiers and metadata,
+not authoritative message bodies, so clients re-query `mailbox_read` after every event or timeout.
+
+The companion workflow at `packages/core/skills/wrongstack-mailbox-mcp/SKILL.md` teaches external
+coding agents the registration, query, send, acknowledgement, presence, and reconciliation loop.
 
 The standalone HTTP bridge uses `.mailbox-bridge.lock` and `.mailbox.token` as
 discovery/authentication sidecars. Identity credential verifiers live in the

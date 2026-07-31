@@ -6,6 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type {
+  HqClientResumeMessage,
   HqCommandAuditLog,
   HqEventEnvelope,
   HqFleetSnapshotPayload,
@@ -13,6 +14,9 @@ import type {
   HqMailboxEventPayload,
   HqMailboxSnapshotPayload,
   HqMcpHealthSnapshotPayload,
+  HqPeerLostPayload,
+  HqPeerRehydratePayload,
+  HqPeerRehydrateReason,
   HqPersistence,
   HqQueuedCommand,
   HqRedactionPolicy,
@@ -24,7 +28,11 @@ import type {
   HqWelcomePayload,
 } from '@wrongstack/core/hq';
 import {
+  HQ_BROWSER_PEER_RESUME_CLIENT_ID,
   HQ_PROTOCOL_VERSION,
+  HQ_RESUME_GAP_MAX_BYTES,
+  HQ_RESUME_GAP_MAX_ENVELOPES,
+  HQ_RESUME_GAP_MAX_STALE_MS,
   HQ_TRANSCRIPT_TEXT_CAP,
   parseHqEventPayload,
   parseHqFrame,
@@ -51,12 +59,463 @@ import {
 
 const MAX_EVENT_LOG = 5000;
 
+/**
+ * Leader tracking: the project leader is the unique client with
+ * `control.receive` capability. The first client to register with that
+ * capability wins (`isLeader = true`); subsequent clients with the same
+ * capability are followers (`isLeader = false`). When the leader's
+ * connection is lost, the next-most-recent client with `control.receive`
+ * is promoted via `promoteNewLeader` (see `detectLeaderLoss`).
+ */
+function computeIsLeader(
+  clients: Map<WebSocket, ConnectedClient>,
+  projectId: string,
+  acceptedCapabilities: readonly string[],
+): boolean {
+  if (!acceptedCapabilities.includes('control.receive')) return false;
+  for (const other of clients.values()) {
+    if (other.projectId === projectId && other.capabilities.includes('control.receive')) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * After a leader is removed, promote the most recent surviving client with
+ * `control.receive` to leader. Returns the promoted client id, or null if
+ * no surviving client has `control.receive`.
+ */
+function promoteNewLeader(
+  clients: Map<WebSocket, ConnectedClient>,
+  projectId: string,
+  excludeWs: WebSocket,
+  excludeClient: ConnectedClient,
+): string | null {
+  const survivors: ConnectedClient[] = [];
+  for (const [otherWs, otherClient] of clients) {
+    if (otherWs === excludeWs || otherClient === excludeClient) continue;
+    if (otherClient.projectId !== projectId) continue;
+    if (!otherClient.capabilities.includes('control.receive')) continue;
+    survivors.push(otherClient);
+  }
+  if (survivors.length === 0) return null;
+  // Most recent survivor wins.
+  survivors.sort((a, b) => Date.parse(b.connectedAt) - Date.parse(a.connectedAt));
+  const promoted = survivors[0];
+  if (promoted) {
+    promoted.isLeader = true;
+    return promoted.clientId;
+  }
+  return null;
+}
+
+/**
+ * Detect leader loss and emit the appropriate envelope. Currently wired
+ * on `client.closed` (graceful close) and the two heartbeat-timeout sites
+ * in `hq-server.ts`. An `auth-revoked` call site is a planned follow-up;
+ * the `reason` parameter already accepts it.
+ *
+ * Returns `true` when a leader-loss event was actually emitted. Note:
+ * the dedup gate (`PEER_DEDUP_WINDOW_MS`) suppresses re-emit for the same
+ * `(projectId, previousLeaderHandle)` and is intentionally NOT considered
+ * a "not the leader" outcome — the lost client is still the leader; the
+ * function returns `false` purely because there is nothing new to broadcast.
+ * Callers that need to log the loss should consult `lostClient.isLeader`
+ * separately.
+ *
+ * Dedup: a `peer.rehydrate` for the same `(projectId, previousLeaderHandle)`
+ * is suppressed if one was emitted within `PEER_DEDUP_WINDOW_MS` (1 h).
+ * `peer.lost` is not deduped — a project losing its last surviving client
+ * is significant enough to emit every time the topology changes.
+ */
+export function detectLeaderLoss(
+  lostClient: ConnectedClient,
+  clients: Map<WebSocket, ConnectedClient>,
+  browsers: Set<WebSocket>,
+  reason: HqPeerRehydrateReason,
+  eventSink?: { eventLog: HqEventEnvelope[]; persistence?: HqPersistence | undefined },
+): boolean {
+  if (!lostClient.isLeader) return false;
+  const detectedAt = new Date().toISOString();
+  // Promote a control-capable survivor before deciding which envelope to emit.
+  const promotedLeaderId = promoteNewLeader(
+    clients,
+    lostClient.projectId,
+    lostClient.ws,
+    lostClient,
+  );
+  const hasSurvivors = promotedLeaderId !== null;
+  const machineId =
+    lostClient.machineId?.trim() || lostClient.project.machineId.trim() || 'unknown';
+  const previousLeaderHandle = lostClient.clientId;
+  // Build the envelope JSON once and fan it out to both browsers (the
+  // dashboard) AND surviving same-project clients (the protocol target per
+  // `packages/core/src/hq/protocol/peer.ts` and plan §10.1). Clients receive
+  // it directly on their WS; the envelope shape matches the existing
+  // `hq.event` wrapper used everywhere else (see `broadcastEvent` below) so
+  // a future client-side `peer.*` listener can dispatch on
+  // `message.event.type`.
+  const seq = nextPeerEventSeq(eventSink?.eventLog);
+  let envelope: HqEventEnvelope;
+  if (hasSurvivors) {
+    // Dedup gate: same leader handle within 1 h → suppress.
+    if (checkPeerDedup(lostClient.projectId, previousLeaderHandle)) {
+      return false;
+    }
+    const payload: HqPeerRehydratePayload = {
+      projectId: lostClient.projectId,
+      machineId,
+      leaderClientId: lostClient.clientId,
+      previousLeaderHandle,
+      reason,
+      detectedAt,
+    };
+    envelope = {
+      id: `peer-${lostClient.clientId}-${Date.now()}`,
+      type: 'peer.rehydrate',
+      schemaVersion: HQ_PROTOCOL_VERSION,
+      timestamp: detectedAt,
+      clientId: HQ_BROWSER_PEER_RESUME_CLIENT_ID,
+      projectId: lostClient.projectId,
+      seq,
+      payload,
+    };
+    recordPeerEmit(lostClient.projectId, previousLeaderHandle);
+  } else {
+    const payload: HqPeerLostPayload = {
+      projectId: lostClient.projectId,
+      machineId,
+      leaderClientId: lostClient.clientId,
+      previousLeaderHandle,
+      reason,
+      detectedAt,
+    };
+    envelope = {
+      id: `peer-${lostClient.clientId}-${Date.now()}`,
+      type: 'peer.lost',
+      schemaVersion: HQ_PROTOCOL_VERSION,
+      timestamp: detectedAt,
+      clientId: HQ_BROWSER_PEER_RESUME_CLIENT_ID,
+      projectId: lostClient.projectId,
+      seq,
+      payload,
+    };
+  }
+  if (eventSink !== undefined) {
+    eventSink.eventLog.push(envelope);
+    if (eventSink.eventLog.length > MAX_EVENT_LOG) {
+      eventSink.eventLog.splice(0, eventSink.eventLog.length - MAX_EVENT_LOG);
+    }
+    eventSink.persistence?.eventLog.append(envelope);
+  }
+  broadcastEvent(envelope, browsers);
+  // Deliver the same envelope to every surviving same-project client on
+  // its existing WS. Mirrors the kanban-delta fanout below and uses
+  // `sendGuarded` for per-client backpressure. Current publishers ignore
+  // unknown `hq.event` wrappers, so a future peer listener can opt in
+  // without protocol churn.
+  for (const [peerWs, peerClient] of clients) {
+    if (peerWs === lostClient.ws) continue;
+    if (peerClient.projectId !== lostClient.projectId) continue;
+    sendGuarded(peerWs, JSON.stringify({ type: 'hq.event', event: envelope }));
+  }
+  return true;
+}
+
+/** Monotonic counter for peer.rehydrate / peer.lost envelope seq values. */
+let peerEventSeq = 0;
+
+function nextPeerEventSeq(eventLog?: readonly HqEventEnvelope[]): number {
+  if (eventLog !== undefined) {
+    for (const env of eventLog) {
+      if (env.clientId === HQ_BROWSER_PEER_RESUME_CLIENT_ID && env.seq > peerEventSeq) {
+        peerEventSeq = env.seq;
+      }
+    }
+  }
+  peerEventSeq += 1;
+  return peerEventSeq;
+}
+
+/**
+ * Server-side fanout of a `hq.kanban_snapshot` envelope after a merge.
+ *
+ * C2 — broadcasts the post-merge `delta` payload to:
+ *  - every client whose `projectId` matches `projectId`, and
+ *  - every browser in `browsers` (browsers are not project-scoped at the
+ *    WS level; the browser-side projection filters by project when it
+ *    applies the snapshot).
+ *
+ * The `delta` payload is the same touched-only payload the merge handler
+ * builds (full-set broadcasts drive V8 heap exhaustion on long-lived
+ * boards — see the merge handler's comment).
+ *
+ * Exported for direct unit testing in `tests/hq-kanban-fanout.test.ts`.
+ */
+export function fanoutKanbanDelta(
+  message: string,
+  clients: Map<WebSocket, ConnectedClient>,
+  browsers: Set<WebSocket>,
+  projectId: string,
+): { clientsNotified: number; browsersNotified: number } {
+  let clientsNotified = 0;
+  for (const peer of clients.values()) {
+    if (peer.projectId === projectId) {
+      sendGuarded(peer.ws, message);
+      clientsNotified++;
+    }
+  }
+  let browsersNotified = 0;
+  for (const browserWs of browsers) {
+    sendGuarded(browserWs, message);
+    browsersNotified++;
+  }
+  return { clientsNotified, browsersNotified };
+}
+
+/**
+ * Server-side handler for `client.resume` frames.
+ *
+ * Wired from `handleClient` (line 511) when the client frame type is
+ * `client.resume`. The handler:
+ *  - Validates identity (clientId/projectId match against the WS).
+ *  - Updates `client.lastSeenAt`.
+ *  - Computes the cursor (what the client has received).
+ *  - Filters `eventLog` for envelopes with `clientId === client.clientId && env.seq > cursor`.
+ *  - Checks the log cannot serve the gap (log_unavailable).
+ *  - Checks the gap is fresh (last_seen_too_old).
+ *  - Checks the gap is not too large (gap_too_large).
+ *  - Sends `hq.resume_gap` on success.
+ *
+ * Exported for direct unit testing in `tests/hq-resume-handler.test.ts`.
+ */
+export function handleClientResume(
+  ws: WebSocket,
+  clients: Map<WebSocket, ConnectedClient>,
+  eventLog: HqEventEnvelope[],
+  frame: HqClientResumeMessage,
+  snapshotBroadcaster?: HqSnapshotBroadcaster,
+): void {
+  const client = clients.get(ws);
+  if (!client) return;
+  // Identity check: the optional clientId/projectId on the frame must
+  // match the WebSocket's registered identity, when present. Per
+  // §2.5, the resume is anchored to the existing WS context if those
+  // are absent.
+  if (frame.clientId !== undefined && frame.clientId !== client.clientId) {
+    ws.close(1008, 'resume clientId mismatch');
+    return;
+  }
+  // For browser-kind clients the synthetic `ConnectedClient` is built with
+  // `projectId: ''` (see `browserResumeClient`), but the protocol doc
+  // (`@wrongstack/core/hq` `HqClientResumeMessage`) permits the frame to
+  // carry an optional `projectId` hint. Browsers never use the field for
+  // authorization — they subscribe to peer envelopes against the synthetic
+  // bucket — so a hint mismatch is informational, not a security violation.
+  // Close the socket only when a non-browser client sends a hint that
+  // disagrees with its registered identity.
+  if (
+    client.kind !== 'browser' &&
+    frame.projectId !== undefined &&
+    frame.projectId !== client.projectId
+  ) {
+    ws.close(1008, 'resume projectId mismatch');
+    return;
+  }
+  client.lastSeenAt = new Date().toISOString();
+  // The resume cursor is what the client has received (frame.lastSeqSeen).
+  // Note: `client.lastEventSeq` is the highest seq the client has
+  // PUBLISHED to the server (inbound `client.event` envelopes), not what
+  // it has received. Using `Math.max(frame.lastSeqSeen, client.lastEventSeq)`
+  // would silently skip events when the publisher seq is ahead of the
+  // received seq — that's wrong. The cursor is `frame.lastSeqSeen`.
+  const cursor = frame.lastSeqSeen;
+  const now = Date.now();
+  // Build the matching history and missed-envelope set in one bounded pass.
+  // For non-zero cursors, require the retained log to still contain the exact
+  // `lastSeqSeen` envelope. That proves the cursor belongs to this server seq
+  // epoch; otherwise a client-side cursor from before server restart or log
+  // rotation could be misread as "caught up" and silently miss events.
+  const recent: HqEventEnvelope[] = [];
+  let cursorTimestamp: string | undefined;
+  // The browser tracks `peer.*` envelopes under its own synthetic
+  // `clientId` (browser-side `HQ_BROWSER_PEER_RESUME_CLIENT_ID`). When
+  // a real publisher's resume frame collides with that id (it should
+  // never — see `handleBrowser`'s `clientId` length check — but the
+  // resume-loop is cheap to harden), `peer.*` envelopes are server-minted
+  // lifecycle notices, not per-publisher events, so the gap-fill must
+  // skip them. A browser resume against the synthetic bucket, however,
+  // needs them in the gap so the dashboard can surface the peer-lifecycle
+  // banner after a reconnect.
+  const skipPeerEnvelopes = client.clientId !== HQ_BROWSER_PEER_RESUME_CLIENT_ID;
+  for (const env of eventLog) {
+    if (env.clientId !== client.clientId) continue;
+    if (skipPeerEnvelopes && (env.type === 'peer.rehydrate' || env.type === 'peer.lost')) {
+      continue;
+    }
+    if (env.seq === cursor) cursorTimestamp = env.timestamp;
+    if (env.seq > cursor) {
+      recent.push(env);
+    }
+  }
+  if (cursor > 0 && cursorTimestamp === undefined) {
+    if (snapshotBroadcaster !== undefined) {
+      sendGuarded(ws, snapshotBroadcaster.currentSerialized());
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    sendGuarded(
+      ws,
+      JSON.stringify({
+        type: 'hq.resume_reject',
+        reason: 'log_unavailable',
+        detectedAt: nowIso,
+      }),
+    );
+    return;
+  }
+  // Last-seen-too-old check measures the age of the reported cursor envelope,
+  // not the age of the missed gap envelopes. A fresh cursor should not be
+  // rejected just because low-frequency post-cursor events are old.
+  const hasStale =
+    cursorTimestamp !== undefined && now - Date.parse(cursorTimestamp) > HQ_RESUME_GAP_MAX_STALE_MS;
+  if (hasStale) {
+    const nowIso = new Date().toISOString();
+    sendGuarded(
+      ws,
+      JSON.stringify({
+        type: 'hq.resume_reject',
+        reason: 'last_seen_too_old',
+        detectedAt: nowIso,
+      }),
+    );
+    return;
+  }
+  // Gap-too-large check: if the gap is > HQ_RESUME_GAP_MAX_ENVELOPES
+  // (1000) OR if the serialized reply would exceed HQ_RESUME_GAP_MAX_BYTES
+  // (1 MiB), reject. Large `session.transcript`/`agent.message` envelopes
+  // can exceed the byte cap well before the count cap, so the byte check
+  // has to measure the actual serialized payload rather than a per-item
+  // estimate.
+  let serializedByteLength = 0;
+  for (const env of recent) {
+    serializedByteLength += Buffer.byteLength(JSON.stringify(env), 'utf8');
+    if (serializedByteLength > HQ_RESUME_GAP_MAX_BYTES) break;
+  }
+  const gapIsTooLarge =
+    recent.length > HQ_RESUME_GAP_MAX_ENVELOPES || serializedByteLength > HQ_RESUME_GAP_MAX_BYTES;
+  if (gapIsTooLarge) {
+    if (snapshotBroadcaster !== undefined) {
+      sendGuarded(ws, snapshotBroadcaster.currentSerialized());
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    sendGuarded(
+      ws,
+      JSON.stringify({
+        type: 'hq.resume_reject',
+        reason: 'gap_too_large',
+        detectedAt: nowIso,
+      }),
+    );
+    return;
+  }
+  // Sort by seq ascending so the client can apply in order.
+  recent.sort((a, b) => a.seq - b.seq);
+  sendGuarded(
+    ws,
+    JSON.stringify({
+      type: 'hq.resume_gap',
+      lastSeqSeen: cursor,
+      envelopes: recent,
+      truncated: false,
+    }),
+  );
+  return;
+}
+
+/**
+ * Window during which a subsequent `peer.rehydrate` for the same
+ * `(projectId, previousLeaderHandle)` pair is suppressed. Per the
+ * hq-evolution-2026-08 plan §10.1 ("Dedup by previousLeaderHandle:
+ * same handle emitted twice in 1 h → second is suppressed").
+ */
+const PEER_DEDUP_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Dedup map: `(projectId || ':' || previousLeaderHandle) → epoch ms of last
+ * emit`. Cleared when older than `PEER_DEDUP_WINDOW_MS`.
+ */
+const peerDedupMap = new Map<string, number>();
+
+function peerDedupKey(projectId: string, previousLeaderHandle: string): string {
+  return `${projectId}::${previousLeaderHandle}`;
+}
+
+/**
+ * Returns `true` if a `peer.rehydrate` for the same
+ * `(projectId, previousLeaderHandle)` was emitted within the last hour.
+ * Side effect: prunes expired entries.
+ */
+function checkPeerDedup(projectId: string, previousLeaderHandle: string): boolean {
+  const key = peerDedupKey(projectId, previousLeaderHandle);
+  const now = Date.now();
+  // Prune expired entries (cheap iteration; expected size is small).
+  for (const [k, ts] of peerDedupMap) {
+    if (now - ts > PEER_DEDUP_WINDOW_MS) peerDedupMap.delete(k);
+  }
+  const last = peerDedupMap.get(key);
+  return last !== undefined && now - last <= PEER_DEDUP_WINDOW_MS;
+}
+
+function recordPeerEmit(projectId: string, previousLeaderHandle: string): void {
+  peerDedupMap.set(peerDedupKey(projectId, previousLeaderHandle), Date.now());
+}
+
+function browserResumeClient(ws: WebSocket, clientId: string): Map<WebSocket, ConnectedClient> {
+  return new Map<WebSocket, ConnectedClient>([
+    [
+      ws,
+      {
+        ws,
+        clientId,
+        projectId: '',
+        project: {
+          projectId: '',
+          projectName: '',
+          projectRoot: '',
+          machineId: '',
+          workspaceKind: 'git',
+        },
+        kind: 'browser',
+        connectedAt: new Date().toISOString(),
+        lastSeenAt: new Date().toISOString(),
+        capabilities: [],
+        declaredRedactionPolicy: {
+          rawContent: false,
+          toolArgs: 'summary',
+          paths: 'project-relative',
+        },
+        lastEventSeq: 0,
+        mailboxes: new Map(),
+        sessions: new Map(),
+        fleets: new Map(),
+        mcpSnapshots: new Map(),
+        commandQueue: [],
+        isLeader: false,
+      },
+    ],
+  ]);
+}
+
 // ── handleBrowser ──────────────────────────────────────────────────────────
 
 export function handleBrowser(
   ws: WebSocket,
   snapshotBroadcaster: HqSnapshotBroadcaster,
   browsers: Set<WebSocket>,
+  eventLog: HqEventEnvelope[],
 ): void {
   browsers.add(ws);
 
@@ -75,6 +534,44 @@ export function handleBrowser(
   });
 
   sendGuarded(ws, snapshotBroadcaster.currentSerialized());
+
+  ws.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+    let raw: Buffer;
+    if (typeof data === 'string') {
+      raw = Buffer.from(data, 'utf8');
+    } else if (Buffer.isBuffer(data)) {
+      raw = data;
+    } else if (Array.isArray(data)) {
+      // The browser WS server may deliver a fragmented frame as `Buffer[]`.
+      // Concatenate so JSON.parse sees the full payload instead of only the
+      // head of the first fragment.
+      raw = Buffer.concat(data);
+    } else {
+      raw = Buffer.from(new TextDecoder().decode(data as ArrayBuffer), 'utf8');
+    }
+    const parsed = parseHqFrame(raw);
+    if (!parsed.ok) {
+      const code = parsed.reason === 'invalid-json' ? 1003 : 1008;
+      ws.close(code, `invalid frame: ${parsed.reason}`);
+      return;
+    }
+    const frame = parsed.frame;
+    if (frame.type !== 'client.resume') {
+      ws.close(1008, 'browser frame must be client.resume');
+      return;
+    }
+    if (frame.clientId === undefined || frame.clientId.length === 0) {
+      ws.close(1008, 'browser resume requires clientId');
+      return;
+    }
+    handleClientResume(
+      ws,
+      browserResumeClient(ws, frame.clientId),
+      eventLog,
+      frame,
+      snapshotBroadcaster,
+    );
+  });
 
   ws.on('close', () => {
     browsers.delete(ws);
@@ -173,7 +670,19 @@ export function handleClient(
       // terminal from the fleet tree and ping-pong forever (both sides
       // auto-reconnect and re-hello), which showed up as agents/terminals
       // flapping in the HQ map.
+      //
+      // Capture superseded leaders BEFORE deleting them so the
+      // leader-loss detector can promote a survivor and emit the
+      // `peer.rehydrate` / `peer.lost` envelope. Without this, a
+      // same-clientId reconnect that evicts a sitting leader would
+      // leave no client with `isLeader=true` whenever a `control.receive`
+      // follower is present (the new socket's `computeIsLeader` returns
+      // false because the follower still owns the slot, and the follower
+      // was never promoted — see `detectLeaderLoss`).
+      const supersededLeaders: ConnectedClient[] = [];
+      let inheritedLeader = false;
       for (const [otherWs, otherClient] of clients) {
+        const sameClientId = otherClient.clientId === payload.client.clientId;
         const samePublisher =
           otherClient.projectId === payload.project.projectId &&
           otherClient.kind === payload.client.kind &&
@@ -184,9 +693,12 @@ export function handleClient(
             (payload.client.machineId || payload.project.machineId);
         if (
           otherWs !== ws &&
-          (otherClient.clientId === payload.client.clientId ||
-            (samePublisher && otherClient.sessions.size === 0))
+          (sameClientId || (samePublisher && otherClient.sessions.size === 0))
         ) {
+          if (otherClient.isLeader) {
+            if (sameClientId) inheritedLeader = true;
+            else supersededLeaders.push(otherClient);
+          }
           clients.delete(otherWs);
           otherWs.close(4001, 'superseded by a newer HQ connection');
         }
@@ -213,9 +725,27 @@ export function handleClient(
         fleets: new Map(),
         mcpSnapshots: new Map(),
         commandQueue: [],
+        // Leader for the project is the unique client with `control.receive`
+        // capability. First such client wins; subsequent clients with the
+        // capability are followers. Same-clientId reconnects inherit this
+        // flag from the superseded socket because that identity never really
+        // disappeared; different-client supersedes still use the loss detector.
+        isLeader:
+          inheritedLeader ||
+          computeIsLeader(clients, payload.project.projectId, acceptedCapabilities),
       };
       clients.set(ws, client);
       registered = true;
+
+      // Run the leader-loss detector for each superseded leader. This
+      // promotes the most-recent surviving `control.receive` client (if
+      // any) and emits `peer.rehydrate` / `peer.lost` so browsers and
+      // other same-project clients learn the topology changed. Without
+      // this call a same-clientId reconnect that evicts a sitting leader
+      // would leave the project with `isLeader=false` everywhere.
+      for (const lostLeader of supersededLeaders) {
+        detectLeaderLoss(lostLeader, clients, browsers, 'crash', { eventLog, persistence });
+      }
 
       // Server-to-client acknowledgement: the client learns which capabilities
       // the server accepted and the active redaction policy. Command delivery
@@ -320,6 +850,11 @@ export function handleClient(
       return;
     }
 
+    if (frame.type === 'client.resume') {
+      handleClientResume(ws, clients, eventLog, frame, snapshotBroadcaster);
+      return;
+    }
+
     if (frame.type === 'client.event') {
       const client = clients.get(ws);
       if (!client) return;
@@ -394,9 +929,7 @@ export function handleClient(
               tombstones: merged.tombstones.filter((record) => touched.has(record.boardId)),
             };
             const message = JSON.stringify({ type: 'hq.kanban_snapshot', payload: delta });
-            for (const peer of clients.values()) {
-              if (peer.projectId === client.projectId) sendGuarded(peer.ws, message);
-            }
+            fanoutKanbanDelta(message, clients, browsers, client.projectId);
           })
           .catch((error: unknown) => {
             console.warn(
@@ -568,7 +1101,13 @@ export function handleClient(
   });
 
   ws.on('close', () => {
+    // Capture the lost client before deletion so the leader-deposed
+    // detector can decide whether to emit `peer.rehydrate` / `peer.lost`.
+    const lostClient = clients.get(ws);
     clients.delete(ws);
+    if (lostClient) {
+      detectLeaderLoss(lostClient, clients, browsers, 'graceful', { eventLog, persistence });
+    }
     snapshotBroadcaster.broadcast();
   });
 }

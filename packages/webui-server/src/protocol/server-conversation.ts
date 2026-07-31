@@ -67,6 +67,7 @@ export const SERVER_COLLABORATION_MESSAGE_TYPES = [
   'collab.pause.granted',
   'collab.pause.released',
   'collab.state',
+  'mailbox.action_result',
   'mailbox.agent_registered',
   'mailbox.agents',
   'mailbox.cleared',

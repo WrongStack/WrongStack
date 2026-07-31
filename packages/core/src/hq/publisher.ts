@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import type { Logger } from '../types/logger.js';
+import * as v8 from 'node:v8';
 import type { Mailbox, MailboxAgentStatus, MailboxMessage } from '../coordination/mailbox-types.js';
+import type { Logger } from '../types/logger.js';
 import {
   createMailboxEventPayload,
   createMailboxSnapshotPayloadFromMailbox,
   type HqMailboxEventAction,
   type HqMailboxSnapshotOptions,
 } from './mailbox-mapper.js';
-import { redactHqEvent, resolveHqRedactionPolicy } from './redaction.js';
 import {
   createHqEventEnvelope,
   HQ_PROTOCOL_VERSION,
@@ -21,9 +21,9 @@ import {
   type HqEventEnvelope,
   type HqEventType,
   type HqFleetSnapshotPayload,
+  type HqKanbanSnapshotPayload,
   type HqMailboxEventPayload,
   type HqMailboxSnapshotPayload,
-  type HqKanbanSnapshotPayload,
   type HqProjectIdentity,
   type HqQueuedCommand,
   type HqRedactionPolicy,
@@ -33,6 +33,7 @@ import {
   type HqSessionSnapshotPayload,
   type HqTranscriptAppendPayload,
 } from './protocol.js';
+import { redactHqEvent, resolveHqRedactionPolicy } from './redaction.js';
 
 export interface HqSocketLike {
   readyState: number;
@@ -76,7 +77,8 @@ export interface HqPublisherOptions {
   reconnectMaxMs?: number;
   maxQueuedMessages?: number;
   /** Hard byte cap on the outbound queue (prevents RAM blow-up when HQ is
-   * offline). Older frames are dropped oldest-first when exceeded. Default 64 MB. */
+   * offline). Older frames are dropped oldest-first when exceeded. The default
+   * is heap-relative: `min(16 MiB, heap_limit * 0.10)` — see `DEFAULT_MAX_QUEUED_BYTES`. */
   maxQueuedBytes?: number;
   redactionPolicy?: Partial<HqRedactionPolicy>;
   commandPollIntervalMs?: number;
@@ -145,14 +147,50 @@ const DEFAULT_RECONNECT_BASE_MS = 1_000;
 const DEFAULT_RECONNECT_MAX_MS = 30_000;
 const DEFAULT_DISCOVERY_POLL_MS = 5_000;
 const DEFAULT_MAX_QUEUED_MESSAGES = 2000;
-/** Hard byte cap on the enqueue to prevent unbounded RAM growth when HQ is offline. */
-const DEFAULT_MAX_QUEUED_BYTES = 64 * 1024 * 1024;
+/**
+ * Hard byte cap on the enqueue to prevent unbounded RAM growth when HQ is offline.
+ *
+ * Heap-relative: `min(16 MiB, heap_limit * 0.10)`. The lower bound keeps the cap
+ * small in typical V8 configurations (e.g. ~512 MiB limit → 16 MiB cap), while
+ * the upper bound prevents the cap from exceeding 10 % of the V8 heap limit in
+ * small-container or `--max-old-space-size` scenarios. Operators can override
+ * via the `maxQueuedBytes` option — the override takes precedence over this
+ * default and is the right escape hatch for long offline periods.
+ */
+const DEFAULT_MAX_QUEUED_BYTES = Math.min(
+  16 * 1024 * 1024,
+  Math.floor(v8.getHeapStatistics().heap_size_limit * 0.1),
+);
 // Commands originate from an interactive operator console. Keep delivery
 // close to WebSocket-real-time while retaining the existing bounded poll
 // protocol (which also provides replay after a brief disconnect).
 const DEFAULT_COMMAND_POLL_INTERVAL_MS = 500;
 const DEFAULT_COMMAND_POLL_LIMIT = 25;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 25_000;
+
+interface QueuedFrame {
+  serialized: string;
+  bytes: number;
+  /**
+   * State snapshots are rollups: while offline, only the newest snapshot for
+   * a scope has value. Event/transcript frames intentionally have no key and
+   * retain FIFO semantics.
+   */
+  coalesceKey?: string | undefined;
+}
+
+function queuedFrameCoalesceKey(
+  frame:
+    | HqClientHelloMessage
+    | HqClientEventMessage
+    | HqClientCommandPollMessage
+    | HqClientCommandAckMessage,
+): string | undefined {
+  if (frame.type !== 'client.event' || !frame.event.type.endsWith('.snapshot')) {
+    return undefined;
+  }
+  return [frame.event.type, frame.event.sessionId ?? '', frame.event.runId ?? ''].join('|');
+}
 
 function defaultSocketFactory(url: string): HqSocketLike {
   const WebSocketCtor = globalThis.WebSocket;
@@ -210,8 +248,21 @@ export class HqPublisher {
   private readonly logger: Logger | undefined;
   private socket: HqSocketLike | null = null;
   private seq = 0;
-  private queue: string[] = [];
+  private queue: QueuedFrame[] = [];
   private queueBytes = 0;
+  /**
+   * Cumulative count of frames dropped by the bounded outbound queue when the
+   * count/byte cap is exceeded while HQ is unreachable. Lifetime statistic —
+   * intentionally NOT reset on close()/reconnect, so it reflects total
+   * telemetry loss to overflow for this publisher instance.
+   */
+  private droppedFrames = 0;
+  /** Cumulative UTF-8 bytes of frames dropped on overflow (see droppedFrames). */
+  private droppedBytes = 0;
+  /** Obsolete state snapshots replaced in-place while HQ was unreachable. */
+  private coalescedFrames = 0;
+  /** UTF-8 bytes released by snapshot coalescing. */
+  private coalescedBytes = 0;
   private stopped = false;
   private reconnectAttempt = 0;
   private connectWarningEmitted = false;
@@ -418,8 +469,24 @@ export class HqPublisher {
   }
 
   /** Current outbound queue pressure — useful for flow control in telemetry bridges. */
-  getQueueStats(): { entries: number; bytes: number; maxBytes: number } {
-    return { entries: this.queue.length, bytes: this.queueBytes, maxBytes: this.maxQueuedBytes };
+  getQueueStats(): {
+    entries: number;
+    bytes: number;
+    maxBytes: number;
+    droppedFrames: number;
+    droppedBytes: number;
+    coalescedFrames: number;
+    coalescedBytes: number;
+  } {
+    return {
+      entries: this.queue.length,
+      bytes: this.queueBytes,
+      maxBytes: this.maxQueuedBytes,
+      droppedFrames: this.droppedFrames,
+      droppedBytes: this.droppedBytes,
+      coalescedFrames: this.coalescedFrames,
+      coalescedBytes: this.coalescedBytes,
+    };
   }
 
   /** Publish a live session/terminal snapshot (state + agents). */
@@ -533,12 +600,39 @@ export class HqPublisher {
       return;
     }
     // Slow path: socket offline or queue already has pending frames — enqueue.
-    this.enqueue(serialized);
+    this.enqueue(serialized, queuedFrameCoalesceKey(frame));
     this.connect();
   }
 
-  private enqueue(serialized: string): void {
+  private enqueue(serialized: string, coalesceKey?: string): void {
     const bytes = Buffer.byteLength(serialized, 'utf8');
+    // A single pathological snapshot must not bypass the total byte cap just
+    // because the queue is empty. It is telemetry, so fail closed and let the
+    // next (usually smaller) rollup supersede it.
+    if (bytes > this.maxQueuedBytes) {
+      this.droppedFrames += 1;
+      this.droppedBytes += bytes;
+      return;
+    }
+
+    if (coalesceKey !== undefined) {
+      let existingIndex = -1;
+      for (let index = this.queue.length - 1; index >= 0; index -= 1) {
+        if (this.queue[index]?.coalesceKey === coalesceKey) {
+          existingIndex = index;
+          break;
+        }
+      }
+      if (existingIndex !== -1) {
+        const [obsolete] = this.queue.splice(existingIndex, 1);
+        if (obsolete !== undefined) {
+          this.queueBytes -= obsolete.bytes;
+          this.coalescedFrames += 1;
+          this.coalescedBytes += obsolete.bytes;
+        }
+      }
+    }
+
     // Drop oldest frames when either the count cap or the byte cap is
     // exceeded. The byte cap prevents unbounded RAM growth during extended
     // HQ outages while the count cap limits per-frame overhead.
@@ -549,10 +643,12 @@ export class HqPublisher {
     ) {
       const dropped = this.queue.shift();
       if (dropped !== undefined) {
-        this.queueBytes -= Buffer.byteLength(dropped, 'utf8');
+        this.queueBytes -= dropped.bytes;
+        this.droppedFrames += 1;
+        this.droppedBytes += dropped.bytes;
       }
     }
-    this.queue.push(serialized);
+    this.queue.push({ serialized, bytes, coalesceKey });
     this.queueBytes += bytes;
   }
 
@@ -562,11 +658,11 @@ export class HqPublisher {
     const socket = this.socket;
     if (socket?.readyState !== OPEN_STATE || this.queue.length === 0) return;
     const batch = this.queue.splice(0, 50);
-    for (const frame of batch) socket.send(frame);
-    // Recalculate remaining bytes — cheaper than tracking per-splice.
-    this.queueBytes = this.queue.reduce(
-      (sum, frame) => sum + Buffer.byteLength(frame, 'utf8'), 0,
-    );
+    for (const frame of batch) {
+      socket.send(frame.serialized);
+      this.queueBytes -= frame.bytes;
+    }
+    this.queueBytes = Math.max(0, this.queueBytes);
     if (this.queue.length > 0) setImmediate(() => this.flushQueue());
   }
 

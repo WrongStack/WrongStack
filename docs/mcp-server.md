@@ -19,6 +19,63 @@ wstack mcp serve --http --host 0.0.0.0 --token SECRET  # LAN, token required
 
 Over stdio, stdout is the JSON-RPC channel; all status/log output goes to stderr.
 
+### Project Kanban server
+
+Use the narrower Kanban MCP server when an external coding agent should inspect or manage durable
+project work without receiving WrongStack's file, shell, or general tool surface:
+
+```bash
+wstack-kanban-mcp --project-root /absolute/project/path               # read + watch
+wstack-kanban-mcp --project-root /absolute/project/path --writable    # normal mutations
+wstack-kanban-mcp --project-root /absolute/project/path --destructive # delete/merge/transfer
+```
+
+It connects through the project-scoped Kanban IPC owner; it never opens `_kanban.sqlite` directly.
+The bundled external-agent workflow is
+`packages/core/skills/wrongstack-kanban/SKILL.md`. See
+[`kanban-architecture.md`](./kanban-architecture.md#external-mcp-boundary) for its permission and
+event-reconciliation contract.
+
+### Project Mailbox server
+
+Use the dedicated Mailbox MCP server when an external coding agent needs to coordinate with
+WrongStack agents without receiving the general file, shell, or tool surface:
+
+```bash
+wstack-mailbox-mcp --project-root /absolute/project/path --actor external-agent            # read + watch
+wstack-mailbox-mcp --project-root /absolute/project/path --actor external-agent --writable # send + receipts + presence
+wstack-mailbox-mcp --project-root /absolute/project/path --actor external-agent --admin    # full maintenance + credentials
+```
+
+The MCP process is another `RemoteMailbox` client of the existing project-scoped IPC owner; it
+never opens `_mailbox.sqlite` or legacy Mailbox files. `--actor` is the authoritative identity for
+sends, receipts, deletion attribution, registration, and heartbeats, so callers cannot impersonate
+another actor with tool arguments. Runtime-only `control` messages remain private to WrongStack;
+external clients use `steer` for normal redirection.
+
+The bundled external-agent workflow is
+`packages/core/skills/wrongstack-mailbox-mcp/SKILL.md`. See
+[`mailbox-architecture.md`](./mailbox-architecture.md#external-mcp-boundary) for capability tiers
+and event reconciliation.
+
+### Project Codebase Index server
+
+Use the dedicated Codebase Index MCP server when an external coding agent needs fast symbol search
+and dependency graphs without receiving WrongStack's filesystem, shell, or general tool surface:
+
+```bash
+wstack-codebase-index-mcp --project-root /absolute/project/path            # read-only queries
+wstack-codebase-index-mcp --project-root /absolute/project/path --writable # also build/refresh
+```
+
+The default surface exposes `codebase_search`, `codebase_stats`, and package/file/symbol graph
+queries. `--writable` additionally exposes `codebase_index` for incremental or forced rebuilds.
+The MCP process is only an adapter over the existing project-scoped named-pipe/Unix-socket IPC
+service; it never opens the SQLite index directly, so CLI, TUI, WebUI, and external MCP clients keep
+one deterministic project owner. Both stdio and authenticated HTTP use the shared MCP transports.
+See [`packages/codebase-index-mcp/README.md`](../packages/codebase-index-mcp/README.md) for client
+configuration and the complete tool inventory.
+
 ## Transports
 
 | Transport | Flag | Reachability |

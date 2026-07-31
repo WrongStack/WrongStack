@@ -20,6 +20,7 @@ const {
   handleFilesWritten,
   handleMailboxAgentRegistered,
   handleMailboxAgents,
+  handleMailboxActionResult,
   handleMailboxCleared,
   handleMailboxCompacted,
   handleMailboxEvent,
@@ -71,6 +72,7 @@ describe('files + mailbox ws-handler map', () => {
         'files.written',
         'mailbox.agent_registered',
         'mailbox.agents',
+        'mailbox.action_result',
         'mailbox.cleared',
         'mailbox.compacted',
         'mailbox.event',
@@ -88,6 +90,7 @@ describe('files + mailbox ws-handler map', () => {
     expect(filesMailboxHandlerMap['mailbox.event']).toBe(handleMailboxEvent);
     expect(filesMailboxHandlerMap['mailbox.messages']).toBe(handleMailboxMessages);
     expect(filesMailboxHandlerMap['mailbox.agents']).toBe(handleMailboxAgents);
+    expect(filesMailboxHandlerMap['mailbox.action_result']).toBe(handleMailboxActionResult);
     expect(filesMailboxHandlerMap['mailbox.received']).toBe(handleMailboxReceived);
     expect(filesMailboxHandlerMap['mailbox.agent_registered']).toBe(handleMailboxAgentRegistered);
     expect(filesMailboxHandlerMap['mailbox.cleared']).toBe(handleMailboxCleared);
@@ -298,7 +301,9 @@ describe('files + mailbox ws-handler map', () => {
     });
 
     it('renders a delivery event with the receive arrow', () => {
-      handleMailboxEvent(msg('mailbox.event', { event: 'mailbox.delivered', from: 'a1', to: 'b1' }));
+      handleMailboxEvent(
+        msg('mailbox.event', { event: 'mailbox.delivered', from: 'a1', to: 'b1' }),
+      );
       expect(useVizStore.getState().events[0]).toMatchObject({
         kind: 'mailbox:deliver',
         label: '← a1',
@@ -331,6 +336,20 @@ describe('files + mailbox ws-handler map', () => {
   });
 
   describe('mailbox lifecycle events', () => {
+    it('refreshes mailbox state after a successful action', () => {
+      handleMailboxActionResult(
+        msg('mailbox.action_result', {
+          requestId: 'req-1',
+          success: true,
+          action: 'mark-read',
+          mailId: 'm1',
+        }),
+      );
+      expect(send).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(300);
+      expect(send).toHaveBeenCalledTimes(2);
+    });
+
     it('agent_registered only schedules a debounced refresh', () => {
       handleMailboxAgentRegistered(msg('mailbox.agent_registered', { agentId: 'a1' }));
       expect(send).not.toHaveBeenCalled();

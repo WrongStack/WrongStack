@@ -203,6 +203,7 @@ describe('createHttpServer', () => {
       heapLimit: number;
       uptime: number;
       codebaseIndexServer: { status: string; connected: boolean };
+      processes: unknown[];
       timestamp: number;
     };
     expect(body.pid).toBe(process.pid);
@@ -212,6 +213,7 @@ describe('createHttpServer', () => {
     expect(body.uptime).toBeGreaterThanOrEqual(0);
     expect(body.codebaseIndexServer.status).toBeTypeOf('string');
     expect(body.codebaseIndexServer.connected).toBeTypeOf('boolean');
+    expect(body.processes).toEqual([]);
     expect(body.timestamp).toBeGreaterThan(0);
   });
 
@@ -436,7 +438,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
   it('POST .../message delivers a steer message to the session mailbox', async () => {
     const { mailboxSessionTag, createProjectMailbox } = await import(
-      '@wrongstack/core/coordination',
+      '@wrongstack/core/coordination'
     );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {

@@ -223,6 +223,11 @@ describe('SddInterviewDriver', () => {
     await a.driver.setLastRunId('run-99');
     await a.driver.builder.saveSession();
     const graphId = a.driver.getGraph()?.id;
+    const firstTaskId = a.driver.getGraph()?.nodes.keys().next().value as string;
+    a.driver.getTracker()?.updateNodeStatus(firstTaskId, 'completed', 'before process restart');
+    await expect
+      .poll(async () => (await a.graphStore.load(graphId!))?.nodes.get(firstTaskId)?.status)
+      .toBe('completed');
 
     // Fresh driver over the same session + graph store → resumes.
     const b = new SddInterviewDriver({
@@ -234,6 +239,7 @@ describe('SddInterviewDriver', () => {
     expect(loaded).toBe(true);
     expect(b.phase()).toBe('spec_review');
     expect(b.getGraph()?.id).toBe(graphId);
+    expect(b.getGraph()?.nodes.get(firstTaskId)?.status).toBe('completed');
     expect(b.getLastAgentText()).toBe('Which providers?');
     expect(b.getLastRunId()).toBe('run-99');
     expect(b.wasResumed()).toBe(true);

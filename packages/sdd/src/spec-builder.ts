@@ -1,47 +1,23 @@
 import type { Specification, SpecRequirement, SpecSection } from '@wrongstack/core/types';
 import { ERROR_CODES, SddError } from '@wrongstack/core/types';
 import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
+import {
+  type AISpecPhase,
+  type AISpecSession,
+  type AISpecSessionPersistence,
+  isAISpecSession,
+} from './sdd-session-types.js';
 import type { SpecStore } from './spec-store.js';
 
 // ─── Session Types ────────────────────────────────────────────────────────────
 
-export type AISpecPhase =
-  | 'questioning' // AI is asking questions
-  | 'spec_review' // Spec generated, waiting for user approval
-  | 'implementation' // Implementation plan phase
-  | 'task_review' // Tasks generated, waiting for execution
-  | 'executing' // Running tasks
-  | 'done'; // Everything complete
-
-export interface CollectedAnswer {
-  question: string;
-  answer: string;
-  timestamp: number;
-}
-
-export interface AISpecSession {
-  id: string;
-  phase: AISpecPhase;
-  title: string;
-  userIntent: string;
-  projectContext: string;
-  answers: CollectedAnswer[];
-  questionCount: number;
-  spec?: Specification | undefined;
-  implementation?: string | undefined;
-  taskGraphId?: string | undefined;
-  /**
-   * Last agent message shown to the operator (open question or plan prose).
-   * Persisted so a reconnect/restart can re-pair the next user answer and
-   * re-render the transcript without re-running the model.
-   */
-  lastAgentText?: string | undefined;
-  /** Most recent SDD run id started from this interview (continuity deep-link). */
-  lastRunId?: string | undefined;
-  approved: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
+export {
+  type AISpecPhase,
+  type AISpecSession,
+  type AISpecSessionPersistence,
+  type CollectedAnswer,
+  isAISpecSession,
+} from './sdd-session-types.js';
 
 // ─── Builder Options ──────────────────────────────────────────────────────────
 
@@ -53,8 +29,10 @@ export interface AISpecBuilderOptions {
   maxQuestions?: number | undefined;
   /** Project context string (package.json, file structure, etc.) */
   projectContext?: string | undefined;
-  /** Path to persist session state. If set, session survives process restarts. */
+  /** Legacy file persistence path. Production hosts provide `sessionPersistence`. */
   sessionPath?: string | undefined;
+  /** Durable session owner. Takes precedence over `sessionPath`. */
+  sessionPersistence?: AISpecSessionPersistence | undefined;
 }
 
 // ─── AI Prompts ───────────────────────────────────────────────────────────────
@@ -278,12 +256,14 @@ export class AISpecBuilder {
   private readonly minQuestions: number;
   private readonly maxQuestions: number;
   private readonly sessionPath?: string | undefined;
+  private readonly sessionPersistence?: AISpecSessionPersistence | undefined;
 
   constructor(opts: AISpecBuilderOptions) {
     this.store = opts.store;
     this.minQuestions = opts.minQuestions ?? 2;
     this.maxQuestions = opts.maxQuestions ?? 10;
     this.sessionPath = opts.sessionPath;
+    this.sessionPersistence = opts.sessionPersistence;
     this.session = {
       id: crypto.randomUUID(),
       phase: 'questioning',
@@ -300,32 +280,51 @@ export class AISpecBuilder {
 
   // ── Session Persistence ──────────────────────────────────────────────────
 
-  /** Save session state to disk. */
+  /** Save session state to the configured durable owner. */
   async saveSession(): Promise<void> {
-    if (!this.sessionPath) return;
+    if (!this.sessionPersistence && !this.sessionPath) return;
     try {
+      if (this.sessionPersistence) {
+        await this.sessionPersistence.save(structuredClone(this.session));
+        return;
+      }
       const fsp = await import('node:fs/promises');
       const path = await import('node:path');
       const { atomicWrite } = await import('@wrongstack/core/utils');
-      await fsp.mkdir(path.dirname(this.sessionPath), { recursive: true });
+      const sessionPath = expectDefined(this.sessionPath);
+      await fsp.mkdir(path.dirname(sessionPath), { recursive: true });
       // atomicWrite: torn save would corrupt the SDD session JSON and the
       // next load would silently fall back to a fresh session.
-      await atomicWrite(this.sessionPath, JSON.stringify(this.session, null, 2));
+      await atomicWrite(sessionPath, JSON.stringify(this.session, null, 2));
     } catch (error) {
       // Best-effort persistence — don't crash if save fails
-      console.warn(JSON.stringify({ level: 'warn', event: 'sdd.persist.failed', message: String(error), timestamp: Date.now() }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'sdd.persist.failed',
+          message: String(error),
+          timestamp: Date.now(),
+        }),
+      );
     }
   }
 
-  /** Load session state from disk. Returns true if a session was loaded. */
+  /** Load session state from the configured durable owner. */
   async loadSession(): Promise<boolean> {
+    if (this.sessionPersistence) {
+      const loaded = await this.sessionPersistence.load();
+      if (isAISpecSession(loaded)) {
+        this.session = loaded;
+        return true;
+      }
+      return false;
+    }
     if (!this.sessionPath) return false;
     try {
       const fsp = await import('node:fs/promises');
       const raw = await fsp.readFile(this.sessionPath, 'utf8');
       const loaded = JSON.parse(raw) as AISpecSession;
-      // Validate basic structure
-      if (loaded?.id && loaded?.phase && loaded?.title) {
+      if (isAISpecSession(loaded)) {
         this.session = loaded;
         return true;
       }
@@ -335,8 +334,12 @@ export class AISpecBuilder {
     return false;
   }
 
-  /** Delete saved session from disk. */
+  /** Delete the saved session from the configured durable owner. */
   async deleteSession(): Promise<void> {
+    if (this.sessionPersistence) {
+      await this.sessionPersistence.delete();
+      return;
+    }
     if (!this.sessionPath) return;
     try {
       const fsp = await import('node:fs/promises');

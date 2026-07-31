@@ -1,12 +1,12 @@
 import * as path from 'node:path';
 import type { HqPublisher } from '../hq/publisher.js';
 import type { EventBus } from '../kernel/events.js';
+import { HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS } from './mailbox-constants.js';
 import type {
   CredentialValidation,
   IssueCredentialOptions,
   MailboxCredential,
 } from './mailbox-credential-store.js';
-import { HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS } from './mailbox-constants.js';
 import type { MailboxEvent, MailboxEventEmitter } from './mailbox-events.js';
 import {
   MailboxProjectServerConnection,
@@ -33,6 +33,7 @@ import type {
 import { SQLITE_MAILBOX_FILE } from './sqlite-mailbox.js';
 
 type HqPublisherRef = HqPublisher | (() => HqPublisher | undefined);
+const HQ_MAILBOX_EVENT_MAX_PENDING = 256;
 
 export interface ProjectMailboxOptions {
   projectDir: string;
@@ -91,6 +92,17 @@ export class RemoteMailbox implements Mailbox {
   /** Pending coalesced HQ snapshot; see {@link scheduleHqSnapshot}. */
   private hqSnapshotTimer: ReturnType<typeof setTimeout> | undefined;
   private hqSnapshotLastAt = 0;
+  /** At most one full snapshot may query/map/serialize mailbox state at a time. */
+  private hqSnapshotInFlight: Promise<void> | undefined;
+  /** Latest scope requested while a timer or snapshot is already active. */
+  private hqSnapshotPendingMailboxId: string | undefined;
+  /** Message deltas are serialized so a burst cannot launch one full mailbox
+   * query per event concurrently. Newer updates for the same message replace
+   * older pending ones; the periodic snapshot remains the lossless rollup. */
+  private readonly hqEventPending = new Map<string, MailboxEvent>();
+  private hqEventInFlight: Promise<void> | undefined;
+  private hqEventCoalesced = 0;
+  private hqEventDropped = 0;
 
   constructor(
     optionsOrProjectDir: ProjectMailboxOptions | string,
@@ -121,7 +133,7 @@ export class RemoteMailbox implements Mailbox {
     // invariant forbids. Matches the sibling daemons: sage, chronicle and
     // codebase-index all gate on their own `WRONGSTACK_*_INLINE` and nothing
     // else. See tests/architecture/project-daemon-boundary.test.ts.
-     if (options.isolatedConnection) {
+    if (options.isolatedConnection) {
       this.connection = new MailboxProjectServerConnection(this.projectDir);
       this.ownsConnection = true;
     } else {
@@ -312,6 +324,8 @@ export class RemoteMailbox implements Mailbox {
       clearTimeout(this.hqSnapshotTimer);
       this.hqSnapshotTimer = undefined;
     }
+    this.hqSnapshotPendingMailboxId = undefined;
+    this.hqEventPending.clear();
     this.cacheEviction?.();
     this.cacheEviction = undefined;
     this.unsubscribeEvent();
@@ -337,6 +351,27 @@ export class RemoteMailbox implements Mailbox {
     this.cacheEviction = evict;
   }
 
+  /** Lightweight diagnostics for the process memory flight recorder. */
+  getHqSnapshotStats(): {
+    inFlight: boolean;
+    pending: boolean;
+    timerScheduled: boolean;
+    eventInFlight: boolean;
+    pendingEvents: number;
+    coalescedEvents: number;
+    droppedEvents: number;
+  } {
+    return {
+      inFlight: this.hqSnapshotInFlight !== undefined,
+      pending: this.hqSnapshotPendingMailboxId !== undefined,
+      timerScheduled: this.hqSnapshotTimer !== undefined,
+      eventInFlight: this.hqEventInFlight !== undefined,
+      pendingEvents: this.hqEventPending.size,
+      coalescedEvents: this.hqEventCoalesced,
+      droppedEvents: this.hqEventDropped,
+    };
+  }
+
   private get hqPublisher(): HqPublisher | undefined {
     return typeof this.hqPublisherRef === 'function' ? this.hqPublisherRef() : this.hqPublisherRef;
   }
@@ -351,27 +386,63 @@ export class RemoteMailbox implements Mailbox {
    * information than the ones it replaced — dropping them loses nothing.
    */
   private scheduleHqSnapshot(mailboxId: string): void {
-    if (this.closed || this.hqSnapshotTimer !== undefined) return;
+    if (this.closed) return;
+    this.hqSnapshotPendingMailboxId = mailboxId;
+    if (this.hqSnapshotTimer !== undefined || this.hqSnapshotInFlight !== undefined) return;
     const elapsed = Date.now() - this.hqSnapshotLastAt;
     const delay = Math.max(0, HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS - elapsed);
     this.hqSnapshotTimer = setTimeout(() => {
       this.hqSnapshotTimer = undefined;
-      this.hqSnapshotLastAt = Date.now();
+      const pendingMailboxId = this.hqSnapshotPendingMailboxId;
+      this.hqSnapshotPendingMailboxId = undefined;
       const publisher = this.hqPublisher;
-      if (this.closed || !publisher) return;
-      void publisher.publishMailboxSnapshot(this, { mailboxId }).catch(() => {
-        // HQ telemetry remains best-effort.
-      });
+      if (this.closed || !publisher || pendingMailboxId === undefined) return;
+      this.hqSnapshotLastAt = Date.now();
+      const inFlight = (async () => {
+        try {
+          await publisher.publishMailboxSnapshot(this, { mailboxId: pendingMailboxId });
+        } catch {
+          // HQ telemetry remains best-effort.
+        } finally {
+          this.hqSnapshotInFlight = undefined;
+          const nextMailboxId = this.hqSnapshotPendingMailboxId;
+          if (!this.closed && nextMailboxId !== undefined) {
+            this.scheduleHqSnapshot(nextMailboxId);
+          }
+        }
+      })();
+      this.hqSnapshotInFlight = inFlight;
     }, delay);
     // Never hold the process open for a telemetry rollup.
     this.hqSnapshotTimer.unref?.();
   }
 
   private publishHqEvent(event: MailboxEvent): void {
+    if (!this.hqPublisher || this.closed) return;
+    if (this.hqEventPending.has(event.messageId)) {
+      this.hqEventCoalesced += 1;
+    } else if (this.hqEventPending.size >= HQ_MAILBOX_EVENT_MAX_PENDING) {
+      const oldest = this.hqEventPending.keys().next().value;
+      if (oldest !== undefined) this.hqEventPending.delete(oldest);
+      this.hqEventDropped += 1;
+    }
+    this.hqEventPending.set(event.messageId, event);
+    this.drainHqEvents();
+  }
+
+  private drainHqEvents(): void {
+    if (this.closed || this.hqEventInFlight !== undefined) return;
+    const next = this.hqEventPending.entries().next().value as [string, MailboxEvent] | undefined;
+    if (!next) return;
+    const [messageId, event] = next;
+    this.hqEventPending.delete(messageId);
     const publisher = this.hqPublisher;
-    if (!publisher) return;
+    if (!publisher) {
+      this.hqEventPending.clear();
+      return;
+    }
     const mailboxId = `${path.basename(this.projectDir)}:mailbox`;
-    void this.query({ includeDeleted: true, limit: 100 })
+    const inFlight = this.query({ includeDeleted: true, limit: 100 })
       .then((messages) => {
         const message = messages.find((candidate) => candidate.id === event.messageId);
         const action = event.type === 'message.sent' ? 'message.sent' : 'message.updated';
@@ -385,7 +456,12 @@ export class RemoteMailbox implements Mailbox {
       })
       .catch(() => {
         // HQ telemetry remains best-effort.
+      })
+      .finally(() => {
+        this.hqEventInFlight = undefined;
+        this.drainHqEvents();
       });
+    this.hqEventInFlight = inFlight;
   }
 
   private publishHqRegistryEvent(event: string, payload: unknown): void {

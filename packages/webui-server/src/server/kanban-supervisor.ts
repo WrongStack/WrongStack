@@ -51,6 +51,12 @@ export interface KanbanSupervisorDeps {
 export interface KanbanSupervisor {
   getSnapshot(boardId: string): KanbanSupervisorSnapshot | undefined;
   auditNow(boardId?: string): Promise<KanbanSupervisorSnapshot[]>;
+  getStats(): {
+    snapshots: number;
+    scheduledBoards: number;
+    agentCooldowns: number;
+    runningAgents: number;
+  };
   dispose(): void;
 }
 
@@ -77,6 +83,28 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   const agentRunning = new Set<string>();
   let disposed = false;
   let nextTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const forgetBoard = (boardId: string): void => {
+    snapshots.delete(boardId);
+    nextDue.delete(boardId);
+    agentLastRun.delete(boardId);
+    agentRunning.delete(boardId);
+  };
+
+  const pruneAbsentBoards = (presentBoardIds: ReadonlySet<string>): void => {
+    for (const boardId of snapshots.keys()) {
+      if (!presentBoardIds.has(boardId)) forgetBoard(boardId);
+    }
+    for (const boardId of nextDue.keys()) {
+      if (!presentBoardIds.has(boardId)) forgetBoard(boardId);
+    }
+    for (const boardId of agentLastRun.keys()) {
+      if (!presentBoardIds.has(boardId)) forgetBoard(boardId);
+    }
+    for (const boardId of agentRunning) {
+      if (!presentBoardIds.has(boardId)) forgetBoard(boardId);
+    }
+  };
 
   const publish = (snapshot: KanbanSupervisorSnapshot) => {
     snapshots.set(snapshot.boardId, snapshot);
@@ -198,6 +226,9 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
         onDone: async (result) => {
           clearTimeout(watchdog);
           agentRunning.delete(board.id);
+          // A long-running supervisor agent can finish after its board was
+          // deleted. Do not resurrect the removed board's snapshot entry.
+          if ((await getBoard(deps.projectRoot, board.id)) === null) return;
           const current = snapshots.get(board.id) ?? snapshot;
           publish({
             ...current,
@@ -221,15 +252,22 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   };
 
   const auditNow = async (boardId?: string): Promise<KanbanSupervisorSnapshot[]> => {
-    const boards = boardId
-      ? [await getBoard(deps.projectRoot, boardId)].filter((board): board is KanbanBoard =>
-          Boolean(board),
-        )
-      : await Promise.all(
-          (await listBoards(deps.projectRoot)).map((summary) =>
-            getBoard(deps.projectRoot, summary.id),
-          ),
-        ).then((items) => items.filter((board): board is KanbanBoard => Boolean(board)));
+    let boards: KanbanBoard[];
+    if (boardId) {
+      const board = await getBoard(deps.projectRoot, boardId);
+      if (board === null) {
+        forgetBoard(boardId);
+        boards = [];
+      } else {
+        boards = [board];
+      }
+    } else {
+      const summaries = await listBoards(deps.projectRoot);
+      pruneAbsentBoards(new Set(summaries.map((summary) => summary.id)));
+      boards = (
+        await Promise.all(summaries.map((summary) => getBoard(deps.projectRoot, summary.id)))
+      ).filter((board): board is KanbanBoard => Boolean(board));
+    }
     const results: KanbanSupervisorSnapshot[] = [];
     for (const board of boards) results.push(await auditBoard(board));
     scheduleNext();
@@ -274,6 +312,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     try {
       const now = Date.now();
       const summaries = await listBoards(deps.projectRoot);
+      pruneAbsentBoards(new Set(summaries.map((summary) => summary.id)));
       for (const summary of summaries) {
         if ((nextDue.get(summary.id) ?? 0) > now) continue;
         const board = await getBoard(deps.projectRoot, summary.id);
@@ -292,12 +331,22 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   return {
     getSnapshot: (boardId) => snapshots.get(boardId),
     auditNow,
+    getStats: () => ({
+      snapshots: snapshots.size,
+      scheduledBoards: nextDue.size,
+      agentCooldowns: agentLastRun.size,
+      runningAgents: agentRunning.size,
+    }),
     dispose() {
       disposed = true;
       if (nextTimer !== undefined) {
         clearTimeout(nextTimer);
         nextTimer = undefined;
       }
+      snapshots.clear();
+      nextDue.clear();
+      agentLastRun.clear();
+      agentRunning.clear();
     },
   };
 }

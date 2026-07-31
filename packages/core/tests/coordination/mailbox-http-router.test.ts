@@ -814,6 +814,25 @@ describe('mailbox HTTP router', () => {
     router.close();
   });
 
+  it('reports active SSE streams via hasActiveStreams() and clears on close()', async () => {
+    const eventEmitter = new MailboxEventEmitter();
+    const request = makeRequest({ method: 'GET', url: '/mailbox/events', keepOpen: true });
+    const response = makeResponse();
+    const router = createMailboxHttpRouter({
+      mailbox: makeMailbox().mailbox,
+      eventEmitter,
+      authorize: () => ({ allowed: true, rateLimitKey: 'has-active-streams' }),
+    });
+
+    // No stream open yet — hosts may evict the router.
+    expect(router.hasActiveStreams()).toBe(false);
+    await router.handle(request, response.response);
+    // A live SSE stream must block eviction of the hosting gateway.
+    expect(router.hasActiveStreams()).toBe(true);
+    router.close();
+    expect(router.hasActiveStreams()).toBe(false);
+  });
+
   it('applies self and audience visibility to documented nested SSE envelopes', async () => {
     const eventEmitter = new MailboxEventEmitter();
     const request = makeRequest({ method: 'GET', url: '/mailbox/events', keepOpen: true });

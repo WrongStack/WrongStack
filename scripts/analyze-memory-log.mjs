@@ -127,6 +127,7 @@ function summarize(samples) {
         retainedHeapLastMiB: round(mib(retainedHeap(last))),
         retainedHeapMaxMiB: round(Math.max(...group.map((sample) => mib(retainedHeap(sample))))),
         externalLastMiB: round(mib(last.external)),
+        arrayBuffersLastMiB: round(mib(last.arrayBuffers)),
         nativeResidualLastMiB: round(
           mib(last.nativeResidual ?? last.rss - last.heapTotal - last.external),
         ),
@@ -136,11 +137,45 @@ function summarize(samples) {
         messages: last.messages,
         messageEstimatedTokens: last.messageEstimatedTokens,
         historyEntries: last.historyEntries,
+        historyMountedEntries: last.historyMountedEntries,
+        historyCachedGroups: last.historyCachedGroups,
+        historyMeasuredRows: last.historyMeasuredRows,
         appRenders: last.appRenders,
+        metricsDroppedObservations: last.metricsDroppedObservations,
         providerTextDeltaEvents: last.providerTextDeltaEvents,
         toolExecutedEvents: last.toolExecutedEvents,
         activeResources: last.activeResources,
         activeResourceTypes: last.activeResourceTypes,
+        hqQueueEntries: last.hqQueueEntries,
+        hqQueueLastMiB: last.hqQueueBytes === undefined ? undefined : round(mib(last.hqQueueBytes)),
+        hqQueueMaxMiB:
+          last.hqQueueMaxBytes === undefined ? undefined : round(mib(last.hqQueueMaxBytes)),
+        hqQueueDroppedFrames: last.hqQueueDroppedFrames,
+        hqQueueDroppedMiB:
+          last.hqQueueDroppedBytes === undefined ? undefined : round(mib(last.hqQueueDroppedBytes)),
+        hqQueueCoalescedFrames: last.hqQueueCoalescedFrames,
+        hqQueueCoalescedMiB:
+          last.hqQueueCoalescedBytes === undefined
+            ? undefined
+            : round(mib(last.hqQueueCoalescedBytes)),
+        hqSnapshotInFlight: last.hqSnapshotInFlight,
+        hqSnapshotPending: last.hqSnapshotPending,
+        hqSnapshotTimerScheduled: last.hqSnapshotTimerScheduled,
+        hqEventInFlight: last.hqEventInFlight,
+        hqEventPending: last.hqEventPending,
+        hqEventCoalesced: last.hqEventCoalesced,
+        hqEventDropped: last.hqEventDropped,
+        kanbanSyncActive: last.kanbanSyncActive,
+        kanbanSyncPendingBoards: last.kanbanSyncPendingBoards,
+        kanbanSyncFullRescanPending: last.kanbanSyncFullRescanPending,
+        kanbanSyncRemoteApplyQueued: last.kanbanSyncRemoteApplyQueued,
+        kanbanSyncPendingRemoteBoards: last.kanbanSyncPendingRemoteBoards,
+        kanbanSyncPublishRuns: last.kanbanSyncPublishRuns,
+        kanbanSyncCoalescedRefreshes: last.kanbanSyncCoalescedRefreshes,
+        kanbanSupervisorSnapshots: last.kanbanSupervisorSnapshots,
+        kanbanSupervisorScheduledBoards: last.kanbanSupervisorScheduledBoards,
+        kanbanSupervisorAgentCooldowns: last.kanbanSupervisorAgentCooldowns,
+        kanbanSupervisorRunningAgents: last.kanbanSupervisorRunningAgents,
         signals,
       };
     })
@@ -159,6 +194,20 @@ function printTable(rows) {
     ['MiB/h', (row) => row.heapMiBPerHour],
     ['messages', (row) => row.messages ?? '-'],
     ['history', (row) => row.historyEntries ?? '-'],
+    [
+      'mounted',
+      (row) =>
+        row.historyMountedEntries === undefined || row.historyEntries === undefined
+          ? '-'
+          : `${row.historyMountedEntries}/${row.historyEntries}`,
+    ],
+    [
+      'HQ queue',
+      (row) =>
+        row.hqQueueEntries === undefined
+          ? '-'
+          : `${row.hqQueueEntries}/${row.hqQueueLastMiB ?? 0}MiB`,
+    ],
     ['signals', (row) => row.signals.join(',') || '-'],
   ];
   const widths = columns.map(([header, get]) =>

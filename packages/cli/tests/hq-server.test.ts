@@ -370,6 +370,59 @@ describe('HQ server', () => {
     client.close();
   });
 
+  it('does not emit peer.rehydrate when the same leader clientId reconnects', async () => {
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const browser = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/browser`);
+    await waitForOpen(browser);
+    const browserCol = makeBrowserCollector(browser);
+
+    const first = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
+    await waitForOpen(first);
+    const firstClosed = new Promise<number>((resolve) => first.once('close', (code) => resolve(code)));
+    const helloPayload = {
+      protocolVersion: HQ_PROTOCOL_VERSION,
+      client: {
+        clientId: 'leader-same-id',
+        kind: 'tui',
+        machineId: 'machine',
+        startedAt: new Date().toISOString(),
+      },
+      project: {
+        projectId: 'project',
+        projectRoot: '/project',
+        projectName: 'Project',
+        machineId: 'machine',
+        workspaceKind: 'git',
+      },
+      capabilities: ['telemetry.publish', 'control.receive'],
+    };
+    first.send(JSON.stringify({ type: 'client.hello', payload: helloPayload }));
+    await browserCol.nextMessage(
+      (m) => m.type === 'hq.snapshot' && (m as HqSnapshotMessage).snapshot.totals.activeClients === 1,
+    );
+
+    const second = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
+    await waitForOpen(second);
+    second.send(JSON.stringify({ type: 'client.hello', payload: helloPayload }));
+
+    expect(await firstClosed).toBe(4001);
+    await expect(
+      browserCol.nextMessage(
+        (m) =>
+          m.type === 'hq.event' &&
+          typeof (m as { event?: { type?: unknown } }).event === 'object' &&
+          (m as { event: { type?: unknown } }).event.type === 'peer.rehydrate',
+        250,
+      ),
+    ).rejects.toThrow('WS message timeout');
+
+    browserCol.dispose();
+    browser.close();
+    second.close();
+  });
+
   it('supersedes duplicate publishers from the same process and surface', async () => {
     const port = getPort();
     handle = await startOpenHqServer({ port });

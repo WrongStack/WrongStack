@@ -349,6 +349,7 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
   let bufferTooLarge = false;
   // Serialize writes so concurrent async handlers don't interleave lines.
   let writeChain: Promise<void> = Promise.resolve();
+  const inFlightHandlers = new Set<Promise<void>>();
 
   const writeLine = (s: string) => {
     writeChain = writeChain
@@ -408,7 +409,7 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
       buffer = buffer.slice(idx + 1);
       idx = buffer.indexOf('\n');
       if (!line.trim()) continue;
-      void server
+      const handler = server
         .handleMessage(line)
         .then((res) => {
           // Always flush responses for in-flight requests, even after
@@ -429,20 +430,24 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
               timestamp: new Date().toISOString(),
             }),
           );
+        })
+        .finally(() => {
+          inFlightHandlers.delete(handler);
         });
+      inFlightHandlers.add(handler);
     }
   };
 
   let resolveDone!: () => void;
-  // `done` resolves once the stream has closed AND any in-flight writes have
-  // drained. Without the writeChain tail-call, a caller that awaits
-  // `handle.done` after stdin ends could see `done` resolve before the last
-  // response line lands on stdout — useful, e.g., for closing a wrapper
-  // process and being sure the stdout pipe is fully flushed.
+  // `done` resolves once the stream has closed, every async request handler
+  // has settled, and its resulting writes have drained. Waiting only on the
+  // current writeChain is insufficient: a slow handler may enqueue its write
+  // after stdin has already emitted `end`.
   const done = new Promise<void>((resolve) => {
     resolveDone = () => {
-      // Chain onto writeChain so `done` only resolves once writes drain.
-      void writeChain.then(() => resolve());
+      void Promise.allSettled([...inFlightHandlers])
+        .then(() => writeChain)
+        .then(() => resolve());
     };
   });
 

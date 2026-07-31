@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Specification } from '@wrongstack/core/types/spec.js';
 import { describe, expect, it, vi } from 'vitest';
-import { AISpecBuilder, type AISpecPhase } from '../src/spec-builder.js';
+import {
+  AISpecBuilder,
+  type AISpecPhase,
+  type AISpecSession,
+  type AISpecSessionPersistence,
+} from '../src/spec-builder.js';
 import type { SpecStore } from '../src/spec-store.js';
 
 function mockStore(): SpecStore {
@@ -261,6 +266,42 @@ describe('AISpecBuilder', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it('uses a durable session adapter and surfaces authoritative read failures', async () => {
+    let saved: AISpecSession | null = null;
+    const persistence: AISpecSessionPersistence = {
+      load: vi.fn(async () => saved),
+      save: vi.fn(async (session) => {
+        saved = structuredClone(session);
+      }),
+      delete: vi.fn(async () => {
+        saved = null;
+      }),
+    };
+    const builder = new AISpecBuilder({ store: mockStore(), sessionPersistence: persistence });
+    builder.startSession('IPC session', 'shared state');
+    await builder.saveSession();
+
+    const restored = new AISpecBuilder({ store: mockStore(), sessionPersistence: persistence });
+    expect(await restored.loadSession()).toBe(true);
+    expect(restored.getSession()).toMatchObject({
+      title: 'IPC session',
+      userIntent: 'shared state',
+    });
+    await restored.deleteSession();
+    expect(saved).toBeNull();
+
+    const unavailable = new AISpecBuilder({
+      store: mockStore(),
+      sessionPersistence: {
+        ...persistence,
+        load: async () => {
+          throw new Error('project daemon unavailable');
+        },
+      },
+    });
+    await expect(unavailable.loadSession()).rejects.toThrow('project daemon unavailable');
   });
 
   it('treats missing paths, invalid sessions, and persistence failures as best effort', async () => {

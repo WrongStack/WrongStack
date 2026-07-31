@@ -62,6 +62,7 @@ export function createRuntimeLifecycleDeps(input: RuntimeLifecycleDepsInput): Li
       const { applySddLifecycle } = await import('@wrongstack/sdd');
       return applySddLifecycle(op, {
         projectRoot: input.projectRoot,
+        stateTransport: 'kanban',
         revertMerged: options?.revertMerged === true,
         paths: input.paths,
       });

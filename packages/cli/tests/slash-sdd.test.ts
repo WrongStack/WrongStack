@@ -1,21 +1,21 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sddState } from '../src/services/sdd/state.js';
 import {
+  autoDetectTaskCompletion,
   buildSddCommand,
+  getActiveBuilder,
   getActiveSDDContext,
   getActiveSDDPhase,
-  getActiveBuilder,
-  getTaskProgress,
   getTaskListText,
+  getTaskProgress,
   markTaskCompleted,
-  autoDetectTaskCompletion,
+  trySaveImplementationPlan,
   trySaveSpecFromAIOutput,
   trySaveTasksFromAIOutput,
-  trySaveImplementationPlan,
 } from '../src/slash-commands/sdd.js';
 import { createMockTracker, createTestSddSession } from './helpers/sdd-test-helpers.js';
 
@@ -57,6 +57,7 @@ function fakeCtx() {
 
 function build(opts: Record<string, unknown> = {}) {
   return buildSddCommand({
+    sddSessionTransport: 'legacy-file',
     context: fakeCtx(),
     paths: resolveWstackPaths({ projectRoot: tmp }),
     ...opts,
@@ -233,7 +234,10 @@ describe('SDD module-level helpers (no active session)', () => {
     });
 
     it('detects multiple completed tasks', () => {
-      createMockTracker([['task-1', 'Task 1'], ['task-2', 'Task 2', 'in_progress']]);
+      createMockTracker([
+        ['task-1', 'Task 1'],
+        ['task-2', 'Task 2', 'in_progress'],
+      ]);
       expect(autoDetectTaskCompletion('Task 1: done\nTask 2: done')).toBe(2);
     });
   });
@@ -287,7 +291,10 @@ describe('autoDetectTaskCompletion edge cases', () => {
   });
 
   it('counts multiple completed tasks', () => {
-    createMockTracker([['task-1', 'Task 1'], ['task-2', 'Task 2', 'in_progress']]);
+    createMockTracker([
+      ['task-1', 'Task 1'],
+      ['task-2', 'Task 2', 'in_progress'],
+    ]);
     expect(autoDetectTaskCompletion('Task 1: done\nTask 2: done')).toBe(2);
   });
 });
@@ -357,9 +364,7 @@ describe('buildSddCommand verbs without an active session', () => {
   });
 
   it('split without an active parallel run reports no run', async () => {
-    expect((await build().run('split t1 A ; B'))?.message).toContain(
-      'No active SDD parallel run',
-    );
+    expect((await build().run('split t1 A ; B'))?.message).toContain('No active SDD parallel run');
   });
 
   it('split requires a task id and at least two sub-tasks', async () => {
@@ -371,12 +376,20 @@ describe('buildSddCommand verbs without an active session', () => {
   });
 
   it('split parses `Title :: desc ; …` and reports the new leaf ids', async () => {
-    const calls: Array<{ taskId: string; subtasks: Array<{ title: string; description: string }> }> = [];
-    const onSddSplitTask = (taskId: string, subtasks: Array<{ title: string; description: string }>) => {
+    const calls: Array<{
+      taskId: string;
+      subtasks: Array<{ title: string; description: string }>;
+    }> = [];
+    const onSddSplitTask = (
+      taskId: string,
+      subtasks: Array<{ title: string; description: string }>,
+    ) => {
       calls.push({ taskId, subtasks });
       return ['leaf-1', 'leaf-2'];
     };
-    const res = await build({ onSddSplitTask }).run('split t1 Build API :: do the api ; Write tests');
+    const res = await build({ onSddSplitTask }).run(
+      'split t1 Build API :: do the api ; Write tests',
+    );
     expect(calls).toHaveLength(1);
     expect(calls[0]?.taskId).toBe('t1');
     expect(calls[0]?.subtasks).toEqual([
@@ -388,7 +401,7 @@ describe('buildSddCommand verbs without an active session', () => {
 
   it('split reports when the run rejects the split (null)', async () => {
     const res = await build({ onSddSplitTask: () => null }).run('split t1 A ; B');
-    expect(res?.message).toContain("unknown / running");
+    expect(res?.message).toContain('unknown / running');
   });
 
   // ── lifecycle: clean / rollback / destroy ──────────────────────────────────
@@ -406,10 +419,16 @@ describe('buildSddCommand verbs without an active session', () => {
   });
 
   it('rollback reports reverted count on success and the reason on failure', async () => {
-    const ok = await build({ onSddRollback: async () => ({ ok: true, reverted: 2 }) }).run('rollback');
+    const ok = await build({ onSddRollback: async () => ({ ok: true, reverted: 2 }) }).run(
+      'rollback',
+    );
     expect(ok?.message).toContain('Rolled back 2 run commits');
     const fail = await build({
-      onSddRollback: async () => ({ ok: false, reverted: 0, reason: 'working tree has uncommitted changes' }),
+      onSddRollback: async () => ({
+        ok: false,
+        reverted: 0,
+        reason: 'working tree has uncommitted changes',
+      }),
     }).run('revert');
     expect(fail?.message).toContain('Rollback failed');
     expect(fail?.message).toContain('uncommitted');
@@ -456,7 +475,11 @@ describe('buildSddCommand verbs without an active session', () => {
 
   it('abort is an alias of stop', async () => {
     let stopped = 0;
-    const res = await build({ onSddParallelStop: () => { stopped++; } }).run('abort');
+    const res = await build({
+      onSddParallelStop: () => {
+        stopped++;
+      },
+    }).run('abort');
     expect(stopped).toBe(1);
     expect(res?.message).toContain('stopped');
   });
@@ -616,6 +639,50 @@ describe('buildSddCommand with an active spec/tasks session', () => {
     await build().run('new TaskParse');
     // No spec yet → returns false even if JSON looks valid
     expect(await trySaveTasksFromAIOutput('```json\n[{"title":"x"}]\n```')).toBe(false);
+  });
+
+  it('persists the CLI task graph and restores it in a replacement session', async () => {
+    await build().run('new Recoverable');
+    const builder = getActiveBuilder()!;
+    builder.setSpec({
+      id: 'recoverable-spec',
+      title: 'Recoverable',
+      version: '0.1.0',
+      status: 'draft',
+      overview: 'resume test',
+      sections: [],
+      requirements: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    expect(
+      await trySaveTasksFromAIOutput(
+        '```json\n[{"title":"Persist me","description":"survive restart"}]\n```',
+      ),
+    ).toBe(true);
+    const graphId = sddState.getTaskGraphId();
+    expect(graphId).toBeTruthy();
+    const paths = resolveWstackPaths({ projectRoot: tmp });
+    await expect
+      .poll(async () => {
+        try {
+          await fs.access(path.join(paths.projectTaskGraphs, `${graphId}.json`));
+          return true;
+        } catch {
+          return false;
+        }
+      })
+      .toBe(true);
+
+    // Simulate a replacement CLI process: in-memory state is gone, project
+    // session + graph artifacts remain.
+    sddState.setBuilder(null);
+    sddState.clearTaskState();
+    const resumed = await build().run('resume');
+
+    expect(resumed?.message).toContain('SDD Session Resumed');
+    expect(resumed?.message).toContain('Tasks: 0/1 completed');
+    expect(getTaskProgress()).toMatchObject({ total: 1, completed: 0 });
   });
 
   it('trySaveImplementationPlan returns false if not in implementation phase', async () => {

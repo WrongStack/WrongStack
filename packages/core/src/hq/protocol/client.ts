@@ -82,8 +82,27 @@ export interface HqClientCommandAckMessage {
   message?: string;
 }
 
+export interface HqClientResumeMessage {
+  type: 'client.resume';
+  /**
+   * Highest `seq` value the client has already received via prior
+   * `client.event` envelopes. The server replies with `hq.resume_gap`
+   * containing the missed envelopes (capped at 1000 / 1 MB) or `hq.snapshot`
+   * if the gap is too large. See `docs/plans/hq-evolution-2026-08.md` §2.5.
+   */
+  lastSeqSeen: number;
+  /**
+   * Optional identity hint. When present, the server uses it to anchor
+   * the resumption to the previous session's state. When absent, the server
+   * falls back to the WebSocket's existing auth context.
+   */
+  clientId?: string;
+  projectId?: string;
+}
+
 export type HqClientMessage =
   | HqClientHelloMessage
   | HqClientEventMessage
   | HqClientCommandPollMessage
-  | HqClientCommandAckMessage;
+  | HqClientCommandAckMessage
+  | HqClientResumeMessage;

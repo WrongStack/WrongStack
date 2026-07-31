@@ -146,6 +146,79 @@ describe('BrainDecisionCache', () => {
     expect(cache.get(req({ id: 'next' }))).toBeUndefined();
     cache.stop();
   });
+
+  // ── Request-id index hygiene (RAM-leak audit 2026-07-31, MEDIUM) ────────
+  // `keyByRequestId` and per-entry `requestIds` must never outlive their
+  // entry, or the index grows one string per unique request id forever.
+
+  const internals = (cache: BrainDecisionCache) =>
+    cache as unknown as {
+      entries: Map<string, { requestIds: Set<string> }>;
+      keyByRequestId: Map<string, string>;
+    };
+
+  it('caps the per-entry served request-ids at 500 and keeps the index in sync', () => {
+    const cache = new BrainDecisionCache({ enabled: true });
+    cache.set(req(), answer, 'llm');
+    for (let i = 0; i < 600; i += 1) cache.get(req({ id: `served-${i}` }));
+
+    const entry = internals(cache).entries.get(brainCacheKey(req()));
+    expect(entry?.requestIds.size).toBe(500);
+    // One index mapping per retained id: the 500 capped served ids (the
+    // origin id 'r1' was the oldest and was evicted along with its mapping).
+    expect(internals(cache).keyByRequestId.size).toBe(500);
+    expect(internals(cache).keyByRequestId.has('r1')).toBe(false);
+  });
+
+  it('prunes the request-id index when an entry expires on the TTL', () => {
+    let now = 0;
+    const cache = new BrainDecisionCache({ enabled: true, ttlMs: 1_000, now: () => now });
+    cache.set(req(), answer, 'llm');
+    cache.get(req({ id: 'r2' }));
+    expect(internals(cache).keyByRequestId.size).toBe(2);
+
+    now = 1_001;
+    expect(cache.get(req({ id: 'r3' }))).toBeUndefined();
+    expect(internals(cache).keyByRequestId.size).toBe(0);
+  });
+
+  it('prunes the request-id index when maxEntries evicts the oldest entry', () => {
+    const cache = new BrainDecisionCache({ enabled: true, maxEntries: 1 });
+    cache.set(req({ question: 'q one' }), answer, 'llm');
+    cache.get(req({ id: 'served-one', question: 'q one' }));
+    expect(internals(cache).keyByRequestId.size).toBe(2);
+
+    cache.set(req({ question: 'q two' }), answer, 'llm');
+    expect(internals(cache).entries.size).toBe(1);
+    expect(internals(cache).keyByRequestId.size).toBe(1);
+    expect(internals(cache).keyByRequestId.has('served-one')).toBe(false);
+  });
+
+  it('prunes the request-id index when a failure evicts the decision', () => {
+    const events = new EventBus();
+    const cache = new BrainDecisionCache({ enabled: true, events });
+    cache.start();
+    cache.set(req(), answer, 'llm');
+    cache.get(req({ id: 'served' }));
+    expect(internals(cache).keyByRequestId.size).toBe(2);
+
+    events.emit('brain.outcome', { requestId: 'served', outcome: 'failure', at: 1 });
+    expect(internals(cache).keyByRequestId.size).toBe(0);
+    cache.stop();
+  });
+
+  it('prunes the superseded request-ids when a key is re-stored', () => {
+    const cache = new BrainDecisionCache({ enabled: true });
+    cache.set(req({ id: 'first' }), answer, 'llm');
+    cache.get(req({ id: 'served' }));
+    expect(internals(cache).keyByRequestId.size).toBe(2);
+
+    cache.set(req({ id: 'second' }), answer, 'llm');
+    expect(internals(cache).keyByRequestId.size).toBe(1);
+    expect(internals(cache).keyByRequestId.has('first')).toBe(false);
+    expect(internals(cache).keyByRequestId.has('served')).toBe(false);
+    expect(internals(cache).keyByRequestId.has('second')).toBe(true);
+  });
 });
 
 describe('createCachingBrainArbiter', () => {

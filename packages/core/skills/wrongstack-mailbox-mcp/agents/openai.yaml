@@ -1,0 +1,4 @@
+interface:
+  display_name: "WrongStack Mailbox MCP"
+  short_description: "Coordinate through WrongStack Mailbox over MCP"
+  default_prompt: "Use $wrongstack-mailbox-mcp to inspect the project mailbox, communicate with agents, and keep receipts current."

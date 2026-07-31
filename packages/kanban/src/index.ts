@@ -87,6 +87,8 @@ export type {
   KanbanServerEvent,
   KanbanServerMethod,
   KanbanServerOperations,
+  KanbanWorkflowCommand,
+  KanbanWorkflowState,
 } from './server/protocol.js';
 export {
   appendKanbanEvent,
@@ -99,3 +101,16 @@ export {
   writeKanbanMetadata,
 } from './storage.js';
 export * from './types.js';
+export {
+  drainKanbanWorkflowCommands,
+  type EnqueueKanbanWorkflowCommandInput,
+  enqueueKanbanWorkflowCommand,
+  kanbanWorkflowId,
+  subscribeKanbanWorkflowCommands,
+} from './workflow-commands.js';
+export {
+  deleteKanbanWorkflowState,
+  listKanbanWorkflowStates,
+  readKanbanWorkflowState,
+  writeKanbanWorkflowState,
+} from './workflow-state.js';

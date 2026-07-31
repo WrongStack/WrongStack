@@ -1,19 +1,14 @@
 import * as path from 'node:path';
-import type {
-  AgentFactory,
-  BrainArbiter,
-} from '@wrongstack/core/coordination';
 import type { Agent } from '@wrongstack/core/agent';
-import {
-  DefaultTaskStore,
-  TaskTracker,
-} from '@wrongstack/core/tasking';
+import type { AgentFactory, BrainArbiter } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
+import { DefaultTaskStore, type TaskStore, TaskTracker } from '@wrongstack/core/tasking';
 import type { TaskGraph } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import {
   cleanupStaleSddWorktrees,
+  createKanbanSddSessionPersistence,
   decomposeNonAtomicTasks,
   gatherProjectContext,
   makeAcceptanceCriteriaVerifier,
@@ -22,16 +17,16 @@ import {
   makeLlmSubtaskGenerator,
   makePlanningDecomposer,
   SddBoardStore,
-  type SddRunHandle,
   SddInterviewDriver,
+  type SddRunHandle,
   SddRunRegistry,
   SddSupervisor,
   SpecStore,
   startSddRun,
   TaskGraphStore,
 } from '@wrongstack/sdd';
-import type { SddRunStartOpts, SddWizardDeps } from './sdd-wizard-ws-handler.js';
 import { isGitWorkTree } from './git-process.js';
+import type { SddRunStartOpts, SddWizardDeps } from './sdd-wizard-ws-handler.js';
 
 /** Config knobs shared by the wizard start and the launch-from-board start. */
 export interface StartSddRunFromGraphConfig {
@@ -56,6 +51,8 @@ export interface StartSddRunFromGraphDeps {
   subagentFactory: AgentFactory;
   brain?: BrainArbiter | undefined;
   projectSddBoards: string;
+  /** Persist task status transitions so a replacement process can resume. */
+  taskStore?: TaskStore | undefined;
   registry?: SddRunRegistry | undefined;
   /** Isolated read-only LLM turn for the supervisor's auto-split. Omit → no split. */
   runIsolatedTurn?: ((prompt: string, name: string) => Promise<string>) | undefined;
@@ -79,7 +76,7 @@ export async function startSddRunFromGraph(
   const runTracker =
     tracker ??
     (() => {
-      const t = new TaskTracker({ store: new DefaultTaskStore() });
+      const t = new TaskTracker({ store: deps.taskStore ?? new DefaultTaskStore() });
       t.setGraph(graph);
       return t;
     })();
@@ -91,6 +88,7 @@ export async function startSddRunFromGraph(
     void cleanupStaleSddWorktrees({
       projectRoot: deps.projectRoot,
       boardsDir: deps.projectSddBoards,
+      stateTransport: 'kanban',
     }).catch(() => undefined);
     worktrees = new WorktreeManager({
       projectRoot: deps.projectRoot,
@@ -197,10 +195,7 @@ export interface SddWizardWiringOptions {
     projectTaskGraphs: string;
     projectSddBoards: string;
     projectDir: string;
-    /**
-     * Canonical interview session file (same as wpaths.projectSddSession).
-     * Destroy + resume share this path so a wipe actually clears the wizard.
-     */
+    /** Legacy interview session file imported into project workflow state. */
     projectSddSession?: string | undefined;
   };
 }
@@ -235,10 +230,11 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
       projectContext = '';
     });
 
-  // Prefer the shared projectSddSession path so /sdd destroy + WebUI destroy
-  // clear the same interview file the wizard resumes from.
-  const sessionPath =
+  // Legacy session files are imported once; project-scoped IPC owns all new
+  // interview state shared by CLI and standalone WebUI.
+  const legacySessionPath =
     opts.paths.projectSddSession ?? path.join(opts.paths.projectDir, 'sdd-session.json');
+  const sessionPersistence = createKanbanSddSessionPersistence(opts.projectRoot, legacySessionPath);
   const specStore = new SpecStore({ baseDir: opts.paths.projectSpecs });
   const graphStore = new TaskGraphStore({ baseDir: opts.paths.projectTaskGraphs });
 
@@ -266,7 +262,7 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
     new SddInterviewDriver({
       specStore,
       graphStore,
-      sessionPath,
+      sessionPersistence,
       projectContext,
     });
 
@@ -283,6 +279,7 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
         projectRoot: opts.projectRoot,
         subagentFactory: opts.subagentFactory,
         projectSddBoards: opts.paths.projectSddBoards,
+        taskStore: graphStore,
         registry,
         runIsolatedTurn,
         ...(opts.brain ? { brain: opts.brain } : {}),
@@ -290,7 +287,9 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
       {
         ...(config.parallelSlots !== undefined ? { parallelSlots: config.parallelSlots } : {}),
         ...(config.defaultModel !== undefined ? { defaultModel: config.defaultModel } : {}),
-        ...(config.defaultProvider !== undefined ? { defaultProvider: config.defaultProvider } : {}),
+        ...(config.defaultProvider !== undefined
+          ? { defaultProvider: config.defaultProvider }
+          : {}),
         ...(config.fallbackModels !== undefined ? { fallbackModels: config.fallbackModels } : {}),
         ...(config.worktrees !== undefined ? { worktrees: config.worktrees } : {}),
         ...(config.planDecompose !== undefined ? { planDecompose: config.planDecompose } : {}),
@@ -305,7 +304,8 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
     makeDriver,
     ensureReady: () => contextReady,
 
-    runInterviewTurn: (prompt: string): Promise<string> => runIsolatedTurn(prompt, 'Spec Architect'),
+    runInterviewTurn: (prompt: string): Promise<string> =>
+      runIsolatedTurn(prompt, 'Spec Architect'),
 
     startRun: async (driver, config) => {
       const graph = driver.getGraph();

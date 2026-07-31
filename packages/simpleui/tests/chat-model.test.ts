@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { contentToText, replayToMessages, updateSubagents } from '../src/lib/chat-model.js';
+import {
+  boundSimpleChatText,
+  contentToText,
+  replayToMessages,
+  retainSimpleChatMessages,
+  updateSubagents,
+} from '../src/lib/chat-model.js';
 import { copyText } from '../src/lib/clipboard.js';
 import {
   clearComposerDraft,
@@ -21,6 +27,41 @@ import {
 import { projectStatusNotice } from '../src/lib/status-notice.js';
 
 describe('SimpleUI chat projection', () => {
+  it('bounds a runaway stream while preserving its beginning and tail', () => {
+    const bounded = boundSimpleChatText('abcdefghij', 8);
+    expect(bounded.length).toBeLessThanOrEqual(8);
+    expect(bounded.startsWith('abcd')).toBe(true);
+    expect(bounded.endsWith('ghij')).toBe(true);
+  });
+
+  it('retains the newest transcript rows within count and byte budgets', () => {
+    const retained = retainSimpleChatMessages(
+      [
+        { id: 'old', role: 'user', text: '1111' },
+        { id: 'middle', role: 'assistant', text: '2222' },
+        { id: 'new', role: 'assistant', text: '3333' },
+      ],
+      { maxMessages: 2, maxBytes: 10_000, maxTextChars: 100 },
+    );
+    expect(retained.map((message) => message.id)).toEqual(['middle', 'new']);
+  });
+
+  it('drops oversized replay image data instead of letting one row defeat the byte cap', () => {
+    const retained = retainSimpleChatMessages(
+      [
+        {
+          id: 'vision',
+          role: 'user',
+          text: 'inspect',
+          images: [{ data: 'x'.repeat(1_000), mime: 'image/png' }],
+        },
+      ],
+      { maxMessages: 10, maxBytes: 512, maxTextChars: 100 },
+    );
+    expect(retained).toHaveLength(1);
+    expect(retained[0]?.images).toBeUndefined();
+  });
+
   it('extracts displayable text without leaking opaque tool blocks', () => {
     expect(
       contentToText([

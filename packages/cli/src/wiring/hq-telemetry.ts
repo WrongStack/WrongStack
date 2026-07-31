@@ -1,13 +1,20 @@
 import * as path from 'node:path';
-import type { Config, SessionWriter } from '@wrongstack/core/types';
+import type { AgentMonitorService, RemoteMailbox } from '@wrongstack/core/coordination';
 import type { HqPublisher } from '@wrongstack/core/hq';
+import {
+  startBrainTelemetryBridge,
+  startCostTelemetryBridge,
+  startFleetTelemetryBridge,
+  startSessionTelemetryBridge,
+  startToolTelemetryBridge,
+  startWorktreeTelemetryBridge,
+} from '@wrongstack/core/hq';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { RemoteMailbox } from '@wrongstack/core/coordination';
-import { startCostTelemetryBridge, startSessionTelemetryBridge, startFleetTelemetryBridge, startBrainTelemetryBridge, startWorktreeTelemetryBridge, startToolTelemetryBridge } from '@wrongstack/core/hq';
-import type { AgentMonitorService } from '@wrongstack/core/coordination';
+import type { Config, SessionWriter } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
-import { startCliHqConnection } from '../hq-publisher.js';
 import { createHqCommandDispatcher, type HqCommandController } from '../hq-command-controller.js';
+import { startCliHqConnection } from '../hq-publisher.js';
+import type { KanbanHqSyncStats } from '../kanban-hq-sync.js';
 
 /**
  * Mutable holder for the HQ publisher reference. The ref is created in
@@ -16,6 +23,7 @@ import { createHqCommandDispatcher, type HqCommandController } from '../hq-comma
  */
 export interface HqPublisherRef {
   current: HqPublisher | undefined;
+  getKanbanSyncStats?: (() => KanbanHqSyncStats | undefined) | undefined;
 }
 
 export interface SetupHqTelemetryDeps {
@@ -195,6 +203,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
       }
     },
   });
+  hqPublisherRef.getKanbanSyncStats = () => hqConnection.getKanbanSyncStats();
 
   // Populate the publisher ref from the connection so the brainMailbox
   // closure (which captured hqPublisherRef) can publish immediately.
@@ -210,7 +219,10 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
       }
     }
   });
-  teardownHandlers.push(() => hqConnection.stop());
+  teardownHandlers.push(() => {
+    hqPublisherRef.getKanbanSyncStats = undefined;
+    hqConnection.stop();
+  });
 
   // ── Agent Monitor → HQ Bridge ───────────────────────────────────
   if (agentMonitor) {
