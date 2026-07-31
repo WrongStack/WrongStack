@@ -41,13 +41,20 @@ import { copyText } from './lib/clipboard.js';
 import type { CommandPaletteAction } from './lib/command-palette-model.js';
 import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
 import { removeFileMention } from './lib/file-mention.js';
-import { createMailboxStore, isUnreadIncomingMailboxMessage } from './lib/mailbox-store.js';
+import { createMailboxStore } from './lib/mailbox-store.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
 import { type AutonomyMode, DEFAULT_PREFS, type SimplePrefs } from './lib/prefs-model.js';
 import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
 import { type RefineState, resolveEscapeRestore } from './lib/refine-model.js';
+import {
+  compactTokens,
+  isIncomingMailboxPayload,
+  messageId,
+  payloadSucceeded,
+  payloadText,
+} from './lib/session-helpers.js';
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
 import {
@@ -76,33 +83,13 @@ import type {
   ToolCallInfo,
 } from './types.js';
 
-export function compactTokens(value: number): string {
-  if (!value) return '0';
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 100_000 ? 0 : 1)}k`;
-  return Math.round(value).toString();
-}
-
-export function messageId(prefix: string): string {
-  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
-}
-
-export function payloadText(payload: Record<string, unknown> | undefined, key: string): string {
-  const value = payload?.[key];
-  return typeof value === 'string' ? value : '';
-}
-
-export function payloadSucceeded(payload: Record<string, unknown> | undefined): boolean {
-  return payload?.['success'] === true;
-}
-
-export function isIncomingMailboxPayload(payload: Record<string, unknown> | undefined): boolean {
-  return isUnreadIncomingMailboxMessage({
-    completed: false,
-    readByCount: 0,
-    from: payloadText(payload, 'from'),
-  });
-}
+export {
+  compactTokens,
+  isIncomingMailboxPayload,
+  messageId,
+  payloadSucceeded,
+  payloadText,
+};
 
 export function SimpleUiSession() {
   const { theme, toggleTheme } = useTheme();
