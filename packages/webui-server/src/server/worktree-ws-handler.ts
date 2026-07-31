@@ -1,11 +1,11 @@
 import { join, resolve, sep } from 'node:path';
-import type { WebSocket } from 'ws';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Logger } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import { cleanupStaleSddWorktrees } from '@wrongstack/sdd';
+import type { WebSocket } from 'ws';
 import type { WorktreeHandleView, WorktreeOrphanView, WSServerMessage } from './types.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import { sendSerialized } from './ws-utils.js';
 
 const MAX_ACTIVITY = 6;
@@ -40,6 +40,20 @@ export class WorktreeWebSocketHandler {
   private baseBranch = '';
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
   private readonly offs: Array<() => void> = [];
+  /**
+   * Single-flight guard for orphan scans. Two concurrent `scanAndBroadcast()`
+   * calls would race: the first call reads `wt.listManaged()`, then the
+   * second call's mutation completes (e.g. `removeOne`), then the first call
+   * broadcasts a stale orphan list — the user sees a row persist and clicks
+   * Remove a second time, hitting "remove failed (not a managed worktree?)".
+   *
+   * We coalesce concurrent triggers: while a scan is in flight, additional
+   * callers are remembered as "need a re-scan" and exactly one follow-up
+   * scan runs after the in-flight one finishes. The re-scan picks up any
+   * mutations that landed during the previous scan's `listManaged()` window.
+   */
+  private scanInFlight: Promise<void> | null = null;
+  private scanRescanNeeded = false;
 
   constructor(
     private readonly events: EventBus,
@@ -69,7 +83,10 @@ export class WorktreeWebSocketHandler {
       return true;
     }
     if (msg.type === 'worktree.remove') {
-      await this.removeOne(msg.payload?.['dir'] as string | undefined, msg.payload?.['branch'] as string | undefined);
+      await this.removeOne(
+        msg.payload?.['dir'] as string | undefined,
+        msg.payload?.['branch'] as string | undefined,
+      );
       return true;
     }
     if (msg.type === 'worktree.merge') {
@@ -77,7 +94,10 @@ export class WorktreeWebSocketHandler {
       return true;
     }
     if (msg.type === 'worktree.diff') {
-      await this.diffOne(msg.payload?.['dir'] as string | undefined, msg.payload?.['baseBranch'] as string | undefined);
+      await this.diffOne(
+        msg.payload?.['dir'] as string | undefined,
+        msg.payload?.['baseBranch'] as string | undefined,
+      );
       return true;
     }
     return false;
@@ -113,11 +133,51 @@ export class WorktreeWebSocketHandler {
   }
 
   /**
+   * Coalesced orphan scan entry point. Multiple concurrent callers share one
+   * in-flight scan; if a caller arrives during a scan, a single follow-up
+   * scan is scheduled to pick up mutations that landed mid-scan. Returns the
+   * shared promise so `await this.scanAndBroadcast()` still works for callers
+   * that want to chain after the next broadcast.
+   */
+  private scanAndBroadcast(): Promise<void> {
+    if (this.scanInFlight) {
+      this.scanRescanNeeded = true;
+      return this.scanInFlight;
+    }
+    this.scanInFlight = this.runScanAndMaybeRescan();
+    return this.scanInFlight;
+  }
+
+  /**
+   * Run the actual scan, then drain a pending re-scan request if one came in
+   * during the scan. The re-scan is bounded (one follow-up) — additional
+   * requests that arrive during the follow-up coalesce into the next one.
+   */
+  private async runScanAndMaybeRescan(): Promise<void> {
+    try {
+      await this.runScanOnce();
+      while (this.scanRescanNeeded) {
+        this.scanRescanNeeded = false;
+        await this.runScanOnce();
+      }
+    } finally {
+      // Clear the in-flight slot. Any caller arriving after this point will
+      // start a fresh scan through `scanAndBroadcast`. The flag is already
+      // false here because the while-loop drained it; a new caller during
+      // the final `runScanOnce` await would have set it via `scanAndBroadcast`,
+      // which short-circuited to the in-flight promise rather than mutating
+      // the flag (the flag is only set by callers that arrived after the
+      // in-flight promise was published).
+      this.scanInFlight = null;
+    }
+  }
+
+  /**
    * Scan the disk for managed worktrees/branches NOT owned by a live in-session
    * run and broadcast them as orphans, with whether it is safe to clean now.
    * No-op (empty inventory) when management deps were not wired.
    */
-  private async scanAndBroadcast(): Promise<void> {
+  private async runScanOnce(): Promise<void> {
     if (!this.management) {
       this.broadcast({ type: 'worktree.orphans', payload: { orphans: [], canClean: false } });
       return;
@@ -193,7 +253,10 @@ export class WorktreeWebSocketHandler {
     for (const [id, h] of [...this.handles]) {
       if (!ACTIVE_STATUSES.has(h.status)) this.handles.delete(id);
     }
-    this.broadcast({ type: 'worktree.cleanup_result', payload: { ok: true, removed: res.removed } });
+    this.broadcast({
+      type: 'worktree.cleanup_result',
+      payload: { ok: true, removed: res.removed },
+    });
     this.broadcastState();
     await this.scanAndBroadcast();
   }
@@ -201,22 +264,38 @@ export class WorktreeWebSocketHandler {
   /** Remove/discard ONE worktree + branch. Refused while a live run owns it. */
   private async removeOne(dir?: string, branch?: string): Promise<void> {
     if (!this.management || (!dir && !branch)) {
-      this.broadcast({ type: 'worktree.cleanup_result', payload: { ok: false, removed: 0, reason: 'nothing to remove' } });
+      this.broadcast({
+        type: 'worktree.cleanup_result',
+        payload: { ok: false, removed: 0, reason: 'nothing to remove' },
+      });
       return;
     }
     // Validate the client-supplied targets: a branch must be one of ours (the
     // regex also blocks argv flag-smuggling) and a dir must be inside the
     // managed worktrees root (no path traversal to arbitrary checkouts).
     if (branch && !MANAGED_BRANCH_RE.test(branch)) {
-      this.broadcast({ type: 'worktree.cleanup_result', payload: { ok: false, removed: 0, reason: 'not a managed worktree branch' } });
+      this.broadcast({
+        type: 'worktree.cleanup_result',
+        payload: { ok: false, removed: 0, reason: 'not a managed worktree branch' },
+      });
       return;
     }
     if (dir && !this.underRoot(dir)) {
-      this.broadcast({ type: 'worktree.cleanup_result', payload: { ok: false, removed: 0, reason: 'path is outside the managed worktrees root' } });
+      this.broadcast({
+        type: 'worktree.cleanup_result',
+        payload: { ok: false, removed: 0, reason: 'path is outside the managed worktrees root' },
+      });
       return;
     }
     if (branch && this.liveActiveBranches().has(branch)) {
-      this.broadcast({ type: 'worktree.cleanup_result', payload: { ok: false, removed: 0, reason: 'a run is live on this worktree — stop it first' } });
+      this.broadcast({
+        type: 'worktree.cleanup_result',
+        payload: {
+          ok: false,
+          removed: 0,
+          reason: 'a run is live on this worktree — stop it first',
+        },
+      });
       return;
     }
     let removed = false;
@@ -226,9 +305,17 @@ export class WorktreeWebSocketHandler {
     }
     // Drop our handle for this branch/dir.
     for (const [id, h] of [...this.handles]) {
-      if ((branch && h.branch === branch) || (dir && h.handleId && dir.endsWith(h.handleId))) this.handles.delete(id);
+      if ((branch && h.branch === branch) || (dir && h.handleId && dir.endsWith(h.handleId)))
+        this.handles.delete(id);
     }
-    this.broadcast({ type: 'worktree.cleanup_result', payload: { ok: removed, removed: removed ? 1 : 0, reason: removed ? undefined : 'remove failed (not a managed worktree?)' } });
+    this.broadcast({
+      type: 'worktree.cleanup_result',
+      payload: {
+        ok: removed,
+        removed: removed ? 1 : 0,
+        reason: removed ? undefined : 'remove failed (not a managed worktree?)',
+      },
+    });
     this.broadcastState();
     await this.scanAndBroadcast();
   }
@@ -236,22 +323,37 @@ export class WorktreeWebSocketHandler {
   /** Squash-merge ONE branch into base. Refused while a live run owns it. */
   private async mergeBranch(branch?: string): Promise<void> {
     if (!this.management || !branch) {
-      this.broadcast({ type: 'worktree.merge_result', payload: { ok: false, branch: branch ?? '', reason: 'no branch' } });
+      this.broadcast({
+        type: 'worktree.merge_result',
+        payload: { ok: false, branch: branch ?? '', reason: 'no branch' },
+      });
       return;
     }
     if (!MANAGED_BRANCH_RE.test(branch)) {
-      this.broadcast({ type: 'worktree.merge_result', payload: { ok: false, branch, reason: 'not a managed worktree branch' } });
+      this.broadcast({
+        type: 'worktree.merge_result',
+        payload: { ok: false, branch, reason: 'not a managed worktree branch' },
+      });
       return;
     }
     if (this.liveActiveBranches().has(branch)) {
-      this.broadcast({ type: 'worktree.merge_result', payload: { ok: false, branch, reason: 'a run is live on this worktree — stop it first' } });
+      this.broadcast({
+        type: 'worktree.merge_result',
+        payload: { ok: false, branch, reason: 'a run is live on this worktree — stop it first' },
+      });
       return;
     }
     const wt = new WorktreeManager({ projectRoot: this.management.projectRoot });
     const res = await wt.mergeBranch(branch);
     this.broadcast({
       type: 'worktree.merge_result',
-      payload: { ok: res.ok, branch, conflict: res.conflict, conflictFiles: res.conflictFiles, reason: res.reason },
+      payload: {
+        ok: res.ok,
+        branch,
+        conflict: res.conflict,
+        conflictFiles: res.conflictFiles,
+        reason: res.reason,
+      },
     });
     await this.scanAndBroadcast();
   }
@@ -281,7 +383,14 @@ export class WorktreeWebSocketHandler {
 
     this.offs.push(
       on('worktree.allocated', (p) => {
-        const e = p as { handleId: string; ownerId: string; ownerLabel: string; dir?: string; branch: string; baseBranch: string };
+        const e = p as {
+          handleId: string;
+          ownerId: string;
+          ownerLabel: string;
+          dir?: string;
+          branch: string;
+          baseBranch: string;
+        };
         this.baseBranch = e.baseBranch || this.baseBranch;
         this.upsert(e.handleId, {
           handleId: e.handleId,
@@ -302,9 +411,21 @@ export class WorktreeWebSocketHandler {
         this.ensureBroadcast();
       }),
       on('worktree.committed', (p) => {
-        const e = p as { handleId: string; insertions: number; deletions: number; files: number; committed: boolean };
-        this.patch(e.handleId, { status: 'committing', insertions: e.insertions, deletions: e.deletions, files: e.files });
-        if (e.committed) this.activity(e.handleId, 'committed', `+${e.insertions}/-${e.deletions} (${e.files}f)`);
+        const e = p as {
+          handleId: string;
+          insertions: number;
+          deletions: number;
+          files: number;
+          committed: boolean;
+        };
+        this.patch(e.handleId, {
+          status: 'committing',
+          insertions: e.insertions,
+          deletions: e.deletions,
+          files: e.files,
+        });
+        if (e.committed)
+          this.activity(e.handleId, 'committed', `+${e.insertions}/-${e.deletions} (${e.files}f)`);
         this.broadcastState();
       }),
       on('worktree.merged', (p) => {
@@ -348,10 +469,15 @@ export class WorktreeWebSocketHandler {
   private activity(id: string, kind: string, text: string): void {
     const cur = this.handles.get(id);
     if (cur) {
-      const recentActivity = [...cur.recentActivity, { kind, text, at: Date.now() }].slice(-MAX_ACTIVITY);
+      const recentActivity = [...cur.recentActivity, { kind, text, at: Date.now() }].slice(
+        -MAX_ACTIVITY,
+      );
       this.handles.set(id, { ...cur, recentActivity });
     }
-    this.broadcast({ type: 'worktree.event', payload: { kind, handleId: id, text, at: Date.now() } });
+    this.broadcast({
+      type: 'worktree.event',
+      payload: { kind, handleId: id, text, at: Date.now() },
+    });
   }
 
   private stateMessage(): WSServerMessage {

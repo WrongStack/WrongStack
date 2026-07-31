@@ -114,6 +114,31 @@ describe('WorktreeWebSocketHandler — orphan management', () => {
     h.dispose();
   });
 
+  it('coalesces concurrent scans into a single worktree.orphans broadcast', async () => {
+    // The single-flight dedup in `scanAndBroadcast` must collapse two
+    // concurrent scans into one actual `listManaged` call. The
+    // observable contract: exactly one `worktree.orphans` broadcast per
+    // coalesced wave (none of the callers sees a separate frame for the
+    // other caller's scan). A regression that drops the `scanInFlight`
+    // guard would run two independent scans and emit two frames.
+    const root = await tmpDir();
+    const h = new WorktreeWebSocketHandler(new EventBus(), noopLogger, {
+      projectRoot: root,
+      boardsDir: path.join(root, 'sdd-boards'),
+    });
+    const ws = fakeWs();
+    h.addClient(ws);
+    // Two concurrent scans. With empty repo + no mid-scan mutations, the
+    // rescan-drain loop does not fire — so the expected frame count is 1.
+    await Promise.all([
+      h.handleMessage({ type: 'worktree.scan' }),
+      h.handleMessage({ type: 'worktree.scan' }),
+    ]);
+    const orphans = ws.sent.filter((m: any) => m.type === 'worktree.orphans');
+    expect(orphans).toHaveLength(1);
+    h.dispose();
+  });
+
   it('refuses cleanup while a worktree is actively owned by a live run', async () => {
     const root = await tmpDir();
     const events = new EventBus();
@@ -135,7 +160,7 @@ describe('WorktreeWebSocketHandler — orphan management', () => {
     h.dispose();
   });
 
-  it('cleans when idle and reports the outcome (0 removed outside a repo)', async () => {
+  it('fails closed when authoritative workflow state is unavailable outside a repo', async () => {
     const root = await tmpDir();
     const h = new WorktreeWebSocketHandler(new EventBus(), noopLogger, {
       projectRoot: root,
@@ -145,7 +170,11 @@ describe('WorktreeWebSocketHandler — orphan management', () => {
     h.addClient(ws);
     await h.handleMessage({ type: 'worktree.cleanup' });
     const res = lastOf(ws, 'worktree.cleanup_result');
-    expect(res?.payload).toMatchObject({ ok: true, removed: 0 });
+    expect(res?.payload).toMatchObject({
+      ok: false,
+      removed: 0,
+      reason: 'SDD workflow state is unavailable',
+    });
     h.dispose();
   });
 

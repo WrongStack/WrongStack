@@ -208,14 +208,34 @@ export const useHqStore = create<HqState & HqActions>()((set) => ({
       // publisher clientId cursor.
       const alreadySeen = state.events.some((candidate) => candidate.id === event.id);
       const eventPatch = alreadySeen ? {} : { events: [...state.events, event].slice(-MAX_EVENTS) };
-      const resumePatch = (resumeKey: string): Pick<HqState, 'resumeCursors'> | {} => {
+      // `peer.*` envelopes carry a publisher `clientId` but a server-minted
+      // `seq` (from `peerEventSeq` in packages/cli/src/hq-server/ws.ts) that
+      // does NOT reflect the publisher's own seq. Advancing `resumeCursors`
+      // for that clientId would poison the gap-fill watermark — a later
+      // `client.resume { clientId, lastSeqSeen }` could never gap-fill the
+      // publisher's real envelopes (server filter: `(clientId, seq) > cursor`).
+      // So peer envelopes must skip the cursor advance entirely.
+      const isPeerEnvelope = event.type === 'peer.rehydrate' || event.type === 'peer.lost';
+      const resumePatch = isPeerEnvelope
+        ? (_resumeKey: string): Pick<HqState, 'resumeCursors'> | {} => ({})
+        : (resumeKey: string): Pick<HqState, 'resumeCursors'> | {} => {
         const previousSeq = state.resumeCursors[resumeKey] ?? 0;
         const nextSeq = event.seq;
         // Skip the restart heuristic for `client.hello` (seq=0) and any
         // server-minted envelope that lands at seq=0 — those aren't
         // publisher events and must not zero a real cursor.
+        //
+        // Restart signal: a publisher genuinely restarted when its seq
+        // reset to a small value while we have a meaningful baseline
+        // (`nextSeq <= previousSeq / 2`). A backward jump by a small
+        // amount (e.g. 9 → 8) is most likely a replay or out-of-order
+        // frame — preserve the cursor so the gap-fill path surfaces the
+        // missing seqs without causing duplicate-delivery.
         const publisherRestarted =
-          nextSeq < previousSeq && nextSeq > 0 && event.type !== 'client.hello';
+          previousSeq > 0 &&
+          nextSeq > 0 &&
+          nextSeq <= previousSeq / 2 &&
+          event.type !== 'client.hello';
         return nextSeq > previousSeq || publisherRestarted
           ? { resumeCursors: { ...state.resumeCursors, [resumeKey]: nextSeq } }
           : {};

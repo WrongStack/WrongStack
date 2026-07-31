@@ -147,14 +147,41 @@ describe('live telemetry ingestion', () => {
     });
   });
 
-  it('resets the per-client cursor when the first observed post-restart seq is lower but not 1', () => {
+  it('preserves the cursor on a small backward seq (replay / out-of-order, not restart)', () => {
+    // A backward jump by less than half the baseline is most likely a replay
+    // or out-of-order frame, not a genuine restart. Preserving the cursor
+    // prevents the gap-fill path from re-delivering every previously-seen
+    // envelope (duplicate-delivery). A genuine restart resets the publisher
+    // counter to 1, which the next test pins separately.
     const state = storeModule.useHqStore.getState();
     state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 9 });
-    // Publisher restarts; the dashboard may miss seq 1, so any lower seq must
-    // replace the stale reconnect anchor instead of preserving the old cursor.
-    state._onEvent({ ...event('event-2'), clientId: 'client-a', seq: 2 });
+    state._onEvent({ ...event('event-2'), clientId: 'client-a', seq: 8 });
 
-    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({ 'client-a': 2 });
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({ 'client-a': 9 });
+  });
+
+  it('resets the per-client cursor when the publisher seq drops by half or more (genuine restart)', () => {
+    // A large backward drop (`nextSeq <= previousSeq / 2`) is a restart
+    // signal — the publisher reset its counter and the dashboard needs the
+    // new baseline so future resume cursors advertise the right gap.
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 10 });
+    state._onEvent({ ...event('event-2'), clientId: 'client-a', seq: 3 });
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({ 'client-a': 3 });
+  });
+
+  it('preserves the cursor on the half-baseline boundary (10 -> 6 is replay, not restart)', () => {
+    // Boundary case for the half-drop heuristic: `previousSeq=10` and
+    // `nextSeq=6` — `6 > 10/2 = 5`, so the predicate is false and the cursor
+    // is preserved. This pins the strict `<=` boundary: a backward jump to
+    // exactly half or below triggers restart; a backward jump to more than
+    // half is treated as a replay/out-of-order frame.
+    const state = storeModule.useHqStore.getState();
+    state._onEvent({ ...event('event-1'), clientId: 'client-a', seq: 10 });
+    state._onEvent({ ...event('event-2'), clientId: 'client-a', seq: 6 });
+
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({ 'client-a': 10 });
   });
 
   it('does not regress the cursor when client.hello (seq=0) arrives for an already-known publisher', () => {
