@@ -11,7 +11,6 @@ export {
   getSageSurface,
   LegacyMemoryPortAdapter,
   SqliteMemoryPort,
-  SAGE_RETRIEVAL_CAPABILITY,
   SAGE_SERVICE_CAPABILITY,
   SAGE_SURFACE_CAPABILITY,
   type SageRetrievalCapability,

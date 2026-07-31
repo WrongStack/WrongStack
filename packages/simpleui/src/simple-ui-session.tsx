@@ -115,20 +115,9 @@ export function SimpleUiSession() {
   const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
   const [worklists] = useState(createWorklistStore);
   const socketRef = useRef<SimpleSocket | null>(null);
-  const refreshMailboxRef = useRef<(() => void) | null>(null);
-  const [mailboxStore] = useState(() => createMailboxStore(() => refreshMailboxRef.current?.()));
-  const mailboxSnapshot = useSyncExternalStore(
-    mailboxStore.subscribe,
-    mailboxStore.getSnapshot,
-    mailboxStore.getSnapshot,
-  );
-  const [mailboxOpen, setMailboxOpen] = useState(false);
-  const mailboxUnreadCount = mailboxSnapshot.unreadCount;
   const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
   /** Provider ids already asked for their model list — catalog + saved overlap. */
   const requestedModelsRef = useRef<Set<string>>(new Set());
-  const pendingMailboxSendsRef = useRef<Set<string>>(new Set());
-  const pendingMailboxActionsRef = useRef<Set<string>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftRef = useRef('');
   const fileRefsRef = useRef<string[]>([]);
@@ -171,11 +160,9 @@ export function SimpleUiSession() {
   const messagesRef = useRef<ChatMessage[]>([]);
   const diffFilesRef = useRef<FileEditMeta[] | null>(null);
   const settingsOpenRef = useRef(false);
-  const mailboxOpenRef = useRef(false);
   messagesRef.current = messages;
   diffFilesRef.current = diffFiles;
   settingsOpenRef.current = settingsOpen;
-  mailboxOpenRef.current = mailboxOpen;
 
   /** Send a message to the agent and reflect it locally. The single send
    *  path — the composer, the queue drain, and every refine decision all

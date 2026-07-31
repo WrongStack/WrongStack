@@ -61,7 +61,7 @@ import {
   mailboxSessionTag,
   ObservableBrainArbiter as ObservableBrainArbiterCtor,
 } from '@wrongstack/core/coordination';
-import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/core/defaults';
+import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/core/types';
 import { installDesignStudioMiddleware } from '@wrongstack/core/design';
 import {
   AutoCompactionMiddleware as AutoCompactionMiddlewareCtor,
