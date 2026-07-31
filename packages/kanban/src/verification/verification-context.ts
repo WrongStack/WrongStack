@@ -19,13 +19,51 @@
  * token. Package managers, shells, interpreters, compilers, and git are absent
  * because each can execute arbitrary code even without a shell operator.
  */
-import { spawn, type ChildProcess } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import type { KanbanBoard, KanbanTask } from '../types.js';
+
+/** Maximum retained stdout or stderr for a spawned verification process. */
+export const MAX_PROCESS_OUTPUT_BYTES = 4 * 1024 * 1024;
+
+/** Collect child-process output without allowing a chatty process to exhaust RAM. */
+export class BoundedProcessOutput {
+  private readonly chunks: Buffer[] = [];
+  private bytes = 0;
+  private truncated = false;
+
+  constructor(private readonly maxBytes = MAX_PROCESS_OUTPUT_BYTES) {}
+
+  append(chunk: Buffer | string): void {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    const remaining = this.maxBytes - this.bytes;
+    if (remaining > 0) {
+      if (buffer.byteLength <= remaining) {
+        this.chunks.push(buffer);
+        this.bytes += buffer.byteLength;
+      } else {
+        this.chunks.push(Buffer.from(buffer.subarray(0, remaining)));
+        this.bytes += remaining;
+      }
+    }
+    if (buffer.byteLength > remaining) this.truncated = true;
+  }
+
+  get retainedBytes(): number {
+    return this.bytes;
+  }
+
+  toString(): string {
+    const output = Buffer.concat(this.chunks, this.bytes).toString('utf8');
+    return this.truncated
+      ? `${output}\n--- output truncated after ${this.maxBytes} bytes ---`
+      : output;
+  }
+}
 
 // ─── Command Allowlist ──────────────────────────────────────────────────────
 
@@ -652,15 +690,15 @@ export class VerificationContext {
         windowsHide: true,
         detached: detachedProcessGroup,
       });
-      let stdout = '';
-      let stderr = '';
+      const stdout = new BoundedProcessOutput();
+      const stderr = new BoundedProcessOutput();
       let settled = false;
 
       child.stdout?.on('data', (chunk: Buffer) => {
-        stdout += chunk.toString('utf8');
+        stdout.append(chunk);
       });
       child.stderr?.on('data', (chunk: Buffer) => {
-        stderr += chunk.toString('utf8');
+        stderr.append(chunk);
       });
 
       const timer = setTimeout(() => {
@@ -674,8 +712,8 @@ export class VerificationContext {
         clearTimeout(timer);
         if (settled) return;
         settled = true;
-        if (code === 0) resolve({ stdout, stderr });
-        else reject(new Error(`git ${args.join(' ')} failed: ${stderr.slice(0, 500)}`));
+        if (code === 0) resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
+        else reject(new Error(`git ${args.join(' ')} failed: ${stderr.toString().slice(0, 500)}`));
       });
       child.on('error', (err) => {
         clearTimeout(timer);
@@ -705,16 +743,16 @@ export class VerificationContext {
         windowsHide: true,
         detached: detachedProcessGroup,
       });
-      let stdout = '';
-      let stderr = '';
+      const stdout = new BoundedProcessOutput();
+      const stderr = new BoundedProcessOutput();
       let timedOut = false;
       let settled = false;
 
       child.stdout?.on('data', (chunk: Buffer) => {
-        stdout += chunk.toString('utf8');
+        stdout.append(chunk);
       });
       child.stderr?.on('data', (chunk: Buffer) => {
-        stderr += chunk.toString('utf8');
+        stderr.append(chunk);
       });
 
       let timer: NodeJS.Timeout | undefined;
@@ -725,8 +763,8 @@ export class VerificationContext {
         resolve({
           command: displayCommand,
           exitCode,
-          stdout,
-          stderr: `${stderr}${suffix}`,
+          stdout: stdout.toString(),
+          stderr: `${stderr.toString()}${suffix}`,
           durationMs: Date.now() - start,
         });
       };

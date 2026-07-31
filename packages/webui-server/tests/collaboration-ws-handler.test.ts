@@ -49,6 +49,25 @@ describe('CollaborationWebSocketHandler', () => {
   });
 
   // ── 1. Happy path: join then mirror an event ────────────────────────
+  it('clears participant and socket ownership on dispose', () => {
+    const ws = fakeWs();
+    handler.addClient(ws);
+    handler.handleMessage(ws, {
+      type: 'collab.join',
+      payload: { sessionId: 'sess-dispose', role: 'observer' },
+    });
+    const internal = handler as unknown as {
+      clients: Set<unknown>;
+      bySession: Map<string, Set<unknown>>;
+    };
+    expect(internal.clients.size).toBe(1);
+    expect(internal.bySession.size).toBe(1);
+
+    handler.dispose();
+    expect(internal.clients.size).toBe(0);
+    expect(internal.bySession.size).toBe(0);
+  });
+
   it('joins as observer, receives state snapshot, mirrors live events', () => {
     const ws = fakeWs();
     handler.addClient(ws);

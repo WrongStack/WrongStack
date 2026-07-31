@@ -7,12 +7,13 @@ import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
+  BoundedProcessOutput,
   DEFAULT_ALLOWED_COMMANDS,
   DEFAULT_BLOCKED_COMMANDS,
   parseGitNameStatus,
   parseGitNumstat,
-  validateCommand,
   VerificationContext,
+  validateCommand,
 } from '../src/verification/verification-context.js';
 
 const execFileAsync = promisify(execFile);
@@ -57,6 +58,16 @@ afterEach(async () => {
 });
 
 describe('VerificationContext command security', () => {
+  it('bounds retained output from chatty child processes', () => {
+    const output = new BoundedProcessOutput(8);
+    output.append(Buffer.from('abcde'));
+    output.append(Buffer.from('fghij'));
+    output.append(Buffer.from('ignored'));
+
+    expect(output.retainedBytes).toBe(8);
+    expect(output.toString()).toContain('abcdefgh\n--- output truncated after 8 bytes ---');
+  });
+
   it('keeps package managers and runtimes out of the generic allowlist', () => {
     const allow = new Set(DEFAULT_ALLOWED_COMMANDS);
     const block = new Set(DEFAULT_BLOCKED_COMMANDS);

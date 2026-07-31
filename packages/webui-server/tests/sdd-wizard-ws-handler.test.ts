@@ -101,6 +101,22 @@ function makeHandler(turnScript?: string[]) {
 }
 
 describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
+  it('drops retained clients and interview state on dispose', () => {
+    const { handler } = makeHandler();
+    handler.addClient(fakeWs());
+    const internal = handler as unknown as {
+      clients: Set<unknown>;
+      driver: SddInterviewDriver | null;
+      lastAgentText: string;
+    };
+    internal.lastAgentText = 'retained interview output';
+
+    handler.dispose();
+    expect(internal.clients.size).toBe(0);
+    expect(internal.driver).toBeNull();
+    expect(internal.lastAgentText).toBe('');
+  });
+
   it('drives goal → question → spec → tasks → run.start over WS', async () => {
     const { handler, startRunCalls } = makeHandler();
     const ws = fakeWs();

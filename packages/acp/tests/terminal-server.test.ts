@@ -174,9 +174,9 @@ describe('TerminalServer', () => {
     await new Promise((r) => setTimeout(r, 100));
     server.kill(terminalId);
     const exit = await server.waitForExit(terminalId);
-    // exitCode is null when killed by signal, signal is 'SIGTERM' on POSIX,
-    // may be different on Windows. Just assert: not still running.
-    expect(exit.exitCode === 0 || exit.exitCode === null || exit.signal !== null).toBe(true);
+    // exitCode is null when killed by signal on POSIX and 1 after taskkill on
+    // Windows. Either outcome proves the child reached a terminal state.
+    expect(exit.exitCode !== 0 || exit.signal !== null).toBe(true);
   });
 
   it('timeout kills a long-running command when commandTimeoutMs elapses', async () => {
@@ -207,6 +207,32 @@ describe('TerminalServer', () => {
     server.release(terminalId);
     // After release, output() should throw
     expect(() => server.output(terminalId)).toThrow(/unknown terminal/);
+  });
+
+  it('release() detaches and destroys child output pipes', () => {
+    const { terminalId } = server.create({
+      sessionId: 's1',
+      command: 'node',
+      args: ['-e', 'setInterval(() => process.stdout.write("x"), 10)'],
+    });
+    const internal = server as unknown as {
+      terminals: Map<
+        string,
+        {
+          proc: { stdout?: NodeJS.ReadableStream; stderr?: NodeJS.ReadableStream };
+          outputChunks: Buffer[];
+        }
+      >;
+    };
+    const state = internal.terminals.get(terminalId)!;
+    expect(state.proc.stdout?.listenerCount('data')).toBe(1);
+    expect(state.proc.stderr?.listenerCount('data')).toBe(1);
+
+    server.release(terminalId);
+
+    expect(state.proc.stdout?.listenerCount('data')).toBe(0);
+    expect(state.proc.stderr?.listenerCount('data')).toBe(0);
+    expect(state.outputChunks).toHaveLength(0);
   });
 
   it('spawn error (ENOENT) yields exitCode 127', async () => {
@@ -260,7 +286,7 @@ describe('TerminalServer', () => {
       command: process.execPath,
       args: [
         '-e',
-        "console.log(JSON.stringify({ node: process.env.NODE_OPTIONS, path: process.env.PATH, preload: process.env.LD_PRELOAD, dyld: process.env.DYLD_INSERT_LIBRARIES, allowed: process.env.MY_TEST_VAR }))",
+        'console.log(JSON.stringify({ node: process.env.NODE_OPTIONS, path: process.env.PATH, preload: process.env.LD_PRELOAD, dyld: process.env.DYLD_INSERT_LIBRARIES, allowed: process.env.MY_TEST_VAR }))',
       ],
       env: [
         { name: 'node_options', value: '--require definitely-not-a-real-module' },

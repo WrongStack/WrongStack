@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { HqKanbanStore } from '../../src/hq/persistence.js';
+import { HqKanbanStore, MAX_HQ_KANBAN_CACHE_PROJECTS } from '../../src/hq/kanban-store.js';
 import { isHqKanbanSnapshotPayload } from '../../src/hq/protocol.js';
 
 const dirs: string[] = [];
@@ -17,9 +17,10 @@ function board(boardId: string, revision: number, updatedAt: string) {
 function snapshot(
   boards: ReturnType<typeof board>[],
   tombstones: Array<{ boardId: string; revision: number; deletedAt: string }> = [],
+  projectId = 'project-1',
 ) {
   return {
-    projectId: 'project-1',
+    projectId,
     generatedAt: '2026-07-22T12:00:00.000Z',
     boards,
     tombstones,
@@ -28,7 +29,9 @@ function snapshot(
 
 describe('HQ Kanban snapshots', () => {
   it('validates bounded project snapshots', () => {
-    expect(isHqKanbanSnapshotPayload(snapshot([board('board-1', 1, '2026-07-22T12:00:00Z')]))).toBe(true);
+    expect(isHqKanbanSnapshotPayload(snapshot([board('board-1', 1, '2026-07-22T12:00:00Z')]))).toBe(
+      true,
+    );
     expect(
       isHqKanbanSnapshotPayload(snapshot([board('../escape', 1, '2026-07-22T12:00:00Z')])),
     ).toBe(false);
@@ -60,5 +63,26 @@ describe('HQ Kanban snapshots', () => {
     expect(merged.boards).toEqual([]);
     expect(merged.tombstones[0]?.boardId).toBe('board-1');
     await store.drain();
+  });
+
+  it('bounds retained project snapshots and releases idle writer queues', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-kanban-bounded-'));
+    dirs.push(dir);
+    const store = new HqKanbanStore(dir);
+    await Promise.all(
+      Array.from({ length: MAX_HQ_KANBAN_CACHE_PROJECTS + 8 }, (_, index) =>
+        store.merge(
+          snapshot([board(`board-${index}`, 1, '2026-07-22T12:00:00Z')], [], `project-${index}`),
+        ),
+      ),
+    );
+    await store.drain();
+
+    const internals = store as unknown as {
+      cache: Map<string, unknown>;
+      writers: Map<string, unknown>;
+    };
+    expect(internals.cache.size).toBeLessThanOrEqual(MAX_HQ_KANBAN_CACHE_PROJECTS);
+    expect(internals.writers.size).toBe(0);
   });
 });

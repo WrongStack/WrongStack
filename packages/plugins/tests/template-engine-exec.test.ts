@@ -234,6 +234,22 @@ describe('template_create / template_list', () => {
     expect((await tools.template_create!.execute({ name: 'n', content: 5 })).error).toMatch(
       /content is required/,
     );
+    expect(
+      (await tools.template_create!.execute({ name: 'n', content: 'x'.repeat(256 * 1024 + 1) }))
+        .error,
+    ).toMatch(/content exceeds/);
+  });
+
+  it('caps the number of retained templates', async () => {
+    const tools = setup();
+    for (let index = 0; index < 256; index++) {
+      await expect(
+        tools.template_create!.execute({ name: `template-${index}`, content: 'x' }),
+      ).resolves.toMatchObject({ ok: true });
+    }
+    await expect(
+      tools.template_create!.execute({ name: 'overflow', content: 'x' }),
+    ).resolves.toMatchObject({ ok: false, error: expect.stringMatching(/template limit/) });
   });
 
   it('creates then updates a template, and lists it', async () => {

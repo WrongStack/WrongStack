@@ -118,11 +118,13 @@ export interface LoopbackOptions {
 export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServer> {
   const { port, fallbackPorts = [], host, path, expectedState, signal } = opts;
   let resolveCode: (v: { code: string; state: string } | null) => void = () => {};
+  let detachAbort = (): void => {};
   const codePromise = new Promise<{ code: string; state: string } | null>((resolve) => {
     let settled = false;
     resolveCode = (v) => {
       if (settled) return;
       settled = true;
+      detachAbort();
       resolve(v);
     };
   });
@@ -178,7 +180,10 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
   };
   if (signal) {
     if (signal.aborted) onAbort();
-    else signal.addEventListener('abort', onAbort, { once: true });
+    else {
+      signal.addEventListener('abort', onAbort, { once: true });
+      detachAbort = () => signal.removeEventListener('abort', onAbort);
+    }
   }
 
   return new Promise<LoopbackServer>((resolve) => {
@@ -216,7 +221,8 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     });
     server.on('listening', () => {
       const address = server.address();
-      const actualPort = typeof address === 'object' && address ? address.port : ports[index] ?? port;
+      const actualPort =
+        typeof address === 'object' && address ? address.port : (ports[index] ?? port);
       resolve({
         bound: true,
         port: actualPort,

@@ -5,6 +5,8 @@ import { atomicWrite } from '../utils/atomic-write.js';
 import { type HqKanbanSnapshotPayload, isHqKanbanSnapshotPayload } from './protocol.js';
 import { BestEffortLatestQueue } from './write-queues.js';
 
+export const MAX_HQ_KANBAN_CACHE_PROJECTS = 32;
+
 export class HqKanbanStore {
   private readonly dirPath: string;
   private readonly cache = new Map<string, HqKanbanSnapshotPayload>();
@@ -17,14 +19,18 @@ export class HqKanbanStore {
 
   async load(projectId: string): Promise<HqKanbanSnapshotPayload> {
     const cached = this.cache.get(projectId);
-    if (cached !== undefined) return structuredClone(cached);
+    if (cached !== undefined) {
+      this.cache.delete(projectId);
+      this.cache.set(projectId, cached);
+      return structuredClone(cached);
+    }
     try {
       const content = await fs.readFile(this.filePath(projectId), 'utf8');
       const snapshot: unknown = JSON.parse(content);
       if (!isHqKanbanSnapshotPayload(snapshot) || snapshot.projectId !== projectId) {
         return emptyKanbanSnapshot(projectId);
       }
-      this.cache.set(projectId, snapshot);
+      this.setCached(projectId, snapshot);
       return structuredClone(snapshot);
     } catch {
       return emptyKanbanSnapshot(projectId);
@@ -44,11 +50,13 @@ export class HqKanbanStore {
       () => {
         if (this.mergeChains.get(incoming.projectId) === next) {
           this.mergeChains.delete(incoming.projectId);
+          this.trimCache();
         }
       },
       () => {
         if (this.mergeChains.get(incoming.projectId) === next) {
           this.mergeChains.delete(incoming.projectId);
+          this.trimCache();
         }
       },
     );
@@ -61,7 +69,8 @@ export class HqKanbanStore {
       string,
       HqKanbanSnapshotPayload['boards'][number] | HqKanbanSnapshotPayload['tombstones'][number]
     >();
-    for (const record of [...current.boards, ...current.tombstones]) records.set(record.boardId, record);
+    for (const record of [...current.boards, ...current.tombstones])
+      records.set(record.boardId, record);
     for (const record of [...incoming.boards, ...incoming.tombstones]) {
       const existing = records.get(record.boardId);
       if (existing === undefined || compareKanbanRecord(record, existing) > 0) {
@@ -80,8 +89,15 @@ export class HqKanbanStore {
     }
     merged.boards.sort((a, b) => a.boardId.localeCompare(b.boardId));
     merged.tombstones.sort((a, b) => a.boardId.localeCompare(b.boardId));
-    this.cache.set(incoming.projectId, merged);
-    this.writer(incoming.projectId).enqueue(merged);
+    this.setCached(incoming.projectId, merged);
+    const writer = this.writer(incoming.projectId);
+    writer.enqueue(merged);
+    void writer.drain().then(() => {
+      if (this.writers.get(incoming.projectId) === writer) {
+        this.writers.delete(incoming.projectId);
+        this.trimCache();
+      }
+    });
     return structuredClone(merged);
   }
 
@@ -100,6 +116,27 @@ export class HqKanbanStore {
       this.writers.set(projectId, writer);
     }
     return writer;
+  }
+
+  private setCached(projectId: string, snapshot: HqKanbanSnapshotPayload): void {
+    this.cache.delete(projectId);
+    this.cache.set(projectId, snapshot);
+    this.trimCache(projectId);
+  }
+
+  private trimCache(protectedProjectId?: string): void {
+    if (this.cache.size <= MAX_HQ_KANBAN_CACHE_PROJECTS) return;
+    for (const projectId of this.cache.keys()) {
+      if (this.cache.size <= MAX_HQ_KANBAN_CACHE_PROJECTS) break;
+      if (
+        projectId === protectedProjectId ||
+        this.writers.has(projectId) ||
+        this.mergeChains.has(projectId)
+      ) {
+        continue;
+      }
+      this.cache.delete(projectId);
+    }
   }
 
   private filePath(projectId: string): string {

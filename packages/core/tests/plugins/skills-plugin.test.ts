@@ -23,6 +23,17 @@ vi.mock('../../src/skills/skill-installer.js', () => ({
   },
 }));
 
+const skillGenMocks = vi.hoisted(() => ({
+  openInEditor: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock only openInEditor (it spawns a detached editor); keep the rest of the
+// generator real so skeleton/from-prompt/validate tests are unaffected.
+vi.mock('../../src/skills/skill-generator.js', async (importActual) => {
+  const actual = await importActual<typeof import('../../src/skills/skill-generator.js')>();
+  return { ...actual, openInEditor: skillGenMocks.openInEditor };
+});
+
 import {
   buildSkillCommand,
   buildSkillGeneratorCommand,
@@ -35,6 +46,7 @@ import {
   resolveImportSourceDir,
 } from '../../src/plugins/skills-plugin.js';
 import { githubDirectAdapter } from '../../src/skills/registry/github-direct-adapter.js';
+import { SKILL_LIMITS } from '../../src/skills/limits.js';
 
 function fakeLoader(overrides: Record<string, unknown> = {}) {
   return {
@@ -50,6 +62,7 @@ function fakeCtx() {
 }
 
 beforeEach(() => {
+  skillGenMocks.openInEditor.mockClear();
   installerMocks.install.mockReset();
   installerMocks.update.mockReset();
   installerMocks.uninstall.mockReset();
@@ -103,6 +116,20 @@ describe('buildSkillCommand', () => {
     expect(loader.readBody).toHaveBeenCalledWith('real');
   });
 
+  it('caps and strips frontmatter from the body (consistency with the skill tool)', async () => {
+    const raw = `---\nname: big\ndescription: d\n---\n${'x'.repeat(40_000)}`;
+    const loader = fakeLoader({
+      find: vi.fn().mockResolvedValue({ name: 'big' }),
+      readBody: vi.fn().mockResolvedValue(raw),
+    });
+    const res = await buildSkillCommand(loader).run('big');
+    // Frontmatter is stripped…
+    expect(res?.message).not.toContain('name: big');
+    // …and the body is capped at MAX_SKILL_BODY_CHARS with an ellipsis marker.
+    expect(res?.message?.length).toBeLessThanOrEqual(SKILL_LIMITS.MAX_SKILL_BODY_CHARS);
+    expect(res?.message).toContain('…');
+  });
+
   it('trims arg before lookup', async () => {
     const loader = fakeLoader({
       find: vi.fn().mockResolvedValue({ name: 'real' }),
@@ -110,6 +137,33 @@ describe('buildSkillCommand', () => {
     });
     await buildSkillCommand(loader).run('  real  ');
     expect(loader.find).toHaveBeenCalledWith('real');
+  });
+});
+
+// ── /skill-gen edit cache invalidation (T6) ─────────────────────────────────
+
+describe('skill-gen edit invalidates the loader cache (T6)', () => {
+  it('invalidates after opening the editor so edits are not served stale', async () => {
+    const invalidateCache = vi.fn();
+    const loader = fakeLoader({
+      find: vi.fn().mockResolvedValue({ name: 'x', path: '/skills/x/SKILL.md' }),
+      invalidateCache,
+    });
+    const res = await buildSkillGeneratorCommand(loader).run('edit x');
+    expect(skillGenMocks.openInEditor).toHaveBeenCalledWith('/skills/x/SKILL.md');
+    expect(invalidateCache).toHaveBeenCalledOnce();
+    expect(res?.message).toContain('cache cleared');
+  });
+
+  it('does not invalidate when the skill is not found', async () => {
+    const invalidateCache = vi.fn();
+    const loader = fakeLoader({
+      find: vi.fn().mockResolvedValue(undefined),
+      invalidateCache,
+    });
+    const res = await buildSkillGeneratorCommand(loader).run('edit ghost');
+    expect(res?.message).toContain('not found');
+    expect(invalidateCache).not.toHaveBeenCalled();
   });
 });
 

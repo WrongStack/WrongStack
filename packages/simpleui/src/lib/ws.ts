@@ -3,7 +3,6 @@ import {
   DEFAULT_SURFACE_CONNECTION_CONFIG,
   decodeProtocolFrame,
   decodeProtocolMessage,
-  enqueueBounded,
   markConnectionActivity,
   markConnectionConnecting,
   markConnectionOpen,
@@ -93,6 +92,7 @@ const SIMPLE_CONNECTION_CONFIG = {
   maxBackoffMs: 15_000,
   jitterRatio: 0.25,
   queueLimit: 100,
+  queueCharLimit: 8 * 1024 * 1024,
 };
 
 export class SimpleSocket {
@@ -100,6 +100,7 @@ export class SimpleSocket {
   private connectionState: SurfaceConnectionState = createSurfaceConnectionState();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private queue: string[] = [];
+  private queueChars = 0;
   private listeners: Set<(msg: ServerMessage) => void> = new Set();
 
   constructor(private readonly options: SimpleSocketOptions) {}
@@ -125,7 +126,9 @@ export class SimpleSocket {
       if (this.socket !== socket) return;
       this.connectionState = markConnectionOpen(this.connectionState);
       this.options.onState('open');
-      for (const message of this.queue.splice(0)) socket.send(message);
+      const queued = this.queue.splice(0);
+      this.queueChars = 0;
+      for (const message of queued) socket.send(message);
     });
     socket.addEventListener('message', (event) => {
       this.connectionState = markConnectionActivity(this.connectionState);
@@ -162,18 +165,40 @@ export class SimpleSocket {
       this.socket.send(serialized);
       return;
     }
-    const queued = enqueueBounded(this.queue, serialized, SIMPLE_CONNECTION_CONFIG.queueLimit);
-    if (queued.dropped !== null) {
+    if (serialized.length > SIMPLE_CONNECTION_CONFIG.queueCharLimit) {
       console.warn(
         JSON.stringify({
           level: 'warn',
           event: 'simple_socket.send_queue_overflow',
-          message: 'Send queue reached 100 messages; dropping the oldest message',
+          message: 'Message exceeds the disconnected send queue byte budget; dropping it',
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return;
+    }
+    let dropped = false;
+    while (
+      this.queue.length > 0 &&
+      (this.queue.length >= SIMPLE_CONNECTION_CONFIG.queueLimit ||
+        this.queueChars + serialized.length > SIMPLE_CONNECTION_CONFIG.queueCharLimit)
+    ) {
+      const removed = this.queue.shift();
+      if (removed === undefined) break;
+      this.queueChars = Math.max(0, this.queueChars - removed.length);
+      dropped = true;
+    }
+    if (dropped) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'simple_socket.send_queue_overflow',
+          message: 'Send queue reached its message or byte budget; dropping the oldest message',
           timestamp: new Date().toISOString(),
         }),
       );
     }
-    this.queue = queued.queue;
+    this.queue.push(serialized);
+    this.queueChars += serialized.length;
   }
 
   close(): void {
@@ -181,5 +206,8 @@ export class SimpleSocket {
     if (this.timer) clearTimeout(this.timer);
     this.socket?.close();
     this.socket = null;
+    this.queue.length = 0;
+    this.queueChars = 0;
+    this.listeners.clear();
   }
 }

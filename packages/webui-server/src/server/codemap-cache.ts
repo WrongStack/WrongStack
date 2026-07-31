@@ -13,6 +13,10 @@ import { resolveIndexDir } from '@wrongstack/tools/codebase-index/index';
 const DB_FILE = 'index.db';
 /** Soft cap — symbol-level scopes can proliferate during live agent sessions. */
 const MAX_CACHE_ENTRIES = 128;
+/** One pathological graph must not occupy the whole server heap. */
+const MAX_CACHE_BODY_CHARS = 4 * 1024 * 1024;
+/** JS strings may use two bytes per code unit, so this is roughly a 32 MiB heap budget. */
+const MAX_CACHE_TOTAL_CHARS = 16 * 1024 * 1024;
 
 export interface CodemapCacheEntry {
   version: string;
@@ -21,6 +25,14 @@ export interface CodemapCacheEntry {
 }
 
 const cache = new Map<string, CodemapCacheEntry>();
+let cacheChars = 0;
+
+function deleteCachedCodemapBody(key: string): boolean {
+  const entry = cache.get(key);
+  if (!entry) return false;
+  cacheChars = Math.max(0, cacheChars - entry.body.length);
+  return cache.delete(key);
+}
 
 /** Filesystem fingerprint of the index DB used as the cache generation key. */
 export function indexDbVersion(projectRoot: string, indexDir?: string): string {
@@ -48,7 +60,7 @@ export function getCachedCodemapBody(
   const entry = cache.get(key);
   if (!entry) return undefined;
   if (entry.version !== version) {
-    cache.delete(key);
+    deleteCachedCodemapBody(key);
     return undefined;
   }
   // Refresh LRU order (Map insertion order).
@@ -62,20 +74,27 @@ export function setCachedCodemapBody(
   version: string,
   body: string,
 ): void {
-  if (cache.has(key)) cache.delete(key);
+  if (cache.has(key)) deleteCachedCodemapBody(key);
+  if (body.length > MAX_CACHE_BODY_CHARS) return;
   cache.set(key, { version, body });
-  while (cache.size > MAX_CACHE_ENTRIES) {
+  cacheChars += body.length;
+  while (cache.size > MAX_CACHE_ENTRIES || cacheChars > MAX_CACHE_TOTAL_CHARS) {
     const oldest = cache.keys().next().value;
     if (oldest === undefined) break;
-    cache.delete(oldest);
+    deleteCachedCodemapBody(oldest);
   }
 }
 
 /** Test / process-shutdown helper. */
 export function clearCodemapGraphCache(): void {
   cache.clear();
+  cacheChars = 0;
 }
 
 export function codemapGraphCacheSize(): number {
   return cache.size;
+}
+
+export function codemapGraphCacheChars(): number {
+  return cacheChars;
 }

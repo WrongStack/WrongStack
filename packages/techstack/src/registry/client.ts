@@ -36,6 +36,7 @@ export interface HostConcurrency {
 
 const DEFAULT_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_CONCURRENCY_PER_HOST = 3;
+const REGISTRY_BATCH_CONCURRENCY = 12;
 
 // ── In-memory cache ────────────────────────────────────────────────────────
 
@@ -124,6 +125,8 @@ function releaseHostSlot(host: string): void {
       concurrency.active++;
       next();
     }
+  } else if (concurrency.active <= 0) {
+    hostConcurrency.delete(host);
   }
 }
 
@@ -462,20 +465,23 @@ export async function lookupRegistryBatch(
 ): Promise<Map<string, RegistryEntry | undefined>> {
   const results = new Map<string, RegistryEntry | undefined>();
 
-  // Process in parallel respecting concurrency limits
-  const entries = await Promise.all(
-    names.map(async (name) => {
-      try {
-        const entry = await lookupRegistry(ecosystem, name, options);
-        return { name, entry } as const;
-      } catch {
-        return { name, entry: undefined } as const;
-      }
-    }),
-  );
-
-  for (const { name, entry } of entries) {
-    results.set(name, entry);
+  // Do not allocate one Promise and one semaphore waiter for every dependency
+  // in a large monorepo. Work in bounded chunks; the per-host limiter still
+  // enforces its stricter network concurrency within each chunk.
+  const uniqueNames = [...new Set(names)];
+  for (let offset = 0; offset < uniqueNames.length; offset += REGISTRY_BATCH_CONCURRENCY) {
+    const chunk = uniqueNames.slice(offset, offset + REGISTRY_BATCH_CONCURRENCY);
+    const entries = await Promise.all(
+      chunk.map(async (name) => {
+        try {
+          const entry = await lookupRegistry(ecosystem, name, options);
+          return { name, entry } as const;
+        } catch {
+          return { name, entry: undefined } as const;
+        }
+      }),
+    );
+    for (const { name, entry } of entries) results.set(name, entry);
   }
 
   return results;

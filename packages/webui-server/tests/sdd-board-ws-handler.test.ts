@@ -70,6 +70,21 @@ async function readControl(boardsDir: string, runId: string): Promise<string> {
 }
 
 describe('SddBoardWebSocketHandler — lifecycle', () => {
+  it('drops retained clients and the latest snapshot on dispose', async () => {
+    const root = await tmpDir();
+    const handler = new SddBoardWebSocketHandler(path.join(root, 'sdd-boards'));
+    handler.addClient(fakeWs());
+    const internal = handler as unknown as {
+      clients: Set<unknown>;
+      latest: SddBoardSnapshot | null;
+    };
+    internal.latest = snapshot();
+
+    handler.dispose();
+    expect(internal.clients.size).toBe(0);
+    expect(internal.latest).toBeNull();
+  });
+
   it('polls standalone board storage only while clients are connected', async () => {
     const root = await tmpDir();
     const listeners = new Map<string, () => void>();

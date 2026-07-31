@@ -30,6 +30,13 @@ const wsMock = {
   sendMessage: vi.fn((_content: string, _imageBase64?: string) => 'msg_id'),
   sendAbort: vi.fn(),
   refineModel: vi.fn(),
+  // Mirror the full useWebSocket surface ChatInput destructures/calls.
+  // `updatePrefs` is invoked by the enhance toggle (ChatInput.tsx:155,988);
+  // `sendMailboxMessage` is exposed by the hook for the btw mid-run path.
+  // Omitting them leaves `undefined` on the destructure and throws the
+  // moment a test exercises those controls.
+  sendMailboxMessage: vi.fn(),
+  updatePrefs: vi.fn(),
   client: {
     isConnected: true,
     send: vi.fn(),
@@ -59,6 +66,8 @@ beforeEach(() => {
   wsMock.sendMessage.mockClear();
   wsMock.sendAbort.mockClear();
   wsMock.refineModel.mockClear();
+  wsMock.sendMailboxMessage.mockClear();
+  wsMock.updatePrefs.mockClear();
   // Reset the chat store between tests so the queue / loading state
   // from one test doesn't bleed into the next.
   useChatStore.setState({
@@ -195,7 +204,7 @@ describe('ChatInput — send-mode buttons', () => {
     expect(wsMock.sendMessage).toHaveBeenCalledWith('hello agent', undefined);
   });
 
-  it('btw while running enqueues with mode "btw" (no interrupt)', () => {
+  it('btw while running dispatches immediately via mailbox and marks the chip dispatched', () => {
     useChatStore.setState({
       isLoading: true,
       messages: [{ id: 'm1', role: 'user', content: 'hi', timestamp: 1 }],
@@ -206,10 +215,28 @@ describe('ChatInput — send-mode buttons', () => {
     typeInto(textarea, 'btw consider edge case');
     fireEvent.click(screen.getByTestId('send-btw'));
 
+    // No interrupt, no new run — the note rides alongside the running agent.
     expect(wsMock.sendAbort).not.toHaveBeenCalled();
     expect(wsMock.sendMessage).not.toHaveBeenCalled();
+    // Immediate mid-run mailbox dispatch (folds into the next iteration).
+    expect(wsMock.sendMailboxMessage).toHaveBeenCalledTimes(1);
+    expect(wsMock.sendMailboxMessage).toHaveBeenCalledWith({
+      type: 'btw',
+      to: 'leader',
+      subject: 'btw from WebUI',
+      body: 'btw consider edge case',
+      priority: 'normal',
+      audience: 'all',
+    });
+    // The chip stays in the queue for visibility, marked alreadyDispatched so
+    // the run.result drain skips re-sending it (no double injection).
     expect(useChatStore.getState().queue).toEqual([
-      { text: 'btw consider edge case', mode: 'btw', addedAt: expect.any(Number) },
+      {
+        text: 'btw consider edge case',
+        mode: 'btw',
+        addedAt: expect.any(Number),
+        alreadyDispatched: true,
+      },
     ]);
   });
 

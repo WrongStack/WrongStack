@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, Trash2 } from 'lucide-react';
+import { ArrowDownAZ, ArrowUpAZ, Check, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
@@ -45,6 +45,14 @@ export function QueuedMessages({ queue, onClear, onRemove }: QueuedMessagesProps
 
   if (queue.length === 0) return null;
 
+  // `alreadyDispatched` items have already been wire-sent — removing or
+  // clearing them from the UI cannot retract the note the agent will
+  // already act on. Hide the "Clear all" affordance when EVERY item is
+  // dispatched (clearing already-sent chips alone is pointless); while any
+  // pending item is present the button clears the WHOLE queue via `onClear`
+  // (the store's `clearQueue` resets the queue, dispatched items included).
+  const allDispatched = queue.every((q) => q.alreadyDispatched);
+
   return (
     <div className="rounded-lg border bg-muted/30 p-2 text-xs" data-testid="inline-queue">
       <div className="flex items-center justify-between mb-1.5 gap-2">
@@ -73,53 +81,75 @@ export function QueuedMessages({ queue, onClear, onRemove }: QueuedMessagesProps
             )}
             {sortDir === 'newest' ? t('activity:queue.newest') : t('activity:queue.oldest')}
           </button>
-          <button
-            type="button"
-            onClick={onClear}
-            className="inline-flex items-center gap-1 text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded text-[10px]"
-            title={t('activity:queue.clearTitle')}
-            data-testid="inline-queue-clear-all"
-          >
-            <Trash2 className="h-3 w-3" />
-            {t('activity:queue.clear')}
-          </button>
+          {!allDispatched && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded text-[10px]"
+              title={t('activity:queue.clearDispatchedTitle')}
+              data-testid="inline-queue-clear-all"
+            >
+              <Trash2 className="h-3 w-3" />
+              {t('activity:queue.clear')}
+            </button>
+          )}
         </div>
       </div>
       <ul className="space-y-1">
         {sortedQueue.map((item) => {
           const sourceIdx = queue.indexOf(item);
           const meta = MODE_META[item.mode];
+          const dispatched = item.alreadyDispatched === true;
           return (
             <li
               // The addedAt+sourceIdx pair uniquely identifies the item even
               // if two items happen to share the same addedAt ms (rare but
               // possible under synthetic timers in tests).
               key={`${item.addedAt}-${sourceIdx}`}
-              className="flex items-start justify-between gap-2 rounded bg-background/60 border px-2 py-1"
+              className={cn(
+                'flex items-start justify-between gap-2 rounded border px-2 py-1',
+                dispatched
+                  ? 'bg-muted/40 border-dashed text-muted-foreground'
+                  : 'bg-background/60 border-solid',
+              )}
               data-testid="inline-queue-item"
               data-queue-mode={item.mode}
+              data-dispatched={dispatched ? 'true' : undefined}
             >
               <div className="flex items-start gap-1.5 min-w-0 flex-1">
                 <span
                   className={cn(
                     'shrink-0 inline-flex items-center justify-center text-[9px] font-semibold uppercase tracking-wider px-1 py-px rounded border mt-0.5',
                     meta.tone,
+                    dispatched && 'opacity-60',
                   )}
                   title={t(`activity:queue.${meta.titleKey}`)}
                 >
                   {meta.label}
                 </span>
                 <span className="truncate flex-1 min-w-0">{item.text}</span>
+                {dispatched && (
+                  <span
+                    className="shrink-0 inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider text-success mt-0.5"
+                    title={t('activity:queue.dispatchedTitle')}
+                    data-testid={`inline-queue-dispatched-${sourceIdx}`}
+                  >
+                    <Check className="h-2.5 w-2.5" />
+                    {t('activity:queue.dispatchedLabel')}
+                  </span>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => onRemove(sourceIdx)}
-                className="text-muted-foreground hover:text-destructive shrink-0"
-                title={t('activity:queue.removeTitle')}
-                data-testid={`inline-queue-remove-${sourceIdx}`}
-              >
-                ×
-              </button>
+              {!dispatched && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(sourceIdx)}
+                  className="text-muted-foreground hover:text-destructive shrink-0"
+                  title={t('activity:queue.removeTitle')}
+                  data-testid={`inline-queue-remove-${sourceIdx}`}
+                >
+                  ×
+                </button>
+              )}
             </li>
           );
         })}

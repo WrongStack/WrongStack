@@ -327,6 +327,22 @@ describe('lookupRegistryBatch', () => {
     expect(results.get('pkg-b')).toBeDefined();
   });
 
+  it('deduplicates names before allocating batch work', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation((...args: unknown[]) => {
+      const cb = getResponseCallback(args);
+      const res = createMockResponse(200);
+      cb(res);
+      emitResponse(res, JSON.stringify({ 'dist-tags': { latest: '1.0.0' } }));
+      return createMockRequest();
+    });
+
+    const { lookupRegistryBatch } = await import('../src/registry/client.js');
+    const results = await lookupRegistryBatch('npm', ['pkg-a', 'pkg-a', 'pkg-b']);
+    expect(results.size).toBe(2);
+    expect(mockedHttpsGet).toHaveBeenCalledTimes(2);
+  });
+
   it('handles errors in batch gracefully', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockedHttpsGet.mockImplementation(mockGet(404, 'not found'));

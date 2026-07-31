@@ -137,8 +137,11 @@ export class GoalWebSocketHandler {
     this.assessAbort?.abort();
     this.assessAbort = null;
     this.orchestrator?.stop();
+    this.orchestrator = null;
     this.stopBroadcast();
     this.clients.clear();
+    this.usedNicknames.clear();
+    this.worktrees = null;
   }
 
   async handleMessage(ws: WebSocket, msg: GoalWSMessage): Promise<void> {

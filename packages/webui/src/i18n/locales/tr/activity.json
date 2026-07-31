@@ -1077,6 +1077,9 @@
     "emptyTitle": "Kuyruk boş",
     "emptyBody": "Mesaj eklemek için girdinin yanındaki btw / steer / kuyruğa ekle düğmelerini kullanın. Kuyruktaki öğeler mevcut vekil çalışması bitince sırayla gönderilir.",
     "removeTitle": "Kuyruktan kaldır",
+    "clearDispatchedTitle": "Kuyruktaki mesajları temizle — zaten gönderilen notlar geri alınamaz",
+    "dispatchedTitle": "Zaten vekile gönderildi",
+    "dispatchedLabel": "Gönderildi",
     "footer": "Mesajlar, mevcut vekil çalışması bitince varış sırasına göre gönderilir. En yeni önce görmek için sıralama düğmesini kullanın."
   },
   "checkpoint": {

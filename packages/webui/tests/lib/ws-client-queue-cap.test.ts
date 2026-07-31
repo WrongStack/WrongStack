@@ -105,6 +105,45 @@ describe('WrongStackWebSocketClient — offline queue cap (H4)', () => {
     expect(queue[queue.length - 1]?.payload.index).toBe(cap + 100 - 1);
   });
 
+  it('also bounds retained serialized payload size', () => {
+    const ctor = WrongStackWebSocketClient as unknown as { MAX_QUEUED_CHARS: number };
+    const originalCap = ctor.MAX_QUEUED_CHARS;
+    const warn = console.warn;
+    console.warn = () => {};
+    ctor.MAX_QUEUED_CHARS = 256;
+    try {
+      const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
+      client.send({ type: 'prefs.update', payload: { index: 1, blob: 'x'.repeat(140) } });
+      client.send({ type: 'prefs.update', payload: { index: 2, blob: 'y'.repeat(140) } });
+      const queue = (client as unknown as { messageQueue: Array<{ payload: { index: number } }> })
+        .messageQueue;
+      expect(queue).toHaveLength(1);
+      expect(queue[0]?.payload.index).toBe(2);
+      expect(
+        (client as unknown as { messageQueueChars: number }).messageQueueChars,
+      ).toBeLessThanOrEqual(ctor.MAX_QUEUED_CHARS);
+    } finally {
+      ctor.MAX_QUEUED_CHARS = originalCap;
+      console.warn = warn;
+    }
+  });
+
+  it('rejects one offline message larger than the byte budget', () => {
+    const ctor = WrongStackWebSocketClient as unknown as { MAX_QUEUED_CHARS: number };
+    const originalCap = ctor.MAX_QUEUED_CHARS;
+    const warn = console.warn;
+    console.warn = () => {};
+    ctor.MAX_QUEUED_CHARS = 128;
+    try {
+      const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
+      expect(client.send({ type: 'prefs.update', payload: { blob: 'x'.repeat(256) } })).toBe(false);
+      expect((client as unknown as { messageQueue: unknown[] }).messageQueue).toHaveLength(0);
+    } finally {
+      ctor.MAX_QUEUED_CHARS = originalCap;
+      console.warn = warn;
+    }
+  });
+
   it('clears the queue when disconnect() is called', () => {
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
     client.send({ type: 'ping' });

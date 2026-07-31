@@ -107,6 +107,10 @@ export class WorktreeWebSocketHandler {
     for (const off of this.offs) off();
     this.offs.length = 0;
     this.stopBroadcast();
+    this.clients.clear();
+    this.handles.clear();
+    this.baseBranch = '';
+    this.scanRescanNeeded = false;
   }
 
   // ── orphan management ─────────────────────────────────────────────────────

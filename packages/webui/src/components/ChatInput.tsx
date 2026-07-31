@@ -64,7 +64,7 @@ export function ChatInput({
   const pushPrompt = useUIStore((s) => s.pushPrompt);
   const promptHistory = useUIStore((s) => s.promptHistory);
   const ws = useWebSocket();
-  const { sendMessage, sendAbort, client, refineModel, updatePrefs } = ws;
+  const { sendMessage, sendAbort, sendMailboxMessage, client, refineModel, updatePrefs } = ws;
   const { t } = useAppTranslation();
   const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
   const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
@@ -89,6 +89,21 @@ export function ChatInput({
       if (!current || (current.status ?? 'refining') !== 'refining') return;
       setRefinePanel(null);
       toast.info(t('chat:input.refineTimeoutFallback'));
+      // Mid-run pre-queue panel: preserve the submit mode and enqueue instead
+      // of direct-sending while a run is still in flight (mirrors handleDecision
+      // in refine-panel-host). Degrade btw→queue when images are present: the
+      // btw drain path is text-only (sendMailboxMessage has no image channel),
+      // so preserving btw would silently drop the attachments (mirrors failMode
+      // in misc-handlers.ts).
+      if (current.mode !== undefined && useChatStore.getState().isLoading) {
+        const panelImages = current.images;
+        const panelMode =
+          panelImages && panelImages.length > 0 && current.mode === 'btw'
+            ? 'queue'
+            : current.mode;
+        enqueue(current.original, panelMode, panelImages);
+        return;
+      }
       if (client?.isConnected) {
         addMessage({ role: 'user', content: current.original });
         setLoading(true);
@@ -99,7 +114,7 @@ export function ChatInput({
       }
     }, window);
     return () => clearTimeout(timer);
-  }, [refinePanel, client, addMessage, setLoading, sendMessage, setRefinePanel, t]);
+  }, [refinePanel, client, addMessage, setLoading, sendMessage, setRefinePanel, enqueue, t]);
   const lastInputTokens = useSessionStore((s) => s.lastInputTokens);
   const maxContext = useSessionStore((s) => s.maxContext);
   const [input, setInput] = useState(() => useUIStore.getState().draftInput ?? '');
@@ -181,6 +196,7 @@ export function ChatInput({
       client,
       queue,
       sendAbort,
+      sendMsg,
       setLoading,
       setCurrentView,
       handleToggleEnhance,
@@ -235,6 +251,7 @@ export function ChatInput({
               };
             })
           : [],
+        effectiveMode,
       );
       useChatStore.getState().setRefining(true);
       if (refineModel) {
@@ -438,7 +455,66 @@ export function ChatInput({
       const mustEnqueue = mode === 'btw' && isLoading;
 
       if (mustEnqueue) {
-        enqueue(combined, 'btw', images.length > 0 ? images : undefined);
+        // Mid-run btw: mirror the TUI setBtwNote path — dispatch to the
+        // mailbox IMMEDIATELY so the note folds into the running agent's
+        // next iteration instead of waiting for run.result. The queue still
+        // gets a chip (marked alreadyDispatched) so the user sees it; the
+        // run.result drain skips re-sending dispatched items. If the socket
+        // is down we can't dispatch now — enqueue WITHOUT the mark so the
+        // drain sends it as a fallback once the run lands.
+        //
+        // sendMailboxMessage carries only a string body — no image channel
+        // (WSMailboxSendOptions), and the drain's btw branch is text-only too,
+        // so a btw note with image attachments can never deliver its images.
+        // Degrade to 'queue' when images are present so the drain forwards
+        // them via toWireImages (mirrors failMode in misc-handlers.ts).
+        if (images.length > 0) {
+          enqueue(combined, 'queue', images);
+          clearPendingImages();
+          return;
+        }
+        if (client?.isConnected) {
+          // The dispatch is not guaranteed to land: WebSocket.send throws
+          // InvalidStateError if the socket races OPEN→CLOSING between the
+          // isConnected check and the actual send (and client.send returns
+          // false on protocol-decode rejection). Only mark the chip
+          // alreadyDispatched when the send actually succeeded; otherwise
+          // fall back to an unmarked enqueue so the run.result drain still
+          // delivers the note instead of skipping it forever.
+          let dispatched = false;
+          try {
+            sendMailboxMessage({
+              type: 'btw',
+              to: 'leader',
+              subject: 'btw from WebUI',
+              body: combined,
+              priority: 'normal',
+              audience: 'all',
+            });
+            dispatched = true;
+          } catch (err) {
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'ws_btw_send_failed',
+                reason: 'send_error',
+                error: toErrorMessage(err),
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
+          enqueue(combined, 'btw', undefined, dispatched);
+        } else {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'ws_btw_send_failed',
+              reason: 'not_connected',
+              timestamp: new Date().toISOString(),
+            }),
+          );
+          enqueue(combined, 'btw');
+        }
         clearPendingImages();
         return;
       }
@@ -515,6 +591,7 @@ export function ChatInput({
       client,
       sendMessage,
       sendAbort,
+      sendMailboxMessage,
       refineModel,
       enhanceEnabled,
       setRefinePanel,
@@ -837,6 +914,8 @@ export function ChatInput({
         addUserMessage={(content) => addMessage({ role: 'user', content })}
         setLoading={setLoading}
         sendMessage={sendMessage}
+        isLoading={isLoading}
+        enqueue={enqueue}
         setInput={setInput}
         resolveCancelInput={resolveCancelInput}
         notConnectedDraftKept={() => toast.error(t('chat:input.notConnectedDraftKept'))}

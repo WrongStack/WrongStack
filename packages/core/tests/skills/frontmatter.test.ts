@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isValidSkillNameFormat,
   parseSkillFrontmatter,
+  stripFrontmatter,
   validateSkillName,
 } from '../../src/skills/frontmatter.js';
 
@@ -78,6 +79,19 @@ b`);
     );
     expect(fm.allowedTools).toEqual(['Read', 'Glob', 'Grep']);
   });
+
+  it('parses an optional explicit trigger field (single-line and block scalar)', () => {
+    const single = parseSkillFrontmatter(
+      '---\nname: x\ndescription: d\ntrigger: Use when scanning for bugs\n---\nb',
+    );
+    expect(single.trigger).toBe('Use when scanning for bugs');
+    const block = parseSkillFrontmatter(
+      '---\nname: x\ndescription: d\ntrigger: |\n  Use when deploying.\n  Triggers: "docker".\n---\nb',
+    );
+    expect(block.trigger).toBe('Use when deploying.\nTriggers: "docker".');
+    // Absent when not declared.
+    expect(parseSkillFrontmatter('---\nname: x\ndescription: d\n---\nb').trigger).toBeUndefined();
+  });
 });
 
 describe('validateSkillName / isValidSkillNameFormat', () => {
@@ -99,5 +113,29 @@ describe('validateSkillName / isValidSkillNameFormat', () => {
   it('reports a parent-directory mismatch', () => {
     expect(validateSkillName('docker-deploy', 'docker-deploy')).toEqual([]);
     expect(validateSkillName('foo', 'bar').some((e) => e.includes('parent directory'))).toBe(true);
+  });
+});
+
+describe('stripFrontmatter (canonical implementation)', () => {
+  it('removes a leading frontmatter block and returns the body', () => {
+    expect(stripFrontmatter('---\nname: x\ndescription: d\n---\nbody text')).toBe('body text');
+  });
+
+  it('returns input unchanged when there is no frontmatter', () => {
+    expect(stripFrontmatter('# just a body\nline')).toBe('# just a body\nline');
+  });
+
+  it('returns input unchanged when the frontmatter is unclosed', () => {
+    expect(stripFrontmatter('---\nname: x\nnever closes')).toBe('---\nname: x\nnever closes');
+  });
+
+  it('normalizes CRLF so the body has no stray carriage returns', () => {
+    expect(stripFrontmatter('---\r\nname: x\r\ndescription: d\r\n---\r\nbody\r\n')).toBe('body\n');
+  });
+
+  it('preserves --- lines that appear inside the body after the frontmatter', () => {
+    expect(stripFrontmatter('---\nname: x\ndescription: d\n---\nbody\n---\nmore')).toBe(
+      'body\n---\nmore',
+    );
   });
 });

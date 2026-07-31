@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  _clearNormalizedPathCacheForTests,
+  _normalizedPathCacheSizeForTests,
   buildDirectoryTree,
   type CodeMapGraphResponse,
   type GraphEdgeData,
   type GraphNodeData,
   layoutGraph,
+  normalizedPath,
   SMART_CANVAS_EDGE_LIMIT,
   SMART_CANVAS_NODE_LIMIT,
   smartCanvasGraph,
@@ -19,6 +22,14 @@ function graphNode(index: number): GraphNodeData {
 }
 
 describe('codemap model', () => {
+  it('bounds the module-level normalized path cache', () => {
+    _clearNormalizedPathCacheForTests();
+    for (let index = 0; index < 5_000; index++) {
+      normalizedPath(`C:\\repo\\file-${index}.ts`);
+    }
+    expect(_normalizedPathCacheSizeForTests()).toBe(4_096);
+  });
+
   it('lays out a dense graph with a linear number of edge-index reads', () => {
     const nodes = Array.from({ length: 120 }, (_, index) => graphNode(index));
     let endpointReads = 0;

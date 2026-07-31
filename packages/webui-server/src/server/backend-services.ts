@@ -665,6 +665,8 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     for (const off of brainLogOffs) off();
     goalHandler.dispose();
     sddBoardHandler.dispose();
+    sddWizardHandler.dispose();
+    specsHandler.dispose();
     worktreeHandler.dispose();
     terminalHandler.dispose();
     collabHandler.dispose();

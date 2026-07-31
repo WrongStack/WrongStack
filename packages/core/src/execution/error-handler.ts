@@ -91,15 +91,18 @@ export function buildRecoveryStrategies(opts?: {
               resolve();
               return;
             }
-            const timer = setTimeout(resolve, delay);
-            ctx.signal.addEventListener(
-              'abort',
-              () => {
-                clearTimeout(timer);
-                resolve();
-              },
-              { once: true },
-            );
+            let settled = false;
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const onAbort = (): void => finish();
+            const finish = (): void => {
+              if (settled) return;
+              settled = true;
+              if (timer !== undefined) clearTimeout(timer);
+              ctx.signal.removeEventListener('abort', onAbort);
+              resolve();
+            };
+            timer = setTimeout(finish, delay);
+            ctx.signal.addEventListener('abort', onAbort, { once: true });
           });
         } else {
           await new Promise((r) => setTimeout(r, delay));

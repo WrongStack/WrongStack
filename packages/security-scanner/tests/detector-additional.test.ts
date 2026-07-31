@@ -7,7 +7,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { TechStackDetector, defaultTechStackDetector } from '../src/detector.js';
+import { defaultTechStackDetector, TechStackDetector } from '../src/detector.js';
 
 describe('TechStackDetector - additional coverage', () => {
   let detector: TechStackDetector;
@@ -255,6 +255,20 @@ describe('TechStackDetector - additional coverage', () => {
     const first = await detector.detect(dir);
     const second = await detector.detect(dir);
     expect(first).toEqual(second);
+  });
+
+  it('bounds cached project roots and evicts the least recently used result', async () => {
+    const root = await createProject({});
+    const projects = ['a', 'b', 'c'].map((name) => path.join(root, name));
+    await Promise.all(projects.map((project) => fs.mkdir(project)));
+    const bounded = new TechStackDetector(30_000, 2);
+
+    const firstA = await bounded.detect(projects[0]!);
+    const firstB = await bounded.detect(projects[1]!);
+    expect(await bounded.detect(projects[0]!)).toBe(firstA);
+    await bounded.detect(projects[2]!);
+
+    expect(await bounded.detect(projects[1]!)).not.toBe(firstB);
   });
 
   // ============================================================================

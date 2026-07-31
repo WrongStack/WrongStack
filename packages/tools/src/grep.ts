@@ -1,14 +1,19 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
-import { buildChildEnv, compileGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
+import {
+  buildChildEnv,
+  compileGlob,
+  DEFAULT_WALK_IGNORE_DIRS,
+  expectDefined,
+} from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
 import { capSubject, compileUserRegex } from './_regex.js';
-import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 import { isBinaryBuffer, safeResolve } from './_util.js';
+import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
+
 interface GrepInput {
   pattern: string;
   path?: string | undefined;
@@ -30,6 +35,8 @@ const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
 const NATIVE_SCAN_CONCURRENCY = 32;
 const NATIVE_READ_CHUNK_BYTES = 64 * 1024;
 const NATIVE_MAX_FILE_BYTES = 1_000_000;
+const RG_MAX_QUEUE_CHUNKS = 128;
+const RG_MAX_QUEUE_CHARS = 8 * 1024 * 1024;
 
 export const grepTool: Tool<GrepInput, GrepOutput> = {
   name: 'grep',
@@ -187,11 +194,21 @@ async function* runRgStream(
   const MAX_BUF_BYTES = 1_000_000;
   let bufOverflow = false;
 
-  const child = spawn('rg', args, { signal, env: buildChildEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+  const child = spawn('rg', args, {
+    signal,
+    env: buildChildEnv(),
+    // rg diagnostics are not part of the tool result. Ignoring stderr avoids
+    // an unread pipe filling up and pinning the child when rg reports many
+    // filesystem errors.
+    stdio: ['ignore', 'pipe', 'ignore'],
+    windowsHide: true,
+  });
 
   type Chunk = { kind: 'out' | 'close' | 'error'; data: string };
   const queue: Chunk[] = [];
+  let queuedChars = 0;
   let waiter: (() => void) | undefined;
+  let paused = false;
   const wake = () => {
     if (waiter) {
       const w = waiter;
@@ -199,100 +216,151 @@ async function* runRgStream(
       w();
     }
   };
-  child.stdout?.on('data', (c) => {
-    queue.push({ kind: 'out', data: c.toString() });
+  const pauseIfFlooded = (): void => {
+    if (
+      paused ||
+      (queue.length < RG_MAX_QUEUE_CHUNKS && queuedChars < RG_MAX_QUEUE_CHARS)
+    )
+      return;
+    paused = true;
+    child.stdout?.pause();
+  };
+  const resumeIfDrained = (): void => {
+    if (
+      !paused ||
+      queue.length >= RG_MAX_QUEUE_CHUNKS ||
+      queuedChars >= RG_MAX_QUEUE_CHARS
+    )
+      return;
+    paused = false;
+    child.stdout?.resume();
+  };
+  const onStdoutData = (c: Buffer): void => {
+    const data = c.toString();
+    queue.push({ kind: 'out', data });
+    queuedChars += data.length;
     wake();
-  });
-  child.on('error', (e) => {
+    pauseIfFlooded();
+  };
+  const onError = (e: Error): void => {
     queue.push({ kind: 'error', data: e.message });
     wake();
-  });
-  child.on('close', () => {
+  };
+  const onClose = (): void => {
     queue.push({ kind: 'close', data: '' });
     wake();
-  });
+  };
+  child.stdout?.on('data', onStdoutData);
+  child.on('error', onError);
+  child.on('close', onClose);
 
   let pendingBatch: string[] = [];
   let errored = false;
-  for (;;) {
-    while (queue.length === 0) {
-      await new Promise<void>((r) => {
-        waiter = r;
-      });
-    }
-    const c = expectDefined(queue.shift());
-    if (c.kind === 'error') {
-      errored = true;
-      continue;
-    }
-    if (c.kind === 'close') break;
-    buf += c.data;
-    // Guard against a pathological producer (e.g. matching a huge binary
-    // without newlines) pinning memory. Kill the child and mark the result
-    // truncated; whatever we already captured stays intact.
-    if (buf.length > MAX_BUF_BYTES && !bufOverflow) {
-      bufOverflow = true;
-      buf = buf.slice(-MAX_BUF_BYTES);
-      try {
-        child.kill('SIGTERM');
-      } catch {
-        /* ignore */
+  let closed = false;
+  try {
+    for (;;) {
+      while (queue.length === 0) {
+        await new Promise<void>((r) => {
+          waiter = r;
+        });
+      }
+      const c = expectDefined(queue.shift());
+      queuedChars = Math.max(0, queuedChars - c.data.length);
+      resumeIfDrained();
+      if (c.kind === 'error') {
+        errored = true;
+        continue;
+      }
+      if (c.kind === 'close') {
+        closed = true;
+        break;
+      }
+      buf += c.data;
+      // Guard against a pathological producer (e.g. matching a huge binary
+      // without newlines) pinning memory. Kill the child and mark the result
+      // truncated; whatever we already captured stays intact.
+      if (buf.length > MAX_BUF_BYTES && !bufOverflow) {
+        bufOverflow = true;
+        buf = buf.slice(-MAX_BUF_BYTES);
+        try {
+          child.kill('SIGTERM');
+        } catch {
+          /* ignore */
+        }
+      }
+      const idx = buf.lastIndexOf('\n');
+      if (idx === -1) continue;
+      const ready = buf.slice(0, idx);
+      buf = buf.slice(idx + 1);
+      for (const line of ready.split('\n')) {
+        if (!line) continue;
+        totalLines++;
+        if (mode === 'count') totalCount += parseRgCountLine(line);
+        if (matches.length < limit) {
+          matches.push(line);
+          pendingBatch.push(line);
+          batchSinceFlush++;
+        }
+      }
+      if (batchSinceFlush >= FLUSH_AT) {
+        yield {
+          type: 'partial_output',
+          text: pendingBatch.join('\n'),
+          data: { matches_so_far: matches.length },
+        };
+        pendingBatch = [];
+        batchSinceFlush = 0;
       }
     }
-    const idx = buf.lastIndexOf('\n');
-    if (idx === -1) continue;
-    const ready = buf.slice(0, idx);
-    buf = buf.slice(idx + 1);
-    for (const line of ready.split('\n')) {
-      if (!line) continue;
-      totalLines++;
-      if (mode === 'count') totalCount += parseRgCountLine(line);
-      if (matches.length < limit) {
-        matches.push(line);
-        pendingBatch.push(line);
-        batchSinceFlush++;
+
+    if (buf.trim()) {
+      for (const line of buf.split('\n')) {
+        if (!line) continue;
+        totalLines++;
+        if (mode === 'count') totalCount += parseRgCountLine(line);
+        if (matches.length < limit) {
+          matches.push(line);
+          pendingBatch.push(line);
+        }
       }
     }
-    if (batchSinceFlush >= FLUSH_AT) {
+    if (pendingBatch.length > 0) {
       yield {
         type: 'partial_output',
         text: pendingBatch.join('\n'),
         data: { matches_so_far: matches.length },
       };
-      pendingBatch = [];
-      batchSinceFlush = 0;
     }
-  }
+    if (errored) throw new Error('rg: spawn error');
 
-  if (buf.trim()) {
-    for (const line of buf.split('\n')) {
-      if (!line) continue;
-      totalLines++;
-      if (mode === 'count') totalCount += parseRgCountLine(line);
-      if (matches.length < limit) {
-        matches.push(line);
-        pendingBatch.push(line);
+    yield {
+      type: 'final',
+      output: {
+        matches,
+        count: mode === 'count' ? totalCount : totalLines,
+        truncated: totalLines > limit || bufOverflow,
+        used: 'rg',
+      },
+    };
+  } finally {
+    // A tool executor may abandon the async generator after any partial
+    // output. Detach first so a still-running rg cannot keep filling the
+    // closed-over queue, then terminate it if no close event was observed.
+    child.stdout?.off('data', onStdoutData);
+    child.off('error', onError);
+    child.off('close', onClose);
+    child.stdout?.destroy();
+    queue.length = 0;
+    queuedChars = 0;
+    waiter = undefined;
+    if (!closed && child.exitCode === null) {
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        /* already exited */
       }
     }
   }
-  if (pendingBatch.length > 0) {
-    yield {
-      type: 'partial_output',
-      text: pendingBatch.join('\n'),
-      data: { matches_so_far: matches.length },
-    };
-  }
-  if (errored) throw new Error('rg: spawn error');
-
-  yield {
-    type: 'final',
-    output: {
-      matches,
-      count: mode === 'count' ? totalCount : totalLines,
-      truncated: totalLines > limit || bufOverflow,
-      used: 'rg',
-    },
-  };
 }
 
 function parseRgCountLine(line: string): number {

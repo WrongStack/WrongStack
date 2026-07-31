@@ -1,22 +1,21 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { FOREIGN_SKILL_TOOLS, resolveForeignToolIds } from '../skills/foreign-sources.js';
-import { isValidSkillNameFormat, parseSkillFrontmatter } from '../skills/frontmatter.js';
+import {
+  isValidSkillNameFormat,
+  parseSkillFrontmatter,
+  stripFrontmatter,
+} from '../skills/frontmatter.js';
 import { SKILL_LIMITS } from '../skills/limits.js';
-import type { SkillEntry, SkillLoader, SkillManifest } from '../types/skill.js';
+import type {
+  ShadowedSkill,
+  SkippedSkill,
+  SkillEntry,
+  SkillLoader,
+  SkillLoaderDiagnostics,
+  SkillManifest,
+} from '../types/skill.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
-
-/**
- * Strip YAML frontmatter from a SKILL.md file, returning only the body.
- */
-function stripFrontmatter(raw: string): string {
-  if (!raw.startsWith('---')) return raw;
-  const end = raw.indexOf('\n---', 4);
-  if (end === -1) return raw;
-  let body = raw.slice(end + 4);
-  if (body.startsWith('\n')) body = body.slice(1);
-  return body;
-}
 
 /**
  * Compact a full skill body for token-saving fallback.
@@ -99,6 +98,9 @@ export class DefaultSkillLoader implements SkillLoader {
   private cache?: SkillManifest[] | undefined;
   private entriesCache?: SkillEntry[] | undefined;
   private readonly bodyCache = new Map<string, string>();
+  /** Load-time diagnostics from the most recent full `list()` scan. */
+  private skipped: SkippedSkill[] = [];
+  private shadowed: ShadowedSkill[] = [];
 
   constructor(opts: SkillLoaderOptions) {
     const readClaude = opts.readClaudeSkills !== false;
@@ -131,6 +133,12 @@ export class DefaultSkillLoader implements SkillLoader {
     if (this.cache) return this.cache;
     const found: SkillManifest[] = [];
     const seen = new Set<string>();
+    // First-claimant map so a shadowed skill can report which layer won.
+    const claimedBy = new Map<string, { source: SkillManifest['source']; path: string }>();
+    // Reset diagnostics for this fresh scan. A cache hit returns early above,
+    // so these always reflect the most recent full scan.
+    this.skipped = [];
+    this.shadowed = [];
     for (const { dir, source, originTool } of this.dirs) {
       try {
         // Node does not guarantee filesystem enumeration order. Sort each
@@ -142,29 +150,65 @@ export class DefaultSkillLoader implements SkillLoader {
         for (const e of entries) {
           if (!(await entryIsDirectory(dir, e))) continue;
           const skillFile = path.join(dir, e.name, 'SKILL.md');
+          let raw: string;
           try {
-            const raw = await fs.readFile(skillFile, 'utf8');
-            const fm = parseSkillFrontmatter(raw);
-            if (!fm.name || !fm.description) continue;
-            // agentskills.io name format — skip genuinely malformed names.
-            if (!isValidSkillNameFormat(fm.name)) continue;
-            if (seen.has(fm.name)) continue;
-            seen.add(fm.name);
-            found.push({
-              name: fm.name,
-              description: fm.description,
-              version: fm.version,
-              license: fm.license,
-              compatibility: fm.compatibility,
-              metadata: fm.metadata,
-              allowedTools: fm.allowedTools,
-              path: skillFile,
-              source,
-              originTool,
-            });
+            raw = await fs.readFile(skillFile, 'utf8');
           } catch {
-            // skip malformed skill
+            // No SKILL.md → not a skill directory. Normal; not reported.
+            continue;
           }
+          const fm = parseSkillFrontmatter(raw);
+          if (!fm.name) {
+            this.skipped.push({ dir, entry: e.name, reason: 'missing-name' });
+            continue;
+          }
+          if (!fm.description) {
+            this.skipped.push({
+              dir,
+              entry: e.name,
+              reason: 'missing-description',
+              name: fm.name,
+            });
+            continue;
+          }
+          // agentskills.io name format — skip genuinely malformed names.
+          if (!isValidSkillNameFormat(fm.name)) {
+            this.skipped.push({
+              dir,
+              entry: e.name,
+              reason: 'invalid-name-format',
+              name: fm.name,
+            });
+            continue;
+          }
+          if (seen.has(fm.name)) {
+            // A higher-priority layer already claimed this name — record the
+            // shadow so it is diagnosable rather than silently dropped.
+            const claimant = claimedBy.get(fm.name);
+            this.shadowed.push({
+              name: fm.name,
+              source,
+              path: skillFile,
+              shadowedBy: claimant?.source ?? 'unknown',
+              shadowedByPath: claimant?.path,
+            });
+            continue;
+          }
+          seen.add(fm.name);
+          claimedBy.set(fm.name, { source, path: skillFile });
+          found.push({
+            name: fm.name,
+            description: fm.description,
+            trigger: fm.trigger,
+            version: fm.version,
+            license: fm.license,
+            compatibility: fm.compatibility,
+            metadata: fm.metadata,
+            allowedTools: fm.allowedTools,
+            path: skillFile,
+            source,
+            originTool,
+          });
         }
       } catch {
         // directory may not exist
@@ -197,13 +241,15 @@ export class DefaultSkillLoader implements SkillLoader {
     const skills = await this.list();
     const entries: SkillEntry[] = [];
     for (const s of skills) {
-      // Parse trigger/scope from the description that list() already parsed —
-      // no need to re-read the file; s.description === fm.description.
-      const { trigger, scope } = parseDescriptionFromText(s.description ?? '');
+      // Scope always comes from the description heuristic; the trigger prefers
+      // an explicit frontmatter `trigger:` field and falls back to the first
+      // sentence of the description when none is declared.
+      const parsed = parseDescriptionFromText(s.description ?? '');
+      const trigger = s.trigger?.trim() || parsed.trigger;
       entries.push({
         name: s.name,
         trigger,
-        scope,
+        scope: parsed.scope,
         source: s.source,
         originTool: s.originTool,
         path: s.path,
@@ -217,6 +263,17 @@ export class DefaultSkillLoader implements SkillLoader {
     this.cache = undefined;
     this.entriesCache = undefined;
     this.bodyCache.clear();
+    this.skipped = [];
+    this.shadowed = [];
+  }
+
+  /**
+   * Load-time diagnostics from the most recent full `list()` scan: skills
+   * skipped as malformed and skills shadowed by a higher-priority layer.
+   * Returns copies so callers cannot mutate internal state.
+   */
+  diagnostics(): SkillLoaderDiagnostics {
+    return { skipped: [...this.skipped], shadowed: [...this.shadowed] };
   }
 
   async readBody(name: string): Promise<string> {

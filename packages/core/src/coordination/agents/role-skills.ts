@@ -5,8 +5,10 @@ import type { AgentDefinition } from './types.js';
  *
  * Keeping this list explicit makes role assignments auditable and prevents a
  * typo from silently degrading a worker into its persona-only fallback.
+ * Exported so an integrity test can assert every name resolves to a real
+ * bundled skill (see tests/coordination/role-skills.test.ts).
  */
-const BUNDLED_AGENT_SKILLS = [
+export const BUNDLED_AGENT_SKILLS = [
   'api-design',
   'audit-log',
   'bug-hunter',

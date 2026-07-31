@@ -112,6 +112,14 @@ export function useWebSocket() {
 
   const sendAbort = useCallback(() => client.sendAbort(), [client]);
 
+  // Mailbox send (btw/steer/note/…). Mirrors the TUI setBtwNote path so a
+  // mid-run note can fold into the running agent's next iteration without
+  // starting a new run. Forwards straight to the client method.
+  const sendMailboxMessage = useCallback(
+    (opts: Parameters<typeof client.sendMailboxMessage>[0]) => client.sendMailboxMessage(opts),
+    [client],
+  );
+
   const { hideConfirm } = useUIStore();
   const sendConfirm = useCallback(
     (id: string, decision: 'yes' | 'no' | 'always' | 'deny') => {
@@ -334,6 +342,7 @@ export function useWebSocket() {
     client,
     sendMessage,
     sendAbort,
+    sendMailboxMessage,
     sendConfirm,
     switchModel,
     listProviders,

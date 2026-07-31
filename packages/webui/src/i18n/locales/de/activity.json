@@ -1077,6 +1077,9 @@
     "emptyTitle": "Warteschlange ist leer",
     "emptyBody": "Nutze die btw-/steer-/„Zur Warteschlange“-Schaltflächen neben der Eingabe, um Nachrichten hinzuzufügen. Eingereihte Einträge werden in Reihenfolge gesendet, wenn der aktuelle Agent-Lauf endet.",
     "removeTitle": "Aus Warteschlange entfernen",
+    "clearDispatchedTitle": "Nachrichten aus der Warteschlange löschen — bereits gesendete Notizen können nicht zurückgenommen werden",
+    "dispatchedTitle": "Bereits an den Agenten gesendet",
+    "dispatchedLabel": "Gesendet",
     "footer": "Nachrichten werden in Ankunftsreihenfolge gesendet, wenn der aktuelle Agent-Lauf endet. Nutze die Sortierung, um neueste zuerst zu sehen."
   },
   "checkpoint": {

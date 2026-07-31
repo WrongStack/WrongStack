@@ -114,6 +114,7 @@ export class CollaborationWebSocketHandler {
     this.offs.length = 0;
     this.stopBroadcast();
     this.clients.clear();
+    this.bySession.clear();
   }
 
   // ── Inbound client messages ────────────────────────────────────────────

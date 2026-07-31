@@ -1,3 +1,4 @@
+import { createWriteStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -48,6 +49,53 @@ export function parseSkillRef(input: string): ParsedRef {
 export interface DownloadResult {
   /** Temp directory containing the extracted repo. Caller must clean up. */
   tempDir: string;
+}
+
+/** Stream a gzip payload to disk while enforcing its decompressed byte budget. */
+export async function writeBoundedGzipStream(
+  source: Readable,
+  outputPath: string,
+  maxBytes: number,
+  maxCompressedBytes = SKILL_LIMITS.MAX_TARBALL_SIZE,
+): Promise<number> {
+  let compressedBytes = 0;
+  let writtenBytes = 0;
+  await pipeline(
+    source,
+    async function* (chunks) {
+      for await (const chunk of chunks) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        compressedBytes += buffer.byteLength;
+        if (compressedBytes > maxCompressedBytes) {
+          throw new WrongStackError({
+            message: `Compressed tarball too large. Max: ${maxCompressedBytes / 1024 / 1024}MB`,
+            code: ERROR_CODES.UNKNOWN,
+            subsystem: 'general',
+            context: { compressedBytes, maxBytes: maxCompressedBytes },
+          });
+        }
+        yield buffer;
+      }
+    },
+    createGunzip(),
+    async function* (chunks) {
+      for await (const chunk of chunks) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        writtenBytes += buffer.byteLength;
+        if (writtenBytes > maxBytes) {
+          throw new WrongStackError({
+            message: `Uncompressed tarball too large. Max: ${maxBytes / 1024 / 1024}MB`,
+            code: ERROR_CODES.UNKNOWN,
+            subsystem: 'general',
+            context: { uncompressedBytes: writtenBytes, maxBytes },
+          });
+        }
+        yield buffer;
+      }
+    },
+    createWriteStream(outputPath, { flags: 'wx' }),
+  );
+  return writtenBytes;
 }
 
 /**
@@ -176,21 +224,20 @@ export async function downloadGitHubTarball(parsed: ParsedRef): Promise<Download
       });
     }
 
-    // Gunzip the response body, then extract the tar stream
+    // Gunzip into a bounded temporary file. Keeping every decompressed chunk
+    // and then Buffer.concat()-ing it briefly doubled peak heap usage and let
+    // highly compressible archives grow without a limit.
     const nodeStream = Readable.fromWeb(response.body as import('node:stream/web').ReadableStream);
-    const gunzip = createGunzip();
-
-    // Collect the uncompressed tar data into a buffer, then extract
-    const chunks: Buffer[] = [];
-    await pipeline(nodeStream, gunzip, async (source) => {
-      for await (const chunk of source) {
-        chunks.push(Buffer.from(chunk));
-      }
-    });
-    const tarBuf = Buffer.concat(chunks);
+    const tarPath = path.join(tempDir, '.wrongstack-download.tar');
+    await writeBoundedGzipStream(nodeStream, tarPath, SKILL_LIMITS.MAX_UNCOMPRESSED_TARBALL_SIZE);
+    const tarBuf = await fs.readFile(tarPath);
 
     // Extract tar archive (POSIX ustar format)
-    await extractTar(tarBuf, tempDir);
+    try {
+      await extractTar(tarBuf, tempDir);
+    } finally {
+      await fs.rm(tarPath, { force: true });
+    }
 
     return { tempDir };
   } catch (err) {

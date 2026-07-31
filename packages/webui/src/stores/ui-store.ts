@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { MailboxMessage } from './mailbox-store';
+import type { QueueMode, QueuedItem } from './chat-store';
 
 // ============================================
 // UI Store
@@ -274,6 +275,12 @@ interface UIState {
     provider?: string | undefined;
     /** Model name running the refinement (e.g. "gpt-4o"). */
     model?: string | undefined;
+    /** Submit behavior to preserve across the refinement approval round-trip. */
+    mode?: QueueMode | undefined;
+    /** Image attachments from the original submit, preserved so the approval
+     *  enqueue path can forward them (mirrors the error/no-op paths in
+     *  misc-handlers that pass refImages to enqueue). */
+    images?: QueuedItem['images'];
   } | null;
 
   /** Prompt library modal (browse/search/insert prompts) open state. */

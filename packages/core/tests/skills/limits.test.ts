@@ -46,6 +46,10 @@ describe('SKILL_LIMITS', () => {
     expect(SKILL_LIMITS.MAX_TARBALL_SIZE).toBe(50 * 1024 * 1024);
   });
 
+  it('decompressed tarball size limit is 64MB', () => {
+    expect(SKILL_LIMITS.MAX_UNCOMPRESSED_TARBALL_SIZE).toBe(64 * 1024 * 1024);
+  });
+
   it('skill name max length is 64 (agentskills.io spec)', () => {
     expect(SKILL_LIMITS.SKILL_NAME_MAX_LEN).toBe(64);
   });

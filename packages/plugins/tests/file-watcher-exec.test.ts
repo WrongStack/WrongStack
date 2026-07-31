@@ -88,6 +88,28 @@ describe('watch_start', () => {
     expect(res.error).toMatch(/at least one path/);
   });
 
+  it('rejects path and watch-group counts that would leak watcher handles', async () => {
+    const tools = setup();
+    const tooManyPaths = await tools.watch_start!.execute({
+      paths: Array.from({ length: 17 }, (_, index) => `dir-${index}`),
+    });
+    expect(tooManyPaths).toMatchObject({ ok: false, watch_id: null });
+    expect(tooManyPaths.error).toMatch(/at most 16/);
+
+    for (let index = 0; index < 32; index++) {
+      await expect(
+        tools.watch_start!.execute({ paths: [`watch-${index}`] }),
+      ).resolves.toMatchObject({
+        ok: true,
+      });
+    }
+    await expect(tools.watch_start!.execute({ paths: ['overflow'] })).resolves.toMatchObject({
+      ok: false,
+      watch_id: null,
+      error: expect.stringMatching(/group limit/),
+    });
+  });
+
   it('starts watching and returns a watch id', async () => {
     const tools = setup();
     const res = await tools.watch_start!.execute({ paths: ['src', 'lib'] });
@@ -116,7 +138,20 @@ describe('watch_start', () => {
     const tools = setup();
     const res = await tools.watch_start!.execute({ paths: ['bad'] });
     expect(res.ok).toBe(true); // start still succeeds; the watch just isn't active
+    expect(res.paths).toEqual([]); // the failing path is NOT reported as watched
     expect(log.warn).toHaveBeenCalledWith(expect.stringMatching(/could not watch/));
+  });
+
+  it('only reports successfully-opened paths in watch_list when some fail', async () => {
+    fsm.watch.mockImplementation((dir: string, _opts: unknown, _cb: WatchCb) => {
+      if (dir === 'bad') throw new Error('ENOSPC');
+      return fakeWatcher();
+    });
+    const tools = setup();
+    await tools.watch_start!.execute({ paths: ['good', 'bad'] });
+    const listed = await tools.watch_list!.execute({});
+    const watches = listed.watches as Array<{ paths: string[] }>;
+    expect(watches[0]!.paths).toEqual(['good']);
   });
 
   it('emits a debounced change event when the watcher fires', async () => {

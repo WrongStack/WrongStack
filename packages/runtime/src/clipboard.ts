@@ -12,6 +12,7 @@ export interface ClipboardImage {
 }
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_TEXT_BYTES = 4 * 1024 * 1024;
 
 export async function readClipboardImage(): Promise<ClipboardImage | null> {
   const platform = process.platform;
@@ -103,10 +104,16 @@ async function readWindows(): Promise<ClipboardImage | null> {
     `$img.Save('${tmp.replace(/\\/g, '\\\\')}', [System.Drawing.Imaging.ImageFormat]::Png)`,
     'Write-Output "OK"',
   ].join('; ');
-  const out = await runCmd('powershell', ['-NoProfile', '-Command', ps]);
-  if (!out || out.trim() === 'NO_IMAGE') return null;
-  if (!out.includes('OK')) return null;
-  return readPngFile(tmp);
+  try {
+    const out = await runCmd('powershell', ['-NoProfile', '-Command', ps]);
+    if (!out || out.trim() === 'NO_IMAGE') return null;
+    if (!out.includes('OK')) return null;
+    return await readPngFile(tmp);
+  } finally {
+    // PowerShell can save the image and then fail before printing OK. Do not
+    // leave that temporary PNG behind on the early-return path.
+    await fs.unlink(tmp).catch(() => undefined);
+  }
 }
 
 async function readDarwin(): Promise<ClipboardImage | null> {
@@ -124,9 +131,13 @@ async function readDarwin(): Promise<ClipboardImage | null> {
     'end try',
     'return "OK"',
   ].join('\n');
-  const out = await runCmd('osascript', ['-e', script]);
-  if (out?.trim() !== 'OK') return null;
-  return readPngFile(tmp);
+  try {
+    const out = await runCmd('osascript', ['-e', script]);
+    if (out?.trim() !== 'OK') return null;
+    return await readPngFile(tmp);
+  } finally {
+    await fs.unlink(tmp).catch(() => undefined);
+  }
 }
 
 async function readLinux(): Promise<ClipboardImage | null> {
@@ -181,6 +192,7 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
       windowsHide: true,
     });
     let out = '';
+    let outBytes = 0;
     let settled = false;
     let killedByTimeout = false;
     const finish = (value: string | null) => {
@@ -188,6 +200,7 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
       settled = true;
       clearTimeout(timer);
       clearTimeout(killCap);
+      child.stdout.off('data', onStdoutData);
       resolve(value);
     };
     const timer = setTimeout(() => {
@@ -196,9 +209,18 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
     }, CLIPBOARD_CMD_TIMEOUT_MS);
     // Safety cap: if the child ignores SIGTERM, do not hang forever.
     const killCap = setTimeout(() => finish(null), CLIPBOARD_CMD_TIMEOUT_MS + 2_000);
-    child.stdout.on('data', (c) => {
-      out += String(c);
-    });
+    const onStdoutData = (c: Buffer | string): void => {
+      const chunk = Buffer.isBuffer(c) ? c : Buffer.from(c);
+      outBytes += chunk.byteLength;
+      if (outBytes > MAX_TEXT_BYTES) {
+        out = '';
+        child.kill('SIGTERM');
+        finish(null);
+        return;
+      }
+      out += chunk.toString('utf8');
+    };
+    child.stdout.on('data', onStdoutData);
     child.on('error', () => finish(null));
     child.on('exit', (code) => {
       if (killedByTimeout) return finish(null);
@@ -254,6 +276,7 @@ function runCmdToFile(cmd: string, args: string[], outPath: string): Promise<boo
       windowsHide: true,
     });
     const chunks: Buffer[] = [];
+    let outputBytes = 0;
     let settled = false;
     let killedByTimeout = false;
     const finish = (value: boolean) => {
@@ -261,6 +284,7 @@ function runCmdToFile(cmd: string, args: string[], outPath: string): Promise<boo
       settled = true;
       clearTimeout(timer);
       clearTimeout(killCap);
+      child.stdout.off('data', onStdoutData);
       resolve(value);
     };
     const timer = setTimeout(() => {
@@ -269,7 +293,17 @@ function runCmdToFile(cmd: string, args: string[], outPath: string): Promise<boo
     }, CLIPBOARD_CMD_TIMEOUT_MS);
     // Safety cap: if the child ignores SIGTERM, do not hang forever.
     const killCap = setTimeout(() => finish(false), CLIPBOARD_CMD_TIMEOUT_MS + 2_000);
-    child.stdout.on('data', (c: Buffer) => chunks.push(c));
+    const onStdoutData = (c: Buffer): void => {
+      outputBytes += c.byteLength;
+      if (outputBytes > MAX_IMAGE_BYTES) {
+        chunks.length = 0;
+        child.kill('SIGTERM');
+        finish(false);
+        return;
+      }
+      chunks.push(c);
+    };
+    child.stdout.on('data', onStdoutData);
     child.on('error', () => finish(false));
     child.on('exit', async (code) => {
       if (killedByTimeout) return finish(false);

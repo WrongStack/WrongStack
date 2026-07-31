@@ -1,15 +1,9 @@
 import { SKILL_LIMITS } from '../skills/limits.js';
 
-/** Strip YAML frontmatter from a SKILL.md file, returning only the body. */
-export function stripFrontmatter(raw: string): string {
-  if (!raw.startsWith('---')) return raw;
-  const end = raw.indexOf('\n---', 4);
-  if (end === -1) return raw;
-  // Skip past the closing `---` and the following newline
-  let body = raw.slice(end + 4);
-  if (body.startsWith('\n')) body = body.slice(1);
-  return body;
-}
+// The single canonical `stripFrontmatter` lives in skills/frontmatter.ts (it
+// also normalizes CRLF, which the old local copy here did not). Re-exported so
+// existing consumers of this module keep their import path unchanged.
+export { stripFrontmatter } from '../skills/frontmatter.js';
 
 /**
  * Cap a skill body at `SKILL_LIMITS.MAX_SKILL_BODY_CHARS`, truncating at a

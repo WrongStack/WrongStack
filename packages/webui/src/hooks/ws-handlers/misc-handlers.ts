@@ -383,10 +383,16 @@ export function handleModelRefineResult(msg: WSServerMessage) {
         }))
       : undefined;
 
+    // Degrade btw→queue when images are present: sendMailboxMessage (the btw
+    // drain) carries only a string body — no image channel — so preserving
+    // btw would silently drop image attachments.
+    const hasImages = !!refImages && refImages.length > 0;
+    const failMode = hasImages && pendingRef.mode === 'btw' ? 'queue' : (pendingRef.mode ?? 'queue');
+
     if (p.error) {
       // Refinement failed — enqueue original as-is with images.
       useChatStore.getState().setPendingRefinement(null);
-      useChatStore.getState().enqueue(original, 'queue', refImages);
+      useChatStore.getState().enqueue(original, failMode, refImages);
       return;
     }
 
@@ -394,7 +400,7 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     if (!refined || normalizedEqual(refined, original)) {
       // No-op refinement — enqueue original with images.
       useChatStore.getState().setPendingRefinement(null);
-      useChatStore.getState().enqueue(original, 'queue', refImages);
+      useChatStore.getState().enqueue(original, failMode, refImages);
       return;
     }
 
@@ -409,6 +415,14 @@ export function handleModelRefineResult(msg: WSServerMessage) {
       refined,
       english: p.english || refined,
       status: 'ready',
+      // Preserve the submit mode so the approval path (RefinePanelHost
+      // handleDecision) can dispatch via it instead of degrading to a plain
+      // normal send — e.g. a mid-run `btw` stays a `btw`. Degrade to 'queue'
+      // when images are present: sendMailboxMessage carries no image channel.
+      mode: refImages && refImages.length > 0 && pendingRef.mode === 'btw' ? 'queue' : pendingRef.mode,
+      // Carry images so the approval enqueue path can forward them — mirrors
+      // the error/no-op branches above that pass refImages to enqueue.
+      images: refImages,
       ...(p.refinedWith
         ? { provider: p.refinedWith.provider, model: p.refinedWith.model }
         : {}),

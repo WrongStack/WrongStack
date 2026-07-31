@@ -23,18 +23,22 @@ export class Connection {
   private readonly events = new EventEmitter();
   private buffer = Buffer.alloc(0);
   private closed = false;
+  private readonly onStdoutData = (chunk: Buffer): void => this.onData(chunk);
+  private readonly onStdoutClose = (): void => this.close();
+  private readonly onStdoutError = (err: unknown): void => this.closeWithError(err);
+  private readonly onStdinError = (err: unknown): void => this.closeWithError(err);
 
   constructor(
     private readonly stdin: Writable,
-    stdout: Readable,
+    private readonly stdout: Readable,
   ) {
-    stdout.on('data', (chunk: Buffer) => this.onData(chunk));
-    stdout.on('close', () => this.close());
-    stdout.on('error', (err) => this.failAll(err));
+    stdout.on('data', this.onStdoutData);
+    stdout.on('close', this.onStdoutClose);
+    stdout.on('error', this.onStdoutError);
     // Without an stdin 'error' listener, a write to a server that just died
     // (EPIPE, before stdout 'close' fires) emits an unhandled stream error and
     // crashes the host. Treat it like any other transport failure.
-    stdin.on('error', (err) => this.failAll(err));
+    stdin.on('error', this.onStdinError);
   }
 
   async sendRequest<R>(
@@ -81,10 +85,20 @@ export class Connection {
   }
 
   close(): void {
+    this.closeWithError(new LSPError(LSPErrorCode.ProtocolError, 'LSP connection closed'));
+  }
+
+  private closeWithError(err: unknown): void {
     if (this.closed) return;
     this.closed = true;
-    this.failAll(new LSPError(LSPErrorCode.ProtocolError, 'LSP connection closed'));
+    this.stdout.off('data', this.onStdoutData);
+    this.stdout.off('close', this.onStdoutClose);
+    this.stdout.off('error', this.onStdoutError);
+    this.stdin.off('error', this.onStdinError);
+    this.buffer = Buffer.alloc(0);
+    this.failAll(err);
     this.events.emit('close');
+    this.events.removeAllListeners();
   }
 
   private onData(chunk: Buffer): void {

@@ -75,6 +75,12 @@ describe('Connection protocol completion coverage', () => {
     const unsubscribe = connection.onClose(closed);
     stdout.write(Buffer.alloc(16 * 1024 * 1024 + 1));
     expect(closed).toHaveBeenCalledOnce();
+    const internal = connection as unknown as { buffer: Buffer };
+    expect(internal.buffer).toHaveLength(0);
+    expect(stdout.listenerCount('data')).toBe(0);
+    expect(stdout.listenerCount('close')).toBe(0);
+    expect(stdout.listenerCount('error')).toBe(0);
+    expect(stdin.listenerCount('error')).toBe(0);
     connection.close();
     expect(closed).toHaveBeenCalledOnce();
     unsubscribe();

@@ -171,6 +171,10 @@ export interface QueuedItem {
   text: string;
   mode: QueueMode;
   addedAt: number;
+  /** True once a `btw` item has already been wire-sent via the mailbox
+   *  (immediate mid-run dispatch). The run.result drain must skip re-sending
+   *  these — they remain in the queue only as a visible "dispatched" chip. */
+  alreadyDispatched?: boolean | undefined;
   /** Image attachments riding with the queued message. Kept as full data
    *  URLs so the drain path can rebuild the wire payload + local bubble. */
   images?:
@@ -210,7 +214,11 @@ interface ChatState {
    *  Set by ChatInput.sendMsg before calling model.refine; consumed by
    *  handleModelRefineResult to open the RefinePanel for user approval.
    *  Null when idle or refinement completed. */
-  pendingRefinement: { text: string; images: Array<{ data: string; mime: string }> } | null;
+  pendingRefinement: {
+    text: string;
+    images: Array<{ data: string; mime: string }>;
+    mode: QueueMode;
+  } | null;
   /** Transient extended-thinking buffer. Populated by provider.thinking_delta
    *  events and shown as a soft, ephemeral bubble below the chat tail while
    *  the model is reasoning. Cleared the moment the model produces user-
@@ -260,7 +268,12 @@ interface ChatState {
   truncateAfter: (id: string) => void;
   addExecution: (exec: ToolExecution) => void;
   updateExecution: (id: string, updates: Partial<ToolExecution>) => void;
-  enqueue: (text: string, mode?: QueueMode, images?: QueuedItem['images']) => void;
+  enqueue: (
+    text: string,
+    mode?: QueueMode,
+    images?: QueuedItem['images'],
+    alreadyDispatched?: boolean,
+  ) => void;
   dequeue: () => QueuedItem | null;
   removeQueued: (idx: number) => void;
   clearQueue: () => void;
@@ -268,6 +281,7 @@ interface ChatState {
   setPendingRefinement: (
     text: string | null,
     images?: Array<{ data: string; mime: string }>,
+    mode?: QueueMode,
   ) => void;
   removeMessage: (id: string) => void;
   updateLastUserMessage: (text: string) => void;
@@ -530,15 +544,21 @@ export const useChatStore = create<ChatState>()(
       },
 
       setRefining: (v) => set({ refining: v }),
-      setPendingRefinement: (text, images) =>
+      setPendingRefinement: (text, images, mode = 'queue') =>
         set({
-          pendingRefinement: text !== null ? { text, images: images ?? [] } : null,
+          pendingRefinement: text !== null ? { text, images: images ?? [], mode } : null,
         }),
-      enqueue: (text, mode = 'queue', images) =>
+      enqueue: (text, mode = 'queue', images, alreadyDispatched) =>
         set((state) => ({
           queue: [
             ...state.queue,
-            { text, mode, addedAt: Date.now(), ...(images?.length ? { images } : {}) },
+            {
+              text,
+              mode,
+              addedAt: Date.now(),
+              ...(images?.length ? { images } : {}),
+              ...(alreadyDispatched ? { alreadyDispatched: true } : {}),
+            },
           ],
         })),
       dequeue: () => {

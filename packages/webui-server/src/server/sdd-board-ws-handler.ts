@@ -101,6 +101,7 @@ export class SddBoardWebSocketHandler {
   private poll: ReturnType<typeof setInterval> | null = null;
   private pollInFlight = false;
   private unsub: (() => void) | null = null;
+  private disposed = false;
 
   constructor(
     boardsDir: string,
@@ -124,6 +125,7 @@ export class SddBoardWebSocketHandler {
   }
 
   addClient(ws: WebSocket): void {
+    if (this.disposed) return;
     const client: WSClient = { ws, id: crypto.randomUUID() };
     this.clients.add(client);
     const remove = () => {
@@ -290,9 +292,12 @@ export class SddBoardWebSocketHandler {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.stopPolling();
     this.unsub?.();
     this.unsub = null;
+    this.clients.clear();
+    this.latest = null;
   }
 
   // ── internal ────────────────────────────────────────────────────────────
@@ -302,6 +307,7 @@ export class SddBoardWebSocketHandler {
     this.pollInFlight = true;
     try {
       const snap = await this.loadLatestSnapshot();
+      if (this.disposed) return;
       if (!snap) return;
       if (
         this.latest &&

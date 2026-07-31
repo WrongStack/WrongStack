@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   clearCodemapGraphCache,
   codemapCacheKey,
+  codemapGraphCacheChars,
   codemapGraphCacheSize,
   getCachedCodemapBody,
   indexDbVersion,
@@ -49,6 +50,18 @@ describe('codemap graph cache', () => {
     expect(getCachedCodemapBody('hot', 'v')).toBe('hot-body');
     setCachedCodemapBody('newest', 'v', 'new');
     expect(getCachedCodemapBody('hot', 'v')).toBe('hot-body');
+  });
+
+  it('bounds retained serialized graph bodies by individual and total size', () => {
+    const body = 'x'.repeat(4 * 1024 * 1024);
+    setCachedCodemapBody('too-large', 'v', `${body}x`);
+    expect(codemapGraphCacheSize()).toBe(0);
+
+    for (let i = 0; i < 5; i++) setCachedCodemapBody(`large-${i}`, 'v', body);
+    expect(codemapGraphCacheSize()).toBe(4);
+    expect(codemapGraphCacheChars()).toBe(16 * 1024 * 1024);
+    expect(getCachedCodemapBody('large-0', 'v')).toBeUndefined();
+    expect(getCachedCodemapBody('large-4', 'v')).toBe(body);
   });
 
   it('reads index.db mtime:size as the version fingerprint', () => {

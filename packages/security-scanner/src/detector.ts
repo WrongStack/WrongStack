@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseNodeDependencies } from './manifest-parser.js';
 import type { DetectionResult, PackageManager, TechStack, TechStackInfo } from './types.js';
@@ -146,11 +146,18 @@ const MONOREPO_INDICATORS: Record<string, string[]> = {
 export class TechStackDetector {
   private cachedResults = new Map<string, { result: DetectionResult; timestamp: number }>();
 
-  constructor(private readonly cacheTTL = 30_000) {}
+  constructor(
+    private readonly cacheTTL = 30_000,
+    private readonly maxCacheEntries = 32,
+  ) {}
 
   async detect(projectRoot: string): Promise<DetectionResult> {
     const cached = this.cachedResults.get(projectRoot);
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) return cached.result;
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      this.cachedResults.delete(projectRoot);
+      this.cachedResults.set(projectRoot, cached);
+      return cached.result;
+    }
     if (cached) this.cachedResults.delete(projectRoot);
 
     const result: DetectionResult = {
@@ -186,6 +193,11 @@ export class TechStackDetector {
     }
 
     this.cachedResults.set(projectRoot, { result, timestamp: Date.now() });
+    while (this.cachedResults.size > Math.max(1, this.maxCacheEntries)) {
+      const oldest = this.cachedResults.keys().next().value;
+      if (oldest === undefined) break;
+      this.cachedResults.delete(oldest);
+    }
     return result;
   }
 

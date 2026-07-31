@@ -103,6 +103,7 @@ export class SddWizardWebSocketHandler {
    * flight (or after the probe has settled).
    */
   private resumeProbe: Promise<void> | null = null;
+  private disposed = false;
 
   constructor(private readonly deps: SddWizardDeps) {
     this.ready = this.bootstrap();
@@ -126,12 +127,15 @@ export class SddWizardWebSocketHandler {
     // released only after the authoritative read succeeds.
     try {
       const driver = this.deps.makeDriver();
-      if (await driver.loadExisting()) {
+      const loaded = await driver.loadExisting();
+      if (this.disposed) return;
+      if (loaded) {
         this.driver = driver;
         this.lastAgentText = driver.getLastAgentText() ?? '';
       }
       this.resumeError = null;
     } catch (error) {
+      if (this.disposed) return;
       // IPC failure cannot prove that no session exists. Fail closed so a fresh
       // start cannot overwrite another process's interview.
       this.driver = null;
@@ -141,12 +145,14 @@ export class SddWizardWebSocketHandler {
   }
 
   addClient(ws: WebSocket): void {
+    if (this.disposed) return;
     const client: WSClient = { ws, id: crypto.randomUUID() };
     this.clients.add(client);
     ws.on('close', () => this.clients.delete(client));
     ws.on('error', () => this.clients.delete(client));
     // Catch up reconnecting clients after resume completes.
     void this.ready.then(() => {
+      if (this.disposed || !this.clients.has(client)) return;
       if (this.resumeError) {
         this.send(client, { type: 'sdd.spec.error', payload: { message: this.resumeError } });
         return;
@@ -160,7 +166,17 @@ export class SddWizardWebSocketHandler {
     });
   }
 
+  dispose(): void {
+    this.disposed = true;
+    this.clients.clear();
+    this.driver = null;
+    this.lastAgentText = '';
+    this.busy = false;
+    this.resumeProbe = null;
+  }
+
   async handleMessage(msg: WizardMessage): Promise<void> {
+    if (this.disposed) return;
     try {
       await this.ready;
       if (this.resumeError) {
@@ -432,6 +448,7 @@ export class SddWizardWebSocketHandler {
     this.broadcast(this.snapshotMsg());
     try {
       const text = await this.deps.runInterviewTurn(prompt);
+      if (this.disposed) return;
       this.lastAgentText = text;
       if (this.driver) {
         await this.driver.ingestAgentOutput(text);
@@ -460,6 +477,7 @@ export class SddWizardWebSocketHandler {
   }
 
   private send(client: WSClient, msg: { type: string; payload: unknown }): void {
+    if (!this.clients.has(client)) return;
     sendSerialized(client.ws, JSON.stringify(msg));
   }
 }

@@ -39,11 +39,12 @@ Keep it concise, actionable, and focused on one domain.
 |---|---|---|
 | `name` | ✅ | Unique identifier. Lowercase letters, digits, hyphens; must match the parent directory (agentskills.io). First-seen wins on collisions across layers. |
 | `description` | ✅ | One-sentence trigger summary. The agent uses this to decide relevance. |
+| `trigger` | ❌ | Explicit "Use when…" trigger shown in the available-skills list. Optional — defaults to the first sentence of `description`. |
 | `version` | ❌ | SemVer string. Informational only — not used for comparison. |
 | `license` | ❌ | License name or bundled license file (agentskills.io). |
 | `compatibility` | ❌ | Environment requirements — intended product, system packages, network (agentskills.io). |
 | `metadata` | ❌ | Arbitrary key-value map. |
-| `allowed-tools` | ❌ | Space-separated pre-approved tools (experimental, agentskills.io). |
+| `allowed-tools` | ❌ | Space-separated tools (experimental, agentskills.io). Informational only — parsed and displayed, never enforced. |
 
 ### Body (required)
 

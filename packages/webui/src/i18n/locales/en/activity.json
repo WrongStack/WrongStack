@@ -1082,6 +1082,9 @@
     "emptyTitle": "Queue is empty",
     "emptyBody": "Use the btw / steer / add queue buttons beside the input to add messages. Queued items are sent in order when the current agent run completes.",
     "removeTitle": "Remove from queue",
+    "clearDispatchedTitle": "Clear queued messages — already-sent notes cannot be retracted",
+    "dispatchedTitle": "Already sent to the agent",
+    "dispatchedLabel": "Sent",
     "footer": "Messages are sent in arrival order when the current agent run completes. Use the sort toggle to view newest-first."
   },
   "checkpoint": {

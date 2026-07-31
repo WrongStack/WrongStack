@@ -1,10 +1,15 @@
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { Readable } from 'node:stream';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   downloadGitHubTarball,
   parseSkillRef,
   resolveGitHubToken,
+  writeBoundedGzipStream,
 } from '../../src/skills/github-fetcher.js';
 
 // ── parseSkillRef ────────────────────────────────────────────────────────────
@@ -233,6 +238,36 @@ describe('downloadGitHubTarball', () => {
     await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
       /Network error/,
     );
+  });
+});
+
+describe('writeBoundedGzipStream', () => {
+  it('rejects decompressed output beyond the byte budget', async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), 'github-fetcher-bounded-'));
+    const outputPath = join(dir, 'archive.tar');
+    try {
+      const source = Readable.from(gzipSync(Buffer.alloc(2_100)));
+      await expect(writeBoundedGzipStream(source, outputPath, 1_024)).rejects.toThrow(
+        /Uncompressed tarball too large/,
+      );
+      const stat = await fs.stat(outputPath);
+      expect(stat.size).toBeLessThanOrEqual(1_024);
+    } finally {
+      await fs.rm(dirname(outputPath), { recursive: true, force: true });
+    }
+  });
+
+  it('rejects compressed input beyond the download budget without a content-length header', async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), 'github-fetcher-compressed-'));
+    const outputPath = join(dir, 'archive.tar');
+    try {
+      const source = Readable.from(gzipSync(randomBytes(2_100)));
+      await expect(writeBoundedGzipStream(source, outputPath, 4_096, 128)).rejects.toThrow(
+        /Compressed tarball too large/,
+      );
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

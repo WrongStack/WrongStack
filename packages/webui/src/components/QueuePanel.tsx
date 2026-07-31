@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, ListOrdered, Trash2, X } from 'lucide-react';
+import { ArrowDownAZ, ArrowUpAZ, Check, ListOrdered, Trash2, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
@@ -72,6 +72,12 @@ export function QueuePanel({
   }, [queue, sortDir]);
   // Queue is bounded (user-queued items), show all without pagination.
 
+  // Hide the destructive "Clear all" button when EVERY queued item has
+  // already been wire-dispatched: clearing them locally cannot retract the
+  // mailbox note the agent will already act on. With mixed queues the
+  // button stays available so the user can drop the still-pending items.
+  const allDispatched = queue.length > 0 && queue.every((q) => q.alreadyDispatched);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
@@ -117,12 +123,12 @@ export function QueuePanel({
               )}
               {sortDir === 'newest' ? t('activity:queue.newest') : t('activity:queue.oldest')}
             </button>
-            {queue.length > 0 && (
+            {queue.length > 0 && !allDispatched && (
               <button
                 type="button"
                 onClick={() => clearQueue()}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors font-medium"
-                title={t('activity:queue.clearTitle')}
+                title={t('activity:queue.clearDispatchedTitle')}
                 data-testid="queue-clear-all"
               >
                 <Trash2 className="h-3 w-3" />
@@ -146,11 +152,18 @@ export function QueuePanel({
                   // sourceIdx was threaded through the sort so removal
                   // targets the correct entry in the underlying store.
                   const meta = MODE_META[item.mode];
+                  const dispatched = item.alreadyDispatched === true;
                   return (
                     <li
                       key={`${item.addedAt}-${sourceIdx}`}
-                      className="flex items-start justify-between gap-3 px-4 py-3 text-xs transition-colors hover:bg-muted/35"
+                      className={cn(
+                        'flex items-start justify-between gap-3 px-4 py-3 text-xs transition-colors',
+                        dispatched
+                          ? 'bg-muted/30 text-muted-foreground hover:bg-muted/40'
+                          : 'hover:bg-muted/35',
+                      )}
                       data-testid="queue-item"
+                      data-dispatched={dispatched ? 'true' : undefined}
                     >
                       <div className="flex items-start gap-3 min-w-0 flex-1">
                         <span className="mt-1 text-[10px] font-mono text-muted-foreground shrink-0 w-5 text-right tabular-nums">
@@ -160,25 +173,38 @@ export function QueuePanel({
                           className={cn(
                             'shrink-0 inline-flex items-center justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase',
                             meta.tone,
+                            dispatched && 'opacity-60',
                           )}
                           title={t(`activity:queue.${meta.titleKey}`)}
                           data-testid={`queue-mode-${item.mode}`}
                         >
                           {meta.label}
                         </span>
-                        <p className="text-sm text-foreground leading-relaxed min-w-0 break-words">
+                        <p className="text-sm leading-relaxed min-w-0 break-words flex-1">
                           {item.text.length > 120 ? `${item.text.slice(0, 117)}…` : item.text}
                         </p>
+                        {dispatched && (
+                          <span
+                            className="shrink-0 mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold uppercase text-success"
+                            title={t('activity:queue.dispatchedTitle')}
+                            data-testid={`queue-dispatched-${sourceIdx}`}
+                          >
+                            <Check className="h-3 w-3" />
+                            {t('activity:queue.dispatchedLabel')}
+                          </span>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(sourceIdx)}
-                        className="ml-1 p-1.5 rounded-md shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        title={t('activity:queue.removeTitle')}
-                        data-testid={`queue-remove-${sourceIdx}`}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                      {!dispatched && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(sourceIdx)}
+                          className="ml-1 p-1.5 rounded-md shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          title={t('activity:queue.removeTitle')}
+                          data-testid={`queue-remove-${sourceIdx}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </li>
                   );
                 })}

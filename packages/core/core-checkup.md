@@ -1,6 +1,6 @@
 # @wrongstack/core — Checkup Report
 
-> Generated: 2026-07-24 (updated after actions)
+> Generated: 2026-07-24 (updated after actions; 2026-07-31: `BUNDLED_AGENT_SKILLS` exported + test-covered, reclassified DEAD → EXPORTED)
 > Scope: `packages/core` (495 source files, ~472 test files, 1,519 total files)
 > Some files were modified as part of the HQ audit and barrel conversion — see action logs below.
 
@@ -170,7 +170,7 @@ Each file in `src/hq/` is classified as:
 | `WAVE_ROLE_IDS` | `coordination/agents/index.ts:65` | 🔴 DEAD | Set of wave role IDs, never imported externally |
 | `TECHSTACK_AGENTS` | `coordination/agents/phase3-techstack.ts:14` | 🔴 DEAD | Agent definition array, never imported |
 | `ProjectAgentLearnStats` | `coordination/agents/project-agent-identity.ts:1095` | 🔴 DEAD | Type at line 1095, never referenced externally |
-| `BUNDLED_AGENT_SKILLS` | `coordination/agents/role-skills.ts:9` | 🔴 DEAD | Array of skill names, only used within the same module |
+| `BUNDLED_AGENT_SKILLS` | `coordination/agents/role-skills.ts:9` | ✅ EXPORTED | Exported 2026-07-31 (skill-system Phase 2); consumed by the role-skills integrity test (`tests/coordination/role-skills.test.ts`) — no longer dead |
 | `CatalogRoleWithSkills` | `coordination/agents/role-skills.ts:300` | 🔴 DEAD | Type alias, never imported externally |
 | `DirectorCheckpointHost` | `coordination/checkpoint-wiring.ts:31` | 🔴 DEAD | Interface, never imported |
 | `DEFAULT_MAX_TARGET_FILES` | `coordination/collab-debug.ts:44` | 🔴 DEAD | Constant, never imported |
@@ -468,7 +468,6 @@ These types are part of the public API (exported via `types/index.ts` and re-exp
 | File | Symbols to remove from exports |
 |------|-------------------------------|
 | `coordination/agents/index.ts` | `ROLE_DISPATCHER_METAS`, `WAVE_ROLE_IDS` |
-| `coordination/agents/role-skills.ts` | `BUNDLED_AGENT_SKILLS` |
 | `coordination/director-host-contracts.ts` | `DirectorSpawnPort`, `DirectorBudgetPort` |
 | `coordination/mailbox-constants.ts` | `HTTP_RATE_LIMIT_PER_MINUTE` |
 | `coordination/mailbox-message-codec.ts` | `parseMailboxMessage` |

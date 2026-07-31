@@ -97,6 +97,23 @@ describe('StdioTransport', () => {
     expect(await p).toEqual({ method: 'a', id: 1 });
   });
 
+  it('notifies onMessage handlers even when a message resolves a parked read() (dual-fire)', async () => {
+    // Regression: dispatch() previously ran the observer handler loop only
+    // in the non-parked branch, so a correlation reply delivered while
+    // read() was parked reached the read() loop but never
+    // ACPProtocolHandler.maybeResolvePending — the outbound server→client
+    // request then timed out. The onMessage contract (and
+    // ClientTransport.dispatch) require handlers to fire for EVERY inbound
+    // message, whether or not a read() is parked.
+    const t = new StdioTransport();
+    const seen: ACPMessage[] = [];
+    t.onMessage((m) => seen.push(m));
+    const p = t.read();
+    stdin.emit('data', JSON.stringify({ method: 'reply', id: 9 }) + '\n');
+    expect(await p).toEqual({ method: 'reply', id: 9 });
+    expect(seen).toEqual([{ method: 'reply', id: 9 }]);
+  });
+
   it('read returns a previously queued message synchronously', async () => {
     const t = new StdioTransport();
     stdin.emit('data', JSON.stringify({ method: 'queued' }) + '\n');
@@ -170,6 +187,32 @@ describe('StdioTransport', () => {
     expect(seen).toEqual([{ method: 'one' }]);
   });
 
+  it('does not retain claim-handler-delivered messages in the optional read queue', () => {
+    const t = new StdioTransport();
+    t.onMessageClaim(() => true);
+    stdin.emit('data', JSON.stringify({ method: 'claim-handler-only' }) + '\n');
+    expect((t as unknown as { messageQueue: unknown[] }).messageQueue).toHaveLength(0);
+  });
+
+  it('queues observer-handler-only messages (does not consume them)', () => {
+    // A legacy `onMessage()` handler observes but does not claim, so the
+    // message falls through to the read() queue. This is the fix for the
+    // previous `handlers.size === 0` gate which dropped messages whenever
+    // ACPProtocolHandler had registered its correlation handler (it
+    // always does), starving the read() loop of pipelined requests.
+    const t = new StdioTransport();
+    t.onMessage(() => {});
+    stdin.emit('data', JSON.stringify({ method: 'observer-handler-only' }) + '\n');
+    expect((t as unknown as { messageQueue: unknown[] }).messageQueue).toHaveLength(1);
+  });
+
+  it('bounds the optional read queue by serialized size', async () => {
+    const t = new StdioTransport({ maxQueuedMessages: 100, maxQueuedChars: 20 });
+    stdin.emit('data', JSON.stringify({ method: 'payload', value: 'too-large' }) + '\n');
+    expect(await t.read()).toBeNull();
+    expect(stderr.written.some((entry) => entry.includes('queue error'))).toBe(true);
+  });
+
   it('isolates a throwing handler and logs to stderr', () => {
     const t = new StdioTransport();
     t.onMessage(() => {
@@ -184,6 +227,17 @@ describe('StdioTransport', () => {
     const p = t.read();
     t.close();
     expect(await p).toBeNull();
+  });
+
+  it('close detaches process stdin listeners', () => {
+    const t = new StdioTransport();
+    expect(stdin.listenerCount('data')).toBe(1);
+    expect(stdin.listenerCount('end')).toBe(1);
+    expect(stdin.listenerCount('error')).toBe(1);
+    t.close();
+    expect(stdin.listenerCount('data')).toBe(0);
+    expect(stdin.listenerCount('end')).toBe(0);
+    expect(stdin.listenerCount('error')).toBe(0);
   });
 
   it('stdin "end" closes the transport (EOF → read null)', async () => {
@@ -535,6 +589,7 @@ describe('ClientTransport', () => {
     const { transport, child } = await startedTransport();
     child.emit('close', 0);
     expect(await transport.read()).toBeNull();
+    expect((transport as unknown as { child: FakeChild | null }).child).toBeNull();
   });
 
   it('stop kills the child', async () => {

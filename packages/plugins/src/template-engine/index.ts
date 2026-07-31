@@ -7,9 +7,10 @@
  * - template_create: Save a named template to the plugin store
  * - template_list: List all saved templates
  */
-import type { Plugin } from '@wrongstack/core/types';
+
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
+import type { Plugin } from '@wrongstack/core/types';
 import { releaseHandle, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
@@ -33,6 +34,15 @@ interface StoredTemplate {
 // reach the resource and clear it. Setup re-initializes the Map
 // (idempotent re-init on plugin reload); teardown releases it.
 const templates = new Map<string, StoredTemplate>();
+const MAX_TEMPLATES = 256;
+const MAX_TEMPLATE_NAME_CHARS = 128;
+const MAX_TEMPLATE_CONTENT_CHARS = 256 * 1024;
+const MAX_TEMPLATE_DESCRIPTION_CHARS = 4 * 1024;
+const MAX_TOTAL_TEMPLATE_CHARS = 8 * 1024 * 1024;
+
+function templateChars(template: StoredTemplate): number {
+  return template.name.length + template.content.length + (template.description?.length ?? 0);
+}
 
 /**
  * Handle for the system-prompt contributor.
@@ -333,13 +343,19 @@ const plugin: Plugin = {
       inputSchema: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'Unique name for this template' },
+          name: {
+            type: 'string',
+            maxLength: MAX_TEMPLATE_NAME_CHARS,
+            description: 'Unique name for this template',
+          },
           content: {
             type: 'string',
+            maxLength: MAX_TEMPLATE_CONTENT_CHARS,
             description: 'Template content with {{variable}} placeholders',
           },
           description: {
             type: 'string',
+            maxLength: MAX_TEMPLATE_DESCRIPTION_CHARS,
             description: 'Optional description of what this template is for',
           },
         },
@@ -358,9 +374,27 @@ const plugin: Plugin = {
         if (!content || typeof content !== 'string') {
           return { ok: false, error: 'content is required and must be a string' };
         }
+        if (name.length > MAX_TEMPLATE_NAME_CHARS) {
+          return { ok: false, error: `name exceeds ${MAX_TEMPLATE_NAME_CHARS} characters` };
+        }
+        if (content.length > MAX_TEMPLATE_CONTENT_CHARS) {
+          return {
+            ok: false,
+            error: `content exceeds ${MAX_TEMPLATE_CONTENT_CHARS} characters`,
+          };
+        }
+        if (description && description.length > MAX_TEMPLATE_DESCRIPTION_CHARS) {
+          return {
+            ok: false,
+            error: `description exceeds ${MAX_TEMPLATE_DESCRIPTION_CHARS} characters`,
+          };
+        }
 
         const now = new Date().toISOString();
         const existing = templates.get(name);
+        if (!existing && templates.size >= MAX_TEMPLATES) {
+          return { ok: false, error: `template limit reached (${MAX_TEMPLATES})` };
+        }
 
         const tmpl: StoredTemplate = {
           name,
@@ -369,6 +403,17 @@ const plugin: Plugin = {
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
         };
+
+        let retainedChars = 0;
+        for (const stored of templates.values()) retainedChars += templateChars(stored);
+        const nextChars =
+          retainedChars - (existing ? templateChars(existing) : 0) + templateChars(tmpl);
+        if (nextChars > MAX_TOTAL_TEMPLATE_CHARS) {
+          return {
+            ok: false,
+            error: `template store exceeds ${MAX_TOTAL_TEMPLATE_CHARS} retained characters`,
+          };
+        }
 
         templates.set(name, tmpl);
         api.metrics.gauge('template_count', templates.size);

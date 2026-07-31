@@ -352,14 +352,22 @@ export function handleRunResult(msg: WSServerMessage) {
   // starting a new run. 'queue' (the default) sends as a regular
   // user_message, starting a fresh run after the current one finishes.
   if (next.mode === 'btw') {
-    client.sendMailboxMessage({
-      type: 'btw',
-      to: 'leader',
-      subject: 'btw from WebUI',
-      body: next.text,
-      priority: 'normal',
-      audience: 'all',
-    });
+    // alreadyDispatched btw notes were wire-sent the moment the user typed
+    // them (immediate mid-run mailbox injection in ChatInput.submitWith).
+    // Re-sending here would fold the same note into the agent's context a
+    // second time, risking the agent acting on it twice. The user bubble was
+    // still added above, so the transcript stays complete — just skip the
+    // mailbox branch.
+    if (next.alreadyDispatched !== true) {
+      client.sendMailboxMessage({
+        type: 'btw',
+        to: 'leader',
+        subject: 'btw from WebUI',
+        body: next.text,
+        priority: 'normal',
+        audience: 'all',
+      });
+    }
     // Don't set loading — we're not starting a run, the mailbox
     // injection will fold into the existing run's next iteration.
     return;

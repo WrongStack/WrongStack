@@ -2,13 +2,13 @@
  * Comprehensive coverage for providers/src/oauth/shared.ts — PKCE, state,
  * parseAuthorizationInput, callbackHtml, and startLoopbackServer.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   base64url,
-  generatePkce,
-  createState,
-  parseAuthorizationInput,
   callbackHtml,
+  createState,
+  generatePkce,
+  parseAuthorizationInput,
   startLoopbackServer,
 } from '../../src/oauth/shared.js';
 
@@ -132,15 +132,19 @@ describe('startLoopbackServer', () => {
   }, 5000);
 
   it('returns null code when close is called before any callback', async () => {
+    const ac = new AbortController();
+    const remove = vi.spyOn(ac.signal, 'removeEventListener');
     const srv = await startLoopbackServer({
       port: 0,
       host: '127.0.0.1',
       path: '/callback',
       expectedState: 'test-state',
+      signal: ac.signal,
     });
     srv.close();
     const result = await srv.waitForCode();
     expect(result).toBeNull();
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
   }, 5000);
 
   it('aborts when signal is already aborted', async () => {

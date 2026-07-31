@@ -1077,6 +1077,9 @@
     "emptyTitle": "La coda è vuota",
     "emptyBody": "Usa i pulsanti btw / steer / aggiungi a coda accanto all'input per aggiungere messaggi. Gli elementi in coda sono inviati in ordine al completamento del run dell'agente.",
     "removeTitle": "Rimuovi dalla coda",
+    "clearDispatchedTitle": "Cancella i messaggi in coda — le note già inviate non possono essere revocate",
+    "dispatchedTitle": "Già inviato all'agente",
+    "dispatchedLabel": "Inviato",
     "footer": "I messaggi sono inviati in ordine di arrivo al completamento del run dell'agente. Usa l'ordinamento per vedere i più recenti prima."
   },
   "checkpoint": {

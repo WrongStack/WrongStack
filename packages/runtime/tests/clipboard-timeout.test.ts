@@ -15,7 +15,7 @@ vi.mock('node:child_process', async (orig) => {
   };
 });
 
-import { writeClipboardText, readClipboardText } from '../src/clipboard.js';
+import { readClipboardImage, readClipboardText, writeClipboardText } from '../src/clipboard.js';
 
 class FakeChild extends EventEmitter {
   stdin = new FakeStdin();
@@ -87,5 +87,40 @@ describe('readClipboardText killCap timeout path', () => {
     await vi.advanceTimersByTimeAsync(2_500);
     const result = await promise;
     expect(result).toBeNull();
+  });
+
+  it('kills a clipboard reader before retaining oversized text', async () => {
+    setPlatform('win32');
+    const c = new EventEmitter() as any;
+    c.stdout = new EventEmitter();
+    c.stderr = new EventEmitter();
+    c.kill = vi.fn();
+    spawnMock.spawn.mockReturnValue(c);
+
+    const promise = readClipboardText();
+    c.stdout.emit('data', Buffer.alloc(4 * 1024 * 1024 + 1, 0x61));
+
+    await expect(promise).resolves.toBeNull();
+    expect(c.kill).toHaveBeenCalledWith('SIGTERM');
+  });
+});
+
+describe('readClipboardImage output cap', () => {
+  it('kills image readers before buffering more than the image limit', async () => {
+    setPlatform('linux');
+    const children: any[] = [];
+    spawnMock.spawn.mockImplementation(() => {
+      const c = new EventEmitter() as any;
+      c.stdout = new EventEmitter();
+      c.stderr = new EventEmitter();
+      c.kill = vi.fn();
+      children.push(c);
+      queueMicrotask(() => c.stdout.emit('data', Buffer.alloc(10 * 1024 * 1024 + 1)));
+      return c;
+    });
+
+    await expect(readClipboardImage()).resolves.toBeNull();
+    expect(children).toHaveLength(2);
+    expect(children.every((child) => child.kill.mock.calls[0]?.[0] === 'SIGTERM')).toBe(true);
   });
 });

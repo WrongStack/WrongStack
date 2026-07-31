@@ -3,7 +3,6 @@ import {
   DEFAULT_SURFACE_CONNECTION_CONFIG,
   decodeProtocolFrame,
   decodeProtocolMessage,
-  enqueueBounded,
   markConnectionActivity,
   markConnectionConnecting,
   markConnectionOpen,
@@ -45,6 +44,27 @@ import {
 export type { WSSendOptions } from './ws-client-contracts';
 // Re-export types for backward compat
 export type { WsStatus };
+
+/** Options for `sendMailboxMessage` — a mailbox message of a given intent
+ *  type (btw, steer, note, …) routed to a target agent/role. Shared by the
+ *  ws-client method, the `useWebSocket` wrapper, and UI prop contracts. */
+export type WSMailboxSendOptions = {
+  type:
+    | 'note'
+    | 'ask'
+    | 'assign'
+    | 'steer'
+    | 'btw'
+    | 'broadcast'
+    | 'status'
+    | 'result'
+    | 'review';
+  to: string;
+  subject: string;
+  body: string;
+  priority?: 'low' | 'normal' | 'high' | undefined;
+  audience?: 'all' | 'leaders' | undefined;
+};
 
 const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
   Record<WSClientMessage['type'], WSServerMessage['type']>
@@ -105,6 +125,8 @@ class WrongStackWebSocketClientBase {
    *  late). */
   private socketGeneration = 0;
   private messageQueue: WSClientMessage[] = [];
+  private messageQueueChars = 0;
+  private readonly messageQueueWeights = new WeakMap<object, number>();
   private connectionState: SurfaceConnectionState = createSurfaceConnectionState();
   // Cap on the offline-queue depth. Past this, send() drops the OLDEST
   // queued message before appending the new one (FIFO drop). Bounds
@@ -114,6 +136,8 @@ class WrongStackWebSocketClientBase {
   // and waste its context window. 1000 is a generous budget for a
   // genuine reconnect window (typical reconnect <10s; <50 msg/s).
   private static readonly MAX_QUEUED_MESSAGES = 1000;
+  /** Count-only limits are ineffective for image/base64 payloads. */
+  private static readonly MAX_QUEUED_CHARS = 16 * 1024 * 1024;
   private pendingConfirms: Map<string, PendingConfirm> = new Map();
   private sessionId: string | null = null;
   private sessionSwapPending = false;
@@ -449,8 +473,14 @@ class WrongStackWebSocketClientBase {
   private flushMessageQueue() {
     while (this.messageQueue.length > 0) {
       const msg = this.messageQueue.shift();
-      if (msg) this.send(msg);
+      if (msg) {
+        const weight = this.messageQueueWeights.get(msg as object) ?? JSON.stringify(msg).length;
+        this.messageQueueChars = Math.max(0, this.messageQueueChars - weight);
+        this.messageQueueWeights.delete(msg as object);
+        this.send(msg);
+      }
     }
+    this.messageQueueChars = 0;
   }
 
   private handleMessage(msg: WSServerMessage) {
@@ -517,6 +547,9 @@ class WrongStackWebSocketClientBase {
   }
 
   send(message: WSClientMessage, options: WSSendOptions = {}): boolean {
+    const clientClass = this.constructor as typeof WrongStackWebSocketClientBase;
+    const maxQueuedMessages = clientClass.MAX_QUEUED_MESSAGES;
+    const maxQueuedChars = clientClass.MAX_QUEUED_CHARS;
     const decoded = decodeProtocolMessage(message, 'client');
     if (!decoded.ok) {
       console.error(
@@ -525,6 +558,22 @@ class WrongStackWebSocketClientBase {
           event: 'ws_client.outbound_message_rejected',
           code: decoded.issue.code,
           message: decoded.issue.message,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return false;
+    }
+    const serialized = JSON.stringify(decoded.message);
+    const socketOpen = this.ws?.readyState === WebSocket.OPEN;
+    if (!socketOpen && serialized.length > maxQueuedChars) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ws_client.message_queue_full',
+          cap: maxQueuedMessages,
+          charCap: maxQueuedChars,
+          droppedType: message.type,
+          reason: 'message_too_large',
           timestamp: new Date().toISOString(),
         }),
       );
@@ -551,31 +600,43 @@ class WrongStackWebSocketClientBase {
     ) {
       streamCoalescer.dropAll();
     }
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(decoded.message));
+    if (socketOpen) {
+      this.ws?.send(serialized);
       return true;
     } else {
       if (options.queueIfDisconnected === false) return false;
-      // FIFO-drop oldest when full. Keeps the queue bounded under
-      // long disconnects and ensures the most recent user intent is
-      // preserved (vs. a flood of stale earlier messages on reconnect).
-      const queued = enqueueBounded(
-        this.messageQueue,
-        message,
-        WrongStackWebSocketClientBase.MAX_QUEUED_MESSAGES,
-      );
-      if (queued.dropped) {
+      // FIFO-drop oldest by both count and serialized size. A count-only cap
+      // still allows a disconnected tab to retain hundreds of multi-megabyte
+      // image messages.
+      let firstDropped: WSClientMessage | undefined;
+      while (
+        this.messageQueue.length > 0 &&
+        (this.messageQueue.length >= maxQueuedMessages ||
+          this.messageQueueChars + serialized.length > maxQueuedChars)
+      ) {
+        const dropped = this.messageQueue.shift();
+        if (!dropped) break;
+        firstDropped ??= dropped;
+        const weight =
+          this.messageQueueWeights.get(dropped as object) ?? JSON.stringify(dropped).length;
+        this.messageQueueChars = Math.max(0, this.messageQueueChars - weight);
+        this.messageQueueWeights.delete(dropped as object);
+      }
+      if (firstDropped) {
         console.warn(
           JSON.stringify({
             level: 'warn',
             event: 'ws_client.message_queue_full',
-            cap: WrongStackWebSocketClientBase.MAX_QUEUED_MESSAGES,
-            droppedType: queued.dropped.type,
+            cap: maxQueuedMessages,
+            charCap: maxQueuedChars,
+            droppedType: firstDropped.type,
             timestamp: new Date().toISOString(),
           }),
         );
       }
-      this.messageQueue = queued.queue;
+      this.messageQueue.push(message);
+      this.messageQueueWeights.set(message as object, serialized.length);
+      this.messageQueueChars += serialized.length;
       return true;
     }
   }
@@ -648,23 +709,7 @@ class WrongStackWebSocketClientBase {
 
   /** Send a mailbox message of the given type (btw, steer, note, etc.)
    *  to a target agent/role. Returns the requestId for response tracking. */
-  sendMailboxMessage(opts: {
-    type:
-      | 'note'
-      | 'ask'
-      | 'assign'
-      | 'steer'
-      | 'btw'
-      | 'broadcast'
-      | 'status'
-      | 'result'
-      | 'review';
-    to: string;
-    subject: string;
-    body: string;
-    priority?: 'low' | 'normal' | 'high' | undefined;
-    audience?: 'all' | 'leaders' | undefined;
-  }): string {
+  sendMailboxMessage(opts: WSMailboxSendOptions): string {
     const requestId = `mbox_${Date.now()}_${safeId().slice(0, 8)}`;
     this.send({
       type: 'mailbox.send',
@@ -1025,6 +1070,7 @@ class WrongStackWebSocketClientBase {
     // from before the disconnect would be confusing at best and buggy
     // at worst (e.g. an old 'session.new' overriding the user's new one).
     this.messageQueue.length = 0;
+    this.messageQueueChars = 0;
     this.sessionSwapPending = false;
     this.ws?.close();
     this.ws = null;

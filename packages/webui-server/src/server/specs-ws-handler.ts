@@ -56,6 +56,10 @@ export class SpecsWebSocketHandler {
     void this.sendList(client);
   }
 
+  dispose(): void {
+    this.clients.clear();
+  }
+
   async handleMessage(msg: SpecsWSMessage): Promise<void> {
     switch (msg.type) {
       case 'specs.list':
@@ -220,6 +224,7 @@ export class SpecsWebSocketHandler {
   }
 
   private send(client: WSClient, msg: { type: string; payload: unknown }): void {
+    if (!this.clients.has(client)) return;
     sendSerialized(client.ws, JSON.stringify(msg));
   }
 }

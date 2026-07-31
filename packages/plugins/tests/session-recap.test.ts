@@ -310,11 +310,112 @@ describe('session-recap plugin', () => {
       expect(body.transcriptTail[2].preview).toBe('final reply');
     });
 
+    it('drops an oversized head fragment and returns the trailing JSONL events', async () => {
+      const transcriptPath = path.join(tmpDir, 'oversized-session.jsonl');
+      const trailingEvents = [
+        { type: 'user', ts: '2026-06-30T10:00:00Z', content: 'tail prompt' },
+        { type: 'tool_call', ts: '2026-06-30T10:00:01Z', tool: 'read' },
+        { type: 'assistant', ts: '2026-06-30T10:00:02Z', content: 'tail reply' },
+      ];
+      const oversizedEvent = JSON.stringify({
+        type: 'assistant',
+        content: 'x'.repeat(1024 * 1024 + 1),
+      });
+      await fs.writeFile(
+        transcriptPath,
+        `${oversizedEvent}\n${trailingEvents.map((event) => JSON.stringify(event)).join('\n')}\n`,
+        'utf-8',
+      );
+
+      const api = createMockAPI({ withMailbox: true });
+      api.session.transcriptPath = transcriptPath;
+      sessionRecapPlugin.setup(api as never);
+      await getHook(api, 'Stop')({ cwd: '/tmp', sessionId: 'sess-oversized-tail' });
+
+      const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
+      const body = JSON.parse(sendArg.body);
+      expect(body.transcriptTail).toEqual([
+        expect.objectContaining({ type: 'user', preview: 'tail prompt' }),
+        expect.objectContaining({ type: 'tool_call' }),
+        expect.objectContaining({ type: 'assistant', preview: 'tail reply' }),
+      ]);
+    });
+
     it('skips transcript tail when transcriptPath is missing', async () => {
       const api = createMockAPI({ withMailbox: true, withTranscript: false });
       sessionRecapPlugin.setup(api as never);
       const hook = getHook(api, 'Stop');
       await hook({ cwd: '/tmp', sessionId: 'sess-no-tx' });
+      const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
+      const body = JSON.parse(sendArg.body);
+      expect(body.transcriptTail).toEqual([]);
+    });
+
+    it('returns the last n events from a 2 MiB transcript that exceeds the byte budget', async () => {
+      const transcriptPath = path.join(tmpDir, 'huge-session.jsonl');
+      // Each event ~96 bytes, so ~22_000 events land at ~2 MiB.
+      const totalEvents = 22_000;
+      const padTo = (i: number) => `event-${i}-${'x'.repeat(50)}`;
+      const lines: string[] = [];
+      for (let i = 0; i < totalEvents; i++) {
+        lines.push(
+          JSON.stringify({
+            type: i === totalEvents - 1 ? 'assistant' : 'user',
+            ts: `2026-06-30T10:${(i % 60).toString().padStart(2, '0')}:00Z`,
+            seq: i,
+            content: padTo(i),
+          }),
+        );
+      }
+      await fs.writeFile(transcriptPath, `${lines.join('\n')}\n`, 'utf-8');
+      const stat = await fs.stat(transcriptPath);
+      // Sanity: the synthetic file is large enough to saturate the 1 MiB
+      // read budget so the byte-vs-event alignment heuristic actually
+      // has work to do.
+      expect(stat.size).toBeGreaterThan(1024 * 1024);
+
+      const api = createMockAPI({ withMailbox: true });
+      api.session.transcriptPath = transcriptPath;
+      sessionRecapPlugin.setup(api as never);
+      const hook = getHook(api, 'Stop');
+      await hook({ cwd: '/tmp', sessionId: 'sess-huge' });
+
+      const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
+      const body = JSON.parse(sendArg.body);
+      expect(body.transcriptTail).toHaveLength(3);
+      // The most recent event must be preserved — a tail reader whose
+      // budget saturates between two events would drop it silently.
+      expect(body.transcriptTail[2].type).toBe('assistant');
+      expect(body.transcriptTail[2].preview).toContain(`event-${totalEvents - 1}-`);
+      expect(body.transcriptTail[1].preview).toContain(`event-${totalEvents - 2}-`);
+      expect(body.transcriptTail[0].preview).toContain(`event-${totalEvents - 3}-`);
+    });
+
+    it('returns no events from an empty transcript file', async () => {
+      const transcriptPath = path.join(tmpDir, 'empty-session.jsonl');
+      await fs.writeFile(transcriptPath, '', 'utf-8');
+
+      const api = createMockAPI({ withMailbox: true });
+      api.session.transcriptPath = transcriptPath;
+      sessionRecapPlugin.setup(api as never);
+      const hook = getHook(api, 'Stop');
+      await hook({ cwd: '/tmp', sessionId: 'sess-empty' });
+
+      const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
+      const body = JSON.parse(sendArg.body);
+      expect(body.transcriptTail).toEqual([]);
+    });
+
+    it('returns no events from a single-byte transcript (trailing newline only)', async () => {
+      const transcriptPath = path.join(tmpDir, 'onebyte-session.jsonl');
+      await fs.writeFile(transcriptPath, '\n', 'utf-8');
+
+      const api = createMockAPI({ withMailbox: true });
+      api.session.transcriptPath = transcriptPath;
+      sessionRecapPlugin.setup(api as never);
+      const hook = getHook(api, 'Stop');
+      await hook({ cwd: '/tmp', sessionId: 'sess-onebyte' });
+
       const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
       const body = JSON.parse(sendArg.body);
       expect(body.transcriptTail).toEqual([]);

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.296.5",
+  "packageVersion": "0.297.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1048,14 +1048,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41546
+      "sourceLines": 41548
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8552
+      "sourceLines": 8602
     },
     {
       "directory": "defaults",
@@ -1076,7 +1076,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 50,
-      "sourceLines": 16466
+      "sourceLines": 16517
     },
     {
       "directory": "extension",
@@ -1104,7 +1104,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 41,
-      "sourceLines": 8186
+      "sourceLines": 8223
     },
     {
       "directory": "infrastructure",
@@ -1160,7 +1160,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6241
+      "sourceLines": 6276
     },
     {
       "directory": "prompts",
@@ -1195,7 +1195,7 @@
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2109
+      "sourceLines": 2188
     },
     {
       "directory": "storage",
@@ -1223,7 +1223,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9363
+      "sourceLines": 9422
     },
     {
       "directory": "utils",

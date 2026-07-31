@@ -57,6 +57,15 @@ export const SKILL_LIMITS = {
   MAX_TARBALL_SIZE: 50 * 1024 * 1024,
 
   /**
+   * Maximum size of a GitHub skill tarball after gzip decompression. The
+   * compressed download limit alone does not protect against highly
+   * compressible archives expanding until the process runs out of memory.
+   *
+   * Consumer: `downloadGitHubTarball`.
+   */
+  MAX_UNCOMPRESSED_TARBALL_SIZE: 64 * 1024 * 1024,
+
+  /**
    * Default total char budget for skill bodies injected in eager mode when
    * `config.skills.eagerMaxChars` is unset. ~6k tokens. Skills are injected
    * highest-priority first; once the budget is exhausted the remaining skills
@@ -67,6 +76,18 @@ export const SKILL_LIMITS = {
    * `skillEagerMaxChars`).
    */
   EAGER_DEFAULT_MAX_CHARS: 24_000,
+
+  /**
+   * Default total char budget for compact (token-saving) skill bodies injected
+   * by `buildCompactSkillBodiesText`. Mirrors the eager ceiling so compact mode
+   * can never inject more total skill text than eager mode. Before this bound
+   * existed, compact mode injected EVERY skill's compact body with no cap, so
+   * the section grew linearly with the number of installed skills. Skills past
+   * the budget overflow to a name list the agent loads via the `skill` tool.
+   *
+   * Consumer: `buildCompactSkillBodiesText` (default for its `budget` param).
+   */
+  COMPACT_DEFAULT_MAX_CHARS: 24_000,
 
   /**
    * Auto-compact body limits (the token-saving fallback used when a skill has

@@ -1077,6 +1077,9 @@
     "emptyTitle": "La cola está vacía",
     "emptyBody": "Usa los botones btw / steer / añadir a cola junto a la entrada para añadir mensajes. Los elementos en cola se envían en orden cuando termina el run del agente.",
     "removeTitle": "Quitar de la cola",
+    "clearDispatchedTitle": "Borrar mensajes en cola — las notas ya enviadas no se pueden retractar",
+    "dispatchedTitle": "Ya enviado al agente",
+    "dispatchedLabel": "Enviado",
     "footer": "Los mensajes se envían en orden de llegada cuando termina el run del agente. Usa el orden para ver los más recientes primero."
   },
   "checkpoint": {

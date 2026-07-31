@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 191,
+      "files": 192,
       "typeOnly": 101,
-      "runtimeOrMixed": 100
+      "runtimeOrMixed": 101
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 817,
-      "typeOnly": 786,
+      "files": 818,
+      "typeOnly": 787,
       "runtimeOrMixed": 202
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 452,
-      "typeOnly": 50,
-      "runtimeOrMixed": 460
+      "files": 453,
+      "typeOnly": 51,
+      "runtimeOrMixed": 459
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -184,9 +184,9 @@
       "runtimeOrMixed": 13
     },
     "@wrongstack/core/utils/tree-kill": {
-      "files": 3,
+      "files": 4,
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     "@wrongstack/core/worktree": {
       "files": 10,
@@ -5034,6 +5034,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/tests/collaboration-ws-handler.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/tests/realtime-handler-disposal.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12179,6 +12185,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/realtime-handler-disposal.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/replay-payload.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14521,7 +14533,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/grep.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -15125,6 +15137,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/goal-ws-handler.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/http-server.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -15264,6 +15282,12 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/acp/src/agent/stdio-transport.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/acp/src/client/terminal-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

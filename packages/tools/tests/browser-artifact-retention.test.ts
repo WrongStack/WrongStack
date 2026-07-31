@@ -90,6 +90,23 @@ describe('browser artifact retention', () => {
     expect(await exists(reintroduced)).toBe(true);
   });
 
+  it('bounds the per-process swept-root memo and permits an evicted root to sweep again', async () => {
+    const stale = await seed('sess-a', 'old.png', 30);
+    new BrowserArtifactStore(root);
+    await settle();
+    expect(await exists(stale)).toBe(false);
+
+    for (let index = 0; index < 128; index++) {
+      new BrowserArtifactStore(path.join(root, `missing-root-${index}`));
+    }
+    await settle();
+
+    const reintroduced = await seed('sess-a', 'old.png', 30);
+    new BrowserArtifactStore(root);
+    await settle();
+    expect(await exists(reintroduced)).toBe(false);
+  });
+
   it('does not throw when the artifact root does not exist yet', async () => {
     const missing = path.join(root, 'not-created-yet');
     expect(() => new BrowserArtifactStore(missing)).not.toThrow();

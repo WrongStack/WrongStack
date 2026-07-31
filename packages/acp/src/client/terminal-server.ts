@@ -16,6 +16,7 @@ import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
+import { treeKill } from '@wrongstack/core/utils/tree-kill';
 
 const EMPTY_BUFFER = Buffer.alloc(0);
 
@@ -56,6 +57,8 @@ interface TerminalState {
   exitPromise: Promise<{ exitCode: number | null; signal: string | null }>;
   /** Per-terminal timeout handle. */
   timeoutHandle: ReturnType<typeof setTimeout> | null;
+  /** Named so release() can detach pipes even when the child never closes. */
+  onData?: ((chunk: string) => void) | undefined;
 }
 
 export class TerminalServer {
@@ -196,17 +199,17 @@ export class TerminalServer {
         state.outputHead = 0;
       }
     };
+    state.onData = onData;
     proc.stdout?.on('data', onData);
     proc.stderr?.on('data', onData);
 
     state.timeoutHandle = setTimeout(() => {
       // Best-effort kill; we don't have an exact "TIMEOUT" stop reason
       // so we just exit with -1.
-      try {
-        proc.kill('SIGTERM');
-      } catch {
-        // already dead
-      }
+      // POSIX treeKill gracefully signals only the direct child because this
+      // process is not spawned as a process group; descendants may outlive it.
+      // Windows uses taskkill /T /F to tear down the full process tree.
+      treeKill(proc);
     }, this.commandTimeoutMs);
 
     this.terminals.set(id, state);
@@ -240,15 +243,15 @@ export class TerminalServer {
     return state.exitPromise;
   }
 
-  /** Kill the process but keep the terminal record (agent can still read output). */
+  /**
+   * Kill the process but keep the terminal record (agent can still read output).
+   * On POSIX this signals only the direct child; descendants may survive because
+   * terminal processes are not spawned as process-group leaders.
+   */
   kill(terminalId: string): void {
     const state = this.terminals.get(terminalId);
     if (!state) throw new Error(`unknown terminal: ${terminalId}`);
-    try {
-      state.proc.kill('SIGTERM');
-    } catch {
-      // already dead
-    }
+    treeKill(state.proc);
   }
 
   /** Kill the process if alive and remove the record. */
@@ -259,11 +262,17 @@ export class TerminalServer {
       clearTimeout(state.timeoutHandle);
       state.timeoutHandle = null;
     }
-    try {
-      state.proc.kill('SIGKILL');
-    } catch {
-      // already dead
+    if (state.onData) {
+      state.proc.stdout?.off('data', state.onData);
+      state.proc.stderr?.off('data', state.onData);
+      state.onData = undefined;
     }
+    state.proc.stdout?.destroy?.();
+    state.proc.stderr?.destroy?.();
+    state.outputChunks.length = 0;
+    state.outputHead = 0;
+    state.retainedBytes = 0;
+    treeKill(state.proc, { force: true });
     this.terminals.delete(terminalId);
   }
 

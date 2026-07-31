@@ -6,9 +6,10 @@
  * - watch_stop: Stop a watch by ID
  * - watch_list: List all active watches
  */
-import type { Plugin } from '@wrongstack/core/types';
+
 import { watch as fsWatch } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import type { Plugin } from '@wrongstack/core/types';
 
 const API_VERSION = '^0.1.10';
 
@@ -70,6 +71,9 @@ function nextId(): string {
 // are reset in setup (idempotent re-init) and freed in teardown.
 const watches = new Map<string, WatchHandle>();
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const MAX_WATCH_GROUPS = 32;
+const MAX_PATHS_PER_WATCH = 16;
+const MAX_FILESYSTEM_WATCHERS = 64;
 
 // ---------------------------------------------------------------------------
 // Plugin
@@ -194,7 +198,7 @@ const plugin: Plugin = {
       return INDEXABLE_EXTENSIONS.has(ext);
     }
 
-    function safeWatchDir(dirPath: string, recursive: boolean, handle: WatchHandle): void {
+    function safeWatchDir(dirPath: string, recursive: boolean, handle: WatchHandle): boolean {
       try {
         const watcher = fsWatch(dirPath, { recursive }, (eventType, filename) => {
           if (!filename) return;
@@ -204,11 +208,9 @@ const plugin: Plugin = {
           // rename is allowed when EITHER slot is in handle.events.
           if (
             handle.events.length > 0 &&
-            !(
-              eventType === 'change'
-                ? handle.events.includes('change')
-                : handle.events.includes('add') || handle.events.includes('delete')
-            )
+            !(eventType === 'change'
+              ? handle.events.includes('change')
+              : handle.events.includes('add') || handle.events.includes('delete'))
           ) {
             return;
           }
@@ -268,8 +270,10 @@ const plugin: Plugin = {
         });
 
         handle.watchers.push(watcher);
+        return true;
       } catch (err) {
         api.log.warn(`file-watcher: could not watch ${dirPath}: ${err}`);
+        return false;
       }
     }
 
@@ -284,6 +288,7 @@ const plugin: Plugin = {
           paths: {
             type: 'array',
             items: { type: 'string' },
+            maxItems: MAX_PATHS_PER_WATCH,
             description: 'File or directory paths to watch',
           },
           events: {
@@ -312,11 +317,36 @@ const plugin: Plugin = {
             watch_id: null,
           };
         }
-        const paths = rawPaths as string[];
+        const paths = [...new Set(rawPaths as string[])];
         if (paths.length === 0) {
           return {
             ok: false,
             error: 'paths array is empty — provide at least one path',
+            watch_id: null,
+          };
+        }
+        if (paths.length > MAX_PATHS_PER_WATCH) {
+          return {
+            ok: false,
+            error: `a watch may contain at most ${MAX_PATHS_PER_WATCH} unique paths`,
+            watch_id: null,
+          };
+        }
+        if (watches.size >= MAX_WATCH_GROUPS) {
+          return {
+            ok: false,
+            error: `active watch group limit reached (${MAX_WATCH_GROUPS})`,
+            watch_id: null,
+          };
+        }
+        const activeFilesystemWatchers = [...watches.values()].reduce(
+          (total, handle) => total + handle.watchers.length,
+          0,
+        );
+        if (activeFilesystemWatchers + paths.length > MAX_FILESYSTEM_WATCHERS) {
+          return {
+            ok: false,
+            error: `filesystem watcher limit reached (${MAX_FILESYSTEM_WATCHERS})`,
             watch_id: null,
           };
         }
@@ -346,9 +376,20 @@ const plugin: Plugin = {
           createdAt: new Date().toISOString(),
         };
 
+        const watchedPaths: string[] = [];
         for (const p of paths) {
-          safeWatchDir(p, recursive, handle);
+          if (safeWatchDir(p, recursive, handle)) watchedPaths.push(p);
         }
+
+        // Only report paths for which fs.watch successfully opened a handle.
+        // Failed requests are logged by safeWatchDir and must not appear active.
+        handle.paths = watchedPaths;
+
+        // The filesystem-watcher budget is enforced by the pre-allocation
+        // check above (`activeFilesystemWatchers + paths.length`). safeWatchDir
+        // opens at most one FSWatcher per path, so `handle.watchers.length`
+        // can never exceed `paths.length` and no post-allocation re-check is
+        // reachable here.
 
         watches.set(id, handle);
 
@@ -357,10 +398,10 @@ const plugin: Plugin = {
         return {
           ok: true,
           watch_id: id,
-          paths,
+          paths: watchedPaths,
           events,
           recursive,
-          message: `Started watching ${paths.length} path(s). Use watch_stop to cancel.`,
+          message: `Started watching ${watchedPaths.length} path(s). Use watch_stop to cancel.`,
         };
       },
     });

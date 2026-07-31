@@ -19,6 +19,7 @@ import {
 import { SkillInstaller } from '../skills/skill-installer.js';
 import type { Plugin } from '../types/plugin.js';
 import type { SkillLoader } from '../types/skill.js';
+import { capSkillBody, stripFrontmatter } from '../core/system-prompt-skill-text.js';
 import { color } from '../utils/color.js';
 import { toErrorMessage } from '../utils/error.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
@@ -132,7 +133,11 @@ export function buildSkillCommand(skillLoader?: SkillLoader): SlashCommand {
       }
       const skill = await skillLoader.find(args.trim());
       if (!skill) return { message: `Skill "${args.trim()}" not found.` };
-      return { message: await skillLoader.readBody(skill.name) };
+      // Show the same frontmatter-free, capped body the model sees via the
+      // `skill` tool and prompt injection — not the raw, unbounded SKILL.md
+      // (a multi-KB skill would otherwise dump wholesale into the CLI output).
+      const body = capSkillBody(stripFrontmatter(await skillLoader.readBody(skill.name)));
+      return { message: body };
     },
   };
 }
@@ -185,7 +190,30 @@ export function buildSkillGeneratorCommand(skillLoader?: SkillLoader): SlashComm
                       : '📦';
           return `  ${src} ${e.name}\n     ${e.trigger}`;
         });
-        return { message: `Available Skills:\n${lines.join('\n\n')}\n` };
+        let message = `Available Skills:\n${lines.join('\n\n')}\n`;
+        // Surface load-time diagnostics, but only when non-empty so normal
+        // output is unchanged. Feature-detected: mock loaders may omit it.
+        const diag = skillLoader.diagnostics?.();
+        if (diag && (diag.shadowed.length > 0 || diag.skipped.length > 0)) {
+          const notes: string[] = [];
+          if (diag.shadowed.length > 0) {
+            notes.push(color.dim('Shadowed (hidden by a higher-priority layer):'));
+            for (const s of diag.shadowed) {
+              notes.push(
+                color.dim(`  ⚠ ${s.name} (${s.source}) ← overridden by ${s.shadowedBy}`),
+              );
+            }
+          }
+          if (diag.skipped.length > 0) {
+            notes.push(color.dim('Skipped (malformed SKILL.md):'));
+            for (const k of diag.skipped) {
+              const name = k.name ? ` "${k.name}"` : '';
+              notes.push(color.dim(`  ✗ ${k.entry}${name} — ${k.reason}`));
+            }
+          }
+          message += `\n${notes.join('\n')}\n`;
+        }
+        return { message };
       }
 
       // ── validate <name> ─────────────────────────────────────────────────
@@ -252,7 +280,14 @@ export function buildSkillGeneratorCommand(skillLoader?: SkillLoader): SlashComm
         if (!skill) return { message: `Skill "${skillName}" not found.` };
         try {
           await openInEditor(skill.path);
-          return { message: `Opening ${skill.path} in your editor…` };
+          // The editor is detached (it outlives this process), so we can't know
+          // when the user saves. Invalidate now so the next read in this process
+          // re-reads from disk instead of serving the pre-edit cached body —
+          // mirroring the WebUI edit handler, which invalidates on save.
+          skillLoader.invalidateCache();
+          return {
+            message: `Opening ${skill.path} in your editor… (skill cache cleared — changes load on next use)`,
+          };
         } catch (err) {
           return { message: `✗ ${toErrorMessage(err)}` };
         }

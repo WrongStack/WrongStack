@@ -18,6 +18,7 @@ const ARTIFACT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Roots already swept in this process. */
 const sweptRoots = new Set<string>();
+const MAX_SWEPT_ROOTS = 128;
 
 /** Reset module state — test hook (per-process sweep memo only). */
 export function _resetArtifactSweepForTests(): void {
@@ -31,6 +32,11 @@ export function _resetArtifactSweepForTests(): void {
  */
 function sweepOldArtifacts(root: string): void {
   if (sweptRoots.has(root)) return;
+  while (sweptRoots.size >= MAX_SWEPT_ROOTS) {
+    const oldest = sweptRoots.values().next().value;
+    if (oldest === undefined) break;
+    sweptRoots.delete(oldest);
+  }
   sweptRoots.add(root);
   void (async () => {
     const cutoff = Date.now() - ARTIFACT_RETENTION_MS;

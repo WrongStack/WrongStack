@@ -199,7 +199,7 @@
       "relativeImports": 15
     },
     "packages/kanban/src/verification/verification-context.ts": {
-      "lines": 984,
+      "lines": 1022,
       "relativeImports": 1
     },
     "packages/mcp/src/authorization.ts": {
@@ -251,7 +251,7 @@
       "relativeImports": 15
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1312,
+      "lines": 1356,
       "relativeImports": 50
     },
     "packages/telegram/src/bot.ts": {
@@ -323,7 +323,7 @@
       "relativeImports": 2
     },
     "packages/tui/src/components/status-bar.tsx": {
-      "lines": 1109,
+      "lines": 1151,
       "relativeImports": 16
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
@@ -343,7 +343,7 @@
       "relativeImports": 1
     },
     "packages/webui/src/App.tsx": {
-      "lines": 951,
+      "lines": 982,
       "relativeImports": 46
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
@@ -359,7 +359,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1069,
+      "lines": 1148,
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
@@ -435,7 +435,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1083,
+      "lines": 1129,
       "relativeImports": 8
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -447,11 +447,11 @@
       "relativeImports": 10
     },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
-      "lines": 925,
+      "lines": 926,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
-      "lines": 937,
+      "lines": 940,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {

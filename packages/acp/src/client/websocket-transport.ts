@@ -85,6 +85,9 @@ export class WebSocketClientTransport implements ACPClientTransport {
         const pending = this.pendingStart;
         if (pending === null) return;
         this.pendingStart = null;
+        this.closed = true;
+        if (this.ws === ws) this.ws = null;
+        this.handlers.clear();
         try {
           ws.close();
         } catch {
@@ -105,10 +108,13 @@ export class WebSocketClientTransport implements ACPClientTransport {
         const pending = this.pendingStart;
         if (pending === null) {
           // Post-open errors just tear the connection down.
-          this.closed = true;
+          this.stop();
           return;
         }
         this.pendingStart = null;
+        this.closed = true;
+        if (this.ws === ws) this.ws = null;
+        this.handlers.clear();
         clearTimeout(pending.timer);
         const message =
           ev && typeof ev === 'object' && 'message' in ev
@@ -118,6 +124,8 @@ export class WebSocketClientTransport implements ACPClientTransport {
       });
       ws.addEventListener('close', () => {
         this.closed = true;
+        if (this.ws === ws) this.ws = null;
+        this.handlers.clear();
         const pending = this.pendingStart;
         if (pending !== null) {
           this.pendingStart = null;
@@ -158,6 +166,7 @@ export class WebSocketClientTransport implements ACPClientTransport {
 
   stop(): void {
     this.closed = true;
+    this.handlers.clear();
     // If start() is still pending, reject it now so the caller's await unblocks
     // instead of waiting up to `handshakeTimeoutMs` for the timer.
     if (this.pendingStart !== null) {

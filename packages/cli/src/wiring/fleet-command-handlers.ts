@@ -1,15 +1,17 @@
 /** Fleet slash-command adapters for the CLI command host. */
+import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { createInterface } from 'node:readline';
+import type { Director } from '@wrongstack/core/coordination';
+import { FLEET_ROSTER } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
+import { loadDirectorState } from '@wrongstack/core/storage';
 import { AgentError } from '@wrongstack/core/types';
 import { color, expectDefined } from '@wrongstack/core/utils';
-import type { Director } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { FLEET_ROSTER } from '@wrongstack/core/coordination';
-import { loadDirectorState } from '@wrongstack/core/storage';
 import type { MultiAgentHost } from '../multi-agent.js';
-import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 import { fmtTaskResultLine } from '../utils.js';
+import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type SlashCommandDeps = BuiltinSlashCommandDeps;
 export type FleetCommandHandlers = Pick<
@@ -281,6 +283,8 @@ interface Transcript {
   size: number;
 }
 
+const MAX_INLINE_RAW_TRANSCRIPT_BYTES = 2 * 1024 * 1024;
+
 async function readFleetLog(
   fleetRoot: string,
   subagentId: string | undefined,
@@ -314,8 +318,17 @@ async function readFleetLog(
     ].join('\n');
   }
   const transcript = expectDefined(matches[0]);
-  const raw = await fs.readFile(transcript.file, 'utf8');
-  return mode === 'raw' ? raw : summarizeTranscript(transcript, raw);
+  if (mode === 'raw') {
+    if (transcript.size > MAX_INLINE_RAW_TRANSCRIPT_BYTES) {
+      return [
+        `Transcript is ${(transcript.size / 1024 / 1024).toFixed(1)} MiB; refusing to load it into chat history.`,
+        `Read it directly from: ${transcript.file}`,
+        `Inline raw limit: ${MAX_INLINE_RAW_TRANSCRIPT_BYTES / 1024 / 1024} MiB.`,
+      ].join('\n');
+    }
+    return fs.readFile(transcript.file, 'utf8');
+  }
+  return summarizeTranscript(transcript);
 }
 
 async function findTranscripts(root: string): Promise<Transcript[] | null> {
@@ -358,30 +371,52 @@ async function findTranscripts(root: string): Promise<Transcript[] | null> {
   return byRun.flat();
 }
 
-function summarizeTranscript(transcript: Transcript, raw: string): string {
-  const lines = raw.split('\n').filter((line) => line.trim());
+async function summarizeTranscript(transcript: Transcript): Promise<string> {
   const counts: Record<string, number> = {};
   const tools = new Map<string, number>();
   let firstUser: string | null = null;
   let lastResponse: string | null = null;
   let iterations = 0;
-  for (const line of lines) {
+  let eventCount = 0;
+  let streamError: unknown;
+  const stream = createReadStream(transcript.file, { encoding: 'utf8' });
+  const lines = createInterface({ input: stream, crlfDelay: Infinity });
+  try {
     try {
-      const event = JSON.parse(line) as { type: string; content?: unknown; name?: string };
-      counts[event.type] = (counts[event.type] ?? 0) + 1;
-      if (event.type === 'user_input' && !firstUser) firstUser = eventText(event.content).slice(0, 120);
-      if (event.type === 'llm_response') {
-        const text = eventText(event.content);
-        if (text) lastResponse = text.slice(0, 240);
-        iterations++;
+      for await (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line) as { type: string; content?: unknown; name?: string };
+          eventCount++;
+          counts[event.type] = (counts[event.type] ?? 0) + 1;
+          if (event.type === 'user_input' && !firstUser)
+            firstUser = eventText(event.content).slice(0, 120);
+          if (event.type === 'llm_response') {
+            const text = eventText(event.content);
+            if (text) lastResponse = text.slice(0, 240);
+            iterations++;
+          }
+          if (event.type === 'tool_use' && event.name) {
+            tools.set(event.name, (tools.get(event.name) ?? 0) + 1);
+          }
+        } catch {
+          // Ignore malformed historical events.
+        }
       }
-      if (event.type === 'tool_use' && event.name) {
-        tools.set(event.name, (tools.get(event.name) ?? 0) + 1);
-      }
-    } catch {
-      // Ignore malformed historical events.
+    } catch (err) {
+      // Readline can reject mid-iteration (e.g. ERR_STREAM_PREMATURE_CLOSE
+      // when the underlying stream is destroyed, or a transient fs read
+      // error). Map those to a degraded summary instead of letting the
+      // rejection propagate as an unhandled async-iterator failure.
+      streamError = err;
     }
+  } finally {
+    lines.close();
+    stream.destroy();
   }
+  const degradedNote = streamError
+    ? color.dim(`  (summary truncated: ${(streamError as Error).message ?? 'stream error'})`)
+    : null;
   const breakdown =
     tools.size > 0
       ? [...tools.entries()]
@@ -391,9 +426,10 @@ function summarizeTranscript(transcript: Transcript, raw: string): string {
       : '(none)';
   const output = [
     color.bold(`Subagent ${transcript.subagentId}`) + color.dim(`  (run ${transcript.runId})`),
-    `  ${lines.length} events  ·  ${iterations} llm iterations  ·  ${(transcript.size / 1024).toFixed(1)} KB`,
+    `  ${eventCount} events  ·  ${iterations} llm iterations  ·  ${(transcript.size / 1024).toFixed(1)} KB`,
     `  tools: ${breakdown}`,
   ];
+  if (degradedNote) output.push(degradedNote);
   if (firstUser) output.push('', color.dim('  task:'), `  ${firstUser}`);
   if (lastResponse) output.push('', color.dim('  last response:'), `  ${lastResponse}`);
   output.push('', color.dim('  event mix:'));

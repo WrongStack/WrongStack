@@ -201,7 +201,12 @@ describe('file handlers integration', () => {
       // Verify file was written
       const content = fsSync.readFileSync(path.join(tempDir, 'new-file.txt'), 'utf8');
       expect(content).toBe('test content');
-      expect(onWritten).toHaveBeenCalledWith(path.join(tempDir, 'new-file.txt'));
+      // onWritten receives the realpath'd resolved path, which may differ
+      // from path.join on platforms with symlinked temp dirs (e.g. macOS).
+      // Verify it was called once with a path ending in the filename.
+      expect(onWritten).toHaveBeenCalledTimes(1);
+      const calledPath = onWritten.mock.calls[0][0] as string;
+      expect(calledPath).toMatch(/[\\/]new-file\.txt$/);
     });
 
     it('returns error for path traversal', async () => {
@@ -241,6 +246,25 @@ describe('file handlers integration', () => {
       const linkPath = path.join(projectDir, name);
       try {
         await fsPromises.symlink(outsideDir, linkPath, 'dir');
+        return linkPath;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EPERM' || (err as NodeJS.ErrnoException).code === 'ENOSYS') {
+          return null;
+        }
+        throw err;
+      }
+    }
+
+    // Create a file-type symlink at <projectDir>/<name> pointing at
+    // `targetFile`. Unlike `makeEscapeLink` (directory symlinks), this
+    // exercises the final path component: resolveFileInsideProject
+    // realpaths only the parent directory, so a file-level link is caught
+    // only if the implementation also canonicalizes the last component.
+    // Skips on platforms that disallow file symlinks.
+    async function makeEscapeFileLink(name: string, targetFile: string): Promise<string | null> {
+      const linkPath = path.join(projectDir, name);
+      try {
+        await fsPromises.symlink(targetFile, linkPath, 'file');
         return linkPath;
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'EPERM' || (err as NodeJS.ErrnoException).code === 'ENOSYS') {
@@ -291,6 +315,51 @@ describe('file handlers integration', () => {
       expect(response.payload.error).toBe('Forbidden');
       // The file must NOT have been created outside the project root.
       await expect(fsPromises.stat(path.join(outsideDir, 'pwned.txt'))).rejects.toThrow();
+    });
+
+    it('handleFilesRead refuses to read through a file-level symlink to outside', async () => {
+      // A file symlink (not a directory symlink) at the FINAL path
+      // component. The parent-directory realpath stays inside the project,
+      // so only a final-component lstat/realpath catches this escape.
+      const secret = path.join(outsideDir, 'secret.txt');
+      await fsPromises.writeFile(secret, 'TOP SECRET');
+      const link = await makeEscapeFileLink('evil-link.txt', secret);
+      if (!link) return;
+      const ws = createMockWs();
+
+      await handleFilesRead(
+        ws,
+        { type: 'files.read', payload: { filePath: 'evil-link.txt' } },
+        projectDir,
+      );
+
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as { payload: { content?: string; error?: string } };
+      expect(response.payload.error).toBe('Forbidden');
+      expect(response.payload.content).toBe('');
+      expect(JSON.stringify(ws.sent)).not.toContain('TOP SECRET');
+    });
+
+    it('handleFilesWrite refuses to write through a file-level symlink to outside', async () => {
+      const target = path.join(outsideDir, 'target.txt');
+      await fsPromises.writeFile(target, 'original');
+      const link = await makeEscapeFileLink('evil-link.txt', target);
+      if (!link) return;
+      const ws = createMockWs();
+
+      await handleFilesWrite(
+        ws,
+        { type: 'files.write', payload: { filePath: 'evil-link.txt', content: 'overwritten' } },
+        projectDir,
+      );
+
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as { payload: { success: boolean; error?: string } };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+      // The external file must NOT have been clobbered through the link.
+      const content = await fsPromises.readFile(target, 'utf8');
+      expect(content).toBe('original');
     });
 
     it('handleFilesTree skips in-project symlinked directories that escape the project', async () => {

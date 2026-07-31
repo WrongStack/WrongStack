@@ -11,21 +11,12 @@ import {
   type DesignStack,
   isDesignStack,
 } from '../types/design-kit.js';
+import { stripFrontmatter } from '../skills/frontmatter.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 
 const KIT_FILE = 'KIT.md';
 const TOKENS_FILE = 'tokens.json';
 const FOUNDATIONS_ID = '_foundations';
-
-/** Strip leading YAML frontmatter, returning the markdown body. */
-function stripFrontmatter(raw: string): string {
-  if (!raw.startsWith('---')) return raw;
-  const end = raw.indexOf('\n---', 4);
-  if (end === -1) return raw;
-  let body = raw.slice(end + 4);
-  if (body.startsWith('\n')) body = body.slice(1);
-  return body;
-}
 
 interface KitFrontmatter {
   id?: string;

@@ -10,17 +10,28 @@
 export interface ParsedSkillFrontmatter {
   name?: string | undefined;
   description?: string | undefined;
+  /**
+   * Optional explicit "Use when…" trigger (WrongStack extension). When present
+   * it is used verbatim as the skill's trigger in the available-skills list;
+   * otherwise the trigger falls back to the first sentence of `description`.
+   */
+  trigger?: string | undefined;
   /** WrongStack extension; informational only. */
   version?: string | undefined;
   license?: string | undefined;
   compatibility?: string | undefined;
   metadata?: Record<string, string> | undefined;
-  /** `allowed-tools` (spec, experimental) → split on whitespace. */
+  /**
+   * `allowed-tools` (agentskills.io spec, experimental) → split on whitespace.
+   * INFORMATIONAL ONLY: WrongStack parses and can surface this list but does NOT
+   * enforce it — the `skill` tool's permissions/capabilities are fixed and never
+   * consult this field, so it neither grants nor restricts any tool.
+   */
   allowedTools?: string[] | undefined;
 }
 
 /** Fields whose value is a single scalar string. */
-const SCALAR_KEYS = new Set(['name', 'description', 'version', 'license', 'compatibility']);
+const SCALAR_KEYS = new Set(['name', 'description', 'trigger', 'version', 'license', 'compatibility']);
 
 /**
  * Parse the YAML frontmatter block from a raw SKILL.md file. Returns `{}` when

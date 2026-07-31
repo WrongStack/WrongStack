@@ -1077,6 +1077,9 @@
     "emptyTitle": "A fila está vazia",
     "emptyBody": "Use os botões btw / steer / adicionar à fila ao lado da entrada para adicionar mensagens. Os itens na fila são enviados em ordem quando o run do agente termina.",
     "removeTitle": "Remover da fila",
+    "clearDispatchedTitle": "Limpar mensagens da fila — notas já enviadas não podem ser retractadas",
+    "dispatchedTitle": "Já enviado ao agente",
+    "dispatchedLabel": "Enviado",
     "footer": "As mensagens são enviadas em ordem de chegada quando o run do agente termina. Use a ordenação para ver as mais recentes primeiro."
   },
   "checkpoint": {

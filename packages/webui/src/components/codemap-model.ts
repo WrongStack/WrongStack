@@ -67,13 +67,27 @@ const Y_GAP = 52;
  * `activityMatchesNode` invokes it once per activity × node pair, so the
  * total call count can reach 10K+ per render for medium graphs.
  */
+const NORMALIZED_PATH_CACHE_MAX_ENTRIES = 4_096;
 const normalizedPathCache = new Map<string, string>();
 export function normalizedPath(filePath: string): string {
   const cached = normalizedPathCache.get(filePath);
   if (cached !== undefined) return cached;
   const normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '').toLocaleLowerCase();
+  while (normalizedPathCache.size >= NORMALIZED_PATH_CACHE_MAX_ENTRIES) {
+    const oldest = normalizedPathCache.keys().next().value;
+    if (oldest === undefined) break;
+    normalizedPathCache.delete(oldest);
+  }
   normalizedPathCache.set(filePath, normalized);
   return normalized;
+}
+
+export function _clearNormalizedPathCacheForTests(): void {
+  normalizedPathCache.clear();
+}
+
+export function _normalizedPathCacheSizeForTests(): number {
+  return normalizedPathCache.size;
 }
 
 export function scopeKey(scope: CodeMapScope): string {

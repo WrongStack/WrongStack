@@ -28,6 +28,8 @@ export interface EnvironmentSectionContext {
   skillMode: string | undefined;
 }
 
+const MAX_ENVIRONMENT_CACHE_ENTRIES = 16;
+
 export async function buildEnvironment(
   ctx: BuildContext,
   env: EnvironmentSectionContext,
@@ -43,7 +45,11 @@ export async function buildEnvironment(
     modelCapabilities?.supportsReasoning ? 1 : 0,
   ].join('\0');
   const cached = env.envCacheByRoot.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    env.envCacheByRoot.delete(cacheKey);
+    env.envCacheByRoot.set(cacheKey, cached);
+    return cached;
+  }
   const today = env.todayIso ?? new Date().toISOString().slice(0, 10);
   const platform = `${os.platform()} ${os.release()}`;
   // The bash tool's effective shell, pinned at boot via WRONGSTACK_SHELL.
@@ -142,5 +148,10 @@ export async function buildEnvironment(
   }
   const text = lines.join('\n');
   env.envCacheByRoot.set(cacheKey, text);
+  while (env.envCacheByRoot.size > MAX_ENVIRONMENT_CACHE_ENTRIES) {
+    const oldestKey = env.envCacheByRoot.keys().next().value;
+    if (oldestKey === undefined) break;
+    env.envCacheByRoot.delete(oldestKey);
+  }
   return text;
 }

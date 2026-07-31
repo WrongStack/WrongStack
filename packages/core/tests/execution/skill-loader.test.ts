@@ -150,4 +150,95 @@ describe('DefaultSkillLoader', () => {
     expect(beta!.trigger).toBe('short');
     expect(beta!.scope).toEqual([]);
   });
+
+  it('listEntries prefers an explicit frontmatter trigger over the heuristic', async () => {
+    // A skill with an explicit `trigger:` field alongside the heuristic-only fixtures.
+    await fs.mkdir(path.join(projectRoot, '.wrongstack', 'skills', 'explicit'), {
+      recursive: true,
+    });
+    await fs.writeFile(
+      path.join(projectRoot, '.wrongstack', 'skills', 'explicit', 'SKILL.md'),
+      '---\nname: explicit\ndescription: A description. With multiple sentences.\ntrigger: Use when you need the explicit thing\n---\nbody\n',
+    );
+    const paths = resolveWstackPaths({ projectRoot, globalRoot, userHome: tmp });
+    const loader = new DefaultSkillLoader({ paths });
+    const entries = await loader.listEntries();
+    // Explicit trigger wins over the first-sentence heuristic ("A description.").
+    const explicit = entries.find((e) => e.name === 'explicit');
+    expect(explicit!.trigger).toBe('Use when you need the explicit thing');
+    // Heuristic fallback still applies when no explicit trigger is declared.
+    expect(entries.find((e) => e.name === 'beta')!.trigger).toBe('short');
+  });
+
+  it('T3: reports malformed skills in diagnostics().skipped instead of silently dropping them', async () => {
+    // Exercise every skip reason alongside the base `malformed` fixture
+    // (no frontmatter → missing-name) created in beforeEach.
+    await fs.mkdir(path.join(profileSkills, 'no-desc'), { recursive: true });
+    await fs.writeFile(
+      path.join(profileSkills, 'no-desc', 'SKILL.md'),
+      '---\nname: no-desc\n---\nbody\n',
+    );
+    await fs.mkdir(path.join(profileSkills, 'bad-name'), { recursive: true });
+    await fs.writeFile(
+      path.join(profileSkills, 'bad-name', 'SKILL.md'),
+      '---\nname: Bad_Name\ndescription: d\n---\nbody\n',
+    );
+    const paths = resolveWstackPaths({ projectRoot, globalRoot, userHome: tmp });
+    const loader = new DefaultSkillLoader({ paths, bundledDir: bundled });
+    const list = await loader.list();
+    const diag = loader.diagnostics();
+
+    // None of the malformed skills appear in the usable list…
+    expect(list.find((s) => s.name === 'no-desc')).toBeUndefined();
+    expect(list.find((s) => s.name === 'Bad_Name')).toBeUndefined();
+    // …but each is reported with a precise, actionable reason.
+    expect(diag.skipped).toContainEqual(
+      expect.objectContaining({ entry: 'malformed', reason: 'missing-name' }),
+    );
+    expect(diag.skipped).toContainEqual(
+      expect.objectContaining({ entry: 'no-desc', reason: 'missing-description', name: 'no-desc' }),
+    );
+    expect(diag.skipped).toContainEqual(
+      expect.objectContaining({
+        entry: 'bad-name',
+        reason: 'invalid-name-format',
+        name: 'Bad_Name',
+      }),
+    );
+  });
+
+  it('T4: reports a bundled skill shadowed by a project skill in diagnostics().shadowed', async () => {
+    const paths = resolveWstackPaths({ projectRoot, globalRoot, userHome: tmp });
+    const loader = new DefaultSkillLoader({ paths, bundledDir: bundled });
+    const list = await loader.list();
+    const diag = loader.diagnostics();
+
+    // The project `alpha` wins; the bundled `alpha` is hidden, not lost.
+    expect(list.filter((s) => s.name === 'alpha')).toHaveLength(1);
+    expect(list.find((s) => s.name === 'alpha')?.source).toBe('project');
+    expect(diag.shadowed).toContainEqual(
+      expect.objectContaining({ name: 'alpha', source: 'bundled', shadowedBy: 'project' }),
+    );
+    // The shadow record points at both SKILL.md files for traceability.
+    const shadow = diag.shadowed.find((s) => s.name === 'alpha');
+    expect(shadow?.path).toContain(path.join('bundled', 'alpha'));
+    expect(shadow?.shadowedByPath).toContain(path.join('.wrongstack', 'skills', 'alpha'));
+  });
+
+  it('diagnostics() returns defensive copies and resets on invalidateCache', async () => {
+    const paths = resolveWstackPaths({ projectRoot, globalRoot, userHome: tmp });
+    const loader = new DefaultSkillLoader({ paths, bundledDir: bundled });
+    await loader.list();
+    const first = loader.diagnostics();
+    expect(first.shadowed.length).toBeGreaterThan(0);
+    // Mutating the returned copy must not corrupt internal state.
+    first.shadowed.length = 0;
+    first.skipped.length = 0;
+    expect(loader.diagnostics().shadowed.length).toBeGreaterThan(0);
+    // Invalidating clears diagnostics until the next scan repopulates them.
+    loader.invalidateCache();
+    expect(loader.diagnostics()).toEqual({ skipped: [], shadowed: [] });
+    await loader.list();
+    expect(loader.diagnostics().shadowed.length).toBeGreaterThan(0);
+  });
 });

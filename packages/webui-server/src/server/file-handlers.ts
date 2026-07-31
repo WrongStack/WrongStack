@@ -52,7 +52,45 @@ async function resolveFileInsideProject(
   if (!isPathInside(realProjectRoot, realFull)) {
     throw new ToolValidationError({ message: 'Path outside project root', field: 'path' });
   }
-  return realFull;
+  // The parent walk canonicalizes the directory chain but re-attaches the
+  // basename verbatim, so a symlink at the final component is NOT resolved
+  // by the check above — `fs.readFile`/`atomicWrite` would follow it and
+  // escape the project root. lstat the final component (lstat never follows
+  // symlinks); if it is a link, canonicalize its true target and re-verify
+  // containment. A dangling link cannot be verified, so it is rejected.
+  const realFinal = await canonicalizeFinalComponent(realFull);
+  if (!isPathInside(realProjectRoot, realFinal)) {
+    throw new ToolValidationError({ message: 'Path outside project root', field: 'path' });
+  }
+  return realFinal;
+}
+
+/**
+ * Canonicalize the final path component when it is a symlink. `lstat` does
+ * not follow symlinks, so this detects a link at the target itself without
+ * traversing it. A regular file or a missing path (a write target that does
+ * not exist yet) is returned unchanged. A symlink is resolved with
+ * `realpath` so the caller can re-check containment against its true target;
+ * a dangling symlink (realpath ENOENT) cannot be verified and is rejected
+ * conservatively rather than followed.
+ */
+async function canonicalizeFinalComponent(p: string): Promise<string> {
+  let stat: import('node:fs').Stats;
+  try {
+    stat = await fs.lstat(p);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return p;
+    throw err;
+  }
+  if (!stat.isSymbolicLink()) return p;
+  try {
+    return await fs.realpath(p);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new ToolValidationError({ message: 'Path outside project root', field: 'path' });
+    }
+    throw err;
+  }
 }
 
 function splitParentAndBase(p: string): { parent: string; base: string } {

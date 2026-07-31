@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useAppTranslation } from '@/i18n';
 import { useUIStore } from '@/stores';
+import type { QueueMode, QueuedItem } from '@/stores/chat-store';
 import type { RefineDecision } from '../RefinePanel.js';
 import { RefinePanel } from '../RefinePanel.js';
 import { ModelPickDialog } from '../ModelPickDialog.js';
@@ -29,6 +30,13 @@ export interface ChatInputRefinePanelHostProps {
   addUserMessage: (content: string) => void;
   setLoading: (loading: boolean) => void;
   sendMessage: (text: string) => void;
+  /** True while a run is in flight. Used to tell the mid-run (pre-queue)
+   *  refinement path — which carries a preserved submit mode — apart from the
+   *  idle path that sends directly. */
+  isLoading: boolean;
+  /** Enqueue the approved text with its preserved mode so the run.result
+   *  drain dispatches it (btw → mailbox injection, queue → regular send). */
+  enqueue: (text: string, mode?: QueueMode, images?: QueuedItem['images']) => void;
   setInput: React.Dispatch<React.SetStateAction<string>>;
   resolveCancelInput: (prev: string, original: string) => string;
   notConnectedDraftKept: () => void;
@@ -43,6 +51,8 @@ export function ChatInputRefinePanelHost({
   addUserMessage,
   setLoading,
   sendMessage,
+  isLoading,
+  enqueue,
   setInput,
   resolveCancelInput,
   notConnectedDraftKept,
@@ -92,7 +102,22 @@ export function ChatInputRefinePanelHost({
       return;
     }
 
+    const preservedMode = refinePanel.mode;
+    const preservedImages = refinePanel.images;
     setRefinePanel(null);
+
+    // Mid-run refinement (the pre-queue path in misc-handlers) carries the
+    // submit mode that was active when the user typed. Preserve it: enqueue
+    // with that mode so the run.result drain dispatches it correctly (btw →
+    // mailbox injection without starting a new run; queue → regular send
+    // after the current run). Mirrors ChatInput.submitWith's mustEnqueue
+    // path. If the run finished while the panel was open (!isLoading), fall
+    // through to a direct send below.
+    if (preservedMode !== undefined && isLoading) {
+      enqueue(text, preservedMode, preservedImages);
+      return;
+    }
+
     if (clientConnected) {
       addUserMessage(text);
       setLoading(true);

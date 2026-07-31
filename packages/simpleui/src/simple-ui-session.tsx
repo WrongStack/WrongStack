@@ -76,27 +76,27 @@ import type {
   ToolCallInfo,
 } from './types.js';
 
-function compactTokens(value: number): string {
+export function compactTokens(value: number): string {
   if (!value) return '0';
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 100_000 ? 0 : 1)}k`;
   return Math.round(value).toString();
 }
 
-function messageId(prefix: string): string {
+export function messageId(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 }
 
-function payloadText(payload: Record<string, unknown> | undefined, key: string): string {
+export function payloadText(payload: Record<string, unknown> | undefined, key: string): string {
   const value = payload?.[key];
   return typeof value === 'string' ? value : '';
 }
 
-function payloadSucceeded(payload: Record<string, unknown> | undefined): boolean {
+export function payloadSucceeded(payload: Record<string, unknown> | undefined): boolean {
   return payload?.['success'] === true;
 }
 
-function isIncomingMailboxPayload(payload: Record<string, unknown> | undefined): boolean {
+export function isIncomingMailboxPayload(payload: Record<string, unknown> | undefined): boolean {
   return isUnreadIncomingMailboxMessage({
     completed: false,
     readByCount: 0,

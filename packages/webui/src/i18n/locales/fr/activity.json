@@ -1077,6 +1077,9 @@
     "emptyTitle": "La file est vide",
     "emptyBody": "Utilisez les boutons btw / steer / ajouter à la file à côté de l'entrée pour ajouter des messages. Les éléments en file sont envoyés dans l'ordre à la fin du run de l'agent.",
     "removeTitle": "Retirer de la file",
+    "clearDispatchedTitle": "Effacer les messages en file — les notes déjà envoyées ne peuvent pas être rétractées",
+    "dispatchedTitle": "Déjà envoyé à l'agent",
+    "dispatchedLabel": "Envoyé",
     "footer": "Les messages sont envoyés dans l'ordre d'arrivée à la fin du run de l'agent. Utilisez le tri pour voir les plus récents d'abord."
   },
   "checkpoint": {
