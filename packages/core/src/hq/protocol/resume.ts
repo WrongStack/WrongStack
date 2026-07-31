@@ -14,7 +14,7 @@
  * @module hq/protocol/resume
  */
 
-import type { HqEventEnvelope } from './core.js';
+import type { HqEventEnvelope } from './envelope.js';
 
 /** Maximum envelopes per `hq.resume_gap` reply. */
 export const HQ_RESUME_GAP_MAX_ENVELOPES = 1000;

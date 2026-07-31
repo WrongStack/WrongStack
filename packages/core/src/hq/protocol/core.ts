@@ -47,10 +47,15 @@ import type {
   HqToolCompletedPayload,
   HqToolStartedPayload,
 } from './tool.js';
+import {
+  HQ_PROTOCOL_VERSION,
+  type HqEventEnvelope,
+  type HqEventType,
+  type HqProtocolVersion,
+} from './envelope.js';
 
-export const HQ_PROTOCOL_VERSION = 1 as const;
-
-export type HqProtocolVersion = typeof HQ_PROTOCOL_VERSION;
+export { HQ_PROTOCOL_VERSION };
+export type { HqEventEnvelope, HqEventType, HqProtocolVersion };
 
 export interface HqWelcomePayload {
   type: 'hq.welcome';
@@ -59,46 +64,6 @@ export interface HqWelcomePayload {
   acceptedCapabilities: readonly HqClientCapability[];
   redactionPolicy: HqRedactionPolicy;
 }
-
-export interface HqEventEnvelope<TPayload = unknown> {
-  id: string;
-  type: HqEventType | (string & {});
-  schemaVersion: HqProtocolVersion;
-  timestamp: string;
-  clientId: string;
-  projectId: string;
-  sessionId?: string;
-  runId?: string;
-  seq: number;
-  payload: TPayload;
-}
-
-export type HqEventType =
-  | 'client.hello'
-  | 'client.heartbeat'
-  | 'session.started'
-  | 'session.status'
-  | 'session.usage'
-  | 'tool.started'
-  | 'tool.completed'
-  | 'fleet.snapshot'
-  | 'fleet.event'
-  | 'mailbox.snapshot'
-  | 'mailbox.event'
-  | 'kanban.snapshot'
-  | 'worklist.snapshot'
-  | 'git.snapshot'
-  | 'agent.message'
-  | 'agent.status'
-  | 'session.snapshot'
-  | 'session.transcript'
-  | 'session.ended'
-  | 'brain.event'
-  | 'worktree.event'
-  | 'mcp.health.snapshot'
-  | 'mcp.operation'
-  | 'peer.rehydrate'
-  | 'peer.lost';
 
 export interface HqUsagePayload {
   inputTokens?: number;
