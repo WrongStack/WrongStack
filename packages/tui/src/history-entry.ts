@@ -66,7 +66,20 @@ export type HistoryEntry =
       queued?: boolean | undefined;
       pasteContent?: string | undefined;
     }
-  | { id: number; kind: 'assistant'; text: string }
+  | {
+      id: number;
+      kind: 'assistant';
+      text: string;
+      /**
+       * Whether this is the final assistant message of its turn — i.e. the
+       * provider response stopped without asking for another tool. Only final
+       * messages may surface a `<nextsteps>` panel or write the suggestion
+       * store; mid-turn prose keeps its block stripped but silent. Every
+       * construction site sets this explicitly, so an entry that arrives
+       * without it renders no suggestions rather than leaking mid-turn ones.
+       */
+      final?: boolean | undefined;
+    }
   | { id: number; kind: 'thinking'; text: string }
   | {
       id: number;

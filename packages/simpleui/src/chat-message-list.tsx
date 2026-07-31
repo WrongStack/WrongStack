@@ -11,7 +11,6 @@ interface ChatMessageListProps {
   messages: ChatMessage[];
   /** File edits to show as inline widgets in the chat timeline. */
   fileEdits?: Array<{ edit: FileEditMeta; ts?: string | undefined }> | undefined;
-  latestAssistantId: string | undefined;
   copiedMessageId: string | null;
   running: boolean;
   activity: string;
@@ -29,7 +28,6 @@ interface ChatMessageListProps {
 
 interface MessageItemProps {
   message: ChatMessage;
-  isLatestAssistant: boolean;
   copiedMessageId: string | null;
   theme: 'dark' | 'light';
   onCopyMessage: (id: string, text: string) => void;
@@ -44,7 +42,6 @@ function codeTheme(theme: 'dark' | 'light'): string {
 
 const MessageItem = memo(function MessageItem({
   message,
-  isLatestAssistant,
   copiedMessageId,
   theme,
   onCopyMessage,
@@ -62,8 +59,13 @@ const MessageItem = memo(function MessageItem({
         : { text: message.text, nextSteps: [] },
     [message.role, message.text],
   );
+  // Suggestions come only from the final message of a turn — `message.final`
+  // is set from the provider's stop reason (and from the message's blocks on
+  // replay), so prose the model wrote on its way to a tool call stays silent.
+  // The block is stripped from `projection.text` either way; only the panel
+  // is gated.
   const nextSteps =
-    isLatestAssistant && !message.streaming && !consumedNextSteps.has(message.id)
+    message.final === true && !message.streaming && !consumedNextSteps.has(message.id)
       ? projection.nextSteps
       : [];
 
@@ -164,7 +166,6 @@ const MessageItem = memo(function MessageItem({
 export function ChatMessageList({
   messages,
   fileEdits,
-  latestAssistantId,
   copiedMessageId,
   running,
   activity,
@@ -210,7 +211,6 @@ export function ChatMessageList({
             <MessageItem
               key={entry.message.id}
               message={entry.message}
-              isLatestAssistant={entry.message.id === latestAssistantId}
               copiedMessageId={copiedMessageId}
               theme={theme}
               onCopyMessage={onCopyMessage}

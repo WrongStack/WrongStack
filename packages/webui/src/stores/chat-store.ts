@@ -2,8 +2,8 @@ import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ChatMessage } from './types.js';
 import { safeId } from '@/lib/utils';
+import type { ChatMessage } from './types.js';
 
 /**
  * Strip immediately-repeated paragraphs/lines from an assistant reply.
@@ -47,6 +47,110 @@ function dedupeRepeatedBlocks(text: string): string {
  * messages can be tens of KB each).
  */
 const MAX_CHAT_MESSAGES = 1000;
+export const MAX_CHAT_RETAINED_BYTES = 48 * 1024 * 1024;
+export const MAX_CHAT_FIELD_CHARS = 2 * 1024 * 1024;
+
+interface ChatRetentionBudget {
+  maxMessages?: number;
+  maxBytes?: number;
+  maxFieldChars?: number;
+}
+
+export function boundChatField(text: string, maxChars = MAX_CHAT_FIELD_CHARS): string {
+  if (text.length <= maxChars) return text;
+  const marker = '\n\n… [older streamed text omitted to protect memory] …\n\n';
+  if (maxChars <= marker.length) {
+    const head = Math.ceil(maxChars / 2);
+    return text.slice(0, head) + text.slice(text.length - (maxChars - head));
+  }
+  const available = maxChars - marker.length;
+  const head = Math.ceil(available / 2);
+  return text.slice(0, head) + marker + text.slice(text.length - (available - head));
+}
+
+function estimateUnknownBytes(value: unknown): number {
+  if (value === undefined) return 0;
+  try {
+    return JSON.stringify(value).length * 2;
+  } catch {
+    return MAX_CHAT_FIELD_CHARS * 2;
+  }
+}
+
+function normalizeRetainedMessage(message: ChatMessage, maxFieldChars: number): ChatMessage {
+  const content = boundChatField(message.content, maxFieldChars);
+  const toolResult =
+    message.toolResult === undefined
+      ? undefined
+      : boundChatField(message.toolResult, maxFieldChars);
+  const thinkingLog = message.thinkingLog
+    ? { ...message.thinkingLog, text: boundChatField(message.thinkingLog.text, maxFieldChars) }
+    : undefined;
+  const toolInput =
+    estimateUnknownBytes(message.toolInput) > maxFieldChars * 2
+      ? '[tool input omitted from live transcript to protect memory]'
+      : message.toolInput;
+  if (
+    content === message.content &&
+    toolResult === message.toolResult &&
+    thinkingLog?.text === message.thinkingLog?.text &&
+    toolInput === message.toolInput
+  ) {
+    return message;
+  }
+  return {
+    ...message,
+    content,
+    ...(toolResult !== undefined ? { toolResult } : {}),
+    ...(thinkingLog ? { thinkingLog } : {}),
+    ...(toolInput !== undefined ? { toolInput } : {}),
+  };
+}
+
+function retainedChatMessageBytes(message: ChatMessage): number {
+  let bytes =
+    384 +
+    message.content.length * 2 +
+    (message.toolResult?.length ?? 0) * 2 +
+    (message.thinkingLog?.text.length ?? 0) * 2 +
+    estimateUnknownBytes(message.toolInput);
+  for (const attachment of message.attachments ?? []) {
+    bytes += (attachment.dataUrl?.length ?? 0) * 2 + 192;
+  }
+  for (const line of message.sageLines ?? []) bytes += line.length * 2;
+  for (const line of message.progressLines ?? []) bytes += line.length * 2;
+  return bytes;
+}
+
+/** Count limits alone do not protect against giant tool/replay/vision rows. */
+export function retainWebChatMessages(
+  messages: readonly ChatMessage[],
+  budget: ChatRetentionBudget = {},
+): ChatMessage[] {
+  const maxMessages = Math.max(1, Math.floor(budget.maxMessages ?? MAX_CHAT_MESSAGES));
+  const maxBytes = Math.max(1, Math.floor(budget.maxBytes ?? MAX_CHAT_RETAINED_BYTES));
+  const maxFieldChars = Math.max(1, Math.floor(budget.maxFieldChars ?? MAX_CHAT_FIELD_CHARS));
+  const retained: ChatMessage[] = [];
+  let bytes = 0;
+
+  for (let index = messages.length - 1; index >= 0 && retained.length < maxMessages; index -= 1) {
+    let message = normalizeRetainedMessage(messages[index]!, maxFieldChars);
+    let messageBytes = retainedChatMessageBytes(message);
+    if (messageBytes > maxBytes && message.attachments?.some((item) => item.dataUrl)) {
+      message = {
+        ...message,
+        attachments: message.attachments.map((item) => ({ ...item, dataUrl: undefined })),
+      };
+      messageBytes = retainedChatMessageBytes(message);
+    }
+    if (retained.length > 0 && bytes + messageBytes > maxBytes) break;
+    retained.push(message);
+    bytes += messageBytes;
+  }
+
+  retained.reverse();
+  return retained;
+}
 
 function indexToolMessages(messages: readonly ChatMessage[]): Map<string, string> {
   const index = new Map<string, string>();
@@ -134,7 +238,11 @@ interface ChatState {
   setMessages: (messages: ChatMessage[]) => void;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
   appendToMessage: (id: string, text: string) => void;
-  finalizeMessage: (id: string) => void;
+  /** `opts.final` — whether this finalize ends the turn. Pass `false` when the
+   *  message is being closed because a tool call follows: the `<nextsteps>`
+   *  block is still stripped from the body, but the parsed steps are not
+   *  persisted, so no suggestion bar appears mid-turn. Defaults to `true`. */
+  finalizeMessage: (id: string, opts?: { final?: boolean }) => void;
   setToolResult: (id: string, result: string, ok: boolean) => void;
   appendToolProgress: (id: string, line: string) => void;
   appendToolProgressLines: (id: string, lines: string[]) => void;
@@ -157,7 +265,10 @@ interface ChatState {
   removeQueued: (idx: number) => void;
   clearQueue: () => void;
   setRefining: (v: boolean) => void;
-  setPendingRefinement: (text: string | null, images?: Array<{ data: string; mime: string }>) => void;
+  setPendingRefinement: (
+    text: string | null,
+    images?: Array<{ data: string; mime: string }>,
+  ) => void;
   removeMessage: (id: string) => void;
   updateLastUserMessage: (text: string) => void;
   setRunStart: (s: { at: number; cost: number } | null) => void;
@@ -212,15 +323,7 @@ export const useChatStore = create<ChatState>()(
           // available via session-resume from the server). The corresponding
           // `toolMessageIdsByUseId` and `executions` entries are pruned below
           // so the secondary indexes cannot outlive the messages they point at.
-          let messages: ChatMessage[];
-          if (state.messages.length >= MAX_CHAT_MESSAGES) {
-            messages = [
-              ...state.messages.slice(state.messages.length - MAX_CHAT_MESSAGES + 1),
-              fullMsg,
-            ];
-          } else {
-            messages = [...state.messages, fullMsg];
-          }
+          const messages = retainWebChatMessages([...state.messages, fullMsg]);
           const toolMessageIdsByUseId = indexToolMessages(messages);
           let executions: Map<string, ToolExecution> = state.executions;
           if (executions.size > 0) {
@@ -255,12 +358,13 @@ export const useChatStore = create<ChatState>()(
       },
 
       setMessages: (messages) => {
+        const retainedMessages = retainWebChatMessages(messages);
         set({
-          messages,
+          messages: retainedMessages,
           currentAssistantMessageId: null,
           currentToolId: null,
           executions: new Map(),
-          toolMessageIdsByUseId: indexToolMessages(messages),
+          toolMessageIdsByUseId: indexToolMessages(retainedMessages),
           thinkingBuffer: '',
           thinkingStartedAt: null,
           thinkingLogBuffer: '',
@@ -284,12 +388,17 @@ export const useChatStore = create<ChatState>()(
       appendToMessage: (id, text) => {
         set((state) => ({
           messages: state.messages.map((m) =>
-            m.id === id ? { ...m, content: m.content + text } : m,
+            m.id === id ? { ...m, content: boundChatField(m.content + text) } : m,
           ),
         }));
       },
 
-      finalizeMessage: (id) => {
+      finalizeMessage: (id, opts) => {
+        // Mid-turn finalize (a tool call follows): strip the block, but do not
+        // persist the steps. Suggestions belong to the turn's final answer —
+        // surfacing them between tool calls would let the bar and auto-submit
+        // pivot away from work that is still in flight.
+        const final = opts?.final !== false;
         set((state) => ({
           messages: state.messages.map((m) => {
             if (m.id !== id) return m;
@@ -306,7 +415,7 @@ export const useChatStore = create<ChatState>()(
             }
             const parsed = parseNextSteps(m.content);
             const nextSteps =
-              parsed.steps.length > 0 ? { steps: parsed.steps } : undefined;
+              final && parsed.steps.length > 0 ? { steps: parsed.steps } : undefined;
             return {
               ...m,
               content: dedupeRepeatedBlocks(parsed.stripped),
@@ -320,7 +429,14 @@ export const useChatStore = create<ChatState>()(
       setToolResult: (id, result, ok) => {
         set((state) => ({
           messages: state.messages.map((m) =>
-            m.id === id ? { ...m, toolResult: result, isError: !ok, progressLines: undefined } : m,
+            m.id === id
+              ? {
+                  ...m,
+                  toolResult: boundChatField(result),
+                  isError: !ok,
+                  progressLines: undefined,
+                }
+              : m,
           ),
         }));
       },
@@ -455,9 +571,9 @@ export const useChatStore = create<ChatState>()(
       setRunStart: (s) => set({ runStart: s }),
       appendThinking: (text) =>
         set((state) => ({
-          thinkingBuffer: state.thinkingBuffer + text,
+          thinkingBuffer: boundChatField(state.thinkingBuffer + text),
           thinkingStartedAt: state.thinkingStartedAt ?? Date.now(),
-          thinkingLogBuffer: state.thinkingLogBuffer + text,
+          thinkingLogBuffer: boundChatField(state.thinkingLogBuffer + text),
           thinkingLogStartedAt: state.thinkingLogStartedAt ?? Date.now(),
         })),
       clearThinking: () => set({ thinkingBuffer: '', thinkingStartedAt: null }),
@@ -482,7 +598,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'wrongstack-chat',
-      version: 1,
+      version: 2,
       // Persist enough to recreate the visible transcript after F5.
       //
       //   messages         — the full user/assistant/tool/transcript.
@@ -515,7 +631,7 @@ export const useChatStore = create<ChatState>()(
         thinkingLogBuffer: s.thinkingLogBuffer,
       }),
       migrate: (persisted, version) => {
-        if (version > 1) {
+        if (version > 2) {
           // Future shape; drop and start clean.
           return null as never as {
             messages: ChatState['messages'];
@@ -534,7 +650,7 @@ export const useChatStore = create<ChatState>()(
         const safeMessages = Array.isArray(p.messages) ? p.messages : [];
         const safeQueue = Array.isArray(p.queue) ? p.queue : [];
         return {
-          messages: safeMessages as ChatState['messages'],
+          messages: retainWebChatMessages(safeMessages as ChatState['messages']),
           queue: safeQueue as ChatState['queue'],
           boundSessionId: typeof p.boundSessionId === 'string' ? p.boundSessionId : null,
           thinkingLogBuffer: typeof p.thinkingLogBuffer === 'string' ? p.thinkingLogBuffer : '',

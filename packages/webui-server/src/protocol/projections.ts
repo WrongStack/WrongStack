@@ -70,7 +70,9 @@ export function projectSessionMessage(message: ProtocolEnvelope): SessionProject
 export type ChatProjection =
   | { kind: 'thinking-delta'; text: string }
   | { kind: 'text-delta'; text: string; messageId: string }
-  | { kind: 'response'; content: unknown }
+  /** `stopReason` distinguishes the turn's final response from a mid-turn one
+   *  that stopped to call a tool — surfaces gate `<nextsteps>` on it. */
+  | { kind: 'response'; content: unknown; stopReason: string }
   | { kind: 'run-result'; status: string; iterations: number; finalText?: string | undefined }
   | { kind: 'error'; message: string };
 
@@ -89,7 +91,11 @@ export function projectChatMessage(message: ProtocolEnvelope): ChatProjection | 
         : null;
     }
     case 'provider.response':
-      return { kind: 'response', content: payload['content'] };
+      return {
+        kind: 'response',
+        content: payload['content'],
+        stopReason: text(payload['stopReason']),
+      };
     case 'run.result':
       return {
         kind: 'run-result',

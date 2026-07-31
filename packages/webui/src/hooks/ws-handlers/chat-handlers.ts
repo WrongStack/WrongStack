@@ -94,7 +94,9 @@ export function handleToolStarted(msg: WSServerMessage) {
   streamCoalescer.flushAll();
   useChatStore.getState().clearThinking();
   const assistantId = useChatStore.getState().currentAssistantMessageId;
-  if (assistantId) useChatStore.getState().finalizeMessage(assistantId);
+  // A tool bubble follows, so this assistant text is mid-turn: strip its
+  // <nextsteps> block but do not persist the steps.
+  if (assistantId) useChatStore.getState().finalizeMessage(assistantId, { final: false });
   useChatStore.getState().setCurrentAssistantMessage(null);
   const id = useChatStore.getState().addMessage({
     role: 'tool',
@@ -230,7 +232,9 @@ export function handleRunResult(msg: WSServerMessage) {
         ? streamed.content
         : (finalText ?? streamed?.content ?? ''),
     });
-    useChatStore.getState().finalizeMessage(streamingId);
+    // The run is over — this is the turn's final answer, so its suggestions
+    // are the ones the user should see.
+    useChatStore.getState().finalizeMessage(streamingId, { final: true });
   } else if (finalText) {
     // Defensive fallback: a run may complete with finalText even if the live
     // text_delta/provider.response path failed to create a visible assistant
@@ -257,7 +261,7 @@ export function handleRunResult(msg: WSServerMessage) {
       const messageId = useChatStore
         .getState()
         .addMessage({ role: 'assistant', content: finalText });
-      useChatStore.getState().finalizeMessage(messageId);
+      useChatStore.getState().finalizeMessage(messageId, { final: true });
     }
   }
   useChatStore.getState().setCurrentAssistantMessage(null);

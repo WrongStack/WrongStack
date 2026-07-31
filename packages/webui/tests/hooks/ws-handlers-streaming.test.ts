@@ -275,6 +275,59 @@ describe('streaming pipeline: text_delta → coalescer → chat-store', () => {
     ]);
   });
 
+  it('does not persist next steps from a mid-turn provider response', () => {
+    // stopReason 'tool_use' means the agent loop runs again — the suggestions
+    // in this text are prose written on the way to a tool call, not the
+    // turn's answer. The block is still stripped from the body.
+    handleProviderResponse({
+      type: 'provider.response',
+      payload: {
+        sessionId: 'sess_stream',
+        content: [
+          {
+            type: 'text',
+            text: 'Let me check that.\n\n<nextsteps>\n1. Premature suggestion\n</nextsteps>',
+          },
+          { type: 'tool_use', id: 'toolu_mid', name: 'read', input: { path: 'src/c.ts' } },
+        ],
+        usage: { input: 9, output: 6, cacheRead: 0, cacheWrite: 0 },
+        stopReason: 'tool_use',
+        messageId: 'current',
+      },
+    } as unknown as WSServerMessage);
+
+    const messages = useChatStore.getState().messages;
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.nextSteps).toBeUndefined();
+    expect(messages[0]?.content).not.toContain('<nextsteps>');
+    expect(messages[0]?.content).not.toContain('Premature suggestion');
+    expect(messages[0]?.content).toContain('Let me check that.');
+  });
+
+  it('does not persist next steps written just before a tool bubble', async () => {
+    handleTextDelta(
+      delta('msg_mid_tool', 'On it.\n\n<nextsteps>\n1. Premature suggestion\n</nextsteps>'),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+
+    handleToolStarted({
+      type: 'tool.started',
+      payload: {
+        sessionId: 'sess_stream',
+        id: 'toolu_mid2',
+        name: 'read',
+        input: { path: 'src/d.ts' },
+        messageId: 'tool_toolu_mid2',
+      },
+    } as unknown as WSServerMessage);
+
+    const messages = useChatStore.getState().messages;
+    expect(messages[0]?.nextSteps).toBeUndefined();
+    expect(messages[0]?.content).not.toContain('<nextsteps>');
+    expect(messages[0]?.content).toContain('On it.');
+  });
+
   it('falls back to run.result finalText when no streamed assistant message exists', () => {
     handleRunResult({
       type: 'run.result',

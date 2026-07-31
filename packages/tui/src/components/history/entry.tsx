@@ -197,6 +197,16 @@ export const Entry = React.memo(function Entry({
   // about whether suggestions are available.
   const openTodos = hasOpenTodos(todos);
 
+  // Whether this entry is the final assistant message of its turn. Mid-turn
+  // prose — text the model wrote on its way to a tool call — keeps its
+  // `<nextsteps>` block stripped from the body but never surfaces a panel or
+  // writes the suggestion store; offering suggestions while the turn is still
+  // in flight lets `/next` and auto-submit pivot away from unfinished work.
+  // Every construction site sets the flag, so an entry without it (an older
+  // persisted shape, a path we missed) shows no suggestions rather than
+  // silently leaking mid-turn ones.
+  const isFinalTurnEntry = entry.kind === 'assistant' && entry.final === true;
+
   // Parse next steps from assistant text — computed once, used only in
   // the assistant case. Must live at the top level (hooks rules).
   // Always parse (even when todos are open) so `stripped` is available and
@@ -219,11 +229,18 @@ export const Entry = React.memo(function Entry({
     if (!setSuggestions) return;
     if (entry.kind !== 'assistant') return;
     if (openTodos) return;
+    if (!isFinalTurnEntry) return;
     const text = (entry as never as { text?: string }).text ?? '';
     const { texts } = parseNextSteps(text, true);
     if (texts.length > 0) setSuggestions(texts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.kind, (entry as never as { text?: string }).text, openTodos, setSuggestions]);
+  }, [
+    entry.kind,
+    (entry as never as { text?: string }).text,
+    openTodos,
+    isFinalTurnEntry,
+    setSuggestions,
+  ]);
 
   switch (entry.kind) {
     case 'user':
@@ -286,9 +303,10 @@ export const Entry = React.memo(function Entry({
     case 'assistant': {
       const contentWidth = assistantContentWidth(termWidth);
       const { steps, stripped } = nextSteps;
-      // Panel only when there are steps AND no open todos (the latter mirrors
-      // the host callback — suggestions are suppressed mid-task).
-      const hasNext = steps.length > 0 && !openTodos;
+      // Panel only when there are steps, no open todos (mirrors the host
+      // callback — suggestions are suppressed mid-task), and this is the
+      // turn's final message (mid-turn prose never offers suggestions).
+      const hasNext = steps.length > 0 && !openTodos && isFinalTurnEntry;
       return (
         <Box flexDirection="column">
           <Box

@@ -85,9 +85,13 @@ export function rehydrateHistory(
     outputTokens: tc.outputTokens,
     outputLines: tc.outputLines,
   });
-  const pushAssistantText = (parts: string[]) => {
+  // `final` marks the last assistant message of a turn — the only kind allowed
+  // to surface a `<nextsteps>` panel on resume. A message carrying a tool_use
+  // block stopped for a tool call, so every text part it holds (before or
+  // after the block) is mid-turn prose.
+  const pushAssistantText = (parts: string[], final: boolean) => {
     const text = parts.join('').trim();
-    if (text) entries.push({ id: nextId++, kind: 'assistant', text });
+    if (text) entries.push({ id: nextId++, kind: 'assistant', text, final });
     parts.length = 0;
   };
 
@@ -106,25 +110,29 @@ export function rehydrateHistory(
       // that tool on resume, which is the same class of bug as sorting messages
       // by role instead of by timeline.
       if (!Array.isArray(msg.content)) {
+        // String content cannot carry a tool_use block, so it always ended
+        // its turn.
         const text = textOf(msg).trim();
-        if (text) entries.push({ id: nextId++, kind: 'assistant', text });
+        if (text) entries.push({ id: nextId++, kind: 'assistant', text, final: true });
         continue;
       }
 
+      const blocks = msg.content as ContentBlock[];
+      const final = !blocks.some((block) => block.type === 'tool_use');
       const textParts: string[] = [];
-      for (const block of msg.content as ContentBlock[]) {
+      for (const block of blocks) {
         if (block.type === 'text') {
           textParts.push(block.text);
           continue;
         }
         if (block.type !== 'tool_use') continue;
-        pushAssistantText(textParts);
+        pushAssistantText(textParts, final);
         const tc = toolCallsById.get(block.id);
         if (!tc) continue;
         entries.push(toolEntryFor(tc));
         consumed.add(block.id);
       }
-      pushAssistantText(textParts);
+      pushAssistantText(textParts, final);
     }
   }
 

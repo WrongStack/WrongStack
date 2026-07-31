@@ -1,5 +1,71 @@
 import type { ChatMessage, SimpleSubagent } from '../types.js';
 
+export const SIMPLE_CHAT_MAX_MESSAGES = 600;
+export const SIMPLE_CHAT_MAX_RETAINED_BYTES = 32 * 1024 * 1024;
+export const SIMPLE_CHAT_MAX_TEXT_CHARS = 2 * 1024 * 1024;
+
+interface SimpleChatRetentionBudget {
+  maxMessages?: number;
+  maxBytes?: number;
+  maxTextChars?: number;
+}
+
+/** Keep both ends of pathological provider output while bounding its heap. */
+export function boundSimpleChatText(text: string, maxChars = SIMPLE_CHAT_MAX_TEXT_CHARS): string {
+  if (text.length <= maxChars) return text;
+  const marker = '\n\n… [older streamed text omitted to protect memory] …\n\n';
+  if (maxChars <= marker.length) {
+    const head = Math.ceil(maxChars / 2);
+    return text.slice(0, head) + text.slice(text.length - (maxChars - head));
+  }
+  const available = Math.max(0, maxChars - marker.length);
+  const head = Math.ceil(available / 2);
+  return text.slice(0, head) + marker + text.slice(text.length - (available - head));
+}
+
+function retainedMessageBytes(message: ChatMessage): number {
+  let bytes = message.text.length * 2 + 256;
+  for (const image of message.images ?? []) {
+    bytes += image.data.length * 2 + image.mime.length * 2 + 64;
+  }
+  return bytes;
+}
+
+/**
+ * Bound the visible transcript by both count and approximate UTF-16 heap
+ * bytes. A count-only cap still permits a few giant replay/vision rows to pin
+ * hundreds of MB. The persisted session remains the complete source of truth.
+ */
+export function retainSimpleChatMessages(
+  messages: readonly ChatMessage[],
+  budget: SimpleChatRetentionBudget = {},
+): ChatMessage[] {
+  const maxMessages = Math.max(1, Math.floor(budget.maxMessages ?? SIMPLE_CHAT_MAX_MESSAGES));
+  const maxBytes = Math.max(1, Math.floor(budget.maxBytes ?? SIMPLE_CHAT_MAX_RETAINED_BYTES));
+  const maxTextChars = Math.max(1, Math.floor(budget.maxTextChars ?? SIMPLE_CHAT_MAX_TEXT_CHARS));
+  const retained: ChatMessage[] = [];
+  let bytes = 0;
+
+  for (let index = messages.length - 1; index >= 0 && retained.length < maxMessages; index -= 1) {
+    const source = messages[index]!;
+    let message: ChatMessage =
+      source.text.length > maxTextChars
+        ? { ...source, text: boundSimpleChatText(source.text, maxTextChars) }
+        : source;
+    let messageBytes = retainedMessageBytes(message);
+    if (messageBytes > maxBytes && message.images?.length) {
+      message = { ...message, images: undefined };
+      messageBytes = retainedMessageBytes(message);
+    }
+    if (retained.length > 0 && bytes + messageBytes > maxBytes) break;
+    retained.push(message);
+    bytes += messageBytes;
+  }
+
+  retained.reverse();
+  return retained;
+}
+
 function blockText(block: unknown): string {
   if (typeof block === 'string') return block;
   if (!block || typeof block !== 'object') return '';
@@ -45,6 +111,21 @@ function replayTextContent(content: unknown): string {
       .trim();
   }
   return '';
+}
+
+/**
+ * Whether a persisted message's content carries a `tool_use` block. Such a
+ * message stopped for a tool call, so it is mid-turn — string content cannot
+ * hold a tool call and always ends its turn.
+ */
+function hasToolUseBlock(content: unknown): boolean {
+  if (!Array.isArray(content)) return false;
+  return content.some(
+    (block) =>
+      typeof block === 'object' &&
+      block !== null &&
+      (block as Record<string, unknown>)['type'] === 'tool_use',
+  );
 }
 
 /**
@@ -139,6 +220,10 @@ export function replayToMessages(replay: unknown, markers?: unknown): ChatMessag
       role,
       text,
       ts: typeof value['ts'] === 'string' ? value['ts'] : undefined,
+      // An assistant message carrying a tool_use block stopped for a tool
+      // call, so its prose is mid-turn and must not offer suggestions on
+      // resume. Anything else ended its turn.
+      ...(role === 'assistant' ? { final: !hasToolUseBlock(value['content']) } : {}),
     } satisfies ChatMessage);
   }
 
@@ -150,7 +235,7 @@ export function replayToMessages(replay: unknown, markers?: unknown): ChatMessag
     markerIndex += 1;
   }
 
-  return out;
+  return retainSimpleChatMessages(out);
 }
 
 function upsert(

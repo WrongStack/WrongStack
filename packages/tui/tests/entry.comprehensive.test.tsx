@@ -78,7 +78,7 @@ describe('<Entry /> — comprehensive coverage', () => {
 
     it('renders next steps with auto flag', () => {
       const frame = renderEntry({
-        id: 1, kind: 'assistant',
+        id: 1, kind: 'assistant', final: true,
         text: ['Done.', '', '<nextsteps>', '1. Check the logs', '2. Run tests', '</nextsteps>'].join('\n'),
       }, { termWidth: 100 });
       expect(frame).toContain('NEXT STEPS');
@@ -88,7 +88,7 @@ describe('<Entry /> — comprehensive coverage', () => {
 
     it('shows auto marker on auto steps', () => {
       const frame = renderEntry({
-        id: 1, kind: 'assistant',
+        id: 1, kind: 'assistant', final: true,
         text: ['Done.', '', '<nextsteps>', '1. Check the logs (auto)', '2. Run tests', '</nextsteps>'].join('\n'),
       }, { termWidth: 100 });
       expect(frame).toContain('auto');

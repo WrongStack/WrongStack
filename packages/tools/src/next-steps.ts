@@ -51,6 +51,34 @@ export interface ParseNextStepsResult {
   autoTexts: string[];
 }
 
+// ── Turn boundary ──────────────────────────────────────────────────────────
+
+/**
+ * Whether an LLM response's stop reason means the message is the FINAL one of
+ * a turn.
+ *
+ * The agent loop calls the provider once per iteration, so a multi-step turn
+ * emits several assistant messages. Only the last one — the response that
+ * stopped without asking for another tool — is the model's actual answer;
+ * everything before it is mid-turn prose the model wrote on its way to a tool
+ * call. A `<nextsteps>` block in mid-turn text is noise: surfacing it would
+ * offer the user suggestions while the work is still in flight, and would let
+ * `/next` and auto-submit pick up a suggestion the model has already moved on
+ * from.
+ *
+ * Every surface that renders suggestions gates on this so the three of them
+ * cannot disagree about where a turn ends. Callers still strip the block from
+ * the message body regardless — the raw XML must never reach the user.
+ *
+ * `tool_call` is the spelling some providers put on the WebUI wire (typed
+ * loosely as `stopReason: string`); the canonical `StopReason` union uses
+ * `tool_use`. An absent stop reason counts as final so legacy paths that never
+ * carried one keep their suggestions.
+ */
+export function isFinalTurnStopReason(stopReason: string | undefined): boolean {
+  return stopReason !== 'tool_use' && stopReason !== 'tool_call';
+}
+
 // ── Patterns ───────────────────────────────────────────────────────────────
 
 /**

@@ -1,4 +1,4 @@
-import type { CanonicalServerMessage } from '@wrongstack/webui-server/protocol';
+import type { ExactServerMessageType } from '@wrongstack/webui-server/protocol';
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
 
@@ -7,6 +7,12 @@ export interface ChatMessage {
   role: 'user' | 'thinking' | 'assistant' | 'system';
   text: string;
   streaming?: boolean | undefined;
+  /**
+   * Whether this assistant message ended its turn — the provider stopped
+   * without asking for another tool. Only final messages may show a NEXT STEPS
+   * panel; mid-turn prose keeps its `<nextsteps>` block stripped but silent.
+   */
+  final?: boolean | undefined;
   ts?: string | undefined;
   /** Base64-encoded images attached to user messages. */
   images?: { data: string; mime: string }[] | undefined;
@@ -145,6 +151,7 @@ export interface TimelineEntry {
   toolCall?: ToolCallInfo | undefined;
 }
 
-export interface ServerMessage extends CanonicalServerMessage {
+export interface ServerMessage {
+  type: ExactServerMessageType;
   payload: Record<string, unknown>;
 }

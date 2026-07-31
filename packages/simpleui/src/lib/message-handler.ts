@@ -12,6 +12,7 @@
  *   );
  */
 
+import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import {
   projectChatMessage,
   projectFleetMessage,
@@ -41,7 +42,13 @@ import {
   projectCompletedAgentText,
   stampAgentUpdates,
 } from './agent-model.js';
-import { contentToText, replayToMessages, updateSubagents } from './chat-model.js';
+import {
+  boundSimpleChatText,
+  contentToText,
+  replayToMessages,
+  retainSimpleChatMessages,
+  updateSubagents,
+} from './chat-model.js';
 import type { FileMention } from './file-mention.js';
 import {
   parseCatalogProviders,
@@ -291,15 +298,20 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         // Only the tail changes, so copy the array once and replace one entry
         // instead of mapping the whole transcript twice.
         const next = current.slice();
-        next[next.length - 1] = { ...last, text: last.text + text };
+        next[next.length - 1] = { ...last, text: boundSimpleChatText(last.text + text) };
         return next;
       }
       // A thinking block is frozen the moment assistant text starts.
       const normalized = current.map((item) =>
         item.streaming && item.role === 'thinking' ? { ...item, streaming: false } : item,
       );
-      normalized.push({ id: messageId('assistant'), role: 'assistant', text, streaming: true });
-      return normalized;
+      normalized.push({
+        id: messageId('assistant'),
+        role: 'assistant',
+        text: boundSimpleChatText(text),
+        streaming: true,
+      });
+      return retainSimpleChatMessages(normalized);
     });
   }
 
@@ -508,15 +520,22 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
           const last = current.at(-1);
           if (last?.role === 'thinking' && last.streaming) {
             return current.map((item, index) =>
-              index === current.length - 1 ? { ...item, text: item.text + text } : item,
+              index === current.length - 1
+                ? { ...item, text: boundSimpleChatText(item.text + text) }
+                : item,
             );
           }
-          return [
+          return retainSimpleChatMessages([
             ...current.map((item) =>
               item.streaming && item.role === 'thinking' ? { ...item, streaming: false } : item,
             ),
-            { id: messageId('thinking'), role: 'thinking', text, streaming: true },
-          ];
+            {
+              id: messageId('thinking'),
+              role: 'thinking',
+              text: boundSimpleChatText(text),
+              streaming: true,
+            },
+          ]);
         });
         break;
       }
@@ -539,15 +558,27 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const projection = projectChatMessage(message);
         if (projection?.kind !== 'response') break;
         const responseText = contentToText(projection.content).trim();
+        // A `tool_use` stop means the agent loop runs again, so this text is
+        // prose the model wrote on its way to a tool call — not its answer.
+        // Only a turn-ending response may offer <nextsteps> suggestions.
+        const final = isFinalTurnStopReason(projection.stopReason);
         setMessages((current) => {
           const last = current.at(-1);
           if (last?.role === 'assistant' && last.streaming) {
             return current.map((item, index) =>
-              index === current.length - 1 ? { ...item, streaming: false } : item,
+              index === current.length - 1 ? { ...item, streaming: false, final } : item,
             );
           }
           return responseText
-            ? [...current, { id: messageId('assistant'), role: 'assistant', text: responseText }]
+            ? retainSimpleChatMessages([
+                ...current,
+                {
+                  id: messageId('assistant'),
+                  role: 'assistant',
+                  text: boundSimpleChatText(responseText),
+                  final,
+                },
+              ])
             : current;
         });
         setActivity('Working');
@@ -645,8 +676,16 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         setRunning(false);
         setActivity('');
         if (prefsRef.current.chime) onChime?.();
+        // The run is over. Anything still streaming is the turn's final
+        // answer — provider.response normally marks it, but a run that ended
+        // without one (abort, error, missing event) would otherwise leave the
+        // last message unmarked and silently lose its suggestions.
         setMessages((current) =>
-          current.map((item) => (item.streaming ? { ...item, streaming: false } : item)),
+          current.map((item) =>
+            item.streaming
+              ? { ...item, streaming: false, ...(item.role === 'assistant' ? { final: true } : {}) }
+              : item,
+          ),
         );
         drainQueue();
         break;
@@ -712,7 +751,12 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const text = typeof payload['message'] === 'string' ? payload['message'] : 'Run failed';
         setRunning(false);
         setActivity('');
-        setMessages((current) => [...current, { id: messageId('error'), role: 'system', text }]);
+        setMessages((current) =>
+          retainSimpleChatMessages([
+            ...current,
+            { id: messageId('error'), role: 'system', text: boundSimpleChatText(text) },
+          ]),
+        );
         drainQueue();
         break;
       }

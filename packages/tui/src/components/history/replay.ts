@@ -1,5 +1,6 @@
 import type { DistributiveOmit, Message, SessionEvent, SessionMarker } from '@wrongstack/core/types';
 import { SESSION_MARKER_EVENT_TYPES, sessionEventToMarker } from '@wrongstack/core/types';
+import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import type { HistoryEntry } from './types.js';
 
 /**
@@ -125,12 +126,20 @@ export function replaySessionMessages(
     backbone.push({ ts, entry });
     return entry;
   };
-  const appendText = (role: Message['role'], text: string, ts: string): void => {
+  // `final` marks the last assistant message of a turn — the only kind that
+  // may surface a `<nextsteps>` panel on replay. A message carrying a tool_use
+  // block stopped for a tool call, so its prose is mid-turn.
+  const appendText = (
+    role: Message['role'],
+    text: string,
+    ts: string,
+    final: boolean,
+  ): void => {
     if (!text.trim()) return;
     push(
       ts,
       role === 'assistant'
-        ? { kind: 'assistant', text }
+        ? { kind: 'assistant', text, final }
         : role === 'system'
           ? { kind: 'info', text }
           : { kind: 'user', text },
@@ -142,7 +151,8 @@ export function replaySessionMessages(
     if (message.ts) lastTs = message.ts;
 
     if (typeof message.content === 'string') {
-      appendText(message.role, message.content, ts);
+      // String content cannot carry a tool_use block, so it always ended its turn.
+      appendText(message.role, message.content, ts, true);
       continue;
     }
 
@@ -161,6 +171,7 @@ export function replaySessionMessages(
         .map((block) => block.text)
         .join(''),
       ts,
+      !message.content.some((block) => block.type === 'tool_use'),
     );
 
     for (const block of message.content) {
@@ -323,7 +334,9 @@ function eventToEntry(
         .map((b) => (b as { text: string }).text)
         .join('');
       if (!text.trim()) return null;
-      return { kind: 'assistant', text };
+      // A `tool_use` stop means the agent loop ran again, so this text is
+      // mid-turn prose and must not surface a `<nextsteps>` panel.
+      return { kind: 'assistant', text, final: isFinalTurnStopReason(ev.stopReason) };
     }
 
     case 'tool_use': {

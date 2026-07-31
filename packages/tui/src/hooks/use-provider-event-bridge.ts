@@ -1,4 +1,5 @@
 import { tuiStreamFlushMs } from '@wrongstack/core/utils';
+import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import {
   DEFAULT_MIN_IMPORTANCE,
   DEFAULT_MIN_SCORE,
@@ -321,6 +322,13 @@ export function useProviderEventBridge({
         flushTimerRef.current = null;
       }
       dispatch({ type: 'streamReset' });
+      // Does this response end the turn? A `tool_use` stop means the agent
+      // loop runs again, so everything committed here is mid-turn prose and
+      // must not surface a `<nextsteps>` panel. The check lives at the
+      // response level, not per segment: `canonicalStreamSegments` drops
+      // tool_use blocks, so `text → tool_use → text` collapses into a single
+      // assistant segment and the tool call is invisible downstream.
+      const final = isFinalTurnStopReason(e.stopReason);
       // Commit buffered segments in stream order. Each contiguous run of the
       // same kind becomes one history entry, so a turn that streamed
       // thinking → text → tool lands as THINKING then ASSISTANT before the
@@ -329,7 +337,13 @@ export function useProviderEventBridge({
       // the original single-commit behavior.
       for (const seg of segments) {
         if (seg.text.trim()) {
-          dispatch({ type: 'addEntry', entry: { kind: seg.kind, text: seg.text } });
+          dispatch({
+            type: 'addEntry',
+            entry:
+              seg.kind === 'assistant'
+                ? { kind: 'assistant', text: seg.text, final }
+                : { kind: 'thinking', text: seg.text },
+          });
           // Only assistant prose counts as "the reply was shown" — a
           // thinking-only turn must not suppress the finalText recovery.
           if (seg.kind === 'assistant') assistantCommittedThisRunRef.current = true;
@@ -338,7 +352,7 @@ export function useProviderEventBridge({
       // If streaming segments were unavailable, commit only canonical provider
       // content. Never promote the bounded display tail to retained history.
       if (segments.length === 0 && fallbackText.trim()) {
-        dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: fallbackText } });
+        dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: fallbackText, final } });
         assistantCommittedThisRunRef.current = true;
       }
     });

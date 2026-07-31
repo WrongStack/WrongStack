@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useChatStore } from '../../src/stores/chat-store';
+import { boundChatField, retainWebChatMessages, useChatStore } from '../../src/stores/chat-store';
 import type { ChatMessage } from '../../src/stores/types.js';
 
 // ── crypto mock ───────────────────────────────────────────────────────
@@ -157,6 +157,50 @@ describe('addMessage', () => {
 // ── setMessages ───────────────────────────────────────────────────────
 
 describe('setMessages', () => {
+  it('retains newest messages within an aggregate byte budget', () => {
+    const retained = retainWebChatMessages(
+      [
+        { id: 'old', role: 'user', content: '1111', timestamp: 1 },
+        { id: 'middle', role: 'assistant', content: '2222', timestamp: 2 },
+        { id: 'new', role: 'assistant', content: '3333', timestamp: 3 },
+      ],
+      { maxMessages: 2, maxBytes: 10_000, maxFieldChars: 100 },
+    );
+    expect(retained.map((message) => message.id)).toEqual(['middle', 'new']);
+  });
+
+  it('bounds runaway stream fields while preserving their beginning and tail', () => {
+    const bounded = boundChatField('abcdefghij', 8);
+    expect(bounded).toHaveLength(8);
+    expect(bounded.startsWith('abcd')).toBe(true);
+    expect(bounded.endsWith('ghij')).toBe(true);
+  });
+
+  it('strips oversized attachment data from the live transcript', () => {
+    const retained = retainWebChatMessages(
+      [
+        {
+          id: 'vision',
+          role: 'user',
+          content: 'inspect',
+          timestamp: 1,
+          attachments: [
+            {
+              id: 'image-1',
+              kind: 'image',
+              dataUrl: 'x'.repeat(1_000),
+              mediaType: 'image/png',
+              bytes: 750,
+            },
+          ],
+        },
+      ],
+      { maxMessages: 10, maxBytes: 600, maxFieldChars: 100 },
+    );
+    expect(retained).toHaveLength(1);
+    expect(retained[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+  });
+
   it('replaces messages in one store update and clears active stream/tool state', () => {
     const assistantId = addMsg({ role: 'assistant', content: 'streaming', streaming: true });
     const toolId = addMsg({ role: 'tool', content: '', toolUseId: 'toolu_1' });
@@ -283,7 +327,8 @@ describe('finalizeMessage: nextsteps strip + persist', () => {
   it('strips the <nextsteps> block from content and persists parsed steps', () => {
     const id = addMsg({
       role: 'assistant',
-      content: 'Here is my work.\n\n<nextsteps>\n1. Run the tests\n2. Commit the changes\n</nextsteps>',
+      content:
+        'Here is my work.\n\n<nextsteps>\n1. Run the tests\n2. Commit the changes\n</nextsteps>',
       streaming: true,
     });
     useChatStore.getState().finalizeMessage(id);
@@ -318,6 +363,27 @@ describe('finalizeMessage: nextsteps strip + persist', () => {
       auto: true,
     });
     expect(msg.nextSteps?.steps[1]).toEqual({ index: 2, text: 'Review' });
+  });
+
+  it('strips the block but does not persist steps for a mid-turn finalize', () => {
+    // handleToolStarted finalizes the assistant bubble because a tool call
+    // follows. The turn is still in flight, so the suggestions the model wrote
+    // on its way to the tool must not reach the bar or /next — but the raw XML
+    // still has to disappear from the body.
+    const id = addMsg({
+      role: 'assistant',
+      content: 'Let me check that.\n\n<nextsteps>\n1. Run the tests\n</nextsteps>',
+      streaming: true,
+    });
+    useChatStore.getState().finalizeMessage(id, { final: false });
+    const msg = useChatStore.getState().messages[0];
+
+    expect(msg.nextSteps).toBeUndefined();
+    expect(msg.content).not.toContain('<nextsteps>');
+    expect(msg.content).not.toContain('Run the tests');
+    expect(msg.content).toContain('Let me check that.');
+    // Still finalized — the bubble stops showing a typing indicator.
+    expect(msg.streaming).toBe(false);
   });
 
   it('does not set nextSteps when there is no block', () => {
@@ -934,9 +1000,9 @@ describe('F5 resilience — chat transcript persistence', () => {
   });
 
   it('addMessage prunes executions Map entries for tool_ids no longer in messages', () => {
-    useChatStore.getState().addMessage(
-      makeMsg({ role: 'tool', content: 'old tool result', toolUseId: 'tool-old' }),
-    );
+    useChatStore
+      .getState()
+      .addMessage(makeMsg({ role: 'tool', content: 'old tool result', toolUseId: 'tool-old' }));
     expect(useChatStore.getState().toolMessageIdsByUseId.has('tool-old')).toBe(true);
 
     // Fill past MAX_CHAT_MESSAGES so 'tool-old' is rolled out of the window.

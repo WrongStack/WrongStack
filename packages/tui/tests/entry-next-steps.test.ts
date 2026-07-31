@@ -6,18 +6,29 @@ import { Entry, type HistoryEntry } from '../src/components/history.js';
 
 // An assistant message carrying a <nextsteps> block. The block is in the
 // XML-tag form (strict mode requires the closing tag), with two items.
+const NEXT_STEPS_TEXT = [
+  'Done reviewing the file.',
+  '',
+  '<nextsteps>',
+  '1. Add unit tests for the parser',
+  '2. Run the full suite',
+  '</nextsteps>',
+].join('\n');
+
+/** The turn's final assistant message — eligible to offer suggestions. */
 const ASSISTANT_WITH_NEXT_STEPS: HistoryEntry = {
   id: 1,
   kind: 'assistant',
-  text: ['Done reviewing the file.', '', '<nextsteps>', '1. Add unit tests for the parser', '2. Run the full suite', '</nextsteps>'].join(
-    '\n',
-  ),
+  text: NEXT_STEPS_TEXT,
+  final: true,
 };
 
 interface RenderOpts {
   setSuggestions?: (steps: string[]) => void;
   todos?: readonly TodoItem[];
   autonomyMode?: string;
+  /** Override the entry to render (defaults to the final-message entry). */
+  entry?: HistoryEntry;
 }
 
 /** Render an assistant Entry with optional suggestion writer + todo list. */
@@ -25,7 +36,7 @@ function renderEntry(opts: RenderOpts = {}): { frame: string; setSuggestions: Re
   const setSuggestions = opts.setSuggestions ?? vi.fn();
   const { lastFrame, unmount } = render(
     React.createElement(Entry, {
-      entry: ASSISTANT_WITH_NEXT_STEPS,
+      entry: opts.entry ?? ASSISTANT_WITH_NEXT_STEPS,
       termWidth: 100,
       setSuggestions,
       todos: opts.todos,
@@ -82,5 +93,38 @@ describe('<Entry /> <nextsteps> todo-gate (b0970387 render-path parity)', () => 
 
     expect(frame).toContain('NEXT STEPS');
     expect(setSuggestions).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('<Entry /> <nextsteps> final-message gate', () => {
+  it('hides the panel and skips the store write for mid-turn prose', () => {
+    // `final: false` — the model wrote this on its way to a tool call, so the
+    // agent loop is still running and the suggestions are not its answer.
+    const { frame, setSuggestions } = renderEntry({
+      entry: { id: 2, kind: 'assistant', text: NEXT_STEPS_TEXT, final: false },
+    });
+
+    expect(frame).not.toContain('NEXT STEPS');
+    expect(frame).not.toContain('Add unit tests for the parser');
+    expect(setSuggestions).not.toHaveBeenCalled();
+    // The block is still stripped — raw XML never reaches the user, whether
+    // or not the panel is allowed.
+    expect(frame).not.toContain('<nextsteps>');
+    expect(frame).not.toContain('</nextsteps>');
+    // The surrounding prose still renders.
+    expect(frame).toContain('Done reviewing the file.');
+  });
+
+  it('hides the panel when the entry carries no final flag at all', () => {
+    // Every construction site sets `final`. An entry without it comes from a
+    // path we do not control, so it fails closed rather than leaking mid-turn
+    // suggestions.
+    const { frame, setSuggestions } = renderEntry({
+      entry: { id: 3, kind: 'assistant', text: NEXT_STEPS_TEXT },
+    });
+
+    expect(frame).not.toContain('NEXT STEPS');
+    expect(setSuggestions).not.toHaveBeenCalled();
+    expect(frame).not.toContain('<nextsteps>');
   });
 });

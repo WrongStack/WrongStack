@@ -3,6 +3,7 @@ import {
   ArrowUpCircle,
   Command,
   FolderCode,
+  Mail,
   Moon,
   Settings,
   Sparkles,
@@ -11,7 +12,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
 import { BrainPanel } from './brain-panel.js';
 import { ChatMessageList } from './chat-message-list.js';
@@ -34,11 +35,13 @@ import { useStatusNotice } from './hooks/use-status-notice.js';
 import { useStickyScroll } from './hooks/use-sticky-scroll.js';
 import { useTheme } from './hooks/use-theme.js';
 import { resetAgentNameCache } from './lib/agent-model.js';
+import { retainSimpleChatMessages } from './lib/chat-model.js';
 import { playChime } from './lib/chime.js';
 import { copyText } from './lib/clipboard.js';
-import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
 import type { CommandPaletteAction } from './lib/command-palette-model.js';
+import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
 import { removeFileMention } from './lib/file-mention.js';
+import { createMailboxStore, isUnreadIncomingMailboxMessage } from './lib/mailbox-store.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
@@ -55,6 +58,7 @@ import {
   type WorklistView,
 } from './lib/worklist-store.js';
 import type { SimpleSocket } from './lib/ws.js';
+import { MailboxSidebar } from './mailbox-sidebar.js';
 import { MemoryDrawer } from './memory-drawer.js';
 import { ModelSwitcher } from './model-switcher.js';
 import { PromptLibrary } from './prompt-library.js';
@@ -81,6 +85,23 @@ function compactTokens(value: number): string {
 
 function messageId(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+}
+
+function payloadText(payload: Record<string, unknown> | undefined, key: string): string {
+  const value = payload?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function payloadSucceeded(payload: Record<string, unknown> | undefined): boolean {
+  return payload?.['success'] === true;
+}
+
+function isIncomingMailboxPayload(payload: Record<string, unknown> | undefined): boolean {
+  return isUnreadIncomingMailboxMessage({
+    completed: false,
+    readByCount: 0,
+    from: payloadText(payload, 'from'),
+  });
 }
 
 export function SimpleUiSession() {
@@ -120,10 +141,21 @@ export function SimpleUiSession() {
   }>({ appVersion: '', latestVersion: '', updateAvailable: false });
   const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
   const [worklists] = useState(createWorklistStore);
-  const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
   const socketRef = useRef<SimpleSocket | null>(null);
+  const refreshMailboxRef = useRef<(() => void) | null>(null);
+  const [mailboxStore] = useState(() => createMailboxStore(() => refreshMailboxRef.current?.()));
+  const mailboxSnapshot = useSyncExternalStore(
+    mailboxStore.subscribe,
+    mailboxStore.getSnapshot,
+    mailboxStore.getSnapshot,
+  );
+  const [mailboxOpen, setMailboxOpen] = useState(false);
+  const mailboxUnreadCount = mailboxSnapshot.unreadCount;
+  const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
   /** Provider ids already asked for their model list — catalog + saved overlap. */
   const requestedModelsRef = useRef<Set<string>>(new Set());
+  const pendingMailboxSendsRef = useRef<Set<string>>(new Set());
+  const pendingMailboxActionsRef = useRef<Set<string>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftRef = useRef('');
   const fileRefsRef = useRef<string[]>([]);
@@ -166,9 +198,11 @@ export function SimpleUiSession() {
   const messagesRef = useRef<ChatMessage[]>([]);
   const diffFilesRef = useRef<FileEditMeta[] | null>(null);
   const settingsOpenRef = useRef(false);
+  const mailboxOpenRef = useRef(false);
   messagesRef.current = messages;
   diffFilesRef.current = diffFiles;
   settingsOpenRef.current = settingsOpen;
+  mailboxOpenRef.current = mailboxOpen;
 
   /** Send a message to the agent and reflect it locally. The single send
    *  path — the composer, the queue drain, and every refine decision all
@@ -183,15 +217,17 @@ export function SimpleUiSession() {
       const sessionId = sessionIdRef.current;
       const socket = socketRef.current;
       if (!content || !sessionId || !socket) return false;
-      setMessages((current) => [
-        ...current,
-        {
-          id: messageId('user'),
-          role: 'user',
-          text: content,
-          ...(images && images.length > 0 ? { images } : {}),
-        },
-      ]);
+      setMessages((current) =>
+        retainSimpleChatMessages([
+          ...current,
+          {
+            id: messageId('user'),
+            role: 'user',
+            text: content,
+            ...(images && images.length > 0 ? { images } : {}),
+          },
+        ]),
+      );
       setRunning(true);
       setToolCalls([]);
       setActivity('Thinking');
@@ -284,7 +320,9 @@ export function SimpleUiSession() {
     refineEpochRef.current++;
     pendingSendRef.current = cur.original;
     setRefineState((prev) =>
-      prev?.status === 'countdown' ? { ...prev, status: 'refining', epoch: refineEpochRef.current } : prev,
+      prev?.status === 'countdown'
+        ? { ...prev, status: 'refining', epoch: refineEpochRef.current }
+        : prev,
     );
   }, []);
 
@@ -323,6 +361,11 @@ export function SimpleUiSession() {
         if (settingsOpenRef.current) {
           event.preventDefault();
           setSettingsOpen(false);
+          return;
+        }
+        if (mailboxOpenRef.current) {
+          event.preventDefault();
+          setMailboxOpen(false);
           return;
         }
         if (refineStateRef.current) {
@@ -582,8 +625,61 @@ export function SimpleUiSession() {
     [dispatchUserMessage, requestProviderModels, worklists],
   );
 
+  const handleSocketMessage = useCallback(
+    (message: Parameters<typeof handleServerMessage>[0]) => {
+      const accepted = mailboxStore.applyMessage(message);
+      if (message.type === 'mailbox.received' && isIncomingMailboxPayload(message.payload)) {
+        setNotice({
+          id: messageId('mail'),
+          text: 'New email received',
+          tone: 'info',
+        });
+        if (!mailboxOpenRef.current && prefsRef.current.chime) playChime();
+      }
+      if (message.type === 'mailbox.sent') {
+        const requestId = payloadText(message.payload, 'requestId');
+        const succeeded = payloadSucceeded(message.payload);
+        const wasPendingSend = requestId ? pendingMailboxSendsRef.current.delete(requestId) : false;
+        if (wasPendingSend || !succeeded) {
+          setNotice({
+            id: messageId('mail'),
+            text: succeeded
+              ? 'Email sent'
+              : `Email failed: ${payloadText(message.payload, 'error') || 'Unknown error'}`,
+            tone: succeeded ? 'info' : 'error',
+          });
+        }
+      }
+      if (message.type === 'mailbox.action_result') {
+        const requestId = payloadText(message.payload, 'requestId');
+        if (requestId && pendingMailboxActionsRef.current.delete(requestId)) {
+          setNotice({
+            id: messageId('mail'),
+            text: payloadSucceeded(message.payload)
+              ? 'Email action completed'
+              : `Email action failed: ${payloadText(message.payload, 'error') || 'Unknown error'}`,
+            tone: payloadSucceeded(message.payload) ? 'info' : 'error',
+          });
+        }
+      }
+      if (!accepted) handleServerMessage(message);
+    },
+    [handleServerMessage, mailboxStore],
+  );
+
+  const refreshMailbox = useCallback(() => {
+    socketRef.current?.send('mailbox.messages', { limit: 30 });
+    socketRef.current?.send('mailbox.messages', {
+      limit: 100,
+      unreadOnly: true,
+      incompleteOnly: true,
+    });
+    socketRef.current?.send('mailbox.agents', {});
+  }, []);
+  refreshMailboxRef.current = refreshMailbox;
+
   const { connection } = useSimpleSocket({
-    onMessage: handleServerMessage,
+    onMessage: handleSocketMessage,
     sessionIdRef,
     socketRef,
     onDisconnect: () => {
@@ -614,14 +710,6 @@ export function SimpleUiSession() {
   }, [draft, fileRefs, session?.id]);
 
   const load = Math.max(0, Math.min(1, context.load));
-  const latestAssistantId = useMemo(() => {
-    for (let index = messages.length - 1; index >= 0; index--) {
-      const message = messages[index];
-      if (message?.role === 'assistant') return message.id;
-    }
-    return undefined;
-  }, [messages]);
-
   // Filter out thinking blocks when the user has disabled model reasoning display.
   const displayMessages = useMemo(
     () => (prefs.showModelReasoning ? messages : messages.filter((m) => m.role !== 'thinking')),
@@ -646,9 +734,7 @@ export function SimpleUiSession() {
 
   const selectNextStep = (messageId: string, text: string) => {
     setDraft(text);
-    setConsumedNextSteps((prev) =>
-      prev.has(messageId) ? prev : new Set(prev).add(messageId),
-    );
+    setConsumedNextSteps((prev) => (prev.has(messageId) ? prev : new Set(prev).add(messageId)));
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -689,9 +775,58 @@ export function SimpleUiSession() {
   };
 
   const updatePrefs = (patch: Partial<SimplePrefs>) => {
+    const nextPatch = patch.enhanceEnabled ? { enhanceLanguage: 'english', ...patch } : patch;
     setPrefs((current) => ({ ...current, ...patch }));
-    socketRef.current?.send('prefs.update', patch as Record<string, unknown>);
+    socketRef.current?.send('prefs.update', nextPatch as Record<string, unknown>);
   };
+
+  const sendMailboxMessage = useCallback(
+    (input: { to: string; subject: string; body: string }): boolean => {
+      const socket = socketRef.current;
+      if (!socket) {
+        setNotice({
+          id: messageId('mailbox-send'),
+          text: 'Mailbox send failed: socket is not ready',
+          tone: 'error',
+        });
+        return false;
+      }
+      const requestId = messageId('mailbox-send');
+      pendingMailboxSendsRef.current.add(requestId);
+      socket.send('mailbox.send', {
+        requestId,
+        from: 'simpleui',
+        to: input.to,
+        type: input.to === '*' ? 'broadcast' : 'note',
+        audience: 'all',
+        subject: input.subject,
+        body: input.body,
+        priority: 'normal',
+      });
+      refreshMailbox();
+      return true;
+    },
+    [refreshMailbox, setNotice],
+  );
+
+  const handleMailboxAction = useCallback(
+    (mailId: string, action: 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete') => {
+      const requestId = messageId('mailbox-action');
+      pendingMailboxActionsRef.current.add(requestId);
+      socketRef.current?.send('mailbox.action', {
+        requestId,
+        mailId,
+        action,
+        readerId: 'simpleui',
+      });
+      refreshMailbox();
+    },
+    [refreshMailbox],
+  );
+
+  useEffect(() => {
+    if (connection === 'open') refreshMailbox();
+  }, [connection, refreshMailbox]);
 
   const switchAutonomy = (mode: AutonomyMode) => {
     setPrefs((current) => ({ ...current, autonomy: mode }));
@@ -900,6 +1035,31 @@ export function SimpleUiSession() {
           <button
             type="button"
             className="theme-toggle"
+            onClick={() => {
+              setMailboxOpen((current) => {
+                const next = !current;
+                if (next) refreshMailbox();
+                return next;
+              });
+            }}
+            aria-label="Open email panel"
+            aria-expanded={mailboxOpen}
+            title="Email"
+          >
+            <Mail size={15} />
+            {mailboxUnreadCount > 0 ? (
+              <span
+                className="mail-notification-dot"
+                role="status"
+                aria-label={`${mailboxUnreadCount} unread email messages`}
+              >
+                {mailboxUnreadCount > 9 ? '9+' : mailboxUnreadCount}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            className="theme-toggle"
             onClick={() => setSettingsOpen(true)}
             aria-label="Open settings"
             aria-expanded={settingsOpen}
@@ -960,7 +1120,6 @@ export function SimpleUiSession() {
           <ChatMessageList
             messages={displayMessages}
             fileEdits={leaderSelected ? fileEdits : undefined}
-            latestAssistantId={latestAssistantId}
             copiedMessageId={copiedMessageId}
             running={running}
             activity={activity}
@@ -1012,6 +1171,41 @@ export function SimpleUiSession() {
         files={fileEditSummary.files}
         onOpenDiff={(files) => setDiffFiles(files)}
       />
+
+      {mailboxOpen && (
+        <>
+          <button
+            type="button"
+            className="sidebar-overlay"
+            aria-label="Close email panel"
+            onClick={() => setMailboxOpen(false)}
+          />
+          <aside className="email-panel" aria-label="Email panel">
+            <header className="tool-sidebar-header">
+              <div>
+                <Mail size={14} aria-hidden="true" />
+                <span>EMAIL</span>
+                <b>PROJECT MAILBOX</b>
+              </div>
+              <button
+                type="button"
+                aria-label="Close email panel"
+                onClick={() => setMailboxOpen(false)}
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            </header>
+            <div className="tool-sidebar-list">
+              <MailboxSidebar
+                store={mailboxStore}
+                onRefresh={refreshMailbox}
+                onSend={sendMailboxMessage}
+                onAction={handleMailboxAction}
+              />
+            </div>
+          </aside>
+        </>
+      )}
 
       <CommandPalette
         open={commandPaletteOpen}

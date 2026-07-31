@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseNextSteps, stripNextStepsBlock } from '../src/next-steps.js';
+import {
+  isFinalTurnStopReason,
+  parseNextSteps,
+  stripNextStepsBlock,
+} from '../src/next-steps.js';
 
 /**
  * Tests for the canonical `<nextsteps>` block parser, now extracted into
@@ -427,5 +431,27 @@ describe('stripNextStepsBlock', () => {
     expect(out).not.toContain('<next_steps');
     expect(out).toContain('A');
     expect(out).toContain('B');
+  });
+});
+
+describe('isFinalTurnStopReason', () => {
+  it('treats a tool stop as mid-turn', () => {
+    // The agent loop will run again, so the message is prose on the way to a
+    // tool call — not the model's answer.
+    expect(isFinalTurnStopReason('tool_use')).toBe(false);
+    // The spelling some providers put on the WebUI wire.
+    expect(isFinalTurnStopReason('tool_call')).toBe(false);
+  });
+
+  it('treats every non-tool stop as the turn ending', () => {
+    for (const reason of ['end_turn', 'max_tokens', 'stop_sequence', 'refusal']) {
+      expect(isFinalTurnStopReason(reason)).toBe(true);
+    }
+  });
+
+  it('defaults to final when no stop reason is available', () => {
+    // Legacy paths that never carried a stop reason keep their suggestions
+    // rather than losing them silently.
+    expect(isFinalTurnStopReason(undefined)).toBe(true);
   });
 });

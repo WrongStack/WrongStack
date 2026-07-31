@@ -97,7 +97,12 @@ export function createRunBlocksController(
         result.finalText?.trim() &&
         !refs.assistantCommitted.current
       ) {
-        dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: result.finalText } });
+        // The run has already finished, so this recovered text is by
+        // construction the final message of the turn.
+        dispatch({
+          type: 'addEntry',
+          entry: { kind: 'assistant', text: result.finalText, final: true },
+        });
       }
 
       if (result.status === 'aborted') {

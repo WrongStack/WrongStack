@@ -121,4 +121,60 @@ describe('useProviderEventBridge', () => {
 
     unmount();
   });
+
+  it.each([
+    ['tool_use', false],
+    ['end_turn', true],
+  ])('marks assistant entries from a %s response final=%s', (stopReason, expected) => {
+    // The gate lives at the response level, not per segment: a `tool_use`
+    // stop means the agent loop runs again, so the text committed here is
+    // mid-turn prose and must not offer <nextsteps> suggestions.
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const agent = { ctx: { session: { id: 'session-1' }, todos: [] } };
+
+    const { unmount } = renderHook(() => {
+      const streamingTextRef = useRef('');
+      const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
+      const pendingDeltaRef = useRef('');
+      const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+      const sessionGenerationRef = useRef(1);
+      const activeRunGenerationRef = useRef(1);
+      const assistantCommittedThisRunRef = useRef(false);
+
+      useProviderEventBridge({
+        events,
+        agent: agent as never,
+        dispatch,
+        streamingTextRef,
+        streamSegmentsRef,
+        pendingDeltaRef,
+        flushTimerRef,
+        sessionGenerationRef,
+        activeRunGenerationRef,
+        assistantCommittedThisRunRef,
+        setMemoryContextMonitor: vi.fn(),
+      });
+    });
+
+    act(() => {
+      events.emit('provider.response', {
+        ctx: agent.ctx as never,
+        model: 'm',
+        content: [{ type: 'text', text: 'Let me check that.' }],
+        usage: { input: 1, output: 1 },
+        stopReason,
+      } as never);
+    });
+
+    const assistantEntries = dispatch.mock.calls
+      .map(([action]) => action)
+      .filter((action) => action.type === 'addEntry' && action.entry.kind === 'assistant')
+      .map((action) => action.entry);
+    expect(assistantEntries).toEqual([
+      { kind: 'assistant', text: 'Let me check that.', final: expected },
+    ]);
+
+    unmount();
+  });
 });

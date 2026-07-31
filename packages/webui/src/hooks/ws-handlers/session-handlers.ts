@@ -7,6 +7,7 @@ import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
 import type { SessionMarker } from '@wrongstack/core/types';
+import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import type { ChatMessage, SessionHistoryEntry, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
@@ -568,8 +569,12 @@ export function handleProviderResponse(msg: WSServerMessage) {
       (payload.usage.cacheRead ?? 0) * cacheReadCost) /
     1_000_000;
   if (dCost > 0) useSessionStore.getState().addCost(dCost);
-  if (payload.stopReason !== 'tool_use' && payload.stopReason !== 'tool_call')
-    useChatStore.getState().setLoading(false);
+  // Does this response end the turn, or is the agent loop about to run another
+  // tool? Mid-turn responses still get finalized (the bubble must stop showing
+  // a typing indicator) but their <nextsteps> block is stripped without
+  // persisting the steps, so no suggestion bar appears while work is in flight.
+  const final = isFinalTurnStopReason(payload.stopReason);
+  if (final) useChatStore.getState().setLoading(false);
   const id = useChatStore.getState().currentAssistantMessageId;
   if (id) {
     streamCoalescer.flush(id);
@@ -585,7 +590,7 @@ export function handleProviderResponse(msg: WSServerMessage) {
         useChatStore.getState().updateMessage(id, { content: responseText });
       }
     }
-    useChatStore.getState().finalizeMessage(id);
+    useChatStore.getState().finalizeMessage(id, { final });
     if (payload.usage.output > 0)
       useChatStore.getState().updateMessage(id, { usage: payload.usage });
   } else if (responseText.trim()) {
@@ -594,7 +599,7 @@ export function handleProviderResponse(msg: WSServerMessage) {
       content: responseText,
       usage: payload.usage.output > 0 ? payload.usage : undefined,
     });
-    useChatStore.getState().finalizeMessage(messageId);
+    useChatStore.getState().finalizeMessage(messageId, { final });
   }
   useChatStore.getState().setCurrentAssistantMessage(null);
   streamCoalescer.flush('__thinking__');
