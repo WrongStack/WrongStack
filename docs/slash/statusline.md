@@ -8,7 +8,7 @@
 
 | Usage | Effect |
 |---|---|
-| `/statusline` | TUI: open the interactive statusline picker (same as F12); REPL: show current configuration |
+| `/statusline` | TUI: open the interactive statusline picker; REPL: show current configuration |
 | `/statusline todos on\|off` | Toggle todos item |
 | `/statusline plan on\|off` | Toggle plan item |
 | `/statusline fleet on\|off` | Toggle fleet item |
@@ -53,4 +53,4 @@ Config is saved to `~/.wrongstack/profiles/<name>/statusline.json` via the `stat
 
 - `packages/cli/src/slash-commands/statusline.ts`
 - `packages/tui/src/components/status-bar.tsx` — TUI status bar rendering
-- `packages/cli/src/index.ts` — `statuslineConfig` and `statuslineHiddenItems` wiring
+- `packages/cli/src/wiring/command-host-state.ts` — `statuslineConfig` and `statuslineHiddenItems` wiring
