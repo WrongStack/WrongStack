@@ -1,17 +1,4 @@
-import {
-  ArrowDown,
-  ArrowUpCircle,
-  Command,
-  FolderCode,
-  Mail,
-  Moon,
-  Settings,
-  Sparkles,
-  Sun,
-  Wifi,
-  WifiOff,
-  X,
-} from 'lucide-react';
+import { ArrowDown, ArrowUpCircle, Mail, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
 import { BrainPanel } from './brain-panel.js';
@@ -67,12 +54,11 @@ import {
 import type { SimpleSocket } from './lib/ws.js';
 import { MailboxSidebar } from './mailbox-sidebar.js';
 import { MemoryDrawer } from './memory-drawer.js';
-import { ModelSwitcher } from './model-switcher.js';
 import { PromptLibrary } from './prompt-library.js';
 import { ServerOutageOverlay } from './server-outage-overlay.js';
 import { SessionAgentStrip } from './session-agent-strip.js';
 import { SessionHealthPanel } from './session-health-panel.js';
-import { SessionSwitcher } from './session-switcher.js';
+import { SessionTopbar } from './session-topbar.js';
 import { SettingsPanel } from './settings-panel.js';
 import { ToolSidebar } from './tool-sidebar.js';
 import type {
@@ -935,168 +921,60 @@ export function SimpleUiSession() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="project-block">
-          <div className="brand-mark">
-            <img src="/wrongstack.svg" alt="WrongStack" draggable={false} />
-          </div>
-          <div className="project-icon">
-            <FolderCode size={17} />
-          </div>
-          <div className="project-copy" title={session?.cwd}>
-            <strong>{session?.projectName ?? 'WrongStack'}</strong>
-            <SessionSwitcher
-              session={session}
-              sessions={sessions}
-              running={running}
-              onRefreshSessions={() => {
-                if (sessionIdRef.current) {
-                  socketRef.current?.send('sessions.list', {
-                    sessionId: sessionIdRef.current,
-                    limit: 12,
-                  });
-                }
-              }}
-              onCreateSession={createSession}
-              onResumeSession={resumeSession}
-            />
-          </div>
-        </div>
-
-        <ModelSwitcher
-          selectedModel={selectedModel}
-          groupedModels={groupedModels}
-          providerLabels={providerLabels}
-          disabled={!session || groupedModels.length === 0 || running}
-          pendingModelSwitch={pendingModelSwitch}
-          onSelectModel={selectModel}
-          onConfirmSwitch={confirmModelSwitch}
-          onCancelSwitch={() => {
-            /* handled inside useModelCatalog via Escape effect */
-          }}
-        />
-
-        <div className="topbar-right">
-          <button
-            type="button"
-            className="context-meter"
-            title={`${context.tokens} / ${context.maxContext} tokens — Click to compact`}
-            disabled={!session || running}
-            onClick={() => {
-              if (sessionIdRef.current) {
-                socketRef.current?.send('context.compact', {
-                  sessionId: sessionIdRef.current,
-                  aggressive: false,
-                });
-                setActivity('Compacting context');
-              }
-            }}
-          >
-            <div className="context-copy">
-              <span>CONTEXT</span>
-              <strong>{Math.round(load * 100)}%</strong>
-            </div>
-            <div className="context-track">
-              <span
-                style={{
-                  width: `${load * 100}%`,
-                  background:
-                    load > 0.9 ? 'var(--danger)' : load > 0.7 ? 'var(--warning)' : 'var(--accent)',
-                }}
-              />
-            </div>
-            <small>
-              {compactTokens(context.tokens)} / {compactTokens(context.maxContext)}
-            </small>
-            <span className="context-compact-hint">COMPACT</span>
-          </button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setCommandPaletteOpen(true)}
-            aria-label="Open command palette"
-            aria-expanded={commandPaletteOpen}
-            title="Command palette (Ctrl+K)"
-          >
-            <Command size={15} />
-          </button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
-            title={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
-          >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => {
-              setMailboxOpen((current) => {
-                const next = !current;
-                if (next) refreshMailbox();
-                return next;
-              });
-            }}
-            aria-label="Open email panel"
-            aria-expanded={mailboxOpen}
-            title="Email"
-          >
-            <Mail size={15} />
-            {mailboxUnreadCount > 0 ? (
-              <span
-                className="mail-notification-dot"
-                role="status"
-                aria-label={`${mailboxUnreadCount} unread email messages`}
-              >
-                {mailboxUnreadCount > 9 ? '9+' : mailboxUnreadCount}
-              </span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Open settings"
-            aria-expanded={settingsOpen}
-            title="Settings"
-          >
-            <Settings size={15} />
-          </button>
-          {/* Persistent version chip — mirrors the WebUI WorkbenchTopbar
-              placement. The full-width update banner above already shows the
-              upgrade prompt when an update is available; this chip keeps the
-              version visible at all times so users see *something* even when
-              they've dismissed the banner or are on the latest release. The
-              `latestVersion !== appVersion` guard prevents a stale
-              `updateAvailable: true` from flagging a bogus upgrade. */}
-          {updateInfo.appVersion ? (
-            <span
-              className={`version-chip ${hasUpdate ? 'outdated' : ''}`}
-              title={
-                hasUpdate
-                  ? `Update available: v${updateInfo.appVersion} → v${updateInfo.latestVersion} — run wstack update`
-                  : `WrongStack v${updateInfo.appVersion}`
-              }
-            >
-              v{updateInfo.appVersion}
-              {hasUpdate ? (
-                <span className="version-chip-update">→ v{updateInfo.latestVersion}</span>
-              ) : null}
-            </span>
-          ) : null}
-          <div className={`connection ${connection}`} title={`WebSocket: ${connection}`}>
-            <span
-              className={`connection-ping-dot ${connection === 'open' ? 'good' : connection === 'connecting' ? 'poor' : 'bad'}`}
-            />
-            {connection === 'open' ? <Wifi size={15} /> : <WifiOff size={15} />}
-            <span>
-              {connection === 'open' ? 'LIVE' : connection === 'connecting' ? '…' : 'OFF'}
-            </span>
-          </div>
-        </div>
-      </header>
+      <SessionTopbar
+        session={session}
+        sessions={sessions}
+        running={running}
+        models={{
+          selectedModel,
+          groupedModels,
+          providerLabels,
+          pendingModelSwitch,
+          selectModel,
+          confirmModelSwitch,
+        }}
+        contextTokens={context.tokens}
+        contextMaxContext={context.maxContext}
+        load={load}
+        connection={connection}
+        theme={theme}
+        commandPaletteOpen={commandPaletteOpen}
+        mailboxOpen={mailboxOpen}
+        mailboxUnreadCount={mailboxUnreadCount}
+        settingsOpen={settingsOpen}
+        appVersion={updateInfo.appVersion}
+        latestVersion={updateInfo.latestVersion}
+        hasUpdate={hasUpdate}
+        onCreateSession={createSession}
+        onResumeSession={resumeSession}
+        onRefreshSessions={() => {
+          if (sessionIdRef.current) {
+            socketRef.current?.send('sessions.list', {
+              sessionId: sessionIdRef.current,
+              limit: 12,
+            });
+          }
+        }}
+        onCompactContext={() => {
+          if (sessionIdRef.current) {
+            socketRef.current?.send('context.compact', {
+              sessionId: sessionIdRef.current,
+              aggressive: false,
+            });
+            setActivity('Compacting context');
+          }
+        }}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        onToggleTheme={toggleTheme}
+        onToggleMailbox={() => {
+          setMailboxOpen((current) => {
+            const next = !current;
+            if (next) refreshMailbox();
+            return next;
+          });
+        }}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       {hasUpdate ? (
         <div className="update-banner">
