@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Settings } from '../app-settings-type.js';
+import { DEFAULT_STATUSLINE_MODE } from '../components/settings-picker.js';
 
 type AnimationStyle = 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
 
@@ -26,7 +27,7 @@ export function useLiveSettingsState({
   // updates on every left/right change, so these refs stay current within the
   // running session without a restart.
   const liveSettings = getSettings?.();
-  const liveStatuslineMode = liveSettings?.statuslineMode ?? 'detailed';
+  const liveStatuslineMode = liveSettings?.statuslineMode ?? DEFAULT_STATUSLINE_MODE;
   const liveAnimationStyle = liveSettings?.animationStyle ?? 'rainbow';
   const liveThinkingWord = liveSettings?.thinkingWord ?? 'thinking';
   const chimeRef = useRef(chime);

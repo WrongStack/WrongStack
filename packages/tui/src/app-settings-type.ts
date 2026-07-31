@@ -51,7 +51,7 @@ export type Settings = {
   debugStream: boolean;
   /** Skip the confirmation prompt for the `!<command>` shell shortcut. */
   shellBangWarningDontShowAgain?: boolean | undefined;
-  /** Statusline density mode. Defaults to detailed. */
+  /** Statusline density mode. Defaults to minimum (DEFAULT_STATUSLINE_MODE). */
   statuslineMode: StatuslineMode;
   /** Reasoning mode: auto (provider default) | on | off. */
   reasoningMode: 'auto' | 'on' | 'off';

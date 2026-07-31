@@ -29,6 +29,17 @@ export const CONTEXT_MODE_DESCS: Record<ContextMode, string> = {
 export const STATUSLINE_MODES = ['minimum', 'detailed', 'no-color'] as const;
 export type StatuslineMode = (typeof STATUSLINE_MODES)[number];
 
+/**
+ * Factory default statusline density. `minimum` is the default so a fresh
+ * session shows a single clean rail (state · provider/model · context meter ·
+ * version) with conditional chips only when relevant; `detailed` and
+ * `no-color` are opt-in via /settings. Every app-level default site references
+ * this constant so the default has a single source of truth. (The StatusBar
+ * component's own prop default stays 'detailed' for back-compat with callers
+ * that omit `mode` — the user-facing default is applied at the settings layer.)
+ */
+export const DEFAULT_STATUSLINE_MODE: StatuslineMode = 'minimum';
+
 export const REASONING_MODES = ['auto', 'on', 'off'] as const;
 export type ReasoningMode = (typeof REASONING_MODES)[number];
 
@@ -47,8 +58,8 @@ export const CACHE_TTLS = ['default', '5m', '1h'] as const;
 export type CacheTtl = (typeof CACHE_TTLS)[number];
 
 export const STATUSLINE_MODE_DESCS: Record<StatuslineMode, string> = {
-  minimum: 'Single line with essential chips only',
-  detailed: 'Full multi-line statusline (default)',
+  minimum: 'Single line with essential chips only (default)',
+  detailed: 'Full multi-line statusline',
   'no-color': 'Multiline statusline without colors or icons',
 };
 
@@ -807,7 +818,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   enhanceEnabled: true,
   enhanceLanguage: 'original',
   debugStream: false,
-  statuslineMode: 'detailed',
+  statuslineMode: DEFAULT_STATUSLINE_MODE,
   reasoningMode: 'auto',
   reasoningEffort: 'high',
   reasoningPreserve: false,

@@ -84,7 +84,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['refinerModel'] = (autonomyCfg['refinerModel'] as string) ?? '';
   meta['refinerFallbackProfile'] = (autonomyCfg['refinerFallbackProfile'] as string) ?? '';
   meta['thinkingWord'] = (autonomyCfg['thinkingWord'] as string) ?? 'thinking';
-  meta['statuslineMode'] = (autonomyCfg['statuslineMode'] as string) ?? 'detailed';
+  meta['statuslineMode'] = (autonomyCfg['statuslineMode'] as string) ?? 'minimum';
   meta['animationStyle'] = (autonomyCfg['animationStyle'] as string) ?? 'rainbow';
   meta['showModelReasoning'] = autonomyCfg['showModelReasoning'] !== false;
   // Safety / system prefs

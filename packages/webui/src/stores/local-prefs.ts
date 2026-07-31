@@ -232,7 +232,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   refinerModel: '',
   refinerFallbackProfile: '',
   thinkingWord: 'thinking',
-  statuslineMode: 'detailed',
+  statuslineMode: 'minimum',
   animationStyle: 'rainbow',
   showThinkingLogs: true,
   groupToolCalls: true,

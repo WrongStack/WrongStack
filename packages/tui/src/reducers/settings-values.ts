@@ -11,6 +11,7 @@ import {
   COMPACTOR_STRATEGIES,
   CONFIG_SCOPES,
   CONTEXT_MODES,
+  DEFAULT_STATUSLINE_MODE,
   DELAY_PRESETS_MS,
   ENHANCE_DELAY_PRESETS,
   ENHANCE_LANGUAGES,
@@ -405,7 +406,7 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       // Field 34: statusline mode (cycle minimum/detailed)
       if (f === 34) {
         const i = STATUSLINE_MODES.indexOf(sp.statuslineMode);
-        const base = i < 0 ? STATUSLINE_MODES.indexOf('detailed') : i;
+        const base = i < 0 ? STATUSLINE_MODES.indexOf(DEFAULT_STATUSLINE_MODE) : i;
         const next = (base + action.delta + STATUSLINE_MODES.length) % STATUSLINE_MODES.length;
         return {
           ...state,

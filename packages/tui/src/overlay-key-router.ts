@@ -3,6 +3,7 @@ import type { Action, State } from './app-reducer.js';
 import { clearConfirmationKeyResult } from './components/clear-confirm-panel.js';
 import { exitConfirmationDecision } from './components/exit-confirm-panel.js';
 import type { KeyEvent } from './components/input.js';
+import { DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
 import { slashConfirmationDecision } from './components/slash-confirm-panel.js';
 import { escCloseAction } from './esc-close-panels.js';
 import type { MutableCell } from './shared-types.js';
@@ -292,7 +293,7 @@ export function routeSettingsOverlayKey(
     enhanceEnabled: config.enhanceEnabled ?? true,
     enhanceLanguage: config.enhanceLanguage ?? 'original',
     debugStream: config.debugStream ?? false,
-    statuslineMode: config.statuslineMode ?? 'detailed',
+    statuslineMode: config.statuslineMode ?? DEFAULT_STATUSLINE_MODE,
     reasoningMode: config.reasoningMode ?? 'auto',
     reasoningEffort: config.reasoningEffort ?? 'high',
     reasoningPreserve: config.reasoningPreserve ?? false,

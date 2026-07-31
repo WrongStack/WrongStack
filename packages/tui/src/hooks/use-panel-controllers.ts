@@ -4,7 +4,7 @@ import React, { type Dispatch, type MutableRefObject, type SetStateAction, useEf
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
-import type { ContextMode } from '../components/settings-picker.js';
+import { type ContextMode, DEFAULT_STATUSLINE_MODE } from '../components/settings-picker.js';
 import { createPanelOpenDispatcher } from '../on-panel-open.js';
 
 interface PanelControllersOptions {
@@ -180,7 +180,7 @@ export function usePanelControllers({
       enhanceEnabled: s.enhanceEnabled ?? true,
       enhanceLanguage: (s.enhanceLanguage as 'original' | 'english') ?? 'original',
       debugStream: s.debugStream ?? false,
-      statuslineMode: s.statuslineMode ?? 'detailed',
+      statuslineMode: s.statuslineMode ?? DEFAULT_STATUSLINE_MODE,
       reasoningMode: s.reasoningMode ?? 'auto',
       reasoningEffort: s.reasoningEffort ?? 'high',
       reasoningPreserve: s.reasoningPreserve ?? false,

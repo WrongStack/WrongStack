@@ -146,9 +146,9 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       statuslineMode:
         autonomy?.statuslineMode === 'no-color'
           ? 'no-color'
-          : autonomy?.statuslineMode === 'minimum'
-            ? 'minimum'
-            : 'detailed',
+          : autonomy?.statuslineMode === 'detailed'
+            ? 'detailed'
+            : 'minimum',
       thinkingWord: normalizeTuiThinkingWord(autonomy?.thinkingWord),
       animationStyle: normalizeAnimationStyle(autonomy?.animationStyle),
       configScope: cfg.configScope ?? 'global',

@@ -98,6 +98,9 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
       'Available items:',
       ...ALL_CONFIG_KEYS.map((k) => `  ${k.padEnd(12)} ${ITEM_DESCRIPTIONS[k]}`),
       '',
+      'Density mode (minimum/detailed/no-color) is a separate setting — see /settings.',
+      'These toggles set chip eligibility in any mode; some chips only render in detailed mode.',
+      '',
       'Persistent across sessions (saved to ~/.wrongstack/profiles/<active>/statusline.json).',
     ].join('\n'),
     async run(args: string) {

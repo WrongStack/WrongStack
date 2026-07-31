@@ -186,6 +186,9 @@ export function StatusBar({
   memoryContextMonitor,
   contextStrategy,
   hiddenItems,
+  // Component-level fallback stays 'detailed' for back-compat with callers/tests
+  // that omit `mode`. The user-facing default is 'minimum' (DEFAULT_STATUSLINE_MODE),
+  // applied at the app/settings layer — not here.
   mode = 'detailed',
   events,
   sessionId,
@@ -732,9 +735,6 @@ export function StatusBar({
     // Fleet working time
     fleetWorkingTime != null && fleetWorkingTime > 0 && showChip('elapsed') ? (
       <Text dimColor={!isNoColor}>{fmtElapsed(fleetWorkingTime)}</Text>
-    ) : null,
-    processMemory && showChip('memory') ? (
-      <Text color={chipColor(memoryColor, isNoColor)}>RAM {fmtMemory(processMemory.rss)}</Text>
     ) : null,
     // Work summary (compact)
     ...(minimalWorkParts.length > 0

@@ -183,7 +183,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
       `  auto-proceed max iters:     ${color.cyan(String(au?.autoProceedMaxIterations ?? 'unlimited'))}   ${color.dim('change: /settings auto-proceed-max-iterations <n>')}`,
       `  title animation:            ${titleAnimation ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings title-animation on|off')}`,
       `  thinking word:              ${color.cyan((au?.thinkingWord as string) ?? 'thinking')}   ${color.dim('change: /settings thinking-word <word>')}`,
-      `  statusline mode:            ${color.cyan((au?.statuslineMode as string) ?? 'detailed')}   ${color.dim('change: /settings statusline minimum|detailed|no-color')}`,
+      `  statusline mode:            ${color.cyan((au?.statuslineMode as string) ?? 'minimum')}   ${color.dim('change: /settings statusline minimum|detailed|no-color')}`,
       `  animation style:            ${color.cyan((au?.animationStyle as string) ?? 'rainbow')}   ${color.dim('change: /settings animation rainbow|wave|pulse|dots|breathe|cycle')}`,
       `  read symbols:               ${au?.readAdvancedMode === true ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings read-symbols on|off')}`,
       `  reasoning mode:             ${color.cyan(reasoningMode)}   ${color.dim('change: /settings reasoning auto|on|off')}`,

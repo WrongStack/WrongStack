@@ -135,7 +135,9 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     enhance: true,
     enhanceDelayMs: 60_000,
     enhanceLanguage: 'original',
-    statuslineMode: 'detailed',
+    // Product-wide statusline density default. Mirrored by the TUI's
+    // DEFAULT_STATUSLINE_MODE (packages/tui/src/components/settings-picker-model.ts).
+    statuslineMode: 'minimum',
     thinkingWord: DEFAULT_TUI_THINKING_WORD,
     showAgentSwarmPanel: true,
   },

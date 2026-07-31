@@ -9,7 +9,7 @@ import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
 import { retainCheckpoints } from './checkpoint-retention.js';
 import { replaySessionMessages } from './components/history/replay.js';
 import type { AutonomyAgentStatus } from './components/history/types.js';
-import type { ContextMode, StatuslineMode } from './components/settings-picker.js';
+import { type ContextMode, DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
 import { retainTuiHistory } from './history-retention.js';
 import { rehydrateHistory } from './rehydrate-history.js';
 
@@ -270,7 +270,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       enhanceEnabled: true,
       enhanceLanguage: 'original',
       debugStream: false,
-      statuslineMode: 'detailed' as StatuslineMode,
+      statuslineMode: DEFAULT_STATUSLINE_MODE,
       reasoningMode: 'auto',
       reasoningEffort: 'high',
       reasoningPreserve: false,

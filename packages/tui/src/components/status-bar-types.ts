@@ -229,7 +229,11 @@ export interface StatusBarProps {
   cpuPercent?: number | undefined;
   /** Items to hide from the status bar. Canonical set: {@link StatuslineItem}. */
   hiddenItems?: StatuslineItem[] | undefined;
-  /** Statusline density. Detailed is the default to preserve the full multi-line display. */
+  /**
+   * Statusline density. The prop default 'detailed' is kept for back-compat
+   * with tests/callers that omit `mode`; the user-facing default is 'minimum'
+   * (DEFAULT_STATUSLINE_MODE), applied at the settings layer.
+   */
   mode?: StatuslineMode | undefined;
   /** EventBus for subscribing to token.accounted events for real-time cost/token updates. */
   events?: EventBus | undefined;

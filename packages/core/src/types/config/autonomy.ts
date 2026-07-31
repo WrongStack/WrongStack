@@ -70,7 +70,7 @@ export interface AutonomyConfig {
    * `max(baseTimeout * 2, 180000)`. Default: unset.
    */
   enhanceRetryTimeoutMs?: number | undefined;
-  /** TUI statusline density. Default: "detailed". */
+  /** TUI statusline density. Default: "minimum". */
   statuslineMode?: 'minimum' | 'detailed' | 'no-color' | undefined;
   /** Single short word shown in the TUI rainbow working-state chip. Default: "thinking". */
   thinkingWord?: string | undefined;
