@@ -205,7 +205,7 @@ describe('file handlers integration', () => {
       // from path.join on platforms with symlinked temp dirs (e.g. macOS).
       // Verify it was called once with a path ending in the filename.
       expect(onWritten).toHaveBeenCalledTimes(1);
-      const calledPath = onWritten.mock.calls[0][0] as string;
+      const calledPath = onWritten.mock.calls[0]![0] as string;
       expect(calledPath).toMatch(/[\\/]new-file\.txt$/);
     });
 

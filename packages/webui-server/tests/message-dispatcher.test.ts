@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocket } from 'ws';
 
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn();
+  const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };
 });
@@ -49,7 +49,7 @@ function makeMinimalOpts(): any {
     deps: {
       agent,
       context,
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function () { return this; }) },
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function (this: any) { return this; }) },
       trustBoundary: { authorize: vi.fn(async () => ({ allowed: true })) } as any,
       memoryStore: null,
       skillLoader: undefined,

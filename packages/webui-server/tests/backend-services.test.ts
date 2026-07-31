@@ -68,7 +68,7 @@ vi.mock('../src/server/sdd-board-ws-handler.js', () => ({
   SddBoardWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
 }));
 vi.mock('../src/server/sdd-wizard-ws-handler.js', () => ({
-  SddWizardWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); },
+  SddWizardWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
 }));
 vi.mock('../src/server/sdd-wizard-wiring.js', () => ({ buildSddWizardDeps: vi.fn(() => ({})) }));
 vi.mock('../src/server/worktree-ws-handler.js', () => ({
@@ -110,7 +110,7 @@ function makeInput(): any {
       projectSddSession: '/tmp/proj/.wrongstack/sdd-session',
       globalSkills: '/tmp/skills',
     },
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function () { return this; }) },
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function (this: any) { return this; }) },
     projectRoot: '/tmp/proj',
     workingDir: '/tmp/proj',
     context: {

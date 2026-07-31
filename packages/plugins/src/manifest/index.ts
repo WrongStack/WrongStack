@@ -68,6 +68,7 @@ const OFFICIAL_PLUGIN_NAMES = [
   'license-audit-gate',
   'accessibility-auditor',
   'security-hotspot-scanner',
+  'dead-code-detector',
   'duplicate-code-detector',
   'code-metrics',
   'refactor-suggester',

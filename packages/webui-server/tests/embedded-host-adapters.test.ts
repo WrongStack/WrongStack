@@ -1,8 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { WebSocket } from 'ws';
-
+import { describe, it, expect, vi } from 'vitest';
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn();
+  const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };
 });

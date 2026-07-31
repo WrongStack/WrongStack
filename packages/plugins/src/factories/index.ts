@@ -57,6 +57,7 @@ export const OFFICIAL_PLUGIN_SPECIFIERS = [
   '@wrongstack/plugins/license-audit-gate',
   '@wrongstack/plugins/accessibility-auditor',
   '@wrongstack/plugins/security-hotspot-scanner',
+  '@wrongstack/plugins/dead-code-detector',
   '@wrongstack/plugins/duplicate-code-detector',
   '@wrongstack/plugins/code-metrics',
   '@wrongstack/plugins/refactor-suggester',

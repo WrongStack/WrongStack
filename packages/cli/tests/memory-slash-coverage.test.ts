@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock @wrongstack/sage — controls getSageSurface return per-test
-const mockGetSageSurface = vi.hoisted(() => vi.fn(() => null));
+const mockGetSageSurface = vi.hoisted(() => vi.fn((): any => null));
 vi.mock('@wrongstack/sage', () => ({ getSageSurface: mockGetSageSurface }));
 
 // Mock memory-formatters
@@ -31,6 +31,11 @@ vi.mock('../src/slash-commands/memory-compact.js', () => ({
 import { buildMemoryCommand } from '../src/slash-commands/memory.js';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
 
+/** Narrow the slash-command execute/run union (which includes `void`) to its message. */
+function runMessage(result: unknown): string | undefined {
+  return (result as { message?: string } | undefined)?.message;
+}
+
 function makeCtx(): SlashCommandContext {
   return {
     memoryStore: {
@@ -40,7 +45,7 @@ function makeCtx(): SlashCommandContext {
       list: vi.fn(async () => []),
       search: vi.fn(async () => []),
     },
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function () { return this; }) },
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function (this: any) { return this; }) },
     broadcast: vi.fn(),
     send: vi.fn(),
   } as any;
@@ -74,7 +79,7 @@ describe('memory slash command', () => {
   it('returns error when memoryStore is undefined', async () => {
     const cmd = buildMemoryCommand({ memoryStore: undefined } as any);
     const result = await cmd.run('');
-    expect(result.message).toContain('No memory store');
+    expect(runMessage(result)).toContain('No memory store');
   });
 
   describe('show / list', () => {
@@ -82,7 +87,7 @@ describe('memory slash command', () => {
       mockGetSageSurface.mockReturnValue(makeSageStub());
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
 
     it('shows empty message when SAGE is empty', async () => {
@@ -92,23 +97,23 @@ describe('memory slash command', () => {
       });
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('');
-      expect(result.message).toContain('empty');
+      expect(runMessage(result)).toContain('empty');
     });
 
     it('falls back to legacy readAll when no SAGE', async () => {
       const ctx = makeCtx();
-      (ctx.memoryStore.readAll as any).mockResolvedValue('legacy text');
+      (ctx.memoryStore!.readAll as any).mockResolvedValue('legacy text');
       const cmd = buildMemoryCommand(ctx);
       const result = await cmd.run('');
-      expect(result.message).toBe('legacy text');
+      expect(runMessage(result)).toBe('legacy text');
     });
 
     it('shows empty message for legacy empty store', async () => {
       const ctx = makeCtx();
-      (ctx.memoryStore.readAll as any).mockResolvedValue('  ');
+      (ctx.memoryStore!.readAll as any).mockResolvedValue('  ');
       const cmd = buildMemoryCommand(ctx);
       const result = await cmd.run('');
-      expect(result.message).toContain('empty');
+      expect(runMessage(result)).toContain('empty');
     });
   });
 
@@ -116,15 +121,15 @@ describe('memory slash command', () => {
     it('returns usage when no text provided', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('remember');
-      expect(result.message).toContain('Usage');
+      expect(runMessage(result)).toContain('Usage');
     });
 
     it('stores in legacy store when no SAGE', async () => {
       const ctx = makeCtx();
       const cmd = buildMemoryCommand(ctx);
       const result = await cmd.run('remember hello world');
-      expect(ctx.memoryStore.remember).toHaveBeenCalledWith('hello world');
-      expect(result.message).toContain('Remembered');
+      expect(ctx.memoryStore!.remember).toHaveBeenCalledWith('hello world');
+      expect(runMessage(result)).toContain('Remembered');
     });
 
     it('stores via SAGE rememberSage when SAGE is available', async () => {
@@ -133,7 +138,7 @@ describe('memory slash command', () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('remember new fact');
       expect(sage.rememberSage).toHaveBeenCalled();
-      expect(result.message).toContain('mem-new');
+      expect(runMessage(result)).toContain('mem-new');
     });
 
     it('handles SAGE rememberSage errors', async () => {
@@ -143,7 +148,7 @@ describe('memory slash command', () => {
       });
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('remember test');
-      expect(result.message).toContain('Could not remember');
+      expect(runMessage(result)).toContain('Could not remember');
     });
   });
 
@@ -151,14 +156,14 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('update id1');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
 
     it('returns usage when no id', async () => {
       mockGetSageSurface.mockReturnValue(makeSageStub());
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('update');
-      expect(result.message).toContain('Usage');
+      expect(runMessage(result)).toContain('Usage');
     });
   });
 
@@ -166,44 +171,44 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('delete id1');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
 
     it('returns usage when no id', async () => {
       mockGetSageSurface.mockReturnValue(makeSageStub());
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('delete');
-      expect(result.message).toContain('Usage');
+      expect(runMessage(result)).toContain('Usage');
     });
   });
 
   describe('stats', () => {
-    it('returns requiresSage when no SAGE', async () => {
+    it('returns legacy stats when no SAGE (falls back to store.list)', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('stats');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toBeTruthy();
     });
 
     it('returns formatted stats when SAGE available', async () => {
       mockGetSageSurface.mockReturnValue(makeSageStub());
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('stats');
-      expect(result.message).toBeTruthy();
+      expect(runMessage(result)).toBeTruthy();
     });
   });
 
   describe('search', () => {
-    it('returns requiresSage when no SAGE', async () => {
+    it('returns legacy search when no SAGE (falls back to store.search)', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('search query');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toBeTruthy();
     });
 
     it('returns usage when no query', async () => {
       mockGetSageSurface.mockReturnValue(makeSageStub());
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('search');
-      expect(result.message).toContain('Usage');
+      expect(runMessage(result)).toContain('Usage');
     });
   });
 
@@ -211,7 +216,7 @@ describe('memory slash command', () => {
     it('calls store.forget on legacy store', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('clear');
-      expect(result.message).toBeTruthy();
+      expect(runMessage(result)).toBeTruthy();
     });
   });
 
@@ -219,7 +224,7 @@ describe('memory slash command', () => {
     it('runs compact', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('compact');
-      expect(result.message).toBeTruthy();
+      expect(runMessage(result)).toBeTruthy();
     });
   });
 
@@ -227,7 +232,7 @@ describe('memory slash command', () => {
     it('returns help for unknown subcommand', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('totally-unknown');
-      expect(result.message).toBeTruthy();
+      expect(runMessage(result)).toBeTruthy();
     });
   });
 
@@ -235,7 +240,7 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('graph query');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
   });
 
@@ -243,7 +248,7 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('for-file x.ts');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
   });
 
@@ -251,7 +256,7 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('hygiene');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
   });
 
@@ -259,7 +264,7 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('verify');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
   });
 
@@ -267,7 +272,7 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('candidates');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
   });
 
@@ -275,7 +280,7 @@ describe('memory slash command', () => {
     it('returns requiresSage when no SAGE', async () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('audit');
-      expect(result.message).toContain('SAGE');
+      expect(runMessage(result)).toContain('SAGE');
     });
   });
 });

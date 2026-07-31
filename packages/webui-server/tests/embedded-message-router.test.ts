@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn();
+  const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };
 });
@@ -37,7 +37,7 @@ function makeDeps(overrides: Partial<EmbeddedMessageRouterDeps> = {}): EmbeddedM
       projectRoot: '/tmp/proj',
       profileConfigPath: '/tmp/config.json',
     },
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), trace: vi.fn(), child: vi.fn(function () { return this; }) } as any,
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), trace: vi.fn(), child: vi.fn(function (this: any) { return this; }) } as any,
     send,
     sendResult,
     sessionPayload: <T extends Record<string, unknown>>(payload: T) => ({ ...payload, sessionId: 'sess-1' }),
@@ -101,7 +101,6 @@ describe('createEmbeddedMessageRouter', () => {
       payload: { sessionId: 'wrong-session', text: 'hi' },
     } as any);
     // The guard should intercept and send an error
-    const deps = makeDeps();
     // Verify via deps.send: we used a fresh deps, so let's re-run with captured send
     const send = vi.fn();
     const d = makeDeps({ send });
@@ -111,7 +110,7 @@ describe('createEmbeddedMessageRouter', () => {
       payload: { sessionId: 'wrong', text: 'hi' },
     } as any);
     expect(send).toHaveBeenCalled();
-    const sent = send.mock.calls[0][1];
+    const sent = send.mock.calls[0]![1];
     expect(sent.type).toBe('error');
   });
 

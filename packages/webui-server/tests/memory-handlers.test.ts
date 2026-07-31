@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocket } from 'ws';
 
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn();
+  const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   return { WebSocket: MockWebSocket };
 });
 
-const mockGetSageSurface = vi.hoisted(() => vi.fn(() => null));
+const mockGetSageSurface = vi.hoisted(() => vi.fn((): any => null));
 vi.mock('@wrongstack/sage', () => ({ getSageSurface: mockGetSageSurface }));
 
 import {

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocket } from 'ws';
 
 // Mock ws module (matches ws-utils.test.ts style)
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn();
+  const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   MockWebSocket.CLOSING = 2;
   MockWebSocket.CLOSED = 3;
@@ -117,7 +117,7 @@ function makeMockLogger() {
     error: vi.fn(noop),
     debug: vi.fn(noop),
     trace: vi.fn(noop),
-    child: vi.fn(function () { return this; }),
+    child: vi.fn(function (this: any) { return this; }),
   } as any;
 }
 
@@ -363,7 +363,7 @@ describe('GoalWebSocketHandler', () => {
 
     it('non-empty goal sends an assessment derived from the agent', async () => {
       // Build a fresh agent stub so we control run() deterministically.
-      const stubAgent = { run: vi.fn(async () => ({ status: 'done', finalText: 'verdict text' })) };
+      const stubAgent = { run: vi.fn(async () => ({ status: 'done', finalText: 'verdict text' })) } as any;
       const handler = new GoalWebSocketHandler(stubAgent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
@@ -378,7 +378,7 @@ describe('GoalWebSocketHandler', () => {
     });
 
     it('agent throwing does not crash the handler', async () => {
-      const failingAgent = { run: vi.fn(async () => { throw new Error('LLM down'); }) };
+      const failingAgent = { run: vi.fn(async () => { throw new Error('LLM down'); }) } as any;
       const handler = new GoalWebSocketHandler(failingAgent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);

@@ -72,6 +72,7 @@ const healthPlugins = {
   'code-metrics': () => import('../src/code-metrics'),
   'commit-validator': () => import('../src/commit-validator'),
   'config-validator': () => import('../src/config-validator'),
+  'dead-code': () => import('../src/dead-code-detector'),
   'context-pins': () => import('../src/context-pins'),
   'cost-tracker': () => import('../src/cost-tracker'),
   'dep-guard': () => import('../src/dep-guard'),

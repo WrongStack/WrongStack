@@ -59,6 +59,7 @@
 | license-audit-gate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/license-audit-gate` | PostToolUse hook that audits dependency licenses after package-manager install/add commands and blocks disallowed licenses |
 | accessibility-auditor | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/accessibility-auditor` | Audits .tsx/.jsx/.html/.vue files for common accessibility issues and reports findings after writes/edits |
 | security-hotspot-scanner | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/security-hotspot-scanner` | Scans source code for security anti-patterns and warns after writes/edits that introduce new hotspots |
+| dead-code-detector | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/dead-code-detector` | Lightweight regex-based scan for exported identifiers that appear unused anywhere in the project |
 | duplicate-code-detector | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/duplicate-code-detector` | Finds duplicated code blocks across source files using normalized-line fingerprinting |
 | code-metrics | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/code-metrics` | Computes per-file line counts, function counts, and cyclomatic-complexity-like scores |
 | refactor-suggester | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/refactor-suggester` | Suggests refactoring opportunities using regex-based smell detection |

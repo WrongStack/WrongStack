@@ -18,7 +18,7 @@ function fakeLoader(names: string[], body: string): SkillLoader {
   return {
     list: async () => names.map(manifest),
     listEntries: async () => [],
-    find: async (name) => (names.includes(name) ? manifest(name) : undefined),
+    find: async (name: string) => (names.includes(name) ? manifest(name) : undefined),
     manifestText: async () => '',
     readBody: async () => body,
     readSaveBody: async () => body,
@@ -93,7 +93,7 @@ function foreignLoader(): SkillLoader {
         originTool: m.originTool,
         path: m.path,
       })),
-    find: async (name) => all.find((m) => m.name === name),
+    find: async (name: string) => all.find((m) => m.name === name),
     manifestText: async () => '',
     readBody: async () => 'BODY',
     readSaveBody: async () => 'BODY',

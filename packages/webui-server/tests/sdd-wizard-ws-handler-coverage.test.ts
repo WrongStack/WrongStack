@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocket } from 'ws';
 
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn();
+  const MockWebSocket: any = vi.fn();
   MockWebSocket.OPEN = 1;
   MockWebSocket.CLOSING = 2;
   MockWebSocket.CLOSED = 3;
@@ -21,7 +21,7 @@ function mockWs(): any {
   };
 }
 
-function makeDriverStub(extra: Record<string, unknown> = {}) {
+function makeDriverStub(extra: Record<string, unknown> = {}): any {
   return {
     loadExisting: vi.fn(async () => false),
     getLastAgentText: vi.fn(() => null),
@@ -79,7 +79,7 @@ describe('SddWizardWebSocketHandler', () => {
         expect(ws.send).toHaveBeenCalled();
       });
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.snapshot');
       expect(types).toContain('sdd.spec.agent_text');
     });
@@ -99,7 +99,7 @@ describe('SddWizardWebSocketHandler', () => {
         expect(ws.send).toHaveBeenCalled();
       });
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
   });
@@ -126,7 +126,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: '' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
 
@@ -144,7 +144,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'new goal' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const errorMessages = sent.filter((m) => m.type === 'sdd.spec.error');
+      const errorMessages = sent.filter((m: any) => m.type === 'sdd.spec.error');
       expect(errorMessages.length).toBeGreaterThan(0);
       expect(errorMessages[0].payload.message).toContain('already in progress');
     });
@@ -180,7 +180,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.spec.discard' });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.snapshot');
     });
   });
@@ -200,7 +200,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.spec.get' });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.snapshot');
     });
 
@@ -210,7 +210,6 @@ describe('SddWizardWebSocketHandler', () => {
       handler.addClient(ws);
       await vi.waitFor(() => expect(ws.on).toHaveBeenCalled());
 
-      const sendCountBefore = ws.send.mock.calls.length;
       await handler.handleMessage({ type: 'sdd.spec.get' });
       // May or may not send, but must not throw
       expect(true).toBe(true);
@@ -227,7 +226,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.start', payload: {} });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
 
@@ -250,7 +249,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.start', payload: {} });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.run.started');
     });
   });
@@ -265,7 +264,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_graph', payload: { graphId: '' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
 
@@ -278,7 +277,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_graph', payload: { graphId: 'g1' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
 
@@ -294,7 +293,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_graph', payload: { graphId: 'g1' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.run.started');
     });
   });
@@ -309,7 +308,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_spec', payload: { specId: '' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
 
@@ -322,7 +321,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_spec', payload: { specId: 's1' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.spec.error');
     });
 
@@ -339,7 +338,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_spec', payload: { specId: 's1' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const errorMessages = sent.filter((m) => m.type === 'sdd.spec.error');
+      const errorMessages = sent.filter((m: any) => m.type === 'sdd.spec.error');
       expect(errorMessages.length).toBeGreaterThan(0);
     });
 
@@ -356,7 +355,7 @@ describe('SddWizardWebSocketHandler', () => {
       await handler.handleMessage({ type: 'sdd.run.from_spec', payload: { specId: 'spec-1' } });
 
       const sent = ws.send.mock.calls.map((c: any[]) => JSON.parse(c[0]));
-      const types = sent.map((m) => m.type);
+      const types = sent.map((m: any) => m.type);
       expect(types).toContain('sdd.run.started');
     });
   });

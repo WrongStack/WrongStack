@@ -1,13 +1,26 @@
-import { describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
+import { describe, expect, it } from 'vitest';
 import {
+  nodeText,
+  planChipFit,
   StatusBar,
   type StatusBarProps,
-  planChipFit,
-  nodeText,
   truncateChip,
 } from '../src/components/status-bar.js';
+
+// The orange-styling pin in this file asserts the raw `\x1b[38;2;253;159;2m`
+// escape. Ink → chalk renders `<Text color>` via `chalk.hex()`; chalk's color
+// level is auto-detected from `process.stdout.isTTY`, `COLORTERM`, and
+// `FORCE_COLOR` — in vitest's non-TTY worker it resolves to 0 (disabled) and
+// the brand-orange truecolor is silently stripped before `ink-testing-library`
+// ever sees it. This test uses a dedicated vitest config
+// (`vitest.status-bar-overflow.config.ts`) that sets `FORCE_COLOR=3` and
+// `COLORTERM=truecolor` at worker start so chalk picks them up at
+// initialization. The env vars are scoped to this test file only — applying
+// them package-wide breaks ~55 unrelated ink tests. The no-color case below
+// passes its own `mode: 'no-color'` prop, which the component honors
+// regardless of the env vars.
 
 function strip(s: string): string {
   // eslint-disable-next-line no-control-regex
@@ -64,13 +77,7 @@ describe('planChipFit', () => {
 
 describe('nodeText', () => {
   it('flattens string/number leaves across nested elements', () => {
-    const el = React.createElement(
-      'span',
-      null,
-      'ab',
-      React.createElement('span', null, 'cd'),
-      5,
-    );
+    const el = React.createElement('span', null, 'ab', React.createElement('span', null, 'cd'), 5);
     expect(nodeText(el)).toBe('abcd5');
   });
 
@@ -89,7 +96,9 @@ describe('StatusBar overflow handling (width-budget)', () => {
 
   it('drops trailing chips with a +N marker rather than wrapping the line', () => {
     // ink-testing-library renders at a fixed 100 columns; pack line 2 well past
-    // that so the lowest-priority trailing chips must be dropped.
+    // that so the lowest-priority trailing chips must be dropped. StatusBar
+    // renders line 1 (runtime + version chip) and line 2 (detail chips) —
+    // only line 2 carries enough chips to overflow at this budget.
     const frame = frameOf({
       yolo: true,
       autonomy: 'eternal',
@@ -106,10 +115,22 @@ describe('StatusBar overflow handling (width-budget)', () => {
         iterations: 7,
       },
     });
-    const line = frame.split('\n').find((l) => l.includes('YOLO')) ?? '';
-    // The visible line never exceeds the 100-col terminal (no wrap) — some
-    // chips may overflow gracefully with a +N marker depending on spacing.
-    expect(line.length).toBeLessThanOrEqual(100);
+    const lines = frame.split('\n');
+    const line1 = lines[0] ?? '';
+    const line2 = lines[1] ?? '';
+    // Line 1 stays under the 100-col terminal (no wrap) — YOLO + autonomy
+    // are pinned at the leading edge.
+    expect(line1.length).toBeLessThanOrEqual(100);
+    expect(line1).toContain('! YOLO');
+    // Line 2 carries the detail chips that overflow at 100 cols — the
+    // rail must append a `+N` marker rather than wrapping or truncating
+    // silently. Pin the marker so a future refactor that drops the
+    // overflow handling (and silently clips chips) is caught.
+    expect(line2.length).toBeLessThanOrEqual(100);
+    const overflowMatch = line2.match(/\+(\d+)/);
+    expect(overflowMatch).not.toBeNull();
+    expect(Number(overflowMatch?.[1])).toBeGreaterThan(0);
+    expect(line2).toContain('feature/long-branch-name');
   });
 
   it('keeps the leading YOLO + autonomy chips when dropping (priority order)', () => {
@@ -124,9 +145,12 @@ describe('StatusBar overflow handling (width-budget)', () => {
       toolCount: 99,
       tokenSavingMode: 'medium',
     });
-    const line = frame.split('\n').find((l) => l.includes('YOLO')) ?? '';
-    expect(line).toContain('! YOLO');
-    expect(line).toContain('∞ ETERNAL');
+    // StatusBar renders line 1 (runtime + version chip) and line 2 (detail
+    // chips). The leading YOLO + autonomy chips live on line 1 and must
+    // survive any overflow drops on line 2.
+    const line1 = frame.split('\n')[0] ?? '';
+    expect(line1).toContain('! YOLO');
+    expect(line1).toContain('∞ ETERNAL');
   });
 });
 
@@ -151,6 +175,13 @@ describe('StatusBar version chip + update notice', () => {
     // frameOf() strips SGR before matching, which would silently swallow this
     // assertion. Pinning the escape stops a future refactor from swapping the
     // brand orange for theme.warn (pastel yellow) unnoticed.
+    //
+    // Why this works: `packages/tui/vitest.config.ts` sets `env.FORCE_COLOR=3`
+    // and `env.COLORTERM=truecolor` before any worker module evaluates, so
+    // chalk (loaded transitively via `ink-testing-library` → `ink`) initializes
+    // at color level 3 and emits the 24-bit escape at render time. Without that
+    // env, chalk would sit at level 0 in a piped vitest worker and strip the
+    // SGR before `lastFrame()` sees it.
     const { lastFrame, unmount } = render(
       React.createElement(StatusBar, {
         model: 'anthropic/claude',

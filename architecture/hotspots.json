@@ -319,7 +319,7 @@
       "relativeImports": 13
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 906,
+      "lines": 917,
       "relativeImports": 2
     },
     "packages/tui/src/components/status-bar.tsx": {

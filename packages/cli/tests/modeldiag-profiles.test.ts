@@ -16,7 +16,6 @@ import {
   EVAL_CATEGORIES,
   EVAL_TASKS,
   type CacheProvider,
-  type CacheModel,
 } from '../src/subcommands/handlers/modeldiag-profiles.js';
 
 describe('modeldiag-profiles', () => {
@@ -227,7 +226,7 @@ describe('modeldiag-profiles', () => {
       const result = rankModels(providers, () => true, 'planning', 5);
       expect(result.length).toBe(2);
       // Opus should score higher for planning than Haiku (Haiku has avoidFor: planning)
-      expect(result[0].score).toBeGreaterThanOrEqual(result[1].score);
+      expect(result[0]!.score).toBeGreaterThanOrEqual(result[1]!.score);
     });
     it('respects the limit parameter', () => {
       const providers: CacheProvider[] = [
@@ -254,8 +253,8 @@ describe('modeldiag-profiles', () => {
         },
       ];
       const result = rankModels(providers, () => true, 'coding', 5);
-      expect(result[0].inputPrice).toBe(2.5);
-      expect(result[0].outputPrice).toBe(10);
+      expect(result[0]!.inputPrice).toBe(2.5);
+      expect(result[0]!.outputPrice).toBe(10);
     });
   });
 
@@ -286,7 +285,7 @@ describe('modeldiag-profiles', () => {
   describe('EVAL_TASKS', () => {
     it('each category has a label and prompt', () => {
       for (const cat of EVAL_CATEGORIES) {
-        const task = EVAL_TASKS[cat];
+        const task = EVAL_TASKS[cat]!;
         expect(task).toBeDefined();
         expect(task.label).toBeTruthy();
         expect(task.prompt).toBeTruthy();
