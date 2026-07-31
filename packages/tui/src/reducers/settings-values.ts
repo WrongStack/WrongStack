@@ -507,7 +507,11 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       if (f === 43)
         return {
           ...state,
-          settingsPicker: { ...sp, showSageMemoryInject: !sp.showSageMemoryInject, hint: undefined },
+          settingsPicker: {
+            ...sp,
+            showSageMemoryInject: !sp.showSageMemoryInject,
+            hint: undefined,
+          },
         };
       // Field 44: sageMemoryInjectThreshold (cycle SAGE_THRESHOLD_PRESETS)
       if (f === 44) {

@@ -403,7 +403,9 @@ export function StatusBar({
   const cpuStatusChip =
     cpuPercent != null && showChip('cpu') ? (
       <Text color={isNoColor ? undefined : cpuColor}>
-        {isNoColor ? `CPU ${cpuPercent.toFixed(0)}%` : `${STATUSLINE_ICONS.cpu} ${cpuPercent.toFixed(0)}%`}
+        {isNoColor
+          ? `CPU ${cpuPercent.toFixed(0)}%`
+          : `${STATUSLINE_ICONS.cpu} ${cpuPercent.toFixed(0)}%`}
       </Text>
     ) : null;
 
@@ -508,11 +510,7 @@ export function StatusBar({
       if (memorySummary.contextPressure > 0) {
         const pressurePct = Math.round(memorySummary.contextPressure * 100);
         const pressureColor =
-          pressurePct >= 80
-            ? theme.error
-            : pressurePct >= 65
-              ? theme.warn
-              : theme.textSecondary;
+          pressurePct >= 80 ? theme.error : pressurePct >= 65 ? theme.warn : theme.textSecondary;
         memoryDetailChips.push(
           <Text key="pressure">
             <Text dimColor={!isNoColor}>{' · '}</Text>
@@ -550,9 +548,7 @@ export function StatusBar({
                   ) : null}
                 </Text>
               ) : null}
-              {sep && context && hasTokens ? (
-                <Text dimColor={!isNoColor}>{' · '}</Text>
-              ) : null}
+              {sep && context && hasTokens ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
               {hasTokens ? (
                 <Text>
                   <Text color={isNoColor ? undefined : theme.textSecondary}>{'↑'}</Text>
@@ -570,9 +566,7 @@ export function StatusBar({
               ) : null}
               {hasCost ? (
                 <Text color={isNoColor ? undefined : theme.warn}>
-                  {STATUSLINE_ICONS.cost}
-                  {' '}
-                  {cost.total.toFixed(4)}
+                  {STATUSLINE_ICONS.cost} {cost.total.toFixed(4)}
                 </Text>
               ) : null}
               {sep && hasCache && (context || hasTokens || hasCost) ? (
@@ -580,9 +574,7 @@ export function StatusBar({
               ) : null}
               {hasCache ? (
                 <Text dimColor={!isNoColor}>
-                  {STATUSLINE_ICONS.cache}
-                  {' '}
-                  {(cache.hitRatio * 100).toFixed(0)}%
+                  {STATUSLINE_ICONS.cache} {(cache.hitRatio * 100).toFixed(0)}%
                 </Text>
               ) : null}
             </Text>
@@ -630,9 +622,7 @@ export function StatusBar({
     modelStatusChip,
     processCount != null && processCount > 0 && showChip('processes') ? (
       <Text color={isNoColor ? undefined : theme.error}>
-        {STATUSLINE_ICONS.processes}
-        {' '}
-        {processCount} {processCount === 1 ? 'process' : 'processes'}
+        {STATUSLINE_ICONS.processes} {processCount} {processCount === 1 ? 'process' : 'processes'}
       </Text>
     ) : null,
     ...primaryChips,
@@ -775,9 +765,7 @@ export function StatusBar({
           {STATUSLINE_ICONS.mailbox} {mailbox.unread} new
         </Text>
       ) : (
-        <Text dimColor={!isNoColor}>
-          {STATUSLINE_ICONS.mailbox} 0
-        </Text>
+        <Text dimColor={!isNoColor}>{STATUSLINE_ICONS.mailbox} 0</Text>
       ),
       <Text color={isNoColor ? undefined : theme.accent}>
         {glyphs.peers} {mailbox.onlineAgents} agent{mailbox.onlineAgents === 1 ? '' : 's'}
@@ -959,7 +947,9 @@ export function StatusBar({
                 ) : null}
                 {plan.inProgress > 0 && (plan.open > 0 || plan.done > 0) ? ' ' : ''}
                 {plan.open > 0 ? (
-                  <Text dimColor={!isNoColor}>{isNoColor ? `.${plan.open}` : `${glyphs.pending} ${plan.open}`}</Text>
+                  <Text dimColor={!isNoColor}>
+                    {isNoColor ? `.${plan.open}` : `${glyphs.pending} ${plan.open}`}
+                  </Text>
                 ) : null}
                 {plan.open > 0 && plan.done > 0 ? ' ' : ''}
                 {plan.done > 0 ? (

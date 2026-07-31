@@ -300,8 +300,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           autonomy.showAgentSwarmPanel = s.showAgentSwarmPanel;
         if (s.showSageMemoryInject !== undefined)
           autonomy.showSageMemoryInject = s.showSageMemoryInject;
-        if (s.readSymbols !== undefined)
-          autonomy.readAdvancedMode = s.readSymbols;
+        if (s.readSymbols !== undefined) autonomy.readAdvancedMode = s.readSymbols;
         if (s.autonomyNextPrompt !== undefined) autonomy.autonomyNextPrompt = s.autonomyNextPrompt;
         if (s.autoProceedMaxIterations !== undefined)
           autonomy.autoProceedMaxIterations = s.autoProceedMaxIterations;
@@ -534,9 +533,10 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
                   ...currentConfig.Sage,
                   ...((decrypted.Sage as Record<string, unknown> | undefined) ?? {}),
                   inject: {
-                    ...(currentConfig.Sage?.inject as Record<string, unknown> | undefined) ?? {},
-                    ...(((decrypted.Sage as Record<string, unknown> | undefined)
-                      ?.inject as Record<string, unknown> | undefined) ?? {}),
+                    ...((currentConfig.Sage?.inject as Record<string, unknown> | undefined) ?? {}),
+                    ...(((decrypted.Sage as Record<string, unknown> | undefined)?.inject as
+                      | Record<string, unknown>
+                      | undefined) ?? {}),
                   } as Record<string, unknown>,
                 } as Config['Sage'],
               }

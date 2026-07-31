@@ -278,31 +278,35 @@ export interface StatusBarProps {
       connected: boolean;
       pid?: number | undefined;
       lastError?: string | undefined;
-      health?: {
-        status: 'healthy' | 'degraded' | 'unresponsive';
-        checkedAt: number;
-        lastHealthyAt: number | null;
-        latencyMs: number | null;
-        missedHeartbeats: number;
-        server?: {
-          uptimeMs: number;
-          memory: {
-            rss: number;
-            heapUsed: number;
-            heapTotal: number;
-            external: number;
-          };
-          clients: number;
-          activeRequests: number;
-          activeWrites: number;
-          queuedWrites: number;
-          pendingExternalFiles: number;
-          watchingExternal: boolean;
-          watchingClients?: number | undefined;
-          clientLeaseTimeoutMs?: number | undefined;
-          oldestClientIdleMs?: number | undefined;
-        } | undefined;
-      } | undefined;
+      health?:
+        | {
+            status: 'healthy' | 'degraded' | 'unresponsive';
+            checkedAt: number;
+            lastHealthyAt: number | null;
+            latencyMs: number | null;
+            missedHeartbeats: number;
+            server?:
+              | {
+                  uptimeMs: number;
+                  memory: {
+                    rss: number;
+                    heapUsed: number;
+                    heapTotal: number;
+                    external: number;
+                  };
+                  clients: number;
+                  activeRequests: number;
+                  activeWrites: number;
+                  queuedWrites: number;
+                  pendingExternalFiles: number;
+                  watchingExternal: boolean;
+                  watchingClients?: number | undefined;
+                  clientLeaseTimeoutMs?: number | undefined;
+                  oldestClientIdleMs?: number | undefined;
+                }
+              | undefined;
+          }
+        | undefined;
     };
     /** Circuit-breaker snapshot — 'open' means indexing is paused after repeated failures. */
     circuit?: { state: 'closed' | 'open' | 'half-open'; cooldownRemainingMs: number };
