@@ -166,6 +166,7 @@ describe('StatusBar chip separators', () => {
       hiddenItems: ['state'],
     });
 
+    expect(frame).toContain('✦ Memory');
     expect(frame).toContain('6261 total');
     expect(frame).toContain('3 actv');
   });
@@ -408,8 +409,7 @@ describe('StatusBar chip separators', () => {
 
     // The mailbox chip sits on line 3 (active work + connectivity). Mailbox
     // is the only chip on line 3 here, so it should render without overflow.
-    expect(frame).toContain('✉');
-    expect(frame).toContain('0');
+    expect(frame).toContain('✉ 0');
   });
 
   it('right-anchors the index-server chip so its column stays put while memory counters grow', () => {

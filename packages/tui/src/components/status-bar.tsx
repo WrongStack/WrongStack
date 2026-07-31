@@ -446,7 +446,7 @@ export function StatusBar({
     const reportedActive = memoryMonitor ? liveActive : (Sage?.activeInContext ?? 0);
     memoryDetailChips.push(
       <Text color={chipColor(theme.accent, isNoColor)} key="mem-label">
-        {isNoColor ? 'Memory ' : `${STATUSLINE_ICONS.memory_context} `}
+        {isNoColor ? 'Memory ' : `${STATUSLINE_ICONS.memory_context} Memory `}
       </Text>,
     );
     if (Sage) {
@@ -734,10 +734,12 @@ export function StatusBar({
     detailChips.push(
       mailbox.unread > 0 ? (
         <Text color={isNoColor ? undefined : theme.warn} bold>
-          {`${STATUSLINE_ICONS.mailbox} ${mailbox.unread} new`}
+          {STATUSLINE_ICONS.mailbox} {mailbox.unread} new
         </Text>
       ) : (
-        <Text dimColor={!isNoColor}>{`${STATUSLINE_ICONS.mailbox} 0`}</Text>
+        <Text dimColor={!isNoColor}>
+          {STATUSLINE_ICONS.mailbox} 0
+        </Text>
       ),
       <Text color={isNoColor ? undefined : theme.accent}>
         {glyphs.peers} {mailbox.onlineAgents} agent{mailbox.onlineAgents === 1 ? '' : 's'}
