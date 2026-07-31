@@ -1,24 +1,22 @@
-import type { WebSocket } from 'ws';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  assignNickname,
-} from '@wrongstack/core/coordination';
+import type { Agent, Context } from '@wrongstack/core/agent';
+import { assignNickname } from '@wrongstack/core/coordination';
 import {
   GoalAssessor,
-  GoalPlanner,
-  PhaseGraphBuilder,
-  PhaseOrchestrator,
-  PhaseStore,
   type GoalAssessResult,
+  GoalPlanner,
   type PhaseExecutionContext,
   type PhaseGraph,
+  PhaseGraphBuilder,
   type PhaseNode,
+  PhaseOrchestrator,
+  PhaseStore,
   type PhaseTemplate,
 } from '@wrongstack/core/goal';
-import type { Agent, Context } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Logger } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
+import type { WebSocket } from 'ws';
 import { gitStdout, isGitWorkTree } from './git-process.js';
 import { sendSerialized } from './ws-utils.js';
 
@@ -45,14 +43,12 @@ function deriveTitle(goal: string): string {
  * which reverses them. Returns [] on any git error.
  */
 async function commitsSince(cwd: string, baseSha: string, branch: string): Promise<string[]> {
-  const output = await gitStdout(cwd, [
-    'log',
-    '--reverse',
-    '--format=%H',
-    `${baseSha}..${branch}`,
-  ]);
+  const output = await gitStdout(cwd, ['log', '--reverse', '--format=%H', `${baseSha}..${branch}`]);
   if (output === null) return [];
-  return output.split('\n').map((s) => s.trim()).filter(Boolean);
+  return output
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 interface WSClient {
@@ -133,6 +129,18 @@ export class GoalWebSocketHandler {
     this.sendState(client);
   }
 
+  /** Release timers, in-flight work, and socket references owned by this host. */
+  dispose(): void {
+    this.stopping = true;
+    this.abort?.abort();
+    this.abort = null;
+    this.assessAbort?.abort();
+    this.assessAbort = null;
+    this.orchestrator?.stop();
+    this.stopBroadcast();
+    this.clients.clear();
+  }
+
   async handleMessage(ws: WebSocket, msg: GoalWSMessage): Promise<void> {
     switch (msg.type) {
       case 'goal.assess':
@@ -184,7 +192,8 @@ export class GoalWebSocketHandler {
           agentId?: string;
           agentName?: string;
         };
-        if (this.orchestrator?.setTaskAssignee(taskId, agentId, agentName)) this.afterBoardMutation();
+        if (this.orchestrator?.setTaskAssignee(taskId, agentId, agentName))
+          this.afterBoardMutation();
         break;
       }
       case 'goal.addTask': {
@@ -195,7 +204,10 @@ export class GoalWebSocketHandler {
           type?: import('@wrongstack/core/types').TaskNode['type'];
           priority?: import('@wrongstack/core/types').TaskNode['priority'];
         };
-        if (title?.trim() && this.orchestrator?.addTask(phaseId, { title: title.trim(), description, type, priority })) {
+        if (
+          title?.trim() &&
+          this.orchestrator?.addTask(phaseId, { title: title.trim(), description, type, priority })
+        ) {
           this.afterBoardMutation();
         }
         break;
@@ -235,7 +247,10 @@ export class GoalWebSocketHandler {
             this.graph = graph;
             this.broadcast({ type: 'goal.state', payload: this.buildState() });
           } else {
-            this.broadcast({ type: 'goal.error', payload: { message: `Graph not found: ${graphId}` } });
+            this.broadcast({
+              type: 'goal.error',
+              payload: { message: `Graph not found: ${graphId}` },
+            });
           }
         }
         break;
@@ -268,10 +283,13 @@ export class GoalWebSocketHandler {
       // Stale guard: if a newer assessment arrived while this one was running,
       // discard the response. The client also has its own reqSeq guard.
       if (mySeq !== this.assessSeq) return;
-      sendSerialized(ws, JSON.stringify({
-        type: 'goal.assess.result',
-        payload: { ...result, reqSeq: seq },
-      }));
+      sendSerialized(
+        ws,
+        JSON.stringify({
+          type: 'goal.assess.result',
+          payload: { ...result, reqSeq: seq },
+        }),
+      );
     };
 
     if (!goal.trim()) {
@@ -333,7 +351,8 @@ export class GoalWebSocketHandler {
     // the (long) planning turn actually cancels it. Previously the controller was
     // created only after planning, so a stop while "starting" was a no-op and the
     // run launched anyway.
-    this.abort = new AbortController();
+    const runAbort = new AbortController();
+    this.abort = runAbort;
     this.stopping = false;
 
     // Phase plan resolution:
@@ -342,12 +361,12 @@ export class GoalWebSocketHandler {
     //   3. failing that, fall back to the generic default phases.
     const phases = Array.isArray(payload?.phases)
       ? (payload.phases as PhaseTemplate[])
-      : await this.planPhases(goal, this.abort.signal);
+      : await this.planPhases(goal, runAbort.signal);
 
     // Stop requested during planning → never launch the orchestrator. The abort
     // may not have interrupted the in-flight LLM call promptly, so the `stopping`
     // flag is the authoritative guard for the resolve-after-stop window.
-    if (this.stopping || this.abort.signal.aborted) {
+    if (this.stopping || runAbort.signal.aborted) {
       this.broadcast({ type: 'goal.stopped', payload: { title } });
       return;
     }
@@ -356,7 +375,15 @@ export class GoalWebSocketHandler {
 
     // Build the graph up-front so we have a reference for live broadcasts and
     // persistence *before* the (long-running) build begins.
-    const graph = await new PhaseGraphBuilder({ title, description: goal, phases, autonomous, multiBoard, verifyTasks, chimeraReview }).build();
+    const graph = await new PhaseGraphBuilder({
+      title,
+      description: goal,
+      phases,
+      autonomous,
+      multiBoard,
+      verifyTasks,
+      chimeraReview,
+    }).build();
     this.graph = graph;
     await this.store.save(graph);
 
@@ -375,7 +402,7 @@ export class GoalWebSocketHandler {
       this.events &&
       this.projectRoot &&
       useWorktrees &&
-      await isGitWorkTree(this.projectRoot)
+      (await isGitWorkTree(this.projectRoot))
     ) {
       this.worktrees = new WorktreeManager({
         projectRoot: this.projectRoot,
@@ -397,7 +424,10 @@ export class GoalWebSocketHandler {
       repairPhase?: PhaseExecutionContext['repairPhase'];
     } = {};
     if (verifyTasks && this.projectRoot) {
-      maybeVerify.verifyPhase = (async (phase: PhaseNode, env?: { cwd?: string | undefined; branch?: string | undefined }) => {
+      maybeVerify.verifyPhase = (async (
+        phase: PhaseNode,
+        env?: { cwd?: string | undefined; branch?: string | undefined },
+      ) => {
         const cwd = env?.cwd ?? this.projectRoot!;
         try {
           // Run typecheck in the phase worktree (or project root).
@@ -565,11 +595,41 @@ export class GoalWebSocketHandler {
   /** Generic fallback phases when the LLM planner produces nothing usable. */
   private defaultPhases(): PhaseTemplate[] {
     return [
-      { name: 'Discovery', description: 'Requirements gathering', priority: 'high', estimateHours: 2, parallelizable: false },
-      { name: 'Design', description: 'Architecture and design', priority: 'critical', estimateHours: 4, parallelizable: false },
-      { name: 'Implementation', description: 'Core development', priority: 'critical', estimateHours: 12, parallelizable: false },
-      { name: 'Testing', description: 'Unit and integration tests', priority: 'high', estimateHours: 6, parallelizable: true },
-      { name: 'Deployment', description: 'Deploy to production', priority: 'medium', estimateHours: 2, parallelizable: false },
+      {
+        name: 'Discovery',
+        description: 'Requirements gathering',
+        priority: 'high',
+        estimateHours: 2,
+        parallelizable: false,
+      },
+      {
+        name: 'Design',
+        description: 'Architecture and design',
+        priority: 'critical',
+        estimateHours: 4,
+        parallelizable: false,
+      },
+      {
+        name: 'Implementation',
+        description: 'Core development',
+        priority: 'critical',
+        estimateHours: 12,
+        parallelizable: false,
+      },
+      {
+        name: 'Testing',
+        description: 'Unit and integration tests',
+        priority: 'high',
+        estimateHours: 6,
+        parallelizable: true,
+      },
+      {
+        name: 'Deployment',
+        description: 'Deploy to production',
+        priority: 'medium',
+        estimateHours: 2,
+        parallelizable: false,
+      },
     ];
   }
 
@@ -674,7 +734,9 @@ export class GoalWebSocketHandler {
         finalText?: string | undefined;
       };
       if (result_.status === 'done' && result_.finalText) {
-        this.logger.info(`[Goal] Chimera review for "${task.title}":\n${result_.finalText.slice(0, 2000)}`);
+        this.logger.info(
+          `[Goal] Chimera review for "${task.title}":\n${result_.finalText.slice(0, 2000)}`,
+        );
       }
     } catch (err: unknown) {
       this.logger.warn(`[Goal] Chimera review failed for "${task.title}": ${toErrorMessage(err)}`);
@@ -737,16 +799,27 @@ export class GoalWebSocketHandler {
 
   private buildState(activePhaseId?: string): Record<string, unknown> {
     if (!this.graph) {
-      return { phases: [], tasks: [], overallPercent: 0, autonomous: true, title: '', multiBoard: false, verifyTasks: false, chimeraReview: false };
+      return {
+        phases: [],
+        tasks: [],
+        overallPercent: 0,
+        autonomous: true,
+        title: '',
+        multiBoard: false,
+        verifyTasks: false,
+        chimeraReview: false,
+      };
     }
 
     const phases = Array.from(this.graph.phases.values());
-    const currentActiveId = activePhaseId || phases.find((p) => p.status === 'running')?.id || phases[0]?.id || '';
+    const currentActiveId =
+      activePhaseId || phases.find((p) => p.status === 'running')?.id || phases[0]?.id || '';
     const activePhase = this.graph.phases.get(currentActiveId);
 
     const totalTasks = phases.reduce((sum, p) => sum + p.taskGraph.nodes.size, 0);
     const completedTasks = phases.reduce(
-      (sum, p) => sum + Array.from(p.taskGraph.nodes.values()).filter((t) => t.status === 'completed').length,
+      (sum, p) =>
+        sum + Array.from(p.taskGraph.nodes.values()).filter((t) => t.status === 'completed').length,
       0,
     );
 
@@ -792,19 +865,24 @@ export class GoalWebSocketHandler {
     });
 
     // Back-compat: the chat-area TaskBoard still reads the flat active-phase list.
-    const taskItems = activePhase ? Array.from(activePhase.taskGraph.nodes.values()).map(mapTask) : [];
+    const taskItems = activePhase
+      ? Array.from(activePhase.taskGraph.nodes.values()).map(mapTask)
+      : [];
 
     const completedPhases = phases.filter((p) => p.status === 'completed').length;
     const failedPhases = phases.filter((p) => p.status === 'failed').length;
     const failedTasks = phases.reduce(
-      (sum, p) => sum + Array.from(p.taskGraph.nodes.values()).filter((t) => t.status === 'failed').length,
+      (sum, p) =>
+        sum + Array.from(p.taskGraph.nodes.values()).filter((t) => t.status === 'failed').length,
       0,
     );
 
     // Surface the most recent failure so the board can show it (the store keeps a
     // `lastError` field the UI renders). Prefer the worktree integration error,
     // else a generic phase-failure note.
-    const lastFailed = phases.filter((p) => p.status === 'failed').sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+    const lastFailed = phases
+      .filter((p) => p.status === 'failed')
+      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
     const lastError = lastFailed
       ? `${lastFailed.name}: ${(lastFailed.metadata?.integrationError as string | undefined) ?? 'phase failed'}`
       : null;
