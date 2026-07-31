@@ -45,7 +45,6 @@ export const OFFICIAL_PLUGIN_SPECIFIERS = [
   '@wrongstack/plugins/type-gate',
   '@wrongstack/plugins/token-throttle',
   '@wrongstack/plugins/plugin-stack-observer',
-  '@wrongstack/plugins/dead-code-detector',
   '@wrongstack/plugins/dependency-vulnerability-gate',
   '@wrongstack/plugins/migration-planner',
   '@wrongstack/plugins/semantic-search-indexer',

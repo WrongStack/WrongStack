@@ -196,10 +196,6 @@
       "types": "./dist/plugin-stack-observer.d.ts",
       "import": "./dist/plugin-stack-observer.js"
     },
-    "./dead-code-detector": {
-      "types": "./dist/dead-code-detector.d.ts",
-      "import": "./dist/dead-code-detector.js"
-    },
     "./dependency-vulnerability-gate": {
       "types": "./dist/dependency-vulnerability-gate.d.ts",
       "import": "./dist/dependency-vulnerability-gate.js"

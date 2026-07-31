@@ -14,7 +14,6 @@ export { default as configValidatorPlugin } from './config-validator/index.js';
 export { default as contextPinsPlugin } from './context-pins/index.js';
 export { default as costTrackerPlugin } from './cost-tracker/index.js';
 export { default as cronPlugin } from './cron/index.js';
-export { default as deadCodeDetectorPlugin } from './dead-code-detector/index.js';
 export { default as depGuardPlugin } from './dep-guard/index.js';
 export { default as dependencyVulnerabilityGatePlugin } from './dependency-vulnerability-gate/index.js';
 export { default as diffSummaryPlugin } from './diff-summary/index.js';

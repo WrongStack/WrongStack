@@ -19,7 +19,6 @@ const HOT_PATHS = [
   'packages/plugins/src/interface-contract-guard/index.ts',
   'packages/plugins/src/refactor-suggester/index.ts',
   'packages/plugins/src/security-hotspot-scanner/index.ts',
-  'packages/plugins/src/dead-code-detector/index.ts',
   'packages/plugins/src/semver-bump/index.ts',
   'packages/plugins/src/checkpoint/index.ts',
   'packages/plugins/src/template-engine/index.ts',

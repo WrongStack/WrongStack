@@ -336,14 +336,6 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     canDisable: true,
   },
   {
-    name: 'dead-code-detector',
-    risk: 'low',
-    summary:
-      'Lightweight regex-based scan for exported identifiers that appear unused anywhere in the project',
-    defaultState: 'inactive',
-    canDisable: true,
-  },
-  {
     name: 'dependency-vulnerability-gate',
     risk: 'high',
     summary:

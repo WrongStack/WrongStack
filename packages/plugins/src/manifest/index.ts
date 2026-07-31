@@ -56,7 +56,6 @@ const OFFICIAL_PLUGIN_NAMES = [
   'type-gate',
   'token-throttle',
   'plugin-stack-observer',
-  'dead-code-detector',
   'dependency-vulnerability-gate',
   'migration-planner',
   'semantic-search-indexer',

@@ -244,11 +244,6 @@ vi.mock(
   { virtual: true },
 );
 vi.mock(
-  '@wrongstack/plugins/dead-code-detector',
-  () => ({ default: { name: 'dead-code-detector', register: vi.fn() } }),
-  { virtual: true },
-);
-vi.mock(
   '@wrongstack/plugins/dependency-vulnerability-gate',
   () => ({ default: { name: 'dependency-vulnerability-gate', register: vi.fn() } }),
   { virtual: true },
@@ -603,7 +598,7 @@ describe('setupPlugins', () => {
   it('treats enabled short-name built-in config entries as controls, not bare package imports', async () => {
     const deps = {
       ...baseDeps({
-        plugins: ['duplicate-code-detector', 'dead-code-detector', 'todo-listener'] as never,
+        plugins: ['duplicate-code-detector', 'todo-listener'] as never,
       }),
       paths: fakePaths(),
     };
@@ -611,7 +606,7 @@ describe('setupPlugins', () => {
     const [plugins] = loadPluginsMock.mock.calls[0]!;
     const names = (plugins as Array<{ name: string }>).map((p) => p.name);
     expect(names).toEqual(
-      expect.arrayContaining(['duplicate-code-detector', 'dead-code-detector', 'todo-listener']),
+      expect.arrayContaining(['duplicate-code-detector', 'todo-listener']),
     );
     const failedLoadWarns = (deps.log.warn as ReturnType<typeof vi.fn>).mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('failed to load'),
@@ -737,9 +732,6 @@ describe('plugin deprecation policy', () => {
   describe('builtinPluginNameFromSpec', () => {
     it('recognizes short and @wrongstack/plugins built-in specs', () => {
       expect(builtinPluginNameFromSpec('duplicate-code-detector')).toBe('duplicate-code-detector');
-      expect(builtinPluginNameFromSpec('@wrongstack/plugins/dead-code-detector')).toBe(
-        'dead-code-detector',
-      );
       expect(builtinPluginNameFromSpec('todo-listener')).toBe('todo-listener');
       expect(builtinPluginNameFromSpec('lsp')).toBe('@wrongstack/plug-lsp');
       expect(builtinPluginNameFromSpec('@wrongstack/telegram')).toBe('telegram');

@@ -580,8 +580,8 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
  * Uses `fs.promises` to avoid blocking the event loop on large directory trees.
  *
  * Performance: prefer this in hooks and tools that run on every write/edit
- * (e.g., dead-code-detector, duplicate-code-detector) to keep the agent loop
- * responsive during large scans.
+ * (e.g., duplicate-code-detector) to keep the agent loop responsive during
+ * large scans.
  */
 export async function collectSourceFilesAsync(
   root: string,

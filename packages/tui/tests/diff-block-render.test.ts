@@ -354,7 +354,7 @@ describe('<DiffBlock /> rendering', () => {
     // `additionalContext` onto the serialized tool result with
     // `${serializedDiff}\n\n${notice}`. For write/edit that tail carries the
     // observability plugins — diff-summary (which injects a WHOLE second git
-    // diff), dead-code-detector, code-metrics, interface-contract-guard.
+    // diff), code-metrics, interface-contract-guard.
     // extractUnifiedDiffText used to slice from the first diff marker to the
     // END of the string, so those notices rendered inside the Update diff
     // view as bogus context rows with continuing gutter line numbers.
@@ -384,9 +384,7 @@ describe('<DiffBlock /> rendering', () => {
       "+  { name: 'agent-handoff', risk: 'medium' },",
       '... (212 more lines truncated)',
       '',
-      '⚠️ dead-code-detector: 8 exported symbol(s) in packages/cli/src/plugin-management.ts look unused:',
-      '- OFFICIAL_PLUGINS (declaration) at packages/cli/src/plugin-management.ts:4',
-      'Consider removing the export if it is not part of the public API.',
+      '📊 code-metrics: packages/cli/src/plugin-management.ts — 474 lines (400 code, 30 comments, 44 blank), 12 function(s), complexity 18.',
       '',
       '🛡️ interface-contract-guard: packages/cli/src/plugin-management.ts declares interface(s): PluginAuditEntry.',
     ].join('\n');
@@ -402,11 +400,10 @@ describe('<DiffBlock /> rendering', () => {
       // None of the plugin-notice text leaks into any parsed row.
       const bodies = (preview?.rows ?? []).map((r) => r.text).join('\n');
       expect(bodies).not.toContain('diff-summary');
-      expect(bodies).not.toContain('dead-code-detector');
+      expect(bodies).not.toContain('code-metrics: packages/cli/src/plugin-management.ts');
       expect(bodies).not.toContain('interface-contract-guard');
       expect(bodies).not.toContain('more lines truncated');
       expect(bodies).not.toContain('agent-handoff');
-      expect(bodies).not.toContain('OFFICIAL_PLUGINS');
     });
 
     it('is unchanged when no notices are appended', () => {

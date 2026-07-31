@@ -47,7 +47,6 @@
 | type-gate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/type-gate` | PostToolUse hook that runs TypeScript type-checking after every write or edit to a source file |
 | token-throttle | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/token-throttle` | Rolling-window tokens/min budget that delays provider calls to stay under a rate limit (wrapProviderRunner). Opt-in; delay capped by maxDelayMs. |
 | plugin-stack-observer | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/plugin-stack-observer` | Observes the wrapProviderRunner stack and exposes it to operators (plugin_stack_status) and, optionally, to the LLM (system-prompt contributor). |
-| dead-code-detector | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/dead-code-detector` | Lightweight regex-based scan for exported identifiers that appear unused anywhere in the project |
 | dependency-vulnerability-gate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/dependency-vulnerability-gate` | PostToolUse hook that runs npm/pnpm audit after dependency installs and blocks or warns on vulnerabilities above a severity threshold |
 | migration-planner | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/migration-planner` | Builds evidence-backed migration checklists with optional host-routed LLM risk analysis |
 | semantic-search-indexer | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/semantic-search-indexer` | Builds an in-memory keyword index over project source files and answers ranked search queries |

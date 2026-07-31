@@ -74,7 +74,6 @@ const healthPlugins = {
   'config-validator': () => import('../src/config-validator'),
   'context-pins': () => import('../src/context-pins'),
   'cost-tracker': () => import('../src/cost-tracker'),
-  'dead-code': () => import('../src/dead-code-detector'),
   'dep-guard': () => import('../src/dep-guard'),
   'dependency-vuln': () => import('../src/dependency-vulnerability-gate'),
   'diff-summary': () => import('../src/diff-summary'),
