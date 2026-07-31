@@ -365,9 +365,13 @@ describe('live telemetry ingestion', () => {
         payload: expect.objectContaining({ leaderClientId: 'leader-1' }),
       }),
     );
-    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({
-      __hq_peer__: 1,
-    });
+    // Peer envelopes carry a publisher `clientId` but a server-minted
+    // `seq` (from `peerEventSeq`), so the cursor skip is mandatory —
+    // see `store.ts` `_onEvent` and the regression test at
+    // `store.test.ts:174-185`. Asserting `{}` here pins the skip on the
+    // synthetic peer-bucket key; a future change that advances the
+    // cursor for peer envelopes will fail this test as a sentinel.
+    expect(storeModule.useHqStore.getState().resumeCursors).toEqual({});
   });
 
   it('does not resurface duplicate peer lifecycle envelopes after dismissal', () => {

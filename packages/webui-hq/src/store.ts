@@ -203,9 +203,10 @@ export const useHqStore = create<HqState & HqActions>()((set) => ({
   _onEvent: (event) =>
     set((state) => {
       // Push the envelope into the events ring buffer (existing behavior).
-      // `peer.*` envelopes are server-generated lifecycle notices, so the
-      // browser tracks them under a synthetic resume key instead of a
-      // publisher clientId cursor.
+      // `peer.*` envelopes are server-generated lifecycle notices; the
+      // browser already tracks them under a synthetic resume key
+      // (`HQ_BROWSER_PEER_RESUME_CLIENT_ID` == `__hq_peer__`) so advancing
+      // the cursor under that key never collides with a real publisher.
       const alreadySeen = state.events.some((candidate) => candidate.id === event.id);
       const eventPatch = alreadySeen ? {} : { events: [...state.events, event].slice(-MAX_EVENTS) };
       // `peer.*` envelopes carry a publisher `clientId` but a server-minted

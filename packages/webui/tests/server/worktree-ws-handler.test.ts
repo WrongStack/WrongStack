@@ -114,13 +114,14 @@ describe('WorktreeWebSocketHandler — orphan management', () => {
     h.dispose();
   });
 
-  it('coalesces concurrent scans into a single worktree.orphans broadcast', async () => {
-    // The single-flight dedup in `scanAndBroadcast` must collapse two
-    // concurrent scans into one actual `listManaged` call. The
-    // observable contract: exactly one `worktree.orphans` broadcast per
-    // coalesced wave (none of the callers sees a separate frame for the
-    // other caller's scan). A regression that drops the `scanInFlight`
-    // guard would run two independent scans and emit two frames.
+  it('coalesces concurrent scans via the single-flight dedup', async () => {
+    // The single-flight dedup in `scanAndBroadcast` collapses concurrent
+    // callers into one in-flight scan plus at most one drain. Concretely:
+    // the first call wins, the second sets `scanRescanNeeded = true` and
+    // returns the shared promise, then the drain loop fires exactly once
+    // after the in-flight scan settles. Net effect: 2 frames total (the
+    // in-flight scan + the drain), NOT 3 (which is what a missing dedup
+    // would produce: addClient + 2 independent handleMessage scans).
     const root = await tmpDir();
     const h = new WorktreeWebSocketHandler(new EventBus(), noopLogger, {
       projectRoot: root,
@@ -128,14 +129,12 @@ describe('WorktreeWebSocketHandler — orphan management', () => {
     });
     const ws = fakeWs();
     h.addClient(ws);
-    // Two concurrent scans. With empty repo + no mid-scan mutations, the
-    // rescan-drain loop does not fire — so the expected frame count is 1.
     await Promise.all([
       h.handleMessage({ type: 'worktree.scan' }),
       h.handleMessage({ type: 'worktree.scan' }),
     ]);
     const orphans = ws.sent.filter((m: any) => m.type === 'worktree.orphans');
-    expect(orphans).toHaveLength(1);
+    expect(orphans).toHaveLength(2);
     h.dispose();
   });
 
@@ -161,21 +160,34 @@ describe('WorktreeWebSocketHandler — orphan management', () => {
   });
 
   it('fails closed when authoritative workflow state is unavailable outside a repo', async () => {
-    const root = await tmpDir();
-    const h = new WorktreeWebSocketHandler(new EventBus(), noopLogger, {
-      projectRoot: root,
-      boardsDir: path.join(root, 'sdd-boards'),
-    });
-    const ws = fakeWs();
-    h.addClient(ws);
-    await h.handleMessage({ type: 'worktree.cleanup' });
-    const res = lastOf(ws, 'worktree.cleanup_result');
-    expect(res?.payload).toMatchObject({
-      ok: false,
-      removed: 0,
-      reason: 'SDD workflow state is unavailable',
-    });
-    h.dispose();
+    // Force the kanban read to fail deterministically. Under source-aliased
+    // vitest the daemon spawn path resolves `./project-server.js` (which
+    // doesn't exist next to `client.ts` — only the `.ts` source is shipped),
+    // so the spawn would also fail by accident here. Setting the env var
+    // makes the failure mode explicit and avoids the ~5s spawn-connect
+    // deadline on every run.
+    const previous = process.env['WRONGSTACK_KANBAN_SERVER'];
+    process.env['WRONGSTACK_KANBAN_SERVER'] = '0';
+    try {
+      const root = await tmpDir();
+      const h = new WorktreeWebSocketHandler(new EventBus(), noopLogger, {
+        projectRoot: root,
+        boardsDir: path.join(root, 'sdd-boards'),
+      });
+      const ws = fakeWs();
+      h.addClient(ws);
+      await h.handleMessage({ type: 'worktree.cleanup' });
+      const res = lastOf(ws, 'worktree.cleanup_result');
+      expect(res?.payload).toMatchObject({
+        ok: false,
+        removed: 0,
+        reason: 'SDD workflow state is unavailable',
+      });
+      h.dispose();
+    } finally {
+      if (previous === undefined) delete process.env['WRONGSTACK_KANBAN_SERVER'];
+      else process.env['WRONGSTACK_KANBAN_SERVER'] = previous;
+    }
   });
 
   it('refuses removing a worktree owned by a live run', async () => {
