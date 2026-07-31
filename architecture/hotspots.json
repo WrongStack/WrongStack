@@ -159,8 +159,8 @@
       "relativeImports": 21
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 965,
-      "relativeImports": 11
+      "lines": 930,
+      "relativeImports": 12
     },
     "packages/core/src/hq/publisher.ts": {
       "lines": 858,
@@ -264,7 +264,7 @@
     },
     "packages/tools/src/codebase-index/dead-code-scan.ts": {
       "lines": 866,
-      "relativeImports": 13
+      "relativeImports": 3
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
       "lines": 908,

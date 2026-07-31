@@ -407,6 +407,78 @@ describe('architecture health scanner', () => {
     expect(imports).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
   });
 
+  it('ignores export examples inside regex literals and following comments', () => {
+    // Regression: a regex literal containing quote characters (e.g. `['"]`)
+    // used to desynchronise stripSourceComments' string-state machine, which
+    // leaked subsequent comment text such as `// export { X } from './fake.js'`
+    // into the module-edge scan and fabricated phantom dependency cycles.
+    const regexLiteralLine = String.raw`const re = /export\s+from\s+['"]([^'"]+)['"]/g;`;
+    const imports = collectModuleSpecifiers(
+      [
+        regexLiteralLine,
+        "// export { fake } from './line-comment.js';",
+        "/* export { fake } from './block-comment.js'; */",
+        "import { real } from './real.js';",
+      ].join('\n'),
+      'fixture.ts',
+    );
+
+    expect(imports).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+  });
+
+  it('keeps JSX closing tags, regex flags, in-class slashes, and postfix ops from opening false regexes', () => {
+    // JSX closing tag: `/` after `<` is a tag close, not a regex literal start.
+    expect(
+      collectModuleSpecifiers(
+        ["const el = <div>{'a/b'}</div>;", "import { real } from './real.js';"].join('\n'),
+        'fixture.tsx',
+      ),
+    ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+
+    // Regex flags then division: `/re/g / 2` closes the regex at the flagged `/`.
+    expect(
+      collectModuleSpecifiers(
+        ["const x = /re/g / 2;", "import { real } from './real.js';"].join('\n'),
+        'fixture.ts',
+      ),
+    ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+
+    // In-class slash: `/[a/b]/` must not close at the slash inside `[...]`.
+    expect(
+      collectModuleSpecifiers(
+        ["const x = /[a/b]/;", "import { real } from './real.js';"].join('\n'),
+        'fixture.ts',
+      ),
+    ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+
+    // Postfix increment before division: `n++ / 2` is division, not a regex.
+    expect(
+      collectModuleSpecifiers(
+        ["const x = n++ / 2;", "import { real } from './real.js';"].join('\n'),
+        'fixture.ts',
+      ),
+    ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+  });
+
+  it('treats a lone `>` as division but an `=>` arrow as regex-preceding', () => {
+    // Relational division after a lone `>` must NOT open a regex that swallows
+    // the following import (a `/` after `>` is division here, not a regex).
+    expect(
+      collectModuleSpecifiers(
+        ['const x = a > / b;', "import { real } from './real.js';"].join('\n'),
+        'fixture.ts',
+      ),
+    ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+
+    // Arrow body: `=> /['"]/ ` is a regex; quotes inside must not desync the scan.
+    expect(
+      collectModuleSpecifiers(
+        ['const f = () => /[\'"]/.test(s);', "import { real } from './real.js';"].join('\n'),
+        'fixture.ts',
+      ),
+    ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
+  });
+
   it('reports only strongly connected graph components', () => {
     const adjacency = new Map([
       ['a', new Set(['b'])],

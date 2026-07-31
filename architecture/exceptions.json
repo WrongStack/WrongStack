@@ -139,7 +139,7 @@
         "packages/core/src/hq/protocol/session.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. On 2026-07-31 a fifth member (resume.ts) was removed from the SCC by extracting the shared envelope primitives (HqEventEnvelope, HqEventType, HqProtocolVersion, HQ_PROTOCOL_VERSION) into the dependency-leaf hq/protocol/envelope.ts; resume.ts now imports from that leaf, restoring this exception's exact 4-member scope.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-09-15",
       "removeWhen": "HQ protocol DTO modules are dependency-leaf contracts.",
@@ -293,24 +293,6 @@
       "canonicalTask": "K1"
     },
     {
-      "id": "ARCH-CYCLE-RUNTIME-03",
-      "kind": "runtime-module-cycle",
-      "members": [
-        "packages/tools/src/builtin.ts",
-        "packages/tools/src/codebase-index/dead-code-scan.ts",
-        "packages/tools/src/codebase-index/index.ts",
-        "packages/tools/src/index.ts",
-        "packages/tools/src/pack.ts",
-        "packages/tools/src/tool-tier.ts"
-      ],
-      "owner": "architecture-refactor",
-      "reason": "Pre-existing runtime module SCC: builtin.ts imports dead-code-scan which re-exports through codebase-index/index.ts → tools/index.ts → tool-tier.ts → pack.ts → builtin.ts (tool-tier's pack dependency). Mirrors the type-level cycle with the same members.",
-      "introduced": "2026-07-30",
-      "reviewBy": "2026-09-15",
-      "removeWhen": "Tools barrel, packing, and tool-tier modules have one-way runtime and type dependencies.",
-      "canonicalTask": "G1"
-    },
-    {
       "id": "ARCH-CYCLE-TYPE-27",
       "kind": "type-module-cycle",
       "members": [
@@ -325,24 +307,6 @@
       "reviewBy": "2026-09-15",
       "removeWhen": "Kanban storage and lifecycle modules have one-way runtime and type dependencies.",
       "canonicalTask": "K1"
-    },
-    {
-      "id": "ARCH-CYCLE-TYPE-28",
-      "kind": "type-module-cycle",
-      "members": [
-        "packages/tools/src/builtin.ts",
-        "packages/tools/src/codebase-index/dead-code-scan.ts",
-        "packages/tools/src/codebase-index/index.ts",
-        "packages/tools/src/index.ts",
-        "packages/tools/src/pack.ts",
-        "packages/tools/src/tool-tier.ts"
-      ],
-      "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC in the tools barrel and tool-tier. Matches the members of ARCH-CYCLE-RUNTIME-03. Type-level re-exports through the barrel chain create bidirectional type edges.",
-      "introduced": "2026-07-30",
-      "reviewBy": "2026-09-15",
-      "removeWhen": "Tools barrel, packing, and tool-tier modules have one-way runtime and type dependencies.",
-      "canonicalTask": "G1"
     }
   ]
 }

@@ -133,9 +133,75 @@ export function collectModuleSpecifiers(sourceText, _fileName) {
   return imports;
 }
 
+// Keywords that, when they are the previous significant token, mean a `/`
+// begins a regular-expression literal rather than a division operator.
+const REGEX_PRECEDING_KEYWORDS = new Set([
+  'return',
+  'typeof',
+  'instanceof',
+  'in',
+  'of',
+  'new',
+  'delete',
+  'void',
+  'do',
+  'else',
+  'case',
+  'throw',
+  'yield',
+  'await',
+]);
+
+// Punctuators that, when they are the previous significant token, mean a `/`
+// begins a regular-expression literal rather than a division operator. `}`,
+// `)`, `]`, identifiers, and digits are deliberately excluded: after those a
+// `/` is division, and mis-reading division as a regex would blank real code.
+// `<` and `>` are also excluded: in this TSX-heavy repository a `/` after `<`
+// is almost always a JSX closing tag (`</div>`), and a `/` after a lone `>` is
+// more likely relational division (`a > / b`) than `a > /re/`. The `=> /re/`
+// arrow case is special-cased in regexLiteralCanStart instead.
+const REGEX_PRECEDING_CHARS = new Set([
+  '(',
+  '[',
+  ',',
+  ':',
+  ';',
+  '{',
+  '=',
+  '+',
+  '-',
+  '*',
+  '&',
+  '|',
+  '!',
+  '?',
+  '~',
+  '^',
+  '%',
+]);
+
+function regexLiteralCanStart(emitted) {
+  const prevMatch = emitted.match(/\S\s*$/);
+  const prevChar = prevMatch ? prevMatch[0].trim() : '';
+  if (prevChar === '') return true;
+  // Arrow-function body: `=> /re/` reliably starts a regex. A lone `>` does
+  // not, because `a > / b` is relational division.
+  if (/=>\s*$/.test(emitted)) return true;
+  if (prevChar === '+' || prevChar === '-') {
+    // `x++ / 2` or `x-- / 2` is a postfix increment/decrement followed by
+    // division, not a regex. A lone `+`/`-` (binary/unary) before `/` can only
+    // start a regex literal in valid JavaScript.
+    return !/([+\-])\1\s*$/.test(emitted);
+  }
+  if (REGEX_PRECEDING_CHARS.has(prevChar)) return true;
+  const wordMatch = emitted.match(/[A-Za-z_$][\w$]*\s*$/);
+  return Boolean(wordMatch && REGEX_PRECEDING_KEYWORDS.has(wordMatch[0].trim()));
+}
+
 function stripSourceComments(text) {
   let result = '';
   let state = 'code';
+  let regexInClass = false;
   for (let index = 0; index < text.length; index += 1) {
     const current = text[index];
     const next = text[index + 1];
@@ -178,6 +244,25 @@ function stripSourceComments(text) {
         state = 'code';
       continue;
     }
+    if (state === 'regex') {
+      if (current === '\\' && next !== undefined) {
+        result += '  ';
+        index += 1;
+      } else if (current === '[') {
+        regexInClass = true;
+        result += ' ';
+      } else if (current === ']') {
+        regexInClass = false;
+        result += ' ';
+      } else if (current === '/' && !regexInClass) {
+        // Closing slash: emit a value-like placeholder so a following `/`
+        // is treated as division, not the start of another regex literal.
+        result += '0';
+        regexInClass = false;
+        state = 'code';
+      } else result += current === '\n' ? '\n' : ' ';
+      continue;
+    }
     if (current === '/' && next === '/') {
       result += '  ';
       index += 1;
@@ -186,6 +271,13 @@ function stripSourceComments(text) {
       result += '  ';
       index += 1;
       state = 'block-comment';
+    } else if (current === '/' && regexLiteralCanStart(result)) {
+      // Regular-expression literal: blank its body so quote characters inside
+      // the pattern cannot desynchronise the string/template state machine and
+      // leak comment text (e.g. `// export { X } from '..'`) into the output.
+      result += ' ';
+      regexInClass = false;
+      state = 'regex';
     } else if (current === "'") {
       result += current;
       state = 'single-quote';
