@@ -1055,7 +1055,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8602
+      "sourceLines": 8639
     },
     {
       "directory": "defaults",
@@ -1202,7 +1202,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 16118
+      "sourceLines": 16120
     },
     {
       "directory": "tasking",

@@ -30,7 +30,11 @@ export default defineConfig({
   ...baseConfig,
   test: {
     ...baseConfig.test,
+    // Override the base exclude — the dedicated config IS where this file
+    // must run; the base exclude exists to keep `pnpm test` / root CI from
+    // running it without the FORCE_COLOR/COLORTERM env below.
     include: ['tests/status-bar-overflow.test.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**'],
     env: {
       FORCE_COLOR: '3',
       COLORTERM: 'truecolor',

@@ -105,7 +105,7 @@ describe('StatusBar overflow handling (width-budget)', () => {
       startedAt: Date.now(),
       projectName: 'project-name-here',
       workingDir: 'some/working/directory/path',
-      git: { branch: 'feature/long-branch-name', deleted: 2, untracked: 3 } as never,
+      git: { branch: 'feature/long-branch-name', added: 0, deleted: 2, untracked: 3 },
       sessionCount: 4,
       toolCount: 42,
       tokenSavingMode: 'medium',
@@ -140,7 +140,7 @@ describe('StatusBar overflow handling (width-budget)', () => {
       startedAt: Date.now(),
       projectName: 'project-name-here',
       workingDir: 'some/working/directory/path',
-      git: { branch: 'feature/long-branch-name', deleted: 0, untracked: 0 } as never,
+      git: { branch: 'feature/long-branch-name', added: 0, deleted: 0, untracked: 0 },
       sessionCount: 9,
       toolCount: 99,
       tokenSavingMode: 'medium',
@@ -176,12 +176,15 @@ describe('StatusBar version chip + update notice', () => {
     // assertion. Pinning the escape stops a future refactor from swapping the
     // brand orange for theme.warn (pastel yellow) unnoticed.
     //
-    // Why this works: `packages/tui/vitest.config.ts` sets `env.FORCE_COLOR=3`
-    // and `env.COLORTERM=truecolor` before any worker module evaluates, so
-    // chalk (loaded transitively via `ink-testing-library` → `ink`) initializes
-    // at color level 3 and emits the 24-bit escape at render time. Without that
-    // env, chalk would sit at level 0 in a piped vitest worker and strip the
-    // SGR before `lastFrame()` sees it.
+    // Why this works: this file is excluded from the base
+    // `packages/tui/vitest.config.ts` and runs under the dedicated config
+    // `vitest.status-bar-overflow.config.ts`, which sets
+    // `env.FORCE_COLOR=3` and `env.COLORTERM=truecolor` before any worker
+    // module evaluates. That lets chalk (loaded transitively via
+    // `ink-testing-library` → `ink`) initialize at color level 3 and emit the
+    // 24-bit escape at render time. Without those env vars, chalk would sit
+    // at level 0 in a piped vitest worker and strip the SGR before
+    // `lastFrame()` sees it.
     const { lastFrame, unmount } = render(
       React.createElement(StatusBar, {
         model: 'anthropic/claude',

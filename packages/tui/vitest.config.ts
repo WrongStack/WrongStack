@@ -18,7 +18,18 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      // `status-bar-overflow.test.ts` pins raw `\x1b[38;2;253;159;2m` SGR —
+      // it requires chalk to emit truecolor, which the default vitest worker
+      // (non-TTY, no FORCE_COLOR/COLORTERM env) does not. It runs under its
+      // dedicated config via `pnpm test:status-bar` (see
+      // `vitest.status-bar-overflow.config.ts`), which sets those env vars
+      // package-wide would break ~55 unrelated ink tests that depend on the
+      // default non-color path.
+      'tests/status-bar-overflow.test.ts',
+    ],
     testTimeout: 60_000,
     hookTimeout: 60_000,
     setupFiles: ['../../vitest.setup.ts'],

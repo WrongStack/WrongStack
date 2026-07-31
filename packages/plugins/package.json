@@ -244,13 +244,13 @@
       "types": "./dist/security-hotspot-scanner.d.ts",
       "import": "./dist/security-hotspot-scanner.js"
     },
-    "./duplicate-code-detector": {
-      "types": "./dist/duplicate-code-detector.d.ts",
-      "import": "./dist/duplicate-code-detector.js"
-    },
     "./dead-code-detector": {
       "types": "./dist/dead-code-detector.d.ts",
       "import": "./dist/dead-code-detector.js"
+    },
+    "./duplicate-code-detector": {
+      "types": "./dist/duplicate-code-detector.d.ts",
+      "import": "./dist/duplicate-code-detector.js"
     },
     "./code-metrics": {
       "types": "./dist/code-metrics.d.ts",

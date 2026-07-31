@@ -167,6 +167,11 @@
       "fingerprint": "e9dd96a56b23b9cb"
     },
     {
+      "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "69d4b3efe347daa8"
+    },
+    {
       "file": "packages/tools/tests/project-server-idle.test.ts",
       "kind": "skipIf",
       "fingerprint": "d6d5511c7bbb4262"
@@ -180,6 +185,21 @@
       "file": "packages/tools/tests/win32-resolve.test.ts",
       "kind": "skipIf",
       "fingerprint": "e8a8b69ec14729ac"
+    },
+    {
+      "file": "packages/tui/tests/git-info-large-output.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "550496734a0391b3"
+    },
+    {
+      "file": "packages/tui/tests/git-info-large-output.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "8b3372766392ea9f"
+    },
+    {
+      "file": "packages/tui/tests/git-info-large-output.test.ts",
+      "kind": "skip",
+      "fingerprint": "140833e790330457"
     },
     {
       "file": "packages/tui/tests/git-info.comprehensive.test.ts",
@@ -220,11 +240,6 @@
       "file": "packages/tui/tests/working-dir-chip.test.ts",
       "kind": "skipIf",
       "fingerprint": "64d5454ccdda1aab"
-    },
-    {
-      "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "69d4b3efe347daa8"
     }
   ]
 }
