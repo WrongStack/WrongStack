@@ -1,8 +1,16 @@
 import path from 'node:path';
 
 function normalizeFile(repoRoot, file) {
-  const absolute = path.isAbsolute(file) ? file : path.resolve(repoRoot, file);
-  return path.relative(repoRoot, absolute).split(path.sep).join('/');
+  // Vitest on Windows emits absolute paths with backslash separators (e.g.
+  // `C:\repo\packages\core\tests\a.test.ts`). This function must normalize
+  // them to POSIX relative paths regardless of the platform running the
+  // check (CI runs on Linux but may parse Windows-origin vitest output).
+  const normalizedFile = file.replace(/\\/g, '/');
+  const normalizedRoot = repoRoot.replace(/\\/g, '/');
+  const absolute = path.isAbsolute(normalizedFile)
+    ? normalizedFile
+    : path.posix.resolve(normalizedRoot, normalizedFile);
+  return path.posix.relative(normalizedRoot, absolute);
 }
 
 export function parseVitestFileList(repoRoot, stdout) {

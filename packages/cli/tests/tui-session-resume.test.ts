@@ -203,6 +203,62 @@ describe('TUI session resume ownership', () => {
       h.resumedWriter.id,
     );
   });
+
+  it('rolls back the writer + messages + identity when a post-swap step throws', async () => {
+    // Regression guard for the latent invariant-break between the writer
+    // swap and the return: any unguarded throw in that window would
+    // leave `agent.ctx` bound to the resumed session while the caller
+    // received `null`, silently corrupting the next user prompt.
+    // The `replaceTodos` call inside the post-swap sidecar re-point
+    // section has no inner `.catch` — a throw there propagates to the
+    // outer catch and exercises the rollback arm.
+    //
+    // Note: line citations against `tui-session-resume.ts` are deliberately
+    // omitted. The source is actively churning (parallel-session edits,
+    // post-swap rollback hardening); pinning comments to specific line
+    // numbers invites stale-citation drift that misleads future
+    // maintainers. Code-anchored descriptions — "the writer swap",
+    // "the sidecar re-point section", "the post-swap arm of the
+    // outer catch" — stay correct under source drift.
+    const h = harness();
+    h.context.state.replaceTodos.mockImplementationOnce(() => {
+      throw new Error('post-swap failure');
+    });
+
+    const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
+
+    // Caller observes failure.
+    expect(result).toBeNull();
+
+    // Writer + messages restored to the pre-swap values.
+    expect(h.context.session).toBe(h.oldWriter);
+    expect(h.context.messages).toEqual(h.oldMessages);
+
+    // Identity rolled back to the previous session. The order of
+    // `activateSessionIdentity` calls is: claim (in the resume path),
+    // then rollback (in the post-swap arm of the outer catch). The
+    // second call carries the rolled-back id.
+    expect(h.activateSessionIdentity.mock.calls.map(([id]) => id)).toEqual([
+      h.resumedWriter.id,
+      h.oldWriter.id,
+    ]);
+    // The rollback arm invokes `replaceMessages` with the defensive
+    // copy of the original messages, and the earlier hydration invokes
+    // `replaceMessages` with the resumed messages. Both are required:
+    // the hydration puts the resumed conversation in place, the rollback
+    // undoes it on failure. Use call-count rather than a reference-
+    // identity filter — the source spreads `agent.ctx.messages` into a
+    // fresh array before passing it to the rollback, so reference
+    // identity on the copy vs the harness's `oldMessages` is never true.
+    expect(h.context.state.replaceMessages).toHaveBeenCalledTimes(2);
+
+    // The sidecar rollback: the prior `state.detachActiveTodosCheckpoint`
+    // (bound to the original session's `.todos.json`) must be re-bound
+    // so subsequent todo edits on the original session persist correctly.
+    // Without this, every todo edit after a failed resume would write to
+    // nowhere — a silent data-loss bug.
+    expect(h.state.detachActiveTodosCheckpoint).toBe(h.priorDetachFn);
+  });
 });
 
 /**

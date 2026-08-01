@@ -29,6 +29,22 @@ export * from './project-client.js';
 export * from './project-server.js';
 export * from './project-service.js';
 export * from './protocol-decoder.js';
+export {
+  type ExistingGovernanceAdminCredential,
+  GOVERNANCE_COMPATIBILITY_ADMIN_TTL_MS,
+  GOVERNANCE_COMPATIBILITY_MODEL_TTL_MS,
+  type GovernanceCompatibilityCleanup,
+  type GovernanceCompatibilityFallback,
+  type GovernanceCompatibilityFallbackCode,
+  GovernanceCompatibilityRuntime,
+  type GovernanceCompatibilityRuntimeSnapshot,
+  type GovernanceModelCapability,
+  GovernanceModelSession,
+  type GovernanceModelSessionSnapshot,
+  type PrepareGovernanceCompatibilityOptions,
+  type PrepareGovernanceCompatibilityResult,
+  prepareGovernanceCompatibilityRuntime,
+} from './runtime-compatibility.js';
 export * from './task-aggregate.js';
 export * from './task-contract.js';
 export * from './transition-engine.js';

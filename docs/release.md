@@ -42,13 +42,17 @@ git commit -am 'release: 0.5.0'
 
 ## Publish and verify
 
-There is currently **no npm release workflow** in `.github/workflows/`; the only checked-in workflow deploys the website. A version tag does not publish packages automatically.
+The intended publication path is the tag-triggered, environment-gated workflow
+`.github/workflows/release.yml` (WS-040; see [release-process.md](release-process.md)):
+pushing a version tag *requests* a publish, and a required reviewer must approve
+the `npm-publish` environment before anything reaches the registry. `pnpm release`
+remains available as a local fallback:
 
 ```bash
 pnpm release
 ```
 
-`pnpm release` reruns `release:check`, then recursively publishes public workspace packages with `--access public --no-git-checks`. Confirm npm authentication and the intended registry before running it.
+`pnpm release` reruns `release:check`, then recursively publishes public workspace packages with `--access public`. Unlike the CI path (`release:ci`), it keeps pnpm's git checks, so run it from a clean tree on `main` that is up to date with the remote. Confirm npm authentication and the intended registry before running it.
 
 - [ ] `pnpm release` completed successfully
 - [ ] Every intended public package is visible on npm

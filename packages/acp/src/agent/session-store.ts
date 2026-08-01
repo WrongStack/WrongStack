@@ -27,6 +27,13 @@ export interface SessionStoreOptions {
   dir?: string | undefined;
 }
 
+/**
+ * Session ids whose `<id>.json` would collide with a store sidecar file.
+ * The sidecar index is `index.json` (see `ACPSessionStore.indexPath()`), so
+ * "index" is reserved. Extend this set if more sidecars are added.
+ */
+const RESERVED_SESSION_IDS: ReadonlySet<string> = new Set(['index']);
+
 export class ACPSessionStore {
   private readonly dir: string;
   /**
@@ -83,6 +90,11 @@ export class ACPSessionStore {
     // directory. Contained by accident is not a rule; the client controls the
     // id, so the id is what must satisfy the segment contract.
     if (!isSafePathSegment(sessionId)) return null;
+    // Reject ids whose `<id>.json` collides with a store sidecar file (e.g.
+    // "index" → index.json). A client-supplied reserved id would otherwise let
+    // session/load read, session/delete unlink, and save clobber the sidecar
+    // (Chimera MEDIUM — reserved-name collision).
+    if (RESERVED_SESSION_IDS.has(sessionId)) return null;
     return resolveContainedPath(this.dir, `${sessionId}.json`);
   }
 
@@ -161,8 +173,21 @@ export class ACPSessionStore {
     if (indexEntries !== null) {
       return indexEntries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     }
-    // Slow path fallback: scan the directory, parse each file, then
-    // rebuild the index for next time. Same external contract as before.
+    // Slow path fallback: scan the directory and rebuild the index for
+    // next time. The rebuild runs OUTSIDE the chain (this method is a
+    // public read, not a writer) — see the field doc on `indexChain`.
+    const sessions = await this.scanForSessions();
+    void this.writeIndex(sessions).catch(() => undefined);
+    return sessions;
+  }
+
+  /**
+   * Walk `<dir>` and parse every session file into `{id, updatedAt}`
+   * metadata. Used as the slow-path fallback by `list()` and by
+   * `updateIndex()` when the sidecar index is missing. Pure read —
+   * does NOT touch `index.json`.
+   */
+  private async scanForSessions(): Promise<Array<{ id: string; updatedAt: string }>> {
     const files: string[] = [];
     try {
       const entries = await fsp.readdir(this.dir);
@@ -188,9 +213,6 @@ export class ACPSessionStore {
       }
     }
     sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    // Best-effort rebuild; failure to write the index does not affect
-    // the returned list.
-    void this.writeIndex(sessions).catch(() => undefined);
     return sessions;
   }
 
@@ -274,10 +296,23 @@ export class ACPSessionStore {
     await this.withIndexLock(async () => {
       const entries = await this.readIndex();
       if (entries === null) {
-        // No index yet — fall back to a full scan to populate it.
-        // `list()` itself schedules its own writeIndex on the same chain,
-        // so a concurrent updater cannot clobber the rebuild.
-        await this.list();
+        // No index yet — fall back to a full scan. NOTE: `list()`'s own
+        // rebuild (line 193) bypasses this chain, so routing the fallback
+        // through `list()` from *inside* the lock would deadlock. Instead
+        // we do an inline scan and write directly; the chain still
+        // serializes save/delete updates among themselves, and the
+        // tmp-file `writeSeq` suffix keeps same-millisecond writes from
+        // colliding on disk. A concurrent chained delete that lands after
+        // this fallback rebuild can still resurrect the deleted entry in
+        // `index.json` until its own write runs — accepted because the
+        // per-session JSON file is the source of truth and `list()`
+        // filters by file presence on every call.
+        const sessions = await this.scanForSessions();
+        try {
+          await this.writeIndex(sessions);
+        } catch {
+          // Index is best-effort; per-session file is the source of truth.
+        }
         return;
       }
       const i = entries.findIndex((e) => e.id === id);

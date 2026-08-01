@@ -9,6 +9,7 @@ import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { startSharedHeapWatchdog, writeErr } from '@wrongstack/core/utils';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { wireEventWiring } from './boot/event-wiring.js';
+import { bootstrapCliGovernance, governedHandle } from './boot/governance-runtime.js';
 import { configureSimpleUiRuntimeContext } from './boot/simpleui-full-auto.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
@@ -294,6 +295,28 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const session = sessResult.session;
   sessionRef.current = session;
   const context = sessResult.context;
+  const governanceBootstrap = await bootstrapCliGovernance({
+    environment: process.env,
+    projectRoot,
+    projectId: wpaths.projectSlug,
+    adminClientId: `cli-control-${process.pid}-${session.id}`,
+    modelClientId: `cli-model-${session.id}`,
+    modelCapabilities: ['task_read', 'command_submit', 'shadow_observe'],
+  });
+  const governanceHandle = governedHandle(governanceBootstrap);
+  if (governanceBootstrap.mode === 'governed') {
+    context.meta['governance'] = governanceBootstrap.handle.snapshot();
+    logger.info(
+      `governance: ${governanceBootstrap.handle.snapshot().source} session-scoped control plane`,
+    );
+  } else if (governanceBootstrap.mode === 'legacy') {
+    context.meta['governance'] = governanceBootstrap;
+    logger.warn(`governance: legacy fallback (${governanceBootstrap.code})`, {
+      phase: governanceBootstrap.phase,
+      cleanup: governanceBootstrap.cleanup,
+      message: governanceBootstrap.message,
+    });
+  }
   configureSimpleUiRuntimeContext(context.meta, flags);
   const attachments = sessResult.attachments;
   const queueStore = sessResult.queueStore;
@@ -1101,7 +1124,15 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
         logger,
       }),
     }),
-  ).finally(() => memoryStore.dispose());
+  ).finally(async () => {
+    const governanceCleanup = await governanceHandle?.close();
+    if (governanceCleanup && !governanceCleanup.ok) {
+      logger.warn(`governance: ${governanceCleanup.action} cleanup failed`, {
+        message: governanceCleanup.message,
+      });
+    }
+    memoryStore.dispose();
+  });
 }
 
 // `index.ts` owns is-main detection and bounded process exit. Recovery

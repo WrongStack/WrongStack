@@ -109,6 +109,18 @@ export async function resumeSession(
   // resumed JSONL under a failed-resume UI).
   let oldWriter: typeof agent.ctx.session | undefined;
   let oldMessages: typeof agent.ctx.messages | undefined;
+  // Hoisted sidecar captures for the rollback arm. The pre-swap
+  // `state.detachActiveTodosCheckpoint` (prior session's todo write
+  // handle) and the prior `todos` / `plan.path` / `task.path` values
+  // are captured at the moment of the resume-sidecar detach. On a
+  // post-swap throw, restoring these values ensures the original
+  // session's todos persistence remains wired up — otherwise the
+  // original session's `.todos.json` would be silently detached AND
+  // the resumed session's checkpoint never bound.
+  let previousDetachFn: typeof state.detachActiveTodosCheckpoint;
+  let oldTodos: readonly unknown[] = [];
+  let oldPlanPath: unknown;
+  let oldTaskPath: unknown;
   try {
     if (state.activateSessionIdentity) {
       await state.activateSessionIdentity(canonicalSessionId);
@@ -169,7 +181,22 @@ export async function resumeSession(
     // empty board — the boot `--resume` path already restores todos, so this
     // closes that asymmetry. Detach the old checkpoint BEFORE mutating todos so
     // the restore can't leak into the session we are leaving.
-    await Promise.resolve(state.detachActiveTodosCheckpoint?.()).catch(() => undefined);
+    //
+    // Capture the prior sidecar state BEFORE the detach, so the rollback
+    // arm can restore it on a post-swap failure. Without this, a throw
+    // between the detach (line 195) and the re-attach (line 207) leaves
+    // the original session's todos persistence detached AND the resumed
+    // session's checkpoint never bound — every subsequent todo edit on
+    // the original session would write to nowhere.
+    const previousDetachFn = state.detachActiveTodosCheckpoint;
+    const oldTodos = agent.ctx.state.todos ? [...agent.ctx.state.todos] : [];
+    const oldPlanPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
+      'plan.path'
+    ];
+    const oldTaskPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
+      'task.path'
+    ];
+    await Promise.resolve(previousDetachFn?.()).catch(() => undefined);
     agent.ctx.state.setMeta(
       'plan.path',
       sessionScopedPath(sessionsDir, resumed.writer.id, '.plan.json'),
@@ -233,12 +260,21 @@ export async function resumeSession(
     // the captured `session` variable — the user may have resumed
     // before, in which case `session` is stale.
     // Fire-and-forget: don't block resume on the close.
+    //
+    // Captured BEFORE the token-accounting/snapshot section so the
+    // close runs only after the resume has fully succeeded. Earlier
+    // versions scheduled this close before token-accounting/snapshot
+    // runs, which created a race: any throw in those sections
+    // re-bound `agent.ctx.session = oldWriter` (rollback arm) while
+    // the close was already in flight against the (resumed) writer.
+    // The fix is to defer the close until after the snapshot return.
+    let oldWriterFinalize: void | undefined;
     if (oldWriter && oldWriter !== resumed.writer) {
       // Capture the OLD session's usage synchronously — the counter
       // is reset for the resumed session below, and this closure
       // runs after that reset.
       const endedUsage = tokenCounter.total();
-      void (async () => {
+      oldWriterFinalize = void (async () => {
         let appendOk = false;
         try {
           await oldWriter.append({
@@ -307,12 +343,20 @@ export async function resumeSession(
       (agent.ctx.provider as { capabilities?: { maxContext?: number } } | undefined)?.capabilities
         ?.maxContext ?? 0;
 
-    return {
+    const result = {
       entries,
       nextId: entries.length + 1,
       sessionId: resumed.writer.id,
       contextSnapshot: { tokens, maxContext },
     };
+    // Now that the resume has fully succeeded, kick off the
+    // fire-and-forget oldWriter close. Doing this AFTER the snapshot
+    // return means a rollback (from any throw above) re-binds
+    // `agent.ctx.session = oldWriter` while the old writer is still
+    // open — the close then runs against the still-open writer, not
+    // against the resumed writer the rollback just restored.
+    void oldWriterFinalize;
+    return result;
   } catch (err) {
     if (identityClaimed && previousSessionId) {
       // Roll identity back regardless of writerSwapped. If we crashed
@@ -335,13 +379,28 @@ export async function resumeSession(
     if (!writerSwapped) {
       await openedWriter?.close().catch(() => undefined);
     } else {
-      // Post-swap failure: restore the agent's writer + messages so the
-      // failed-resume UI doesn't silently leave the next user prompt
-      // writing to the resumed JSONL. Best-effort: a throw here would
-      // mask the original error, so swallow + log.
+      // Post-swap failure: restore the agent's writer + messages + sidecars
+      // so the failed-resume UI doesn't silently leave the next user
+      // prompt writing to the resumed JSONL, and so the original
+      // session's todos persistence remains wired up. Best-effort: a
+      // throw here would mask the original error, so swallow + log.
+      //
+      // Restores:
+      //   - `agent.ctx.session` from `oldWriter`
+      //   - `agent.ctx.messages` from the defensive `oldMessages` copy
+      //   - `state.detachActiveTodosCheckpoint` from `previousDetachFn`
+      //     (the prior session's todos write handle)
+      //   - `agent.ctx.state.todos` from `oldTodos`
+      //   - `agent.ctx.state.meta['plan.path']` / `['task.path']` from
+      //     `oldPlanPath` / `oldTaskPath` (skip when `undefined` —
+      //     missing meta on a legacy session is not a restore target).
       try {
         if (oldWriter !== undefined) agent.ctx.session = oldWriter;
         if (oldMessages !== undefined) agent.ctx.state.replaceMessages(oldMessages);
+        if (previousDetachFn !== undefined) state.detachActiveTodosCheckpoint = previousDetachFn;
+        if (oldTodos.length > 0) agent.ctx.state.replaceTodos([...oldTodos]);
+        if (oldPlanPath !== undefined) agent.ctx.state.setMeta('plan.path', oldPlanPath);
+        if (oldTaskPath !== undefined) agent.ctx.state.setMeta('task.path', oldTaskPath);
       } catch (rollbackErr) {
         console.error(
           JSON.stringify({

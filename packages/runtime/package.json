@@ -28,6 +28,10 @@
       "types": "./dist/host.d.ts",
       "import": "./dist/host.js"
     },
+    "./governance-bootstrap": {
+      "types": "./dist/governance-bootstrap.d.ts",
+      "import": "./dist/governance-bootstrap.js"
+    },
     "./vision": {
       "types": "./dist/vision.d.ts",
       "import": "./dist/vision.js"
@@ -57,6 +61,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/governance": "workspace:*",
     "@wrongstack/sage": "workspace:*",
     "@wrongstack/tools": "workspace:*"
   },

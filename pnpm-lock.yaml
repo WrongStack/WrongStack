@@ -407,6 +407,9 @@ importers:
       '@wrongstack/core':
         specifier: workspace:*
         version: link:../core
+      '@wrongstack/governance':
+        specifier: workspace:*
+        version: link:../governance
       '@wrongstack/sage':
         specifier: workspace:*
         version: link:../sage

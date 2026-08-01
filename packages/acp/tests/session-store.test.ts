@@ -62,6 +62,28 @@ describe('ACPSessionStore', () => {
     expect(loaded).toBeNull();
   });
 
+  it('rejects the reserved "index" id so it cannot collide with the sidecar index', async () => {
+    // Seed a real sidecar index.json with content.
+    const indexPath = path.join(dir, 'index.json');
+    await fsp.writeFile(
+      indexPath,
+      JSON.stringify([{ id: 'sess_real', updatedAt: '2026-01-01T00:00:00.000Z' }]),
+    );
+
+    // load("index") must NOT read the sidecar index.
+    expect(await store.load('index')).toBeNull();
+
+    // save({ id: "index" }) must refuse to clobber the sidecar index.
+    await expect(store.save(fakeState({ id: 'index' }))).rejects.toThrow(/unsafe session id/);
+
+    // delete("index") must NOT unlink the sidecar index.
+    await store.delete('index');
+    const stillThere = await fsp.readFile(indexPath, 'utf8');
+    expect(JSON.parse(stillThere)).toEqual([
+      { id: 'sess_real', updatedAt: '2026-01-01T00:00:00.000Z' },
+    ]);
+  });
+
   it('lists persisted sessions', async () => {
     await store.save(fakeState({ id: 'sess_a', updatedAt: '2026-01-01T00:00:00.000Z' }));
     await store.save(fakeState({ id: 'sess_b', updatedAt: '2026-01-02T00:00:00.000Z' }));

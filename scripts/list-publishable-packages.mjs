@@ -11,28 +11,65 @@
  *   node scripts/list-publishable-packages.mjs
  *   node scripts/list-publishable-packages.mjs --json
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-const packagesDir = join(repoRoot, 'packages');
+
+/**
+ * Resolve the workspace member directories from `pnpm-workspace.yaml`, so the
+ * list matches what `pnpm publish -r` actually considers — not just `packages/*`.
+ * The workspace globs here are simple (`packages/*`, `apps/*`, a literal
+ * `website`), so a line parse avoids pulling in a YAML dependency.
+ * @returns {string[]} absolute workspace member directory paths
+ */
+function workspaceMemberDirs() {
+  const text = readFileSync(join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
+  /** @type {string[]} */
+  const dirs = [];
+  let inPackages = false;
+  for (const line of text.split('\n')) {
+    if (/^packages:\s*$/.test(line)) {
+      inPackages = true;
+      continue;
+    }
+    if (!inPackages) continue;
+    const item = /^\s+-\s*(.+?)\s*$/.exec(line);
+    if (item) {
+      const glob = item[1].replace(/^["']|["']$/g, '');
+      if (glob.endsWith('/*')) {
+        const base = join(repoRoot, glob.slice(0, -2));
+        if (existsSync(base)) {
+          for (const entry of readdirSync(base, { withFileTypes: true })) {
+            if (entry.isDirectory()) dirs.push(join(base, entry.name));
+          }
+        }
+      } else if (!glob.includes('*') && existsSync(join(repoRoot, glob))) {
+        dirs.push(join(repoRoot, glob));
+      }
+      continue;
+    }
+    // First non-list line at column 0 (e.g. `overrides:`) ends the block.
+    if (/^\S/.test(line)) break;
+  }
+  return dirs;
+}
 
 /** @type {{name: string, version: string, access: string | undefined, provenance: boolean}[]} */
 const publishable = [];
 /** @type {string[]} */
 const skipped = [];
 
-for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
-  if (!entry.isDirectory()) continue;
+for (const dir of workspaceMemberDirs()) {
   let manifest;
   try {
-    manifest = JSON.parse(readFileSync(join(packagesDir, entry.name, 'package.json'), 'utf8'));
+    manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
   } catch {
     continue;
   }
   if (manifest.private === true) {
-    skipped.push(`${manifest.name ?? entry.name} (private)`);
+    skipped.push(`${manifest.name ?? basename(dir)} (private)`);
     continue;
   }
   publishable.push({

@@ -137,9 +137,36 @@ scoped child grants. Session `readDaemonStatus()` and `shutdownDaemon()` require
 renewal only after the acceptance response arrives. Session `stop()` stops renewal only—it does not terminate
 the detached project daemon or revoke the current grant.
 
-This is not connected to production orchestration yet: there is no automatic runtime spawn, idle policy,
-durable credential discovery, automatic lease-controller creation, cross-process token handoff, or legacy
-runtime callsite.
+`prepareGovernanceCompatibilityRuntime` is an opt-in compatibility factory for gradual runtime adoption. It
+attaches only when the trusted caller supplies an existing admin grant, otherwise inspects ownership and
+launches a new daemon only when the project has no live owner. A live owner without an explicit credential,
+invalid metadata, launch failure, or provisioning failure returns a structured `mode: "legacy"` result; the
+factory never steals the endpoint or silently creates an in-process authority. The current WrongStack runtime
+decides whether to continue through its existing path after observing that result.
+
+On success the factory uses the admin session to issue one explicit, short-lived model grant. The caller must
+choose the model capabilities; `capability_admin` and `daemon_control` are rejected before inspection or
+process launch. The returned runtime exposes a `GovernanceModelSession` whose IPC client is held in a native
+private field, while daemon control remains in the trusted runtime wrapper. Model requests are still autonomous
+within their assigned capabilities and remain subject to deterministic server checks. `close()` revokes the
+model grant before stopping the admin lease, and `shutdownDaemon()` revokes it before requesting identity-bound
+daemon shutdown. If a newly launched daemon cannot finish model provisioning, the factory requests graceful
+rollback; it never shuts down an owner to which it merely attached. Snapshots and fallback results contain no
+bearer credentials.
+
+The interactive CLI now has one experimental, default-off compatibility callsite. Setting
+`WRONGSTACK_GOVERNANCE=1` after session creation dynamically loads
+`@wrongstack/runtime/governance-bootstrap`; every other value leaves the governance runtime chunk unloaded and
+the existing execution path unchanged. Successful bootstrap publishes only a credential-free snapshot into
+session metadata. Structured fallback or unexpected bootstrap failure is logged and the legacy runtime
+continues. The LLM still uses the existing WrongStack executor and tools in this phase; its governance model
+session is provisioned with `task_read`, `command_submit`, and `shadow_observe` but is not yet the tool-execution
+path. A daemon launched by this compatibility session is shut down when the session ends, while an attached
+owner is only detached. This session-scoped policy avoids trapping later sessions until durable admin
+credential handoff exists.
+
+There is still no default-on runtime spawn, idle policy, durable credential discovery, cross-process token
+handoff, or governance-backed tool gateway in a legacy execution callsite.
 The detached daemon currently uses the service's conservative default decision context; a trusted policy
 adapter must be installed before command execution is enabled for production callers. Existing WrongStack
 execution continues unchanged.

@@ -26,14 +26,17 @@ any package in the org, sitting on a machine that also runs every dependency's
 postinstall script. CI uses a short-lived OIDC token minted per run and scoped
 to this repository and this workflow file. npm also attaches a provenance
 attestation automatically, so a consumer can verify which commit and workflow
-produced a tarball. The `--provenance` flag is not needed and pnpm has no such
-flag — provenance comes from the trusted-publishing exchange itself.
+produced a tarball. The `--provenance` flag is not needed here — under trusted
+publishing the attestation comes from the OIDC exchange itself. (pnpm does
+support `--provenance`, but passing it would be redundant in this setup.)
 
 ### One-time setup (the workflow fails until this is done)
 
 1. **Per package on npmjs.com.** Trust is bound per package, not per org:
    register the trusted publisher (repository, workflow `release.yml`,
-   environment `npm-publish`) on each one. There are 27:
+   environment `npm-publish`) on each one. There are 29 — every public
+   workspace member (all non-private `packages/*` plus the two `apps/*`
+   binaries `wrongstack` and `@wrongstack/desktop`; `website` is private):
 
    ```bash
    pnpm release:packages
@@ -55,9 +58,9 @@ flag — provenance comes from the trusted-publishing exchange itself.
   `publishConfig.provenance: true`. Provenance requires a CI OIDC context, so
   those two cannot be published from a laptop at all. Under trusted publishing
   the field is redundant — provenance is emitted regardless.
-- `@wrongstack/plugins` and `@wrongstack/webui-hq` have no
-  `publishConfig.access`. Not fatal (the command passes `--access public`), but
-  they are the odd ones out.
+- `@wrongstack/plugins`, `@wrongstack/webui-hq`, and the `wrongstack` app have
+  no `publishConfig.access`. Not fatal (the command passes `--access public`),
+  but they are the odd ones out.
 
 ### `--no-git-checks`
 
@@ -139,7 +142,7 @@ machine and the full suite is much larger than this three-file selection.
 | `pnpm release:check` | Full repository release gate, no publication |
 | `pnpm test:guard` / `pnpm prepublishOnly` | Three focused plugin tests only |
 | `pnpm test` | Root Vitest suite, then the WebUI package test script |
-| Tag push | No npm release action in the current repository |
+| Tag push (`v*.*.*`) | WS-040 release workflow: `verify` job, then the `publish` job gated behind the `npm-publish` environment approval |
 
 ## Adding a new guard
 

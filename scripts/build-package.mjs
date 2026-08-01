@@ -226,12 +226,18 @@ const profiles = {
       index: 'src/index.ts',
       pack: 'src/pack.ts',
       host: 'src/host.ts',
+      'governance-bootstrap': 'src/governance-bootstrap.ts',
       vision: 'src/vision.ts',
       clipboard: 'src/clipboard.ts',
       probe: 'src/local-llm-probe.ts',
       'tool-registration': 'src/tool-registration.ts',
     },
-    external: ['@wrongstack/core', '@wrongstack/sage', '@wrongstack/tools'],
+    external: [
+      '@wrongstack/core',
+      '@wrongstack/governance',
+      '@wrongstack/sage',
+      '@wrongstack/tools',
+    ],
   },
   '@wrongstack/sage': {
     entries: {
