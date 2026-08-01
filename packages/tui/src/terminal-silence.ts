@@ -13,6 +13,7 @@ const origConsoleInfo = console.info;
 const origConsoleTable = console.table;
 const origConsoleTrace = console.trace;
 const origStderrWrite = process.stderr.write.bind(process.stderr);
+const origStdoutWrite = process.stdout.write.bind(process.stdout);
 
 const consoleNoop = (..._args: unknown[]): void => {};
 const stderrNoop = ((
@@ -48,5 +49,12 @@ export function unsilenceTerminal(): void {
   console.table = origConsoleTable;
   console.trace = origConsoleTrace;
   process.stderr.write = origStderrWrite;
+  // Restore stdout.write to the module-load original. silenceTerminal does
+  // NOT silence stdout (Ink needs it for rendering), but other code —
+  // Ink's internal patches, title controllers, or term.ts escape sequences —
+  // may wrap or replace process.stdout.write during the TUI session.
+  // Restoring here ensures the TUI exit is transactional: callers see the
+  // same stdout.write they had before the TUI started.
+  process.stdout.write = origStdoutWrite;
   process.off('warning', warningNoop);
 }
