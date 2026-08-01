@@ -1,15 +1,9 @@
 /**
- * Redact governance credentials (`wsg_`-prefixed tokens) from a message and
- * cap its length. Single source of truth — imported by both the governance
- * runtime bootstrap (`governance-bootstrap.ts`) and the CLI's legacy-fallback
- * path (`cli-main-helpers.ts`) so the redaction format cannot drift between
- * them (Chimera MEDIUM — byte-for-byte duplicate).
- *
- * Lives in its own module (not `governance-bootstrap.ts`) so the CLI can import
- * it statically without eagerly loading the governance bootstrap — the CLI uses
- * it precisely in the path that runs when that dynamic import fails
- * (`module_unavailable`).
+ * Re-export the governance-credential sanitizer from `@wrongstack/governance`
+ * (its canonical home). The sanitizer lives in governance — a dependency-free
+ * leaf package — so both governance and runtime can use it without an import
+ * cycle (runtime depends on governance, never the reverse). Kept as a
+ * `@wrongstack/runtime/governance-sanitize` subpath so the CLI's legacy-fallback
+ * path can import it without eagerly loading `governance-bootstrap`.
  */
-export function sanitizeGovernanceMessage(message: string): string {
-  return message.replace(/wsg_\S{1,700}/gu, '[credential]').slice(0, 512);
-}
+export { sanitizeGovernanceMessage } from '@wrongstack/governance';
