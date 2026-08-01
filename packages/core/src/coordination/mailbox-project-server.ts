@@ -119,6 +119,21 @@ const stopMemoryWatchdog = startSharedHeapWatchdog({
  */
 const authToken = randomBytes(16).toString('hex');
 
+/**
+ * Resolves once `server.json` — the only place the token exists — is on disk.
+ *
+ * The endpoint bind IS the ownership election, so metadata cannot be written
+ * before listening (a losing contender would clobber the winner's file). But
+ * that leaves a window where the socket accepts connections and no client can
+ * possibly know the token yet. Rather than have clients retry into it, the
+ * daemon holds `hello` until the file is written: `hello` means "ready", and
+ * the client's connect already waits for it.
+ */
+let markMetadataWritten: (() => void) | undefined;
+const metadataWritten = new Promise<void>((resolve) => {
+  markMetadataWritten = resolve;
+});
+
 const serverInfo: MailboxProjectServerInfo = {
   protocolVersion: MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION,
   pid: process.pid,
@@ -284,7 +299,12 @@ async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promi
     }
     case 'credentialVerify': {
       const args = rawArgs as MailboxServerOperations['credentialVerify']['args'];
-      return activeMailbox.credentialVerify(args.credentialId, args.secret);
+      return Promise.resolve(activeMailbox.credentialVerify(args.credentialId, args.secret)).then(
+        (result) =>
+          result.valid
+            ? { ...result, credential: result.credential ? redactMailboxCredential(result.credential) : undefined }
+            : { valid: false, reason: result.reason },
+      );
     }
     case 'credentialRevoke': {
       const args = rawArgs as MailboxServerOperations['credentialRevoke']['args'];
@@ -485,7 +505,10 @@ const server = net.createServer((socket) => {
   socket.setEncoding('utf8');
   const state: ClientState = { socket, buffer: '', lastSeenAt: Date.now() };
   clients.add(state);
-  send(state, { type: 'hello', ...serverInfo });
+  // Greet only once the token is readable on disk — see `metadataWritten`.
+  void metadataWritten.then(() => {
+    if (!socket.destroyed) send(state, { type: 'hello', ...serverInfo });
+  });
   socket.on('data', (chunk: string) => onData(state, chunk));
   socket.on('error', () => {
     // Close handling below owns cleanup; socket errors must not crash the owner.
@@ -557,7 +580,10 @@ server.on('listening', () => {
   }
   stopAutoCompact = mailbox.startAutoCompactTimer();
   void writeMetadata()
-    .then(() => scheduleIdleStop())
+    .then(() => {
+      markMetadataWritten?.();
+      scheduleIdleStop();
+    })
     .catch(() => {
       void stop('metadata-write-failed').finally(() => {
         process.exitCode = 1;
