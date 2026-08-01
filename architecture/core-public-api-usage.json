@@ -6,7 +6,7 @@
     "@wrongstack/core/agent": {
       "files": 228,
       "typeOnly": 186,
-      "runtimeOrMixed": 58
+      "runtimeOrMixed": 60
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 165,
+      "files": 166,
       "typeOnly": 70,
-      "runtimeOrMixed": 143
+      "runtimeOrMixed": 144
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 107,
+      "files": 108,
       "typeOnly": 19,
-      "runtimeOrMixed": 90
+      "runtimeOrMixed": 91
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -145,7 +145,7 @@
     },
     "@wrongstack/core/types": {
       "files": 822,
-      "typeOnly": 788,
+      "typeOnly": 787,
       "runtimeOrMixed": 205
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -253,7 +253,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/boot/tui-session-resume.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -2628,6 +2628,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui/tests/server/collaboration-ws-handler.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui/tests/server/http-server.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6221,6 +6227,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/permission-prompt.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/provider-config-utils.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7734,7 +7746,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/cli-main-helpers.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {

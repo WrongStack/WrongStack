@@ -113,11 +113,6 @@ const _SpecsView = lazy(() =>
 const TechStackView = lazy(() =>
   import('./components/TechStackView').then((m) => ({ default: m.TechStackView })),
 );
-const DeadCodeScanPanel = lazy(() =>
-  import('./components/DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({
-    default: m.DeadCodeScanPanel,
-  })),
-);
 const TerminalPanel = lazy(() =>
   import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })),
 );

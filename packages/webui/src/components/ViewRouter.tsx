@@ -27,9 +27,6 @@ const CodeMap = lazy(() => import('./CodeMap').then((m) => ({ default: m.CodeMap
 const DebugDashboard = lazy(() =>
   import('./DebugDashboard').then((m) => ({ default: m.DebugDashboard })),
 );
-const DeadCodeScanPanel = lazy(() =>
-  import('./DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({ default: m.DeadCodeScanPanel })),
-);
 const DesignGalleryView = lazy(() =>
   import('./DesignGalleryView').then((m) => ({ default: m.DesignGalleryView })),
 );
@@ -265,15 +262,6 @@ export function ViewRouter({ sessionId, desktopShell }: { sessionId: string | nu
           <Suspense fallback={<PanelSuspense label="Loading TechStack…" />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <TechStackView />
-            </div>
-          </Suspense>
-        </ErrorBoundary>
-      )}
-      {currentView === 'deadcode' && (
-        <ErrorBoundary level="panel" name="DeadCode">
-          <Suspense fallback={<PanelSuspense label="Loading Dead-Code Scan…" />}>
-            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-              <DeadCodeScanPanel />
             </div>
           </Suspense>
         </ErrorBoundary>

@@ -35,11 +35,6 @@ import {
   handleCodemapSymbols,
 } from './codemap-handlers.js';
 import {
-  type DeadCodeHandlerDeps,
-  handleDeadCodeActionPlan,
-  handleDeadCodeScan,
-} from './deadcode-handlers.js';
-import {
   handleApiAnalyticsGet,
   handleApiAnalyticsPost,
   handleApiAnalyticsSummary,
@@ -679,45 +674,6 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           },
           file,
         );
-        return;
-      }
-
-      // ── Dead-Code Scan endpoints ──────────────────────────────────────
-      if (url.pathname === '/api/deadcode/scan' && req.method === 'POST') {
-        if (requireAccessToken && !accessTokenOk) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Unauthorized' }));
-          return;
-        }
-        if (!opts.projectRoot) {
-          res.writeHead(503, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Project root not configured' }));
-          return;
-        }
-        const deadCodeDeps: DeadCodeHandlerDeps = {
-          projectRoot: opts.projectRoot,
-          ...(opts.indexDir ? { indexDir: opts.indexDir } : {}),
-        };
-        await handleDeadCodeScan(res, deadCodeDeps, req);
-        return;
-      }
-
-      if (url.pathname === '/api/deadcode/action-plan' && req.method === 'POST') {
-        if (requireAccessToken && !accessTokenOk) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Unauthorized' }));
-          return;
-        }
-        if (!opts.projectRoot) {
-          res.writeHead(503, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Project root not configured' }));
-          return;
-        }
-        const deadCodeDeps: DeadCodeHandlerDeps = {
-          projectRoot: opts.projectRoot,
-          ...(opts.indexDir ? { indexDir: opts.indexDir } : {}),
-        };
-        await handleDeadCodeActionPlan(res, deadCodeDeps, req);
         return;
       }
 

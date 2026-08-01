@@ -32,6 +32,10 @@
       "types": "./dist/governance-bootstrap.d.ts",
       "import": "./dist/governance-bootstrap.js"
     },
+    "./governance-sanitize": {
+      "types": "./dist/governance-sanitize.d.ts",
+      "import": "./dist/governance-sanitize.js"
+    },
     "./vision": {
       "types": "./dist/vision.d.ts",
       "import": "./dist/vision.js"

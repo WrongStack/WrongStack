@@ -755,7 +755,7 @@
       "source": "packages/core/src/security/index.ts",
       "declarations": [
         "export type { CompatibilityTrustBoundaryOptions, TrustActor, TrustActorKind, TrustAllowDecision, TrustAttribute, TrustAuthContext, TrustAuthMethod, TrustBoundary, TrustBoundaryAuditEntry, TrustBoundaryDecision, TrustBoundaryRequest, TrustConfirmDecision, TrustDecodeIssue, TrustDecodeResult, TrustDenyDecision, TrustRisk, TrustScope, TrustScopedTokenDecision, TrustSubject, TrustSurface, } from './trust-boundary.js';",
-        "export { AutoApprovePermissionPolicy, DefaultPermissionPolicy, type PermissionPolicyOptions, } from './permission-policy.js';",
+        "export { AutoApprovePermissionPolicy, alwaysAllowUnavailableReason, DefaultPermissionPolicy, type PermissionPolicyOptions, } from './permission-policy.js';",
         "export { DANGEROUS_FOR_SUBAGENTS, getDangerousCapabilities, hasCapability, hasDangerousCapabilityForSubagents, ToolCapabilities, type ToolCapability, WIDE_SUBAGENT_CAPABILITIES, } from './capabilities.js';",
         "export { DIRECTORY_POLICY_LIMITS, DIRECTORY_POLICY_SCHEMA_VERSION, type DirectoryPolicyDiagnostic, type DirectoryPolicyDiagnosticCode, type DirectoryPolicyValidationResult, validateDirectoryPolicy, } from './directory-policy-schema.js';",
         "export { DefaultSecretScrubber } from './secret-scrubber.js';",
@@ -1217,7 +1217,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 15,
-      "sourceLines": 4971
+      "sourceLines": 5265
     },
     {
       "directory": "skills",
@@ -1259,7 +1259,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9620
+      "sourceLines": 9673
     },
     {
       "directory": "worktree",
