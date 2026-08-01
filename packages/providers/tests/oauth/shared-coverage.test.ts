@@ -116,6 +116,20 @@ describe('callbackHtml', () => {
     expect(html).toContain('Authentication failed');
     expect(html).toContain('Something went wrong.');
   });
+
+  // WS-002: the loopback callback reflects the provider-supplied `?error=`
+  // parameter *before* the state check, so `message` is attacker-reachable
+  // from any page the user has open during a login. It must be escaped.
+  it('escapes HTML metacharacters in the message', () => {
+    const html = callbackHtml(false, '<script>alert(1)</script>');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+  });
+
+  it('escapes quotes and ampersands so no attribute can be broken out of', () => {
+    const html = callbackHtml(false, `"'&`);
+    expect(html).toContain('&quot;&#39;&amp;');
+  });
 });
 
 describe('startLoopbackServer', () => {

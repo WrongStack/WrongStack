@@ -76,15 +76,27 @@ export function parseAuthorizationInput(input: string): {
 
 // ── Loopback callback server ──────────────────────────────────────────────────
 
+const ESCAPE_HTML: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) => ESCAPE_HTML[ch] ?? ch);
+}
+
 export function callbackHtml(ok: boolean, message: string): string {
   const heading = ok ? 'Authentication successful' : 'Authentication failed';
   return (
     `<!doctype html><html lang="en"><head><meta charset="utf-8"/>` +
-    `<title>${heading}</title><style>body{margin:0;min-height:100vh;display:flex;` +
+    `<title>${escapeHtml(heading)}</title><style>body{margin:0;min-height:100vh;display:flex;` +
     `align-items:center;justify-content:center;background:#09090b;color:#fafafa;` +
     `font-family:ui-sans-serif,system-ui,sans-serif;text-align:center}` +
     `h1{font-size:26px;margin:0 0 8px}p{color:#a1a1aa}</style></head><body><main>` +
-    `<h1>${heading}</h1><p>${message}</p></main></body></html>`
+    `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(message)}</p></main></body></html>`
   );
 }
 
@@ -141,10 +153,20 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     if (url.pathname !== path) {
       res.statusCode = 404;
       res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.setHeader('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'");
+      res.setHeader('x-frame-options', 'DENY');
+      res.setHeader('x-content-type-options', 'nosniff');
+      res.setHeader('referrer-policy', 'no-referrer');
       res.end(callbackHtml(false, 'Callback route not found.'));
       return;
     }
     res.setHeader('content-type', 'text/html; charset=utf-8');
+    // The callback page is static; deny scripts and framing outright so this
+    // loopback origin cannot be used as an XSS/clickjacking foothold (WS-002).
+    res.setHeader('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'");
+    res.setHeader('x-frame-options', 'DENY');
+    res.setHeader('x-content-type-options', 'nosniff');
+    res.setHeader('referrer-policy', 'no-referrer');
     const err = url.searchParams.get('error');
     if (err) {
       res.statusCode = 400;

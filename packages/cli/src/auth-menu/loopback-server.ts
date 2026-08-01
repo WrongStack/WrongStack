@@ -152,10 +152,20 @@ export function startLoopbackServer(
     if (url.pathname !== callbackPath) {
       res.statusCode = 404;
       res.setHeader('content-type', 'text/html; charset=utf-8');
+      // Static page: deny scripts and framing so this loopback origin cannot be
+      // used as an XSS/clickjacking foothold (CLICK-001).
+      res.setHeader('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'");
+      res.setHeader('x-frame-options', 'DENY');
+      res.setHeader('x-content-type-options', 'nosniff');
+      res.setHeader('referrer-policy', 'no-referrer');
       res.end(callbackHtml(false, 'Callback route not found.'));
       return;
     }
     res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.setHeader('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'");
+    res.setHeader('x-frame-options', 'DENY');
+    res.setHeader('x-content-type-options', 'nosniff');
+    res.setHeader('referrer-policy', 'no-referrer');
     const err = url.searchParams.get('error');
     if (err) {
       res.statusCode = 400;
