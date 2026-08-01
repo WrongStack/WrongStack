@@ -37,7 +37,7 @@ describe('mailbox project server identity and protocol', () => {
 
   it('frames protocol messages as newline-delimited JSON', () => {
     const encoded = encodeMailboxProjectServerMessage({ type: 'heartbeat' });
-    expect(MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION).toBe(3);
+    expect(MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION).toBe(4);
     expect(encoded.endsWith('\n')).toBe(true);
     expect(JSON.parse(encoded)).toEqual({ type: 'heartbeat' });
   });
@@ -543,6 +543,79 @@ describe('RemoteMailbox single-owner IPC', () => {
       } else {
         process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
       }
+    }
+  });
+});
+
+describe('WS-025 credential verifier redaction at the IPC boundary', () => {
+  it('never returns the verifier over credentialGet, credentialList, or credentialVerify', async () => {
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
+    const mailbox = new RemoteMailbox({ projectDir, isolatedConnection: true });
+    try {
+      await mailbox.initialize();
+
+      // Issuance legitimately returns the full credential plus the secret once;
+      // capture the verifier so we can assert it never crosses the wire again.
+      const issued = await mailbox.credentialIssue({
+        principalId: 'worker@redact',
+        projectId: path.basename(projectDir),
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      const verifier = issued.credential.verifier;
+      expect(verifier).toMatch(/^[0-9a-f]{64}$/);
+      const credentialId = issued.credential.credentialId;
+
+      // Read surfaces must be redacted.
+      const fetched = await mailbox.credentialGet(credentialId);
+      expect(fetched).not.toBeNull();
+      expect(JSON.stringify(fetched)).not.toContain(verifier);
+      const listed = await mailbox.credentialList();
+      expect(listed.length).toBeGreaterThan(0);
+      expect(JSON.stringify(listed)).not.toContain(verifier);
+
+      // Verify a REVOKED credential with a garbage secret: this exercises the
+      // store branch that embeds the full record before the HMAC check — the
+      // exact path the audit flagged. The IPC response must drop it entirely.
+      await mailbox.credentialRevoke(credentialId, 'redaction-regression', 'tester@redact');
+      const invalid = await mailbox.credentialVerify(credentialId, 'not-the-real-secret');
+      expect(invalid.valid).toBe(false);
+      expect(invalid.credential).toBeUndefined();
+      expect(JSON.stringify(invalid)).not.toContain(verifier);
+
+      // Verify with the CORRECT secret: the valid branch must also strip the
+      // verifier. We issue a fresh credential (the previous one is revoked).
+      const issued2 = await mailbox.credentialIssue({
+        principalId: 'valid@redact',
+        projectId: path.basename(projectDir),
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      const valid = await mailbox.credentialVerify(
+        issued2.credential.credentialId,
+        issued2.secret,
+      );
+      expect(valid.valid).toBe(true);
+      expect(valid.credential).toBeDefined();
+      expect(valid.credential?.credentialId).toBe(issued2.credential.credentialId);
+      // The verifier must be absent even on the valid path.
+      expect('verifier' in (valid.credential ?? {})).toBe(false);
+      expect('verifierAlgorithm' in (valid.credential ?? {})).toBe(false);
+      expect(JSON.stringify(valid)).not.toContain(issued2.credential.verifier);
+    } finally {
+      await mailbox.close();
+      const control = new MailboxProjectServerConnection(projectDir);
+      await control.shutdown('redaction-regression-complete').catch(() => undefined);
+      control.close();
+      if (previousInline === undefined) {
+        delete process.env['WRONGSTACK_MAILBOX_INLINE'];
+      } else {
+        process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   });
 });
