@@ -17,6 +17,7 @@ import {
   ROTATION_OVERLAP_MS,
   verifyMailboxCredential,
 } from './mailbox-credential-store.js';
+import { credentialVerifyThrottle } from './mailbox-credential-throttle.js';
 import { persistCredential } from './sqlite-mailbox-rows.js';
 
 export function credentialGet(db: DatabaseSync, credentialId: string): MailboxCredential | null {
@@ -69,12 +70,33 @@ export function credentialIssue(
   return issued;
 }
 
+/**
+ * WS-025: this answers "does this secret match this credential id?" and used
+ * to answer it as often as it was asked — a guessing oracle reachable from
+ * every mailbox surface. Failed attempts are now counted per credential id and
+ * refused for a cooldown once the limit is hit. A success clears the counter,
+ * so a legitimate holder who mistyped is not locked out of their own
+ * credential.
+ *
+ * The throttle deliberately runs BEFORE the lookup: answering "credential not
+ * found" quickly while throttling only real ids would leak which ids exist.
+ */
 export function credentialVerify(
   db: DatabaseSync,
   credentialId: string,
   secret: string,
 ): CredentialValidation {
-  return verifyMailboxCredential(credentialGet(db, credentialId) ?? undefined, secret);
+  const decision = credentialVerifyThrottle.check(credentialId);
+  if (!decision.allowed) {
+    return {
+      valid: false,
+      reason: `too many failed verification attempts — retry in ${Math.ceil(decision.retryAfterMs / 1000)}s`,
+    };
+  }
+  const result = verifyMailboxCredential(credentialGet(db, credentialId) ?? undefined, secret);
+  if (result.valid) credentialVerifyThrottle.recordSuccess(credentialId);
+  else credentialVerifyThrottle.recordFailure(credentialId);
+  return result;
 }
 
 export function credentialRevoke(

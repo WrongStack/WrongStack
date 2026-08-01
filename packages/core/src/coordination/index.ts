@@ -5,7 +5,6 @@ export {
   InMemoryAgentBridge,
   InMemoryBridgeTransport,
 } from './agent-bridge.js';
-export { assignNickname } from './subagent-nicknames.js';
 export {
   type AgentFactory,
   type AgentFactoryResult,
@@ -21,64 +20,64 @@ export {
   type AgentDefinition,
   type AgentPhase,
   ALL_AGENT_DEFINITIONS,
+  applyProjectAgentConfig,
+  assertProjectAgentRole,
   BUILD_AGENTS,
+  buildConsolidationInstruction,
+  buildProjectContextualizedPrompt,
+  CAPTURE_COOLDOWN_MS,
+  CAPTURE_MAX_PER_SESSION,
+  type ConsolidationMetadata,
+  type CreateProjectAgentInput,
+  canCaptureNewLearned,
+  captureLearnedFromAgentOutput,
+  captureLearnedFromAgentOutputDetailed,
+  clearProjectAgentConsolidated,
+  createProjectAgent,
+  createProjectAgentRoster,
   DELIVERY_AGENTS,
   DISCOVERY_AGENTS,
   DOMAIN_AGENTS,
-  getAgentDefinition,
-  HEAVY_BUDGET,
-  KNOWLEDGE_AGENTS,
-  LIGHT_BUDGET,
-  MEDIUM_BUDGET,
-  META_AGENTS,
-  PLANNING_AGENTS,
-  REVIEW_AGENTS,
-  VERIFY_AGENTS,
-  applyProjectAgentConfig,
-  buildProjectContextualizedPrompt,
-  canCaptureNewLearned,
-  CAPTURE_COOLDOWN_MS,
-  CAPTURE_MAX_PER_SESSION,
-  captureLearnedFromAgentOutput,
-  captureLearnedFromAgentOutputDetailed,
-  createProjectAgent,
-  createProjectAgentRoster,
   detectLearnedConflicts,
+  getAgentDefinition,
   getProjectAgentLearnStats,
+  HEAVY_BUDGET,
   hintLearnedNeedsSummarization,
-  LEARNED_SOFT_LIMIT,
-  LEARNED_HARD_LIMIT,
-  loadProjectAgentConsolidated,
-  loadConsolidationMetadata,
   isConsolidated,
-  saveProjectAgentConsolidated,
-  clearProjectAgentConsolidated,
-  buildConsolidationInstruction,
-  listProjectAgentRoles,
+  KNOWLEDGE_AGENTS,
+  LEARNED_HARD_LIMIT,
+  LEARNED_SOFT_LIMIT,
+  type LearnedCaptureResult,
+  LIGHT_BUDGET,
   listProjectAgentLearnedEntries,
+  listProjectAgentRoles,
+  loadConsolidationMetadata,
   loadProjectAgentConfig,
+  loadProjectAgentConsolidated,
   loadProjectAgentIdentity,
   loadProjectAgentLearned,
   loadProjectAgentLearningPolicy,
   loadProjectAgentProfile,
   loadRoleKnowledgeManifest,
-  resetProjectAgentIdentity,
-  refreshProjectAgentIdentity,
-  updateProjectAgentLearned,
-  updateProjectAgentIdentity,
-  updateProjectAgentConfig,
-  updateProjectAgentKnowledge,
-  updateProjectAgentLearningPolicy,
-  assertProjectAgentRole,
-  slugifyProjectAgentRole,
-  validateProjectAgentConfig,
-  type LearnedCaptureResult,
+  MEDIUM_BUDGET,
+  META_AGENTS,
+  PLANNING_AGENTS,
   type ProjectAgentConfig,
-  type ProjectAgentProfile,
-  type CreateProjectAgentInput,
   type ProjectAgentLearningPolicy,
-  type ConsolidationMetadata,
+  type ProjectAgentProfile,
+  REVIEW_AGENTS,
   type RoleKnowledgeManifest,
+  refreshProjectAgentIdentity,
+  resetProjectAgentIdentity,
+  saveProjectAgentConsolidated,
+  slugifyProjectAgentRole,
+  updateProjectAgentConfig,
+  updateProjectAgentIdentity,
+  updateProjectAgentKnowledge,
+  updateProjectAgentLearned,
+  updateProjectAgentLearningPolicy,
+  VERIFY_AGENTS,
+  validateProjectAgentConfig,
 } from './agents/index.js';
 export {
   type AutoExtendCeiling,
@@ -92,9 +91,9 @@ export {
   BrainDecisionQueue,
   type BrainDecisionRequest,
   type BrainDecisionSource,
+  type BrainEscalationMode,
   type BrainFallback,
   type BrainRisk,
-  type BrainEscalationMode,
   DefaultBrainArbiter,
   type DefaultBrainArbiterOptions,
   EscalationRoutingBrainArbiter,
@@ -104,10 +103,10 @@ export {
   terminalPolicyDecision,
 } from './brain.js';
 export {
-  brainDecisionKey,
   BrainDecisionLedger,
   type BrainDecisionLedgerOptions,
   type BrainLedgerEntry,
+  brainDecisionKey,
   createLedgerGuardBrainArbiter,
   type LedgerGuardBrainArbiterOptions,
 } from './brain-ledger.js';
@@ -116,6 +115,7 @@ export {
   BrainMonitor,
   type BrainMonitorOptions,
 } from './brain-monitor.js';
+export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';
 export {
   type BugFinding,
   type CollabBudgetConfig,
@@ -135,15 +135,15 @@ export {
   type SharedFileSnapshot,
 } from './collab-debug.js';
 export {
-  type CreateDelegateToolOptions,
-  createDelegateTool,
-  type DelegateHost,
-} from './delegate-tool.js';
-export {
   assessCommitSafety,
   type CommitSafetyOptions,
   type CommitSafetyReport,
 } from './commit-safety.js';
+export {
+  type CreateDelegateToolOptions,
+  createDelegateTool,
+  type DelegateHost,
+} from './delegate-tool.js';
 // ── Dependency watcher — file-change → mailbox bridge ────────────────────
 export {
   DEPENDENCY_FILE_PATTERNS,
@@ -211,6 +211,7 @@ export {
   makeLLMClassifier,
   scoreAgents,
 } from './dispatcher.js';
+export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';
 export {
   ACP_AGENTS,
   ALL_FLEET_AGENTS,
@@ -247,61 +248,10 @@ export {
   type SupervisedSubagent,
   type SupervisorLogEntry,
 } from './fleet-supervisor.js';
-export {
-  DEFAULT_MAX_FLEET_SPAWNS,
-  HARD_MAX_SPAWN_DEPTH,
-  resolveMaxSpawnDepth,
-} from './spawn-budget.js';
 export { resolveProjectDir } from './global-mailbox-paths.js';
-export type { MailboxCredentialVerifier } from './mailbox-credential-store.js';
-export {
-  createProjectMailbox,
-  getSharedProjectMailbox,
-  type ProjectMailboxOptions,
-  RemoteMailbox,
-} from './remote-mailbox.js';
-export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';
-export {
-  isMailboxProjectServerAvailable,
-  MailboxProjectServerConnection,
-  type MailboxProjectServerConnectionState,
-} from './mailbox-project-server-client.js';
-export type {
-  MailboxProjectServerInfo,
-  MailboxProjectServerStatus,
-} from './mailbox-project-server-protocol.js';
-export { MailboxEventEmitter } from './mailbox-events.js';
-export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';
-export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';
-export {
-  startTechStackConsumer,
-  type TechStackConsumerOptions,
-} from './techstack-mailbox-consumer.js';
-export {
-  authorizeMailboxBearerToken,
-  authorizePersistedMailboxCredential,
-  createMailboxHttpRouter,
-  MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
-  MAILBOX_HTTP_MAX_AGE_CEILING_MS,
-  MAILBOX_HTTP_MAX_BODY_BYTES,
-  MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
-  MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
-  MailboxHttpRateLimiter,
-  type MailboxHttpAccessDecision,
-  type MailboxHttpRouter,
-  type MailboxHttpRouterOptions,
-} from './mailbox-http-router.js';
 export type { ICoordinator } from './icoordinator.js';
 export type { IFleetManager } from './ifleet-manager.js';
 export { LargeAnswerStore } from './large-answer-store.js';
-export {
-  formatSubagentStructuredReport,
-  MAX_SUBAGENT_STRUCTURED_REPORT_CHARS,
-  makeSubagentResultTool,
-  normalizeSubagentStructuredReport,
-  readSubagentStructuredReport,
-  SUBAGENT_STRUCTURED_REPORT_META_KEY,
-} from './subagent-result-tool.js';
 export { type MailToolsOptions, makeMailInboxTool, makeMailSendTool } from './mail-tools.js';
 // Mailbox - inter-agent messaging
 export type {
@@ -310,6 +260,24 @@ export type {
   MailboxMessageAction,
 } from './mailbox-actions.js';
 export { actionToAckInput } from './mailbox-actions.js';
+export {
+  parseMailboxAckInput,
+  parseMailboxQueryInput,
+  parseMailboxSendInput,
+} from './mailbox-codecs.js';
+export type {
+  MailboxCredentialVerifier,
+  RedactedMailboxCredential,
+} from './mailbox-credential-store.js';
+export { redactMailboxCredential } from './mailbox-credential-store.js';
+export {
+  CREDENTIAL_VERIFY_COOLDOWN_MS,
+  CREDENTIAL_VERIFY_MAX_FAILURES,
+  CREDENTIAL_VERIFY_WINDOW_MS,
+  CredentialVerifyThrottle,
+  credentialVerifyThrottle,
+} from './mailbox-credential-throttle.js';
+export { MailboxEventEmitter } from './mailbox-events.js';
 export {
   buildDownAlert,
   buildRecoveryAlert,
@@ -330,6 +298,29 @@ export {
   createMailboxHooks,
   type MailboxHooksOptions,
 } from './mailbox-hooks.js';
+export {
+  authorizeMailboxBearerToken,
+  authorizePersistedMailboxCredential,
+  createMailboxHttpRouter,
+  MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
+  MAILBOX_HTTP_MAX_AGE_CEILING_MS,
+  MAILBOX_HTTP_MAX_BODY_BYTES,
+  MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
+  MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
+  type MailboxHttpAccessDecision,
+  MailboxHttpRateLimiter,
+  type MailboxHttpRouter,
+  type MailboxHttpRouterOptions,
+} from './mailbox-http-router.js';
+export {
+  isMailboxProjectServerAvailable,
+  MailboxProjectServerConnection,
+  type MailboxProjectServerConnectionState,
+} from './mailbox-project-server-client.js';
+export type {
+  MailboxProjectServerInfo,
+  MailboxProjectServerStatus,
+} from './mailbox-project-server-protocol.js';
 export {
   applyMailboxSendPolicy,
   type MailboxResolver,
@@ -371,11 +362,6 @@ export {
   SESSION_RECIPIENT_PREFIX,
   sessionRecipient,
 } from './mailbox-types.js';
-export {
-  parseMailboxAckInput,
-  parseMailboxQueryInput,
-  parseMailboxSendInput,
-} from './mailbox-codecs.js';
 export {
   isValidMatrixKey,
   MATRIX_PHASE_KEYS,
@@ -421,6 +407,22 @@ export {
   type PackageOutdatedWatcherOptions,
   startPackageOutdatedWatcher,
 } from './package-outdated-watcher.js';
+// ── Provider/Model Status Tracker ───────────────────────────────────────────
+export {
+  type ErrorHistoryEntry,
+  type ProviderModelState,
+  type ProviderModelStatus,
+  ProviderModelStatusTracker,
+  type ProviderStatusSnapshot,
+  type ProviderStatusTrackerConfig,
+} from './provider-status-tracker.js';
+export {
+  createProjectMailbox,
+  getSharedProjectMailbox,
+  type ProjectMailboxOptions,
+  RemoteMailbox,
+} from './remote-mailbox.js';
+export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';
 // ── Mailbox bridge lock — per-project single-instance contract ─────────
 // The HTTP bridge (`wstack mailbox serve`) writes a per-project lock +
 // token file at `<projectDir>/.mailbox-bridge.{lock,token}`. Core owns
@@ -442,6 +444,11 @@ export {
   readLiveLock,
   release,
 } from './single-instance-mailbox.js';
+export {
+  DEFAULT_MAX_FLEET_SPAWNS,
+  HARD_MAX_SPAWN_DEPTH,
+  resolveMaxSpawnDepth,
+} from './spawn-budget.js';
 export type {
   BudgetKind,
   BudgetLimits,
@@ -465,6 +472,19 @@ export {
    * are accessible from one import path. */
   TIMEOUT_PREEMPT_FRACTION,
 } from './subagent-budget.js';
+export { assignNickname } from './subagent-nicknames.js';
+export {
+  formatSubagentStructuredReport,
+  MAX_SUBAGENT_STRUCTURED_REPORT_CHARS,
+  makeSubagentResultTool,
+  normalizeSubagentStructuredReport,
+  readSubagentStructuredReport,
+  SUBAGENT_STRUCTURED_REPORT_META_KEY,
+} from './subagent-result-tool.js';
+export {
+  startTechStackConsumer,
+  type TechStackConsumerOptions,
+} from './techstack-mailbox-consumer.js';
 export {
   type FleetWorktreePolicy,
   resolveSubagentWorktreeDecision,
@@ -476,18 +496,12 @@ export {
   wrapSubagentRunnerWithWorktrees,
 } from './worktree-task-runner.js';
 
-// ── Provider/Model Status Tracker ───────────────────────────────────────────
-export {
-  ProviderModelStatusTracker,
-  type ErrorHistoryEntry,
-  type ProviderModelState,
-  type ProviderModelStatus,
-  type ProviderStatusSnapshot,
-  type ProviderStatusTrackerConfig,
-} from './provider-status-tracker.js';
-
 // ── Autonomous coordination layer ──────────────────────────────────────────
 
+export {
+  collabInjectMiddleware,
+  collabPauseMiddleware,
+} from '../middleware/collab-pause.js';
 // ── Adaptive Concurrency Controller ──────────────────────────────────────────
 export {
   AdaptiveConcurrencyController,
@@ -522,7 +536,6 @@ export type {
 } from './autonomous-coordinator.js';
 /** Autonomous coordinator — wires all coordination components */
 export { AutonomousCoordinator } from './autonomous-coordinator.js';
-
 /** Change manager — autonomous code change lifecycle */
 export {
   type ApplyResult,
@@ -534,6 +547,11 @@ export {
   type QualityGateChecks,
   type RollbackResult,
 } from './change-manager.js';
+export {
+  type CollabBusState,
+  CollaborationBus,
+  type ConsumedInjectionInfo,
+} from './collab-bus.js';
 export type {
   ConsensusOptions,
   ConsensusResult,
@@ -577,12 +595,3 @@ export type {
 } from './task-dag.js';
 /** Task DAG — dependency graph with fork/join semantics */
 export { TaskDAG } from './task-dag.js';
-export {
-  CollaborationBus,
-  type CollabBusState,
-  type ConsumedInjectionInfo,
-} from './collab-bus.js';
-export {
-  collabInjectMiddleware,
-  collabPauseMiddleware,
-} from '../middleware/collab-pause.js';

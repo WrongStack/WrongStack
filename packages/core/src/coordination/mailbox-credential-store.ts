@@ -97,9 +97,9 @@ export const CREDENTIAL_STORE_FILE = '_mailbox_credentials.json';
 
 /** Maximum lifetime by credential kind. */
 export const MAX_CREDENTIAL_TTL: Record<MailboxCredential['kind'], number> = {
-  agent: 7 * 24 * 60 * 60 * 1000,    // 7 days
-  operator: 24 * 60 * 60 * 1000,      // 24 hours
-  service: 30 * 24 * 60 * 60 * 1000,  // 30 days
+  agent: 7 * 24 * 60 * 60 * 1000, // 7 days
+  operator: 24 * 60 * 60 * 1000, // 24 hours
+  service: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
 /** Default rotation overlap window (old + new both valid). */
@@ -138,6 +138,24 @@ export function createMailboxCredential(
 }
 
 /** Verify an opaque secret against a stored credential snapshot. */
+/**
+ * A credential safe to hand to a caller: everything except the authenticator.
+ *
+ * WS-025: `credential_get` and `credential_list` returned the full record,
+ * `verifier` included. That value is an HMAC over the secret, so it is not
+ * directly replayable — but it is the thing the credential is checked against,
+ * it has no purpose outside verification, and shipping it means any future
+ * change to how secrets are minted (or one weak secret) turns a read into an
+ * offline attack. Read surfaces should return this shape.
+ */
+export type RedactedMailboxCredential = Omit<MailboxCredential, 'verifier' | 'verifierAlgorithm'>;
+
+/** Strip the authenticator from a credential bound for a caller. */
+export function redactMailboxCredential(credential: MailboxCredential): RedactedMailboxCredential {
+  const { verifier: _verifier, verifierAlgorithm: _algorithm, ...rest } = credential;
+  return rest;
+}
+
 export function verifyMailboxCredential(
   credential: MailboxCredential | undefined,
   secret: string,

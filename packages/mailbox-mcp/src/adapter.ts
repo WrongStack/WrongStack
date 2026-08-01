@@ -5,6 +5,7 @@ import {
   type MailboxQuery,
   normalizeRecipient,
   type RemoteMailbox,
+  redactMailboxCredential,
 } from '@wrongstack/core/coordination';
 import {
   MCPServer,
@@ -547,10 +548,13 @@ async function executeAdmin(
           credentialOptions(args, false),
         ),
       };
-    case 'credential_get':
-      return { credential: await mailbox.credentialGet(requiredString(args, 'credentialId')) };
+    case 'credential_get': {
+      // WS-025: never echo the authenticator back to a caller.
+      const credential = await mailbox.credentialGet(requiredString(args, 'credentialId'));
+      return { credential: credential ? redactMailboxCredential(credential) : credential };
+    }
     case 'credential_list':
-      return { credentials: await mailbox.credentialList() };
+      return { credentials: (await mailbox.credentialList()).map(redactMailboxCredential) };
     case 'credential_status_counts':
       return { counts: await mailbox.credentialStatusCounts() };
     default:
