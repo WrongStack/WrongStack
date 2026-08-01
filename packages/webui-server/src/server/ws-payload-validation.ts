@@ -800,3 +800,94 @@ export function validateProjectsSelectPayload(
     value: { root, ...(typeof name === 'string' ? { name } : {}) },
   };
 }
+
+/**
+ * `mcp.add` / `mcp.update` payload.
+ *
+ * WS-004: these handlers cast the raw WS payload with `as McpServerInput` and
+ * passed it straight to `addMcp`, which persists `command`/`args`/`env` to the
+ * global config and spawns them — so an unvalidated frame became a persistent
+ * child process that respawns on every restart. Validate the shape and the
+ * types before anything reaches disk.
+ *
+ * This checks structure, not policy: `command` is still whatever the operator
+ * configures. The spawn itself is hardened separately by
+ * `buildWin32CmdShimInvocation` (CMDI-005).
+ */
+export interface McpServerPayload {
+  name: string;
+  [key: string]: unknown;
+}
+
+const MCP_MAX_STRING = 4_096;
+const MCP_MAX_ARRAY = 256;
+
+function isStringArray(value: unknown, max = MCP_MAX_ARRAY): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length <= max &&
+    value.every((item) => typeof item === 'string' && item.length <= MCP_MAX_STRING)
+  );
+}
+
+function isStringRecord(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const entries = Object.entries(value);
+  if (entries.length > MCP_MAX_ARRAY) return false;
+  return entries.every(
+    ([key, item]) =>
+      typeof key === 'string' &&
+      key.length <= MCP_MAX_STRING &&
+      typeof item === 'string' &&
+      item.length <= MCP_MAX_STRING,
+  );
+}
+
+export function validateMcpServerPayload(
+  payload: unknown,
+  label: string,
+): PayloadValidationResult<McpServerPayload> {
+  if (!isRecord(payload)) {
+    return { ok: false, message: `${label} payload must be an object` };
+  }
+  const name = payload['name'];
+  if (typeof name !== 'string' || name.trim().length === 0 || name.length > MCP_MAX_STRING) {
+    return { ok: false, message: `${label} payload.name must be a non-empty string` };
+  }
+
+  for (const key of ['description', 'command', 'url', 'transport', 'permission'] as const) {
+    const value = payload[key];
+    if (value !== undefined && (typeof value !== 'string' || value.length > MCP_MAX_STRING)) {
+      // `transport` also accepts an object form; only reject a bad primitive.
+      if (!(key === 'transport' && isRecord(value))) {
+        return { ok: false, message: `${label} payload.${key} must be a string` };
+      }
+    }
+  }
+
+  for (const key of ['enabled', 'lazy'] as const) {
+    const value = payload[key];
+    if (value !== undefined && typeof value !== 'boolean') {
+      return { ok: false, message: `${label} payload.${key} must be a boolean` };
+    }
+  }
+
+  for (const key of ['args', 'allowedTools', 'passthroughEnv'] as const) {
+    const value = payload[key];
+    if (value !== undefined && !isStringArray(value)) {
+      return { ok: false, message: `${label} payload.${key} must be an array of strings` };
+    }
+  }
+
+  for (const key of ['env', 'headers'] as const) {
+    const value = payload[key];
+    if (value !== undefined && !isStringRecord(value)) {
+      return {
+        ok: false,
+        message: `${label} payload.${key} must be an object of string values`,
+      };
+    }
+  }
+
+  return { ok: true, value: payload as McpServerPayload };
+}

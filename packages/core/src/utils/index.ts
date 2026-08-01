@@ -43,6 +43,7 @@ export {
   parseIncomingImages,
 } from './incoming-images.js';
 export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';
+export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';
 export { readBundledInstructionText, renderInstructionTemplate } from './instruction-file.js';
 export { completePartialObject } from './json-repair.js';
 export {

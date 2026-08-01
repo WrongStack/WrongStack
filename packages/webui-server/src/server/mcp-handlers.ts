@@ -27,6 +27,7 @@ import {
 } from '@wrongstack/mcp';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
+import { validateMcpServerPayload } from './ws-payload-validation.js';
 import { send } from './ws-utils.js';
 
 /** Wire view of a server as the browser MCP panel consumes it. */
@@ -152,7 +153,12 @@ export async function handleMcpAdd(
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
-  const result = await addMcp(msg.payload as McpServerInput, d);
+  const validated = validateMcpServerPayload(msg.payload, 'mcp.add');
+  if (!validated.ok) {
+    send(ws, { type: 'mcp.operation_result', payload: { success: false, message: validated.message } });
+    return;
+  }
+  const result = await addMcp(validated.value as unknown as McpServerInput, d);
   if (result.ok && result.server) {
     send(ws, { type: 'mcp.server.added', payload: { server: toView(result.server) } });
     if (result.registryError) {
@@ -179,7 +185,12 @@ export async function handleMcpUpdate(
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
-  const result = await updateMcp(msg.payload as McpServerInput, d);
+  const validated = validateMcpServerPayload(msg.payload, 'mcp.update');
+  if (!validated.ok) {
+    send(ws, { type: 'mcp.operation_result', payload: { success: false, message: validated.message } });
+    return;
+  }
+  const result = await updateMcp(validated.value as unknown as McpServerInput, d);
   if (result.ok && result.server) {
     send(ws, { type: 'mcp.server.updated', payload: { server: toView(result.server) } });
   }

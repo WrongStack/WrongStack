@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
+import { buildChildEnv, buildWin32CmdShimInvocation, toErrorMessage } from '@wrongstack/core/utils';
 import type { MCPAuthorizationProvider } from './authorization.js';
 import { MCP_CONSTANTS } from './constants.js';
 import {
@@ -22,7 +22,6 @@ import { isJsonRpcResult } from './transport-jsonrpc.js';
 import {
   pageParams,
   parseEmptyResult,
-  quoteWindowsArg,
   validateProtocolString,
 } from './client-protocol-helpers.js';
 import { forceKillTree } from './client-process.js';
@@ -258,15 +257,25 @@ export class MCPClient {
     const rawArgs = this.opts.args ?? [];
     const spawnEnv = buildChildEnv({ extra: extraEnv });
     const stdio: ['pipe', 'pipe', 'pipe'] = ['pipe', 'pipe', 'pipe'];
+    // Windows cannot spawn a `.cmd`/`.bat` shim without a shell, but handing the
+    // joined line to `shell: true` made `&`, `|`, `<`, `>` command separators —
+    // and quoteWindowsArg left any argument without whitespace unquoted, so
+    // `--flag=x&calc.exe` chained a second program. MCP `command`/`args` come
+    // from config that the WebUI can write, so this was reachable. Use the
+    // hardened cmd-shim builder instead: explicit `cmd.exe /d /c call`, every
+    // token quoted, metacharacters refused outright (CMDI-005).
     const child = isWin
-      ? spawn([this.opts.command, ...rawArgs].map(quoteWindowsArg).join(' '), {
-          env: spawnEnv,
-          stdio,
-          shell: true,
-          // Without this every MCP server spawned from a console-less host
-          // (WebUI server, scheduled runs) opens a visible console window.
-          windowsHide: true,
-        })
+      ? (() => {
+          const shim = buildWin32CmdShimInvocation(this.opts.command, rawArgs);
+          return spawn(shim.command, shim.args, {
+            env: spawnEnv,
+            stdio,
+            windowsVerbatimArguments: shim.windowsVerbatimArguments,
+            // Without this every MCP server spawned from a console-less host
+            // (WebUI server, scheduled runs) opens a visible console window.
+            windowsHide: true,
+          });
+        })()
       : spawn(this.opts.command, rawArgs, { env: spawnEnv, stdio, windowsHide: true });
     this.child = child;
 
