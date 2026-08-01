@@ -186,4 +186,74 @@ describe('SecretScrubber', () => {
     const short = 'r8_abc123';
     expect(s.scrub(short)).toBe(short);
   });
+  // WS-034: the anchor set that gates every regex pass used to be a separate,
+  // hand-maintained list of `text.includes(...)` calls. It had already drifted:
+  // `twilio_sid` was in the pattern table but had no anchor, so the pattern
+  // could never run — no failing test, no warning, just a silently dead rule.
+  // Anchors are now derived from the pattern table and the field is required,
+  // so a pattern cannot be added without one.
+  describe('anchor derivation (WS-034)', () => {
+    it('redacts a Twilio account SID — the pattern the stale anchor list disabled', () => {
+      const sid = `AC${'a1b2c3d4'.repeat(4)}`; // AC + 32 hex
+      const scrubbed = s.scrub(`sid=${sid}`);
+      expect(scrubbed).toContain('[REDACTED:twilio_sid]');
+      expect(scrubbed).not.toContain(sid);
+    });
+
+    it('still short-circuits text with no credential anchor at all', () => {
+      const clean = 'ordinary tool output: 42 files changed, 3 insertions(+)';
+      expect(s.scrub(clean)).toBe(clean);
+    });
+
+    it('keeps redacting every previously-anchored family', () => {
+      const cases: Array<[string, string]> = [
+        [`ghp_${'a'.repeat(36)}`, 'github_pat'],
+        [`AKIA${'A'.repeat(16)}`, 'aws_access_key'],
+        [`AIza${'a'.repeat(35)}`, 'gcp_key'],
+        [`hf_${'a'.repeat(34)}`, 'huggingface_token'],
+        [`gsk_${'a'.repeat(44)}`, 'groq_key'],
+        [`pplx-${'a'.repeat(44)}`, 'perplexity_key'],
+        [`r8_${'a'.repeat(44)}`, 'replicate_token'],
+      ];
+      for (const [secret, type] of cases) {
+        const scrubbed = s.scrub(`value=${secret}`);
+        expect(scrubbed, `${type} should be redacted`).toContain(`[REDACTED:${type}]`);
+        expect(scrubbed).not.toContain(secret);
+      }
+    });
+  });
+  // WS-034: the plugin runtime carried 37 credential patterns while this
+  // scrubber — which guards session JSONL, chronicle, HQ broadcast, WebUI
+  // events and the auth audit — carried 22. The plugin side already had a
+  // parity test; it simply did not cover core. `gho_` matters most: WrongStack
+  // mints those itself in the Copilot OAuth flow.
+  describe('parity with the plugin credential table (WS-034)', () => {
+    it.each([
+      [`gho_${'a'.repeat(36)}`, 'github_oauth_token'],
+      [`ghu_${'a'.repeat(36)}`, 'github_oauth_token'],
+      [`glpat-${'a'.repeat(24)}`, 'gitlab_pat'],
+      [`glrt-${'a'.repeat(24)}`, 'gitlab_runner_token'],
+      [`npm_${'a'.repeat(36)}`, 'npm_token'],
+      [`xapp-1-${'A'.repeat(16)}`, 'slack_app_token'],
+      [`SG.${'a'.repeat(22)}.${'b'.repeat(22)}`, 'sendgrid_key'],
+      [`dop_v1_${'a'.repeat(64)}`, 'digitalocean_token'],
+      [`dp.pt.${'a'.repeat(44)}`, 'doppler_token'],
+      [`shpat_${'a'.repeat(32)}`, 'shopify_token'],
+      [`dckr_pat_${'a'.repeat(24)}`, 'docker_pat'],
+      [`lin_api_${'a'.repeat(44)}`, 'linear_key'],
+      [`ATATT3${'a'.repeat(44)}`, 'atlassian_token'],
+      [`GOCSPX-${'a'.repeat(24)}`, 'google_oauth_client_secret'],
+    ])('redacts %s as %s', (secret, type) => {
+      const scrubbed = s.scrub(`value=${secret}`);
+      expect(scrubbed).toContain(`[REDACTED:${type}]`);
+      expect(scrubbed).not.toContain(secret);
+    });
+
+    it('redacts a Slack incoming-webhook URL', () => {
+      const url = `https://hooks.slack.com/services/T${'A'.repeat(8)}/B${'B'.repeat(8)}/${'c'.repeat(24)}`;
+      const scrubbed = s.scrub(`posting to ${url}`);
+      expect(scrubbed).toContain('[REDACTED:slack_webhook]');
+      expect(scrubbed).not.toContain(url);
+    });
+  });
 });

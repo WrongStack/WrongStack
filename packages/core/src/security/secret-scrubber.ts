@@ -3,6 +3,19 @@ import type { SecretScrubber } from '../types/secret-scrubber.js';
 interface Pattern {
   type: string;
   regex: RegExp;
+  /**
+   * Cheap literal substring(s) that MUST appear in any text this pattern could
+   * match. `scrub()` short-circuits on these before running a single regex, so
+   * a pattern whose anchor is missing from the set is silently never applied.
+   *
+   * WS-034: the anchor set used to be a separate hand-maintained list of
+   * `text.includes(...)` calls. It had already drifted — adding a pattern here
+   * without remembering to add its anchor there disabled the new pattern
+   * entirely, with no test failure and no warning. The field is required, so
+   * the compiler now refuses a pattern that has not declared one, and the set
+   * is derived from this table rather than written twice.
+   */
+  anchor: string | readonly string[];
 }
 
 const PATTERNS: Pattern[] = [
@@ -11,61 +24,71 @@ const PATTERNS: Pattern[] = [
   {
     type: 'anthropic_key',
     regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
+    anchor: 'sk-ant-',
   },
-  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g },
-  { type: 'github_pat', regex: /(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g },
-  { type: 'github_pat_v2', regex: /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{50,}(?![A-Za-z0-9])/g },
-  { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g },
-  { type: 'gcp_key', regex: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9])/g },
-  { type: 'slack_token', regex: /(?<![A-Za-z0-9-])xox[abpos]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g },
+  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g, anchor: 'sk-' },
+  { type: 'github_pat', regex: /(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g, anchor: 'ghp_' },
+  { type: 'github_pat_v2', regex: /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{50,}(?![A-Za-z0-9])/g, anchor: 'github_pat_' },
+  { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g, anchor: 'AKIA' },
+  { type: 'gcp_key', regex: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9])/g, anchor: 'AIza' },
+  { type: 'slack_token', regex: /(?<![A-Za-z0-9-])xox[abpos]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g, anchor: 'xox' },
   {
     type: 'stripe_key',
     regex: /(?<![A-Za-z0-9])sk_(?:live|test)_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
+    anchor: 'sk_',
   },
   {
     type: 'twilio_sid', regex: /(?<![A-Za-z0-9])AC[a-f0-9]{32}(?![A-Za-z0-9])/g,
+    anchor: 'AC',
   },
   {
     type: 'telegram_bot_token',
     // Telegram tokens are of the form  bot<digits>:<alphanum>  in URL paths
     regex: /\/bot\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: '/bot',
   },
   {
     type: 'jwt',
     // Anchored: look for literal "eyJ" which is unambiguous for JWT header
     regex:
       /(?<![A-Za-z0-9/+=])eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?![A-Za-z0-9/+=])/g,
+    anchor: 'eyJ',
   },
   {
     type: 'private_key',
     // Anchored: start must be BEGIN, end must be END with no extra dashes after END
     regex:
       /(?:^|\n)-----BEGIN (?:RSA|EC|OPENSSH|DSA|PGP)? ?PRIVATE KEY-----[\s\S]*?-----END[^-]*-----(?:\n|$)/g,
+    anchor: '-----BEGIN',
   },
-  { type: 'mongodb_uri', regex: /mongodb(?:\+srv)?:\/\/[^\s"'`]+/g },
-  { type: 'postgres_uri', regex: /postgres(?:ql)?:\/\/[^\s"'`]+/g },
-  { type: 'mysql_uri', regex: /mysql:\/\/[^\s"'`]+/g },
-  { type: 'redis_uri', regex: /redis:\/\/[^\s"'`]+/g },
+  { type: 'mongodb_uri', regex: /mongodb(?:\+srv)?:\/\/[^\s"'`]+/g, anchor: 'mongodb' },
+  { type: 'postgres_uri', regex: /postgres(?:ql)?:\/\/[^\s"'`]+/g, anchor: 'postgres' },
+  { type: 'mysql_uri', regex: /mysql:\/\/[^\s"'`]+/g, anchor: 'mysql://' },
+  { type: 'redis_uri', regex: /redis:\/\/[^\s"'`]+/g, anchor: 'redis://' },
   // AI/ML provider keys — modern LLM services with well-known prefixes
   {
     type: 'huggingface_token',
     // HuggingFace tokens: hf_ followed by 34 alphanumeric chars
     regex: /(?<![A-Za-z0-9])hf_[A-Za-z0-9]{34}(?![A-Za-z0-9])/g,
+    anchor: 'hf_',
   },
   {
     type: 'replicate_token',
     // Replicate tokens: r8_ followed by 40+ alphanumeric chars
     regex: /(?<![A-Za-z0-9])r8_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g,
+    anchor: 'r8_',
   },
   {
     type: 'perplexity_key',
     // Perplexity API keys: pplx- followed by 40+ alphanumeric chars
     regex: /(?<![A-Za-z0-9])pplx-[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g,
+    anchor: 'pplx-',
   },
   {
     type: 'groq_key',
     // Groq API keys: gsk_ followed by 40+ alphanumeric chars
     regex: /(?<![A-Za-z0-9])gsk_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g,
+    anchor: 'gsk_',
   },
   {
     type: 'bearer_token',
@@ -79,6 +102,7 @@ const PATTERNS: Pattern[] = [
     // redacted. A consuming trailing delimiter would eat the separator the
     // next match needs for its leading anchor, leaking the second token.
     regex: /(?:^|[^A-Za-z0-9_.~+/-])Bearer\s+[A-Za-z0-9._~+/-]{12,512}=*(?=$|[^A-Za-z0-9_.~+/-])/g,
+    anchor: 'Bearer',
   },
   {
     type: 'high_entropy_env',
@@ -95,6 +119,90 @@ const PATTERNS: Pattern[] = [
     // rather than collapsed. Capture groups are therefore: 1=leading
     // delimiter, 2=key name, 3=value.
     regex: /(^|\s)([A-Z_]{4,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD))\s*[:=]\s*['"]?([A-Za-z0-9_/+=-]{20,512})['"]?(?=\s|$)/g,
+    anchor: ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'PWD'],
+  },
+
+  // ── Ported from packages/plugins credential-patterns.ts (WS-034) ─────────
+  // The plugin runtime carried 37 patterns while this scrubber — the one that
+  // guards session JSONL, chronicle, HQ broadcast, WebUI events and the auth
+  // audit — carried 22. The plugin side already had a parity test; it just did
+  // not cover core. Most consequential: WrongStack mints `gho_` tokens itself
+  // in the Copilot OAuth flow, and `gh[ousr]_` was absent here.
+  {
+    type: 'github_oauth_token',
+    regex: /(?<![A-Za-z0-9])gh[ousr]_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g,
+    anchor: ['gho_', 'ghu_', 'ghs_', 'ghr_'],
+  },
+  {
+    type: 'gitlab_pat',
+    regex: /(?<![A-Za-z0-9])glpat-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: 'glpat-',
+  },
+  {
+    type: 'gitlab_runner_token',
+    regex: /(?<![A-Za-z0-9])glrt-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: 'glrt-',
+  },
+  {
+    type: 'npm_token',
+    regex: /(?<![A-Za-z0-9])npm_[A-Za-z0-9]{36}(?![A-Za-z0-9])/g,
+    anchor: 'npm_',
+  },
+  {
+    type: 'slack_app_token',
+    regex: /(?<![A-Za-z0-9-])xapp-\d-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g,
+    anchor: 'xapp-',
+  },
+  {
+    type: 'slack_webhook',
+    regex:
+      /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_-]+\/B[A-Za-z0-9_-]+\/[A-Za-z0-9]{16,}/g,
+    anchor: 'hooks.slack.com',
+  },
+  {
+    type: 'sendgrid_key',
+    regex: /(?<![A-Za-z0-9])SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: 'SG.',
+  },
+  {
+    type: 'digitalocean_token',
+    regex: /(?<![A-Za-z0-9])dop_v1_[a-f0-9]{64}(?![A-Za-z0-9])/g,
+    anchor: 'dop_v1_',
+  },
+  {
+    type: 'doppler_token',
+    regex: /(?<![A-Za-z0-9])dp\.(?:pt|st|sa|scim|audit)\.[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g,
+    anchor: 'dp.',
+  },
+  {
+    type: 'shopify_token',
+    regex: /(?<![A-Za-z0-9])shp(?:at|ca|pa|ss)_[a-fA-F0-9]{32}(?![A-Za-z0-9])/g,
+    anchor: 'shp',
+  },
+  {
+    type: 'docker_pat',
+    regex: /(?<![A-Za-z0-9])dckr_pat_[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: 'dckr_pat_',
+  },
+  {
+    type: 'linear_key',
+    regex: /(?<![A-Za-z0-9])lin_api_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g,
+    anchor: 'lin_api_',
+  },
+  {
+    type: 'atlassian_token',
+    regex: /(?<![A-Za-z0-9])ATATT3[A-Za-z0-9_\-=]{40,}(?![A-Za-z0-9_\-=])/g,
+    anchor: 'ATATT3',
+  },
+  {
+    type: 'square_token',
+    regex: /(?<![A-Za-z0-9])(?:sq0(?:atp|csp)-|EAAA)[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: ['sq0atp-', 'sq0csp-', 'EAAA'],
+  },
+  {
+    type: 'google_oauth_client_secret',
+    regex: /(?<![A-Za-z0-9_-])GOCSPX-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    anchor: 'GOCSPX-',
   },
 ];
 
@@ -156,50 +264,62 @@ const SCRUB_OVERLAP_BYTES = 1024;
  * for typical tool-output lengths (100–5000 chars). A single combined regex
  * via `text.search()` is consistently slower for this many alternatives.
  */
+/**
+ * Anchors derived from {@link PATTERNS}, plus JSON key names.
+ *
+ * WS-034: this set used to be a hand-written parallel list of
+ * `text.includes(...)` calls, and it had already drifted from the pattern
+ * table — `twilio_sid` had no anchor at all, so that pattern could never fire.
+ * Because the anchors gate ALL regex work, a missing entry silently disables a
+ * pattern with no failing test. Deriving the set from the table makes that
+ * class of drift impossible: `Pattern.anchor` is required, so a new pattern
+ * cannot compile without declaring one.
+ */
+const PATTERN_ANCHORS: readonly string[] = [
+  ...new Set(
+    PATTERNS.flatMap((pattern) =>
+      typeof pattern.anchor === 'string' ? [pattern.anchor] : [...pattern.anchor],
+    ),
+  ),
+];
+
+/**
+ * JSON-style credential key names. Tool outputs often serialise objects as raw
+ * JSON, where the value may carry no recognisable prefix (`sk-`, `ghp_`, …), so
+ * these anchor on the key instead. The leading `"` avoids matching prose that
+ * merely mentions the word — JSON always quotes string keys. These belong to no
+ * single pattern, so they are listed separately rather than forced onto one.
+ */
+const JSON_KEY_ANCHORS: readonly string[] = [
+  '"apiKey"',
+  '"api_key"',
+  '"token"',
+  '"secret"',
+  '"password"',
+  '"authorization"',
+  '"bearer"',
+  '"private_key"',
+  '"access_token"',
+  '"refresh_token"',
+  '"client_secret"',
+];
+
+const ALL_ANCHORS: readonly string[] = [...PATTERN_ANCHORS, ...JSON_KEY_ANCHORS];
+
+/**
+ * Quick pre-scan: does the text contain any substring that MUST be present for
+ * some credential pattern to match? If not, the text is guaranteed clean and
+ * every regex pass is skipped.
+ *
+ * V8's `String.includes()` is hand-tuned C++ — O(n) with near-zero overhead at
+ * typical tool-output lengths, and consistently faster here than one combined
+ * regex over this many alternatives.
+ */
 function hasCredentialAnchors(text: string): boolean {
-  return (
-    text.includes('-----BEGIN') ||    // Private keys (most unique → cheap reject)
-    text.includes('sk-') ||           // Anthropic + OpenAI keys
-    text.includes('sk_') ||           // Stripe live/test keys
-    text.includes('ghp_') ||          // GitHub PAT v1
-    text.includes('github_pat_') ||   // GitHub PAT v2
-    text.includes('eyJ') ||           // JWT
-    text.includes('AKIA') ||          // AWS access key
-    text.includes('AIza') ||          // GCP service key
-    text.includes('xox') ||           // Slack token (xoxa/xoxb/xoxp/xoxo/xoxs)
-    text.includes('Bearer ') ||       // Bearer token (space suffix reduces false positives)
-    text.includes('/bot') ||          // Telegram bot token (URL path pattern)
-    text.includes('hf_') ||           // HuggingFace token
-    text.includes('r8_') ||           // Replicate token
-    text.includes('pplx-') ||         // Perplexity API key
-    text.includes('gsk_') ||          // Groq API key
-    text.includes('_KEY=') ||         // High-entropy env vars: API_KEY=, SECRET_KEY=, ...
-    text.includes('_TOKEN=') ||       // ACCESS_TOKEN=, AUTH_TOKEN=, ...
-    text.includes('_SECRET=') ||      // API_SECRET=, CLIENT_SECRET=, ...
-    text.includes('_PASSWORD=') ||    // DB_PASSWORD=, ROOT_PASSWORD=, ...
-    text.includes('mongodb://') ||
-    text.includes('mongodb+srv://') ||
-    text.includes('postgres://') ||
-    text.includes('postgresql://') ||
-    text.includes('mysql://') ||
-    text.includes('redis://') ||
-    // JSON-style credential keys: tool outputs often serialise objects as
-    // raw JSON strings rather than parsed objects. The value may not start
-    // with a recognisable prefix (sk-, ghp_, etc.), so we anchor on common
-    // key names. The `"` prefix avoids matching prose that happens to mention
-    // these words — JSON serialisation always quotes string keys.
-    text.includes('"apiKey"') ||
-    text.includes('"api_key"') ||
-    text.includes('"token"') ||
-    text.includes('"secret"') ||
-    text.includes('"password"') ||
-    text.includes('"authorization"') ||
-    text.includes('"bearer"') ||
-    text.includes('"private_key"') ||
-    text.includes('"access_token"') ||
-    text.includes('"refresh_token"') ||
-    text.includes('"client_secret"')
-  );
+  for (const anchor of ALL_ANCHORS) {
+    if (text.includes(anchor)) return true;
+  }
+  return false;
 }
 
 export class DefaultSecretScrubber implements SecretScrubber {
