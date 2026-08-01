@@ -38,6 +38,7 @@ import {
   malformedInputResult,
   unknownToolResult,
 } from './tool-executor-results.js';
+import { toolErrorResult } from './tool-error-taxonomy.js';
 import { executeStreamedTool } from './tool-executor-stream.js';
 import {
   abortReasonToError,
@@ -629,12 +630,10 @@ export class ToolExecutor {
         const { category, retryable, detail } = classifyToolError(err);
         this.hintRenderMode(tool.name);
         this.opts.renderer?.writeToolResult(tool.name, scrubbed, true);
-        const result = {
-          type: 'tool_result' as const,
-          tool_use_id: use.id,
-          content: `Tool "${tool.name}" threw: ${scrubbed}`,
-          is_error: true,
-        };
+        // Use unified taxonomy so structured error info is attached.
+        const result = toolErrorResult(use, err, {
+          scrubber: (s) => this.opts.secretScrubber.scrub(s),
+        });
         budget = this.budgetForString(result.content, budget);
         if (err instanceof Error) span?.recordError(err);
         span?.setAttribute('tool.is_error', true);
@@ -666,23 +665,24 @@ export class ToolExecutor {
         const isStructured = isWrongStackError(err);
         const msg = isStructured ? err.describe() : toErrorMessage(err);
         const scrubbed = this.opts.secretScrubber.scrub(msg);
-        const { category, retryable, detail } = classifyToolError(err);
         const tool = this.registry.get(use.name);
         const toolName = tool?.name ?? use.name;
         this.hintRenderMode(toolName);
         this.opts.renderer?.writeToolResult(toolName, scrubbed, true);
-        const result = {
-          type: 'tool_result' as const,
-          tool_use_id: use.id,
-          content: isStructured ? scrubbed : `Tool "${use.name}" execution failed: ${scrubbed}`,
-          is_error: true,
-        };
+
+        // Use the unified tool error taxonomy so structured ToolErrorInfo
+        // (category, retryable, detail) is attached to the result block.
+        // The content string carries a category prefix so the LLM can
+        // pattern-match on error kind. For structured WrongStackError,
+        // the describe() output is preserved as the user message.
+        const result = toolErrorResult(use, err, {
+          scrubber: (s) => this.opts.secretScrubber.scrub(s),
+        });
+        // Override content for structured errors to preserve describe() formatting.
+        if (isStructured) {
+          result.content = scrubbed;
+        }
         budget = this.budgetForString(result.content, budget);
-        // Classification result is stored in the result for future retry logic;
-        // span attributes are set in runOne's catch block (this err bubbles from there).
-        void category;
-        void retryable;
-        void detail;
         return { result, tool, durationMs: 0 };
       }
     };
