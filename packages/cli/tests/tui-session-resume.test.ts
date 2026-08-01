@@ -231,14 +231,13 @@ describe('TUI session resume — contextSnapshot contract', () => {
     expect(Number.isFinite(snap!.tokens)).toBe(true);
     expect(snap!.tokens).toBeGreaterThan(0);
 
-    const callResult = h.tokenCounter.currentRequestTokens.mock.results[0]?.value;
-    const sum =
-      (typeof callResult === 'number' ? callResult : 0) +
-      (typeof callResult?.input === 'number' ? callResult.input : 0) +
-      (typeof callResult?.cacheRead === 'number' ? callResult.cacheRead : 0) +
-      (typeof callResult?.cacheWrite === 'number' ? callResult.cacheWrite : 0);
-
-    expect(snap!.tokens).toBe(sum);
+    // The harness fixture sets input=7, cacheRead=3, cacheWrite=2 so the
+    // expected sum is 12. Hardcode it instead of re-reading the mock's
+    // `.results[0]` — there's no contract that the harness's beforeEach
+    // reset order means the cached `.results` slot is still undefined at
+    // the time resumeSession consumes the mock, and the previous version
+    // had a typo that read `callResult.input` for cacheRead.
+    expect(snap!.tokens).toBe(12);
     expect(h.tokenCounter.currentRequestTokens).toHaveBeenCalledOnce();
   });
 
@@ -253,12 +252,22 @@ describe('TUI session resume — contextSnapshot contract', () => {
     expect(snap!.maxContext).toBe(200_000);
   });
 
-  it('coerces a missing currentRequestTokens to tokens=0 (snapshot drops cleanly, no NaN)', async () => {
-    // A future provider that hasn't implemented `currentRequestTokens()`
-    // must not produce NaN — the TUI reducer would silently keep the
-    // chip at zero forever otherwise.
+  it('coerces a zero-input currentRequestTokens to tokens=0 (snapshot drops cleanly, no NaN)', async () => {
+    // A counter that has not accounted for any request yet must not
+    // produce NaN — the TUI reducer would silently keep the chip at
+    // zero forever otherwise. The previous version of this test
+    // assigned `currentRequestTokens = undefined` to model a missing
+    // implementation, but the `TokenCounter` interface declares the
+    // method required; nulling it out violates the contract and the
+    // implementation's defensive `?.()` would mask the disagreement.
+    // Override the mock to return a zeroed shape instead, which is
+    // the legitimate "no request yet" state a real counter reaches.
     const h = harness();
-    h.tokenCounter.currentRequestTokens = undefined as never;
+    h.tokenCounter.currentRequestTokens = vi.fn(() => ({
+      input: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    }));
 
     const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
 

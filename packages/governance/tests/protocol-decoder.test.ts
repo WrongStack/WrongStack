@@ -144,6 +144,47 @@ afterEach(() => {
 });
 
 describe('governance service protocol decoder', () => {
+  it('strictly decodes daemon status and identity-bound shutdown requests', () => {
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'daemon-status',
+        type: 'read_daemon_status',
+      }),
+    ).toMatchObject({ decoded: true, request: { type: 'read_daemon_status' } });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'daemon-shutdown',
+        type: 'request_daemon_shutdown',
+        expectedInstanceId: 'instance_01-safe',
+        reason: 'planned maintenance',
+      }),
+    ).toMatchObject({
+      decoded: true,
+      request: {
+        type: 'request_daemon_shutdown',
+        expectedInstanceId: 'instance_01-safe',
+        reason: 'planned maintenance',
+      },
+    });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'daemon-shutdown-forged',
+        type: 'request_daemon_shutdown',
+        expectedInstanceId: '../other-instance',
+        requestedBy: 'forged-admin',
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'invalid_value', path: '$.expectedInstanceId' }),
+        expect.objectContaining({ code: 'unknown_field', path: '$.requestedBy' }),
+      ]),
+    });
+  });
+
   it('decodes and deeply freezes a valid model command', () => {
     const decoded = decodeGovernanceServiceRequest(transitionRequest());
     expect(decoded).toMatchObject({

@@ -245,7 +245,7 @@
         "export type { CompletedWorkEvidence, CompletedWorkSource, ContextEvidenceState, ContextFileEvidence, ContextIntentEvidence, ContextRepeatedReadEvidence, ToolEvidenceStatus, ToolOutputMetadata } from './context-evidence.js';",
         "export type { ConfirmAwaiter, GovernedToolExecutionResult, GovernedToolExecutor, ToolBatchResult, ToolConfirmPendingResult, ToolExecution, ToolExecutionOutput, ToolExecutorInit, ToolExecutorLike, ToolExecutorOptions, ToolExecutorStrategy } from './tool-executor.js';",
         "export type { ContentBlock, ImageBlock, TextBlock, ThinkingBlock, ToolResultBlock, ToolUseBlock } from './blocks.js';",
-        "export type { ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowModeSelectionId, ContextWindowPolicy, ContextWindowThresholds, DeprecatedContextWindowModeId } from './context-window.js';",
+        "export type { ContextSnapshot, ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowModeSelectionId, ContextWindowPolicy, ContextWindowThresholds, DeprecatedContextWindowModeId } from './context-window.js';",
         "export type { CouncilDistinctness, CouncilLLMCaller, CouncilModelTarget, CouncilOption, CouncilPersona, CouncilProfileConfig, CouncilQuestion, CouncilResolutionMethod, CouncilResult, CouncilSeatConfig, CouncilUsage, CouncilVoteResult, CouncilVoteStatus, ResolvedCouncilProfile, ResolvedCouncilSeat } from './council.js';",
         "export type { CriticalPathResult, SerializableTaskGraph, SerializableTaskGraphNodes, SerializedTaskGraph, TaskAssignment, TaskDependency, TaskEdge, TaskFilter, TaskGraph, TaskNode, TaskPriority, TaskProgress, TaskSort, TaskStatus, TaskType } from './task-graph.js';",
         "export type { DefaultSessionReaderOptions, SessionEventType, SessionExportOptions, SessionQuery, SessionReader, SessionSearchHit, SessionSearchQuery, SessionSummaryLite } from './session-reader.js';",
@@ -1252,7 +1252,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9446
+      "sourceLines": 9462
     },
     {
       "directory": "utils",

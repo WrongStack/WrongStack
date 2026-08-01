@@ -60,6 +60,22 @@ async function stopDaemon(pid: number): Promise<void> {
   daemonPids.delete(pid);
 }
 
+async function waitForGracefulDaemonStop(root: string, pid: number): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (isAlive(pid) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  if (isAlive(pid)) throw new Error(`Governance test daemon ${pid} did not stop gracefully.`);
+  while (Date.now() < deadline) {
+    if ((await readGovernanceDaemonMetadata(root)).kind === 'missing') {
+      daemonPids.delete(pid);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Governance test daemon ${pid} did not remove its owned metadata.`);
+}
+
 async function launch(
   root: string,
   clientId: string,
@@ -208,6 +224,51 @@ describe('governance project daemon bootstrap', () => {
       },
     });
     expect(JSON.stringify(audit)).not.toContain(launched.credential.token);
+  });
+
+  it('returns the identity-bound shutdown response before graceful process cleanup', async () => {
+    const root = projectRoot();
+    const launched = await launch(root, 'lifecycle-admin', ['capability_admin', 'daemon_control']);
+    const connected = await connectGovernanceAdminSessionFromLaunch(launched, {
+      startLease: false,
+    });
+    expect(connected).toMatchObject({ connected: true });
+    if (!connected.connected) throw new Error(connected.message);
+
+    await expect(connected.session.readDaemonStatus()).resolves.toMatchObject({
+      ok: true,
+      result: {
+        type: 'daemon_status',
+        projectId: 'daemon-project',
+        pid: launched.pid,
+        instanceId: launched.instanceId,
+        startedAt: launched.startedAt,
+      },
+    });
+    await expect(
+      connected.session.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'stale-daemon-shutdown',
+        type: 'request_daemon_shutdown',
+        expectedInstanceId: 'stale-instance',
+        reason: 'must not stop the current owner',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'identity_mismatch' } });
+    expect(isAlive(launched.pid)).toBe(true);
+
+    await expect(
+      connected.session.shutdownDaemon('detached daemon lifecycle test complete'),
+    ).resolves.toMatchObject({
+      ok: true,
+      result: {
+        type: 'daemon_shutdown_accepted',
+        instanceId: launched.instanceId,
+        requestedBy: 'lifecycle-admin',
+        reason: 'detached daemon lifecycle test complete',
+      },
+    });
+    await waitForGracefulDaemonStop(root, launched.pid);
+    await expect(readGovernanceDaemonMetadata(root)).resolves.toEqual({ kind: 'missing' });
   });
 
   it('reports owner conflict without disturbing the current daemon', async () => {

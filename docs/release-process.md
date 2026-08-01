@@ -1,8 +1,89 @@
 # Release Process
 
 WrongStack's root manifest provides a full release command, a dry-run command,
-and a narrow plugin invariant suite. Publication is currently maintainer-run:
-there is no checked-in npm release workflow.
+and a narrow plugin invariant suite. The intended publication path is
+`.github/workflows/release.yml` — tag-triggered, environment-gated, publishing
+with npm trusted publishing (OIDC). Local `pnpm release` remains available as a
+fallback.
+
+## Publishing from CI (the intended path) — WS-040
+
+Push a tag matching the root manifest version:
+
+```bash
+git tag v0.298.0 && git push origin v0.298.0
+```
+
+That does **not** publish. It requests a publish: the workflow's `publish` job
+targets the `npm-publish` GitHub Environment, so a required reviewer must
+approve before anything reaches the registry. Before that, a `verify` job
+proves the tag matches `package.json`, that it is an ancestor of `origin/main`,
+and that the full `release:check` gate passes.
+
+**Why this replaced a laptop publish.** The old path used a long-lived npm
+automation token in a maintainer's environment — a credential that publishes
+any package in the org, sitting on a machine that also runs every dependency's
+postinstall script. CI uses a short-lived OIDC token minted per run and scoped
+to this repository and this workflow file. npm also attaches a provenance
+attestation automatically, so a consumer can verify which commit and workflow
+produced a tarball. The `--provenance` flag is not needed and pnpm has no such
+flag — provenance comes from the trusted-publishing exchange itself.
+
+### One-time setup (the workflow fails until this is done)
+
+1. **Per package on npmjs.com.** Trust is bound per package, not per org:
+   register the trusted publisher (repository, workflow `release.yml`,
+   environment `npm-publish`) on each one. There are 27:
+
+   ```bash
+   pnpm release:packages
+   ```
+
+   A package without a registered publisher fails with a bare `404` from the
+   registry. That is npm rejecting an unknown publisher, not a bug in the
+   workflow.
+
+2. **GitHub → Settings → Environments → `npm-publish`**, with required
+   reviewers. This is the control that keeps a tag push from shipping on its
+   own; removing it silently converts tag-push into publish.
+
+### Known drift to fix during setup
+
+`pnpm release:packages` flags two things worth resolving:
+
+- `@wrongstack/governance` and `@wrongstack/techstack` declare
+  `publishConfig.provenance: true`. Provenance requires a CI OIDC context, so
+  those two cannot be published from a laptop at all. Under trusted publishing
+  the field is redundant — provenance is emitted regardless.
+- `@wrongstack/plugins` and `@wrongstack/webui-hq` have no
+  `publishConfig.access`. Not fatal (the command passes `--access public`), but
+  they are the odd ones out.
+
+### `--no-git-checks`
+
+Removed from `pnpm release` (local), retained in `pnpm release:ci`.
+
+This is not an oversight. On a laptop the flag is the dangerous one: it removes
+pnpm's refusal to publish from a dirty tree or the wrong branch, so the
+published tarball need not correspond to any commit. In CI a tag checkout is a
+**detached HEAD**, so pnpm's "are you on the publish branch" check cannot pass
+by construction — leaving it enabled would fail every release rather than
+protect one. What it guarded is replaced more strictly by the `verify` job
+(tag matches the manifest, tag is an ancestor of `main`) and by the fresh
+checkout, which makes tree cleanliness a property rather than an assertion.
+
+### pnpm version floor
+
+OIDC publishing is broken in pnpm 11.0.8 ([pnpm#11513](https://github.com/pnpm/pnpm/issues/11513),
+fixed by [pnpm#11526](https://github.com/pnpm/pnpm/pull/11526)) and works from
+**11.1.3**. The workflow checks the `packageManager` pin against that floor and
+fails loudly, because the failure mode otherwise is a confusing 404 rather than
+an obvious version error.
+
+The workflow also deliberately omits `registry-url` from `actions/setup-node`:
+that option writes an `.npmrc` containing `_authToken=${NODE_AUTH_TOKEN}`
+unconditionally, and with no token in the environment pnpm sends the literal
+unexpanded placeholder as a bearer token, so the OIDC exchange never happens.
 
 ## Full gate — `release:check`
 

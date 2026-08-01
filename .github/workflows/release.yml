@@ -169,9 +169,18 @@ jobs:
         run: pnpm build
 
       - name: Publish
-        # No `--no-git-checks`: the checkout is exactly the verified tag, so
-        # pnpm's branch/cleanliness checks have nothing to complain about that
-        # the verify job has not already proven more strictly.
+        # `release:ci` keeps `--no-git-checks`, and that is not the defect the
+        # finding was about. A tag checkout is a DETACHED HEAD, so pnpm's
+        # "are you on the publish branch" check cannot pass here by
+        # construction — leaving it on would fail every release rather than
+        # protect one. What it guarded against is replaced, more strictly, by
+        # the verify job: the tag must match the root manifest version, and it
+        # must be an ancestor of origin/main. Tree cleanliness is guaranteed by
+        # a fresh CI checkout rather than asserted.
+        #
+        # The flag has been removed from the LOCAL `release` script, which is
+        # where it was actually dangerous: there it let a maintainer publish a
+        # dirty tree from any branch, so the tarball need not match any commit.
         run: pnpm release:ci
 
       - name: Summary

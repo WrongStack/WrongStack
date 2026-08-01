@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { attachTodosCheckpoint, loadTodosCheckpoint } from '@wrongstack/core/storage';
-import type { SessionWriter, TokenCounter } from '@wrongstack/core/types';
+import type { ContextSnapshot, SessionWriter, TokenCounter } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
@@ -38,7 +38,7 @@ export interface SessionResumeResult {
    * flat number and gates on `snap.tokens > 0`. Forwarding the raw object
    * would coerce to NaN and silently drop the snapshot at runtime.
    */
-  contextSnapshot?: { tokens: number; maxContext: number } | undefined;
+  contextSnapshot?: ContextSnapshot | undefined;
 }
 
 /**

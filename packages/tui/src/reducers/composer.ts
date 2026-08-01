@@ -551,16 +551,21 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       // chip and `/context` panel reflect the rebuilt context immediately,
       // instead of staying at zero until the next ctx.pct event lands.
       //
-      // Only set `state.leader.ctxTokens` when the loop hasn't already
-      // reported a number for the live session. The loop's value is
-      // authoritative per `context-fill.ts:20-22`; the snapshot is a
-      // provider-reported fallback. On a freshly-resumed session the loop
-      // has not yet fired, so the field is `undefined` and the snapshot
-      // fills the gap. Once the loop fires, it overwrites our value with
-      // its own.
+      // `replaceHistory` is only ever dispatched on a session resume (see
+      // `hooks/use-app-picker-keys.ts`), so any pre-existing
+      // `state.leader.ctxTokens` is the PREVIOUS session's value — stale the
+      // moment the user resumes. The snapshot is computed from the resumed
+      // session's tokenCounter after accounting its persisted usage, so it is
+      // the authoritative number for the newly-active session and must
+      // overwrite the stale value. Gating on `ctxTokens === undefined` here
+      // would reject every snapshot after the first resume (or after any
+      // ctx.pct event), leaving the chip showing the old session's tokens
+      // until the next loop event. The loop's next ctx.pct for the resumed
+      // session later overwrites this with a live measurement (authoritative
+      // per `context-fill.ts:20-22`).
       const snap = action.contextSnapshot;
       const leaderWithSnap =
-        snap && snap.tokens > 0 && state.leader.ctxTokens === undefined
+        snap && snap.tokens > 0
           ? {
               ...state.leader,
               ctxTokens: snap.tokens,

@@ -98,6 +98,15 @@ The facade derives `issuedBy` from the authenticated administrator rather than r
 events are appended to the audit ledger without storing the returned bearer token. Ordinary model clients
 cannot call grant-management operations unless a trusted launcher deliberately gave them the admin grant.
 
+Daemon lifecycle control is a separate `daemon_control` capability; `capability_admin` alone cannot inspect
+or stop the owner process. Like `capability_admin`, it can be bootstrapped only through the trusted launcher
+and cannot be delegated by a service request. Status reports the live PID, instance id, project id, and start
+time from the daemon-owned adapter. Shutdown requests must name the expected instance id, derive the requester
+from the authenticated grant, and append a reserved `daemon_shutdown_requested` audit observation before
+acceptance. The server half-closes the client socket with the complete response and invokes the daemon stop
+callback only after that response is flushed; an audit failure or stale instance id leaves the daemon running.
+Shadow/model observations cannot forge the reserved `daemon_*` evidence namespace.
+
 Successful grant issue, rotation, and revocation mutations reserve a bounded in-memory retry receipt before
 changing registry state. Reusing the same administrator credential, `requestId`, and canonical payload within
 30 seconds replays the exact response instead of repeating the mutation; reusing the id with another payload
@@ -123,8 +132,10 @@ holder. A session is created only when project, daemon instance, grant, client, 
 `capability_admin` identity agree. `read_own_capability_grant` reveals only the authenticated caller's public
 grant descriptor and never its token. Session snapshots contain daemon and lease status but no credential.
 This admin session must not be passed to a model-facing tool surface; ordinary agents should receive narrowly
-scoped child grants. Session `stop()` stops renewal only—it does not terminate the detached project daemon or
-revoke the current grant.
+scoped child grants. Session `readDaemonStatus()` and `shutdownDaemon()` require a separately bootstrapped
+`daemon_control` grant. `shutdownDaemon()` binds the request to the verified session metadata and stops lease
+renewal only after the acceptance response arrives. Session `stop()` stops renewal only—it does not terminate
+the detached project daemon or revoke the current grant.
 
 This is not connected to production orchestration yet: there is no automatic runtime spawn, idle policy,
 durable credential discovery, automatic lease-controller creation, cross-process token handoff, or legacy
