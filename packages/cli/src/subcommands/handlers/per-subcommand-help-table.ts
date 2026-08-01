@@ -394,6 +394,105 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
     usage: 'wstack quick',
     seeAlso: 'wstack --tui (the underlying flag; quick is just a shortcut)',
   },
+  // -- Aliases and meta commands ───────────────────────────────────────
+  plugins: {
+    name: 'plugins',
+    title: 'wstack plugins — alias for wstack plugin',
+    description: 'Alias for `wstack plugin`. See `wstack plugin --help` for the full set of subcommands.',
+    usage: 'wstack plugins (alias for wstack plugin)',
+    seeAlso: 'wstack plugin (the canonical command)',
+  },
+  help: {
+    name: 'help',
+    title: 'wstack help — print top-level help',
+    description:
+      'Print the top-level help text listing every subcommand with a one-line ' +
+      'summary. Equivalent to `wstack --help`.',
+    usage: 'wstack help',
+    seeAlso: 'wstack --help',
+  },
+  // -- HQ (dashboard server) ──────────────────────────────────────────
+  hq: {
+    name: 'hq',
+    title: 'wstack hq — start the HQ dashboard server',
+    description:
+      'Start the HQ server — a web dashboard for monitoring sessions, fleet ' +
+      'status, and agent activity across projects. The server binds to a ' +
+      'local port and serves a browser UI plus a WebSocket API for real-time ' +
+      'updates. Use --port to override the default port.',
+    usage: 'wstack hq [--port <n>] [--no-browser]',
+    subcommands: [
+      { name: '--port <n>', description: 'Override the default port.' },
+      { name: '--no-browser', description: 'Do not auto-open a browser tab.' },
+    ],
+    seeAlso: 'wstack sessions fleet (CLI equivalent for fleet status)',
+  },
+  // -- Mailbox (external agent bridge) ────────────────────────────────
+  mailbox: {
+    name: 'mailbox',
+    title: 'wstack mailbox — serve the external-agent mailbox HTTP bridge',
+    description:
+      'Start the mailbox HTTP bridge that lets external coding agents ' +
+      '(Claude Code, Aider, custom scripts) communicate with the shared ' +
+      'project mailbox. The server exposes a REST + SSE API for ' +
+      'sending, checking, and acknowledging messages. Use `wstack mailbox serve` ' +
+      'to start the listener.',
+    usage: 'wstack mailbox serve [--port <n>]',
+    subcommands: [
+      { name: 'serve', description: 'Start the mailbox HTTP bridge listener.' },
+    ],
+    seeAlso: 'wstack hq (the HQ server includes mailbox routing)',
+  },
+  // -- Permissions ────────────────────────────────────────────────────
+  permissions: {
+    name: 'permissions',
+    title: 'wstack permissions — manage tool permission policies',
+    description:
+      'List, grant, and revoke tool-level permissions for the agent. ' +
+      'Permissions control which tools the agent may invoke without ' +
+      'asking for confirmation. Use `wstack permissions list` to see ' +
+      'the current policy, or `wstack permissions reset` to restore ' +
+      'defaults.',
+    usage: 'wstack permissions [list|reset] [...]',
+    subcommands: [
+      { name: 'list', description: 'Show the current permission policy.' },
+      { name: 'reset', description: 'Restore the default permission policy.' },
+    ],
+    seeAlso: 'wstack tools (list available tools)',
+  },
+  // -- Project management ─────────────────────────────────────────────
+  project: {
+    name: 'project',
+    title: 'wstack project — manage project registration',
+    description:
+      'Register, unregister, or inspect the current project. WrongStack ' +
+      'tracks projects by their root path; use `wstack project register` ' +
+      'to add the current directory, or `wstack project status` to see ' +
+      'registration details.',
+    usage: 'wstack project [register|unregister|status] [...]',
+    subcommands: [
+      { name: 'register', description: 'Register the current project.' },
+      { name: 'unregister', description: 'Remove the current project from tracking.' },
+      { name: 'status', description: 'Show project registration details.' },
+    ],
+    seeAlso: 'wstack projects (list all tracked projects)',
+  },
+  // -- Chronicle ──────────────────────────────────────────────────────
+  chronicle: {
+    name: 'chronicle',
+    title: 'wstack chronicle — session metrics and timeline',
+    description:
+      'Inspect aggregated session metrics: token usage, cost, tool-call ' +
+      'counts, and iteration timeline. Provides a chronological view of ' +
+      'agent activity across sessions for a given project. Use ' +
+      '`wstack chronicle --since <date>` to filter.',
+    usage: 'wstack chronicle [--since <date>] [--session <id>]',
+    subcommands: [
+      { name: '--since <date>', description: 'Only show entries after this date.' },
+      { name: '--session <id>', description: 'Filter to a specific session.' },
+    ],
+    seeAlso: 'wstack audit (per-session audit log); wstack usage (cost summary)',
+  },
 };
 
 /**
