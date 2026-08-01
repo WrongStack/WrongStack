@@ -69,6 +69,7 @@ import {
   buildWriterSearchWhere,
   mapWriterSearchRow,
   normalizeSearchLimit,
+  SEARCH_CANDIDATE_SCAN_CAP,
   type WriterSearchFilter,
   type WriterSearchRow,
 } from './writer-search-helpers.js';
@@ -452,7 +453,10 @@ export class IndexStore {
     const { where, values } = built;
     const limit = normalizeSearchLimit(opts?.limit);
     const limitSql = limit !== undefined ? ' LIMIT ?' : '';
-    const sql = `SELECT id, lang, kind, name, file, line, col, signature, doc_comment, text FROM symbols ${where}${limitSql}`;
+    // `text` is deliberately not selected: it is the largest column (the whole
+    // indexable text of the symbol) and `mapWriterSearchRow` never reads it, so
+    // it only inflated every row of every search (WS-031).
+    const sql = `SELECT id, lang, kind, name, file, line, col, signature, doc_comment FROM symbols ${where}${limitSql}`;
 
     const binds = limit !== undefined ? [...values, limit] : values;
     const rows = this.stmt(sql).all(
@@ -624,7 +628,16 @@ export class IndexStore {
       return { results: this.search(query, filter, { limit }), total };
     }
 
-    const candidates = this.search(query, filter);
+    // WS-031: `total` comes from SQL COUNT(*), not from the candidate array, so
+    // the scan cap below cannot understate the match count.
+    const total = this.countSearch(query, filter);
+    if (total === 0) return { results: [], total: 0 };
+
+    // Bounded candidate materialization. This used to be an uncapped
+    // `this.search(query, filter)`: every matching row became a JS object
+    // before ranking, so a broad query pulled the entire symbol corpus into
+    // memory on the request path.
+    const candidates = this.search(query, filter, { limit: SEARCH_CANDIDATE_SCAN_CAP });
     if (candidates.length === 0) return { results: [], total: 0 };
 
     const candidateById = new Map(candidates.map((c) => [c.id, c]));
@@ -661,7 +674,7 @@ export class IndexStore {
       const c = expectDefined(candidateById.get(id));
       return { ...c, score, snippet: bm25.extractSnippet(id, qTokens) };
     });
-    return { results, total: candidates.length };
+    return { results, total };
   }
 
   getAllIndexable(): Array<{ id: number; text: string }> {
