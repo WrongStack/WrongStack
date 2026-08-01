@@ -77,17 +77,23 @@ describe('makePromptDelegate', () => {
       } as InputReader & { readKey: ReturnType<typeof vi.fn> };
     }
 
+    // The option line goes to `reader.readKey` as its prompt argument, NOT to
+    // stdout — the reader renders it. Asserting on stdout here would pass
+    // whatever the code did.
+    const promptText = (r: { readKey: ReturnType<typeof vi.fn> }): string =>
+      stripAnsi(String(r.readKey.mock.calls[0]?.[0] ?? ''));
+    const offeredValues = (r: { readKey: ReturnType<typeof vi.fn> }): string[] =>
+      ((r.readKey.mock.calls[0]?.[1] ?? []) as Array<{ value: string }>).map((o) => o.value);
+
     it('withholds the [a] option and explains why for a subject-less tool', async () => {
       captureStdout();
       const r = reader('yes');
       await makePromptDelegate(r)(execTool, { command: 'ls', cwd: '.' }, 'exec');
 
-      const out = getStdout();
-      expect(out).toContain('no "always" for this call');
-      expect(out).not.toContain('[a]lways allow');
-
-      const offered = (r.readKey.mock.calls[0]?.[1] ?? []) as Array<{ value: string }>;
-      expect(offered.map((o) => o.value)).toEqual(['yes', 'no', 'deny']);
+      // The explanation IS written to stdout by the delegate.
+      expect(getStdout()).toContain('no "always" for this call');
+      expect(promptText(r)).not.toContain('lways allow');
+      expect(offeredValues(r)).toEqual(['yes', 'no', 'deny']);
     });
 
     it('still offers it when the call has a subject', async () => {
@@ -95,9 +101,9 @@ describe('makePromptDelegate', () => {
       const r = reader('yes');
       await makePromptDelegate(r)(fakeTool, { path: '/a' }, 'edit:/a');
 
-      expect(getStdout()).toContain('[a]lways allow');
-      const offered = (r.readKey.mock.calls[0]?.[1] ?? []) as Array<{ value: string }>;
-      expect(offered.map((o) => o.value)).toEqual(['yes', 'no', 'always', 'deny']);
+      expect(getStdout()).not.toContain('no "always" for this call');
+      expect(promptText(r)).toContain('lways allow (edit:/a)');
+      expect(offeredValues(r)).toEqual(['yes', 'no', 'always', 'deny']);
     });
   });
 

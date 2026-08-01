@@ -42,8 +42,8 @@ export {
   type ToolKanbanBoundaryEvaluation,
 } from './kanban-boundary.js';
 export {
-  alwaysAllowUnavailableReason,
   AutoApprovePermissionPolicy,
+  alwaysAllowUnavailableReason,
   DefaultPermissionPolicy,
   type PermissionPolicyOptions,
 } from './permission-policy.js';
