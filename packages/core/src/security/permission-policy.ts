@@ -107,6 +107,35 @@ export function alwaysAllowUnavailableReason(tool: Tool, input: unknown): string
   );
 }
 
+/**
+ * Fingerprint of the tool fields a permission decision actually depends on
+ * (WS-058).
+ *
+ * The eval cache was keyed on tool NAME plus subject, so a cached verdict
+ * outlived the tool definition it was computed from. `ToolRegistry.wrap()`
+ * replaces a tool in place and is reachable from the plugin API, so a tool
+ * tightened to `permission: 'deny'` mid-session would keep being served the
+ * `auto` decided under its previous definition. The cache check also runs
+ * BEFORE the tool-default-deny branch, so nothing downstream re-checked.
+ *
+ * Including these fields in the key means a redefined tool misses the cache
+ * and is re-evaluated, rather than inheriting a verdict that no longer
+ * describes it. Capabilities are included because the dangerous-capability
+ * branches read them; they are short, sorted lists. The tuple is
+ * JSON-serialized so separators inside a field value (e.g. a `,` or `|`
+ * in a capability string) cannot collide with the delimiters between
+ * fields.
+ */
+function permissionFingerprint(tool: Tool): string {
+  const caps = [...(tool.capabilities ?? [])].sort();
+  return JSON.stringify([
+    tool.permission ?? '',
+    tool.riskTier ?? '',
+    tool.mutating ? 'm' : '',
+    caps,
+  ]);
+}
+
 function shellCommandLineFromInput(input: unknown): string | undefined {
   const command =
     getInputString(input, 'command') ??
@@ -426,14 +455,28 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
 
     // 3. Compute subject (the thing being matched)
     const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
+    // Session deny/allow are keyed by tool+pattern, because `denyOnce` /
+    // `allowOnce` are called from the UI with only those two. This key must
+    // keep that exact shape — widening it would silently stop session denies
+    // from matching, which fails OPEN.
     const cacheKey = `${tool.name}::${subject ?? tool.name}`;
 
     // S1. Cache check — skip namespace/subject/pattern re-evaluation when the
     //     same tool+subject was already decided. The write-tool smart bypass
     //     (step 7) is NOT cached because `ctx.hasRead()` changes dynamically
     //     within a session — we let it fall through below.
+    //
+    // WS-058: this short-circuits BEFORE the tool-default-deny check, so a
+    // cached decision outlives the tool definition it was computed from.
+    // `registry.wrap()` replaces a tool in place and is reachable from the
+    // plugin API, so a tool tightened to `permission: 'deny'` mid-session
+    // would keep being served the earlier `auto`. The eval cache therefore
+    // gets its OWN key that fingerprints the permission-relevant fields; a
+    // changed tool definition simply misses the cache instead of inheriting a
+    // stale verdict.
+    const evalKey = `${cacheKey}::${permissionFingerprint(tool)}`;
     if (tool.name !== 'write') {
-      const cached = this._evalCache.get(cacheKey);
+      const cached = this._evalCache.get(evalKey);
       if (cached !== undefined) return cached;
     }
 
@@ -447,7 +490,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
         source: 'deny',
         reason: 'session soft deny (user pressed no)',
       };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
 
@@ -472,7 +515,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
         source: 'deny',
         reason: 'matched deny pattern',
       };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
     if (tool.permission === 'deny') {
@@ -482,7 +525,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
         source: 'default',
         reason: 'tool default deny',
       };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
 
@@ -497,12 +540,12 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
         source: 'trust',
         reason: 'matched allow pattern',
       };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
     if (entry?.auto) {
       const decision: PermissionDecision = { permission: 'auto', source: 'trust' };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
 
@@ -565,7 +608,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
         };
       }
       const decision: PermissionDecision = { permission: 'auto', source: 'yolo' };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
 
@@ -608,7 +651,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       hasSubagentCap;
     if (tool.permission === 'auto' && !isMutating) {
       const decision: PermissionDecision = { permission: 'auto', source: 'default' };
-      this._evalCache.set(cacheKey, decision);
+      this._evalCache.set(evalKey, decision);
       return decision;
     }
 
