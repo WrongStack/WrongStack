@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUpCircle, Mail, Sparkles, X } from 'lucide-react';
+import { ArrowDown, Mail, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
 import { BrainPanel } from './brain-panel.js';
@@ -62,6 +62,7 @@ import type {
   PendingConfirm,
   ToolCallInfo,
 } from './types.js';
+import { UpdateBanner } from './update-banner.js';
 
 export { compactTokens, isIncomingMailboxPayload, messageId, payloadSucceeded, payloadText };
 
@@ -849,38 +850,26 @@ export function SimpleUiSession() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {hasUpdate ? (
-        <div className="update-banner">
-          <ArrowUpCircle size={15} />
-          <span>
-            Update available: v{updateInfo.appVersion || '?'} → v{updateInfo.latestVersion}
-            {' · '}
-            <code>wstack update</code>
-          </span>
-          <button
-            type="button"
-            className="update-banner-dismiss"
-            onClick={() =>
-              // Dismiss the *update banner* only — preserve `appVersion` so
-              // the persistent topbar version chip stays visible (functional
-              // form avoids a stale-closure race if a newer `session.start`
-              // lands between render and click). Clearing `appVersion` here
-              // would unmount the chip the moment the user dismisses the
-              // upgrade call-to-action, contradicting its "visible at all
-              // times" contract and diverging from the WebUI sibling
-              // (UpdateBanner.tsx keeps appVersion after dismissal).
-              setUpdateInfo((prev) => ({
-                ...prev,
-                latestVersion: '',
-                updateAvailable: false,
-              }))
-            }
-            aria-label="Dismiss update warning"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ) : null}
+      <UpdateBanner
+        appVersion={updateInfo.appVersion}
+        latestVersion={updateInfo.latestVersion}
+        show={hasUpdate}
+        onDismiss={() =>
+          // Dismiss the *update banner* only — preserve `appVersion` so
+          // the persistent topbar version chip stays visible (functional
+          // form avoids a stale-closure race if a newer `session.start`
+          // lands between render and click). Clearing `appVersion` here
+          // would unmount the chip the moment the user dismisses the
+          // upgrade call-to-action, contradicting its "visible at all
+          // times" contract and diverging from the WebUI sibling
+          // (UpdateBanner.tsx keeps appVersion after dismissal).
+          setUpdateInfo((prev) => ({
+            ...prev,
+            latestVersion: '',
+            updateAvailable: false,
+          }))
+        }
+      />
 
       <SessionAgentStrip
         activeAgentId={activeAgentId}
