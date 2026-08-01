@@ -1,17 +1,21 @@
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
-import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
+  sageProjectServerEndpoint,
+  sageProjectServerMetadataPath,
+} from './project-server-endpoint.js';
+import {
+  encodeSageProjectServerMessage,
   SAGE_PROJECT_SERVER_PROTOCOL_VERSION,
   type SageProjectServerInfo,
   type SageProjectServerMessage,
+  type SageProjectServerMetadata,
   type SageRequestMetadata,
   type SageServerOperationName,
   type SageServerOperations,
-  encodeSageProjectServerMessage,
 } from './project-server-protocol.js';
-import { sageProjectServerEndpoint } from './project-server-endpoint.js';
 
 const CONNECT_ATTEMPT_TIMEOUT_MS = 750;
 const SERVER_START_TIMEOUT_MS = 10_000;
@@ -91,10 +95,15 @@ export class SageProjectServerConnection {
   private readonly eventListeners = new Set<
     (event: string, payload: unknown, meta?: SageRequestMetadata | undefined) => void
   >();
-  private readonly stateListeners = new Set<
-    (state: SageProjectServerConnectionState) => void
-  >();
+  private readonly stateListeners = new Set<(state: SageProjectServerConnectionState) => void>();
   private state: SageProjectServerConnectionState;
+  /**
+   * WS-028: read from the daemon's owner-only `server.json`, never from the
+   * `hello` frame. The daemon sends `hello` to every socket that connects, so
+   * a token carried there was handed to exactly the caller it was meant to
+   * refuse. Reading the file is the proof of same-user access the gate needs.
+   */
+  private authToken: string | undefined;
 
   constructor(
     readonly projectRoot: string,
@@ -119,11 +128,7 @@ export class SageProjectServerConnection {
   }
 
   onEvent(
-    listener: (
-      event: string,
-      payload: unknown,
-      meta?: SageRequestMetadata | undefined,
-    ) => void,
+    listener: (event: string, payload: unknown, meta?: SageRequestMetadata | undefined) => void,
   ): () => void {
     this.eventListeners.add(listener);
     return () => this.eventListeners.delete(listener);
@@ -274,11 +279,50 @@ export class SageProjectServerConnection {
     throw lastError;
   }
 
+  /**
+   * Read the daemon's per-process token out of its owner-only `server.json`.
+   *
+   * WS-028: this replaces taking the token from the `hello` frame. Failure is
+   * not fatal here — the request itself will be refused with
+   * `UnauthorizedSageRequest`, which is a far clearer signal than a connect
+   * that silently succeeds and then fails every call.
+   */
+  /**
+   * The token, read lazily and re-read while still unknown.
+   *
+   * The daemon starts listening before `writeMetadata()` runs (ownership of
+   * the endpoint has to be won first, and clobbering another daemon's
+   * `server.json` to win it would be worse), so a client that connects in that
+   * window sees no file yet. Re-reading on each stamp until one is found costs
+   * a single small `readFileSync` and closes the window without reordering the
+   * daemon's startup.
+   */
+  private currentAuthToken(): string | undefined {
+    if (this.authToken === undefined) this.authToken = this.readAuthToken();
+    return this.authToken;
+  }
+
+  private readAuthToken(): string | undefined {
+    try {
+      const raw = fs.readFileSync(
+        sageProjectServerMetadataPath(this.projectRoot, this.directory),
+        'utf8',
+      );
+      const parsed = JSON.parse(raw) as Partial<SageProjectServerMetadata>;
+      return typeof parsed.authToken === 'string' && parsed.authToken.length > 0
+        ? parsed.authToken
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private connectOnce(): Promise<void> {
     this.socket?.destroy();
     this.socket = null;
     this.info = null;
     this.buffer = '';
+    this.authToken = this.readAuthToken();
     return new Promise<void>((resolve, reject) => {
       const socket = net.createConnection(this.state.endpoint);
       this.socket = socket;
@@ -326,10 +370,10 @@ export class SageProjectServerConnection {
       return Promise.reject(new Error('SAGE server connection is not available'));
     }
     const id = this.nextId++;
-    // Auth stamp: every outbound `request` carries the authToken the
-    // server emitted on `hello`. The server-side gate enforces equality;
-    // sending a wrong/missing token causes an `UnauthorizedSageRequest`
-    // response. `clientId` is left to the server-assigned per-connection
+    // Auth stamp: every outbound `request` — and `shutdown` (WS-028) —
+    // carries the authToken read from the daemon's owner-only `server.json`.
+    // The server-side gate enforces equality; a wrong or missing token causes
+    // an `UnauthorizedSageRequest` response. `clientId` is left to the server-assigned per-connection
     // nonce (see `project-server.ts` `net.createServer`), so the client
     // just forwards whatever value the caller passed in `meta.clientId`.
     const outbound =
@@ -338,13 +382,19 @@ export class SageProjectServerConnection {
             ...message,
             meta: {
               clientId: message.meta.clientId,
-              authToken: this.info?.authToken,
-              ...(message.meta.sessionId !== undefined ? { sessionId: message.meta.sessionId } : {}),
+              authToken: this.currentAuthToken(),
+              ...(message.meta.sessionId !== undefined
+                ? { sessionId: message.meta.sessionId }
+                : {}),
               ...(message.meta.traceId !== undefined ? { traceId: message.meta.traceId } : {}),
             },
             id,
           }
-        : { ...message, id };
+        : {
+            ...message,
+            id,
+            ...(message.type === 'shutdown' ? { authToken: this.currentAuthToken() } : {}),
+          };
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         const entry = this.pending.get(id);

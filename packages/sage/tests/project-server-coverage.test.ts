@@ -9,19 +9,21 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  SAGE_PROJECT_SERVER_PROTOCOL_VERSION,
-  encodeSageProjectServerMessage,
-  type SageProjectServerMessage,
-  type SageProjectServerClientMessage,
-} from '../src/project-server-protocol.js';
-import {
-  SAGE_PROJECT_SERVER_METADATA_FILE,
-  resolveProjectSageStorageRoot,
-  sageProjectServerKey,
-  sageProjectServerEndpoint,
-  sageProjectServerMetadataPath,
   ensureSageProjectServerSocketDirectory,
+  resolveProjectSageStorageRoot,
+  SAGE_PROJECT_SERVER_METADATA_FILE,
+  sageProjectServerEndpoint,
+  sageProjectServerKey,
+  sageProjectServerMetadataPath,
 } from '../src/project-server-endpoint.js';
+import {
+  encodeSageProjectServerMessage,
+  SAGE_PROJECT_SERVER_PROTOCOL_VERSION,
+  type SageProjectServerClientMessage,
+  type SageProjectServerInfo,
+  type SageProjectServerMessage,
+  type SageProjectServerMetadata,
+} from '../src/project-server-protocol.js';
 
 let tempDir: string;
 
@@ -44,29 +46,63 @@ describe('SAGE_PROJECT_SERVER_PROTOCOL_VERSION', () => {
 describe('encodeSageProjectServerMessage', () => {
   it('encodes a response message as JSON + newline', () => {
     const msg: SageProjectServerMessage = {
-      type: 'response', id: 1, ok: true, result: { hello: 'world' },
+      type: 'response',
+      id: 1,
+      ok: true,
+      result: { hello: 'world' },
     };
     const encoded = encodeSageProjectServerMessage(msg);
     expect(encoded).toContain('"type":"response"');
     expect(encoded.endsWith('\n')).toBe(true);
   });
 
-  it('encodes a hello message', () => {
+  // WS-028 (inverted): this asserted the daemon's auth token travels in the
+  // `hello` frame — which the daemon sends to EVERY socket that connects, so
+  // the token was handed to exactly the caller the gate was meant to refuse.
+  // `hello` now carries no secret; the token lives only in the owner-only
+  // `server.json`, and a client proves same-user access by reading it.
+  it('encodes a hello message carrying no secret', () => {
     const msg: SageProjectServerMessage = {
-      type: 'hello', protocolVersion: 1, pid: 1234,
-      projectRoot: '/test', storageRoot: '/test/.ws/mem',
-      endpoint: '/tmp/test.sock', startedAt: '2026-01-01T00:00:00.000Z',
-      authToken: 'fixture-token-not-real',
+      type: 'hello',
+      protocolVersion: 1,
+      pid: 1234,
+      projectRoot: '/test',
+      storageRoot: '/test/.ws/mem',
+      endpoint: '/tmp/test.sock',
+      startedAt: '2026-01-01T00:00:00.000Z',
     };
     const parsed = JSON.parse(encodeSageProjectServerMessage(msg).trim());
     expect(parsed.type).toBe('hello');
     expect(parsed.protocolVersion).toBe(1);
-    expect(parsed.authToken).toBe('fixture-token-not-real');
+    expect(parsed.authToken).toBeUndefined();
+    expect(Object.keys(parsed)).not.toContain('authToken');
+  });
+
+  it('keeps the token on the on-disk metadata type only', () => {
+    const metadata: SageProjectServerMetadata = {
+      protocolVersion: 1,
+      pid: 1234,
+      projectRoot: '/test',
+      storageRoot: '/test/.ws/mem',
+      endpoint: '/tmp/test.sock',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      authToken: 'fixture-token-not-real',
+    };
+    // Structurally a superset of the wire info — the daemon builds it as
+    // `{...serverInfo, authToken}` — so widening one cannot silently widen
+    // the other.
+    const wire: SageProjectServerInfo = metadata;
+    expect(wire.pid).toBe(1234);
+    expect(metadata.authToken).toBe('fixture-token-not-real');
   });
 
   it('encodes an error response', () => {
     const msg: SageProjectServerMessage = {
-      type: 'response', id: 2, ok: false, error: 'fail', errorName: 'TestError',
+      type: 'response',
+      id: 2,
+      ok: false,
+      error: 'fail',
+      errorName: 'TestError',
     };
     const parsed = JSON.parse(encodeSageProjectServerMessage(msg).trim());
     expect(parsed.ok).toBe(false);
@@ -88,7 +124,9 @@ describe('encodeSageProjectServerMessage', () => {
 
   it('encodes an event message', () => {
     const msg: SageProjectServerMessage = {
-      type: 'event', event: 'memory.updated', payload: { id: 'mem-1' },
+      type: 'event',
+      event: 'memory.updated',
+      payload: { id: 'mem-1' },
     };
     const parsed = JSON.parse(encodeSageProjectServerMessage(msg).trim());
     expect(parsed.type).toBe('event');

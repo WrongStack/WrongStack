@@ -13,6 +13,7 @@ import {
   startSharedHeapWatchdog,
   useDaemonPerfDefaults,
 } from '@wrongstack/core/utils';
+import { SqliteMemoryPort } from './memory-port.js';
 import {
   ensureSageProjectServerSocketDirectory,
   resolveProjectSageStorageRoot,
@@ -20,17 +21,17 @@ import {
   sageProjectServerMetadataPath,
 } from './project-server-endpoint.js';
 import {
+  encodeSageProjectServerMessage,
   SAGE_PROJECT_SERVER_PROTOCOL_VERSION,
   type SageProjectServerClientMessage,
   type SageProjectServerInfo,
   type SageProjectServerMessage,
+  type SageProjectServerMetadata,
   type SageRequestMetadata,
   type SageServerOperationName,
   type SageServerOperations,
-  encodeSageProjectServerMessage,
 } from './project-server-protocol.js';
 import type { SageServiceLike } from './service-contract.js';
-import { SqliteMemoryPort } from './memory-port.js';
 import type {
   FindMemoriesForFileOptions,
   FindMemoriesForFileResponse,
@@ -96,8 +97,7 @@ const storageRoot = resolveProjectSageStorageRoot(projectRoot, parsed.directory)
 const endpoint = sageProjectServerEndpoint(projectRoot, parsed.directory);
 const metadataPath = sageProjectServerMetadataPath(projectRoot, parsed.directory);
 const idleMsInput = Number(process.env['WRONGSTACK_SAGE_SERVER_IDLE_MS']);
-const idleMs =
-  Number.isFinite(idleMsInput) && idleMsInput >= 100 ? idleMsInput : DEFAULT_IDLE_MS;
+const idleMs = Number.isFinite(idleMsInput) && idleMsInput >= 100 ? idleMsInput : DEFAULT_IDLE_MS;
 const startedAt = new Date().toISOString();
 // Per-process auth token. Minted at startup, persisted to `server.json`,
 // required on every `request` message — closes the "same-UID process can
@@ -118,9 +118,7 @@ let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let stopping = false;
 let lastAutomaticHygieneAt = 0;
 let lastAutomaticHygieneReport: SageServerOperations['hygiene']['result'] | undefined;
-let automaticHygieneInFlight:
-  | Promise<SageServerOperations['hygiene']['result']>
-  | undefined;
+let automaticHygieneInFlight: Promise<SageServerOperations['hygiene']['result']> | undefined;
 function activeClientRequests(): number {
   let total = 0;
   for (const client of clients) total += client.active.size;
@@ -143,8 +141,15 @@ const serverInfo: SageProjectServerInfo = {
   storageRoot,
   endpoint,
   startedAt,
-  authToken,
 };
+
+/**
+ * What `server.json` holds — `serverInfo` plus the secret. WS-028: the token
+ * used to be part of `serverInfo` itself, which is the `hello` payload sent to
+ * every socket that connects, so the daemon handed its own credential to the
+ * caller the credential was meant to refuse.
+ */
+const serverMetadata: SageProjectServerMetadata = { ...serverInfo, authToken };
 
 let resolveReady: (() => void) | undefined;
 let rejectReady: ((error: unknown) => void) | undefined;
@@ -240,9 +245,7 @@ async function importLegacyFiles(
     const resolved = await fsPromises.realpath(file);
     const rel = path.relative(projectRoot, resolved);
     if (rel.startsWith('..') || path.isAbsolute(rel)) {
-      throw new Error(
-        `importLegacyFiles: file path must stay inside the project root: ${file}`,
-      );
+      throw new Error(`importLegacyFiles: file path must stay inside the project root: ${file}`);
     }
     const stat = await fsPromises.stat(resolved);
     totalBytes += stat.size;
@@ -263,10 +266,7 @@ async function runHygiene(
 ): Promise<SageServerOperations['hygiene']['result']> {
   if (args.automatic) {
     const now = Date.now();
-    if (
-      lastAutomaticHygieneReport &&
-      now - lastAutomaticHygieneAt < AUTO_HYGIENE_INTERVAL_MS
-    ) {
+    if (lastAutomaticHygieneReport && now - lastAutomaticHygieneAt < AUTO_HYGIENE_INTERVAL_MS) {
       return lastAutomaticHygieneReport;
     }
     if (automaticHygieneInFlight) return automaticHygieneInFlight;
@@ -333,11 +333,7 @@ async function dispatch(
       const args = rawArgs as SageServerOperations['scoreRelevant']['args'];
       const scored = store.scoreRelevant?.(args.context, args.scope, args.limit);
       if (scored) return scored;
-      const fallback = await store.search(
-        args.context.currentTask,
-        args.scope,
-        args.limit,
-      );
+      const fallback = await store.search(args.context.currentTask, args.scope, args.limit);
       return fallback.map(
         (entry, index): ScoredEntry => ({
           ...entry,
@@ -485,7 +481,17 @@ async function dispatch(
 }
 
 function checkAuthToken(state: ClientState, message: SageProjectServerClientMessage): boolean {
-  if (message.type === 'request' && message.meta.authToken !== authToken) {
+  // WS-028: `shutdown` is now gated too. It stops the daemon for every client
+  // in the project — a denial of service any same-UID process could trigger
+  // with one unauthenticated frame. `cancel` stays ungated: it only reaches
+  // the sending connection's own `state.active` map.
+  const supplied =
+    message.type === 'request'
+      ? message.meta.authToken
+      : message.type === 'shutdown'
+        ? message.authToken
+        : undefined;
+  if ((message.type === 'request' || message.type === 'shutdown') && supplied !== authToken) {
     send(state, {
       type: 'response',
       id: message.id,
@@ -504,12 +510,11 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
   // Auth gate FIRST — every `request` message (the only message type
   // that mutates SAGE state and that carries an `authToken` slot in
   // its `meta`) is rejected if the token does not match the
-  // per-process `authToken` minted at startup. `cancel` and `shutdown`
-  // have no `meta` slot in the protocol and therefore cannot carry
-  // a token; they bypass this check by design. `shutdown` remains
-  // constrained by the 0o600 socket + same-UID boundary — a same-UID
-  // caller can stop the daemon, but the IPC trust model explicitly
-  // does not protect against that.
+  // per-process `authToken` minted at startup, which a caller can only
+  // learn by reading the owner-only `server.json`. `shutdown` carries the
+  // token too (WS-028) because stopping the daemon affects every client.
+  // `cancel` is ungated: it reaches only the sending connection's own
+  // in-flight requests, so there is nothing to escalate.
   if (!checkAuthToken(state, message)) return;
 
   if (message.type === 'cancel') {
@@ -591,7 +596,9 @@ function scheduleIdleStop(): void {
 async function writeMetadata(): Promise<void> {
   await fsPromises.mkdir(path.dirname(metadataPath), { recursive: true });
   const temporary = `${metadataPath}.${process.pid}.tmp`;
-  await fsPromises.writeFile(temporary, `${JSON.stringify(serverInfo, null, 2)}\n`, {
+  // `serverMetadata`, not `serverInfo`: the token lives ONLY in this
+  // owner-only file now, never on the wire (WS-028).
+  await fsPromises.writeFile(temporary, `${JSON.stringify(serverMetadata, null, 2)}\n`, {
     encoding: 'utf8',
     mode: 0o600,
   });

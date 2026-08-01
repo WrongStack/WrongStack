@@ -1,4 +1,12 @@
 import type {
+  MemoryEntry,
+  MemoryHealth,
+  MemoryRelevanceContext,
+  MemoryScope,
+  ScoredEntry,
+} from '@wrongstack/core/types';
+import type { SearchOptions, SearchQuery, SearchResult } from './service-contract.js';
+import type {
   CandidateDecision,
   CreateCandidateInput,
   FindMemoriesForFileOptions,
@@ -23,17 +31,13 @@ import type {
   SessionConsolidationResult,
   UpdateSageInput,
 } from './types.js';
-import type {
-  MemoryEntry,
-  MemoryHealth,
-  MemoryRelevanceContext,
-  MemoryScope,
-  ScoredEntry,
-} from '@wrongstack/core/types';
-import type { SearchOptions, SearchQuery, SearchResult } from './service-contract.js';
 
 export const SAGE_PROJECT_SERVER_PROTOCOL_VERSION = 1;
 
+/**
+ * What the daemon tells a connecting client about itself. Deliberately
+ * carries NO secret — see {@link SageProjectServerMetadata}.
+ */
 export interface SageProjectServerInfo {
   protocolVersion: number;
   pid: number;
@@ -41,14 +45,26 @@ export interface SageProjectServerInfo {
   storageRoot: string;
   endpoint: string;
   startedAt: string;
+}
+
+/**
+ * `server.json` — the on-disk metadata file, written 0600.
+ *
+ * WS-028: the `authToken` used to live on {@link SageProjectServerInfo}, which
+ * is the payload of the `hello` frame the daemon sends to **every** socket
+ * that connects. The token was therefore handed to exactly the caller it was
+ * meant to refuse, and the auth gate it fed was decorative: any same-UID
+ * process could connect, read the token out of `hello`, and replay it.
+ *
+ * The token now exists only here. A client proves it could read an owner-only
+ * file in the project's own state directory before it may issue a request —
+ * which is the boundary the doc claimed all along.
+ */
+export interface SageProjectServerMetadata extends SageProjectServerInfo {
   /**
    * Per-process auth token. Minted at server startup with
-   * `crypto.randomBytes(16)`, persisted to `server.json` alongside the
-   * rest of `SageProjectServerInfo`, and required on every `request`
-   * message in `meta.authToken`. Replaces the prior "0o600 socket is
-   * sufficient" trust model: the daemon must be able to refuse calls
-   * from any process on the same UID that did not read the metadata
-   * file first.
+   * `crypto.randomBytes(16)` and required on every `request` and `shutdown`
+   * message in `meta.authToken` / `authToken`.
    */
   authToken: string;
 }
@@ -67,8 +83,10 @@ export interface SageRequestMetadata {
    */
   clientId: string;
   /**
-   * Per-message auth token. Must equal the `authToken` from the most
-   * recent `hello`. Connections that omit or send a wrong token are
+   * Per-message auth token. Must equal the `authToken` in the daemon's
+   * owner-only `server.json` (WS-028: it used to come from the `hello`
+   * frame, which the daemon sends to every connecting socket — so the
+   * gate refused nobody). Connections that omit or send a wrong token are
    * dropped at the `request` boundary, not silently logged.
    */
   authToken?: string | undefined;
@@ -238,7 +256,13 @@ export type SageProjectServerClientMessage =
       meta: SageRequestMetadata;
     }
   | { type: 'cancel'; id: number }
-  | { type: 'shutdown'; id: number; reason?: string | undefined };
+  /**
+   * WS-028: `shutdown` now carries the token. It stops the project's SAGE
+   * daemon for every client — a denial of service any same-UID process could
+   * previously trigger with a single unauthenticated frame. `cancel` needs no
+   * token: it is scoped to the sending connection's own in-flight requests.
+   */
+  | { type: 'shutdown'; id: number; reason?: string | undefined; authToken?: string | undefined };
 
 export type SageProjectServerMessage =
   | ({ type: 'hello' } & SageProjectServerInfo)
