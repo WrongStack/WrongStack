@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import type { RefObject } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { playChime } from '../lib/chime.js';
 import { createMailboxStore, type MailboxStore } from '../lib/mailbox-store.js';
 import type { SimplePrefs } from '../lib/prefs-model.js';

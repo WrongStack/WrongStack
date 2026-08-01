@@ -38,11 +38,6 @@
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
-    "@wrongstack/core/defaults": {
-      "files": 1,
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
     "@wrongstack/core/design": {
       "files": 8,
       "typeOnly": 1,
@@ -146,7 +141,7 @@
     "@wrongstack/core/types": {
       "files": 818,
       "typeOnly": 787,
-      "runtimeOrMixed": 202
+      "runtimeOrMixed": 203
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -2628,12 +2623,6 @@
     {
       "specifier": "@wrongstack/core/core/model-ref",
       "file": "packages/webui/src/lib/fallback-ref.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/defaults",
-      "file": "packages/webui-server/src/server/backend-services.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11755,7 +11744,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/backend-services.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     {
       "specifier": "@wrongstack/core/types",

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUpCircle, Mail, Sparkles, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
 import { BrainPanel } from './brain-panel.js';
 import { ChatMessageList } from './chat-message-list.js';
@@ -16,6 +16,7 @@ import { useFileMention } from './hooks/use-file-mention.js';
 import { useImageAttachments } from './hooks/use-image-attachments.js';
 import { useModelCatalog } from './hooks/use-model-catalog.js';
 import { useServerOutage } from './hooks/use-server-outage.js';
+import { useSimpleMailbox } from './hooks/use-simple-mailbox.js';
 import { useSimpleSessionState } from './hooks/use-simple-session-state.js';
 import { useSimpleSocket } from './hooks/use-simple-socket.js';
 import { useStatusNotice } from './hooks/use-status-notice.js';
@@ -28,7 +29,6 @@ import { copyText } from './lib/clipboard.js';
 import type { CommandPaletteAction } from './lib/command-palette-model.js';
 import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
 import { removeFileMention } from './lib/file-mention.js';
-import { createMailboxStore } from './lib/mailbox-store.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
@@ -69,13 +69,7 @@ import type {
   ToolCallInfo,
 } from './types.js';
 
-export {
-  compactTokens,
-  isIncomingMailboxPayload,
-  messageId,
-  payloadSucceeded,
-  payloadText,
-};
+export { compactTokens, isIncomingMailboxPayload, messageId, payloadSucceeded, payloadText };
 
 export function SimpleUiSession() {
   const { theme, toggleTheme } = useTheme();
@@ -163,6 +157,17 @@ export function SimpleUiSession() {
   messagesRef.current = messages;
   diffFilesRef.current = diffFiles;
   settingsOpenRef.current = settingsOpen;
+  const {
+    mailboxStore,
+    mailboxOpen,
+    setMailboxOpen,
+    mailboxOpenRef,
+    mailboxUnreadCount,
+    refreshMailbox,
+    sendMailboxMessage,
+    handleMailboxAction,
+    applyMailboxMessage,
+  } = useSimpleMailbox({ socketRef, setNotice, prefsRef });
 
   /** Send a message to the agent and reflect it locally. The single send
    *  path — the composer, the queue drain, and every refine decision all
@@ -587,56 +592,10 @@ export function SimpleUiSession() {
 
   const handleSocketMessage = useCallback(
     (message: Parameters<typeof handleServerMessage>[0]) => {
-      const accepted = mailboxStore.applyMessage(message);
-      if (message.type === 'mailbox.received' && isIncomingMailboxPayload(message.payload)) {
-        setNotice({
-          id: messageId('mail'),
-          text: 'New email received',
-          tone: 'info',
-        });
-        if (!mailboxOpenRef.current && prefsRef.current.chime) playChime();
-      }
-      if (message.type === 'mailbox.sent') {
-        const requestId = payloadText(message.payload, 'requestId');
-        const succeeded = payloadSucceeded(message.payload);
-        const wasPendingSend = requestId ? pendingMailboxSendsRef.current.delete(requestId) : false;
-        if (wasPendingSend || !succeeded) {
-          setNotice({
-            id: messageId('mail'),
-            text: succeeded
-              ? 'Email sent'
-              : `Email failed: ${payloadText(message.payload, 'error') || 'Unknown error'}`,
-            tone: succeeded ? 'info' : 'error',
-          });
-        }
-      }
-      if (message.type === 'mailbox.action_result') {
-        const requestId = payloadText(message.payload, 'requestId');
-        if (requestId && pendingMailboxActionsRef.current.delete(requestId)) {
-          setNotice({
-            id: messageId('mail'),
-            text: payloadSucceeded(message.payload)
-              ? 'Email action completed'
-              : `Email action failed: ${payloadText(message.payload, 'error') || 'Unknown error'}`,
-            tone: payloadSucceeded(message.payload) ? 'info' : 'error',
-          });
-        }
-      }
-      if (!accepted) handleServerMessage(message);
+      if (!applyMailboxMessage(message)) handleServerMessage(message);
     },
-    [handleServerMessage, mailboxStore],
+    [handleServerMessage, applyMailboxMessage],
   );
-
-  const refreshMailbox = useCallback(() => {
-    socketRef.current?.send('mailbox.messages', { limit: 30 });
-    socketRef.current?.send('mailbox.messages', {
-      limit: 100,
-      unreadOnly: true,
-      incompleteOnly: true,
-    });
-    socketRef.current?.send('mailbox.agents', {});
-  }, []);
-  refreshMailboxRef.current = refreshMailbox;
 
   const { connection } = useSimpleSocket({
     onMessage: handleSocketMessage,
@@ -739,50 +698,6 @@ export function SimpleUiSession() {
     setPrefs((current) => ({ ...current, ...patch }));
     socketRef.current?.send('prefs.update', nextPatch as Record<string, unknown>);
   };
-
-  const sendMailboxMessage = useCallback(
-    (input: { to: string; subject: string; body: string }): boolean => {
-      const socket = socketRef.current;
-      if (!socket) {
-        setNotice({
-          id: messageId('mailbox-send'),
-          text: 'Mailbox send failed: socket is not ready',
-          tone: 'error',
-        });
-        return false;
-      }
-      const requestId = messageId('mailbox-send');
-      pendingMailboxSendsRef.current.add(requestId);
-      socket.send('mailbox.send', {
-        requestId,
-        from: 'simpleui',
-        to: input.to,
-        type: input.to === '*' ? 'broadcast' : 'note',
-        audience: 'all',
-        subject: input.subject,
-        body: input.body,
-        priority: 'normal',
-      });
-      refreshMailbox();
-      return true;
-    },
-    [refreshMailbox, setNotice],
-  );
-
-  const handleMailboxAction = useCallback(
-    (mailId: string, action: 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete') => {
-      const requestId = messageId('mailbox-action');
-      pendingMailboxActionsRef.current.add(requestId);
-      socketRef.current?.send('mailbox.action', {
-        requestId,
-        mailId,
-        action,
-        readerId: 'simpleui',
-      });
-      refreshMailbox();
-    },
-    [refreshMailbox],
-  );
 
   useEffect(() => {
     if (connection === 'open') refreshMailbox();
