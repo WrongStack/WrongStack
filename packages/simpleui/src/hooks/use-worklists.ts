@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
 import type { RefObject } from 'react';
+import { useCallback, useState } from 'react';
 import {
   createWorklistStore,
   type PlanStatus,
@@ -50,49 +50,61 @@ export function useWorklists(options: UseWorklistsOptions): UseWorklistsResult {
 
   const [worklists] = useState(() => createWorklistStore());
 
-  const requestWorklist = useCallback((view: WorklistView) => {
-    const sessionId = sessionIdRef.current;
-    if (!sessionId) return;
-    // Exhaustive view→wire-op mapping: an unhandled `WorklistView` member
-    // is a compile error (never assert) instead of silently hitting
-    // 'plan.get' like the original ternary fallthrough did.
-    let requestType: 'todos.get' | 'tasks.get' | 'plan.get';
-    switch (view) {
-      case 'todos':
-        requestType = 'todos.get';
-        break;
-      case 'tasks':
-        requestType = 'tasks.get';
-        break;
-      case 'plan':
-        requestType = 'plan.get';
-        break;
-      default: {
-        const exhaustive: never = view;
-        throw new Error(`Unhandled worklist view: ${exhaustive}`);
+  const requestWorklist = useCallback(
+    (view: WorklistView) => {
+      const sessionId = sessionIdRef.current;
+      if (!sessionId) return;
+      // Exhaustive view→wire-op mapping: an unhandled `WorklistView` member
+      // is a compile error (never assert) instead of silently hitting
+      // 'plan.get' like the original ternary fallthrough did.
+      let requestType: 'todos.get' | 'tasks.get' | 'plan.get';
+      switch (view) {
+        case 'todos':
+          requestType = 'todos.get';
+          break;
+        case 'tasks':
+          requestType = 'tasks.get';
+          break;
+        case 'plan':
+          requestType = 'plan.get';
+          break;
+        default: {
+          const exhaustive: never = view;
+          throw new Error(`Unhandled worklist view: ${exhaustive}`);
+        }
       }
-    }
-    socketRef.current?.send(requestType, { sessionId });
-  }, [sessionIdRef, socketRef]);
+      socketRef.current?.send(requestType, { sessionId });
+    },
+    [sessionIdRef, socketRef],
+  );
 
   const openWorkspacePanel = useCallback((view: 'tools' | WorklistView) => {
     window.dispatchEvent(new CustomEvent('simpleui:open-workspace-panel', { detail: { view } }));
   }, []);
 
-  const updateTodoStatus = useCallback((id: string, status: TodoStatus) => {
-    const sessionId = sessionIdRef.current;
-    if (sessionId) socketRef.current?.send('todo.update', { sessionId, id, status });
-  }, [sessionIdRef, socketRef]);
+  const updateTodoStatus = useCallback(
+    (id: string, status: TodoStatus) => {
+      const sessionId = sessionIdRef.current;
+      if (sessionId) socketRef.current?.send('todo.update', { sessionId, id, status });
+    },
+    [sessionIdRef, socketRef],
+  );
 
-  const updateTaskStatus = useCallback((id: string, status: TaskStatus) => {
-    const sessionId = sessionIdRef.current;
-    if (sessionId) socketRef.current?.send('task.update', { sessionId, id, status });
-  }, [sessionIdRef, socketRef]);
+  const updateTaskStatus = useCallback(
+    (id: string, status: TaskStatus) => {
+      const sessionId = sessionIdRef.current;
+      if (sessionId) socketRef.current?.send('task.update', { sessionId, id, status });
+    },
+    [sessionIdRef, socketRef],
+  );
 
-  const updatePlanStatus = useCallback((target: string, status: PlanStatus) => {
-    const sessionId = sessionIdRef.current;
-    if (sessionId) socketRef.current?.send('plan.item.update', { sessionId, target, status });
-  }, [sessionIdRef, socketRef]);
+  const updatePlanStatus = useCallback(
+    (target: string, status: PlanStatus) => {
+      const sessionId = sessionIdRef.current;
+      if (sessionId) socketRef.current?.send('plan.item.update', { sessionId, target, status });
+    },
+    [sessionIdRef, socketRef],
+  );
 
   return {
     worklists,

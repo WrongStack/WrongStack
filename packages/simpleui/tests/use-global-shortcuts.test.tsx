@@ -5,8 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGlobalShortcuts } from '../src/hooks/use-global-shortcuts.js';
 import type { RefineState } from '../src/lib/refine-model.js';
-import type { ChatMessage, FileEditMeta } from '../src/types.js';
 import type { SimpleSocket } from '../src/lib/ws.js';
+import type { ChatMessage, FileEditMeta } from '../src/types.js';
 
 /**
  * Behavior coverage for the `useGlobalShortcuts` hook (plan B1 final slice,
@@ -43,7 +43,9 @@ interface Harness {
 
 function renderHarness(): Harness {
   const socketSend = vi.fn();
-  const socketRef = { current: { send: socketSend } } as unknown as React.RefObject<SimpleSocket | null>;
+  const socketRef = {
+    current: { send: socketSend },
+  } as unknown as React.RefObject<SimpleSocket | null>;
   const sessionIdRef = { current: null } as React.MutableRefObject<string | null>;
   const diffFilesRef = { current: null } as React.MutableRefObject<FileEditMeta[] | null>;
   const setDiffFiles = vi.fn();
