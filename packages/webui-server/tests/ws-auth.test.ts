@@ -285,11 +285,37 @@ describe('ws-auth', () => {
       })).toBe(true);
     });
 
-    it('allows non-browser client on loopback bind without token', () => {
+    // WS-005: a tokenless non-browser client on a loopback bind used to be
+    // admitted, so any process on the machine could drive the agent —
+    // terminal.create → node-pty, mcp.add → spawn, prefs.update{yolo}. The
+    // compatibility trust boundary only denies risk:'critical' and those call
+    // sites declare elevated/high, so connection auth is the control.
+    it('rejects a tokenless non-browser client on a loopback bind', () => {
       expect(verifyClient({
         origin: undefined,
         url: '/',
         hostHeader: 'localhost:3456',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(false);
+    });
+
+    it('admits a non-browser client that presents the token in the URL', () => {
+      expect(verifyClient({
+        origin: undefined,
+        url: `/?token=${TOKEN}`,
+        hostHeader: 'localhost:3456',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(true);
+    });
+
+    it('admits a non-browser client that presents the token in a cookie', () => {
+      expect(verifyClient({
+        origin: undefined,
+        url: '/',
+        hostHeader: 'localhost:3456',
+        cookieHeader: `ws_token=${TOKEN}`,
         wsHost: '127.0.0.1',
         expectedToken: TOKEN,
       })).toBe(true);

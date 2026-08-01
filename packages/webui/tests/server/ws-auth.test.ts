@@ -49,11 +49,29 @@ describe('verifyClient (WebSocket auth)', () => {
     }
   });
 
-  it('allows non-browser client on a loopback bind without token', () => {
+  // WS-005: any local process could previously open a tokenless socket on a
+  // loopback bind and drive the agent (terminal.create → node-pty, mcp.add →
+  // spawn). A token always exists — resolveAuthToken generates one when
+  // unconfigured — and is printed in the server's access URL.
+  it('rejects a tokenless non-browser client on a loopback bind', () => {
     for (const wsHost of ['127.0.0.1', '::1', 'localhost']) {
       expect(
         verifyClient({
           url: '/',
+          hostHeader: LOOPBACK_HOST,
+          remoteAddress: '127.0.0.1',
+          wsHost,
+          expectedToken: TOKEN,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it('admits a non-browser client presenting the token on a loopback bind', () => {
+    for (const wsHost of ['127.0.0.1', '::1', 'localhost']) {
+      expect(
+        verifyClient({
+          url: `/?token=${TOKEN}`,
           hostHeader: LOOPBACK_HOST,
           remoteAddress: '127.0.0.1',
           wsHost,

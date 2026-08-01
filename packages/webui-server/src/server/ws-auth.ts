@@ -280,19 +280,23 @@ export function verifyClient(input: VerifyClientInput): boolean {
   if (!hostHeaderOk({ hostHeader, wsHost, allowedHostnames })) return false;
 
   if (!origin) {
-    // Non-browser clients (curl, scripts): require token unless on loopback.
-    // The URL `?token=` path stays valid here for ergonomics (curl/tests have
-    // no cookie jar) — query-string token exposure (C-598) is a *browser*
-    // history/log concern, which non-browser clients don't have.
-    // When wsHost=0.0.0.0 the server accepts connections from any network
-    // interface. Tokenless connections from non-loopback peers are denied
-    // outright, but a valid token (URL or cookie) authenticates non-browser
-    // clients from any origin — enabling curl, scripts, and automation tools
-    // on Tailscale/LAN peers to reach the WS API with the operator's token.
+    // Non-browser clients (curl, scripts, automation) must always present a
+    // token. The URL `?token=` path stays valid here for ergonomics — they have
+    // no cookie jar — and query-string exposure (C-598) is a browser history /
+    // proxy-log concern that does not apply to them.
+    //
+    // WS-005: this branch previously admitted ANY tokenless client on a loopback
+    // bind, so every process on the machine could open a socket and drive the
+    // agent — reaching `terminal.create` → node-pty, `mcp.add` → spawn, and
+    // `prefs.update {yolo:true}`. The compatibility trust boundary only denies
+    // `risk:'critical'`, and those call sites declare `elevated`/`high`, so
+    // connection-level auth is the control that has to hold. A token always
+    // exists (`resolveAuthToken` generates one when unconfigured) and is printed
+    // in the server's access URL, so no legitimate client is left without one.
     const remoteIp = remoteAddress ?? '';
     const isRemoteLoopback = remoteIp === '127.0.0.1' || remoteIp === '::1';
     if (!isRemoteLoopback && isWildcardBind(wsHost) && !urlTokenOk && !cookieTokenOk) return false;
-    return urlTokenOk || cookieTokenOk || (isLoopbackBind(wsHost) && !requireToken);
+    return urlTokenOk || cookieTokenOk;
   }
   try {
     const { hostname: originHostname } = new URL(origin);
