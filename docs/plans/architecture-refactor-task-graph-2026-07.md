@@ -1,6 +1,6 @@
 # Architecture Refactor Program — Dependency-Aware Task Graph (2026-07)
 
-**Status:** Active execution registry  
+**Status:** Complete — all 42 nodes across Waves 0-5 marked done (2026-08-01 verification)  
 **Decision record:** [`adr-003-authority-first-refactor-program.md`](adr-003-authority-first-refactor-program.md)  
 **Historical backlog:** [`../backlog/2026-07-architecture-review/`](../backlog/2026-07-architecture-review/)  
 **Point-in-time evidence date:** 2026-07-15  
