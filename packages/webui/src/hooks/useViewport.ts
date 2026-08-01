@@ -70,13 +70,9 @@ export function useViewport(): ViewportState {
   return state;
 }
 
-/**
- * Non-hook utility for one-off viewport checks outside React render.
- * Reads `window.innerWidth` directly — do not use in render paths.
- */
 export function isMobileViewport(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.innerWidth <= MOBILE_BREAKPOINT;
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
 }
 
 export { MOBILE_BREAKPOINT, SMALL_BREAKPOINT };

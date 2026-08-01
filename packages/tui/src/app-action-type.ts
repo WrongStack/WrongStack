@@ -143,7 +143,20 @@ export type Action =
   | { type: 'resumePickerHint'; text?: string | undefined }
   | { type: 'resumePickerError'; text: string }
   /** Replace all history entries with the given hydrated entries from a resumed session. */
-  | { type: 'replaceHistory'; entries: HistoryEntry[]; nextId: number }
+  | {
+      type: 'replaceHistory';
+      entries: HistoryEntry[];
+      nextId: number;
+      /**
+       * Optional context-window snapshot forwarded from the host's
+       * `onResumeSession` return. When present, the reducer writes
+       * `tokens` to `state.leader.ctxTokens` and bumps
+       * `state.contextChipVersion` so the statusline chip and `/context`
+       * panel reflect the rebuilt context immediately, instead of staying
+       * at zero until the next ctx.pct event.
+       */
+      contextSnapshot?: { tokens: number; maxContext: number } | undefined;
+    }
   | {
       type: 'settingsOpen';
       mode: SettingsMode;

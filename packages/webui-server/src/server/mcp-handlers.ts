@@ -91,7 +91,14 @@ const envScrubber = new DefaultSecretScrubber();
 function maskServerEnv(env: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(env)) {
-    out[key] = isSecretField(key) || envScrubber.scrub(value) !== value ? MCP_ENV_MASK : value;
+    // A hand-edited config.json can hold a truthy non-string env value
+    // (`"PORT": 8080`); `scrub()` calls `text.includes(...)` and would throw a
+    // TypeError, breaking `mcp.list` for that whole config. Only strings can be
+    // credentials, so guard the value signal — a secret-named KEY still masks a
+    // non-string value through the first signal.
+    const secret =
+      isSecretField(key) || (typeof value === 'string' && envScrubber.scrub(value) !== value);
+    out[key] = secret ? MCP_ENV_MASK : value;
   }
   return out;
 }

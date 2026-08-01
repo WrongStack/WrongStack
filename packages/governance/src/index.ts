@@ -1,6 +1,8 @@
+export * from './admin-session.js';
 export * from './authenticated-project-service.js';
 export * from './autonomy-envelope.js';
 export * from './capability-grant.js';
+export * from './credential-lease-controller.js';
 export type {
   GovernanceDaemonAvailability,
   GovernanceDaemonLaunchErrorCode,
@@ -20,6 +22,7 @@ export * from './event-store.js';
 export * from './ipc-endpoint.js';
 export * from './ipc-protocol.js';
 export * from './legacy-shadow-adapter.js';
+export * from './management-receipt-cache.js';
 export * from './plan-version.js';
 export * from './project-client.js';
 export * from './project-server.js';

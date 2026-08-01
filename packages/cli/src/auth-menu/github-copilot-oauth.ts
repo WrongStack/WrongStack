@@ -249,10 +249,11 @@ export async function runCopilotOAuthLogin(
   const providerId = opts.providerId ?? COPILOT_PROVIDER_ID;
   const ac = new AbortController();
   const onSig = () => ac.abort();
+  const onExternalAbort = () => ac.abort();
   const external = opts.signal;
   if (external) {
     if (external.aborted) ac.abort();
-    else external.addEventListener('abort', () => ac.abort(), { once: true });
+    else external.addEventListener('abort', onExternalAbort, { once: true });
   } else {
     process.on('SIGINT', onSig);
   }
@@ -309,7 +310,11 @@ export async function runCopilotOAuthLogin(
     deps.renderer.writeError(`  Login failed: ${msg}`);
     return 1;
   } finally {
-    if (!external) process.off('SIGINT', onSig);
+    if (external) {
+      external.removeEventListener('abort', onExternalAbort);
+    } else {
+      process.off('SIGINT', onSig);
+    }
   }
 }
 

@@ -55,6 +55,10 @@ export type GovernanceServiceResult =
       readonly credential: GovernanceServiceCredential;
     }
   | {
+      readonly type: 'own_capability_grant';
+      readonly grant: GovernanceCapabilityGrant;
+    }
+  | {
       readonly type: 'capability_grants';
       readonly grants: readonly GovernanceCapabilityGrant[];
       readonly nextCursor?: string | undefined;
@@ -63,6 +67,12 @@ export type GovernanceServiceResult =
       readonly type: 'capability_grant_revoked';
       readonly grantId: string;
       readonly revoked: boolean;
+    }
+  | {
+      readonly type: 'capability_grant_rotated';
+      readonly previousGrantId: string;
+      readonly grant: GovernanceCapabilityGrant;
+      readonly credential: GovernanceServiceCredential;
     };
 
 export type GovernanceServiceErrorCode =
@@ -72,7 +82,8 @@ export type GovernanceServiceErrorCode =
   | 'permission_denied'
   | 'identity_mismatch'
   | 'project_mismatch'
-  | 'store_failure';
+  | 'store_failure'
+  | 'request_in_progress';
 
 export type GovernanceServiceResponse =
   | {
@@ -105,6 +116,7 @@ const REQUIRED_CAPABILITY: Readonly<
   issue_capability_grant: 'capability_admin',
   list_capability_grants: 'capability_admin',
   revoke_capability_grant: 'capability_admin',
+  rotate_capability_grant: 'capability_admin',
 };
 
 function fail(
@@ -322,8 +334,10 @@ export class GovernanceProjectService {
           },
         };
       case 'issue_capability_grant':
+      case 'read_own_capability_grant':
       case 'list_capability_grants':
       case 'revoke_capability_grant':
+      case 'rotate_capability_grant':
         return fail(
           requestId,
           'permission_denied',

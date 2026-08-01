@@ -35,6 +35,7 @@ export function registerReplClient(opts: ReplOptions): ReplClientRegistration {
     undefined,
     () => hqConnection.getPublisher(),
   );
+  let closed = false;
   let clientHeartbeat: ReturnType<typeof setInterval> | undefined;
   clientMailbox
     .registerClient({
@@ -45,6 +46,7 @@ export function registerReplClient(opts: ReplOptions): ReplClientRegistration {
       pid: process.pid,
     })
     .then(() => {
+      if (closed) return;
       clientHeartbeat = setInterval(() => {
         clientMailbox
           .clientHeartbeat({ clientId, sessionId: opts.getSessionId?.() ?? replProjectRoot })
@@ -60,6 +62,7 @@ export function registerReplClient(opts: ReplOptions): ReplClientRegistration {
   return {
     clientId,
     close() {
+      closed = true;
       if (clientHeartbeat) clearInterval(clientHeartbeat);
       clientMailbox.deregisterClient(clientId).catch(() => undefined);
       hqConnection.stop();

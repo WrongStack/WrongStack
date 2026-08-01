@@ -732,12 +732,14 @@ export function ContextDashboard() {
     // and the response handler from acting on a stale timeout. The first
     // completion (response or timeout) sets it; the other becomes a no-op.
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const handler = (msg: { type: string; payload?: unknown }) => {
       if (cancelled) return;
       if (msg.type !== 'context.debug') return;
       if (debugGenRef.current !== gen) return;
       cancelled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       setDebugData(msg.payload as ContextDebugPayload);
       setLoading(false);
       unsub();
@@ -745,7 +747,7 @@ export function ContextDashboard() {
     const unsub = ws.on('context.debug', handler);
     debugUnsubRef.current = unsub;
 
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (cancelled) return;
       cancelled = true;
       if (debugGenRef.current === gen) {

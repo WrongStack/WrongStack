@@ -7,8 +7,20 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const coreRoot = path.join(repoRoot, 'packages/core');
 const architectureRoot = path.join(repoRoot, 'architecture');
 const write = process.argv.includes('--write');
+
+/**
+ * Normalize file content for deterministic cross-platform snapshots.
+ *
+ * Strips BOM and converts CRLF → LF so the snapshot is identical on Windows
+ * and Linux regardless of git checkout state or Node version. Without this,
+ * `readFileSync` on Windows can produce slightly different strings than on
+ * Linux, causing "snapshot is stale" CI failures that pass locally.
+ */
+function readNormalized(file) {
+  return readFileSync(file, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
 const apiPolicy = JSON.parse(
-  readFileSync(path.join(architectureRoot, 'core-api-policy.json'), 'utf8'),
+  readNormalized(path.join(architectureRoot, 'core-api-policy.json'), 'utf8'),
 );
 
 const ownership = {
@@ -123,7 +135,7 @@ function sourceForExport(target) {
 }
 
 function exportDeclarations(source) {
-  const text = readFileSync(source, 'utf8');
+  const text = readNormalized(source, 'utf8');
   const declarations = [];
   const patterns = [
     /export\s+(?:type\s+)?\{[\s\S]*?\}\s+from\s+['"][^'"]+['"];?/g,
@@ -138,7 +150,7 @@ function exportDeclarations(source) {
 }
 
 function buildApiSnapshot() {
-  const manifest = JSON.parse(readFileSync(path.join(coreRoot, 'package.json'), 'utf8'));
+  const manifest = JSON.parse(readNormalized(path.join(coreRoot, 'package.json'), 'utf8'));
   const subpaths = [];
   for (const [subpath, target] of Object.entries(manifest.exports ?? {})) {
     const source = sourceForExport(target);
@@ -162,7 +174,7 @@ function buildApiSnapshot() {
       /\.(?:ts|tsx)$/.test(file),
     );
     const lines = files.reduce(
-      (total, file) => total + readFileSync(file, 'utf8').split('\n').length,
+      (total, file) => total + readNormalized(file, 'utf8').split('\n').length,
       0,
     );
     return {
@@ -204,7 +216,7 @@ function buildUsageSnapshot() {
   };
   for (const file of files) {
     if (file.startsWith(path.join(coreRoot, 'dist'))) continue;
-    const source = withoutComments(readFileSync(file, 'utf8'));
+    const source = withoutComments(readNormalized(file, 'utf8'));
     const staticPattern =
       /\b(import|export)\s+(type\s+)?([^;]*?)\s+from\s+['"](@wrongstack\/core(?:\/[^'"]*)?)['"]/gu;
     for (const match of source.matchAll(staticPattern)) {
@@ -257,7 +269,7 @@ function emit(name, value) {
     writeFileSync(target, serialized);
     return;
   }
-  if (!existsSync(target) || readFileSync(target, 'utf8') !== serialized) {
+  if (!existsSync(target) || readNormalized(target, 'utf8') !== serialized) {
     throw new Error(
       `${relative(target)} is stale; run node scripts/snapshot-core-public-api.mjs --write`,
     );

@@ -53,24 +53,31 @@ function sendRosterMessage(type: string, payload?: unknown): Promise<unknown> {
       return;
     }
     const _msgId = `roster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let settled = false;
+
     const handler = (event: MessageEvent) => {
+      if (settled) return;
       try {
         const data = JSON.parse(event.data as string);
         if (data.type === type || data.type === `agent-roster.${type.split('.').pop()}`) {
+          settled = true;
+          if (timer) clearTimeout(timer);
           ws.removeEventListener('message', handler);
           resolve(data.payload ?? data);
         }
       } catch { /* non-JSON message, skip */ }
     };
+
     // Timeout safety
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
       ws.removeEventListener('message', handler);
       reject(new Error(`Roster request "${type}" timed out`));
     }, 15_000);
-    ws.addEventListener('message', (event) => {
-      clearTimeout(timer);
-      handler(event);
-    });
+
+    ws.addEventListener('message', handler);
     ws.send(JSON.stringify({ type, payload }));
   });
 }

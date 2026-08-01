@@ -81,12 +81,13 @@ describe('MCP env masking round-trip (WS-036)', () => {
   it('accepts a genuine replacement — masking must not make a value unwritable', async () => {
     await seed({ GITHUB_TOKEN: STORED_SECRET });
 
-    await updateMcp(
-      { name: 'demo', env: { GITHUB_TOKEN: 'ghp_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' } } as never,
-      deps(),
-    );
+    // A value distinct from both the mask and the stored secret, so this truly
+    // exercises unmaskEnv's pass-through branch: a regression that restored or
+    // refused non-mask values would leave STORED_SECRET here and fail.
+    const replacement = `ghp_${'b'.repeat(36)}`;
+    await updateMcp({ name: 'demo', env: { GITHUB_TOKEN: replacement } } as never, deps());
 
-    expect((await storedEnv())?.['GITHUB_TOKEN']).toBe('ghp_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB');
+    expect((await storedEnv())?.['GITHUB_TOKEN']).toBe(replacement);
   });
 
   it('never persists the placeholder itself for an unknown key', async () => {

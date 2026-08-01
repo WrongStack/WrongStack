@@ -13,7 +13,7 @@
  * about what crosses the wire.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
-import { accessSync } from 'node:fs';
+import { accessSync, existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -47,6 +47,15 @@ function resolveServerEntry(): { cmd: string; args: string[] } {
 }
 
 const SERVER_LAUNCH = resolveServerEntry();
+
+// Tests 2 and 3 unconditionally `await import('../dist/index.js')` for the
+// real client class — that file only exists after a build. CI runs from source
+// with no build step, so the whole suite skips unless dist/ is present. The
+// daemon also imports `@wrongstack/core/*` whose exports resolve to
+// `core/dist/*`, so core's build must be present too.
+const sageDistIndex = join(sageTestDir, '..', 'dist', 'index.js');
+const coreDistIndex = join(sageTestDir, '..', '..', 'core', 'dist', 'index.js');
+const distReady = existsSync(DIST_ENTRY) && existsSync(sageDistIndex) && existsSync(coreDistIndex);
 
 let projectRoot: string;
 let endpoint: string;
@@ -197,7 +206,11 @@ describe('SAGE daemon auth gate', () => {
     }
   }, 40_000);
 
-  it('the real client authenticates by reading server.json, not the greeting', async () => {
+  // Tests 2 and 3 `await import('../dist/index.js')` for the real client class,
+  // which only exists after a build. The daemon itself has a tsx fallback (test 1
+  // runs from source), but the client class does not — so skip those two
+  // individually rather than gating the whole suite.
+  it.skipIf(!distReady)('the real client authenticates by reading server.json, not the greeting', async () => {
     // The dist build, because the client spawns `./project-server.js` relative
     // to its own module URL — from TypeScript source that file does not exist
     // and `isSageProjectServerAvailable()` is false.
@@ -227,7 +240,7 @@ describe('SAGE daemon auth gate', () => {
     }
   }, 40_000);
 
-  it('recovers when the first request lands before server.json exists (cold-spawn race)', async () => {
+  it.skipIf(!distReady)('recovers when the first request lands before server.json exists (cold-spawn race)', async () => {
     // Regression: the daemon accepts connections and sends `hello` the moment
     // it wins the endpoint, but writes `server.json` only after the async
     // `store.initialize()` resolves. A client whose first `request` arrives in

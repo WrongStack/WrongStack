@@ -8,6 +8,7 @@
  */
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { isSafePathSegment, resolveContainedPath } from '@wrongstack/core/utils';
 import type { SessionState } from './protocol-handler.js';
 
 /** A persisted conversation turn (user/agent message chunk) for replay. */
@@ -40,6 +41,34 @@ export class ACPSessionStore {
     this.dir = opts.dir ?? path.join(process.cwd(), '.acp-sessions');
   }
 
+  /**
+   * Path of `<sessionId>.json` inside the store, or `null` when `sessionId`
+   * is not usable as a single path segment (WS-015).
+   *
+   * The session id arrives from the ACP client — `session/load`,
+   * `session/close` and `session/delete` all take it verbatim from the wire.
+   * It was joined straight onto the store directory, so `../../..` escaped it,
+   * and the `.json` suffix was the only thing narrowing the blast radius:
+   *
+   *   - `load`   — read any `.json` on the machine, e.g. the provider config
+   *                holding API keys
+   *   - `delete` — unlink any `.json` on the machine
+   *   - `save`   — the worst one: a loaded session keeps the traversing id as
+   *                its `state.id`, so the next persist WRITES to that path
+   *
+   * All three now route through here, so the escape is closed once rather than
+   * three times.
+   */
+  private sessionFile(sessionId: string): string | null {
+    // Validate the RAW id, then build the filename. Checking only the joined
+    // `<id>.json` would let `.` and `..` through — they suffix into the legal
+    // filenames `..json` and `...json`, so they happen to stay inside the
+    // directory. Contained by accident is not a rule; the client controls the
+    // id, so the id is what must satisfy the segment contract.
+    if (!isSafePathSegment(sessionId)) return null;
+    return resolveContainedPath(this.dir, `${sessionId}.json`);
+  }
+
   /** Ensure the store directory exists. Memoized — only mkdirs once. */
   async init(): Promise<void> {
     if (this.initialized) return;
@@ -53,10 +82,16 @@ export class ACPSessionStore {
    * `session/load` replay.
    */
   async save(state: SessionState, history?: PersistedHistoryUpdate[]): Promise<string> {
+    // Throws rather than returning null: an unsafe id here means a caller
+    // built a session with an attacker-supplied id, and silently skipping the
+    // write would leave that session live but unpersisted.
+    const target = this.sessionFile(state.id);
+    if (target === null) {
+      throw new Error(`ACPSessionStore: refusing to persist unsafe session id "${state.id}"`);
+    }
     await this.init();
     // Atomic tmp+rename (same pattern as writeIndex): a crash mid-save must
     // not tear the session file — it carries replayable history.
-    const target = path.join(this.dir, `${state.id}.json`);
     const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
     await fsp.writeFile(
       tmp,
@@ -78,8 +113,10 @@ export class ACPSessionStore {
 
   /** Load a persisted session (metadata + history) from disk, or null. */
   async load(sessionId: string): Promise<PersistedSession | null> {
+    const target = this.sessionFile(sessionId);
+    if (target === null) return null;
     try {
-      const data = await fsp.readFile(path.join(this.dir, `${sessionId}.json`), 'utf8');
+      const data = await fsp.readFile(target, 'utf8');
       return JSON.parse(data) as PersistedSession;
     } catch {
       return null;
@@ -185,8 +222,10 @@ export class ACPSessionStore {
 
   /** Delete a session file. */
   async delete(sessionId: string): Promise<void> {
+    const target = this.sessionFile(sessionId);
+    if (target === null) return;
     try {
-      await fsp.unlink(path.join(this.dir, `${sessionId}.json`));
+      await fsp.unlink(target);
     } catch {
       // File may not exist — ignore
     }

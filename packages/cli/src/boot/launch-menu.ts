@@ -369,6 +369,7 @@ async function promptModeArrow(deps: RunLaunchMenuDeps): Promise<ArrowPickResult
     const settle = (result: ArrowPickResult, finalLine: string): void => {
       if (settled) return;
       settled = true;
+      stopCountdown();
       stopInput();
       // Collapse the menu block to a single line: jump to the block's
       // first row, wipe to end of screen, print the confirmation.

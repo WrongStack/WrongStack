@@ -208,6 +208,26 @@ describe('governance service protocol decoder', () => {
   });
 
   it('strictly decodes capability administration without accepting issuer injection', () => {
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-own-grant',
+        type: 'read_own_capability_grant',
+      }),
+    ).toMatchObject({ decoded: true, request: { type: 'read_own_capability_grant' } });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-other-grant',
+        type: 'read_own_capability_grant',
+        grantId: 'another-client-grant',
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'unknown_field', path: '$.grantId' }),
+      ]),
+    });
     const decoded = decodeGovernanceServiceRequest({
       protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
       requestId: 'request-issue-grant',
@@ -255,6 +275,53 @@ describe('governance service protocol decoder', () => {
       issues: expect.arrayContaining([
         expect.objectContaining({ code: 'invalid_value', path: '$.cursor' }),
         expect.objectContaining({ code: 'resource_limit', path: '$.limit' }),
+      ]),
+    });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-rotate-grant',
+        type: 'rotate_capability_grant',
+        grantId: 'grant-1',
+        ttlMs: 30_000,
+        reason: 'scheduled rotation',
+      }),
+    ).toMatchObject({
+      decoded: true,
+      request: {
+        type: 'rotate_capability_grant',
+        grantId: 'grant-1',
+        ttlMs: 30_000,
+        reason: 'scheduled rotation',
+      },
+    });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-forged-rotation',
+        type: 'rotate_capability_grant',
+        grantId: 'grant-1',
+        ttlMs: 30_000,
+        capabilities: ['capability_admin'],
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'unknown_field', path: '$.capabilities' }),
+      ]),
+    });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-invalid-rotation-ttl',
+        type: 'rotate_capability_grant',
+        grantId: 'grant-1',
+        ttlMs: -5_000,
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'invalid_value', path: '$.ttlMs' }),
       ]),
     });
   });

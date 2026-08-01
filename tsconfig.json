@@ -22,6 +22,7 @@
     { "path": "./packages/sage" },
     { "path": "./packages/bench" },
     { "path": "./packages/techstack" },
+    { "path": "./packages/governance" },
     { "path": "./website" }
   ]
 }

@@ -18,7 +18,9 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   decodePathSegment,
+  decodeSessionId,
   isSafePathSegment,
+  isSafeSessionId,
   readLocalSubagentTranscript,
 } from '../src/hq-server/utils.js';
 
@@ -62,6 +64,43 @@ describe('decodePathSegment (WS-019)', () => {
     expect(isSafePathSegment('ok')).toBe(true);
     expect(isSafePathSegment('..')).toBe(false);
     expect(isSafePathSegment('a\\b')).toBe(false);
+  });
+});
+
+describe('decodeSessionId (date-sharded session ids)', () => {
+  it('accepts a realistic date-sharded session id', () => {
+    // The exact shape `generateSessionId` produces and the disk-transcript
+    // tests register (`2026-07-10/sess_TESTDISK01`). The WebUI percent-encodes
+    // it with encodeURIComponent, so the `/` arrives as %2F and must survive.
+    expect(decodeSessionId('2026-07-10%2Fsess_TESTDISK01')).toBe('2026-07-10/sess_TESTDISK01');
+    expect(decodeSessionId('2026-06-11/sess_01JQ8Z0000000000000000')).toBe(
+      '2026-06-11/sess_01JQ8Z0000000000000000',
+    );
+  });
+
+  it('accepts legacy flat session ids (no shard separator)', () => {
+    // session-id.ts: older ids "remain readable" — they have no slash and must
+    // not be rejected now that the session position uses decodeSessionId.
+    expect(decodeSessionId('legacy-flat-id')).toBe('legacy-flat-id');
+  });
+
+  it('rejects traversal, deep nesting, and malformed shapes', () => {
+    expect(decodeSessionId('%2e%2e%2f%2e%2e%2fetc')).toBeNull();
+    expect(decodeSessionId('..%2fsess_x')).toBeNull();
+    expect(decodeSessionId('a%2Fb%2Fc')).toBeNull(); // three components
+    expect(decodeSessionId('a%5Cb')).toBeNull(); // backslash
+    expect(decodeSessionId('C%3Afoo')).toBeNull(); // drive-relative colon
+    expect(decodeSessionId('a%00b')).toBeNull(); // NUL
+    expect(decodeSessionId('')).toBeNull();
+    expect(decodeSessionId('%')).toBeNull(); // malformed encoding
+  });
+
+  it('isSafeSessionId allows one or two components only', () => {
+    expect(isSafeSessionId('2026-07-10/sess_X')).toBe(true);
+    expect(isSafeSessionId('flat')).toBe(true);
+    expect(isSafeSessionId('a/b/c')).toBe(false);
+    expect(isSafeSessionId('../x')).toBe(false);
+    expect(isSafeSessionId('a\\b')).toBe(false);
   });
 });
 

@@ -32,6 +32,7 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
     | { readonly type: 'read_receipt'; readonly commandId: string }
     | { readonly type: 'read_observations'; readonly taskId?: string | undefined }
     | { readonly type: 'read_audit_observations' }
+    | { readonly type: 'read_own_capability_grant' }
     | { readonly type: 'submit_command'; readonly command: GovernanceCommand }
     | { readonly type: 'record_observation'; readonly observation: GovernanceObservation }
     | {
@@ -48,6 +49,12 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
     | {
         readonly type: 'revoke_capability_grant';
         readonly grantId: string;
+        readonly reason?: string | undefined;
+      }
+    | {
+        readonly type: 'rotate_capability_grant';
+        readonly grantId: string;
+        readonly ttlMs: number;
         readonly reason?: string | undefined;
       }
   );

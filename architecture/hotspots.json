@@ -3,7 +3,7 @@
   "thresholdLines": 800,
   "files": {
     "packages/acp/src/agent/protocol-handler.ts": {
-      "lines": 933,
+      "lines": 1014,
       "relativeImports": 2
     },
     "packages/acp/src/client/acp-session.ts": {
@@ -440,6 +440,10 @@
       "relativeImports": 17
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": { "lines": 894, "relativeImports": 1 },
+    "packages/webui-server/src/server/context-editor.ts": {
+      "lines": 872,
+      "relativeImports": 1
+    },
     "apps/desktop/src/main/runtime-manager.ts": {
       "lines": 955,
       "relativeImports": 4

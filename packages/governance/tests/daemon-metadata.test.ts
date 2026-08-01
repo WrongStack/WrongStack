@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   acquireGovernanceDaemonStartupLease,
+  connectGovernanceProjectClient,
   createGovernanceDaemonMetadata,
   governanceDaemonMetadataPath,
   governanceDaemonStartupLeasePath,
@@ -73,12 +74,45 @@ describe('governance daemon metadata', () => {
     const result = await readGovernanceDaemonMetadata(root);
     expect(result.kind).toBe('invalid');
     expect(existsSync(governanceDaemonMetadataPath(root))).toBe(true);
+    await expect(
+      connectGovernanceProjectClient({
+        projectRoot: root,
+        projectId: 'project-one',
+        credential: {
+          token: 'wsg_invalid.0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+          projectId: 'project-one',
+          clientId: 'model-reader',
+        },
+      }),
+    ).resolves.toMatchObject({ connected: false, code: 'endpoint_invalid' });
   });
 
   it('classifies a missing owner and endpoint as stale', async () => {
     const inspection = await inspectGovernanceDaemon(projectRoot());
 
     expect(inspection).toEqual({ kind: 'stale', metadata: null, metadataState: 'missing' });
+  });
+
+  it('returns an explicit discovery result without starting a daemon or persisting credentials', async () => {
+    const root = projectRoot();
+    const credential = {
+      token: 'wsg_missing.0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+      projectId: 'project-one',
+      clientId: 'model-reader',
+    };
+
+    await expect(
+      connectGovernanceProjectClient({ projectRoot: root, projectId: 'project-one', credential }),
+    ).resolves.toMatchObject({ connected: false, code: 'not_running' });
+    expect(existsSync(governanceDaemonMetadataPath(root))).toBe(false);
+    expect(existsSync(path.join(root, '.wrongstack'))).toBe(false);
+    await expect(
+      connectGovernanceProjectClient({
+        projectRoot: root,
+        projectId: 'other-project',
+        credential,
+      }),
+    ).resolves.toMatchObject({ connected: false, code: 'credential_mismatch' });
   });
 });
 

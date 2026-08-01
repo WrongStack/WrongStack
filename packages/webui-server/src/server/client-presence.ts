@@ -49,6 +49,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let stopTelemetry: (() => void) | undefined;
   let hqConnection: WebuiHqConnection | undefined;
+  let closed = false;
 
   const register = async (): Promise<string | null> => {
     if (!deps.projectRoot) return null;
@@ -92,6 +93,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
       });
 
       clientId = `webui@${crypto.randomUUID().slice(0, 8)}`;
+      closed = false;
       await nextMailbox.registerClient({
         clientId,
         sessionId: deps.getSessionId(),
@@ -99,6 +101,11 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
         source: 'webui',
         pid: process.pid,
       });
+
+      if (closed) {
+        nextMailbox.deregisterClient(clientId!).catch(() => undefined);
+        return null;
+      }
 
       heartbeatTimer = setInterval(() => {
         nextMailbox
@@ -113,6 +120,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
   };
 
   const unregister = (): void => {
+    closed = true;
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = null;
     stopTelemetry?.();

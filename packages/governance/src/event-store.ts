@@ -56,6 +56,7 @@ export const GOVERNANCE_OBSERVATION_CATEGORIES = [
   'capability_grant_issued',
   'capability_grant_revoked',
   'capability_grant_expired',
+  'capability_grant_rotated',
 ] as const;
 
 export type GovernanceObservationCategory = (typeof GOVERNANCE_OBSERVATION_CATEGORIES)[number];

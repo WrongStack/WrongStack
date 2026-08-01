@@ -139,6 +139,7 @@ export class FleetStatusLine {
   private rows = 0;
   private repaintTimer: ReturnType<typeof setTimeout> | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private deactivateTimer: ReturnType<typeof setTimeout> | null = null;
   private resizeCleanup: (() => void) | null = null;
   private lastPaint = 0;
   private readonly onResize = () => {
@@ -219,7 +220,9 @@ export class FleetStatusLine {
         // When nothing is running anymore, retract the status line.
         if (![...this.states.values()].some((a) => a.status === 'running')) {
           // Small delay so the final ✓/✗ counts are visible briefly.
-          setTimeout(() => {
+          if (this.deactivateTimer) clearTimeout(this.deactivateTimer);
+          this.deactivateTimer = setTimeout(() => {
+            this.deactivateTimer = null;
             if (![...this.states.values()].some((a) => a.status === 'running')) {
               this.deactivate();
             }
@@ -270,6 +273,10 @@ export class FleetStatusLine {
     if (this.repaintTimer) {
       clearTimeout(this.repaintTimer);
       this.repaintTimer = null;
+    }
+    if (this.deactivateTimer) {
+      clearTimeout(this.deactivateTimer);
+      this.deactivateTimer = null;
     }
     this.resizeCleanup?.();
     this.resizeCleanup = null;

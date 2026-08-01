@@ -37,6 +37,16 @@
       "fingerprint": "2dcf51c9176eed57"
     },
     {
+      "file": "packages/core/tests/chronicle/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b6bed90afffce85b"
+    },
+    {
+      "file": "packages/core/tests/coordination/mailbox-project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "6bdd4173c55aff28"
+    },
+    {
       "file": "packages/core/tests/coordination/package-author-tracker.test.ts",
       "kind": "skipIf",
       "fingerprint": "6c1dfd9f1895e5c4"
@@ -60,6 +70,11 @@
       "file": "packages/core/tests/worktree/worktree-manager.test.ts",
       "kind": "skipIf",
       "fingerprint": "a869eae099367227"
+    },
+    {
+      "file": "packages/kanban/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "387f2407d416c0b9"
     },
     {
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
@@ -99,7 +114,12 @@
     {
       "file": "packages/sage/tests/project-server-auth-gate.test.ts",
       "kind": "skipIf",
-      "fingerprint": "bcb873c38071d15b"
+      "fingerprint": "112de03e9a9f6ec5"
+    },
+    {
+      "file": "packages/sage/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "155599ce2c8ad2df"
     },
     {
       "file": "packages/sdd/tests/sdd-interview-driver.test.ts",
@@ -185,6 +205,11 @@
       "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
       "kind": "skipIf",
       "fingerprint": "69d4b3efe347daa8"
+    },
+    {
+      "file": "packages/tools/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "2fd8a1e841259023"
     },
     {
       "file": "packages/tools/tests/project-server-idle.test.ts",

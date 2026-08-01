@@ -2,5 +2,26 @@
   "schemaVersion": 1,
   "project": "packages/kanban",
   "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {}
+  "diagnostics": {
+    "86721a02245a0e5c": 1,
+    "b022b1a93ae20b8f": 1,
+    "d76a24c75ff27d35": 1,
+    "0134c99baefe91df": 1,
+    "903a3184f25ea788": 1,
+    "da52b1592b0e12c8": 1,
+    "617dee0ec5953417": 1,
+    "7c8b9534dde150bb": 1,
+    "cbe799e0a5b002d4": 1,
+    "799c046f546c2aca": 1,
+    "cc18a9f9f672753d": 1,
+    "df2265654dd3ab8f": 1,
+    "90a49606b200b098": 1,
+    "74fe7ed2072ab878": 1,
+    "44b277a219725a33": 1,
+    "4fefd93e10ea1fe4": 1,
+    "8a0876845696c3f1": 6,
+    "12febec5328cb504": 1,
+    "3cdc1d180690d668": 1,
+    "6ff51e38d166a701": 1
+  }
 }

@@ -29,7 +29,7 @@ describe('mcp.list env redaction (WS-036)', () => {
 
   it('masks a credential hiding behind an innocuous key name', () => {
     // The key says nothing; the value is unmistakably a GitHub PAT.
-    const masked = viewEnv({ GH_PAT: 'ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' });
+    const masked = viewEnv({ GH_PAT: `ghp_${'a'.repeat(36)}` });
     expect(masked).toEqual({ GH_PAT: MCP_ENV_MASK });
   });
 

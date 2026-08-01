@@ -7,6 +7,8 @@ import {
   AuthenticatedGovernanceProjectService,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
   GovernanceCapabilityGrantRegistry,
+  type GovernanceGrantAuditEvent,
+  GovernanceManagementReceiptCache,
   GovernanceProjectService,
   SqliteGovernanceEventStore,
 } from '../src/index.js';
@@ -17,7 +19,7 @@ const SECRET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFG';
 function registryHarness(projectId = 'project-1') {
   let now = START_TIME;
   let sequence = 0;
-  const auditEvents: unknown[] = [];
+  const auditEvents: GovernanceGrantAuditEvent[] = [];
   const registry = new GovernanceCapabilityGrantRegistry(projectId, {
     now: () => now,
     maxTtlMs: 60_000,
@@ -163,6 +165,100 @@ describe('governance capability grant registry', () => {
         clientId: 'model-client',
       }),
     ).toMatchObject({ authenticated: true });
+  });
+
+  it('rotates an active grant atomically without changing its client or capabilities', () => {
+    const { registry, auditEvents } = registryHarness();
+    const issued = registry.issue({
+      clientId: 'model-client',
+      issuedBy: 'bootstrap-admin',
+      capabilities: ['task_read', 'command_submit'],
+      ttlMs: 10_000,
+    });
+
+    const rotated = registry.rotate(issued.grant.grantId, {
+      rotatedBy: 'bootstrap-admin',
+      ttlMs: 20_000,
+      reason: 'scheduled rotation',
+    });
+
+    expect(rotated.grant).toMatchObject({
+      grantId: 'grant-2',
+      clientId: 'model-client',
+      issuedBy: 'bootstrap-admin',
+      capabilities: ['task_read', 'command_submit'],
+      status: 'active',
+    });
+    expect(
+      registry.authenticate({
+        token: issued.token,
+        projectId: 'project-1',
+        clientId: 'model-client',
+      }),
+    ).toMatchObject({ authenticated: false, code: 'invalid_token' });
+    expect(
+      registry.authenticate({
+        token: rotated.token,
+        projectId: 'project-1',
+        clientId: 'model-client',
+      }),
+    ).toMatchObject({ authenticated: true, grant: { grantId: 'grant-2' } });
+    expect(registry.listGrants()).toHaveLength(1);
+    expect(auditEvents).toMatchObject([
+      { sequence: 1, type: 'grant_issued', grantId: 'grant-1' },
+      {
+        sequence: 2,
+        type: 'grant_rotated',
+        previousGrantId: 'grant-1',
+        grantId: 'grant-2',
+        rotatedBy: 'bootstrap-admin',
+        reason: 'scheduled rotation',
+      },
+      {
+        sequence: 3,
+        type: 'grant_revoked',
+        grantId: 'grant-1',
+        revokedBy: 'bootstrap-admin',
+        reason: 'scheduled rotation',
+      },
+    ]);
+    expect(JSON.stringify(auditEvents)).not.toContain(SECRET);
+  });
+
+  it('keeps the old grant active when the rotation audit cannot be persisted', () => {
+    let sequence = 0;
+    let rejectRotation = false;
+    const registry = new GovernanceCapabilityGrantRegistry('project-1', {
+      now: () => START_TIME,
+      tokenMaterial: () => {
+        sequence += 1;
+        return { grantId: `atomic-rotation-${sequence}`, secret: `${SECRET}${sequence}` };
+      },
+      auditSink: (event) => {
+        if (rejectRotation && event.type === 'grant_rotated') throw new Error('audit unavailable');
+      },
+    });
+    const issued = registry.issue({
+      clientId: 'model-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    });
+    rejectRotation = true;
+
+    expect(() =>
+      registry.rotate(issued.grant.grantId, {
+        rotatedBy: 'bootstrap-admin',
+        ttlMs: 10_000,
+      }),
+    ).toThrow('audit unavailable');
+    expect(
+      registry.authenticate({
+        token: issued.token,
+        projectId: 'project-1',
+        clientId: 'model-client',
+      }),
+    ).toMatchObject({ authenticated: true });
+    expect(registry.getGrant('atomic-rotation-2')).toBeNull();
   });
 
   it('authenticates into an immutable server-owned capability set', () => {
@@ -351,6 +447,211 @@ describe('governance capability grant registry', () => {
 });
 
 describe('authenticated governance project service', () => {
+  it('lets an authenticated client inspect only its own public grant metadata', () => {
+    const service = openService();
+    const { registry } = registryHarness();
+    registry.issue({
+      clientId: 'other-client',
+      capabilities: ['audit_read'],
+      ttlMs: 10_000,
+    });
+    const reader = registry.issue({
+      clientId: 'reader-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+
+    const response = authenticated.handleUnknown(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'read-own-grant',
+        type: 'read_own_capability_grant',
+      },
+      { token: reader.token, projectId: 'project-1', clientId: 'reader-client' },
+    );
+    expect(response).toMatchObject({
+      ok: true,
+      result: {
+        type: 'own_capability_grant',
+        grant: {
+          grantId: reader.grant.grantId,
+          clientId: 'reader-client',
+          capabilities: ['task_read'],
+        },
+      },
+    });
+    expect(JSON.stringify(response)).not.toContain(reader.token);
+    expect(JSON.stringify(response)).not.toContain('other-client');
+    authenticated.close();
+  });
+
+  it('replays one capability issue and rejects request id reuse with a different payload', () => {
+    const service = openService();
+    const { registry, auditEvents } = registryHarness();
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+    const credential = {
+      token: admin.token,
+      projectId: 'project-1',
+      clientId: 'admin-client',
+    };
+    const request = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'issue-once',
+      type: 'issue_capability_grant',
+      clientId: 'model-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    } as const;
+
+    const first = authenticated.handleUnknown(request, credential);
+    const retry = authenticated.handleUnknown(request, credential);
+    expect(retry).toEqual(first);
+    expect(registry.listGrants()).toHaveLength(2);
+    expect(auditEvents).toHaveLength(2);
+    expect(authenticated.handleUnknown({ ...request, ttlMs: 9_000 }, credential)).toMatchObject({
+      ok: false,
+      error: { code: 'invalid_request' },
+    });
+    expect(registry.listGrants()).toHaveLength(2);
+    authenticated.close();
+  });
+
+  it('replays a self-rotation response to only the exact old request and credential', () => {
+    const service = openService();
+    const { registry, auditEvents } = registryHarness();
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin', 'audit_read'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+    const oldCredential = {
+      token: admin.token,
+      projectId: 'project-1',
+      clientId: 'admin-client',
+    };
+    const request = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'rotate-self',
+      type: 'rotate_capability_grant',
+      grantId: admin.grant.grantId,
+      ttlMs: 10_000,
+    } as const;
+
+    const first = authenticated.handleUnknown(request, oldCredential);
+    expect(authenticated.handleUnknown(request, oldCredential)).toEqual(first);
+    expect(authenticated.handleUnknown({ ...request, ttlMs: 9_000 }, oldCredential)).toMatchObject({
+      ok: false,
+      error: { code: 'authentication_failed' },
+    });
+    expect(auditEvents.filter((event) => event.type === 'grant_rotated')).toHaveLength(1);
+    if (!first.ok || first.result.type !== 'capability_grant_rotated') {
+      throw new Error('Expected a self-rotation response.');
+    }
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'health-after-self-rotation',
+          type: 'health',
+        },
+        first.result.credential,
+      ),
+    ).toMatchObject({ ok: true, result: { status: 'ready' } });
+    authenticated.close();
+  });
+
+  it('rejects before mutation when bounded retry receipt capacity is occupied', () => {
+    const service = openService();
+    const { registry } = registryHarness();
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const receipts = new GovernanceManagementReceiptCache({ maxEntries: 1 });
+    const credential = {
+      token: admin.token,
+      projectId: 'project-1',
+      clientId: 'admin-client',
+    };
+    expect(
+      receipts.reserve({
+        input: { requestId: 'occupied', type: 'issue_capability_grant' },
+        credential,
+      }),
+    ).not.toBeNull();
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry, receipts);
+
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'blocked-issue',
+          type: 'issue_capability_grant',
+          clientId: 'model-client',
+          capabilities: ['task_read'],
+          ttlMs: 10_000,
+        },
+        credential,
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'store_failure' } });
+    expect(registry.listGrants()).toHaveLength(1);
+    authenticated.close();
+  });
+
+  it('returns a deterministic in-progress response for a concurrent duplicate management request', () => {
+    const service = openService();
+    const { registry } = registryHarness();
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const receipts = new GovernanceManagementReceiptCache();
+    const credential = {
+      token: admin.token,
+      projectId: 'project-1',
+      clientId: 'admin-client',
+    };
+    // Reserve the key out-of-band to simulate a concurrent in-flight request that
+    // has not yet committed a response.
+    expect(
+      receipts.reserve({
+        input: { requestId: 'in-flight', type: 'issue_capability_grant' },
+        credential,
+      }),
+    ).not.toBeNull();
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry, receipts);
+
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'in-flight',
+          type: 'issue_capability_grant',
+          clientId: 'model-client',
+          capabilities: ['task_read'],
+          ttlMs: 10_000,
+        },
+        credential,
+      ),
+    ).toMatchObject({
+      ok: false,
+      requestId: 'in-flight',
+      error: { code: 'request_in_progress' },
+    });
+    // The in-flight reservation must not have been overwritten, and no grant was issued.
+    expect(registry.listGrants()).toHaveLength(1);
+    authenticated.close();
+  });
+
   it('routes a valid model grant without exposing raw capability sets', () => {
     const service = openService();
     const { registry } = registryHarness();
@@ -425,6 +726,148 @@ describe('authenticated governance project service', () => {
       error: { code: 'authentication_failed' },
     });
     authenticated.close();
+  });
+
+  it('prevents one administrator from rotating another administrator grant', () => {
+    const service = openService();
+    const { registry } = registryHarness();
+    const first = registry.issue({
+      clientId: 'first-admin',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const second = registry.issue({
+      clientId: 'second-admin',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'rotate-other-admin',
+          type: 'rotate_capability_grant',
+          grantId: second.grant.grantId,
+          ttlMs: 10_000,
+        },
+        { token: first.token, projectId: 'project-1', clientId: 'first-admin' },
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    expect(
+      registry.authenticate({
+        token: second.token,
+        projectId: 'project-1',
+        clientId: 'second-admin',
+      }),
+    ).toMatchObject({ authenticated: true });
+    authenticated.close();
+  });
+
+  it('refuses to rotate a grant that has already been revoked', () => {
+    const { registry } = registryHarness();
+    const issued = registry.issue({
+      clientId: 'model-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    });
+    registry.revoke(issued.grant.grantId, 'revoked for testing');
+    expect(() =>
+      registry.rotate(issued.grant.grantId, {
+        rotatedBy: 'bootstrap-admin',
+        ttlMs: 10_000,
+      }),
+    ).toThrow('Only an active governance capability grant can be rotated.');
+  });
+
+  it('refuses to rotate an expired grant', () => {
+    const { registry, advance } = registryHarness();
+    const issued = registry.issue({
+      clientId: 'model-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    });
+    advance(10_001);
+    expect(() =>
+      registry.rotate(issued.grant.grantId, {
+        rotatedBy: 'bootstrap-admin',
+        ttlMs: 10_000,
+      }),
+    ).toThrow('Only an active governance capability grant can be rotated.');
+  });
+
+  it('refuses to rotate with invalid or excessive ttlMs', () => {
+    const { registry } = registryHarness();
+    const issued = registry.issue({
+      clientId: 'model-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    });
+    expect(() =>
+      registry.rotate(issued.grant.grantId, {
+        rotatedBy: 'bootstrap-admin',
+        ttlMs: 0,
+      }),
+    ).toThrow('ttlMs must be a positive safe integer.');
+    expect(() =>
+      registry.rotate(issued.grant.grantId, {
+        rotatedBy: 'bootstrap-admin',
+        ttlMs: 120_000,
+      }),
+    ).toThrow(/ttlMs exceeds the configured maximum/);
+  });
+
+  it('allows an admin to rotate non-admin client grant via facade and denies non-admin caller', () => {
+    const service = openService('project-1');
+    const registry = new GovernanceCapabilityGrantRegistry('project-1');
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const user = registry.issue({
+      clientId: 'user-client',
+      capabilities: ['task_read'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+
+    // Non-admin attempting to rotate -> denied
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'user-rotate-attempt',
+          type: 'rotate_capability_grant',
+          grantId: user.grant.grantId,
+          ttlMs: 10_000,
+        },
+        { token: user.token, projectId: 'project-1', clientId: 'user-client' },
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+
+    // Admin rotating non-admin grant -> allowed
+    const result = authenticated.handleUnknown(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'admin-rotate-user',
+        type: 'rotate_capability_grant',
+        grantId: user.grant.grantId,
+        ttlMs: 10_000,
+      },
+      { token: admin.token, projectId: 'project-1', clientId: 'admin-client' },
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      result: {
+        type: 'capability_grant_rotated',
+        previousGrantId: user.grant.grantId,
+        grant: { clientId: 'user-client', capabilities: ['task_read'] },
+      },
+    });
+
+    service.close();
   });
 
   it('refuses a service and registry bound to different projects', () => {

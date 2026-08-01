@@ -573,6 +573,7 @@ export function decodeGovernanceServiceRequest(
       if (record.taskId !== undefined) stringValue(record.taskId, '$.taskId', issues);
       break;
     case 'read_audit_observations':
+    case 'read_own_capability_grant':
       exactKeys(record, ['protocolVersion', 'requestId', 'type'], '$', issues);
       break;
     case 'submit_command':
@@ -615,6 +616,20 @@ export function decodeGovernanceServiceRequest(
       if (typeof record.grantId === 'string' && !/^[A-Za-z0-9_-]{1,128}$/.test(record.grantId)) {
         issue(issues, 'invalid_value', '$.grantId', '$.grantId must be a token-safe identifier.');
       }
+      if (record.reason !== undefined) boundedString(record.reason, '$.reason', issues, 512);
+      break;
+    case 'rotate_capability_grant':
+      exactKeys(
+        record,
+        ['protocolVersion', 'requestId', 'type', 'grantId', 'ttlMs', 'reason'],
+        '$',
+        issues,
+      );
+      boundedString(record.grantId, '$.grantId', issues, 128);
+      if (typeof record.grantId === 'string' && !/^[A-Za-z0-9_-]{1,128}$/.test(record.grantId)) {
+        issue(issues, 'invalid_value', '$.grantId', '$.grantId must be a token-safe identifier.');
+      }
+      integerValue(record.ttlMs, '$.ttlMs', issues, 1);
       if (record.reason !== undefined) boundedString(record.reason, '$.reason', issues, 512);
       break;
     default:

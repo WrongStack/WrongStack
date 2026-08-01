@@ -9,6 +9,7 @@ import type { TranscriptRing } from '../types.js';
 import {
   agentRingKey,
   decodePathSegment,
+  decodeSessionId,
   readLocalSubagentTranscript,
   sanitizeApiError,
 } from '../utils.js';
@@ -62,7 +63,7 @@ export async function handleApiSessionEvents(
   const full = url.searchParams.get('full') === '1';
   const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
   const limit = Math.min(5000, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 200));
-  const sessionId = decodePathSegment(match[1]!);
+  const sessionId = decodeSessionId(match[1]!);
   if (sessionId === null) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'invalid sessionId encoding' }));
@@ -142,7 +143,7 @@ export async function handleApiSessionAgentMessages(
   agentMessages: Map<string, HqTranscriptEntry[]>,
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  const sid = decodePathSegment(match[1]!);
+  const sid = decodeSessionId(match[1]!);
   const aid = decodePathSegment(match[2]!);
   if (sid === null || aid === null) {
     res.writeHead(400, { 'Content-Type': 'application/json' });

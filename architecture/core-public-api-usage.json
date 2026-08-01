@@ -41,7 +41,7 @@
     "@wrongstack/core/design": {
       "files": 8,
       "typeOnly": 1,
-      "runtimeOrMixed": 8
+      "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
       "files": 48,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/hq": {
-      "files": 95,
+      "files": 97,
       "typeOnly": 68,
-      "runtimeOrMixed": 50
+      "runtimeOrMixed": 52
     },
     "@wrongstack/core/hq/protocol": {
       "files": 2,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 101,
+      "files": 107,
       "typeOnly": 19,
-      "runtimeOrMixed": 84
+      "runtimeOrMixed": 90
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -145,7 +145,7 @@
     },
     "@wrongstack/core/types": {
       "files": 822,
-      "typeOnly": 789,
+      "typeOnly": 788,
       "runtimeOrMixed": 205
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 455,
+      "files": 456,
       "typeOnly": 51,
-      "runtimeOrMixed": 461
+      "runtimeOrMixed": 462
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -2695,7 +2695,7 @@
       "specifier": "@wrongstack/core/design",
       "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/design",
@@ -3383,6 +3383,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-query-token-scope.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-resume-gate.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3414,6 +3420,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-token-ttl-flag.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-token-verifier.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6197,6 +6209,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/hq-server/utils.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/mcp-serve.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6449,6 +6467,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/providers/src/error-parse.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/src/container.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6551,6 +6575,24 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/http-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/mcp-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/pref-helpers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6620,6 +6662,12 @@
       "file": "packages/webui-server/src/server/types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/ws-utils.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -11868,7 +11916,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/context-editor.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -12540,6 +12588,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "apps/desktop/src/main/runtime-manager.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/acp/src/agent/session-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

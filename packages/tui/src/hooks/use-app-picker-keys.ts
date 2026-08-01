@@ -135,7 +135,12 @@ export function useAppPickerKeys({
             });
             return;
           }
-          dispatch({ type: 'replaceHistory', entries: result.entries, nextId: result.nextId });
+          dispatch({
+            type: 'replaceHistory',
+            entries: result.entries,
+            nextId: result.nextId,
+            contextSnapshot: result.contextSnapshot,
+          });
           dispatch({ type: 'resumePickerClose' });
           dispatch({
             type: 'addEntry',
@@ -163,7 +168,12 @@ export function useAppPickerKeys({
               dispatch({ type: 'sessionsPanelBusy', on: false });
               return;
             }
-            dispatch({ type: 'replaceHistory', entries: result.entries, nextId: result.nextId });
+            dispatch({
+              type: 'replaceHistory',
+              entries: result.entries,
+              nextId: result.nextId,
+              contextSnapshot: result.contextSnapshot,
+            });
             dispatch({ type: 'toggleSessionsPanel' });
             dispatch({
               type: 'addEntry',

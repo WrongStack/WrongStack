@@ -42,6 +42,9 @@
  *  notification can stop the running turn mid-stream without tearing
  *  down the session. Multiple sessions can be active concurrently.
  */
+import { randomUUID } from 'node:crypto';
+import * as fsp from 'node:fs/promises';
+import * as path from 'node:path';
 import {
   ACP_PROTOCOL_VERSION,
   WRONGSTACK_VERSION,
@@ -390,7 +393,15 @@ export class ACPProtocolHandler {
       return false;
     }
     const p = (params ?? {}) as { cwd?: unknown; mcpServers?: unknown };
-    const cwd = typeof p.cwd === 'string' ? p.cwd : this.defaultCwd;
+    let cwd = this.defaultCwd;
+    if (typeof p.cwd === 'string') {
+      const resolved = await this.resolveSessionCwd(p.cwd);
+      if (resolved === null) {
+        await this.sendError(id, -32602, `cwd must be an absolute path to an existing directory`);
+        return false;
+      }
+      cwd = resolved;
+    }
     const sessionId = `sess_${this.allocId()}`;
     const now = new Date().toISOString();
     const state: SessionState = {
@@ -453,9 +464,22 @@ export class ACPProtocolHandler {
           await this.sendError(id, -32000, `active session limit reached (${this.maxSessions})`);
           return false;
         }
+        // The two candidate cwds have different trust: `loadCwd` is supplied
+        // by the client on THIS request and is treated like session/new — a
+        // bad value is an error, not something to quietly substitute.
+        // `persisted.cwd` is our own store file, so a value that no longer
+        // resolves means the workspace moved since it was written; falling
+        // back to the server's defaultCwd is right there, because failing the
+        // restore would strand the session instead.
+        if (loadCwd !== undefined && (await this.resolveSessionCwd(loadCwd)) === null) {
+          await this.sendError(id, -32602, `cwd must be an absolute path to an existing directory`);
+          return false;
+        }
+        const candidateCwd = persisted.cwd ?? loadCwd ?? this.defaultCwd;
+        const restoredCwd = (await this.resolveSessionCwd(candidateCwd)) ?? this.defaultCwd;
         const restored: SessionState = {
           id: sessionId,
-          cwd: persisted.cwd ?? loadCwd ?? this.defaultCwd,
+          cwd: restoredCwd,
           abort: new AbortController(),
           modeId: persisted.modeId ?? DEFAULT_MODE_ID,
           createdAt: persisted.createdAt ?? new Date().toISOString(),
@@ -613,11 +637,21 @@ export class ACPProtocolHandler {
       return false;
     }
 
+    let forkCwd = source.cwd;
+    if (typeof p.cwd === 'string') {
+      const resolved = await this.resolveSessionCwd(p.cwd);
+      if (resolved === null) {
+        await this.sendError(id, -32602, `cwd must be an absolute path to an existing directory`);
+        return false;
+      }
+      forkCwd = resolved;
+    }
+
     const now = new Date().toISOString();
     const sessionId = `sess_${this.allocId()}`;
     const forked: SessionState = {
       id: sessionId,
-      cwd: typeof p.cwd === 'string' ? p.cwd : source.cwd,
+      cwd: forkCwd,
       abort: new AbortController(),
       modeId: source.modeId,
       createdAt: now,
@@ -903,8 +937,55 @@ export class ACPProtocolHandler {
     await this.transport.send(toWire({ jsonrpc: '2.0', id, error }));
   }
 
-  private allocId(): number {
-    return this.nextId++;
+  /**
+   * Allocate a session id (WS-015).
+   *
+   * This was `this.nextId++`, so ids were `sess_1`, `sess_2`, … — and the
+   * handler has no per-connection ownership: any caller that names a session
+   * id can `session/load`, `session/prompt`, `session/cancel` or
+   * `session/delete` it. Over stdio that is academic (one client per process),
+   * but the agent also serves over HTTP, where a guessable id is the whole
+   * authorization story for any local process or page that reaches the port.
+   *
+   * Random ids do not create ownership — they remove the trivial enumeration
+   * that made its absence exploitable. Real per-connection ownership is the
+   * larger fix and is noted in the WS-015 test file.
+   *
+   * The counter is retained: it keeps ids ordered for debugging and guarantees
+   * uniqueness within a process even in the (impossible) event of a UUID
+   * collision. The random half is what makes the id unguessable.
+   */
+  /**
+   * Resolve a client-supplied `cwd` for a session, or `null` when it is not
+   * usable (WS-015).
+   *
+   * `session/new`, `session/load` and `session/fork` all took `params.cwd`
+   * with a single `typeof === 'string'` check and nothing else. That value is
+   * the working directory the agent then reads, writes and executes in.
+   *
+   * SCOPE, deliberately stated: this does NOT confine the session to a root.
+   * In ACP the client IS the editor and legitimately names its own workspace —
+   * Zed and JetBrains pass the project root — so a fixed boundary here would
+   * break the integration this package exists for. What it enforces is that
+   * the directory is absolute and actually exists as a directory: a relative
+   * or missing `cwd` is a bug or an attack under either reading, and silently
+   * running the agent somewhere other than where the client asked is worse
+   * than refusing. Confinement, if wanted, belongs in an operator-set option
+   * on top of this, not in place of it.
+   */
+  private async resolveSessionCwd(requested: string): Promise<string | null> {
+    if (!path.isAbsolute(requested)) return null;
+    const resolved = path.resolve(requested);
+    try {
+      const stat = await fsp.stat(resolved);
+      return stat.isDirectory() ? resolved : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private allocId(): string {
+    return `${this.nextId++}_${randomUUID().replaceAll('-', '')}`;
   }
 }
 

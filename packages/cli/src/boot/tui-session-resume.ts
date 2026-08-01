@@ -30,6 +30,12 @@ export interface SessionResumeResult {
   entries: unknown[];
   nextId: number;
   sessionId: string;
+  contextSnapshot?:
+    | {
+        tokens: { input: number; cacheRead: number; cacheWrite: number };
+        maxContext: number;
+      }
+    | undefined;
 }
 
 /**
@@ -260,10 +266,24 @@ export async function resumeSession(
     tokenCounter.reset();
     tokenCounter.account(resumed.data.usage, targetModel, targetProviderId);
 
+    // Build the context-window snapshot the TUI uses to refresh its
+    // statusline chip and `/context` panel immediately after `/resume`,
+    // instead of staying at zero until the next ctx.pct event lands.
+    // `tokens` is the provider-reported per-request usage; `maxContext`
+    // is the resumed session's provider ceiling. Both fields are
+    // optional on the TUI side, so a missing future provider (no
+    // capabilities.maxContext) degrades to a 0/anything chip — same as
+    // today's behavior — instead of throwing.
+    const tokens = tokenCounter.currentRequestTokens();
+    const maxContext =
+      (agent.ctx.provider as { capabilities?: { maxContext?: number } } | undefined)?.capabilities
+        ?.maxContext ?? 0;
+
     return {
       entries,
       nextId: entries.length + 1,
       sessionId: resumed.writer.id,
+      contextSnapshot: { tokens, maxContext },
     };
   } catch (err) {
     if (identityClaimed && !writerSwapped && previousSessionId) {

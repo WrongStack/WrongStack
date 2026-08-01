@@ -6,10 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { launchGovernanceProjectDaemonWithRuntime } from '../src/daemon-launcher.js';
 import {
+  connectGovernanceAdminSessionFromLaunch,
+  connectGovernanceProjectClient,
   decodeGovernanceDaemonBootstrapMessage,
   decodeGovernanceDaemonBootstrapRequest,
   GOVERNANCE_DAEMON_BOOTSTRAP_PROTOCOL_VERSION,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+  GovernanceCredentialLeaseController,
   GovernanceProjectClient,
   type GovernanceServiceCapability,
   governanceDaemonEnvironment,
@@ -150,6 +153,23 @@ describe('governance project daemon bootstrap', () => {
     const launched = await launch(root, 'audit-client', ['task_read', 'audit_read']);
     const client = new GovernanceProjectClient(root, launched.credential);
 
+    const discovered = await connectGovernanceProjectClient({
+      projectRoot: root,
+      projectId: 'daemon-project',
+      credential: launched.credential,
+    });
+    expect(discovered).toMatchObject({
+      connected: true,
+      metadata: { pid: launched.pid, instanceId: launched.instanceId },
+    });
+    await expect(
+      connectGovernanceProjectClient({
+        projectRoot: root,
+        projectId: 'daemon-project',
+        credential: { ...launched.credential, token: `${launched.credential.token}tampered` },
+      }),
+    ).resolves.toMatchObject({ connected: false, code: 'authentication_failed' });
+
     await expect(readGovernanceDaemonMetadata(root)).resolves.toMatchObject({
       kind: 'valid',
       metadata: {
@@ -270,6 +290,15 @@ describe('governance project daemon bootstrap', () => {
       }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
     await expect(
+      model.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'model-rotate-grant',
+        type: 'rotate_capability_grant',
+        grantId: issued.result.grant.grantId,
+        ttlMs: 30_000,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    await expect(
       admin.request({
         protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
         requestId: 'delegate-admin',
@@ -313,19 +342,49 @@ describe('governance project daemon bootstrap', () => {
     if (secondPage.ok && secondPage.result.type === 'capability_grants') {
       expect(secondPage.result.nextCursor).toBeUndefined();
     }
+    const rotationRequest = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'rotate-model-reader',
+      type: 'rotate_capability_grant',
+      grantId: issued.result.grant.grantId,
+      ttlMs: 30_000,
+      reason: 'scheduled rotation',
+    } as const;
+    const rotated = await admin.request(rotationRequest);
+    expect(rotated).toMatchObject({
+      ok: true,
+      result: {
+        type: 'capability_grant_rotated',
+        previousGrantId: issued.result.grant.grantId,
+        grant: { clientId: 'model-reader', capabilities: ['task_read'] },
+        credential: { projectId: 'daemon-project', clientId: 'model-reader' },
+      },
+    });
+    if (!rotated.ok || rotated.result.type !== 'capability_grant_rotated') {
+      throw new Error('Expected a rotated capability grant response.');
+    }
+    await expect(admin.request(rotationRequest)).resolves.toEqual(rotated);
+    await expect(model.request(request('health', 'old-credential-health'))).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'authentication_failed' },
+    });
+    const rotatedModel = new GovernanceProjectClient(root, rotated.result.credential);
+    await expect(
+      rotatedModel.request(request('health', 'rotated-credential-health')),
+    ).resolves.toMatchObject({ ok: true, result: { status: 'ready' } });
     await expect(
       admin.request({
         protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
         requestId: 'revoke-model-reader',
         type: 'revoke_capability_grant',
-        grantId: issued.result.grant.grantId,
+        grantId: rotated.result.grant.grantId,
         reason: 'model session ended',
       }),
     ).resolves.toMatchObject({
       ok: true,
       result: { type: 'capability_grant_revoked', revoked: true },
     });
-    await expect(model.request(request('health', 'revoked-health'))).resolves.toMatchObject({
+    await expect(rotatedModel.request(request('health', 'revoked-health'))).resolves.toMatchObject({
       ok: false,
       error: { code: 'authentication_failed' },
     });
@@ -342,6 +401,14 @@ describe('governance project daemon bootstrap', () => {
             }),
           }),
           expect.objectContaining({
+            category: 'capability_grant_rotated',
+            payload: expect.objectContaining({
+              previousGrantId: issued.result.grant.grantId,
+              grantId: rotated.result.grant.grantId,
+              rotatedBy: 'bootstrap-admin',
+            }),
+          }),
+          expect.objectContaining({
             category: 'capability_grant_revoked',
             payload: expect.objectContaining({
               reason: 'model session ended',
@@ -351,6 +418,142 @@ describe('governance project daemon bootstrap', () => {
         ]),
       },
     });
+    if (audit.ok && audit.result.type === 'observations') {
+      expect(
+        audit.result.observations.filter(
+          (observation) => observation.category === 'capability_grant_rotated',
+        ),
+      ).toHaveLength(1);
+    }
     expect(JSON.stringify(audit)).not.toContain(issued.result.credential.token);
+    expect(JSON.stringify(audit)).not.toContain(rotated.result.credential.token);
+  });
+
+  it('self-rotates an opt-in admin lease and continues through the replacement client', async () => {
+    const root = projectRoot();
+    const launched = await launch(root, 'lease-admin', ['capability_admin', 'audit_read']);
+    const oldClient = new GovernanceProjectClient(root, launched.credential);
+    let dropFirstRotationResponse = true;
+    const controller = new GovernanceCredentialLeaseController({
+      projectRoot: root,
+      projectId: 'daemon-project',
+      grantId: launched.grantId,
+      expiresAt: launched.expiresAt,
+      credential: launched.credential,
+      rotationTtlMs: 30_000,
+      renewBeforeMs: 5_000,
+      retryDelayMs: 100,
+      maxAttempts: 3,
+      clientFactory: (credential) => {
+        const client = new GovernanceProjectClient(root, credential);
+        return {
+          async request(input) {
+            const response = await client.request(input);
+            const type =
+              input && typeof input === 'object' && 'type' in input ? input.type : undefined;
+            if (type === 'rotate_capability_grant' && dropFirstRotationResponse) {
+              dropFirstRotationResponse = false;
+              throw new Error('simulated response loss');
+            }
+            return response;
+          },
+        };
+      },
+    });
+
+    await expect(controller.rotateNow()).resolves.toMatchObject({
+      state: 'retry_wait',
+      rotationAttempt: 1,
+      lastFailure: 'simulated response loss',
+    });
+    const rotated = await controller.rotateNow();
+    expect(rotated).toMatchObject({ state: 'scheduled', rotationAttempt: 0 });
+    expect(rotated.grantId).not.toBe(launched.grantId);
+    await expect(oldClient.request(request('health', 'old-lease-health'))).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'authentication_failed' },
+    });
+    await expect(
+      controller.request(request('health', 'rotated-lease-health')),
+    ).resolves.toMatchObject({ ok: true, result: { status: 'ready' } });
+    const audit = await controller.request(request('read_audit_observations', 'lease-audit'));
+    expect(audit).toMatchObject({
+      ok: true,
+      result: {
+        observations: expect.arrayContaining([
+          expect.objectContaining({
+            category: 'capability_grant_rotated',
+            payload: expect.objectContaining({
+              previousGrantId: launched.grantId,
+              grantId: rotated.grantId,
+              rotatedBy: 'lease-admin',
+            }),
+          }),
+        ]),
+      },
+    });
+    if (audit.ok && audit.result.type === 'observations') {
+      expect(
+        audit.result.observations.filter(
+          (observation) => observation.category === 'capability_grant_rotated',
+        ),
+      ).toHaveLength(1);
+    }
+    expect(JSON.stringify(controller.snapshot())).not.toContain(launched.credential.token);
+    controller.stop();
+  });
+
+  it('builds an opt-in verified admin session from a matching launcher result', async () => {
+    const root = projectRoot();
+    const launched = await launch(root, 'session-admin', ['capability_admin', 'audit_read']);
+    const connected = await connectGovernanceAdminSessionFromLaunch(launched, {
+      startLease: false,
+      rotationTtlMs: 30_000,
+      renewBeforeMs: 5_000,
+      retryDelayMs: 100,
+      maxAttempts: 3,
+    });
+    expect(connected).toMatchObject({
+      connected: true,
+      session: expect.any(Object),
+    });
+    if (!connected.connected) throw new Error('Expected a verified governance admin session.');
+    expect(connected.session.snapshot()).toMatchObject({
+      mode: 'launched',
+      daemon: {
+        pid: launched.pid,
+        instanceId: launched.instanceId,
+        projectId: 'daemon-project',
+      },
+      lease: {
+        state: 'idle',
+        grantId: launched.grantId,
+        clientId: 'session-admin',
+      },
+    });
+    expect(JSON.stringify(connected.session.snapshot())).not.toContain(launched.credential.token);
+    await expect(
+      connected.session.request(request('health', 'session-health')),
+    ).resolves.toMatchObject({ ok: true, result: { status: 'ready' } });
+    const rotated = await connected.session.rotateNow();
+    expect(rotated.grantId).not.toBe(launched.grantId);
+    await expect(
+      connected.session.request(request('health', 'session-health-after-rotation')),
+    ).resolves.toMatchObject({ ok: true, result: { status: 'ready' } });
+    connected.session.stop();
+  });
+
+  it('rejects non-admin and mismatched launcher identities before creating an admin session', async () => {
+    const root = projectRoot();
+    const reader = await launch(root, 'session-reader', ['task_read']);
+    await expect(
+      connectGovernanceAdminSessionFromLaunch(reader, { startLease: false }),
+    ).resolves.toMatchObject({ connected: false, code: 'admin_required' });
+    await expect(
+      connectGovernanceAdminSessionFromLaunch(
+        { ...reader, instanceId: 'forged-instance' },
+        { startLease: false },
+      ),
+    ).resolves.toMatchObject({ connected: false, code: 'endpoint_invalid' });
   });
 });

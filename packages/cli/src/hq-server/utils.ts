@@ -148,6 +148,25 @@ export function decodePathSegment(value: string): string | null {
   return isSafePathSegment(decoded) ? decoded : null;
 }
 
+/**
+ * Percent-decode a session id that may contain a date-shard separator.
+ *
+ * Session ids are `YYYY-MM-DD/sess_<ULID>` (see `generateSessionId`), so a
+ * literal `/` is legitimate. This decoder allows that one shape while still
+ * blocking traversal (`..`, backslash, NUL, drive-relative forms). The
+ * resolved-path containment check in {@link readLocalSubagentTranscript}
+ * is the second lock.
+ */
+export function decodeSessionId(value: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+  return isSafeSessionId(decoded) ? decoded : null;
+}
+
 /** Longest id accepted in a path position. */
 const MAX_PATH_SEGMENT_LENGTH = 256;
 
@@ -166,6 +185,23 @@ export function isSafePathSegment(value: string): boolean {
   // A Windows drive-relative form (`C:foo`) is not a plain component.
   if (value.includes(':')) return false;
   return true;
+}
+
+/**
+ * Session IDs are `YYYY-MM-DD/sess_<ULID>` — one forward slash is the
+ * date-shard separator. Legacy flat ids (no slash) remain readable too
+ * (`generateSessionId` in core/storage/session-id.ts), so accept one OR two
+ * components while blocking everything that {@link isSafePathSegment} blocks:
+ * no backslash, NUL, or drive-relative colon; no `.`/`..`; no empty component;
+ * no deeper nesting (three or more components). The resolved-path containment
+ * check in `sessionScopedPath` (core/utils) is the second lock.
+ */
+export function isSafeSessionId(value: string): boolean {
+  if (value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH) return false;
+  if (value.includes('\\') || value.includes('\0') || value.includes(':')) return false;
+  const parts = value.split('/');
+  if (parts.length > 2) return false;
+  return parts.every((p) => p.length > 0 && p !== '.' && p !== '..');
 }
 
 /** Normalize display host — "0.0.0.0" prints as "127.0.0.1" for user-facing URLs. */

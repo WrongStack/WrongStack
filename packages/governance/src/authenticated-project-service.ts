@@ -2,6 +2,7 @@ import type {
   GovernanceCapabilityGrantRegistry,
   GovernanceServiceCredential,
 } from './capability-grant.js';
+import { GovernanceManagementReceiptCache } from './management-receipt-cache.js';
 import type { GovernanceProjectService, GovernanceServiceResponse } from './project-service.js';
 import { decodeGovernanceServiceRequest } from './protocol-decoder.js';
 
@@ -12,6 +13,17 @@ function requestIdFromUnknown(input: unknown): string {
     typeof input.requestId === 'string'
     ? input.requestId
     : 'unknown';
+}
+
+function isManagementRequestType(input: unknown): boolean {
+  if (!input || typeof input !== 'object') return false;
+  const type = (input as { type?: unknown }).type;
+  return (
+    type === 'issue_capability_grant' ||
+    type === 'list_capability_grants' ||
+    type === 'revoke_capability_grant' ||
+    type === 'rotate_capability_grant'
+  );
 }
 
 function permissionDenied(requestId: string, message: string): GovernanceServiceResponse {
@@ -26,6 +38,39 @@ function invalidManagementRequest(requestId: string): GovernanceServiceResponse 
   };
 }
 
+function receiptConflict(requestId: string): GovernanceServiceResponse {
+  return {
+    ok: false,
+    requestId,
+    error: {
+      code: 'invalid_request',
+      message: 'Management requestId was already used with a different payload.',
+    },
+  };
+}
+
+function receiptInProgress(requestId: string): GovernanceServiceResponse {
+  return {
+    ok: false,
+    requestId,
+    error: {
+      code: 'request_in_progress',
+      message: 'Management request is already being processed; retry after it completes.',
+    },
+  };
+}
+
+function receiptCapacityExceeded(requestId: string): GovernanceServiceResponse {
+  return {
+    ok: false,
+    requestId,
+    error: {
+      code: 'store_failure',
+      message: 'Management retry receipt capacity is temporarily unavailable.',
+    },
+  };
+}
+
 /** External facade for a future IPC transport. Raw capability sets never cross this boundary. */
 export class AuthenticatedGovernanceProjectService {
   readonly projectId: string;
@@ -33,6 +78,7 @@ export class AuthenticatedGovernanceProjectService {
   constructor(
     private readonly service: GovernanceProjectService,
     private readonly grants: GovernanceCapabilityGrantRegistry,
+    private readonly receipts: GovernanceManagementReceiptCache = new GovernanceManagementReceiptCache(),
   ) {
     if (service.projectId !== grants.projectId) {
       throw new Error('Governance service and capability registry projects must match.');
@@ -44,8 +90,17 @@ export class AuthenticatedGovernanceProjectService {
     input: unknown,
     credential: GovernanceServiceCredential,
   ): GovernanceServiceResponse {
+    // Receipts only protect the four management request types. A recycled requestId
+    // across a non-management request type must not be masked by a stored receipt
+    // that belongs to a different (management) request.
+    const receiptScoped = isManagementRequestType(input)
+      ? this.receipts.lookup(input, credential)
+      : { kind: 'miss' as const };
     const authentication = this.grants.authenticate(credential);
     if (!authentication.authenticated) {
+      if (receiptScoped.kind === 'replay' && receiptScoped.allowAfterRotation) {
+        return receiptScoped.response;
+      }
       return {
         ok: false,
         requestId: requestIdFromUnknown(input),
@@ -55,15 +110,27 @@ export class AuthenticatedGovernanceProjectService {
         },
       };
     }
+    if (receiptScoped.kind === 'replay') return receiptScoped.response;
+    if (receiptScoped.kind === 'in_progress') return receiptInProgress(requestIdFromUnknown(input));
+    if (receiptScoped.kind === 'conflict') return receiptConflict(requestIdFromUnknown(input));
     const decoded = decodeGovernanceServiceRequest(input);
     if (!decoded.decoded) return this.service.handleUnknown(input, authentication.client);
     const request = decoded.request;
     if (
       request.type !== 'issue_capability_grant' &&
+      request.type !== 'read_own_capability_grant' &&
       request.type !== 'list_capability_grants' &&
-      request.type !== 'revoke_capability_grant'
+      request.type !== 'revoke_capability_grant' &&
+      request.type !== 'rotate_capability_grant'
     ) {
       return this.service.handle(request, authentication.client);
+    }
+    if (request.type === 'read_own_capability_grant') {
+      return {
+        ok: true,
+        requestId: request.requestId,
+        result: { type: 'own_capability_grant', grant: authentication.grant },
+      };
     }
     if (!authentication.client.capabilities.has('capability_admin')) {
       return permissionDenied(
@@ -78,6 +145,8 @@ export class AuthenticatedGovernanceProjectService {
           'capability_admin cannot be delegated through the service protocol.',
         );
       }
+      const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
+      if (!reservation) return receiptCapacityExceeded(request.requestId);
       try {
         const issued = this.grants.issue({
           clientId: request.clientId,
@@ -85,7 +154,7 @@ export class AuthenticatedGovernanceProjectService {
           capabilities: request.capabilities,
           ttlMs: request.ttlMs,
         });
-        return {
+        const response: GovernanceServiceResponse = {
           ok: true,
           requestId: request.requestId,
           result: {
@@ -98,7 +167,10 @@ export class AuthenticatedGovernanceProjectService {
             },
           },
         };
+        this.receipts.commit(reservation, response);
+        return response;
       } catch {
+        this.receipts.release(reservation);
         return invalidManagementRequest(request.requestId);
       }
     }
@@ -125,22 +197,78 @@ export class AuthenticatedGovernanceProjectService {
         },
       };
     }
-    return {
+    if (request.type === 'rotate_capability_grant') {
+      const target = this.grants.getGrant(request.grantId);
+      if (
+        target?.capabilities.includes('capability_admin') &&
+        authentication.grant.grantId !== target.grantId
+      ) {
+        return permissionDenied(
+          request.requestId,
+          'An administrator can rotate only its own capability_admin grant.',
+        );
+      }
+      const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
+      if (!reservation) return receiptCapacityExceeded(request.requestId);
+      try {
+        const rotatesCurrentGrant = authentication.grant.grantId === request.grantId;
+        const rotated = this.grants.rotate(request.grantId, {
+          rotatedBy: authentication.client.clientId,
+          ttlMs: request.ttlMs,
+          ...(request.reason ? { reason: request.reason } : {}),
+        });
+        const response: GovernanceServiceResponse = {
+          ok: true,
+          requestId: request.requestId,
+          result: {
+            type: 'capability_grant_rotated',
+            previousGrantId: request.grantId,
+            grant: rotated.grant,
+            credential: {
+              token: rotated.token,
+              projectId: this.projectId,
+              clientId: rotated.grant.clientId,
+            },
+          },
+        };
+        this.receipts.commit(reservation, response, rotatesCurrentGrant);
+        return response;
+      } catch {
+        this.receipts.release(reservation);
+        return invalidManagementRequest(request.requestId);
+      }
+    }
+    const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
+    let revoked: boolean;
+    try {
+      revoked = this.grants.revoke(
+        request.grantId,
+        (request.reason ?? `revoked by ${authentication.client.clientId}`).slice(0, 512),
+        authentication.client.clientId,
+      );
+    } catch {
+      if (reservation) this.receipts.release(reservation);
+      return invalidManagementRequest(request.requestId);
+    }
+    const response: GovernanceServiceResponse = {
       ok: true,
       requestId: request.requestId,
       result: {
         type: 'capability_grant_revoked',
         grantId: request.grantId,
-        revoked: this.grants.revoke(
-          request.grantId,
-          request.reason ?? `revoked by ${authentication.client.clientId}`,
-          authentication.client.clientId,
-        ),
+        revoked,
       },
     };
+    // Revoke is the security-critical operation that must never be blocked by a
+    // saturated retry-receipt cache. If reservation failed, we still perform the
+    // revoke and skip caching its receipt.
+    if (reservation && revoked) this.receipts.commit(reservation, response);
+    else if (reservation) this.receipts.release(reservation);
+    return response;
   }
 
   close(): void {
+    this.receipts.clear();
     this.service.close();
   }
 }

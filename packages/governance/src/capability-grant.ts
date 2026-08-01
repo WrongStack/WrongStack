@@ -36,6 +36,12 @@ export interface IssueGovernanceCapabilityGrantOptions {
   readonly ttlMs: number;
 }
 
+export interface RotateGovernanceCapabilityGrantOptions {
+  readonly rotatedBy?: string | undefined;
+  readonly ttlMs: number;
+  readonly reason?: string | undefined;
+}
+
 export interface GovernanceServiceCredential {
   readonly token: string;
   readonly projectId: string;
@@ -90,6 +96,19 @@ export type GovernanceGrantAuditEvent =
       readonly projectId: string;
       readonly clientId: string;
       readonly occurredAt: string;
+      readonly reason: string;
+    }
+  | {
+      readonly sequence: number;
+      readonly type: 'grant_rotated';
+      readonly grantId: string;
+      readonly previousGrantId: string;
+      readonly projectId: string;
+      readonly clientId: string;
+      readonly rotatedBy: string;
+      readonly capabilities: readonly GovernanceServiceCapability[];
+      readonly occurredAt: string;
+      readonly expiresAt: string;
       readonly reason: string;
     };
 
@@ -273,6 +292,93 @@ export class GovernanceCapabilityGrantRegistry {
     });
     this.records.set(record.grantId, record);
     return Object.freeze({ token: `wsg_${record.grantId}.${material.secret}`, grant });
+  }
+
+  rotate(
+    grantId: string,
+    options: RotateGovernanceCapabilityGrantOptions,
+  ): IssuedGovernanceCapabilityGrant {
+    nonEmpty(grantId, 'grantId');
+    const current = this.records.get(grantId);
+    const rotatedBy = options.rotatedBy ?? 'trusted-server';
+    const reason = options.reason ?? 'credential rotated';
+    nonEmpty(rotatedBy, 'rotatedBy');
+    nonEmpty(reason, 'reason');
+    if (rotatedBy.length > 512) throw new Error('rotatedBy must contain at most 512 characters.');
+    if (reason.length > 512) throw new Error('reason must contain at most 512 characters.');
+    if (!Number.isSafeInteger(options.ttlMs) || options.ttlMs <= 0) {
+      throw new Error('ttlMs must be a positive safe integer.');
+    }
+    if (options.ttlMs > this.maxTtlMs) {
+      throw new Error(`ttlMs exceeds the configured maximum of ${this.maxTtlMs}.`);
+    }
+    const issuedAtMs = this.now();
+    if (!current || current.revokedAtMs !== undefined || current.expiresAtMs <= issuedAtMs) {
+      throw new Error('Only an active governance capability grant can be rotated.');
+    }
+
+    const material = this.tokenMaterial();
+    nonEmpty(material.grantId, 'grantId');
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(material.grantId)) {
+      throw new Error('grantId must be a token-safe identifier of at most 128 characters.');
+    }
+    if (material.secret.length < 32 || material.secret.length > 512) {
+      throw new Error('Grant secrets must contain between 32 and 512 characters.');
+    }
+    if (this.records.has(material.grantId)) {
+      throw new Error(`Grant id ${material.grantId} already exists.`);
+    }
+    const expiresAtMs = issuedAtMs + options.ttlMs;
+    if (
+      !Number.isSafeInteger(issuedAtMs) ||
+      issuedAtMs < 0 ||
+      !Number.isSafeInteger(expiresAtMs) ||
+      !Number.isFinite(new Date(expiresAtMs).getTime())
+    ) {
+      throw new Error('The grant clock returned an invalid value.');
+    }
+    const replacement: GrantRecord = {
+      grantId: material.grantId,
+      verifier: hashSecret(material.secret),
+      projectId: current.projectId,
+      clientId: current.clientId,
+      issuedBy: rotatedBy,
+      capabilities: current.capabilities,
+      issuedAtMs,
+      expiresAtMs,
+    };
+    const grant = this.describe(replacement, issuedAtMs);
+    // Emit grant_rotated before grant_revoked so that if the audit sink rejects
+    // the rotation event, no phantom revocation is persisted for a grant that
+    // stays active. A failed grant_revoked after a successful grant_rotated is
+    // recoverable (the old grant remains authenticating); the reverse is not.
+    this.appendAudit({
+      type: 'grant_rotated',
+      grantId: replacement.grantId,
+      previousGrantId: current.grantId,
+      projectId: current.projectId,
+      clientId: current.clientId,
+      rotatedBy,
+      capabilities: current.capabilities,
+      occurredAt: grant.issuedAt,
+      expiresAt: grant.expiresAt,
+      reason,
+    });
+    this.appendAudit({
+      type: 'grant_revoked',
+      grantId: current.grantId,
+      projectId: current.projectId,
+      clientId: current.clientId,
+      revokedBy: rotatedBy,
+      occurredAt: new Date(issuedAtMs).toISOString(),
+      reason,
+    });
+    current.revokedAtMs = issuedAtMs;
+    current.revokedBy = rotatedBy;
+    current.revocationReason = reason;
+    this.records.delete(current.grantId);
+    this.records.set(replacement.grantId, replacement);
+    return Object.freeze({ token: `wsg_${replacement.grantId}.${material.secret}`, grant });
   }
 
   authenticate(credential: GovernanceServiceCredential): GovernanceCapabilityAuthenticationResult {

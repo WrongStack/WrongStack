@@ -461,9 +461,10 @@ export async function runCodexOAuthLogin(
     }
   };
   const external = opts.signal;
+  const onExternalAbort = () => ac.abort();
   if (external) {
     if (external.aborted) ac.abort();
-    else external.addEventListener('abort', () => ac.abort(), { once: true });
+    else external.addEventListener('abort', onExternalAbort, { once: true });
   } else {
     process.on('SIGINT', onSig);
   }

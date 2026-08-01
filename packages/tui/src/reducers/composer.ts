@@ -547,11 +547,33 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       const maxBannerId = banners.length > 0 ? Math.max(...banners.map((b) => b.id)) : 0;
       const shifted = action.entries.map((e, i) => ({ ...e, id: maxBannerId + 1 + i }));
       const nextId = maxBannerId + 1 + shifted.length;
+      // Apply the host's context-window snapshot (if any) so the statusline
+      // chip and `/context` panel reflect the rebuilt context immediately,
+      // instead of staying at zero until the next ctx.pct event lands.
+      //
+      // Only set `state.leader.ctxTokens` when the loop hasn't already
+      // reported a number for the live session. The loop's value is
+      // authoritative per `context-fill.ts:20-22`; the snapshot is a
+      // provider-reported fallback. On a freshly-resumed session the loop
+      // has not yet fired, so the field is `undefined` and the snapshot
+      // fills the gap. Once the loop fires, it overwrites our value with
+      // its own.
+      const snap = action.contextSnapshot;
+      const leaderWithSnap =
+        snap && snap.tokens > 0 && state.leader.ctxTokens === undefined
+          ? {
+              ...state.leader,
+              ctxTokens: snap.tokens,
+              ctxMaxTokens: snap.maxContext > 0 ? snap.maxContext : state.leader.ctxMaxTokens,
+            }
+          : state.leader;
       return {
         ...state,
         entries: retainTuiHistory([...banners, ...shifted]),
         nextId,
         historyGen: state.historyGen + 1,
+        leader: leaderWithSnap,
+        contextChipVersion: state.contextChipVersion + 1,
       };
     }
     default:

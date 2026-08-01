@@ -445,6 +445,15 @@ export interface AppProps {
         entries: HistoryEntry[];
         nextId: number;
         sessionId: string;
+        /**
+         * Optional context-window snapshot computed from the resumed
+         * session's tokenCounter after accounting the persisted usage.
+         * When present, the reducer writes `tokens` to `state.leader.ctxTokens`,
+         * `maxContext` to `state.leader.ctxMaxTokens`, and bumps
+         * `state.contextChipVersion` so the chip refreshes immediately. When absent, the chip stays at its previous value
+         * until the next ctx.pct event lands.
+         */
+        contextSnapshot?: { tokens: number; maxContext: number } | undefined;
       } | null>)
     | undefined;
 

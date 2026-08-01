@@ -79,6 +79,8 @@ function grantObservationCategory(event: GovernanceGrantAuditEvent): GovernanceO
       return 'capability_grant_revoked';
     case 'grant_expired':
       return 'capability_grant_expired';
+    case 'grant_rotated':
+      return 'capability_grant_rotated';
   }
 }
 

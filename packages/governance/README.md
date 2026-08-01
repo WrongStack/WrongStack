@@ -76,6 +76,11 @@ not persist bearer tokens, client credentials, or capabilities. Metadata is a di
 ownership authority: endpoint binding remains authoritative, and the launcher verifies the on-disk instance
 identity before returning a bootstrap credential.
 
+`connectGovernanceProjectClient` is a non-starting discovery adapter for callers that already hold an
+ephemeral credential. It requires live metadata, matching project identity, and a successful authenticated
+health response before returning a client. Missing or contradictory state is returned as an explicit result;
+the helper neither launches a daemon nor reads or writes credential material.
+
 Daemon startup is serialized by an atomically created project-local lease. A lease held by a live PID is never
 removed, malformed lease data fails loud, and release removes only the exact record owned by that instance.
 After a failed endpoint probe, a dead or missing owner permits stale filesystem-socket cleanup only while the
@@ -84,14 +89,46 @@ fails with `endpoint_invalid` instead of guessing. An abrupt Windows process sto
 which the next launch treats as a dead liveness hint and replaces only after it has acquired the endpoint.
 
 An explicitly bootstrapped `capability_admin` client can issue short-lived ordinary-client grants, list public
-grant metadata in cursor pages of at most 100 records, and revoke grants through the authenticated facade. It
-cannot delegate `capability_admin`.
+grant metadata in cursor pages of at most 100 records, rotate active credentials, and revoke grants through the
+authenticated facade. Rotation preserves the target client and exact capability set, replaces the old verifier
+only after one append-only `grant_rotated` audit event succeeds, and never places the replacement token in the
+audit ledger. An administrator can rotate only its own `capability_admin` grant and cannot delegate that
+capability.
 The facade derives `issuedBy` from the authenticated administrator rather than request data, and lifecycle
 events are appended to the audit ledger without storing the returned bearer token. Ordinary model clients
 cannot call grant-management operations unless a trusted launcher deliberately gave them the admin grant.
 
+Successful grant issue, rotation, and revocation mutations reserve a bounded in-memory retry receipt before
+changing registry state. Reusing the same administrator credential, `requestId`, and canonical payload within
+30 seconds replays the exact response instead of repeating the mutation; reusing the id with another payload
+is rejected. This also lets a self-rotating administrator recover its replacement credential with only the exact
+old request. Receipt capacity fails before mutation, entries expire without timers, and the cache is cleared on
+shutdown. Replacement tokens may exist in this bounded process memory during the retry window but are never
+written to daemon metadata, SQLite, argv, environment variables, or audit observations. This is daemon-lifetime
+network retry protection, not durable replay across a process restart.
+
+`GovernanceCredentialLeaseController` is an opt-in process-local holder for one self-rotating
+`capability_admin` credential. It schedules renewal before expiry, reuses one request id across a bounded
+three-attempt retry cycle, swaps its internal IPC client only after strict replacement identity validation,
+and serializes ordinary requests behind an in-flight rotation. The controller never exposes the current token
+in its snapshot. Retry exhaustion and expiry are terminal, observable states rather than unbounded healing
+loops; configured timeout and retry windows must fit inside the server's retry-receipt TTL. Failure text is
+bounded and credential-shaped values are redacted. Its referenced scheduler exists only after a trusted caller
+explicitly creates and starts the controller, and `stop()` cancels the pending timer without revoking the
+still-valid grant.
+
+`connectGovernanceAdminSessionFromLaunch` and `connectGovernanceAdminSession` compose daemon discovery,
+authenticated health, public self-grant inspection, and the lease controller for a trusted control-plane
+holder. A session is created only when project, daemon instance, grant, client, expiry, and
+`capability_admin` identity agree. `read_own_capability_grant` reveals only the authenticated caller's public
+grant descriptor and never its token. Session snapshots contain daemon and lease status but no credential.
+This admin session must not be passed to a model-facing tool surface; ordinary agents should receive narrowly
+scoped child grants. Session `stop()` stops renewal only—it does not terminate the detached project daemon or
+revoke the current grant.
+
 This is not connected to production orchestration yet: there is no automatic runtime spawn, idle policy,
-durable credential discovery, credential rotation, cross-process token handoff, or legacy runtime callsite.
+durable credential discovery, automatic lease-controller creation, cross-process token handoff, or legacy
+runtime callsite.
 The detached daemon currently uses the service's conservative default decision context; a trusted policy
 adapter must be installed before command execution is enabled for production callers. Existing WrongStack
 execution continues unchanged.
