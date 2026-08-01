@@ -21,7 +21,7 @@ describe('reduceComposer replaceHistory context snapshot', () => {
       entries: [],
       nextId: 1,
       contextSnapshot,
-    }) as const;
+    }) as never;
 
   it('overwrites a stale ctxTokens from a previous session on a second resume', () => {
     const base = createTestState();

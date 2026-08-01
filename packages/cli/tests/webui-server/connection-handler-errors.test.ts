@@ -48,7 +48,7 @@ function createDeps(handleMessage: ConnectionHandlerDeps['handleMessage']): Conn
 }
 
 const request = {
-  headers: { host: '127.0.0.1' },
+  headers: { host: '127.0.0.1', origin: 'http://localhost' },
   url: '/',
   socket: { remoteAddress: '127.0.0.1' },
 } as IncomingMessage;

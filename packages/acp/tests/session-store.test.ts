@@ -299,4 +299,121 @@ describe('ACPSessionStore', () => {
       await expect(store.delete(evilId)).resolves.toBeUndefined();
     });
   });
+
+  // Regression guards for the Chimera cascade fixes (HIGH race + MEDIUM
+  // orphan tmp cleanup).
+  describe('index-update concurrency (Chimera HIGH)', () => {
+    it('concurrent saves do not lose or duplicate entries in the sidecar index', async () => {
+      // 100 concurrent saves — without the index lock, two writers can read
+      // the same baseline and the loser overwrites the winner's edit, so
+      // some sessions permanently disappear from list(). The race window is
+      // real even on single-threaded Node: readIndex awaits, mutate is sync,
+      // writeIndex awaits — and another save's readIndex can interleave
+      // between those two awaits.
+      const ids = Array.from({ length: 100 }, (_, i) => `sess_race_${i}`);
+      await Promise.all(
+        ids.map((id, i) =>
+          store.save(
+            fakeState({
+              id,
+              updatedAt: `2026-02-01T00:00:${String(i % 60).padStart(2, '0')}.000Z`,
+            }),
+          ),
+        ),
+      );
+      const list = await store.list();
+      const listed = new Set(list.map((e) => e.id));
+      for (const id of ids) {
+        expect(listed.has(id), `missing ${id} from list()`).toBe(true);
+      }
+      // And the index file itself must mention every id.
+      const indexData = JSON.parse(
+        await fsp.readFile(path.join(dir, 'index.json'), 'utf8'),
+      ) as Array<{ id: string }>;
+      expect(new Set(indexData.map((e) => e.id))).toEqual(new Set(ids));
+    });
+
+    it('save/delete races converge on the index', async () => {
+      // Plant a baseline index so delete's branch (and save's update) both
+      // hit the read-modify-write path; without serialization, deletes can
+      // resurrect or saves can overwrite surviving entries.
+      const baseline = Array.from({ length: 10 }, (_, i) => ({
+        id: `sess_pre_${i}`,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }));
+      await fsp.writeFile(path.join(dir, 'index.json'), JSON.stringify(baseline), 'utf8');
+
+      const keep = baseline.map((b) => b.id);
+      const drop = new Set(['sess_pre_0', 'sess_pre_3', 'sess_pre_7']);
+
+      await Promise.all([
+        ...[...drop].map((id) => store.delete(id)),
+        ...keep
+          .filter((id) => !drop.has(id))
+          .map((id) => store.save(fakeState({ id, updatedAt: '2026-02-09T00:00:00.000Z' }))),
+      ]);
+
+      const indexData = JSON.parse(
+        await fsp.readFile(path.join(dir, 'index.json'), 'utf8'),
+      ) as Array<{ id: string }>;
+      const survivors = new Set(indexData.map((e) => e.id));
+      for (const id of keep) {
+        if (drop.has(id)) {
+          expect(survivors.has(id), `dropped id resurrected: ${id}`).toBe(false);
+        } else {
+          expect(survivors.has(id), `kept id lost from index: ${id}`).toBe(true);
+        }
+      }
+      expect(survivors.size).toBe(keep.length - drop.size);
+    });
+  });
+
+  describe('orphan tmp cleanup (Chimera MEDIUM)', () => {
+    it('save removes its tmp file when the rename fails', async () => {
+      // Make the target unrenameable by planting a directory in its place —
+      // rename over a non-empty directory throws ENOTDIR/EEXIST, the tmp
+      // write succeeds, and the tmp must be cleaned up in the finally.
+      const target = path.join(dir, 'sess_orphan.json');
+      await fsp.mkdir(target, { recursive: false });
+      await expect(store.save(fakeState({ id: 'sess_orphan' }))).rejects.toThrow();
+      const leftover = await fsp.readdir(dir);
+      const tmps = leftover.filter((f) => f.includes('.tmp'));
+      expect(tmps, `orphan tmp files leaked: ${tmps.join(', ')}`).toEqual([]);
+      // Cleanup the planted directory so afterEach can rm the tmp dir.
+      await fsp.rm(target, { recursive: true, force: true }).catch(() => {});
+    });
+
+    it('writeIndex removes its tmp file when the rename fails', async () => {
+      // Same trick on the index path: replace index.json with a directory so
+      // rename throws. writeIndex is private — go through updateIndex which
+      // reaches it via the index path.
+      const indexPath = path.join(dir, 'index.json');
+      // First populate a valid index so updateIndex's branch is the
+      // read-modify-write (not the fallback list()).
+      await fsp.writeFile(
+        indexPath,
+        JSON.stringify([{ id: 'placeholder', updatedAt: 'x' }]),
+        'utf8',
+      );
+      // Replace it with a non-empty directory to force rename failure.
+      await fsp.rm(indexPath).catch(() => {});
+      await fsp.mkdir(indexPath, { recursive: false });
+      // Restore the file so the inner readIndex can succeed and the failure
+      // surfaces from writeFile/rename rather than readIndex returning null.
+      // Simpler: delete the directory and write a sentinel — but we want the
+      // rename to fail. So we leave the directory in place and verify the
+      // writeIndex call swallows + cleans up.
+      await expect(
+        // Trigger writeIndex by saving a session — updateIndex will read
+        // (now-unreadable) index, hit null, and call list(). list() rebuilds
+        // and writes, which will trip the same orphan path. Verify no .tmp
+        // files remain regardless.
+        store.save(fakeState({ id: 'sess_idx_orphan' })),
+      ).resolves.toBe('sess_idx_orphan');
+      const leftover = await fsp.readdir(dir);
+      const tmps = leftover.filter((f) => f.includes('.tmp'));
+      expect(tmps, `orphan tmp files leaked: ${tmps.join(', ')}`).toEqual([]);
+      await fsp.rm(indexPath, { recursive: true, force: true }).catch(() => {});
+    });
+  });
 });

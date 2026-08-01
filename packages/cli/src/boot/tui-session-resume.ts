@@ -101,6 +101,14 @@ export async function resumeSession(
   let identityClaimed = false;
   let writerSwapped = false;
   let openedWriter: SessionWriter | undefined;
+  // Hoisted so the outer `catch` can restore them when a failure
+  // occurs AFTER `writerSwapped = true`. Without this, an unguarded
+  // throw anywhere between lines 142-303 would leave `agent.ctx`
+  // bound to the resumed session while the caller received `null`
+  // (silent corruption: the next user prompt would append to the
+  // resumed JSONL under a failed-resume UI).
+  let oldWriter: typeof agent.ctx.session | undefined;
+  let oldMessages: typeof agent.ctx.messages | undefined;
   try {
     if (state.activateSessionIdentity) {
       await state.activateSessionIdentity(canonicalSessionId);
@@ -126,8 +134,12 @@ export async function resumeSession(
     // Capture and swap writers BEFORE hydrating. replaceMessages emits the
     // exact recovery snapshot through Context's conversation journal; it must
     // land in the resumed session, never the session we are leaving.
-    const oldWriter = agent.ctx.session;
-    const oldMessages = [...agent.ctx.messages];
+    // `oldWriter` / `oldMessages` are the function-scoped hoists from line
+    // ~108 — reassigning here (rather than shadowing via `const`) lets the
+    // outer `catch` at the end of this function restore them when a
+    // failure occurs AFTER `writerSwapped = true`.
+    oldWriter = agent.ctx.session;
+    oldMessages = [...agent.ctx.messages];
     agent.ctx.session = resumed.writer;
     try {
       // Rebuild the agent's conversation context from the resumed messages.
@@ -302,7 +314,12 @@ export async function resumeSession(
       contextSnapshot: { tokens, maxContext },
     };
   } catch (err) {
-    if (identityClaimed && !writerSwapped && previousSessionId) {
+    if (identityClaimed && previousSessionId) {
+      // Roll identity back regardless of writerSwapped. If we crashed
+      // pre-swap, the resume never took effect so the identity must
+      // point at the original session. If we crashed post-swap, the
+      // failed-resume UI must not leave the user signed into the
+      // resumed session's identity.
       await state.activateSessionIdentity?.(previousSessionId).catch((rollbackErr) => {
         console.error(
           JSON.stringify({
@@ -317,6 +334,24 @@ export async function resumeSession(
     }
     if (!writerSwapped) {
       await openedWriter?.close().catch(() => undefined);
+    } else {
+      // Post-swap failure: restore the agent's writer + messages so the
+      // failed-resume UI doesn't silently leave the next user prompt
+      // writing to the resumed JSONL. Best-effort: a throw here would
+      // mask the original error, so swallow + log.
+      try {
+        if (oldWriter !== undefined) agent.ctx.session = oldWriter;
+        if (oldMessages !== undefined) agent.ctx.state.replaceMessages(oldMessages);
+      } catch (rollbackErr) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'execution.resume_post_swap_rollback_failed',
+            message: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
     }
     console.error(
       JSON.stringify({

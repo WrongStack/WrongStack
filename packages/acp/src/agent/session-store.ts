@@ -36,6 +36,23 @@ export class ACPSessionStore {
    * Cleared automatically if the directory disappears between calls.
    */
   private initialized = false;
+  /**
+   * Tail of in-flight sidecar-index mutations. `readIndex`/`writeIndex`/
+   * `updateIndex`/delete's index-touching branch all run through the
+   * `withIndexLock` gate so a concurrent save/delete/save cannot read the
+   * same baseline twice and clobber the other writer's edit (Chimera
+   * HIGH — race that could permanently omit or resurrect sessions in
+   * `list()`). Mirrors the `writeChains` pattern in
+   * `packages/core/src/storage/tool-audit-log.ts`.
+   */
+  private indexChain: Promise<void> = Promise.resolve();
+  /**
+   * Monotonic per-store counter. Used to make tmp filenames unique so two
+   * concurrent saves started in the same millisecond cannot collide on
+   * `<target>.<pid>.<ts>.tmp` and lose one's tmp mid-write (latent bug
+   * discovered by the concurrent same-id save/delete stress test).
+   */
+  private writeSeq = 0;
 
   constructor(opts: SessionStoreOptions = {}) {
     this.dir = opts.dir ?? path.join(process.cwd(), '.acp-sessions');
@@ -91,22 +108,35 @@ export class ACPSessionStore {
     }
     await this.init();
     // Atomic tmp+rename (same pattern as writeIndex): a crash mid-save must
-    // not tear the session file — it carries replayable history.
-    const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
-    await fsp.writeFile(
-      tmp,
-      JSON.stringify({
-        id: state.id,
-        cwd: state.cwd,
-        modeId: state.modeId,
-        createdAt: state.createdAt,
-        updatedAt: state.updatedAt,
-        title: state.title,
-        ...(history && history.length > 0 ? { history } : {}),
-      }),
-      'utf8',
-    );
-    await fsp.rename(tmp, target);
+    // not tear the session file — it carries replayable history. The
+    // per-call sequence counter keeps the tmp unique even when two
+    // concurrent saves fire inside the same millisecond.
+    const tmp = `${target}.${process.pid}.${Date.now()}.${++this.writeSeq}.tmp`;
+    let renamed = false;
+    try {
+      await fsp.writeFile(
+        tmp,
+        JSON.stringify({
+          id: state.id,
+          cwd: state.cwd,
+          modeId: state.modeId,
+          createdAt: state.createdAt,
+          updatedAt: state.updatedAt,
+          title: state.title,
+          ...(history && history.length > 0 ? { history } : {}),
+        }),
+        'utf8',
+      );
+      await fsp.rename(tmp, target);
+      renamed = true;
+    } finally {
+      // Best-effort: drop the tmp unless rename already moved it into place.
+      // Without this, a failing write/rename leaks an orphan on every retry
+      // (Chimera MEDIUM — repeated persistence failures accumulate).
+      if (!renamed) {
+        await fsp.unlink(tmp).catch(() => undefined);
+      }
+    }
     await this.updateIndex(state.id, state.updatedAt);
     return state.id;
   }
@@ -169,6 +199,31 @@ export class ACPSessionStore {
     return path.join(this.dir, 'index.json');
   }
 
+  /**
+   * Serialize sidecar-index mutations. Each call appends `fn` to the tail
+   * of `indexChain` so reads and writes see a linearized order — a second
+   * caller cannot start until the first one's index update has finished.
+   *
+   * The chain swallows errors (`prev.then(fn, fn)`) so one failing writer
+   * does not poison every subsequent caller, and the catch keeps an
+   * unhandled rejection from leaking out of the stored tail. The cleanup
+   * removes the tail entry once settled, so a quiet store does not retain
+   * stale promises forever.
+   */
+  private withIndexLock<T>(fn: () => Promise<T>): Promise<T> {
+    const prev = this.indexChain;
+    const next = prev.then(fn, fn);
+    const settled = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.indexChain = settled;
+    void settled.finally(() => {
+      if (this.indexChain === settled) this.indexChain = Promise.resolve();
+    });
+    return next;
+  }
+
   /** Read the sidecar index. Returns `null` when missing or unreadable. */
   private async readIndex(): Promise<Array<{ id: string; updatedAt: string }> | null> {
     try {
@@ -197,27 +252,43 @@ export class ACPSessionStore {
   /** Atomically replace the sidecar index with the supplied entries. */
   private async writeIndex(entries: Array<{ id: string; updatedAt: string }>): Promise<void> {
     const target = this.indexPath();
-    const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
-    await fsp.writeFile(tmp, JSON.stringify(entries), 'utf8');
-    await fsp.rename(tmp, target);
+    // Sequence suffix avoids same-millisecond tmp collisions between the
+    // background rebuild scheduled by `list()` and a concurrent
+    // `updateIndex()` write.
+    const tmp = `${target}.${process.pid}.${Date.now()}.${++this.writeSeq}.tmp`;
+    let renamed = false;
+    try {
+      await fsp.writeFile(tmp, JSON.stringify(entries), 'utf8');
+      await fsp.rename(tmp, target);
+      renamed = true;
+    } finally {
+      // Best-effort orphan cleanup — mirror of the save() tmp+rename guard.
+      if (!renamed) {
+        await fsp.unlink(tmp).catch(() => undefined);
+      }
+    }
   }
 
   /** Update one entry in the index, adding it if missing. Best-effort. */
   private async updateIndex(id: string, updatedAt: string): Promise<void> {
-    const entries = await this.readIndex();
-    if (entries === null) {
-      // No index yet — fall back to a full scan to populate it.
-      await this.list();
-      return;
-    }
-    const i = entries.findIndex((e) => e.id === id);
-    if (i >= 0) entries[i] = { id, updatedAt };
-    else entries.push({ id, updatedAt });
-    try {
-      await this.writeIndex(entries);
-    } catch {
-      // Index is best-effort; per-session file is the source of truth.
-    }
+    await this.withIndexLock(async () => {
+      const entries = await this.readIndex();
+      if (entries === null) {
+        // No index yet — fall back to a full scan to populate it.
+        // `list()` itself schedules its own writeIndex on the same chain,
+        // so a concurrent updater cannot clobber the rebuild.
+        await this.list();
+        return;
+      }
+      const i = entries.findIndex((e) => e.id === id);
+      if (i >= 0) entries[i] = { id, updatedAt };
+      else entries.push({ id, updatedAt });
+      try {
+        await this.writeIndex(entries);
+      } catch {
+        // Index is best-effort; per-session file is the source of truth.
+      }
+    });
   }
 
   /** Delete a session file. */
@@ -230,17 +301,20 @@ export class ACPSessionStore {
       // File may not exist — ignore
     }
     // Best-effort: drop the entry from the sidecar index so future
-    // `list()` calls don't return a stale row.
-    const entries = await this.readIndex();
-    if (entries === null) return;
-    const next = entries.filter((e) => e.id !== sessionId);
-    if (next.length !== entries.length) {
-      try {
-        await this.writeIndex(next);
-      } catch {
-        // Index is best-effort; next list() rebuild will fix it.
+    // `list()` calls don't return a stale row. Routed through the
+    // index lock so concurrent save/delete cannot race on the index.
+    await this.withIndexLock(async () => {
+      const entries = await this.readIndex();
+      if (entries === null) return;
+      const next = entries.filter((e) => e.id !== sessionId);
+      if (next.length !== entries.length) {
+        try {
+          await this.writeIndex(next);
+        } catch {
+          // Index is best-effort; next list() rebuild will fix it.
+        }
       }
-    }
+    });
   }
 
   /** Get the store directory path. */
