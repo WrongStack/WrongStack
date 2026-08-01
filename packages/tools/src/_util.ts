@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import * as Core from '@wrongstack/core/utils';
 import type { Context } from '@wrongstack/core/agent';
+import * as Core from '@wrongstack/core/utils';
 
 /**
  * sha-256 hex of a UTF-8 string. Used by the file tools to record a content
@@ -39,7 +39,9 @@ export async function detectPackageManager(cwd: string): Promise<PackageManager>
 }
 
 export function resolvePath(input: string, ctx: Context): string {
-  return path.isAbsolute(input) ? path.normalize(input) : path.resolve(ctx.workingDir ?? ctx.cwd, input);
+  return path.isAbsolute(input)
+    ? path.normalize(input)
+    : path.resolve(ctx.workingDir ?? ctx.cwd, input);
 }
 
 /**
@@ -86,14 +88,41 @@ export function safeResolve(input: string, ctx: Context): string {
  * the caller named exactly one file.
  */
 export async function assertRealInsideRoot(absPath: string, ctx: Context): Promise<void> {
+  await resolveRealInsideRoot(absPath, ctx);
+}
+
+/**
+ * Containment check that RETURNS the canonical path it validated (WS-048).
+ *
+ * The check resolves symlinks and then confirms the resolved target is inside
+ * an allowed root. Handing the caller back the *unresolved* path throws that
+ * work away: the caller opens a path whose components are still symlinks, so
+ * whatever the check proved about the target is no longer what the caller
+ * touches. Swapping an intermediate component between the check and the open
+ * redirects the operation, and nothing downstream re-validates.
+ *
+ * Returning the resolved path removes that gap for every component that
+ * existed at check time — those are now literal directories, not links that can
+ * be re-pointed. It is not a total TOCTOU cure (only fd-relative operations
+ * would be), but the window it closes is the one this function's own contract
+ * claims to have closed.
+ *
+ * For a path that does not exist yet — a `write` to a new file — the deepest
+ * existing ancestor is resolved and the not-yet-created tail is re-joined onto
+ * it, so the canonical form is still returned rather than the raw input.
+ */
+export async function resolveRealInsideRoot(absPath: string, ctx: Context): Promise<string> {
   // Unrestricted filesystem access: no symlink-escape check to perform.
-  if (ctx.allowOutsideProjectRoot) return;
+  if (ctx.allowOutsideProjectRoot) return absPath;
   // Compare like-for-like against the realpath of each always-allowed root
   // (project root + ~/.wrongstack), since a root may itself be a symlink.
   const realRoots = await Promise.all(
     allowedRoots(ctx).map((r) => fsp.realpath(r).catch(() => path.resolve(r))),
   );
   let probe = absPath;
+  // Segments stripped while walking up to an existing ancestor, so the
+  // not-yet-created tail can be re-attached to the resolved prefix.
+  const pendingTail: string[] = [];
   for (;;) {
     let real: string;
     try {
@@ -101,24 +130,33 @@ export async function assertRealInsideRoot(absPath: string, ctx: Context): Promi
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         const parent = path.dirname(probe);
-        if (parent === probe) return; // reached fs root without escaping
+        if (parent === probe) return absPath; // reached fs root without escaping
+        pendingTail.unshift(path.basename(probe));
         probe = parent;
         continue;
       }
       throw err;
     }
-    if (isInsideAny(real, realRoots)) return;
+    if (isInsideAny(real, realRoots)) {
+      return pendingTail.length > 0 ? path.join(real, ...pendingTail) : real;
+    }
     throw new Error(
       `Path "${absPath}" resolves through a symlink outside project root "${realRoots[0]}"`,
     );
   }
 }
 
-/** `safeResolve` + symlink realpath containment check. Async. */
+/**
+ * `safeResolve` + symlink realpath containment check, returning the CANONICAL
+ * path (WS-048).
+ *
+ * This used to return the unvalidated `abs` while validating `real`, so the
+ * header's promise of a "containment check" did not extend to the value the
+ * caller then opened.
+ */
 export async function safeResolveReal(input: string, ctx: Context): Promise<string> {
   const abs = safeResolve(input, ctx);
-  await assertRealInsideRoot(abs, ctx);
-  return abs;
+  return await resolveRealInsideRoot(abs, ctx);
 }
 
 export function truncateMiddle(s: string, max: number): string {

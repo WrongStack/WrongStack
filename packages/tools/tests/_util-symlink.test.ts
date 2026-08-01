@@ -23,18 +23,43 @@ describe('assertRealInsideRoot — realpath error handling', () => {
     realpathMock.mockRejectedValue(eacces);
     // realRoot resolution swallows the error (.catch), but the probe realpath
     // rethrows because the code is not ENOENT.
-    await expect(assertRealInsideRoot('/tmp/project/a.txt', ctx())).rejects.toThrow(/permission denied/);
+    await expect(assertRealInsideRoot('/tmp/project/a.txt', ctx())).rejects.toThrow(
+      /permission denied/,
+    );
   });
 
   it('walks up past ENOENT ancestors and passes when nothing escapes', async () => {
     const enoent = Object.assign(new Error('missing'), { code: 'ENOENT' });
-    // realRoot resolves (first call), then the target + one ancestor are ENOENT,
-    // finally an existing ancestor resolves back inside the root.
+    // `allowedRoots` returns TWO roots (project root + ~/.wrongstack), so the
+    // mock queue must supply both before the probe loop runs. It previously
+    // supplied one, which shifted every later mock up by a call: the ENOENT
+    // intended for the target was swallowed by the second root's `.catch`, and
+    // the walk this test is named for never executed. It passed anyway because
+    // the old `safeResolveReal` echoed its input back regardless of what the
+    // check resolved — the very bug WS-048 is about.
     realpathMock
-      .mockResolvedValueOnce('/tmp/project') // realRoot
-      .mockRejectedValueOnce(enoent) // /tmp/project/new/file.txt
-      .mockResolvedValueOnce('/tmp/project/new'); // /tmp/project/new (exists)
-    await expect(safeResolveReal('new/file.txt', ctx())).resolves.toContain('file.txt');
+      .mockResolvedValueOnce('/tmp/project') // realRoot[0]
+      .mockResolvedValueOnce('/home/u/.wrongstack') // realRoot[1]
+      .mockRejectedValueOnce(enoent) // target does not exist yet
+      .mockResolvedValueOnce('/tmp/project/new'); // nearest existing ancestor
+    const resolved = await safeResolveReal('new/file.txt', ctx());
+    // The not-yet-created tail is re-attached to the RESOLVED ancestor.
+    expect(resolved).toContain('file.txt');
+    expect(resolved.replace(/\\/g, '/')).toBe('/tmp/project/new/file.txt');
+  });
+
+  it('returns the RESOLVED path, not the path it was handed (WS-048)', async () => {
+    // The finding: the containment check resolved symlinks, proved the target
+    // was inside the root, and then returned the unresolved input. The caller
+    // opened a path still made of symlinks, so what the check proved was not
+    // what the caller touched.
+    realpathMock
+      .mockResolvedValueOnce('/tmp/project') // realRoot[0]
+      .mockResolvedValueOnce('/home/u/.wrongstack') // realRoot[1]
+      .mockResolvedValueOnce('/tmp/project/real/target.txt'); // link → real file
+    const resolved = await safeResolveReal('link.txt', ctx());
+    expect(resolved).toBe('/tmp/project/real/target.txt');
+    expect(resolved).not.toContain('link.txt');
   });
 
   it('returns safely when every ancestor is missing (walks up to fs root)', async () => {
