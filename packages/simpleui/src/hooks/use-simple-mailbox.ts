@@ -19,6 +19,12 @@ export interface UseSimpleMailboxOptions {
   prefsRef: RefObject<SimplePrefs>;
 }
 
+/** A wire frame the mailbox store can consume. Reuses the canonical
+ * `ServerMessage` (frame union from the webui-server protocol) so frame-type
+ * typos become compile errors and `payload` is treated as required at this
+ * React boundary. The store itself keeps a tolerant local interface with
+ * optional payload as a defensive parse boundary.
+ */
 export interface UseSimpleMailboxResult {
   mailboxStore: MailboxStore;
   mailboxOpen: boolean;
