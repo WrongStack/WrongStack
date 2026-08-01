@@ -96,7 +96,7 @@ describe('installSubagentEventBridge', () => {
     expect(started).toBeDefined();
     expect(executed).toBeDefined();
 
-    const startedInput = (started.payload as { input: Record<string, unknown> }).input;
+    const startedInput = (started!.payload as { input: Record<string, unknown> }).input;
     expect(startedInput['file_path']).toBe('big.ts');
     expect(startedInput['content']).toBeUndefined();
     expect(JSON.stringify(startedInput)).not.toContain(huge);

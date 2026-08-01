@@ -128,7 +128,8 @@ function makeMockWs(): any {
     send: vi.fn(),
     terminate: vi.fn(),
     on(event: string, cb: (...args: any[]) => void) {
-      (handlers[event] ||= []).push(cb);
+      if (handlers[event] === undefined) handlers[event] = [];
+      handlers[event]!.push(cb);
       return this;
     },
     close() {

@@ -195,7 +195,7 @@ describe('SHELL_OPERATOR_RE', () => {
 
   it('matches $()', () => {
     expect(SHELL_OPERATOR_RE.test('$(cmd)')).toBe(true);
-    expect(SHELL_OPERATOR_RE.test('${var}')).toBe(true);
+    expect(SHELL_OPERATOR_RE.test(`\${var}`)).toBe(true);
   });
 
   it('matches angle brackets', () => {

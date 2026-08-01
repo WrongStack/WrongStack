@@ -115,17 +115,10 @@ export function ProviderWaitingRoom() {
             const isSelected = selectedKey === key;
             return (
               <div key={key}>
-                <div
-                  role="button"
-                  tabIndex={0}
+                <button
+                  type="button"
                   className="flex flex-wrap cursor-pointer items-center gap-x-2 gap-y-1 py-1.5 hover:bg-amber-500/5"
                   onClick={() => setSelectedKey(isSelected ? null : key)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedKey(isSelected ? null : key);
-                    }
-                  }}
                 >
                   {entry.state === 'blocked' ? (
                     <Clock3 className="h-3.5 w-3.5 text-amber-400" />
@@ -142,7 +135,7 @@ export function ProviderWaitingRoom() {
                   <span className="ml-auto tabular-nums text-muted-foreground">
                     {remaining(entry.stateExpiresAt, now)}
                   </span>
-                </div>
+                </button>
 
                 {/* Expanded detail: error message, counters, logs, actions */}
                 {isSelected && (

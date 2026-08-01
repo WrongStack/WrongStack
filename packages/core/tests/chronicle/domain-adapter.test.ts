@@ -130,7 +130,7 @@ describe('domain lifecycle bridge', () => {
     expect(recorded[1]).toMatchObject({ scope: { taskId: 'task-9', kanbanBoardId: 'board-3' } });
     // provider is intentionally stripped from attributes by sanitize (childKey === 'provider' continue);
     // model is preserved by PRESERVE_STRING_KEY and should survive sanitize.
-    expect((recorded[0].attributes as Record<string, unknown>).model).toBe('model-a');
+    expect((recorded[0]!.attributes as Record<string, unknown>).model).toBe('model-a');
   });
 
   it('extracts provider/model into runtime from any domain event payload', async () => {
@@ -160,6 +160,6 @@ describe('domain lifecycle bridge', () => {
     });
     // provider is intentionally stripped from attributes by sanitize;
     // model is preserved by PRESERVE_STRING_KEY.
-    expect((recorded[0].attributes as Record<string, unknown>).model).toBe('claude-sonnet-4-20250514');
+    expect((recorded[0]!.attributes as Record<string, unknown>).model).toBe('claude-sonnet-4-20250514');
   });
 });

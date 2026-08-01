@@ -663,8 +663,9 @@ export function runDeadCodeScan(
         // for that single file while the rest of the chain is unaffected.
         const reExportRe =
           /export\s+(?:(?:type\s+)?\{[\s\S]*?\}\s+from|\*\s+as\s+\w+\s+from|\*\s+from)\s+['"]([^'"]+)['"]/g;
-        let match: RegExpExecArray | null;
-        while ((match = reExportRe.exec(strippedContent)) !== null) {
+        for (;;) {
+          const match = reExportRe.exec(strippedContent);
+          if (match === null) break;
           const moduleSpec = match[1]!;
           const resolvedFiles = resolveModulePath(epFile, moduleSpec, indexedFiles);
           for (const rf of resolvedFiles) {

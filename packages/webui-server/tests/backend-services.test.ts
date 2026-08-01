@@ -16,10 +16,10 @@ vi.mock('@wrongstack/core/coordination', () => ({
   CollaborationBus: class { onInjectionConsumed = vi.fn(() => () => undefined); },
   collabInjectMiddleware: vi.fn(() => ({ name: 'collab-inject', handler: vi.fn() })),
   collabPauseMiddleware: vi.fn(() => ({ name: 'collab-pause', handler: vi.fn() })),
-  EscalationRoutingBrainArbiter: class { constructor(..._args: unknown[]) {} },
+  EscalationRoutingBrainArbiter: class {},
   getSharedProjectMailbox: vi.fn(() => ({ send: vi.fn(async () => undefined) })),
   mailboxSessionTag: vi.fn(() => 'tag'),
-  ObservableBrainArbiter: class { constructor(..._args: unknown[]) {} },
+  ObservableBrainArbiter: class {},
 }));
 
 vi.mock('@wrongstack/core/execution', () => ({
@@ -33,15 +33,13 @@ vi.mock('@wrongstack/core/execution', () => ({
   resolveBrainConfigDefaults: vi.fn(() => ({
     monitor: { enabled: false }, ledger: { enabled: false }, fallbackModels: [],
   })),
-  ToolExecutor: class {
-    constructor(..._args: unknown[]) {}
-  },
+  ToolExecutor: class {},
 }));
 
 vi.mock('@wrongstack/core/design', () => ({ installDesignStudioMiddleware: vi.fn() }));
 
 vi.mock('@wrongstack/core/storage', () => ({
-  SessionMemoryConsolidator: class { constructor(..._args: unknown[]) {} },
+  SessionMemoryConsolidator: class {},
 }));
 
 vi.mock('@wrongstack/sage', () => ({

@@ -191,7 +191,7 @@ function regexLiteralCanStart(emitted) {
     // `x++ / 2` or `x-- / 2` is a postfix increment/decrement followed by
     // division, not a regex. A lone `+`/`-` (binary/unary) before `/` can only
     // start a regex literal in valid JavaScript.
-    return !/([+\-])\1\s*$/.test(emitted);
+    return !/([+-])\1\s*$/.test(emitted);
   }
   if (REGEX_PRECEDING_CHARS.has(prevChar)) return true;
   const wordMatch = emitted.match(/[A-Za-z_$][\w$]*\s*$/);

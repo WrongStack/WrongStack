@@ -76,7 +76,7 @@ async function safeJsonParse<T>(res: Response): Promise<T> {
   }
 }
 
-export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
+export function DeadCodeScanPanel() {
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
   const [planPhase, setPlanPhase] = useState<PlanPhase>('idle');
   const [scanResult, setScanResult] = useState<DeadCodeScanOutput | null>(null);
@@ -194,6 +194,7 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
 
       {/* Scan button */}
       <button
+        type="button"
         onClick={handleScan}
         disabled={scanPhase === 'scanning'}
         style={{
@@ -229,6 +230,7 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
         >
           {error}
           <button
+            type="button"
             onClick={() => setError(null)}
             style={{
               marginLeft: '12px',
@@ -294,6 +296,7 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
           {/* Action Plan section */}
           {scanPhase === 'done' && (
             <button
+              type="button"
               onClick={handleGeneratePlan}
               disabled={planPhase === 'generating'}
               style={{
@@ -397,6 +400,7 @@ export function DeadCodeScanPanel({ projectRoot }: { projectRoot: string }) {
           ))}
 
           <button
+            type="button"
             onClick={handleExecutePlan}
             disabled={planPhase === 'executing'}
             style={{

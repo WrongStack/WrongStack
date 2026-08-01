@@ -193,6 +193,7 @@ async function ensureParentDir(): Promise<void> {
 // wrapper strips the `Promise` so we can access `.id` and other properties
 // on the resolved value.
 
+// biome-ignore lint/suspicious/noExplicitAny: JSON wire params of method-specific shape — handlers narrow per method.
 type Handler = (params: any) => Promise<unknown>;
 const methods = new Map<string, Handler>();
 const protocolMethods = new Set<string>(KANBAN_SERVER_METHODS);
@@ -477,8 +478,9 @@ function onData(state: ClientState, chunk: string): void {
     state.socket.destroy(new Error('Frame buffer exceeded maximum size'));
     return;
   }
-  let nl: number;
-  while ((nl = state.buffer.indexOf('\n')) !== -1) {
+  for (;;) {
+    const nl = state.buffer.indexOf('\n');
+    if (nl === -1) break;
     const line = state.buffer.slice(0, nl);
     state.buffer = state.buffer.slice(nl + 1);
     if (!line.trim()) continue;

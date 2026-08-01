@@ -47,12 +47,17 @@ describe('stateful Kanban client domain', () => {
   });
 
   it('routes every public stateful manager operation through the IPC client facade', () => {
+    // Cast the facades to Records: the test's purpose is exactly to iterate
+    // KANBAN_DOMAIN_OPERATIONS dynamically and prove every op is routed.
+    const managerView = manager as unknown as Record<string, unknown>;
+    const clientView = clientDomain as unknown as Record<string, unknown>;
+    const packageApiView = packageApi as unknown as Record<string, unknown>;
     for (const operation of KANBAN_DOMAIN_OPERATIONS) {
-      expect(typeof manager[operation], `${operation} manager implementation`).toBe('function');
-      expect(typeof clientDomain[operation], `${operation} client facade`).toBe('function');
-      expect(packageApi[operation], `${operation} public export`).toBe(clientDomain[operation]);
-      expect(packageApi[operation], `${operation} must not expose manager directly`).not.toBe(
-        manager[operation],
+      expect(typeof managerView[operation], `${operation} manager implementation`).toBe('function');
+      expect(typeof clientView[operation], `${operation} client facade`).toBe('function');
+      expect(packageApiView[operation], `${operation} public export`).toBe(clientView[operation]);
+      expect(packageApiView[operation], `${operation} must not expose manager directly`).not.toBe(
+        managerView[operation],
       );
     }
   });

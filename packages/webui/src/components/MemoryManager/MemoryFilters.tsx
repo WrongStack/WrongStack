@@ -174,6 +174,7 @@ export function MemoryFilters({
               tag is active. Screen readers announce the badge separately. */}
           {tagFilter && (
             <span
+              role="status"
               aria-label={`Active tag filter: ${tagFilter}`}
               className="border border-info/55 bg-info/10 px-1 font-mono text-[9px] uppercase text-info"
             >

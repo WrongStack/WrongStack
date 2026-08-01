@@ -476,7 +476,6 @@ function AppInner() {
   const isLoading = useChatStore((s) => s.isLoading);
   const iteration = useSessionStore((s) => s.iteration);
   const projectName = useSessionStore((s) => s.projectName);
-  const projectRoot = useSessionStore((s) => s.projectRoot);
   const sessionTitle = useSessionStore((s) => s.session?.title);
   const sessionId = useSessionStore((s) => s.session?.id);
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
@@ -881,7 +880,7 @@ function AppInner() {
           <ErrorBoundary level="panel" name="DeadCode">
             <Suspense fallback={<PanelSuspense label="Loading Dead-Code Scan…" />}>
               <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-                <DeadCodeScanPanel projectRoot={projectRoot} />
+                <DeadCodeScanPanel />
               </div>
             </Suspense>
           </ErrorBoundary>
