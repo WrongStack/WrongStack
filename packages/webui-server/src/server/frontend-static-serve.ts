@@ -68,6 +68,13 @@ export interface StaticServeOptions {
   /** Force token auth even when the server binds to loopback. */
   requireToken?: boolean | undefined;
   /**
+   * Extra hostnames the HTTP CSRF/DNS-rebinding guard accepts, for operators
+   * fronting the WebUI with a tunnel or reverse proxy. `publicWsUrl`'s hostname
+   * is trusted implicitly; set this when the browser-facing HTTP origin differs
+   * from it (WS-001).
+   */
+  allowedHostnames?: readonly string[] | undefined;
+  /**
    * When true, skip `server.listen()` — the caller is responsible for
    * calling listen after attaching the WebSocketServer. This prevents
    * a race where a WS upgrade request arrives between the server
@@ -279,6 +286,7 @@ export async function startStaticServe(
     publicWsUrl: opts.publicWsUrl,
     apiToken: opts.apiToken,
     requireToken: opts.requireToken,
+    allowedHostnames: opts.allowedHostnames,
   });
 
   if (!opts.deferListen) {

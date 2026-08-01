@@ -478,4 +478,71 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     });
     expect(res.status).toBe(404);
   });
+
+  // ── WS-001: CSRF / drive-by boundary ────────────────────────────────
+  // The HTTP surface had no Origin, Host, or Content-Type check and needs no
+  // token on the loopback default, so a `text/plain` POST from any website the
+  // user was browsing reached /api/* as a CORS simple request.
+  describe('cross-origin request guard', () => {
+    it('rejects a POST carrying a foreign Origin', async () => {
+      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
+        body: JSON.stringify({ text: 'attacker steer' }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('rejects a POST from another loopback port', async () => {
+      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:9999' },
+        body: JSON.stringify({ text: 'attacker steer' }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('rejects the opaque "null" Origin', async () => {
+      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'null' },
+        body: JSON.stringify({ text: 'attacker steer' }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('rejects a GET carrying a foreign Origin', async () => {
+      const res = await fetch(`${evBase}/api/sessions`, {
+        headers: { Origin: 'https://evil.example' },
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('accepts a same-origin POST', async () => {
+      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: evBase },
+        body: JSON.stringify({ text: 'legitimate steer' }),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('rejects a text/plain body — the CORS simple-request content type', async () => {
+      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ text: 'simple request' }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a form-encoded body', async () => {
+      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'text=simple',
+      });
+      expect(res.status).toBe(400);
+    });
+  });
 });

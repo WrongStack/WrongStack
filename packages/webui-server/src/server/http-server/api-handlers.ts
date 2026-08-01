@@ -296,9 +296,22 @@ export async function handleApiSessionEvents(
   }
 }
 
-/** Read and JSON-parse a request body, capped at 64 KiB. */
+/**
+ * Read and JSON-parse a request body, capped at 64 KiB.
+ *
+ * WS-001: the body must be declared `application/json`. Only `text/plain`,
+ * `application/x-www-form-urlencoded`, and `multipart/form-data` qualify as
+ * CORS *simple* content types, so requiring JSON forces a preflight on every
+ * cross-origin write — a second, independent barrier behind the Origin guard.
+ * Bodies were previously parsed regardless of the declared type.
+ */
 function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
+    const contentType = (req.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
+    if (contentType !== 'application/json') {
+      reject(new Error(`Unsupported Content-Type: ${contentType || '(absent)'}`));
+      return;
+    }
     let data = '';
     req.on('data', (chunk) => {
       data += chunk;

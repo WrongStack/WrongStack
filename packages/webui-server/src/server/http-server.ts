@@ -70,6 +70,7 @@ import {
 } from './techstack-handlers.js';
 import {
   extractTokenFromCookie,
+  httpRequestOriginOk,
   isLoopbackBind,
   isLoopbackHostname,
   tokenMatches,
@@ -101,6 +102,13 @@ export interface CreateHttpServerOptions {
   apiToken?: string | undefined;
   /** Force HTTP token auth even on loopback binds, useful behind public tunnels. */
   requireToken?: boolean | undefined;
+  /**
+   * Extra `Host`/`Origin` hostnames accepted by the CSRF/rebinding guard, for
+   * operators fronting the WebUI with a tunnel or reverse proxy. The hostname
+   * of `publicWsUrl` is trusted implicitly. Mirrors the WS path's
+   * `allowedHostnames` (see ws-auth.ts).
+   */
+  allowedHostnames?: readonly string[] | undefined;
   /**
    * If true, the `/ws-auth` endpoint exchanges a `?token=` query param (or
    * `X-WS-Token` header) for an `HttpOnly` auth cookie. The cookie is then
@@ -351,6 +359,19 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
   // Loopback bind: no HTTP token required (mirrors WS loopback-bootstrap).
   // LAN bind: caller MUST supply a token; fail closed if it is absent.
   const requireAccessToken = Boolean(opts.requireToken) || !isLoopbackBind(opts.host);
+  // Hostnames the CSRF/DNS-rebinding guard accepts beyond loopback: whatever the
+  // operator registered, plus the tunnel hostname implied by `publicWsUrl`.
+  const trustedHostnames: readonly string[] = (() => {
+    const names = [...(opts.allowedHostnames ?? [])];
+    if (opts.publicWsUrl) {
+      try {
+        names.push(new URL(opts.publicWsUrl).hostname);
+      } catch {
+        /* malformed public URL contributes no trust */
+      }
+    }
+    return names;
+  })();
   let techStackRuntime: Promise<{
     store: import('@wrongstack/techstack').TechStackStore;
     engine: import('@wrongstack/techstack').TechStackEngine;
@@ -370,6 +391,25 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
+
+      // ── CSRF / DNS-rebinding boundary (WS-001) ──────────────────────
+      // Runs before any routing, mirroring the HQ server's guard at
+      // hq-server/routes.ts:179. Without it a `text/plain` POST from any
+      // website the user is browsing reaches /api/* as a CORS simple
+      // request — no preflight, no token on the loopback default.
+      if (
+        !httpRequestOriginOk({
+          origin: req.headers.origin,
+          hostHeader: req.headers.host,
+          wsHost: opts.host,
+          allowedHostnames: trustedHostnames,
+        })
+      ) {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ error: 'forbidden: untrusted request origin' }));
+        return;
+      }
+
       const providedAccessToken = requestToken(req, url);
       const accessTokenOk =
         Boolean(opts.apiToken) && tokenMatches(providedAccessToken, opts.apiToken ?? '');
@@ -808,6 +848,17 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
             timestamp: Date.now(),
           }),
         );
+        return;
+      }
+
+      // An unmatched API path must 404 as an API path. Letting it fall through
+      // to the static branch means the SPA fallback answers 200 + index.html
+      // for a route that does not exist, which masks typos and route-ordering
+      // regressions behind a success status. HQ already does this at
+      // hq-server/routes.ts:215 (WS-001).
+      if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ error: 'Not found' }));
         return;
       }
 

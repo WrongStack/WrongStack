@@ -176,6 +176,50 @@ export function hostHeaderOk(input: {
   return isLoopbackHostname(hostname) || allowedHostname(hostname, input.allowedHostnames);
 }
 
+/**
+ * CSRF / drive-by guard for the HTTP surface (WS-001).
+ *
+ * The WebSocket upgrade path has always been Origin- and Host-checked, but the
+ * plain HTTP `/api/*` surface was not: it built its URL from a hardcoded base,
+ * never read `Origin`, and (on the default loopback bind) required no token. A
+ * `POST` with `Content-Type: text/plain` is a CORS *simple request*, so any page
+ * the user visits could fire one without a preflight — the response being
+ * unreadable does not undo the side effect.
+ *
+ * Policy, mirroring `hasTrustedBrowserOrigin` in the HQ server:
+ *  - the `Host` authority must already be trusted (DNS-rebinding guard), and
+ *  - when the browser sends `Origin`, it must name that same authority.
+ *
+ * A missing `Origin` is allowed: same-origin top-level navigations and
+ * non-browser clients (curl, the CLI, tests) legitimately omit it, and those
+ * cannot be driven by a hostile page.
+ */
+export function httpRequestOriginOk(input: {
+  origin: string | undefined;
+  hostHeader: string | undefined;
+  wsHost: string;
+  allowedHostnames?: readonly string[] | undefined;
+}): boolean {
+  const { origin, hostHeader, wsHost, allowedHostnames } = input;
+  if (!hostHeaderOk({ hostHeader, wsHost, allowedHostnames })) return false;
+  if (origin === undefined || origin === '') return true;
+  // Firefox sends the literal string "null" for opaque origins (sandboxed
+  // iframes, data: documents). Never trust it.
+  if (origin === 'null') return false;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const rawHost = (hostHeader ?? '').trim();
+    if (!rawHost) return false;
+    const requestHost = new URL(`${parsed.protocol}//${rawHost}`).host.toLowerCase();
+    if (parsed.host.toLowerCase() === requestHost) return true;
+    // An operator-registered tunnel hostname is an explicit trust decision.
+    return allowedHostname(parsed.hostname, allowedHostnames);
+  } catch {
+    return false;
+  }
+}
+
 export interface VerifyClientInput {
   /** Browser `Origin` header, or undefined for non-browser clients. */
   origin?: string | undefined;
