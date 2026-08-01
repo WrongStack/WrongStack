@@ -13,7 +13,7 @@
  * about what crosses the wire.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -42,8 +42,10 @@ function resolveServerEntry(): { cmd: string; args: string[] } {
     accessSync(DIST_ENTRY);
     return { cmd: process.execPath, args: [DIST_ENTRY] };
   } catch {
-    // dist/ doesn't exist — use tsx to run the TS source
-    return { cmd: 'npx', args: ['tsx', SRC_ENTRY] };
+    // dist/ doesn't exist — use Node's --import tsx to run the TS source.
+    // Avoid spawn('npx', ...) which fails on Windows (npx is npx.cmd,
+    // not found without shell: true). Node 22+ supports --import tsx.
+    return { cmd: process.execPath, args: ['--import', 'tsx', SRC_ENTRY] };
   }
 }
 
@@ -220,6 +222,57 @@ describe('SAGE daemon auth gate', () => {
         await readFile(sageProjectServerMetadataPath(projectRoot), 'utf8'),
       ) as SageProjectServerMetadata;
       expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
+    } finally {
+      await connection.shutdown('test-teardown').catch(() => undefined);
+      connection.close();
+    }
+  }, 40_000);
+
+  it('recovers when the first request lands before server.json exists (cold-spawn race)', async () => {
+    // Regression: the daemon accepts connections and sends `hello` the moment
+    // it wins the endpoint, but writes `server.json` only after the async
+    // `store.initialize()` resolves. A client whose first `request` arrives in
+    // that window has no token and is refused with `UnauthorizedSageRequest`.
+    // Before the bounded auth-retry in `SageProjectServerConnection.call()`,
+    // that refusal surfaced straight to the caller — so
+    // `RemoteSageMemoryPort.initialize()`'s first `ping` failed and never
+    // recovered. This drives a real daemon and asserts the client heals.
+    const { SageProjectServerConnection } = (await import(
+      pathToFileURL(fileURLToPath(new URL('../dist/index.js', import.meta.url))).href
+    )) as typeof import('../src/index.js');
+
+    const metadataPath = sageProjectServerMetadataPath(projectRoot);
+    // A poisoned token stands in for a stale file left by a crashed daemon
+    // (`removeOwnedMetadata` runs only on a clean stop): even with a file
+    // present, the first request carries a WRONG token and must be refused
+    // before the client re-reads the daemon's real one. The daemon normally
+    // creates this directory inside `writeMetadata()`, so make it first.
+    await mkdir(dirname(metadataPath), { recursive: true });
+    await writeFile(
+      metadataPath,
+      `${JSON.stringify({ pid: 999999, authToken: 'd'.repeat(32) }, null, 2)}\n`,
+      'utf8',
+    );
+
+    child = spawn(SERVER_LAUNCH.cmd, [...SERVER_LAUNCH.args, '--project-root', projectRoot], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+
+    const connection = new SageProjectServerConnection(projectRoot);
+    try {
+      await connection.connect();
+      // First request goes out with the poisoned token → refused → the retry
+      // loop re-reads `server.json` (now the daemon's real metadata) → success.
+      // A daemon fast enough to overwrite the file before the first request
+      // simply succeeds directly; either way this must not wedge.
+      const status = await connection.call('ping', {}, { meta: { clientId: 'cold-spawn' } });
+      expect(status.pid).toBeGreaterThan(0);
+
+      // The daemon's real token replaced the poison.
+      const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as SageProjectServerMetadata;
+      expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
+      expect(metadata.authToken).not.toBe('d'.repeat(32));
     } finally {
       await connection.shutdown('test-teardown').catch(() => undefined);
       connection.close();
