@@ -61,6 +61,46 @@ describe('makePromptDelegate', () => {
     expect(getStdout()).toContain('+y');
   });
 
+  // WS-046: the prompt must not offer a choice the policy cannot honour.
+  // `exec` carries no permission subject (no subjectKey, no path/url/name), so
+  // an "always" rule would be written keyed on the tool name and never match.
+  // Offering it anyway is what taught users that trust rules are broken and
+  // pushed them toward a blanket `{"exec":{"auto":true}}`.
+  describe('always-allow availability (WS-046)', () => {
+    const execTool: Tool = { ...fakeTool, name: 'exec' };
+
+    function reader(answer: string): InputReader & { readKey: ReturnType<typeof vi.fn> } {
+      return {
+        readLine: vi.fn(async () => ''),
+        readKey: vi.fn(async () => answer),
+        close: vi.fn(async () => undefined),
+      } as InputReader & { readKey: ReturnType<typeof vi.fn> };
+    }
+
+    it('withholds the [a] option and explains why for a subject-less tool', async () => {
+      captureStdout();
+      const r = reader('yes');
+      await makePromptDelegate(r)(execTool, { command: 'ls', cwd: '.' }, 'exec');
+
+      const out = getStdout();
+      expect(out).toContain('no "always" for this call');
+      expect(out).not.toContain('[a]lways allow');
+
+      const offered = (r.readKey.mock.calls[0]?.[1] ?? []) as Array<{ value: string }>;
+      expect(offered.map((o) => o.value)).toEqual(['yes', 'no', 'deny']);
+    });
+
+    it('still offers it when the call has a subject', async () => {
+      captureStdout();
+      const r = reader('yes');
+      await makePromptDelegate(r)(fakeTool, { path: '/a' }, 'edit:/a');
+
+      expect(getStdout()).toContain('[a]lways allow');
+      const offered = (r.readKey.mock.calls[0]?.[1] ?? []) as Array<{ value: string }>;
+      expect(offered.map((o) => o.value)).toEqual(['yes', 'no', 'always', 'deny']);
+    });
+  });
+
   it('omits long content and new_string from summary', async () => {
     captureStdout();
     const reader: InputReader = {

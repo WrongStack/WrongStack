@@ -78,6 +78,35 @@ function hasShellSubject(tool: Tool): boolean {
   );
 }
 
+/**
+ * Reason a persistent "always allow" cannot be recorded for this call, or
+ * `undefined` when it can (WS-046).
+ *
+ * A stored trust pattern is only ever consulted as
+ * `entry.allow && subject && matchesTrust(entry.allow, subject)`. When the tool
+ * produces no subject, that condition can never be true — so `trust()` with the
+ * fallback `pattern: tool.name` writes an entry that is dead on arrival.
+ *
+ * The user experience of that bug is the damaging part. They pick "always
+ * allow", are asked again on the very next identical call, conclude the feature
+ * is broken, and reach for the one thing that does work: a blanket
+ * `{"exec": {"auto": true}}`. A silent no-op does not just fail to help — it
+ * actively trains people into the widest possible grant.
+ *
+ * So the option is refused with a stated reason instead of accepted and
+ * discarded. Exported so a UI can hide the choice rather than offer one that
+ * cannot be honoured.
+ */
+export function alwaysAllowUnavailableReason(tool: Tool, input: unknown): string | undefined {
+  const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
+  if (subject !== undefined) return undefined;
+  return (
+    `"always allow" needs a subject to remember, and ${tool.name} calls do not carry one ` +
+    `(no subjectKey, and no path/url/name input). Recording it would store a rule that can ` +
+    `never match. Approve this call, or set a trust rule for ${tool.name} explicitly.`
+  );
+}
+
 function shellCommandLineFromInput(input: unknown): string | undefined {
   const command =
     getInputString(input, 'command') ??
@@ -485,7 +514,17 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       if (this.promptDelegate) {
         const userDecision = await this.promptDelegate(tool, input, subject ?? tool.name);
         if (userDecision === 'always') {
-          await this.trust({ tool: tool.name, pattern: subject ?? tool.name });
+          // WS-046: with no subject there is nothing to remember. Approve this
+          // call and say why it was not persisted, rather than writing a rule
+          // that can never match.
+          if (subject === undefined) {
+            return {
+              permission: 'auto',
+              source: 'user',
+              reason: `approved once — ${alwaysAllowUnavailableReason(tool, input)}`,
+            };
+          }
+          await this.trust({ tool: tool.name, pattern: subject });
           return {
             permission: 'auto',
             source: 'user',
@@ -577,7 +616,17 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     if (this.promptDelegate) {
       const decision = await this.promptDelegate(tool, input, subject ?? tool.name);
       if (decision === 'always') {
-        await this.trust({ tool: tool.name, pattern: subject ?? tool.name });
+        // WS-046: see `alwaysAllowUnavailableReason`. Storing `pattern:
+        // tool.name` here is what made "always allow" a permanent silent
+        // no-op for every subject-less tool.
+        if (subject === undefined) {
+          return {
+            permission: 'auto',
+            source: 'user',
+            reason: `approved once — ${alwaysAllowUnavailableReason(tool, input)}`,
+          };
+        }
+        await this.trust({ tool: tool.name, pattern: subject });
         return { permission: 'auto', source: 'user', reason: 'user always-allowed' };
       }
       if (decision === 'deny') {

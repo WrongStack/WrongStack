@@ -71,6 +71,11 @@ function harness() {
     },
   }));
   const activateSessionIdentity = vi.fn(async (_sessionId: string) => undefined);
+  // Snapshot of the pre-resume todos-detach handle. The rollback test
+  // asserts the outer catch restores `state.detachActiveTodosCheckpoint`
+  // to THIS exact reference — without exposing it, the assertion compares
+  // against `undefined` and the field's shared-mock identity is invisible.
+  const priorDetachFn = vi.fn(async () => undefined);
   const tokenCounter = {
     total: vi.fn(() => ({ input: 3, output: 2, cacheRead: 0, cacheWrite: 0 })),
     reset: vi.fn(),
@@ -93,7 +98,7 @@ function harness() {
       resume: resumeStore,
     },
     activateSessionIdentity,
-    detachActiveTodosCheckpoint: vi.fn(async () => undefined),
+    detachActiveTodosCheckpoint: priorDetachFn,
     pendingProjectSwitch: null,
     autonomousCoordinator: null,
     coordinatorRun: null,
@@ -109,6 +114,7 @@ function harness() {
     },
     state,
     context,
+    priorDetachFn,
     oldWriter,
     resumedWriter,
     oldMessages,

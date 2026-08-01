@@ -118,9 +118,10 @@ export async function resumeSession(
   // original session's `.todos.json` would be silently detached AND
   // the resumed session's checkpoint never bound.
   let previousDetachFn: typeof state.detachActiveTodosCheckpoint;
-  let oldTodos: readonly unknown[] = [];
+  let oldTodos: import('@wrongstack/core/agent').TodoItem[] = [];
   let oldPlanPath: unknown;
   let oldTaskPath: unknown;
+
   try {
     if (state.activateSessionIdentity) {
       await state.activateSessionIdentity(canonicalSessionId);
@@ -188,12 +189,14 @@ export async function resumeSession(
     // the original session's todos persistence detached AND the resumed
     // session's checkpoint never bound — every subsequent todo edit on
     // the original session would write to nowhere.
-    const previousDetachFn = state.detachActiveTodosCheckpoint;
-    const oldTodos = agent.ctx.state.todos ? [...agent.ctx.state.todos] : [];
-    const oldPlanPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
+    previousDetachFn = state.detachActiveTodosCheckpoint;
+    oldTodos = agent.ctx.state.todos
+      ? [...(agent.ctx.state.todos as import('@wrongstack/core/agent').TodoItem[])]
+      : [];
+    oldPlanPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
       'plan.path'
     ];
-    const oldTaskPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
+    oldTaskPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
       'task.path'
     ];
     await Promise.resolve(previousDetachFn?.()).catch(() => undefined);

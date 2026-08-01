@@ -1,3 +1,4 @@
+import { alwaysAllowUnavailableReason } from '@wrongstack/core/security';
 import type { InputReader, Tool } from '@wrongstack/core/types';
 import { color, truncate, writeOut } from '@wrongstack/core/utils';
 import { renderDiff } from './diff-renderer.js';
@@ -31,14 +32,30 @@ export function makePromptDelegate(reader: InputReader) {
     }
 
     writeOut(color.dim('─────────────────\n'));
+
+    // WS-046: "always allow" is only offerable when the call carries a subject
+    // to remember. Without one, the trust file has nothing to key a rule on and
+    // the entry would be written but never matched — so the option is withheld
+    // and the reason shown, instead of presenting a choice that does nothing.
+    // Offering a dead option is worse than not offering it: the user concludes
+    // trust rules are broken and reaches for a blanket auto-approve.
+    const noAlwaysReason = alwaysAllowUnavailableReason(tool, input);
+    if (noAlwaysReason) {
+      writeOut(`${color.dim(`(no "always" for this call — ${noAlwaysReason})`)}\n`);
+    }
+
+    const options = [
+      { key: 'y', label: 'yes', value: 'yes' },
+      { key: 'n', label: 'no', value: 'no' },
+      ...(noAlwaysReason ? [] : [{ key: 'a', label: 'always', value: 'always' }]),
+      { key: 'd', label: 'deny', value: 'deny' },
+    ];
+    const alwaysHint = noAlwaysReason
+      ? ''
+      : `  ${theme.bold('[a]')}lways allow (${suggestedPattern})`;
     const answer = await reader.readKey(
-      `${theme.bold('[y]')}es  ${theme.bold('[n]')}o  ${theme.bold('[a]')}lways allow (${suggestedPattern})  ${theme.bold('[d]')}eny: `,
-      [
-        { key: 'y', label: 'yes', value: 'yes' },
-        { key: 'n', label: 'no', value: 'no' },
-        { key: 'a', label: 'always', value: 'always' },
-        { key: 'd', label: 'deny', value: 'deny' },
-      ],
+      `${theme.bold('[y]')}es  ${theme.bold('[n]')}o${alwaysHint}  ${theme.bold('[d]')}eny: `,
+      options,
     );
     return answer as PromptDecision;
   };

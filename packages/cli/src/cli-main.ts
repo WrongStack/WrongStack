@@ -9,7 +9,6 @@ import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { startSharedHeapWatchdog, writeErr } from '@wrongstack/core/utils';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { wireEventWiring } from './boot/event-wiring.js';
-import { bootstrapCliGovernance, governedHandle } from './boot/governance-runtime.js';
 import { configureSimpleUiRuntimeContext } from './boot/simpleui-full-auto.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
@@ -21,6 +20,7 @@ import {
   createTeardownEventRegistrar,
   getSddRuntimeStateForCli,
   loadOnlineAgentsForPrompt,
+  setupCliGovernance,
 } from './cli-main-helpers.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { wireSessionEvents } from './session-event-wiring.js';
@@ -106,12 +106,6 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   } = cliCtx;
   const profileConfigPath = activeProfileConfigPath(wpaths, config);
 
-  // PR 4 of Issue #29: mode + provider + modelCapabilities
-  // resolution is now in `resolveModeAndCapabilities()`. The
-  // helper returns a discriminated union; on `kind: 'exit'`
-  // we teardown the reader and return the exit code (the
-  // pre-refactor inline writeErr + reader.close + return 2
-  // shape, now in one place).
   const modeStore = container.resolve(TOKENS.ModeStore);
   const activeMode = await modeStore.getActiveMode();
   const modeResult = await resolveModeAndCapabilities({
@@ -146,10 +140,6 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const autonomyModeRef: {
     current: import('./services/autonomy-mode.js').AutonomyMode;
   } = { current: 'off' };
-  // PR 5 of Issue #29: SystemPromptBuilder binding is now
-  // a single helper call. The helper takes the same forward
-  // declarations and reads them lazily through the same
-  // closure shape — no behavior change.
   bindSystemPromptBuilder({
     container,
     modeStore,
@@ -175,12 +165,6 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     systemPromptBuilderToken: TOKENS.SystemPromptBuilder,
   });
 
-  // Tool registry — PR 6 of Issue #29. The 18-line
-  // registration block (context manager + memory tools +
-  // mailbox tools) is now a single helper call. The helper
-  // takes the pre-constructed ToolRegistry, the feature
-  // flags, the memory store, the events bus, and the
-  // project dir; it does not touch the container.
   const toolRegistry = new ToolRegistry();
   registerBuiltinTools({
     toolRegistry,
@@ -295,28 +279,13 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const session = sessResult.session;
   sessionRef.current = session;
   const context = sessResult.context;
-  const governanceBootstrap = await bootstrapCliGovernance({
-    environment: process.env,
+  const governanceHandle = await setupCliGovernance({
     projectRoot,
     projectId: wpaths.projectSlug,
-    adminClientId: `cli-control-${process.pid}-${session.id}`,
-    modelClientId: `cli-model-${session.id}`,
-    modelCapabilities: ['task_read', 'command_submit', 'shadow_observe'],
+    sessionId: session.id,
+    contextMeta: context.meta,
+    logger,
   });
-  const governanceHandle = governedHandle(governanceBootstrap);
-  if (governanceBootstrap.mode === 'governed') {
-    context.meta['governance'] = governanceBootstrap.handle.snapshot();
-    logger.info(
-      `governance: ${governanceBootstrap.handle.snapshot().source} session-scoped control plane`,
-    );
-  } else if (governanceBootstrap.mode === 'legacy') {
-    context.meta['governance'] = governanceBootstrap;
-    logger.warn(`governance: legacy fallback (${governanceBootstrap.code})`, {
-      phase: governanceBootstrap.phase,
-      cleanup: governanceBootstrap.cleanup,
-      message: governanceBootstrap.message,
-    });
-  }
   configureSimpleUiRuntimeContext(context.meta, flags);
   const attachments = sessResult.attachments;
   const queueStore = sessResult.queueStore;

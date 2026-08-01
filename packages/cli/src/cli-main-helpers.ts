@@ -1,11 +1,132 @@
-import {
-  getSharedProjectMailbox,
-  type MailboxAgentStatus,
-} from '@wrongstack/core/coordination';
-import type { Logger, ModelsRegistry } from '@wrongstack/core/types';
-import type { Config } from '@wrongstack/core/types';
+import { getSharedProjectMailbox, type MailboxAgentStatus } from '@wrongstack/core/coordination';
+import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
+import type {
+  BootstrapGovernanceRuntimeOptions,
+  GovernanceRuntimeBootstrapHandle,
+  GovernanceRuntimeBootstrapResult,
+} from '@wrongstack/runtime/governance-bootstrap';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { buildPickableProviders } from './provider-helpers.js';
+
+export const WRONGSTACK_GOVERNANCE_ENV = 'WRONGSTACK_GOVERNANCE';
+
+export interface BootstrapCliGovernanceOptions extends BootstrapGovernanceRuntimeOptions {
+  readonly environment: Readonly<Record<string, string | undefined>>;
+}
+
+export type CliGovernanceBootstrapResult =
+  | { readonly mode: 'disabled'; readonly reason: 'feature_flag_off' }
+  | GovernanceRuntimeBootstrapResult
+  | {
+      readonly mode: 'legacy';
+      readonly code: 'module_unavailable';
+      readonly phase: 'bootstrap';
+      readonly message: string;
+      readonly cleanup: 'not_required';
+    };
+
+interface GovernanceBootstrapModule {
+  bootstrapGovernanceRuntime(
+    options: BootstrapGovernanceRuntimeOptions,
+  ): Promise<GovernanceRuntimeBootstrapResult>;
+}
+
+interface BootstrapCliGovernanceDependencies {
+  readonly load: () => Promise<GovernanceBootstrapModule>;
+}
+
+const DEFAULT_GOVERNANCE_DEPENDENCIES: BootstrapCliGovernanceDependencies = {
+  load: () => import('@wrongstack/runtime/governance-bootstrap'),
+};
+
+function sanitizeGovernanceMessage(message: string): string {
+  return message.replace(/wsg_\S{1,700}/gu, '[credential]').slice(0, 512);
+}
+
+export function governanceRuntimeEnabled(
+  environment: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return environment[WRONGSTACK_GOVERNANCE_ENV]?.trim() === '1';
+}
+
+export function governedHandle(
+  result: CliGovernanceBootstrapResult,
+): GovernanceRuntimeBootstrapHandle | undefined {
+  return result.mode === 'governed' ? result.handle : undefined;
+}
+
+export async function bootstrapCliGovernance(
+  options: BootstrapCliGovernanceOptions,
+  dependencies: BootstrapCliGovernanceDependencies = DEFAULT_GOVERNANCE_DEPENDENCIES,
+): Promise<CliGovernanceBootstrapResult> {
+  if (!governanceRuntimeEnabled(options.environment)) {
+    return Object.freeze({ mode: 'disabled', reason: 'feature_flag_off' });
+  }
+  let loaded: GovernanceBootstrapModule;
+  try {
+    loaded = await dependencies.load();
+  } catch (error) {
+    return Object.freeze({
+      mode: 'legacy',
+      code: 'module_unavailable',
+      phase: 'bootstrap',
+      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+      cleanup: 'not_required',
+    });
+  }
+  try {
+    return await loaded.bootstrapGovernanceRuntime({
+      projectRoot: options.projectRoot,
+      projectId: options.projectId,
+      adminClientId: options.adminClientId,
+      modelClientId: options.modelClientId,
+      modelCapabilities: options.modelCapabilities,
+      ...(options.adminTtlMs === undefined ? {} : { adminTtlMs: options.adminTtlMs }),
+      ...(options.modelTtlMs === undefined ? {} : { modelTtlMs: options.modelTtlMs }),
+      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+      ...(options.existingAdmin === undefined ? {} : { existingAdmin: options.existingAdmin }),
+    });
+  } catch (error) {
+    return Object.freeze({
+      mode: 'legacy',
+      code: 'bootstrap_failed',
+      phase: 'bootstrap',
+      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+      cleanup: 'unavailable',
+    });
+  }
+}
+
+export async function setupCliGovernance(input: {
+  readonly projectRoot: string;
+  readonly projectId: string;
+  readonly sessionId: string;
+  readonly contextMeta: Record<string, unknown>;
+  readonly logger: Pick<Logger, 'info' | 'warn'>;
+}): Promise<GovernanceRuntimeBootstrapHandle | undefined> {
+  const result = await bootstrapCliGovernance({
+    environment: process.env,
+    projectRoot: input.projectRoot,
+    projectId: input.projectId,
+    adminClientId: `cli-control-${process.pid}-${input.sessionId}`,
+    modelClientId: `cli-model-${input.sessionId}`,
+    modelCapabilities: ['task_read', 'command_submit', 'shadow_observe'],
+  });
+  if (result.mode === 'governed') {
+    input.contextMeta['governance'] = result.handle.snapshot();
+    input.logger.info(
+      `governance: ${result.handle.snapshot().source} session-scoped control plane`,
+    );
+  } else if (result.mode === 'legacy') {
+    input.contextMeta['governance'] = result;
+    input.logger.warn(`governance: legacy fallback (${result.code})`, {
+      phase: result.phase,
+      cleanup: result.cleanup,
+      message: result.message,
+    });
+  }
+  return governedHandle(result);
+}
 
 export interface CliMainEventSource {
   on(event: string, handler: (...args: unknown[]) => void): void;

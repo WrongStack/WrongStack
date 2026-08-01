@@ -3,7 +3,7 @@ import {
   bootstrapCliGovernance,
   governanceRuntimeEnabled,
   governedHandle,
-} from '../src/boot/governance-runtime.js';
+} from '../src/cli-main-helpers.js';
 
 const options = {
   environment: { WRONGSTACK_GOVERNANCE: '1' },
