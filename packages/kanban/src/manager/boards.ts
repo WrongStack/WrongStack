@@ -33,7 +33,7 @@ import {
   statusForColumn,
   uniqueColumnId,
 } from './_internal.js';
-import { initializeManagedTaskLifecycle, validateManagedLifecyclePolicy } from './lifecycle.js';
+import { initializeAndValidateManagedTask, validateManagedLifecyclePolicy } from './lifecycle.js';
 import { withLiveKanbanPresence } from './presence.js';
 
 export async function createBoard(
@@ -52,6 +52,8 @@ export async function createBoard(
     ...(input.boundary !== undefined ? { boundary: input.boundary } : {}),
     ...(input.atomicity !== undefined ? { atomicity: input.atomicity } : {}),
     ...(input.completionGate !== undefined ? { completionGate: input.completionGate } : {}),
+    ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    ...(input.retention !== undefined ? { retention: input.retention } : {}),
   });
 
   const policyIssues = validateManagedLifecyclePolicy(board);
@@ -65,7 +67,7 @@ export async function createBoard(
         columnId: task.columnId ?? board.columns[0]?.id ?? 'backlog',
         order: task.order ?? index,
       });
-      initializeManagedTaskLifecycle(board, created);
+      initializeAndValidateManagedTask(board, created);
       return created;
     });
   }
@@ -184,7 +186,7 @@ export async function duplicateBoard(
         delete cloned.lifecycle;
         cloned.status = 'pending';
         delete cloned.completedAt;
-        initializeManagedTaskLifecycle(board, cloned);
+        initializeAndValidateManagedTask(board, cloned);
       }
       idMap.set(task.id, cloned.id);
       return cloned;

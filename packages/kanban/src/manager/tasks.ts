@@ -33,7 +33,7 @@ import {
   requireNonBlank,
   stampAtomicityAssessment,
 } from './_internal.js';
-import { assertManagedTaskPatchAllowed, initializeManagedTaskLifecycle } from './lifecycle.js';
+import { assertManagedTaskPatchAllowed, initializeAndValidateManagedTask } from './lifecycle.js';
 
 function taskEventSnapshot(task: KanbanTask): Record<string, unknown> {
   return {
@@ -94,7 +94,7 @@ export async function addTask(
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = createTaskObject(board, input);
-    initializeManagedTaskLifecycle(board, task);
+    initializeAndValidateManagedTask(board, task);
     if (input.atomicityAssessment === undefined) stampAtomicityAssessment(board, task);
     board.tasks.push(task);
     placeTaskInColumn(board, task, task.columnId, task.order);
@@ -143,7 +143,7 @@ export async function copyTaskToBoard(
       delete task.lifecycle;
       task.status = 'pending';
       delete task.completedAt;
-      initializeManagedTaskLifecycle(targetBoard, task);
+      initializeAndValidateManagedTask(targetBoard, task);
     }
     targetBoard.tasks.push(task);
     placeTaskInColumn(targetBoard, task, task.columnId, task.order);

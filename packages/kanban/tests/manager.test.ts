@@ -174,7 +174,7 @@ describe('managed Kanban Agent lifecycle', () => {
 
   it('rejects under-filled cards and skipped direct moves', async () => {
     const board = await managedBoard();
-    const created = await addTask(tmpDir, board.id, { title: 'Managed task' });
+    const created = await addTask(tmpDir, board.id, { title: 'Managed task', description: 'Test task for under-filled card validation.' });
     expect(created?.task.lifecycle?.currentStage).toBe('backlog');
     await expect(
       transitionTask(tmpDir, board.id, created!.task.id, {
@@ -182,7 +182,7 @@ describe('managed Kanban Agent lifecycle', () => {
         actor: 'agent-1',
         comment: 'Ready to plan.',
       }),
-    ).rejects.toThrow('Add a complete task description');
+    ).rejects.toThrow('Assign an owner');
     await expect(moveTask(tmpDir, board.id, created!.task.id, 'done')).rejects.toThrow(
       'must use transitionTask',
     );
@@ -264,6 +264,7 @@ describe('managed Kanban Agent lifecycle', () => {
     const source = await makeBoard();
     const sourceTask = await addTask(tmpDir, source.id, {
       title: 'Copied task',
+      description: 'Source task for copy-to-managed-board test.',
       columnId: 'done',
       status: 'completed',
     });

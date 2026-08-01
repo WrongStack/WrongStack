@@ -161,6 +161,24 @@ export class ServerKanbanStore {
   ) {
     return this.callDomain('finalizeTaskCompletion', boardId, taskId, options);
   }
+  reserveKanbanDispatch(input: NonNullable<DomainArgs<'reserveKanbanDispatch'>[0]>) {
+    return this.callDomain('reserveKanbanDispatch', input);
+  }
+  startKanbanDispatch(input: NonNullable<DomainArgs<'startKanbanDispatch'>[0]>) {
+    return this.callDomain('startKanbanDispatch', input);
+  }
+  completeKanbanDispatch(input: NonNullable<DomainArgs<'completeKanbanDispatch'>[0]>) {
+    return this.callDomain('completeKanbanDispatch', input);
+  }
+  failKanbanDispatch(input: NonNullable<DomainArgs<'failKanbanDispatch'>[0]>) {
+    return this.callDomain('failKanbanDispatch', input);
+  }
+  cancelKanbanDispatch(input: NonNullable<DomainArgs<'cancelKanbanDispatch'>[0]>) {
+    return this.callDomain('cancelKanbanDispatch', input);
+  }
+  heartbeatKanbanDispatch(input: NonNullable<DomainArgs<'heartbeatKanbanDispatch'>[0]>) {
+    return this.callDomain('heartbeatKanbanDispatch', input);
+  }
   heartbeatTaskAssignment(
     boardId: string,
     taskId: string,

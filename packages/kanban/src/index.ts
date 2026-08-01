@@ -62,6 +62,12 @@ export {
   updateTask,
   updateTaskAssignment,
   verifyTaskCompletion,
+  reserveKanbanDispatch,
+  startKanbanDispatch,
+  completeKanbanDispatch,
+  failKanbanDispatch,
+  cancelKanbanDispatch,
+  heartbeatKanbanDispatch,
 } from './client-domain.js';
 export * from './manager.js';
 export {

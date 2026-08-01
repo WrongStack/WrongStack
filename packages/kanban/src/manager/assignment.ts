@@ -7,6 +7,7 @@ import type {
   KanbanAgentAssignment,
   KanbanAgentRunStatus,
   KanbanBoard,
+  KanbanBoardKind,
   KanbanEvent,
   KanbanEventContext,
   KanbanOrchestrationSnapshot,
@@ -40,6 +41,10 @@ import { collectBoardsForHealth } from './board-health.js';
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
 import { StaleWriteError } from './lifecycle.js';
+import { classifyTaskForQueue } from './task-classifier.js';
+import { resolveKindFilter } from './board-kind-filter.js';
+
+let lastGlobalClaimBoardId: string | undefined;
 
 /**
  * Deterministically repair task/assignment/column drift.
@@ -442,20 +447,46 @@ export async function recoverStaleTaskAssignments(
 
 export async function claimReadyTask(
   projectRoot: string,
-  input: ClaimKanbanTaskInput = {},
+  input: ClaimKanbanTaskInput & {
+    includeBoardKinds?: readonly KanbanBoardKind[];
+    excludeBoardKinds?: readonly KanbanBoardKind[];
+  } = {},
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
   if (input.boardId) return claimReadyTaskOnBoard(projectRoot, input.boardId, input);
+  const kindResolved = resolveKindFilter({
+    ...(input.includeBoardKinds !== undefined ? { includeBoardKinds: input.includeBoardKinds } : {}),
+    ...(input.excludeBoardKinds !== undefined ? { excludeBoardKinds: input.excludeBoardKinds } : {}),
+  });
   const boards = await listBoards(projectRoot);
-  // Shuffle the board list so all boards get fair claim opportunities
-  // regardless of their position in the alphabetically-sorted board list.
-  for (let i = boards.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [boards[i], boards[j]] = [boards[j]!, boards[i]!];
-  }
-  for (const board of boards) {
+  // Deterministic ordering: most-recently-active boards first, then rotate the
+  // start point after the last successful global claim. A claim updates the
+  // winning board's `updatedAt`; without rotation, the newest board can keep
+  // sorting first and starve ready tasks on older boards.
+  // Session mirrors and archived boards are excluded by default.
+  const ordered = boards
+    .filter((summary) => {
+      const kind = summary.kind ?? 'project';
+      if (kindResolved.include) return kindResolved.include.has(kind);
+      return !kindResolved.exclude.has(kind);
+    })
+    .sort((a, b) => {
+      const aTime = Date.parse(a.updatedAt ?? a.createdAt ?? 0);
+      const bTime = Date.parse(b.updatedAt ?? b.createdAt ?? 0);
+      if (aTime !== bTime) return bTime - aTime;
+      return a.id.localeCompare(b.id);
+    });
+  const lastClaimIndex = ordered.findIndex((board) => board.id === lastGlobalClaimBoardId);
+  const rotated =
+    lastClaimIndex >= 0
+      ? [...ordered.slice(lastClaimIndex + 1), ...ordered.slice(0, lastClaimIndex + 1)]
+      : ordered;
+  for (const board of rotated) {
     try {
       const claimed = await claimReadyTaskOnBoard(projectRoot, board.id, input);
-      if (claimed) return claimed;
+      if (claimed) {
+        lastGlobalClaimBoardId = claimed.board.id;
+        return claimed;
+      }
     } catch (error) {
       // A stale-write error on this board means another agent claimed the
       // ready task before us. Continue to the next board instead of failing
@@ -516,15 +547,28 @@ export async function releaseTaskClaim(
 
 export async function getKanbanOrchestrationSnapshot(
   projectRoot: string,
-  input: KanbanSearchInput = {},
+  input: KanbanSearchInput & {
+    includeBoardKinds?: readonly KanbanBoardKind[];
+    excludeBoardKinds?: readonly KanbanBoardKind[];
+  } = {},
 ): Promise<KanbanOrchestrationSnapshot> {
+  const kindResolved = resolveKindFilter({
+    ...(input.includeBoardKinds !== undefined ? { includeBoardKinds: input.includeBoardKinds } : {}),
+    ...(input.excludeBoardKinds !== undefined ? { excludeBoardKinds: input.excludeBoardKinds } : {}),
+  });
   const boards = input.boardId
     ? [await getBoard(projectRoot, input.boardId)].filter((board): board is KanbanBoard =>
         Boolean(board),
       )
-    : await Promise.all(
-        (await listBoards(projectRoot)).map((board) => getBoard(projectRoot, board.id)),
-      ).then((items) => items.filter((board): board is KanbanBoard => Boolean(board)));
+    : (await Promise.all(
+        (await listBoards(projectRoot))
+          .filter((summary) => {
+            const kind = summary.kind ?? 'project';
+            if (kindResolved.include) return kindResolved.include.has(kind);
+            return !kindResolved.exclude.has(kind);
+          })
+          .map((board) => getBoard(projectRoot, board.id)),
+      ).then((items) => items.filter((board): board is KanbanBoard => Boolean(board))));
   const snapshot: KanbanOrchestrationSnapshot = {
     generatedAt: nowIso(),
     boards: boards.map((board) => summarizeBoard(board)),
@@ -577,11 +621,20 @@ export async function getKanbanOrchestrationSnapshot(
  */
 export async function getKanbanQueueHealth(
   projectRoot: string,
-  input: { boardId?: string; now?: string; heartbeatIntervalMs?: number } = {},
+  input: {
+    boardId?: string;
+    now?: string;
+    heartbeatIntervalMs?: number;
+    includeBoardKinds?: readonly KanbanBoardKind[];
+    excludeBoardKinds?: readonly KanbanBoardKind[];
+  } = {},
 ): Promise<KanbanQueueHealth> {
   const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 60_000;
   const now = input.now ?? nowIso();
-  const boards = await collectBoardsForHealth(projectRoot, input.boardId);
+  const boards = await collectBoardsForHealth(projectRoot, input.boardId, {
+    ...(input.includeBoardKinds !== undefined ? { includeBoardKinds: input.includeBoardKinds } : {}),
+    ...(input.excludeBoardKinds !== undefined ? { excludeBoardKinds: input.excludeBoardKinds } : {}),
+  });
   const boardIds = boards.map((board) => board.id);
 
   const counts = {
@@ -599,11 +652,43 @@ export async function getKanbanQueueHealth(
   const staleAssignments: KanbanSearchResult[] = [];
   const failedRetryable: KanbanSearchResult[] = [];
   const heartbeatDue: KanbanSearchResult[] = [];
+  const classificationCounts = {
+    claimable: 0,
+    stage_blocked: 0,
+    detail_incomplete: 0,
+    dependency_blocked: 0,
+    queued: 0,
+    queued_expired: 0,
+    running_live: 0,
+    running_expired: 0,
+    running_no_lease: 0,
+    review: 0,
+    failed_retryable: 0,
+    failed_terminal: 0,
+    completed: 0,
+    archived: 0,
+    not_dispatchable: 0,
+  };
+  const classificationDiagnostics: NonNullable<KanbanQueueHealth['classifications']>['diagnostics'] = [];
 
   for (const board of boards) {
     const summary = summarizeBoard(board);
     for (const task of board.tasks) {
       const assignment = task.assignment;
+      const result = { board: summary, task };
+      const classification = classifyTaskForQueue(board, task, { now, heartbeatIntervalMs });
+      classificationCounts[classification.bucket] += 1;
+      if (classification.reasons.length > 0) {
+        classificationDiagnostics.push({
+          boardId: board.id,
+          taskId: task.id,
+          bucket: classification.bucket,
+          reasons: [...classification.reasons],
+          ...(classification.managedStage !== undefined
+            ? { managedStage: classification.managedStage }
+            : {}),
+        });
+      }
       const dependencyUnmet = !areDependenciesMet(board, task.id);
       const isRunning =
         task.status === 'in_progress' ||
@@ -626,7 +711,7 @@ export async function getKanbanQueueHealth(
       const readyButBlocked = task.status === 'ready' && dependencyUnmet;
       const pendingButBlocked = task.status === 'pending' && dependencyUnmet;
       if (readyButBlocked || pendingButBlocked) {
-        dependencyBlocked.push({ board: summary, task });
+        dependencyBlocked.push(result);
       }
       const expiredLease =
         assignment !== undefined &&
@@ -634,7 +719,7 @@ export async function getKanbanQueueHealth(
         assignment.leaseExpiresAt !== undefined &&
         assignment.leaseExpiresAt <= now;
       if (expiredLease) {
-        staleAssignments.push({ board: summary, task });
+        staleAssignments.push(result);
       }
       if (
         assignment &&
@@ -642,7 +727,7 @@ export async function getKanbanQueueHealth(
         assignment.leaseExpiresAt !== undefined &&
         msUntilExpiry(assignment.leaseExpiresAt, now) <= heartbeatIntervalMs
       ) {
-        heartbeatDue.push({ board: summary, task });
+        heartbeatDue.push(result);
       }
       if (
         task.status === 'failed' &&
@@ -650,7 +735,7 @@ export async function getKanbanQueueHealth(
         assignment.maxAttempts !== undefined &&
         (assignment.attempt ?? 0) < assignment.maxAttempts
       ) {
-        failedRetryable.push({ board: summary, task });
+        failedRetryable.push(result);
       }
     }
   }
@@ -677,6 +762,10 @@ export async function getKanbanQueueHealth(
     staleAssignments: { count: staleAssignments.length, tasks: staleAssignments },
     failedRetryable: { count: failedRetryable.length, tasks: failedRetryable },
     heartbeatDue: { count: heartbeatDue.length, tasks: heartbeatDue },
+    classifications: {
+      counts: classificationCounts,
+      diagnostics: classificationDiagnostics,
+    },
     ...(lastDispatchedAt !== undefined ? { lastDispatchedAt } : {}),
     ...(lastStaleRecoveredAt !== undefined ? { lastStaleRecoveredAt } : {}),
   };

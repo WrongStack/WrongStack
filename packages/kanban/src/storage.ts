@@ -9,6 +9,7 @@ import {
   CURRENT_KANBAN_VERSION,
   DEFAULT_COLUMNS,
   type KanbanBoard,
+  type KanbanBoardKind,
   type KanbanBoardMeta,
   type KanbanBoardSummary,
   type KanbanEvent,
@@ -449,6 +450,8 @@ export function summarizeBoard(board: KanbanBoard): KanbanBoardSummary {
     completedTaskCount: completed,
     ...(board.description !== undefined ? { description: board.description } : {}),
     ...(board.tags !== undefined ? { tags: board.tags } : {}),
+    ...(board.kind !== undefined ? { kind: board.kind } : {}),
+    ...(board.retention !== undefined ? { retention: board.retention } : {}),
     ...(board.presence !== undefined
       ? { presence: board.presence.map((entry) => ({ ...entry })) }
       : {}),
@@ -468,6 +471,8 @@ export function boardMeta(board: KanbanBoard): KanbanBoardMeta {
     updatedAt: summary.updatedAt,
     ...(summary.description !== undefined ? { description: summary.description } : {}),
     ...(summary.tags !== undefined ? { tags: summary.tags } : {}),
+    ...(summary.kind !== undefined ? { kind: summary.kind } : {}),
+    ...(summary.retention !== undefined ? { retention: summary.retention } : {}),
     ...(summary.presence !== undefined
       ? { presence: summary.presence.map((entry) => ({ ...entry })) }
       : {}),
@@ -486,11 +491,13 @@ export interface CreateBoardObjectOptions {
   boundary?: KanbanBoard['boundary'] | undefined;
   atomicity?: KanbanBoard['atomicity'] | undefined;
   completionGate?: KanbanBoard['completionGate'] | undefined;
+  kind?: KanbanBoard['kind'] | undefined;
+  retention?: KanbanBoard['retention'] | undefined;
 }
 
 export function createBoardObject(opts: CreateBoardObjectOptions): KanbanBoard {
   const now = new Date().toISOString();
-  return {
+  const board: KanbanBoard = {
     id: randomUUID(),
     title: opts.title,
     columns: opts.columns?.length
@@ -520,7 +527,13 @@ export function createBoardObject(opts: CreateBoardObjectOptions): KanbanBoard {
         }
       : {}),
     ...(opts.completionGate !== undefined ? { completionGate: { ...opts.completionGate } } : {}),
+    ...(opts.kind !== undefined ? { kind: opts.kind } : {}),
+    ...(opts.retention !== undefined ? { retention: { ...opts.retention } } : {}),
   };
+  // Apply kind inference so the returned object always has a kind, even
+  // before the board is read back from disk (where normalizeBoard runs).
+  board.kind = normalizeBoardKind(board);
+  return board;
 }
 
 export async function listBoardSummaries(projectRoot: string): Promise<KanbanBoardSummary[]> {
@@ -560,9 +573,36 @@ export function normalizeBoard(board: KanbanBoard): KanbanBoard {
     revision: board.revision ?? 0,
     createdAt: board.createdAt ?? now,
     updatedAt: board.updatedAt ?? now,
+    // Default kind to 'project' for legacy boards. Detect session mirrors from
+    // tags so old boards created before kind existed are still classified.
+    kind: normalizeBoardKind(board),
     columns,
     tasks,
   };
+}
+
+/**
+ * Infer board kind from tags when the explicit `kind` field is absent.
+ * Boards tagged `session-work` are classified as `session_mirror`.
+ * Boards created by `createBoardFromTaskGraph` with `generatedBy` containing
+ * `session-kanban:` are also classified as `session_mirror`.
+ * Boards with `generatedBy` containing `sdd` are classified as `sdd_mirror`.
+ * Everything else defaults to `project`.
+ */
+function normalizeBoardKind(board: KanbanBoard): KanbanBoardKind {
+  if (board.kind) return board.kind;
+  const tags = board.tags ?? [];
+  const generatedBy = board.generatedBy ?? '';
+  if (tags.includes('session-work') || tags.some((tag) => tag.startsWith('session:'))) {
+    return 'session_mirror';
+  }
+  if (generatedBy.startsWith('session-kanban:')) {
+    return 'session_mirror';
+  }
+  if (generatedBy.includes('sdd') || tags.includes('sdd')) {
+    return 'sdd_mirror';
+  }
+  return 'project';
 }
 
 function latestActivity(board: KanbanBoard): string | undefined {

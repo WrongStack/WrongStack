@@ -63,6 +63,12 @@ export const KANBAN_DOMAIN_OPERATIONS = [
   'enforceCompletionGate',
   'attachVerificationReport',
   'finalizeTaskCompletion',
+  'reserveKanbanDispatch',
+  'startKanbanDispatch',
+  'completeKanbanDispatch',
+  'failKanbanDispatch',
+  'cancelKanbanDispatch',
+  'heartbeatKanbanDispatch',
 ] as const;
 
 export type KanbanDomainOperation = (typeof KANBAN_DOMAIN_OPERATIONS)[number];

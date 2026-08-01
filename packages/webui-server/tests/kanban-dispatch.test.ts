@@ -4,13 +4,15 @@ import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from '../src/serv
 
 const mockStore = vi.hoisted(() => ({
   getBoard: vi.fn(),
-  assignTask: vi.fn(),
-  updateTaskAssignment: vi.fn(),
-  transitionTask: vi.fn(),
-  finalizeTaskCompletion: vi.fn(),
+  reserveKanbanDispatch: vi.fn(),
+  startKanbanDispatch: vi.fn(),
+  completeKanbanDispatch: vi.fn(),
+  failKanbanDispatch: vi.fn(),
   reconcileBoard: vi.fn(),
   listBoards: vi.fn(),
 }));
+
+const MOCK_LEASE_ID = 'aaaa1111-bbbb-cccc-dddd-eeeeffff0000';
 
 vi.mock('@wrongstack/kanban', async () => {
   const actual = await vi.importActual<typeof import('@wrongstack/kanban')>('@wrongstack/kanban');
@@ -60,30 +62,50 @@ function managedBoard(stage: 'todo' | 'running' | 'review' = 'todo') {
           stageEnteredAt: '2026-07-28T00:00:00.000Z',
           history: [],
         },
+        assignment: {
+          status: stage === 'todo' ? 'queued' : stage === 'running' ? 'running' : 'completed',
+          leaseId: MOCK_LEASE_ID,
+          agentId: 'agent-1',
+          name: 'WebUI Worker',
+          provider: 'test-provider',
+          model: 'test-model',
+        },
       },
     ],
   };
 }
 
-describe('handleKanbanTaskDispatch daemon store integration', () => {
+describe('handleKanbanTaskDispatch dispatch service integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockStore.getBoard.mockResolvedValue(managedBoard('todo'));
-    mockStore.assignTask.mockResolvedValue(managedBoard('todo'));
-    mockStore.updateTaskAssignment.mockImplementation(async (_boardId: string, _taskId: string, patch: { status?: string }) => {
-      if (patch.status === 'running') return managedBoard('todo');
-      if (patch.status === 'completed') return managedBoard('running');
-      return managedBoard('todo');
+    // reserveKanbanDispatch: return the board/task with a lease.
+    mockStore.reserveKanbanDispatch.mockResolvedValue({
+      board: managedBoard('todo'),
+      task: managedBoard('todo').tasks[0],
+      lease: {
+        leaseId: MOCK_LEASE_ID,
+        claimedAt: '2026-01-01T00:00:00.000Z',
+        heartbeatAt: '2026-01-01T00:00:00.000Z',
+        leaseExpiresAt: '2026-01-01T00:30:00.000Z',
+      },
     });
-    mockStore.transitionTask.mockImplementation(async (_boardId: string, _taskId: string, input: { to: 'running' | 'review' }) => ({
-      board: managedBoard(input.to),
-    }));
-    mockStore.finalizeTaskCompletion.mockResolvedValue({ gate: { report: null } });
+    // startKanbanDispatch: return the board/task in running stage.
+    mockStore.startKanbanDispatch.mockResolvedValue({
+      board: managedBoard('running'),
+      task: managedBoard('running').tasks[0],
+    });
+    // completeKanbanDispatch: return the board/task in review stage.
+    mockStore.completeKanbanDispatch.mockResolvedValue({
+      board: managedBoard('review'),
+      task: managedBoard('review').tasks[0],
+    });
+    mockStore.failKanbanDispatch.mockResolvedValue(managedBoard('todo'));
     mockStore.reconcileBoard.mockResolvedValue({ board: managedBoard('review') });
     mockStore.listBoards.mockResolvedValue([managedBoard('review')]);
   });
 
-  it('accepts WebUI assignment metadata without assignee and auto-transitions Todo to Running through the store', async () => {
+  it('reserves via dispatch service, starts dispatch, and reports success', async () => {
     const ws = mockWs();
     const dispatchTask = vi.fn<KanbanTaskDispatcher>().mockResolvedValue(
       'Spawned subagent sub-1 (test-provider / test-model) for task run-1.',
@@ -95,21 +117,25 @@ describe('handleKanbanTaskDispatch daemon store integration', () => {
       { projectRoot: '/tmp/project', dispatchTask },
     );
 
-    expect(mockStore.assignTask).toHaveBeenCalledWith(
-      'board-1',
-      'task-1',
+    // reserveKanbanDispatch was called with boardId, taskId, and routing metadata.
+    expect(mockStore.reserveKanbanDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        agentId: 'agent-1',
-        name: 'WebUI Worker',
-        status: 'queued',
-        leaseId: expect.any(String),
+        boardId: 'board-1',
+        taskId: 'task-1',
+        routing: expect.objectContaining({
+          agentId: 'agent-1',
+          name: 'WebUI Worker',
+        }),
       }),
-      expect.any(Object),
     );
-    expect(mockStore.transitionTask).toHaveBeenCalledWith(
-      'board-1',
-      'task-1',
-      expect.objectContaining({ to: 'running', actor: 'kanban-agent', comment: 'Work started.' }),
+    // startKanbanDispatch was called with the leaseId from reserve.
+    expect(mockStore.startKanbanDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        boardId: 'board-1',
+        taskId: 'task-1',
+        leaseId: MOCK_LEASE_ID,
+        actor: 'kanban-agent',
+      }),
     );
     expect(ws.sent).toContainEqual(
       expect.objectContaining({
@@ -119,7 +145,7 @@ describe('handleKanbanTaskDispatch daemon store integration', () => {
     );
   });
 
-  it('auto-transitions Running to Review when the dispatched worker completes', async () => {
+  it('completes via dispatch service when the dispatched worker finishes', async () => {
     const ws = mockWs();
     let onDone:
       | NonNullable<NonNullable<Parameters<KanbanTaskDispatcher>[1]>['onDone']>
@@ -138,21 +164,16 @@ describe('handleKanbanTaskDispatch daemon store integration', () => {
 
     await onDone?.({ status: 'completed', result: 'Implementation complete.' });
 
-    expect(mockStore.updateTaskAssignment).toHaveBeenCalledWith(
-      'board-1',
-      'task-1',
-      expect.objectContaining({ status: 'completed', lastResult: 'Implementation complete.' }),
-      expect.objectContaining({ expectedLeaseId: expect.any(String) }),
-    );
-    expect(mockStore.transitionTask).toHaveBeenCalledWith(
-      'board-1',
-      'task-1',
+    // completeKanbanDispatch was called with the leaseId and result.
+    expect(mockStore.completeKanbanDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: 'review',
-        actor: 'kanban-agent',
-        comment: 'Implementation complete.',
-        attachment: expect.objectContaining({ url: 'kanban://task/task-1/result' }),
+        boardId: 'board-1',
+        taskId: 'task-1',
+        leaseId: MOCK_LEASE_ID,
+        result: 'Implementation complete.',
       }),
     );
+    // failKanbanDispatch was NOT called.
+    expect(mockStore.failKanbanDispatch).not.toHaveBeenCalled();
   });
 });

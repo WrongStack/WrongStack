@@ -1,68 +1,129 @@
 ---
 name: wrongstack-kanban
-description: Monitor and manage a WrongStack project's IPC-backed Kanban through the wrongstack-kanban MCP server. Use when an external coding agent needs to inspect boards or task details, find or claim ready work, update tasks and assignments, follow dependencies, attach notes/checks/evidence, verify completion, recover stale work, or wait for Kanban changes without directly reading Kanban files or SQLite.
+description: >-
+  Monitor and manage a WrongStack project's IPC-backed Kanban through the
+  dedicated tool actions. Enforces deterministic task lifecycle, prevents
+  fake-progress, and ensures every card carries verifiable evidence before
+  completion. Use this skill whenever working with Kanban boards, tasks,
+  dispatch, verification, or the kanban tool.
+triggers:
+  - user says "kanban", "board", "task dispatch", "kanban queue"
+  - working with the kanban tool or kanban_queue
+  - managing project work through boards
 ---
 
-# WrongStack Kanban
+# WrongStack Kanban — Deterministic Enforcement Skill
 
-Use the MCP tools as the only state boundary. Never open or edit
-`.wrongstack/kanbans/_kanban.sqlite`, board JSON, event JSONL, or HQ sync files directly.
+## Core contract
 
-## Connect
+The Kanban board is the **single source of truth** for tracked work. Chat
+messages, session logs, and agent self-reports are **not** completion evidence.
+Only persisted board mutations with verifiable evidence count.
 
-Expect a configured MCP server named `wrongstack-kanban`. If it is missing, ask the user to add:
+## Anti-fake-progress rules
 
-```json
-{
-  "mcpServers": {
-    "wrongstack-kanban": {
-      "command": "wstack-kanban-mcp",
-      "args": ["--project-root", "/absolute/project/path", "--destructive"]
-    }
-  }
-}
-```
+1. **Never claim a task is "done" in chat without a board mutation.**
+   If you completed work, you must call `kanban` with `action: "mark_assignment"`
+   or `action: "transition_task"` to persist the result. A chat-only claim of
+   completion is fake progress.
 
-This full-management configuration exposes create, update, move, assignment, verification, delete,
-merge, and cross-board transfer operations. `--destructive` implies `--writable`. The bare server
-default remains read-only, so never try to bypass a narrower configuration through files or SQLite.
+2. **Never mark a task "completed" without verification.**
+   On managed boards, `mark_assignment(completed)` parks the card in Review —
+   it does not complete it. Only `verifyTaskCompletion` passing (or reviewer
+   acceptance) moves a card to Done.
 
-## Work with a board
+3. **Never skip lifecycle stages.**
+   Managed cards move exactly one stage at a time: Backlog → Todo → Running →
+   Review → Done. Jumping stages is a deterministic violation that the lifecycle
+   guard rejects.
 
-1. Call `kanban_read` with `list_boards`, then `get_board`. Treat returned state and revision as
-   authoritative.
-2. Before selecting work, inspect `ready_tasks`, `queue_health`, or `snapshot`. Respect dependencies,
-   existing assignments, completion gates, and managed lifecycle rules.
-3. Before any material mutation, re-read the board. Another human or agent may have changed it.
-4. Use `kanban_manage` with `claim_task` before starting unassigned work. Record a stable actor by
-   configuring the server with `--actor` when possible.
-5. Keep task and assignment state current. Use `heartbeat_assignment` during long work,
-   `transition_task` for managed boards, and `release_task` if work cannot proceed.
-6. Add truthful notes, checks, links, goal metrics, and verification evidence as they become known.
-7. Before completion, re-read the task, run `verify_completion`, and satisfy the board's completion
-   gate. Do not mark a task done merely because implementation ended.
+4. **Never create empty tasks on managed boards.**
+   Every managed-board task must have at minimum a `description`. A title-only
+   card is rejected at creation time.
 
-On stale-write or policy errors, re-read the board and reassess. Do not retry the same mutation with
-cached inputs.
+5. **Never report work as "in progress" without a board assignment.**
+   If work is being done, the card must have an active assignment with lease
+   metadata. Chat claims of "working on X" without a board assignment are not
+   tracked work.
 
-## Observe changes
+## Task detail requirements
 
-Call `kanban_watch` with an optional `boardId` and a timeout no greater than 25 seconds. It returns
-the next daemon mutation event, timeout, or disconnect.
+Before a managed card can leave Backlog (transition to Todo), it must have:
 
-Treat every watch result as a wake-up hint. After an event, timeout, or disconnect, call
-`kanban_read` again to reconcile authoritative state. A watch event is not a complete board snapshot
-and events can occur between long-poll calls.
+| Field | Required | Why |
+|-------|----------|-----|
+| `description` | **Yes** | A title alone is not actionable scope |
+| `assignee` | **Yes** | Work without an owner is untracked |
+| `dueDate` | **Yes** | Work without a deadline drifts indefinitely |
+| `labels` | **Yes** (≥1) | Tags categorize and filter work |
+| `childTaskIds` | **Yes** (≥1) | Every task is decomposed into subtasks |
+| `successCriteria` | **Yes** | Acceptance criteria define "done" before work starts |
 
-## Choose the permission tier
+The lifecycle guard enforces these mechanically. Do not attempt to bypass them.
 
-- Use `kanban_read` for listing, board/task detail, search, ready work, events, queue health,
-  snapshots, exports, and chains.
-- Use `kanban_manage` for create/update/move, dependencies, assignments, heartbeats, recovery,
-  evidence, verification, atomicity assessment, decomposition, and lifecycle transitions.
-- Use `kanban_destructive` only when the user explicitly intends to delete state, merge tasks, or
-  transfer a task out of its source board. Re-read both source and destination immediately before
-  the call.
+## Dispatch contract
 
-If a tool is not advertised, report the missing server permission tier. Do not bypass it through
-files, SQLite, shell commands, or another API.
+1. **Dispatch is deterministic.** The system selects tasks by priority, column,
+   order, and creation time — not randomly. Do not attempt to influence dispatch
+   order by shuffling tasks or boards.
+
+2. **Claim before working.** Call `kanban_queue` or `claim_task` before starting
+   work. Working on an unclaimed card means another agent may also be working on
+   it.
+
+3. **Heartbeat or lose the lease.** If you hold a lease, you must call
+   `heartbeat_assignment` before it expires. Expired leases are recovered by the
+   system and the task is reassigned.
+
+4. **Fence your writes.** Include `expectedLeaseId` in every `mark_assignment`
+   and `heartbeat_assignment` call. If your lease was recovered, your write
+   becomes a safe no-op instead of corrupting the successor's state.
+
+## Completion contract
+
+1. **"Done" means verified.** The completion gate runs `verifyTaskCompletion()`,
+   which executes success criteria checks deterministically. A passed gate is
+   the only path to Done on managed boards.
+
+2. **Chat evidence is not board evidence.** Saying "tests pass" in chat does not
+   verify a task. The verifier runs the actual test command and records the
+   result.
+
+3. **File-scope is checked.** If `expectedFileChanges` is set, the verifier
+   compares the actual git diff against the expected paths. Unexpected changes
+   fail the scope check.
+
+4. **Review is mandatory.** Even after verification passes, a reviewer must
+   accept the card (transition Review → Done with action text and an attachment).
+   Worker completion alone never reaches Done.
+
+## Event tracking
+
+Every material action must produce a board mutation:
+
+| Action | Required board mutation |
+|--------|------------------------|
+| Start work | `mark_assignment(running)` + `transition_task(running)` |
+| Complete work | `mark_assignment(completed)` + `transition_task(review)` |
+| Fail work | `mark_assignment(failed)` with error |
+| Split scope | `split_task` or `split_atomic` |
+| Add evidence | `add_note` or `add_link` |
+| Change plan | `update_task` or `add_dependency` |
+
+## Prohibited patterns
+
+| Anti-pattern | Why it's prohibited |
+|--------------|---------------------|
+| Creating title-only tasks on managed boards | Rejected at creation; no description = not actionable |
+| Reporting "done" without board evidence | Fake progress; board is source of truth |
+| Randomizing task selection | Dispatch is deterministic by design |
+| Skipping Review | Reviewer acceptance is mandatory before Done |
+| Working without a lease | Untracked; may conflict with another agent |
+| Soft-completing on managed boards | Gate enforcement is strict; soft is not honored |
+
+## Skills in scope
+
+- `sdd` — Spec-driven development creates boards from task graphs
+- `bug-hunter` — Findings can be tracked as Kanban cards
+- `chimera` — Post-session review updates board cards
+- `multi-agent` — Parallel dispatch through kanban_queue

@@ -23,6 +23,41 @@ export type KanbanTaskStatus =
   | 'failed'
   | 'archived';
 
+export type KanbanTaskQueueBucket =
+  | 'claimable'
+  | 'stage_blocked'
+  | 'detail_incomplete'
+  | 'dependency_blocked'
+  | 'queued'
+  | 'queued_expired'
+  | 'running_live'
+  | 'running_expired'
+  | 'running_no_lease'
+  | 'review'
+  | 'failed_retryable'
+  | 'failed_terminal'
+  | 'completed'
+  | 'archived'
+  | 'not_dispatchable';
+
+export interface KanbanTaskQueueClassification {
+  bucket: KanbanTaskQueueBucket;
+  reasons: string[];
+  claimable: boolean;
+  managedStage?: KanbanLifecycleStage | undefined;
+}
+
+export interface KanbanQueueClassificationSummary {
+  counts: Record<KanbanTaskQueueBucket, number>;
+  diagnostics: Array<{
+    boardId: string;
+    taskId: string;
+    bucket: KanbanTaskQueueBucket;
+    reasons: string[];
+    managedStage?: KanbanLifecycleStage | undefined;
+  }>;
+}
+
 export interface KanbanDecompositionSubtask {
   title: string;
   description?: string | undefined;
@@ -678,11 +713,43 @@ export interface KanbanBoardPresence {
   active: boolean;
 }
 
+/**
+ * Board kind classifies the purpose and lifecycle of a board.
+ * - `project`: durable, user-facing planning board (default for legacy boards)
+ * - `session_mirror`: ephemeral board auto-created by session-kanban mirror
+ * - `sdd_mirror`: board created by an SDD run
+ * - `import`: board created from a task-graph import
+ * - `archive`: board that has been archived and should be excluded from default queries
+ */
+export type KanbanBoardKind =
+  | 'project'
+  | 'session_mirror'
+  | 'sdd_mirror'
+  | 'import'
+  | 'archive';
+
+/**
+ * Retention policy for automatic board cleanup.
+ * - `keep`: never auto-archive or delete (default for project boards)
+ * - `archive_after_ttl`: hide from default queries after TTL elapses
+ * - `delete_after_ttl`: permanently delete after TTL elapses
+ */
+export interface KanbanBoardRetentionPolicy {
+  mode: 'keep' | 'archive_after_ttl' | 'delete_after_ttl';
+  ttlMs?: number | undefined;
+  /** Set when the board was actually archived by the retention job. */
+  archivedAt?: string | undefined;
+}
+
 export interface KanbanBoard {
   id: string;
   title: string;
   description?: string | undefined;
   tags?: string[] | undefined;
+  /** Board kind — used by queue/health filtering. Defaults to `project` during normalization. */
+  kind?: KanbanBoardKind | undefined;
+  /** Automatic retention policy. Session mirrors default to `archive_after_ttl`. */
+  retention?: KanbanBoardRetentionPolicy | undefined;
   columns: KanbanColumn[];
   tasks: KanbanTask[];
   createdAt: string;
@@ -726,6 +793,8 @@ export interface KanbanBoardMeta {
   taskCount: number;
   completedTaskCount: number;
   tags?: string[] | undefined;
+  kind?: KanbanBoardKind | undefined;
+  retention?: KanbanBoardRetentionPolicy | undefined;
   presence?: KanbanBoardPresence[] | undefined;
   createdAt: string;
   updatedAt: string;
@@ -734,7 +803,7 @@ export interface KanbanBoardMeta {
 
 export type KanbanBoardSummary = Pick<
   KanbanBoard,
-  'id' | 'title' | 'description' | 'tags' | 'createdAt' | 'updatedAt' | 'presence'
+  'id' | 'title' | 'description' | 'tags' | 'kind' | 'retention' | 'createdAt' | 'updatedAt' | 'presence'
 > & {
   columnCount: number;
   taskCount: number;

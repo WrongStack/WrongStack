@@ -134,6 +134,12 @@ export async function adoptManagedLifecycle(
     }
 
     board.lifecycle = lifecycle;
+    // Explicitly set strict completion gate so the board record carries the
+    // enforcement intent visibly, rather than relying on the resolveGateEnforcement
+    // fallback. Managed boards are always strict unless explicitly relaxed.
+    if (!board.completionGate || board.completionGate.enforcement === 'off') {
+      board.completionGate = { enforcement: 'strict' };
+    }
     board.updatedAt = at;
     for (const task of board.tasks) {
       // Skip cards that already have lifecycle metadata — they were adopted
@@ -314,6 +320,14 @@ export function initializeManagedTaskLifecycle(board: KanbanBoard, task: KanbanT
     stageEnteredAt: at,
     history: [{ to: 'backlog', at, actor: 'kanban-agent', action: 'Card created' }],
   };
+}
+
+export function initializeAndValidateManagedTask(board: KanbanBoard, task: KanbanTask): void {
+  initializeManagedTaskLifecycle(board, task);
+  if (board.lifecycle?.mode !== 'managed') return;
+  const issues: KanbanLifecycleValidationIssue[] = [];
+  requireDetail(issues, 'description', hasText(task.description), 'Add a complete task description.');
+  if (issues.length) throw new KanbanLifecycleError(issues[0]!.message, issues);
 }
 
 export function assertManagedTaskPatchAllowed(

@@ -132,6 +132,8 @@ export async function ensureSessionKanbanBoard(
         tags: sessionBoardTags(sessionId),
         columns: SESSION_KANBAN_COLUMNS,
         generatedBy: `session-kanban:${sessionId}`,
+        kind: 'session_mirror' as const,
+        retention: { mode: 'archive_after_ttl' as const, ttlMs: 7 * 24 * 60 * 60 * 1000 },
       });
     }
 

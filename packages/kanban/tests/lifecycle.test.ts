@@ -263,7 +263,7 @@ describe('repairManagedTaskProjection', () => {
       columns: COLS,
       lifecycle: policy,
     });
-    const added = await addTask(tmpDir, board.id, { title: 'Drifted' });
+    const added = await addTask(tmpDir, board.id, { title: 'Drifted', description: 'Drift repair test card.' });
     await updateTask(tmpDir, board.id, added!.task.id, {
       description: 'Drift repair test.',
       dueDate: '2026-08-01T00:00:00.000Z',
@@ -434,7 +434,7 @@ describe('end-to-end managed lifecycle validation paths', () => {
         columns: { backlog: 'backlog', todo: 'todo', running: 'in-progress', review: 'review', done: 'done' },
       },
     });
-    const created = await addTask(tmpDir, board.id, { title: 'Card' });
+    const created = await addTask(tmpDir, board.id, { title: 'Card', description: 'Test card for lifecycle validation.' });
     return { board, cardId: created!.task.id };
   }
 
@@ -457,11 +457,11 @@ describe('end-to-end managed lifecycle validation paths', () => {
 
   it('requires every required detail when moving forward (each detail rule fires)', async () => {
     const { board } = await managedBoardWithCard();
-    const added = await addTask(tmpDir, board.id, { title: 'bare card' });
-    // No description/assignee/dueDate/labels/subtasks/successCriteria => transition rejected
+    const added = await addTask(tmpDir, board.id, { title: 'bare card', description: 'A bare card missing most required details.' });
+    // Description is present, so the first missing detail is assignee
     await expect(
       transitionTask(tmpDir, board.id, added!.task.id, { to: 'todo', actor: 'agent', comment: 'go' }),
-    ).rejects.toThrow('complete task description');
+    ).rejects.toThrow('Assign an owner');
   });
 
   it('progresses a fully-detailed card through todo -> running -> review with evidence', async () => {

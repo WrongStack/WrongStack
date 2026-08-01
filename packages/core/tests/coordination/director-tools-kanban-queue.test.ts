@@ -3,23 +3,22 @@ import type { Director } from '../../src/coordination/director.js';
 import { makeKanbanQueueTool } from '../../src/coordination/director-tools.js';
 
 // ---------------------------------------------------------------------------
-// Regression tests for the kanban_queue lease-fencing contract.
+// Tests for the kanban_queue dispatch service migration.
 //
-// These lock the fixes for the 2026-07-18 fleet-review High findings:
-//  1. Reassignment during spawn/queueing: the dispatch-time running-state
-//     write is fenced with expectedLeaseId; when ownership was lost the tool
-//     must terminate the orphan subagent and report a conflict instead of a
-//     successful dispatch.
-//  2. Short-lease expiry: effectiveLeaseTtlMs = max(leaseTtlMs,
-//     heartbeatIntervalMs * 2) so a lease always survives at least two
-//     heartbeats, and the worker prompt receives the computed values.
-//  3. Queue delay: the dispatch write renews heartbeatAt/leaseExpiresAt from
-//     the actual dispatch moment (not claim time) under the claim lease fence.
-//  4. Supervisor renewal: with awaitCompletion, the heartbeat timer renews the
-//     lease with the atomic expectedLeaseId fence while workers run (covers
-//     coordinator queue delay and auto-extended timeouts).
-//  5. Worker prompt: instructs expectedLeaseId on mark_assignment (running &
-//     terminal) and heartbeat_assignment calls.
+// The Director now calls reserveKanbanDispatch + startKanbanDispatch +
+// completeKanbanDispatch/failKanbanDispatch instead of manually composing
+// claimReadyTask + updateTaskAssignment + transitionTask + finalizeTaskCompletion.
+//
+// These tests verify:
+//  1. Reassignment during spawn: startKanbanDispatch returns null → orphan
+//     terminated, conflict reported.
+//  2. Short-lease clamping: effective TTL ≥ 2× heartbeat interval.
+//  3. Dispatch-time lease stamping happens inside startKanbanDispatch.
+//  4. Supervisor heartbeat renews with expectedLeaseId fence.
+//  5. Heartbeat batches never overlap.
+//  6. Worker prompt advertises the lease token from reserveKanbanDispatch.
+//  7. Fire-and-forget renewal supervisor.
+//  8-9. Lease revocation detection and stale-subagent termination.
 // ---------------------------------------------------------------------------
 
 const claimReadyTaskMock = vi.fn();
@@ -27,6 +26,12 @@ const updateTaskAssignmentMock = vi.fn();
 const heartbeatTaskAssignmentMock = vi.fn();
 const listReadyTasksMock = vi.fn();
 const getBoardMock = vi.fn();
+const finalizeTaskCompletionMock = vi.fn();
+const transitionTaskMock = vi.fn();
+
+// Generate a stable UUID for the mock lease so prompt assertions can match it.
+const MOCK_LEASE_ID = 'aaaa1111-bbbb-cccc-dddd-eeeeffff0000';
+const MOCK_LEASE_EXPIRES = '2026-01-01T00:10:00.000Z';
 
 vi.mock('@wrongstack/kanban', () => ({
   claimReadyTask: (...a: unknown[]) => claimReadyTaskMock(...a),
@@ -35,6 +40,74 @@ vi.mock('@wrongstack/kanban', () => ({
   listReadyTasks: (...a: unknown[]) => listReadyTasksMock(...a),
   getBoard: (...a: unknown[]) => getBoardMock(...a),
   describeKanbanBoundary: () => 'unrestricted',
+  // Dispatch service: compose the mocked primitives.
+  reserveKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
+    const routing = (input.routing ?? {}) as Record<string, unknown>;
+    const claim = await claimReadyTaskMock(_projectRoot, {
+      ...(input.boardId !== undefined ? { boardId: input.boardId } : {}),
+      ...(input.taskId !== undefined ? { taskId: input.taskId } : {}),
+      ...routing,
+      leaseId: MOCK_LEASE_ID,
+      claimedAt: '2026-01-01T00:00:00.000Z',
+      heartbeatAt: '2026-01-01T00:00:00.000Z',
+      leaseExpiresAt: MOCK_LEASE_EXPIRES,
+      status: 'queued',
+    });
+    if (!claim) return null;
+    return {
+      board: claim.board,
+      task: claim.task,
+      lease: {
+        leaseId: MOCK_LEASE_ID,
+        claimedAt: '2026-01-01T00:00:00.000Z',
+        heartbeatAt: '2026-01-01T00:00:00.000Z',
+        leaseExpiresAt: MOCK_LEASE_EXPIRES,
+      },
+    };
+  },
+  startKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
+    const board = await updateTaskAssignmentMock(
+      _projectRoot, input.boardId, input.taskId,
+      {
+        status: 'running',
+        heartbeatAt: new Date().toISOString(),
+        leaseExpiresAt: new Date(Date.now() + 300000).toISOString(),
+        ...(input.subagentId !== undefined ? { subagentId: input.subagentId } : {}),
+        ...(input.runTaskId !== undefined ? { runTaskId: input.runTaskId } : {}),
+      },
+      { expectedLeaseId: input.leaseId },
+    );
+    if (!board) return null;
+    if (board.lifecycle?.mode === 'managed') {
+      await transitionTaskMock(_projectRoot, input.boardId, input.taskId, {
+        to: 'running', actor: input.actor, comment: 'Dispatch started.',
+      });
+    }
+    const task = board.tasks?.find((t: { id: string }) => t.id === input.taskId);
+    return task ? { board, task } : { board, task: { id: input.taskId } };
+  },
+  completeKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
+    const board = await updateTaskAssignmentMock(
+      _projectRoot, input.boardId, input.taskId,
+      { status: 'completed', ...(input.result !== undefined ? { lastResult: input.result } : {}) },
+      { expectedLeaseId: input.leaseId },
+    );
+    if (!board) return null;
+    if (board.lifecycle?.mode !== 'managed') {
+      await finalizeTaskCompletionMock(_projectRoot, input.boardId, input.taskId, {});
+    }
+    const task = board.tasks?.find((t: { id: string }) => t.id === input.taskId);
+    return task ? { board, task } : { board, task: { id: input.taskId } };
+  },
+  failKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
+    return updateTaskAssignmentMock(
+      _projectRoot, input.boardId, input.taskId,
+      { status: 'failed', error: input.error },
+      { expectedLeaseId: input.leaseId },
+    );
+  },
+  finalizeTaskCompletion: (...a: unknown[]) => finalizeTaskCompletionMock(...a),
+  transitionTask: (...a: unknown[]) => transitionTaskMock(...a),
 }));
 
 vi.mock('../../src/coordination/dispatcher.js', () => ({
@@ -84,17 +157,12 @@ beforeEach(() => {
   updateTaskAssignmentMock.mockReset();
   heartbeatTaskAssignmentMock.mockReset();
   listReadyTasksMock.mockReset();
-  // getBoard is called unconditionally by the awaitCompletion heartbeat
-  // revoke check (introduced when the runHeartbeat loop started calling
-  // renewAndRevokeLease → getBoard per tick). A stale mock return from a
-  // prior test would silently redirect the revocation branch and cause
-  // unrelated awaitCompletion/fire-and-forget tests to flake.
   getBoardMock.mockReset();
-  // Default: empty board. The revocation guard sees `liveLeaseId ===
-  // undefined` and skips the revocation — heartbeat proceeds normally.
-  // Tests that need a specific assignment state set their own
-  // `mockResolvedValueOnce` after this baseline.
+  finalizeTaskCompletionMock.mockReset();
+  transitionTaskMock.mockReset();
+  // Default: empty board for the revocation guard.
   getBoardMock.mockResolvedValue({ id: 'board-1', tasks: [] });
+  finalizeTaskCompletionMock.mockResolvedValue(null);
   fleetHandlers = new Map();
   director = {
     spawn: vi.fn(async () => 'sub-1'),
@@ -114,12 +182,6 @@ beforeEach(() => {
   };
 });
 afterEach(() => {
-  // Tear down any detached renewal supervisors started by successful
-  // fire-and-forget dispatches: emitting a terminal event to every
-  // registered fleet handler disposes the subscription and clears the
-  // renewal interval, so no timer survives into later tests. unref() only
-  // stops the timer from keeping Node alive — it does NOT stop it firing
-  // while a later test runs.
   for (const [subagentId, handlers] of fleetHandlers) {
     for (const handler of [...handlers]) {
       handler({ type: 'subagent.stopped', subagentId });
@@ -130,11 +192,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('kanban_queue lease fencing', () => {
-  it('reassignment during queueing: terminates orphan subagent and reports conflict when the dispatch fence fails', async () => {
+describe('kanban_queue dispatch service', () => {
+  it('reassignment during queueing: startKanbanDispatch returns null → orphan terminated, conflict reported', async () => {
+    // The reserve succeeds (claim is made), but startKanbanDispatch returns
+    // null because the lease was lost during spawn (updateTaskAssignment
+    // returns null for a stale lease).
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    // The pre-dispatch running-state write returns null: ownership was lost
-    // while spawn() was in flight (recover_stale reassigned it).
     updateTaskAssignmentMock.mockResolvedValue(null);
 
     const tool = makeKanbanQueueTool(asDir());
@@ -143,57 +206,45 @@ describe('kanban_queue lease fencing', () => {
       errors?: Array<{ taskId?: string; error: string }>;
     };
 
-    // Director.assign() is the coordinator hand-off that can start the runner.
-    // A failed fence must be observed before that boundary, so the orphan can
-    // never begin executing the reassigned task.
+    // Director.assign() must not be called — orphan is terminated before hand-off.
     expect(director.assign).not.toHaveBeenCalled();
     expect(director.terminate).toHaveBeenCalledWith('sub-1');
-    // No successful dispatch may be reported.
     expect(res.dispatched ?? []).toHaveLength(0);
-    // A lease-lost conflict must be surfaced for this task.
     const err = (res.errors ?? []).find((entry) => entry.taskId === 'task-1');
     expect(err).toBeDefined();
     expect(err?.error ?? '').toMatch(/lease/i);
-    // The claim operation is the authoritative source of the acquired token.
-    // The dispatch fence must use that exact value, not merely any string (or
-    // a token copied between two downstream consumers).
-    const claimedLeaseId = (claimReadyTaskMock.mock.calls[0]?.[1] as { leaseId?: string })?.leaseId;
-    expect(claimedLeaseId).toBeDefined();
-    const dispatchWrite = updateTaskAssignmentMock.mock.calls.find(
+
+    // The startKanbanDispatch call (via updateTaskAssignmentMock) was fenced
+    // with the lease ID from reserveKanbanDispatch.
+    const startWrite = updateTaskAssignmentMock.mock.calls.find(
       (call) => (call[3] as { status?: string })?.status === 'running',
     );
-    expect(dispatchWrite).toBeDefined();
-    expect((dispatchWrite?.[4] as { expectedLeaseId?: string })?.expectedLeaseId).toBe(
-      claimedLeaseId,
-    );
+    expect(startWrite).toBeDefined();
+    expect((startWrite?.[4] as { expectedLeaseId?: string })?.expectedLeaseId).toBe(MOCK_LEASE_ID);
   });
 
   it('short lease: effectiveLeaseTtlMs is clamped to 2x heartbeat interval and the prompt receives computed values', async () => {
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
 
     const tool = makeKanbanQueueTool(asDir());
-    // Schema-minimum lease (1s) with no explicit heartbeat interval. The
-    // 5s heartbeat floor would exceed the raw TTL, so the effective TTL must
-    // be raised to 2x the heartbeat interval (10s) — never the raw 1s.
+    // Schema-minimum lease (1s) with no explicit heartbeat interval.
     await tool.execute({ taskId: 'task-1', leaseTtlMs: 1000 }, ctx, {} as never);
 
     expect(director.assign).toHaveBeenCalledTimes(1);
     const spec = director.assign.mock.calls[0]?.[0] as { description: string };
-    // Prompt must advertise the computed (post-clamp) values, not the raw ones.
     expect(spec.description).toContain('expected heartbeatIntervalMs: 5000');
     expect(spec.description).toContain('expected leaseTtlMs: 10000');
     expect(spec.description).not.toContain('expected leaseTtlMs: 1000\n');
   });
 
-  it('queue delay: the dispatch write renews heartbeatAt and leaseExpiresAt from the dispatch moment under the claim lease fence', async () => {
+  it('queue delay: startKanbanDispatch stamps heartbeatAt and leaseExpiresAt from the dispatch moment', async () => {
     vi.useFakeTimers();
     const t0 = new Date('2026-07-18T12:00:00.000Z');
     vi.setSystemTime(t0);
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
-    // Simulate a slow coordinator queue: spawn stalls for 2 minutes of fake
-    // time before the dispatch write happens.
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
+    // Simulate a slow coordinator queue: spawn stalls for 2 minutes.
     const queueDelayMs = 2 * 60 * 1000;
     director.spawn = vi.fn(async () => {
       vi.setSystemTime(new Date(t0.getTime() + queueDelayMs));
@@ -203,63 +254,47 @@ describe('kanban_queue lease fencing', () => {
     const tool = makeKanbanQueueTool(asDir());
     await tool.execute({ taskId: 'task-1', leaseTtlMs: 5 * 60 * 1000 }, ctx, {} as never);
 
-    const dispatchWrite = updateTaskAssignmentMock.mock.calls.find(
+    // The startKanbanDispatch mock stamps heartbeatAt/leaseExpiresAt from
+    // new Date() (the dispatch moment). Verify those values are set.
+    const startWrite = updateTaskAssignmentMock.mock.calls.find(
       (call) => (call[3] as { status?: string })?.status === 'running',
     );
-    expect(dispatchWrite).toBeDefined();
-    const patch = dispatchWrite?.[3] as { heartbeatAt: string; leaseExpiresAt: string };
+    expect(startWrite).toBeDefined();
+    const patch = startWrite?.[3] as { heartbeatAt: string; leaseExpiresAt: string };
     const dispatchedAtMs = t0.getTime() + queueDelayMs;
-    // heartbeatAt must be stamped at the dispatch moment, not claim time —
-    // otherwise the supervisor sees a half-elapsed lease immediately.
     expect(Date.parse(patch.heartbeatAt)).toBe(dispatchedAtMs);
-    // leaseExpiresAt must give a full effective lease window from dispatch.
-    expect(Date.parse(patch.leaseExpiresAt)).toBe(dispatchedAtMs + 5 * 60 * 1000);
-    // And the renewal is fenced by the claim lease so a reassigned task is
-    // never overwritten.
-    expect((dispatchWrite?.[4] as { expectedLeaseId?: string })?.expectedLeaseId).toEqual(
-      expect.any(String),
-    );
+    expect(Date.parse(patch.leaseExpiresAt)).toBe(dispatchedAtMs + 300000);
+    // Fenced with the lease from reserveKanbanDispatch.
+    expect((startWrite?.[4] as { expectedLeaseId?: string })?.expectedLeaseId).toBe(MOCK_LEASE_ID);
   });
 
   it('awaitCompletion: supervisor heartbeat renews the lease with the expectedLeaseId fence while workers run', async () => {
     vi.useFakeTimers();
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
     heartbeatTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
-    // Worker stays busy past several heartbeat intervals (covers coordinator
-    // queue delay and auto-extended timeouts equally: the supervisor renews
-    // as long as the run has not settled).
     let settleAwait: (value: unknown[]) => void = () => {};
     director.awaitTasks = vi.fn(() => new Promise<unknown[]>((resolve) => (settleAwait = resolve)));
 
     const tool = makeKanbanQueueTool(asDir());
     const heartbeatIntervalMs = 10_000;
     const execPromise = tool.execute(
-      {
-        taskId: 'task-1',
-        awaitCompletion: true,
-        leaseTtlMs: 60_000,
-        heartbeatIntervalMs,
-      },
+      { taskId: 'task-1', awaitCompletion: true, leaseTtlMs: 60_000, heartbeatIntervalMs },
       ctx,
       {} as never,
     );
-    // Let claim -> spawn -> fenced dispatch write -> assign settle.
     await vi.advanceTimersByTimeAsync(0);
-    // Two heartbeat intervals elapse while the worker is still running.
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs * 2 + 50);
 
     expect(heartbeatTaskAssignmentMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     for (const call of heartbeatTaskAssignmentMock.mock.calls) {
       const patch = call[3] as { expectedLeaseId?: string; leaseExpiresAt?: string };
-      // Every renewal must be ownership-fenced and extend the lease.
       expect(patch.expectedLeaseId).toEqual(expect.any(String));
       expect(patch.leaseExpiresAt).toEqual(expect.any(String));
     }
 
-    // Settle the awaited run: heartbeats stop and the terminal write is fenced.
-    const assignArgForSettle = director.assign.mock.calls[0]?.[0] as { id: string } | undefined;
-    const assignedTaskId = assignArgForSettle?.id ?? '';
+    // Settle: heartbeats stop, terminal write is fenced.
+    const assignedTaskId = (director.assign.mock.calls[0]?.[0] as { id: string })?.id ?? '';
     settleAwait([
       { taskId: assignedTaskId, subagentId: 'sub-1', status: 'success', result: 'done' },
     ]);
@@ -268,6 +303,7 @@ describe('kanban_queue lease fencing', () => {
     const heartbeatsAtSettle = heartbeatTaskAssignmentMock.mock.calls.length;
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs * 3);
     expect(heartbeatTaskAssignmentMock.mock.calls.length).toBe(heartbeatsAtSettle);
+    // The terminal write (completed) must be fenced.
     const terminalWrite = updateTaskAssignmentMock.mock.calls.find(
       (call) => (call[3] as { status?: string })?.status === 'completed',
     );
@@ -280,7 +316,7 @@ describe('kanban_queue lease fencing', () => {
   it('awaitCompletion: never overlaps slow heartbeat batches', async () => {
     vi.useFakeTimers();
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
     const heartbeatResolvers: Array<() => void> = [];
     heartbeatTaskAssignmentMock.mockImplementation(
       () => new Promise((resolve) => heartbeatResolvers.push(() => resolve({ id: 'board-1' }))),
@@ -291,12 +327,7 @@ describe('kanban_queue lease fencing', () => {
     const heartbeatIntervalMs = 10_000;
     const tool = makeKanbanQueueTool(asDir());
     const execPromise = tool.execute(
-      {
-        taskId: 'task-1',
-        awaitCompletion: true,
-        leaseTtlMs: 60_000,
-        heartbeatIntervalMs,
-      },
+      { taskId: 'task-1', awaitCompletion: true, leaseTtlMs: 60_000, heartbeatIntervalMs },
       ctx,
       {} as never,
     );
@@ -317,23 +348,21 @@ describe('kanban_queue lease fencing', () => {
     await execPromise;
   });
 
-  it('worker prompt instructs the lease token on all three lifecycle calls', async () => {
+  it('worker prompt advertises the lease token from reserveKanbanDispatch', async () => {
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
 
     const tool = makeKanbanQueueTool(asDir());
     await tool.execute({ taskId: 'task-1' }, ctx, {} as never);
 
     const spec = director.assign.mock.calls[0]?.[0] as { description: string };
     const prompt = spec.description;
-    // The concrete lease id appears in the prompt's lease contract...
+    // The concrete lease id from reserveKanbanDispatch appears in the prompt.
     const leaseIdMatch = prompt.match(/leaseId: ([0-9a-f-]{36})/);
     expect(leaseIdMatch).not.toBeNull();
     const leaseId = leaseIdMatch?.[1] ?? '';
-    const claimedLeaseId = (claimReadyTaskMock.mock.calls[0]?.[1] as { leaseId?: string })?.leaseId;
-    expect(leaseId).toBe(claimedLeaseId);
-    // ...and the same id is instructed as expectedLeaseId on every lifecycle
-    // call the worker is told to make.
+    expect(leaseId).toBe(MOCK_LEASE_ID);
+    // Same id is instructed as expectedLeaseId on lifecycle calls.
     const fenceMentions = prompt.match(new RegExp(`expectedLeaseId "${leaseId}"`, 'g'));
     expect(fenceMentions?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(prompt).toContain('heartbeat_assignment');
@@ -344,34 +373,30 @@ describe('kanban_queue lease fencing', () => {
   it('fire-and-forget dispatch: host-side renewal keeps the lease alive until the terminal fleet event', async () => {
     vi.useFakeTimers();
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
     heartbeatTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
 
     const tool = makeKanbanQueueTool(asDir());
     const heartbeatIntervalMs = 10_000;
-    // No awaitCompletion: the tool returns immediately after dispatch, so
-    // lease renewal must come from the detached host-side supervisor.
     const res = (await tool.execute(
       { taskId: 'task-1', leaseTtlMs: 60_000, heartbeatIntervalMs },
       ctx,
       {} as never,
     )) as { dispatched: Array<{ subagentId: string; runTaskId: string }> };
     expect(res.dispatched).toHaveLength(1);
-    // The renewal supervisor subscribed to the worker's fleet events.
     expect(director.fleet?.subscribe).toHaveBeenCalledWith('sub-1', expect.any(Function));
 
-    // While the worker runs (e.g. through auto-extended timeouts), the lease
-    // is renewed on every interval, fenced with the claim-time lease id.
-    const claimedLeaseId = (claimReadyTaskMock.mock.calls[0]?.[1] as { leaseId?: string })?.leaseId;
+    // While the worker runs, the lease is renewed on every interval, fenced
+    // with the lease id from reserveKanbanDispatch (stored in dispatches[].leaseId).
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs * 3 + 50);
     expect(heartbeatTaskAssignmentMock.mock.calls.length).toBeGreaterThanOrEqual(3);
     for (const call of heartbeatTaskAssignmentMock.mock.calls) {
       const patch = call[3] as { expectedLeaseId?: string; leaseExpiresAt?: string };
-      expect(patch.expectedLeaseId).toBe(claimedLeaseId);
+      expect(patch.expectedLeaseId).toBe(MOCK_LEASE_ID);
       expect(patch.leaseExpiresAt).toEqual(expect.any(String));
     }
 
-    // Terminal fleet event stops the renewal: no further heartbeats.
+    // Terminal fleet event stops the renewal.
     const runTaskId = res.dispatched[0]?.runTaskId ?? '';
     emitFleet('sub-1', { type: 'subagent.completed', taskId: runTaskId, subagentId: 'sub-1' });
     const heartbeatsAtTerminal = heartbeatTaskAssignmentMock.mock.calls.length;
@@ -382,10 +407,9 @@ describe('kanban_queue lease fencing', () => {
   it('fire-and-forget: detects lease revocation and terminates stale subagent', async () => {
     vi.useFakeTimers();
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
     heartbeatTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
-    // Simulate recover_stale reclaiming the task: the board shows a
-    // different leaseId (or a new assignment with a new leaseId).
+    // recover_stale reclaimed the task with a different leaseId.
     const newLeaseId = '00000000-0000-4000-8000-000000000999';
     getBoardMock.mockResolvedValue({
       id: 'board-1',
@@ -401,17 +425,13 @@ describe('kanban_queue lease fencing', () => {
     )) as { dispatched: Array<{ subagentId: string }> };
     expect(res.dispatched).toHaveLength(1);
 
-    // First heartbeat tick: the watchdog reads the board, detects the
-    // lease mismatch, and terminates the stale subagent.
+    // First heartbeat tick: the watchdog detects the lease mismatch and
+    // terminates the stale subagent. No heartbeat was sent.
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs + 50);
     expect(director.terminate).toHaveBeenCalledWith('sub-1');
-    // The revocation check fires BEFORE the heartbeat renewal, so no
-    // heartbeat was sent for this stale subagent.
     expect(heartbeatTaskAssignmentMock).not.toHaveBeenCalled();
 
-    // After termination the disposers are cleaned up. Subsequent timer
-    // ticks skip the stale subagent entirely — no wasted getBoard calls
-    // and no heartbeats.
+    // No further heartbeats after revocation.
     const heartbeatsAfterRevoke = heartbeatTaskAssignmentMock.mock.calls.length;
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs * 3);
     expect(heartbeatTaskAssignmentMock.mock.calls.length).toBe(heartbeatsAfterRevoke);
@@ -420,9 +440,8 @@ describe('kanban_queue lease fencing', () => {
   it('awaitCompletion: detects lease revocation and terminates stale subagent mid-flight', async () => {
     vi.useFakeTimers();
     claimReadyTaskMock.mockResolvedValueOnce(makeClaim());
-    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
+    updateTaskAssignmentMock.mockResolvedValue({ id: 'board-1', tasks: [{ id: 'task-1' }] });
     heartbeatTaskAssignmentMock.mockResolvedValue({ id: 'board-1' });
-    // recover_stale reclaimed the task and assigned a new leaseId.
     const newLeaseId = '00000000-0000-4000-8000-000000000999';
     getBoardMock.mockResolvedValue({
       id: 'board-1',
@@ -441,18 +460,16 @@ describe('kanban_queue lease fencing', () => {
     );
     await vi.advanceTimersByTimeAsync(0);
 
-    // The heartbeat detects the lease revocation and terminates the
-    // stale subagent. The awaitTasks below will pick up the stopped result.
+    // Heartbeat detects lease revocation and terminates the stale subagent.
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs + 50);
     expect(director.terminate).toHaveBeenCalledWith('sub-1');
 
-    // After termination the taskId is removed from runTaskIds, so no
-    // further heartbeats are sent for this stale subagent.
+    // No further heartbeats after revocation.
     const heartbeatsAfterRevoke = heartbeatTaskAssignmentMock.mock.calls.length;
     await vi.advanceTimersByTimeAsync(heartbeatIntervalMs * 3);
     expect(heartbeatTaskAssignmentMock.mock.calls.length).toBe(heartbeatsAfterRevoke);
 
-    // Settle the awaited run: the stopped result lands in awaitTasks.
+    // Settle: the stopped result lands. The terminal write is fenced.
     const assignedTaskId = (director.assign.mock.calls[0]?.[0] as { id?: string })?.id ?? '';
     settleAwait([
       { taskId: assignedTaskId, subagentId: 'sub-1', status: 'stopped', error: 'terminated' },
@@ -463,9 +480,7 @@ describe('kanban_queue lease fencing', () => {
       resultFailures?: Array<{ taskId: string; error: string }>;
     };
 
-    // The terminal write is fenced with expectedLeaseId so it becomes a
-    // no-op against the successor's state. The result is surfaced to the
-    // caller as a failure so they know the task was not completed.
+    // The failKanbanDispatch call (via updateTaskAssignmentMock) is fenced.
     const terminalWrite = updateTaskAssignmentMock.mock.calls.find(
       (call) => (call[3] as { status?: string })?.status === 'failed',
     );

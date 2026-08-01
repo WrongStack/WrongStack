@@ -21,6 +21,7 @@ import {
   listKanbanEvents,
   listReadyTasks,
   listTaskActivity,
+  mergeTasks,
   recoverStaleTaskAssignments,
   recordTaskActivity,
   removeColumn,
@@ -62,6 +63,19 @@ function managedLifecycle() {
       review: 'review',
       done: 'done',
     },
+  };
+}
+
+function managedCardDetails(description: string) {
+  return {
+    description,
+    dueDate: '2026-08-01',
+    assignee: 'kanban-agent',
+    labels: ['managed'],
+    childTaskIds: ['seed-child'],
+    successCriteria: [
+      { id: 'criteria-1', description: 'Acceptance criteria exists', type: 'manual' as const, status: 'pending' as const },
+    ],
   };
 }
 
@@ -373,7 +387,7 @@ describe('duplicateBoard edges', () => {
     expect(copied?.id).not.toBe(t!.task.id);
   });
   it('duplicates a managed board and restarts cards in backlog', async () => {
-    const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle(), tasks: [{ title: 'Managed' }] });
+    const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle(), tasks: [{ title: 'Managed', description: 'Duplicated managed board test card.' }] });
     const dup = await duplicateBoard(tmpDir, b.id);
     const card = dup!.tasks[0]!;
     expect(card.columnId).toBe('backlog');
@@ -551,7 +565,7 @@ describe('updateTaskAssignment edges', () => {
     expect(await updateTaskAssignment(tmpDir, b.id, 'nope', { status: 'running' })).toBeNull();
   });
   it('preserves managed card column on assignment update and stamps managed completedAt', async () => {
-    const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle(), tasks: [{ title: 'Card' }] });
+    const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle(), tasks: [{ title: 'Card', description: 'Assignment update test card.' }] });
     const card = (await getBoard(tmpDir, b.id))!.tasks[0]!;
     const updated = await updateTaskAssignment(tmpDir, b.id, card.id, { status: 'completed' });
     const task = updated!.tasks.find((x) => x.id === card.id)!;
@@ -622,6 +636,7 @@ describe('getKanbanQueueHealth', () => {
     // => the runner is counted in heartbeatDue.
     await updateTaskAssignment(tmpDir, b.id, runner!.task.id, {
       status: 'running',
+      leaseId: 'lease-runner',
       heartbeatAt: '2026-07-17T00:00:00Z',
       leaseExpiresAt: '2026-07-17T00:00:10Z',
     });
@@ -632,6 +647,36 @@ describe('getKanbanQueueHealth', () => {
     // Heartbeat is genuinely due (lease lapses within heartbeatIntervalMs).
     expect(health.heartbeatDue.count).toBe(1);
     expect(health.heartbeatDue.tasks[0]!.task.id).toBe(runner!.task.id);
+    expect(health.classifications.counts.claimable).toBeGreaterThanOrEqual(2);
+    expect(health.classifications.counts.running_live).toBe(1);
+    expect(
+      health.classifications.diagnostics.some(
+        (diagnostic) =>
+          diagnostic.taskId === runner!.task.id && diagnostic.bucket === 'running_live',
+      ),
+    ).toBe(true);
+  });
+  it('surfaces classifier diagnostics for stale and status-only running tasks', async () => {
+    const b = await makeBoard();
+    const stale = await addTask(tmpDir, b.id, { title: 'Stale' });
+    await assignTask(tmpDir, b.id, stale!.task.id, { agentId: 'bot' });
+    await updateTaskAssignment(tmpDir, b.id, stale!.task.id, {
+      status: 'running',
+      leaseId: 'lease-1',
+      leaseExpiresAt: '2020-01-01T00:00:00Z',
+    });
+    await addTask(tmpDir, b.id, { title: 'Status only', status: 'in_progress', columnId: 'in-progress' });
+
+    const health = await getKanbanQueueHealth(tmpDir, { boardId: b.id, now: '2026-07-17T00:00:00Z' });
+
+    expect(health.classifications.counts.running_expired).toBe(1);
+    expect(health.classifications.counts.running_no_lease).toBe(1);
+    expect(health.classifications.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ taskId: stale!.task.id, bucket: 'running_expired' }),
+        expect.objectContaining({ bucket: 'running_no_lease' }),
+      ]),
+    );
   });
   it('surfaces stale assignments and lastStaleRecoveredAt after recovery', async () => {
     const b = await makeBoard();
@@ -662,7 +707,7 @@ describe('transitionTask edges', () => {
     await expect(transitionTask(tmpDir, b.id, t!.task.id, { to: 'todo', actor: 'a', comment: 'c' })).rejects.toThrow('managed board');
   });
   it('rejects transition with missing actor and comment', async () => {
-    const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle(), tasks: [{ title: 'X' }] });
+    const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle(), tasks: [{ title: 'X', description: 'Transition validation test card.' }] });
     const card = (await getBoard(tmpDir, b.id))!.tasks[0]!;
     await expect(transitionTask(tmpDir, b.id, card.id, { to: 'todo', actor: '', comment: 'c' })).rejects.toThrow('actor');
     await expect(transitionTask(tmpDir, b.id, card.id, { to: 'todo', actor: 'a', comment: '' })).rejects.toThrow('comment');
@@ -748,6 +793,90 @@ describe('splitTask edges', () => {
     const b = await makeBoard();
     const parent = await addTask(tmpDir, b.id, { title: 'P' });
     await expect(splitTask(tmpDir, b.id, parent!.task.id, { titles: [] })).rejects.toThrow('at least one child title');
+  });
+
+  it('creates managed-board children in backlog even when the parent advanced', async () => {
+    const b = await createBoard(tmpDir, {
+      title: 'Managed split',
+      lifecycle: managedLifecycle(),
+      tasks: [{ title: 'Parent', ...managedCardDetails('Parent task for managed split.') }],
+    });
+    const parent = b.tasks[0]!;
+    await transitionTask(tmpDir, b.id, parent.id, {
+      to: 'todo',
+      actor: 'tester',
+      comment: 'Advance parent before splitting.',
+    });
+
+    const result = await splitTask(tmpDir, b.id, parent.id, {
+      titles: ['Child'],
+      childSpecs: [{ description: 'Managed child from split.' }],
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.children[0]!.columnId).toBe('backlog');
+    expect(result!.children[0]!.lifecycle?.currentStage).toBe('backlog');
+  });
+
+  it('requires descriptions for new managed-board children', async () => {
+    const b = await createBoard(tmpDir, {
+      title: 'Managed split validation',
+      lifecycle: managedLifecycle(),
+      tasks: [{ title: 'Parent', ...managedCardDetails('Parent task for managed split validation.') }],
+    });
+    const parent = b.tasks[0]!;
+
+    await expect(
+      splitTask(tmpDir, b.id, parent.id, { titles: ['Child'], childSpecs: [{ description: '' }] }),
+    ).rejects.toThrow('Add a complete task description.');
+  });
+});
+
+describe('mergeTasks managed lifecycle edges', () => {
+  it('creates the merged managed-board task in backlog even when a source advanced', async () => {
+    const b = await createBoard(tmpDir, {
+      title: 'Managed merge',
+      lifecycle: managedLifecycle(),
+      tasks: [
+        { title: 'First', ...managedCardDetails('First task for managed merge.') },
+        { title: 'Second', ...managedCardDetails('Second task for managed merge.') },
+      ],
+    });
+    const first = b.tasks[0]!;
+    const second = b.tasks[1]!;
+    await transitionTask(tmpDir, b.id, first.id, {
+      to: 'todo',
+      actor: 'tester',
+      comment: 'Advance source before merge.',
+    });
+
+    const result = await mergeTasks(tmpDir, b.id, {
+      taskIds: [first.id, second.id],
+      title: 'Merged',
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.task.columnId).toBe('backlog');
+    expect(result!.task.lifecycle?.currentStage).toBe('backlog');
+  });
+
+  it('requires descriptions for new merged tasks on managed boards', async () => {
+    const b = await createBoard(tmpDir, {
+      title: 'Managed merge validation',
+      lifecycle: managedLifecycle(),
+      tasks: [
+        { title: 'First', ...managedCardDetails('First task for managed merge validation.') },
+        { title: 'Second', ...managedCardDetails('Second task for managed merge validation.') },
+      ],
+    });
+
+    await expect(
+      mergeTasks(tmpDir, b.id, {
+        taskIds: [b.tasks[0]!.id, b.tasks[1]!.id],
+        title: 'Merged',
+        description: '',
+      }),
+    ).rejects.toThrow('Add a complete task description.');
   });
 });
 

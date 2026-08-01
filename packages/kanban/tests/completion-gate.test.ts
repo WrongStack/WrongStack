@@ -113,7 +113,7 @@ describe('enforceCompletionGate', () => {
         },
       },
     });
-    const added = await addTask(tmpDir, board.id, { title: 'Managed task' });
+    const added = await addTask(tmpDir, board.id, { title: 'Managed task', description: 'Completion gate enforcement test card.' });
 
     const gate = await enforceCompletionGate(tmpDir, board.id, added!.task.id, {
       enforcement: 'off',

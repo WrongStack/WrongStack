@@ -3,7 +3,9 @@ import type {
   KanbanAgentRunStatus,
   KanbanBoard,
   KanbanBoardAtomicityPolicy,
+  KanbanBoardKind,
   KanbanBoardLifecyclePolicy,
+  KanbanBoardRetentionPolicy,
   KanbanBoardSummary,
   KanbanBoundaryPolicy,
   KanbanCheck,
@@ -28,6 +30,7 @@ import type {
   KanbanTaskOrigin,
   KanbanTask,
   KanbanTaskPriority,
+  KanbanQueueClassificationSummary,
   KanbanTaskStatus,
   KanbanTaskType,
   KanbanVerificationReport,
@@ -51,6 +54,8 @@ export interface CreateKanbanBoardInput {
   boundary?: KanbanBoundaryPolicy | undefined;
   atomicity?: KanbanBoardAtomicityPolicy | undefined;
   completionGate?: KanbanCompletionGatePolicy | undefined;
+  kind?: KanbanBoardKind | undefined;
+  retention?: KanbanBoardRetentionPolicy | undefined;
 }
 
 export interface UpdateKanbanBoardInput {
@@ -392,6 +397,8 @@ export interface KanbanQueueHealth {
     count: number;
     tasks: KanbanSearchResult[];
   };
+  /** Canonical queue classifier diagnostics. Counts are diagnostic; existing count buckets stay unchanged. */
+  classifications?: KanbanQueueClassificationSummary | undefined;
   /** Wall-clock timestamps of the most recent dispatch and most recent stale recovery. */
   lastDispatchedAt?: string;
   lastStaleRecoveredAt?: string;
@@ -426,6 +433,9 @@ export interface KanbanSearchInput {
   label?: string | undefined;
   readyOnly?: boolean | undefined;
   chainId?: string | undefined;
+  /** Filter boards by kind. Session mirrors and archived boards are excluded by default. */
+  includeBoardKinds?: KanbanBoardKind[] | undefined;
+  excludeBoardKinds?: KanbanBoardKind[] | undefined;
 }
 
 export interface KanbanSearchResult {
