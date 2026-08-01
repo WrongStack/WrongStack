@@ -110,9 +110,9 @@ describe('estimateContextBreakdown (PR 3 of #30)', () => {
     expect(out.tools.count).toBe(2);
     expect(out.tools.breakdown).toHaveLength(2);
     expect(out.tools.breakdown[0]).toEqual({ name: 'a', tokens: expect.any(Number) });
-    expect(out.tools.breakdown[1].name).toBe('bb');
+    expect(out.tools.breakdown[1]?.name).toBe('bb');
     // name + description + schema tokens
-    expect(out.tools.breakdown[0].tokens).toBeGreaterThan(0);
+    expect(out.tools.breakdown[0]?.tokens).toBeGreaterThan(0);
   });
 
   it('tools: missing description/inputSchema default to empty', () => {
@@ -122,7 +122,7 @@ describe('estimateContextBreakdown (PR 3 of #30)', () => {
       messages: [],
     });
     // name-only contribution: estimateTokens('x') > 0
-    expect(out.tools.breakdown[0].tokens).toBeGreaterThan(0);
+    expect(out.tools.breakdown[0]?.tokens).toBeGreaterThan(0);
   });
 
   it('messages section: per-message { index, role, tokens, preview }', () => {
@@ -135,12 +135,12 @@ describe('estimateContextBreakdown (PR 3 of #30)', () => {
       ],
     });
     expect(out.messages.count).toBe(2);
-    expect(out.messages.breakdown[0].index).toBe(0);
-    expect(out.messages.breakdown[0].role).toBe('user');
-    expect(out.messages.breakdown[0].tokens).toBeGreaterThan(0);
-    expect(typeof out.messages.breakdown[0].preview).toBe('string');
-    expect(out.messages.breakdown[1].index).toBe(1);
-    expect(out.messages.breakdown[1].role).toBe('assistant');
+    expect(out.messages.breakdown[0]?.index).toBe(0);
+    expect(out.messages.breakdown[0]?.role).toBe('user');
+    expect(out.messages.breakdown[0]?.tokens).toBeGreaterThan(0);
+    expect(typeof out.messages.breakdown[0]?.preview).toBe('string');
+    expect(out.messages.breakdown[1]?.index).toBe(1);
+    expect(out.messages.breakdown[1]?.role).toBe('assistant');
   });
 
   it('total equals the sum of all three sections', () => {

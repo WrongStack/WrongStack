@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const startCliHqConnection = vi.hoisted(() =>
-  vi.fn(() => ({ getPublisher: () => undefined, stop: () => {} })),
+  vi.fn((_opts?: unknown) => ({ getPublisher: () => undefined, stop: () => {} })),
 );
 const mailboxSend = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const registerClient = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -21,7 +21,7 @@ vi.mock('@wrongstack/core/coordination', async (importOriginal) => {
   return {
     ...actual,
     resolveProjectDir: () => '/tmp/proj-dir',
-    getSharedProjectMailbox: vi.fn(() => ({
+    getSharedProjectMailbox: vi.fn((_opts?: unknown) => ({
       send: mailboxSend,
       registerClient,
       clientHeartbeat,
@@ -55,7 +55,7 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
   it('stays telemetry-only without control hooks', async () => {
     const reg = createWebuiClientRegistration(baseDeps());
     await reg.register();
-    const opts = startCliHqConnection.mock.calls[0]![0] as {
+    const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
       capabilities: string[];
       onCommand?: unknown;
       clientKind: string;
@@ -72,7 +72,7 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
       hqControl: { interruptLeader, allowRunCommand: () => false },
     });
     await reg.register();
-    const opts = startCliHqConnection.mock.calls[0]![0] as {
+    const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
       capabilities: string[];
       onCommand?: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<unknown>;
     };
@@ -86,7 +86,7 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
       hqControl: { interruptLeader: () => false, allowRunCommand: () => false },
     });
     await reg.register();
-    const opts = startCliHqConnection.mock.calls[0]![0] as {
+    const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
       onCommand: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<{ status: string }>;
     };
     const result = await opts.onCommand({
@@ -107,7 +107,7 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
       hqControl: { interruptLeader, allowRunCommand: () => false },
     });
     await reg.register();
-    const opts = startCliHqConnection.mock.calls[0]![0] as {
+    const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
       onCommand: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<{ status: string }>;
     };
     const result = await opts.onCommand({
@@ -125,7 +125,7 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
       hqControl: { interruptLeader: () => false, allowRunCommand: () => false },
     });
     await reg.register();
-    const opts = startCliHqConnection.mock.calls[0]![0] as {
+    const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
       onCommand: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<{ status: string }>;
     };
     const result = await opts.onCommand({

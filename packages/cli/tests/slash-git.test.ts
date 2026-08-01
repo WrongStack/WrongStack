@@ -25,42 +25,42 @@ describe('/git family', () => {
   });
 
   it('returns help for unknown subcommand', async () => {
-    const cmd = buildGitCommand({ cwd: tmpDir });
+    const cmd = buildGitCommand({ cwd: tmpDir } as never);
     const res = await cmd.run('unknown');
-    expect(res.message).toContain('Unknown subcommand');
+    expect((res as { message?: string })?.message).toContain('Unknown subcommand');
   });
 
   it('shows branch and head as JSON', async () => {
-    const cmd = buildGitCommand({ cwd: tmpDir });
+    const cmd = buildGitCommand({ cwd: tmpDir } as never);
     const res = await cmd.run('branch --json');
-    const payload = JSON.parse(res.message ?? '{}');
+    const payload = JSON.parse((res as { message?: string })?.message ?? '{}');
     expect(typeof payload.branch).toBe('string');
     expect(payload.head === null || typeof payload.head === 'string').toBe(true);
-    expect(res.metadata?.['git']).toEqual(payload);
+    expect((res as { metadata?: Record<string, unknown> })?.metadata?.['git']).toEqual(payload);
   });
 
   it('renders an overview in status mode', async () => {
-    const cmd = buildGitCommand({ cwd: tmpDir });
+    const cmd = buildGitCommand({ cwd: tmpDir } as never);
     const res = await cmd.run('status');
-    expect(res.message).toContain('Git overview');
-    expect(res.message).toContain('Branch:');
+    expect((res as { message?: string })?.message).toContain('Git overview');
+    expect((res as { message?: string })?.message).toContain('Branch:');
   });
 
   it('gitcheck returns empty in a clean repo', async () => {
-    const cmd = buildGitcheckCommand({ cwd: tmpDir });
+    const cmd = buildGitcheckCommand({ cwd: tmpDir } as never);
     const res = await cmd.run('');
-    expect(res.message).toBe('');
+    expect((res as { message?: string })?.message).toBe('');
   });
 
   it('commit refuses when working tree is clean', async () => {
-    const cmd = buildCommitCommand({ cwd: tmpDir, projectRoot: tmpDir });
+    const cmd = buildCommitCommand({ cwd: tmpDir, projectRoot: tmpDir } as never);
     const res = await cmd.run('');
-    expect(res.message).toContain('Nothing to commit');
+    expect((res as { message?: string })?.message).toContain('Nothing to commit');
   });
 
   it('push reports no remote configured', async () => {
-    const cmd = buildPushCommand({ cwd: tmpDir });
+    const cmd = buildPushCommand({ cwd: tmpDir } as never);
     const res = await cmd.run('--dry-run');
-    expect(res.message).toContain('No remote configured');
+    expect((res as { message?: string })?.message).toContain('No remote configured');
   });
 });

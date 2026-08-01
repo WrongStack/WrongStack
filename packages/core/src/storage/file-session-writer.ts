@@ -912,9 +912,8 @@ export class FileSessionWriter implements SessionWriter {
     try {
       workspaceCheckpoint = await this.checkpointCas?.capture(this.id, promptIndex);
     } catch (err) {
-      // Conversation checkpoints remain usable even when Git/CAS capture is
-      // unavailable. The missing workspaceCheckpoint field makes the reduced
-      // guarantee explicit to fork/materialization callers.
+      // Conversation checkpoints remain usable when Git/CAS capture is unavailable; missing
+      // workspaceCheckpoint makes the reduced guarantee explicit to fork/materialization callers.
       console.warn(
         JSON.stringify({
           level: 'warn',
@@ -940,6 +939,7 @@ export class FileSessionWriter implements SessionWriter {
       promptPreview,
       ts: new Date().toISOString(),
       fileCount,
+      ...(workspaceCheckpoint ? { workspaceCheckpoint } : {}),
     });
   }
 

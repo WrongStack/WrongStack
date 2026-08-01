@@ -111,6 +111,8 @@ function makeBundle(
       model: 'test-model',
       maxFiles: 15,
       autoFix: 'off',
+      cascadeOn: cascadeOn,
+      maxCascadeDepth: 3,
     },
     cwd: '/test-cwd',
     files: [{ path: 'src/auth.ts', status: 'modified', content: '// changed' }],
@@ -126,8 +128,8 @@ function makeBundle(
 function makeDirector(results: Array<{ status: string; result: unknown }> = []) {
   let callIdx = 0;
   return {
-    spawn: vi.fn(async () => `subagent-${++callIdx}`),
-    assign: vi.fn(async () => {}),
+    spawn: vi.fn(async (_cfg?: unknown) => `subagent-${++callIdx}`),
+    assign: vi.fn(async (_task?: unknown) => {}),
     awaitTasks: vi.fn(async (_taskIds: string[]) => {
       // awaitTasks returns an array of results (one per task id);
       // the handler accesses results[0].
@@ -340,7 +342,7 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
     await runCascadeHandler(events, director, session, cascadePayload);
 
     expect(director.spawn).toHaveBeenCalledTimes(1);
-    const role = (director.spawn.mock.calls[0]![0] as { role: string }).role;
+    const role = (director.spawn.mock.calls[0][0] as { role: string }).role;
     expect(role).toBe('bug-hunter');
     expect(session.append).toHaveBeenCalledTimes(1);
   });

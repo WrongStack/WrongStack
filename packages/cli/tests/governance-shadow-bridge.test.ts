@@ -2,6 +2,7 @@ import { EventBus } from '@wrongstack/core/kernel';
 import type { GovernanceRuntimeObservationInput } from '@wrongstack/runtime/governance-bootstrap';
 import { describe, expect, it, vi } from 'vitest';
 import { createGovernanceShadowBridge } from '../src/boot/governance-shadow-bridge.js';
+import type { GovernanceTraceContext } from '../src/boot/governance-trace-context.js';
 
 function recordedObservation() {
   return {
@@ -12,6 +13,22 @@ function recordedObservation() {
   };
 }
 
+function traceContext(): GovernanceTraceContext {
+  return {
+    matchesPlanPath: vi.fn(() => false),
+    refreshPlan: vi.fn(async () => ({ state: 'missing' as const })),
+    updateWorkspaceCheckpoint: vi.fn(),
+    snapshot: vi.fn((taskId: string | null, boardId?: string) => ({
+      sessionId: 'session-1',
+      task: taskId
+        ? { scope: 'kanban_task' as const, taskId, boardId: boardId ?? null }
+        : { scope: 'session' as const },
+      plan: { state: 'missing' as const },
+      workspace: { state: 'not_captured' as const },
+    })),
+  };
+}
+
 describe('CLI governance shadow bridge', () => {
   it('records safe agent and tool metadata without forwarding model text or tool bodies', async () => {
     const events = new EventBus();
@@ -19,7 +36,12 @@ describe('CLI governance shadow bridge', () => {
       recordedObservation(),
     );
     const logger = { warn: vi.fn() };
-    const bridge = createGovernanceShadowBridge({ events, sink: { observe }, logger });
+    const bridge = createGovernanceShadowBridge({
+      events,
+      sink: { observe },
+      logger,
+      trace: traceContext(),
+    });
     const secret = 'secret-user-and-tool-content';
     const ctx = {
       currentKanbanTaskId: 'task-1',
@@ -113,7 +135,12 @@ describe('CLI governance shadow bridge', () => {
       message: 'daemon unavailable',
     }));
     const logger = { warn: vi.fn() };
-    const bridge = createGovernanceShadowBridge({ events, sink: { observe }, logger });
+    const bridge = createGovernanceShadowBridge({
+      events,
+      sink: { observe },
+      logger,
+      trace: traceContext(),
+    });
     const event = {
       name: 'read',
       id: 'tool-1',
@@ -127,5 +154,82 @@ describe('CLI governance shadow bridge', () => {
     bridge.close();
     events.emit('tool.started', { ...event, id: 'tool-3' });
     expect(observe).toHaveBeenCalledTimes(2);
+  });
+
+  it('tracks deterministic workspace checkpoints and persisted plan refreshes', async () => {
+    const events = new EventBus();
+    const observe = vi.fn(async (_input: GovernanceRuntimeObservationInput) =>
+      recordedObservation(),
+    );
+    const updateWorkspaceCheckpoint = vi.fn();
+    const refreshPlan = vi.fn(async () => ({
+      state: 'available' as const,
+      schemaVersion: 1 as const,
+      fingerprint: 'c'.repeat(64),
+      observedAt: '2026-08-02T12:00:01.000Z',
+      itemCount: 1,
+      openCount: 0,
+      inProgressCount: 1,
+      doneCount: 0,
+      activeStepIds: ['step-1'],
+      activeStepIdsTruncated: false,
+    }));
+    const trace: GovernanceTraceContext = {
+      matchesPlanPath: vi.fn((candidate) => candidate === 'D:/project/session.plan.json'),
+      refreshPlan,
+      updateWorkspaceCheckpoint,
+      snapshot: vi.fn(() => ({
+        sessionId: 'session-1',
+        task: { scope: 'session' as const },
+        plan: { state: 'missing' as const },
+        workspace: { state: 'not_captured' as const },
+      })),
+    };
+    const bridge = createGovernanceShadowBridge({
+      events,
+      sink: { observe },
+      logger: { warn: vi.fn() },
+      trace,
+    });
+    const workspaceCheckpoint = {
+      manifestHash: 'a'.repeat(64),
+      baseHead: 'b'.repeat(40),
+      entryCount: 2,
+      unresolvedCount: 0,
+      capturedAt: '2026-08-02T12:00:00.000Z',
+      coverage: 'git-head-plus-dirty' as const,
+    };
+
+    events.emit('checkpoint.written', {
+      sessionId: 'session-1',
+      promptIndex: 2,
+      promptPreview: 'secret prompt preview',
+      ts: '2026-08-02T12:00:00.000Z',
+      fileCount: 3,
+      workspaceCheckpoint,
+    });
+    events.emit('storage.write', {
+      sessionId: 'session-1',
+      store: 'plan',
+      filePath: 'D:/project/session.plan.json',
+      operation: 'save',
+      outcome: 'success',
+      durationMs: 2,
+    });
+    await Promise.resolve();
+
+    expect(updateWorkspaceCheckpoint).toHaveBeenCalledWith(
+      2,
+      '2026-08-02T12:00:00.000Z',
+      workspaceCheckpoint,
+    );
+    expect(refreshPlan).toHaveBeenCalledTimes(1);
+    expect(observe).toHaveBeenCalledTimes(2);
+    expect(observe.mock.calls.map(([entry]) => entry.category)).toEqual([
+      'status_changed',
+      'plan_updated',
+    ]);
+    expect(JSON.stringify(observe.mock.calls)).not.toContain('secret prompt preview');
+    bridge.close();
   });
 });

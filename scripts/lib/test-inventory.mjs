@@ -5,9 +5,14 @@ function normalizeFile(repoRoot, file) {
   // `C:\repo\packages\core\tests\a.test.ts`). This function must normalize
   // them to POSIX relative paths regardless of the platform running the
   // check (CI runs on Linux but may parse Windows-origin vitest output).
-  const normalizedFile = file.replace(/\\/g, '/');
+  // Also handle Windows drive-letter paths (C:/...) which are NOT absolute
+  // on POSIX — strip the drive before resolving.
+  let normalizedFile = file.replace(/\\/g, '/');
   const normalizedRoot = repoRoot.replace(/\\/g, '/');
-  const absolute = path.isAbsolute(normalizedFile)
+  // Strip Windows drive-letter prefix (e.g. "C:/repo/..." → "/repo/...")
+  // so path.posix.resolve treats the remainder as an absolute POSIX path.
+  normalizedFile = normalizedFile.replace(/^[A-Za-z]:/, '');
+  const absolute = path.posix.isAbsolute(normalizedFile)
     ? normalizedFile
     : path.posix.resolve(normalizedRoot, normalizedFile);
   return path.posix.relative(normalizedRoot, absolute);

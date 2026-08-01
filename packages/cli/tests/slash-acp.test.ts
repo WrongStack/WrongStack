@@ -5,13 +5,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runEnsemble = vi.fn();
-const renderEnsembleText = vi.fn(() => 'ENSEMBLE_TEXT');
+const renderEnsembleText = vi.fn((..._args: unknown[]) => 'ENSEMBLE_TEXT');
 const runOneAcpTask = vi.fn();
 const probeAcpAgents = vi.fn();
 const ensembleList = vi.fn();
 const resolveAcpAgentCommand = vi.fn();
 const runAcpBench = vi.fn();
-const renderAcpBenchText = vi.fn(() => 'BENCH_TEXT');
+const renderAcpBenchText = vi.fn((..._args: unknown[]) => 'BENCH_TEXT');
 
 vi.mock('@wrongstack/acp', () => ({
   runEnsemble: (...a: unknown[]) => runEnsemble(...a),
@@ -27,7 +27,7 @@ vi.mock('@wrongstack/acp', () => ({
   },
 }));
 
-const loadCachedAcpRegistry = vi.fn(async () => null);
+const loadCachedAcpRegistry = vi.fn(async (..._args: unknown[]): Promise<any> => null);
 const refreshAcpRegistry = vi.fn();
 vi.mock('../src/acp-registry-cache.js', () => ({
   loadCachedAcpRegistry: (...a: unknown[]) => loadCachedAcpRegistry(...a),
@@ -77,13 +77,13 @@ describe('/acp dispatch', () => {
       { id: 'goose', displayName: 'Goose', installed: false, reason: 'binary not found' },
     ]);
     const res = await cmd().run('', {} as never);
-    expect(res.message).toContain('gemini-cli');
-    expect(res.message).toContain('1 of 2 bundled agents installed locally');
+    expect((res as { message?: string })?.message).toContain('gemini-cli');
+    expect((res as { message?: string })?.message).toContain('1 of 2 bundled agents installed locally');
   });
 
   it('shows help for `help`', async () => {
     const res = await cmd().run('help', {} as never);
-    expect(res.message).toContain('/acp <agent-id> <task>');
+    expect((res as { message?: string })?.message).toContain('/acp <agent-id> <task>');
   });
 
   it('probes installed agents (bounded) and reports handshake results', async () => {
@@ -99,9 +99,9 @@ describe('/acp dispatch', () => {
     expect(probeAcpAgents).toHaveBeenCalledTimes(1);
     const arg = probeAcpAgents.mock.calls[0]![0] as { agentIds: string[] };
     expect(arg.agentIds).toEqual(['gemini-cli', 'claude-code']);
-    expect(res.message).toContain('✓ gemini-cli');
-    expect(res.message).toContain('✗ claude-code');
-    expect(res.message).toContain('1 of 2 agents completed the ACP handshake');
+    expect((res as { message?: string })?.message).toContain('✓ gemini-cli');
+    expect((res as { message?: string })?.message).toContain('✗ claude-code');
+    expect((res as { message?: string })?.message).toContain('1 of 2 agents completed the ACP handshake');
   });
 
   it('routes parallel to runEnsemble', async () => {
@@ -111,7 +111,7 @@ describe('/acp dispatch', () => {
     const arg = runEnsemble.mock.calls[0]![0] as { agentIds: string; task: string };
     expect(arg.agentIds).toBe('gemini-cli,codex-cli');
     expect(arg.task).toBe('review diff');
-    expect(res.message).toBe('ENSEMBLE_TEXT');
+    expect((res as { message?: string })?.message).toBe('ENSEMBLE_TEXT');
   });
 
   it('runs a single agent inline and renders the result', async () => {
@@ -120,10 +120,10 @@ describe('/acp dispatch', () => {
     const opts = fakeOpts();
     const res = await cmd(opts).run('gemini-cli "explain x"', {} as never);
     expect(runOneAcpTask).toHaveBeenCalledTimes(1);
-    expect(res.message).toContain('=== gemini-cli ===');
-    expect(res.message).toContain('all done');
-    expect(res.message).toContain('iterations=2 toolCalls=3');
-    expect(opts.renderer.writeInfo).toHaveBeenCalled();
+    expect((res as { message?: string })?.message).toContain('=== gemini-cli ===');
+    expect((res as { message?: string })?.message).toContain('all done');
+    expect((res as { message?: string })?.message).toContain('iterations=2 toolCalls=3');
+    expect((opts as { renderer: { writeInfo: () => void } }).renderer.writeInfo).toHaveBeenCalled();
   });
 
   it('dispatches a background subagent with provider:acp when --bg + onSpawn', async () => {
@@ -134,21 +134,21 @@ describe('/acp dispatch', () => {
     const res = await cmd(opts).run('gemini-cli --bg "long task"', {} as never);
     expect(onSpawn).toHaveBeenCalledWith('long task', { provider: 'acp', name: 'gemini-cli' });
     expect(runOneAcpTask).not.toHaveBeenCalled();
-    expect(res.message).toContain('background ACP subagent');
+    expect((res as { message?: string })?.message).toContain('background ACP subagent');
   });
 
   it('--bg without fleet wiring explains that background mode needs the fleet', async () => {
     resolveAcpAgentCommand.mockReturnValue({ command: 'gemini', role: 'gemini-cli' });
     const res = await cmd().run('gemini-cli --bg "task"', {} as never);
-    expect(res.message).toContain('needs the fleet');
-    expect(res.message).toContain('always active');
+    expect((res as { message?: string })?.message).toContain('needs the fleet');
+    expect((res as { message?: string })?.message).toContain('always active');
     expect(runOneAcpTask).not.toHaveBeenCalled();
   });
 
   it('reports an unknown agent id', async () => {
     resolveAcpAgentCommand.mockReturnValue(null);
     const res = await cmd().run('made-up-agent "do it"', {} as never);
-    expect(res.message).toContain('Unknown ACP agent: made-up-agent');
+    expect((res as { message?: string })?.message).toContain('Unknown ACP agent: made-up-agent');
   });
 
   it('benches an explicit agent list via runAcpBench', async () => {
@@ -158,7 +158,7 @@ describe('/acp dispatch', () => {
     const arg = runAcpBench.mock.calls[0]![0] as { agentIds: string[]; checkFs?: boolean };
     expect(arg.agentIds).toEqual(['gemini-cli', 'codex-cli']);
     expect(arg.checkFs).toBe(false);
-    expect(res.message).toBe('BENCH_TEXT');
+    expect((res as { message?: string })?.message).toBe('BENCH_TEXT');
   });
 
   it('bench --fs enables the fs check and defaults to installed agents', async () => {
@@ -177,14 +177,14 @@ describe('/acp dispatch', () => {
     refreshAcpRegistry.mockResolvedValue({ count: 37, location: '/tmp/cache/acp-registry.json', fetchedAt: 'now' });
     const res = await cmd().run('sync', {} as never);
     expect(refreshAcpRegistry).toHaveBeenCalledTimes(1);
-    expect(res.message).toContain('Synced 37 agents');
+    expect((res as { message?: string })?.message).toContain('Synced 37 agents');
   });
 
   it('reports a sync failure without throwing', async () => {
     refreshAcpRegistry.mockRejectedValue(new Error('network down'));
     const res = await cmd().run('sync', {} as never);
-    expect(res.message).toContain('sync failed');
-    expect(res.message).toContain('network down');
+    expect((res as { message?: string })?.message).toContain('sync failed');
+    expect((res as { message?: string })?.message).toContain('network down');
   });
 
   it('list surfaces synced-registry agents when a cache exists', async () => {
@@ -198,8 +198,8 @@ describe('/acp dispatch', () => {
       ],
     });
     const res = await cmd().run('', {} as never);
-    expect(res.message).toContain('Synced registry: 2 agents');
-    expect(res.message).toContain('factory-droid');
+    expect((res as { message?: string })?.message).toContain('Synced registry: 2 agents');
+    expect((res as { message?: string })?.message).toContain('factory-droid');
   });
 
   it('resolves a single run through the live registry byId map', async () => {

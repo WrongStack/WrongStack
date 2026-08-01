@@ -5,6 +5,7 @@ import { DEFAULT_GOVERNANCE_GRANT_MAX_TTL_MS } from './capability-grant.js';
 import { GOVERNANCE_MANAGEMENT_RECEIPT_TTL_MS } from './management-receipt-cache.js';
 import { GOVERNANCE_IPC_DEFAULT_TIMEOUT_MS, GovernanceProjectClient } from './project-client.js';
 import type { GovernanceServiceResponse } from './project-service.js';
+import { sanitizeGovernanceMessage } from './sanitize.js';
 import { GOVERNANCE_SERVICE_PROTOCOL_VERSION } from './service-protocol.js';
 
 export const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_TTL_MS = 60 * 60 * 1_000;
@@ -93,12 +94,8 @@ function tokenSafe(value: string, name: string): void {
 }
 
 function failureMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return sanitizeFailure(error.message);
+  if (error instanceof Error && error.message.trim()) return sanitizeGovernanceMessage(error.message);
   return 'Governance credential rotation failed.';
-}
-
-function sanitizeFailure(message: string): string {
-  return message.replace(/wsg_\S{1,700}/gu, '[credential]').slice(0, 512);
 }
 
 function validRotationResult(
@@ -115,7 +112,7 @@ function validRotationResult(
       readonly expiresAtMs: number;
     }
   | { readonly valid: false; readonly message: string } {
-  if (!response.ok) return { valid: false, message: sanitizeFailure(response.error.message) };
+  if (!response.ok) return { valid: false, message: sanitizeGovernanceMessage(response.error.message) };
   if (response.result.type !== 'capability_grant_rotated') {
     return { valid: false, message: 'Credential rotation returned an unexpected response type.' };
   }

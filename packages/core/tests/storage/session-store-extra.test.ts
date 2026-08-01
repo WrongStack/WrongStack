@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DefaultSecretScrubber, DefaultSessionStore } from '../../src/index.js';
+import { DefaultSecretScrubber, DefaultSessionStore, EventBus } from '../../src/index.js';
 import type { SessionEvent } from '../../src/types/session.js';
 
 let tmp: string;
@@ -44,6 +44,10 @@ describe('FileSessionWriter — transcriptPath / file snapshots / checkpoints', 
   });
 
   it('attaches a content-addressed workspace manifest to checkpoint events', async () => {
+    const events = new EventBus();
+    const checkpointWritten = vi.fn();
+    events.on('checkpoint.written', checkpointWritten);
+    store = new DefaultSessionStore({ dir: tmp, events });
     const w = await store.create({ id: 'workspace-cp', model: 'm', provider: 'p' });
     const workspaceCheckpoint = {
       manifestHash: 'a'.repeat(64),
@@ -63,6 +67,13 @@ describe('FileSessionWriter — transcriptPath / file snapshots / checkpoints', 
     expect(data.events).toContainEqual(
       expect.objectContaining({
         type: 'checkpoint',
+        promptIndex: 4,
+        workspaceCheckpoint,
+      }),
+    );
+    expect(checkpointWritten).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'workspace-cp',
         promptIndex: 4,
         workspaceCheckpoint,
       }),

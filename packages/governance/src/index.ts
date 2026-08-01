@@ -45,6 +45,7 @@ export {
   type PrepareGovernanceCompatibilityResult,
   prepareGovernanceCompatibilityRuntime,
 } from './runtime-compatibility.js';
+export * from './sanitize.js';
 export * from './task-aggregate.js';
 export * from './task-contract.js';
 export * from './transition-engine.js';

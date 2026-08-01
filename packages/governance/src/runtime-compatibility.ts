@@ -26,6 +26,7 @@ import {
   GovernanceProjectClient,
 } from './project-client.js';
 import type { GovernanceServiceResponse } from './project-service.js';
+import { sanitizeGovernanceMessage } from './sanitize.js';
 import {
   GOVERNANCE_SERVICE_CAPABILITIES,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
@@ -238,11 +239,7 @@ function legacy(
   message: string,
   cleanup: GovernanceCompatibilityCleanup = 'not_required',
 ): GovernanceCompatibilityFallback {
-  return Object.freeze({ mode: 'legacy', code, phase, message: sanitize(message), cleanup });
-}
-
-function sanitize(message: string): string {
-  return message.replace(/wsg_\S{1,700}/gu, '[credential]').slice(0, 512);
+  return Object.freeze({ mode: 'legacy', code, phase, message: sanitizeGovernanceMessage(message), cleanup });
 }
 
 function validateOptions(options: PrepareGovernanceCompatibilityOptions): string | null {

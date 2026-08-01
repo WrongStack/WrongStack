@@ -285,6 +285,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     contextMeta: context.meta,
     logger,
     events,
+    planPath: sessResult.planPath,
   });
   configureSimpleUiRuntimeContext(context.meta, flags);
   const attachments = sessResult.attachments;
@@ -293,7 +294,6 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const detachTodosCheckpoint = sessResult.detachTodosCheckpoint;
   const priorFleetState = sessResult.priorFleetState;
 
-  // ── Memory store trace ID ─────────────────────────────────────────
   // Attach the session trace ID to the memory store so all `storage.*` events
   // from `remember`/`forget`/`consolidate` calls during this session carry
   // the root trace ID for observability correlation.  The store is a singleton;

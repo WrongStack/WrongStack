@@ -98,9 +98,9 @@ describe('createLifecycleHooksExtension', () => {
     const ext = createLifecycleHooksExtension(hookRunner as never);
     const ctx = { systemPrompt: [] as unknown[] };
     // First call sets started = true
-    await ext.beforeRun(ctx as never);
+    await ext.beforeRun?.(ctx as never, {} as never);
     // Second call should skip
-    await ext.beforeRun(ctx as never);
+    await ext.beforeRun?.(ctx as never, {} as never);
     // has should have only been called once
     expect(hookRunner.has).toHaveBeenCalledTimes(1);
   });
@@ -109,7 +109,7 @@ describe('createLifecycleHooksExtension', () => {
     const hookRunner = { has: () => false, sessionStart: vi.fn() };
     const ext = createLifecycleHooksExtension(hookRunner as never);
     const ctx = { systemPrompt: [] };
-    await ext.beforeRun(ctx as never);
+    await ext.beforeRun?.(ctx as never, {} as never);
     expect(hookRunner.sessionStart).not.toHaveBeenCalled();
   });
 
@@ -120,7 +120,7 @@ describe('createLifecycleHooksExtension', () => {
     };
     const ext = createLifecycleHooksExtension(hookRunner as never);
     const ctx = { systemPrompt: [] as unknown[] };
-    await ext.beforeRun(ctx as never);
+    await ext.beforeRun?.(ctx as never, {} as never);
     expect(ctx.systemPrompt).toHaveLength(1);
     expect(ctx.systemPrompt[0]).toEqual({ type: 'text', text: 'session start context' });
   });
@@ -132,7 +132,7 @@ describe('createLifecycleHooksExtension', () => {
     };
     const ext = createLifecycleHooksExtension(hookRunner as never);
     const ctx = { systemPrompt: [] as unknown[] };
-    await ext.beforeRun(ctx as never);
+    await ext.beforeRun?.(ctx as never, {} as never);
     expect(ctx.systemPrompt).toHaveLength(0);
   });
 
@@ -143,7 +143,7 @@ describe('createLifecycleHooksExtension', () => {
       stop: stopFn,
     };
     const ext = createLifecycleHooksExtension(hookRunner as never);
-    await ext.afterRun({} as never);
+    await ext.afterRun?.({} as never, {} as never);
     expect(stopFn).toHaveBeenCalled();
   });
 
@@ -154,7 +154,7 @@ describe('createLifecycleHooksExtension', () => {
       stop: stopFn,
     };
     const ext = createLifecycleHooksExtension(hookRunner as never);
-    await ext.afterRun({} as never);
+    await ext.afterRun?.({} as never, {} as never);
     expect(stopFn).not.toHaveBeenCalled();
   });
 });

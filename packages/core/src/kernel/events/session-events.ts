@@ -1,5 +1,6 @@
 import type { Context } from '../../core/context.js';
 import type { Usage } from '../../types/provider.js';
+import type { WorkspaceCheckpointRef } from '../../types/session.js';
 import type { TrackedAgentSnapshot } from '../events.js';
 
 export interface SessionEventMap {
@@ -203,6 +204,8 @@ export interface SessionEventMap {
     promptPreview: string;
     ts: string;
     fileCount: number;
+    /** Deterministic Git HEAD + dirty workspace identity, absent when capture failed. */
+    workspaceCheckpoint?: WorkspaceCheckpointRef | undefined;
   };
   /**
    * Fired by SessionWriter.writeInFlightMarker() — the agent loop has

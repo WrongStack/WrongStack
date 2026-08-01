@@ -9,6 +9,7 @@ import type {
 } from '@wrongstack/runtime/governance-bootstrap';
 import { sanitizeGovernanceMessage } from '@wrongstack/runtime/governance-sanitize';
 import { createGovernanceShadowBridge } from './boot/governance-shadow-bridge.js';
+import { createGovernanceTraceContext } from './boot/governance-trace-context.js';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { buildPickableProviders } from './provider-helpers.js';
 
@@ -108,6 +109,7 @@ export async function setupCliGovernance(input: {
   readonly contextMeta: Record<string, unknown>;
   readonly logger: Pick<Logger, 'info' | 'warn'>;
   readonly events: EventBus;
+  readonly planPath: string;
 }): Promise<CliGovernanceRuntimeHandle | undefined> {
   const result = await bootstrapCliGovernance({
     environment: process.env,
@@ -121,10 +123,15 @@ export async function setupCliGovernance(input: {
     const snapshot = result.handle.snapshot();
     input.contextMeta['governance'] = snapshot;
     input.logger.info(`governance: ${snapshot.source} session-scoped control plane`);
+    const trace = await createGovernanceTraceContext({
+      sessionId: input.sessionId,
+      planPath: input.planPath,
+    });
     const shadow = createGovernanceShadowBridge({
       events: input.events,
       sink: result.handle,
       logger: input.logger,
+      trace,
     });
     return Object.freeze({
       close: () => {

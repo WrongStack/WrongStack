@@ -13,21 +13,21 @@ function makeCtx(planPath: string, taskPath?: string) {
       state: { replaceTodos },
       meta: taskPath ? { 'task.path': taskPath } : {},
     },
-  };
+  } as never;
 }
 
 describe('/plan', () => {
   it('reports missing planPath', async () => {
-    const cmd = buildPlanCommand({});
+    const cmd = buildPlanCommand({} as never);
     const res = await cmd.run('');
-    expect(res.message).toContain('Plan storage is not configured');
+    expect((res as { message?: string })?.message).toContain('Plan storage is not configured');
   });
 
   it('shows an empty plan', async () => {
     const tmp = path.join(os.tmpdir(), `plan-${Date.now()}.json`);
     const cmd = buildPlanCommand(makeCtx(tmp));
     const res = await cmd.run('show');
-    expect(res.message).toContain('Plan is empty');
+    expect((res as { message?: string })?.message).toContain('Plan is empty');
     await fs.unlink(tmp).catch(() => {});
   });
 
@@ -35,9 +35,9 @@ describe('/plan', () => {
     const tmp = path.join(os.tmpdir(), `plan-${Date.now()}.json`);
     const cmd = buildPlanCommand(makeCtx(tmp));
     let res = await cmd.run('add Test item');
-    expect(res.message).toContain('Added: Test item');
+    expect((res as { message?: string })?.message).toContain('Added: Test item');
     res = await cmd.run('done 1');
-    expect(res.message).toContain('[x] Test item');
+    expect((res as { message?: string })?.message).toContain('[x] Test item');
     await fs.unlink(tmp).catch(() => {});
   });
 
@@ -45,7 +45,7 @@ describe('/plan', () => {
     const tmp = path.join(os.tmpdir(), `plan-${Date.now()}.json`);
     const cmd = buildPlanCommand(makeCtx(tmp));
     const res = await cmd.run('template list');
-    expect(res.message).toContain('Available plan templates');
+    expect((res as { message?: string })?.message).toContain('Available plan templates');
     await fs.unlink(tmp).catch(() => {});
   });
 });

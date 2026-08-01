@@ -62,17 +62,17 @@ describe('checkAutonomy', () => {
     const [finding] = checkAutonomy(
       baseInput({ config: { autonomy: { defaultMode: 'off' } } as TuneupInput['config'] }),
     );
-    expect(finding.severity).toBe('info');
+    expect(finding?.severity).toBe('info');
     // Power-gated: a plain tune-up recommends but does not write autonomy.
-    expect(finding.action).toBeUndefined();
+    expect(finding?.action).toBeUndefined();
   });
 
   it('reports ok when auto is already the default', () => {
     const [finding] = checkAutonomy(
       baseInput({ config: { autonomy: { defaultMode: 'auto' } } as TuneupInput['config'] }),
     );
-    expect(finding.severity).toBe('ok');
-    expect(finding.action).toBeUndefined();
+    expect(finding?.severity).toBe('ok');
+    expect(finding?.action).toBeUndefined();
   });
 });
 
@@ -125,8 +125,8 @@ describe('checkMemoryDedup', () => {
       }),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe('warning');
-    expect(findings[0].handoff).toBeTruthy();
+    expect(findings[0]?.severity).toBe('warning');
+    expect(findings[0]?.handoff).toBeTruthy();
   });
 
   it('ignores short/trivial lines and single files', () => {
@@ -151,8 +151,8 @@ describe('checkMemorySize', () => {
         memoryFiles: [{ label: 'root CLAUDE.md', path: '/c', content: big, committed: true }],
       }),
     );
-    expect(finding.severity).toBe('info');
-    expect(finding.handoff).toContain('root CLAUDE.md');
+    expect(finding?.severity).toBe('info');
+    expect(finding?.handoff).toContain('root CLAUDE.md');
   });
 });
 
@@ -160,7 +160,7 @@ describe('checkMcp', () => {
   it('flags configured-but-disabled and live-failed servers', () => {
     const findings = checkMcp(
       baseInput({
-        config: { mcpServers: { old: { enabled: false } } } as TuneupInput['config'],
+        config: { mcpServers: { old: { enabled: false } } } as unknown as TuneupInput['config'],
         mcp: [{ name: 'broken', state: 'failed', enabled: true, toolCount: 0 }],
       }),
     );
@@ -178,7 +178,7 @@ describe('checkPlugins', () => {
         config: { plugins: [{ name: 'telemetry', enabled: false }] } as TuneupInput['config'],
       }),
     );
-    expect(finding.problem).toContain('telemetry');
+    expect(finding?.problem).toContain('telemetry');
   });
 });
 
@@ -190,8 +190,8 @@ describe('checkSkills', () => {
       bodyChars: 5_000,
     }));
     const [finding] = checkSkills(baseInput({ skills, eagerMaxChars: 24_000 }));
-    expect(finding.severity).toBe('warning');
-    expect(finding.problem).toContain('exceed the eager inject budget');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.problem).toContain('exceed the eager inject budget');
   });
 
   it('stays quiet in progressive mode', () => {
@@ -207,8 +207,8 @@ describe('checkPermissions', () => {
         trust: { bash: { deny: ['ls -la', 'rm -rf /'] } },
       }),
     );
-    expect(finding.category).toBe('permissions');
-    expect(finding.action).toMatchObject({ kind: 'add-exec-allow', commands: ['ls'] });
+    expect(finding?.category).toBe('permissions');
+    expect(finding?.action).toMatchObject({ kind: 'add-exec-allow', commands: ['ls'] });
   });
 
   it('mines history counts and de-dupes command names', () => {
@@ -221,7 +221,7 @@ describe('checkPermissions', () => {
         ],
       }),
     );
-    expect(finding.action).toMatchObject({ kind: 'add-exec-allow', commands: ['grep'] });
+    expect(finding?.action).toMatchObject({ kind: 'add-exec-allow', commands: ['grep'] });
   });
 });
 
@@ -229,7 +229,7 @@ describe('checkPerformance', () => {
   it('flags disabled auto-fallback with a fix action', () => {
     const findings = checkPerformance(
       baseInput({
-        config: { fallbackAuto: false, fallbackModels: [] } as TuneupInput['config'],
+        config: { fallbackAuto: false, fallbackModels: [] } as unknown as TuneupInput['config'],
       }),
     );
     const fb = findings.find((f) => f.problem.includes('Automatic fallback is off'));
@@ -285,14 +285,14 @@ describe('checkAutonomy power-gating', () => {
     const off = checkAutonomy(
       baseInput({ config: { autonomy: { defaultMode: 'off' } } as TuneupInput['config'] }),
     );
-    expect(off[0].action).toBeUndefined();
+    expect(off[0]?.action).toBeUndefined();
     const on = checkAutonomy(
       baseInput({
         config: { autonomy: { defaultMode: 'off' } } as TuneupInput['config'],
         power: true,
       }),
     );
-    expect(on[0].action).toMatchObject({ kind: 'set-config', path: ['autonomy', 'defaultMode'] });
+    expect(on[0]?.action).toMatchObject({ kind: 'set-config', path: ['autonomy', 'defaultMode'] });
   });
 });
 
@@ -300,14 +300,14 @@ describe('checkConfigDoctor', () => {
   it('surfaces a doctor pointer when config issues exist', () => {
     expect(checkConfigDoctor(baseInput({ configIssues: 0 }))).toEqual([]);
     const [finding] = checkConfigDoctor(baseInput({ configIssues: 3 }));
-    expect(finding.suggestion).toContain('/doctor fix');
+    expect(finding?.suggestion).toContain('/doctor fix');
   });
 });
 
 describe('buildDeepPrompt', () => {
   it('embeds non-ok findings and asks for a plan', () => {
     const report = runTuneup(
-      baseInput({ config: { fallbackAuto: false, fallbackModels: [] } as TuneupInput['config'] }),
+      baseInput({ config: { fallbackAuto: false, fallbackModels: [] } as unknown as TuneupInput['config'] }),
     );
     const prompt = buildDeepPrompt(report);
     expect(prompt).toContain('optimization');
