@@ -20,6 +20,12 @@ export function resolveYoloEligiblePendingConfirms(
 ): void {
   for (const [id, confirm] of pendingConfirms) {
     if (confirm.boundaryReason) continue;
+    // WS-022: this skipped only `boundaryReason` (set solely for kanban gate
+    // violations), so flipping YOLO on blanket-answered "yes" to every prompt
+    // already on screen — including a destructive one. `isDestructive
+    // PendingConfirm` is declared directly above for exactly this and was
+    // never called.
+    if (isDestructivePendingConfirm(confirm)) continue;
     pendingConfirms.delete(id);
     confirm.resolve('yes');
   }

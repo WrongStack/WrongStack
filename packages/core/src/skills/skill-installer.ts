@@ -8,6 +8,19 @@ import { isValidSkillNameFormat, parseSkillFrontmatter } from './frontmatter.js'
 import { downloadGitHubTarball, parseSkillRef } from './github-fetcher.js';
 import { SKILL_LIMITS } from './limits.js';
 import { type InstalledSkillEntry, SkillManifestStore } from './manifest-store.js';
+
+/**
+ * Containment check for an extracted archive entry.
+ *
+ * WS-053: the call sites used a bare `resolved.startsWith(path.resolve(destDir))`,
+ * which also accepts a *sibling* whose name merely shares the prefix —
+ * `skills/foo` would admit a write to `skills/foo-evil`. Appending the platform
+ * separator (and allowing the directory itself) closes that.
+ */
+function isInside(resolved: string, destDir: string): boolean {
+  const root = path.resolve(destDir);
+  return resolved === root || resolved.startsWith(root + path.sep);
+}
 import { githubDirectAdapter } from './registry/github-direct-adapter.js';
 import type {
   RegistrySearchOptions,
@@ -134,7 +147,7 @@ export class SkillInstaller {
 
           // Path traversal check
           const resolved = path.resolve(destPath);
-          if (!resolved.startsWith(path.resolve(destDir))) {
+          if (!isInside(resolved, destDir)) {
             throw new FsError({
               message: `Path traversal detected in skill file: ${file}`,
               code: ERROR_CODES.FS_DELETE_FAILED,
@@ -249,7 +262,7 @@ export class SkillInstaller {
         const srcPath = path.join(srcSkillDir, file);
         const destPath = path.join(destDir, file);
         const resolved = path.resolve(destPath);
-        if (!resolved.startsWith(path.resolve(destDir))) {
+        if (!isInside(resolved, destDir)) {
           throw new FsError({
             message: `Path traversal detected in skill file: ${file}`,
             code: ERROR_CODES.FS_DELETE_FAILED,

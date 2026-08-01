@@ -21,11 +21,14 @@ on:
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
-# Least privilege: read the repo, plus the two scopes Pages deployment needs.
+# WS-014: `pages: write` and `id-token: write` are declared per-job, not here.
+# At workflow level the build job inherits them while running `npm ci` and
+# `vite build` over the website's own dependency tree — arbitrary third-party
+# code. A compromised dependency there could mint an OIDC token or deploy to
+# wrongstack.com, bypassing the `github-pages` environment gate entirely. The
+# build job only needs to read the repo.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Only one Pages deploy at a time. Don't cancel an in-flight deploy — a half-
 # applied deployment is worse than waiting for the previous one to finish.
@@ -37,6 +40,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       # Third-party actions pinned to full commit SHAs (see ci.yml for rationale).
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4 (resolved 2026-05-29)
@@ -53,9 +58,16 @@ jobs:
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5 (resolved 2026-05-29)
 
+      # `--ignore-scripts`: the website tree is outside the pnpm workspace, so
+      # root `onlyBuiltDependencies` does not gate its install scripts, and
+      # `pnpm audit` in ci.yml does not cover these packages either (WS-014).
       - name: Install dependencies
         working-directory: website
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Audit website dependencies
+        working-directory: website
+        run: npm audit --audit-level=moderate
 
       - name: Build
         working-directory: website
@@ -70,6 +82,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

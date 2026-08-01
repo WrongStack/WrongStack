@@ -54,6 +54,12 @@ export function discoverLocalHqEndpoint(options: {
   const dataDir = resolveHqDataDir(options.dataDir, options.env ?? process.env);
   const runtime = readHqRuntimeFileSync(dataDir);
   if (runtime === undefined) return undefined;
+  // WS-037: `isLoopbackHqUrl` already guards the explicit-config path for this
+  // exact reason — the local client token is only valid for a same-machine
+  // server. Discovery skipped it, so anyone able to write runtime.json could
+  // redirect the whole telemetry stream, and the local token with it, to a
+  // remote host.
+  if (!isLoopbackHqUrl(runtime.url)) return undefined;
   const token = readFirstClientTokenFromAuthFile(dataDir);
   return { url: runtime.url, ...(token ? { token } : {}) };
 }
