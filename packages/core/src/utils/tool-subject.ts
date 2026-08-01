@@ -61,7 +61,17 @@ export function subjectForToolInput(
       }
       // A `command` subject renders the full invocation, not just the program.
       // `bash` is unaffected — it has no `args`, its command IS the line.
-      if (subjectKey === 'command') return escapeGlobSubject(renderCommandLine(value, obj['args']));
+      if (subjectKey === 'command') {
+        const rendered = renderCommandLine(value, obj['args']);
+        // A dry-run `git commit` must not share a subject with a real commit
+        // (over-grant). `dry_run` only applies to git's commit subcommand;
+        // exec/bash have no `dry_run` flag, so this only matches
+        // `git commit --dry-run`.
+        if (value === 'commit' && obj['dry_run'] === true) {
+          return `${escapeGlobSubject(rendered)}:dry-run`;
+        }
+        return escapeGlobSubject(rendered);
+      }
       // A dry-run patch must not share a subject with a real patch on the same
       // directory: trusting a preview would otherwise silently authorize the
       // actual application (over-grant). Mirror the `command` special-case.

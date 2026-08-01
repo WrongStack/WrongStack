@@ -168,6 +168,14 @@ describe('tool-subject utilities', () => {
     expect(subjectForToolInput('replace', { files: 'src', dry_run: true }, 'files')).toBe('src:dry-run');
     expect(subjectForToolInput('replace', { files: 'src', dry_run: false }, 'files')).toBe('src');
   });
+  it('subjectForToolInput gives dry-run git commit a distinct subject (over-grant)', () => {
+    // A dry-run `git commit` must not share a subject with a real commit.
+    expect(subjectForToolInput('git', { command: 'commit', dry_run: true }, 'command')).toBe('commit:dry-run');
+    expect(subjectForToolInput('git', { command: 'commit', dry_run: false }, 'command')).toBe('commit');
+    expect(subjectForToolInput('git', { command: 'commit' }, 'command')).toBe('commit');
+    // Other git subcommands are unaffected by the dry-run special-case.
+    expect(subjectForToolInput('git', { command: 'push' }, 'command')).toBe('push');
+  });
 });
 
 // ── config-json pure functions ──────────────────────────────────────────
