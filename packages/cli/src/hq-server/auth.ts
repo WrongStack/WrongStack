@@ -43,6 +43,12 @@ export type HqBrowserAuthResult = HqBrowserAuthContext | HqCookieAuthContext | u
 /**
  * The only featureful frontend is the packaged, same-origin React SPA.
  * The missing-assets recovery document contains inline CSS but no script.
+ *
+ * WS-061: `script-src` carried `'unsafe-inline'` despite that sentence above
+ * already stating nothing here needs it — verified against the built HTML,
+ * which has zero inline `<script>` elements without `src`. `style-src` keeps
+ * `'unsafe-inline'` because the recovery document's inline CSS is real, and
+ * inline style is not script execution.
  */
 export function setHqSecurityHeaders(res: http.ServerResponse): void {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -57,7 +63,7 @@ export function setHqSecurityHeaders(res: http.ServerResponse): void {
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+      "script-src 'self' 'wasm-unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
       "img-src 'self' data:",

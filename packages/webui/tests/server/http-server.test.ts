@@ -9,7 +9,7 @@
  *      CSP as the direct .html branch) so client-side routing still
  *      works for deep-linked URLs.
  */
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -20,6 +20,7 @@ import {
   injectWsConfig,
   isInsideDist,
 } from '@wrongstack/webui-server';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 let distDir: string;
 let server: import('node:http').Server;
@@ -28,15 +29,9 @@ let baseUrl: string;
 beforeAll(async () => {
   // Build a tiny distDir with one .html, one .js, and one .json file.
   distDir = await fs.mkdtemp(path.join(os.tmpdir(), 'webui-http-'));
-  await fs.writeFile(
-    path.join(distDir, 'index.html'),
-    '<!doctype html><title>root</title>',
-  );
+  await fs.writeFile(path.join(distDir, 'index.html'), '<!doctype html><title>root</title>');
   await fs.writeFile(path.join(distDir, 'app.js'), 'console.log(1);');
-  await fs.writeFile(
-    path.join(distDir, 'manifest.json'),
-    '{"name":"test"}',
-  );
+  await fs.writeFile(path.join(distDir, 'manifest.json'), '{"name":"test"}');
 
   server = createHttpServer({ host: '127.0.0.1', distDir });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -113,10 +108,12 @@ describe('buildCspHeader', () => {
     expect(csp).not.toContain('https://wrongstack.example.com');
   });
 
-  it('allows unsafe-inline in script-src for browser-extension compatibility', () => {
-    // The WrongStack frontend is a Vite build that ships zero inline scripts,
-    // but browser extensions (password managers, dark-mode readers) inject
-    // inline <script> tags. `'unsafe-inline'` stops the console noise.
+  // WS-061 (inverted). The second of two tests that pinned `'unsafe-inline'`
+  // in `script-src`. Both imported the same `buildCspHeader` from
+  // @wrongstack/webui-server, so the invariant was double-pinned from two
+  // packages — which is why the regression looked deliberate. See the fuller
+  // rationale at packages/webui-server/tests/http-server.test.ts.
+  it('keeps script-src strict — no unsafe-inline, no per-extension hashes', () => {
     const csp = buildCspHeader();
     expect(csp).not.toMatch(/'sha256-/);
     const scriptSrc = csp
@@ -124,8 +121,8 @@ describe('buildCspHeader', () => {
       .map((s) => s.trim())
       .find((s) => s.startsWith('script-src'));
     expect(scriptSrc).toBeDefined();
-    expect(scriptSrc).toMatch(/'unsafe-inline'/);
-    expect(scriptSrc).toBe("script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'");
+    expect(scriptSrc).not.toMatch(/'unsafe-inline'/);
+    expect(scriptSrc).toBe("script-src 'self' 'wasm-unsafe-eval'");
   });
 });
 
@@ -195,9 +192,7 @@ describe('createHttpServer', () => {
     // reaches the server. The unit test below asserts the guard's
     // *contract* (the thing that actually runs in production).
     expect(isInsideDist(path.join(distDir, 'index.html'), distDir)).toBe(true);
-    expect(isInsideDist(path.join(distDir, '..', 'escape.txt'), distDir)).toBe(
-      false,
-    );
+    expect(isInsideDist(path.join(distDir, '..', 'escape.txt'), distDir)).toBe(false);
     // Also: a sibling directory with a name that *starts with* distDir's
     // name (e.g. distDir = /tmp/foo, sibling = /tmp/foo-other) must NOT
     // be accepted. The `+ path.sep` boundary check rejects that.
@@ -313,7 +308,13 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     await fs.mkdir(paths.projectSessions, { recursive: true });
     const lines =
       [
-        { type: 'session_start', ts: '2026-06-18T00:00:00Z', id: sessionId, model: 'm', provider: 'p' },
+        {
+          type: 'session_start',
+          ts: '2026-06-18T00:00:00Z',
+          id: sessionId,
+          model: 'm',
+          provider: 'p',
+        },
         { type: 'user_input', ts: '2026-06-18T00:00:01Z', content: 'hello there' },
         { type: 'tool_use', ts: '2026-06-18T00:00:02Z', name: 'read_file', id: 't1', input: {} },
         {
@@ -373,7 +374,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
   it('POST .../message delivers a steer message to the session mailbox', async () => {
     const { mailboxSessionTag, createProjectMailbox } = await import(
-      '@wrongstack/core/coordination',
+      '@wrongstack/core/coordination'
     );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {

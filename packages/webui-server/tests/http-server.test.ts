@@ -95,11 +95,20 @@ describe('buildCspHeader', () => {
     expect(csp).toContain('wss://localhost:3456');
   });
 
-  it('allows unsafe-inline in script-src for browser-extension compatibility', () => {
-    // The WrongStack frontend is a Vite build that ships zero inline scripts,
-    // but browser extensions (password managers, dark-mode readers) inject
-    // inline <script> tags. `'unsafe-inline'` stops the console noise.
+  // WS-061 (inverted). This asserted that `script-src` CONTAINS
+  // `'unsafe-inline'`, justified as browser-extension console-noise
+  // suppression. The justification does not survive: a `content.js:…`
+  // violation is the extension's own injection being blocked, which is the
+  // policy working, and it never affected the app. `'unsafe-inline'` disables
+  // inline-script defence for every visitor to quiet one developer's console,
+  // and it is strictly BROADER than the per-extension `'sha256-…'` allowlist
+  // this project already rejected on 2026-07-15.
+  //
+  // Verified rather than assumed before flipping: the Vite builds for webui,
+  // simpleui and webui-hq contain zero inline `<script>` without `src`.
+  it('keeps script-src strict — no unsafe-inline, no per-extension hashes', () => {
     const csp = buildCspHeader();
+    // The rejected narrow workaround must not creep back either.
     expect(csp).not.toMatch(/'sha256-/);
     // `style-src` keeps `'unsafe-inline'` for React's runtime style mutations,
     // so assert against the script directive only.
@@ -108,12 +117,20 @@ describe('buildCspHeader', () => {
       .map((s) => s.trim())
       .find((s) => s.startsWith('script-src'));
     expect(scriptSrc).toBeDefined();
-    expect(scriptSrc).toMatch(/'unsafe-inline'/);
+    expect(scriptSrc).not.toMatch(/'unsafe-inline'/);
     // Shiki's WASM grammar engine requires `'wasm-unsafe-eval'` —
     // without it, every code-block in chat throws
     //   CompileError: call to WebAssembly.instantiate() blocked by CSP
     expect(scriptSrc).toMatch(/'wasm-unsafe-eval'/);
-    expect(scriptSrc).toBe("script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'");
+    expect(scriptSrc).toBe("script-src 'self' 'wasm-unsafe-eval'");
+  });
+
+  it('still allows inline STYLE — inline style is not script execution', () => {
+    const styleSrc = buildCspHeader()
+      .split(';')
+      .map((s) => s.trim())
+      .find((s) => s.startsWith('style-src'));
+    expect(styleSrc).toBe("style-src 'self' 'unsafe-inline'");
   });
 });
 

@@ -229,21 +229,32 @@ function cspSourceFromUrl(rawUrl: string): string | undefined {
  * every script is an external `.js` file covered by `'self'`. The app itself
  * needs no `'unsafe-inline'`.
  *
- * `'unsafe-inline'` is added only to suppress browser-extension console noise:
- * extensions (password managers, dark-mode readers, dev helpers) page-inject
- * inline bootstrap code, which would otherwise trip per-extension CSP
- * violations (`content.js:…` with a sha256 of the extension's bytes). Adding
- * `'unsafe-inline'` once is simpler than chasing per-extension sha256 hashes
- * that change on every update.
- *
  * `'wasm-unsafe-eval'` is required for `shiki` (used by `rehype-pretty-code`
  * for code-block syntax highlighting in chat messages) — its oniguruma
  * grammar engine is compiled to WebAssembly. Without this source, every
  * markdown render that encounters a code block throws:
  *   `CompileError: call to WebAssembly.instantiate() blocked by CSP`
  *   `Error: \`runSync\` finished async. Use \`run\` instead`
+ *
+ * WS-061: `'unsafe-inline'` was here too, and it is not coming back. Its stated
+ * purpose was suppressing browser-extension console noise — extensions
+ * page-inject an inline bootstrap, which trips a `content.js:…` CSP violation.
+ * That is the extension's injection being blocked, which is the policy working;
+ * it never affected the app.
+ *
+ * The trade was backwards. `'unsafe-inline'` disables the entire inline-script
+ * defence for every visitor in order to quiet one developer's console, and it
+ * is strictly broader than the per-extension `'sha256-…'` allowlist that this
+ * project already considered and rejected on 2026-07-15 (a treadmill of hashes
+ * that change on every extension update). Rejecting the narrow workaround and
+ * then shipping the wide one is the worst of both.
+ *
+ * Verified before removal rather than assumed: the Vite builds for webui,
+ * simpleui and webui-hq contain ZERO inline `<script>` elements without `src`,
+ * so nothing this server serves needs the source. If that ever changes, the
+ * answer is a nonce or a hash for that specific script — not this keyword.
  */
-const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'", "'unsafe-inline'"];
+const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'"];
 
 /**
  * Build the Content-Security-Policy value for the WebUI.
