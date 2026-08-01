@@ -1,9 +1,9 @@
 import { join } from 'node:path';
-import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import {
   detectEcosystem as detectPackageEcosystem,
   recordPackageAction,
 } from '@wrongstack/core/coordination';
+import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import { detectPackageManager, normalizeCommandOutput, safeResolve } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
@@ -45,6 +45,10 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
     '- Set `save` appropriately.\n' +
     'This tool has proper capability declaration and is heavily recommended in the security posture of the project.',
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // What gets installed is the subject — installing a package runs its
+  // lifecycle scripts, so `express` and `evil-pkg` must not be interchangeable.
+  subjectKey: 'packages',
   mutating: true,
   riskTier: 'standard',
   icon: 'package',

@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { statSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 import { assessCommitSafety } from '@wrongstack/core/coordination';
-import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
+import { buildChildEnv } from '@wrongstack/core/utils';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput } from './_util.js';
 
 type GitSubcommand =
@@ -84,6 +84,10 @@ export const gitTool: Tool<GitInput, GitOutput> = {
   // Conservative: any of these may mutate. The non-mutating commands
   // (status/log/diff/branch/fetch) are still gated on `permission: 'confirm'`
   // and `MUTATING_SUBCOMMANDS` is consulted at runtime for per-call checks.
+  // WS-046: gives permission decisions something to key on.
+  // The git subcommand (status/commit/push) is what a trust rule needs to
+  // distinguish; `git status` and `git push --force` must not share a subject.
+  subjectKey: 'command',
   mutating: true,
   capabilities: ['fs.write', 'shell.restricted'],
   timeoutMs: TIMEOUT_MS,
@@ -249,10 +253,7 @@ function validateWorktreeInput(input: GitInput, projectRoot: string): GitOutput 
   }
 
   // Path escape: add/remove targets must resolve inside the project root.
-  if (
-    (input.worktreeAction === 'add' || input.worktreeAction === 'remove') &&
-    input.worktreePath
-  ) {
+  if ((input.worktreeAction === 'add' || input.worktreeAction === 'remove') && input.worktreePath) {
     const root = resolve(projectRoot);
     const abs = resolve(root, input.worktreePath);
     if (abs !== root && !abs.startsWith(root + sep)) {
@@ -317,7 +318,10 @@ function buildArgs(input: GitInput): string[] {
       // Validate branch name: reject names starting with '-' or containing ' --'
       // to prevent flag injection (e.g. "foo --force").
       return input.branch
-        ? ['branch', ...(input.branch.startsWith('-') || input.branch.includes(' --') ? [] : [input.branch])]
+        ? [
+            'branch',
+            ...(input.branch.startsWith('-') || input.branch.includes(' --') ? [] : [input.branch]),
+          ]
         : ['branch'];
     case 'checkout':
       return [

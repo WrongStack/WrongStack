@@ -30,6 +30,10 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
     '- Very useful in batch-tool-use or when orchestrating complex workflows programmatically.\n' +
     '- The call still goes through full permission checks and capability validation.',
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The tool being invoked through this indirection — the whole point of a
+  // permission decision here is WHICH tool is being reached.
+  subjectKey: 'tool',
   mutating: true,
   timeoutMs: 60_000,
   capabilities: ['tool.mutate.any'],

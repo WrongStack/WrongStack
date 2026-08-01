@@ -1,21 +1,19 @@
+import { randomUUID } from 'node:crypto';
 import {
-  type PlanFile,
   addPlanItem,
   clearPlan,
   deriveTodosFromPlanItem,
   formatPlan,
   getPlanTemplate,
   mutatePlan,
+  mutateTasks,
+  type PlanFile,
   removePlanItem,
   setPlanItemStatus,
-} from '@wrongstack/core/storage';
-import {
   type TaskFile,
-  mutateTasks,
 } from '@wrongstack/core/storage';
-import { formatTaskList } from '@wrongstack/core/utils';
-import { randomUUID } from 'node:crypto';
 import type { Tool } from '@wrongstack/core/types';
+import { formatTaskList } from '@wrongstack/core/utils';
 import { projectSessionPlanToKanban } from './session-kanban.js';
 
 /**
@@ -71,7 +69,13 @@ interface PlanOutput {
   /** Number of items not in 'done' status. */
   open: number;
   /** When promote/derive succeed, the generated todo items so the caller can inspect them. */
-  todos?: Array<{ id: string; content: string; status: string; activeForm?: string | undefined; promotedFromPlan?: string | undefined }>;
+  todos?: Array<{
+    id: string;
+    content: string;
+    status: string;
+    activeForm?: string | undefined;
+    promotedFromPlan?: string | undefined;
+  }>;
 }
 
 export const planTool: Tool<PlanInput, PlanOutput> = {
@@ -92,6 +96,9 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
     'This tool is excellent for maintaining long-term direction across many turns within a session. Plans survive resume but are not shared across separate sessions.\n' +
     'Use `scope: "project"` to use a shared project-level plan file.',
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The action performed; plan has no single file or path subject.
+  subjectKey: 'action',
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'plan',
@@ -141,13 +148,16 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
       scope: {
         type: 'string',
         enum: ['session', 'project'],
-        description: 'Storage scope: "session" (default, isolated to this session) or "project" (shared across all sessions for this project).',
+        description:
+          'Storage scope: "session" (default, isolated to this session) or "project" (shared across all sessions for this project).',
       },
     },
     required: ['action'],
   },
   async execute(input, ctx) {
-    const sessionPlanPath = (ctx.meta as Record<string, unknown>)['plan.path'] as string | undefined;
+    const sessionPlanPath = (ctx.meta as Record<string, unknown>)['plan.path'] as
+      | string
+      | undefined;
     let planPath: string | undefined;
 
     if (input.scope === 'project') {
@@ -157,10 +167,14 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
         // Handle BOTH separators — a Windows-native path uses '\\', and a
         // '/'-only search would miss it and fall back to a bare relative path
         // written into the process CWD instead of the sessions dir.
-        const lastSep = Math.max(sessionPlanPath.lastIndexOf('/'), sessionPlanPath.lastIndexOf('\\'));
-        planPath = lastSep >= 0
-          ? sessionPlanPath.slice(0, lastSep + 1) + 'backlog.plan.json'
-          : 'backlog.plan.json';
+        const lastSep = Math.max(
+          sessionPlanPath.lastIndexOf('/'),
+          sessionPlanPath.lastIndexOf('\\'),
+        );
+        planPath =
+          lastSep >= 0
+            ? sessionPlanPath.slice(0, lastSep + 1) + 'backlog.plan.json'
+            : 'backlog.plan.json';
       }
     } else {
       planPath = sessionPlanPath;
@@ -183,134 +197,146 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
 
     let plan: PlanFile;
     try {
-    plan = await mutatePlan(planPath, sessionId, async (p) => {
-      switch (input.action) {
-        case 'show':
-          break;
+      plan = await mutatePlan(planPath, sessionId, async (p) => {
+        switch (input.action) {
+          case 'show':
+            break;
 
-        case 'add': {
-          const title = input.title?.trim();
-          if (!title) {
-            early = mkResult(p, false, 'add requires `title`.');
-            return p;
-          }
-          const { plan: updated } = addPlanItem(p, title, input.details?.trim() || undefined);
-          return updated;
-        }
-
-        case 'start':
-        case 'done': {
-          if (!input.target) {
-            early = mkResult(p, false, `${input.action} requires \`target\` (id|index|substring).`);
-            return p;
-          }
-          const next = setPlanItemStatus(
-            p,
-            input.target,
-            input.action === 'start' ? 'in_progress' : 'done',
-          );
-          if (next === p) {
-            early = mkResult(p, false, `No plan item matched "${input.target}".`);
-            return p;
-          }
-          return next;
-        }
-
-        case 'remove': {
-          if (!input.target) {
-            early = mkResult(p, false, 'remove requires `target` (id|index|substring).');
-            return p;
-          }
-          const next = removePlanItem(p, input.target);
-          if (next === p) {
-            early = mkResult(p, false, `No plan item matched "${input.target}".`);
-            return p;
-          }
-          return next;
-        }
-
-        case 'promote': {
-          if (!input.target) {
-            early = mkResult(p, false, `${input.action} requires \`target\` (id|index|substring).`);
-            return p;
-          }
-          const derived = deriveTodosFromPlanItem(p, input.target, input.subtasks);
-          if (!derived) {
-            early = mkResult(p, false, `No plan item matched "${input.target}".`);
-            return p;
-          }
-          ctx.state.replaceTodos(derived.todos);
-          early = mkResult(
-            derived.plan,
-            true,
-            `${input.action} ok — ${derived.todos.length} todo(s) created.`,
-            derived.todos,
-          );
-          return derived.plan;
-        }
-
-        case 'template_use': {
-          const templateName = input.template?.trim();
-          if (!templateName) {
-            early = mkResult(p, false, 'template_use requires `template` name.');
-            return p;
-          }
-          const template = getPlanTemplate(templateName);
-          if (!template) {
-            early = mkResult(p, false, `Unknown template "${templateName}".`);
-            return p;
-          }
-          let updated = p;
-          for (const item of template.items) {
-            ({ plan: updated } = addPlanItem(updated, item.title, item.details));
-          }
-          early = mkResult(
-            updated,
-            true,
-            `Applied template "${template.name}" — ${template.items.length} items added.`,
-          );
-          return updated;
-        }
-
-        case 'clear':
-          return clearPlan(p);
-
-        case 'taskify': {
-          if (!input.target) {
-            early = mkResult(p, false, 'taskify requires `target` (plan item id|index|substring).');
-            return p;
-          }
-          // Find plan item by 1-based index, exact id, or title substring
-          let itemIdx = -1;
-          const asNum = Number.parseInt(input.target, 10);
-          if (!Number.isNaN(asNum) && asNum >= 1 && asNum <= p.items.length) {
-            itemIdx = asNum - 1;
-          } else {
-            itemIdx = p.items.findIndex((it) => it.id === input.target);
-            if (itemIdx === -1) {
-              const lower = input.target.toLowerCase();
-              itemIdx = p.items.findIndex((it) => it.title.toLowerCase().includes(lower));
+          case 'add': {
+            const title = input.title?.trim();
+            if (!title) {
+              early = mkResult(p, false, 'add requires `title`.');
+              return p;
             }
+            const { plan: updated } = addPlanItem(p, title, input.details?.trim() || undefined);
+            return updated;
           }
-          if (itemIdx === -1 || !p.items[itemIdx]) {
-            early = mkResult(p, false, `No plan item matched "${input.target}".`);
+
+          case 'start':
+          case 'done': {
+            if (!input.target) {
+              early = mkResult(
+                p,
+                false,
+                `${input.action} requires \`target\` (id|index|substring).`,
+              );
+              return p;
+            }
+            const next = setPlanItemStatus(
+              p,
+              input.target,
+              input.action === 'start' ? 'in_progress' : 'done',
+            );
+            if (next === p) {
+              early = mkResult(p, false, `No plan item matched "${input.target}".`);
+              return p;
+            }
+            return next;
+          }
+
+          case 'remove': {
+            if (!input.target) {
+              early = mkResult(p, false, 'remove requires `target` (id|index|substring).');
+              return p;
+            }
+            const next = removePlanItem(p, input.target);
+            if (next === p) {
+              early = mkResult(p, false, `No plan item matched "${input.target}".`);
+              return p;
+            }
+            return next;
+          }
+
+          case 'promote': {
+            if (!input.target) {
+              early = mkResult(
+                p,
+                false,
+                `${input.action} requires \`target\` (id|index|substring).`,
+              );
+              return p;
+            }
+            const derived = deriveTodosFromPlanItem(p, input.target, input.subtasks);
+            if (!derived) {
+              early = mkResult(p, false, `No plan item matched "${input.target}".`);
+              return p;
+            }
+            ctx.state.replaceTodos(derived.todos);
+            early = mkResult(
+              derived.plan,
+              true,
+              `${input.action} ok — ${derived.todos.length} todo(s) created.`,
+              derived.todos,
+            );
+            return derived.plan;
+          }
+
+          case 'template_use': {
+            const templateName = input.template?.trim();
+            if (!templateName) {
+              early = mkResult(p, false, 'template_use requires `template` name.');
+              return p;
+            }
+            const template = getPlanTemplate(templateName);
+            if (!template) {
+              early = mkResult(p, false, `Unknown template "${templateName}".`);
+              return p;
+            }
+            let updated = p;
+            for (const item of template.items) {
+              ({ plan: updated } = addPlanItem(updated, item.title, item.details));
+            }
+            early = mkResult(
+              updated,
+              true,
+              `Applied template "${template.name}" — ${template.items.length} items added.`,
+            );
+            return updated;
+          }
+
+          case 'clear':
+            return clearPlan(p);
+
+          case 'taskify': {
+            if (!input.target) {
+              early = mkResult(
+                p,
+                false,
+                'taskify requires `target` (plan item id|index|substring).',
+              );
+              return p;
+            }
+            // Find plan item by 1-based index, exact id, or title substring
+            let itemIdx = -1;
+            const asNum = Number.parseInt(input.target, 10);
+            if (!Number.isNaN(asNum) && asNum >= 1 && asNum <= p.items.length) {
+              itemIdx = asNum - 1;
+            } else {
+              itemIdx = p.items.findIndex((it) => it.id === input.target);
+              if (itemIdx === -1) {
+                const lower = input.target.toLowerCase();
+                itemIdx = p.items.findIndex((it) => it.title.toLowerCase().includes(lower));
+              }
+            }
+            if (itemIdx === -1 || !p.items[itemIdx]) {
+              early = mkResult(p, false, `No plan item matched "${input.target}".`);
+              return p;
+            }
+            const item = p.items[itemIdx]!;
+            // Extract data — task write happens after the plan lock releases
+            taskifyMeta.title = item.title;
+            taskifyMeta.details = item.details ?? '';
+            didTaskify = true;
+            break;
+          }
+
+          default:
+            early = mkResult(p, false, `Unknown action "${(input as { action: string }).action}".`);
             return p;
-          }
-          const item = p.items[itemIdx]!;
-          // Extract data — task write happens after the plan lock releases
-          taskifyMeta.title = item.title;
-          taskifyMeta.details = item.details ?? '';
-          didTaskify = true;
-          break;
         }
 
-        default:
-          early = mkResult(p, false, `Unknown action "${(input as { action: string }).action}".`);
-          return p;
-      }
-
-      return p;
-    });
+        return p;
+      });
     } catch (err) {
       // Persist failed (mutatePlan throws on a failed save) — report ok:false
       // with the real reason instead of falsely claiming the plan was saved.
@@ -342,7 +368,10 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
       // (mirrors the plan-path derivation above; handles both separators).
       if (input.scope === 'project') {
         const lastSep = Math.max(taskPath.lastIndexOf('/'), taskPath.lastIndexOf('\\'));
-        taskPath = lastSep >= 0 ? taskPath.slice(0, lastSep + 1) + 'backlog.tasks.json' : 'backlog.tasks.json';
+        taskPath =
+          lastSep >= 0
+            ? taskPath.slice(0, lastSep + 1) + 'backlog.tasks.json'
+            : 'backlog.tasks.json';
       }
       const now = new Date().toISOString();
       // Mutate the cross-file under ITS OWN lock — a raw loadTasks/push/saveTasks
@@ -369,7 +398,11 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
         );
       } catch (err) {
         // The plan item was saved, but copying it into the task file failed.
-        return mkResult(plan, false, `taskify: task not saved — ${err instanceof Error ? err.message : String(err)}`);
+        return mkResult(
+          plan,
+          false,
+          `taskify: task not saved — ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 

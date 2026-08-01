@@ -87,6 +87,9 @@ export const languagePackageTool: Tool<LanguagePackageInput, LanguagePackageTool
     useInstead: ['language_info', 'language', 'install', 'audit', 'outdated'],
   },
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The package operation performed — install/remove are not interchangeable.
+  subjectKey: 'operation',
   mutating: true,
   riskTier: 'destructive',
   capabilities: ['shell.restricted', 'fs.write', 'net.outbound', 'package.install'],

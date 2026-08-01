@@ -49,6 +49,9 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
   // tool.confirm_needed flow on every invocation. M-1 originally
   // fixed four sibling tools (mcp_control, shellcheck, shellcheck (scan mode),
   // search) but missed this one; applying the same contract here.
+  // WS-046: gives permission decisions something to key on.
+  // The working directory scanned.
+  subjectKey: 'cwd',
   mutating: true,
   // Capability is outbound network — the tool only hits the package
   // registry over HTTP, never touches the filesystem or runs shell.

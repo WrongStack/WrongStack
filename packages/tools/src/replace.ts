@@ -1,21 +1,22 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Context } from '@wrongstack/core/agent';
+import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import {
   atomicWrite,
   buildChildEnv,
   compileGlob,
   detectNewlineStyle,
+  expectDefined,
   normalizeToLf,
   toStyle,
   unifiedDiff,
 } from '@wrongstack/core/utils';
-import { ToolValidationError } from '@wrongstack/core/types';
-import type { Context } from '@wrongstack/core/agent';
-import type { Tool } from '@wrongstack/core/types';
 import { compileUserRegex } from './_regex.js';
 import { isBinaryBuffer, safeResolve, sha256hex } from './_util.js';
+
 interface ReplaceInput {
   pattern: string;
   replacement: string;
@@ -49,6 +50,10 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
     '4. `replace_all` controls whether only the first match per file or all matches are replaced.\n' +
     'This tool is excellent for large-scale refactors (renaming, import updates, etc.) but must be used with caution.',
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The file scope being rewritten, not the pattern: a trust rule should say
+  // where a bulk replace may run.
+  subjectKey: 'files',
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'edit',
@@ -264,7 +269,6 @@ async function globFiles(
   base: string,
   extraGlob?: RegExp | null | undefined,
 ): Promise<string[]> {
-
   const rgAvailable = await checkRg();
   if (rgAvailable) {
     try {
@@ -281,7 +285,11 @@ async function globFiles(
 function checkRg(): Promise<boolean> {
   return new Promise((resolve) => {
     try {
-      const p = spawn('rg', ['--version'], { env: buildChildEnv(), stdio: 'ignore', windowsHide: true });
+      const p = spawn('rg', ['--version'], {
+        env: buildChildEnv(),
+        stdio: 'ignore',
+        windowsHide: true,
+      });
       p.on('error', () => resolve(false));
       p.on('close', (code) => resolve(code === 0));
     } catch {

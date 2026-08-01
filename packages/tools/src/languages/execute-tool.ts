@@ -74,6 +74,9 @@ export const languageTool: Tool<LanguageToolInput, LanguageToolOutput> = {
     useInstead: ['language_info', 'install', 'audit', 'outdated'],
   },
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The action performed (build/test/lint); the cwd is where, not what.
+  subjectKey: 'action',
   mutating: true,
   riskTier: 'standard',
   capabilities: ['shell.restricted', 'fs.write'],

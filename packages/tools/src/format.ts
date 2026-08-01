@@ -29,6 +29,9 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
     '- `check: true` verifies formatting without making changes (useful in CI-like flows).\n' +
     'This project has very consistent formatting expectations. Always ensure your changes are formatted.',
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The files being rewritten are the subject; the fixer is how, not what.
+  subjectKey: 'files',
   mutating: true,
   capabilities: ['fs.write', 'shell.restricted'],
   icon: 'code',

@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
+import { buildChildEnv } from '@wrongstack/core/utils';
 import { safeResolve, sha256hex } from './_util.js';
 
 interface PatchInput {
@@ -36,6 +36,10 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
     useInstead: ['edit'],
   },
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The target directory. The patch body itself is unstable (every diff
+  // differs), so it could never re-match its own stored rule.
+  subjectKey: 'directory',
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'edit',
@@ -190,7 +194,10 @@ function stripPathComponents(p: string, strip: number): string | undefined {
   // Normalize separators so the count works on both POSIX and Windows-style
   // paths embedded in LLM-generated diffs. Filter out empty segments (e.g.
   // from trailing slashes or `//` sequences) before counting.
-  const parts = p.replace(/\\/g, '/').split('/').filter((s) => s !== '' && s !== '.');
+  const parts = p
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((s) => s !== '' && s !== '.');
   if (parts.length <= strip) return undefined;
   return parts.slice(strip).join('/');
 }
@@ -209,7 +216,13 @@ function runPatch(
     // localized GNU patch output (fr/de/es etc.). Use buildChildEnv to
     // strip API keys and other secrets from the parent environment.
     const env = { ...buildChildEnv(), LANG: 'C', LC_ALL: 'C' };
-    const child = spawn('patch', args, { cwd, signal, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    const child = spawn('patch', args, {
+      cwd,
+      signal,
+      env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
     child.stdout?.on('data', (c) => {
       stdout += c.toString();
     });

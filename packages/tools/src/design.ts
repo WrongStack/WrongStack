@@ -1,7 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { DesignStack } from '@wrongstack/core/design';
-import type { Tool } from '@wrongstack/core/types';
 import {
   applyTokenOverrides,
   getDesignKitLoader,
@@ -16,6 +15,7 @@ import {
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
+import type { Tool } from '@wrongstack/core/types';
 
 type Overrides = Record<string, string>;
 
@@ -109,6 +109,9 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
     '`design {action:"set", set:{primary:"oklch(62% 0.2 25)"}}` → `design {action:"materialize"}` ' +
     'to write tokens to disk → implement against them → `design {action:"verify"}`.',
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on.
+  // The action performed; `out` is optional so it cannot be the subject.
+  subjectKey: 'action',
   mutating: true,
   capabilities: ['fs.write'],
   timeoutMs: 15_000,
@@ -154,16 +157,19 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       },
       out: {
         type: 'string',
-        description: 'Materialize output path (project-relative). Defaults to a per-stack convention.',
+        description:
+          'Materialize output path (project-relative). Defaults to a per-stack convention.',
       },
       force: {
         type: 'boolean',
-        description: 'Materialize: overwrite an existing file (default false — refuses to clobber).',
+        description:
+          'Materialize: overwrite an existing file (default false — refuses to clobber).',
       },
       files: {
         type: 'array',
         items: { type: 'string' },
-        description: 'Verify: explicit project-relative files to scan. Default: a bounded UI-file walk.',
+        description:
+          'Verify: explicit project-relative files to scan. Default: a bounded UI-file walk.',
       },
     },
     required: [],
@@ -195,8 +201,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       const rawTokens = await loader.readTokens(manifest.id);
       // Preserve any persisted overrides; merge in any passed with `use`.
       const persisted = await loadActiveKit(ctx.projectRoot);
-      const keepOverrides =
-        persisted?.kit === manifest.id ? (persisted.overrides ?? {}) : {};
+      const keepOverrides = persisted?.kit === manifest.id ? (persisted.overrides ?? {}) : {};
       const overrides: Overrides = { ...keepOverrides, ...normalizeOverrides(input.set) };
       const tokens = rawTokens ? applyTokenOverrides(rawTokens, overrides) : rawTokens;
 
@@ -327,9 +332,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       const abs = path.join(absParent, path.basename(absResolved));
       const rel = path.relative(root, abs);
       if (rel.startsWith('..') || path.isAbsolute(rel)) {
-        throw new Error(
-          `design: materialize path "${result.path}" would escape the project root`,
-        );
+        throw new Error(`design: materialize path "${result.path}" would escape the project root`);
       }
       let exists = false;
       try {

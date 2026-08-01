@@ -174,6 +174,9 @@ export const browserScreenshotTool: Tool<{
     'Capture a page or element PNG and return sensitive artifact metadata with integrity hash.',
   usageHint: 'browser_screenshot({ sessionId, fullPage?, selector? })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'selector',
   mutating: true,
   riskTier: 'safe',
   capabilities: [ToolCapabilities.NET_OUTBOUND],
@@ -215,6 +218,9 @@ function selectorTool(
     description,
     usageHint: `${name}({ sessionId, selector })`,
     permission: 'confirm',
+    // WS-046: the element/expression acted on, not the sessionId — a trust
+    // rule must distinguish clicking one control from another.
+    subjectKey: 'selector',
     mutating: true,
     riskTier: 'standard',
     capabilities: [ToolCapabilities.NET_OUTBOUND],
@@ -252,6 +258,9 @@ export const browserTypeTool: Tool<
     'Fill an input in an owned browser session. Use secretEnv instead of text for credentials so values stay out of tool arguments and session audit.',
   usageHint: 'browser_type({ sessionId, selector, text? | secretEnv? })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'selector',
   mutating: true,
   riskTier: 'standard',
   capabilities: [ToolCapabilities.NET_OUTBOUND],
@@ -289,6 +298,9 @@ export const browserSelectTool: Tool<SelectorInput & { value: string }> = {
   description: 'Select an option in an owned browser session.',
   usageHint: 'browser_select({ sessionId, selector, value })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'selector',
   mutating: true,
   riskTier: 'standard',
   capabilities: [ToolCapabilities.NET_OUTBOUND],
@@ -318,6 +330,9 @@ export const browserPressTool: Tool<{ sessionId: string; key: string }> = {
   description: 'Press a keyboard key in an owned browser session.',
   usageHint: 'browser_press({ sessionId, key })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'key',
   mutating: true,
   riskTier: 'standard',
   capabilities: [ToolCapabilities.NET_OUTBOUND],
@@ -337,6 +352,9 @@ export const browserDragTool: Tool<{ sessionId: string; from: string; to: string
   description: 'Drag one element to another in an owned browser session.',
   usageHint: 'browser_drag({ sessionId, from, to })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'from',
   mutating: true,
   riskTier: 'standard',
   capabilities: [ToolCapabilities.NET_OUTBOUND],
@@ -393,6 +411,9 @@ export const browserEvaluateTool: Tool<{ sessionId: string; expression: string }
     'Evaluate bounded JavaScript in the page. Requires confirmation because page code is arbitrary.',
   usageHint: 'browser_evaluate({ sessionId, expression })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'expression',
   mutating: true,
   riskTier: 'destructive',
   capabilities: [ToolCapabilities.NET_OUTBOUND, ToolCapabilities.TOOL_MUTATE_ANY],
@@ -416,6 +437,9 @@ export const browserUploadTool: Tool<SelectorInput & { files: string[] }> = {
   description: 'Upload project-local files through a file input in an owned browser session.',
   usageHint: 'browser_upload({ sessionId, selector, files })',
   permission: 'confirm',
+  // WS-046: the element/expression acted on, not the sessionId — a trust
+  // rule must distinguish clicking one control from another.
+  subjectKey: 'selector',
   mutating: true,
   riskTier: 'destructive',
   capabilities: [ToolCapabilities.NET_OUTBOUND, ToolCapabilities.FS_READ],
