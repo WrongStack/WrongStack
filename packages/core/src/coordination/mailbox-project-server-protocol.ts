@@ -1,9 +1,9 @@
-import type { MailboxEvent } from './mailbox-events.js';
 import type {
   CredentialValidation,
   IssueCredentialOptions,
   MailboxCredential,
 } from './mailbox-credential-store.js';
+import type { MailboxEvent } from './mailbox-events.js';
 import type {
   AgentHeartbeatInput,
   AgentRegistrationInput,
@@ -25,12 +25,25 @@ import type {
 export const MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION = 3;
 export const MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS = 16 * 1024 * 1024;
 
+/**
+ * What the daemon tells a connecting client about itself. Carries NO secret —
+ * see {@link MailboxProjectServerMetadata}.
+ */
 export interface MailboxProjectServerInfo {
   protocolVersion: number;
   pid: number;
   projectDir: string;
   endpoint: string;
   startedAt: string;
+}
+
+/**
+ * The daemon's on-disk metadata file, written 0600. The auth token exists
+ * here and nowhere else — never in the `hello` frame, which the daemon sends
+ * to every socket that connects (the mistake WS-028 found in the SAGE daemon).
+ */
+export interface MailboxProjectServerMetadata extends MailboxProjectServerStatus {
+  authToken: string;
 }
 
 export interface MailboxProjectServerStatus extends MailboxProjectServerInfo {
@@ -116,9 +129,24 @@ export type MailboxProjectServerClientMessage =
       id: number;
       op: MailboxServerOperationName;
       args: unknown;
+      /**
+       * WS-027: this daemon owns the project's message bus and its credential
+       * store, and it had no handshake credential at all — any process that
+       * could open the socket could send mail as any agent, read every
+       * message, and issue or revoke credentials. The socket is 0600, but
+       * that only excludes OTHER users, and on Windows it does not even do
+       * that. The token comes from the daemon's owner-only metadata file.
+       */
+      authToken?: string | undefined;
     }
   | { type: 'heartbeat' }
-  | { type: 'shutdown'; id: number; reason?: string | undefined };
+  | {
+      type: 'shutdown';
+      id: number;
+      reason?: string | undefined;
+      /** Gated for the same reason as `request` — this stops the bus. */
+      authToken?: string | undefined;
+    };
 
 const MAILBOX_SERVER_OPERATION_NAMES: Readonly<Record<MailboxServerOperationName, true>> = {
   ping: true,
@@ -169,10 +197,7 @@ function hasRecord(record: Record<string, unknown>, key: string): boolean {
   return isRecord(record[key]);
 }
 
-function isMailboxServerOperationArgs(
-  op: MailboxServerOperationName,
-  value: unknown,
-): boolean {
+function isMailboxServerOperationArgs(op: MailboxServerOperationName, value: unknown): boolean {
   if (!isRecord(value)) return false;
   switch (op) {
     case 'ping':

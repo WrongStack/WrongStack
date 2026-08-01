@@ -4,7 +4,10 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { MailboxEvent } from './mailbox-events.js';
-import { mailboxProjectServerEndpoint } from './mailbox-project-server-endpoint.js';
+import {
+  mailboxProjectServerEndpoint,
+  mailboxProjectServerMetadataPath,
+} from './mailbox-project-server-endpoint.js';
 import {
   encodeMailboxProjectServerMessage,
   isMailboxProjectServerMessage,
@@ -84,6 +87,11 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** The daemon's refusal for a missing or stale per-process token. */
+function isUnauthorizedMailboxError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'UnauthorizedMailboxRequest';
+}
+
 export class MailboxProjectServerConnection {
   readonly endpoint: string;
   private socket: net.Socket | null = null;
@@ -93,6 +101,13 @@ export class MailboxProjectServerConnection {
   private connectResolve: (() => void) | null = null;
   private connectReject: ((error: unknown) => void) | null = null;
   private nextId = 1;
+  /**
+   * WS-027: read from the daemon's owner-only metadata file, never from the
+   * `hello` frame — the daemon sends `hello` to every socket that connects, so
+   * a token carried there would be handed to exactly the caller it must
+   * refuse (the mistake WS-028 found in the SAGE daemon).
+   */
+  private authToken: string | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private readonly pending = new Map<number, PendingRequest>();
   private readonly eventListeners = new Set<(event: string, payload: unknown) => void>();
@@ -162,10 +177,27 @@ export class MailboxProjectServerConnection {
     options: { timeoutMs?: number | undefined } = {},
   ): Promise<MailboxServerOperations[O]['result']> {
     await this.ensureConnected(true);
-    return this.request<MailboxServerOperations[O]['result']>(
-      { type: 'request', op, args },
-      options.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS,
-    );
+    const timeoutMs = options.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
+    try {
+      return await this.request<MailboxServerOperations[O]['result']>(
+        { type: 'request', op, args },
+        timeoutMs,
+      );
+    } catch (error) {
+      // WS-027: the daemon idles out and respawns routinely, and the new
+      // process mints a new token. A client can therefore hold a token that
+      // was valid when it was read and is not any more — and, worse, can read
+      // the OLD one from a metadata file the departed daemon has not yet been
+      // replaced in. Caching a wrong token would be sticky, so one rejection
+      // drops the cache and retries; a second rejection is a real refusal.
+      if (!isUnauthorizedMailboxError(error)) throw error;
+      this.authToken = undefined;
+      await this.ensureConnected(true);
+      return await this.request<MailboxServerOperations[O]['result']>(
+        { type: 'request', op, args },
+        timeoutMs,
+      );
+    }
   }
 
   async shutdown(reason?: string): Promise<{ stopped: boolean; pid?: number; reason?: string }> {
@@ -255,6 +287,9 @@ export class MailboxProjectServerConnection {
     this.socket = null;
     this.info = null;
     this.buffer = '';
+    // A restarted daemon mints a new token, so a cached one from the previous
+    // process would authenticate nothing. Drop it and re-read on first use.
+    this.authToken = undefined;
     return new Promise<void>((resolve, reject) => {
       const socket = net.createConnection(this.endpoint);
       this.socket = socket;
@@ -286,6 +321,31 @@ export class MailboxProjectServerConnection {
     });
   }
 
+  /**
+   * The token, read lazily and re-read while still unknown.
+   *
+   * The daemon starts listening before it writes its metadata (endpoint
+   * ownership has to be won first, and clobbering another daemon's file to win
+   * it would be worse), so a client that connects in that window sees no file
+   * yet. Re-reading until one is found costs a single small `readFileSync`.
+   */
+  private currentAuthToken(): string | undefined {
+    if (this.authToken === undefined) {
+      try {
+        const raw = fs.readFileSync(mailboxProjectServerMetadataPath(this.projectDir), 'utf8');
+        const parsed = JSON.parse(raw) as { authToken?: unknown };
+        if (typeof parsed.authToken === 'string' && parsed.authToken.length > 0) {
+          this.authToken = parsed.authToken;
+        }
+      } catch {
+        // Left undefined; the request is refused with a clear
+        // `UnauthorizedMailboxRequest`, which beats a silent connect that
+        // then fails every call.
+      }
+    }
+    return this.authToken;
+  }
+
   private request<T>(
     message:
       | { type: 'request'; op: MailboxServerOperationName; args: unknown }
@@ -297,7 +357,11 @@ export class MailboxProjectServerConnection {
       return Promise.reject(new Error('Mailbox project server connection is unavailable'));
     }
     const id = this.nextId++;
-    const encoded = encodeMailboxProjectServerMessage({ ...message, id });
+    const encoded = encodeMailboxProjectServerMessage({
+      ...message,
+      id,
+      authToken: this.currentAuthToken(),
+    });
     if (encoded.length > MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS) {
       return Promise.reject(new Error('Mailbox project server request exceeded frame limit'));
     }
