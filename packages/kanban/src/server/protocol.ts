@@ -161,6 +161,22 @@ export interface KanbanProjectServerStatus extends KanbanProjectServerInfo {
   pendingRequests: number;
 }
 
+/**
+ * The daemon's on-disk metadata, written 0600 into the project's own state
+ * directory. The auth token exists here and nowhere else — see
+ * {@link KanbanRequest.authToken}.
+ */
+export interface KanbanProjectServerMetadata extends KanbanProjectServerInfo {
+  authToken: string;
+}
+
+/**
+ * `<projectRoot>/.wrongstack/kanban-server.json`. Deliberately NOT inside the
+ * kanbans directory — that directory is asserted to hold no `.json` files, as
+ * the pin on the completed migration off the legacy JSON board store.
+ */
+export const KANBAN_PROJECT_SERVER_METADATA_FILE = 'kanban-server.json';
+
 /** Durable cross-process command owned by the project-scoped Kanban daemon. */
 export interface KanbanWorkflowCommand {
   id: string;
@@ -268,6 +284,19 @@ export interface KanbanRequest<M extends KanbanServerMethod = KanbanServerMethod
   id: number;
   method: M;
   params: KanbanServerOperations[M]['args'];
+  /**
+   * WS-027: this daemon owns every board in the project — it can create,
+   * mutate and delete them, and it drives the workflow command queue. It had
+   * no handshake credential at all: anything that could open the socket could
+   * do all of that. The 0700 socket directory only excludes OTHER users, and
+   * on Windows named pipes it does not even do that.
+   *
+   * The token comes from the daemon's owner-only `server.json`, never from the
+   * `hello` frame — `hello` is sent to every socket that connects, which is
+   * exactly how the SAGE daemon ended up handing out its own credential
+   * (WS-028).
+   */
+  authToken?: string | undefined;
 }
 
 export interface KanbanSuccessResponse {

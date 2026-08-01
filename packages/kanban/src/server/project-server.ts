@@ -11,6 +11,7 @@
  *     with zero connected clients → exits cleanly
  *   - Hard stop on `shutdown` request or SIGTERM
  */
+import { randomBytes } from 'node:crypto';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
@@ -26,12 +27,14 @@ import { emitBoardEvent, subscribeToBoardEvents } from './event-emitter.js';
 import {
   decodeKanbanDomainValue,
   encodeKanbanDomainValue,
+  KANBAN_PROJECT_SERVER_METADATA_FILE,
   KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
   KANBAN_SERVER_METHODS,
   type KanbanErrorCode,
   type KanbanErrorResponse,
   type KanbanHelloFrame,
   type KanbanProjectServerInfo,
+  type KanbanProjectServerMetadata,
   type KanbanRequest,
   type KanbanServerEvent,
   type KanbanWorkflowCommand,
@@ -65,6 +68,66 @@ interface ClientState {
 let projectRoot = '';
 let endpoint = '';
 let serverInfo: KanbanProjectServerInfo | null = null;
+
+/**
+ * Per-process auth token. WS-027: this daemon owns every board in the project
+ * and drives the workflow command queue, and it admitted anything that could
+ * open the socket. The 0700 socket directory only excludes OTHER users, and on
+ * Windows named pipes it does not even do that, so "same-UID process" was the
+ * whole boundary. A caller must now prove it could read the daemon's
+ * owner-only `server.json` before it may act.
+ *
+ * Deliberately NOT part of `serverInfo`: that object is the `hello` payload
+ * sent to every socket that connects, which is exactly how the SAGE daemon
+ * handed its own credential to the caller it meant to refuse (WS-028).
+ */
+const authToken = randomBytes(16).toString('hex');
+
+/**
+ * Resolves once `server.json` is on disk. The endpoint bind is the ownership
+ * election, so metadata cannot be written before listening — which would leave
+ * a window where the socket accepts connections and no client can know the
+ * token. The daemon holds `hello` until the file exists instead: `hello` means
+ * ready, and the client's connect already waits for it.
+ */
+let markMetadataWritten: (() => void) | undefined;
+const metadataWritten = new Promise<void>((resolve) => {
+  markMetadataWritten = resolve;
+});
+
+/**
+ * `<projectRoot>/.wrongstack/kanban-server.json`, NOT inside the kanbans
+ * directory: `sqlite-project-server.test.ts` asserts that directory contains
+ * no `.json` entries, which is how the completed migration off the legacy JSON
+ * board store is pinned. Dropping a server file in there would quietly weaken
+ * that invariant to buy nothing.
+ */
+function serverMetadataPath(root: string): string {
+  return path.join(root, '.wrongstack', KANBAN_PROJECT_SERVER_METADATA_FILE);
+}
+
+async function writeServerMetadata(): Promise<void> {
+  if (!serverInfo) return;
+  const target = serverMetadataPath(projectRoot);
+  const metadata: KanbanProjectServerMetadata = { ...serverInfo, authToken };
+  await fsPromises.mkdir(path.dirname(target), { recursive: true });
+  const temporary = `${target}.${process.pid}.tmp`;
+  await fsPromises.writeFile(
+    temporary,
+    `${JSON.stringify(metadata, null, 2)}
+`,
+    {
+      encoding: 'utf8',
+      mode: 0o600,
+    },
+  );
+  try {
+    await fsPromises.rename(temporary, target);
+  } catch {
+    await fsPromises.rm(target, { force: true });
+    await fsPromises.rename(temporary, target);
+  }
+}
 let stopping = false;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let livenessTimer: ReturnType<typeof setInterval> | undefined;
@@ -416,6 +479,19 @@ function errorFromThrown(value: unknown): KanbanErrorResponse['error'] {
 
 function processRequest(state: ClientState, req: KanbanRequest): void {
   state.lastSeenAt = Date.now();
+  // WS-027: prove you could read the owner-only metadata file before acting.
+  if (req.authToken !== authToken) {
+    sendFrame(state.socket, {
+      id: req.id,
+      error: {
+        code: 'UNAUTHORIZED',
+        message:
+          'Kanban IPC request rejected: missing or invalid authToken. ' +
+          'Reconnect to refresh metadata (server.json#authToken).',
+      },
+    });
+    return;
+  }
   const handler = protocolMethods.has(req.method) ? methods.get(req.method) : undefined;
   // Guard against a programming error where a method is in the protocol
   // allowlist but missing from the handler map.
@@ -593,6 +669,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       databasePath: sqliteStorage.databasePath,
       startedAt: new Date().toISOString(),
     };
+    await writeServerMetadata();
+    markMetadataWritten?.();
     readyResolve();
   } catch (error) {
     readyReject(error);
@@ -647,8 +725,12 @@ function acceptClient(socket: net.Socket): void {
     lastSeenAt: Date.now(),
   };
   clients.add(state);
-  const hello: KanbanHelloFrame = { type: 'hello', ...serverInfo! };
-  sendFrame(socket, hello);
+  // Greet only once the token is readable on disk — see `metadataWritten`.
+  void metadataWritten.then(() => {
+    if (socket.destroyed || !serverInfo) return;
+    const hello: KanbanHelloFrame = { type: 'hello', ...serverInfo };
+    sendFrame(socket, hello);
+  });
   socket.on('data', (chunk: string) => onData(state, chunk));
   socket.on('close', () => {
     clients.delete(state);

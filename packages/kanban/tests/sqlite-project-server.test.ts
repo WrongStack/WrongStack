@@ -302,10 +302,26 @@ describe('SQLite Kanban storage', () => {
     expect(entries.some((entry) => entry.endsWith('.json'))).toBe(false);
     expect(entries.some((entry) => entry.endsWith('.events.jsonl'))).toBe(false);
 
+    // WS-027: a raw socket with no credential is now refused at the gate,
+    // before method dispatch. This peer is exactly the threat the daemon had
+    // no answer for: it could previously drive every board operation.
+    const unauthenticated = await rawRequest(daemonEndpoint, {
+      id: 76,
+      method: 'listBoards',
+      params: {},
+    });
+    expect(unauthenticated).toMatchObject({ id: 76, error: { code: 'UNAUTHORIZED' } });
+
+    // With the token from the daemon's owner-only metadata file, the original
+    // point of this assertion still holds: the legacy method is gone.
+    const metadata = JSON.parse(
+      await fs.readFile(path.join(root, '.wrongstack', 'kanban-server.json'), 'utf8'),
+    ) as { authToken: string };
     const legacyResponse = await rawRequest(daemonEndpoint, {
       id: 77,
       method: 'listBoards',
       params: {},
+      authToken: metadata.authToken,
     });
     expect(legacyResponse).toMatchObject({
       id: 77,
@@ -398,7 +414,12 @@ async function waitForCondition(predicate: () => boolean, label: string): Promis
 
 async function rawRequest(
   endpoint: string,
-  request: { id: number; method: string; params: Record<string, unknown> },
+  request: {
+    id: number;
+    method: string;
+    params: Record<string, unknown>;
+    authToken?: string;
+  },
 ): Promise<Record<string, unknown>> {
   const socket = net.createConnection(endpoint);
   socket.setEncoding('utf8');

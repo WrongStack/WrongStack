@@ -8,11 +8,13 @@
  * Mirrors `packages/sage/src/project-server-client.ts`.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
+import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { kanbanProjectServerEndpoint } from './endpoint.js';
 import {
+  KANBAN_PROJECT_SERVER_METADATA_FILE,
   KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
   type KanbanHelloFrame,
   type KanbanRequest,
@@ -66,6 +68,7 @@ class KanbanServerConnection {
   private destroyed = false;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private connectPromise: Promise<KanbanHelloFrame> | null = null;
+  private authToken: string | undefined;
 
   constructor(
     public readonly projectRoot: string,
@@ -97,6 +100,9 @@ class KanbanServerConnection {
   }
 
   private async connectOnce(): Promise<KanbanHelloFrame> {
+    // A restarted daemon mints a new token, so a cached one authenticates
+    // nothing. Drop it and re-read on first use.
+    this.authToken = undefined;
     await this.tryConnectExisting();
     if (this.socket) return this.helloPromise;
     await this.spawnServer();
@@ -265,6 +271,33 @@ class KanbanServerConnection {
     this.serverProcess = null;
   }
 
+  /**
+   * WS-027: the per-process token, read from the daemon's owner-only
+   * `server.json` — never from the `hello` frame, which the daemon sends to
+   * every socket that connects (the mistake WS-028 found in SAGE).
+   *
+   * Read lazily and re-read while still unknown: a daemon that idles out and
+   * respawns mints a new token, and a cached wrong one would be sticky.
+   */
+  private currentAuthToken(): string | undefined {
+    if (this.authToken === undefined) {
+      try {
+        const raw = fs.readFileSync(
+          path.join(this.projectRoot, '.wrongstack', KANBAN_PROJECT_SERVER_METADATA_FILE),
+          'utf8',
+        );
+        const parsed = JSON.parse(raw) as { authToken?: unknown };
+        if (typeof parsed.authToken === 'string' && parsed.authToken.length > 0) {
+          this.authToken = parsed.authToken;
+        }
+      } catch {
+        // Left undefined; the daemon answers with a clear UNAUTHORIZED, which
+        // beats a connect that silently succeeds and then fails every call.
+      }
+    }
+    return this.authToken;
+  }
+
   async request<M extends KanbanServerMethod>(
     method: M,
     params: KanbanServerOperations[M]['args'],
@@ -284,7 +317,7 @@ class KanbanServerConnection {
         reject,
         timer,
       });
-      const frame: KanbanRequest<M> = { id, method, params };
+      const frame: KanbanRequest<M> = { id, method, params, authToken: this.currentAuthToken() };
       this.socket!.write(JSON.stringify(frame) + '\n');
     });
   }
