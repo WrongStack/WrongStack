@@ -1,3 +1,4 @@
+import { scrubErrorText } from '@wrongstack/core/security';
 import type { ProviderErrorBody } from '@wrongstack/core/types';
 import { classifyProviderError, isRetryableKind, ProviderError } from '@wrongstack/core/types';
 import { isPlainObject } from './object-utils.js';
@@ -32,7 +33,31 @@ export function parseProviderHttpError(
   }
   const kind = classifyProviderError(status, body);
   const message = `${providerId} HTTP ${status}`;
-  return new ProviderError(message, status, isRetryableKind(kind), providerId, { body, kind });
+  // WS-060: scrub LAST, so classification and Retry-After extraction above
+  // still see the provider's original text. The body is not an internal log
+  // line — `describe()` renders it to the terminal, the session writer puts it
+  // in the JSONL transcript, and HQ forwards it to any connected browser. A
+  // gateway that echoes the `Authorization` header back in its 401 body, or a
+  // proxy that quotes the upstream URL with an inline key, would otherwise
+  // persist that credential everywhere the error travels.
+  return new ProviderError(message, status, isRetryableKind(kind), providerId, {
+    body: scrubProviderErrorBody(body),
+    kind,
+  });
+}
+
+/**
+ * Redact credentials from the free-text fields of a parsed provider error.
+ * `retryAfterMs` and `rawLength` are numeric metadata and pass through; `type`
+ * is a vendor category, but it is provider-controlled text like the rest, so
+ * it goes through the scrubber too.
+ */
+function scrubProviderErrorBody(body: ProviderErrorBody): ProviderErrorBody {
+  const out: ProviderErrorBody = { ...body };
+  if (out.raw !== undefined) out.raw = scrubErrorText(out.raw);
+  if (out.message !== undefined) out.message = scrubErrorText(out.message);
+  if (out.type !== undefined) out.type = scrubErrorText(out.type);
+  return out;
 }
 
 /** Structural subset of the Fetch `Headers` interface, easy to fake in tests. */

@@ -275,24 +275,11 @@ export function recordTimeseriesSignal(persistence: HqPersistence, event: HqEven
 // ── API error sanitization ─────────────────────────────────────────────────
 
 /**
- * Coerce a thrown error into a safe, opaque message for HTTP/JSON API
- * responses. Raw error strings (file paths, environment details, stack
- * fragments) are never forwarded to the browser — only a stable category.
- * The original error is logged server-side by the caller.
+ * Re-exported from `@wrongstack/core/security`.
+ *
+ * WS-066: this used to be an HQ-local implementation, which is why the WebUI
+ * and SimpleUI servers — which have the same JSON-API surface — never adopted
+ * it and forwarded `String(err)` verbatim instead. One implementation now
+ * serves every server surface.
  */
-export function sanitizeApiError(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  // Classify a few well-known shapes without echoing their text verbatim.
-  const lower = message.toLowerCase();
-  if (lower.includes('enoent') || lower.includes('no such file')) {
-    return 'resource not found';
-  }
-  if (lower.includes('eacces') || lower.includes('permission')) {
-    return 'permission denied';
-  }
-  if (lower.includes('json') && (lower.includes('parse') || lower.includes('unexpected'))) {
-    return 'malformed data';
-  }
-  // Default: a generic label — the detail stays server-side.
-  return 'internal error';
-}
+export { sanitizeApiError, scrubErrorDetail } from '@wrongstack/core/security';

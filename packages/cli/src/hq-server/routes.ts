@@ -797,7 +797,10 @@ async function handleApiMailboxSend(
     );
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'mailbox write failed', detail: String(err) }));
+    // WS-066: `String(err)` here forwarded the raw throw — absolute paths and
+    // whatever the mailbox layer quoted back — to the browser, while the
+    // sibling mailbox-action route two functions down already sanitized.
+    res.end(JSON.stringify({ error: 'mailbox write failed', detail: sanitizeApiError(err) }));
   }
 }
 

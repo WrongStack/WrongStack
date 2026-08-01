@@ -81,7 +81,9 @@ describe('ConfirmDialog YOLO behavior', () => {
       });
     });
 
-    const cta = getByTitle('Enable YOLO mode (auto-approve this and future tool calls)');
+    const cta = getByTitle(// WS-008: the copy now says "non-destructive" because that is what YOLO
+    // actually does — destructive shell commands still prompt.
+    'Enable YOLO mode (auto-approve this and future non-destructive calls)');
     expect(cta).toBeTruthy();
 
     await act(async () => {

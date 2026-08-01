@@ -6,7 +6,14 @@ import {
 } from '@wrongstack/webui-server';
 
 describe('pending confirm resolution', () => {
-  it('auto-approves every pending confirm when YOLO is enabled', () => {
+  // WS-022 (inverted): this asserted that flipping YOLO on blanket-answered
+  // "yes" to EVERY prompt already on screen, destructive ones included — a
+  // prompt the user had deliberately not answered yet. The fixture even builds
+  // one tagged `riskTier: 'destructive'` and expected it approved. YOLO is a
+  // forward-looking mode; it must not retroactively consent to a pending
+  // destructive action. This file lives under `packages/webui/**`, which the
+  // root vitest suite excludes, which is why the pin survived so long.
+  it('auto-approves standard pending confirms but leaves destructive ones pending', () => {
     const pending = new Map<string, PendingConfirm>();
     const decisions: string[] = [];
     pending.set('safe', {
@@ -21,9 +28,10 @@ describe('pending confirm resolution', () => {
 
     resolveYoloEligiblePendingConfirms(pending);
 
-    expect(decisions).toEqual(['safe:yes', 'destructive:yes']);
+    expect(decisions).toEqual(['safe:yes']);
     expect(pending.has('safe')).toBe(false);
-    expect(pending.has('destructive')).toBe(false);
+    // Still on screen, still the user's call.
+    expect(pending.has('destructive')).toBe(true);
   });
 
   it('resolves every pending confirm with the provided decision', () => {

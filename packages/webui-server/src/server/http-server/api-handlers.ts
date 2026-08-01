@@ -7,6 +7,7 @@
  * createHttpServer() in http-server.ts dispatches to these.
  */
 import type * as http from 'node:http';
+import { sanitizeApiError } from '@wrongstack/core/security';
 
 export async function handleApiSessions(
   res: http.ServerResponse,
@@ -49,7 +50,7 @@ export async function handleApiSessions(
     res.end(JSON.stringify(result));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
 
@@ -92,7 +93,7 @@ export async function handleApiSessionAgents(
     }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
 
@@ -292,7 +293,7 @@ export async function handleApiSessionEvents(
     );
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
 
@@ -409,7 +410,7 @@ export async function handleApiSessionMessage(
     res.end(JSON.stringify({ ok: true, id: sent.id, to, type, delivered: entry.status }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
 
@@ -480,7 +481,7 @@ export async function handleApiSessionMailbox(
     res.end(JSON.stringify({ sessionId, leader: leaderAddr, status: entry.status, thread }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
 
@@ -544,7 +545,7 @@ export async function handleApiSessionInterrupt(
     res.end(JSON.stringify({ ok: true, id: sent.id, to, delivered: entry.status }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
 
@@ -640,6 +641,6 @@ export async function handleApiFleetBroadcast(
     res.end(JSON.stringify({ ok: true, delivered, targets: targets.length }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }

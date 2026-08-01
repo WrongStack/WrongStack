@@ -11,6 +11,12 @@ export {
 } from './capabilities.js';
 export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';
 export {
+  ERROR_DETAIL_MAX,
+  sanitizeApiError,
+  scrubErrorDetail,
+  scrubErrorText,
+} from './error-sanitize.js';
+export {
   evaluateToolKanbanBoundary,
   type ToolKanbanBoundaryEvaluation,
 } from './kanban-boundary.js';

@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocket } from 'ws';
 
@@ -129,6 +130,26 @@ describe('ws-utils', () => {
       expect(errMessage(42)).toBe('42');
       expect(errMessage(null)).toBe('null');
       expect(errMessage({ x: 1 })).toBe('[object Object]');
+    });
+
+    // WS-066: this helper feeds `send()` / `broadcast()` payloads, so its
+    // output reaches the browser. It used to be the verbatim throw.
+    it('redacts a credential quoted back by the thrower', () => {
+      const out = errMessage(
+        new Error('provider rejected key sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ'),
+      );
+      expect(out).not.toContain('sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ');
+      expect(out).toContain('provider rejected key');
+    });
+
+    it('rewrites the home directory so the OS account name does not leak', () => {
+      const home = homedir();
+      const out = errMessage(new Error(`ENOENT: ${home}/projects/app/.env`));
+      expect(out).not.toContain(home);
+    });
+
+    it('caps the detail length', () => {
+      expect(errMessage(new Error('q'.repeat(4000))).length).toBeLessThanOrEqual(500);
     });
   });
 

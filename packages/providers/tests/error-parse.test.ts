@@ -347,4 +347,44 @@ describe('ProviderError.describe', () => {
     expect(err.body?.truncated).toBeUndefined();
     expect(err.body?.rawLength).toBeUndefined();
   });
+
+  // ── WS-060: the body is attacker-influenced output, not an internal log ──
+  // `describe()` renders it to the terminal, the session writer puts it in the
+  // JSONL transcript, and HQ forwards it to any connected browser.
+
+  it('scrubs a credential the provider echoed back in its error message', () => {
+    const raw = JSON.stringify({
+      error: {
+        type: 'authentication_error',
+        message: 'invalid key: sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
+      },
+    });
+    const err = parseProviderHttpError('anthropic', 401, raw);
+    expect(err.body?.message).not.toContain('sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ');
+    expect(err.body?.raw).not.toContain('sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ');
+    // The diagnostic value survives — only the secret is gone.
+    expect(err.body?.message).toContain('invalid key');
+    expect(err.body?.type).toBe('authentication_error');
+  });
+
+  it('scrubs an unparseable body too, via the raw fallback', () => {
+    const err = parseProviderHttpError('gw', 502, 'upstream: Bearer ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+    expect(err.body?.raw).not.toContain('ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+  });
+
+  it('scrubs AFTER classification, so kind and Retry-After still see the original', () => {
+    const raw = JSON.stringify({
+      error: { type: 'rate_limit_error', message: 'slow down' },
+    });
+    const err = parseProviderHttpError('p', 429, raw, {
+      get: (n: string) => (n === 'retry-after' ? '3' : null),
+    });
+    expect(err.kind).toBe('rate_limit');
+    expect(err.body?.retryAfterMs).toBe(3000);
+  });
+
+  it('does not apply a second length cut on top of the 2 KB raw truncation', () => {
+    const err = parseProviderHttpError('p', 500, 'z'.repeat(5000));
+    expect(err.body?.raw?.length).toBe(2000);
+  });
 });

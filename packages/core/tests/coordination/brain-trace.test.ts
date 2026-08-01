@@ -49,6 +49,29 @@ describe('applyContentMode / sanitizeRequest', () => {
     expect(applyContentMode(long, 'full')).toBe(long);
     expect(applyContentMode(long, 'none')).toBeUndefined();
   });
+
+  // WS-063: `redacted` used to *only* truncate. A key pasted into a Brain
+  // question sits inside the first 120 characters, so the mode named
+  // "redacted" wrote it to the trace file verbatim.
+  it('redacts credentials in redacted mode, not just length', () => {
+    const withKey = 'deploy using sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ now';
+    const out = applyContentMode(withKey, 'redacted');
+    expect(out).toBeDefined();
+    expect(out).not.toContain('sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ');
+    expect(out).toContain('deploy using');
+  });
+
+  it('scrubs before truncating, so the cut cannot leave a half-redacted token', () => {
+    const padded = `${'a'.repeat(100)} ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789`;
+    const out = applyContentMode(padded, 'redacted') ?? '';
+    // The truncation point falls inside where the raw token would have been.
+    expect(out).not.toContain('ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  });
+
+  it('leaves full mode unscrubbed — a replay fixture needs the real text', () => {
+    const withKey = 'sk-ant-api03-QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ';
+    expect(applyContentMode(withKey, 'full')).toBe(withKey);
+  });
 });
 
 describe('BrainTraceRecorder', () => {

@@ -6,6 +6,7 @@
  * `packages/cli/src/webui-server.ts`.
  */
 import { randomBytes } from 'node:crypto';
+import { scrubErrorDetail } from '@wrongstack/core/security';
 // Value import (not `import type`): we reference `WebSocket.OPEN` below, which
 // is a runtime value, not just a type.
 import { WebSocket } from 'ws';
@@ -75,10 +76,21 @@ export function sendResult(ws: WebSocket, success: boolean, message: string): vo
 }
 
 /**
- * Extract a human-readable message from an unknown thrown value.
+ * Extract a human-readable message from an unknown thrown value, safe to put
+ * in a frame that leaves the process.
+ *
+ * WS-066: this was `err instanceof Error ? err.message : String(err)` — the
+ * verbatim throw. A provider that echoes an `Authorization` header back in its
+ * error body, or a connection string with an inline password, went straight to
+ * the browser and into whatever the browser logs. {@link scrubErrorDetail}
+ * keeps the message (this is a local dev tool; opaque errors would gut it) but
+ * removes credentials and rewrites the home directory to `~`.
+ *
+ * For HTTP `/api/*` JSON bodies — a less authenticated surface — use
+ * `sanitizeApiError` instead, which returns a category and nothing else.
  */
 export function errMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return scrubErrorDetail(err);
 }
 
 /**

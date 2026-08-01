@@ -25,7 +25,8 @@
  * Trace is DISABLED by default. Enabling it is the opt-in; `content: 'full'`
  * is then the default because a fixture without the question and context
  * cannot be replayed. `content: 'redacted'` keeps the shape and metadata but
- * truncates free text, and `'none'` records metadata only. See
+ * scrubs credentials out of free text and truncates it, and `'none'` records
+ * metadata only. See
  * `docs/competitive-roadmap-2026-2027/21-brain-evaluation-and-replay.md`.
  *
  * @module brain-trace
@@ -36,6 +37,7 @@ import { access, appendFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
+import { scrubErrorText } from '../security/error-sanitize.js';
 import type { BrainDecision, BrainDecisionRequest } from './brain.js';
 import type { BrainDecisionTier } from './brain-telemetry.js';
 
@@ -161,7 +163,13 @@ export function applyContentMode(
 ): string | undefined {
   if (value === undefined) return undefined;
   if (mode === 'none') return undefined;
-  if (mode === 'redacted') return truncate(value, BRAIN_TRACE_REDACTED_MAX);
+  // WS-063: this used to only `truncate()`. The mode is named `redacted` and
+  // is documented as the middle setting between `none` and `full`, so an
+  // operator enabling it reasonably expects credentials to be removed — but a
+  // key pasted into a Brain question sits well inside the first 120 characters
+  // and was written to the trace file verbatim. Scrub first, then truncate, so
+  // the cut cannot leave a half-redacted token behind.
+  if (mode === 'redacted') return truncate(scrubErrorText(value), BRAIN_TRACE_REDACTED_MAX);
   return value;
 }
 

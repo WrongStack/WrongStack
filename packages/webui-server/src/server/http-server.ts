@@ -27,6 +27,7 @@ import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import * as v8 from 'node:v8';
+import { sanitizeApiError } from '@wrongstack/core/security';
 import { getIndexState } from '@wrongstack/tools';
 import {
   handleCodemapFiles,
@@ -791,7 +792,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           res.end(
             JSON.stringify({
               error: 'TechStack store unavailable',
-              detail: error instanceof Error ? error.message : String(error),
+              detail: sanitizeApiError(error),
             }),
           );
           return;
