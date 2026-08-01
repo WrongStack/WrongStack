@@ -90,7 +90,18 @@ export async function readLocalSubagentTranscript(
     if (!entry) return null; // remote session — no local disk to read
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });
     const sessionDir = sessionScopedPath(paths.projectSessions, sessionId, '');
-    const file = path.join(sessionDir, 'subagents', 'transcripts', subagentId, 'transcript.jsonl');
+    // WS-019: `subagentId` reaches here from a URL path segment.
+    // `decodePathSegment` already refuses anything that is not a plain
+    // component, so this is the second lock rather than the first — but a
+    // read guarded only at its caller is one refactor away from being
+    // unguarded, and this function is exported.
+    if (!isSafePathSegment(subagentId)) return null;
+    const transcriptsRoot = path.resolve(sessionDir, 'subagents', 'transcripts');
+    const file = path.resolve(transcriptsRoot, subagentId, 'transcript.jsonl');
+    // Containment, verified on the resolved path rather than inferred from the
+    // input: whatever the segment rule missed, the read still cannot leave the
+    // session's own transcript directory.
+    if (!file.startsWith(transcriptsRoot + path.sep)) return null;
     const raw = await fs.readFile(file, 'utf8').catch(() => null);
     if (raw === null) return null;
     const out: HqTranscriptEntry[] = [];
@@ -111,13 +122,50 @@ export async function readLocalSubagentTranscript(
 
 // ── String/path utilities ──────────────────────────────────────────────────
 
-/** Safe URL-decoding — returns null on malformed input. */
+/**
+ * Percent-decode ONE URL path segment and reject anything that is not a safe
+ * single path component.
+ *
+ * WS-019: this used to be `decodeURIComponent` and nothing else, and its
+ * output is joined straight onto a filesystem path in
+ * {@link readLocalSubagentTranscript}. `%2e%2e%2f` decodes to `../`, so a
+ * request could walk out of the session's transcript directory and read any
+ * `transcript.jsonl` on the machine — other projects' sessions included.
+ * Percent-decoding is the step that CREATES the traversal, so validating
+ * before decoding would have checked the wrong string.
+ *
+ * The rule is a whole path component or nothing: no separators, no `.`/`..`,
+ * no NUL, no drive-letter colon, non-empty, and length-bounded. Real ids are
+ * generated tokens, so nothing legitimate is excluded.
+ */
 export function decodePathSegment(value: string): string | null {
+  let decoded: string;
   try {
-    return decodeURIComponent(value);
+    decoded = decodeURIComponent(value);
   } catch {
     return null;
   }
+  return isSafePathSegment(decoded) ? decoded : null;
+}
+
+/** Longest id accepted in a path position. */
+const MAX_PATH_SEGMENT_LENGTH = 256;
+
+/**
+ * True when `value` is usable as exactly one filesystem path component.
+ *
+ * Exported so the traversal rule has one definition — a second copy is how a
+ * guard and its callers drift apart, which is the shape of several findings in
+ * this audit.
+ */
+export function isSafePathSegment(value: string): boolean {
+  if (value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH) return false;
+  if (value === '.' || value === '..') return false;
+  if (value.includes('/') || value.includes('\\')) return false;
+  if (value.includes('\0')) return false;
+  // A Windows drive-relative form (`C:foo`) is not a plain component.
+  if (value.includes(':')) return false;
+  return true;
 }
 
 /** Normalize display host — "0.0.0.0" prints as "127.0.0.1" for user-facing URLs. */
@@ -257,7 +305,9 @@ export function recordTimeseriesSignal(persistence: HqPersistence, event: HqEven
         ...(typeof p.inputTokens === 'number' ? { inputTokens: p.inputTokens } : {}),
         ...(typeof p.outputTokens === 'number' ? { outputTokens: p.outputTokens } : {}),
         ...(typeof p.model === 'string' && p.model.length > 0 ? { model: p.model } : {}),
-        ...(typeof p.provider === 'string' && p.provider.length > 0 ? { provider: p.provider } : {}),
+        ...(typeof p.provider === 'string' && p.provider.length > 0
+          ? { provider: p.provider }
+          : {}),
         ...(typeof p.cacheRead === 'number' ? { cacheRead: p.cacheRead } : {}),
         ...(typeof p.cacheWrite === 'number' ? { cacheWrite: p.cacheWrite } : {}),
       });
