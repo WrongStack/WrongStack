@@ -401,7 +401,11 @@ export async function resumeSession(
         if (oldWriter !== undefined) agent.ctx.session = oldWriter;
         if (oldMessages !== undefined) agent.ctx.state.replaceMessages(oldMessages);
         if (previousDetachFn !== undefined) state.detachActiveTodosCheckpoint = previousDetachFn;
-        if (oldTodos.length > 0) agent.ctx.state.replaceTodos([...oldTodos]);
+        // Always restore the original todos — even when empty. A later
+        // throw (e.g. token accounting) lands AFTER `replaceTodos(restoredTodos)`
+        // already ran, so the resumed session's board is visible; restoring
+        // `[]` is the correct pre-resume truth, not a no-op to skip.
+        agent.ctx.state.replaceTodos([...oldTodos]);
         if (oldPlanPath !== undefined) agent.ctx.state.setMeta('plan.path', oldPlanPath);
         if (oldTaskPath !== undefined) agent.ctx.state.setMeta('task.path', oldTaskPath);
       } catch (rollbackErr) {

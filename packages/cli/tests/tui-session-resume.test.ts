@@ -215,19 +215,20 @@ describe('TUI session resume ownership', () => {
     // swap and the return: any unguarded throw in that window would
     // leave `agent.ctx` bound to the resumed session while the caller
     // received `null`, silently corrupting the next user prompt.
-    // The `replaceTodos` call inside the post-swap sidecar re-point
-    // section has no inner `.catch` — a throw there propagates to the
-    // outer catch and exercises the rollback arm.
+    //
+    // The throw is injected in the token-accounting section (no inner
+    // `.catch`), which runs AFTER the todos sidecar has been detached,
+    // re-pointed, and re-attached to the resumed session. That ordering
+    // is load-bearing: firing the throw before the re-attach would make
+    // the detach-restore assertion below pass vacuously — the field
+    // would still hold the original handle whether or not the rollback
+    // restored it.
     //
     // Note: line citations against `tui-session-resume.ts` are deliberately
-    // omitted. The source is actively churning (parallel-session edits,
-    // post-swap rollback hardening); pinning comments to specific line
-    // numbers invites stale-citation drift that misleads future
-    // maintainers. Code-anchored descriptions — "the writer swap",
-    // "the sidecar re-point section", "the post-swap arm of the
-    // outer catch" — stay correct under source drift.
+    // omitted. The source is actively churning; code-anchored
+    // descriptions stay correct under source drift.
     const h = harness();
-    h.context.state.replaceTodos.mockImplementationOnce(() => {
+    h.tokenCounter.account.mockImplementationOnce(() => {
       throw new Error('post-swap failure');
     });
 
@@ -240,29 +241,27 @@ describe('TUI session resume ownership', () => {
     expect(h.context.session).toBe(h.oldWriter);
     expect(h.context.messages).toEqual(h.oldMessages);
 
-    // Identity rolled back to the previous session. The order of
-    // `activateSessionIdentity` calls is: claim (in the resume path),
-    // then rollback (in the post-swap arm of the outer catch). The
-    // second call carries the rolled-back id.
+    // Identity rolled back to the previous session: claim first
+    // (resume path), then rollback (post-swap arm of the outer catch).
     expect(h.activateSessionIdentity.mock.calls.map(([id]) => id)).toEqual([
       h.resumedWriter.id,
       h.oldWriter.id,
     ]);
-    // The rollback arm invokes `replaceMessages` with the defensive
-    // copy of the original messages, and the earlier hydration invokes
-    // `replaceMessages` with the resumed messages. Both are required:
-    // the hydration puts the resumed conversation in place, the rollback
-    // undoes it on failure. Use call-count rather than a reference-
-    // identity filter — the source spreads `agent.ctx.messages` into a
-    // fresh array before passing it to the rollback, so reference
-    // identity on the copy vs the harness's `oldMessages` is never true.
+    // Hydration put the resumed messages in place; the rollback undid
+    // it. Call-count, not reference identity — the source spreads the
+    // original messages into a fresh array before the rollback.
     expect(h.context.state.replaceMessages).toHaveBeenCalledTimes(2);
+    // Todos sidecar: `replaceTodos(restoredTodos)` applied, then the
+    // original list restored — even when the original is empty. The
+    // rollback must not skip an empty list, or a late throw (like this
+    // one) would leave the resumed session's board visible.
+    expect(h.context.state.replaceTodos).toHaveBeenCalledTimes(2);
 
-    // The sidecar rollback: the prior `state.detachActiveTodosCheckpoint`
-    // (bound to the original session's `.todos.json`) must be re-bound
-    // so subsequent todo edits on the original session persist correctly.
-    // Without this, every todo edit after a failed resume would write to
-    // nowhere — a silent data-loss bug.
+    // The sidecar rollback: the re-attach replaced
+    // `state.detachActiveTodosCheckpoint` with the resumed session's
+    // handle, so the rollback restoring the original handle is now a
+    // load-bearing assertion — without it, every todo edit after a
+    // failed resume would persist to the wrong (or no) file.
     expect(h.state.detachActiveTodosCheckpoint).toBe(h.priorDetachFn);
   });
 });

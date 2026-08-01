@@ -244,7 +244,6 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     onlineAgents,
   });
 
-  // Session — extracted to wiring/session
   const sessionStore = container.resolve(TOKENS.SessionStore);
   const tokenCounter = container.resolve(TOKENS.TokenCounter);
   tokenCounter.setSessionId?.(() => sessionRef.current?.id);
@@ -285,6 +284,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     sessionId: session.id,
     contextMeta: context.meta,
     logger,
+    events,
   });
   configureSimpleUiRuntimeContext(context.meta, flags);
   const attachments = sessResult.attachments;

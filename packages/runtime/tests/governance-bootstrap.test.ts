@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   type BootstrapGovernanceRuntimeOptions,
+  MAX_PENDING_GOVERNANCE_OBSERVATIONS,
   bootstrapGovernanceRuntimeWithFactory,
 } from '../src/governance-bootstrap.js';
 
@@ -76,6 +77,37 @@ function governedRuntime(source: 'attached' | 'launched') {
   };
 }
 
+function observationResponse(request: unknown) {
+  const record = request as {
+    requestId: string;
+    observation: {
+      observationId: string;
+      projectId: string;
+      taskId: string | null;
+      source: string;
+      category: 'tool_invoked';
+      observedAt: string;
+      payload: Readonly<Record<string, unknown>>;
+    };
+  };
+  return {
+    ok: true as const,
+    requestId: record.requestId,
+    result: {
+      type: 'observation_result' as const,
+      result: {
+        handled: true as const,
+        idempotentReplay: false,
+        observation: {
+          ...record.observation,
+          sequence: 7,
+          recordedAt: '2026-08-02T12:00:01.000Z',
+        },
+      },
+    },
+  };
+}
+
 describe('runtime governance bootstrap adapter', () => {
   it('keeps a launched control plane session-scoped and hides its admin runtime', async () => {
     const fake = governedRuntime('launched');
@@ -117,6 +149,115 @@ describe('runtime governance bootstrap adapter', () => {
     await expect(prepared.handle.close()).resolves.toMatchObject({ ok: true, action: 'detach' });
     expect(fake.close).toHaveBeenCalledTimes(1);
     expect(fake.shutdownDaemon).not.toHaveBeenCalled();
+  });
+
+  it('binds shadow observations to the runtime project without exposing raw authority', async () => {
+    const fake = governedRuntime('attached');
+    fake.runtime.model.request.mockImplementation(async (request) => observationResponse(request));
+    const prepared = await bootstrapGovernanceRuntimeWithFactory(options, async () => ({
+      mode: 'governed',
+      runtime: fake.runtime as never,
+    }));
+    if (prepared.mode !== 'governed') throw new Error(prepared.message);
+
+    await expect(
+      prepared.handle.observe({
+        taskId: 'task-1',
+        source: 'wrongstack.cli.shadow.v1',
+        category: 'tool_invoked',
+        observedAt: '2026-08-02T12:00:00.000Z',
+        payload: { phase: 'completed', toolName: 'read' },
+      }),
+    ).resolves.toMatchObject({ recorded: true, idempotentReplay: false, sequence: 7 });
+    expect(fake.runtime.model.request).toHaveBeenCalledWith({
+      protocolVersion: 1,
+      requestId: expect.stringMatching(/^observe-/u),
+      type: 'record_observation',
+      observation: {
+        observationId: expect.any(String),
+        projectId: 'project-1',
+        taskId: 'task-1',
+        source: 'wrongstack.cli.shadow.v1',
+        category: 'tool_invoked',
+        observedAt: '2026-08-02T12:00:00.000Z',
+        payload: { phase: 'completed', toolName: 'read' },
+      },
+    });
+  });
+
+  it('drains pending observations before revoking the session grant', async () => {
+    const fake = governedRuntime('attached');
+    let resolveRequest: ((value: ReturnType<typeof observationResponse>) => void) | undefined;
+    fake.runtime.model.request.mockImplementation(
+      (request) =>
+        new Promise((resolve) => {
+          resolveRequest = () => resolve(observationResponse(request));
+        }),
+    );
+    const prepared = await bootstrapGovernanceRuntimeWithFactory(options, async () => ({
+      mode: 'governed',
+      runtime: fake.runtime as never,
+    }));
+    if (prepared.mode !== 'governed') throw new Error(prepared.message);
+
+    const observation = prepared.handle.observe({
+      taskId: null,
+      source: 'wrongstack.cli.shadow.v1',
+      category: 'tool_invoked',
+      observedAt: '2026-08-02T12:00:00.000Z',
+      payload: { phase: 'started', toolName: 'shell' },
+    });
+    const closing = prepared.handle.close();
+    await Promise.resolve();
+    expect(fake.close).not.toHaveBeenCalled();
+    resolveRequest?.(observationResponse(fake.runtime.model.request.mock.calls[0]?.[0]));
+
+    await expect(observation).resolves.toMatchObject({ recorded: true });
+    await expect(closing).resolves.toMatchObject({ ok: true, action: 'detach' });
+    expect(fake.close).toHaveBeenCalledTimes(1);
+    await expect(
+      prepared.handle.observe({
+        taskId: null,
+        source: 'wrongstack.cli.shadow.v1',
+        category: 'status_changed',
+        observedAt: '2026-08-02T12:00:02.000Z',
+        payload: { phase: 'late' },
+      }),
+    ).resolves.toMatchObject({ recorded: false, code: 'closed' });
+  });
+
+  it('bounds the fail-open observation queue while the daemon is slow', async () => {
+    const fake = governedRuntime('attached');
+    const releases: Array<() => void> = [];
+    fake.runtime.model.request.mockImplementation(
+      (request) =>
+        new Promise((resolve) => {
+          releases.push(() => resolve(observationResponse(request)));
+        }),
+    );
+    const prepared = await bootstrapGovernanceRuntimeWithFactory(options, async () => ({
+      mode: 'governed',
+      runtime: fake.runtime as never,
+    }));
+    if (prepared.mode !== 'governed') throw new Error(prepared.message);
+    const input = {
+      taskId: null,
+      source: 'wrongstack.cli.shadow.v1',
+      category: 'tool_invoked' as const,
+      observedAt: '2026-08-02T12:00:00.000Z',
+      payload: { phase: 'started', toolName: 'read' },
+    };
+
+    const pending = Array.from({ length: MAX_PENDING_GOVERNANCE_OBSERVATIONS }, () =>
+      prepared.handle.observe(input),
+    );
+    await expect(prepared.handle.observe(input)).resolves.toMatchObject({
+      recorded: false,
+      code: 'backpressure',
+    });
+    expect(fake.runtime.model.request).toHaveBeenCalledTimes(MAX_PENDING_GOVERNANCE_OBSERVATIONS);
+    for (const release of releases) release();
+    await expect(Promise.all(pending)).resolves.toHaveLength(MAX_PENDING_GOVERNANCE_OBSERVATIONS);
   });
 
   it('converts factory rejection into a credential-redacted legacy result', async () => {

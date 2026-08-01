@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {
   ExistingGovernanceAdminCredential,
   GovernanceCompatibilityCleanup,
@@ -7,10 +8,15 @@ import type {
   GovernanceCompatibilityRuntimeSnapshot,
   GovernanceModelCapability,
   GovernanceModelSession,
+  GovernanceObservationCategory,
   PrepareGovernanceCompatibilityOptions,
   PrepareGovernanceCompatibilityResult,
 } from '@wrongstack/governance';
-import { prepareGovernanceCompatibilityRuntime } from '@wrongstack/governance';
+import {
+  GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+  prepareGovernanceCompatibilityRuntime,
+} from '@wrongstack/governance';
+import { sanitizeGovernanceMessage } from './governance-sanitize.js';
 
 export interface BootstrapGovernanceRuntimeOptions {
   readonly projectRoot: string;
@@ -37,6 +43,35 @@ export interface GovernanceRuntimeBootstrapCloseResult {
   readonly message: string;
 }
 
+export interface GovernanceRuntimeObservationInput {
+  readonly taskId: string | null;
+  readonly source: string;
+  readonly category: GovernanceObservationCategory;
+  readonly observedAt: string;
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+export type GovernanceRuntimeObservationResult =
+  | {
+      readonly recorded: true;
+      readonly observationId: string;
+      readonly idempotentReplay: boolean;
+      readonly sequence: number;
+    }
+  | {
+      readonly recorded: false;
+      readonly observationId?: string | undefined;
+      readonly code:
+        | 'backpressure'
+        | 'closed'
+        | 'request_failed'
+        | 'request_rejected'
+        | 'unexpected_response';
+      readonly message: string;
+    };
+
+export const MAX_PENDING_GOVERNANCE_OBSERVATIONS = 256;
+
 const GOVERNANCE_RUNTIME_BOOTSTRAP_HANDLE_CONSTRUCTION = Symbol(
   'governance-runtime-bootstrap-handle-construction',
 );
@@ -45,6 +80,8 @@ export class GovernanceRuntimeBootstrapHandle {
   readonly model: GovernanceModelSession;
   readonly #runtime: GovernanceCompatibilityRuntime;
   readonly #snapshot: GovernanceRuntimeBootstrapSnapshot;
+  readonly #pendingObservations = new Set<Promise<GovernanceRuntimeObservationResult>>();
+  #acceptingObservations = true;
   #closePromise: Promise<GovernanceRuntimeBootstrapCloseResult> | undefined;
 
   constructor(
@@ -69,6 +106,31 @@ export class GovernanceRuntimeBootstrapHandle {
     return this.#snapshot;
   }
 
+  observe(input: GovernanceRuntimeObservationInput): Promise<GovernanceRuntimeObservationResult> {
+    if (!this.#acceptingObservations) {
+      return Promise.resolve(
+        Object.freeze({
+          recorded: false,
+          code: 'closed',
+          message: 'Governance runtime is closing and no longer accepts observations.',
+        }),
+      );
+    }
+    if (this.#pendingObservations.size >= MAX_PENDING_GOVERNANCE_OBSERVATIONS) {
+      return Promise.resolve(
+        Object.freeze({
+          recorded: false,
+          code: 'backpressure',
+          message: 'Governance observation queue reached its bounded capacity.',
+        }),
+      );
+    }
+    const pending = this.recordObservation(input);
+    this.#pendingObservations.add(pending);
+    void pending.finally(() => this.#pendingObservations.delete(pending));
+    return pending;
+  }
+
   close(): Promise<GovernanceRuntimeBootstrapCloseResult> {
     if (this.#closePromise) return this.#closePromise;
     this.#closePromise = this.closeOnce();
@@ -76,6 +138,8 @@ export class GovernanceRuntimeBootstrapHandle {
   }
 
   private async closeOnce(): Promise<GovernanceRuntimeBootstrapCloseResult> {
+    this.#acceptingObservations = false;
+    await Promise.allSettled([...this.#pendingObservations]);
     const action = this.#snapshot.source === 'launched' ? 'shutdown' : 'detach';
     try {
       const response =
@@ -89,7 +153,7 @@ export class GovernanceRuntimeBootstrapHandle {
         return Object.freeze({
           ok: false,
           action,
-          message: sanitize(response.error.message),
+          message: sanitizeGovernanceMessage(response.error.message),
         });
       }
       const expectedType =
@@ -106,7 +170,66 @@ export class GovernanceRuntimeBootstrapHandle {
       return Object.freeze({
         ok: false,
         action,
-        message: sanitize(error instanceof Error ? error.message : String(error)),
+        message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+      });
+    }
+  }
+
+  private async recordObservation(
+    input: GovernanceRuntimeObservationInput,
+  ): Promise<GovernanceRuntimeObservationResult> {
+    const observationId = randomUUID();
+    try {
+      const response = await this.model.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: `observe-${observationId}`,
+        type: 'record_observation',
+        observation: {
+          observationId,
+          projectId: this.#snapshot.model.projectId,
+          taskId: input.taskId,
+          source: input.source,
+          category: input.category,
+          observedAt: input.observedAt,
+          payload: input.payload,
+        },
+      });
+      if (!response.ok) {
+        return Object.freeze({
+          recorded: false,
+          observationId,
+          code: 'request_rejected',
+          message: sanitizeGovernanceMessage(response.error.message),
+        });
+      }
+      if (response.result.type !== 'observation_result') {
+        return Object.freeze({
+          recorded: false,
+          observationId,
+          code: 'unexpected_response',
+          message: 'Governance observation returned an unexpected response.',
+        });
+      }
+      if (!response.result.result.handled) {
+        return Object.freeze({
+          recorded: false,
+          observationId,
+          code: 'request_rejected',
+          message: sanitizeGovernanceMessage(response.result.result.message),
+        });
+      }
+      return Object.freeze({
+        recorded: true,
+        observationId,
+        idempotentReplay: response.result.result.idempotentReplay,
+        sequence: response.result.result.observation.sequence,
+      });
+    } catch (error) {
+      return Object.freeze({
+        recorded: false,
+        observationId,
+        code: 'request_failed',
+        message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
       });
     }
   }
@@ -125,10 +248,6 @@ export type GovernanceRuntimeBootstrapResult =
 type GovernanceCompatibilityFactory = (
   options: PrepareGovernanceCompatibilityOptions,
 ) => Promise<PrepareGovernanceCompatibilityResult>;
-
-function sanitize(message: string): string {
-  return message.replace(/wsg_\S{1,700}/gu, '[credential]').slice(0, 512);
-}
 
 export function bootstrapGovernanceRuntime(
   options: BootstrapGovernanceRuntimeOptions,
@@ -149,7 +268,7 @@ export async function bootstrapGovernanceRuntimeWithFactory(
       mode: 'legacy',
       code: 'bootstrap_failed',
       phase: 'bootstrap',
-      message: sanitize(error instanceof Error ? error.message : String(error)),
+      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
       cleanup: 'unavailable',
     });
   }

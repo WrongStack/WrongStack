@@ -227,6 +227,7 @@ const profiles = {
       pack: 'src/pack.ts',
       host: 'src/host.ts',
       'governance-bootstrap': 'src/governance-bootstrap.ts',
+      'governance-sanitize': 'src/governance-sanitize.ts',
       vision: 'src/vision.ts',
       clipboard: 'src/clipboard.ts',
       probe: 'src/local-llm-probe.ts',

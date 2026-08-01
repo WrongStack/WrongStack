@@ -1,10 +1,13 @@
 import { getSharedProjectMailbox, type MailboxAgentStatus } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
 import type {
   BootstrapGovernanceRuntimeOptions,
+  GovernanceRuntimeBootstrapCloseResult,
   GovernanceRuntimeBootstrapHandle,
   GovernanceRuntimeBootstrapResult,
 } from '@wrongstack/runtime/governance-bootstrap';
+import { createGovernanceShadowBridge } from './boot/governance-shadow-bridge.js';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { buildPickableProviders } from './provider-helpers.js';
 
@@ -55,6 +58,10 @@ export function governedHandle(
   return result.mode === 'governed' ? result.handle : undefined;
 }
 
+export interface CliGovernanceRuntimeHandle {
+  close(): Promise<GovernanceRuntimeBootstrapCloseResult>;
+}
+
 export async function bootstrapCliGovernance(
   options: BootstrapCliGovernanceOptions,
   dependencies: BootstrapCliGovernanceDependencies = DEFAULT_GOVERNANCE_DEPENDENCIES,
@@ -103,7 +110,8 @@ export async function setupCliGovernance(input: {
   readonly sessionId: string;
   readonly contextMeta: Record<string, unknown>;
   readonly logger: Pick<Logger, 'info' | 'warn'>;
-}): Promise<GovernanceRuntimeBootstrapHandle | undefined> {
+  readonly events: EventBus;
+}): Promise<CliGovernanceRuntimeHandle | undefined> {
   const result = await bootstrapCliGovernance({
     environment: process.env,
     projectRoot: input.projectRoot,
@@ -113,10 +121,20 @@ export async function setupCliGovernance(input: {
     modelCapabilities: ['task_read', 'command_submit', 'shadow_observe'],
   });
   if (result.mode === 'governed') {
-    input.contextMeta['governance'] = result.handle.snapshot();
-    input.logger.info(
-      `governance: ${result.handle.snapshot().source} session-scoped control plane`,
-    );
+    const snapshot = result.handle.snapshot();
+    input.contextMeta['governance'] = snapshot;
+    input.logger.info(`governance: ${snapshot.source} session-scoped control plane`);
+    const shadow = createGovernanceShadowBridge({
+      events: input.events,
+      sink: result.handle,
+      logger: input.logger,
+    });
+    return Object.freeze({
+      close: () => {
+        shadow.close();
+        return result.handle.close();
+      },
+    });
   } else if (result.mode === 'legacy') {
     input.contextMeta['governance'] = result;
     input.logger.warn(`governance: legacy fallback (${result.code})`, {
@@ -125,7 +143,7 @@ export async function setupCliGovernance(input: {
       message: result.message,
     });
   }
-  return governedHandle(result);
+  return undefined;
 }
 
 export interface CliMainEventSource {
