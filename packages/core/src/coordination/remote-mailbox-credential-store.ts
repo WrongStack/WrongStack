@@ -1,8 +1,9 @@
 import type {
-  CredentialValidation,
   IssueCredentialOptions,
   MailboxCredential,
   MailboxCredentialVerifier,
+  RedactedCredentialValidation,
+  RedactedMailboxCredential,
 } from './mailbox-credential-store.js';
 import type { RemoteMailbox } from './remote-mailbox.js';
 
@@ -23,11 +24,11 @@ export class RemoteMailboxCredentialStore implements MailboxCredentialVerifier {
     return this.mailbox.credentialIssue(options);
   }
 
-  verify(credentialId: string, secret: string): Promise<CredentialValidation> {
+  verify(credentialId: string, secret: string): Promise<RedactedCredentialValidation> {
     return this.mailbox.credentialVerify(credentialId, secret);
   }
 
-  verifyPersisted(credentialId: string, secret: string): Promise<CredentialValidation> {
+  verifyPersisted(credentialId: string, secret: string): Promise<RedactedCredentialValidation> {
     return this.verify(credentialId, secret);
   }
 
@@ -42,11 +43,11 @@ export class RemoteMailboxCredentialStore implements MailboxCredentialVerifier {
     return this.mailbox.credentialRotate(credentialId, options);
   }
 
-  get(credentialId: string): Promise<MailboxCredential | null> {
+  get(credentialId: string): Promise<RedactedMailboxCredential | null> {
     return this.mailbox.credentialGet(credentialId);
   }
 
-  list(): Promise<MailboxCredential[]> {
+  list(): Promise<RedactedMailboxCredential[]> {
     return this.mailbox.credentialList();
   }
 

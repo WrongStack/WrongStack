@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type {
-  CredentialValidation,
+  RedactedCredentialValidation,
   MailboxCredentialVerifier,
 } from './mailbox-credential-store.js';
 import type { MailboxActorContext } from './mailbox-types.js';
@@ -58,7 +58,7 @@ export async function authorizePersistedMailboxCredential(
 
 function credentialDecision(
   credentialId: string,
-  result: CredentialValidation,
+  result: RedactedCredentialValidation,
 ): MailboxHttpAccessDecision | MailboxHttpCredentialDecision {
   const credential = result.credential;
   const projectId = credential?.projectId;

@@ -80,14 +80,22 @@ export interface CredentialValidation {
   reason?: string | undefined;
 }
 
+/** Verification result with the verifier hash stripped — safe for IPC/API. */
+export interface RedactedCredentialValidation {
+  valid: boolean;
+  /** The credential without the verifier or algorithm. */
+  credential?: RedactedMailboxCredential | undefined;
+  reason?: string | undefined;
+}
+
 /** Minimal verification contract shared by file-backed and remote stores. */
 export interface MailboxCredentialVerifier {
   load(): Promise<void>;
   verify(
     credentialId: string,
     secret: string,
-  ): CredentialValidation | Promise<CredentialValidation>;
-  verifyPersisted(credentialId: string, secret: string): Promise<CredentialValidation>;
+  ): RedactedCredentialValidation | Promise<RedactedCredentialValidation>;
+  verifyPersisted(credentialId: string, secret: string): Promise<RedactedCredentialValidation>;
 }
 
 // ── Constants ───────────────────────────────────────────────────────

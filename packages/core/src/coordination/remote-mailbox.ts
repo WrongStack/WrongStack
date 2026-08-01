@@ -3,9 +3,9 @@ import type { HqPublisher } from '../hq/publisher.js';
 import type { EventBus } from '../kernel/events.js';
 import { HQ_MAILBOX_SNAPSHOT_MIN_INTERVAL_MS } from './mailbox-constants.js';
 import type {
-  CredentialValidation,
   IssueCredentialOptions,
   MailboxCredential,
+  RedactedMailboxCredential,
 } from './mailbox-credential-store.js';
 import type { MailboxEvent, MailboxEventEmitter } from './mailbox-events.js';
 import {
@@ -284,7 +284,7 @@ export class RemoteMailbox implements Mailbox {
     return this.connection.call('credentialIssue', { options });
   }
 
-  credentialVerify(credentialId: string, secret: string): Promise<CredentialValidation> {
+  credentialVerify(credentialId: string, secret: string): Promise<{ valid: boolean; credential?: RedactedMailboxCredential | undefined; reason?: string | undefined }> {
     return this.connection.call('credentialVerify', { credentialId, secret });
   }
 
@@ -299,11 +299,11 @@ export class RemoteMailbox implements Mailbox {
     return this.connection.call('credentialRotate', { credentialId, options });
   }
 
-  credentialGet(credentialId: string): Promise<MailboxCredential | null> {
+  credentialGet(credentialId: string): Promise<RedactedMailboxCredential | null> {
     return this.connection.call('credentialGet', { credentialId });
   }
 
-  credentialList(): Promise<MailboxCredential[]> {
+  credentialList(): Promise<RedactedMailboxCredential[]> {
     return this.connection.call('credentialList', {});
   }
 

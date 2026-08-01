@@ -1,7 +1,7 @@
 import type {
-  CredentialValidation,
   IssueCredentialOptions,
   MailboxCredential,
+  RedactedMailboxCredential,
 } from './mailbox-credential-store.js';
 import type { MailboxEvent } from './mailbox-events.js';
 import type {
@@ -22,7 +22,18 @@ import type {
   PurgeResult,
 } from './mailbox-types.js';
 
-export const MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION = 3;
+/**
+ * Wire protocol version. Embedded in the IPC endpoint path (see
+ * `mailbox-project-server-endpoint.ts`), so a bump migrates clients to a fresh
+ * socket and lets the `hello` handshake detect client/daemon skew loudly.
+ *
+ * v4: `authToken` became required on every `request` and `shutdown` (WS-027).
+ * That is a breaking wire change — a pre-WS-027 client sends no token and would
+ * fail every call with `UnauthorizedMailboxRequest` against a gated daemon.
+ * Bumping the path keeps old clients on the old endpoint (where they spawn a
+ * matching old daemon) instead of silently breaking against a new one.
+ */
+export const MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION = 4;
 export const MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS = 16 * 1024 * 1024;
 
 /**
@@ -97,7 +108,7 @@ export interface MailboxServerOperations {
   };
   credentialVerify: {
     args: { credentialId: string; secret: string };
-    result: CredentialValidation;
+    result: { valid: boolean; credential?: RedactedMailboxCredential | undefined; reason?: string | undefined };
   };
   credentialRevoke: {
     args: { credentialId: string; reason?: string | undefined; by?: string | undefined };
@@ -109,11 +120,11 @@ export interface MailboxServerOperations {
   };
   credentialGet: {
     args: { credentialId: string };
-    result: MailboxCredential | null;
+    result: RedactedMailboxCredential | null;
   };
   credentialList: {
     args: Record<string, never>;
-    result: MailboxCredential[];
+    result: RedactedMailboxCredential[];
   };
   credentialStatusCounts: {
     args: Record<string, never>;
