@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Writable } from 'node:stream';
-import type { Config, ModelsRegistry, ResolvedModel, ResolvedProvider } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
@@ -47,7 +47,7 @@ function fakeProvider(over: Partial<ResolvedProvider> = {}): ResolvedProvider {
         limit: { context: 200_000, output: 8000 },
         cost: { input: 3, output: 15 },
         release_date: '2026-01-01',
-      } as unknown as ResolvedModel,
+      } as never,
     ],
     ...over,
   };
@@ -254,14 +254,14 @@ describe('subcommands', () => {
           tool_call: false,
           modalities: { input: ['text'], output: ['text'] },
           limit: { context: 1000, output: 100 },
-        } as unknown as ResolvedModel,
+        } as never,
         {
           id: 'new',
           release_date: '2026-01-01',
           tool_call: true,
           modalities: { input: ['text'], output: ['text'] },
           limit: { context: 200_000, output: 8000 },
-        } as unknown as ResolvedModel,
+        } as never,
       ],
     });
     const reg = fakeRegistry([provider]);

@@ -28,7 +28,8 @@ describe('runWebUI redaction', () => {
     const serverDone = runWebUI({
       port,
       httpPort,
-      onListening: () => signalReady?.(),
+      profileConfigPath: '/tmp/test-profile.json',
+  onListening: () => signalReady?.(),
       events,
       session: { id: 'test-session' } as any,
       agent: {

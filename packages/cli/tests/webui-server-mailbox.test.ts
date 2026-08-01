@@ -64,6 +64,7 @@ describe('runWebUI mailbox operations', () => {
     serverDone = runWebUI({
       port: wsPort,
       httpPort,
+      profileConfigPath: '/tmp/test-profile.json',
       onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'test-session' } as never,
@@ -97,6 +98,7 @@ describe('runWebUI mailbox operations', () => {
     serverDone = runWebUI({
       port: wsPort,
       httpPort,
+      profileConfigPath: '/tmp/test-profile.json',
       onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'test-session' } as never,
@@ -141,6 +143,7 @@ describe('runWebUI mailbox operations', () => {
     serverDone = runWebUI({
       port: wsPort,
       httpPort,
+      profileConfigPath: '/tmp/test-profile.json',
       onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'test-session' } as never,

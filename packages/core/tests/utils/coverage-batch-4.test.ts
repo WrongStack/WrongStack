@@ -157,6 +157,17 @@ describe('tool-subject utilities', () => {
     // Glob metacharacters in the directory are still escaped before the suffix.
     expect(subjectForToolInput('patch', { directory: 'a[b]', dry_run: true }, 'directory')).toBe('a\\[b\\]:dry-run');
   });
+  it('subjectForToolInput gives dry-run install / check-only format / dry-run replace distinct subjects (over-grant sweep)', () => {
+    // install: a dry-run install must not share a subject with a real install.
+    expect(subjectForToolInput('install', { packages: 'react', dry_run: true }, 'packages')).toBe('react:dry-run');
+    expect(subjectForToolInput('install', { packages: 'react' }, 'packages')).toBe('react');
+    // format: a check-only format must not share a subject with a writing format.
+    expect(subjectForToolInput('format', { files: 'src', check: true }, 'files')).toBe('src:check');
+    expect(subjectForToolInput('format', { files: 'src' }, 'files')).toBe('src');
+    // replace: a dry-run replace (the default) must not share a subject with a real replace.
+    expect(subjectForToolInput('replace', { files: 'src', dry_run: true }, 'files')).toBe('src:dry-run');
+    expect(subjectForToolInput('replace', { files: 'src', dry_run: false }, 'files')).toBe('src');
+  });
 });
 
 // ── config-json pure functions ──────────────────────────────────────────

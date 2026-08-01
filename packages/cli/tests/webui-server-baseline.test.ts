@@ -103,7 +103,8 @@ describe('runWebUI boot shape (PR 0 of #30)', () => {
       // available. We read the actual port from
       // onListening.info.wsPort below.
       host: '127.0.0.1',
-      onListening: (info) => {
+      profileConfigPath: '/tmp/test-profile.json',
+  onListening: (info) => {
         listeningInfo = info;
         signalReady?.();
       },
@@ -145,7 +146,8 @@ describe('runWebUI boot shape (PR 0 of #30)', () => {
     });
     const serverDone = runWebUI({
       host: '127.0.0.1',
-      onListening: (info) => {
+      profileConfigPath: '/tmp/test-profile.json',
+  onListening: (info) => {
         listeningInfo = info;
         signalReady?.();
       },

@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Config } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/core/types';
+import { DefaultSessionStore as MemoryStoreImpl } from '@wrongstack/core/storage';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
@@ -32,7 +34,7 @@ function makeWpaths(): WstackPaths {
   } as WstackPaths;
 }
 
-function makeMemoryStore(): MemoryStore {
+function makeMemoryStore(): MemoryStoreImpl {
   return makeFakeMemoryStore();
 }
 

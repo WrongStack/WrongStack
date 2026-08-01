@@ -11,7 +11,7 @@ vi.mock('@wrongstack/providers', () => ({
   capabilitiesFor: vi.fn(),
 }));
 
-const { capabilitiesFor } = (await import('@wrongstack/providers')) as {
+const { capabilitiesFor } = (await import('@wrongstack/providers')) as unknown as {
   capabilitiesFor: ReturnType<typeof vi.fn>;
 };
 
@@ -19,7 +19,7 @@ function bootContainer(): Container {
   const c = new Container();
   c.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error' }));
   c.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
-  c.bind(TOKENS.PermissionPolicy, () => new DefaultPermissionPolicy({ yolo: true }));
+  c.bind(TOKENS.PermissionPolicy, () => new DefaultPermissionPolicy({ yolo: true, trustFile: '/tmp/test-trust.json' }));
   return c;
 }
 
@@ -340,7 +340,7 @@ describe('createAgent', () => {
         },
       },
       confirmAwaiter: { request: vi.fn() } as never,
-      permissionPolicy: new DefaultPermissionPolicy({ yolo: true }),
+      permissionPolicy: new DefaultPermissionPolicy({ yolo: true, trustFile: '/tmp/test-trust.json' }),
     });
     expect(agent).toBeInstanceOf(Agent);
   });

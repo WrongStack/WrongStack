@@ -86,8 +86,8 @@ describe('wireSessionEvents', () => {
     }
 
     expect(errorRing).toHaveLength(5);
-    expect(errorRing[0].message).toBe('err-2');
-    expect(errorRing[4].message).toBe('err-6');
+    expect(errorRing[0]?.message).toBe('err-2');
+    expect(errorRing[4]?.message).toBe('err-6');
   });
 
   it('extracts error code from Error objects with a code property', () => {
@@ -98,7 +98,7 @@ describe('wireSessionEvents', () => {
     (err as { code?: string }).code = 'ECONNREFUSED';
     emit('error', { sessionId: 'sess-ctx', phase: 'exec', err });
 
-    expect(errorRing[0].code).toBe('ECONNREFUSED');
+    expect(errorRing[0]?.code).toBe('ECONNREFUSED');
   });
 
   it('appends error to session bridge on error', () => {

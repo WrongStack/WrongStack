@@ -52,7 +52,7 @@ describe('buildRoutingRunner', () => {
     const config = { provider: 'test' };
     const runner = mod.buildRoutingRunner(config as never, host as never);
 
-    const _result = await runner(
+    await runner(
       { id: 't', description: 't' } as never,
       { config: { provider: 'acp', role: 'specialist' } } as never,
     );
@@ -70,7 +70,7 @@ describe('buildRoutingRunner', () => {
     const config = { provider: 'test' };
     const runner = mod.buildRoutingRunner(config as never, host as never);
 
-    const _result = await runner(
+    await runner(
       { id: 't', description: 't' } as never,
       { config: { provider: 'acp', id: 'direct-id' } } as never,
     );

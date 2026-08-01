@@ -9,7 +9,7 @@ const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() } 
 function fakeProvider(id: string, _modelId?: string): Provider {
   return {
     id,
-    capabilities: { ...(maxContext ? { maxContext } : {}) } as never,
+    capabilities: { maxContext: 200_000 } as never,
     complete: vi.fn(),
     stream: vi.fn(),
   } as Provider;
@@ -374,13 +374,13 @@ describe('createFallbackModelExtension', () => {
     events.on('provider.fallback', (p) => fired.push(p as never));
     const ext = createFallbackModelExtension({
       getConfig: () => cfg({ fallbackModels: ['openai/gpt-small'] }),
-      buildProvider: (id: string) => fakeProvider(id, id === 'openai' ? 32_000 : 200_000),
+      buildProvider: (id: string) => fakeProvider(id, id === 'openai' ? 'small' : 'large'),
       events,
       logger,
     })!;
 
     const ctx = makeCtx('anthropic', 'opus') as import('@wrongstack/core/agent').Context;
-    ctx.provider = fakeProvider('anthropic', 200_000);
+    ctx.provider = fakeProvider('anthropic', 'large');
     ctx.lastRequestTokens = 24_000;
 
     let call = 0;

@@ -482,7 +482,7 @@ describe('setupPlugins', () => {
   it('injects default todo-tracker filePath from paths.projectDir', async () => {
     const deps = {
       ...baseDeps(),
-      paths: { ...fakePaths(), projectDir: '/p/proj' },
+      paths: { ...fakePaths(), projectDir: '/p/proj' } as never,
     };
     await setupPlugins(deps as never);
     const [, opts] = loadPluginsMock.mock.calls[0]!;
@@ -497,7 +497,7 @@ describe('setupPlugins', () => {
       ...baseDeps({
         extensions: { 'todo-tracker': { filePath: '/custom/todos.json' } } as never,
       }),
-      paths: { ...fakePaths(), projectDir: '/p/proj' },
+      paths: { ...fakePaths(), projectDir: '/p/proj' } as never,
     };
     await setupPlugins(deps as never);
     const [, opts] = loadPluginsMock.mock.calls[0]!;
@@ -587,7 +587,7 @@ describe('setupPlugins', () => {
     );
     opts.apiFactory({ name: 'virtual:test-plugin' });
     expect(apiCfgCapture).toHaveBeenCalled();
-    expect(deps.sessionWriter.append).toHaveBeenCalledWith({ type: 't', ts: 'now', data: 'x' });
+    expect((deps as { sessionWriter?: { append: (e: unknown) => void } })?.sessionWriter?.append).toHaveBeenCalledWith({ type: 't', ts: 'now', data: 'x' });
   });
 
   it('forwards api.mailbox to the apiFactory so todo-listener-style plugins can publish', async () => {

@@ -77,7 +77,8 @@ describe('runWebUI projects.select', () => {
     serverDone = runWebUI({
       port: wsPort,
       httpPort,
-      onListening: () => signalReady?.(),
+      profileConfigPath: '/tmp/test-profile.json',
+  onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'old-session' } as never,
       agent: { ctx: ctx as never, run: vi.fn() } as never,
@@ -149,7 +150,8 @@ describe('runWebUI projects.select', () => {
     serverDone = runWebUI({
       port: wsPort,
       httpPort,
-      onListening: () => signalReady?.(),
+      profileConfigPath: '/tmp/test-profile.json',
+  onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'sess-1' } as never,
       agent: { ctx: ctx as never, run: vi.fn() } as never,

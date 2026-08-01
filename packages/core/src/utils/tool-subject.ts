@@ -49,7 +49,16 @@ export function subjectForToolInput(
   if (subjectKey) {
     const value = obj[subjectKey];
     if (typeof value === 'string') {
-      if (isPathSubjectKey(subjectKey)) return normalizePathSubject(value);
+      if (isPathSubjectKey(subjectKey)) {
+        const normalized = normalizePathSubject(value);
+        // A check-only format and a dry-run replace (the default) must each get
+        // a distinct subject from their real invocation (over-grant). `files` is
+        // shared by format and replace, but their preview flags differ (format:
+        // `check`, replace: `dry_run`), so the conditions don't collide.
+        if (subjectKey === 'files' && obj['check'] === true) return `${normalized}:check`;
+        if (subjectKey === 'files' && obj['dry_run'] === true) return `${normalized}:dry-run`;
+        return normalized;
+      }
       // A `command` subject renders the full invocation, not just the program.
       // `bash` is unaffected — it has no `args`, its command IS the line.
       if (subjectKey === 'command') return escapeGlobSubject(renderCommandLine(value, obj['args']));
@@ -57,6 +66,14 @@ export function subjectForToolInput(
       // directory: trusting a preview would otherwise silently authorize the
       // actual application (over-grant). Mirror the `command` special-case.
       if (subjectKey === 'directory' && obj['dry_run'] === true) {
+        return `${escapeGlobSubject(value)}:dry-run`;
+      }
+      // A dry-run install must not share a subject with a real install of the
+      // same packages: trusting a preview would otherwise silently authorize the
+      // actual install (over-grant). (format/replace preview flags are handled
+      // in the path-subject branch above, since their subjectKey `files` is a
+      // path key.)
+      if (subjectKey === 'packages' && obj['dry_run'] === true) {
         return `${escapeGlobSubject(value)}:dry-run`;
       }
       return escapeGlobSubject(value);

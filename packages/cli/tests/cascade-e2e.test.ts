@@ -282,7 +282,7 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
           const results = await director.awaitTasks(['cascade-task']);
           const result = results[0];
           if (result?.status === 'success') {
-            await session.append({
+            await (session as { append: (e: unknown) => Promise<void> }).append({
               type: 'llm_response',
               ts: new Date().toISOString(),
               content: [{ type: 'text', text: `cascade result from ${agentKind}` }],
@@ -342,7 +342,7 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
     await runCascadeHandler(events, director, session, cascadePayload);
 
     expect(director.spawn).toHaveBeenCalledTimes(1);
-    const role = (director.spawn.mock.calls[0][0] as { role: string }).role;
+    const role = ((director.spawn.mock.calls as unknown[][])[0]?.[0] as { role: string })?.role;
     expect(role).toBe('bug-hunter');
     expect(session.append).toHaveBeenCalledTimes(1);
   });
@@ -395,7 +395,7 @@ describe('Cascade chain: full e2e (review_complete → cascade_needed → spawn)
       void (async () => {
         for (const agentKind of p.agents) {
           const role = agentKind === 'security-scanner' ? 'security-scanner' : 'bug-hunter';
-          await director.spawn({ name: `cascade-${agentKind}`, role });
+          await director.spawn({ name: `cascade-${agentKind}`, role } as never);
           await director.awaitTasks(['x']);
           await session.append({
             type: 'llm_response',

@@ -64,7 +64,7 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      stopReason: 'end_turn',
+      model: 'test-model', stopReason: 'end_turn',
     });
     r.events.emit('tool.executed', {
       name: 'read',
@@ -129,7 +129,7 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      stopReason: 'end_turn',
+      model: 'test-model', stopReason: 'end_turn',
     } as never);
     expect(r.stats.hasActivity()).toBe(true);
 
@@ -141,13 +141,13 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      stopReason: 'end_turn',
+      model: 'test-model', stopReason: 'end_turn',
     } as never);
 
     // render() should still work without throwing.
     const renderer = new TerminalRenderer({
       out: r.out as never as NodeJS.WriteStream,
-      err: r.err as never as NodeJS.WriteStream,
+      err: r.out as never as NodeJS.WriteStream,
     });
     expect(() => r.stats.render(renderer)).not.toThrow();
   });
@@ -163,7 +163,7 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      stopReason: 'end_turn',
+      model: 'test-model', stopReason: 'end_turn',
     });
     r.stats.render(r.renderer);
     const text = stripAnsi(r.out.buf);

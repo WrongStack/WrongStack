@@ -28,7 +28,8 @@ describe('runWebUI frontend serving', () => {
     serverDone = runWebUI({
       port: nextPort(),
       httpPort: nextPort(),
-      onListening: (i) => {
+      profileConfigPath: '/tmp/test-profile.json',
+  onListening: (i) => {
         info = i;
         signalReady?.();
       },
