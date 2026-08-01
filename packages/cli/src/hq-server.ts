@@ -27,6 +27,7 @@ import {
   type EnsureHqFirstRunAuthResult,
   type HqAlert,
   HqAlertEngine,
+  assessHqExposure,
   type HqAlertRuleConfig,
   HqBootstrapCodeStore,
   type HqCommandAuditEntry,
@@ -675,8 +676,37 @@ async function startHqServerWithAuth(
       dataDir,
       (next) => {
         authState.apply(next);
+        // WS-010: assessHqExposure runs once at startup, so revoking the last
+        // credential on a live non-loopback bind silently opened HQ — including
+        // POST /api/command — to the whole network. Re-assess on every auth
+        // reload and, when the verdict is a refusal, latch an auth floor so the
+        // surface fails closed rather than opening. The operator can restore
+        // service by minting a token or setting a password; both clear it on
+        // the next reload.
+        const exposure = assessHqExposure({
+          host,
+          hasBrowserTokens: mutableAuth.browserTokens.size > 0,
+          hasPassword: mutableAuth.passwordHash !== undefined,
+          allowInsecure: options.allowInsecureOpen,
+        });
+        const previousFloor = mutableAuth.requireAuthFloor === true;
+        mutableAuth.requireAuthFloor = exposure.kind === 'refuse';
+        if (mutableAuth.requireAuthFloor && !previousFloor) {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              event: 'hq.auth.open_mode_refused',
+              message:
+                'Last HQ credential removed while bound to a non-loopback address. ' +
+                'Refusing to serve unauthenticated: requests will return 401 until a ' +
+                'token or password is configured, or HQ is restarted with --host 127.0.0.1.',
+              host,
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        }
         if (
-          options.requireBrowserAuth &&
+          (options.requireBrowserAuth || mutableAuth.requireAuthFloor) &&
           mutableAuth.browserTokens.size === 0 &&
           mutableAuth.passwordHash === undefined
         ) {

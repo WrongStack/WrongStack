@@ -4,6 +4,7 @@ import {
   DEFAULT_HQ_REDACTION_POLICY,
   hashHqPassword,
   isLoopbackHost,
+  isTokenExpired,
   mintHqCookieSecret,
   mutateHqAuthFile,
   verifyHqPassword,
@@ -42,7 +43,9 @@ export async function handleApiAuthStatus(
 ): Promise<void> {
   const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
   const openMode =
-    mutableAuth.browserTokens.size === 0 && mutableAuth.passwordHash === undefined;
+    mutableAuth.browserTokens.size === 0 &&
+    mutableAuth.passwordHash === undefined &&
+    mutableAuth.requireAuthFloor !== true;
   const localOpenMode = openMode && !requireBrowserAuth && isLoopbackRequest(req);
   const publicOrigin = trustedPublicOrigins.values().next().value;
   res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -315,7 +318,7 @@ export async function handleApiPassword(
 export function applyAuthFile(
   mutableAuth: HqRouterMutableAuth,
   next: {
-    browserTokens?: Array<{ token: string; id: string; capabilities?: string[] }>;
+    browserTokens?: Array<{ token: string; id: string; capabilities?: string[]; expiresAt?: string }>;
     clientTokens?: Array<HqToken>;
     redactionPolicy?: Partial<HqRedactionPolicy>;
     passwordHash?: string;
@@ -328,12 +331,20 @@ export function applyAuthFile(
     ...(next.redactionPolicy ?? {}),
   };
   mutableAuth.operatorPolicyOverride = next.redactionPolicy;
-  mutableAuth.browserTokens = new Set((next.browserTokens ?? []).map((t) => t.token));
+  // WS-011: reload rebuilt the live sets from the raw file without filtering
+  // expired entries and without carrying `expiresAt` forward, so an expired
+  // token was re-admitted on every reload and could never be re-checked.
+  const liveBrowserTokens = (next.browserTokens ?? []).filter((t) => !isTokenExpired(t));
+  mutableAuth.browserTokens = new Set(liveBrowserTokens.map((t) => t.token));
   mutableAuth.clientTokens = new Set((next.clientTokens ?? []).map((t) => t.token));
   mutableAuth.browserTokenObjs = new Map(
-    (next.browserTokens ?? []).map((t) => [
+    liveBrowserTokens.map((t) => [
       t.token,
-      { id: t.id, ...(t.capabilities !== undefined ? { capabilities: t.capabilities } : {}) },
+      {
+        id: t.id,
+        ...(t.capabilities !== undefined ? { capabilities: t.capabilities } : {}),
+        ...(t.expiresAt !== undefined ? { expiresAt: t.expiresAt } : {}),
+      },
     ]),
   );
   mutableAuth.clientTokenObjs = new Map(

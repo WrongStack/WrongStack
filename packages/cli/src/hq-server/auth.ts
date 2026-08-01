@@ -7,7 +7,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type * as http from 'node:http';
 import { isIP } from 'node:net';
-import { isLoopbackHost } from '@wrongstack/core/hq';
+import { isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
 import type { HqSessionEntry } from './types.js';
 
 // ── Cookie / session constants ─────────────────────────────────────────────
@@ -323,7 +323,7 @@ export function authenticateBrowserRequest(
   url: URL,
   mutableAuth: {
     browserTokens: Set<string>;
-    browserTokenObjs: Map<string, { id: string; capabilities?: string[] }>;
+    browserTokenObjs: Map<string, { id: string; capabilities?: string[]; expiresAt?: string }>;
     passwordHash?: string | undefined;
     cookieSecret?: string | undefined;
   },
@@ -334,6 +334,11 @@ export function authenticateBrowserRequest(
     const matchedToken = timingSafeTokenMatch(mutableAuth.browserTokens, token);
     if (matchedToken) {
       const obj = mutableAuth.browserTokenObjs.get(matchedToken);
+      // WS-011: expiry was only applied when the auth watcher rebuilt the live
+      // set, so between passes — and after any reload — an expired token still
+      // authenticated. `tokenHasCapability` checks expiry, but a token with no
+      // `capabilities` never reaches it. Check it here, at the boundary.
+      if (isTokenExpired(obj)) return undefined;
       const ctx: HqBrowserAuthContext = {
         kind: 'token',
         token: matchedToken,

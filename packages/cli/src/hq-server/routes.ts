@@ -543,20 +543,14 @@ async function handleApiCommand(
   trustBoundary: TrustBoundary,
 ): Promise<void> {
   const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
-  const inBrowserTokenMode = mutableAuth.browserTokens.size > 0;
+  const inBrowserTokenMode = mutableAuth.browserTokens.size > 0 || mutableAuth.requireAuthFloor === true;
   const inPasswordMode = mutableAuth.passwordHash !== undefined;
   if ((inBrowserTokenMode || inPasswordMode) && !auth) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'unauthorized' }));
     return;
   }
-  const canEnqueue = isCookieAuth(auth)
-    ? auth.tokenId === undefined ||
-      auth.capabilities === undefined ||
-      auth.capabilities.includes('control.enqueue')
-    : isTokenAuth(auth)
-      ? auth.capabilities === undefined || auth.capabilities.includes('control.enqueue')
-      : !inBrowserTokenMode;
+  const canEnqueue = callerCanEnqueue(auth, mutableAuth);
   if (!canEnqueue) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
@@ -686,13 +680,7 @@ async function handleApiMailboxSend(
     mutableAuth,
     sessions,
   );
-  const canEnqueue = isCookieAuth(auth)
-    ? auth.tokenId === undefined ||
-      auth.capabilities === undefined ||
-      auth.capabilities.includes('control.enqueue')
-    : isTokenAuth(auth)
-      ? auth.capabilities === undefined || auth.capabilities.includes('control.enqueue')
-      : mutableAuth.browserTokens.size === 0;
+  const canEnqueue = callerCanEnqueue(auth, mutableAuth);
   if (!canEnqueue) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
@@ -813,15 +801,69 @@ async function handleApiMailboxSend(
   }
 }
 
+/**
+ * Does this authenticated caller hold `control.enqueue`?
+ *
+ * WS-012: this predicate was inlined at two call sites with a subtly different
+ * unauthenticated fallback (`!inBrowserTokenMode` vs
+ * `mutableAuth.browserTokens.size === 0` — equivalent, but drifting), and a
+ * third route, `POST /api/mailbox/messages/:id/action`, skipped it entirely:
+ * its auth parameters were `_`-prefixed to mark them deliberately unused. That
+ * left mailbox mutation (mark-read, acknowledge, reopen, soft-delete, restore)
+ * reachable by any authenticated caller regardless of capability.
+ *
+ * One helper so the three cannot diverge again.
+ */
+function callerCanEnqueue(
+  auth: ReturnType<typeof authenticateBrowserRequest>,
+  mutableAuth: HqRouterMutableAuth,
+): boolean {
+  if (isCookieAuth(auth)) {
+    return (
+      auth.tokenId === undefined ||
+      auth.capabilities === undefined ||
+      auth.capabilities.includes('control.enqueue')
+    );
+  }
+  if (isTokenAuth(auth)) {
+    return auth.capabilities === undefined || auth.capabilities.includes('control.enqueue');
+  }
+  // No credential presented at all: only legitimate when HQ has no browser
+  // tokens configured (open mode), which the caller has already gated on.
+  return mutableAuth.browserTokens.size === 0;
+}
+
 async function handleMailboxAction(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
   match: RegExpMatchArray,
-  _mutableAuth: HqRouterMutableAuth,
-  _sessions: Map<string, HqSessionEntry>,
+  mutableAuth: HqRouterMutableAuth,
+  sessions: Map<string, HqSessionEntry>,
   dataDir: string,
   getMailboxGateway: (projectDir: string) => HqRouterMailboxGateway,
 ): Promise<void> {
+  // WS-012: this route mutates mailbox state (mark-read, acknowledge, reopen,
+  // soft-delete, restore) but performed no capability check at all — its auth
+  // parameters were `_`-prefixed as deliberately unused, unlike its three
+  // siblings which all gate on control.enqueue.
+  const auth = authenticateBrowserRequest(
+    _req,
+    new URL(_req.url ?? '/', 'http://localhost'),
+    mutableAuth,
+    sessions,
+  );
+  const inBrowserTokenMode = mutableAuth.browserTokens.size > 0 || mutableAuth.requireAuthFloor === true;
+  const inPasswordMode = mutableAuth.passwordHash !== undefined;
+  if ((inBrowserTokenMode || inPasswordMode) && !auth) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'unauthorized' }));
+    return;
+  }
+  if (!callerCanEnqueue(auth, mutableAuth)) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
+    return;
+  }
   const MAILBOX_ACTIONS = [
     'mark-read',
     'acknowledge',
@@ -854,7 +896,18 @@ async function handleMailboxAction(
     res.end(JSON.stringify({ error: 'unrecognized action', action: abody.action }));
     return;
   }
-  if (typeof abody.readerId !== 'string' || abody.readerId.length === 0) {
+  // WS-012: readerId is written into the mailbox as "who acknowledged this".
+  // Taking it from the request body let any caller attribute an acknowledgement
+  // to someone else. Derive it from the authenticated identity when there is
+  // one and fall back to the body only in open mode, where there is no identity
+  // to derive.
+  const authenticatedReaderId = isCookieAuth(auth)
+    ? (auth.tokenId ?? 'hq-password-session')
+    : isTokenAuth(auth)
+      ? auth.id
+      : undefined;
+  const resolvedReaderId = authenticatedReaderId ?? abody.readerId;
+  if (typeof resolvedReaderId !== 'string' || resolvedReaderId.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'missing readerId' }));
     return;
@@ -880,7 +933,7 @@ async function handleMailboxAction(
     const { actionToAckInput } = await import('@wrongstack/core/coordination');
     const projectDir = resolveProjectDir(projectRoot, actGlobalRoot);
     const mailbox = getMailboxGateway(projectDir).mailbox;
-    const readerId = abody.readerId;
+    const readerId = resolvedReaderId;
     const message =
       action === 'soft-delete'
         ? await mailbox.softDelete(mailId, readerId)

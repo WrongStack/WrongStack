@@ -102,11 +102,20 @@ export interface HqRouterMutableAuth {
   operatorPolicyOverride: Partial<HqRedactionPolicy> | undefined;
   browserTokens: Set<string>;
   clientTokens: Set<string>;
-  browserTokenObjs: Map<string, { id: string; capabilities?: string[] }>;
+  browserTokenObjs: Map<string, { id: string; capabilities?: string[]; expiresAt?: string }>;
   clientTokenObjs: Map<string, HqToken>;
   passwordHash?: string | undefined;
   cookieSecret?: string | undefined;
   alertRules: HqAlertRuleConfig | undefined;
+  /**
+   * WS-010: set when the live bind would become unauthenticated and
+   * network-reachable. `assessHqExposure` runs at startup only, so revoking the
+   * last credential on a running `wstack hq` (default bind 0.0.0.0) silently
+   * dropped it into open mode — the kill switch acted as an unlock. When this
+   * is true, routes keep demanding auth even though no credential remains, so
+   * the surface fails closed instead of opening up.
+   */
+  requireAuthFloor?: boolean | undefined;
 }
 
 /**

@@ -457,20 +457,8 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
       mutate: (b: Record<string, unknown>): void => { b['action'] = 'explode'; },
     },
     {
-      rejectContains: 'readerId',
-      mutate: (b: Record<string, unknown>): void => { delete b['readerId']; },
-    },
-    {
-      rejectContains: 'readerId',
-      mutate: (b: Record<string, unknown>): void => { b['readerId'] = ''; },
-    },
-    {
       rejectContains: 'sessionId or projectId',
       mutate: (b: Record<string, unknown>): void => { delete b['sessionId']; },
-    },
-    {
-      rejectContains: 'readerId',
-      mutate: (b: Record<string, unknown>): void => { b['readerId'] = 42; },
     },
   ])('rejects malformed action body (case: $rejectContains)', async (row) => {
     const {mailId, cleanup} = await seedMessage();
@@ -483,6 +471,31 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
       expect(err, `expected error message containing "${row.rejectContains}"`).toContain(
         row.rejectContains,
       );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  // WS-012: readerId is recorded as "who acknowledged this". It used to be
+  // taken from the request body, so any caller could attribute an
+  // acknowledgement to someone else. It is now derived from the authenticated
+  // identity, which makes the body value irrelevant rather than invalid — the
+  // three former "malformed readerId" rejection cases no longer apply.
+  it.each([
+    { label: 'absent', mutate: (b: Record<string, unknown>): void => { delete b['readerId']; } },
+    { label: 'empty', mutate: (b: Record<string, unknown>): void => { b['readerId'] = ''; } },
+    { label: 'non-string', mutate: (b: Record<string, unknown>): void => { b['readerId'] = 42; } },
+    {
+      label: 'impersonating another operator',
+      mutate: (b: Record<string, unknown>): void => { b['readerId'] = 'someone-else'; },
+    },
+  ])('ignores a body readerId when authenticated (case: $label)', async (row) => {
+    const {mailId, cleanup} = await seedMessage();
+    try {
+      const body = JSON.parse(JSON.stringify(validAction)) as Record<string, unknown>;
+      row.mutate(body);
+      const res = await postAction(mailId, body, auth());
+      expect(res.status, 'authenticated identity supplies readerId').toBe(200);
     } finally {
       await cleanup();
     }
