@@ -7,6 +7,7 @@
  * project file watcher, derived metrics, and journal queries.
  */
 
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
@@ -32,6 +33,7 @@ import {
   type ChronicleProjectServerHealth,
   type ChronicleProjectServerInfo,
   type ChronicleProjectServerMessage,
+  type ChronicleProjectServerMetadata,
   type ChronicleServerOperationName,
   type ChronicleServerOperations,
   encodeChronicleProjectServerMessage,
@@ -101,6 +103,29 @@ const metadataPath = chronicleProjectServerMetadataPath(parsed.projectDir);
 const idleInput = Number(process.env['WRONGSTACK_CHRONICLE_SERVER_IDLE_MS']);
 const idleMs = Number.isFinite(idleInput) && idleInput >= 100 ? idleInput : DEFAULT_IDLE_MS;
 const startedAt = new Date().toISOString();
+/**
+ * Per-process auth token. WS-027: this daemon owns the project's chronicle —
+ * the durable record of what every agent did — and admitted anything that
+ * could open the socket, to read it or append to it. The 0600 socket only
+ * excludes OTHER users, and on Windows it does not even do that.
+ *
+ * Deliberately NOT part of `serverInfo`: that object is the `hello` payload
+ * sent to every socket that connects, which is exactly how the SAGE daemon
+ * handed its own credential to the caller it meant to refuse (WS-028).
+ */
+const authToken = randomBytes(16).toString('hex');
+
+/**
+ * Resolves once the metadata file is on disk. The endpoint bind is the
+ * ownership election, so metadata cannot be written before listening — which
+ * would leave a window where the socket accepts connections and no client can
+ * know the token. The daemon holds `hello` until the file exists instead.
+ */
+let markMetadataWritten: (() => void) | undefined;
+const metadataWritten = new Promise<void>((resolve) => {
+  markMetadataWritten = resolve;
+});
+
 const serverInfo: ChronicleProjectServerInfo = {
   protocolVersion: CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION,
   pid: process.pid,
@@ -491,6 +516,19 @@ async function handleMessage(
   state: ClientState,
   message: ChronicleProjectServerClientMessage,
 ): Promise<void> {
+  // WS-027: prove you could read the owner-only metadata file before acting.
+  if (message.authToken !== authToken) {
+    send(state, {
+      type: 'response',
+      id: message.id,
+      ok: false,
+      error:
+        'Chronicle IPC request rejected: missing or invalid authToken. ' +
+        'Reconnect to refresh metadata (server.json#authToken).',
+      errorName: 'UnauthorizedChronicleRequest',
+    });
+    return;
+  }
   if (message.type === 'shutdown') {
     send(state, { type: 'response', id: message.id, ok: true, result: { stopped: true } });
     await stop(message.reason ?? 'client request');
@@ -563,7 +601,9 @@ function scheduleIdleStop(): void {
 async function writeMetadata(): Promise<void> {
   await fsp.mkdir(path.dirname(metadataPath), { recursive: true });
   const temporary = `${metadataPath}.${process.pid}.tmp`;
-  await fsp.writeFile(temporary, `${JSON.stringify(serverInfo, null, 2)}\n`, {
+  // The token lives ONLY in this owner-only file, never on the wire (WS-027).
+  const metadata: ChronicleProjectServerMetadata = { ...serverInfo, authToken };
+  await fsp.writeFile(temporary, `${JSON.stringify(metadata, null, 2)}\n`, {
     encoding: 'utf8',
     mode: 0o600,
   });
@@ -613,7 +653,10 @@ const server = net.createServer((socket) => {
   socket.setEncoding('utf8');
   const state: ClientState = { socket, buffer: '' };
   clients.add(state);
-  send(state, { type: 'hello', ...serverInfo });
+  // Greet only once the token is readable on disk — see `metadataWritten`.
+  void metadataWritten.then(() => {
+    if (!socket.destroyed) send(state, { type: 'hello', ...serverInfo });
+  });
   socket.on('data', (chunk: string) => onData(state, chunk));
   socket.on('close', () => {
     clients.delete(state);
@@ -662,7 +705,7 @@ server.on('listening', () => {
       // The containing 0700 directory still limits access to this user.
     }
   }
-  void writeMetadata();
+  void writeMetadata().then(() => markMetadataWritten?.());
   void startChronicleFileObserver({
     projectRoot: parsed.projectRoot,
     journal: watcherSink,

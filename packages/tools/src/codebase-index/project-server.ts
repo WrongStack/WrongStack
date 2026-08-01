@@ -8,6 +8,7 @@
  * process binds and the other candidates exit on EADDRINUSE.
  */
 
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
@@ -41,6 +42,7 @@ import {
   type ProjectIndexServerActivity,
   type ProjectIndexServerHealth,
   type ProjectIndexServerInfo,
+  type ProjectIndexServerMetadata,
   type ProjectServerClientMessage,
   type ProjectServerMessage,
 } from './project-server-protocol.js';
@@ -112,6 +114,30 @@ const clientLeaseMs =
     : DEFAULT_CLIENT_LEASE_MS;
 const clientLeaseSweepMs = Math.min(10_000, Math.max(100, Math.floor(clientLeaseMs / 3)));
 const startedAt = new Date().toISOString();
+/**
+ * Per-process auth token. WS-027: this daemon reads every file in the
+ * repository and answers content queries over the resulting index, and it
+ * admitted anything that could open the socket. The 0600 socket only excludes
+ * OTHER users, and on Windows it does not even do that — so "any process
+ * running as you can search your whole codebase" was the boundary.
+ *
+ * Deliberately NOT part of `serverInfo`: that object is the `hello` payload
+ * sent to every socket that connects, which is exactly how the SAGE daemon
+ * handed its own credential to the caller it meant to refuse (WS-028).
+ */
+const authToken = randomBytes(16).toString('hex');
+
+/**
+ * Resolves once the metadata file is on disk. The endpoint bind is the
+ * ownership election, so metadata cannot be written before listening — which
+ * would leave a window where the socket accepts connections and no client can
+ * know the token. The daemon holds `hello` until the file exists instead.
+ */
+let markMetadataWritten: (() => void) | undefined;
+const metadataWritten = new Promise<void>((resolve) => {
+  markMetadataWritten = resolve;
+});
+
 const serverInfo: ProjectIndexServerInfo = {
   protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   buildId: projectIndexServerBuildId(import.meta.url),
@@ -419,8 +445,23 @@ async function handleMessage(
   state: ClientState,
   message: ProjectServerClientMessage,
 ): Promise<void> {
+  // `cancel` is ungated: it reaches only this connection's own in-flight
+  // request, so there is nothing to escalate.
   if (message.type === 'cancel') {
     state.cancel.get(message.id)?.();
+    return;
+  }
+  // WS-027: prove you could read the owner-only metadata file before acting.
+  if (message.authToken !== authToken) {
+    send(state, {
+      type: 'response',
+      id: message.id,
+      ok: false,
+      error:
+        'Codebase-index IPC request rejected: missing or invalid authToken. ' +
+        'Reconnect to refresh metadata (server.json#authToken).',
+      errorName: 'UnauthorizedIndexRequest',
+    });
     return;
   }
   if (message.type === 'ping') {
@@ -631,7 +672,9 @@ function removeMetadataIfOwned(): void {
 function writeMetadata(): void {
   fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
   const temporary = `${metadataPath}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, `${JSON.stringify(serverInfo, null, 2)}\n`, { mode: 0o600 });
+  // The token lives ONLY in this owner-only file, never on the wire (WS-027).
+  const metadata: ProjectIndexServerMetadata = { ...serverInfo, authToken };
+  fs.writeFileSync(temporary, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
   try {
     fs.renameSync(temporary, metadataPath);
   } catch {
@@ -658,8 +701,12 @@ const server = net.createServer((socket) => {
     lastSeenAt: Date.now(),
   };
   clients.add(state);
-  send(state, { type: 'hello', ...serverInfo });
-  send(state, { type: 'index-state', state: indexActivity });
+  // Greet only once the token is readable on disk — see `metadataWritten`.
+  void metadataWritten.then(() => {
+    if (socket.destroyed) return;
+    send(state, { type: 'hello', ...serverInfo });
+    send(state, { type: 'index-state', state: indexActivity });
+  });
   socket.on('data', (chunk: string) => consume(state, chunk));
   socket.on('close', () => {
     for (const cancel of state.cancel.values()) cancel();
@@ -737,6 +784,7 @@ server.listen(endpoint, () => {
     }
   }
   writeMetadata();
+  markMetadataWritten?.();
   scheduleIdleStop();
 });
 

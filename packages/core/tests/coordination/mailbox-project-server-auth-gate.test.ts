@@ -16,6 +16,7 @@
  * Driven over the real socket, because the finding is about what crosses it.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -28,9 +29,15 @@ import {
 } from '../../src/coordination/mailbox-project-server-endpoint.js';
 import type { MailboxProjectServerMetadata } from '../../src/coordination/mailbox-project-server-protocol.js';
 
+// This drives a real daemon over its real socket, so it needs the built
+// `dist/` entry points. `dist/` is gitignored and the CI test job runs from
+// source with no build step, so — like the repo's other dist-dependent daemon
+// tests — the suite skips unless the artifacts exist.
 const SERVER_ENTRY = fileURLToPath(
   new URL('../../dist/coordination/mailbox-project-server.js', import.meta.url),
 );
+const CORE_INDEX = fileURLToPath(new URL('../../dist/coordination/index.js', import.meta.url));
+const distReady = existsSync(SERVER_ENTRY) && existsSync(CORE_INDEX);
 
 let projectDir: string;
 let child: ChildProcess | undefined;
@@ -111,7 +118,7 @@ afterEach(async () => {
   await rm(projectDir, { recursive: true, force: true }).catch(() => undefined);
 });
 
-describe('mailbox project daemon auth gate (WS-027)', () => {
+describe.skipIf(!distReady)('mailbox project daemon auth gate (WS-027)', () => {
   it('greets without a secret and refuses a peer that did not read the metadata file', async () => {
     child = spawn(process.execPath, [SERVER_ENTRY, '--project-dir', projectDir], {
       stdio: 'ignore',
@@ -198,6 +205,49 @@ describe('mailbox project daemon auth gate (WS-027)', () => {
       expect(status.pid).toBeGreaterThan(0);
     } finally {
       await connection.shutdown('test-teardown').catch(() => undefined);
+      connection.close();
+    }
+  }, 45_000);
+
+  it('invalidates a stale cached token on refusal and recovers by re-reading the metadata', async () => {
+    // The WS-027 race the bounded retry exists to absorb: the client holds a
+    // token the daemon no longer accepts (a restarted daemon mints a new one;
+    // a crashed predecessor's `.mailbox-server.json` can be read before the
+    // winner overwrites it). Without invalidate-on-refusal + bounded retry,
+    // every request on that connection is refused forever.
+    child = spawn(process.execPath, [SERVER_ENTRY, '--project-dir', projectDir], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    const metadata = await waitFor(async () => {
+      try {
+        return JSON.parse(
+          await readFile(mailboxProjectServerMetadataPath(projectDir), 'utf8'),
+        ) as MailboxProjectServerMetadata;
+      } catch {
+        return undefined;
+      }
+    });
+    expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
+
+    const { MailboxProjectServerConnection } = (await import(
+      fileURLToPath(new URL('../../dist/coordination/index.js', import.meta.url))
+    )) as typeof import('../../src/coordination/index.js');
+    const connection = new MailboxProjectServerConnection(projectDir);
+    try {
+      await connection.connect();
+      expect((await connection.call('ping', {})).pid).toBeGreaterThan(0);
+
+      // Force the sticky-stale-token state: the cached token no longer matches
+      // the daemon's. The next request is refused with
+      // `UnauthorizedMailboxRequest`; `onMessage` drops the cache and the
+      // bounded retry re-reads the owner-only file (still the real token) and
+      // succeeds on the same connection.
+      (connection as unknown as { authToken: string | undefined }).authToken = 'f'.repeat(32);
+      const recovered = await connection.call('ping', {});
+      expect(recovered.pid).toBeGreaterThan(0);
+    } finally {
+      await connection.shutdown('stale-token-teardown').catch(() => undefined);
       connection.close();
     }
   }, 45_000);

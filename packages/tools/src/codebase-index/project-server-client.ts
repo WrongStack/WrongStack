@@ -282,6 +282,8 @@ class ProjectServerConnection {
   private connectResolve: (() => void) | null = null;
   private connectReject: ((error: unknown) => void) | null = null;
   private nextId = 1;
+  /** WS-027: read from the owner-only metadata file — see currentAuthToken. */
+  private authToken: string | undefined;
   private readonly pending = new Map<number, PendingRequest>();
 
   constructor(
@@ -463,6 +465,35 @@ class ProjectServerConnection {
     maybeStopHeartbeatLoop();
   }
 
+  /**
+   * WS-027: the per-process token, read from the daemon's owner-only metadata
+   * file — never from the `hello` frame, which the daemon sends to every
+   * socket that connects (the mistake WS-028 found in the SAGE daemon).
+   *
+   * Read lazily and re-read while unknown: the daemon starts listening before
+   * it writes metadata (endpoint ownership has to be won first), and a
+   * respawned daemon mints a new token, so a cached wrong one would be sticky.
+   */
+  private currentAuthToken(): string | undefined {
+    if (this.authToken === undefined) {
+      try {
+        const raw = fs.readFileSync(
+          projectIndexServerMetadataPath(this.projectRoot, this.indexDir),
+          'utf8',
+        );
+        const parsed = JSON.parse(raw) as { authToken?: unknown };
+        if (typeof parsed.authToken === 'string' && parsed.authToken.length > 0) {
+          this.authToken = parsed.authToken;
+        }
+      } catch {
+        // Left undefined; the daemon answers with a clear
+        // `UnauthorizedIndexRequest`, which beats a connect that silently
+        // succeeds and then fails every call.
+      }
+    }
+    return this.authToken;
+  }
+
   private request<T>(
     message:
       | { type: 'request'; op: OpName; args: OpShapes[OpName]['args'] }
@@ -521,7 +552,7 @@ class ProjectServerConnection {
           return;
         }
       }
-      this.write({ ...message, id });
+      this.write({ ...message, id, authToken: this.currentAuthToken() });
     });
   }
 
@@ -574,6 +605,9 @@ class ProjectServerConnection {
   private connectOnce(): Promise<void> {
     this.socket?.destroy();
     this.socket = null;
+    // A respawned daemon mints a new token; a cached one authenticates
+    // nothing. Drop it and re-read on first use.
+    this.authToken = undefined;
     this.info = null;
     this.activity = null;
     this.health = null;

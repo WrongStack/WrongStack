@@ -13,6 +13,10 @@ import type { ChronicleEvent, ChronicleEventInput } from './types.js';
 export const CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION = 2;
 export const CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS = 64 * 1024 * 1024;
 
+/**
+ * What the daemon tells a connecting client about itself. Carries NO secret —
+ * see {@link ChronicleProjectServerMetadata}.
+ */
 export interface ChronicleProjectServerInfo {
   protocolVersion: number;
   pid: number;
@@ -117,14 +121,37 @@ export interface ChronicleServerOperations {
 
 export type ChronicleServerOperationName = keyof ChronicleServerOperations;
 
+/**
+ * The daemon's on-disk metadata file, written 0600. The auth token exists here
+ * and nowhere else — never in the `hello` frame, which the daemon sends to
+ * every socket that connects (the mistake WS-028 found in the SAGE daemon).
+ */
+export interface ChronicleProjectServerMetadata extends ChronicleProjectServerInfo {
+  authToken: string;
+}
+
 export type ChronicleProjectServerClientMessage =
   | {
       type: 'request';
       id: number;
       op: ChronicleServerOperationName;
       args: unknown;
+      /**
+       * WS-027: this daemon owns the project's chronicle — the durable record
+       * of what every agent did — and it had no handshake credential at all.
+       * Any process that could open the socket could read that history or
+       * append to it. The token comes from the daemon's owner-only metadata
+       * file, so a caller must prove same-user access before it may act.
+       */
+      authToken?: string | undefined;
     }
-  | { type: 'shutdown'; id: number; reason?: string | undefined };
+  | {
+      type: 'shutdown';
+      id: number;
+      reason?: string | undefined;
+      /** Gated for the same reason — this stops the daemon for every client. */
+      authToken?: string | undefined;
+    };
 
 export type ChronicleProjectServerMessage =
   | ({ type: 'hello' } & ChronicleProjectServerInfo)

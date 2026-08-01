@@ -4,7 +4,10 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ChronicleJournalStats } from './journal.js';
-import { chronicleProjectServerEndpoint } from './project-server-endpoint.js';
+import {
+  chronicleProjectServerEndpoint,
+  chronicleProjectServerMetadataPath,
+} from './project-server-endpoint.js';
 import {
   CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS,
   CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION,
@@ -132,6 +135,8 @@ export class ChronicleProjectServerClient {
   private connectResolve: (() => void) | null = null;
   private connectReject: ((error: unknown) => void) | null = null;
   private nextId = 1;
+  /** WS-027: read from the owner-only metadata file — see currentAuthToken. */
+  private authToken: string | undefined;
   private readonly pending = new Map<number, PendingRequest>();
 
   constructor(readonly options: ChronicleProjectServerClientOptions) {
@@ -230,6 +235,9 @@ export class ChronicleProjectServerClient {
   private connectOnce(): Promise<void> {
     this.socket?.destroy();
     this.socket = null;
+    // A respawned daemon mints a new token; a cached one authenticates
+    // nothing. Drop it and re-read on first use.
+    this.authToken = undefined;
     this.info = null;
     this.buffer = '';
     return new Promise<void>((resolve, reject) => {
@@ -261,6 +269,35 @@ export class ChronicleProjectServerClient {
     });
   }
 
+  /**
+   * WS-027: the per-process token, read from the daemon's owner-only metadata
+   * file — never from the `hello` frame, which the daemon sends to every
+   * socket that connects (the mistake WS-028 found in the SAGE daemon).
+   *
+   * Read lazily and re-read while unknown: the daemon starts listening before
+   * it writes metadata (endpoint ownership has to be won first), and a
+   * respawned daemon mints a new token, so a cached wrong one would be sticky.
+   */
+  private currentAuthToken(): string | undefined {
+    if (this.authToken === undefined) {
+      try {
+        const raw = fs.readFileSync(
+          chronicleProjectServerMetadataPath(this.options.projectDir),
+          'utf8',
+        );
+        const parsed = JSON.parse(raw) as { authToken?: unknown };
+        if (typeof parsed.authToken === 'string' && parsed.authToken.length > 0) {
+          this.authToken = parsed.authToken;
+        }
+      } catch {
+        // Left undefined; the daemon answers with a clear
+        // `UnauthorizedChronicleRequest`, which beats a connect that silently
+        // succeeds and then fails every call.
+      }
+    }
+    return this.authToken;
+  }
+
   private request<T>(
     message:
       | { type: 'request'; op: ChronicleServerOperationName; args: unknown }
@@ -272,7 +309,11 @@ export class ChronicleProjectServerClient {
       return Promise.reject(new Error('Chronicle project server connection is unavailable'));
     }
     const id = this.nextId++;
-    const encoded = encodeChronicleProjectServerMessage({ ...message, id });
+    const encoded = encodeChronicleProjectServerMessage({
+      ...message,
+      id,
+      authToken: this.currentAuthToken(),
+    });
     if (encoded.length > CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS) {
       return Promise.reject(new Error('Chronicle project server request exceeded frame limit'));
     }

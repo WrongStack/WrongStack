@@ -11,6 +11,7 @@
  * Driven over the real socket, because the finding is about what crosses it.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -19,7 +20,14 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanProjectServerEndpoint } from '../src/server/endpoint.js';
 
+// This drives a real daemon over its real socket, so it needs the built
+// `dist/` entry point. `dist/` is gitignored and the CI test job runs from
+// source with no build step, so — like the repo's other dist-dependent daemon
+// tests — the suite skips unless the artifact exists. The daemon also imports
+// `@wrongstack/core/*`, whose package `exports` resolve to `core/dist/*`.
 const SERVER_ENTRY = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
+const CORE_INDEX = fileURLToPath(new URL('../../core/dist/index.js', import.meta.url));
+const distReady = existsSync(SERVER_ENTRY) && existsSync(CORE_INDEX);
 
 let root: string;
 let child: ChildProcess | undefined;
@@ -95,7 +103,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true }).catch(() => undefined);
 });
 
-describe('kanban project daemon auth gate (WS-027)', () => {
+describe.skipIf(!distReady)('kanban project daemon auth gate (WS-027)', () => {
   it('refuses board operations from a peer that did not read the metadata file', async () => {
     child = spawnDaemon(root);
 
