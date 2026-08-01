@@ -10,6 +10,13 @@ vi.mock('../src/lib/chime.js', () => ({
   playChime: vi.fn(),
 }));
 
+// React 19's `act()` is a no-op unless the test environment opts in. Without
+// this flag every `act()` call logs "The current testing environment is not
+// configured to support act(...)" and store mutations are not flushed through
+// React — the assertions would pass only via synchronous store/notices reads.
+// Sibling harnesses (webui-hq/tui hook tests) set the same flag at file top.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -180,15 +187,43 @@ describe('useSimpleMailbox.applyMailboxMessage — store acceptance', () => {
         agents: [{ agentId: 'a-1', name: 'Agent 1', status: 'idle', online: true }],
       },
     };
-    expect(captured.current?.applyMailboxMessage(messagesFrame)).toBe(true);
-    expect(captured.current?.applyMailboxMessage(agentsFrame)).toBe(true);
+    // Store mutations must run inside act() so React 19 flushes the
+    // useSyncExternalStore re-render (IS_REACT_ACT_ENVIRONMENT is set above).
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(messagesFrame)).toBe(true);
+      expect(captured.current?.applyMailboxMessage(agentsFrame)).toBe(true);
+    });
 
     const snap = captured.current?.mailboxStore.getSnapshot();
     expect(snap?.messages).toHaveLength(1);
     expect(snap?.messages[0]?.id).toBe('m-1');
     expect(snap?.agents).toHaveLength(1);
     expect(snap?.agents[0]?.agentId).toBe('a-1');
-    expect(captured.current?.mailboxUnreadCount).toBeGreaterThanOrEqual(0);
+
+    // unreadCount is only projected from an `unreadOnly: true` frame — pin it
+    // to a real value instead of a vacuous >= 0 check.
+    const unreadFrame: ServerMessage = {
+      type: 'mailbox.messages',
+      payload: {
+        unreadOnly: true,
+        messages: [
+          {
+            id: 'm-1',
+            from: 'remote',
+            to: 'me',
+            type: 'note',
+            subject: 'hi',
+            body: 'hello',
+            priority: 'normal',
+            completed: false,
+          },
+        ],
+      },
+    };
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(unreadFrame)).toBe(true);
+    });
+    expect(captured.current?.mailboxUnreadCount).toBe(1);
 
     roots.push(root);
   });
@@ -200,12 +235,15 @@ describe('useSimpleMailbox.applyMailboxMessage — store acceptance', () => {
     const root = renderProbeWithSocket(captured, prefsRef, socket);
 
     const nonMailbox: ServerMessage = {
-      type: 'session.start',
+      type: 'provider.text_delta',
       payload: { sessionId: 's-1' },
     };
     const beforeSnap = captured.current?.mailboxStore.getSnapshot();
     const beforeNotices = captured.notices.length;
-    const accepted = captured.current?.applyMailboxMessage(nonMailbox);
+    let accepted: boolean | undefined;
+    act(() => {
+      accepted = captured.current?.applyMailboxMessage(nonMailbox);
+    });
     expect(accepted).toBe(false);
     // Snapshot unchanged: still the empty initial state.
     const afterSnap = captured.current?.mailboxStore.getSnapshot();
@@ -232,7 +270,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
     // mailbox.received is a notice-only type: the store returns false and
     // the parent falls through to handleServerMessage. We pin the
     // side-effects (notice + chime) instead.
-    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    });
     // The chime is suppressed when the mailbox panel is closed; with the
     // initial state `mailboxOpen === false` it must play.
     expect(playChimeSpy).toHaveBeenCalledTimes(1);
@@ -255,7 +295,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'simpleui' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    });
     expect(playChimeSpy).not.toHaveBeenCalled();
     // Self-messages are fully silent: no notice either.
     expect(captured.notices.find((n) => asNotice(n).text === 'New email received')).toBeUndefined();
@@ -279,7 +321,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'colleague' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    });
     expect(playChimeSpy).not.toHaveBeenCalled();
 
     roots.push(root);
@@ -295,7 +339,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'colleague' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(received)).toBe(false);
+    });
     expect(playChimeSpy).not.toHaveBeenCalled();
 
     roots.push(root);
@@ -318,7 +364,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.sent', () => {
       },
     };
     // mailbox.sent is notice-only: store returns false, parent falls through.
-    expect(captured.current?.applyMailboxMessage(failure)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(failure)).toBe(false);
+    });
     // The notice text carries the server-supplied error string.
     const failed = captured.notices
       .map(asNotice)
@@ -340,7 +388,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.sent', () => {
       type: 'mailbox.sent',
       payload: { success: true, requestId: 'unmatched' },
     };
-    expect(captured.current?.applyMailboxMessage(silentSuccess)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(silentSuccess)).toBe(false);
+    });
     expect(captured.notices.find((n) => asNotice(n).text === 'Email sent')).toBeUndefined();
 
     // Now drive a real send through the hook, capture the request id, and
@@ -365,7 +415,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.sent', () => {
       type: 'mailbox.sent',
       payload: { success: true, requestId },
     };
-    expect(captured.current?.applyMailboxMessage(echoedSuccess)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(echoedSuccess)).toBe(false);
+    });
     const ok = captured.notices.map(asNotice).find((n) => n.text === 'Email sent');
     expect(ok?.tone).toBe('info');
 
@@ -395,7 +447,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.action_result', () =>
     };
     // mailbox.action_result is notice-only: store returns false, parent falls
     // through.
-    expect(captured.current?.applyMailboxMessage(echoed)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(echoed)).toBe(false);
+    });
     const ok = captured.notices.map(asNotice).find((n) => n.text === 'Email action completed');
     expect(ok?.tone).toBe('info');
 
@@ -422,7 +476,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.action_result', () =>
       type: 'mailbox.action_result',
       payload: { success: false, requestId, error: 'already deleted' },
     };
-    expect(captured.current?.applyMailboxMessage(failure)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(failure)).toBe(false);
+    });
     const failed = captured.notices
       .map(asNotice)
       .find((n) => n.text === 'Email action failed: already deleted');
@@ -445,7 +501,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.action_result', () =>
       type: 'mailbox.action_result',
       payload: { success: true, requestId: 'unmatched' },
     };
-    expect(captured.current?.applyMailboxMessage(successUnmatched)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(successUnmatched)).toBe(false);
+    });
     expect(
       captured.notices.find((n) => asNotice(n).text === 'Email action completed'),
     ).toBeUndefined();
@@ -454,7 +512,9 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.action_result', () =>
       type: 'mailbox.action_result',
       payload: { success: false, requestId: 'unmatched', error: 'n/a' },
     };
-    expect(captured.current?.applyMailboxMessage(failureUnmatched)).toBe(false);
+    act(() => {
+      expect(captured.current?.applyMailboxMessage(failureUnmatched)).toBe(false);
+    });
     expect(
       captured.notices.find((n) => asNotice(n).text.startsWith('Email action')),
     ).toBeUndefined();

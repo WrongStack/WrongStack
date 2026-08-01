@@ -251,8 +251,8 @@
       "relativeImports": 15
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1083,
-      "relativeImports": 50
+      "lines": 976,
+      "relativeImports": 52
     },
     "packages/telegram/src/bot.ts": {
       "lines": 821,

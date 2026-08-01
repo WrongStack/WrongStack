@@ -13,9 +13,11 @@ import { useAgentRoster } from './hooks/use-agent-roster.js';
 import { useComposerActions } from './hooks/use-composer-actions.js';
 import { useF5Resilience } from './hooks/use-f5-resilience.js';
 import { useFileMention } from './hooks/use-file-mention.js';
+import { useGlobalShortcuts } from './hooks/use-global-shortcuts.js';
 import { useImageAttachments } from './hooks/use-image-attachments.js';
 import { useModelCatalog } from './hooks/use-model-catalog.js';
 import { useServerOutage } from './hooks/use-server-outage.js';
+import { useSettings } from './hooks/use-settings.js';
 import { useSimpleMailbox } from './hooks/use-simple-mailbox.js';
 import { useSimpleSessionState } from './hooks/use-simple-session-state.js';
 import { useSimpleSocket } from './hooks/use-simple-socket.js';
@@ -33,9 +35,8 @@ import { removeFileMention } from './lib/file-mention.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
-import { type AutonomyMode, DEFAULT_PREFS, type SimplePrefs } from './lib/prefs-model.js';
 import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
-import { type RefineState, resolveEscapeRestore } from './lib/refine-model.js';
+import type { RefineState } from './lib/refine-model.js';
 import {
   compactTokens,
   isIncomingMailboxPayload,
@@ -83,8 +84,6 @@ export function SimpleUiSession() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [modes, setModes] = useState<AgentMode[]>([]);
   const [activeModeId, setActiveModeId] = useState('default');
-  const [prefs, setPrefs] = useState<SimplePrefs>(DEFAULT_PREFS);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [refineState, setRefineState] = useState<RefineState | null>(null);
@@ -111,6 +110,16 @@ export function SimpleUiSession() {
     updateTaskStatus,
     updatePlanStatus,
   } = useWorklists({ socketRef, sessionIdRef });
+  const {
+    prefs,
+    setPrefs,
+    prefsRef,
+    settingsOpen,
+    setSettingsOpen,
+    settingsOpenRef,
+    updatePrefs,
+    switchAutonomy,
+  } = useSettings({ socketRef });
   const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
   /** Provider ids already asked for their model list — catalog + saved overlap. */
   const requestedModelsRef = useRef<Set<string>>(new Set());
@@ -141,24 +150,20 @@ export function SimpleUiSession() {
    *  (leaking a duplicate `model.refine` on the next unrelated refineState
    *  change). Reset at the start of every countdown round by startSend. */
   const refineStartFiredRef = useRef(false);
-  const prefsRef = useRef<SimplePrefs>(DEFAULT_PREFS);
   const queueRef = useRef<QueuedItem[]>([]);
   const attachedImagesRef = useRef<{ data: string; mime: string; name: string; id: string }[]>([]);
   draftRef.current = draft;
   fileRefsRef.current = fileRefs;
   runningRef.current = running;
   refineStateRef.current = refineState;
-  prefsRef.current = prefs;
   queueRef.current = queue;
 
   // Refs for the global keyboard shortcut handler — read live state
   // without re-registering the keydown listener on every render.
   const messagesRef = useRef<ChatMessage[]>([]);
   const diffFilesRef = useRef<FileEditMeta[] | null>(null);
-  const settingsOpenRef = useRef(false);
   messagesRef.current = messages;
   diffFilesRef.current = diffFiles;
-  settingsOpenRef.current = settingsOpen;
   const {
     mailboxStore,
     mailboxOpen,
@@ -315,113 +320,6 @@ export function SimpleUiSession() {
     }
   }, [refineState]);
 
-  // ── Global keyboard shortcuts ──────────────────────────────────
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      // ── Escape: close the topmost open panel ──
-      if (event.key === 'Escape') {
-        if (diffFilesRef.current) {
-          event.preventDefault();
-          setDiffFiles(null);
-          return;
-        }
-        if (settingsOpenRef.current) {
-          event.preventDefault();
-          setSettingsOpen(false);
-          return;
-        }
-        if (mailboxOpenRef.current) {
-          event.preventDefault();
-          setMailboxOpen(false);
-          return;
-        }
-        if (refineStateRef.current) {
-          event.preventDefault();
-          // Don't drop the user's text or images — the composer was cleared
-          // when the send started (submitWith flushes draft+fileRefs+images),
-          // so hand the original back for another edit pass.
-          // Guard: never clobber text the user typed after the panel opened
-          // (resolveEscapeRestore returns null in that case).
-          const images = refineStateRef.current.images;
-          // Bump the epoch so any in-flight model.refine result that
-          // arrives after Escape (e.g., a slow 180s refineRetryFallback
-          // window) is recognised as stale and dropped by the handler
-          // — the wire protocol carries no request id, so a slow orphan
-          // could otherwise match by epoch coincidence and corrupt a
-          // later send.
-          refineEpochRef.current++;
-          refineStartFiredRef.current = false;
-          const restore = resolveEscapeRestore(refineStateRef.current, draftRef.current);
-          // Null the ref synchronously so a same-tick startSend flush or
-          // panel decision cannot observe the dismissed state and dispatch.
-          refineStateRef.current = null;
-          setRefineState(null);
-          if (restore !== null) {
-            setDraft(restore);
-            draftRef.current = restore;
-          }
-          // Restore attached images that were part of the original send.
-          // Without this, a re-submit silently drops the images because
-          // submitWith clears them before startSend.
-          if (images && images.length > 0) {
-            setAttachedImages(
-              images.map((img, i) => ({
-                id: `restored-${Date.now()}-${i}`,
-                name: `restored-${i}`,
-                data: img.data,
-                mime: img.mime,
-              })),
-            );
-          }
-          requestAnimationFrame(() => textareaRef.current?.focus());
-          return;
-        }
-        return;
-      }
-
-      // ── Ctrl/Cmd+K: open command palette ──
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setCommandPaletteOpen(true);
-        return;
-      }
-
-      // ── Ctrl/Cmd+Enter: send the composer ──
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-        if (!runningRef.current && draftRef.current.trim()) {
-          event.preventDefault();
-          startSend(draftRef.current);
-        }
-        return;
-      }
-
-      // ── ArrowUp: recall last sent message into empty composer ──
-      if (
-        event.key === 'ArrowUp' &&
-        document.activeElement === textareaRef.current &&
-        !draftRef.current.trim() &&
-        !runningRef.current
-      ) {
-        event.preventDefault();
-        const lastUser = [...messagesRef.current].reverse().find((m) => m.role === 'user');
-        if (lastUser) {
-          setDraft(lastUser.text);
-          // Move cursor to end on next frame so the textarea has updated.
-          requestAnimationFrame(() => {
-            const ta = textareaRef.current;
-            if (ta) {
-              ta.selectionStart = ta.value.length;
-              ta.selectionEnd = ta.value.length;
-            }
-          });
-        }
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [startSend]);
-
   // F5 / tab-close resilience: exit confirmation + draft flush.
   useF5Resilience({
     confirmExitRef: prefsRef,
@@ -431,21 +329,6 @@ export function SimpleUiSession() {
     fileRefsRef,
     writeComposerDraft,
   });
-
-  // Global keyboard shortcuts
-  useEffect(() => {
-    const handleGlobalKey = (event: KeyboardEvent) => {
-      if (event.key === 'l' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
-        event.preventDefault();
-        if (!runningRef.current && sessionIdRef.current) {
-          socketRef.current?.send('session.new', { sessionId: sessionIdRef.current });
-        }
-        return;
-      }
-    };
-    document.addEventListener('keydown', handleGlobalKey);
-    return () => document.removeEventListener('keydown', handleGlobalKey);
-  }, []);
 
   useEffect(() => {
     if (!copiedMessageId) return;
@@ -501,6 +384,29 @@ export function SimpleUiSession() {
 
   const { attachedImages, attachImages, removeImage, setAttachedImages } = useImageAttachments();
   attachedImagesRef.current = attachedImages;
+
+  useGlobalShortcuts({
+    socketRef,
+    sessionIdRef,
+    diffFilesRef,
+    setDiffFiles,
+    settingsOpenRef,
+    setSettingsOpen,
+    mailboxOpenRef,
+    setMailboxOpen,
+    refineStateRef,
+    setRefineState,
+    refineEpochRef,
+    refineStartFiredRef,
+    draftRef,
+    setDraft,
+    setAttachedImages,
+    textareaRef,
+    setCommandPaletteOpen,
+    runningRef,
+    startSend,
+    messagesRef,
+  });
 
   const {
     scrollRef,
@@ -695,22 +601,9 @@ export function SimpleUiSession() {
     socketRef.current?.send('session.resume', { sessionId: sessionIdRef.current, id });
   };
 
-  const updatePrefs = (patch: Partial<SimplePrefs>) => {
-    const nextPatch = patch.enhanceEnabled ? { enhanceLanguage: 'english', ...patch } : patch;
-    setPrefs((current) => ({ ...current, ...patch }));
-    socketRef.current?.send('prefs.update', nextPatch as Record<string, unknown>);
-  };
-
   useEffect(() => {
     if (connection === 'open') refreshMailbox();
   }, [connection, refreshMailbox]);
-
-  const switchAutonomy = (mode: AutonomyMode) => {
-    setPrefs((current) => ({ ...current, autonomy: mode }));
-    // Autonomy has its own route: prefs.update only writes meta, which the
-    // running loop never reads.
-    socketRef.current?.send('autonomy.switch', { mode });
-  };
 
   const switchMode = (id: string) => {
     setActiveModeId(id);
