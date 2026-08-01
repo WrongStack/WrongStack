@@ -7,7 +7,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type * as http from 'node:http';
 import { isIP } from 'node:net';
-import { isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
+import { hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
 import type { HqSessionEntry } from './types.js';
 
 // ── Cookie / session constants ─────────────────────────────────────────────
@@ -310,7 +310,11 @@ function extractBrowserToken(req: http.IncomingMessage, url: URL): string | unde
  */
 export function timingSafeTokenMatch(tokens: Set<string>, supplied: string): string | undefined {
   if (!supplied) return undefined;
-  const b = Buffer.from(supplied);
+  // WS-044: `tokens` holds verifiers (`sha256(secret)`), not secrets, so the
+  // presented secret is hashed before it is compared. Every entry is then the
+  // same 64 bytes, which as a side effect removes the length signal the
+  // constant-time loop below could not hide.
+  const b = Buffer.from(hqTokenVerifier(supplied));
   for (const candidate of tokens) {
     const a = Buffer.from(candidate);
     if (a.length === b.length && timingSafeEqual(a, b)) return candidate;

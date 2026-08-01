@@ -2,15 +2,16 @@ import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
 import {
   DEFAULT_HQ_REDACTION_POLICY,
+  type HqAlertRuleConfig,
+  type HqRedactionPolicy,
+  type HqToken,
   hashHqPassword,
+  hqTokenKey,
   isLoopbackHost,
   isTokenExpired,
   mintHqCookieSecret,
   mutateHqAuthFile,
   verifyHqPassword,
-  type HqAlertRuleConfig,
-  type HqRedactionPolicy,
-  type HqToken,
 } from '@wrongstack/core/hq';
 import {
   authenticateBrowserRequest,
@@ -57,14 +58,13 @@ export async function handleApiAuthStatus(
       ...(publicOrigin !== undefined ? { publicOrigin } : {}),
       secureCookies: secureCookies === true,
       loggedIn: auth !== undefined || localOpenMode,
-      authKind:
-        isCookieAuth(auth)
-          ? 'password'
-          : isTokenAuth(auth)
-            ? 'token'
-            : localOpenMode
-              ? 'open'
-              : undefined,
+      authKind: isCookieAuth(auth)
+        ? 'password'
+        : isTokenAuth(auth)
+          ? 'token'
+          : localOpenMode
+            ? 'open'
+            : undefined,
     }),
   );
 }
@@ -119,9 +119,7 @@ export async function handleApiLogin(
 
   if (typeof body.password !== 'string' || body.password.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'password is required' } }),
-    );
+    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'password is required' } }));
     return;
   }
 
@@ -136,9 +134,7 @@ export async function handleApiLogin(
       lastAttempt: Date.now(),
     });
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'INVALID_PASSWORD', message: 'Invalid password.' } }),
-    );
+    res.end(JSON.stringify({ error: { code: 'INVALID_PASSWORD', message: 'Invalid password.' } }));
     return;
   }
 
@@ -219,18 +215,13 @@ export async function handleApiPassword(
     body = JSON.parse(await readRequestBody(req)) as typeof body;
   } catch {
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }),
-    );
+    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }));
     return;
   }
 
   if (isCookieAuth(auth) && mutableAuth.passwordHash !== undefined) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
-    if (
-      !currentPassword ||
-      !(await verifyHqPassword(currentPassword, mutableAuth.passwordHash))
-    ) {
+    if (!currentPassword || !(await verifyHqPassword(currentPassword, mutableAuth.passwordHash))) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
@@ -280,7 +271,10 @@ export async function handleApiPassword(
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
-        error: { code: 'INVALID_PASSWORD', message: 'New password must be between 8 and 1024 characters.' },
+        error: {
+          code: 'INVALID_PASSWORD',
+          message: 'New password must be between 8 and 1024 characters.',
+        },
       }),
     );
     return;
@@ -299,11 +293,7 @@ export async function handleApiPassword(
   if (isCookieAuth(auth) || localOpenBootstrap) {
     const sessionId = randomUUID();
     sessions.set(sessionId, { createdAt: Date.now(), kind: 'password' });
-    setHqSessionCookie(
-      res,
-      serializeHqSessionCookie(sessionId, cookieSecret),
-      secureCookies,
-    );
+    setHqSessionCookie(res, serializeHqSessionCookie(sessionId, cookieSecret), secureCookies);
   }
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(
@@ -318,7 +308,12 @@ export async function handleApiPassword(
 export function applyAuthFile(
   mutableAuth: HqRouterMutableAuth,
   next: {
-    browserTokens?: Array<{ token: string; id: string; capabilities?: string[]; expiresAt?: string }>;
+    browserTokens?: Array<{
+      token: string;
+      id: string;
+      capabilities?: string[];
+      expiresAt?: string;
+    }>;
     clientTokens?: Array<HqToken>;
     redactionPolicy?: Partial<HqRedactionPolicy>;
     passwordHash?: string;
@@ -335,11 +330,13 @@ export function applyAuthFile(
   // expired entries and without carrying `expiresAt` forward, so an expired
   // token was re-admitted on every reload and could never be re-checked.
   const liveBrowserTokens = (next.browserTokens ?? []).filter((t) => !isTokenExpired(t));
-  mutableAuth.browserTokens = new Set(liveBrowserTokens.map((t) => t.token));
-  mutableAuth.clientTokens = new Set((next.clientTokens ?? []).map((t) => t.token));
+  // WS-044: keyed on the verifier, so a hashed file and a legacy cleartext
+  // one both authenticate through `hqTokenKey`.
+  mutableAuth.browserTokens = new Set(liveBrowserTokens.map(hqTokenKey));
+  mutableAuth.clientTokens = new Set((next.clientTokens ?? []).map(hqTokenKey));
   mutableAuth.browserTokenObjs = new Map(
     liveBrowserTokens.map((t) => [
-      t.token,
+      hqTokenKey(t),
       {
         id: t.id,
         ...(t.capabilities !== undefined ? { capabilities: t.capabilities } : {}),
@@ -348,7 +345,7 @@ export function applyAuthFile(
     ]),
   );
   mutableAuth.clientTokenObjs = new Map(
-    (next.clientTokens ?? []).map((token: HqToken) => [token.token, token]),
+    (next.clientTokens ?? []).map((token: HqToken) => [hqTokenKey(token), token]),
   );
   mutableAuth.passwordHash = next.passwordHash;
   mutableAuth.cookieSecret = next.cookieSecret;
@@ -388,9 +385,7 @@ export async function handleApiBootstrap(
 
   if (typeof body.code !== 'string' || body.code.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'code is required' } }),
-    );
+    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'code is required' } }));
     return;
   }
 

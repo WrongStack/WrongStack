@@ -1,7 +1,14 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { HQ_AUTH_FILE_VERSION, readHqAuthFile, verifyHqPassword, writeHqAuthFile } from '@wrongstack/core/hq';
+import {
+  HQ_AUTH_FILE_VERSION,
+  hashHqPassword,
+  mintHqCookieSecret,
+  readHqAuthFile,
+  verifyHqPassword,
+  writeHqAuthFile,
+} from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
@@ -20,6 +27,26 @@ afterEach(async () => {
   }
   await fs.rm(dataDir, { recursive: true, force: true });
 });
+
+/**
+ * WS-044: browser token secrets are no longer recoverable from `auth.json` —
+ * only their `sha256` verifier is persisted. Tests that need to PRESENT a
+ * token therefore seed one they already know, exactly as an operator does with
+ * the secret `hq token create` prints once. Reading it back off disk, which is
+ * what these tests used to do, is precisely the capability that was removed.
+ */
+const SEEDED_TOKEN = 'k'.repeat(64);
+
+async function seedAuthFile(opts: { password?: string } = {}): Promise<void> {
+  await writeHqAuthFile(dataDir, {
+    version: HQ_AUTH_FILE_VERSION,
+    updatedAt: new Date().toISOString(),
+    browserTokens: [{ id: 'seeded', token: SEEDED_TOKEN, createdAt: new Date().toISOString() }],
+    ...(opts.password !== undefined
+      ? { passwordHash: await hashHqPassword(opts.password), cookieSecret: mintHqCookieSecret() }
+      : {}),
+  });
+}
 
 function httpUrl(handle: HqServerHandle, pathname: string): string {
   return `http://${handle.host}:${handle.port}${pathname}`;
@@ -216,9 +243,11 @@ describe('HQ server — optional browser password login', () => {
   });
 
   it('password mode still allows valid browser tokens', async () => {
-    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir, password: 'secret123' });
-    const token = (await readHqAuthFile(dataDir)).browserTokens?.[0]?.token;
-    expect(token).toBeTruthy();
+    await seedAuthFile({ password: 'secret123' });
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const token = SEEDED_TOKEN;
+    // The secret is NOT on disk — only its verifier.
+    expect((await readHqAuthFile(dataDir)).browserTokens?.[0]?.token).toBe('');
 
     const res = await fetch(httpUrl(handle, '/api/snapshot'), {
       headers: { Authorization: `Bearer ${token}` },
@@ -233,9 +262,9 @@ describe('HQ server — optional browser password login', () => {
   });
 
   it('allows an authenticated browser token to enable password login', async () => {
+    await seedAuthFile();
     handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
-    const token = (await readHqAuthFile(dataDir)).browserTokens?.[0]?.token;
-    expect(token).toBeTruthy();
+    const token = SEEDED_TOKEN;
 
     const response = await fetch(httpUrl(handle, '/api/auth/password'), {
       method: 'POST',
@@ -300,8 +329,9 @@ describe('HQ server — optional browser password login', () => {
   });
 
   it('allows a browser token to remove password protection', async () => {
-    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir, password: 'secret123' });
-    const token = (await readHqAuthFile(dataDir)).browserTokens?.[0]?.token;
+    await seedAuthFile({ password: 'secret123' });
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const token = SEEDED_TOKEN;
 
     const response = await fetch(httpUrl(handle, '/api/auth/password'), {
       method: 'DELETE',

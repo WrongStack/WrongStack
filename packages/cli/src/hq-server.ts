@@ -23,17 +23,19 @@ import {
   MailboxHttpRateLimiter,
 } from '@wrongstack/core/coordination';
 import {
+  assessHqExposure,
   createHqPersistence,
   type EnsureHqFirstRunAuthResult,
   type HqAlert,
   HqAlertEngine,
-  assessHqExposure,
   type HqAlertRuleConfig,
   HqBootstrapCodeStore,
   type HqCommandAuditEntry,
   HqCommandAuditLog,
   type HqEventEnvelope,
   type HqTranscriptEntry,
+  hqTokenKey,
+  hqTokenVerifier,
   mintHqCookieSecret,
   mutateHqAuthFile,
   toAlertMessage,
@@ -659,7 +661,11 @@ async function startHqServerWithAuth(
           browsers,
           eventLog,
           {
-            ...(token ? { token: mutableAuth.clientTokenObjs.get(token) } : {}),
+            // WS-044: `clientTokenObjs` is keyed on `hqTokenKey` — the verifier —
+            // so the presented secret is hashed before lookup. Indexing with the
+            // raw value silently returned undefined, which downgraded a scoped
+            // token to "no capabilities record" at the capability gate.
+            ...(token ? { token: mutableAuth.clientTokenObjs.get(hqTokenVerifier(token)) } : {}),
             getOperatorPolicy: () => mutableAuth.operatorPolicyOverride,
           },
           snapshotBroadcaster,
@@ -770,9 +776,6 @@ async function startHqServerWithAuth(
         const actualPort = typeof addr === 'object' && addr ? addr.port : port;
         listeningPort = actualPort;
 
-        const browserToken =
-          firstRunAuth.browserToken?.token ??
-          authFile.browserTokens?.find((t) => t.token.trim().length > 0)?.token;
         const clientToken =
           firstRunAuth.clientToken?.token ??
           authFile.clientTokens?.find((t) => t.token.trim().length > 0)?.token;
@@ -782,9 +785,18 @@ async function startHqServerWithAuth(
         // Build the browser URL with a one-time bootstrap code (in the
         // fragment) when a browser token exists. The code is exchanged for
         // a session cookie on first load and never appears in HTTP traffic.
-        const browserTokenObj = mutableAuth.browserTokenObjs.get(browserToken ?? '');
+        //
+        // WS-044: this used to resolve the token record by looking up the
+        // browser token's CLEARTEXT secret, which only worked because the
+        // secret sat in `auth.json`. The code is built from the token's id and
+        // capabilities — the secret was never an input — so it now takes the
+        // first live browser record directly, preferring a just-minted one.
+        const browserTokenObj =
+          (firstRunAuth.browserToken !== undefined
+            ? mutableAuth.browserTokenObjs.get(hqTokenKey(firstRunAuth.browserToken))
+            : undefined) ?? mutableAuth.browserTokenObjs.values().next().value;
         let browserUrl: string;
-        if (browserToken && browserTokenObj) {
+        if (browserTokenObj) {
           const code = bootstrapStore.issue({
             tokenId: browserTokenObj.id,
             ...(browserTokenObj.capabilities !== undefined

@@ -3,13 +3,16 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  HQ_AUTH_FILE_VERSION,
   defaultHqDataDir,
   emptyHqAuthFile,
   ensureHqFirstRunAuthFile,
+  HQ_AUTH_FILE_VERSION,
+  type HqAuthFile,
   hashHqPassword,
   hqAuthFilePath,
   hqRuntimeFilePath,
+  hqTokenKey,
+  hqTokenVerifier,
   mintHqBrowserToken,
   mintHqCookieSecret,
   mintHqToken,
@@ -21,7 +24,6 @@ import {
   verifyHqPassword,
   writeHqAuthFile,
   writeHqRuntimeFile,
-  type HqAuthFile,
 } from '../../src/hq/auth-store.js';
 import { wstackGlobalRoot } from '../../src/utils/wstack-paths.js';
 
@@ -110,10 +112,7 @@ describe('HQ auth-store — readHqAuthFile', () => {
 
   it('throws on wrong schema version (fail closed)', async () => {
     await withTempDir(async (dir) => {
-      await fs.writeFile(
-        hqAuthFilePath(dir),
-        JSON.stringify({ version: 99, updatedAt: 'x' }),
-      );
+      await fs.writeFile(hqAuthFilePath(dir), JSON.stringify({ version: 99, updatedAt: 'x' }));
       await expect(readHqAuthFile(dir)).rejects.toThrow('unsupported version');
     });
   });
@@ -130,7 +129,16 @@ describe('HQ auth-store — readHqAuthFile', () => {
       const readBack = await readHqAuthFile(dir);
       expect(readBack.version).toBe(HQ_AUTH_FILE_VERSION);
       expect(readBack.redactionPolicy).toEqual(original.redactionPolicy);
-      expect(readBack.browserTokens).toEqual(original.browserTokens);
+      // WS-044: the browser token round-trips as a verifier, not a secret.
+      // Everything else about the record is preserved verbatim.
+      expect(readBack.browserTokens).toEqual([
+        {
+          id: 't1',
+          token: '',
+          verifier: hqTokenVerifier('abc'),
+          createdAt: '2026-06-21T00:00:00.000Z',
+        },
+      ]);
     });
   });
 });
@@ -166,6 +174,65 @@ describe('HQ auth-store — writeHqAuthFile', () => {
       const stat = await fs.stat(hqAuthFilePath(nested));
       expect(stat.isFile()).toBe(true);
     });
+  });
+
+  // ── WS-044: browser secrets never persist ─────────────────────────────
+
+  it('persists browser tokens as a verifier and blanks the secret', async () => {
+    await withTempDir(async (dir) => {
+      const secret = 'a'.repeat(64);
+      await writeHqAuthFile(dir, {
+        ...emptyHqAuthFile(),
+        browserTokens: [{ id: 'b1', token: secret, createdAt: new Date().toISOString() }],
+      });
+      const raw = await fs.readFile(hqAuthFilePath(dir), 'utf8');
+      // The whole point: a copy of this file is not a working credential.
+      expect(raw).not.toContain(secret);
+      expect(raw).toContain(hqTokenVerifier(secret));
+    });
+  });
+
+  it('leaves client tokens in cleartext — a local agent reads them back', async () => {
+    // Deliberate, and documented on `HqToken.verifier`: hashing these would
+    // only move the secret to another file on the same disk. Their control is
+    // the owner-only file mode (WS-045).
+    await withTempDir(async (dir) => {
+      const secret = 'c'.repeat(64);
+      await writeHqAuthFile(dir, {
+        ...emptyHqAuthFile(),
+        clientTokens: [{ id: 'c1', token: secret, createdAt: new Date().toISOString() }],
+      });
+      const readBack = await readHqAuthFile(dir);
+      expect(readBack.clientTokens?.[0]?.token).toBe(secret);
+    });
+  });
+
+  it('is idempotent — re-writing an already hashed file does not double-hash', async () => {
+    await withTempDir(async (dir) => {
+      const secret = 'd'.repeat(64);
+      await writeHqAuthFile(dir, {
+        ...emptyHqAuthFile(),
+        browserTokens: [{ id: 'b1', token: secret, createdAt: new Date().toISOString() }],
+      });
+      const once = await readHqAuthFile(dir);
+      await writeHqAuthFile(dir, once);
+      const twice = await readHqAuthFile(dir);
+      expect(twice.browserTokens?.[0]?.verifier).toBe(hqTokenVerifier(secret));
+    });
+  });
+
+  it('hqTokenKey resolves both a migrated and a legacy record to the same key', () => {
+    const secret = 'e'.repeat(64);
+    const legacy = { token: secret };
+    const migrated = { token: '', verifier: hqTokenVerifier(secret) };
+    expect(hqTokenKey(legacy)).toBe(hqTokenKey(migrated));
+    expect(hqTokenKey(migrated)).toBe(hqTokenVerifier(secret));
+  });
+
+  it('hqTokenKey returns an empty key for a record with neither field', () => {
+    // An empty key must never match a presented secret, whose verifier is
+    // always 64 hex characters.
+    expect(hqTokenKey({ token: '' })).toBe('');
   });
 
   it('sets mode 0o600 on a fresh file (best-effort on win32)', async () => {
@@ -222,15 +289,21 @@ describe('HQ auth-store — ensureHqFirstRunAuthFile', () => {
 
       const added = await ensureHqFirstRunAuthFile(dir, { password: 'first-password' });
       expect(added.created).toBe(false);
-      expect(await verifyHqPassword('first-password', added.authFile.passwordHash ?? '')).toBe(true);
+      expect(await verifyHqPassword('first-password', added.authFile.passwordHash ?? '')).toBe(
+        true,
+      );
       const firstSecret = added.authFile.cookieSecret;
 
       const unchanged = await ensureHqFirstRunAuthFile(dir, { password: 'first-password' });
       expect(unchanged.authFile.cookieSecret).toBe(firstSecret);
 
       const rotated = await ensureHqFirstRunAuthFile(dir, { password: 'second-password' });
-      expect(await verifyHqPassword('second-password', rotated.authFile.passwordHash ?? '')).toBe(true);
-      expect(await verifyHqPassword('first-password', rotated.authFile.passwordHash ?? '')).toBe(false);
+      expect(await verifyHqPassword('second-password', rotated.authFile.passwordHash ?? '')).toBe(
+        true,
+      );
+      expect(await verifyHqPassword('first-password', rotated.authFile.passwordHash ?? '')).toBe(
+        false,
+      );
       expect(rotated.authFile.cookieSecret).not.toBe(firstSecret);
     });
   });

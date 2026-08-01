@@ -4,11 +4,11 @@
 // and writes the runtime marker. This is the exact user scenario: every
 // WrongStack client on the machine finds a later-started HQ automatically.
 
-import { readHqAuthFile } from '@wrongstack/core/hq';
-import type { HqPublisher } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { HqPublisher } from '@wrongstack/core/hq';
+import { readHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
@@ -61,16 +61,33 @@ describe('HQ local auto-discovery (client first, --hq later)', () => {
     handle = await startHqServer({ port: getPort(), dataDir });
 
     // 3. Within a few discovery polls the client must appear in the snapshot.
+    //
+    // WS-044: the browser secret is no longer recoverable from auth.json — only
+    // its verifier is stored — so this reads the snapshot the way the browser
+    // actually does: exchange the one-time bootstrap code from the startup URL
+    // for a session cookie. The client-side of the test is unchanged; client
+    // tokens still round-trip in cleartext, which is what auto-attach needs.
     const auth = await readHqAuthFile(dataDir);
-    const browserToken = auth.browserTokens?.[0]?.token;
-    expect(browserToken, 'first run should mint a browser token').toBeTruthy();
+    expect(auth.browserTokens?.[0]?.verifier, 'first run should mint a browser token').toMatch(
+      /^[0-9a-f]{64}$/,
+    );
+    const code = handle.firstRunSetup?.browserUrl.split('#bootstrap=')[1];
+    expect(code, 'startup should print a bootstrap code').toBeTruthy();
+    const exchange = await fetch(`http://127.0.0.1:${handle.port}/api/auth/bootstrap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Origin-Fragment': 'auto-discovery-test' },
+      body: JSON.stringify({ code }),
+    });
+    expect(exchange.status).toBe(200);
+    const cookie = exchange.headers.get('set-cookie')?.split(';')[0];
+    expect(cookie).toBeTruthy();
 
     await expect
       .poll(
         async () => {
-          const res = await fetch(
-            `http://127.0.0.1:${handle?.port}/api/snapshot?token=${browserToken}`,
-          ).catch(() => undefined);
+          const res = await fetch(`http://127.0.0.1:${handle?.port}/api/snapshot`, {
+            headers: { Cookie: cookie! },
+          }).catch(() => undefined);
           if (!res?.ok) return undefined;
           const snapshot = (await res.json()) as {
             clients?: Array<{ kind?: string; connected?: boolean }>;

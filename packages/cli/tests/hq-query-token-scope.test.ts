@@ -15,6 +15,7 @@
  * loopback Host it did not arrive on.
  */
 import type * as http from 'node:http';
+import { hqTokenVerifier } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
 import { authenticateBrowserRequest } from '../src/hq-server/auth.js';
 
@@ -29,11 +30,17 @@ function fakeReq(host: string | undefined, authorization?: string): http.Incomin
   } as unknown as http.IncomingMessage;
 }
 
+// WS-044: the live sets hold `sha256(secret)` verifiers, never the secret —
+// `authenticateBrowserRequest` hashes what the caller presented before it
+// looks anything up. Mirror the server's projection here or the fixture would
+// be testing a shape that no longer exists.
+const VERIFIER = hqTokenVerifier(TOKEN);
+
 function mutableAuth(expiresAt?: string) {
   return {
-    browserTokens: new Set([TOKEN]),
+    browserTokens: new Set([VERIFIER]),
     browserTokenObjs: new Map([
-      [TOKEN, { id: 'tok_1', ...(expiresAt !== undefined ? { expiresAt } : {}) }],
+      [VERIFIER, { id: 'tok_1', ...(expiresAt !== undefined ? { expiresAt } : {}) }],
     ]),
   };
 }

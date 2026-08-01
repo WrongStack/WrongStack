@@ -1,5 +1,11 @@
-import { DEFAULT_HQ_REDACTION_POLICY, hqAuthContentHash, isTokenExpired, logHqAuthAudit } from '@wrongstack/core/hq';
 import type { HqAuthFile, HqSnapshot, HqToken } from '@wrongstack/core/hq';
+import {
+  DEFAULT_HQ_REDACTION_POLICY,
+  hqAuthContentHash,
+  hqTokenKey,
+  isTokenExpired,
+  logHqAuthAudit,
+} from '@wrongstack/core/hq';
 import type { HqRouterMutableAuth } from './types.js';
 
 const TOKEN_EXPIRY_WARNING_MS = 24 * 60 * 60 * 1000;
@@ -10,7 +16,7 @@ export interface HqAuthState {
   tokenStats(): NonNullable<HqSnapshot['totals']['tokenStats']>;
 }
 
-function liveTokens<T extends { token: string; expiresAt?: string }>(list: T[] | undefined): T[] {
+function liveTokens<T extends { expiresAt?: string }>(list: T[] | undefined): T[] {
   return (list ?? []).filter((token) => !isTokenExpired(token));
 }
 
@@ -21,10 +27,12 @@ export function createHqAuthState(authFile: HqAuthFile, dataDir: string): HqAuth
   const mutableAuth: HqRouterMutableAuth = {
     operatorPolicy: { ...DEFAULT_HQ_REDACTION_POLICY, ...(authFile.redactionPolicy ?? {}) },
     operatorPolicyOverride: authFile.redactionPolicy,
-    browserTokens: new Set(liveTokens(authFile.browserTokens).map(({ token }) => token)),
-    clientTokens: new Set(liveTokens(authFile.clientTokens).map(({ token }) => token)),
+    browserTokens: new Set(liveTokens(authFile.browserTokens).map(hqTokenKey)),
+    clientTokens: new Set(liveTokens(authFile.clientTokens).map(hqTokenKey)),
     browserTokenObjs: browserTokenMap(authFile.browserTokens),
-    clientTokenObjs: new Map(liveTokens(authFile.clientTokens).map((token) => [token.token, token])),
+    clientTokenObjs: new Map(
+      liveTokens(authFile.clientTokens).map((token) => [hqTokenKey(token), token]),
+    ),
     passwordHash: authFile.passwordHash,
     cookieSecret: authFile.cookieSecret,
     alertRules: authFile.alertRules,
@@ -59,11 +67,11 @@ export function createHqAuthState(authFile: HqAuthFile, dataDir: string): HqAuth
         ...(next.redactionPolicy ?? {}),
       };
       mutableAuth.operatorPolicyOverride = next.redactionPolicy;
-      mutableAuth.browserTokens = new Set(liveTokens(next.browserTokens).map(({ token }) => token));
-      mutableAuth.clientTokens = new Set(liveTokens(next.clientTokens).map(({ token }) => token));
+      mutableAuth.browserTokens = new Set(liveTokens(next.browserTokens).map(hqTokenKey));
+      mutableAuth.clientTokens = new Set(liveTokens(next.clientTokens).map(hqTokenKey));
       mutableAuth.browserTokenObjs = browserTokenMap(next.browserTokens);
       mutableAuth.clientTokenObjs = new Map(
-        liveTokens(next.clientTokens).map((token) => [token.token, token]),
+        liveTokens(next.clientTokens).map((token) => [hqTokenKey(token), token]),
       );
       mutableAuth.passwordHash = next.passwordHash;
       mutableAuth.cookieSecret = next.cookieSecret;
@@ -75,7 +83,7 @@ export function createHqAuthState(authFile: HqAuthFile, dataDir: string): HqAuth
 function browserTokenMap(tokens: HqToken[] | undefined): HqRouterMutableAuth['browserTokenObjs'] {
   return new Map(
     liveTokens(tokens).map((token) => [
-      token.token,
+      hqTokenKey(token),
       {
         id: token.id,
         ...(token.capabilities !== undefined ? { capabilities: token.capabilities } : {}),
@@ -92,8 +100,12 @@ function auditPrunedTokens(
   authFile: HqAuthFile,
   dataDir: string,
 ): void {
-  const previouslyLive = new Set(previous.filter((token) => !isTokenExpired(token)).map(({ id }) => id));
-  const prunedCount = next.filter((token) => isTokenExpired(token) && previouslyLive.has(token.id)).length;
+  const previouslyLive = new Set(
+    previous.filter((token) => !isTokenExpired(token)).map(({ id }) => id),
+  );
+  const prunedCount = next.filter(
+    (token) => isTokenExpired(token) && previouslyLive.has(token.id),
+  ).length;
   if (prunedCount === 0) return;
   const contentHash = hqAuthContentHash(authFile);
   logHqAuthAudit(dataDir, {

@@ -98,6 +98,56 @@ export interface HqToken {
    * rather than the local wall clock.
    */
   expiresAt?: string;
+  /**
+   * `sha256(secret)`, hex. WS-044: browser tokens used to sit in `auth.json`
+   * in cleartext, directly beside a correctly scrypt-hashed password — so a
+   * copy of the file (a home-directory backup, a synced folder, a support
+   * bundle) handed over working bearer credentials. Browser tokens are now
+   * persisted as a verifier only, and `token` is blanked on write.
+   *
+   * Client tokens deliberately keep their cleartext `token`: a local agent
+   * process reads it back out of `auth.json` to attach itself as an HQ client
+   * (`hq/factory.ts readFirstClientTokenFromAuthFile`). Hashing them would
+   * only move the secret to another file on the same disk. Their control is
+   * the owner-only file mode (WS-045), not a one-way hash.
+   */
+  verifier?: string;
+}
+
+/**
+ * The one-way verifier for an HQ token secret.
+ *
+ * Plain SHA-256, not scrypt: unlike the operator password, a token is 64 hex
+ * characters of `randomUUID()` entropy, so there is nothing to brute-force
+ * and the verifier sits on the per-request auth path where a deliberately
+ * slow KDF would be a self-inflicted DoS.
+ */
+export function hqTokenVerifier(secret: string): string {
+  return createHash('sha256').update(secret, 'utf8').digest('hex');
+}
+
+/**
+ * Lookup key for a stored token — its verifier, derived from a legacy
+ * cleartext `token` when the file predates WS-044. Every live-token Set/Map
+ * in the HQ server is keyed on this, and the presented secret is hashed with
+ * {@link hqTokenVerifier} before lookup, so both formats authenticate during
+ * the migration window.
+ */
+export function hqTokenKey(token: Pick<HqToken, 'token' | 'verifier'>): string {
+  if (token.verifier !== undefined && token.verifier.length > 0) return token.verifier;
+  return token.token ? hqTokenVerifier(token.token) : '';
+}
+
+/**
+ * On-disk form of a browser token: verifier present, secret blanked. Already
+ * hashed tokens pass through untouched, so the conversion is idempotent.
+ */
+function hashBrowserToken(token: HqToken): HqToken {
+  if (token.verifier !== undefined && token.verifier.length > 0) {
+    return token.token ? { ...token, token: '' } : token;
+  }
+  if (!token.token) return token;
+  return { ...token, verifier: hqTokenVerifier(token.token), token: '' };
 }
 
 /**
@@ -374,6 +424,14 @@ export async function writeHqAuthFile(dataDir: string, file: HqAuthFile): Promis
     ...file,
     version: HQ_AUTH_FILE_VERSION,
     updatedAt: new Date().toISOString(),
+    // WS-044: browser secrets never touch the disk. Any legacy cleartext in
+    // the incoming file is converted here, so the first write after an
+    // upgrade migrates the whole list — no separate migration step to forget
+    // to run, and no window where an old file stays cleartext because nothing
+    // happened to rewrite it.
+    ...(file.browserTokens !== undefined
+      ? { browserTokens: file.browserTokens.map(hashBrowserToken) }
+      : {}),
   };
   await atomicWrite(target, `${JSON.stringify(payload, null, 2)}\n`, { mode: SECRET_FILE_MODE });
   await restrictFilePermissions(target, { label: 'hq-auth' });

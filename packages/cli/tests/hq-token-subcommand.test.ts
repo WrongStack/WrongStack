@@ -1,10 +1,10 @@
-import { readHqAuthFile } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { hqTokenVerifier, readHqAuthFile } from '@wrongstack/core/hq';
+import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hqCmd } from '../src/subcommands/handlers/hq.js';
-import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
 import type { SubcommandDeps } from '../src/subcommands/index.js';
 
 /**
@@ -56,7 +56,8 @@ type RendererWithCapture = SubcommandDeps['renderer'] & {
   writeLine: ((text?: string) => void) & ReturnType<typeof vi.fn>;
   writeBlock: ((block: ContentBlock) => void) & ReturnType<typeof vi.fn>;
   writeToolCall: ((name: string, input: unknown) => void) & ReturnType<typeof vi.fn>;
-  writeToolResult: ((name: string, content: unknown, isError: boolean) => void) & ReturnType<typeof vi.fn>;
+  writeToolResult: ((name: string, content: unknown, isError: boolean) => void) &
+    ReturnType<typeof vi.fn>;
   writeDiff: ((unifiedDiff: string) => void) & ReturnType<typeof vi.fn>;
   clear: (() => void) & ReturnType<typeof vi.fn>;
   captured: CapturedRenderer;
@@ -128,11 +129,20 @@ describe('wstack hq — token create', () => {
     const token = auth.browserTokens?.[0];
     expect(token?.label).toBe('my-laptop');
     expect(token?.capabilities).toEqual(['control.enqueue']);
-    expect(token?.token.length).toBeGreaterThanOrEqual(32);
-    // `create` prints the token once to stdout.
+    // WS-044: the secret is not persisted — only `sha256(secret)`. The printed
+    // output is now the only place it ever exists, which is why `create` has
+    // always printed it once. This assertion used to read the secret back off
+    // disk, i.e. it asserted the exact property that was the finding.
+    expect(token?.token).toBe('');
+    expect(token?.verifier).toMatch(/^[0-9a-f]{64}$/);
+
     const written = deps.renderer.captured.out.join('');
     expect(written).toContain('Created browser token.');
-    expect(written).toContain(token?.token ?? '');
+    const printed = written.match(/[0-9a-f]{32,}/)?.[0];
+    expect(printed).toBeDefined();
+    expect(printed?.length).toBeGreaterThanOrEqual(32);
+    // The printed secret is the one the stored verifier was derived from.
+    expect(hqTokenVerifier(printed ?? '')).toBe(token?.verifier);
   });
 
   it('works without a label (label field omitted)', async () => {
