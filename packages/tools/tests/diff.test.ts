@@ -250,4 +250,26 @@ describe('diffTool', () => {
     const result = await diffTool.execute({ files: 'mode.txt', mode: 'unified' }, ctx, makeOpts());
     expect(result.mode).toBe('unified');
   });
+
+  // ─── RAM guard: oversized files are skipped, not read whole ──────────────
+
+  it('fileDiff skips files exceeding the size cap and sets truncated=true', async () => {
+    // 6 MiB — over the 5 MiB dump cap
+    const bigFile = path.join(tmpDir, 'huge.txt');
+    await fs.writeFile(bigFile, 'x'.repeat(6 * 1024 * 1024), 'utf8');
+    const ctx = makeCtx();
+    const result = await diffTool.execute({ files: 'huge.txt' }, ctx, makeOpts());
+    expect(result.truncated).toBe(true);
+    expect(result.diff).toContain('skipped');
+    expect(result.diff).toContain('exceeds the');
+  });
+
+  it('fileDiff reads files just under the size cap without truncation', async () => {
+    const okFile = path.join(tmpDir, 'ok.txt');
+    await fs.writeFile(okFile, 'small content', 'utf8');
+    const ctx = makeCtx();
+    const result = await diffTool.execute({ files: 'ok.txt' }, ctx, makeOpts());
+    expect(result.truncated).toBe(false);
+    expect(result.diff).toContain('small content');
+  });
 });

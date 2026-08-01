@@ -294,3 +294,64 @@ describe('path containment (CWE-22)', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// RAM guard: files exceeding the size cap must be rejected before read+parse
+// ---------------------------------------------------------------------------
+
+describe('jsonTool RAM guard (file-size cap)', () => {
+  it('parse action rejects a file exceeding the size limit', async () => {
+    // 17 MiB of whitespace-padded JSON — over the 16 MiB cap
+    const big = '{"x":"' + ' '.repeat(17 * 1024 * 1024) + '"}';
+    const filePath = path.join(tmpDir, 'big.json');
+    await fs.writeFile(filePath, big, 'utf8');
+    const result = await jsonTool.execute({ file: filePath }, makeCtx());
+    expect(result.data).toBeNull();
+    expect(result.error).toContain('exceeds the');
+    expect(result.error).toContain('16 MiB');
+  });
+
+  it('query action rejects a file exceeding the size limit', async () => {
+    const big = '{"x":"' + ' '.repeat(17 * 1024 * 1024) + '"}';
+    const filePath = path.join(tmpDir, 'big-query.json');
+    await fs.writeFile(filePath, big, 'utf8');
+    const result = await jsonTool.execute(
+      { action: 'query', file: filePath, query: 'x' },
+      makeCtx(),
+    );
+    expect(result.data).toBeNull();
+    expect(result.error).toContain('exceeds the');
+  });
+
+  it('validate action rejects a file exceeding the size limit', async () => {
+    const big = '{"x":"' + ' '.repeat(17 * 1024 * 1024) + '"}';
+    const filePath = path.join(tmpDir, 'big-validate.json');
+    await fs.writeFile(filePath, big, 'utf8');
+    const result = await jsonTool.execute(
+      { action: 'validate', file: filePath, schema: { type: 'object' } },
+      makeCtx(),
+    );
+    expect(result.data).toBeNull();
+    expect(result.error).toContain('exceeds the');
+  });
+
+  it('transform action rejects a file exceeding the size limit', async () => {
+    const big = '{"x":"' + ' '.repeat(17 * 1024 * 1024) + '"}';
+    const filePath = path.join(tmpDir, 'big-transform.json');
+    await fs.writeFile(filePath, big, 'utf8');
+    const result = await jsonTool.execute(
+      { action: 'transform', file: filePath, transforms: ['x'] },
+      makeCtx(),
+    );
+    expect(result.data).toBeNull();
+    expect(result.error).toContain('exceeds the');
+  });
+
+  it('parse action succeeds on a file just under the size limit', async () => {
+    // ~1 KB — well within the cap, verifies normal path is unaffected
+    const filePath = path.join(tmpDir, 'small.json');
+    await fs.writeFile(filePath, '{"ok":true}', 'utf8');
+    const result = await jsonTool.execute({ file: filePath }, makeCtx());
+    expect(result.data).toEqual({ ok: true });
+  });
+});

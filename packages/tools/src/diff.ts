@@ -6,6 +6,15 @@ import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { safeResolve } from './_util.js';
 
+/**
+ * Per-file cap for the line-numbered dump path. The dump reads the whole file
+ * into memory, splits it into an array of lines, and returns everything to the
+ * model context — unbounded, that is both an OOM vector and a context bomb.
+ * Mirrors the read tool's 5 MiB guard; files over the cap are skipped with an
+ * explanatory note and `truncated: true`.
+ */
+const MAX_FILE_DUMP_BYTES = 5 * 1024 * 1024;
+
 interface DiffInput {
   path?: string | undefined;
   files?: string | string[] | undefined;
@@ -41,6 +50,7 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
     'This tool has important safety guards against flag injection (see previous security findings).',
   permission: 'auto',
   mutating: false,
+  maxOutputBytes: 262_144,
   capabilities: ['fs.read'],
   icon: 'diff',
   timeoutMs: 10_000,
@@ -198,11 +208,20 @@ async function fileDiff(
   }
 
   const results: string[] = [];
+  let truncated = false;
 
   for (const file of files) {
     const absPath = safeResolve(file, ctx);
     const stat = await fs.stat(absPath).catch(() => null);
     if (!stat?.isFile()) continue;
+
+    if (stat.size > MAX_FILE_DUMP_BYTES) {
+      truncated = true;
+      results.push(
+        `--- ${file} (skipped: ${stat.size} bytes exceeds the ${MAX_FILE_DUMP_BYTES} limit; use the read tool with offset/limit) ---`,
+      );
+      continue;
+    }
 
     const content = await fs.readFile(absPath, 'utf8');
     const lines = content.split(/\r?\n/);
@@ -212,7 +231,7 @@ async function fileDiff(
   return {
     diff: results.join('\n\n'),
     files,
-    truncated: false,
+    truncated,
     mode: input.mode ?? 'unified',
   };
 }

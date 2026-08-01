@@ -4,6 +4,39 @@ import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { safeResolveReal } from './_util.js';
 
+/**
+ * Files larger than this are rejected before read+parse. `JSON.parse`
+ * transiently allocates several times the raw size (string → tokens → object
+ * graph) and the parsed result is also returned to the model context, so an
+ * unbounded read here is both an OOM vector and a context bomb. Mirrors the
+ * size guards every other file-reading tool enforces (read.ts: 5 MiB,
+ * grep.ts: 1 MiB, fetch.ts: 128 KiB) — the json tool was the only one
+ * without a cap.
+ */
+const MAX_JSON_FILE_BYTES = 16 * 1024 * 1024;
+const MAX_JSON_FILE_BYTES_HUMAN = '16 MiB';
+
+/** Thrown when the target file exceeds {@link MAX_JSON_FILE_BYTES}. */
+class JsonFileTooLargeError extends Error {
+  constructor(filePath: string, size: number) {
+    super(
+      `json: "${filePath}" is ${size} bytes — exceeds the ${MAX_JSON_FILE_BYTES_HUMAN} file-size limit. ` +
+        'Extract the relevant portion into a smaller file first, or use a shell tool to query it directly.',
+    );
+    this.name = 'JsonFileTooLargeError';
+  }
+}
+
+/** Resolve (containment-checked), size-check, then read a JSON file. */
+async function readJsonFileBounded(filePath: string, ctx: Context): Promise<string> {
+  const resolved = await safeResolveReal(filePath, ctx);
+  const stat = await fs.stat(resolved);
+  if (stat.size > MAX_JSON_FILE_BYTES) {
+    throw new JsonFileTooLargeError(filePath, stat.size);
+  }
+  return fs.readFile(resolved, 'utf8');
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -73,6 +106,7 @@ export const jsonTool: Tool<JsonInput, JsonOutput> = {
     'Prefer this over raw `read` + manual parsing when dealing with configuration or data files.',
   permission: 'auto',
   mutating: false,
+  maxOutputBytes: 262_144,
   timeoutMs: 5_000,
   capabilities: ['fs.read'],
   icon: 'json',
@@ -147,9 +181,15 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
 
   if (input.file) {
     try {
-      raw = await fs.readFile(await safeResolveReal(input.file, ctx), 'utf8');
-    } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'parse', error: 'Could not read file' };
+      raw = await readJsonFileBounded(input.file, ctx);
+    } catch (error) {
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'parse',
+        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read file',
+      };
     }
   } else if (input.data) {
     raw = input.data;
@@ -221,10 +261,16 @@ async function executeQuery(input: JsonInput, ctx: Context): Promise<JsonOutput>
   let parsed: unknown;
   if (input.file) {
     try {
-      const raw = await fs.readFile(await safeResolveReal(input.file, ctx), 'utf8');
+      const raw = await readJsonFileBounded(input.file, ctx);
       parsed = JSON.parse(raw);
-    } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'query', error: 'Could not read/parse file' };
+    } catch (error) {
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'query',
+        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read/parse file',
+      };
     }
   } else if (input.data) {
     try {
@@ -270,10 +316,16 @@ async function executeValidate(input: JsonInput, ctx: Context): Promise<JsonOutp
   let parsed: unknown;
   if (input.file) {
     try {
-      const raw = await fs.readFile(await safeResolveReal(input.file, ctx), 'utf8');
+      const raw = await readJsonFileBounded(input.file, ctx);
       parsed = JSON.parse(raw);
-    } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'validate', error: 'Could not read/parse file' };
+    } catch (error) {
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'validate',
+        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read/parse file',
+      };
     }
   } else if (input.data) {
     try {
@@ -319,10 +371,16 @@ async function executeTransform(input: JsonInput, ctx: Context): Promise<JsonOut
   let parsed: unknown;
   if (input.file) {
     try {
-      const raw = await fs.readFile(await safeResolveReal(input.file, ctx), 'utf8');
+      const raw = await readJsonFileBounded(input.file, ctx);
       parsed = JSON.parse(raw);
-    } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'transform', error: 'Could not read/parse file' };
+    } catch (error) {
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'transform',
+        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read/parse file',
+      };
     }
   } else if (input.data) {
     try {
