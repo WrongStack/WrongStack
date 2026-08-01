@@ -35,6 +35,7 @@ import {
   tasksInChain,
   uniqueStrings,
 } from './_internal.js';
+import { initializeAndValidateManagedTask } from './lifecycle.js';
 import { searchKanban } from './serialization.js';
 export { areDependenciesMet } from './task-readiness.js';
 
@@ -73,17 +74,19 @@ export async function splitTask(
     if (!parent) return null;
     const titles = input.titles.map((title) => requireNonBlank(title, 'Kanban split task title'));
     if (!titles.length) throw new Error('splitTask requires at least one child title.');
-    const columnId = existingColumnId(board, input.columnId ?? parent.columnId);
-    if (!columnId) throw new Error(`Column not found: ${input.columnId ?? parent.columnId}`);
+    const requestedColumnId = input.columnId ?? parent.columnId;
+    const columnId = existingColumnId(board, requestedColumnId);
+    if (!columnId) throw new Error(`Column not found: ${requestedColumnId}`);
+    const childColumnId = board.lifecycle?.mode === 'managed' ? board.lifecycle.columns.backlog : columnId;
     const children: KanbanTask[] = [];
-    const startOrder = nextTaskOrder(board, columnId);
+    const startOrder = nextTaskOrder(board, childColumnId);
     for (let index = 0; index < titles.length; index++) {
       const title = titles[index];
       if (!title) continue;
       const spec = input.childSpecs?.[index];
       const child = createTaskObject(board, {
         title,
-        columnId,
+        columnId: childColumnId,
         order: startOrder + index,
         priority: parent.priority,
         parentTaskId: parent.id,
@@ -123,6 +126,7 @@ export async function splitTask(
         // descriptive metadata, boundaries are always inherited.
         ...(parent.boundary !== undefined ? { boundary: parent.boundary } : {}),
       });
+      initializeAndValidateManagedTask(board, child);
       children.push(child);
       board.tasks.push(child);
     }
@@ -147,7 +151,7 @@ export async function splitTask(
     if (input.chainChildren === true) {
       setChainMetadata(board, children, randomUUID(), input.inheritDependencies !== false);
     }
-    normalizeColumnTaskOrders(board, columnId);
+    normalizeColumnTaskOrders(board, childColumnId);
     board.updatedAt = now;
     event = createKanbanEvent(board.id, parent, 'task.split', {
       after: { children: children.map((child) => child.id) },
@@ -168,8 +172,10 @@ export async function mergeTasks(
     const sourceTasks = resolveTaskRefs(board, input.taskIds);
     if (sourceTasks.length < 2) throw new Error('mergeTasks requires at least two tasks.');
     const sourceIds = new Set(sourceTasks.map((task) => task.id));
-    const columnId = existingColumnId(board, input.targetColumnId ?? sourceTasks[0]?.columnId);
+    const requestedColumnId = input.targetColumnId ?? sourceTasks[0]?.columnId;
+    const columnId = existingColumnId(board, requestedColumnId);
     if (!columnId) throw new Error(`Column not found: ${input.targetColumnId ?? ''}`);
+    const mergedColumnId = board.lifecycle?.mode === 'managed' ? board.lifecycle.columns.backlog : columnId;
     const dependencies = uniqueStrings(
       sourceTasks.flatMap((task) => task.dependsOn ?? []).filter((depId) => !sourceIds.has(depId)),
     );
@@ -177,7 +183,7 @@ export async function mergeTasks(
     const merged = createTaskObject(board, {
       title: input.title,
       description: input.description ?? mergedTaskDescription(sourceTasks),
-      columnId,
+      columnId: mergedColumnId,
       priority: highestPriority(sourceTasks),
       labels: uniqueStrings(sourceTasks.flatMap((task) => task.labels ?? [])),
       ...(dependencies.length ? { dependsOn: dependencies } : {}),
@@ -195,6 +201,7 @@ export async function mergeTasks(
       ...(mergedBoundary !== undefined ? { boundary: mergedBoundary } : {}),
     });
     merged.mergedFromTaskIds = [...sourceIds];
+    initializeAndValidateManagedTask(board, merged);
     board.tasks.push(merged);
     placeTaskInColumn(board, merged, merged.columnId, merged.order);
 

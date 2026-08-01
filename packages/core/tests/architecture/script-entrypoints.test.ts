@@ -28,6 +28,7 @@ const executableScripts = [
   'scripts/guard-mailbox-bridge.mjs',
   'scripts/guard-unresolved-imports.mjs',
   'scripts/lib/architecture-health.mjs',
+  'scripts/lib/build-output-cleanup.mjs',
   'scripts/lib/build-lineage.mjs',
   'scripts/lib/test-inventory.mjs',
   'scripts/lib/test-skip-budget.mjs',

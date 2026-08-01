@@ -155,7 +155,7 @@ describe('buildVerificationReport', () => {
     expect(report.verdict).toBe('needs_human');
   });
 
-  it('returns passed when all checks are skipped', () => {
+  it('legacy contract: returns passed when all checks are skipped', () => {
     const report = buildVerificationReport({
       taskId: 't1',
       taskTitle: 'Test task',
@@ -198,7 +198,7 @@ describe('buildVerificationReport', () => {
     expect(report.verdict).toBe('incomplete');
   });
 
-  it('returns passed when all subtasks are completed or failed', () => {
+  it('legacy contract: returns passed when all subtasks are completed or failed', () => {
     const report = buildVerificationReport({
       taskId: 't1',
       taskTitle: 'Test task',

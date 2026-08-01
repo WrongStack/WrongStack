@@ -217,7 +217,7 @@ describe('migrate — autoProceedMaxIterations', () => {
 
   it('defaults non-number autoProceedMaxIterations to 50', () => {
     for (const invalid of [undefined, null, '50', 'fifty', '', true, false, {}, []]) {
-      // @ts-expect-error — intentionally passing invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ autoProceedMaxIterations: invalid });
       expect(result.autoProceedMaxIterations).toBe(50);
     }
@@ -288,7 +288,7 @@ describe('migrate — combined migrations', () => {
 describe('migrate — chimera (v9)', () => {
   it('defaults chimeraEnabled to true on missing/non-boolean', () => {
     for (const v of [undefined, null, 'yes', 1, 0, {}, true]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ chimeraEnabled: v });
       // Note: `true` is a valid boolean and survives, so we don't iterate it.
       if (typeof v === 'boolean') {
@@ -306,7 +306,7 @@ describe('migrate — chimera (v9)', () => {
 
   it('defaults chimeraProvider/chimeraModel to empty string on non-string', () => {
     for (const v of [undefined, null, 42, true, {}, [], 'anthropic']) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ chimeraProvider: v, chimeraModel: v });
       if (typeof v === 'string') {
         expect(result.chimeraProvider).toBe(v);
@@ -337,7 +337,7 @@ describe('migrate — chimera (v9)', () => {
 
   it('clamps non-number chimeraMaxFiles back to 15', () => {
     for (const v of [undefined, null, '15', true, {}, []]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ chimeraMaxFiles: v });
       expect(result.chimeraMaxFiles).toBe(15);
     }
@@ -352,7 +352,7 @@ describe('migrate — chimera (v9)', () => {
 
   it('coerces unknown chimeraAutoFix back to off', () => {
     for (const v of ['always', 'never', '', 'OFF', 'ask ', undefined, null, 1, true, {}]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ chimeraAutoFix: v });
       expect(result.chimeraAutoFix).toBe('off');
     }
@@ -362,7 +362,7 @@ describe('migrate — chimera (v9)', () => {
 describe('migrate — auto-review (v9)', () => {
   it('defaults autoReviewEnabled to false on missing/non-boolean', () => {
     for (const v of [undefined, null, 'yes', 1, {}, []]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ autoReviewEnabled: v });
       expect(result.autoReviewEnabled).toBe(false);
     }
@@ -375,7 +375,7 @@ describe('migrate — auto-review (v9)', () => {
 
   it('defaults autoReviewProvider/Model/FallbackProfile to empty string on non-string', () => {
     for (const v of [undefined, null, 42, true, {}, [], 'review-fast']) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({
         autoReviewProvider: v,
         autoReviewModel: v,
@@ -395,7 +395,7 @@ describe('migrate — auto-review (v9)', () => {
 
   it('defaults autoReviewFallbackModels to [] on non-array', () => {
     for (const v of [undefined, null, 'chain', 42, true, {}, 'anthropic/claude']) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ autoReviewFallbackModels: v });
       expect(result.autoReviewFallbackModels).toEqual([]);
     }
@@ -430,7 +430,7 @@ describe('migrate — auto-review (v9)', () => {
 
   it('clamps non-number autoReviewDebounceMs back to 15000', () => {
     for (const v of [undefined, null, '5000', true, {}, []]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ autoReviewDebounceMs: v });
       expect(result.autoReviewDebounceMs).toBe(15_000);
     }
@@ -473,7 +473,7 @@ describe('migrate — auto-review (v9)', () => {
 
   it('coerces unknown autoReviewCascadeOn back to off', () => {
     for (const v of ['medium', '', 'OFF', 'critical ', undefined, null, 1, true, {}, []]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ autoReviewCascadeOn: v });
       expect(result.autoReviewCascadeOn).toBe('off');
     }
@@ -590,7 +590,7 @@ describe('migrate — v9 combined', () => {
 describe('migrate — readSymbols (v13)', () => {
   it('defaults readSymbols to false on missing/non-boolean', () => {
     for (const v of [undefined, null, 'yes', 1, 0, 'false', {}]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ readSymbols: v });
       expect(result.readSymbols).toBe(false);
     }
@@ -607,7 +607,7 @@ describe('migrate — readSymbols (v13)', () => {
 describe('migrate — showSageMemoryInject (v13)', () => {
   it('defaults showSageMemoryInject to false on missing/non-boolean', () => {
     for (const v of [undefined, null, 'yes', 1, 0, 'true', {}]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ showSageMemoryInject: v });
       expect(result.showSageMemoryInject).toBe(false);
     }
@@ -624,7 +624,7 @@ describe('migrate — showSageMemoryInject (v13)', () => {
 describe('migrate — sageMemoryInjectThreshold (v13)', () => {
   it('defaults sageMemoryInjectThreshold to 0.85 on missing/non-finite', () => {
     for (const v of [undefined, null, NaN, Infinity, -Infinity, '0.85', 'high', {}]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ sageMemoryInjectThreshold: v });
       expect(result.sageMemoryInjectThreshold).toBe(0.85);
     }
@@ -648,7 +648,7 @@ describe('migrate — sageMemoryInjectThreshold (v13)', () => {
 describe('migrate — preRefineSeconds (v13)', () => {
   it('defaults preRefineSeconds to 3 on missing/non-finite', () => {
     for (const v of [undefined, null, NaN, Infinity, -Infinity, '3', 'three', {}]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ preRefineSeconds: v });
       expect(result.preRefineSeconds).toBe(3);
     }
@@ -672,7 +672,7 @@ describe('migrate — preRefineSeconds (v13)', () => {
 describe('migrate — multiDiffSummaryThreshold (v13)', () => {
   it('defaults multiDiffSummaryThreshold to 5 on missing/non-finite', () => {
     for (const v of [undefined, null, NaN, Infinity, -Infinity, '5', 'five', {}]) {
-      // @ts-expect-error — intentionally invalid types
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
       const result = migrate({ multiDiffSummaryThreshold: v });
       expect(result.multiDiffSummaryThreshold).toBe(5);
     }

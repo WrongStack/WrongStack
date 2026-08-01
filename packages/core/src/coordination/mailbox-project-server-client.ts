@@ -24,6 +24,26 @@ const CONNECT_ATTEMPT_TIMEOUT_MS = 750;
 const SERVER_START_TIMEOUT_MS = 10_000;
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 10_000;
+/**
+ * Pause between retries of a request refused with `UnauthorizedMailboxRequest`.
+ * The daemon binds its endpoint — which IS the ownership election — before
+ * `writeMetadata()` lands, and a crashed predecessor's `.mailbox-server.json`
+ * stays on disk until the winner overwrites it. A client that connects in that
+ * window reads the stale (or absent) token and is refused. `onMessage`
+ * invalidates the cache on every refusal; this delay gives the new daemon time
+ * to write its metadata before `currentAuthToken()` re-reads the file.
+ */
+const AUTH_RETRY_DELAY_MS = 150;
+/**
+ * How many auth-refused retries `call()` attempts before surfacing the error.
+ * Bounded rather than a single shot because a daemon restart — SQLite open plus
+ * the atomic metadata write on a cold disk — can take well over one delay
+ * interval before the fresh token is readable. A single immediate retry can
+ * still see the stale file and wedge the caller, so mirror the SAGE client's
+ * budget (~2s total): recover from a realistic cold start while still failing
+ * fast when the token is genuinely wrong.
+ */
+const AUTH_RETRY_MAX_ATTEMPTS = 13;
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -178,26 +198,32 @@ export class MailboxProjectServerConnection {
   ): Promise<MailboxServerOperations[O]['result']> {
     await this.ensureConnected(true);
     const timeoutMs = options.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
-    try {
-      return await this.request<MailboxServerOperations[O]['result']>(
-        { type: 'request', op, args },
-        timeoutMs,
-      );
-    } catch (error) {
-      // WS-027: the daemon idles out and respawns routinely, and the new
-      // process mints a new token. A client can therefore hold a token that
-      // was valid when it was read and is not any more — and, worse, can read
-      // the OLD one from a metadata file the departed daemon has not yet been
-      // replaced in. Caching a wrong token would be sticky, so one rejection
-      // drops the cache and retries; a second rejection is a real refusal.
-      if (!isUnauthorizedMailboxError(error)) throw error;
-      this.authToken = undefined;
-      await this.ensureConnected(true);
-      return await this.request<MailboxServerOperations[O]['result']>(
-        { type: 'request', op, args },
-        timeoutMs,
-      );
+    let lastError: unknown;
+    // WS-027: the daemon idles out and respawns routinely, and the new process
+    // mints a new token. A client can therefore hold a token that was valid
+    // when read and is not any more — and, worse, can read the OLD one from a
+    // metadata file a crashed daemon left behind that its replacement has not
+    // overwritten yet. `onMessage` invalidates the cache on every
+    // `UnauthorizedMailboxRequest`, so each retry re-reads
+    // `.mailbox-server.json` via `currentAuthToken()`. Retry on a bounded
+    // budget rather than once so a slow cold-start init still recovers instead
+    // of wedging the caller (e.g. `RemoteMailbox.initialize()`'s first `ping`).
+    for (let attempt = 0; attempt <= AUTH_RETRY_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.request<MailboxServerOperations[O]['result']>(
+          { type: 'request', op, args },
+          timeoutMs,
+        );
+      } catch (error) {
+        lastError = error;
+        const retriable = isUnauthorizedMailboxError(error) && attempt < AUTH_RETRY_MAX_ATTEMPTS;
+        if (!retriable) throw error;
+        await delay(AUTH_RETRY_DELAY_MS);
+      }
     }
+    // Unreachable: the loop returns on success and throws on the final refusal
+    // (attempt === AUTH_RETRY_MAX_ATTEMPTS). Kept for type safety.
+    throw lastError;
   }
 
   async shutdown(reason?: string): Promise<{ stopped: boolean; pid?: number; reason?: string }> {
@@ -445,6 +471,17 @@ export class MailboxProjectServerConnection {
     clearTimeout(pending.timer);
     if (message.ok) pending.resolve(message.result);
     else {
+      // WS-027: on auth failure, drop the cached token so the next request
+      // re-reads `.mailbox-server.json`. This covers two race windows:
+      // 1. Cold spawn / restart: the daemon binds the endpoint (the ownership
+      //    election) before `writeMetadata()` lands, so a crashed predecessor's
+      //    stale token can be read and refused until the winner overwrites it.
+      // 2. Daemon restart: the token changed while this client held a copy.
+      // `call()` retries on a bounded budget; invalidating here (not there)
+      // also clears the cache for the single-shot `probeStatus`/`shutdown`
+      // paths, so their next caller re-reads instead of re-sending a stale
+      // token. Mirrors the SAGE client's `onMessage` invalidation.
+      if (message.errorName === 'UnauthorizedMailboxRequest') this.authToken = undefined;
       const error = new Error(message.error);
       if (message.errorName) error.name = message.errorName;
       pending.reject(error);

@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { jsonTool } from '../src/json.js';
+import { jsonTool as rawJsonTool } from '../src/json.js';
 
 let tmpDir: string;
 
@@ -16,7 +16,19 @@ afterEach(async () => {
 
 // Minimal tool Context. projectRoot is pinned to tmpDir so reads of files
 // created under tmpDir pass safeResolveReal's containment check.
-const makeCtx = () => ({ cwd: tmpDir, workingDir: tmpDir, tools: [], projectRoot: tmpDir }) as never;
+const makeCtx = () =>
+  ({ cwd: tmpDir, workingDir: tmpDir, tools: [], projectRoot: tmpDir }) as never;
+
+const jsonTool = {
+  ...rawJsonTool,
+  execute: (
+    args: Parameters<typeof rawJsonTool.execute>[0],
+    context: Parameters<typeof rawJsonTool.execute>[1] = makeCtx(),
+    options: Parameters<typeof rawJsonTool.execute>[2] = {
+      signal: new AbortController().signal,
+    },
+  ) => rawJsonTool.execute(args, context, options),
+};
 
 describe('jsonTool', () => {
   it('has correct metadata', () => {

@@ -584,7 +584,7 @@ describe('lifecycle/status tools', () => {
     expect((director.fleet as { emit: ReturnType<typeof vi.fn> }).emit).not.toHaveBeenCalled();
   });
 
-  it('work_complete signals wind-down', async () => {
+  it('legacy contract: work_complete directly signals wind-down', async () => {
     expect(await makeWorkCompleteTool(asDir()).execute({}, {} as never, {} as never)).toMatchObject(
       { ok: true },
     );

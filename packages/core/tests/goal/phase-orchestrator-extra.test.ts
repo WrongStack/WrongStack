@@ -124,6 +124,27 @@ describe('PhaseOrchestrator — autonomous tick loop', () => {
 });
 
 describe('PhaseOrchestrator — task retry + failure', () => {
+  it('legacy contract: completes the phase after task failure when stopOnFailure is omitted', async () => {
+    const graph = await singlePhase();
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: {
+        executeTask: async () => {
+          throw new Error('task boom');
+        },
+      },
+      autonomous: false,
+      maxRetries: 0,
+    });
+
+    await orch.start();
+
+    const phase = Array.from(graph.phases.values())[0]!;
+    const task = Array.from(phase.taskGraph.nodes.values())[0]!;
+    expect(task.status).toBe('failed');
+    expect(phase.status).toBe('completed');
+  });
+
   it('retries a failing task up to maxRetries, then marks it failed', async () => {
     const graph = await singlePhase();
     let attempts = 0;

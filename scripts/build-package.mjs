@@ -7,10 +7,11 @@
  * declaration-bundler dependency on TypeScript's private compiler API.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, join, relative } from 'node:path';
 import { build } from 'esbuild';
+import { cleanBuildOutput } from './lib/build-output-cleanup.mjs';
 
 const require = createRequire(import.meta.url);
 const packageRoot = process.cwd();
@@ -77,6 +78,7 @@ const coreEntries = entryMap([
   'src/notifications/index.ts',
   'src/tools/index.ts',
   'src/hq/index.ts',
+  'src/hq/protocol.ts',
   'src/skills/index.ts',
   'src/tasking/index.ts',
   'src/worktree/index.ts',
@@ -198,6 +200,13 @@ const profiles = {
     external: [],
   },
   '@wrongstack/persistence': standard(),
+  '@wrongstack/governance': {
+    entries: {
+      index: 'src/index.ts',
+      'project-daemon': 'src/project-daemon.ts',
+    },
+    external: [],
+  },
   '@wrongstack/mcp': standard(['@wrongstack/core']),
   '@wrongstack/plug-lsp': {
     entries: entryMap(['src/index.ts', 'src/setup.ts']),
@@ -496,15 +505,13 @@ if (!profile) {
   throw new Error(`No package build profile registered for ${packageJson.name}`);
 }
 
-if (profile.clean !== false && process.env.WRONGSTACK_SKIP_CLEAN !== '1')
-  // maxRetries/retryDelay: Windows throws EPERM/EBUSY when another process
-  // (e.g. a concurrent vitest run) briefly holds a handle on a dist file.
-  rmSync(join(packageRoot, 'dist'), {
-    recursive: true,
-    force: true,
-    maxRetries: 10,
-    retryDelay: 200,
-  });
+if (profile.clean !== false && process.env.WRONGSTACK_SKIP_CLEAN !== '1') {
+  const distPath = join(packageRoot, 'dist');
+  const cleanupResult = cleanBuildOutput(distPath);
+  if (cleanupResult === 'retained-empty') {
+    console.warn(`Reusing empty build directory still held open by Windows: ${distPath}`);
+  }
+}
 
 const builds = profile.builds ?? [profile];
 const emitted = [];

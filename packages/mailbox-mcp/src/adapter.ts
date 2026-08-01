@@ -5,7 +5,6 @@ import {
   type MailboxQuery,
   normalizeRecipient,
   type RemoteMailbox,
-  redactMailboxCredential,
 } from '@wrongstack/core/coordination';
 import {
   MCPServer,
@@ -549,12 +548,14 @@ async function executeAdmin(
         ),
       };
     case 'credential_get': {
-      // WS-025: never echo the authenticator back to a caller.
+      // WS-025: the owner already strips the authenticator at the IPC boundary —
+      // `credentialGet` returns a RedactedMailboxCredential, so pass it through.
       const credential = await mailbox.credentialGet(requiredString(args, 'credentialId'));
-      return { credential: credential ? redactMailboxCredential(credential) : credential };
+      return { credential };
     }
     case 'credential_list':
-      return { credentials: (await mailbox.credentialList()).map(redactMailboxCredential) };
+      // WS-025: credentials arrive pre-redacted from the owner.
+      return { credentials: await mailbox.credentialList() };
     case 'credential_status_counts':
       return { counts: await mailbox.credentialStatusCounts() };
     default:

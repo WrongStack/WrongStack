@@ -7,16 +7,15 @@
  * postCommand) remain as standalone exports that access store state via
  * useHqStore.getState().
  */
-import {
-  type HqAlertMessage,
-  type HqCommandAuditEntry,
-  type HqEventEnvelope,
-  type HqPeerLostPayload,
-  type HqPeerRehydratePayload,
-  type HqSnapshot,
-  isHqPeerLostPayload,
-  isHqPeerRehydratePayload,
+import type {
+  HqAlertMessage,
+  HqCommandAuditEntry,
+  HqEventEnvelope,
+  HqPeerLostPayload,
+  HqPeerRehydratePayload,
+  HqSnapshot,
 } from '@wrongstack/core/hq';
+import { isHqPeerLostPayload, isHqPeerRehydratePayload } from '@wrongstack/core/hq/protocol';
 import { create } from 'zustand';
 import { authorizedFetch } from './lib/auth.js';
 import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from './lib/peer-resume-id.js';

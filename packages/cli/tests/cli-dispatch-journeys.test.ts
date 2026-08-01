@@ -110,6 +110,47 @@ describe.sequential('CLI production dispatch journeys', () => {
     expect(surfaceMocks.killAll).toHaveBeenCalledOnce();
   });
 
+  it('legacy contract: output-json serializes a failed run but returns exit code 0', async () => {
+    const run = vi.fn(async () => ({
+      status: 'failed',
+      iterations: 1,
+      messages: [],
+    }));
+    const renderer = {
+      write: vi.fn(),
+      writeError: vi.fn(),
+      writeWarning: vi.fn(),
+      writeDelegateSummaries: vi.fn(),
+    };
+    const tokenCounter = {
+      total: vi
+        .fn()
+        .mockReturnValueOnce({ input: 0, output: 0 })
+        .mockReturnValueOnce({ input: 1, output: 1 }),
+      estimateCost: vi
+        .fn()
+        .mockReturnValueOnce({ input: 0, output: 0, total: 0, currency: 'USD' })
+        .mockReturnValueOnce({ input: 0, output: 0, total: 0, currency: 'USD' }),
+    };
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      const code = await runSingleShotDispatch({
+        agent: { run } as never,
+        query: 'fail this',
+        flags: { 'output-json': true },
+        tokenCounter: tokenCounter as never,
+        renderer: renderer as never,
+      });
+
+      expect(code).toBe(0);
+      expect(stdout).toHaveBeenCalledWith(expect.stringContaining('"status":"failed"'));
+      expect(renderer.writeError).not.toHaveBeenCalled();
+    } finally {
+      stdout.mockRestore();
+    }
+  });
+
   it('loads and invokes the TUI only through its production dispatch boundary', async () => {
     const options = { initialQuery: 'hello' } as never;
     await expect(within(runTuiDispatch(options), 5_000)).resolves.toBe(23);

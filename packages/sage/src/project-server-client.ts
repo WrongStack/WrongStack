@@ -21,6 +21,25 @@ const CONNECT_ATTEMPT_TIMEOUT_MS = 750;
 const SERVER_START_TIMEOUT_MS = 10_000;
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const MAX_FRAME_BUFFER_CHARS = 8 * 1024 * 1024;
+/**
+ * Pause between retries of a request refused with `UnauthorizedSageRequest`.
+ * On cold spawn the daemon binds the socket before `store.initialize()` +
+ * `writeMetadata()` finish, so the first request can arrive while
+ * `server.json` does not exist yet. The token is invalidated in `onMessage`;
+ * this delay gives the daemon time to write the file before
+ * `currentAuthToken()` re-reads it.
+ */
+const AUTH_RETRY_DELAY_MS = 150;
+/**
+ * How many auth-refused retries `call()` attempts before surfacing the error.
+ * `onMessage` invalidates the cached token on every `UnauthorizedSageRequest`,
+ * so each retry re-reads `server.json`. Bounded rather than a single shot
+ * because a true cold spawn — SQLite open + migrations on a cold disk — can
+ * take well over one delay interval before `writeMetadata()` lands; ~2s total
+ * covers realistic init while still failing fast when the daemon is genuinely
+ * unreachable.
+ */
+const AUTH_RETRY_MAX_ATTEMPTS = 13;
 
 export type SageProjectServerConnectionStatus =
   | 'unavailable'
@@ -165,10 +184,35 @@ export class SageProjectServerConnection {
     if (options.signal?.aborted) throw cancellationError(options.signal);
     await this.ensureConnected(true);
     if (options.signal?.aborted) throw cancellationError(options.signal);
-    return this.request<SageServerOperations[O]['result']>(
-      { type: 'request', op, args, meta: options.meta },
-      options,
-    );
+    let lastError: unknown;
+    // Cold-spawn / daemon-restart race: the daemon accepts connections (and
+    // sends `hello`) before `store.initialize()` + `writeMetadata()` finish,
+    // so an early request goes out with a missing or stale token and is
+    // refused with `UnauthorizedSageRequest`. `onMessage` invalidates the
+    // cached token on every refusal, so each retry re-reads `server.json`
+    // via `currentAuthToken()`. Retry on a bounded budget rather than once so
+    // a slow cold-start init still recovers instead of wedging the caller
+    // (e.g. `RemoteSageMemoryPort.initialize()`'s first `ping`).
+    for (let attempt = 0; attempt <= AUTH_RETRY_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.request<SageServerOperations[O]['result']>(
+          { type: 'request', op, args, meta: options.meta },
+          options,
+        );
+      } catch (error) {
+        lastError = error;
+        const retriable =
+          error instanceof Error &&
+          error.name === 'UnauthorizedSageRequest' &&
+          attempt < AUTH_RETRY_MAX_ATTEMPTS;
+        if (!retriable) throw error;
+        await delay(AUTH_RETRY_DELAY_MS);
+        if (options.signal?.aborted) throw cancellationError(options.signal);
+      }
+    }
+    // Unreachable: the loop returns on success and throws on the final
+    // refusal (attempt === AUTH_RETRY_MAX_ATTEMPTS). Kept for type safety.
+    throw lastError;
   }
 
   async shutdown(reason?: string): Promise<{ stopped: boolean; pid?: number; reason?: string }> {
@@ -280,15 +324,14 @@ export class SageProjectServerConnection {
   }
 
   /**
-   * Read the daemon's per-process token out of its owner-only `server.json`.
+   * The auth token, read lazily from the daemon's owner-only `server.json`
+   * and re-read while still unknown.
    *
-   * WS-028: this replaces taking the token from the `hello` frame. Failure is
-   * not fatal here — the request itself will be refused with
-   * `UnauthorizedSageRequest`, which is a far clearer signal than a connect
-   * that silently succeeds and then fails every call.
-   */
-  /**
-   * The token, read lazily and re-read while still unknown.
+   * WS-028: the token comes from the file, never from the `hello` frame —
+   * reading it is the proof of same-user access the gate requires. Failure to
+   * read it is not fatal here; the request is then refused with
+   * `UnauthorizedSageRequest`, a far clearer signal than a connect that
+   * silently succeeds and then fails every call.
    *
    * The daemon starts listening before `writeMetadata()` runs (ownership of
    * the endpoint has to be won first, and clobbering another daemon's

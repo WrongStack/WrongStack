@@ -104,7 +104,7 @@ describe('Agent', () => {
     for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
   });
 
-  it('returns done on plain end_turn response', async () => {
+  it('legacy contract: returns done on plain end_turn response', async () => {
     const provider = new MockProvider([
       { content: [{ type: 'text', text: 'hi' }], stopReason: 'end_turn' },
     ]);

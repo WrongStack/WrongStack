@@ -67,10 +67,10 @@ export interface ConnectionHandlerOptions {
  */
 const DEFAULT_WS_RATE_LIMIT = 600;
 
-const RATE_LIMIT_MESSAGES = Number.parseInt(
-  process.env['WEBUI_RATE_LIMIT'] ?? String(DEFAULT_WS_RATE_LIMIT),
-  10,
-);
+const rawRateLimit = process.env['WEBUI_RATE_LIMIT'];
+const parsedRateLimit = rawRateLimit ? Number.parseInt(rawRateLimit, 10) : DEFAULT_WS_RATE_LIMIT;
+const RATE_LIMIT_MESSAGES =
+  Number.isFinite(parsedRateLimit) && parsedRateLimit >= 0 ? parsedRateLimit : DEFAULT_WS_RATE_LIMIT;
 
 /**
  * When true, rejection/parse-failure logs include per-connection context

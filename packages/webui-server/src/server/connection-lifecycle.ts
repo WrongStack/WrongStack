@@ -228,7 +228,7 @@ export function createConnectionLifecycle<Client, Request, Message>(
      * has exceeded its budget and the frame should be dropped.
      */
     const chargeRateLimit = (): boolean => {
-      if (rateLimitMax <= 0) return true;
+      if (!Number.isFinite(rateLimitMax) || rateLimitMax <= 0) return true;
       const now = Date.now();
       if (now > rateWindowResetAt) {
         messageCount = 0;

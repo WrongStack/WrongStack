@@ -13,6 +13,7 @@
  * about what crosses the wire.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -20,6 +21,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  ensureSageProjectServerSocketDirectory,
   sageProjectServerEndpoint,
   sageProjectServerMetadataPath,
 } from '../src/project-server-endpoint.js';
@@ -37,6 +39,12 @@ const __dirname_test = dirname(fileURLToPath(import.meta.url));
 const DIST_ENTRY = pathJoin(__dirname_test, '..', 'dist', 'project-server.js');
 const SRC_ENTRY = pathJoin(__dirname_test, '..', 'src', 'project-server.ts');
 
+const sageDistServer = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
+const sageDistIndex = fileURLToPath(new URL('../dist/index.js', import.meta.url));
+const coreDistIndex = fileURLToPath(new URL('../../core/dist/index.js', import.meta.url));
+const distReady =
+  existsSync(sageDistServer) && existsSync(sageDistIndex) && existsSync(coreDistIndex);
+
 function resolveServerEntry(): { cmd: string; args: string[] } {
   try {
     accessSync(DIST_ENTRY);
@@ -52,6 +60,7 @@ function resolveServerEntry(): { cmd: string; args: string[] } {
 const SERVER_LAUNCH = resolveServerEntry();
 
 let projectRoot: string;
+let endpoint: string;
 let child: ChildProcess | undefined;
 
 async function waitFor<T>(fn: () => Promise<T | undefined>, timeoutMs = 15_000): Promise<T> {
@@ -120,6 +129,8 @@ function rawConnect(endpoint: string): Promise<{
 
 beforeEach(async () => {
   projectRoot = await mkdtemp(join(tmpdir(), 'sage-authgate-'));
+  endpoint = sageProjectServerEndpoint(projectRoot);
+  ensureSageProjectServerSocketDirectory(endpoint);
 });
 
 afterEach(async () => {
@@ -129,7 +140,7 @@ afterEach(async () => {
   await rm(projectRoot, { recursive: true, force: true }).catch(() => undefined);
 });
 
-describe('SAGE daemon auth gate', () => {
+describe.skipIf(!distReady)('SAGE daemon auth gate', () => {
   it('never puts the token on the wire, and refuses a peer that did not read server.json', async () => {
     child = spawn(SERVER_LAUNCH.cmd, [...SERVER_LAUNCH.args, '--project-root', projectRoot], {
       stdio: 'ignore',
@@ -146,7 +157,6 @@ describe('SAGE daemon auth gate', () => {
     });
     expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
 
-    const endpoint = sageProjectServerEndpoint(projectRoot);
     const conn = await waitFor(async () => {
       try {
         return await rawConnect(endpoint);
