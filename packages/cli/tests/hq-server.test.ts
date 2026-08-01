@@ -1328,9 +1328,12 @@ describe('HQ server frame validation', () => {
     expect(typeof summary).toBe('string');
     // Truncated: must not exceed 280 chars + "[truncated:N]" suffix length.
     expect(summary!.length).toBeLessThan(summaryText.length);
-    // Default HQ telemetry preserves the summary body; this path only
-    // truncates oversized summaries.
-    expect(summary!.toLowerCase()).toContain(longSecret.toLowerCase());
+    // WS-007: the summary body is still carried under the rawContent default,
+    // but the server's re-redaction strips the credential inside it — matching
+    // docs/configuration.md:1229. This test previously asserted the token
+    // survived the hop.
+    expect(summary!.toLowerCase()).not.toContain(longSecret.toLowerCase());
+    expect(summary!).toContain('REDACTED');
 
     client.close();
 

@@ -75,7 +75,12 @@ describe('startToolTelemetryBridge', () => {
     expect(payload.status).toBe('error');
   });
 
-  it('keeps sensitive keys in tool input by default', () => {
+  // WS-007: docs/configuration.md:1229 states the contract — "Raw content
+  // publishing defaults on for HQ targets ... Secret scrubbing and
+  // sensitive-field masking still apply." The implementation gated both on
+  // `!rawContent`, so with the shipped default neither ran. These two tests
+  // asserted the drifted behaviour; they now assert the documented one.
+  it('masks sensitive keys in tool input even under the rawContent default', () => {
     const events = new EventBus();
     const spy = vi.fn();
     const publisher = fakePublisher(spy);
@@ -87,10 +92,14 @@ describe('startToolTelemetryBridge', () => {
     });
     const payload: HqToolStartedPayload = spy.mock.calls[0]![0].payload;
     const summary = payload.inputSummary as Record<string, unknown>;
-    expect(summary.apiKey).toBe('sk-secret-123');
+    expect(summary.apiKey).not.toBe('sk-secret-123');
+    expect(String(summary.apiKey)).toContain('REDACTED');
+    // Non-sensitive arguments keep their shape — rawContent still means "do not
+    // collapse the body", it just no longer means "do not scrub".
+    expect(summary.url).toBe('https://example.com');
   });
 
-  it('keeps secrets in tool output summaries by default', () => {
+  it('scrubs secrets from tool output summaries even under the rawContent default', () => {
     const events = new EventBus();
     const spy = vi.fn();
     startToolTelemetryBridge({ events, publisher: fakePublisher(spy) });
@@ -102,7 +111,8 @@ describe('startToolTelemetryBridge', () => {
       output: `token=${secret}`,
     });
     const payload: HqToolCompletedPayload = spy.mock.calls[0]![0].payload;
-    expect(String(payload.outputSummary)).toContain(secret);
+    expect(String(payload.outputSummary)).not.toContain(secret);
+    expect(String(payload.outputSummary)).toContain('REDACTED');
   });
 
   it('scrubs secrets from tool output summaries when raw content is disabled', () => {

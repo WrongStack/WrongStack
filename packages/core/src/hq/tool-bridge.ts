@@ -18,6 +18,7 @@
  */
 import type { EventBus } from '../kernel/events.js';
 import { resolveHqRedactionPolicy, scrubAndTruncateHqPreview, summarizeHqToolArgs } from './redaction.js';
+import { HQ_TRANSCRIPT_TEXT_CAP } from './protocol.js';
 import type { HqEventEnvelope, HqRedactionPolicy, HqToolCompletedPayload, HqToolStartedPayload } from './protocol.js';
 import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
 
@@ -111,11 +112,11 @@ export function startToolTelemetryBridge(opts: ToolTelemetryBridgeOptions): () =
 
 function truncateForSummary(output: string, policy?: Partial<HqRedactionPolicy>, max = 280): unknown {
   const resolved = resolveHqRedactionPolicy(policy);
-  if (resolved.rawContent) {
-    if (output.length <= max) return output;
-    return `${output.slice(0, max)}…[truncated:${output.length - max}]`;
-  }
-  return scrubAndTruncateHqPreview(output, max) ?? '';
+  // WS-007: `rawContent` widens how much is shown, never whether secrets are
+  // stripped. The previous early return handed tool output through unscrubbed
+  // whenever rawContent was set — which is the shipped default.
+  const limit = resolved.rawContent ? Math.max(max, HQ_TRANSCRIPT_TEXT_CAP) : max;
+  return scrubAndTruncateHqPreview(output, limit) ?? '';
 }
 
 /** Re-export for type-only consumers. */

@@ -221,7 +221,12 @@ function visitValue(
   },
   key?: string,
 ): { value: unknown; redacted: boolean } {
-  if (!options.policy.rawContent && key !== undefined && isSensitiveKey(key)) {
+  // WS-007: secret scrubbing and sensitive-field masking are unconditional.
+  // `rawContent` governs whether *body* content is collapsed to a placeholder —
+  // it must never disable the credential defences. Both were previously gated on
+  // `!rawContent`, and since the shipped default is `rawContent: true`, neither
+  // ran out of the box.
+  if (key !== undefined && isSensitiveKey(key)) {
     return { value: SENSITIVE_FIELD_REPLACEMENT, redacted: true };
   }
 
@@ -240,7 +245,9 @@ function visitValue(
       return { value: RAW_CONTENT_REPLACEMENT, redacted: true };
     }
 
-    const scrubbed = summarizeString(value, options.maxSummaryLength, !options.policy.rawContent);
+    // Always scrub. Truncation still respects the policy's summary length, but
+    // credential patterns are stripped regardless of `rawContent` (WS-007).
+    const scrubbed = summarizeString(value, options.maxSummaryLength, true);
     return { value: scrubbed, redacted: scrubbed !== value };
   }
 
@@ -311,7 +318,10 @@ export function redactHqEvent<TPayload>(
 
 export function summarizeHqToolArgs(value: unknown, options: HqRedactOptions = {}): unknown {
   const policy = resolveHqRedactionPolicy(options.policy);
-  if (policy.toolArgs === 'full') return value;
+  // 'full' keeps the argument *shape* (no summarising, no truncation) but still
+  // runs the scrubber and the sensitive-key mask — returning `value` verbatim
+  // shipped raw tool arguments, which routinely carry tokens (WS-007).
+  if (policy.toolArgs === 'full') return redactHqValue(value, options).value;
   if (policy.toolArgs === 'none') return '[REDACTED:hq_tool_args]';
   if (policy.toolArgs === 'redacted') return redactHqValue(value, options).value;
 

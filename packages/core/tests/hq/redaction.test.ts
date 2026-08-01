@@ -59,7 +59,12 @@ describe('HQ redaction', () => {
     });
   });
 
-  it('keeps sensitive fields when raw content is enabled', () => {
+  // WS-007: docs/configuration.md:1229 — "Raw content publishing defaults on
+  // for HQ targets ... Secret scrubbing and sensitive-field masking still
+  // apply." `rawContent` governs whether the *body* is collapsed, never whether
+  // credentials are stripped. These tests previously asserted the drifted
+  // implementation, in which the shipped default disabled both defences.
+  it('still masks sensitive fields when raw content is enabled', () => {
     const result = redactHqValue({
       token: 'plain-token-value',
       headers: {
@@ -68,13 +73,11 @@ describe('HQ redaction', () => {
       rawContent: 'allowed raw text',
     });
 
-    expect(result.value).toEqual({
-      token: 'plain-token-value',
-      headers: {
-        Authorization: 'Bearer abcdefghijklmnopqrstuvwxyz',
-      },
-      rawContent: 'allowed raw text',
-    });
+    const value = result.value as Record<string, unknown>;
+    expect(String(value.token)).toContain('REDACTED');
+    expect(String((value.headers as Record<string, unknown>).Authorization)).toContain('REDACTED');
+    // Non-sensitive raw text is still carried through in full.
+    expect(value.rawContent).toBe('allowed raw text');
   });
 
   it('redacts sensitive fields when raw content is explicitly disabled', () => {
@@ -95,12 +98,13 @@ describe('HQ redaction', () => {
     });
   });
 
-  it('does not scrub secrets in non-sensitive strings by default', () => {
+  it('scrubs secrets embedded in non-sensitive strings by default', () => {
     const result = redactHqValue({
       summary: 'using Bearer abcdefghijklmnopqrstuvwxyz for auth',
     });
 
-    expect(result.value.summary).toBe('using Bearer abcdefghijklmnopqrstuvwxyz for auth');
+    expect(String(result.value.summary)).not.toContain('abcdefghijklmnopqrstuvwxyz');
+    expect(String(result.value.summary)).toContain('REDACTED');
   });
 
   it('converts project-local paths to project-relative paths when requested', () => {
@@ -149,13 +153,13 @@ describe('HQ redaction', () => {
 
     expect(result.value.id).toBe('evt_1');
     expect(result.value.sessionId).toBe('session_1');
-    expect(result.value.payload).toEqual({
-      toolName: 'bash',
-      output: 'SECRET_TOKEN=abcdefghijklmnopqrstuvwxyz123456',
-    });
+    // Envelope metadata survives; the payload's embedded credential does not.
+    const payload = result.value.payload as Record<string, unknown>;
+    expect(payload.toolName).toBe('bash');
+    expect(String(payload.output)).not.toContain('abcdefghijklmnopqrstuvwxyz123456');
   });
 
-  it('keeps mailbox bodies and previews by default', () => {
+  it('keeps mailbox bodies by default but scrubs credentials inside them', () => {
     const result = redactHqValue(
       {
         message: {
@@ -168,14 +172,13 @@ describe('HQ redaction', () => {
       { maxSummaryLength: 80 },
     );
 
-    expect(result.value).toEqual({
-      message: {
-        subject: 'Please review auth flow',
-        body: 'The raw mailbox body should not be shipped to HQ by default.',
-        bodyPreview: 'Use Bearer abcdefghijklmnopqrstuvwxyz for the repro',
-        outcomePreview: 'Fixed in session_1',
-      },
-    });
+    const message = (result.value as Record<string, unknown>).message as Record<string, unknown>;
+    // Body content is still carried in full — rawContent's actual job.
+    expect(message.subject).toBe('Please review auth flow');
+    expect(message.body).toBe('The raw mailbox body should not be shipped to HQ by default.');
+    expect(message.outcomePreview).toBe('Fixed in session_1');
+    // ...but a credential inside a preview is stripped.
+    expect(String(message.bodyPreview)).not.toContain('abcdefghijklmnopqrstuvwxyz');
   });
 
   it('summarizes tool args without exposing nested objects or sensitive values', () => {

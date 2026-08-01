@@ -280,7 +280,12 @@ describe('HqPublisher', () => {
         event: { type: 'mailbox.event', payload: { action: 'message.sent' } },
       },
     ]);
-    expect(JSON.stringify(frames)).toContain('abcdefghijklmnopqrstuvwxyz');
+    // WS-007: the mailbox body still rides along under the `rawContent` default
+    // (that is what rawContent is for), but a credential inside it is scrubbed
+    // before the frame leaves the process — per docs/configuration.md:1229.
+    const wire = JSON.stringify(frames);
+    expect(wire).not.toContain('abcdefghijklmnopqrstuvwxyz');
+    expect(wire).toContain('REDACTED');
   });
 
   it('sends application heartbeats while the socket is open', () => {
