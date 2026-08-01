@@ -6,6 +6,7 @@
  * process talks to it through the deterministic local IPC endpoint.
  */
 
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
@@ -13,7 +14,10 @@ import * as path from 'node:path';
 import { EventBus } from '../kernel/events.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
-import type { IssueCredentialOptions } from './mailbox-credential-store.js';
+import {
+  type IssueCredentialOptions,
+  redactMailboxCredential,
+} from './mailbox-credential-store.js';
 import { MailboxEventEmitter } from './mailbox-events.js';
 import {
   ensureMailboxProjectServerSocketDirectory,
@@ -28,6 +32,7 @@ import {
   type MailboxProjectServerClientMessage,
   type MailboxProjectServerInfo,
   type MailboxProjectServerMessage,
+  type MailboxProjectServerMetadata,
   type MailboxServerOperationName,
   type MailboxServerOperations,
 } from './mailbox-project-server-protocol.js';
@@ -99,6 +104,20 @@ const stopMemoryWatchdog = startSharedHeapWatchdog({
     pendingRequests,
   }),
 });
+
+/**
+ * Per-process auth token. WS-027: this daemon owns the project's message bus
+ * AND its credential store, and admitted anything that could open the socket.
+ * The 0600 socket only excludes other users — on Windows it does not even do
+ * that — so "same-UID process" was the whole boundary. A caller must now prove
+ * it could read the daemon's owner-only metadata file before it may act.
+ *
+ * The token is deliberately NOT part of `serverInfo`: that object is the
+ * `hello` payload sent to every socket that connects, which is exactly how the
+ * SAGE daemon ended up handing its own credential to the caller it meant to
+ * refuse (WS-028).
+ */
+const authToken = randomBytes(16).toString('hex');
 
 const serverInfo: MailboxProjectServerInfo = {
   protocolVersion: MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION,
@@ -282,17 +301,45 @@ async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promi
     }
     case 'credentialGet': {
       const args = rawArgs as MailboxServerOperations['credentialGet']['args'];
-      return activeMailbox.credentialGet(args.credentialId);
+      // WS-025: the same `redactMailboxCredential` the MCP read surface uses.
+      // A second local copy of this would drift — which is the shape of
+      // several findings in this audit, including this one's sibling WS-066.
+      return Promise.resolve(activeMailbox.credentialGet(args.credentialId)).then((credential) =>
+        credential ? redactMailboxCredential(credential) : null,
+      );
     }
     case 'credentialList':
-      return activeMailbox.credentialList();
+      return Promise.resolve(activeMailbox.credentialList()).then((credentials) =>
+        credentials.map(redactMailboxCredential),
+      );
     case 'credentialStatusCounts':
       return activeMailbox.credentialStatusCounts();
   }
 }
 
+/**
+ * WS-027: every `request` and `shutdown` must carry the per-process token.
+ * `heartbeat` does not — it carries no id to answer on, mutates nothing, and
+ * only refreshes the sender's own lease.
+ */
+function checkAuthToken(state: ClientState, message: MailboxProjectServerClientMessage): boolean {
+  if (message.type === 'heartbeat') return true;
+  if (message.authToken === authToken) return true;
+  send(state, {
+    type: 'response',
+    id: message.id,
+    ok: false,
+    error:
+      'Mailbox IPC request rejected: missing or invalid authToken. ' +
+      'Reconnect to refresh metadata (server.json#authToken).',
+    errorName: 'UnauthorizedMailboxRequest',
+  });
+  return false;
+}
+
 function handleMessage(state: ClientState, message: MailboxProjectServerClientMessage): void {
   state.lastSeenAt = Date.now();
+  if (!checkAuthToken(state, message)) return;
   if (message.type === 'heartbeat') return;
   if (message.type === 'shutdown') {
     send(state, {
@@ -372,7 +419,9 @@ function scheduleIdleStop(): void {
 async function writeMetadata(): Promise<void> {
   await fsPromises.mkdir(projectDir, { recursive: true });
   const temporary = `${metadataPath}.${process.pid}.tmp`;
-  await fsPromises.writeFile(temporary, `${JSON.stringify(serverStatus(), null, 2)}\n`, {
+  // The token lives ONLY in this owner-only file, never on the wire (WS-027).
+  const metadata: MailboxProjectServerMetadata = { ...serverStatus(), authToken };
+  await fsPromises.writeFile(temporary, `${JSON.stringify(metadata, null, 2)}\n`, {
     encoding: 'utf8',
     mode: 0o600,
   });
