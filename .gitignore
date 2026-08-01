@@ -62,6 +62,10 @@ coverage/**
 bench-results.json
 security-reports/
 security-reports/*
+# security-check pipeline output — contains working exploit payloads and a
+# file:line map of unfixed findings. Must never be committed (WS-038).
+security-report/
+security-report/*
 
 
 .wrongstack/
@@ -170,6 +174,7 @@ AGENTS.md
 *.p12
 *.pfx
 *.token
+.mailbox-bridge.lock
 
 .mavis/
 .opencode/
