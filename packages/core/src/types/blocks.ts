@@ -36,6 +36,13 @@ export interface ToolResultBlock {
   name?: string | undefined;
   content: string;
   is_error?: boolean | undefined;
+  /**
+   * Structured tool error information. Present on error results produced
+   * by the unified tool error taxonomy (tool-error-taxonomy.ts). Consumed
+   * by retry logic, audit log, and observability. Stripped before sending
+   * to the provider (it's an internal extension, not part of the wire format).
+   */
+  _toolErrorInfo?: import('./tool.js').ToolErrorInfo | undefined;
 }
 
 export interface ImageBlock {
