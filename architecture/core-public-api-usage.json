@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 192,
-      "typeOnly": 101,
-      "runtimeOrMixed": 101
+      "files": 195,
+      "typeOnly": 103,
+      "runtimeOrMixed": 102
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -131,7 +131,7 @@
     "@wrongstack/core/storage": {
       "files": 86,
       "typeOnly": 26,
-      "runtimeOrMixed": 89
+      "runtimeOrMixed": 88
     },
     "@wrongstack/core/tasking": {
       "files": 30,
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 822,
-      "typeOnly": 787,
+      "files": 823,
+      "typeOnly": 788,
       "runtimeOrMixed": 205
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -169,7 +169,7 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 456,
+      "files": 457,
       "typeOnly": 51,
       "runtimeOrMixed": 462
     },
@@ -4025,6 +4025,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/boot/governance-shadow-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/boot/tool-registry.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4064,6 +4070,12 @@
       "file": "packages/cli/src/cli-eternal-flag.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/cli-main-helpers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/kernel",
@@ -4434,6 +4446,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/goal-host.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/governance-shadow-bridge.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7045,7 +7063,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tools/src/plan.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -11375,6 +11393,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/tests/mutating-tool-subjects.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tests/read.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14725,7 +14749,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/replace.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14778,6 +14802,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/tests/git.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/tests/mutating-tool-subjects.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

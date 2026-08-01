@@ -1,4 +1,5 @@
 import { EventBus } from '@wrongstack/core/kernel';
+import type { GovernanceRuntimeObservationInput } from '@wrongstack/runtime/governance-bootstrap';
 import { describe, expect, it, vi } from 'vitest';
 import { createGovernanceShadowBridge } from '../src/boot/governance-shadow-bridge.js';
 
@@ -14,7 +15,9 @@ function recordedObservation() {
 describe('CLI governance shadow bridge', () => {
   it('records safe agent and tool metadata without forwarding model text or tool bodies', async () => {
     const events = new EventBus();
-    const observe = vi.fn(async () => recordedObservation());
+    const observe = vi.fn(async (_input: GovernanceRuntimeObservationInput) =>
+      recordedObservation(),
+    );
     const logger = { warn: vi.fn() };
     const bridge = createGovernanceShadowBridge({ events, sink: { observe }, logger });
     const secret = 'secret-user-and-tool-content';
@@ -51,9 +54,9 @@ describe('CLI governance shadow bridge', () => {
       name: 'shell',
       id: 'tool-1',
       inputHash: 'sha256-safe',
-      policyDecision: 'allow',
-      effectiveDecision: 'allow',
-      decisionSource: 'policy',
+      policyDecision: 'auto',
+      effectiveDecision: 'auto',
+      decisionSource: 'default',
       reason: secret,
       yoloEnabled: false,
       capabilityDowngraded: false,
@@ -91,7 +94,7 @@ describe('CLI governance shadow bridge', () => {
         phase: 'authorized',
         toolCallId: 'tool-1',
         inputHash: 'sha256-safe',
-        effectiveDecision: 'allow',
+        effectiveDecision: 'auto',
       },
     });
     expect(observe.mock.calls[4]?.[0]).toMatchObject({
@@ -104,7 +107,7 @@ describe('CLI governance shadow bridge', () => {
 
   it('fails open, warns once, and removes every listener on close', async () => {
     const events = new EventBus();
-    const observe = vi.fn(async () => ({
+    const observe = vi.fn(async (_input: GovernanceRuntimeObservationInput) => ({
       recorded: false as const,
       code: 'request_failed' as const,
       message: 'daemon unavailable',

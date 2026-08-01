@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   type BootstrapGovernanceRuntimeOptions,
-  MAX_PENDING_GOVERNANCE_OBSERVATIONS,
   bootstrapGovernanceRuntimeWithFactory,
+  MAX_PENDING_GOVERNANCE_OBSERVATIONS,
 } from '../src/governance-bootstrap.js';
 
 const options: BootstrapGovernanceRuntimeOptions = {
@@ -163,7 +163,6 @@ describe('runtime governance bootstrap adapter', () => {
     await expect(
       prepared.handle.observe({
         taskId: 'task-1',
-        source: 'wrongstack.cli.shadow.v1',
         category: 'tool_invoked',
         observedAt: '2026-08-02T12:00:00.000Z',
         payload: { phase: 'completed', toolName: 'read' },
@@ -177,7 +176,7 @@ describe('runtime governance bootstrap adapter', () => {
         observationId: expect.any(String),
         projectId: 'project-1',
         taskId: 'task-1',
-        source: 'wrongstack.cli.shadow.v1',
+        source: 'runtime-model',
         category: 'tool_invoked',
         observedAt: '2026-08-02T12:00:00.000Z',
         payload: { phase: 'completed', toolName: 'read' },
@@ -202,7 +201,6 @@ describe('runtime governance bootstrap adapter', () => {
 
     const observation = prepared.handle.observe({
       taskId: null,
-      source: 'wrongstack.cli.shadow.v1',
       category: 'tool_invoked',
       observedAt: '2026-08-02T12:00:00.000Z',
       payload: { phase: 'started', toolName: 'shell' },
@@ -218,7 +216,6 @@ describe('runtime governance bootstrap adapter', () => {
     await expect(
       prepared.handle.observe({
         taskId: null,
-        source: 'wrongstack.cli.shadow.v1',
         category: 'status_changed',
         observedAt: '2026-08-02T12:00:02.000Z',
         payload: { phase: 'late' },
@@ -242,7 +239,6 @@ describe('runtime governance bootstrap adapter', () => {
     if (prepared.mode !== 'governed') throw new Error(prepared.message);
     const input = {
       taskId: null,
-      source: 'wrongstack.cli.shadow.v1',
       category: 'tool_invoked' as const,
       observedAt: '2026-08-02T12:00:00.000Z',
       payload: { phase: 'started', toolName: 'read' },

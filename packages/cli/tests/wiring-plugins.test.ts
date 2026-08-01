@@ -24,8 +24,7 @@ vi.mock(
   'virtual:broken-plugin',
   () => {
     throw new Error('boom');
-  },
-  { virtual: true } as never,
+  }
 );
 
 // A virtual ESM module that setupPlugins can dynamically import.
@@ -33,8 +32,7 @@ vi.mock(
   'virtual:test-plugin',
   () => ({
     default: { name: 'virtual:test-plugin', register: vi.fn() },
-  }),
-  { virtual: true } as never,
+  })
 );
 
 // ── Mock all @wrongstack/plugins/* imports ───────────────────────────────────
@@ -42,313 +40,247 @@ vi.mock(
 // Without mocks, vitest's dynamic import fails and emits a "failed to load" warn.
 vi.mock(
   '@wrongstack/plugins/todo-listener',
-  () => ({ default: { name: 'todo-listener', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'todo-listener', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/agent-handoff',
-  () => ({ default: { name: 'agent-handoff', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'agent-handoff', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/cost-tracker',
-  () => ({ default: { name: 'cost-tracker', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'cost-tracker', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/file-watcher',
-  () => ({ default: { name: 'file-watcher', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'file-watcher', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/git-autocommit',
-  () => ({ default: { name: 'git-autocommit', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'git-autocommit', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/auto-doc',
-  () => ({ default: { name: 'auto-doc', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'auto-doc', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/shell-check',
-  () => ({ default: { name: 'shell-check', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'shell-check', register: vi.fn() } })
 );
-vi.mock('@wrongstack/plugins/cron', () => ({ default: { name: 'cron', register: vi.fn() } }), {
-  virtual: true,
-});
+vi.mock('@wrongstack/plugins/cron', () => ({ default: { name: 'cron', register: vi.fn() } }));
 vi.mock(
   '@wrongstack/plugins/template-engine',
-  () => ({ default: { name: 'template-engine', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'template-engine', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/semver-bump',
-  () => ({ default: { name: 'semver-bump', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'semver-bump', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/secret-scanner',
-  () => ({ default: { name: 'secret-scanner', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'secret-scanner', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/todo-tracker',
-  () => ({ default: { name: 'todo-tracker', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'todo-tracker', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/token-budget',
-  () => ({ default: { name: 'token-budget', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'token-budget', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/lint-gate',
-  () => ({ default: { name: 'lint-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'lint-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/branch-guard',
-  () => ({ default: { name: 'branch-guard', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'branch-guard', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/diff-summary',
-  () => ({ default: { name: 'diff-summary', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'diff-summary', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/commit-validator',
-  () => ({ default: { name: 'commit-validator', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'commit-validator', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/format-on-save',
-  () => ({ default: { name: 'format-on-save', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'format-on-save', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/test-runner-gate',
-  () => ({ default: { name: 'test-runner-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'test-runner-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/import-organizer',
-  () => ({ default: { name: 'import-organizer', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'import-organizer', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/knowledge-graph',
-  () => ({ default: { name: 'knowledge-graph', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'knowledge-graph', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/spec-linker',
-  () => ({ default: { name: 'spec-linker', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'spec-linker', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/loop-breaker',
-  () => ({ default: { name: 'loop-breaker', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'loop-breaker', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/path-guard',
-  () => ({ default: { name: 'path-guard', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'path-guard', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/context-pins',
-  () => ({ default: { name: 'context-pins', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'context-pins', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/checkpoint',
-  () => ({ default: { name: 'checkpoint', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'checkpoint', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/error-lens',
-  () => ({ default: { name: 'error-lens', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'error-lens', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/dep-guard',
-  () => ({ default: { name: 'dep-guard', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'dep-guard', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/config-validator',
-  () => ({ default: { name: 'config-validator', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'config-validator', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/notify-hub',
-  () => ({ default: { name: 'notify-hub', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'notify-hub', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/changelog-writer',
-  () => ({ default: { name: 'changelog-writer', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'changelog-writer', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/injection-shield',
-  () => ({ default: { name: 'injection-shield', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'injection-shield', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/llm-cache',
-  () => ({ default: { name: 'llm-cache', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'llm-cache', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/model-router',
-  () => ({ default: { name: 'model-router', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'model-router', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/pr-drafter',
-  () => ({ default: { name: 'pr-drafter', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'pr-drafter', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/prompt-firewall',
-  () => ({ default: { name: 'prompt-firewall', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'prompt-firewall', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/auto-escalate',
-  () => ({ default: { name: 'auto-escalate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'auto-escalate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/test-coverage-gate',
-  () => ({ default: { name: 'test-coverage-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'test-coverage-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/type-gate',
-  () => ({ default: { name: 'type-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'type-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/token-throttle',
-  () => ({ default: { name: 'token-throttle', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'token-throttle', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/plugin-stack-observer',
-  () => ({ default: { name: 'plugin-stack-observer', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'plugin-stack-observer', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/dependency-vulnerability-gate',
-  () => ({ default: { name: 'dependency-vulnerability-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'dependency-vulnerability-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/migration-planner',
-  () => ({ default: { name: 'migration-planner', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'migration-planner', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/semantic-search-indexer',
-  () => ({ default: { name: 'semantic-search-indexer', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'semantic-search-indexer', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/auto-i18n-extractor',
-  () => ({ default: { name: 'auto-i18n-extractor', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'auto-i18n-extractor', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/doc-sync-guard',
-  () => ({ default: { name: 'doc-sync-guard', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'doc-sync-guard', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/api-compatibility-gate',
-  () => ({ default: { name: 'api-compatibility-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'api-compatibility-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/performance-regression-gate',
-  () => ({ default: { name: 'performance-regression-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'performance-regression-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/test-flake-detector',
-  () => ({ default: { name: 'test-flake-detector', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'test-flake-detector', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/schema-evolution-guard',
-  () => ({ default: { name: 'schema-evolution-guard', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'schema-evolution-guard', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/license-audit-gate',
-  () => ({ default: { name: 'license-audit-gate', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'license-audit-gate', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/accessibility-auditor',
-  () => ({ default: { name: 'accessibility-auditor', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'accessibility-auditor', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/security-hotspot-scanner',
-  () => ({ default: { name: 'security-hotspot-scanner', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'security-hotspot-scanner', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/duplicate-code-detector',
-  () => ({ default: { name: 'duplicate-code-detector', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'duplicate-code-detector', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/code-metrics',
-  () => ({ default: { name: 'code-metrics', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'code-metrics', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/refactor-suggester',
-  () => ({ default: { name: 'refactor-suggester', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'refactor-suggester', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/test-generator',
-  () => ({ default: { name: 'test-generator', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'test-generator', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/release-notes-generator',
-  () => ({ default: { name: 'release-notes-generator', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'release-notes-generator', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/smart-rename',
-  () => ({ default: { name: 'smart-rename', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'smart-rename', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/feature-flag-tracker',
-  () => ({ default: { name: 'feature-flag-tracker', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'feature-flag-tracker', register: vi.fn() } })
 );
 vi.mock(
   '@wrongstack/plugins/interface-contract-guard',
-  () => ({ default: { name: 'interface-contract-guard', register: vi.fn() } }),
-  { virtual: true },
+  () => ({ default: { name: 'interface-contract-guard', register: vi.fn() } })
 );
-vi.mock('@wrongstack/plug-lsp', () => ({ default: { name: 'plug-lsp', register: vi.fn() } }), {
-  virtual: true,
-});
-vi.mock('@wrongstack/telegram', () => ({ default: { name: 'telegram', register: vi.fn() } }), {
-  virtual: true,
-});
+vi.mock('@wrongstack/plug-lsp', () => ({ default: { name: 'plug-lsp', register: vi.fn() } }));
+vi.mock('@wrongstack/telegram', () => ({ default: { name: 'telegram', register: vi.fn() } }));
 
 // Mock the plugin owner: replace loadPlugins so we can observe calls.
 vi.mock('@wrongstack/core/plugin', async (orig) => {

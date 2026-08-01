@@ -71,11 +71,11 @@ export function createGovernanceShadowBridge(input: {
 
   on('agent.run.started', (event) => ({
     taskId: event.ctx.currentKanbanTaskId ?? null,
-    source: SHADOW_SOURCE,
     category: 'status_changed',
     observedAt: event.at,
     payload: {
       entity: 'agent_run',
+      observer: SHADOW_SOURCE,
       phase: 'started',
       model: event.model,
       ...optional('sessionId', event.sessionId),
@@ -86,11 +86,11 @@ export function createGovernanceShadowBridge(input: {
   }));
   on('agent.run.completed', (event) => ({
     taskId: event.ctx.currentKanbanTaskId ?? null,
-    source: SHADOW_SOURCE,
     category: 'status_changed',
     observedAt: event.at,
     payload: {
       entity: 'agent_run',
+      observer: SHADOW_SOURCE,
       phase: 'completed',
       status: event.status,
       iterations: event.iterations,
@@ -103,11 +103,11 @@ export function createGovernanceShadowBridge(input: {
   }));
   on('agent.run.error', (event) => ({
     taskId: event.ctx.currentKanbanTaskId ?? null,
-    source: SHADOW_SOURCE,
     category: 'failure_reported',
     observedAt: event.at,
     payload: {
       entity: 'agent_run',
+      observer: SHADOW_SOURCE,
       phase: 'error',
       durationMs: event.durationMs,
       errorName: event.err.name,
@@ -119,11 +119,11 @@ export function createGovernanceShadowBridge(input: {
   }));
   on('tool.started', (event) => ({
     taskId: event.taskId ?? null,
-    source: SHADOW_SOURCE,
     category: 'tool_invoked',
     observedAt: new Date().toISOString(),
     payload: {
       phase: 'started',
+      observer: SHADOW_SOURCE,
       toolCallId: event.id,
       toolName: event.name,
       ...optional('sessionId', event.sessionId),
@@ -137,11 +137,11 @@ export function createGovernanceShadowBridge(input: {
   }));
   on('permission.evaluated', (event) => ({
     taskId: event.taskId ?? null,
-    source: SHADOW_SOURCE,
     category: 'tool_invoked',
     observedAt: new Date().toISOString(),
     payload: {
       phase: 'authorized',
+      observer: SHADOW_SOURCE,
       toolCallId: event.id,
       toolName: event.name,
       inputHash: event.inputHash,
@@ -162,11 +162,11 @@ export function createGovernanceShadowBridge(input: {
   }));
   on('tool.executed', (event) => ({
     taskId: event.taskId ?? null,
-    source: SHADOW_SOURCE,
     category: 'tool_invoked',
     observedAt: new Date().toISOString(),
     payload: {
       phase: 'completed',
+      observer: SHADOW_SOURCE,
       toolName: event.name,
       durationMs: event.durationMs,
       ok: event.ok,

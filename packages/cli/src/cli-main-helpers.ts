@@ -7,6 +7,7 @@ import type {
   GovernanceRuntimeBootstrapHandle,
   GovernanceRuntimeBootstrapResult,
 } from '@wrongstack/runtime/governance-bootstrap';
+import { sanitizeGovernanceMessage } from '@wrongstack/runtime/governance-sanitize';
 import { createGovernanceShadowBridge } from './boot/governance-shadow-bridge.js';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { buildPickableProviders } from './provider-helpers.js';
@@ -41,10 +42,6 @@ interface BootstrapCliGovernanceDependencies {
 const DEFAULT_GOVERNANCE_DEPENDENCIES: BootstrapCliGovernanceDependencies = {
   load: () => import('@wrongstack/runtime/governance-bootstrap'),
 };
-
-function sanitizeGovernanceMessage(message: string): string {
-  return message.replace(/wsg_\S{1,700}/gu, '[credential]').slice(0, 512);
-}
 
 export function governanceRuntimeEnabled(
   environment: Readonly<Record<string, string | undefined>>,

@@ -1259,7 +1259,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9673
+      "sourceLines": 9698
     },
     {
       "directory": "worktree",

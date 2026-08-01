@@ -45,7 +45,6 @@ export interface GovernanceRuntimeBootstrapCloseResult {
 
 export interface GovernanceRuntimeObservationInput {
   readonly taskId: string | null;
-  readonly source: string;
   readonly category: GovernanceObservationCategory;
   readonly observedAt: string;
   readonly payload: Readonly<Record<string, unknown>>;
@@ -188,7 +187,7 @@ export class GovernanceRuntimeBootstrapHandle {
           observationId,
           projectId: this.#snapshot.model.projectId,
           taskId: input.taskId,
-          source: input.source,
+          source: this.#snapshot.model.clientId,
           category: input.category,
           observedAt: input.observedAt,
           payload: input.payload,

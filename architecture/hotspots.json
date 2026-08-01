@@ -179,7 +179,7 @@
       "relativeImports": 10
     },
     "packages/core/src/security/permission-policy.ts": {
-      "lines": 921,
+      "lines": 1214,
       "relativeImports": 12
     },
     "packages/core/src/storage/file-session-writer.ts": {
@@ -285,6 +285,10 @@
     "packages/tools/src/codebase-index/writer.ts": {
       "lines": 1198,
       "relativeImports": 15
+    },
+    "packages/tools/src/exec.ts": {
+      "lines": 1257,
+      "relativeImports": 7
     },
     "packages/tools/src/kanban.ts": {
       "lines": 944,
@@ -467,8 +471,8 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 959,
-      "relativeImports": 10
+      "lines": 915,
+      "relativeImports": 9
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 967,
