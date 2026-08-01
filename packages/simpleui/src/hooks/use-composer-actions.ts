@@ -1,15 +1,20 @@
 import { useCallback } from 'react';
+import { clearComposerDraft } from '../lib/composer-draft.js';
 import { composePromptWithFileReferences } from '../lib/file-mention.js';
 import {
-  type QueueMode,
   enqueueFront,
   enqueueItem,
-  resolveSendPlan,
   type QueuedItem,
+  type QueueMode,
+  resolveSendPlan,
 } from '../lib/queue-model.js';
-import { parseFallbackRef, resolveRefineText, type RefineDecision, type RefineState } from '../lib/refine-model.js';
+import {
+  parseFallbackRef,
+  type RefineDecision,
+  type RefineState,
+  resolveRefineText,
+} from '../lib/refine-model.js';
 import type { SimpleSocket } from '../lib/ws.js';
-import { clearComposerDraft } from '../lib/composer-draft.js';
 
 export interface UseComposerActionsOptions {
   sessionIdRef: React.RefObject<string | null>;
@@ -23,13 +28,19 @@ export interface UseComposerActionsOptions {
   running: boolean;
   /** Caller-provided dispatch — the hook uses this inside submitWith.
    *  This lets the caller keep its own refine-aware startSend logic. */
-  startSend: (content: string, images?: { data: string; mime: string }[]) => void;
+  startSend: (
+    content: string,
+    images?: { data: string; mime: string; mediaType?: string }[],
+  ) => void;
   /** Direct dispatch that bypasses the refine round-trip. Used by
    *  refineDecision so a panel decision sends immediately instead of
    *  re-entering the refine pipeline (which would loop back into
    *  'refining'). Returns `true` when dispatched, `false` when dropped
    *  (no session / empty content / no socket). */
-  dispatchUserMessage: (content: string, images?: { data: string; mime: string }[]) => boolean;
+  dispatchUserMessage: (
+    content: string,
+    images?: { data: string; mime: string; mediaType?: string }[],
+  ) => boolean;
   setQueue: React.Dispatch<React.SetStateAction<QueuedItem[]>>;
   setDraft: React.Dispatch<React.SetStateAction<string>>;
   setFileRefs: React.Dispatch<React.SetStateAction<string[]>>;
@@ -120,9 +131,17 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
       const now = Date.now();
 
       if (plan === 'send') {
+        // WS-055: the server's `IncomingImagePayload` reads `mediaType`, not
+        // `mime`. Sending only `mime` meant the declared type was dropped on
+        // arrival and `parseIncomingImages` fell back to whatever it could
+        // parse out of the data URL — so the field the UI shows and the field
+        // the server validates were never the same value. Send both: the
+        // canonical key for the server, `mime` retained because the local
+        // queue-replay path and its tests read it.
         const currentImages = attachedImagesRef.current.map((img) => ({
           data: img.data,
           mime: img.mime,
+          mediaType: img.mime,
         }));
         setDraft('');
         setFileRefs([]);

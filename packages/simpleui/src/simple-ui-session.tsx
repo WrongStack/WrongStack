@@ -185,7 +185,7 @@ export function SimpleUiSession() {
    *  advance a queue MUST gate on this: a drop must not consume the queued
    *  item, or the user's held message is silently lost. */
   const dispatchUserMessage = useCallback(
-    (content: string, images?: { data: string; mime: string }[]): boolean => {
+    (content: string, images?: { data: string; mime: string; mediaType?: string }[]): boolean => {
       const sessionId = sessionIdRef.current;
       const socket = socketRef.current;
       if (!content || !sessionId || !socket) return false;
@@ -218,7 +218,7 @@ export function SimpleUiSession() {
 
   /** Open the refine round-trip, or send straight through when refine is off. */
   const startSend = useCallback(
-    (content: string, images?: { data: string; mime: string }[]) => {
+    (content: string, images?: { data: string; mime: string; mediaType?: string }[]) => {
       // Flush any pending refine state before starting a new one.  If a
       // previous send is still in countdown/refining, dispatch its original
       // immediately so the user's first message isn't silently dropped.

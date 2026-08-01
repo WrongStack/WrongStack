@@ -164,7 +164,10 @@ export interface MessageHandlerDeps {
   /** Returns `true` when the message was dispatched, `false` when dropped
    *  (no session / empty content / no socket). Queue-drain callers gate on
    *  this so a dropped drain does not silently consume the queued item. */
-  dispatchUserMessage: (content: string, images?: { data: string; mime: string }[]) => boolean;
+  dispatchUserMessage: (
+    content: string,
+    images?: { data: string; mime: string; mediaType?: string }[],
+  ) => boolean;
   requestProviderModels: (providerId: string) => void;
   writeComposerDraft: (sessionId: string, draft: { text: string; fileRefs: string[] }) => void;
   clearComposerDraft: (sessionId: string) => void;
