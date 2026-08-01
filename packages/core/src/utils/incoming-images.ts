@@ -23,13 +23,38 @@ export const MAX_INCOMING_IMAGES = 8;
 export const MAX_INCOMING_IMAGE_BYTES = 8 * 1024 * 1024;
 
 /** Media types every supported vision wire accepts (Anthropic passthrough,
- *  OpenAI data-URLs, Gemini inlineData). */
-const ALLOWED_IMAGE_MEDIA_TYPES = new Set<string>([
+ *  OpenAI data-URLs, Gemini inlineData).
+ *
+ * Exported because this is the ONE allowlist for image ingest. Any surface
+ * that accepts a client-supplied image block must check against this set —
+ * see {@link isAllowedImageMediaType}. WS-032: the WebUI context editor was a
+ * second ingest path that validated only the *types* of `source.media_type` /
+ * `source.data`, never their values, so it bypassed every control below. */
+export const ALLOWED_IMAGE_MEDIA_TYPES: ReadonlySet<string> = new Set<string>([
   'image/png',
   'image/jpeg',
   'image/webp',
   'image/gif',
 ]);
+
+/** Case-insensitive membership test against {@link ALLOWED_IMAGE_MEDIA_TYPES}. */
+export function isAllowedImageMediaType(mediaType: string): boolean {
+  return ALLOWED_IMAGE_MEDIA_TYPES.has(mediaType.toLowerCase());
+}
+
+/**
+ * Cheap linear alphabet check that rejects raw binary or JSON smuggled into a
+ * base64 image field before it reaches a provider wire.
+ */
+export function isValidImageBase64(base64: string): boolean {
+  return /^[A-Za-z0-9+/]+={0,2}$/.test(base64);
+}
+
+/** Decoded byte count for a base64 payload, for comparison against
+ *  {@link MAX_INCOMING_IMAGE_BYTES}. */
+export function base64DecodedBytes(base64: string): number {
+  return Math.floor((base64.length * 3) / 4);
+}
 
 /** Validation failure on user-supplied image payloads. The message is safe to
  *  echo back to the client verbatim. */
@@ -74,7 +99,7 @@ export function parseIncomingImages(
   return raw.map((img, i) => {
     const { base64, mediaType: fromUrl } = splitDataUrl(img.data ?? '');
     const mediaType = (img.mediaType ?? fromUrl ?? 'image/png').toLowerCase();
-    if (!ALLOWED_IMAGE_MEDIA_TYPES.has(mediaType)) {
+    if (!isAllowedImageMediaType(mediaType)) {
       throw new IncomingImageError(
         `Image ${i + 1}: unsupported media type "${mediaType}" (allowed: ${[...ALLOWED_IMAGE_MEDIA_TYPES].join(', ')}).`,
       );
@@ -82,12 +107,10 @@ export function parseIncomingImages(
     if (!base64) {
       throw new IncomingImageError(`Image ${i + 1}: empty image data.`);
     }
-    // Base64 alphabet check — cheap linear scan that rejects raw binary or
-    // JSON smuggled into the field before it reaches a provider wire.
-    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
+    if (!isValidImageBase64(base64)) {
       throw new IncomingImageError(`Image ${i + 1}: data is not valid base64.`);
     }
-    const bytes = Math.floor((base64.length * 3) / 4);
+    const bytes = base64DecodedBytes(base64);
     if (bytes > MAX_INCOMING_IMAGE_BYTES) {
       throw new IncomingImageError(
         `Image ${i + 1}: ${(bytes / (1024 * 1024)).toFixed(1)} MB exceeds the ${MAX_INCOMING_IMAGE_BYTES / (1024 * 1024)} MB limit.`,

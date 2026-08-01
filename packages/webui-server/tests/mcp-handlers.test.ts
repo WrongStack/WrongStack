@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { MCP_ENV_MASK } from '@wrongstack/mcp';
 import {
   handleMcpAdd,
   handleMcpDisable,
@@ -230,11 +231,17 @@ describe('mcp.list (WebUI panel load / refresh)', () => {
         }>;
       }
     ).servers;
+    // WS-036 (inverted). This asserted `env: { GITHUB_TOKEN: 'configured-token' }`
+    // — i.e. that `mcp.list` echoes MCP server credentials verbatim over the
+    // WebSocket to the browser. That is the leak, not the contract. The value
+    // is now replaced by MCP_ENV_MASK; `buildConfig` restores the stored secret
+    // when a caller echoes the mask back, so the edit form still round-trips.
     expect(servers.find((server) => server.name === 'github')).toMatchObject({
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-github'],
-      env: { GITHUB_TOKEN: 'configured-token' },
+      env: { GITHUB_TOKEN: MCP_ENV_MASK },
     });
+    expect(JSON.stringify(servers)).not.toContain('configured-token');
     expect(servers.find((server) => server.name === 'remote')?.url).toBe(
       'https://mcp.example.com/mcp',
     );

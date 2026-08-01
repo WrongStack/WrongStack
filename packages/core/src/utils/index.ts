@@ -1,12 +1,11 @@
 export * from './assert-never.js';
 export * from './atomic-write.js';
+export { deriveCachePrefixKey } from './cache-key.js';
 export * from './child-env.js';
 export * from './color.js';
 export * from './config-backup.js';
-export { checkConnectivity, resetConnectivityCache } from './connectivity.js';
-export { deriveCachePrefixKey } from './cache-key.js';
 export * from './config-json.js';
-export * from './env-typed.js';
+export { checkConnectivity, resetConnectivityCache } from './connectivity.js';
 export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';
 export {
   buildCompletedWorkLedgerBlock,
@@ -31,21 +30,35 @@ export {
 } from './deep-merge.js';
 export * from './diff.js';
 export type { HttpDispatcher, HttpsAgentAsDispatcher } from './dispatcher-types.js';
+export * from './env-typed.js';
 export { toErrorMessage } from './error.js';
 export * from './expect-defined.js';
 export { expandGlob } from './glob-expand.js';
 export * from './glob-match.js';
 export {
+  defaultHeapLogPath,
+  type HeapDiagnosticFields,
+  type HeapDiagnosticValue,
+  type HeapSample,
+  type HeapWatchdogOptions,
+  startHeapWatchdog,
+  startSharedHeapWatchdog,
+  takeHeapSample,
+} from './heap-watchdog.js';
+export {
+  ALLOWED_IMAGE_MEDIA_TYPES,
+  base64DecodedBytes,
   buildUserContentBlocks,
   IncomingImageError,
   type IncomingImagePayload,
+  isAllowedImageMediaType,
+  isValidImageBase64,
   MAX_INCOMING_IMAGE_BYTES,
   MAX_INCOMING_IMAGES,
   parseIncomingImages,
 } from './incoming-images.js';
-export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';
-export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';
 export { readBundledInstructionText, renderInstructionTemplate } from './instruction-file.js';
+export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';
 export { completePartialObject } from './json-repair.js';
 export {
   type CoercionResult,
@@ -68,22 +81,26 @@ export {
   indexParallelBatchSize,
   isFrugalPerf,
   type PerfProfile,
-  sqliteCachePragmas,
   SageCachePragmas,
+  sqliteCachePragmas,
   tuiStreamFlushMs,
   useDaemonPerfDefaults,
 } from './perf-profile.js';
 export { isPidAlive } from './pid.js';
 export * from './project-identity.js';
+export {
+  type ProjectWatchEvent,
+  type ProjectWatchSubscription,
+  watchProjectTree,
+} from './project-watch.js';
 export { type CompileFail, type CompileResult, compileUserRegex } from './regex-guard.js';
 export * from './safe-json.js';
 export { sessionScopedPath } from './session-scoped-path.js';
-export * from './socket-path.js';
-export { withSqliteExperimentalWarningSuppressed } from './sqlite-warning.js';
 export * from './sleep.js';
 export { slugify } from './slug.js';
+export * from './socket-path.js';
+export { withSqliteExperimentalWarningSuppressed } from './sqlite-warning.js';
 export * from './string.js';
-export { writeErr, writeOut } from './term.js';
 export * from './task-format.js';
 export {
   buildSgrSequence,
@@ -93,15 +110,17 @@ export {
   ESCAPE_TERMINATOR,
   type EscapeEmitResult,
   type EscapeSequence,
+  isStdinTTY,
   type MouseProtocol,
+  onResize,
   safeEmit,
+  setOutputLineGuard,
+  setRawMode,
   setTitle,
   type TerminalCapability,
   TerminalLifecycle,
-  isStdinTTY,
-  onResize,
-  setOutputLineGuard,
-  setRawMode,
+  writeErr,
+  writeOut,
 } from './term.js';
 export * from './todos-format.js';
 export {
@@ -130,6 +149,13 @@ export {
   type ToolDescriptionRegistryLike,
 } from './tool-description-mode.js';
 export {
+  mcpQualifiedToolName,
+  mcpServerToolPrefix,
+  sanitizeWireToolName,
+  WIRE_TOOL_NAME_MAX_LENGTH,
+  WIRE_TOOL_NAME_PATTERN,
+} from './tool-name.js';
+export {
   createToolOutputSerializer,
   type ToolOutputSerializerOptions,
 } from './tool-output-serializer.js';
@@ -144,13 +170,6 @@ export {
 } from './tool-result-render-mode.js';
 export * from './tool-subject.js';
 export {
-  mcpQualifiedToolName,
-  mcpServerToolPrefix,
-  sanitizeWireToolName,
-  WIRE_TOOL_NAME_MAX_LENGTH,
-  WIRE_TOOL_NAME_PATTERN,
-} from './tool-name.js';
-export {
   type CompactToolDefinitionForWireOptions,
   type CompactWireToolDefinition,
   compactSchemaDescriptions,
@@ -159,20 +178,6 @@ export {
   type ToolWireDefinitionLike,
 } from './tool-wire-compact.js';
 export { isUlid, ulid } from './ulid.js';
-export {
-  type ProjectWatchEvent,
-  type ProjectWatchSubscription,
-  watchProjectTree,
-} from './project-watch.js';
 export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';
+export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';
 export * from './wstack-paths.js';
-export {
-  type HeapDiagnosticFields,
-  type HeapDiagnosticValue,
-  type HeapSample,
-  type HeapWatchdogOptions,
-  startSharedHeapWatchdog,
-  startHeapWatchdog,
-  takeHeapSample,
-  defaultHeapLogPath,
-} from './heap-watchdog.js';

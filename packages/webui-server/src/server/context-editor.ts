@@ -1,9 +1,18 @@
 import { createHash } from 'node:crypto';
+import net from 'node:net';
 import type { Context } from '@wrongstack/core/agent';
-import type { ContentBlock } from '@wrongstack/core/types';
-import type { Message } from '@wrongstack/core/types';
-import { repairToolUseAdjacency } from '@wrongstack/core/utils';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { ContentBlock, Message } from '@wrongstack/core/types';
+import {
+  ALLOWED_IMAGE_MEDIA_TYPES,
+  base64DecodedBytes,
+  isAllowedImageMediaType,
+  isPrivateIPv4,
+  isPrivateIPv6,
+  isValidImageBase64,
+  MAX_INCOMING_IMAGE_BYTES,
+  repairToolUseAdjacency,
+} from '@wrongstack/core/utils';
 import { estimateContextBreakdown, messageTokens } from './token-estimator.js';
 
 export type ContextEditorBlock = ContentBlock;
@@ -109,6 +118,75 @@ const MAX_MESSAGE_COUNT_GROWTH = 10;
 const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 const MAX_STRING_LENGTH = 8 * 1024 * 1024;
 
+/** Upper bound on an `image.source.url`, well past any real image URL. */
+const MAX_IMAGE_URL_LENGTH = 2048;
+
+/**
+ * Reason `url` is unacceptable as an `image.source.url`, or `undefined` if it
+ * passes (WS-032).
+ *
+ * Both the OpenAI and Responses wires forward `source.url` to the provider
+ * verbatim, and the provider fetches it server-side. The runtime's SSRF guard
+ * for image URLs (`routeImagesForModel` → `assertNotPrivateHost`) covers the
+ * new-message path only; edited history is written straight into `messages[]`
+ * and never passes through it.
+ *
+ * SCOPE, deliberately stated rather than implied: this validator is
+ * synchronous, so it cannot do the DNS resolution `assertNotPrivateHost`
+ * performs. It rejects the direct forms — non-https schemes (`file:`, `data:`,
+ * `gopher:`), embedded credentials, and literal private / loopback / link-local
+ * addresses including the cloud metadata endpoint. A public hostname that
+ * *resolves* to a private address is NOT caught here; that remains the
+ * runtime guard's job. Closing that gap means routing replayed history through
+ * the async guard, which is a change to the send path, not to this validator.
+ */
+function imageUrlRejectionReason(url: string): string | undefined {
+  if (url.length > MAX_IMAGE_URL_LENGTH) {
+    return `image.source.url exceeds ${MAX_IMAGE_URL_LENGTH} characters.`;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return 'image.source.url must be an absolute URL.';
+  }
+  if (parsed.protocol !== 'https:') {
+    return `image.source.url must use https (got "${parsed.protocol}").`;
+  }
+  if (parsed.username !== '' || parsed.password !== '') {
+    return 'image.source.url must not embed credentials.';
+  }
+  // `new URL` keeps IPv6 literals bracketed; the guards want the bare address.
+  const host =
+    parsed.hostname.startsWith('[') && parsed.hostname.endsWith(']')
+      ? parsed.hostname.slice(1, -1)
+      : parsed.hostname;
+  // Strip a trailing dot (e.g. "localhost.") so the loopback/private checks
+  // below match regardless of the FQDN dot suffix — without this, exact
+  // equality on "localhost" is bypassed by one character.
+  const bareHost = host.endsWith('.') ? host.slice(0, -1) : host;
+  // Unreachable while the scheme gate above is https-only: https is a WHATWG
+  // "special scheme", so an empty host either throws in `new URL` ("https://")
+  // or is normalized away ("https:///etc/passwd" parses as host "etc"). Kept
+  // deliberately — it is the check that must already be in place if the scheme
+  // allowlist ever widens to a non-special scheme, where an empty host would
+  // otherwise reach the address guards below and pass them.
+  if (bareHost === '') {
+    return 'image.source.url must include a hostname.';
+  }
+  if (bareHost === 'localhost' || bareHost.endsWith('.localhost')) {
+    return 'image.source.url must not target localhost.';
+  }
+  const family = net.isIP(bareHost);
+  if (family === 4 && isPrivateIPv4(bareHost)) {
+    return `image.source.url must not target a private or loopback address ("${bareHost}").`;
+  }
+  if (family === 6 && isPrivateIPv6(bareHost)) {
+    return `image.source.url must not target a private or loopback address ("${bareHost}").`;
+  }
+  return undefined;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -207,24 +285,50 @@ function validateBlock(
         error(errors, `${path}/text`, 'TEXT_TOO_LARGE', 'Text block is too large.');
         return undefined;
       }
-      const cacheControl = validateCacheControl(value['cache_control'], `${path}/cache_control`, errors);
-      return cacheControl ? { type: 'text', text, cache_control: cacheControl } : { type: 'text', text };
+      const cacheControl = validateCacheControl(
+        value['cache_control'],
+        `${path}/cache_control`,
+        errors,
+      );
+      return cacheControl
+        ? { type: 'text', text, cache_control: cacheControl }
+        : { type: 'text', text };
     }
     case 'tool_use': {
       const id = value['id'];
       const name = value['name'];
       const input = value['input'];
       if (typeof id !== 'string' || id.length === 0) {
-        error(errors, `${path}/id`, 'INVALID_TOOL_USE_ID', 'tool_use.id must be a non-empty string.');
+        error(
+          errors,
+          `${path}/id`,
+          'INVALID_TOOL_USE_ID',
+          'tool_use.id must be a non-empty string.',
+        );
       }
       if (typeof name !== 'string' || name.length === 0) {
-        error(errors, `${path}/name`, 'INVALID_TOOL_NAME', 'tool_use.name must be a non-empty string.');
+        error(
+          errors,
+          `${path}/name`,
+          'INVALID_TOOL_NAME',
+          'tool_use.name must be a non-empty string.',
+        );
       }
       if (!isPlainJsonObject(input)) {
         error(errors, `${path}/input`, 'INVALID_TOOL_INPUT', 'tool_use.input must be an object.');
       }
-      const providerMeta = validateProviderMeta(value['providerMeta'], `${path}/providerMeta`, errors);
-      if (typeof id !== 'string' || id.length === 0 || typeof name !== 'string' || name.length === 0 || !isPlainJsonObject(input)) {
+      const providerMeta = validateProviderMeta(
+        value['providerMeta'],
+        `${path}/providerMeta`,
+        errors,
+      );
+      if (
+        typeof id !== 'string' ||
+        id.length === 0 ||
+        typeof name !== 'string' ||
+        name.length === 0 ||
+        !isPlainJsonObject(input)
+      ) {
         return undefined;
       }
       return providerMeta === undefined
@@ -237,20 +341,46 @@ function validateBlock(
       const content = value['content'];
       const isError = value['is_error'];
       if (typeof toolUseId !== 'string' || toolUseId.length === 0) {
-        error(errors, `${path}/tool_use_id`, 'INVALID_TOOL_RESULT_ID', 'tool_result.tool_use_id must be a non-empty string.');
+        error(
+          errors,
+          `${path}/tool_use_id`,
+          'INVALID_TOOL_RESULT_ID',
+          'tool_result.tool_use_id must be a non-empty string.',
+        );
       }
       if (name !== undefined && typeof name !== 'string') {
-        error(errors, `${path}/name`, 'INVALID_TOOL_RESULT_NAME', 'tool_result.name must be a string.');
+        error(
+          errors,
+          `${path}/name`,
+          'INVALID_TOOL_RESULT_NAME',
+          'tool_result.name must be a string.',
+        );
       }
       if (typeof content !== 'string') {
-        error(errors, `${path}/content`, 'INVALID_TOOL_RESULT_CONTENT', 'tool_result.content must be a string.');
+        error(
+          errors,
+          `${path}/content`,
+          'INVALID_TOOL_RESULT_CONTENT',
+          'tool_result.content must be a string.',
+        );
       } else if (content.length > MAX_STRING_LENGTH) {
-        error(errors, `${path}/content`, 'TOOL_RESULT_TOO_LARGE', 'tool_result.content is too large.');
+        error(
+          errors,
+          `${path}/content`,
+          'TOOL_RESULT_TOO_LARGE',
+          'tool_result.content is too large.',
+        );
       }
       if (isError !== undefined && typeof isError !== 'boolean') {
-        error(errors, `${path}/is_error`, 'INVALID_TOOL_RESULT_ERROR', 'tool_result.is_error must be boolean.');
+        error(
+          errors,
+          `${path}/is_error`,
+          'INVALID_TOOL_RESULT_ERROR',
+          'tool_result.is_error must be boolean.',
+        );
       }
-      if (typeof toolUseId !== 'string' || toolUseId.length === 0 || typeof content !== 'string') return undefined;
+      if (typeof toolUseId !== 'string' || toolUseId.length === 0 || typeof content !== 'string')
+        return undefined;
       return {
         type: 'tool_result',
         tool_use_id: toolUseId,
@@ -260,6 +390,17 @@ function validateBlock(
       };
     }
     case 'image': {
+      // WS-032. This case used to check only the *types* of the source fields,
+      // never their values — so it was a second image-ingest path that bypassed
+      // every control `parseIncomingImages` enforces on the normal one: the
+      // media-type allowlist, the base64 alphabet check, and the 8 MB cap.
+      //
+      // It was also the only way a `type: 'url'` image could enter WebUI
+      // history at all (`parseIncomingImages` always emits base64), and the
+      // SSRF guard for url-sourced images lives in `routeImagesForModel`, which
+      // runs on the new-message path only — never on replayed history. So an
+      // arbitrary URL written here went straight to the provider wire
+      // (`to-openai` / `to-responses` both forward `source.url` verbatim).
       const source = value['source'];
       if (!isRecord(source)) {
         error(errors, `${path}/source`, 'INVALID_IMAGE_SOURCE', 'image.source must be an object.');
@@ -267,28 +408,97 @@ function validateBlock(
       }
       const sourceType = source['type'];
       if (sourceType !== 'base64' && sourceType !== 'url') {
-        error(errors, `${path}/source/type`, 'INVALID_IMAGE_SOURCE_TYPE', 'image.source.type must be base64 or url.');
+        error(
+          errors,
+          `${path}/source/type`,
+          'INVALID_IMAGE_SOURCE_TYPE',
+          'image.source.type must be base64 or url.',
+        );
         return undefined;
       }
       const mediaType = source['media_type'];
       const data = source['data'];
       const url = source['url'];
       if (mediaType !== undefined && typeof mediaType !== 'string') {
-        error(errors, `${path}/source/media_type`, 'INVALID_IMAGE_MEDIA_TYPE', 'image.source.media_type must be a string.');
+        error(
+          errors,
+          `${path}/source/media_type`,
+          'INVALID_IMAGE_MEDIA_TYPE',
+          'image.source.media_type must be a string.',
+        );
+        return undefined;
       }
-      if (data !== undefined && typeof data !== 'string') {
-        error(errors, `${path}/source/data`, 'INVALID_IMAGE_DATA', 'image.source.data must be a string.');
+      // `media_type` is interpolated into a `data:` URL by the OpenAI and
+      // Responses wires, so an unvalidated value is header injection into that
+      // URL, not just a wrong label.
+      if (typeof mediaType === 'string' && !isAllowedImageMediaType(mediaType)) {
+        error(
+          errors,
+          `${path}/source/media_type`,
+          'UNSUPPORTED_IMAGE_MEDIA_TYPE',
+          `image.source.media_type must be one of: ${[...ALLOWED_IMAGE_MEDIA_TYPES].join(', ')}.`,
+        );
+        return undefined;
       }
-      if (url !== undefined && typeof url !== 'string') {
-        error(errors, `${path}/source/url`, 'INVALID_IMAGE_URL', 'image.source.url must be a string.');
+
+      if (sourceType === 'base64') {
+        if (typeof data !== 'string' || data.length === 0) {
+          error(
+            errors,
+            `${path}/source/data`,
+            'INVALID_IMAGE_DATA',
+            'image.source.data must be a non-empty string for a base64 source.',
+          );
+          return undefined;
+        }
+        if (!isValidImageBase64(data)) {
+          error(
+            errors,
+            `${path}/source/data`,
+            'INVALID_IMAGE_DATA',
+            'image.source.data is not valid base64.',
+          );
+          return undefined;
+        }
+        if (base64DecodedBytes(data) > MAX_INCOMING_IMAGE_BYTES) {
+          error(
+            errors,
+            `${path}/source/data`,
+            'IMAGE_TOO_LARGE',
+            `image.source.data exceeds the ${MAX_INCOMING_IMAGE_BYTES / (1024 * 1024)} MB limit.`,
+          );
+          return undefined;
+        }
+        return {
+          type: 'image',
+          source: {
+            type: 'base64',
+            ...(typeof mediaType === 'string' ? { media_type: mediaType } : {}),
+            data,
+          },
+        };
+      }
+
+      if (typeof url !== 'string' || url.length === 0) {
+        error(
+          errors,
+          `${path}/source/url`,
+          'INVALID_IMAGE_URL',
+          'image.source.url must be a non-empty string for a url source.',
+        );
+        return undefined;
+      }
+      const urlError = imageUrlRejectionReason(url);
+      if (urlError !== undefined) {
+        error(errors, `${path}/source/url`, 'UNSAFE_IMAGE_URL', urlError);
+        return undefined;
       }
       return {
         type: 'image',
         source: {
-          type: sourceType,
+          type: 'url',
           ...(typeof mediaType === 'string' ? { media_type: mediaType } : {}),
-          ...(typeof data === 'string' ? { data } : {}),
-          ...(typeof url === 'string' ? { url } : {}),
+          url,
         },
       };
     }
@@ -296,13 +506,27 @@ function validateBlock(
       const thinking = value['thinking'];
       const signature = value['signature'];
       if (typeof thinking !== 'string') {
-        error(errors, `${path}/thinking`, 'INVALID_THINKING', 'thinking.thinking must be a string.');
+        error(
+          errors,
+          `${path}/thinking`,
+          'INVALID_THINKING',
+          'thinking.thinking must be a string.',
+        );
         return undefined;
       }
       if (signature !== undefined && typeof signature !== 'string') {
-        error(errors, `${path}/signature`, 'INVALID_THINKING_SIGNATURE', 'thinking.signature must be a string.');
+        error(
+          errors,
+          `${path}/signature`,
+          'INVALID_THINKING_SIGNATURE',
+          'thinking.signature must be a string.',
+        );
       }
-      const providerMeta = validateProviderMeta(value['providerMeta'], `${path}/providerMeta`, errors);
+      const providerMeta = validateProviderMeta(
+        value['providerMeta'],
+        `${path}/providerMeta`,
+        errors,
+      );
       return {
         type: 'thinking',
         thinking,
@@ -311,7 +535,12 @@ function validateBlock(
       };
     }
     default:
-      error(errors, `${path}/type`, 'UNKNOWN_BLOCK_TYPE', `Unknown content block type: ${String(type)}`);
+      error(
+        errors,
+        `${path}/type`,
+        'UNKNOWN_BLOCK_TYPE',
+        `Unknown content block type: ${String(type)}`,
+      );
       return undefined;
   }
 }
@@ -327,7 +556,12 @@ export function validateContextEditorMessages(
     return { messages, errors };
   }
   if (value.length > currentMessageCount + MAX_MESSAGE_COUNT_GROWTH) {
-    error(errors, '/messages', 'TOO_MANY_MESSAGES', 'Context editor is deletion-oriented; proposed message count grew too much.');
+    error(
+      errors,
+      '/messages',
+      'TOO_MANY_MESSAGES',
+      'Context editor is deletion-oriented; proposed message count grew too much.',
+    );
   }
   if (jsonByteLength(value) > MAX_PAYLOAD_BYTES) {
     error(errors, '/messages', 'PAYLOAD_TOO_LARGE', 'Context editor payload is too large.');
@@ -340,7 +574,12 @@ export function validateContextEditorMessages(
     }
     const role = item['role'];
     if (!isMessageRole(role)) {
-      error(errors, `${path}/role`, 'INVALID_ROLE', 'Message role must be user, assistant, or system.');
+      error(
+        errors,
+        `${path}/role`,
+        'INVALID_ROLE',
+        'Message role must be user, assistant, or system.',
+      );
       return;
     }
     const rawContent = item['content'];
@@ -359,13 +598,23 @@ export function validateContextEditorMessages(
       });
       content = blocks;
     } else {
-      error(errors, `${path}/content`, 'INVALID_CONTENT', 'Message content must be a string or content block array.');
+      error(
+        errors,
+        `${path}/content`,
+        'INVALID_CONTENT',
+        'Message content must be a string or content block array.',
+      );
       return;
     }
     const ts = item['ts'];
     if (ts !== undefined) {
       if (typeof ts !== 'string' || Number.isNaN(Date.parse(ts))) {
-        error(errors, `${path}/ts`, 'INVALID_TIMESTAMP', 'Message ts must be an ISO-like timestamp string.');
+        error(
+          errors,
+          `${path}/ts`,
+          'INVALID_TIMESTAMP',
+          'Message ts must be an ISO-like timestamp string.',
+        );
         return;
       }
     }
@@ -376,7 +625,8 @@ export function validateContextEditorMessages(
 
 function countBlocks(messages: readonly Message[]): number {
   let total = 0;
-  for (const message of messages) total += Array.isArray(message.content) ? message.content.length : 1;
+  for (const message of messages)
+    total += Array.isArray(message.content) ? message.content.length : 1;
   return total;
 }
 
@@ -411,7 +661,8 @@ function warningsForMessage(message: Message, index: number): ContextEditorWarni
         path: `/messages/${index}/content/${blockIndex}`,
         code: 'SIGNED_THINKING_PRESENT',
         severity: 'warning',
-        message: 'This block contains provider replay metadata and should only be removed with the whole turn if no longer needed.',
+        message:
+          'This block contains provider replay metadata and should only be removed with the whole turn if no longer needed.',
       });
     }
     if (block.type === 'tool_result' && block.content.length > 20_000) {
@@ -430,7 +681,11 @@ function collectWarnings(messages: readonly Message[]): ContextEditorWarning[] {
   return messages.flatMap((message, index) => warningsForMessage(message, index));
 }
 
-function metricFor(ctx: Context, messages: readonly Message[], tools: ReturnType<ToolRegistry['list']> | undefined): ContextEditorMetrics {
+function metricFor(
+  ctx: Context,
+  messages: readonly Message[],
+  tools: ReturnType<ToolRegistry['list']> | undefined,
+): ContextEditorMetrics {
   const breakdown = estimateContextBreakdown({
     systemPrompt: ctx.systemPrompt,
     tools: tools ?? ctx.tools ?? [],
@@ -444,12 +699,17 @@ function metricFor(ctx: Context, messages: readonly Message[], tools: ReturnType
   };
 }
 
-export function buildContextEditorSnapshot(ctx: Context, tools: ReturnType<ToolRegistry['list']> | undefined): ContextEditorSnapshot {
-  const messages = ctx.messages.map((message): ContextEditorMessage => ({
-    role: message.role,
-    content: message.content,
-    ...(message.ts ? { ts: message.ts } : {}),
-  }));
+export function buildContextEditorSnapshot(
+  ctx: Context,
+  tools: ReturnType<ToolRegistry['list']> | undefined,
+): ContextEditorSnapshot {
+  const messages = ctx.messages.map(
+    (message): ContextEditorMessage => ({
+      role: message.role,
+      content: message.content,
+      ...(message.ts ? { ts: message.ts } : {}),
+    }),
+  );
   const breakdown = estimateContextBreakdown({
     systemPrompt: ctx.systemPrompt,
     tools: tools ?? ctx.tools ?? [],
@@ -502,7 +762,10 @@ export function validateContextEditorProposal(input: {
       validationErrors: [],
       warnings: [],
       repair: emptyRepair,
-      conflict: { code: 'RUN_ACTIVE', message: 'The agent is currently running. Abort or wait before applying context edits.' },
+      conflict: {
+        code: 'RUN_ACTIVE',
+        message: 'The agent is currently running. Abort or wait before applying context edits.',
+      },
     };
   }
   if (input.baseRevision !== currentRevision) {
@@ -514,7 +777,10 @@ export function validateContextEditorProposal(input: {
       validationErrors: [],
       warnings: [],
       repair: emptyRepair,
-      conflict: { code: 'CONTEXT_REVISION_CONFLICT', message: 'Context changed while the editor was open. Reload before applying.' },
+      conflict: {
+        code: 'CONTEXT_REVISION_CONFLICT',
+        message: 'Context changed while the editor was open. Reload before applying.',
+      },
     };
   }
   const parsed = validateContextEditorMessages(input.messages, input.ctx.messages.length);
