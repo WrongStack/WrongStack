@@ -669,6 +669,7 @@ describe('serveHttp', () => {
     try {
       const outcome = await fetch(handle.url, {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: 'x'.repeat(5 * 1024 * 1024),
       }).catch((error: unknown) => error);
       if (outcome instanceof Response) expect(outcome.status).toBe(413);
@@ -684,7 +685,11 @@ describe('serveHttp', () => {
     const warn = vi.fn();
     const handle = await serveHttp(server, { port: 0, logger: { warn } });
     try {
-      const response = await fetch(handle.url, { method: 'POST', body: '{}' });
+      const response = await fetch(handle.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      });
       expect(response.status).toBe(500);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('handler failed'));
     } finally {

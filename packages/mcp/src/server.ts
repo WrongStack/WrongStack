@@ -1,6 +1,7 @@
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
+import { expectDefined, toErrorMessage, validateAgainstSchema } from '@wrongstack/core/utils';
 import { MCP_CONSTANTS } from './constants.js';
 import type { MCPPromptArgument, MCPPromptMessage, MCPResourceContents } from './protocol.js';
 /**
@@ -85,6 +86,7 @@ interface JsonRpcRequest {
 const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
+const INVALID_PARAMS = -32602;
 const INTERNAL_ERROR = -32603;
 
 export class MCPServer {
@@ -147,7 +149,10 @@ export class MCPServer {
     } catch (err) {
       const message = toErrorMessage(err);
       this.logger?.warn?.(`MCP server: method "${msg.method}" threw: ${message}`);
-      return this.encodeError(expectDefined(msg.id), INTERNAL_ERROR, message);
+      // A schema violation is the caller's fault, not ours — JSON-RPC has a
+      // code for exactly that, and clients retry differently on it (WS-026).
+      const code = err instanceof InvalidToolArgumentsError ? INVALID_PARAMS : INTERNAL_ERROR;
+      return this.encodeError(expectDefined(msg.id), code, message);
     }
   }
 
@@ -180,6 +185,7 @@ export class MCPServer {
           p.arguments && typeof p.arguments === 'object' && !Array.isArray(p.arguments)
             ? (p.arguments as Record<string, unknown>)
             : {};
+        await this.assertArgumentsMatchSchema(p.name, args);
         const res = await this.host.callTool(p.name, args);
         return { content: toContentBlocks(res.content), isError: res.isError };
       }
@@ -238,9 +244,75 @@ export class MCPServer {
     }
   }
 
+  /**
+   * WS-026: enforce the `inputSchema` this server advertises on `tools/list`.
+   *
+   * `tools/call` used to forward `params.arguments` to the host verbatim after
+   * checking only that it was a non-array object — so every `enum`, `required`,
+   * `additionalProperties: false`, and numeric bound in the published schema
+   * was advisory. A client (or an attacker who reached the transport) could
+   * send `{mode: "../../etc"}` to a tool whose schema declares
+   * `enum: ["read","write"]` and the tool would receive it. Publishing a
+   * contract and not enforcing it is worse than publishing none: downstream
+   * tools are written against the schema they declared.
+   *
+   * SCOPE: `validateAgainstSchema` is the shared validator that also gates the
+   * agent's own tool executor. It checks `type`, `enum`, and `required`, and
+   * recurses through `properties`/`items` — it does NOT check
+   * `additionalProperties: false`, numeric bounds, or string lengths. So those
+   * keywords stay advisory here. Teaching the shared validator about them
+   * would change what the agent accepts on every tool call in the product,
+   * which is a deliberate decision that does not belong inside a transport
+   * fix; it is tracked separately.
+   *
+   * Unknown tool names are left alone — the host owns that error, and
+   * answering "no such tool" here would fork the message for no benefit.
+   */
+  private async assertArgumentsMatchSchema(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<void> {
+    let tools: MCPServerTool[];
+    try {
+      tools = await this.host.listTools();
+    } catch {
+      // A host that cannot enumerate its tools is a host problem; let the
+      // call through so the real failure surfaces from `callTool`.
+      return;
+    }
+    const schema = tools.find((tool) => tool.name === name)?.inputSchema;
+    if (!schema || typeof schema !== 'object') return;
+    const result = validateAgainstSchema(
+      args,
+      schema as Parameters<typeof validateAgainstSchema>[1],
+    );
+    if (result.ok) return;
+    const detail = result.errors
+      .slice(0, MAX_REPORTED_SCHEMA_ERRORS)
+      .map((error) => `${error.path || '(root)'}: ${error.message}`)
+      .join('; ');
+    const more =
+      result.errors.length > MAX_REPORTED_SCHEMA_ERRORS
+        ? ` (+${result.errors.length - MAX_REPORTED_SCHEMA_ERRORS} more)`
+        : '';
+    throw new InvalidToolArgumentsError(`invalid arguments for tool "${name}" — ${detail}${more}`);
+  }
+
   private encodeError(id: number | string | null, code: number, message: string): string {
     return JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } });
   }
+}
+
+/** Cap on how many schema violations are echoed back in one error message. */
+const MAX_REPORTED_SCHEMA_ERRORS = 5;
+
+/**
+ * Marks a `tools/call` rejected by {@link MCPServer.assertArgumentsMatchSchema}
+ * so `handleMessage` can answer with JSON-RPC `-32602 Invalid params` rather
+ * than the generic internal-error code every other throw maps to.
+ */
+export class InvalidToolArgumentsError extends Error {
+  override readonly name = 'InvalidToolArgumentsError';
 }
 
 const SERVER_PAGE_SIZE = 100;
@@ -530,7 +602,7 @@ export function serveHttp(
   }
 
   const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
-    void handleHttpRequest(server, req, res, token, log);
+    void handleHttpRequest(server, req, res, token, log, host);
   });
 
   return new Promise<ServeHttpHandle>((resolve, reject) => {
@@ -558,11 +630,44 @@ async function handleHttpRequest(
   res: ServerResponse,
   token: string | undefined,
   log: MCPServerLogger | undefined,
+  boundHost: string,
 ): Promise<void> {
   const send = (status: number, body: string, type = 'application/json') => {
-    res.writeHead(status, { 'content-type': type });
+    res.writeHead(status, {
+      'content-type': type,
+      // This endpoint executes tools. Nothing about it should be embedded,
+      // sniffed into another type, or leak its URL onward.
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'no-referrer',
+      // No CORS headers are ever emitted: a cross-origin reader must not be
+      // able to see a response even if it manages to send the request.
+    });
     res.end(body);
   };
+
+  // WS-024: a browser on any site can reach a loopback port. Two guards run
+  // before anything else, on every method:
+  //
+  //  - Origin. Browsers attach it to every cross-origin request and cannot
+  //    forge it. A foreign origin is refused outright. A same-origin one is
+  //    accepted; a missing one is accepted because non-browser MCP clients
+  //    (the actual audience for this transport) never send it.
+  //  - Host. Pinned to the bound authority so a DNS-rebinding name that
+  //    resolves to 127.0.0.1 cannot be used to turn a foreign page into a
+  //    same-origin one.
+  if (!originIsAcceptable(req, boundHost)) {
+    return send(403, JSON.stringify({ error: 'cross-origin forbidden' }));
+  }
+  if (!hostHeaderIsAcceptable(req, boundHost)) {
+    return send(403, JSON.stringify({ error: 'untrusted host header' }));
+  }
+
+  // WS-024: the token check used to sit AFTER this branch, so `GET` on any
+  // path answered 200 with the server identity to an unauthenticated caller.
+  if (token && !bearerTokenMatches(req.headers.authorization, token)) {
+    return send(401, JSON.stringify({ error: 'unauthorized' }));
+  }
 
   // Health probe.
   if (req.method === 'GET') {
@@ -571,12 +676,12 @@ async function handleHttpRequest(
   if (req.method !== 'POST') {
     return send(405, JSON.stringify({ error: 'method not allowed' }));
   }
-  if (token) {
-    const auth = req.headers.authorization ?? '';
-    const expected = `Bearer ${token}`;
-    if (auth !== expected) {
-      return send(401, JSON.stringify({ error: 'unauthorized' }));
-    }
+  // WS-024: `application/json` is not a CORS-simple content type, so requiring
+  // it means a cross-origin POST must clear a preflight this server never
+  // answers. Without it, a page could drive tool execution with a `text/plain`
+  // form-style POST that no preflight ever gates.
+  if (!isJsonContentType(req.headers['content-type'])) {
+    return send(415, JSON.stringify({ error: 'content-type must be application/json' }));
   }
 
   let body = '';
@@ -600,4 +705,88 @@ async function handleHttpRequest(
         send(500, JSON.stringify({ error: 'internal error' }));
       });
   });
+}
+
+// ── WS-024: transport guards ───────────────────────────────────────────────
+
+/** Hostnames that always denote this machine, regardless of the bind address. */
+function isLoopbackHostname(hostname: string): boolean {
+  const bare = hostname.toLowerCase().replace(/^\[(.*)\]$/, '$1');
+  return bare === 'localhost' || bare === '::1' || bare === '127.0.0.1' || bare.startsWith('127.');
+}
+
+/**
+ * Reject a request whose `Origin` names a site other than this server.
+ *
+ * A missing `Origin` is accepted: the clients this transport exists for
+ * (Claude Desktop, IDE extensions, `curl`) are not browsers and never send
+ * one. A browser, which is the threat here, always attaches it on a
+ * cross-origin request and cannot forge it.
+ */
+function originIsAcceptable(req: IncomingMessage, boundHost: string): boolean {
+  const origin = req.headers.origin;
+  if (origin === undefined || origin === 'null') return origin === undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+  const rawHost = req.headers.host?.trim();
+  if (!rawHost) return false;
+  try {
+    // Same-origin means the Origin's authority equals the one the request was
+    // actually addressed to — which `hostHeaderIsAcceptable` separately pins
+    // to the bind address, so the two together leave no gap.
+    const requestAuthority = new URL(`${parsed.protocol}//${rawHost}`).host.toLowerCase();
+    if (parsed.host.toLowerCase() !== requestAuthority) return false;
+  } catch {
+    return false;
+  }
+  // A loopback bind is only ever addressable as this machine.
+  return isLoopbackHost(boundHost) ? isLoopbackHostname(parsed.hostname) : true;
+}
+
+/**
+ * Pin the `Host` header to the bound address. Without this, an attacker
+ * registers `evil.example → 127.0.0.1`, gets a victim's browser to load a page
+ * there, and every request is same-origin by the browser's reckoning while
+ * landing on this server (DNS rebinding).
+ */
+function hostHeaderIsAcceptable(req: IncomingMessage, boundHost: string): boolean {
+  const rawHost = req.headers.host?.trim();
+  if (!rawHost) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(`http://${rawHost}`);
+  } catch {
+    return false;
+  }
+  // A bare authority only — userinfo, a path, or a query means something is
+  // trying to smuggle structure through the header.
+  if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search) return false;
+  if (isLoopbackHost(boundHost)) return isLoopbackHostname(parsed.hostname);
+  // A non-loopback bind is an explicit operator decision and requires a token
+  // (see `serveHttp`), so the hostname is theirs to choose.
+  return true;
+}
+
+/** `application/json`, with or without parameters such as `; charset=utf-8`. */
+function isJsonContentType(value: string | undefined): boolean {
+  if (!value) return false;
+  const base = value.split(';')[0]?.trim().toLowerCase() ?? '';
+  return base === 'application/json' || base.endsWith('+json');
+}
+
+/**
+ * Constant-time bearer comparison. `auth !== expected` short-circuits on the
+ * first differing byte, which leaks the token prefix to a caller that can time
+ * responses — and a local attacker can time them very precisely.
+ */
+function bearerTokenMatches(header: string | undefined, token: string): boolean {
+  const expected = Buffer.from(`Bearer ${token}`);
+  const supplied = Buffer.from(header ?? '');
+  if (supplied.length !== expected.length) return false;
+  return timingSafeEqual(supplied, expected);
 }

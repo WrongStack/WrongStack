@@ -136,7 +136,14 @@ describe('createSageMcpServer (read-only default)', () => {
     const names = ((listResult['tools'] as Array<{ name: string }>) ?? []).map((t) => t.name);
     expect(names).toContain('memory_delete');
 
-    // memory_delete WITHOUT force:true -> isError:true (gate preserved)
+    // memory_delete WITHOUT force:true is refused — the gate survives MCP.
+    //
+    // WS-026: the refusal now arrives one layer earlier. `memory_delete`
+    // declares `required: ['id', 'force']`, and `tools/call` enforces the
+    // advertised `inputSchema` instead of forwarding arguments verbatim, so
+    // the call is rejected with JSON-RPC -32602 before it reaches the tool's
+    // own `force` check. Both layers still exist; this asserts the refusal
+    // rather than which layer produced it, and that it still names `force`.
     const refuse = await call(server, {
       jsonrpc: '2.0',
       id: 6,
@@ -146,9 +153,15 @@ describe('createSageMcpServer (read-only default)', () => {
         arguments: { id: 'mem_any' },
       },
     });
-    const refuseResult = refuse?.result as Record<string, unknown>;
-    expect(refuseResult['isError']).toBe(true);
-    expect(textOf(refuseResult)).toMatch(/force/i);
+    const schemaError = refuse?.error as { code?: number; message?: string } | undefined;
+    if (schemaError) {
+      expect(schemaError.code).toBe(-32602);
+      expect(schemaError.message).toMatch(/force/i);
+    } else {
+      const refuseResult = refuse?.result as Record<string, unknown>;
+      expect(refuseResult['isError']).toBe(true);
+      expect(textOf(refuseResult)).toMatch(/force/i);
+    }
   });
 
   it('throws a clear error when node:sqlite is unavailable', () => {
