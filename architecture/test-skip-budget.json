@@ -42,6 +42,16 @@
       "fingerprint": "6c1dfd9f1895e5c4"
     },
     {
+      "file": "packages/core/tests/security/file-permissions.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b16aeb2c1e88f226"
+    },
+    {
+      "file": "packages/core/tests/security/file-permissions.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "f455407a634ea1dd"
+    },
+    {
       "file": "packages/core/tests/worktree/worktree-manager.test.ts",
       "kind": "skipIf",
       "fingerprint": "5fa25ae1a877547c"
@@ -85,6 +95,11 @@
       "file": "packages/sage/tests/feedback-counters.test.ts",
       "kind": "skipIf",
       "fingerprint": "838869ab26efd619"
+    },
+    {
+      "file": "packages/sage/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "bcb873c38071d15b"
     },
     {
       "file": "packages/sdd/tests/sdd-interview-driver.test.ts",
