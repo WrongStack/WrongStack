@@ -1,13 +1,25 @@
 // @vitest-environment jsdom
 
+// Hoist the chime module mock so the hook's named `playChime` import is
+// replaced before the hook itself is evaluated. Vitest's `vi.mock` is the
+// supported channel for hoisted module mocking; using `vi.spyOn` on a
+// namespace import would patch the namespace but miss the hook's named
+// binding (`import { playChime } from '...'`) and the spy would record
+// zero calls even though the hook still plays the chime.
+vi.mock('../src/lib/chime.js', () => ({
+  playChime: vi.fn(),
+}));
+
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as chime from '../src/lib/chime.js';
+import { type UseSimpleMailboxResult, useSimpleMailbox } from '../src/hooks/use-simple-mailbox.js';
+import { type StatusNotice, useStatusNotice } from '../src/hooks/use-status-notice.js';
+import { playChime } from '../src/lib/chime.js';
 import { DEFAULT_PREFS, type SimplePrefs } from '../src/lib/prefs-model.js';
-import { useSimpleMailbox, type UseSimpleMailboxResult } from '../src/hooks/use-simple-mailbox.js';
-import { useStatusNotice } from '../src/hooks/use-status-notice.js';
 import type { ServerMessage } from '../src/types.js';
+
+const playChimeSpy = playChime as unknown as ReturnType<typeof vi.fn>;
 
 /**
  * Pin the wire-protocol contract for `useSimpleMailbox.applyMailboxMessage` so
@@ -27,8 +39,9 @@ import type { ServerMessage } from '../src/types.js';
  *    fires `'Email sent'`; with `success: false` it fires `'Email failed: …'`
  *    regardless of whether the request id is in the pending set (the wire
  *    response is the source of truth for failure).
- *  - `mailbox.action_result` mirrors that contract: pending request id gates
- *    the success notice, failures always notify.
+ *  - `mailbox.action_result` is pending-gated: a notice (success or failure)
+ *    fires only when the request id is in the pending set. Unmatched frames
+ *    are silent — same as `mailbox.sent` for `success: true`.
  *
  * Harness follows `use-status-notice.test.tsx` and `agent-chat-pane.test.tsx`:
  * real `createRoot` + `act`, no testing-library dependency. `chime.playChime`
@@ -37,16 +50,20 @@ import type { ServerMessage } from '../src/types.js';
 
 interface Captured {
   current: UseSimpleMailboxResult | null;
-  /** Notices captured by the `useStatusNotice` instance this harness mounts. */
-  notices: ReadonlyArray<{ id: string; text: string; tone: 'info' | 'error' }>;
+  /** Notices pushed via the `useStatusNotice` instance the harness mounts. */
+  notices: Array<StatusNotice>;
 }
 
 function makeSocketStub(): {
-  ref: React.MutableRefObject<{ send: (type: string, payload: Record<string, unknown>) => void } | null>;
+  ref: React.MutableRefObject<{
+    send: (type: string, payload: Record<string, unknown>) => void;
+  } | null>;
   sends: Array<{ type: string; payload: Record<string, unknown> }>;
 } {
   const sends: Array<{ type: string; payload: Record<string, unknown> }> = [];
-  const ref: React.MutableRefObject<{ send: (type: string, payload: Record<string, unknown>) => void } | null> = {
+  const ref: React.MutableRefObject<{
+    send: (type: string, payload: Record<string, unknown>) => void;
+  } | null> = {
     current: {
       send: (type, payload) => {
         sends.push({ type, payload });
@@ -60,41 +77,28 @@ function makePrefsRef(initial: Partial<SimplePrefs> = {}): React.MutableRefObjec
   return { current: { ...DEFAULT_PREFS, ...initial } } as React.MutableRefObject<SimplePrefs>;
 }
 
-function renderProbe(captured: Captured, prefsRef: React.MutableRefObject<SimplePrefs>): Root {
-  function Probe(): null {
-    const { notice, showNotice } = useStatusNotice();
-    const api = useSimpleMailbox({
-      socketRef: makeSocketStub().ref,
-      setNotice: showNotice,
-      prefsRef,
-    });
-    // Capture the api + the most recent notice on every render. The
-    // `notices` buffer is the authoritative log; `notice` is just the
-    // current value (convenient for single-shot assertions).
-    captured.current = api;
-    return null;
-  }
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  act(() => {
-    root.render(<Probe />);
-  });
-  // After the first render, `useStatusNotice` has produced its initial
-  // (null) value. Drain that one frame of captured state.
-  return root;
-}
-
 function renderProbeWithSocket(
   captured: Captured,
   prefsRef: React.MutableRefObject<SimplePrefs>,
   socketStub: ReturnType<typeof makeSocketStub>,
 ): Root {
   function Probe(): null {
-    const { notice, showNotice } = useStatusNotice();
+    const { showNotice } = useStatusNotice();
+    // Wrap showNotice so the test harness captures every push into the
+    // shared notices buffer (one entry per push, never cleared).
+    // `recordNotice` is a fresh closure per render, but it only forwards
+    // to `showNotice` (a stable callback from useStatusNotice), so the
+    // hook's behaviour is identical to the production wiring.
+    const recordNotice = (next: Parameters<typeof showNotice>[0]): void => {
+      // Only object values are real notices: `null` clears the notice and
+      // an updater function is a state-setter call this harness never
+      // makes — skip both so the buffer holds only pushed notices.
+      if (next && typeof next === 'object') captured.notices.push(next);
+      showNotice(next);
+    };
     const api = useSimpleMailbox({
       socketRef: socketStub.ref,
-      setNotice: showNotice,
+      setNotice: recordNotice,
       prefsRef,
     });
     captured.current = api;
@@ -110,7 +114,6 @@ function renderProbeWithSocket(
 }
 
 const roots: Root[] = [];
-const playChimeSpy = vi.spyOn(chime, 'playChime').mockImplementation(() => {});
 
 beforeEach(() => {
   playChimeSpy.mockClear();
@@ -176,14 +179,16 @@ describe('useSimpleMailbox.applyMailboxMessage — store acceptance', () => {
       payload: { sessionId: 's-1' },
     };
     const beforeSnap = captured.current?.mailboxStore.getSnapshot();
+    const beforeNotices = captured.notices.length;
     const accepted = captured.current?.applyMailboxMessage(nonMailbox);
     expect(accepted).toBe(false);
     // Snapshot unchanged: still the empty initial state.
     const afterSnap = captured.current?.mailboxStore.getSnapshot();
     expect(afterSnap?.messages).toEqual(beforeSnap?.messages);
     expect(afterSnap?.agents).toEqual(beforeSnap?.agents);
-    // No notice was raised.
-    expect(captured.current).not.toBeNull();
+    // No notice was raised. Pin the count before/after so a regression
+    // that pushes notices for unrelated frames cannot pass silently.
+    expect(captured.notices.length).toBe(beforeNotices);
     roots.push(root);
   });
 });
@@ -199,10 +204,18 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'colleague' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(true);
+    // mailbox.received is a notice-only type: the store returns false and
+    // the parent falls through to handleServerMessage. We pin the
+    // side-effects (notice + chime) instead.
+    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
     // The chime is suppressed when the mailbox panel is closed; with the
     // initial state `mailboxOpen === false` it must play.
     expect(playChimeSpy).toHaveBeenCalledTimes(1);
+    // Pin the notice side-effect explicitly so a regression that stopped
+    // emitting the info notice (but kept the chime) could not pass.
+    expect(captured.notices.find((n) => n.text === 'New email received')).toMatchObject({
+      tone: 'info',
+    });
 
     roots.push(root);
   });
@@ -217,8 +230,10 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'simpleui' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(true);
+    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
     expect(playChimeSpy).not.toHaveBeenCalled();
+    // Self-messages are fully silent: no notice either.
+    expect(captured.notices.find((n) => n.text === 'New email received')).toBeUndefined();
 
     roots.push(root);
   });
@@ -239,7 +254,7 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'colleague' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(true);
+    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
     expect(playChimeSpy).not.toHaveBeenCalled();
 
     roots.push(root);
@@ -255,7 +270,7 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.received', () => {
       type: 'mailbox.received',
       payload: { from: 'colleague' },
     };
-    expect(captured.current?.applyMailboxMessage(received)).toBe(true);
+    expect(captured.current?.applyMailboxMessage(received)).toBe(false);
     expect(playChimeSpy).not.toHaveBeenCalled();
 
     roots.push(root);
@@ -277,11 +292,11 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.sent', () => {
         error: 'recipient offline',
       },
     };
-    expect(captured.current?.applyMailboxMessage(failure)).toBe(true);
+    // mailbox.sent is notice-only: store returns false, parent falls through.
+    expect(captured.current?.applyMailboxMessage(failure)).toBe(false);
     // The notice text carries the server-supplied error string.
-    const sent = captured.notices.find((n) => n.id.startsWith('mail-'));
-    expect(sent?.text).toBe('Email failed: recipient offline');
-    expect(sent?.tone).toBe('error');
+    const failed = captured.notices.find((n) => n.text === 'Email failed: recipient offline');
+    expect(failed?.tone).toBe('error');
 
     roots.push(root);
   });
@@ -293,15 +308,13 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.sent', () => {
     const root = renderProbeWithSocket(captured, prefsRef, socket);
 
     // First, drain a successful-but-unmatched response: success: true, no
-    // matching pending request id — must be silent.
+    // matching pending request id — must be silent (no notice raised).
     const silentSuccess: ServerMessage = {
       type: 'mailbox.sent',
       payload: { success: true, requestId: 'unmatched' },
     };
-    expect(captured.current?.applyMailboxMessage(silentSuccess)).toBe(true);
-    expect(
-      captured.notices.find((n) => n.text === 'Email sent'),
-    ).toBeUndefined();
+    expect(captured.current?.applyMailboxMessage(silentSuccess)).toBe(false);
+    expect(captured.notices.find((n) => n.text === 'Email sent')).toBeUndefined();
 
     // Now drive a real send through the hook, capture the request id, and
     // echo it back as a successful response. The notice must fire.
@@ -312,18 +325,20 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.sent', () => {
         body: 'hi',
       });
     });
-    // The hook sent mailbox.send with a generated request id.
-    expect(socket.sends).toHaveLength(1);
-    const sent = socket.sends[0];
-    if (!sent) throw new Error('expected a send');
-    const requestId = String(sent.payload['requestId'] ?? '');
+    // Find the mailbox.send entry by type — the earlier refresh probes
+    // (mailbox.messages x2, mailbox.agents x1) land in sends[] after the
+    // originating mailbox.send, so a positional last-send lookup returns
+    // a refresh probe, not the send we just made.
+    const originatingSend = socket.sends.find((s) => s.type === 'mailbox.send');
+    if (!originatingSend) throw new Error('expected a mailbox.send');
+    const requestId = String(originatingSend.payload['requestId'] ?? '');
     expect(requestId).not.toBe('');
 
     const echoedSuccess: ServerMessage = {
       type: 'mailbox.sent',
       payload: { success: true, requestId },
     };
-    expect(captured.current?.applyMailboxMessage(echoedSuccess)).toBe(true);
+    expect(captured.current?.applyMailboxMessage(echoedSuccess)).toBe(false);
     const ok = captured.notices.find((n) => n.text === 'Email sent');
     expect(ok?.tone).toBe('info');
 
@@ -341,58 +356,75 @@ describe('useSimpleMailbox.applyMailboxMessage — mailbox.action_result', () =>
     act(() => {
       captured.current?.handleMailboxAction('m-1', 'mark-read');
     });
-    expect(socket.sends).toHaveLength(1);
-    const sent = socket.sends[0];
-    if (!sent) throw new Error('expected a send');
-    const requestId = String(sent.payload['requestId'] ?? '');
+    // Find the mailbox.action send by type — refresh probes may interleave.
+    const actionSend = socket.sends.find((s) => s.type === 'mailbox.action');
+    if (!actionSend) throw new Error('expected a mailbox.action send');
+    const requestId = String(actionSend.payload['requestId'] ?? '');
     expect(requestId).not.toBe('');
 
     const echoed: ServerMessage = {
       type: 'mailbox.action_result',
       payload: { success: true, requestId },
     };
-    expect(captured.current?.applyMailboxMessage(echoed)).toBe(true);
+    // mailbox.action_result is notice-only: store returns false, parent falls
+    // through.
+    expect(captured.current?.applyMailboxMessage(echoed)).toBe(false);
     const ok = captured.notices.find((n) => n.text === 'Email action completed');
     expect(ok?.tone).toBe('info');
 
     roots.push(root);
   });
 
-  it('fires "Email action failed" for success: false regardless of pending set', () => {
+  it('fires "Email action failed" for success: false on a pending request id', () => {
     const captured: Captured = { current: null, notices: [] };
     const prefsRef = makePrefsRef();
     const socket = makeSocketStub();
     const root = renderProbeWithSocket(captured, prefsRef, socket);
 
+    // Drive a real action so a request id lands in the pending set, then
+    // echo it back with success: false — the failure notice must fire.
+    act(() => {
+      captured.current?.handleMailboxAction('m-1', 'reopen');
+    });
+    const actionSend = socket.sends.find((s) => s.type === 'mailbox.action');
+    if (!actionSend) throw new Error('expected a mailbox.action send');
+    const requestId = String(actionSend.payload['requestId'] ?? '');
+    expect(requestId).not.toBe('');
+
     const failure: ServerMessage = {
       type: 'mailbox.action_result',
-      payload: {
-        success: false,
-        requestId: 'unmatched',
-        error: 'already deleted',
-      },
+      payload: { success: false, requestId, error: 'already deleted' },
     };
-    expect(captured.current?.applyMailboxMessage(failure)).toBe(true);
+    expect(captured.current?.applyMailboxMessage(failure)).toBe(false);
     const failed = captured.notices.find((n) => n.text === 'Email action failed: already deleted');
     expect(failed?.tone).toBe('error');
 
     roots.push(root);
   });
 
-  it('is silent for success: true with no matching pending request id', () => {
+  it('is silent for unmatched request ids (success or failure)', () => {
     const captured: Captured = { current: null, notices: [] };
     const prefsRef = makePrefsRef();
     const socket = makeSocketStub();
     const root = renderProbeWithSocket(captured, prefsRef, socket);
 
+    // The hook intentionally emits `mailbox.action_result` notices only when
+    // there is a matching pending request id (avoiding spurious toasts for
+    // unrelated wire responses) — so an unmatched id is silent for both
+    // success and failure outcomes.
     const successUnmatched: ServerMessage = {
       type: 'mailbox.action_result',
       payload: { success: true, requestId: 'unmatched' },
     };
-    expect(captured.current?.applyMailboxMessage(successUnmatched)).toBe(true);
-    expect(
-      captured.notices.find((n) => n.text === 'Email action completed'),
-    ).toBeUndefined();
+    expect(captured.current?.applyMailboxMessage(successUnmatched)).toBe(false);
+    expect(captured.notices.find((n) => n.text === 'Email action completed')).toBeUndefined();
+
+    const failureUnmatched: ServerMessage = {
+      type: 'mailbox.action_result',
+      payload: { success: false, requestId: 'unmatched', error: 'n/a' },
+    };
+    expect(captured.current?.applyMailboxMessage(failureUnmatched)).toBe(false);
+    expect(captured.notices.find((n) => n.text.startsWith('Email action'))).toBeUndefined();
 
     roots.push(root);
   });
