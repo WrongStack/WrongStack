@@ -7,6 +7,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type * as http from 'node:http';
 import { isIP } from 'node:net';
+import { isLoopbackHost } from '@wrongstack/core/hq';
 import type { HqSessionEntry } from './types.js';
 
 // ── Cookie / session constants ─────────────────────────────────────────────
@@ -249,20 +250,47 @@ function extractBrowserToken(req: http.IncomingMessage, url: URL): string | unde
   const queryToken = url.searchParams.get('token');
   if (queryToken) {
     // Tokens in URL query strings can leak through browser history, server
-    // access logs, and Referer headers. On loopback this risk is low, but
-    // operators exposing HQ beyond localhost should use the Authorization
-    // header instead. The built React dashboard uses the header; the inline
-    // fallback and manual curl access use the query param.
+    // access logs, and Referer headers. The built React dashboard uses the
+    // Authorization header; the inline fallback and manual curl access use the
+    // query param, so it stays available where the leak channels are local.
+    //
+    // WS-009: this file already told operators to "use the Authorization header
+    // instead" once HQ is exposed beyond localhost, but nothing enforced it, and
+    // `assessHqExposure` only warns that "tokens ... appear in the URL query".
+    // Off-loopback the leak is real — proxy logs, shared history, Referer to
+    // third-party origins — so refuse there rather than repeating the advice.
+    // The Host header is safe to trust here: hasTrustedRequestAuthority has
+    // already pinned it to the configured bind before any handler runs.
+    const requestHost = (req.headers.host ?? '').trim();
+    let hostname = '';
+    try {
+      hostname = new URL(`http://${requestHost}`).hostname;
+    } catch {
+      /* unparseable Host → treat as non-loopback */
+    }
+    if (hostname && isLoopbackHost(hostname)) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'hq.token_from_query_param',
+          message:
+            'Browser token accepted from URL query parameter — token can leak through browser history, server access logs, and Referer headers.',
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return queryToken;
+    }
+    // Rejected off-loopback — but fall through rather than returning, so a
+    // client that also sent a valid Authorization header still authenticates.
     console.warn(
       JSON.stringify({
         level: 'warn',
-        event: 'hq.token_from_query_param',
+        event: 'hq.token_from_query_param_rejected',
         message:
-          'Browser token accepted from URL query parameter — token can leak through browser history, server access logs, and Referer headers.',
+          'Browser token in URL query rejected on a non-loopback request — send it in the Authorization header instead.',
         timestamp: new Date().toISOString(),
       }),
     );
-    return queryToken;
   }
 
   const auth = req.headers.authorization;
