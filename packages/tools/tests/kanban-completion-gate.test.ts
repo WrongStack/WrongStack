@@ -207,4 +207,53 @@ describe('kanban tool — universal completion gate', () => {
     expect(created.board?.atomicity).toEqual({ mode: 'enforce', decomposition: 'propose' });
     expect(created.board?.completionGate).toEqual({ enforcement: 'strict' });
   });
+
+  // WS-023: `gateEnforcement` is a model-settable enum and `'off'` used to be
+  // one of its values, so the agent whose work the gate checks could create or
+  // update a board with the gate disabled — self-attestation with an extra
+  // step. Tightening stays available; switching it off is a human decision
+  // made through board config.
+  it('ignores a gate-disabling request from the agent-facing tool', async () => {
+    const created = await kanbanTool.execute(
+      {
+        action: 'create_board',
+        title: 'Ungated attempt',
+        gateEnforcement: 'off' as never,
+      },
+      ctx(),
+      { signal: newSignal() },
+    );
+    expect(created.ok).toBe(true);
+    // No completionGate written at all — the board falls back to its default
+    // rather than recording the agent's choice to skip verification.
+    expect(created.board?.completionGate).toBeUndefined();
+
+    const updated = await kanbanTool.execute(
+      {
+        action: 'update_board',
+        boardId: created.board!.id,
+        gateEnforcement: 'off' as never,
+      },
+      ctx(),
+      { signal: newSignal() },
+    );
+    expect(updated.ok).toBe(true);
+    expect(updated.board?.completionGate).toBeUndefined();
+  });
+
+  it('still lets the agent tighten its own gate', async () => {
+    const created = await kanbanTool.execute(
+      { action: 'create_board', title: 'Self-tightened', gateEnforcement: 'strict' },
+      ctx(),
+      { signal: newSignal() },
+    );
+    expect(created.board?.completionGate).toEqual({ enforcement: 'strict' });
+  });
+
+  it('does not advertise "off" in the tool schema', () => {
+    const properties = (
+      kanbanTool.inputSchema as { properties?: Record<string, { enum?: string[] }> }
+    ).properties;
+    expect(properties?.['gateEnforcement']?.enum).toEqual(['strict', 'soft']);
+  });
 });

@@ -27,8 +27,8 @@ describe('statusBarModelSpan (hit-test geometry)', () => {
       projectName: 'WrongStack',
       workingDir: 'packages/tui',
     });
-    // cap(1) + each preceding segment's content/padding/transition + model pad(1)
-    expect(span).toEqual({ start: 38, len: 'openai/gpt-5.6'.length });
+    // cap(1) + each preceding chip's content + 2-space sep + model pad(1)
+    expect(span).toEqual({ start: 32, len: 'openai/gpt-5.6'.length });
   });
 
   it('omits hidden workspace chips from the model offset', () => {
@@ -64,14 +64,14 @@ describe('statusBarAutonomySpan (hit-test geometry)', () => {
 
   it('shifts right past the YOLO chip + Powerline transition', () => {
     const span = statusBarAutonomySpan({ yolo: true, autonomy: 'eternal' });
-    // cap(1) + "! YOLO"(6) + padding(2) + " ▶ "(3) + next padding(1) = 13
-    expect(span).toEqual({ start: 13, len: 2 + 'ETERNAL'.length });
+    // cap(1) + "! YOLO"(6) + 2-space sep + label pad(1) = 10
+    expect(span).toEqual({ start: 10, len: 2 + 'ETERNAL'.length });
   });
 
   it('matches monochrome labels and YOLO geometry', () => {
     expect(statusBarAutonomySpan({ yolo: true, autonomy: 'auto', monochrome: true })).toEqual({
-      // cap(1) + "YOLO"(4) + padding(2) + " › "(3) + next padding(1) = 11
-      start: 11,
+      // cap(1) + "YOLO"(4) + 2-space sep + label pad(1) = 8
+      start: 8,
       len: 'AUTO'.length,
     });
   });

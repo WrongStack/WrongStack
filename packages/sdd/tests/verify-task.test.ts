@@ -220,18 +220,65 @@ describe('makeAcceptanceCriteriaVerifier', () => {
     });
   });
 
-  it('degrades open on judge errors or ambiguous output', async () => {
+  // WS-023 (inverted). This asserted that a judge error or an unparseable
+  // verdict passes the task. The justification in the source was "the command
+  // verifier remaining the deterministic backstop" — but that backstop is
+  // agent-authored task metadata that defaults to ABSENT (`makeCommandVerifier`
+  // returns ok on a task with no command). `criteriaTask()` has `metadata: {}`,
+  // so for this exact fixture nothing verified anything and the work was
+  // accepted on the worker's own say-so.
+  //
+  // The rule is now conditional on the backstop actually existing, so both
+  // halves are pinned: fails closed without a command, still degrades open
+  // with one.
+  it('fails closed on an inconclusive judge when no command verifier exists', async () => {
     const throwing = makeAcceptanceCriteriaVerifier({
       run: async () => {
         throw new Error('judge down');
       },
     });
-    expect(await throwing({ task: criteriaTask(), result: withResult, cwd })).toEqual({ ok: true });
+    const errored = await throwing({ task: criteriaTask(), result: withResult, cwd });
+    expect(errored.ok).toBe(false);
+    expect(errored.reason).toContain('no verification command');
 
     const ambiguous = makeAcceptanceCriteriaVerifier({ run: async () => 'maybe fine?' });
-    expect(await ambiguous({ task: criteriaTask(), result: withResult, cwd })).toEqual({
-      ok: true,
+    const unparseable = await ambiguous({ task: criteriaTask(), result: withResult, cwd });
+    expect(unparseable.ok).toBe(false);
+    expect(unparseable.reason).toContain('no parseable verdict');
+  });
+
+  it('still degrades open when the deterministic backstop is present', async () => {
+    const backstopped = () =>
+      ({
+        title: 'T',
+        description: 'Do it.\n\n**Acceptance Criteria:**\n- output is sorted',
+        metadata: { verificationCommand: 'node --version' },
+      }) as unknown as TaskNode;
+
+    const throwing = makeAcceptanceCriteriaVerifier({
+      run: async () => {
+        throw new Error('judge down');
+      },
     });
+    expect(await throwing({ task: backstopped(), result: withResult, cwd })).toEqual({ ok: true });
+
+    const ambiguous = makeAcceptanceCriteriaVerifier({ run: async () => 'maybe fine?' });
+    expect(await ambiguous({ task: backstopped(), result: withResult, cwd })).toEqual({ ok: true });
+  });
+
+  it('retries once before declaring the judge unavailable', async () => {
+    // A single transient provider blip must not fail a task closed — that
+    // would be its own way of making the gate useless.
+    let calls = 0;
+    const flaky = makeAcceptanceCriteriaVerifier({
+      run: async () => {
+        calls++;
+        if (calls === 1) throw new Error('transient');
+        return 'VERDICT: PASS';
+      },
+    });
+    expect(await flaky({ task: criteriaTask(), result: withResult, cwd })).toEqual({ ok: true });
+    expect(calls).toBe(2);
   });
 
   it('serializes non-string results and supplies fallback prompt and rejection reason', async () => {

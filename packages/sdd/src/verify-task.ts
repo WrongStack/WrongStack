@@ -142,51 +142,101 @@ export interface AcceptanceCriteriaVerifierOptions {
   run: (prompt: string) => Promise<string>;
   /** Cap on the result excerpt included in the prompt. Default 4000 chars. */
   maxResultChars?: number;
+  /**
+   * Task-metadata key that holds the deterministic verification command. Must
+   * match {@link CommandVerifierOptions.metadataKey}: whether a command exists
+   * is what decides if an inconclusive judge may fail open. Default
+   * `'verificationCommand'`.
+   */
+  commandMetadataKey?: string;
 }
 
 /**
  * LLM acceptance-criteria check: when a task's description carries an
  * "**Acceptance Criteria:**" block, ask an isolated judge turn whether the
- * worker's reported result satisfies the criteria. Fails CLOSED only on an
- * explicit FAIL verdict — judge errors or ambiguous output pass with the
- * command verifier remaining the deterministic backstop, so a flaky judge
- * can never wedge a run.
+ * worker's reported result satisfies the criteria.
+ *
+ * WS-023: this used to pass on ANY non-explicit-FAIL — a provider error or an
+ * unparseable verdict returned `{ok: true}` — justified by "the command
+ * verifier remaining the deterministic backstop, so a flaky judge can never
+ * wedge a run".
+ *
+ * That reasoning is sound where the backstop exists, and the backstop is
+ * agent-authored task metadata that defaults to absent: `makeCommandVerifier`
+ * returns `{ok: true}` when a task carries no verification command. So for a
+ * task with acceptance criteria and no command — which the same agent decides
+ * — an inconclusive judge meant nothing verified anything, and the work was
+ * accepted on the worker's own say-so.
+ *
+ * The rule is therefore made true rather than reversed: an inconclusive judge
+ * fails open ONLY when the deterministic backstop it defers to actually
+ * exists. With no command verifier the judge is the only gate, so it fails
+ * closed. Transient provider trouble is retried once first, so a single blip
+ * still cannot wedge a run.
  */
 export function makeAcceptanceCriteriaVerifier(
   options: AcceptanceCriteriaVerifierOptions,
 ): SddVerifyTask {
   const maxResultChars = options.maxResultChars ?? 4000;
+  const commandMetadataKey = options.commandMetadataKey ?? 'verificationCommand';
   return async function verifyTask(info) {
     const description = info.task.description ?? '';
     const marker = description.indexOf('**Acceptance Criteria:**');
+    // No criteria declared: nothing for this verifier to judge. Requiring
+    // criteria on every task is a task-graph authoring policy, decided where
+    // graphs are built, not here.
     if (marker === -1) return { ok: true };
+
+    // Does the deterministic backstop this verifier may defer to exist?
+    const rawCommand = info.task.metadata?.[commandMetadataKey];
+    const hasCommandBackstop = typeof rawCommand === 'string' && rawCommand.trim().length > 0;
+    const inconclusive = (detail: string): { ok: boolean; reason?: string } =>
+      hasCommandBackstop
+        ? { ok: true }
+        : {
+            ok: false,
+            reason:
+              `acceptance criteria could not be verified (${detail}) and this task declares ` +
+              'no verification command, so nothing else checked the result',
+          };
     const criteria = description.slice(marker);
     const resultText =
       typeof info.result.result === 'string'
         ? info.result.result.slice(0, maxResultChars)
         : JSON.stringify(info.result.result ?? '').slice(0, maxResultChars);
 
-    let text: string;
-    try {
-      text = await options.run(
-        [
-          'You are a strict acceptance reviewer for one completed engineering task.',
-          `Task: ${info.task.title}`,
-          '',
-          criteria,
-          '',
-          "Worker's reported result:",
-          resultText || '(no result text)',
-          '',
-          'Does the reported result plausibly satisfy EVERY acceptance criterion?',
-          'Answer with exactly one line: "VERDICT: PASS" or "VERDICT: FAIL — <short reason>".',
-        ].join('\n'),
+    const prompt = [
+      'You are a strict acceptance reviewer for one completed engineering task.',
+      `Task: ${info.task.title}`,
+      '',
+      criteria,
+      '',
+      "Worker's reported result:",
+      resultText || '(no result text)',
+      '',
+      'Does the reported result plausibly satisfy EVERY acceptance criterion?',
+      'Answer with exactly one line: "VERDICT: PASS" or "VERDICT: FAIL — <short reason>".',
+    ].join('\n');
+
+    // One retry: a single transient provider failure must not be able to fail
+    // a task closed, which would be its own way of making the gate useless.
+    let text: string | undefined;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        text = await options.run(prompt);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (text === undefined) {
+      return inconclusive(
+        `judge unavailable: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
       );
-    } catch {
-      return { ok: true };
     }
     const match = text.match(/VERDICT:\s*(PASS|FAIL)(?:\s*[—-]\s*(.*))?/i);
-    if (!match) return { ok: true };
+    if (!match) return inconclusive('judge returned no parseable verdict');
     if (match[1]!.toUpperCase() === 'PASS') return { ok: true };
     return {
       ok: false,

@@ -201,7 +201,13 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
     moveTasksToColumnId: { type: 'string' },
     atomicityMode: { type: 'string', enum: ['off', 'assess', 'enforce'] },
     atomicityDecomposition: { type: 'string', enum: ['auto', 'propose'] },
-    gateEnforcement: { type: 'string', enum: ['strict', 'soft', 'off'] },
+    gateEnforcement: {
+      type: 'string',
+      // WS-023: `'off'` is deliberately absent. The agent whose work this gate
+      // checks must not be able to switch it off; it may only tighten. Turning
+      // a gate off stays a human decision, made through board config.
+      enum: ['strict', 'soft'],
+    },
     subtasks: {
       type: 'array',
       minItems: 2,
