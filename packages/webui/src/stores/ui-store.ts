@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { QueuedItem, QueueMode } from './chat-store';
 import type { MailboxMessage } from './mailbox-store';
-import type { QueueMode, QueuedItem } from './chat-store';
 
 // ============================================
 // UI Store
@@ -101,6 +101,7 @@ const SETTINGS_TABS = [
   'context',
   'logs',
   'security',
+  'display',
 ] as const;
 
 function coerceSettingsTab(value: unknown): string {

@@ -155,6 +155,28 @@ export interface LocalPrefs {
   /** How Chimera review findings are handled. */
   chimeraAutoFix: 'off' | 'ask' | 'auto';
 
+  // --- Display toggles (TUI SettingsPicker parity) ---
+  /** When true, the read tool includes codebase-index symbols in its output.
+   *  Mirrors TUI field 42 (`readSymbols`) persisted as
+   *  `autonomy.readAdvancedMode`. */
+  readSymbols: boolean;
+  /** When true, SAGE memory-inject blocks are surfaced in tool results.
+   *  Mirrors TUI field 43 (`showSageMemoryInject`). */
+  showSageMemoryInject: boolean;
+  /** Minimum relation strength for SAGE memory injection. Mirrors TUI field
+   *  44 (`sageMemoryInjectThreshold`) persisted as
+   *  `Sage.inject.relationFloor`. */
+  sageMemoryInjectThreshold: number;
+  /** Pre-refine grace countdown in SECONDS (TUI field 41). 0 = skip the
+   *  countdown and run the refiner immediately. Presets:
+   *  0, 2, 3, 5, 8, 10. Distinct from `enhanceCountdownMs` (a TUI-internal
+   *  ms value used by the simpleui RefinePanel animation). */
+  preRefineSeconds: number;
+  /** Minimum number of files before the multi-file diff summary footer
+   *  renders above the per-file blocks. 0 disables the footer. Mirrors TUI
+   *  field 21 (`multiDiffSummaryThreshold`). */
+  multiDiffSummaryThreshold: number;
+
   // ── Chimera (post-session review) — mirrors ResolvedChimeraConfig ──
   /** Master enable for `wstack-chimera`. Defaults to true (matches plugin: `cfg.enabled !== false`). */
   chimeraEnabled: boolean;
@@ -257,6 +279,15 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   tgLongToolMs: 30_000,
   uiLocale: detectLocale(),
   chimeraAutoFix: 'off',
+  // Display toggles (TUI SettingsPicker parity — fields 21, 41, 42, 43, 44).
+  // Defaults mirror the TUI's SettingsPicker model: `SETTINGS_DEFAULTS` in
+  // packages/tui/src/components/settings-picker-model.ts:787. Server-side
+  // overrides from the WS `prefs.snapshot` always win on connect.
+  readSymbols: false,
+  showSageMemoryInject: false,
+  sageMemoryInjectThreshold: 0.85,
+  preRefineSeconds: 3,
+  multiDiffSummaryThreshold: 5,
   // Chimera (post-session): mirrors ResolvedChimeraConfig. Enabled-by-default
   // matches `cfg.enabled !== false` in chimera-plugin.ts:50.
   chimeraEnabled: true,
@@ -286,7 +317,14 @@ export const useLocalPrefs = create<LocalPrefs>()(
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 12,
+      version: 13,
+      // v13 (2026-08-01): added TUI-SettingsPicker parity fields for
+      // Display — readSymbols, showSageMemoryInject,
+      // sageMemoryInjectThreshold, preRefineSeconds, multiDiffSummaryThreshold.
+      // Older stores are backfilled via DEFAULTS spread + the explicit
+      // migration block at the bottom; no explicit remap is needed
+      // because the new fields have no historical aliases in localStorage.
+      //
       // v12 (2026-07-30): raised the canonical auto-review quiet window
       // from 5s to 15s and migrates the old default once.
       //
@@ -447,6 +485,35 @@ export const useLocalPrefs = create<LocalPrefs>()(
         if (typeof p.showModelReasoning !== 'boolean') p.showModelReasoning = true;
         if (typeof p.showAgentSwarmPanel !== 'boolean') p.showAgentSwarmPanel = false;
         if (typeof p.allowOutsideProjectRoot !== 'boolean') p.allowOutsideProjectRoot = true;
+        // v13: TUI-SettingsPicker Display parity fields. The boolean ones
+        // mirror their v11 sibling guard pattern. The numeric ones need
+        // Number.isFinite + a sane range so a corrupted localStorage value
+        // (NaN, Infinity, negative) cannot poison the panel or downstream
+        // consumers. Defaults match TUI `SETTINGS_DEFAULTS`.
+        if (typeof p.readSymbols !== 'boolean') p.readSymbols = false;
+        if (typeof p.showSageMemoryInject !== 'boolean') p.showSageMemoryInject = false;
+        if (
+          typeof p.sageMemoryInjectThreshold !== 'number' ||
+          !Number.isFinite(p.sageMemoryInjectThreshold) ||
+          p.sageMemoryInjectThreshold < 0 ||
+          p.sageMemoryInjectThreshold > 1
+        ) {
+          p.sageMemoryInjectThreshold = 0.85;
+        }
+        if (
+          typeof p.preRefineSeconds !== 'number' ||
+          !Number.isFinite(p.preRefineSeconds) ||
+          p.preRefineSeconds < 0
+        ) {
+          p.preRefineSeconds = 3;
+        }
+        if (
+          typeof p.multiDiffSummaryThreshold !== 'number' ||
+          !Number.isFinite(p.multiDiffSummaryThreshold) ||
+          p.multiDiffSummaryThreshold < 0
+        ) {
+          p.multiDiffSummaryThreshold = 5;
+        }
         return p as never as LocalPrefs;
       },
     },

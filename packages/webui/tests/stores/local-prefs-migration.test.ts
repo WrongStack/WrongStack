@@ -33,7 +33,7 @@ const AUTOREVIEW_MAX_CONCURRENT_REVIEWS_DEFAULT = 2;
 const VALID_AUTOREVIEW_CASCADE = ['off', 'critical', 'high'] as const;
 const AUTOREVIEW_CASCADE_DEFAULT = 'off';
 
-function migrate(persisted: Record<string, unknown> | null, version = 12): Record<string, unknown> {
+function migrate(persisted: Record<string, unknown> | null, version = 13): Record<string, unknown> {
   const p = (persisted ?? {}) as Record<string, unknown>;
   if (version < 12 && p.autoReviewDebounceMs === 5_000) {
     p.autoReviewDebounceMs = 15_000;
@@ -118,6 +118,39 @@ function migrate(persisted: Record<string, unknown> | null, version = 12): Recor
     )
   ) {
     p.autoReviewCascadeOn = AUTOREVIEW_CASCADE_DEFAULT;
+  }
+
+  // ── v13: TUI-SettingsPicker Display parity fields ────────────────────
+  // Mirror of the guards in packages/webui/src/stores/local-prefs.ts
+  // (migrate block). Replicated here so the replica can fail independently
+  // if either side drifts. The booleans use `typeof === 'boolean'` (NOT
+  // `=== undefined`) so `null`/0/'' are also defaulted. The numerics use
+  // `Number.isFinite` + a sane lower bound so corrupted localStorage
+  // values (NaN, Infinity, negative) cannot poison the panel or
+  // downstream consumers. Defaults match TUI `SETTINGS_DEFAULTS`.
+  if (typeof p.readSymbols !== 'boolean') p.readSymbols = false;
+  if (typeof p.showSageMemoryInject !== 'boolean') p.showSageMemoryInject = false;
+  if (
+    typeof p.sageMemoryInjectThreshold !== 'number' ||
+    !Number.isFinite(p.sageMemoryInjectThreshold) ||
+    p.sageMemoryInjectThreshold < 0 ||
+    p.sageMemoryInjectThreshold > 1
+  ) {
+    p.sageMemoryInjectThreshold = 0.85;
+  }
+  if (
+    typeof p.preRefineSeconds !== 'number' ||
+    !Number.isFinite(p.preRefineSeconds) ||
+    p.preRefineSeconds < 0
+  ) {
+    p.preRefineSeconds = 3;
+  }
+  if (
+    typeof p.multiDiffSummaryThreshold !== 'number' ||
+    !Number.isFinite(p.multiDiffSummaryThreshold) ||
+    p.multiDiffSummaryThreshold < 0
+  ) {
+    p.multiDiffSummaryThreshold = 5;
   }
   return p;
 }
@@ -543,5 +576,154 @@ describe('migrate — v9 combined', () => {
     expect(result.autoReviewMaxFilesPerBatch).toBe(30);
     expect(result.autoReviewMaxConcurrentReviews).toBe(4);
     expect(result.autoReviewCascadeOn).toBe('high');
+  });
+});
+
+// ── v13 backfill coverage ────────────────────────────────────────────────
+// Locks in every guard the v13 migration adds (TUI-SettingsPicker Display
+// parity fields: readSymbols, showSageMemoryInject, sageMemoryInjectThreshold,
+// preRefineSeconds, multiDiffSummaryThreshold). The booleans default to
+// `false` (matching TUI's `SETTINGS_DEFAULTS`); the numerics use
+// `Number.isFinite` + a sane lower bound so corrupted localStorage values
+// cannot poison the panel or downstream consumers.
+
+describe('migrate — readSymbols (v13)', () => {
+  it('defaults readSymbols to false on missing/non-boolean', () => {
+    for (const v of [undefined, null, 'yes', 1, 0, 'false', {}]) {
+      // @ts-expect-error — intentionally invalid types
+      const result = migrate({ readSymbols: v });
+      expect(result.readSymbols).toBe(false);
+    }
+  });
+
+  it('preserves readSymbols when it is a boolean', () => {
+    for (const v of [true, false]) {
+      const result = migrate({ readSymbols: v });
+      expect(result.readSymbols).toBe(v);
+    }
+  });
+});
+
+describe('migrate — showSageMemoryInject (v13)', () => {
+  it('defaults showSageMemoryInject to false on missing/non-boolean', () => {
+    for (const v of [undefined, null, 'yes', 1, 0, 'true', {}]) {
+      // @ts-expect-error — intentionally invalid types
+      const result = migrate({ showSageMemoryInject: v });
+      expect(result.showSageMemoryInject).toBe(false);
+    }
+  });
+
+  it('preserves showSageMemoryInject when it is a boolean', () => {
+    for (const v of [true, false]) {
+      const result = migrate({ showSageMemoryInject: v });
+      expect(result.showSageMemoryInject).toBe(v);
+    }
+  });
+});
+
+describe('migrate — sageMemoryInjectThreshold (v13)', () => {
+  it('defaults sageMemoryInjectThreshold to 0.85 on missing/non-finite', () => {
+    for (const v of [undefined, null, NaN, Infinity, -Infinity, '0.85', 'high', {}]) {
+      // @ts-expect-error — intentionally invalid types
+      const result = migrate({ sageMemoryInjectThreshold: v });
+      expect(result.sageMemoryInjectThreshold).toBe(0.85);
+    }
+  });
+
+  it('defaults out-of-range values to 0.85', () => {
+    for (const v of [-0.1, -1, 1.01, 2, 100]) {
+      const result = migrate({ sageMemoryInjectThreshold: v });
+      expect(result.sageMemoryInjectThreshold).toBe(0.85);
+    }
+  });
+
+  it('preserves sageMemoryInjectThreshold in the [0, 1] range', () => {
+    for (const v of [0, 0.5, 0.72, 0.75, 0.85, 0.9, 0.95, 1]) {
+      const result = migrate({ sageMemoryInjectThreshold: v });
+      expect(result.sageMemoryInjectThreshold).toBe(v);
+    }
+  });
+});
+
+describe('migrate — preRefineSeconds (v13)', () => {
+  it('defaults preRefineSeconds to 3 on missing/non-finite', () => {
+    for (const v of [undefined, null, NaN, Infinity, -Infinity, '3', 'three', {}]) {
+      // @ts-expect-error — intentionally invalid types
+      const result = migrate({ preRefineSeconds: v });
+      expect(result.preRefineSeconds).toBe(3);
+    }
+  });
+
+  it('defaults negative preRefineSeconds to 3', () => {
+    for (const v of [-1, -0.5, -100]) {
+      const result = migrate({ preRefineSeconds: v });
+      expect(result.preRefineSeconds).toBe(3);
+    }
+  });
+
+  it('preserves preRefineSeconds at any non-negative value', () => {
+    for (const v of [0, 1, 2, 3, 5, 8, 10, 100]) {
+      const result = migrate({ preRefineSeconds: v });
+      expect(result.preRefineSeconds).toBe(v);
+    }
+  });
+});
+
+describe('migrate — multiDiffSummaryThreshold (v13)', () => {
+  it('defaults multiDiffSummaryThreshold to 5 on missing/non-finite', () => {
+    for (const v of [undefined, null, NaN, Infinity, -Infinity, '5', 'five', {}]) {
+      // @ts-expect-error — intentionally invalid types
+      const result = migrate({ multiDiffSummaryThreshold: v });
+      expect(result.multiDiffSummaryThreshold).toBe(5);
+    }
+  });
+
+  it('defaults negative multiDiffSummaryThreshold to 5', () => {
+    for (const v of [-1, -0.5, -100]) {
+      const result = migrate({ multiDiffSummaryThreshold: v });
+      expect(result.multiDiffSummaryThreshold).toBe(5);
+    }
+  });
+
+  it('preserves multiDiffSummaryThreshold at any non-negative value', () => {
+    for (const v of [0, 1, 3, 5, 8, 10, 15, 100]) {
+      const result = migrate({ multiDiffSummaryThreshold: v });
+      expect(result.multiDiffSummaryThreshold).toBe(v);
+    }
+  });
+});
+
+describe('migrate — v13 combined backfill', () => {
+  it('backfills all five v13 fields on a fresh install', () => {
+    const result = migrate({});
+    expect(result.readSymbols).toBe(false);
+    expect(result.showSageMemoryInject).toBe(false);
+    expect(result.sageMemoryInjectThreshold).toBe(0.85);
+    expect(result.preRefineSeconds).toBe(3);
+    expect(result.multiDiffSummaryThreshold).toBe(5);
+  });
+
+  it('handles null persisted for v13 fields', () => {
+    const result = migrate(null);
+    expect(result.readSymbols).toBe(false);
+    expect(result.showSageMemoryInject).toBe(false);
+    expect(result.sageMemoryInjectThreshold).toBe(0.85);
+    expect(result.preRefineSeconds).toBe(3);
+    expect(result.multiDiffSummaryThreshold).toBe(5);
+  });
+
+  it('preserves all v13 fields when they are valid', () => {
+    const result = migrate({
+      readSymbols: true,
+      showSageMemoryInject: true,
+      sageMemoryInjectThreshold: 0.9,
+      preRefineSeconds: 5,
+      multiDiffSummaryThreshold: 8,
+    });
+    expect(result.readSymbols).toBe(true);
+    expect(result.showSageMemoryInject).toBe(true);
+    expect(result.sageMemoryInjectThreshold).toBe(0.9);
+    expect(result.preRefineSeconds).toBe(5);
+    expect(result.multiDiffSummaryThreshold).toBe(8);
   });
 });

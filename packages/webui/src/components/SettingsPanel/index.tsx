@@ -44,6 +44,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { AppearanceSettingsTab, ConnectionSettingsTab } from './BasicSettingsTabs';
 import { ChimeraSettingsPanel } from './ChimeraSettingsPanel';
+import { DisplaySection } from './DisplaySection';
 import { FallbacksSection } from './FallbacksSection';
 import { FleetSection } from './FleetSection';
 import { IntegrationsSection } from './IntegrationsSection';
@@ -146,6 +147,12 @@ const TABS: TabDef[] = [
     icon: <Shield className="h-3.5 w-3.5" />,
     labelKey: 'settings:tabs.security',
     descKey: 'settings:tabs.securityDesc',
+  },
+  {
+    id: 'display',
+    icon: <Palette className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.display',
+    descKey: 'settings:tabs.displayDesc',
   },
 ];
 
@@ -1060,6 +1067,11 @@ export function SettingsPanel() {
               {/* ═══════════════════════════════════════ Security ═══ */}
               <TabsContent value="security" className="mt-0">
                 <SecuritySection />
+              </TabsContent>
+
+              {/* ═══════════════════════════════════════ Display ═══ */}
+              <TabsContent value="display" className="mt-0">
+                <DisplaySection syncPref={syncPref} />
               </TabsContent>
             </div>
           </Tabs>
