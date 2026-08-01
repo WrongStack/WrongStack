@@ -194,6 +194,19 @@ export class FleetSupervisor {
         this.scheduleNudge();
       }),
     );
+    // Reclaim per-subagent observation/rate-limit state when a worker is
+    // removed. Without this, lastActivityAt / failStreaks /
+    // interventionsBySubagent and the subagent-keyed lastEngagedAt entries
+    // accumulate one entry per distinct retired subagent for the supervisor's
+    // lifetime (tiny entries, but unbounded over a long leader session that
+    // spawns thousands of workers). Subagent ids are unique, so pruning on
+    // removal cannot affect any live worker. retargetedTasks is keyed by
+    // taskId and deliberately retained (see forgetSubagent).
+    this.offHandles.push(
+      this.opts.events.on('subagent.removed', (e) => {
+        this.forgetSubagent(e.subagentId);
+      }),
+    );
     this.timer = setInterval(() => {
       // evaluate() only wraps its engage* calls in try/catch; a throw from the
       // scan phase (status providers, task listing) would otherwise reject
@@ -210,6 +223,36 @@ export class FleetSupervisor {
     if (this.nudgeTimer) clearTimeout(this.nudgeTimer);
     this.nudgeTimer = null;
     for (const off of this.offHandles.splice(0)) off();
+  }
+
+  /**
+   * Drop per-subagent observation/rate-limit state when a worker is removed
+   * (wired to the coordinator's `subagent.removed` event in start()). Without
+   * this, lastActivityAt / failStreaks / interventionsBySubagent and the
+   * subagent-keyed lastEngagedAt entries accumulate one entry per distinct
+   * retired subagent for the supervisor's lifetime.
+   *
+   * lastEngagedAt is keyed `${kind}|${subject}` where subject may be a
+   * subagentId or a taskId; only the subagent-keyed entries are pruned here.
+   * The `|${subagentId}` suffix match cannot collide with a task-keyed entry
+   * because neither subagent ids nor task ids contain '|', so a task subject
+   * can never end with `|${subagentId}`.
+   *
+   * retargetedTasks is deliberately NOT pruned: it is keyed by taskId and is
+   * the supervisor's "never bounced twice" guard (the overload retarget path
+   * skips any task already in this set). Retargets are rare and each entry is
+   * a tiny task-id string, so the set is bounded by the count of distinct
+   * tasks ever retargeted — retained by design, consistent with prior
+   * leak-audit rulings on tiny rare-event collections.
+   */
+  private forgetSubagent(subagentId: string): void {
+    this.lastActivityAt.delete(subagentId);
+    this.failStreaks.delete(subagentId);
+    this.interventionsBySubagent.delete(subagentId);
+    const suffix = `|${subagentId}`;
+    for (const key of this.lastEngagedAt.keys()) {
+      if (key.endsWith(suffix)) this.lastEngagedAt.delete(key);
+    }
   }
 
   history(): readonly SupervisorLogEntry[] {

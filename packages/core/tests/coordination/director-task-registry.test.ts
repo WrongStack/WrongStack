@@ -89,4 +89,32 @@ describe('DirectorTaskRegistry', () => {
     expect(registry.rollUp(['t-1'])).toContain('### sub-1 · p/m');
     expect(JSON.parse(registry.rollUp(['t-1'], 'json'))[0]).toMatchObject({ taskId: 't-1' });
   });
+
+  it('removeTasksOwnedBy reclaims only the given owner\'s descriptions/owners and is idempotent', async () => {
+    // Regression (RAM-leak audit 2026-08-01): on the default FleetManager path
+    // Director.remove() never called removeTasks (its only call site was gated
+    // behind the empty manifestEntries map), so descriptions (full task briefs)
+    // + owners accumulated one entry per assigned task for the Director's
+    // lifetime. removeTasksOwnedBy uses the path-independent owners index.
+    const { registry } = setup();
+    await registry.assign({ id: 't-1', subagentId: 'sub-1', description: 'brief-1' });
+    await registry.assign({ id: 't-2', subagentId: 'sub-1', description: 'brief-2' });
+    await registry.assign({ id: 't-3', subagentId: 'sub-2', description: 'brief-3' });
+    expect(registry.ownerFor('t-1')).toBe('sub-1');
+    expect(registry.descriptionFor('t-3', 'X')).toBe('brief-3');
+
+    const removed = registry.removeTasksOwnedBy('sub-1');
+
+    expect(removed.sort()).toEqual(['t-1', 't-2']);
+    // sub-1's ownership + descriptions are back to baseline...
+    expect(registry.ownerFor('t-1')).toBeUndefined();
+    expect(registry.ownerFor('t-2')).toBeUndefined();
+    expect(registry.descriptionFor('t-1', 'X')).toBe('X');
+    expect(registry.descriptionFor('t-2', 'X')).toBe('X');
+    // ...while sub-2's state is untouched (no cross-contamination).
+    expect(registry.ownerFor('t-3')).toBe('sub-2');
+    expect(registry.descriptionFor('t-3', 'X')).toBe('brief-3');
+    // Idempotent: nothing left to reclaim for sub-1.
+    expect(registry.removeTasksOwnedBy('sub-1')).toEqual([]);
+  });
 });

@@ -3,7 +3,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
+import type { DirectorTaskRegistry } from '../../src/coordination/director/director-task-registry.js';
 import { FleetManager } from '../../src/coordination/fleet-manager.js';
+import type { WorktreeTaskStateUpdate } from '../../src/coordination/worktree-task-runner.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { SubagentConfig, SubagentRunContext, SubagentRunOutcome, TaskSpec } from '../../src/types/multi-agent.js';
 
@@ -462,6 +464,63 @@ describe('Director with an injected FleetManager', () => {
     const [res] = await d.awaitTasks([taskId]);
     expect(res?.status).toBe('success');
     await d.remove(id);
+  });
+
+  it('reclaims taskWorktrees + registry descriptions/owners on the FleetManager path', async () => {
+    // Regression (RAM-leak audit 2026-08-01): Director.remove() cleaned
+    // taskWorktrees and the task registry ONLY inside a block gated on
+    // manifestEntries, which fleet-spawn.ts populates solely when
+    // !host.fleetManager. With a FleetManager injected (the default production
+    // path) manifestEntries stays empty, so both maps grew one entry per task
+    // for the Director's lifetime. The fix prunes them unconditionally.
+    const fleetManager = new FleetManager({ maxSpawns: 5 });
+    const { d, buses } = makeDirector({
+      fleetManager,
+      retireSubagentOnTaskComplete: false,
+    } as Partial<DirectorOpts>);
+
+    const s1 = await spawnWithBus(d, buses, { name: 'W1', provider: 'anthropic', model: 'm' });
+    const s2 = await spawnWithBus(d, buses, { name: 'W2', provider: 'openai', model: 'g' });
+
+    // On the fleet path assign() routes through fleetManager.addTaskToSubagent,
+    // NOT Director.manifestEntries — so manifestEntries stays empty here.
+    await d.assign({ id: 't-1', description: 'brief-1', subagentId: s1 });
+    await d.assign({ id: 't-2', description: 'brief-2', subagentId: s1 });
+    await d.assign({ id: 't-3', description: 'brief-3', subagentId: s2 });
+
+    // Seed worktree state as recordWorktreeTaskUpdate would (public readonly map).
+    const wt = (taskId: string, subagentId: string): WorktreeTaskStateUpdate => ({
+      taskId,
+      subagentId,
+      handleId: `h-${taskId}`,
+      dir: `/tmp/${taskId}`,
+      branch: `b-${taskId}`,
+      baseBranch: 'main',
+      status: 'allocated',
+    });
+    d.taskWorktrees.set('t-1', wt('t-1', s1));
+    d.taskWorktrees.set('t-2', wt('t-2', s1));
+    d.taskWorktrees.set('t-3', wt('t-3', s2));
+    expect(d.taskWorktrees.size).toBe(3);
+
+    const tasks = (d as unknown as { tasks: DirectorTaskRegistry }).tasks;
+    expect(tasks.ownerFor('t-1')).toBe(s1);
+    expect(tasks.descriptionFor('t-1', 'X')).toBe('brief-1');
+
+    await d.remove(s1);
+
+    // s1's worktree entries reclaimed; s2's retained.
+    expect(d.taskWorktrees.has('t-1')).toBe(false);
+    expect(d.taskWorktrees.has('t-2')).toBe(false);
+    expect(d.taskWorktrees.has('t-3')).toBe(true);
+    expect(d.taskWorktrees.size).toBe(1);
+    // s1's registry descriptions/owners back to baseline; s2's retained.
+    expect(tasks.ownerFor('t-1')).toBeUndefined();
+    expect(tasks.ownerFor('t-2')).toBeUndefined();
+    expect(tasks.descriptionFor('t-1', 'X')).toBe('X');
+    expect(tasks.descriptionFor('t-2', 'X')).toBe('X');
+    expect(tasks.ownerFor('t-3')).toBe(s2);
+    expect(tasks.descriptionFor('t-3', 'X')).toBe('brief-3');
   });
 
   it('keeps the FleetManager manifest authoritative after assign', async () => {

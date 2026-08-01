@@ -674,6 +674,21 @@ export class Director implements DirectorFleetHost, ICoordinator {
         this.taskWorktrees.delete(tid);
       }
     }
+    // Path-independent reclaim for the default FleetManager path. The block
+    // above only runs on the non-fleet fallback because manifestEntries is
+    // populated solely when !host.fleetManager (fleet-spawn.ts:289); with a
+    // FleetManager injected it is a no-op, so per-task state used to accumulate
+    // for the Director's lifetime:
+    //   - registry descriptions (full task briefs, KB-scale) + owners, one per
+    //     assigned task;
+    //   - taskWorktrees, one WorktreeTaskStateUpdate per worktree task.
+    // The registry's owners index and each worktree update's subagentId are
+    // populated on every path, so prune from both. Idempotent with the
+    // manifest-entry cleanup above (double-delete is a no-op).
+    this.tasks.removeTasksOwnedBy(subagentId);
+    for (const [taskId, update] of this.taskWorktrees) {
+      if (update.subagentId === subagentId) this.taskWorktrees.delete(taskId);
+    }
     this.budgetPolicy.removeSubagent(subagentId);
     this.manifestEntries.delete(subagentId);
     // Drop the per-subagent metadata and price-lookup entries that

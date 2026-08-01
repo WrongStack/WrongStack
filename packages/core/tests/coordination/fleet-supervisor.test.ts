@@ -419,4 +419,48 @@ describe('FleetSupervisor', () => {
     expect(deny).not.toHaveBeenCalled();
     h.supervisor.stop();
   });
+
+  it('prunes per-subagent observation/rate-limit state on subagent.removed (no unbounded growth)', () => {
+    // Regression (RAM-leak audit 2026-08-01): lastActivityAt / failStreaks /
+    // interventionsBySubagent and the subagent-keyed lastEngagedAt entries were
+    // never reclaimed when a worker was removed, so they grew one entry per
+    // distinct retired subagent over a long leader session. forgetSubagent
+    // (wired to subagent.removed in start()) prunes them. White-box access to
+    // the private maps is intentional: this pins the reclaim itself.
+    const h = makeHarness(approveBrain(), {});
+    h.supervisor.start();
+    const s = h.supervisor as unknown as {
+      lastActivityAt: Map<string, number>;
+      failStreaks: Map<string, number>;
+      interventionsBySubagent: Map<string, number>;
+      lastEngagedAt: Map<string, number>;
+    };
+    // Seed state for two workers as a long-running session would accumulate.
+    s.lastActivityAt.set('w-1', 1);
+    s.lastActivityAt.set('w-2', 2);
+    s.failStreaks.set('w-1', 1);
+    s.failStreaks.set('w-2', 1);
+    s.interventionsBySubagent.set('w-1', 3);
+    s.interventionsBySubagent.set('w-2', 1);
+    // lastEngagedAt mixes subagent-keyed and task-keyed cooldown entries.
+    s.lastEngagedAt.set('stuck|w-1', 1);
+    s.lastEngagedAt.set('failure_streak|w-1', 1);
+    s.lastEngagedAt.set('stuck|w-2', 1);
+    s.lastEngagedAt.set('retarget|task-9', 1); // task-keyed: must survive
+
+    h.events.emit('subagent.removed', { subagentId: 'w-1' } as never);
+
+    expect(s.lastActivityAt.has('w-1')).toBe(false);
+    expect(s.lastActivityAt.has('w-2')).toBe(true);
+    expect(s.failStreaks.has('w-1')).toBe(false);
+    expect(s.failStreaks.has('w-2')).toBe(true);
+    expect(s.interventionsBySubagent.has('w-1')).toBe(false);
+    expect(s.interventionsBySubagent.has('w-2')).toBe(true);
+    // Subagent-keyed cooldowns for w-1 are gone; w-2 and task-keyed survive.
+    expect(s.lastEngagedAt.has('stuck|w-1')).toBe(false);
+    expect(s.lastEngagedAt.has('failure_streak|w-1')).toBe(false);
+    expect(s.lastEngagedAt.has('stuck|w-2')).toBe(true);
+    expect(s.lastEngagedAt.has('retarget|task-9')).toBe(true);
+    h.supervisor.stop();
+  });
 });

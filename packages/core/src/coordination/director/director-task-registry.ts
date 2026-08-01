@@ -223,6 +223,26 @@ export class DirectorTaskRegistry {
     }
   }
 
+  /**
+   * Remove every task owned by `subagentId` from the descriptions/owners
+   * indexes and return the removed task ids. Director.remove() calls this so
+   * per-task state is reclaimed on the default FleetManager path too, where
+   * the Director's manifestEntries map is never populated (fleet-spawn.ts:289
+   * fills it only when !host.fleetManager) and the manifest-gated removeTasks
+   * call would otherwise be skipped — leaking one description (a full task
+   * brief, KB-scale) plus one owner entry per assigned task for the Director's
+   * lifetime. The owners index is populated on every path (assign/retarget),
+   * so this works with or without a FleetManager. Idempotent with removeTasks.
+   */
+  removeTasksOwnedBy(subagentId: string): string[] {
+    const removed: string[] = [];
+    for (const [taskId, owner] of this.owners) {
+      if (owner === subagentId) removed.push(taskId);
+    }
+    this.removeTasks(removed);
+    return removed;
+  }
+
   resolveWaitersOnShutdown(): void {
     for (const entry of [...this.anyWaiters]) {
       if (entry.timer) clearTimeout(entry.timer);
