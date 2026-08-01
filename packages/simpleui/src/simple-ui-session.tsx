@@ -22,6 +22,7 @@ import { useSimpleSocket } from './hooks/use-simple-socket.js';
 import { useStatusNotice } from './hooks/use-status-notice.js';
 import { useStickyScroll } from './hooks/use-sticky-scroll.js';
 import { useTheme } from './hooks/use-theme.js';
+import { useWorklists } from './hooks/use-worklists.js';
 import { resetAgentNameCache } from './lib/agent-model.js';
 import { retainSimpleChatMessages } from './lib/chat-model.js';
 import { playChime } from './lib/chime.js';
@@ -44,13 +45,6 @@ import {
 } from './lib/session-helpers.js';
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
-import {
-  createWorklistStore,
-  type PlanStatus,
-  type TaskStatus,
-  type TodoStatus,
-  type WorklistView,
-} from './lib/worklist-store.js';
 import type { SimpleSocket } from './lib/ws.js';
 import { MailboxSidebar } from './mailbox-sidebar.js';
 import { MemoryDrawer } from './memory-drawer.js';
@@ -107,8 +101,15 @@ export function SimpleUiSession() {
     updateAvailable: boolean;
   }>({ appVersion: '', latestVersion: '', updateAvailable: false });
   const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
-  const [worklists] = useState(createWorklistStore);
   const socketRef = useRef<SimpleSocket | null>(null);
+  const {
+    worklists,
+    requestWorklist,
+    openWorkspacePanel,
+    updateTodoStatus,
+    updateTaskStatus,
+    updatePlanStatus,
+  } = useWorklists({ socketRef, sessionIdRef });
   const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
   /** Provider ids already asked for their model list — catalog + saved overlap. */
   const requestedModelsRef = useRef<Set<string>>(new Set());
@@ -725,21 +726,6 @@ export function SimpleUiSession() {
     setPendingConfirm(null);
   };
 
-  const requestWorklist = useCallback((view: WorklistView) => {
-    const sessionId = sessionIdRef.current;
-    if (!sessionId) return;
-    socketRef.current?.send(
-      view === 'todos' ? 'todos.get' : view === 'tasks' ? 'tasks.get' : 'plan.get',
-      {
-        sessionId,
-      },
-    );
-  }, []);
-
-  const openWorkspacePanel = useCallback((view: 'tools' | WorklistView) => {
-    window.dispatchEvent(new CustomEvent('simpleui:open-workspace-panel', { detail: { view } }));
-  }, []);
-
   const runCommandPaletteAction = useCallback(
     (action: CommandPaletteAction) => {
       switch (action) {
@@ -795,21 +781,6 @@ export function SimpleUiSession() {
     },
     [createSession, openWorkspacePanel, toggleTheme],
   );
-
-  const updateTodoStatus = useCallback((id: string, status: TodoStatus) => {
-    const sessionId = sessionIdRef.current;
-    if (sessionId) socketRef.current?.send('todo.update', { sessionId, id, status });
-  }, []);
-
-  const updateTaskStatus = useCallback((id: string, status: TaskStatus) => {
-    const sessionId = sessionIdRef.current;
-    if (sessionId) socketRef.current?.send('task.update', { sessionId, id, status });
-  }, []);
-
-  const updatePlanStatus = useCallback((target: string, status: PlanStatus) => {
-    const sessionId = sessionIdRef.current;
-    if (sessionId) socketRef.current?.send('plan.item.update', { sessionId, target, status });
-  }, []);
 
   // Single source of truth for "a genuine newer version is available" — the
   // version chip (class / title / suffix) and the update banner all gate on
