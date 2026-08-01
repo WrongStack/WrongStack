@@ -10,13 +10,8 @@ import {
   payloadText,
 } from '../lib/session-helpers.js';
 import type { SimpleSocket } from '../lib/ws.js';
+import type { ServerMessage } from '../types.js';
 import type { StatusNotice } from './use-status-notice.js';
-
-/** A wire frame the mailbox store can consume (`type` + optional payload). */
-interface MailboxWireMessage {
-  type: string;
-  payload?: Record<string, unknown> | undefined;
-}
 
 export interface UseSimpleMailboxOptions {
   socketRef: RefObject<SimpleSocket | null>;
@@ -41,7 +36,7 @@ export interface UseSimpleMailboxResult {
    * action_result notices). Returns `true` when the store accepted the frame,
    * so the caller can skip forwarding it to the main message handler.
    */
-  applyMailboxMessage: (message: MailboxWireMessage) => boolean;
+  applyMailboxMessage: (message: ServerMessage) => boolean;
 }
 
 /**
@@ -128,7 +123,7 @@ export function useSimpleMailbox(options: UseSimpleMailboxOptions): UseSimpleMai
   );
 
   const applyMailboxMessage = useCallback(
-    (message: MailboxWireMessage): boolean => {
+    (message: ServerMessage): boolean => {
       const accepted = mailboxStore.applyMessage(message);
       if (message.type === 'mailbox.received' && isIncomingMailboxPayload(message.payload)) {
         setNotice({
