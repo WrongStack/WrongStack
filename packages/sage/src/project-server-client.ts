@@ -483,7 +483,16 @@ export class SageProjectServerConnection {
     this.pending.delete(message.id);
     this.cleanupPending(entry);
     if (message.ok) entry.resolve(message.result);
-    else entry.reject(remoteError(message.error, message.errorName));
+    else {
+      // On auth failure, invalidate the cached token so the next request
+      // re-reads server.json. This handles two race windows:
+      // 1. Cold spawn: daemon is listening but hasn't written server.json yet
+      // 2. Daemon restart: token changed while the client held a stale copy
+      if (message.errorName === 'UnauthorizedSageRequest') {
+        this.authToken = undefined;
+      }
+      entry.reject(remoteError(message.error, message.errorName));
+    }
   }
 
   private onClose(socket: net.Socket): void {

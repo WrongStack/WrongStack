@@ -330,6 +330,7 @@ const DOCK_INSPECTOR_META: Record<Exclude<DockSection, 'goal'>, { title: string;
 export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): React.ReactElement {
   const dockSection = useUIStore((s) => s.dockSection);
   const setDockSection = useUIStore((s) => s.setDockSection);
+  const inspectorOpen = useUIStore((s) => s.inspectorOpen);
   const goalState = useGoalStateStore((s) => s.goal);
   const worktrees = useWorktreeStore((s) => s.worktrees);
   const baseBranch = useWorktreeStore((s) => s.baseBranch);
@@ -339,6 +340,13 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
   const open = dockSection !== null && dockSection !== 'goal';
   const section = open ? dockSection : null;
   const meta = section ? DOCK_INSPECTOR_META[section] : null;
+
+  // Stack-aware positioning: when the global InspectorPanel (fleet/agents/audit)
+  // is also open, offset this panel to the left so the two don't overlap.
+  // The InspectorPanel is `sm:w-[min(680px,48vw)]` — we mirror that width
+  // as the offset. On mobile (`w-[calc(100vw-3rem)]`) both panels are
+  // full-width so stacking isn't useful; the user should close one.
+  const stackedOffset = inspectorOpen && open ? 'sm:right-[min(680px,48vw)]' : '';
 
   useEffect(() => {
     if (!open) return;
@@ -357,7 +365,8 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
       inert={!open || undefined}
       aria-label={meta ? `${meta.title} workspace inspector` : 'Workspace inspector'}
       className={cn(
-        'fixed inset-y-0 right-0 z-50 flex w-[calc(100vw-3rem)] max-w-none flex-col overflow-hidden border-l border-border/80 bg-card/96 shadow-[-24px_0_64px_-36px_hsl(var(--shadow-color)/0.65)] backdrop-blur-xl transition-transform duration-200 sm:w-[min(680px,48vw)] sm:max-w-[680px]',
+        'fixed inset-y-0 right-0 z-40 flex w-[calc(100vw-3rem)] max-w-none flex-col overflow-hidden border-l border-border/80 bg-card/96 shadow-[-24px_0_64px_-36px_hsl(var(--shadow-color)/0.65)] backdrop-blur-xl transition-transform duration-200 sm:w-[min(680px,48vw)] sm:max-w-[680px]',
+        stackedOffset,
         open ? 'translate-x-0' : 'pointer-events-none translate-x-full',
       )}
     >
