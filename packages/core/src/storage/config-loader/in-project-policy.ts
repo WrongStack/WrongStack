@@ -149,6 +149,13 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
   { path: 'tools.exec.danger', reason: 'Weakens the destructive-command banner.' },
   { path: 'skills.extraDirs', reason: 'Loads skill definitions from repo-chosen directories.' },
   { path: 'skills.registryUrl', reason: 'Redirects skill installs to a repo-chosen host.' },
+  // Deliberately NOT denied: skills.mode and skills.eagerMaxChars. The audit
+  // suggested stripping both, but config-loader-extra.test.ts classifies `mode`
+  // as a safe preference with a stated rationale, and a repo can only use these
+  // to move injection volume in either direction — the trust problem was that
+  // repo-supplied skill bodies were indistinguishable from the user's own, which
+  // the provenance tag in system-prompt-skill-bodies.ts now fixes. Re-classifying
+  // them is a product call.
   { path: 'Sage.storage.directory', reason: 'Redirects memory storage outside the profile.' },
   {
     path: 'autonomy.yolo',

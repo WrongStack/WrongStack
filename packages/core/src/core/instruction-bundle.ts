@@ -6,6 +6,18 @@ import { fileURLToPath } from 'node:url';
 export interface SystemInstructionBundle {
   identity?: string | undefined;
   leaderAfterTask?: string | undefined;
+  /**
+   * Which discovery layer supplied `identity`.
+   *
+   * WS-016: `<project>/.wrongstack/instructions/system.md` is repo-committed
+   * and therefore untrusted, yet it *replaced* the layer-1 identity prompt
+   * verbatim — no delimiter, no trust gate. It is the one project-supplied
+   * prompt surface with no untrusted-content treatment, while project config is
+   * stripped, MCP resources get a banner, and council/SAGE text is delimited.
+   * The consumer uses this to append rather than replace when the source is the
+   * project.
+   */
+  identitySource?: 'bundled' | 'global' | 'project' | 'file' | undefined;
 }
 
 export interface InstructionBundle {
@@ -51,11 +63,28 @@ export async function loadInstructionBundle(
     paths?.projectDir,
   ].filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
 
-  for (const dir of dirs) {
-    bundle = mergeInstructionBundle(bundle, await readInstructionDir(dir, { systemFile }));
+  const layerNames: Array<'bundled' | 'global' | 'project'> = [];
+  if (paths?.bundledDir ?? defaultBundledInstructionDir()) layerNames.push('bundled');
+  if (typeof paths?.globalDir === 'string' && paths.globalDir.trim().length > 0) {
+    layerNames.push('global');
+  }
+  if (typeof paths?.projectDir === 'string' && paths.projectDir.trim().length > 0) {
+    layerNames.push('project');
+  }
+
+  for (const [index, dir] of dirs.entries()) {
+    const layer = await readInstructionDir(dir, { systemFile });
+    if (layer.system?.identity !== undefined) {
+      layer.system = { ...layer.system, identitySource: layerNames[index] ?? 'bundled' };
+    }
+    bundle = mergeInstructionBundle(bundle, layer);
   }
   for (const file of paths?.files ?? []) {
-    bundle = mergeInstructionBundle(bundle, await readInstructionJson(file));
+    const layer = await readInstructionJson(file);
+    if (layer.system?.identity !== undefined) {
+      layer.system = { ...layer.system, identitySource: 'file' };
+    }
+    bundle = mergeInstructionBundle(bundle, layer);
   }
   return bundle;
 }

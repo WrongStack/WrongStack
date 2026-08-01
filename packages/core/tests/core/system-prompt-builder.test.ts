@@ -74,7 +74,16 @@ describe('DefaultSystemPromptBuilder', () => {
     });
     const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] });
 
-    expect(blocks[0]?.text).toBe('PROJECT IDENTITY');
+    // WS-016: a repo-committed system.md no longer *replaces* the layer-1
+    // identity — it is appended under a delimiter that names its origin, so the
+    // real identity always leads. Non-identity layers (leader-after-task) keep
+    // full override; only the identity prompt carries this risk.
+    expect(blocks[0]?.text).toContain(LAYER_1_IDENTITY);
+    expect(blocks[0]?.text).toContain('PROJECT IDENTITY');
+    expect(blocks[0]?.text).toContain('<project-supplied-instructions');
+    expect(blocks[0]?.text?.indexOf(LAYER_1_IDENTITY)).toBeLessThan(
+      blocks[0]!.text!.indexOf('PROJECT IDENTITY'),
+    );
     expect(blocks.at(-1)?.text).toBe('PROJECT LEADER');
   });
 
@@ -126,10 +135,13 @@ describe('DefaultSystemPromptBuilder', () => {
     const liteBlocks = await lite.build({ cwd: tmp, projectRoot: tmp, tools: [] });
     const proBlocks = await pro.build({ cwd: tmp, projectRoot: tmp, tools: [] });
 
-    expect(defaultBlocks[0]?.text).toBe('PROJECT DEFAULT');
-    expect(liteBlocks[0]?.text).toBe('PROJECT LITE');
+    // Variant selection is unchanged; the project text is now wrapped rather
+    // than substituted (WS-016).
+    expect(defaultBlocks[0]?.text).toContain('PROJECT DEFAULT');
+    expect(defaultBlocks[0]?.text).toContain('<project-supplied-instructions');
+    expect(liteBlocks[0]?.text).toContain('PROJECT LITE');
     expect(liteBlocks[0]?.text).not.toContain('PROJECT DEFAULT');
-    expect(proBlocks[0]?.text).toBe('PROJECT PRO');
+    expect(proBlocks[0]?.text).toContain('PROJECT PRO');
     expect(proBlocks[0]?.text).not.toContain('PROJECT DEFAULT');
   });
 

@@ -11,6 +11,13 @@ import { capSkillBody, stripFrontmatter } from './system-prompt-skill-text.js';
  * definition of "foreign sources" in types/skill.ts.
  */
 const FOREIGN_SOURCES: ReadonlySet<SkillManifest['source']> = new Set([
+  // WS-016: `project` skills come from `<repo>/.wrongstack/skills` — they
+  // arrive with a cloned repository and load at the HIGHEST priority, shadowing
+  // the user's own. They were the only discovery layer injected into the prompt
+  // with no provenance tag at all, i.e. indistinguishable from bundled or
+  // user-authored instructions. `claude-project` was already tagged for exactly
+  // this reason; the native project layer carries the same trust properties.
+  'project',
   'claude-project',
   'claude-user',
   'foreign',
@@ -25,6 +32,9 @@ const FOREIGN_SOURCES: ReadonlySet<SkillManifest['source']> = new Set([
  */
 function foreignProvenanceTag(source: SkillManifest['source'], originTool?: string): string {
   if (!FOREIGN_SOURCES.has(source)) return '';
+  // A repo-committed skill is not "foreign" in the another-agent's-directory
+  // sense, so name it for what it is rather than mislabelling it (WS-016).
+  if (source === 'project') return ' [repository-supplied skill]';
   const origin = source === 'foreign' && originTool ? originTool : source;
   return ` [foreign skill: ${origin}]`;
 }
