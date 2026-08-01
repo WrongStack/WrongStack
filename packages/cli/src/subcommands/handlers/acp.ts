@@ -11,6 +11,8 @@
  * This is the correct CLI entry point to test DIR-2 against a real ACP client.
  */
 
+import { randomBytes } from 'node:crypto';
+import * as path from 'node:path';
 import {
   type ACPProgressEvent,
   type AcpAgentCommandOverrides,
@@ -31,16 +33,16 @@ import {
   WrongStackACPServer,
   WsBridgeTransport,
 } from '@wrongstack/acp/agent';
-import * as path from 'node:path';
 import { WebSocketServer } from 'ws';
-import { AcpServerConfigError, buildAcpServerAgentFactory } from '../../acp-server-agent.js';
 import {
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from '../../acp-registry-cache.js';
+import { AcpServerConfigError, buildAcpServerAgentFactory } from '../../acp-server-agent.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import { createAcpConnectionGate } from './acp-connection-gate.js';
 
 /** User-config ACP command overrides (never sourced from in-project config). */
 function acpOverrides(deps: SubcommandDeps): AcpAgentCommandOverrides | undefined {
@@ -180,15 +182,27 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
       : undefined;
   }
 
+  // WS-006: the WS transport admitted anything — the Origin check was
+  // `if (origin && …)`, so every non-browser client skipped it, and
+  // `handleAuthenticate` returns success unconditionally. A token is minted per
+  // run and required on connect; it is printed with the URL, and
+  // `WRONGSTACK_ACP_TOKEN` lets a supervisor pin it. The admission logic lives
+  // in acp-connection-gate.ts so it is directly testable.
+  const acpToken = process.env['WRONGSTACK_ACP_TOKEN']?.trim() || randomBytes(32).toString('hex');
+  const gate = createAcpConnectionGate({ host, port, token: acpToken });
+  let liveConnections = 0;
+
   const wss = new WebSocketServer({ host, port, maxPayload: 20 * 1024 * 1024 });
   wss.on('connection', (socket, req) => {
-    // Origin guard: real ACP clients send no Origin; reject cross-origin
-    // browser connections so a web page can't drive this loopback agent.
-    const origin = req.headers.origin;
-    if (origin && origin !== `http://${host}:${port}` && origin !== `ws://${host}:${port}`) {
-      socket.close(1008, 'cross-origin forbidden');
+    const verdict = gate.check(req, liveConnections);
+    if (!verdict.ok) {
+      socket.close(verdict.code ?? 1008, verdict.reason ?? 'forbidden');
       return;
     }
+    liveConnections++;
+    socket.once('close', () => {
+      liveConnections--;
+    });
     const connectionTurn = turnFactory?.();
     const transport = new WsBridgeTransport((m) => {
       const data = JSON.stringify(m);
@@ -229,10 +243,11 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
     socket.on('error', teardown);
   });
 
+  const acpUrl = `ws://${host}:${port}/?token=${acpToken}`;
   deps.renderer.writeInfo(
     echo
-      ? `ACP server (echo, no provider) listening on ws://${host}:${port}. Press Ctrl+C to stop.\n`
-      : `WrongStack ACP server listening on ws://${host}:${port} (${deps.config.provider}/${deps.config.model}). Press Ctrl+C to stop.\n`,
+      ? `ACP server (echo, no provider) listening on ${acpUrl}. Press Ctrl+C to stop.\n`
+      : `WrongStack ACP server listening on ${acpUrl} (${deps.config.provider}/${deps.config.model}). Press Ctrl+C to stop.\n`,
   );
 
   await new Promise<void>((resolve) => {
@@ -289,12 +304,16 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
   );
 
   if (echo) {
-    deps.renderer.writeInfo('ACP server starting in --echo mode (no-op turn; no provider needed).\n');
+    deps.renderer.writeInfo(
+      'ACP server starting in --echo mode (no-op turn; no provider needed).\n',
+    );
   } else {
     deps.renderer.writeInfo(
       `Starting WrongStack ACP server (${deps.config.provider}/${deps.config.model})…\n`,
     );
-    deps.renderer.writeInfo('Waiting for an ACP client connection on stdin/stdout. Press Ctrl+C to stop.\n');
+    deps.renderer.writeInfo(
+      'Waiting for an ACP client connection on stdin/stdout. Press Ctrl+C to stop.\n',
+    );
   }
 
   // Graceful shutdown. The old code did `server.stop(); process.exit(0)`
@@ -340,7 +359,9 @@ async function listACPAgents(deps: SubcommandDeps): Promise<number> {
     deps.renderer.write(`  ✓ ${a.id.padEnd(16)} ${a.displayName}${ver}\n`);
   }
   for (const a of missing) {
-    deps.renderer.write(`  ✗ ${a.id.padEnd(16)} ${a.displayName}  (${a.reason ?? 'not installed'})\n`);
+    deps.renderer.write(
+      `  ✗ ${a.id.padEnd(16)} ${a.displayName}  (${a.reason ?? 'not installed'})\n`,
+    );
   }
   deps.renderer.write(`\n${installed.length} of ${detected.length} agents available.\n`);
   const live = await loadLive(deps);
@@ -367,7 +388,9 @@ async function syncACPRegistry(deps: SubcommandDeps): Promise<number> {
     deps.renderer.writeInfo(`Cached at ${location}\n`);
     return 0;
   } catch (err) {
-    deps.renderer.writeError(`ACP registry sync failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    deps.renderer.writeError(
+      `ACP registry sync failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     deps.renderer.write('The bundled offline catalog is still available via `wstack acp list`.\n');
     return 1;
   }
@@ -465,10 +488,7 @@ function formatProgress(event: ACPProgressEvent): string {
   }
 }
 
-async function parallelACPAgents(
-  args: string[],
-  deps: SubcommandDeps,
-): Promise<number> {
+async function parallelACPAgents(args: string[], deps: SubcommandDeps): Promise<number> {
   const [csv, ...taskParts] = args;
   if (!csv) {
     deps.renderer.writeError('Usage: wstack acp parallel <agent-id-csv> <task>\n');
@@ -538,17 +558,13 @@ async function parallelACPAgents(
         deps.renderer.writeError(
           `[${r.error?.kind ?? 'unknown'}] ${r.error?.message ?? 'failed'}\n`,
         );
-        deps.renderer.write(
-          `[${r.agentId}] failed  ${r.durationMs}ms\n`,
-        );
+        deps.renderer.write(`[${r.agentId}] failed  ${r.durationMs}ms\n`);
       } else {
         // cancelled
         deps.renderer.writeError(
           `[${r.error?.kind ?? 'aborted'}] ${r.error?.message ?? 'cancelled'}\n`,
         );
-        deps.renderer.write(
-          `[${r.agentId}] cancelled  ${r.durationMs}ms\n`,
-        );
+        deps.renderer.write(`[${r.agentId}] cancelled  ${r.durationMs}ms\n`);
       }
     }
 
@@ -569,7 +585,11 @@ async function probeACPAgents(args: string[], deps: SubcommandDeps): Promise<num
   const csv = args.join(' ');
   let ids: string[];
   if (csv) {
-    ids = csv.split(',').flatMap((s) => s.split(/\s+/)).map((s) => s.trim()).filter(Boolean);
+    ids = csv
+      .split(',')
+      .flatMap((s) => s.split(/\s+/))
+      .map((s) => s.trim())
+      .filter(Boolean);
   } else {
     const detected = await new EnsembleRegistry().list();
     ids = detected.filter((a) => a.installed).map((a) => a.id);
@@ -606,8 +626,7 @@ async function probeACPAgents(args: string[], deps: SubcommandDeps): Promise<num
 async function benchACPAgents(args: string[], deps: SubcommandDeps): Promise<number> {
   // `--fs` is parsed into deps.flags by the subcommand arg parser (flags never
   // arrive in `args`); tolerate a literal token too for safety.
-  const checkFs =
-    deps.flags?.fs === true || deps.flags?.fs === 'true' || args.includes('--fs');
+  const checkFs = deps.flags?.fs === true || deps.flags?.fs === 'true' || args.includes('--fs');
   const csv = args.filter((a) => a !== '--fs').join(' ');
 
   let ids: string[];
