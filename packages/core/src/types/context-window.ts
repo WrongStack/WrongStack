@@ -6,6 +6,22 @@ export type ContextWindowModeSelectionId = ContextWindowModeId | DeprecatedConte
 
 export type ContextWindowAggressiveOn = 'hard' | 'soft' | 'warn';
 
+/**
+ * Context-window usage snapshot returned by the host's `onResumeSession`
+ * callback when a session is resumed. The TUI reducer seeds
+ * `state.leader.ctxTokens` / `state.leader.ctxMaxTokens` from this snapshot
+ * so the statusline chip and `/context` panel reflect the rebuilt context
+ * immediately, instead of staying at zero until the next ctx.pct event.
+ * Single source of truth — do not redeclare as an inline structural type at
+ * call sites; import this named type instead so the contract cannot drift.
+ */
+export interface ContextSnapshot {
+  /** Estimated total tokens currently in the context window. */
+  tokens: number;
+  /** Provider max context in tokens for the active model. */
+  maxContext: number;
+}
+
 export interface ContextWindowThresholds {
   warn: number;
   soft: number;

@@ -2,6 +2,7 @@ import type {
   GovernanceCapabilityGrantRegistry,
   GovernanceServiceCredential,
 } from './capability-grant.js';
+import type { GovernanceDaemonControlPort } from './daemon-control.js';
 import { GovernanceManagementReceiptCache } from './management-receipt-cache.js';
 import type { GovernanceProjectService, GovernanceServiceResponse } from './project-service.js';
 import { decodeGovernanceServiceRequest } from './protocol-decoder.js';
@@ -71,6 +72,14 @@ function receiptCapacityExceeded(requestId: string): GovernanceServiceResponse {
   };
 }
 
+function daemonControlFailure(
+  requestId: string,
+  code: 'store_failure' | 'identity_mismatch',
+  message: string,
+): GovernanceServiceResponse {
+  return { ok: false, requestId, error: { code, message } };
+}
+
 /** External facade for a future IPC transport. Raw capability sets never cross this boundary. */
 export class AuthenticatedGovernanceProjectService {
   readonly projectId: string;
@@ -79,6 +88,7 @@ export class AuthenticatedGovernanceProjectService {
     private readonly service: GovernanceProjectService,
     private readonly grants: GovernanceCapabilityGrantRegistry,
     private readonly receipts: GovernanceManagementReceiptCache = new GovernanceManagementReceiptCache(),
+    private readonly daemonControl?: GovernanceDaemonControlPort | undefined,
   ) {
     if (service.projectId !== grants.projectId) {
       throw new Error('Governance service and capability registry projects must match.');
@@ -119,6 +129,8 @@ export class AuthenticatedGovernanceProjectService {
     if (
       request.type !== 'issue_capability_grant' &&
       request.type !== 'read_own_capability_grant' &&
+      request.type !== 'read_daemon_status' &&
+      request.type !== 'request_daemon_shutdown' &&
       request.type !== 'list_capability_grants' &&
       request.type !== 'revoke_capability_grant' &&
       request.type !== 'rotate_capability_grant'
@@ -132,6 +144,55 @@ export class AuthenticatedGovernanceProjectService {
         result: { type: 'own_capability_grant', grant: authentication.grant },
       };
     }
+    if (request.type === 'read_daemon_status' || request.type === 'request_daemon_shutdown') {
+      if (!authentication.client.capabilities.has('daemon_control')) {
+        return permissionDenied(
+          request.requestId,
+          `Client ${authentication.client.clientId} lacks capability daemon_control.`,
+        );
+      }
+      if (!this.daemonControl) {
+        return daemonControlFailure(
+          request.requestId,
+          'store_failure',
+          'Governance daemon control is unavailable in this server mode.',
+        );
+      }
+      let status: ReturnType<GovernanceDaemonControlPort['status']>;
+      try {
+        status = this.daemonControl.status();
+      } catch {
+        return daemonControlFailure(
+          request.requestId,
+          'store_failure',
+          'Governance daemon status could not be read.',
+        );
+      }
+      if (request.type === 'read_daemon_status') {
+        return {
+          ok: true,
+          requestId: request.requestId,
+          result: { type: 'daemon_status', ...status },
+        };
+      }
+      if (request.expectedInstanceId !== status.instanceId) {
+        return daemonControlFailure(
+          request.requestId,
+          'identity_mismatch',
+          'Governance daemon instance identity does not match.',
+        );
+      }
+      return {
+        ok: true,
+        requestId: request.requestId,
+        result: {
+          type: 'daemon_shutdown_accepted',
+          instanceId: status.instanceId,
+          requestedBy: authentication.client.clientId,
+          reason: request.reason ?? 'graceful shutdown requested by control plane',
+        },
+      };
+    }
     if (!authentication.client.capabilities.has('capability_admin')) {
       return permissionDenied(
         request.requestId,
@@ -139,10 +200,13 @@ export class AuthenticatedGovernanceProjectService {
       );
     }
     if (request.type === 'issue_capability_grant') {
-      if (request.capabilities.includes('capability_admin')) {
+      if (
+        request.capabilities.includes('capability_admin') ||
+        request.capabilities.includes('daemon_control')
+      ) {
         return permissionDenied(
           request.requestId,
-          'capability_admin cannot be delegated through the service protocol.',
+          'Control-plane capabilities cannot be delegated through the service protocol.',
         );
       }
       const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });

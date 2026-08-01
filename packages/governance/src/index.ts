@@ -3,6 +3,7 @@ export * from './authenticated-project-service.js';
 export * from './autonomy-envelope.js';
 export * from './capability-grant.js';
 export * from './credential-lease-controller.js';
+export * from './daemon-control.js';
 export type {
   GovernanceDaemonAvailability,
   GovernanceDaemonLaunchErrorCode,

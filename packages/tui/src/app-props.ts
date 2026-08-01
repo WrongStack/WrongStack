@@ -2,7 +2,7 @@ import type { Agent } from '@wrongstack/core/agent';
 import type { CoordinatorEvent, Director } from '@wrongstack/core/coordination';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
-import type { AttachmentStore, AutonomyStage, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
+import type { AttachmentStore, AutonomyStage, ContextSnapshot, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
@@ -450,10 +450,11 @@ export interface AppProps {
          * session's tokenCounter after accounting the persisted usage.
          * When present, the reducer writes `tokens` to `state.leader.ctxTokens`,
          * `maxContext` to `state.leader.ctxMaxTokens`, and bumps
-         * `state.contextChipVersion` so the chip refreshes immediately. When absent, the chip stays at its previous value
-         * until the next ctx.pct event lands.
+         * `state.contextChipVersion` so the chip refreshes immediately. When
+         * absent, the chip stays at its previous value until the next ctx.pct
+         * event lands.
          */
-        contextSnapshot?: { tokens: number; maxContext: number } | undefined;
+        contextSnapshot?: ContextSnapshot | undefined;
       } | null>)
     | undefined;
 

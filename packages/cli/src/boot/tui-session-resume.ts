@@ -30,12 +30,15 @@ export interface SessionResumeResult {
   entries: unknown[];
   nextId: number;
   sessionId: string;
-  contextSnapshot?:
-    | {
-        tokens: { input: number; cacheRead: number; cacheWrite: number };
-        maxContext: number;
-      }
-    | undefined;
+  /**
+   * Optional context-window snapshot for the resumed session. `tokens` is a
+   * flat `number` (sum of `tokenCounter.currentRequestTokens()?.`'s
+   * `{ input, cacheRead, cacheWrite }` fields) — the TUI consumer
+   * (`packages/tui/src/reducers/composer.ts:561-577`) reads `tokens` as a
+   * flat number and gates on `snap.tokens > 0`. Forwarding the raw object
+   * would coerce to NaN and silently drop the snapshot at runtime.
+   */
+  contextSnapshot?: { tokens: number; maxContext: number } | undefined;
 }
 
 /**
@@ -274,7 +277,20 @@ export async function resumeSession(
     // optional on the TUI side, so a missing future provider (no
     // capabilities.maxContext) degrades to a 0/anything chip — same as
     // today's behavior — instead of throwing.
-    const tokens = tokenCounter.currentRequestTokens();
+    //
+    // `currentRequestTokens()` returns `{ input, cacheRead, cacheWrite }`,
+    // NOT a flat number. The TUI reducer at `reducers/composer.ts:563`
+    // expects a flat `number`; forwarding the object literal would coerce
+    // to NaN in the `snap.tokens > 0` guard and silently drop the
+    // snapshot at runtime. Sum the three fields explicitly — input
+    // accounts for non-cached tokens, cacheRead/cacheWrite account for
+    // the prompt-cache hit/miss that the provider already paid for.
+    const reqTokens = tokenCounter.currentRequestTokens?.();
+    const tokens =
+      (typeof reqTokens === 'number' ? reqTokens : 0) +
+      (typeof reqTokens?.input === 'number' ? reqTokens.input : 0) +
+      (typeof reqTokens?.cacheRead === 'number' ? reqTokens.cacheRead : 0) +
+      (typeof reqTokens?.cacheWrite === 'number' ? reqTokens.cacheWrite : 0);
     const maxContext =
       (agent.ctx.provider as { capabilities?: { maxContext?: number } } | undefined)?.capabilities
         ?.maxContext ?? 0;

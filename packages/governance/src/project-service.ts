@@ -59,6 +59,19 @@ export type GovernanceServiceResult =
       readonly grant: GovernanceCapabilityGrant;
     }
   | {
+      readonly type: 'daemon_status';
+      readonly projectId: string;
+      readonly pid: number;
+      readonly instanceId: string;
+      readonly startedAt: string;
+    }
+  | {
+      readonly type: 'daemon_shutdown_accepted';
+      readonly instanceId: string;
+      readonly requestedBy: string;
+      readonly reason: string;
+    }
+  | {
       readonly type: 'capability_grants';
       readonly grants: readonly GovernanceCapabilityGrant[];
       readonly nextCursor?: string | undefined;
@@ -117,6 +130,8 @@ const REQUIRED_CAPABILITY: Readonly<
   list_capability_grants: 'capability_admin',
   revoke_capability_grant: 'capability_admin',
   rotate_capability_grant: 'capability_admin',
+  read_daemon_status: 'daemon_control',
+  request_daemon_shutdown: 'daemon_control',
 };
 
 function fail(
@@ -130,6 +145,10 @@ function fail(
     requestId,
     error: { code, message, ...(details ? { details } : {}) },
   };
+}
+
+function reservedAuditCategory(category: string): boolean {
+  return category.startsWith('capability_grant_') || category.startsWith('daemon_');
 }
 
 export type GovernanceDecisionContextProvider = (
@@ -185,11 +204,11 @@ export class GovernanceProjectService {
       );
     }
     if (request.type === 'record_observation') {
-      if (request.observation.category.startsWith('capability_grant_')) {
+      if (reservedAuditCategory(request.observation.category)) {
         return fail(
           request.requestId,
           'permission_denied',
-          'Capability grant lifecycle observations are reserved for the project server.',
+          'Governance lifecycle observations are reserved for the project server.',
         );
       }
       if (request.observation.source !== client.clientId) {
@@ -283,7 +302,7 @@ export class GovernanceProjectService {
             type: 'observations',
             observations: this.store
               .readObservations(this.projectId, request.taskId)
-              .filter((observation) => !observation.category.startsWith('capability_grant_')),
+              .filter((observation) => !reservedAuditCategory(observation.category)),
           },
         };
       case 'read_audit_observations':
@@ -294,7 +313,7 @@ export class GovernanceProjectService {
             type: 'observations',
             observations: this.store
               .readObservations(this.projectId)
-              .filter((observation) => observation.category.startsWith('capability_grant_')),
+              .filter((observation) => reservedAuditCategory(observation.category)),
           },
         };
       case 'submit_command': {
@@ -335,6 +354,8 @@ export class GovernanceProjectService {
         };
       case 'issue_capability_grant':
       case 'read_own_capability_grant':
+      case 'read_daemon_status':
+      case 'request_daemon_shutdown':
       case 'list_capability_grants':
       case 'revoke_capability_grant':
       case 'rotate_capability_grant':

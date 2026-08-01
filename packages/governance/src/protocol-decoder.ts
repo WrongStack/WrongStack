@@ -574,7 +574,29 @@ export function decodeGovernanceServiceRequest(
       break;
     case 'read_audit_observations':
     case 'read_own_capability_grant':
+    case 'read_daemon_status':
       exactKeys(record, ['protocolVersion', 'requestId', 'type'], '$', issues);
+      break;
+    case 'request_daemon_shutdown':
+      exactKeys(
+        record,
+        ['protocolVersion', 'requestId', 'type', 'expectedInstanceId', 'reason'],
+        '$',
+        issues,
+      );
+      boundedString(record.expectedInstanceId, '$.expectedInstanceId', issues, 128);
+      if (
+        typeof record.expectedInstanceId === 'string' &&
+        !/^[A-Za-z0-9_-]{1,128}$/u.test(record.expectedInstanceId)
+      ) {
+        issue(
+          issues,
+          'invalid_value',
+          '$.expectedInstanceId',
+          '$.expectedInstanceId must be a token-safe identifier.',
+        );
+      }
+      if (record.reason !== undefined) boundedString(record.reason, '$.reason', issues, 512);
       break;
     case 'submit_command':
       exactKeys(record, ['protocolVersion', 'requestId', 'type', 'command'], '$', issues);

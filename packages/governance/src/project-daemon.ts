@@ -74,17 +74,29 @@ async function run(): Promise<void> {
     instanceId,
     startedAt,
   });
-  let server = new GovernanceProjectServer({
-    projectRoot: parsed.projectRoot,
-    projectId: parsed.projectId,
-  });
+  let stop: (exitCode: number) => Promise<void>;
+  const createServer = (): GovernanceProjectServer =>
+    new GovernanceProjectServer({
+      projectRoot: parsed.projectRoot,
+      projectId: parsed.projectId,
+      daemonControl: {
+        status: () => ({
+          projectId: parsed.projectId,
+          pid: process.pid,
+          instanceId,
+          startedAt,
+        }),
+      },
+      onDaemonShutdownResponseFlushed: () => void stop(0),
+    });
+  let server = createServer();
   let startupLease: GovernanceDaemonStartupLease | undefined;
   let metadataWritten = false;
   let stopping = false;
   let bootstrapComplete = false;
   let bootstrapTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const stop = async (exitCode: number): Promise<void> => {
+  stop = async (exitCode: number): Promise<void> => {
     if (stopping) return;
     stopping = true;
     if (bootstrapTimer) clearTimeout(bootstrapTimer);
@@ -180,10 +192,7 @@ async function run(): Promise<void> {
       );
     }
     await fs.rm(governanceProjectServerEndpoint(parsed.projectRoot), { force: true });
-    server = new GovernanceProjectServer({
-      projectRoot: parsed.projectRoot,
-      projectId: parsed.projectId,
-    });
+    server = createServer();
     try {
       await server.start();
     } catch {

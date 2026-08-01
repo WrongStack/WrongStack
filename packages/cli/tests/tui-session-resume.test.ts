@@ -43,7 +43,10 @@ function harness() {
     session: oldWriter,
     messages: oldMessages,
     model: 'old-model',
-    provider: { id: 'old-provider' },
+    provider: {
+      id: 'old-provider',
+      capabilities: { maxContext: 200_000 },
+    },
     traceId: 'trace-test',
     state: {
       replaceMessages: vi.fn((messages: typeof oldMessages) => {
@@ -72,6 +75,12 @@ function harness() {
     total: vi.fn(() => ({ input: 3, output: 2, cacheRead: 0, cacheWrite: 0 })),
     reset: vi.fn(),
     account: vi.fn(),
+    // `currentRequestTokens()` returns the prompt-cache-aware per-request
+    // shape `{ input, cacheRead, cacheWrite }`. The host sums these into a
+    // flat `tokens` field for the TUI snapshot — see the snapshot contract
+    // tests at the bottom of this file. Tests that want to exercise the
+    // "no request yet" path can override this via `h.tokenCounter.currentRequestTokens`.
+    currentRequestTokens: vi.fn(() => ({ input: 7, cacheRead: 3, cacheWrite: 2 })),
   };
   const state = {
     projectRoot: '/project',
@@ -171,6 +180,13 @@ describe('TUI session resume ownership', () => {
       entries: [{ id: 1, kind: 'user' }],
       nextId: 2,
       sessionId: h.resumedWriter.id,
+      // The host sums `tokenCounter.currentRequestTokens()`'s
+      // `{ input, cacheRead, cacheWrite }` into a flat `tokens` field for
+      // the TUI snapshot, so the TUI reducer's `snap.tokens > 0` guard
+      // sees a number (not NaN from object coercion). The harness sets
+      // input=7, cacheRead=3, cacheWrite=2 → tokens=12. `maxContext` is
+      // read from `agent.ctx.provider.capabilities.maxContext`.
+      contextSnapshot: { tokens: 12, maxContext: 200_000 },
     });
     expect(h.context.session).toBe(h.resumedWriter);
     expect(h.tokenCounter.reset).toHaveBeenCalledOnce();
@@ -186,5 +202,71 @@ describe('TUI session resume ownership', () => {
       'trace-test',
       h.resumedWriter.id,
     );
+  });
+});
+
+/**
+ * Snapshot-contract tests. The TUI reducer at
+ * `packages/tui/src/reducers/composer.ts:561-577` reads
+ * `action.contextSnapshot.tokens` as a flat `number` and gates on
+ * `snap.tokens > 0`. If the host ever forwards the raw
+ * `tokenCounter.currentRequestTokens()` object literal instead of the
+ * sum of its three fields, the coercion yields NaN, the `> 0` check is
+ * silently false, and the statusline chip / `/context` panel never
+ * refresh after `/resume`. These tests pin the contract so the bug
+ * can't come back.
+ */
+describe('TUI session resume — contextSnapshot contract', () => {
+  it('returns contextSnapshot.tokens as a flat positive number equal to input + cacheRead + cacheWrite', async () => {
+    const h = harness();
+    // Sanity-check the harness invariant the test relies on.
+    expect(typeof h.tokenCounter.currentRequestTokens).toBe('function');
+
+    const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
+
+    expect(result).not.toBeNull();
+    const snap = result!.contextSnapshot;
+    expect(snap).toBeDefined();
+    expect(typeof snap?.tokens).toBe('number');
+    expect(Number.isFinite(snap!.tokens)).toBe(true);
+    expect(snap!.tokens).toBeGreaterThan(0);
+
+    const callResult = h.tokenCounter.currentRequestTokens.mock.results[0]?.value;
+    const sum =
+      (typeof callResult === 'number' ? callResult : 0) +
+      (typeof callResult?.input === 'number' ? callResult.input : 0) +
+      (typeof callResult?.cacheRead === 'number' ? callResult.cacheRead : 0) +
+      (typeof callResult?.cacheWrite === 'number' ? callResult.cacheWrite : 0);
+
+    expect(snap!.tokens).toBe(sum);
+    expect(h.tokenCounter.currentRequestTokens).toHaveBeenCalledOnce();
+  });
+
+  it('returns contextSnapshot.maxContext from agent.ctx.provider.capabilities.maxContext', async () => {
+    const h = harness();
+    const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
+
+    expect(result).not.toBeNull();
+    const snap = result!.contextSnapshot;
+    expect(snap).toBeDefined();
+    expect(typeof snap?.maxContext).toBe('number');
+    expect(snap!.maxContext).toBe(200_000);
+  });
+
+  it('coerces a missing currentRequestTokens to tokens=0 (snapshot drops cleanly, no NaN)', async () => {
+    // A future provider that hasn't implemented `currentRequestTokens()`
+    // must not produce NaN — the TUI reducer would silently keep the
+    // chip at zero forever otherwise.
+    const h = harness();
+    h.tokenCounter.currentRequestTokens = undefined as never;
+
+    const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
+
+    expect(result).not.toBeNull();
+    const snap = result!.contextSnapshot;
+    expect(snap).toBeDefined();
+    expect(snap!.tokens).toBe(0);
+    expect(Number.isFinite(snap!.tokens)).toBe(true);
+    expect(snap!.maxContext).toBe(200_000);
   });
 });

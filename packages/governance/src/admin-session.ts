@@ -84,6 +84,28 @@ export class GovernanceAdminSession {
     return this.lease.request(input);
   }
 
+  readDaemonStatus(): Promise<GovernanceServiceResponse> {
+    return this.lease.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: `daemon-status-${randomUUID()}`,
+      type: 'read_daemon_status',
+    });
+  }
+
+  async shutdownDaemon(
+    reason = 'admin session requested graceful shutdown',
+  ): Promise<GovernanceServiceResponse> {
+    const response = await this.lease.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: `daemon-shutdown-${randomUUID()}`,
+      type: 'request_daemon_shutdown',
+      expectedInstanceId: this.metadata.instanceId,
+      reason,
+    });
+    if (response.ok && response.result.type === 'daemon_shutdown_accepted') this.lease.stop();
+    return response;
+  }
+
   rotateNow(): Promise<GovernanceCredentialLeaseSnapshot> {
     return this.lease.rotateNow();
   }

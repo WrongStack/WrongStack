@@ -3,7 +3,7 @@ import type { AutonomousCoordinator, CoordinatorEvent, Director } from '@wrongst
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
-import type { AttachmentStore, AutonomyStage, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
+import type { AttachmentStore, AutonomyStage, ContextSnapshot, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type { AgentTranscriptReader } from './components/agents-monitor.js';
@@ -547,7 +547,7 @@ export interface RunTuiOptions {
          * immediately. When absent, the chip stays at its previous value
          * until the next ctx.pct event lands.
          */
-        contextSnapshot?: { tokens: number; maxContext: number } | undefined;
+        contextSnapshot?: ContextSnapshot | undefined;
       } | null>)
     | undefined;
 

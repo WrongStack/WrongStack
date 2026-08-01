@@ -132,7 +132,10 @@ describe('kanban tool — universal completion gate', () => {
       columns,
       lifecycle: createManagedLifecyclePolicy(),
     });
-    const added = await addTask(dir, board.id, { title: 'Managed task' });
+    const added = await addTask(dir, board.id, {
+      title: 'Managed task',
+      description: 'Managed assignment completion regression.',
+    });
     await updateTask(dir, board.id, added!.task.id, {
       description: 'Managed assignment completion regression.',
       dueDate: '2026-08-01T00:00:00.000Z',

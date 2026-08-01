@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useViewport, isMobileViewport, MOBILE_BREAKPOINT } from './useViewport';
+import { useViewport, isMobileViewport, MOBILE_BREAKPOINT } from '../../src/hooks/useViewport';
 
 // Mock matchMedia
 function mockMatchMedia(matches: boolean) {
@@ -64,17 +64,21 @@ describe('useViewport', () => {
 
 describe('isMobileViewport', () => {
   const originalInnerWidth = window.innerWidth;
+  const originalMatchMedia = window.matchMedia;
 
   afterEach(() => {
     Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, writable: true });
+    window.matchMedia = originalMatchMedia;
   });
 
   it('returns true when width ≤ breakpoint', () => {
+    window.matchMedia = mockMatchMedia(true);
     Object.defineProperty(window, 'innerWidth', { value: MOBILE_BREAKPOINT, writable: true });
     expect(isMobileViewport()).toBe(true);
   });
 
   it('returns false when width > breakpoint', () => {
+    window.matchMedia = mockMatchMedia(false);
     Object.defineProperty(window, 'innerWidth', { value: MOBILE_BREAKPOINT + 1, writable: true });
     expect(isMobileViewport()).toBe(false);
   });

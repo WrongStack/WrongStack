@@ -9,6 +9,7 @@ export const GOVERNANCE_SERVICE_CAPABILITIES = [
   'command_submit',
   'shadow_observe',
   'capability_admin',
+  'daemon_control',
 ] as const;
 
 export type GovernanceServiceCapability = (typeof GOVERNANCE_SERVICE_CAPABILITIES)[number];
@@ -33,6 +34,12 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
     | { readonly type: 'read_observations'; readonly taskId?: string | undefined }
     | { readonly type: 'read_audit_observations' }
     | { readonly type: 'read_own_capability_grant' }
+    | { readonly type: 'read_daemon_status' }
+    | {
+        readonly type: 'request_daemon_shutdown';
+        readonly expectedInstanceId: string;
+        readonly reason?: string | undefined;
+      }
     | { readonly type: 'submit_command'; readonly command: GovernanceCommand }
     | { readonly type: 'record_observation'; readonly observation: GovernanceObservation }
     | {

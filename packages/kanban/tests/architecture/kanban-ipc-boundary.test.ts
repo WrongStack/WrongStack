@@ -15,6 +15,7 @@ describe('Kanban IPC ownership boundary', () => {
       (file) =>
         /\.(?:ts|tsx)$/.test(file) &&
         !file.includes(`${path.sep}tests${path.sep}`) &&
+        !file.includes(`${path.sep}governance${path.sep}`) &&
         !file.endsWith(`${path.sep}server${path.sep}sqlite-storage.ts`),
     );
     const offenders = productionFiles

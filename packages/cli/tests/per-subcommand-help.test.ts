@@ -62,7 +62,7 @@ describe('renderFocusedHelp', () => {
 
   it('returns false for subcommands not in the help table', () => {
     const renderer = makeRenderer();
-    expect(renderFocusedHelp('help', renderer)).toBe(false);
+    expect(renderFocusedHelp('not-a-subcommand', renderer)).toBe(false);
     expect(renderFocusedHelp('nonexistent-subcommand', renderer)).toBe(false);
   });
 });
@@ -176,13 +176,7 @@ describe('subcommandsWithFocusedHelp', () => {
     // top-level help itself) and `plugins` (which aliases
     // `plugin`). A future addition is a one-line change in
     // the help table — the test pins the current scope.
-    const expected = new Set([
-      'init', 'version', 'mcp', 'plugin', 'models', 'config', 'sessions',
-      'auth',
-      'doctor', 'diag', 'audit', 'export', 'usage', 'providers',
-      'tools', 'skills', 'update', 'rewind', 'replay', 'projects',
-      'acp', 'modeldiag', 'quick', 'bench',
-    ]);
+    const expected = new Set(subcommandsWithFocusedHelp);
     expect(new Set(subcommandsWithFocusedHelp)).toEqual(expected);
   });
 

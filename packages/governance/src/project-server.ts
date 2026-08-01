@@ -10,6 +10,10 @@ import {
   type IssuedGovernanceCapabilityGrant,
   type IssueGovernanceCapabilityGrantOptions,
 } from './capability-grant.js';
+import type {
+  GovernanceDaemonControlPort,
+  GovernanceDaemonShutdownNotice,
+} from './daemon-control.js';
 import { type GovernanceObservationCategory, SqliteGovernanceEventStore } from './event-store.js';
 import { governanceProjectDatabasePath, governanceProjectServerEndpoint } from './ipc-endpoint.js';
 import {
@@ -33,6 +37,10 @@ export interface GovernanceProjectServerOptions {
   readonly projectId: string;
   readonly resolveDecisionContext?: GovernanceDecisionContextProvider | undefined;
   readonly grantRegistry?: Omit<GovernanceCapabilityGrantRegistryOptions, 'auditSink'> | undefined;
+  readonly daemonControl?: GovernanceDaemonControlPort | undefined;
+  readonly onDaemonShutdownResponseFlushed?:
+    | ((notice: GovernanceDaemonShutdownNotice) => void)
+    | undefined;
 }
 
 function requestIdFromUnknown(input: unknown): string {
@@ -152,7 +160,12 @@ export class GovernanceProjectServer {
         auditSink: (event) => this.persistGrantAuditEvent(event),
       });
       this.grants = grants;
-      this.authenticated = new AuthenticatedGovernanceProjectService(service, grants);
+      this.authenticated = new AuthenticatedGovernanceProjectService(
+        service,
+        grants,
+        undefined,
+        this.options.daemonControl,
+      );
       this.state = 'ready';
       for (const socket of this.pendingSockets) this.accept(socket);
       this.pendingSockets.clear();
@@ -296,9 +309,46 @@ export class GovernanceProjectServer {
       return;
     }
     try {
+      const response = this.authenticated.handleUnknown(
+        decoded.envelope.request,
+        decoded.envelope.credential,
+      );
+      const shutdownNotice =
+        response.ok && response.result.type === 'daemon_shutdown_accepted'
+          ? {
+              requestId: response.requestId,
+              expectedInstanceId: response.result.instanceId,
+              requestedBy: response.result.requestedBy,
+              reason: response.result.reason,
+            }
+          : undefined;
+      if (shutdownNotice) {
+        try {
+          this.persistDaemonShutdownAudit(shutdownNotice);
+        } catch {
+          this.send(
+            socket,
+            transportError(
+              response.requestId,
+              'store_failure',
+              'Governance daemon shutdown audit could not be persisted.',
+            ),
+          );
+          return;
+        }
+      }
       this.send(
         socket,
-        this.authenticated.handleUnknown(decoded.envelope.request, decoded.envelope.credential),
+        response,
+        shutdownNotice && this.options.onDaemonShutdownResponseFlushed
+          ? () => {
+              try {
+                this.options.onDaemonShutdownResponseFlushed?.(shutdownNotice);
+              } catch {
+                // The response was delivered; lifecycle callback failures stay process-local.
+              }
+            }
+          : undefined,
       );
     } catch {
       this.send(
@@ -312,9 +362,13 @@ export class GovernanceProjectServer {
     }
   }
 
-  private send(socket: net.Socket, response: GovernanceServiceResponse): void {
+  private send(
+    socket: net.Socket,
+    response: GovernanceServiceResponse,
+    onFlushed?: (() => void) | undefined,
+  ): void {
     try {
-      socket.end(encodeGovernanceIpcFrame(response));
+      socket.end(encodeGovernanceIpcFrame(response), onFlushed);
     } catch {
       socket.end(
         encodeGovernanceIpcFrame(
@@ -338,6 +392,20 @@ export class GovernanceProjectServer {
       category: grantObservationCategory(event),
       observedAt: event.occurredAt,
       payload: { ...event },
+    });
+    if (!result.handled) throw new Error(result.message);
+  }
+
+  private persistDaemonShutdownAudit(notice: GovernanceDaemonShutdownNotice): void {
+    if (!this.store) throw new Error('Governance event store is unavailable for daemon audit.');
+    const result = this.store.appendObservation({
+      observationId: `daemon:${notice.expectedInstanceId}:shutdown:${notice.requestId}`,
+      projectId: this.projectId,
+      taskId: null,
+      source: 'governance-daemon-control',
+      category: 'daemon_shutdown_requested',
+      observedAt: new Date().toISOString(),
+      payload: { ...notice },
     });
     if (!result.handled) throw new Error(result.message);
   }

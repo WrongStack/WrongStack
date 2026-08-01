@@ -1,5 +1,6 @@
 import type {
   AutonomyStage,
+  ContextSnapshot,
   DesignKitEntry,
   FleetChatVerbosity,
   TokenSavingTier,
@@ -155,7 +156,7 @@ export type Action =
        * panel reflect the rebuilt context immediately, instead of staying
        * at zero until the next ctx.pct event.
        */
-      contextSnapshot?: { tokens: number; maxContext: number } | undefined;
+      contextSnapshot?: ContextSnapshot | undefined;
     }
   | {
       type: 'settingsOpen';

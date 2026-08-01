@@ -224,4 +224,79 @@ describe('ACPSessionStore', () => {
     expect(loaded?.id).toBe('sess_newdir');
     await fsp.rm(newDir, { recursive: true, force: true }).catch(() => {});
   });
+
+  // WS-015 regression guard: sessionId arrives verbatim from the ACP wire
+  // (session/load, session/close, session/delete all take it raw). A caller
+  // supplying a traversal segment must NOT be able to read, write, or unlink
+  // any file outside the configured store dir.
+  describe('traversal-id safety (WS-015)', () => {
+    it('save throws when state.id contains path traversal', async () => {
+      await expect(store.save(fakeState({ id: '../../etc/passwd' }))).rejects.toThrow(
+        /unsafe session id/,
+      );
+    });
+
+    it('save throws for "../" segment', async () => {
+      await expect(store.save(fakeState({ id: '..' }))).rejects.toThrow(/unsafe session id/);
+    });
+
+    it('load returns null for a traversal id and never reads outside the store', async () => {
+      // Plant a canary file outside the store dir to prove load did not reach it.
+      const canaryDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-canary-'));
+      const canaryPath = path.join(canaryDir, 'canary.json');
+      await fsp.writeFile(canaryPath, JSON.stringify({ id: 'sensitive' }), 'utf8');
+      // Resolve the canary path into a session id; the segment validator must
+      // reject it before the file system is touched.
+      const evilId = path
+        .relative(dir, canaryPath)
+        .replace(/\\/g, '/')
+        .replace(/\.json$/, '');
+      const loaded = await store.load(evilId);
+      expect(loaded).toBeNull();
+      // The canary must still exist — load must not have unlinked it either.
+      expect(await fsp.readFile(canaryPath, 'utf8')).toBe('{"id":"sensitive"}');
+      await fsp.rm(canaryDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    it('load returns null for "../" segment', async () => {
+      expect(await store.load('..')).toBeNull();
+    });
+
+    it('load returns null for an empty id', async () => {
+      expect(await store.load('')).toBeNull();
+    });
+
+    it('load returns null for a path separator in the id', async () => {
+      expect(await store.load('foo/bar')).toBeNull();
+    });
+
+    it('delete is a no-op for a traversal id and never unlinks outside the store', async () => {
+      const canaryDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-canary-'));
+      const canaryPath = path.join(canaryDir, 'canary.json');
+      await fsp.writeFile(canaryPath, JSON.stringify({ id: 'sensitive' }), 'utf8');
+      const evilId = path
+        .relative(dir, canaryPath)
+        .replace(/\\/g, '/')
+        .replace(/\.json$/, '');
+      await expect(store.delete(evilId)).resolves.toBeUndefined();
+      // The canary must still exist — delete must not have unlinked it.
+      expect(await fsp.readFile(canaryPath, 'utf8')).toBe('{"id":"sensitive"}');
+      await fsp.rm(canaryDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    it('delete is a no-op for "../" segment', async () => {
+      await expect(store.delete('..')).resolves.toBeUndefined();
+    });
+
+    it('save-throws vs load/delete-null asymmetry is deliberate (throws = unsafe call from a trusted author; null = untrusted wire input)', async () => {
+      // save() is the only one whose caller built a SessionState themselves
+      // and can be told to fix the id. load() and delete() are called from
+      // the request handler on a wire-supplied id, where a silent no-op is
+      // the correct behavior.
+      const evilId = '../../x';
+      await expect(store.save(fakeState({ id: evilId }))).rejects.toThrow();
+      expect(await store.load(evilId)).toBeNull();
+      await expect(store.delete(evilId)).resolves.toBeUndefined();
+    });
+  });
 });
