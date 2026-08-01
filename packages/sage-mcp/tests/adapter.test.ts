@@ -72,9 +72,8 @@ describe('createSageMcpServer (read-only default)', () => {
       method: 'tools/list',
       params: {},
     });
-    const tools = ((res?.result as Record<string, unknown>)['tools'] as Array<{
-      name: string;
-    }>) ?? [];
+    const result = res?.result as Record<string, unknown>;
+    const tools = (result['tools'] as Array<{ name: string }>) ?? [];
     const names = tools.map((t) => t.name).sort();
     // From memory-tools.ts: read-only tools (permission:'auto' AND riskTier:'safe')
     // are the 9 read tools + memory_candidates (read part) + memory_for_file etc.
@@ -133,9 +132,8 @@ describe('createSageMcpServer (read-only default)', () => {
       method: 'tools/list',
       params: {},
     });
-    const names = (((list?.result as Record<string, unknown>)['tools'] as Array<{
-      name: string;
-    }>) ?? []).map((t) => t.name);
+    const listResult = list?.result as Record<string, unknown>;
+    const names = ((listResult['tools'] as Array<{ name: string }>) ?? []).map((t) => t.name);
     expect(names).toContain('memory_delete');
 
     // memory_delete WITHOUT force:true -> isError:true (gate preserved)

@@ -132,10 +132,14 @@ function makeMockWs(): any {
       return this;
     },
     close() {
-      handlers['close']?.forEach((cb) => cb());
+      handlers['close']?.forEach((cb) => {
+        cb();
+      });
     },
     errorOut() {
-      handlers['error']?.forEach((cb) => cb(new Error('mock ws error')));
+      handlers['error']?.forEach((cb) => {
+        cb(new Error('mock ws error'));
+      });
     },
   };
 }

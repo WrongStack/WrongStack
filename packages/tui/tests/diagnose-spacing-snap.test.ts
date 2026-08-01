@@ -61,7 +61,9 @@ describe('spacing diagnose', () => {
     const frame = stripAnsi(lastFrame() ?? '');
     const lines = frame.split('\n');
     console.log('=== STATUSLINE RENDER ===');
-    lines.forEach((l, i) => console.log(`Line ${i+1}:`, JSON.stringify(l), `(${displayWidth(l)} cols)`));
+    lines.forEach((l, i) => {
+      console.log(`Line ${i + 1}:`, JSON.stringify(l), `(${displayWidth(l)} cols)`);
+    });
     console.log('=== END ===');
     unmount();
     expect(frame).toBeTruthy();
