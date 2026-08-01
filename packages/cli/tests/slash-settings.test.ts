@@ -30,14 +30,14 @@ describe('/settings slash command', () => {
 
   it('bare /settings shows the refiner config in display', async () => {
     const { ctx } = makeCtx({ autonomy: { refinerProvider: 'opencode-go', refinerModel: 'deepseek-v4-flash' } });
-    const text = stripAnsi((await buildSettingsCommand(ctx).run!('')).message!);
+    const text = stripAnsi(((await buildSettingsCommand(ctx).run!('')) as { message?: string })?.message ?? '');
     expect(text).toContain('refiner-provider:           opencode-go');
     expect(text).toContain('refiner-model:              deepseek-v4-flash');
   });
 
   it('bare /settings shows the new UX toggles', async () => {
     const { ctx } = makeCtx();
-    const text = stripAnsi((await buildSettingsCommand(ctx).run!('')).message!);
+    const text = stripAnsi(((await buildSettingsCommand(ctx).run!('')) as { message?: string })?.message ?? '');
     expect(text).toContain('fleet chat:                 off');
     expect(text).toContain('completion chime:           off');
     expect(text).toContain('confirm before exit:        on');
@@ -45,7 +45,7 @@ describe('/settings slash command', () => {
 
   it('bare /settings shows feature toggles', async () => {
     const { ctx } = makeCtx({ features: { mcp: false, plugins: false } });
-    const text = stripAnsi((await buildSettingsCommand(ctx).run!('')).message!);
+    const text = stripAnsi(((await buildSettingsCommand(ctx).run!('')) as { message?: string })?.message ?? '');
     expect(text).toContain('MCP features:               off');
     expect(text).toContain('plugin features:            off');
     expect(text).toContain('memory features:            on');
@@ -55,7 +55,7 @@ describe('/settings slash command', () => {
 
   it('bare /settings shows iteration/safety limits', async () => {
     const { ctx } = makeCtx();
-    const text = stripAnsi((await buildSettingsCommand(ctx).run!('')).message!);
+    const text = stripAnsi(((await buildSettingsCommand(ctx).run!('')) as { message?: string })?.message ?? '');
     expect(text).toContain('max concurrent:             4');
     expect(text).toContain('max iterations:             default');
     expect(text).toContain('auto-proceed max iters:     unlimited');
@@ -63,7 +63,7 @@ describe('/settings slash command', () => {
 
   it('bare /settings shows TUI visual settings', async () => {
     const { ctx } = makeCtx({ autonomy: { thinkingWord: 'vibing', statuslineMode: 'minimum', animationStyle: 'wave' } });
-    const text = stripAnsi((await buildSettingsCommand(ctx).run!('')).message!);
+    const text = stripAnsi(((await buildSettingsCommand(ctx).run!('')) as { message?: string })?.message ?? '');
     expect(text).toContain('thinking word:              vibing');
     expect(text).toContain('statusline mode:            minimum');
     expect(text).toContain('animation style:            wave');
@@ -71,7 +71,7 @@ describe('/settings slash command', () => {
 
   it('bare /settings shows system toggles', async () => {
     const { ctx } = makeCtx({ indexing: { onSessionStart: true }, log: { level: 'debug' }, session: { auditLevel: 'full' } });
-    const text = stripAnsi((await buildSettingsCommand(ctx).run!('')).message!);
+    const text = stripAnsi(((await buildSettingsCommand(ctx).run!('')) as { message?: string })?.message ?? '');
     expect(text).toContain('index on start:             on');
     expect(text).toContain('log level:                  debug');
     expect(text).toContain('audit level:                full');

@@ -139,6 +139,15 @@ describe('tool-subject utilities', () => {
     expect(subjectForToolInput('bash', 'string')).toBeUndefined();
     expect(subjectForToolInput('bash', {})).toBeUndefined();
   });
+  it('subjectForToolInput coerces non-string command args (regression: WS-046 dropped them)', () => {
+    // Non-string args (numbers, booleans, nested objects) must be coerced to
+    // strings via String(), not silently dropped from the rendered command line.
+    expect(subjectForToolInput('exec', { command: 'node', args: [1, true] }, 'command')).toBe('node 1 true');
+    expect(subjectForToolInput('exec', { command: 'echo', args: ['hi', 42] }, 'command')).toBe('echo hi 42');
+    // Nested objects coerce to "[object Object]" (contains a space → quoted);
+    // escapeGlobSubject then escapes the glob metacharacters ([ and ]).
+    expect(subjectForToolInput('exec', { command: 'run', args: [{ nested: true }] }, 'command')).toBe('run "\\[object Object\\]"');
+  });
 });
 
 // ── config-json pure functions ──────────────────────────────────────────

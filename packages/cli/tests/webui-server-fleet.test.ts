@@ -19,8 +19,8 @@ type SubagentEventPayload = {
   error?: { kind: string; message: string };
 };
 
-function payloadOf(msg: { payload: unknown }): SubagentEventPayload {
-  return msg.payload as SubagentEventPayload;
+function payloadOf(msg: { [key: string]: unknown }): SubagentEventPayload {
+  return (msg.payload ?? msg) as SubagentEventPayload;
 }
 
 const ports = { next: 45_640 };
@@ -43,6 +43,7 @@ describe('runWebUI subagent fleet bridge', () => {
     const serverDone = runWebUI({
       port,
       httpPort,
+      profileConfigPath: '/tmp/test-profile.json',
       onListening: () => signalReady?.(),
       events,
       session: { id: 'test-session' } as any,

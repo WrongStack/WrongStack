@@ -12,7 +12,7 @@ import { type SubcommandDeps, subcommands } from '../../src/subcommands/index.js
 
 class CapStream extends Writable {
   buf = '';
-  _write(c: Buffer | string, _e: BufferEncoding, cb: (err?: Error | null) => void): void {
+  override _write(c: Buffer | string, _e: BufferEncoding, cb: (err?: Error | null) => void): void {
     this.buf += typeof c === 'string' ? c : c.toString('utf8');
     cb();
   }
@@ -84,7 +84,7 @@ describe('update subcommand', () => {
     });
 
     const rig = mkRig();
-    const code = await subcommands['update'](['--check-only'], mkDeps(rig));
+    const code = await subcommands['update']?.(['--check-only'], mkDeps(rig));
 
     expect(code).toBe(0);
     expect(rig.out.buf).toContain('Update available:');
@@ -101,7 +101,7 @@ describe('update subcommand', () => {
     });
 
     const rig = mkRig();
-    const code = await subcommands['update'](['--check-only'], mkDeps(rig));
+    const code = await subcommands['update']?.(['--check-only'], mkDeps(rig));
 
     expect(code).toBe(0);
     expect(rig.out.buf).toContain('latest version');
@@ -116,7 +116,7 @@ describe('update subcommand', () => {
     });
 
     const rig = mkRig();
-    const code = await subcommands['update'](['-c'], mkDeps(rig));
+    const code = await subcommands['update']?.(['-c'], mkDeps(rig));
 
     expect(code).toBe(0);
     expect(rig.out.buf).toContain('Update available:');

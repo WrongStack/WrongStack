@@ -44,7 +44,7 @@ async function startServer(): Promise<HqServerHandle> {
   return startHqServer({ port: getPort(), dataDir });
 }
 
-function assetPath(document: Document, selector: string, attribute: 'href' | 'src'): string {
+function assetPath(document: { querySelector: (s: string) => { getAttribute: (a: string) => string | null } | null }, selector: string, attribute: 'href' | 'src'): string {
   const value = document.querySelector(selector)?.getAttribute(attribute);
   expect(value).toMatch(/^\/assets\//);
   return value as string;

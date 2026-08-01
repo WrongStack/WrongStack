@@ -27,10 +27,15 @@ export function isPathSubjectKey(subjectKey: string): boolean {
  */
 function renderCommandLine(command: string, args: unknown): string {
   if (!Array.isArray(args) || args.length === 0) return command;
-  const rendered = args
-    .filter((arg): arg is string => typeof arg === 'string')
-    .map((arg) => (/\s/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg));
-  return rendered.length > 0 ? [command, ...rendered].join(' ') : command;
+  // Coerce every arg to a string so non-string args — numbers, booleans,
+  // nested objects — are included rather than silently dropped (regression
+  // from the WS-046 string-only filter). Whitespace-bearing args are quoted
+  // so distinct argument lists never render to the same subject string.
+  const rendered = args.map((arg) => {
+    const str = String(arg);
+    return /\s/.test(str) ? `"${str.replace(/"/g, '\\"')}"` : str;
+  });
+  return [command, ...rendered].join(' ');
 }
 
 export function subjectForToolInput(

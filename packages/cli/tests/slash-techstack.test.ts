@@ -192,7 +192,7 @@ describe('/techstack', () => {
     const { command } = rig({ withFetch: true, onSpawnAndWait: spawn });
     const res = expectSlashResult(await command.run('', {} as never));
     expect(spawn).toHaveBeenCalledTimes(1);
-    const [, passedOpts] = spawn.mock.calls[0]!;
+    const passedOpts = spawn.mock.calls[0]?.[1] as { tools?: string[]; allowedCapabilities?: string[] } | undefined;
     expect(passedOpts).toBeDefined();
     expect(passedOpts.tools).toEqual(expect.arrayContaining(['read', 'fetch', 'write']));
     // Shell tools must NOT be granted.

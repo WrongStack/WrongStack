@@ -25,10 +25,10 @@ describe('makeProviderClassifier', () => {
     };
     const classifier = makeProviderClassifier(provider as never, 'gpt-4o');
     const result = await classifier('write a function', [
-      { role: 'coder', description: 'writes code' },
+      { role: 'coder', name: 'coder', summary: 'writes code' } as never,
     ]);
     expect(provider.complete).toHaveBeenCalledOnce();
-    const callArgs = provider.complete.mock.calls[0][0];
+    const callArgs = provider.complete.mock.calls[0]?.[0] as { model: string; maxTokens: number; temperature: number };
     expect(callArgs.model).toBe('gpt-4o');
     expect(callArgs.maxTokens).toBe(120);
     expect(callArgs.temperature).toBe(0);
@@ -59,7 +59,7 @@ describe('makeProviderClassifier', () => {
     };
     const classifier = makeProviderClassifier(provider as never, 'gpt-4o');
     const result = await classifier('do something', [
-      { role: 'coder', description: 'writes code' },
+      { role: 'coder', name: 'coder', summary: 'writes code' } as never,
     ]);
     expect(result).toBeNull();
   });
@@ -70,7 +70,7 @@ describe('makeProviderClassifier', () => {
     };
     const classifier = makeProviderClassifier(provider as never, 'gpt-4o');
     const result = await classifier('do something', [
-      { role: 'coder', description: 'writes code' },
+      { role: 'coder', name: 'coder', summary: 'writes code' } as never,
     ]);
     expect(result).toBeNull();
   });
@@ -83,7 +83,7 @@ describe('makeProviderClassifier', () => {
     };
     const classifier = makeProviderClassifier(provider as never, 'gpt-4o');
     const result = await classifier('do something', [
-      { role: 'coder', description: 'writes code' },
+      { role: 'coder', name: 'coder', summary: 'writes code' } as never,
     ]);
     expect(result).toBeNull();
   });
@@ -97,7 +97,7 @@ describe('makeProviderClassifier', () => {
       }),
     };
     const classifier = makeProviderClassifier(provider as never, 'gpt-4o');
-    await classifier('test', [{ role: 'coder', description: 'writes code' }]);
+    await classifier('test', [{ role: 'coder', name: 'coder', summary: 'writes code' } as never]);
     expect(provider.complete).toHaveBeenCalledOnce();
     expect(capturedSignal).toBeDefined();
     expect(capturedSignal instanceof AbortSignal).toBe(true);

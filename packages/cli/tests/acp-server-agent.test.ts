@@ -172,16 +172,16 @@ describe('buildAcpServerAgentFactory', () => {
     const agent = await agentFor('sess-acp', '/tmp', api);
 
     const readTool = agent.tools.get('read');
-    const readOut = (await readTool!.execute({ path: 'a.ts' }, agent.ctx)) as { text: string };
+    const readOut = (await readTool!.execute({ path: 'a.ts' }, agent.ctx, {} as never)) as { text: string };
     expect(reads[0]).toMatchObject({ path: 'a.ts' });
     expect(readOut.text).toContain('line one');
 
     const writeTool = agent.tools.get('write');
-    await writeTool!.execute({ path: 'b.ts', content: 'hello' }, agent.ctx);
+    await writeTool!.execute({ path: 'b.ts', content: 'hello' }, agent.ctx, {} as never);
     expect(writes[0]).toMatchObject({ path: 'b.ts', content: 'hello' });
 
     const bashTool = agent.tools.get('bash');
-    const bashOut = (await bashTool!.execute({ command: 'echo hi' }, agent.ctx)) as {
+    const bashOut = (await bashTool!.execute({ command: 'echo hi' }, agent.ctx, {} as never)) as {
       stdout: string;
       exit_code: number | null;
     };
@@ -277,7 +277,7 @@ describe('ACPClientPermissionPolicy', () => {
     const requestPermission = vi.fn(async () => ({
       outcome: 'selected',
     } as never));
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });
 
@@ -300,7 +300,7 @@ describe('ACPClientPermissionPolicy', () => {
       outcome: 'selected',
       optionId: 'allow_once',
     }));
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });
 
@@ -314,7 +314,7 @@ describe('ACPClientPermissionPolicy', () => {
       outcome: 'selected',
       optionId: 'allow_always',
     }));
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });
 
@@ -329,7 +329,7 @@ describe('ACPClientPermissionPolicy', () => {
       outcome: 'selected',
       optionId: 'reject_once',
     }));
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });
 
@@ -346,7 +346,7 @@ describe('ACPClientPermissionPolicy', () => {
     const requestPermission = vi.fn(async () => ({
       outcome: 'cancelled',
     }));
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });
 
@@ -365,7 +365,7 @@ describe('ACPClientPermissionPolicy', () => {
     const requestPermission = vi.fn(async () => {
       throw new Error('client disconnected');
     });
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });
 
@@ -382,7 +382,7 @@ describe('ACPClientPermissionPolicy', () => {
     // policy ever changed to consult the client for safe tools, that change
     // would need a deliberate test update rather than silently sliding in.
     const requestPermission = vi.fn();
-    const policy = new ACPClientPermissionPolicy(requestPermission);
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
     const safeTool: Tool = {
       ...sideEffectingTool,
       capabilities: [ToolCapabilities.FS_READ],

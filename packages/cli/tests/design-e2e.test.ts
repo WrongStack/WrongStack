@@ -67,8 +67,8 @@ describe('Design Studio — end-to-end (built packages)', () => {
     const baseReq = { model: 'm', system: [{ type: 'text', text: 'BASE' }], messages: [] } as any;
     const out = await inject.handler(baseReq, async (r) => r);
     expect(out.system).toHaveLength(2);
-    expect(out.system[0].text).toBe('BASE');
-    const injected = out.system[1].text as string;
+    expect(out.system?.[0]?.text).toBe('BASE');
+    const injected = out.system?.[1]?.text as string;
     expect(injected).toMatch(/Design Studio/);
     expect(injected).toContain('cyberpunk-neon');
     expect(injected).toMatch(/WCAG/);
@@ -96,7 +96,7 @@ describe('Design Studio — end-to-end (built packages)', () => {
 
     // After a pin the injector shrinks to a one-line reminder.
     const out2 = await inject.handler(baseReq, async (r) => r);
-    expect(out2.system[1].text).toMatch(/Active design kit: cyberpunk-neon/);
+    expect(out2.system?.[1]?.text).toMatch(/Active design kit: cyberpunk-neon/);
   });
 
   it('set override → materialize writes a real theme file → verify flags drift', async () => {

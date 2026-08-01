@@ -10,7 +10,7 @@ function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandCon
   } as never as SlashCommandContext;
 }
 
-function makeContext(sideEffects?: Context['sideEffects']): Context {
+function makeContext(sideEffects?: unknown): Context {
   return {
     sideEffects: sideEffects ?? [],
   } as never as Context;
