@@ -58,21 +58,32 @@ describe('session soft deny / allow', () => {
 describe('yolo + confirmDestructive', () => {
   const destructiveBash = () => tool('bash', 'confirm', { capabilities: ['shell.arbitrary'] });
 
-  it('auto-approves a destructive-classified call with no prompt delegate', async () => {
+  // WS-008: both of these asserted that YOLO auto-approves destructive shell
+  // commands. isClearlyDestructiveBashCommand existed and was tested but had no
+  // production caller, so the gate this file describes never ran.
+  it('confirms a destructive-classified call with no prompt delegate', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
     p.setYolo(true);
     const d = await p.evaluate(destructiveBash(), { command: 'rm -rf /' }, ctx());
-    expect(d).toMatchObject({ permission: 'auto', source: 'yolo' });
+    expect(d).toMatchObject({ permission: 'confirm', source: 'yolo_destructive' });
   });
 
-  it('does not call the prompt delegate for destructive-classified YOLO calls', async () => {
+  it('confirms destructive YOLO calls without consulting the prompt delegate', async () => {
     const delegate = vi.fn();
     const p = new DefaultPermissionPolicy({ trustFile, promptDelegate: delegate });
     p.setYolo(true);
 
     delegate.mockResolvedValueOnce('always');
-    expect(await p.evaluate(destructiveBash(), { command: 'rm -rf /etc' }, ctx())).toMatchObject({ permission: 'auto', source: 'yolo' });
+    expect(await p.evaluate(destructiveBash(), { command: 'rm -rf /etc' }, ctx())).toMatchObject({ permission: 'confirm', source: 'yolo_destructive' });
     expect(delegate).not.toHaveBeenCalled();
+  });
+
+  it('auto-approves destructive calls once yoloDestructive is opted into', async () => {
+    const p = new DefaultPermissionPolicy({ trustFile });
+    p.setYolo(true);
+    p.setYoloDestructive(true);
+    const d = await p.evaluate(destructiveBash(), { command: 'rm -rf /' }, ctx());
+    expect(d).toMatchObject({ permission: 'auto', source: 'yolo' });
   });
 
   it('auto-approves a non-destructive call under yolo', async () => {

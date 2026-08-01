@@ -125,6 +125,95 @@ const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'git',
 ]);
 
+/**
+ * Nested fields stripped from an allow-listed top-level key.
+ *
+ * WS-008: the top-level allow/deny split is not enough on its own. `yolo` is
+ * denied with the reason "Disables all permission confirmation prompts", but the
+ * whole `autonomy` subtree is allowed — and `autonomy.yolo` is an alias for the
+ * same switch that takes *precedence* over the user's own `yolo: false`. The
+ * denial guarded the obvious spelling while the dangerous one sat one level
+ * down, inside an allowed parent.
+ *
+ * Previously each nested strip was a hand-written block (tools.exec.*,
+ * skills.*, Sage.storage.directory). One table means adding the next alias is a
+ * single line, and `assertInProjectAllowListComplete` can check these paths too
+ * — the drift guard was top-level-only, which is precisely why `autonomy.yolo`
+ * was never flagged.
+ */
+const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> = [
+  {
+    path: 'tools.exec.allow',
+    reason: 'Extends the exec allow-list; a repo could authorise its own binaries.',
+  },
+  { path: 'tools.exec.danger', reason: 'Weakens the destructive-command banner.' },
+  { path: 'skills.extraDirs', reason: 'Loads skill definitions from repo-chosen directories.' },
+  { path: 'skills.registryUrl', reason: 'Redirects skill installs to a repo-chosen host.' },
+  { path: 'Sage.storage.directory', reason: 'Redirects memory storage outside the profile.' },
+  {
+    path: 'autonomy.yolo',
+    reason:
+      'Alias for the denied top-level `yolo`, and it wins over the user setting — a repo-committed config could disable every permission prompt.',
+  },
+  {
+    path: 'autonomy.defaultMode',
+    reason: 'Sets the startup autonomy mode; autonomy is user-owned, never repo-owned.',
+  },
+  // Deliberately NOT denied: autonomy.autoProceedDelayMs and
+  // autoProceedMaxIterations. They tune a mode the user has already switched on
+  // rather than granting it, and config-loader-extra.test.ts classifies the
+  // delay as a benign project preference. Re-classifying them is a product call.
+  {
+    path: 'launch.autonomy',
+    reason: 'Launch-time autonomy mode; same user-owned boundary as autonomy.defaultMode.',
+  },
+  {
+    path: 'features.allowOutsideProjectRoot',
+    reason:
+      'Short-circuits both the project-root containment check and the symlink realpath check in the file tools.',
+  },
+  {
+    path: 'tools.restrictToProjectRoot',
+    reason: 'The other half of the filesystem confinement switch.',
+  },
+];
+
+/**
+ * Delete `path` from `target`, cloning each level touched so the caller's input
+ * object is never mutated. Returns true when something was removed.
+ */
+function deleteNestedPath(target: Record<string, unknown>, path: string): boolean {
+  const segments = path.split('.');
+  const last = segments[segments.length - 1];
+  if (last === undefined) return false;
+
+  let cursor: Record<string, unknown> = target;
+  const chain: Array<{ parent: Record<string, unknown>; key: string }> = [];
+  for (const segment of segments.slice(0, -1)) {
+    const next = cursor[segment];
+    if (!next || typeof next !== 'object' || Array.isArray(next)) return false;
+    chain.push({ parent: cursor, key: segment });
+    cursor = next as Record<string, unknown>;
+  }
+  if (!(last in cursor)) return false;
+
+  // Clone bottom-up so no shared sub-object is mutated in place.
+  const clonedLeaf: Record<string, unknown> = { ...cursor };
+  delete clonedLeaf[last];
+  let replacement: Record<string, unknown> = clonedLeaf;
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const link = chain[i];
+    if (!link) continue;
+    replacement = { ...link.parent, [link.key]: replacement };
+    if (i === 0) {
+      for (const [k, v] of Object.entries(replacement)) target[k] = v;
+      return true;
+    }
+  }
+  for (const [k, v] of Object.entries(replacement)) target[k] = v;
+  return true;
+}
+
 export function assertInProjectAllowListComplete(): void {
   const missingFromBoth: string[] = [];
   for (const key of KNOWN_CONFIG_TOP_LEVEL_KEYS) {
@@ -161,6 +250,32 @@ export function assertInProjectAllowListComplete(): void {
         '. The allow-list wins at runtime; remove from one of the two.',
     );
   }
+
+  // A nested denial only does something when its top-level parent is allowed —
+  // otherwise the whole subtree is already dropped and the entry is stale. This
+  // is the check that would have caught `autonomy.yolo`: `autonomy` is allowed,
+  // so anything dangerous beneath it needs an explicit path denial (WS-008).
+  const orphanedPaths = IN_PROJECT_DENIED_PATHS.filter(
+    ({ path }) => !IN_PROJECT_ALLOWED_KEYS.has(path.split('.')[0] ?? ''),
+  ).map(({ path }) => path);
+  if (orphanedPaths.length > 0) {
+    problems.push(
+      `IN_PROJECT_DENIED_PATHS entr(ies) whose top-level parent is not allowed: ` +
+        orphanedPaths.join(', ') +
+        '. The parent is already stripped wholesale, so the nested denial is dead — remove it.',
+    );
+  }
+
+  const malformedPaths = IN_PROJECT_DENIED_PATHS.filter(
+    ({ path }) => path.split('.').length < 2 || path.split('.').some((s) => s.length === 0),
+  ).map(({ path }) => path);
+  if (malformedPaths.length > 0) {
+    problems.push(
+      `IN_PROJECT_DENIED_PATHS entr(ies) are not dotted nested paths: ` +
+        malformedPaths.join(', ') +
+        '. Top-level keys belong in KNOWN_DENIED_IN_PROJECT instead.',
+    );
+  }
   if (problems.length > 0) {
     throw new Error(
       `stripUnsafeInProjectFields drift check failed:\n  - ${problems.join('\n  - ')}`,
@@ -189,64 +304,8 @@ export function stripUnsafeInProjectFields(
     stripped.push(k);
   }
 
-  const outTools = (out as Record<string, unknown>)['tools'];
-  if (outTools && typeof outTools === 'object') {
-    const execCfg = (outTools as Record<string, unknown>)['exec'];
-    if (execCfg && typeof execCfg === 'object') {
-      const hasAllow = 'allow' in (execCfg as Record<string, unknown>);
-      const hasDanger = 'danger' in (execCfg as Record<string, unknown>);
-      if (hasAllow || hasDanger) {
-        const clonedExec: Record<string, unknown> = { ...(execCfg as Record<string, unknown>) };
-        if (hasAllow) {
-          delete clonedExec['allow'];
-          stripped.push('tools.exec.allow');
-        }
-        if (hasDanger) {
-          delete clonedExec['danger'];
-          stripped.push('tools.exec.danger');
-        }
-        (out as Record<string, unknown>)['tools'] = {
-          ...(outTools as Record<string, unknown>),
-          exec: clonedExec,
-        };
-      }
-    }
-  }
-
-  const outSkills = (out as Record<string, unknown>)['skills'];
-  if (outSkills && typeof outSkills === 'object') {
-    const skillsRec = outSkills as Record<string, unknown>;
-    const needsClone = 'extraDirs' in skillsRec || 'registryUrl' in skillsRec;
-    if (needsClone) {
-      const clonedSkills = { ...skillsRec };
-      if ('extraDirs' in clonedSkills) {
-        delete clonedSkills['extraDirs'];
-        stripped.push('skills.extraDirs');
-      }
-      if ('registryUrl' in clonedSkills) {
-        delete clonedSkills['registryUrl'];
-        stripped.push('skills.registryUrl');
-      }
-      (out as Record<string, unknown>)['skills'] = clonedSkills;
-    }
-  }
-
-  const outSage = (out as Record<string, unknown>)['Sage'];
-  if (outSage && typeof outSage === 'object') {
-    const storage = (outSage as Record<string, unknown>)['storage'];
-    if (
-      storage &&
-      typeof storage === 'object' &&
-      'directory' in (storage as Record<string, unknown>)
-    ) {
-      const clonedStorage = { ...(storage as Record<string, unknown>) };
-      delete clonedStorage['directory'];
-      (out as Record<string, unknown>)['Sage'] = {
-        ...(outSage as Record<string, unknown>),
-        storage: clonedStorage,
-      };
-      stripped.push('Sage.storage.directory');
-    }
+  for (const { path } of IN_PROJECT_DENIED_PATHS) {
+    if (deleteNestedPath(out as Record<string, unknown>, path)) stripped.push(path);
   }
 
   if (stripped.length > 0) {

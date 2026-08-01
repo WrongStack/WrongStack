@@ -240,41 +240,49 @@ describe('DefaultPermissionPolicy', () => {
       expect(d.source).toBe('yolo');
     });
 
-    it('yolo auto-approves clearly destructive bash commands', async () => {
+    // WS-008: `isClearlyDestructiveBashCommand` was exported and heavily tested
+    // but called from ZERO production modules, so YOLO returned `auto` for
+    // everything. The 'yolo_destructive' decision source, the getter/setter on
+    // PermissionPolicy and the TUI branch reading it all already existed — only
+    // the gate was missing. Every test below previously asserted the ungated
+    // behaviour; they now assert the gate this describe block is named after.
+
+    it('yolo still confirms a root filesystem wipe', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
       const d = await p.evaluate(
         tool('bash', 'confirm', 'destructive'),
         { command: 'rm -rf /' },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
+      expect(d.riskTier).toBe('destructive');
     });
 
-    it('yolo auto-approves a catastrophic system-directory wipe', async () => {
+    it('yolo still confirms a catastrophic system-directory wipe', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
       const d = await p.evaluate(
         tool('bash', 'confirm', 'destructive'),
         { command: 'rm -rf /etc' },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
     });
 
-    it('yolo auto-approves recursive force deletes of sibling directories', async () => {
+    it('yolo still confirms recursive force deletes of sibling directories', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
       const d = await p.evaluate(
         tool('bash', 'confirm', 'destructive'),
         { command: 'rm -rf ../other-project' },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
     });
 
-    it('yolo + yoloDestructive still auto-approves destructive operations', async () => {
-      const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+    it('yoloDestructive opts back in to auto-approving destructive operations', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile, yolo: true, yoloDestructive: true });
       const d = await p.evaluate(
         tool('bash', 'confirm', 'destructive'),
         { command: 'rm -rf /' },
@@ -284,18 +292,24 @@ describe('DefaultPermissionPolicy', () => {
       expect(d.source).toBe('yolo');
     });
 
-    it('yolo + confirmDestructive still auto-approves destructive operations', async () => {
+    it('setYoloDestructive / getYoloDestructive toggle the gate at runtime', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
-      const d = await p.evaluate(
-        tool('bash', 'confirm', 'destructive'),
-        { command: 'rm -rf /' },
-        { projectRoot: process.cwd() } as Context,
+      expect(p.getYoloDestructive()).toBe(false);
+      const ctx = { projectRoot: process.cwd() } as Context;
+      const input = { command: 'rm -rf /' };
+      expect((await p.evaluate(tool('bash', 'confirm', 'destructive'), input, ctx)).permission).toBe(
+        'confirm',
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
+      p.setYoloDestructive(true);
+      expect(p.getYoloDestructive()).toBe(true);
+      expect((await p.evaluate(tool('bash', 'confirm', 'destructive'), input, ctx)).permission).toBe(
+        'auto',
+      );
     });
 
-    it('confirmDestructive + promptDelegate does not intercept YOLO calls', async () => {
+    it('returns confirm for a destructive YOLO call even with a prompt delegate set', async () => {
+      // Matches the sensitive-read gate above: the decision is returned as
+      // `confirm` and the host surface (TUI event / REPL prompt) owns the ask.
       const delegate = vi.fn(async () => 'always' as const);
       const p = new DefaultPermissionPolicy({
         trustFile,
@@ -307,20 +321,23 @@ describe('DefaultPermissionPolicy', () => {
         { command: 'rm -rf /' },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
-      expect(delegate).not.toHaveBeenCalled();
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
     });
 
-    it('yolo source appears when confirmDestructive is active', async () => {
+    it('gates a shell.arbitrary tool running a catastrophic command', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+      const shellTool = {
+        ...tool('custom-shell', 'confirm', 'destructive'),
+        capabilities: ['shell.arbitrary'],
+      } as unknown as Parameters<typeof p.evaluate>[0];
       const d = await p.evaluate(
-        tool('bash', 'confirm', 'destructive'),
+        shellTool,
         { command: 'rm -rf /' },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.source).toBe('yolo');
-      expect(d.riskTier).toBeUndefined();
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
     });
   });
 
@@ -344,15 +361,15 @@ describe('DefaultPermissionPolicy', () => {
   });
 
   describe('capability-based destructive gating', () => {
-    it('yolo + confirmDestructive auto-approves a shell.arbitrary tool running a catastrophic command', async () => {
+    it('yolo confirms a shell.arbitrary tool running a catastrophic command (WS-008)', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
       const d = await p.evaluate(
         tool('bash', 'confirm', 'destructive', true, ['shell.arbitrary']),
         { command: 'rm -rf /' },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
     });
 
     it('yolo + confirmDestructive auto-approves an fs.write tool targeting a path outside the project', async () => {
@@ -535,7 +552,7 @@ describe('DefaultPermissionPolicy explain()', () => {
     const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
     const trace = await p.explain(
       tool('bash', 'confirm', 'destructive', true, ['shell.arbitrary']),
-      { command: 'rm -rf /' },
+      { command: 'ls -la' },
       { projectRoot: process.cwd() } as Context,
     );
     const yoloStep = trace.steps.find(s => s.rule === 'yolo');

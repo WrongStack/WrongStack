@@ -15,6 +15,7 @@ import { safeParse } from '../utils/safe-json.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
 import {
   getInputString,
+  isClearlyDestructiveBashCommand,
 } from './yolo-risk.js';
 
 /**
@@ -120,6 +121,12 @@ function shellCommandReadsSensitivePath(command: string): boolean {
 export interface PermissionPolicyOptions {
   trustFile: string;
   yolo?: boolean | undefined;
+  /**
+   * Let YOLO auto-approve destructive shell commands too. Off by default: with
+   * YOLO on, `rm -rf`, git history rewrites and external publishes still ask
+   * (WS-008).
+   */
+  yoloDestructive?: boolean | undefined;
   promptDelegate?: (
     tool: Tool,
     input: unknown,
@@ -183,10 +190,57 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   private policyDiagnostics: TrustPolicyDiagnostic[] = [];
   private policyInvalid = false;
 
+  /**
+   * When true, YOLO also auto-approves clearly destructive shell commands.
+   *
+   * WS-008: `isClearlyDestructiveBashCommand` was exported and heavily tested
+   * but called from zero production modules, so YOLO returned `auto` for
+   * everything — including `rm -rf`, git history rewrites, and external
+   * publishes. The `'yolo_destructive'` decision source, the getter/setter on
+   * PermissionPolicy, and the TUI branch that reads it all existed; only the
+   * gate itself was missing. Defaults to false: destructive commands still ask,
+   * even in YOLO.
+   */
+  private yoloDestructive: boolean;
+
   constructor(opts: PermissionPolicyOptions) {
     this.trustFile = opts.trustFile;
     this.yolo = opts.yolo ?? false;
+    this.yoloDestructive = opts.yoloDestructive ?? false;
     this.promptDelegate = opts.promptDelegate;
+  }
+
+  /** Allow YOLO to cover destructive shell commands too (off by default). */
+  setYoloDestructive(enabled: boolean): void {
+    if (this.yoloDestructive !== enabled) this._evalCache.clear();
+    this.yoloDestructive = enabled;
+  }
+
+  /** Whether YOLO currently extends to destructive shell commands. */
+  getYoloDestructive(): boolean {
+    return this.yoloDestructive;
+  }
+
+  /**
+   * True when YOLO is on but this specific call is a destructive shell command
+   * the user has not opted to auto-approve. Shared by `evaluate()` and the
+   * explain/trace path so the two cannot drift.
+   */
+  private yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean {
+    if (!this.yolo || this.yoloDestructive) return false;
+    // `bash` and `exec` are the shell surfaces; a tool that declares
+    // shell.arbitrary reaches the same place under another name.
+    const isShellSurface =
+      tool.name === 'bash' ||
+      tool.name === 'exec' ||
+      (tool.capabilities ?? []).includes('shell.arbitrary');
+    if (!isShellSurface) return false;
+    const command = getInputString(input, 'command') ?? shellCommandLineFromInput(input);
+    if (!command) return false;
+    // projectRoot comes from the call context, so `rm -rf .wrongstack/tmp`
+    // inside the project stays auto-approved while a sibling- or
+    // system-directory wipe does not.
+    return isClearlyDestructiveBashCommand(command, ctx.projectRoot);
   }
 
   /**
@@ -394,8 +448,20 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       };
     }
 
-    // 7. YOLO — auto-approve every non-denied call.
+    // 7. YOLO — auto-approve every non-denied call, except a clearly
+    //    destructive shell command, which still asks (WS-008).
     if (this.yolo) {
+      if (this.yoloBlockedAsDestructive(tool, input, ctx)) {
+        // Deliberately not cached: the decision depends on this command string,
+        // and the cache key is tool+subject, which for exec collapses to the
+        // tool name.
+        return {
+          permission: 'confirm',
+          source: 'yolo_destructive',
+          riskTier: 'destructive',
+          reason: 'destructive command needs explicit approval even in YOLO mode',
+        };
+      }
       const decision: PermissionDecision = { permission: 'auto', source: 'yolo' };
       this._evalCache.set(cacheKey, decision);
       return decision;
@@ -637,6 +703,28 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
 
     // 9. YOLO
     if (this.yolo) {
+      if (this.yoloBlockedAsDestructive(tool, input, ctx)) {
+        add(
+          'yolo destructive gate',
+          true,
+          'confirm',
+          'yolo_destructive',
+          'YOLO is active but this is a clearly destructive command — still asking',
+        );
+        winnerIndex = steps.length - 1;
+        return {
+          toolName: tool.name,
+          subject,
+          steps,
+          winnerIndex,
+          decision: {
+            permission: 'confirm',
+            source: 'yolo_destructive',
+            riskTier: 'destructive',
+            reason: 'destructive command needs explicit approval even in YOLO mode',
+          },
+        };
+      }
       add('yolo', true, 'auto', 'yolo', 'YOLO mode is active — auto-approving every non-denied call');
       winnerIndex = steps.length - 1;
       return { toolName: tool.name, subject, steps, winnerIndex, decision: { permission: 'auto', source: 'yolo' } };
