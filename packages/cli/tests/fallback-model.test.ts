@@ -6,7 +6,7 @@ import { effectiveFallbackChain, smartDefaultFallbackChain } from '@wrongstack/c
 
 const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() } as never;
 
-function fakeProvider(id: string, maxContext?: number): Provider {
+function fakeProvider(id: string, _modelId?: string): Provider {
   return {
     id,
     capabilities: { ...(maxContext ? { maxContext } : {}) } as never,

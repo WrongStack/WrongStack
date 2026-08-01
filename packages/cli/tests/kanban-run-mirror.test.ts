@@ -95,10 +95,10 @@ describe('buildTaskGraphFromSddSnapshot', () => {
     expect((g.nodes as Array<{ id: string }>).map((n) => n.id)).toEqual(['n1', 'n2']);
     expect(g.edges).toEqual([{ id: 'n1->n2', from: 'n1', to: 'n2', type: 'depends_on' }]);
     expect(g.rootNodes).toEqual(['n1']);
-    const n2 = (g.nodes as Array<Record<string, unknown>>)[1];
-    expect(n2.assignee).toBe('Curie');
-    expect(n2.status).toBe('in_progress');
-    expect(n2.metadata).toMatchObject({
+    const n2 = (g.nodes as unknown as Array<Record<string, unknown>>)[1];
+    expect(n2?.assignee).toBe('Curie');
+    expect(n2?.status).toBe('in_progress');
+    expect(n2?.metadata).toMatchObject({
       model: 'gpt-x',
       provider: 'openai',
       fallbackModels: ['m2'],
@@ -134,10 +134,10 @@ describe('buildTaskGraphFromGoalPhase', () => {
     } as any);
     expect(g.id).toBe('graph1'); // run graphId, NOT phase id
     expect((g.nodes as Array<{ id: string }>).length).toBe(1);
-    const n = (g.nodes as Array<Record<string, unknown>>)[0];
-    expect(n.tags).toEqual(['Design']);
-    expect(n.assignee).toBe('Bohr');
-    expect(n.status).toBe('in_progress');
+    const n = (g.nodes as unknown as Array<Record<string, unknown>>)[0];
+    expect(n?.tags).toEqual(['Design']);
+    expect(n?.assignee).toBe('Bohr');
+    expect(n?.status).toBe('in_progress');
   });
 });
 

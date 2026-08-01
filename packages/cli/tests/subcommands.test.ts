@@ -13,7 +13,7 @@ import { type SubcommandDeps, subcommands } from '../src/subcommands/index.js';
 
 class CapStream extends Writable {
   buf = '';
-  _write(c: Buffer | string, _e: BufferEncoding, cb: (err?: Error | null) => void): void {
+  override _write(c: Buffer | string, _e: BufferEncoding, cb: (err?: Error | null) => void): void {
     this.buf += typeof c === 'string' ? c : c.toString('utf8');
     cb();
   }
@@ -47,7 +47,7 @@ function fakeProvider(over: Partial<ResolvedProvider> = {}): ResolvedProvider {
         limit: { context: 200_000, output: 8000 },
         cost: { input: 3, output: 15 },
         release_date: '2026-01-01',
-      } as ResolvedModel,
+      } as unknown as ResolvedModel,
     ],
     ...over,
   };
@@ -86,7 +86,7 @@ function mkDeps(over: Partial<SubcommandDeps> = {}): SubcommandDeps {
     projectRoot: process.cwd(),
     userHome: '/tmp',
     ...over,
-  };
+  } as SubcommandDeps;
 }
 
 function getOut(deps: SubcommandDeps): string {
@@ -254,14 +254,14 @@ describe('subcommands', () => {
           tool_call: false,
           modalities: { input: ['text'], output: ['text'] },
           limit: { context: 1000, output: 100 },
-        } as ResolvedModel,
+        } as unknown as ResolvedModel,
         {
           id: 'new',
           release_date: '2026-01-01',
           tool_call: true,
           modalities: { input: ['text'], output: ['text'] },
           limit: { context: 200_000, output: 8000 },
-        } as ResolvedModel,
+        } as unknown as ResolvedModel,
       ],
     });
     const reg = fakeRegistry([provider]);

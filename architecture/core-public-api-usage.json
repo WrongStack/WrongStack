@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 823,
-      "typeOnly": 788,
+      "files": 824,
+      "typeOnly": 789,
       "runtimeOrMixed": 205
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -7676,6 +7676,12 @@
       "file": "packages/cli/src/boot/dispatch-webui.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/boot/governance-trace-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",

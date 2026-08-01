@@ -42,18 +42,18 @@ function deps(): TestDeps {
       write: vi.fn((input: string | TextBlock) => {
         void renderText(input);
       }),
-      writeLine: vi.fn(),
+      writeLine: vi.fn() as never,
       writeBlock: vi.fn((block: ContentBlock) => {
         if (block.type === 'text') void block.text;
       }),
-      writeToolCall: vi.fn(),
-      writeToolResult: vi.fn(),
-      writeDiff: vi.fn(),
-      writeError: vi.fn(),
-      writeWarning: vi.fn(),
-      writeInfo: vi.fn(),
-      clear: vi.fn(),
-    },
+      writeToolCall: vi.fn() as never,
+      writeToolResult: vi.fn() as never,
+      writeDiff: vi.fn() as never,
+      writeError: vi.fn() as never,
+      writeWarning: vi.fn() as never,
+      writeInfo: vi.fn() as never,
+      clear: vi.fn() as never,
+    } as never,
     reader: {} as SubcommandDeps['reader'],
     sessionStore: undefined,
     skillLoader: undefined,

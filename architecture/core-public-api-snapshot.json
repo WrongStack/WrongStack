@@ -1147,7 +1147,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3433
+      "sourceLines": 3436
     },
     {
       "directory": "middleware",
@@ -1259,7 +1259,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9698
+      "sourceLines": 9756
     },
     {
       "directory": "worktree",
