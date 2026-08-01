@@ -1,24 +1,19 @@
 {
-  "name": "@wrongstack/codebase-index-mcp",
+  "name": "@wrongstack/governance",
   "version": "0.298.0",
   "license": "MIT",
-  "description": "WrongStack Codebase Index as an MCP server, backed by the existing project-scoped IPC daemon.",
+  "description": "Deterministic workflow contracts and transition policy for WrongStack orchestration.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WrongStack/WrongStack.git",
-    "directory": "packages/codebase-index-mcp"
+    "directory": "packages/governance"
   },
   "homepage": "https://github.com/WrongStack/WrongStack#readme",
-  "bugs": {
-    "url": "https://github.com/WrongStack/WrongStack/issues"
-  },
+  "bugs": "https://github.com/WrongStack/WrongStack/issues",
   "author": "ECOSTACK TECHNOLOGY OÜ",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "wstack-codebase-index-mcp": "./dist/cli.js"
-  },
   "sideEffects": false,
   "exports": {
     ".": {
@@ -27,18 +22,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
-    "test": "echo \"Run @wrongstack/codebase-index-mcp tests from the workspace root: pnpm exec vitest run packages/codebase-index-mcp/tests\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --root ../.. packages/governance/tests",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
-  },
-  "dependencies": {
-    "@wrongstack/core": "workspace:*",
-    "@wrongstack/mcp": "workspace:*",
-    "@wrongstack/tools": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
@@ -46,6 +37,7 @@
     "vitest": "^4.1.10"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   }
 }

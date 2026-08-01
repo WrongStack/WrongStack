@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "0.297.2",
+  "version": "0.298.0",
   "license": "MIT",
   "description": "WrongStack core: kernel, types, defaults, and shared utilities for the WrongStack CLI agent.",
   "repository": {
@@ -111,6 +111,10 @@
     "./hq": {
       "types": "./dist/hq/index.d.ts",
       "import": "./dist/hq/index.js"
+    },
+    "./hq/protocol": {
+      "types": "./dist/hq/protocol.d.ts",
+      "import": "./dist/hq/protocol.js"
     },
     "./notifications": {
       "types": "./dist/notifications/index.d.ts",
