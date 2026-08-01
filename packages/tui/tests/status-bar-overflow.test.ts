@@ -59,10 +59,11 @@ describe('planChipFit', () => {
   });
 
   it('accounts for the inter-chip separator cost', () => {
-    // 10 + (10+5) = 25 fits in 25 but a third (+15) does not.
+    // 10 + (10+2) = 22 fits in 25 but a third (+12) does not.
     expect(planChipFit([10, 10, 10], 25)).toBe(2);
-    // 10 + (10+5) = 25 > 24 → only the first fits.
-    expect(planChipFit([10, 10, 10], 24)).toBe(1);
+    // 10 + (10+2) = 22 ≤ 22 → two fit; but at 21 only the first.
+    expect(planChipFit([10, 10, 10], 22)).toBe(2);
+    expect(planChipFit([10, 10, 10], 21)).toBe(1);
   });
 
   it('always keeps the first chip even if it alone exceeds the budget', () => {

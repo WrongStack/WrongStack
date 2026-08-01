@@ -28,7 +28,7 @@ export function nodeText(node: React.ReactNode): string {
   return '';
 }
 
-const SB_SEP_COST = 5;
+const SB_SEP_COST = 2;
 
 export function planChipFit(widths: number[], budget: number, sepCost = SB_SEP_COST): number {
   let used = 0;
@@ -81,7 +81,6 @@ export function hasTokenDisplay(tokens: TokenDisplayTotals): boolean {
 }
 
 const RAIL_CAP = 1;
-const RAIL_PAD = 2;
 
 export function statusBarModelSpan(opts: {
   model: string;
@@ -110,9 +109,11 @@ export function statusBarModelSpan(opts: {
     leading.push(opts.monochrome ? workingDir : `${glyphs.workingDirectory} ${workingDir}`);
   }
 
-  const transitionWidth = 3;
+  // PowerlineRail separators are 2 spaces. Transition glyphs were removed
+  // in the clean PowerlineRail refactor — only the 2-space sep remains.
+  const sepWidth = 2;
   const precedingWidth = leading.reduce(
-    (total, text) => total + displayWidth(text) + RAIL_PAD + transitionWidth,
+    (total, text) => total + displayWidth(text) + sepWidth,
     0,
   );
   const full = opts.provider ? `${opts.provider}/${opts.model}` : opts.model;
@@ -128,8 +129,8 @@ export function statusBarAutonomySpan(opts: {
   let col = RAIL_CAP;
   if (opts.yolo) {
     const yolo = opts.monochrome ? 'YOLO' : `${glyphs.warning} YOLO`;
-    const transitionWidth = 3;
-    col += displayWidth(yolo) + RAIL_PAD + transitionWidth;
+    const sepWidth = 2;
+    col += displayWidth(yolo) + sepWidth;
   }
   const label = opts.monochrome ? opts.autonomy.toUpperCase() : `∞ ${opts.autonomy.toUpperCase()}`;
   return { start: col + 1, len: displayWidth(label) };
