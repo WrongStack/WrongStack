@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createToolOutputSerializer, sizeSignals, truncateForEvent } from '../../src/utils/tool-output-serializer.js';
+import {
+  createToolOutputSerializer,
+  sizeSignals,
+  truncateForEvent,
+} from '../../src/utils/tool-output-serializer.js';
 
 describe('createToolOutputSerializer', () => {
   let serializer: ReturnType<typeof createToolOutputSerializer>;
@@ -312,6 +316,14 @@ describe('createToolOutputSerializer', () => {
       expect(result.newBudget).toBe(0);
     });
 
+    it('enforces the cap in UTF-8 bytes for multibyte output', () => {
+      const result = serializer.enforceCap('😀'.repeat(1_000), 200);
+
+      expect(Buffer.byteLength(result.text, 'utf8')).toBeLessThanOrEqual(200);
+      expect(result.text).not.toContain('�');
+      expect(result.newBudget).toBe(0);
+    });
+
     it('uses custom perIterationOutputCapBytes', () => {
       const custom = createToolOutputSerializer({ perIterationOutputCapBytes: 50 });
       expect(custom.capBytes).toBe(50);
@@ -397,7 +409,11 @@ describe('createToolOutputSerializer (extended)', () => {
   });
 
   it('renders replace results per-file + omits beyond the list limit', () => {
-    const results = Array.from({ length: 501 }, (_, i) => ({ path: `f${i}.ts`, replacements: 1, diff: '+x' }));
+    const results = Array.from({ length: 501 }, (_, i) => ({
+      path: `f${i}.ts`,
+      replacements: 1,
+      diff: '+x',
+    }));
     const out = serializer.serialize(
       { results, files_modified: 501, total_replacements: 501, dry_run: false },
       { toolName: 'replace' },
@@ -417,7 +433,12 @@ describe('createToolOutputSerializer (extended)', () => {
   });
 
   it('renders logs entries + omits beyond the entry limit', () => {
-    const entries = Array.from({ length: 201 }, (_, i) => ({ timestamp: 't', level: 'info', message: `m${i}`, source: 's' }));
+    const entries = Array.from({ length: 201 }, (_, i) => ({
+      timestamp: 't',
+      level: 'info',
+      message: `m${i}`,
+      source: 's',
+    }));
     const out = serializer.serialize(
       { entries, total: 201, source: 'app', truncated: false, stream_mode: false },
       { toolName: 'logs' },
@@ -428,13 +449,21 @@ describe('createToolOutputSerializer (extended)', () => {
   });
 
   it('renders empty logs as (no log entries)', () => {
-    const out = serializer.serialize({ entries: [], total: 0, source: 'app' }, { toolName: 'logs' });
+    const out = serializer.serialize(
+      { entries: [], total: 0, source: 'app' },
+      { toolName: 'logs' },
+    );
     expect(out).toContain('(no log entries)');
   });
 
   it('renders audit vulnerabilities + omits beyond the limit', () => {
     // No exit_code/output — those would trip hasCommandOutputShape before the audit branch.
-    const vulns = Array.from({ length: 501 }, (_, i) => ({ severity: 'high', package: `p${i}`, title: 't', url: 'u' }));
+    const vulns = Array.from({ length: 501 }, (_, i) => ({
+      severity: 'high',
+      package: `p${i}`,
+      title: 't',
+      url: 'u',
+    }));
     const out = serializer.serialize(
       { vulnerabilities: vulns, total: 501, truncated: false },
       { toolName: 'audit' },
@@ -445,15 +474,18 @@ describe('createToolOutputSerializer (extended)', () => {
   });
 
   it('renders audit with no vulns (empty body)', () => {
-    const out = serializer.serialize(
-      { vulnerabilities: [], total: 0 },
-      { toolName: 'audit' },
-    );
+    const out = serializer.serialize({ vulnerabilities: [], total: 0 }, { toolName: 'audit' });
     expect(out).toContain('audit (');
   });
 
   it('renders outdated packages + omits beyond the limit', () => {
-    const packages = Array.from({ length: 501 }, (_, i) => ({ name: `p${i}`, current: '1', wanted: '1', latest: '2', type: 'deps' }));
+    const packages = Array.from({ length: 501 }, (_, i) => ({
+      name: `p${i}`,
+      current: '1',
+      wanted: '1',
+      latest: '2',
+      type: 'deps',
+    }));
     const out = serializer.serialize(
       { packages, total: 501, truncated: false },
       { toolName: 'outdated' },
@@ -464,10 +496,7 @@ describe('createToolOutputSerializer (extended)', () => {
   });
 
   it('renders outdated with no packages (empty body)', () => {
-    const out = serializer.serialize(
-      { packages: [], total: 0 },
-      { toolName: 'outdated' },
-    );
+    const out = serializer.serialize({ packages: [], total: 0 }, { toolName: 'outdated' });
     expect(out).toContain('outdated (');
   });
 
@@ -552,7 +581,15 @@ describe('createToolOutputSerializer (extended)', () => {
   it('falls through to the central renderer when context.tool.serialize throws', () => {
     const out = serializer.serialize(
       { text: 'body', total_lines: 1 },
-      { toolName: 'read', input: { path: 'a.ts' }, tool: { serialize: () => { throw new Error('boom'); } } },
+      {
+        toolName: 'read',
+        input: { path: 'a.ts' },
+        tool: {
+          serialize: () => {
+            throw new Error('boom');
+          },
+        },
+      },
     );
     expect(out).toContain('read: a.ts');
     expect(out).toContain('body');
@@ -631,7 +668,10 @@ describe('createToolOutputSerializer (extended)', () => {
   });
 
   it('renders an empty glob result with the empty placeholder', () => {
-    const out = serializer.serialize({ files: [] }, { toolName: 'glob', input: { pattern: '*.ts' } });
+    const out = serializer.serialize(
+      { files: [] },
+      { toolName: 'glob', input: { pattern: '*.ts' } },
+    );
     expect(out).toContain('(no files)');
   });
 
@@ -676,7 +716,11 @@ describe('truncateForEvent', () => {
 
 describe('sizeSignals', () => {
   it('returns zeros + undefined lines for empty content', () => {
-    expect(sizeSignals('read', '')).toEqual({ outputBytes: 0, outputTokens: 0, outputLines: undefined });
+    expect(sizeSignals('read', '')).toEqual({
+      outputBytes: 0,
+      outputTokens: 0,
+      outputLines: undefined,
+    });
   });
   it('counts read line prefixes', () => {
     const s = sizeSignals('read', '1→a\n2→b\n3→c');

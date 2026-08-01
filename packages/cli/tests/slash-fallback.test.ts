@@ -37,6 +37,28 @@ describe('/fallback', () => {
     expect(msg).toContain('auto');
   });
 
+  it('sets and clears a fully-qualified continuity bridge', async () => {
+    const { ctx, update, readFile } = makeCtx();
+    const cmd = buildFallbackCommand(ctx);
+
+    const set = await cmd.run('bridge set openai/gpt-4o');
+    expect(stripAnsi(set?.message ?? '')).toContain('continuity bridge');
+    expect(readFile().fallbackBridge).toBe('openai/gpt-4o');
+    expect(update).toHaveBeenCalledWith({ fallbackBridge: 'openai/gpt-4o' });
+
+    const clear = await cmd.run('bridge clear');
+    expect(stripAnsi(clear?.message ?? '')).toContain('disabled');
+    expect(readFile()).not.toHaveProperty('fallbackBridge');
+    expect(update).toHaveBeenCalledWith({ fallbackBridge: '' });
+  });
+
+  it('rejects a bare-model continuity bridge', async () => {
+    const { ctx, readFile } = makeCtx();
+    const res = await buildFallbackCommand(ctx).run('bridge set gpt-4o');
+    expect(stripAnsi(res?.message ?? '')).toContain('Usage:');
+    expect(readFile()).not.toHaveProperty('fallbackBridge');
+  });
+
   it('add appends a model to the explicit chain and persists', async () => {
     const { ctx, update, readFile } = makeCtx();
     const cmd = buildFallbackCommand(ctx);

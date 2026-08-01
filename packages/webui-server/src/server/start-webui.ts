@@ -801,6 +801,7 @@ export async function startWebUI(
             providers: snapshot.providers,
             ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
             ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
+            fallbackBridge: snapshot.fallbackBridge ?? '',
           }),
         );
         deps.configStore.update({
@@ -810,6 +811,7 @@ export async function startWebUI(
           ...(snapshot.fallbackModels !== undefined
             ? { fallbackModels: snapshot.fallbackModels }
             : {}),
+          fallbackBridge: snapshot.fallbackBridge ?? '',
           ...(snapshot.fallbackProfiles !== undefined
             ? { fallbackProfiles: snapshot.fallbackProfiles }
             : {}),

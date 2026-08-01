@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
 import { OneShotOrchestrator } from '../../src/execution/one-shot-llm.js';
-import { ProviderError } from '../../src/types/provider.js';
+import type { Config } from '../../src/types/config.js';
 import type {
   Capabilities,
   Provider,
@@ -9,7 +9,7 @@ import type {
   Request,
   Response,
 } from '../../src/types/provider.js';
-import type { Config } from '../../src/types/config.js';
+import { ProviderError } from '../../src/types/provider.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -34,13 +34,9 @@ function fakeProvider(id: string, opts?: { failCount?: number; model?: string })
     complete: vi.fn(async (_req: Request, _opts?: { signal?: AbortSignal }) => {
       calls++;
       if (opts?.failCount && calls <= opts.failCount) {
-        throw new ProviderError(
-          `Provider ${id} overloaded (attempt ${calls})`,
-          503,
-          true,
-          id,
-          { kind: 'overloaded' },
-        );
+        throw new ProviderError(`Provider ${id} overloaded (attempt ${calls})`, 503, true, id, {
+          kind: 'overloaded',
+        });
       }
       return fakeResponse(id, opts?.model);
     }),
@@ -106,9 +102,7 @@ describe('OneShotOrchestrator', () => {
   it('returns text from a basic successful call', async () => {
     const provider = fakeProvider('test-provider');
     const cfg = makeConfig();
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(cfg, async () => provider),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(cfg, async () => provider));
 
     const result = await orch.call({
       system: 'You are a test.',
@@ -150,9 +144,7 @@ describe('OneShotOrchestrator', () => {
   it('falls back to config defaults when no provider/model specified', async () => {
     const provider = fakeProvider('test-provider', { model: 'test-model' });
     const cfg = makeConfig();
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(cfg, async () => provider),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(cfg, async () => provider));
 
     const result = await orch.call({
       system: 'test',
@@ -170,7 +162,13 @@ describe('OneShotOrchestrator', () => {
       ...makeOneShotOpts(cfg, async () => provider),
       modelRouter: {
         pickForTask: (role: string) => {
-          if (role === 'bug-hunter') return { provider: 'role-provider', model: 'role-model', reason: 'matched', fromMatrix: true };
+          if (role === 'bug-hunter')
+            return {
+              provider: 'role-provider',
+              model: 'role-model',
+              reason: 'matched',
+              fromMatrix: true,
+            };
           return undefined;
         },
       } as never,
@@ -189,7 +187,9 @@ describe('OneShotOrchestrator', () => {
   it('returns error when buildProvider throws', async () => {
     const _e = makeConfig();
     const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_e, async () => { throw new Error('API key not found'); }),
+      makeOneShotOpts(_e, async () => {
+        throw new Error('API key not found');
+      }),
     );
 
     const result = await orch.call({
@@ -203,9 +203,7 @@ describe('OneShotOrchestrator', () => {
 
   it('returns error when no provider/model can be resolved', async () => {
     const _n = makeConfig({ provider: '', model: '' }) as Config;
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_n, async () => fakeProvider('x')),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(_n, async () => fakeProvider('x')));
 
     const result = await orch.call({ system: 'test', userPrompt: 'hi' });
 
@@ -218,7 +216,7 @@ describe('OneShotOrchestrator', () => {
 
     const _f = makeConfig();
     const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_f, async (pid) => pid === 'primary' ? primary : fallback),
+      makeOneShotOpts(_f, async (pid) => (pid === 'primary' ? primary : fallback)),
     );
 
     const result = await orch.call({
@@ -234,13 +232,36 @@ describe('OneShotOrchestrator', () => {
     expect(result.provider).toBe('fallback-provider');
   });
 
+  it('keeps the continuity bridge active when automatic fallback is disabled', async () => {
+    const primary = fakeProviderThatThrows('primary', 'overloaded');
+    const bridge = fakeProvider('fallback-provider', { model: 'fallback-model' });
+    const config = makeConfig({
+      fallbackAuto: false,
+      fallbackBridge: 'fallback-provider/fallback-model',
+    });
+    const orch = new OneShotOrchestrator(
+      makeOneShotOpts(config, async (providerId) => (providerId === 'primary' ? primary : bridge)),
+    );
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'primary',
+      model: 'primary-model',
+    });
+
+    expect(result.provider).toBe('fallback-provider');
+    expect(result.model).toBe('fallback-model');
+    expect(result.fromFallback).toBe(true);
+  });
+
   it('does NOT fall back on non-transient errors (auth)', async () => {
     const primary = fakeProviderThatThrows('primary', 'auth');
     const fallback = fakeProvider('fallback-provider', { model: 'fallback-model' });
 
     const _f = makeConfig();
     const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_f, async (pid) => pid === 'primary' ? primary : fallback),
+      makeOneShotOpts(_f, async (pid) => (pid === 'primary' ? primary : fallback)),
     );
 
     const result = await orch.call({
@@ -298,7 +319,9 @@ describe('OneShotOrchestrator', () => {
       id: 'stale-provider',
       capabilities: TEST_CAPABILITIES,
       complete: vi.fn(async () => {
-        throw new ProviderError('model not found', 404, false, 'stale-provider', { kind: 'invalid_request' });
+        throw new ProviderError('model not found', 404, false, 'stale-provider', {
+          kind: 'invalid_request',
+        });
       }),
       stream: vi.fn(),
     };
@@ -352,7 +375,7 @@ describe('OneShotOrchestrator', () => {
     const resolvedChain = mgr.resolve('summary').map((e) => `${e.providerId}/${e.model}`);
 
     const orch = new OneShotOrchestrator(
-      makeOneShotOpts(cfg, async (pid) => pid === 'primary' ? primary : fallback),
+      makeOneShotOpts(cfg, async (pid) => (pid === 'primary' ? primary : fallback)),
     );
 
     const result = await orch.call({
@@ -388,9 +411,7 @@ describe('OneShotOrchestrator', () => {
     };
 
     const _s = makeConfig();
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_s, async () => slowProvider),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(_s, async () => slowProvider));
 
     const result = await orch.call({
       system: 'test',
@@ -414,9 +435,7 @@ describe('OneShotOrchestrator', () => {
     };
 
     const _x = makeConfig({ fallbackAuto: false });
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_x, async () => transientProvider),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(_x, async () => transientProvider));
 
     const result = await orch.call({
       system: 'test',
@@ -465,9 +484,7 @@ describe('OneShotOrchestrator', () => {
       providerId === 'primary' ? primary : fallback,
     );
     const _z2 = makeConfig({ fallbackAuto: false });
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_z2, buildProvider),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(_z2, buildProvider));
 
     const result = await orch.call({
       system: 'test',
@@ -504,9 +521,7 @@ describe('OneShotOrchestrator', () => {
     };
     const external = new AbortController();
     const _z3 = makeConfig({ fallbackAuto: false });
-    const orch = new OneShotOrchestrator(
-      makeOneShotOpts(_z3, async () => provider),
-    );
+    const orch = new OneShotOrchestrator(makeOneShotOpts(_z3, async () => provider));
 
     const result = await orch.call({
       system: 'test',

@@ -41,6 +41,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['enhanceLanguage'] = (autonomyCfg['enhanceLanguage'] as string) ?? 'original';
   meta['nextPrediction'] = config.nextPrediction ?? false;
   meta['fallbackModels'] = config.fallbackModels ?? [];
+  meta['fallbackBridge'] = config.fallbackBridge ?? '';
   meta['fallbackProfiles'] = config.fallbackProfiles ?? {};
   meta['favoriteModels'] = config.favoriteModels ?? [];
   meta['favoriteModelsOnly'] = config.favoriteModelsOnly === true;
@@ -191,8 +192,11 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
       const named = autoReviewExt?.['fallbackProfile'];
       resolvedChain =
         typeof named === 'string' && named.length > 0
-          ? mgr.resolve(named)
-          : mgr.resolveEffective({ fallbackAuto: true });
+          ? mgr.resolveEffective({ fallbackProfile: named, fallbackAuto: false })
+          : mgr.resolveEffective({
+              fallbackModels: config.fallbackModels,
+              fallbackAuto: config.fallbackAuto !== false,
+            });
     } catch {
       resolvedChain = [];
     }

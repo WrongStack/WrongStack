@@ -4,14 +4,11 @@ import {
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
-import { buildChildEnv } from '@wrongstack/core/utils';
 import type { ToolProgressEvent } from '@wrongstack/core/types';
+import { buildChildEnv } from '@wrongstack/core/utils';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
+import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
-import {
-  buildWin32CmdShimInvocation,
-  resolveWin32Command,
-} from './_win32-resolve.js';
 
 const isWin = process.platform === 'win32';
 export interface SpawnStreamResult {
@@ -36,6 +33,8 @@ export interface SpawnStreamOptions {
   flushBytes?: number | undefined;
   /** Maximum chunks to buffer before applying backpressure to the child. Default 500. */
   maxQueueSize?: number | undefined;
+  /** Maximum UTF-8 bytes retained in the producer/consumer queue. Defaults to 1 MiB. */
+  maxQueueBytes?: number | undefined;
 }
 
 /**
@@ -51,8 +50,11 @@ export async function* spawnStream(
   const max = opts.maxBytes ?? 200_000;
   const flushAt = opts.flushBytes ?? 4 * 1024;
   const maxQueue = opts.maxQueueSize ?? 500;
+  const maxQueueBytes = opts.maxQueueBytes ?? 1024 * 1024;
   let stdout = '';
   let stderr = '';
+  let stdoutRetainedBytes = 0;
+  let stderrRetainedBytes = 0;
   let pending = '';
   let error: string | undefined;
   // Full-output spool: stdout/stderr keep only the first `max` bytes for the
@@ -111,8 +113,15 @@ export async function* spawnStream(
     });
   }
 
-  type Chunk = { kind: 'out' | 'err' | 'close' | 'error'; data: string; code?: number | undefined; signal?: string | undefined };
+  type Chunk = {
+    kind: 'out' | 'err' | 'close' | 'error';
+    data: string;
+    bytes: number;
+    code?: number | undefined;
+    signal?: string | undefined;
+  };
   const queue: Chunk[] = [];
+  let queuedBytes = 0;
   let waiter: (() => void) | undefined;
   let paused = false;
   const wake = () => {
@@ -125,7 +134,11 @@ export async function* spawnStream(
 
   // Resume the stream when there's room in the queue
   const resume = () => {
-    if (paused && queue.length < maxQueue) {
+    if (
+      paused &&
+      queue.length <= Math.floor(maxQueue / 2) &&
+      queuedBytes <= Math.floor(maxQueueBytes / 2)
+    ) {
       paused = false;
       child.stdout?.resume();
       child.stderr?.resume();
@@ -140,12 +153,17 @@ export async function* spawnStream(
     const s = c.toString();
     stdoutBytes += c.byteLength;
     emitProcessOutput({ pid, stream: 'stdout', chunk: c });
-    if (stdout.length < max) stdout += s;
+    if (stdoutRetainedBytes < max) {
+      const retained = utf8Prefix(s, max - stdoutRetainedBytes);
+      stdout += retained;
+      stdoutRetainedBytes += Buffer.byteLength(retained, 'utf8');
+    }
     spool.write(s);
-    queue.push({ kind: 'out', data: s });
+    queue.push({ kind: 'out', data: s, bytes: c.byteLength });
+    queuedBytes += c.byteLength;
     wake();
     // Apply backpressure if queue is growing faster than we consume
-    if (!paused && queue.length >= maxQueue) {
+    if (!paused && (queue.length >= maxQueue || queuedBytes >= maxQueueBytes)) {
       paused = true;
       child.stdout?.pause();
       child.stderr?.pause();
@@ -155,11 +173,16 @@ export async function* spawnStream(
     const s = c.toString();
     stderrBytes += c.byteLength;
     emitProcessOutput({ pid, stream: 'stderr', chunk: c });
-    if (stderr.length < max) stderr += s;
+    if (stderrRetainedBytes < max) {
+      const retained = utf8Prefix(s, max - stderrRetainedBytes);
+      stderr += retained;
+      stderrRetainedBytes += Buffer.byteLength(retained, 'utf8');
+    }
     spool.write(s);
-    queue.push({ kind: 'err', data: s });
+    queue.push({ kind: 'err', data: s, bytes: c.byteLength });
+    queuedBytes += c.byteLength;
     wake();
-    if (!paused && queue.length >= maxQueue) {
+    if (!paused && (queue.length >= maxQueue || queuedBytes >= maxQueueBytes)) {
       paused = true;
       child.stdout?.pause();
       child.stderr?.pause();
@@ -169,7 +192,9 @@ export async function* spawnStream(
   child.stderr?.on('data', onErr);
   child.on('error', (e) => {
     error = e.message;
-    queue.push({ kind: 'error', data: e.message });
+    const bytes = Buffer.byteLength(e.message, 'utf8');
+    queue.push({ kind: 'error', data: e.message, bytes });
+    queuedBytes += bytes;
     wake();
   });
   const completeTelemetry = (code: number, signal?: string | undefined, timedOut = false) => {
@@ -190,7 +215,13 @@ export async function* spawnStream(
     if (typeof pid === 'number') registry.unregister(pid);
     const exitCode = code ?? (signal ? 1 : 0);
     completeTelemetry(exitCode, signal ?? undefined);
-    queue.push({ kind: 'close', data: '', code: exitCode, ...(signal ? { signal } : {}) });
+    queue.push({
+      kind: 'close',
+      data: '',
+      bytes: 0,
+      code: exitCode,
+      ...(signal ? { signal } : {}),
+    });
     wake();
   });
 
@@ -215,7 +246,7 @@ export async function* spawnStream(
         /* already gone */
       }
     }
-    queue.push({ kind: 'close', data: '', code: 124 });
+    queue.push({ kind: 'close', data: '', bytes: 0, code: 124 });
     completeTelemetry(124, 'SIGKILL', true);
     wake();
   };
@@ -234,6 +265,7 @@ export async function* spawnStream(
         });
       }
       const chunk = queue.shift()!;
+      queuedBytes -= chunk.bytes;
       // Resume reading after consuming a chunk
       resume();
       if (chunk.kind === 'close') {
@@ -265,7 +297,7 @@ export async function* spawnStream(
       stdout: spooled ? stdout + spoolNote(spooled) : stdout,
       stderr,
       exitCode,
-      truncated: stdout.length >= max || stderr.length >= max,
+      truncated: stdoutBytes > stdoutRetainedBytes || stderrBytes > stderrRetainedBytes,
       error,
       spoolPath: spooled?.path,
       spoolBytes: spooled?.bytes,
@@ -296,4 +328,19 @@ export async function* spawnStream(
       }
     }
   }
+}
+
+function utf8Prefix(text: string, maxBytes: number): string {
+  if (maxBytes <= 0) return '';
+  if (Buffer.byteLength(text, 'utf8') <= maxBytes) return text;
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (Buffer.byteLength(text.slice(0, mid), 'utf8') <= maxBytes) low = mid;
+    else high = mid - 1;
+  }
+  let end = low;
+  if (end > 0 && /[\uD800-\uDBFF]/.test(text[end - 1]!)) end--;
+  return text.slice(0, end);
 }

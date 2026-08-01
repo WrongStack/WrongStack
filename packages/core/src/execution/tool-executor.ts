@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { runWithProcessTelemetry } from '../observability/process-telemetry.js';
-import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
-import { isDeepStrictEqual } from 'node:util';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { type Context, resolveEventSessionId } from '../core/context.js';
+import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
+import { runWithProcessTelemetry } from '../observability/process-telemetry.js';
 import {
   getDangerousCapabilities,
   hasDangerousCapabilityForSubagents,
 } from '../security/capabilities.js';
 import { evaluateToolKanbanBoundary } from '../security/kanban-boundary.js';
 import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
+import type { ToolResultRenderMode, ToolResultRenderModeConfig } from '../types/config.js';
+import { isWrongStackError } from '../types/errors.js';
 import type { Tool } from '../types/tool.js';
 import {
   GOVERNED_TOOL_EXECUTOR_META_KEY,
@@ -21,14 +23,22 @@ import {
   type ToolExecutorOptions,
   type ToolExecutorStrategy,
 } from '../types/tool-executor.js';
-import { isWrongStackError } from '../types/errors.js';
 import { toErrorMessage } from '../utils/error.js';
 import { coerceAgainstSchema, validateAgainstSchema } from '../utils/json-schema-validate.js';
-import { subjectForToolInput } from '../utils/tool-subject.js';
 import { createToolOutputSerializer } from '../utils/tool-output-serializer.js';
-import type { ToolResultRenderMode } from '../types/config.js';
 import { resolveToolResultRenderMode } from '../utils/tool-result-render-mode.js';
-import type { ToolResultRenderModeConfig } from '../types/config.js';
+import { subjectForToolInput } from '../utils/tool-subject.js';
+import {
+  logToolFailure as logToolFailureEvent,
+  logToolSuccess as logToolSuccessEvent,
+} from './tool-executor-logging.js';
+import {
+  blockedByHookResult,
+  deniedResult,
+  malformedInputResult,
+  unknownToolResult,
+} from './tool-executor-results.js';
+import { executeStreamedTool } from './tool-executor-stream.js';
 import {
   abortReasonToError,
   clampTimeoutMs,
@@ -38,18 +48,27 @@ import {
   hasMalformedArguments,
   maybePersistLargeToolOutput,
 } from './tool-executor-support.js';
-import {
-  blockedByHookResult,
-  deniedResult,
-  malformedInputResult,
-  unknownToolResult,
-} from './tool-executor-results.js';
-import {
-  logToolFailure as logToolFailureEvent,
-  logToolSuccess as logToolSuccessEvent,
-} from './tool-executor-logging.js';
-import { executeStreamedTool } from './tool-executor-stream.js';
+
 export { classifyToolError } from './tool-executor-support.js';
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await run(items[index]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 export class ToolExecutor {
   /** Minimum gap between coalesced `partial_output` tool.progress emits. */
   static readonly PROGRESS_EMIT_INTERVAL_MS = 100;
@@ -61,6 +80,7 @@ export class ToolExecutor {
   private readonly serializer;
   private readonly iterationTimeoutMs: number;
   private readonly maxToolTimeoutMs: number;
+  private readonly maxParallelTools: number;
 
   constructor(
     private readonly registry: { get(name: string): Tool | undefined; list(): Tool[] },
@@ -68,6 +88,10 @@ export class ToolExecutor {
   ) {
     this.iterationTimeoutMs = opts.iterationTimeoutMs ?? 300_000;
     this.maxToolTimeoutMs = opts.maxToolTimeoutMs ?? 300_000;
+    const requestedParallelism = opts.maxParallelTools ?? 4;
+    this.maxParallelTools = Number.isFinite(requestedParallelism)
+      ? Math.max(1, Math.min(16, Math.floor(requestedParallelism)))
+      : 4;
     this.serializer = createToolOutputSerializer({
       perIterationOutputCapBytes: opts.perIterationOutputCapBytes ?? 100_000,
     });
@@ -294,7 +318,8 @@ export class ToolExecutor {
         const result = {
           type: 'tool_result' as const,
           tool_use_id: use.id,
-          content: `Tool "${tool.name}" blocked by Kanban boundary. ${boundary.reason ?? ''}`.trim(),
+          content:
+            `Tool "${tool.name}" blocked by Kanban boundary. ${boundary.reason ?? ''}`.trim(),
           is_error: true,
         };
         budget = this.budgetForString(result.content, budget);
@@ -358,7 +383,7 @@ export class ToolExecutor {
         effectiveDecision: effectivePermission,
         decisionSource: decision.source,
         ...(decision.reason ? { reason: decision.reason } : {}),
-        ...(decision.riskTier ?? tool.riskTier
+        ...((decision.riskTier ?? tool.riskTier)
           ? { riskTier: decision.riskTier ?? tool.riskTier }
           : {}),
         yoloEnabled: yolo,
@@ -383,7 +408,7 @@ export class ToolExecutor {
         const suggestedPattern =
           boundary.decision === 'confirm'
             ? `kanban-boundary:${boundary.path ?? tool.name}`
-            : subjectForToolInput(tool.name, use.input, tool.subjectKey) ?? tool.name;
+            : (subjectForToolInput(tool.name, use.input, tool.subjectKey) ?? tool.name);
         if (this.opts.confirmAwaiter) {
           // Race the interactive prompt against the run's abort signal so an
           // interrupt never leaves the executor blocked on a confirmation
@@ -671,7 +696,7 @@ export class ToolExecutor {
     }
 
     if (strategy === 'parallel') {
-      const outputs = await Promise.all(toolUses.map((use) => safeRun(use)));
+      const outputs = await mapWithConcurrency(toolUses, this.maxParallelTools, safeRun);
       return { outputs, remainingBudget: budget };
     }
 
@@ -684,7 +709,7 @@ export class ToolExecutor {
       if (tool?.mutating) mutating.push(use);
       else nonMutating.push(use);
     }
-    const firstPass = await Promise.all(nonMutating.map((use) => safeRun(use)));
+    const firstPass = await mapWithConcurrency(nonMutating, this.maxParallelTools, safeRun);
     const secondPass: ToolExecutionOutput[] = [];
     for (const use of mutating) {
       secondPass.push(await safeRun(use));
@@ -865,26 +890,35 @@ export class ToolExecutor {
     // implement executeStream fall through to the standard execute path.
     // The async IIFE also captures a synchronous throw from execute() as
     // a rejection so the race below observes it.
-    const execute = () => typeof tool.executeStream === 'function'
-      ? this.runStreamedTool(tool, input, ctx, combined, toolUseId)
-      : (async () => tool.execute(input, ctx, { signal: combined }))();
+    const execute = () =>
+      typeof tool.executeStream === 'function'
+        ? this.runStreamedTool(tool, input, ctx, combined, toolUseId)
+        : (async () => tool.execute(input, ctx, { signal: combined }))();
     const telemetryToolCallId = toolUseId ?? `nested-${randomUUID()}`;
     const toolPromise: Promise<unknown> = this.opts.events
-      ? runWithNetworkTelemetry({
-          events: this.opts.events!, sessionId: resolveEventSessionId(ctx),
-          ...(ctx.traceId ? { traceId: ctx.traceId } : {}), ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
-          toolCallId: telemetryToolCallId, initiator: 'tool', operationName: tool.name,
-        }, () => runWithProcessTelemetry(
+      ? runWithNetworkTelemetry(
           {
             events: this.opts.events!,
             sessionId: resolveEventSessionId(ctx),
             ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
             ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
             toolCallId: telemetryToolCallId,
-            toolName: tool.name,
+            initiator: 'tool',
+            operationName: tool.name,
           },
-          execute,
-        ))
+          () =>
+            runWithProcessTelemetry(
+              {
+                events: this.opts.events!,
+                sessionId: resolveEventSessionId(ctx),
+                ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
+                ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
+                toolCallId: telemetryToolCallId,
+                toolName: tool.name,
+              },
+              execute,
+            ),
+        )
       : execute();
     // Side branch: when the race exits early on abort, the still-running
     // tool promise must not surface its eventual rejection as an

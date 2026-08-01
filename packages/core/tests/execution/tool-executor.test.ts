@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { EventBus } from '../../src/kernel/events.js';
-import { createMockTool } from '../helpers/test-harness.js';
 import type { Tool, ToolUseBlock } from '../../src/types/tool.js';
+import { createMockTool } from '../helpers/test-harness.js';
 
 function makeToolUse(name: string, id: string, input: Record<string, unknown> = {}): ToolUseBlock {
   return { type: 'tool_use', id, name, input };
@@ -39,13 +39,19 @@ function makeCtx(): any {
 describe('ToolExecutor — construction & basic API', () => {
   it('constructs with a registry and options', () => {
     const reg = makeRegistry([createMockTool({ name: 'echo', result: 'hi' })]);
-    const exec = new ToolExecutor(reg, { events: new EventBus(), secretScrubber: noopScrubber } as any);
+    const exec = new ToolExecutor(reg, {
+      events: new EventBus(),
+      secretScrubber: noopScrubber,
+    } as any);
     expect(exec).toBeDefined();
   });
 
   it('clearConfirmAwaiter does not throw', () => {
     const reg = makeRegistry([]);
-    const exec = new ToolExecutor(reg, { confirmAwaiter: vi.fn(), secretScrubber: noopScrubber } as any);
+    const exec = new ToolExecutor(reg, {
+      confirmAwaiter: vi.fn(),
+      secretScrubber: noopScrubber,
+    } as any);
     expect(() => exec.clearConfirmAwaiter()).not.toThrow();
   });
 });
@@ -54,9 +60,17 @@ describe('ToolExecutor — executeTool', () => {
   it('executes a registered tool and returns a result block', async () => {
     const tool = createMockTool({ name: 'echo', result: 'hello world' });
     const reg = makeRegistry([tool]);
-    const exec = new ToolExecutor(reg, { events: new EventBus(), secretScrubber: noopScrubber } as any);
+    const exec = new ToolExecutor(reg, {
+      events: new EventBus(),
+      secretScrubber: noopScrubber,
+    } as any);
     const ctx = makeCtx();
-    const result = await exec.executeTool(tool, makeToolUse('echo', 'tc1', { text: 'test' }), ctx, 100_000);
+    const result = await exec.executeTool(
+      tool,
+      makeToolUse('echo', 'tc1', { text: 'test' }),
+      ctx,
+      100_000,
+    );
     expect(result).toBeDefined();
     expect(result.block).toBeDefined();
     expect(result.block.type).toBe('tool_result');
@@ -80,13 +94,46 @@ describe('ToolExecutor — executeBatch', () => {
     const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber } as any);
     const ctx = makeCtx();
     const result = await exec.executeBatch(
-      [makeToolUse('read', 'tc1', { path: '/a' }), makeToolUse('write', 'tc2', { path: '/b', content: 'x' })],
+      [
+        makeToolUse('read', 'tc1', { path: '/a' }),
+        makeToolUse('write', 'tc2', { path: '/b', content: 'x' }),
+      ],
       ctx,
       'sequential',
     );
     expect(result).toBeDefined();
     expect(result.outputs).toBeDefined();
     expect(result.outputs.length).toBe(2);
+  });
+
+  it('bounds parallel batches without changing result order', async () => {
+    let active = 0;
+    let peakActive = 0;
+    const tool = createMockTool({ name: 'bounded' });
+    tool.execute = async (input) => {
+      active++;
+      peakActive = Math.max(peakActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active--;
+      return input;
+    };
+    const exec = new ToolExecutor(makeRegistry([tool]), {
+      maxParallelTools: 3,
+      permissionPolicy: {
+        evaluate: vi.fn().mockResolvedValue({ permission: 'auto', source: 'default' }),
+      },
+      secretScrubber: noopScrubber,
+    } as any);
+    const uses = Array.from({ length: 11 }, (_, index) => makeToolUse('bounded', `tc-${index}`));
+
+    const result = await exec.executeBatch(uses, makeCtx(), 'parallel');
+
+    expect(peakActive).toBe(3);
+    expect(
+      result.outputs.map((output) =>
+        output.result.type === 'tool_result' ? output.result.tool_use_id : output.result.toolUseId,
+      ),
+    ).toEqual(uses.map((use) => use.id));
   });
 
   it('handles tool execution error gracefully without throwing', async () => {

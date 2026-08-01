@@ -344,6 +344,26 @@ describe('resolveAutoReviewConfig — fallback chain source', () => {
     expect(resolved.fallbackModels).toEqual([]);
   });
 
+  it('uses the configured session fallback chain before auto-discovered models', () => {
+    const resolved = resolveAutoReviewConfig(
+      { enabled: true },
+      sessionConfig({
+        fallbackModels: ['backup-provider/backup-model'],
+        providers: {
+          'backup-provider': {
+            type: 'openai',
+            baseUrl: 'http://backup.test',
+            models: ['backup-model'],
+          },
+        },
+      }),
+    );
+
+    expect(resolved.provider).toBe('backup-provider');
+    expect(resolved.model).toBe('backup-model');
+    expect(resolved.fallbackModels).toEqual(['session-provider/session-model']);
+  });
+
   it('does not synthesize fallback models when a named profile is unknown', () => {
     const resolved = resolveAutoReviewConfig(
       { enabled: true, fallbackProfile: 'does-not-exist' },

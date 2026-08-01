@@ -27,36 +27,61 @@ interface BatchToolUseOutput {
   stop_on_error: boolean;
 }
 
+const BATCHABLE_TOOL_NAMES = [
+  'read',
+  'glob',
+  'grep',
+  'tree',
+  'codebase-stats',
+  'codebase-search',
+  'language_info',
+  'tool_search',
+  'memory_for_file',
+  'memory_for_path',
+  'memory_search',
+] as const;
+const BATCHABLE_TOOLS = new Set<string>(BATCHABLE_TOOL_NAMES);
+const MAX_BATCH_CALLS = 8;
+const MAX_PARALLEL_BATCH_CALLS = 3;
+
 export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
   name: 'batch_tool_use',
   category: 'Meta',
   description:
-    'Execute a batch of tool calls either sequentially or in parallel. Returns structured results for every call.',
+    'Execute a small batch of independent, read-only discovery calls. Process, mutation, browser-action, MCP, delegation, and nested meta tools are not eligible.',
   usageHint:
-    'ADVANCED / POWER USER TOOL:\n\n' +
-    '- Useful when you have a clear list of independent operations to perform.\n' +
-    '- `parallel: true` (default) runs them concurrently for speed.\n' +
+    'BOUNDED READ-ONLY BATCHING:\n\n' +
+    '- Use only for a small set of independent reads or searches that are all needed now.\n' +
+    '- Do not wrap normal sequential reasoning or every tool call in a batch.\n' +
+    '- `parallel: true` (default) runs at most three eligible calls concurrently.\n' +
     '- `stop_on_error: true` makes it fail fast on the first error.\n' +
-    'Use with care — batching many mutating operations can be risky. Prefer explicit sequential steps for important work.',
+    `- Eligible tools: ${BATCHABLE_TOOL_NAMES.join(', ')}.`,
   permission: 'confirm',
+  // Scheduling barrier: keep the outer meta-call out of ToolExecutor's
+  // non-mutating fan-out even though every eligible inner tool is read-only.
   mutating: true,
   timeoutMs: 120_000,
-  capabilities: ['tool.mutate.any'],
+  capabilities: ['tool.meta'],
   icon: 'meta',
   inputSchema: {
     type: 'object',
     properties: {
       calls: {
         type: 'array',
+        maxItems: MAX_BATCH_CALLS,
         items: {
           type: 'object',
           properties: {
-            tool: { type: 'string' },
+            tool: {
+              type: 'string',
+              enum: [...BATCHABLE_TOOL_NAMES],
+              description: 'An explicitly batch-safe, read-only discovery tool.',
+            },
             input: { type: 'object' },
           },
           required: ['tool'],
         },
-        description: 'Array of tool calls to execute',
+        description: `Up to ${MAX_BATCH_CALLS} independent, batch-safe read calls.`,
       },
       stop_on_error: {
         type: 'boolean',
@@ -78,6 +103,9 @@ export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
         failed: 0,
         stop_on_error: false,
       };
+    }
+    if (input.calls.length > MAX_BATCH_CALLS) {
+      throw new Error(`batch_tool_use: calls must contain at most ${MAX_BATCH_CALLS} items`);
     }
 
     const governedExecute = ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] as
@@ -103,8 +131,9 @@ export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
     let failed = 0;
 
     if (input.parallel !== false) {
-      const promises = input.calls.map(async (call) => executeSingle(call, ctx, governedExecute));
-      const allResults = await Promise.all(promises);
+      const allResults = await mapWithConcurrency(input.calls, MAX_PARALLEL_BATCH_CALLS, (call) =>
+        executeSingle(call, ctx, governedExecute),
+      );
       results.push(...allResults);
       succeeded = allResults.filter((r) => r.success).length;
       failed = allResults.filter((r) => !r.success).length;
@@ -131,12 +160,37 @@ export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
   },
 };
 
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await run(items[index]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 async function executeSingle(
   call: { tool: string; input: Record<string, unknown> },
   ctx: import('@wrongstack/core/agent').Context,
   governedExecute: GovernedToolExecutor,
 ): Promise<BatchToolUseOutput['results'][0]> {
   const start = Date.now();
+  if (call.tool === batchToolUseTool.name) {
+    return {
+      tool: call.tool,
+      success: false,
+      error: 'recursive batch_tool_use execution is not allowed',
+      executionMs: Date.now() - start,
+    };
+  }
   const tool = ctx.tools.find((candidate: Tool) => candidate.name === call.tool);
 
   if (!tool) {
@@ -147,13 +201,25 @@ async function executeSingle(
       executionMs: Date.now() - start,
     };
   }
+  if (!BATCHABLE_TOOLS.has(tool.name) || tool.mutating) {
+    return {
+      tool: call.tool,
+      success: false,
+      error:
+        `tool "${call.tool}" is not eligible for batch execution; ` +
+        `call it directly. Allowed: ${BATCHABLE_TOOL_NAMES.join(', ')}`,
+      executionMs: Date.now() - start,
+    };
+  }
 
   try {
     const result = await governedExecute(call.tool, call.input);
     return {
       tool: call.tool,
       success: result.success,
-      ...(result.success ? { result: result.result } : { error: result.error ?? 'nested tool failed' }),
+      ...(result.success
+        ? { result: result.result }
+        : { error: result.error ?? 'nested tool failed' }),
       executionMs: Date.now() - start,
     };
   } catch (e) {

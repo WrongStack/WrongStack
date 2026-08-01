@@ -1,8 +1,12 @@
 import type { JSONSchema, ToolRegistry } from '../index.js';
 import { ToolCapabilities } from '../security/capabilities.js';
+import type { Tool } from '../types/tool.js';
+import {
+  GOVERNED_TOOL_EXECUTOR_META_KEY,
+  type GovernedToolExecutor,
+} from '../types/tool-executor.js';
 import { mcpQualifiedToolName, mcpServerToolPrefix } from '../utils/tool-name.js';
 import type { MCPRegistryHandle } from './mcp-control.js';
-import type { Tool } from '../types/tool.js';
 
 /**
  * `mcp_use` — meta-tool for ephemeral MCP tool calls in token-saving mode.
@@ -33,15 +37,18 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
     properties: {
       server: {
         type: 'string',
-        description: 'MCP server name (e.g. "github", "filesystem", "brave-search"). Use mcp_control list or search first to discover available servers.',
+        description:
+          'MCP server name (e.g. "github", "filesystem", "brave-search"). Use mcp_control list or search first to discover available servers.',
       },
       tool: {
         type: 'string',
-        description: 'Tool name on the MCP server to call (without the mcp__server__ prefix — just the bare tool name).',
+        description:
+          'Tool name on the MCP server to call (without the mcp__server__ prefix — just the bare tool name).',
       },
       input: {
         type: 'object',
-        description: 'JSON input to pass to the tool. Use the tool\'s own input schema — check with mcp_control describe or the server\'s documentation.',
+        description:
+          "JSON input to pass to the tool. Use the tool's own input schema — check with mcp_control describe or the server's documentation.",
         properties: {},
         additionalProperties: true,
       },
@@ -59,7 +66,7 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
     riskTier: 'standard',
     capabilities: [ToolCapabilities.MCP_PROXY],
     inputSchema,
-    async execute(raw) {
+    async execute(raw, ctx) {
       const input = raw as {
         server: string;
         tool: string;
@@ -100,12 +107,15 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
           return `Tool "${toolName}" not found on server "${serverName}". ${hint}`;
         }
 
-        // Call the tool — we need to create a minimal Context and ExecuteOptions.
-        // The tool executor normally provides these; since we're calling a tool
-        // from inside another tool we create minimal stubs that let the tool
-        // execute its MCP transport call without needing the full agent context.
-        const result = await mcpTool.execute(toolInput ?? {}, {} as never, {} as never);
-        return result;
+        const governedExecute = ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] as
+          | GovernedToolExecutor
+          | undefined;
+        if (typeof governedExecute !== 'function') {
+          throw new Error('mcp_use: governed nested execution is unavailable');
+        }
+        const result = await governedExecute(qualifiedName, toolInput ?? {});
+        if (!result.success) throw new Error(result.error ?? 'MCP tool execution failed');
+        return result.result;
       } finally {
         // Always deactivate, even if the tool call threw
         if (registry.deactivateServer) {

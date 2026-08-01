@@ -40,7 +40,8 @@
  */
 
 import type { EventBus } from '../kernel/events.js';
-import { parseResetHintMs, type ProviderErrorKind } from '../types/provider.js';
+import { type ProviderErrorKind, parseResetHintMs } from '../types/provider.js';
+import { ROUTE_SCOPED_QUOTA_RE } from '../types/quota-regex.js';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -187,6 +188,8 @@ interface MutableProviderModelStatus {
 export class ProviderModelStatusTracker {
   private readonly cfg: Required<ProviderStatusTrackerConfig>;
   private readonly map = new Map<string, MutableProviderModelStatus>();
+  /** Account/plan quota blocks apply to unseen sibling models too. */
+  private readonly providerQuotaBlocks = new Map<string, number>();
   private readonly events: EventBus | undefined;
 
   constructor(opts?: {
@@ -214,6 +217,7 @@ export class ProviderModelStatusTracker {
     _meta?: { sessionId?: string | undefined; agentId?: string | undefined },
   ): void {
     ({ providerId, model } = statusIdentity(providerId, model));
+    this.providerQuotaBlocks.delete(providerId);
     const key = pairKey(providerId, model);
     const s = this.getOrCreate(key, providerId, model);
 
@@ -291,6 +295,7 @@ export class ProviderModelStatusTracker {
     // for two more doomed requests wastes time and can fan the same failure
     // out through subagents, so quarantine this model on the first response.
     const quotaExhausted = kind === 'quota_exhausted' || isQuotaExhausted(kind, status, message);
+    const providerWideQuota = quotaExhausted && !ROUTE_SCOPED_QUOTA_RE.test(message);
 
     // Effective wait-room hint: an explicit structured Retry-After wins;
     // otherwise, for quota/rate-limit failures, parse the provider's prose
@@ -346,7 +351,11 @@ export class ProviderModelStatusTracker {
       }
     }
 
-    if (!quotaExhausted && !endpointUnreachable && (s.state === 'degraded' || s.state === 'healthy')) {
+    if (
+      !quotaExhausted &&
+      !endpointUnreachable &&
+      (s.state === 'degraded' || s.state === 'healthy')
+    ) {
       // → blocked (rate-limit threshold or consecutive failures threshold)
       if (s.rateLimitHits >= this.cfg.blockAfterRateLimitHits) {
         newState = 'blocked';
@@ -368,6 +377,15 @@ export class ProviderModelStatusTracker {
       }
     }
 
+    if (
+      this.cfg.quarantineSiblingsOnQuotaExhausted &&
+      providerWideQuota &&
+      s.stateExpiresAt !== null
+    ) {
+      const previous = this.providerQuotaBlocks.get(providerId) ?? 0;
+      this.providerQuotaBlocks.set(providerId, Math.max(previous, s.stateExpiresAt));
+    }
+
     if (s.state !== newState) {
       const oldState = s.state;
       s.state = newState;
@@ -383,7 +401,7 @@ export class ProviderModelStatusTracker {
     // burning N−1 doomed requests.
     if (
       this.cfg.quarantineSiblingsOnQuotaExhausted &&
-      quotaExhausted &&
+      providerWideQuota &&
       newState === 'blocked'
     ) {
       this.quarantineSiblings(providerId, model, status, now, s.stateExpiresAt ?? 0);
@@ -451,6 +469,11 @@ export class ProviderModelStatusTracker {
    */
   isAvailable(providerId: string, model: string): boolean {
     ({ providerId, model } = statusIdentity(providerId, model));
+    const providerBlockedUntil = this.providerQuotaBlocks.get(providerId);
+    if (providerBlockedUntil !== undefined) {
+      if (Date.now() < providerBlockedUntil) return false;
+      this.providerQuotaBlocks.delete(providerId);
+    }
     const key = pairKey(providerId, model);
     const s = this.map.get(key);
     if (!s) return true; // never seen → healthy
@@ -543,6 +566,10 @@ export class ProviderModelStatusTracker {
    */
   sweepExpired(): number {
     let released = 0;
+    const now = Date.now();
+    for (const [providerId, expiresAt] of this.providerQuotaBlocks) {
+      if (now >= expiresAt) this.providerQuotaBlocks.delete(providerId);
+    }
     for (const [key, s] of this.map) {
       if (s.state === 'healthy' || s.stateExpiresAt === null || Date.now() < s.stateExpiresAt)
         continue;
@@ -568,8 +595,9 @@ export class ProviderModelStatusTracker {
    */
   retryNow(providerId: string, model: string): boolean {
     ({ providerId, model } = statusIdentity(providerId, model));
+    const releasedProvider = this.providerQuotaBlocks.delete(providerId);
     const s = this.map.get(pairKey(providerId, model));
-    if (!s || s.state === 'healthy') return false;
+    if (!s || s.state === 'healthy') return releasedProvider;
     const previous = s.state;
     s.state = 'healthy';
     s.stateExpiresAt = null;
@@ -619,6 +647,8 @@ export class ProviderModelStatusTracker {
    */
   isBlocked(providerId: string, model: string): boolean {
     ({ providerId, model } = statusIdentity(providerId, model));
+    const providerBlockedUntil = this.providerQuotaBlocks.get(providerId);
+    if (providerBlockedUntil !== undefined && Date.now() < providerBlockedUntil) return true;
     const key = pairKey(providerId, model);
     const s = this.map.get(key);
     if (!s) return false;
@@ -638,6 +668,7 @@ export class ProviderModelStatusTracker {
     if (providerId && model) {
       ({ providerId, model } = statusIdentity(providerId, model));
       const key = pairKey(providerId, model);
+      this.providerQuotaBlocks.delete(providerId);
       const old = this.map.get(key);
       if (old && old.state !== 'healthy') {
         this.emitStatusChanged(providerId, model, old.state, 'healthy', 'manual_clear');
@@ -651,6 +682,7 @@ export class ProviderModelStatusTracker {
         }
       }
       this.map.clear();
+      this.providerQuotaBlocks.clear();
     }
   }
 
@@ -706,6 +738,23 @@ export class ProviderModelStatusTracker {
       s.lastErrorMessage =
         typeof item['lastErrorMessage'] === 'string' ? item['lastErrorMessage'] : null;
       s.lastErrorKind = isProviderErrorKind(item['lastErrorKind']) ? item['lastErrorKind'] : null;
+      const providerWideQuota =
+        s.lastErrorKind === 'quota_exhausted' ||
+        isQuotaExhausted(
+          s.lastErrorKind ?? 'unknown',
+          s.lastErrorStatus ?? 0,
+          s.lastErrorMessage ?? '',
+        );
+      if (
+        this.cfg.quarantineSiblingsOnQuotaExhausted &&
+        providerWideQuota &&
+        !ROUTE_SCOPED_QUOTA_RE.test(s.lastErrorMessage ?? '') &&
+        s.state === 'blocked' &&
+        s.stateExpiresAt !== null
+      ) {
+        const previous = this.providerQuotaBlocks.get(providerId) ?? 0;
+        this.providerQuotaBlocks.set(providerId, Math.max(previous, s.stateExpiresAt));
+      }
       restored += 1;
     }
     return restored;

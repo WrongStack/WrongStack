@@ -59,6 +59,7 @@ export interface ProviderConfigSnapshot {
   /** Live routing fields — surfaced so a cross-process WebUI /setmodel or
    *  profile-reorder propagates to running workers without restart. */
   fallbackModels?: string[];
+  fallbackBridge?: string;
   fallbackProfiles?: Record<string, string[]>;
   favoriteModels?: string[];
   favoriteModelsOnly?: boolean;
@@ -115,6 +116,7 @@ export async function readProviderSnapshot(
     baseUrl?: string;
     uiLocale?: string;
     fallbackModels?: string[];
+    fallbackBridge?: string;
     fallbackProfiles?: Record<string, string[]>;
     favoriteModels?: string[];
     favoriteModelsOnly?: boolean;
@@ -131,6 +133,9 @@ export async function readProviderSnapshot(
   if (typeof decrypted.uiLocale === 'string' && decrypted.uiLocale)
     snapshot.uiLocale = decrypted.uiLocale;
   if (Array.isArray(decrypted.fallbackModels)) snapshot.fallbackModels = decrypted.fallbackModels;
+  if (typeof decrypted.fallbackBridge === 'string' && decrypted.fallbackBridge.trim()) {
+    snapshot.fallbackBridge = decrypted.fallbackBridge.trim();
+  }
   if (decrypted.fallbackProfiles) snapshot.fallbackProfiles = decrypted.fallbackProfiles;
   if (Array.isArray(decrypted.favoriteModels)) snapshot.favoriteModels = decrypted.favoriteModels;
   if (typeof decrypted.favoriteModelsOnly === 'boolean')
@@ -150,6 +155,7 @@ function serializeSnapshot(s: ProviderConfigSnapshot): string {
     baseUrl: s.baseUrl ?? null,
     uiLocale: s.uiLocale ?? null,
     fallbackModels: s.fallbackModels ?? null,
+    fallbackBridge: s.fallbackBridge ?? null,
     fallbackProfiles: s.fallbackProfiles ?? null,
     favoriteModels: s.favoriteModels ?? null,
     favoriteModelsOnly: s.favoriteModelsOnly ?? null,

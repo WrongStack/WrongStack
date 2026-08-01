@@ -193,23 +193,30 @@ function fallbackCandidates(
 ): FallbackChain {
   const mgr = opts.sharedManager ?? new FallbackProfileManager(config);
   const configuredPrimary = opts.primary ?? primaryTarget(config);
-  // The effective fallbackAuto: honour the config explicitly, fall back to
-  // !closedWorld only when config.fallbackAuto is undefined/null.
+  // Outside a closed-world allowlist, honour fallbackAuto explicitly and use
+  // auto discovery by default when the setting is absent.
   const configFallbackAuto = config.fallbackAuto;
   const effectiveFallbackAuto =
     configFallbackAuto !== undefined && configFallbackAuto !== null
       ? configFallbackAuto
       : !opts.closedWorld;
-  const selectedChain = mgr.resolveEffective({
-    fallbackModels: opts.fallbackModels ?? config.fallbackModels,
-    fallbackProfile: opts.fallbackProfile,
-    fallbackAuto: effectiveFallbackAuto,
-    exclude: current,
-  });
+  const explicitRefs = opts.fallbackModels ?? config.fallbackModels;
+  const selectedChain = opts.closedWorld
+    ? explicitRefs && explicitRefs.length > 0
+      ? mgr.resolveRefs(explicitRefs, current)
+      : opts.fallbackProfile
+        ? mgr.resolve(opts.fallbackProfile, { exclude: current })
+        : Object.freeze([])
+    : mgr.resolveEffective({
+        fallbackModels: explicitRefs,
+        fallbackProfile: opts.fallbackProfile,
+        fallbackAuto: effectiveFallbackAuto,
+        exclude: current,
+      });
   const candidates: FallbackChainEntry[] = [];
 
   // A model allowlist is a permission boundary. Never append the session
-  // model, default profile, or auto-discovered providers outside that boundary.
+  // model, bridge, default profile, or auto-discovered providers outside it.
   if (opts.closedWorld) {
     candidates.push(...selectedChain);
     const seen = new Set<string>();
@@ -222,6 +229,10 @@ function fallbackCandidates(
       }),
     );
   }
+
+  // Immediate provider-independent escape hatch. resolveEffective() also
+  // carries it for one-shot/profile consumers; final dedupe keeps one copy.
+  candidates.push(...mgr.resolveBridge(current));
 
   // 1. A live config or role-selected primary is the user's current model
   //    choice, so try it before any fallback entries when the active context
@@ -246,8 +257,7 @@ function fallbackCandidates(
   // 4. Every other configured provider as a last resort — but only
   //    when fallbackAuto is actually enabled.
   if (effectiveFallbackAuto) {
-    const smartDefaults = mgr.resolveEffective({ fallbackAuto: true, exclude: current });
-    candidates.push(...smartDefaults);
+    candidates.push(...mgr.resolveAllConfigured(current));
   }
 
   const seen = new Set<string>();
@@ -494,7 +504,8 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         const current = { providerId: ctx_.provider.id, model: ctx_.model };
 
         // Record the failure in the tracker (real ProviderError, not our synthetic skip)
-        const firstErrIsProvider = firstErr_ instanceof ProviderError || ProviderError.isProviderError(firstErr_);
+        const firstErrIsProvider =
+          firstErr_ instanceof ProviderError || ProviderError.isProviderError(firstErr_);
         if (!alreadyTracked && firstErrIsProvider && tracker) {
           tracker.recordFailure(
             ctx_.provider.id,
@@ -533,14 +544,17 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           usableChain.length > 1 &&
           // Don't front-load if the last-working is the current model
           // (we're already on it) or if it's now blocked.
-          !(lastWorkingFallback.providerId === current.providerId &&
-            lastWorkingFallback.model === current.model) &&
-          !(tracker && !tracker.isAvailable(lastWorkingFallback.providerId, lastWorkingFallback.model))
+          !(
+            lastWorkingFallback.providerId === current.providerId &&
+            lastWorkingFallback.model === current.model
+          ) &&
+          !(
+            tracker &&
+            !tracker.isAvailable(lastWorkingFallback.providerId, lastWorkingFallback.model)
+          )
         ) {
           const lwfKey = `${lastWorkingFallback.providerId}/${lastWorkingFallback.model}`;
-          const lwfEntry = usableChain.find(
-            (e) => `${e.providerId}/${e.model}` === lwfKey,
-          );
+          const lwfEntry = usableChain.find((e) => `${e.providerId}/${e.model}` === lwfKey);
           if (lwfEntry) {
             usableChain = [
               lwfEntry,

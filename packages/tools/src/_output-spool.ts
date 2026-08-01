@@ -149,11 +149,12 @@ export function createOutputSpool(opts: CreateOutputSpoolOptions): OutputSpool {
   return {
     write(text: string): void {
       if (finalized || !text) return;
-      totalBytes += Buffer.byteLength(text, 'utf8');
+      const textBytes = Buffer.byteLength(text, 'utf8');
+      totalBytes += textBytes;
       if (!stream && !failed) {
-        if (headBytes + text.length <= threshold) {
+        if (headBytes + textBytes <= threshold) {
           head += text;
-          headBytes += text.length;
+          headBytes += textBytes;
           return;
         }
         head += text; // include the crossing chunk so the file misses nothing
@@ -163,7 +164,7 @@ export function createOutputSpool(opts: CreateOutputSpoolOptions): OutputSpool {
       }
       if (stream) {
         if (stream.writableLength > SPOOL_WRITE_HWM_BYTES) {
-          droppedBytes += Buffer.byteLength(text, 'utf8');
+          droppedBytes += textBytes;
           return;
         }
         stream.write(text);

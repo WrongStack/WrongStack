@@ -100,11 +100,14 @@ describe('system_config_view — models section', () => {
 
 describe('system_config_view — fallbacks section', () => {
   it('shows chain and profiles', async () => {
-    const tool = createSystemConfigViewTool(makeOpts());
+    const tool = createSystemConfigViewTool(
+      makeOpts({ fallbackBridge: 'test-provider/other-model' }),
+    );
     const result = await tool.execute({ section: 'fallbacks' }, {} as never, {
       signal: new AbortController().signal,
     });
     expect(result.message).toContain('test-provider/other-model');
+    expect(result.message).toContain('Continuity Bridge');
     expect(result.message).toContain('fast');
   });
 
@@ -200,6 +203,14 @@ describe('system_config_view — doctor section', () => {
       signal: new AbortController().signal,
     });
     expect(result.message).toContain('unknown provider');
+  });
+
+  it('reports a bare-model continuity bridge as invalid', async () => {
+    const tool = createSystemConfigViewTool(makeOpts({ fallbackBridge: 'other-model' }));
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    expect(result.message).toContain('must be a full provider/model reference');
   });
 
   it('warns about favorite model not in provider model list', async () => {

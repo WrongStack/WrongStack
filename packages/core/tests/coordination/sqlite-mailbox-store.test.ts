@@ -12,8 +12,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { resolveProjectDir } from '../../src/coordination/global-mailbox-paths.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import type { EventBus } from '../../src/kernel/events.js';
 
 let dir: string;
@@ -126,6 +126,30 @@ describe('SqliteMailbox messages', () => {
     expect(unread.map((m) => m.subject)).not.toContain('first');
     const since = await mb.query({ since: m1.timestamp });
     expect(since.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('applies unread filtering and the result limit before materializing message bodies', async () => {
+    const messages = [];
+    for (let i = 0; i < 80; i++) {
+      messages.push(await send({ subject: `message-${i}`, body: 'x'.repeat(8_192) }));
+    }
+    for (const message of messages.slice(5)) {
+      await mb.ack({ messageId: message.id, readerId: 'b', read: true } as never);
+    }
+
+    type Materialize = (rows: readonly unknown[]) => unknown[];
+    const instrumented = mb as unknown as { materializeMessageRows: Materialize };
+    const original = instrumented.materializeMessageRows.bind(mb);
+    const materializedRowCounts: number[] = [];
+    instrumented.materializeMessageRows = (rows) => {
+      materializedRowCounts.push(rows.length);
+      return original(rows);
+    };
+
+    const unread = await mb.query({ to: 'b', unreadBy: 'b', limit: 3 });
+
+    expect(unread).toHaveLength(3);
+    expect(materializedRowCounts).toEqual([3]);
   });
 
   it('acks read receipts, completion, and outcome; returns null for unknown ids', async () => {
@@ -385,10 +409,46 @@ describe('SqliteMailbox lifecycle', () => {
     const oldTs = new Date(Date.now() - 10 * 86_400_000).toISOString(); // 10 days old
     const recentTs = new Date().toISOString();
     const lines = [
-      { id: '1', from: 'a', to: 'b', type: 'info', subject: 'old-done', body: '', priority: 'normal', readBy: {}, completed: true, completedAt: oldTs, timestamp: oldTs },
-      { id: '2', from: 'a', to: 'b', type: 'info', subject: 'old-incomplete', body: '', priority: 'normal', readBy: {}, completed: false, timestamp: oldTs },
-      { id: '3', from: 'a', to: 'b', type: 'info', subject: 'recent', body: '', priority: 'normal', readBy: {}, completed: false, timestamp: recentTs },
-    ].map((m) => JSON.stringify(m)).join('\n');
+      {
+        id: '1',
+        from: 'a',
+        to: 'b',
+        type: 'info',
+        subject: 'old-done',
+        body: '',
+        priority: 'normal',
+        readBy: {},
+        completed: true,
+        completedAt: oldTs,
+        timestamp: oldTs,
+      },
+      {
+        id: '2',
+        from: 'a',
+        to: 'b',
+        type: 'info',
+        subject: 'old-incomplete',
+        body: '',
+        priority: 'normal',
+        readBy: {},
+        completed: false,
+        timestamp: oldTs,
+      },
+      {
+        id: '3',
+        from: 'a',
+        to: 'b',
+        type: 'info',
+        subject: 'recent',
+        body: '',
+        priority: 'normal',
+        readBy: {},
+        completed: false,
+        timestamp: recentTs,
+      },
+    ]
+      .map((m) => JSON.stringify(m))
+      .join('\n');
     const store = await openWithLegacyFiles({ '_mailbox.jsonl': `${lines}\n` });
 
     const result = await store.purgeStale();

@@ -1,16 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMcpUseTool } from '../../src/tools/mcp-use.js';
+import type { ToolRegistry } from '../../src/index.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
 import type { MCPRegistryHandle } from '../../src/tools/mcp-control.js';
-import type { ToolRegistry } from '../../src/index.js';
+import { createMcpUseTool } from '../../src/tools/mcp-use.js';
 import type { Tool } from '../../src/types/tool.js';
+import {
+  GOVERNED_TOOL_EXECUTOR_META_KEY,
+  type GovernedToolExecutor,
+} from '../../src/types/tool-executor.js';
 
 function fakeRegistry(over: Partial<MCPRegistryHandle> = {}): MCPRegistryHandle {
   return {
     start: vi.fn(),
     stop: vi.fn(),
     restart: vi.fn(),
-    describe: vi.fn().mockReturnValue([{ name: 'github', state: 'connected', toolCount: 2, enabled: true }]),
+    describe: vi
+      .fn()
+      .mockReturnValue([{ name: 'github', state: 'connected', toolCount: 2, enabled: true }]),
     list: vi.fn().mockReturnValue([]),
     activateServer: vi.fn(),
     deactivateServer: vi.fn(),
@@ -26,10 +32,44 @@ function fakeToolRegistry(tools: Tool[] = []): ToolRegistry {
 }
 
 const mcpTool = (name: string, exec: Tool['execute']): Tool =>
-  ({ name, description: '', category: 'mcp', permission: 'auto', inputSchema: { type: 'object' }, execute: exec }) as Tool;
+  ({
+    name,
+    description: '',
+    category: 'mcp',
+    permission: 'auto',
+    inputSchema: { type: 'object' },
+    execute: exec,
+  }) as Tool;
 
-const run = (tool: ReturnType<typeof createMcpUseTool>, input: Record<string, unknown>) =>
-  tool.execute(input as never, {} as never, { signal: new AbortController().signal } as never);
+const run = (
+  tool: ReturnType<typeof createMcpUseTool>,
+  input: Record<string, unknown>,
+  innerTools: Tool[] = [],
+) => {
+  const ctx = { meta: {} } as { meta: Record<string, unknown> };
+  const governedExecute: GovernedToolExecutor = async (toolName, toolInput) => {
+    const inner = innerTools.find((candidate) => candidate.name === toolName);
+    if (!inner) return { success: false, error: `tool "${toolName}" not found` };
+    try {
+      return {
+        success: true,
+        result: await inner.execute(
+          toolInput,
+          ctx as never,
+          { signal: new AbortController().signal } as never,
+        ),
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  };
+  ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] = governedExecute;
+  return tool.execute(
+    input as never,
+    ctx as never,
+    { signal: new AbortController().signal } as never,
+  );
+};
 
 describe('createMcpUseTool', () => {
   it('exposes mcp_use metadata', () => {
@@ -43,7 +83,11 @@ describe('createMcpUseTool', () => {
 
   it('reports an unknown server with the available list', async () => {
     const tool = createMcpUseTool({
-      registry: fakeRegistry({ describe: vi.fn().mockReturnValue([{ name: 'a', state: 'connected', toolCount: 0, enabled: true }]) }),
+      registry: fakeRegistry({
+        describe: vi
+          .fn()
+          .mockReturnValue([{ name: 'a', state: 'connected', toolCount: 0, enabled: true }]),
+      }),
       toolRegistry: fakeToolRegistry(),
     });
     const out = await run(tool, { server: 'ghost', tool: 't', input: {} });
@@ -52,13 +96,20 @@ describe('createMcpUseTool', () => {
   });
 
   it('reports "none" when there are no servers at all', async () => {
-    const tool = createMcpUseTool({ registry: fakeRegistry({ describe: vi.fn().mockReturnValue([]) }), toolRegistry: fakeToolRegistry() });
+    const tool = createMcpUseTool({
+      registry: fakeRegistry({ describe: vi.fn().mockReturnValue([]) }),
+      toolRegistry: fakeToolRegistry(),
+    });
     expect(await run(tool, { server: 'ghost', tool: 't', input: {} })).toContain('none');
   });
 
   it('refuses a server that is not connected', async () => {
     const tool = createMcpUseTool({
-      registry: fakeRegistry({ describe: vi.fn().mockReturnValue([{ name: 'github', state: 'connecting', toolCount: 0, enabled: true }]) }),
+      registry: fakeRegistry({
+        describe: vi
+          .fn()
+          .mockReturnValue([{ name: 'github', state: 'connecting', toolCount: 0, enabled: true }]),
+      }),
       toolRegistry: fakeToolRegistry(),
     });
     const out = await run(tool, { server: 'github', tool: 't', input: {} });
@@ -70,11 +121,14 @@ describe('createMcpUseTool', () => {
     const activateServer = vi.fn();
     const deactivateServer = vi.fn();
     const exec = vi.fn(async () => 'tool result');
+    const inner = mcpTool('mcp__github__create_issue', exec);
     const tool = createMcpUseTool({
       registry: fakeRegistry({ activateServer, deactivateServer }),
-      toolRegistry: fakeToolRegistry([mcpTool('mcp__github__create_issue', exec)]),
+      toolRegistry: fakeToolRegistry([inner]),
     });
-    const out = await run(tool, { server: 'github', tool: 'create_issue', input: { title: 'x' } });
+    const out = await run(tool, { server: 'github', tool: 'create_issue', input: { title: 'x' } }, [
+      inner,
+    ]);
     expect(out).toBe('tool result');
     expect(activateServer).toHaveBeenCalledWith('github');
     expect(exec).toHaveBeenCalledWith({ title: 'x' }, expect.anything(), expect.anything());
@@ -83,18 +137,42 @@ describe('createMcpUseTool', () => {
 
   it('defaults a missing input to an empty object', async () => {
     const exec = vi.fn(async () => 'ok');
+    const inner = mcpTool('mcp__github__ping', exec);
     const tool = createMcpUseTool({
       registry: fakeRegistry(),
-      toolRegistry: fakeToolRegistry([mcpTool('mcp__github__ping', exec)]),
+      toolRegistry: fakeToolRegistry([inner]),
     });
-    await run(tool, { server: 'github', tool: 'ping' });
+    await run(tool, { server: 'github', tool: 'ping' }, [inner]);
     expect(exec).toHaveBeenCalledWith({}, expect.anything(), expect.anything());
+  });
+
+  it('fails closed when governed nested execution is unavailable', async () => {
+    const deactivateServer = vi.fn();
+    const exec = vi.fn(async () => 'unsafe');
+    const inner = mcpTool('mcp__github__ping', exec);
+    const tool = createMcpUseTool({
+      registry: fakeRegistry({ deactivateServer }),
+      toolRegistry: fakeToolRegistry([inner]),
+    });
+
+    await expect(
+      tool.execute(
+        { server: 'github', tool: 'ping', input: {} },
+        { meta: {} } as never,
+        { signal: new AbortController().signal } as never,
+      ),
+    ).rejects.toThrow('governed nested execution is unavailable');
+    expect(exec).not.toHaveBeenCalled();
+    expect(deactivateServer).toHaveBeenCalledWith('github');
   });
 
   it('lists available tools when the requested tool is missing', async () => {
     const tool = createMcpUseTool({
       registry: fakeRegistry(),
-      toolRegistry: fakeToolRegistry([mcpTool('mcp__github__create_issue', vi.fn()), mcpTool('mcp__github__list_repos', vi.fn())]),
+      toolRegistry: fakeToolRegistry([
+        mcpTool('mcp__github__create_issue', vi.fn()),
+        mcpTool('mcp__github__list_repos', vi.fn()),
+      ]),
     });
     const out = await run(tool, { server: 'github', tool: 'nope', input: {} });
     expect(out).toContain('not found on server "github"');
@@ -110,19 +188,31 @@ describe('createMcpUseTool', () => {
 
   it('still deactivates when the tool call throws', async () => {
     const deactivateServer = vi.fn();
+    const inner = mcpTool(
+      'mcp__github__boom',
+      vi.fn(async () => {
+        throw new Error('tool exploded');
+      }),
+    );
     const tool = createMcpUseTool({
       registry: fakeRegistry({ deactivateServer }),
-      toolRegistry: fakeToolRegistry([mcpTool('mcp__github__boom', vi.fn(async () => { throw new Error('tool exploded'); }))]),
+      toolRegistry: fakeToolRegistry([inner]),
     });
-    await expect(run(tool, { server: 'github', tool: 'boom', input: {} })).rejects.toThrow('tool exploded');
+    await expect(run(tool, { server: 'github', tool: 'boom', input: {} }, [inner])).rejects.toThrow(
+      'tool exploded',
+    );
     expect(deactivateServer).toHaveBeenCalledWith('github');
   });
 
   it('works when the registry lacks activate/deactivate hooks', async () => {
+    const inner = mcpTool(
+      'mcp__github__ping',
+      vi.fn(async () => 'pong'),
+    );
     const tool = createMcpUseTool({
       registry: fakeRegistry({ activateServer: undefined, deactivateServer: undefined }),
-      toolRegistry: fakeToolRegistry([mcpTool('mcp__github__ping', vi.fn(async () => 'pong'))]),
+      toolRegistry: fakeToolRegistry([inner]),
     });
-    expect(await run(tool, { server: 'github', tool: 'ping', input: {} })).toBe('pong');
+    expect(await run(tool, { server: 'github', tool: 'ping', input: {} }, [inner])).toBe('pong');
   });
 });

@@ -1,3 +1,13 @@
+import { createFallbackModelExtension, type FallbackProfileManager } from '@wrongstack/core/agent';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { ProviderRegistry } from '@wrongstack/core/registry';
+import {
+  type ProviderConfigSnapshot,
+  readProviderSnapshot,
+  SessionMemoryConsolidator,
+  watchProviderConfig,
+} from '@wrongstack/core/storage';
 import type {
   Config,
   Logger,
@@ -6,14 +16,9 @@ import type {
   ProviderConfig,
   SecretVault,
 } from '@wrongstack/core/types';
-import { createFallbackModelExtension, type FallbackProfileManager } from '@wrongstack/core/agent';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { withCatalogCapabilities } from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { type ProviderConfigSnapshot, readProviderSnapshot, SessionMemoryConsolidator, watchProviderConfig } from '@wrongstack/core/storage';
-import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { WstackPaths } from '@wrongstack/core/utils';
 import { patchConfig } from '../utils.js';
 
 export function serializeProviderRuntimeSnapshot(snapshot: unknown): string {
@@ -229,6 +234,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   // fields) correctly restore the lower-precedence or default value.
   const ROUTING_FIELDS: (keyof ProviderConfigSnapshot)[] = [
     'fallbackModels',
+    'fallbackBridge',
     'fallbackProfiles',
     'favoriteModels',
     'favoriteModelsOnly',
@@ -289,6 +295,11 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
               ? { fallbackModels: snap.fallbackModels }
               : merged.fallbackModels !== undefined
                 ? { fallbackModels: merged.fallbackModels }
+                : {}),
+            ...(snap.fallbackBridge !== undefined
+              ? { fallbackBridge: snap.fallbackBridge }
+              : merged.fallbackBridge !== undefined
+                ? { fallbackBridge: merged.fallbackBridge }
                 : {}),
             ...(snap.fallbackProfiles !== undefined
               ? { fallbackProfiles: snap.fallbackProfiles }

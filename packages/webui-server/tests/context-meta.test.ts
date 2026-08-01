@@ -139,6 +139,29 @@ describe('seedContextMeta', () => {
     expect(context.meta['fallbackModels']).toEqual(['gpt-4']);
   });
 
+  it('sets fallbackBridge from config', () => {
+    const context: { meta: Record<string, unknown> } = { meta: {} };
+    seedContextMeta(makeConfig({ fallbackBridge: 'openai/gpt-5' }), context);
+    expect(context.meta['fallbackBridge']).toBe('openai/gpt-5');
+  });
+
+  it('reports the same bridge and explicit chain used by auto-review', () => {
+    const context: { meta: Record<string, unknown> } = { meta: {} };
+    seedContextMeta(
+      makeConfig({
+        provider: 'openai',
+        fallbackBridge: 'anthropic/claude-opus',
+        fallbackModels: ['openai/gpt-5-mini'],
+        fallbackAuto: false,
+      }),
+      context,
+    );
+    expect(context.meta['autoReviewFallbackModels']).toEqual([
+      'anthropic/claude-opus',
+      'openai/gpt-5-mini',
+    ]);
+  });
+
   it('sets fallbackProfiles from config', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig({ fallbackProfiles: { coding: ['claude'] } }), context);

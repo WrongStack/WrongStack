@@ -150,6 +150,12 @@ A quota response from any of them updates the same reset-room state. Existing
 fallback chains are re-checked just before each attempt, which closes the race
 where another concurrent worker blocks a route after the chain was resolved.
 
+Chimera review/fix/cascade work also has a bounded outer retry ladder. It first
+uses the assigned worker route and its effective chain; if the whole worker run
+still fails, it advances through remaining routes and keeps the live session
+provider/model as the final rung. Mutating ladders are intentionally shorter to
+avoid repeatedly entering a tree that an earlier failed worker may have edited.
+
 ## Shadow continuity audit
 
 The host-owned Shadow Agent observes `provider.status_changed` quota events.

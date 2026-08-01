@@ -1,9 +1,23 @@
+import { GOVERNED_TOOL_EXECUTOR_META_KEY, type GovernedToolExecutor } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { toolUseTool } from '../src/tool-use.js';
 
 const makeOpts = () => ({ signal: new AbortController().signal });
 
-const makeCtx = (tools: any[] = []) => ({ cwd: '/fake', tools, projectRoot: '/fake' }) as any;
+const makeCtx = (tools: any[] = []) => {
+  const ctx = { cwd: '/fake', tools, projectRoot: '/fake', meta: {} } as any;
+  const governedExecute: GovernedToolExecutor = async (toolName, input) => {
+    const tool = tools.find((candidate) => candidate.name === toolName);
+    if (!tool) return { success: false, error: `tool "${toolName}" not found` };
+    try {
+      return { success: true, result: await tool.execute(input, ctx, makeOpts()) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  };
+  ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] = governedExecute;
+  return ctx;
+};
 
 describe('toolUseTool', () => {
   it('has correct metadata', () => {
@@ -39,6 +53,33 @@ describe('toolUseTool', () => {
     const result = await toolUseTool.execute({ tool: 'denied' }, ctx, makeOpts());
     expect(result.success).toBe(false);
     expect(result.error).toContain('denied by policy');
+  });
+
+  it('fails closed when the governed executor bridge is unavailable', async () => {
+    const directExecute = vi.fn().mockResolvedValue({ unsafe: true });
+    const ctx = makeCtx([
+      { name: 'works', execute: directExecute, permission: 'auto', mutating: false },
+    ]);
+    delete ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY];
+
+    const result = await toolUseTool.execute({ tool: 'works', input: {} }, ctx, makeOpts());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('governed nested execution is unavailable');
+    expect(directExecute).not.toHaveBeenCalled();
+  });
+
+  it('blocks recursive tool_use dispatch', async () => {
+    const ctx = makeCtx([toolUseTool]);
+
+    const result = await toolUseTool.execute(
+      { tool: 'tool_use', input: { tool: 'tool_use' } },
+      ctx,
+      makeOpts(),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('recursive');
   });
 
   it('dispatches confirm-permission tools (outer tool_use already gated the call)', async () => {

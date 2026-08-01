@@ -454,13 +454,27 @@ export function projectSessionPlanToKanban(
 function fireAndForget(context: string, work: Promise<unknown>): void {
   void work.catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(JSON.stringify({ level: 'warn', event: 'session-kanban', context, message, timestamp: new Date().toISOString() }));
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'session-kanban',
+        context,
+        message,
+        timestamp: new Date().toISOString(),
+      }),
+    );
   });
 }
 
 function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]): void {
   const sessionId = context.session?.id ?? '';
   if (!context.agentId || !sessionId) return;
+  const statusCounts = { pending: 0, inProgress: 0, completed: 0 };
+  for (const todo of todos) {
+    if (todo.status === 'completed') statusCounts.completed++;
+    else if (todo.status === 'in_progress') statusCounts.inProgress++;
+    else statusCounts.pending++;
+  }
   const projectDir = resolveWstackPaths({ projectRoot: context.projectRoot }).projectDir;
   const mailbox = getSharedProjectMailbox(projectDir);
   void mailbox
@@ -473,11 +487,11 @@ function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]): void
         kind: 'kanban.todos.updated',
         sessionId,
         revision: context.state.revision,
-        todos,
+        todoCount: todos.length,
+        statusCounts,
       }),
       priority: 'normal',
       senderSessionId: sessionId,
-      ttlMs: 6 * 60 * 60 * 1000,
     })
     .catch(() => {
       // Mailbox awareness is best-effort; canonical state is already updated.

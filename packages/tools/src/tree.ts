@@ -1,11 +1,14 @@
-import { DEFAULT_WALK_IGNORE_DIRS, expectDefined } from '@wrongstack/core/utils';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
+import { DEFAULT_WALK_IGNORE_DIRS, expectDefined } from '@wrongstack/core/utils';
 import { safeResolve } from './_util.js';
+
 // Shared artifact/dependency dirs, plus tree-specific privacy dirs — tree can
 // be pointed at $HOME, where listing key material is never wanted.
 const DEFAULT_IGNORE = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.ssh', '.gnupg', '.aws'];
+const DEFAULT_MAX_ENTRIES = 5_000;
+const MAX_TREE_OUTPUT_BYTES = 256 * 1024;
 
 interface TreeInput {
   path?: string | undefined;
@@ -15,6 +18,7 @@ interface TreeInput {
   show_files?: boolean | undefined;
   show_dirs?: boolean | undefined;
   show_hidden?: boolean | undefined;
+  max_entries?: number | undefined;
 }
 
 interface TreeOutput {
@@ -75,6 +79,12 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
         type: 'boolean',
         description: 'Show hidden files starting with . (default: false)',
       },
+      max_entries: {
+        type: 'integer',
+        description: `Maximum entries retained in the rendered tree (default ${DEFAULT_MAX_ENTRIES}).`,
+        minimum: 1,
+        maximum: 50_000,
+      },
     },
   },
   async execute(input, ctx, opts) {
@@ -87,7 +97,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     if (!final) throw new Error('tree: stream ended without final event');
     return final;
   },
-  async *executeStream(input, ctx): AsyncGenerator<ToolStreamEvent<TreeOutput>> {
+  async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TreeOutput>> {
     const basePath = input.path ? safeResolve(input.path, ctx) : ctx.cwd;
     const maxDepth = input.depth ?? 3;
     const showFiles = input.show_files ?? true;
@@ -95,9 +105,18 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     const showHidden = input.show_hidden ?? false;
     const exclude = new Set([...DEFAULT_IGNORE, ...(input.exclude ?? [])]);
     const filterGlob = input.glob;
+    const maxEntries = input.max_entries ?? DEFAULT_MAX_ENTRIES;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     const lines: string[] = [basePath];
     const totals = { totalFiles: { value: 0 }, totalDirs: { value: 0 } };
+    const retention = {
+      entries: 0,
+      outputBytes: Buffer.byteLength(basePath, 'utf8'),
+      maxEntries,
+      maxOutputBytes: MAX_TREE_OUTPUT_BYTES,
+      truncated: false,
+    };
 
     // Walker pushes progress into an async queue; the generator drains it.
     const queue: ToolProgressEvent[] = [];
@@ -129,13 +148,20 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
       totalFiles: totals.totalFiles,
       totalDirs: totals.totalDirs,
       onProgress: tickProgress,
+      retention,
+      signal,
     });
 
     // Race the walk against periodic flushes — yield metrics while it runs.
     let walkDone = false;
-    walkPromise.finally(() => {
-      walkDone = true;
-    });
+    void walkPromise.then(
+      () => {
+        walkDone = true;
+      },
+      () => {
+        walkDone = true;
+      },
+    );
 
     while (!walkDone || queue.length > 0) {
       if (queue.length > 0) {
@@ -164,7 +190,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
         tree: lines.join('\n'),
         total_files: totals.totalFiles.value,
         total_dirs: totals.totalDirs.value,
-        truncated: false,
+        truncated: retention.truncated,
         path: basePath,
       },
     };
@@ -184,9 +210,19 @@ interface WalkOptions {
   totalFiles: { value: number };
   totalDirs: { value: number };
   onProgress?: (() => void) | undefined;
+  retention: {
+    entries: number;
+    outputBytes: number;
+    maxEntries: number;
+    maxOutputBytes: number;
+    truncated: boolean;
+  };
+  signal: AbortSignal;
 }
 
 async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<void> {
+  opts.signal.throwIfAborted();
+  if (opts.retention.truncated) return;
   const entries = await fs
     .readdir(dir, { withFileTypes: true })
     .catch(() => [] as import('node:fs').Dirent[]);
@@ -212,6 +248,8 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
   });
 
   for (let i = 0; i < items.length; i++) {
+    opts.signal.throwIfAborted();
+    if (opts.retention.truncated) return;
     const entry = items[i];
     /* v8 ignore next -- i is bounded by items.length, so entry is always defined; defensive. */
     if (!entry) continue;
@@ -223,7 +261,18 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
     if (!opts.showDirs && entry.isDirectory()) continue;
     if (!opts.showFiles && entry.isFile()) continue;
 
-    opts.lines.push(opts.prefix + branch + displayName);
+    const line = opts.prefix + branch + displayName;
+    const lineBytes = Buffer.byteLength(line, 'utf8') + 1;
+    if (
+      opts.retention.entries >= opts.retention.maxEntries ||
+      opts.retention.outputBytes + lineBytes > opts.retention.maxOutputBytes
+    ) {
+      opts.retention.truncated = true;
+      return;
+    }
+    opts.lines.push(line);
+    opts.retention.entries++;
+    opts.retention.outputBytes += lineBytes;
 
     if (entry.isDirectory() && (opts.maxDepth === 0 || depth < opts.maxDepth)) {
       const childPrefix = opts.prefix + connector;

@@ -1,19 +1,18 @@
+import type { Config, Provider, Response } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   refineGoalHeuristic,
   refineGoalWithFallback,
   resolveRefinerTarget,
 } from '../src/slash-commands/goal-refiner.js';
-import type { Config, Provider, Response } from '@wrongstack/core/types';
 
 // ---------------------------------------------------------------------------
 // Helper: a fake Provider whose `complete()` returns a canned Response
 // ---------------------------------------------------------------------------
-function fakeProvider(overrides?: {
-  responseText?: string;
-  shouldThrow?: boolean;
-}): Provider {
-  const text = overrides?.responseText ?? `REFINED_GOAL:
+function fakeProvider(overrides?: { responseText?: string; shouldThrow?: boolean }): Provider {
+  const text =
+    overrides?.responseText ??
+    `REFINED_GOAL:
 Build the auth module with JWT and refresh tokens.
 
 DELIVERABLES:
@@ -58,7 +57,8 @@ describe('refineGoalHeuristic', () => {
   });
 
   it('recognises all action verbs in the heuristic list', () => {
-    const goal = 'Add logging. Build dashboard. Create schema. Fix bug. Implement search. Refactor utils. Write docs. Remove dead code. Update deps. Migrate DB. Set up CI. Configure ESLint. Deploy canary. Test webhooks. Document API.';
+    const goal =
+      'Add logging. Build dashboard. Create schema. Fix bug. Implement search. Refactor utils. Write docs. Remove dead code. Update deps. Migrate DB. Set up CI. Configure ESLint. Deploy canary. Test webhooks. Document API.';
     const result = refineGoalHeuristic(goal);
     // Every sentence starts with an action verb, so each should be a deliverable.
     expect(result.deliverables.length).toBeGreaterThanOrEqual(15);
@@ -96,7 +96,7 @@ function makeMinimalConfig(overrides?: Partial<Config>): Config {
 
 describe('resolveRefinerTarget', () => {
   const createFake = (id: string) => (pid: string) =>
-    pid === id ? { id: pid } as unknown as Provider : undefined;
+    pid === id ? ({ id: pid } as unknown as Provider) : undefined;
 
   it('returns undefined when neither refinerProvider nor refinerModel is in config', () => {
     const cfg = makeMinimalConfig();
@@ -179,6 +179,18 @@ describe('resolveRefinerTarget', () => {
     });
     const result = resolveRefinerTarget(cfg, undefined, 'openai', 'gpt-4');
     expect(result).toBeUndefined();
+  });
+
+  it('skips an invalid first profile entry and uses the next valid refiner target', () => {
+    const cfg = makeMinimalConfig({
+      autonomy: { refinerFallbackProfile: 'refiners' },
+      fallbackProfiles: {
+        refiners: ['missing/broken', 'openai/gpt-4'],
+      },
+    });
+    const result = resolveRefinerTarget(cfg, createFake('openai'), 'openai', 'gpt-4');
+    expect(result?.provider.id).toBe('openai');
+    expect(result?.model).toBe('gpt-4');
   });
 });
 

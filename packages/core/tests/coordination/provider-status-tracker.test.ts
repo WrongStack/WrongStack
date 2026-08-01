@@ -212,7 +212,10 @@ describe('ProviderModelStatusTracker', () => {
       'Internal error; try again in 6h12m',
     );
 
-    strictEqual(tracker.getStatus('test', 'server-model')?.recentErrors[0]?.retryAfterMs, undefined);
+    strictEqual(
+      tracker.getStatus('test', 'server-model')?.recentErrors[0]?.retryAfterMs,
+      undefined,
+    );
   });
 
   // ── Provider-level sibling quarantine ─────────────────────────────
@@ -237,6 +240,14 @@ describe('ProviderModelStatusTracker', () => {
     // The sibling is ALSO blocked via fan-out.
     strictEqual(tracker.getStatus('openai', 'gpt-4o-mini')?.state, 'blocked');
     ok(!tracker.isAvailable('openai', 'gpt-4o-mini'));
+  });
+
+  it('quarantines unseen sibling models after provider-wide quota exhaustion', () => {
+    tracker.recordFailure('openai', 'gpt-4o', 'quota_exhausted', 429, 'account credit exhausted');
+
+    strictEqual(tracker.getStatus('openai', 'never-tried'), undefined);
+    strictEqual(tracker.isAvailable('openai', 'never-tried'), false);
+    strictEqual(tracker.isAvailable('anthropic', 'never-tried'), true);
   });
 
   it('does NOT quarantine siblings on a different provider', () => {
@@ -750,6 +761,15 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(restored.restoreSnapshot(snapshot), 1);
     strictEqual(restored.isAvailable('cc', 'claude-opus-4.8'), false);
     strictEqual(restored.getStatus('cc', 'claude-opus-4.8')?.lastErrorKind, 'quota_exhausted');
+    strictEqual(restored.isAvailable('cc', 'unseen-sibling'), false);
+  });
+
+  it('restores provider-wide blocks classified from a rate-limit message', () => {
+    tracker.recordFailure('openai', 'gpt-4o', 'rate_limit', 429, 'account credit exhausted');
+    const restored = createTestTracker();
+
+    strictEqual(restored.restoreSnapshot(tracker.getSnapshot()), 1);
+    strictEqual(restored.isAvailable('openai', 'unseen-sibling'), false);
   });
 
   it('ignores malformed and expired persisted entries', () => {

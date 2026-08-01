@@ -181,9 +181,14 @@ export function resolveAutoReviewConfig(
   sessionConfig: Config,
 ): ResolvedAutoReviewConfig {
   const mgr = new FallbackProfileManager(sessionConfig);
-  const chain = cfg.fallbackProfile
-    ? mgr.resolve(cfg.fallbackProfile)
-    : mgr.resolveEffective({ fallbackAuto: true });
+  const chain = mgr.resolveEffective({
+    ...(cfg.fallbackProfile
+      ? { fallbackProfile: cfg.fallbackProfile, fallbackAuto: false }
+      : {
+          fallbackModels: sessionConfig.fallbackModels,
+          fallbackAuto: sessionConfig.fallbackAuto,
+        }),
+  });
   // Normalize: empty strings are equivalent to undefined — treat them the same
   // so a config with provider: "" doesn't produce an empty provider string that
   // bypasses the ?? fallback below.

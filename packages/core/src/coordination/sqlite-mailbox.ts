@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { EventBus } from '../kernel/events.js';
+import { isMessageCompletedForActor } from './global-mailbox-completion.js';
 import {
   AGENT_STALE_MS,
   AUTO_COMPACT_INTERVAL_MS,
@@ -16,12 +17,13 @@ import type {
   MailboxCredential,
 } from './mailbox-credential-store.js';
 import type { MailboxEventEmitter } from './mailbox-events.js';
-import { isMessageCompletedForActor } from './global-mailbox-completion.js';
+import { normalizeMailboxMessageType } from './mailbox-message-codec.js';
 import { isFanOutRecipient } from './mailbox-receipt-folding.js';
+import { projectMailboxCompletion } from './mailbox-retention-state.js';
 import {
-  projectMailboxCompletion,
-} from './mailbox-retention-state.js';
-import { mapRegisteredAgentsToStatuses, mapRegisteredClientsToStatuses } from './mailbox-status-mappers.js';
+  mapRegisteredAgentsToStatuses,
+  mapRegisteredClientsToStatuses,
+} from './mailbox-status-mappers.js';
 import type {
   AgentHeartbeatInput,
   AgentRegistrationInput,
@@ -45,17 +47,13 @@ import type {
   RegisteredClient,
 } from './mailbox-types.js';
 import {
+  isMailboxLeader,
   isMailboxMessageVisibleTo,
   normalizeRecipient,
   sessionRecipient,
   validateSendType,
 } from './mailbox-types.js';
-import { normalizeMailboxMessageType } from './mailbox-message-codec.js';
-import {
-  autoCompact,
-  type CompactionContext,
-  purgeStale,
-} from './sqlite-mailbox-compaction.js';
+import { autoCompact, type CompactionContext, purgeStale } from './sqlite-mailbox-compaction.js';
 import {
   credentialGet,
   credentialIssue,
@@ -67,9 +65,8 @@ import {
 } from './sqlite-mailbox-credentials.js';
 import {
   deleteMessages,
-  materializeMessageRows,
   type MessageRow,
-  type SqliteStatement,
+  materializeMessageRows,
   persistAgent,
   persistClient,
   persistMessage,
@@ -78,6 +75,7 @@ import {
   pruneClients,
   readAgents,
   readClients,
+  type SqliteStatement,
   withoutAggregateCompletion,
 } from './sqlite-mailbox-rows.js';
 import {
@@ -246,8 +244,7 @@ export class SqliteMailbox implements Mailbox {
     const type = query.type === undefined ? undefined : normalizeMailboxMessageType(query.type);
     const priorityRank = { low: 0, normal: 1, high: 2 } as const;
     const minimumRank = query.minPriority === undefined ? 0 : priorityRank[query.minPriority];
-    const statuses =
-      query.unreadBy === undefined ? await this.getAgentStatuses() : undefined;
+    const statuses = query.unreadBy === undefined ? await this.getAgentStatuses() : undefined;
     const where: string[] = [];
     const params: Array<string | number> = [];
     if (query.to !== undefined) {
@@ -283,7 +280,41 @@ export class SqliteMailbox implements Mailbox {
       where.push('reply_to = ?');
       params.push(query.replyTo);
     }
-    const canPreLimit = query.unreadBy === undefined && !query.incompleteOnly;
+    if (query.unreadBy !== undefined) {
+      if (!isMailboxLeader(query.unreadBy, query.readerRole)) {
+        where.push("COALESCE(json_extract(data, '$.audience'), 'all') <> 'leaders'");
+      }
+      if (!query.incompleteOnly) {
+        where.push(`NOT EXISTS (
+          SELECT 1 FROM message_receipts AS unread_receipt
+          WHERE unread_receipt.message_id = messages.id
+            AND unread_receipt.actor_id = ?
+            AND unread_receipt.read_at IS NOT NULL
+        )`);
+        params.push(query.unreadBy);
+        where.push(`NOT EXISTS (
+          SELECT 1 FROM json_each(json_extract(data, '$.readBy')) AS legacy_read
+          WHERE legacy_read.key = ?
+        )`);
+        params.push(query.unreadBy);
+      } else {
+        where.push('legacy_global_completion = 0');
+        where.push(`NOT EXISTS (
+          SELECT 1 FROM message_receipts AS completed_receipt
+          WHERE completed_receipt.message_id = messages.id
+            AND completed_receipt.actor_id = ?
+            AND completed_receipt.completed_at IS NOT NULL
+        )`);
+        params.push(query.unreadBy);
+        where.push(`(
+          completed = 0 OR EXISTS (
+            SELECT 1 FROM message_receipts AS any_receipt
+            WHERE any_receipt.message_id = messages.id
+          )
+        )`);
+      }
+    }
+    const canPreLimit = !query.incompleteOnly || query.unreadBy !== undefined;
     let sql = 'SELECT id, data, legacy_global_completion FROM messages';
     if (where.length > 0) sql += ` WHERE ${where.join(' AND ')}`;
     // `rowid DESC` breaks ties: two sends can land in the same millisecond and
@@ -300,22 +331,22 @@ export class SqliteMailbox implements Mailbox {
     const messages = this.materializeMessageRows(rows).filter((message) => {
       if (query.to !== undefined && message.to !== query.to && message.to !== '*') return false;
       if (query.from !== undefined && message.from !== query.from) return false;
-      if (query.sessionId !== undefined && message.senderSessionId !== query.sessionId) return false;
+      if (query.sessionId !== undefined && message.senderSessionId !== query.sessionId)
+        return false;
       if (
         query.unreadBy !== undefined &&
         !isMailboxMessageVisibleTo(message, query.unreadBy, query.readerRole)
-      ) return false;
-      if (
-        !query.incompleteOnly &&
-        query.unreadBy !== undefined &&
-        query.unreadBy in message.readBy
-      ) return false;
+      )
+        return false;
+      if (!query.incompleteOnly && query.unreadBy !== undefined && query.unreadBy in message.readBy)
+        return false;
       if (
         query.incompleteOnly &&
         (query.unreadBy === undefined
           ? projectMailboxCompletion(message, undefined, statuses).completed
           : isMessageCompletedForActor(message, query.unreadBy))
-      ) return false;
+      )
+        return false;
       if (type !== undefined && message.type !== type) return false;
       if (priorityRank[message.priority] < minimumRank) return false;
       if (query.since !== undefined && message.timestamp <= query.since) return false;
@@ -625,10 +656,7 @@ export class SqliteMailbox implements Mailbox {
 
   async clientHeartbeat(input: ClientHeartbeatInput): Promise<void> {
     const nowMs = Date.now();
-    if (
-      nowMs - (this.lastClientHeartbeat.get(input.clientId) ?? 0) <
-      HEARTBEAT_THROTTLE_MS
-    ) return;
+    if (nowMs - (this.lastClientHeartbeat.get(input.clientId) ?? 0) < HEARTBEAT_THROTTLE_MS) return;
     this.lastClientHeartbeat.set(input.clientId, nowMs);
     this.pruneHeartbeats(this.lastClientHeartbeat, nowMs);
     this.pruneClientsInPlace();
@@ -691,9 +719,10 @@ export class SqliteMailbox implements Mailbox {
     return credentialStatusCounts(this.db);
   }
 
-  credentialIssue(
-    options: IssueCredentialOptions,
-  ): { credential: MailboxCredential; secret: string } {
+  credentialIssue(options: IssueCredentialOptions): {
+    credential: MailboxCredential;
+    secret: string;
+  } {
     return credentialIssue(this.db, (run) => this.transaction(run), options);
   }
 

@@ -86,12 +86,40 @@ export function createToolOutputSerializer(opts: ToolOutputSerializerOptions = {
       return { text: '[truncated: iteration output cap exceeded]', newBudget: 0 };
     }
     const half = Math.floor(available / 2);
-    const first = text.slice(0, half);
-    const second = text.slice(text.length - half);
+    const first = utf8Prefix(text, half);
+    const second = utf8Suffix(text, available - Buffer.byteLength(first, 'utf8'));
     return { text: `${first}${marker}${second}`, newBudget: 0 };
   }
 
   return { serialize, enforceCap, capBytes };
+}
+
+function utf8Prefix(text: string, maxBytes: number): string {
+  if (maxBytes <= 0) return '';
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (Buffer.byteLength(text.slice(0, mid), 'utf8') <= maxBytes) low = mid;
+    else high = mid - 1;
+  }
+  let end = low;
+  if (end > 0 && /[\uD800-\uDBFF]/.test(text[end - 1]!)) end--;
+  return text.slice(0, end);
+}
+
+function utf8Suffix(text: string, maxBytes: number): string {
+  if (maxBytes <= 0) return '';
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const chars = Math.ceil((low + high) / 2);
+    if (Buffer.byteLength(text.slice(text.length - chars), 'utf8') <= maxBytes) low = chars;
+    else high = chars - 1;
+  }
+  let start = text.length - low;
+  if (start < text.length && /[\uDC00-\uDFFF]/.test(text[start]!)) start++;
+  return text.slice(start);
 }
 
 function renderToolObject(toolName: string, obj: RecordValue, input: unknown): string | undefined {

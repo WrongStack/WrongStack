@@ -112,8 +112,7 @@ function readConfig(raw: unknown): DeadCodeDetectorConfig {
 
 interface ScannedFile {
   path: string;
-  content: string;
-  stripped: string;
+  exports: SuspiciousSymbol[];
 }
 
 /**
@@ -140,7 +139,7 @@ async function gatherFiles(
     }
     // Sort entries for deterministic traversal order across platforms.
     entries.sort((a, b) => a.name.localeCompare(b.name));
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         if (remaining > 0 && !excludeSet.has(entry.name)) {
@@ -169,19 +168,12 @@ function stripNoise(content: string): string {
   // Remove multi-line comments.
   stripped = stripped.replace(/\/\*[\s\S]*?\*\//g, ' ');
   // Remove string literals (basic coverage for '...', "...", `...`).
-  stripped = stripped.replace(
-    /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/g,
-    ' ',
-  );
+  stripped = stripped.replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/g, ' ');
   return stripped;
 }
 
 function lineNumber(content: string, index: number): number {
   return content.slice(0, index).split(/\r?\n/).length;
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 const DECLARATION_EXPORT_RE =
@@ -230,39 +222,43 @@ function extractExports(content: string, filePath: string): SuspiciousSymbol[] {
 /**
  * Find unused symbols across all scanned files.
  *
- * Performance: builds a single combined regex per identifier instead of
- * testing each file separately. This reduces regex compilation overhead
- * from O(symbols × files) to O(symbols).
+ * Performance: source text is never retained after a file is parsed. A second
+ * streaming pass counts only identifiers that are exported somewhere in the
+ * scan, reducing the old O(exports × files × source length) regex work to two
+ * linear file reads while avoiding simultaneous `content` + `stripped` copies.
  *
  * Determinism: returns findings in sorted order (by file path, then line)
  * so scan results are reproducible across runs.
  */
-function findUnusedSymbols(files: ScannedFile[]): SuspiciousSymbol[] {
+async function findUnusedSymbols(files: ScannedFile[]): Promise<SuspiciousSymbol[]> {
   const suspicious: SuspiciousSymbol[] = [];
+  const exportedNames = new Set(files.flatMap((file) => file.exports.map((exp) => exp.identifier)));
+  const filesContainingIdentifier = new Map<string, number>();
+  const identifierPattern = /[A-Za-z_$][A-Za-z0-9_$]*/g;
 
   for (const file of files) {
-    const fileExports = extractExports(file.content, file.path);
-    for (const exp of fileExports) {
-      // Explicit identifier boundaries rather than `\b`. `\b` is defined
-      // against `[A-Za-z0-9_]`, which excludes `$` — so a `$`-prefixed
-      // export was never matched in any other file and got reported as
-      // dead code. This tool's output is a recommendation to DELETE, so a
-      // false positive here is expensive.
-      const pattern = new RegExp(
-        `(?<![A-Za-z0-9_$])${escapeRegex(exp.identifier)}(?![A-Za-z0-9_$])`,
-        'g',
+    let content: string;
+    try {
+      content = await readFile(file.path, 'utf-8');
+    } catch {
+      continue;
+    }
+    const seenInFile = new Set<string>();
+    for (const match of stripNoise(content).matchAll(identifierPattern)) {
+      const identifier = match[0];
+      if (exportedNames.has(identifier)) seenInFile.add(identifier);
+    }
+    for (const identifier of seenInFile) {
+      filesContainingIdentifier.set(
+        identifier,
+        (filesContainingIdentifier.get(identifier) ?? 0) + 1,
       );
-      let usedElsewhere = false;
-      for (const other of files) {
-        if (other.path === file.path) continue;
-        if (pattern.test(other.stripped)) {
-          usedElsewhere = true;
-          break;
-        }
-      }
-      if (!usedElsewhere) {
-        suspicious.push(exp);
-      }
+    }
+  }
+
+  for (const file of files) {
+    for (const exp of file.exports) {
+      if ((filesContainingIdentifier.get(exp.identifier) ?? 0) <= 1) suspicious.push(exp);
     }
   }
 
@@ -287,12 +283,12 @@ async function scan(root: string, depth: number, cfg: DeadCodeDetectorConfig): P
   for (const p of filePaths) {
     try {
       const content = await readFile(p, 'utf-8');
-      files.push({ path: p, content, stripped: stripNoise(content) });
+      files.push({ path: p, exports: extractExports(content, p) });
     } catch {
       // Skip unreadable files.
     }
   }
-  return { findings: findUnusedSymbols(files), scannedFiles: files.length };
+  return { findings: await findUnusedSymbols(files), scannedFiles: files.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -383,13 +379,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['dead-code-detector']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
 
       // Skip if the mutating tool itself errored.
@@ -427,10 +421,7 @@ const plugin: Plugin = {
       state.hitCount += 1;
       state.warningCount += relevant.length;
       const list = relevant
-        .map(
-          (f) =>
-            `  - ${f.identifier} (${f.exportType}) at ${relativePath(f.file)}:${f.line}`,
-        )
+        .map((f) => `  - ${f.identifier} (${f.exportType}) at ${relativePath(f.file)}:${f.line}`)
         .join('\n');
       const message =
         `\n⚠️ dead-code-detector: ${relevant.length} exported symbol(s) in ${sourcePath} look unused:\n` +
@@ -439,7 +430,9 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- dead_code_scan tool ---
     api.tools.register({

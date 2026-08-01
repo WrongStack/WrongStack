@@ -43,6 +43,16 @@ describe('createOutputSpool', () => {
     expect(content).toBe(chunkA + chunkB + chunkC);
   });
 
+  it('uses UTF-8 bytes rather than JavaScript character count for the threshold', async () => {
+    const spool = createOutputSpool({ tool: 'unicode', thresholdBytes: 10 });
+    spool.write('😀😀😀');
+
+    const info = spool.finalize();
+
+    expect(info?.bytes).toBe(12);
+    await expect.poll(async () => fsp.readFile(info!.path, 'utf8')).toBe('😀😀😀');
+  });
+
   it('finalize is idempotent and write() after finalize is a no-op', () => {
     const spool = createOutputSpool({ tool: 'idem', thresholdBytes: 10 });
     spool.write('x'.repeat(50));
@@ -152,5 +162,30 @@ describe('spawnStream spool integration', () => {
     const r = result as { stdout: string; spoolPath?: string };
     expect(r.spoolPath).toBeUndefined();
     expect(r.stdout).not.toContain('[output truncated');
+  });
+
+  it('retains process output according to UTF-8 bytes', async () => {
+    const ctrl = new AbortController();
+    const gen = spawnStream({
+      cmd: 'node',
+      args: ['-e', "process.stdout.write('😀'.repeat(100))"],
+      cwd: process.cwd(),
+      signal: ctrl.signal,
+      maxBytes: 17,
+    });
+    let result: Awaited<ReturnType<typeof gen.next>>['value'];
+    for (;;) {
+      const { value, done } = await gen.next();
+      if (done) {
+        result = value;
+        break;
+      }
+    }
+    const output = result as { stdout: string; truncated: boolean };
+    const retained = output.stdout.split('\n[output truncated', 1)[0]!;
+
+    expect(retained).toBe('😀'.repeat(4));
+    expect(Buffer.byteLength(retained, 'utf8')).toBe(16);
+    expect(output.truncated).toBe(true);
   });
 });

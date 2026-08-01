@@ -312,26 +312,47 @@ export class OneShotOrchestrator {
     target: { providerId: string; model: string },
   ): FallbackChain {
     const mgr = this.opts.fallbackProfileManager;
+    // An explicit bridge is independent of auto derivation, so seed the chain
+    // with it even when fallbackAuto is disabled and no ordinary list exists.
+    let selected: FallbackChain = mgr.resolveEffective({
+      fallbackAuto: false,
+      exclude: target,
+    });
 
     // Explicit chain wins
     if (input.fallbackModels && input.fallbackModels.length > 0) {
-      return mgr.resolveRefs(input.fallbackModels, target);
-    }
-
-    // Config-level fallbackModels — independent of fallbackAuto
-    if (config.fallbackModels && config.fallbackModels.length > 0) {
-      return mgr.resolveRefs(config.fallbackModels, target);
-    }
-
-    // Smart default from config (only when auto-derivation is enabled)
-    if (config.fallbackAuto !== false) {
-      return mgr.resolveEffective({
+      selected = mgr.resolveEffective({
+        fallbackModels: input.fallbackModels,
+        fallbackAuto: false,
+        exclude: target,
+      });
+    } else if (config.fallbackModels && config.fallbackModels.length > 0) {
+      // Config-level fallbackModels — independent of fallbackAuto
+      selected = mgr.resolveEffective({
+        fallbackModels: config.fallbackModels,
+        fallbackAuto: false,
+        exclude: target,
+      });
+    } else if (config.fallbackAuto !== false) {
+      // Smart default from config (only when auto-derivation is enabled)
+      selected = mgr.resolveEffective({
         fallbackAuto: true,
         exclude: target,
       });
     }
 
-    return Object.freeze([]) as FallbackChain;
+    if (config.fallbackAuto === false) return selected;
+
+    const combined = [...selected, ...mgr.resolveAllConfigured(target)];
+    const seen = new Set<string>();
+    return Object.freeze(
+      combined.filter((entry) => {
+        const key = `${entry.providerId}/${entry.model}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+    );
   }
 
   /** Attempt a provider call while preserving the actual failure for callers. */

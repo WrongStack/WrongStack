@@ -576,6 +576,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       // not inside the profile directory — resolve via global root to stay correct.
       getVault(opts.globalConfigPath),
       (snapshot) => {
+        const hadFallbackBridge = Boolean(opts.appConfig?.fallbackBridge?.trim());
         // Best-effort: refresh the in-memory providers ref the panel reads from
         // (skipped silently when appConfig is frozen — the broadcast below still
         // pushes the fresh map, so panels stay correct either way).
@@ -583,6 +584,11 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           if (opts.appConfig && !Object.isFrozen(opts.appConfig)) {
             opts.appConfig.providers = snapshot.providers;
             if (snapshot.uiLocale) opts.appConfig.uiLocale = snapshot.uiLocale;
+            if (snapshot.fallbackBridge !== undefined) {
+              opts.appConfig.fallbackBridge = snapshot.fallbackBridge;
+            } else {
+              delete opts.appConfig.fallbackBridge;
+            }
           }
         } catch {
           /* frozen / read-only appConfig — ignore */
@@ -591,6 +597,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         // pick them up (independent of the provider-credential path below).
         const routingChanged =
           snapshot.fallbackModels !== undefined ||
+          snapshot.fallbackBridge !== undefined ||
+          hadFallbackBridge ||
           snapshot.fallbackProfiles !== undefined ||
           snapshot.favoriteModels !== undefined ||
           snapshot.favoriteModelsOnly !== undefined ||
@@ -604,6 +612,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
             ...(snapshot.fallbackModels !== undefined
               ? { fallbackModels: snapshot.fallbackModels }
               : {}),
+            fallbackBridge: snapshot.fallbackBridge ?? '',
             ...(snapshot.fallbackProfiles !== undefined
               ? { fallbackProfiles: snapshot.fallbackProfiles }
               : {}),

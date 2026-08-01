@@ -14,9 +14,9 @@
  * non-fixable finding instead of guessed at.
  */
 
+import { isSecretField } from '@wrongstack/core/security';
 import type { JSONSchema } from '@wrongstack/core/types';
 import { validateAgainstSchema } from '@wrongstack/core/utils';
-import { isSecretField } from '@wrongstack/core/security';
 import { nextCustomProviderId } from './provider-id.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from './tui-thinking-word.js';
 
@@ -67,6 +67,7 @@ const KNOWN_TOP_LEVEL_KEYS = [
   'acp',
   'agents',
   'fallbackModels',
+  'fallbackBridge',
   'fallbackProfiles',
   'fallbackAuto',
   'hooks',

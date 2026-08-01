@@ -121,6 +121,7 @@ export function createSystemConfigViewTool(
       if (section === 'all' || section === 'fallbacks') {
         const fallbackModels = config.fallbackModels ?? [];
         const profiles = (config.fallbackProfiles ?? {}) as Record<string, string[]>;
+        addSection('Continuity Bridge', `  ${config.fallbackBridge?.trim() || '(disabled)'}`);
         addSection(
           'Fallback Chain',
           fallbackModels.length > 0
@@ -188,6 +189,20 @@ export function createSystemConfigViewTool(
         const profiles = (config.fallbackProfiles ?? {}) as Record<string, string[]>;
         const chain = config.fallbackModels ?? [];
         const matrix = (config.modelMatrix ?? {}) as Record<string, Record<string, unknown>>;
+
+        const bridge = config.fallbackBridge?.trim();
+        if (bridge) {
+          const parsed = parseRefInternal(bridge);
+          if (!parsed.provider || !parsed.model) {
+            issues.push(`Continuity bridge "${bridge}" must be a full provider/model reference`);
+          } else if (!providers[parsed.provider] && parsed.provider !== config.provider) {
+            issues.push(
+              `Continuity bridge "${bridge}" references unknown provider "${parsed.provider}"`,
+            );
+          } else {
+            ok.push(`Continuity bridge "${bridge}" — provider OK`);
+          }
+        }
 
         // 1. Check favorites against provider model lists
         for (const fav of favorites) {

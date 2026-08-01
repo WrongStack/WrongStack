@@ -41,6 +41,7 @@
  * @public
  */
 import { execFile } from 'node:child_process';
+import { isAbsolute, relative } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 
 // ---------------------------------------------------------------------------
@@ -287,20 +288,28 @@ function hashString(value: string): string {
   return String(h >>> 0);
 }
 
-async function gitDiffFingerprint(cwd: string, signal: AbortSignal): Promise<string | null> {
+async function gitDiffFingerprint(
+  cwd: string,
+  targetPath: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const pathspec = isAbsolute(targetPath) ? relative(cwd, targetPath) : targetPath;
+  if (!pathspec || pathspec === '..' || pathspec.startsWith('../') || pathspec.startsWith('..\\')) {
+    return null;
+  }
   try {
     const diff = await new Promise<string>((resolve, reject) => {
       execFile(
         'git',
-        ['diff', '--no-ext-diff', '--'],
+        ['diff', '--no-ext-diff', '--', pathspec],
         {
           cwd,
           encoding: 'utf8',
           timeout: 1_000,
-          // Large dirty worktrees are common during an agent run. The hash
-          // itself is capped below, but the subprocess must still be allowed to
-          // finish so an oversized diff is not mistaken for "git unavailable".
-          maxBuffer: 16 * 1024 * 1024,
+          // The hook follows only the file touched by this edit/write. A whole
+          // repository diff duplicated diff-summary and could retain 16 MiB on
+          // every mutation in a large dirty worktree.
+          maxBuffer: 2 * 1024 * 1024,
           windowsHide: true,
           signal,
         },
@@ -525,6 +534,7 @@ const plugin: Plugin = {
     const postHook = async (
       input: {
         toolName?: string | undefined;
+        toolInput?: unknown;
         toolResult?: { content: string; isError: boolean } | undefined;
         cwd?: string | undefined;
       },
@@ -573,7 +583,14 @@ const plugin: Plugin = {
       state.repeatedErrorStreak = 0;
 
       if (!MUTATING_TOOLS.has(toolName)) return;
-      const diffFingerprint = await gitDiffFingerprint(input.cwd ?? process.cwd(), runtime.signal);
+      const toolInput = (input.toolInput ?? {}) as Record<string, unknown>;
+      const targetPath = toolInput['path'];
+      if (typeof targetPath !== 'string' || targetPath.length === 0) return;
+      const diffFingerprint = await gitDiffFingerprint(
+        input.cwd ?? process.cwd(),
+        targetPath,
+        runtime.signal,
+      );
       if (diffFingerprint === null) return;
       if (diffFingerprint === state.lastDiffFingerprint) {
         state.noDiffStreak += 1;

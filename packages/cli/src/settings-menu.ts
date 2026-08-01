@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite, deepMerge } from '@wrongstack/core/utils';
-import { ConfigError, ERROR_CODES, FsError, type SecretVault } from '@wrongstack/core/types';
-import type { ConfigStore } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
+import type { ConfigStore } from '@wrongstack/core/types';
+import { ConfigError, ERROR_CODES, FsError, type SecretVault } from '@wrongstack/core/types';
+import { atomicWrite, deepMerge } from '@wrongstack/core/utils';
 
 /** Configuration and storage dependencies needed to persist a setting.
  *  This is safe to call from non-interactive surfaces such as the TUI,
@@ -114,12 +114,14 @@ async function mergeWithDestinationIfExists(
     destParsed = JSON.parse(destRaw) as Record<string, unknown>;
   } catch (err) {
     // Corrupt destination — don't merge, just write our content.
-    process.stderr.write(JSON.stringify({
-      level: 'warn',
-      event: 'settings_menu_merge_skipped',
-      message: `Skipping merge into corrupt destination file: ${destPath}`,
-      timestamp: new Date().toISOString(),
-    }) + '\n');
+    process.stderr.write(
+      JSON.stringify({
+        level: 'warn',
+        event: 'settings_menu_merge_skipped',
+        message: `Skipping merge into corrupt destination file: ${destPath}`,
+        timestamp: new Date().toISOString(),
+      }) + '\n',
+    );
     void err;
     return source;
   }
@@ -140,6 +142,7 @@ const PROJECT_SAFE_FIELDS = new Set([
   'provider',
   'model',
   'fallbackModels',
+  'fallbackBridge',
   // Kept in sync with core's IN_PROJECT_ALLOWED_KEYS (config-loader.ts): these
   // model-routing prefs are explicitly safe to READ from a per-project config,
   // so the writer must not strip them — otherwise a scope=project /fallback
@@ -260,8 +263,9 @@ export async function persistAutonomySetting(
 
   // When writing to the project-local config, strip credentials so
   // apiKey / providers / sync never leak into a per-project file.
-  const toWrite =
-    isProfileOrGlobalTarget(actualTarget, deps) ? effectiveConfig : filterSafeForProject(effectiveConfig);
+  const toWrite = isProfileOrGlobalTarget(actualTarget, deps)
+    ? effectiveConfig
+    : filterSafeForProject(effectiveConfig);
 
   const encrypted = encryptConfigSecrets(toWrite, deps.vault);
   await atomicWrite(actualTarget, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
@@ -338,8 +342,9 @@ export async function persistConfigSetting(
 
   // When writing to the project-local config, strip credentials so
   // apiKey / providers / sync never leak into a per-project file.
-  const toWrite =
-    isProfileOrGlobalTarget(actualTarget, deps) ? effectiveConfig : filterSafeForProject(effectiveConfig);
+  const toWrite = isProfileOrGlobalTarget(actualTarget, deps)
+    ? effectiveConfig
+    : filterSafeForProject(effectiveConfig);
 
   const encrypted = encryptConfigSecrets(toWrite, deps.vault);
   await atomicWrite(actualTarget, JSON.stringify(encrypted, null, 2), { mode: 0o600 });

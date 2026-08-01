@@ -138,6 +138,8 @@ async function patchGlobalConfig(
  *   remove <n|ref>      Remove by 1-based index or by exact reference.
  *   clear               Empty the explicit chain (smart default takes over
  *                       again when `auto` is on).
+ *   bridge set <ref>    Set the single continuity route tried before the chain.
+ *   bridge clear        Disable the continuity bridge.
  *   auto on|off         Toggle the smart default (config.fallbackAuto).
  */
 export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
@@ -148,6 +150,8 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
     '  /fallback add <model>           Append a model on the leader provider',
     '  /fallback remove <n|ref>        Remove by 1-based index or exact reference',
     '  /fallback clear                 Empty the explicit chain',
+    '  /fallback bridge set <provider/model>  Set the first continuity route',
+    '  /fallback bridge clear          Disable the continuity route',
     '  /fallback auto on|off           Toggle the auto-derived smart default',
     '  /fallback profile set <name> <ref,ref,...>  Create or replace a named chain',
     '  /fallback profile use <name>     Make a profile the leader fallback chain',
@@ -167,6 +171,7 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
     const explicit = config.fallbackModels ?? [];
     const profiles = config.fallbackProfiles ?? {};
     const favorites = config.favoriteModels ?? [];
+    const bridge = config.fallbackBridge?.trim();
     const auto = config.fallbackAuto !== false;
 
     // Mirror effectiveFallbackChain()'s runtime filter so the displayed chain
@@ -179,6 +184,7 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
       `${color.bold('WrongStack')} ${color.dim('— Fallback chain')}`,
       '',
       `  ${color.bold('leader')}  ${color.cyan(`${config.provider}/${config.model}`)}`,
+      `  ${color.bold('bridge')}  ${bridge ? color.cyan(bridge) : color.dim('(disabled)')}  ${color.dim('/fallback bridge set <provider/model>')}`,
       '',
     ];
 
@@ -265,6 +271,38 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
       const explicit = [...(config.fallbackModels ?? [])];
 
       try {
+        if (sub === 'bridge') {
+          const action = (parts[1] ?? '').toLowerCase();
+          if (action === 'clear' || action === 'off') {
+            await patchGlobalConfig(globalConfigPath, (cfg) => {
+              delete cfg.fallbackBridge;
+            });
+            opts.configStore.update({ fallbackBridge: '' });
+            return { message: `${color.green('✓')} continuity bridge disabled` };
+          }
+          if (action !== 'set') {
+            return {
+              message: `${color.amber('Usage:')} /fallback bridge set <provider/model> | clear`,
+            };
+          }
+          const ref = normalizeRef(parts.slice(2).join(' '));
+          const parsed = parseModelRef(ref);
+          if (!ref || !parsed.provider || !parsed.model) {
+            return {
+              message: `${color.amber('Usage:')} /fallback bridge set <provider/model>`,
+            };
+          }
+          const invalid = refInvalidReason(ref, config);
+          if (invalid) {
+            return { message: `${color.red('Cannot set bridge')}: "${ref}" — ${invalid}` };
+          }
+          const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
+            cfg.fallbackBridge = ref;
+          });
+          opts.configStore.update({ fallbackBridge: decrypted.fallbackBridge as string });
+          return { message: `${color.green('✓')} continuity bridge → ${color.cyan(ref)}` };
+        }
+
         if (sub === 'add') {
           const ref = normalizeRef(parts.slice(1).join(' '));
           if (!ref) {

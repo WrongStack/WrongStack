@@ -32,6 +32,7 @@ describe('watchProviderConfig', () => {
     const { configPath, vault } = await makeFixture();
     await writeConfig(configPath, {
       version: 1,
+      fallbackBridge: 'acme/acme-large',
       providers: {
         acme: {
           type: 'acme',
@@ -49,6 +50,7 @@ describe('watchProviderConfig', () => {
     });
 
     const snapshot = await readProviderSnapshot(configPath, vault);
+    expect(snapshot?.fallbackBridge).toBe('acme/acme-large');
     expect(snapshot?.providers.acme?.models).toEqual(['acme-large']);
     expect(snapshot?.providers.acme?.customModels?.['acme-large']).toEqual({
       name: 'Acme Large',
@@ -62,12 +64,9 @@ describe('watchProviderConfig', () => {
     await writeConfig(configPath, { version: 1, providers: {} });
 
     const snapshots: ProviderConfigSnapshot[] = [];
-    const { close } = watchProviderConfig(
-      configPath,
-      vault,
-      (s) => snapshots.push(s),
-      { debounceMs: 20 },
-    );
+    const { close } = watchProviderConfig(configPath, vault, (s) => snapshots.push(s), {
+      debounceMs: 20,
+    });
     closers.push(close);
     // Let the seed read settle so the first real change is what fires.
     await vi.waitFor(() => fsSync.existsSync(configPath));

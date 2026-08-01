@@ -1,4 +1,8 @@
-import type { Tool } from '@wrongstack/core/types';
+import {
+  GOVERNED_TOOL_EXECUTOR_META_KEY,
+  type GovernedToolExecutor,
+  type Tool,
+} from '@wrongstack/core/types';
 
 interface ToolUseInput {
   tool: string;
@@ -35,16 +39,17 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
     properties: {
       tool: {
         type: 'string',
-        description: 'The exact registered name of the tool to invoke (e.g. "bash", "read", "codebase-search").',
+        description:
+          'The exact registered name of the tool to invoke (e.g. "bash", "read", "codebase-search").',
       },
       input: {
         type: 'object',
-        description: 'The input object matching the target tool\'s inputSchema.',
+        description: "The input object matching the target tool's inputSchema.",
       },
     },
     required: ['tool'],
   },
-  async execute(input, ctx, opts) {
+  async execute(input, ctx) {
     const start = Date.now();
 
     if (!input?.tool) {
@@ -65,6 +70,14 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
         executionMs: Date.now() - start,
       };
     }
+    if (tool.name === toolUseTool.name) {
+      return {
+        tool: input.tool,
+        success: false,
+        error: 'tool_use: recursive meta-tool execution is not allowed',
+        executionMs: Date.now() - start,
+      };
+    }
 
     // `deny` is a hard policy gate — bypassing it through a meta-tool
     // would defeat the whole point of the permission system. Keep this
@@ -78,21 +91,26 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
       };
     }
 
-    // Note: inner `permission === 'confirm'` is intentionally NOT short-
-    // circuited here. The outer `tool_use` itself has `permission: 'confirm'`,
-    // so the user already saw the full args (including which inner tool will
-    // run, and with what input) before approving the meta-call. Duplicating
-    // the check inside execute() turned every confirm-tool dispatch through
-    // `tool_use` into a hard failure — the model would see "requires
-    // confirmation" with no way to proceed, even after the user said yes.
-    // `batch_tool_use` already follows this same model.
-
-    try {
-      const result = await tool.execute(input.input, ctx, opts);
+    const governedExecute = ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] as
+      | GovernedToolExecutor
+      | undefined;
+    if (typeof governedExecute !== 'function') {
       return {
         tool: input.tool,
-        success: true,
-        result,
+        success: false,
+        error: 'tool_use: governed nested execution is unavailable; call the tool directly',
+        executionMs: Date.now() - start,
+      };
+    }
+
+    try {
+      const result = await governedExecute(input.tool, input.input ?? {});
+      return {
+        tool: input.tool,
+        success: result.success,
+        ...(result.success
+          ? { result: result.result }
+          : { error: result.error ?? 'nested tool failed' }),
         executionMs: Date.now() - start,
       };
     } catch (e) {

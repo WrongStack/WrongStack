@@ -14,10 +14,6 @@
       "lines": 1109,
       "relativeImports": 42
     },
-    "packages/cli/src/execution.ts": {
-      "lines": 1034,
-      "relativeImports": 36
-    },
     "packages/cli/src/fleet/host.ts": {
       "lines": 938,
       "relativeImports": 19
@@ -403,8 +399,8 @@
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
-      "lines": 1089,
-      "relativeImports": 18
+      "lines": 1101,
+      "relativeImports": 19
     },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
       "lines": 904,

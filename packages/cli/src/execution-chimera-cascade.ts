@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type {
@@ -6,8 +5,14 @@ import type {
   ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
 import { emitReviewIfChanged } from '@wrongstack/core/plugin';
-import type { StopReason, SubagentConfig } from '@wrongstack/core/types';
+import type { StopReason } from '@wrongstack/core/types';
 import { buildChimeraCascadeTaskDescription } from './chimera-review-task.js';
+import type { ReviewerAttempt } from './chimera-reviewer-policy.js';
+import {
+  attemptLabel,
+  buildRetryPreamble,
+  runSubagentModelLadder,
+} from './chimera-subagent-ladder.js';
 import type { ExecuteDeps } from './execute-deps.js';
 
 type Director = NonNullable<ExecuteDeps['fleet']['director']>;
@@ -16,13 +21,27 @@ type Session = ExecuteDeps['session']['session'];
 
 type PendingChimeraWork = Promise<void> | undefined;
 
+/** Per-attempt wall clock for a cascade agent (unchanged from before). */
+const CASCADE_ATTEMPT_TIMEOUT_MS = 600_000;
+/** Ladder budget per cascade agent — bounds how long shutdown can wait. */
+const CASCADE_LADDER_BUDGET_MS = 900_000;
+
 export type InstallChimeraCascadeHandlerOptions = {
   events: Events;
   director: Director | null | undefined;
   session: Session;
   getPendingWork: () => PendingChimeraWork;
   setPendingWork: (work: PendingChimeraWork) => void;
+  /**
+   * Model ladder for cascade spawns. Supplied by the caller because only it
+   * holds the live config. Omit to keep the single unpinned spawn.
+   */
+  buildLadder?: (() => ReviewerAttempt[]) | undefined;
 };
+
+const INHERIT_ONLY_LADDER: ReviewerAttempt[] = [
+  { provider: '', model: '', fallbackModels: [], tier: 'inherit' },
+];
 
 export function installChimeraCascadeHandler({
   events,
@@ -30,6 +49,7 @@ export function installChimeraCascadeHandler({
   session,
   getPendingWork,
   setPendingWork,
+  buildLadder,
 }: InstallChimeraCascadeHandlerOptions): void {
   events.onPattern('chimera.cascade_needed', (_event, payload) => {
     const p = payload as ChimeraCascadeNeededPayload;
@@ -55,45 +75,70 @@ export function installChimeraCascadeHandler({
         try {
           const taskDesc = buildChimeraCascadeTaskDescription(agentKind, p);
           const role = agentKind === 'security-scanner' ? 'security-scanner' : 'bug-hunter';
-          const cfg: SubagentConfig = {
-            name: `chimera-cascade-${agentKind}`,
-            role,
-            maxIterations: 40,
-            maxToolCalls: 200,
-            timeoutMs: 600_000,
-          };
-          const subagentId = await dir.spawn(cfg);
-          try {
-            const taskId = randomUUID();
-            await dir.assign({ id: taskId, description: taskDesc, subagentId });
-            const results = await dir.awaitTasks([taskId]);
-            const result = results[0];
-
-            if (result?.status === 'success') {
-              const resultText =
-                typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
-              await session.append({
-                type: 'llm_response',
-                ts: new Date().toISOString(),
-                content: [
-                  {
-                    type: 'text',
-                    text: `🦂 Chimera cascade (${agentKind}) — ${resultText}`,
-                  },
-                ],
-                stopReason: 'end_turn' as StopReason,
-                usage: { input: 0, output: 0 },
-              });
-            } else {
+          const ladder = buildLadder?.() ?? INHERIT_ONLY_LADDER;
+          const outcome = await runSubagentModelLadder({
+            director: dir,
+            ladder,
+            attemptTimeoutMs: CASCADE_ATTEMPT_TIMEOUT_MS,
+            budgetMs: CASCADE_LADDER_BUDGET_MS,
+            buildConfig: (attempt, timeoutMs) => ({
+              name: `chimera-cascade-${agentKind}`,
+              role,
+              maxIterations: 40,
+              maxToolCalls: 200,
+              timeoutMs,
+              // Rung 0 stays unpinned so the role model matrix still decides;
+              // later rungs pin a model precisely because it just failed.
+              ...(attempt.tier === 'inherit'
+                ? {}
+                : {
+                    provider: attempt.provider,
+                    model: attempt.model,
+                    fallbackModels: attempt.fallbackModels,
+                  }),
+            }),
+            // Cascade agents write files, so a successor must be told the tree
+            // may already hold the dead attempt's partial edits.
+            buildTask: (_attempt, failures) => `${buildRetryPreamble(failures)}${taskDesc}`,
+            onAttemptFailed: async (failure, next) => {
+              if (!next) return;
               await session.append({
                 type: 'error',
                 ts: new Date().toISOString(),
-                message: `🦂 Chimera cascade (${agentKind}) ${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`,
+                message: `🦂 Chimera cascade (${agentKind}) on ${failure.model} failed (${failure.reason}) — retrying on ${attemptLabel(next)} (${next.tier}).`,
                 phase: 'agent',
               });
-            }
-          } finally {
-            try { await dir.terminate(subagentId); } catch { /* best-effort */ }
+            },
+          });
+          const result = outcome.result;
+
+          if (result?.status === 'success') {
+            const resultText =
+              typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
+            await session.append({
+              type: 'llm_response',
+              ts: new Date().toISOString(),
+              content: [
+                {
+                  type: 'text',
+                  text: `🦂 Chimera cascade (${agentKind}) — ${resultText}`,
+                },
+              ],
+              stopReason: 'end_turn' as StopReason,
+              usage: { input: 0, output: 0 },
+            });
+          } else {
+            const detail = outcome.lastError
+              ? outcome.lastError instanceof Error
+                ? outcome.lastError.message
+                : String(outcome.lastError)
+              : `${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`;
+            await session.append({
+              type: 'error',
+              ts: new Date().toISOString(),
+              message: `🦂 Chimera cascade (${agentKind}) ${result?.status ?? 'unknown'}: ${detail} — exhausted ${outcome.attemptsUsed} of ${ladder.length} model(s)`,
+              phase: 'agent',
+            });
           }
         } catch (err) {
           await session.append({

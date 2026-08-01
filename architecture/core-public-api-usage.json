@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 225,
+      "files": 227,
       "typeOnly": 185,
-      "runtimeOrMixed": 56
+      "runtimeOrMixed": 58
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -19,8 +19,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 163,
-      "typeOnly": 68,
+      "files": 164,
+      "typeOnly": 69,
       "runtimeOrMixed": 143
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -139,8 +139,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 818,
-      "typeOnly": 787,
+      "files": 821,
+      "typeOnly": 790,
       "runtimeOrMixed": 203
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -252,6 +252,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/chimera-reviewer-policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/cli-eternal-flag.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -261,6 +267,12 @@
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/execution-chimera-review.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1704,6 +1716,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/execution-chimera-review.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/execution-cleanup.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1717,8 +1735,8 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/execution.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -5352,7 +5370,7 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
-      "file": "packages/cli/src/execution.ts",
+      "file": "packages/cli/src/execution-chimera-review.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7620,6 +7638,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/chimera-subagent-ladder.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/cli-context.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7681,6 +7705,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/execution-chimera-cascade.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/execution-chimera-review.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -8803,6 +8833,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/chimera-session-close.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/chimera-subagent-ladder.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

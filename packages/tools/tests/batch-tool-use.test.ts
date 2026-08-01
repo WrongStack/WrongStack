@@ -1,8 +1,5 @@
+import { GOVERNED_TOOL_EXECUTOR_META_KEY, type GovernedToolExecutor } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  GOVERNED_TOOL_EXECUTOR_META_KEY,
-  type GovernedToolExecutor,
-} from '@wrongstack/core/types';
 import { ToolExecutor } from '../../core/src/execution/tool-executor.js';
 import { batchToolUseTool } from '../src/batch-tool-use.js';
 
@@ -32,6 +29,14 @@ describe('batchToolUseTool', () => {
     expect(batchToolUseTool.permission).toBe('confirm');
     expect(batchToolUseTool.mutating).toBe(true);
     expect(batchToolUseTool.timeoutMs).toBe(120_000);
+    expect(batchToolUseTool.capabilities).toEqual(['tool.meta']);
+    const callsSchema = batchToolUseTool.inputSchema.properties?.['calls'] as {
+      maxItems: number;
+      items: { properties: { tool: { enum: string[] } } };
+    };
+    expect(callsSchema.maxItems).toBe(8);
+    expect(callsSchema.items.properties.tool.enum).toContain('read');
+    expect(callsSchema.items.properties.tool.enum).not.toContain('bash');
   });
 
   it('returns empty result for empty calls', async () => {
@@ -55,13 +60,13 @@ describe('batchToolUseTool', () => {
       _resolve = r;
     });
     const fakeTool = {
-      name: 'test',
+      name: 'read',
       execute: vi.fn().mockReturnValue(Promise.resolve({ value: 1 })),
     };
     const ctx = makeCtx([fakeTool]);
 
     const result = await batchToolUseTool.execute(
-      { calls: [{ tool: 'test', input: {} }] },
+      { calls: [{ tool: 'read', input: {} }] },
       ctx,
       makeOpts(),
     );
@@ -69,6 +74,82 @@ describe('batchToolUseTool', () => {
     expect(result.total).toBe(1);
     expect(result.succeeded).toBe(1);
     expect(result.results[0].success).toBe(true);
+  });
+
+  it('limits parallel nested calls to three', async () => {
+    let active = 0;
+    let peakActive = 0;
+    const fakeTool = {
+      name: 'read',
+      async execute() {
+        active++;
+        peakActive = Math.max(peakActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active--;
+        return { ok: true };
+      },
+    };
+    const ctx = makeCtx([fakeTool]);
+
+    const result = await batchToolUseTool.execute(
+      {
+        calls: Array.from({ length: 8 }, () => ({ tool: 'read', input: {} })),
+      },
+      ctx,
+      makeOpts(),
+    );
+
+    expect(result.succeeded).toBe(8);
+    expect(peakActive).toBe(3);
+  });
+
+  it('rejects batches larger than the schema limit', async () => {
+    const ctx = makeCtx([]);
+
+    await expect(
+      batchToolUseTool.execute(
+        {
+          calls: Array.from({ length: 9 }, () => ({ tool: 'read', input: {} })),
+        },
+        ctx,
+        makeOpts(),
+      ),
+    ).rejects.toThrow('at most 8 items');
+  });
+
+  it('blocks recursive batch_tool_use dispatch', async () => {
+    const ctx = makeCtx([batchToolUseTool]);
+
+    const result = await batchToolUseTool.execute(
+      { calls: [{ tool: 'batch_tool_use', input: { calls: [] } }] },
+      ctx,
+      makeOpts(),
+    );
+
+    expect(result.failed).toBe(1);
+    expect(result.results[0]?.error).toContain('recursive');
+  });
+
+  it('rejects process, mutation, browser, MCP, delegation, and meta tools', async () => {
+    const names = ['bash', 'write', 'test', 'browser_click', 'mcp_use', 'delegate', 'tool_use'];
+    const execute = vi.fn().mockResolvedValue({ unsafe: true });
+    const ctx = makeCtx(
+      names.map((name) => ({
+        name,
+        mutating: name === 'write',
+        execute,
+      })),
+    );
+
+    const result = await batchToolUseTool.execute(
+      { calls: names.map((tool) => ({ tool, input: {} })) },
+      ctx,
+      makeOpts(),
+    );
+
+    expect(result.failed).toBe(names.length);
+    expect(result.results.every((entry) => entry.error?.includes('not eligible'))).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it('reports tool not found', async () => {
@@ -86,11 +167,11 @@ describe('batchToolUseTool', () => {
 
   it('fails closed when no governed executor bridge is installed', async () => {
     const directExecute = vi.fn().mockResolvedValue({ unsafe: true });
-    const ctx = makeCtx([{ name: 'write-like', execute: directExecute }]);
+    const ctx = makeCtx([{ name: 'read', execute: directExecute }]);
     delete ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY];
 
     const result = await batchToolUseTool.execute(
-      { calls: [{ tool: 'write-like', input: {} }] },
+      { calls: [{ tool: 'read', input: {} }] },
       ctx,
       makeOpts(),
     );
@@ -103,12 +184,12 @@ describe('batchToolUseTool', () => {
   it('re-evaluates every nested tool through ToolExecutor and blocks a denied subcall', async () => {
     const deniedExecute = vi.fn().mockResolvedValue({ unsafe: true });
     const deniedTool = {
-      name: 'denied-inner',
+      name: 'read',
       description: 'denied inner tool',
       inputSchema: { type: 'object' },
       permission: 'confirm' as const,
-      mutating: true,
-      capabilities: ['fs.write'],
+      mutating: false,
+      capabilities: ['fs.read'],
       execute: deniedExecute,
     };
     const tools = [batchToolUseTool, deniedTool];
@@ -120,7 +201,7 @@ describe('batchToolUseTool', () => {
       agentId: 'leader',
     });
     const evaluate = vi.fn(async (tool: { name: string }) =>
-      tool.name === 'denied-inner'
+      tool.name === 'read'
         ? { permission: 'deny' as const, source: 'deny' as const, reason: 'capability not granted' }
         : { permission: 'confirm' as const, source: 'default' as const },
     );
@@ -142,32 +223,33 @@ describe('batchToolUseTool', () => {
           type: 'tool_use',
           id: 'outer-batch',
           name: 'batch_tool_use',
-          input: { calls: [{ tool: 'denied-inner', input: {} }], parallel: false },
+          input: { calls: [{ tool: 'read', input: {} }], parallel: false },
         },
       ],
       ctx,
       'sequential',
     );
 
-    expect(evaluate.mock.calls.map(([tool]) => tool.name)).toEqual([
-      'batch_tool_use',
-      'denied-inner',
-    ]);
-    expect(String(execution.outputs[0]?.result.type === 'tool_result' ? execution.outputs[0].result.content : '')).toContain(
-      'capability not granted',
-    );
+    expect(evaluate.mock.calls.map(([tool]) => tool.name)).toEqual(['batch_tool_use', 'read']);
+    expect(
+      String(
+        execution.outputs[0]?.result.type === 'tool_result'
+          ? execution.outputs[0].result.content
+          : '',
+      ),
+    ).toContain('capability not granted');
     expect(deniedExecute).not.toHaveBeenCalled();
   });
 
   it('handles parallel=false (sequential)', async () => {
     const fakeTool = {
-      name: 'test',
+      name: 'read',
       execute: vi.fn().mockResolvedValue({ value: 1 }),
     };
     const ctx = makeCtx([fakeTool]);
 
     const result = await batchToolUseTool.execute(
-      { calls: [{ tool: 'test', input: {} }], parallel: false },
+      { calls: [{ tool: 'read', input: {} }], parallel: false },
       ctx,
       makeOpts(),
     );
@@ -177,7 +259,7 @@ describe('batchToolUseTool', () => {
 
   it('stops on error when stop_on_error=true', async () => {
     const fakeTool = {
-      name: 'test',
+      name: 'read',
       execute: vi.fn().mockRejectedValue(new Error('boom')),
     };
     const ctx = makeCtx([fakeTool]);
@@ -185,8 +267,8 @@ describe('batchToolUseTool', () => {
     const result = await batchToolUseTool.execute(
       {
         calls: [
-          { tool: 'test', input: {} },
-          { tool: 'test', input: {} },
+          { tool: 'read', input: {} },
+          { tool: 'read', input: {} },
         ],
         stop_on_error: true,
         parallel: false,
@@ -202,7 +284,7 @@ describe('batchToolUseTool', () => {
 
   it('continues when stop_on_error=false even after failure', async () => {
     const fakeTool = {
-      name: 'test',
+      name: 'read',
       execute: vi.fn().mockRejectedValue(new Error('boom')),
     };
     const ctx = makeCtx([fakeTool]);
@@ -210,8 +292,8 @@ describe('batchToolUseTool', () => {
     const result = await batchToolUseTool.execute(
       {
         calls: [
-          { tool: 'test', input: {} },
-          { tool: 'test', input: {} },
+          { tool: 'read', input: {} },
+          { tool: 'read', input: {} },
         ],
         stop_on_error: false,
       },
@@ -224,13 +306,13 @@ describe('batchToolUseTool', () => {
 
   it('handles non-Error thrown values in executeSingle', async () => {
     const fakeTool = {
-      name: 'throws-string',
+      name: 'read',
       execute: vi.fn().mockRejectedValue('string error value'),
     };
     const ctx = makeCtx([fakeTool]);
 
     const result = await batchToolUseTool.execute(
-      { calls: [{ tool: 'throws-string', input: {} }] },
+      { calls: [{ tool: 'read', input: {} }] },
       ctx,
       makeOpts(),
     );
@@ -240,13 +322,13 @@ describe('batchToolUseTool', () => {
 
   it('reports execution time', async () => {
     const fakeTool = {
-      name: 'test',
+      name: 'read',
       execute: vi.fn().mockResolvedValue({ value: 1 }),
     };
     const ctx = makeCtx([fakeTool]);
 
     const result = await batchToolUseTool.execute(
-      { calls: [{ tool: 'test', input: {} }] },
+      { calls: [{ tool: 'read', input: {} }] },
       ctx,
       makeOpts(),
     );

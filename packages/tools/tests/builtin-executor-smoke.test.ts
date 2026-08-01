@@ -1,18 +1,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '@wrongstack/core/agent';
 import type { PermissionDecision } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToolExecutor } from '../../core/src/execution/tool-executor.js';
 import type { ToolResultBlock, ToolUseBlock } from '../../core/src/types/blocks.js';
 import { builtinTools } from '../src/builtin.js';
+
 // This suite drives the codebase index in-process. The project daemon now
 // fails closed when its build cannot be located, so the in-process path has to
 // be requested rather than fallen into — the same declaration a user would make
 // with WRONGSTACK_INDEX_INLINE=1.
 process.env['WRONGSTACK_INDEX_INLINE'] = '1';
-
 
 /**
  * Never let this suite spawn a detached kanban daemon. `builtinTools` includes
@@ -29,7 +29,10 @@ beforeEach(async () => {
   await fs.writeFile(path.join(tmpDir, 'sample.txt'), 'alpha\nbravo\n');
   await fs.writeFile(path.join(tmpDir, 'edit.txt'), 'old value\n');
   await fs.writeFile(path.join(tmpDir, 'replace.txt'), 'replace me\n');
-  await fs.writeFile(path.join(tmpDir, 'doc.ts'), 'function demo(input: string) {\n  return input;\n}\n');
+  await fs.writeFile(
+    path.join(tmpDir, 'doc.ts'),
+    'function demo(input: string) {\n  return input;\n}\n',
+  );
   await fs.mkdir(path.join(tmpDir, '.state'), { recursive: true });
 });
 
@@ -97,10 +100,12 @@ function makeExecutor() {
     list: () => builtinTools,
   };
   const policy = {
-    evaluate: vi.fn(async (tool): Promise<PermissionDecision> => ({
-      permission: tool.permission === 'confirm' ? 'confirm' : 'auto',
-      source: 'default',
-    })),
+    evaluate: vi.fn(
+      async (tool): Promise<PermissionDecision> => ({
+        permission: tool.permission === 'confirm' ? 'confirm' : 'auto',
+        source: 'default',
+      }),
+    ),
   };
   return new ToolExecutor(registry, {
     permissionPolicy: policy as never,
@@ -139,10 +144,14 @@ describe('builtin tools through ToolExecutor smoke', () => {
     await runTool('exec', { command: 'node', args: ['-p', '21+21'], timeout: 10_000 }, ctx);
     await runTool('todo', { todos: [{ id: 't1', content: 'Smoke todo', status: 'pending' }] }, ctx);
     await runTool('plan', { action: 'add', title: 'Smoke plan' }, ctx);
-    await runTool('task', {
-      action: 'add',
-      task: { title: 'Smoke task', type: 'chore', priority: 'low' },
-    }, ctx);
+    await runTool(
+      'task',
+      {
+        action: 'add',
+        task: { title: 'Smoke task', type: 'chore', priority: 'low' },
+      },
+      ctx,
+    );
     await runTool('git', { command: 'status' }, ctx);
     await runTool(
       'patch',
@@ -158,7 +167,7 @@ describe('builtin tools through ToolExecutor smoke', () => {
     await runTool('tool_use', { tool: 'json', input: { data: '{"nested":1}' } }, ctx);
     await runTool(
       'batch_tool_use',
-      { parallel: false, calls: [{ tool: 'json', input: { data: '{"batch":1}' } }] },
+      { parallel: false, calls: [{ tool: 'read', input: { path: 'sample.txt' } }] },
       ctx,
     );
     await runTool('codebase-search', { query: 'demo', limit: 5 }, ctx);

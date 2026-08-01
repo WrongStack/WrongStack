@@ -84,6 +84,8 @@ export interface ToolExecutorOptions {
   iterationTimeoutMs?: number | undefined;
   /** Hard upper bound for a single tool call timeout. Defaults to 5 minutes. */
   maxToolTimeoutMs?: number | undefined;
+  /** Maximum tools started concurrently by parallel/smart batches. Defaults to 4. */
+  maxParallelTools?: number | undefined;
   perIterationOutputCapBytes?: number | undefined;
   /**
    * Optional lifecycle hook runner. When present, `PreToolUse` hooks run

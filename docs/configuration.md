@@ -40,6 +40,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
   "modelMatrix": { /* ... */ },
   "fleet": { /* ... */ },
   "fallbackModels": [],
+  "fallbackBridge": "openai/gpt-5.4-mini",
   "fallbackProfiles": { /* ... */ },
   "fallbackAuto": true,
   "fallbackStickiness": { "primaryProbeInterval": 60000, "stickyFallbackTurns": 0 },
@@ -61,6 +62,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `baseUrl` | `string` | — | Custom API base URL. Overrides the provider's default endpoint. |
 | `yolo` | `boolean` | `false` | Auto-approve non-denied tool calls. Interactive first launch currently selects and persists `true`. Override at startup with `--yolo` or `--no-yolo`. |
 | `fallbackModels` | `string[]` | — | Ordered fallback chain tried when the primary model is overloaded (429/529/5xx) and its own retries are exhausted. Each entry is `model`, `provider/model`, or `provider model`. Cross-provider. After a fallback hop, the primary is retried only after its cooldown expires. Overridden by `--fallback-model a,b,c`. |
+| `fallbackBridge` | `string` | — | Optional fully-qualified `provider/model` emergency route tried before the ordinary chain. It remains active when `fallbackAuto` is off and shares health/calendar filtering with other fallbacks. Configure with `/fallback bridge set ...`. |
 | `fallbackProfiles` | `Record<string, string[]>` | — | Named fallback chains. `/setmodel` and WebUI Model Routing can point a role/phase/default entry at a profile. |
 | `fallbackAuto` | `boolean` | `true` | Auto-derive a fallback chain from other keyed providers when `fallbackModels` is empty. Toggle with `/fallback auto on\|off`. |
 | `fallbackStickiness` | `object` | `{ primaryProbeInterval: 60000, stickyFallbackTurns: 0 }` | Controls how the fallback engine transitions between the primary and fallback models. See [Fallback stickiness](#fallback-stickiness) below. |
@@ -84,10 +86,12 @@ hang). Five design decisions govern how transitions work:
 
 ### How the chain is traversed
 
-1. **Explicit chain priority** — When you configure `fallbackModels`, those
-   entries are tried **first**, in the order you specified. Default-profile
-   entries and the session primary are used as additional depth only after your
-   explicit chain is exhausted.
+1. **Deterministic continuity order** — `fallbackBridge` is the immediate escape
+   hatch, followed by the explicit/role/profile chain and the `default` profile.
+   When `fallbackAuto` is enabled, the runtime finally exhausts every permitted
+   configured target; the normal smart preview remains capped at four entries.
+   Chimera's bounded outer retry ladder preserves the live session model as its
+   final rung after those worker-specific routes.
 
 2. **Stale-entry resilience** — A chain entry that returns a non-fallback-worthy
    error (e.g. 404 / `invalid_request` from a retired model) is **skipped**, not
@@ -444,6 +448,7 @@ overload extends the cooldown up to the cap.
 {
   "provider": "anthropic",
   "model": "claude-opus-4-8",
+  "fallbackBridge": "openai/gpt-5.4-mini",
   "fallbackModels": [
     "anthropic-test-model",      // same provider, bare model id
     "openai/gpt-5.4",         // cross-provider (provider must have credentials)
@@ -456,6 +461,9 @@ CLI override (comma-separated): `wrongstack --fallback-model "anthropic-test-mod
 
 A fallback entry whose provider has no resolvable credentials is skipped (with a
 warning) and the chain continues. Each switch emits a `provider.fallback` event.
+The bridge must include both provider and model. With automatic fallback on,
+configured usable models beyond the four-entry smart preview remain available
+as an uncapped last-resort tail.
 
 ---
 

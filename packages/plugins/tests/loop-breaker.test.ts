@@ -181,6 +181,7 @@ describe('loop-breaker plugin', () => {
     const postHook = getAsyncHook(api, 'PostToolUse');
     const okEdit = {
       toolName: 'edit',
+      toolInput: { path: 'packages/plugins/tests/loop-breaker.test.ts' },
       cwd: process.cwd(),
       toolResult: { isError: false, content: 'ok' },
     };

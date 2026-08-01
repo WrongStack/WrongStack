@@ -167,6 +167,41 @@ describe('fallback-model kind gating', () => {
     expect(buildProvider).toHaveBeenCalledWith('other', 'model-b');
   });
 
+  it('does not let the continuity bridge escape a closed-world model allowlist', async () => {
+    const config = {
+      ...makeConfig(),
+      fallbackBridge: 'bridge/model-c',
+      fallbackAuto: true,
+      providers: {
+        ...makeConfig().providers,
+        bridge: { type: 'openai', apiKey: 'k3', models: ['model-c'] },
+      },
+    } as Config;
+    const buildProvider = vi.fn(async (providerId: string) => makeProvider(providerId));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider,
+      events: new EventBus(),
+      isClosedWorld: () => true,
+    });
+    const ctx = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+    const inner = vi
+      .fn()
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      .mockResolvedValueOnce(okResponse);
+
+    await ext.wrapProviderRunner?.(ctx, request, inner);
+
+    expect(buildProvider).toHaveBeenCalledTimes(1);
+    expect(buildProvider).toHaveBeenCalledWith('other', 'model-b');
+    expect(buildProvider).not.toHaveBeenCalledWith('bridge', 'model-c');
+  });
+
   it('hops on stream_hang', async () => {
     const { ext, ctx, request, buildProvider } = makeHarness();
     const hang = new StreamHangError({
@@ -345,7 +380,8 @@ describe('fallback-model kind gating', () => {
     await ext.wrapProviderRunner?.(
       ctx,
       request,
-      vi.fn()
+      vi
+        .fn()
         .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
         .mockResolvedValueOnce(okResponse),
     );
@@ -370,11 +406,7 @@ describe('fallback-model kind gating', () => {
       session: { id: 's1' },
     } as never as Context;
 
-    await ext.wrapProviderRunner?.(
-      ctx2,
-      { ...request },
-      vi.fn().mockResolvedValueOnce(primaryOk),
-    );
+    await ext.wrapProviderRunner?.(ctx2, { ...request }, vi.fn().mockResolvedValueOnce(primaryOk));
 
     // The primary succeeded, but with recoveryTarget=2 (default), a single
     // success should NOT have cleared dirty — meaning the next beforeRun
@@ -429,7 +461,8 @@ describe('fallback-model kind gating', () => {
     await ext.wrapProviderRunner?.(
       ctx1,
       request,
-      vi.fn()
+      vi
+        .fn()
         .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
         .mockResolvedValueOnce(okResponse),
     );
@@ -498,7 +531,8 @@ describe('fallback-model kind gating', () => {
     await ext.wrapProviderRunner?.(
       ctx1,
       request,
-      vi.fn()
+      vi
+        .fn()
         .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
         .mockResolvedValueOnce(okResponse),
     );
@@ -560,7 +594,8 @@ describe('fallback-model kind gating', () => {
     await ext.wrapProviderRunner?.(
       ctx1,
       request,
-      vi.fn()
+      vi
+        .fn()
         .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
         .mockResolvedValueOnce(okResponse),
     );
@@ -569,7 +604,11 @@ describe('fallback-model kind gating', () => {
     // beforeRun #1: t=2000 (cooldown long expired), but stickyTurnsElapsed=1 (<2)
     // → stays on fallback
     mockTime = 2000;
-    const ctx1b = { ...ctx1, provider: makeProvider('other'), model: 'model-b' } as never as Context;
+    const ctx1b = {
+      ...ctx1,
+      provider: makeProvider('other'),
+      model: 'model-b',
+    } as never as Context;
     await ext.beforeRun?.(ctx1b, {} as never);
     expect(ctx1b.model).toBe('model-b');
 
@@ -603,7 +642,8 @@ describe('fallback-model kind gating', () => {
     await ext.wrapProviderRunner?.(
       ctx1,
       request,
-      vi.fn()
+      vi
+        .fn()
         .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
         .mockResolvedValueOnce(okResponse),
     );
@@ -702,9 +742,7 @@ describe('fallback-model kind gating', () => {
 
     // The FIRST fallback build call should be 'good', NOT 'flaky' —
     // last-working-fallback was front-loaded.
-    const fallbackBuilds = buildProvider.mock.calls.filter(
-      ([pid]) => pid !== 'primary',
-    );
+    const fallbackBuilds = buildProvider.mock.calls.filter(([pid]) => pid !== 'primary');
     expect(fallbackBuilds[0]).toEqual(['good', 'model-y']);
 
     // flaky was NOT attempted at all — good was tried first and succeeded

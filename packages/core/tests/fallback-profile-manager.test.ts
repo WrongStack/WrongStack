@@ -20,19 +20,10 @@ function makeConfig(overrides?: Partial<Config>): Config {
       },
     },
     fallbackProfiles: {
-      'primary-failover': [
-        'anthropic/claude-opus-4-8',
-        'openai/gpt-4o-mini',
-      ],
-      'cross-provider': [
-        'anthropic/claude-sonnet-4-8',
-        '/gpt-4o-mini',
-      ],
+      'primary-failover': ['anthropic/claude-opus-4-8', 'openai/gpt-4o-mini'],
+      'cross-provider': ['anthropic/claude-sonnet-4-8', '/gpt-4o-mini'],
       'empty-chain': [],
-      'self-ref': [
-        'openai/gpt-4o',
-        'anthropic/claude-opus-4-8',
-      ],
+      'self-ref': ['openai/gpt-4o', 'anthropic/claude-opus-4-8'],
     },
     ...overrides,
   } as unknown as Config;
@@ -83,7 +74,7 @@ describe('FallbackProfileManager', () => {
     const mgr = new FallbackProfileManager(
       makeConfig({
         fallbackProfiles: {
-          'dupes': ['anthropic/claude-opus-4-8', 'anthropic/claude-opus-4-8'],
+          dupes: ['anthropic/claude-opus-4-8', 'anthropic/claude-opus-4-8'],
         },
       }),
     );
@@ -182,6 +173,66 @@ describe('FallbackProfileManager', () => {
       const mgr = new FallbackProfileManager(makeConfig());
       const chain = mgr.resolveEffective({ fallbackAuto: false });
       expect(chain).toHaveLength(0);
+    });
+
+    it('prepends a fully-qualified continuity bridge even when auto fallback is off', () => {
+      const mgr = new FallbackProfileManager(
+        makeConfig({ fallbackBridge: 'anthropic/claude-sonnet-4-8' }),
+      );
+      const chain = mgr.resolveEffective({
+        fallbackModels: ['openai/gpt-4o-mini'],
+        fallbackAuto: false,
+      });
+      expect(chain.map((entry) => `${entry.providerId}/${entry.model}`)).toEqual([
+        'anthropic/claude-sonnet-4-8',
+        'openai/gpt-4o-mini',
+      ]);
+    });
+
+    it('rejects a bare-model bridge instead of silently keeping it on the active provider', () => {
+      const mgr = new FallbackProfileManager(makeConfig({ fallbackBridge: 'gpt-4o-mini' }));
+      expect(mgr.resolveBridge()).toEqual([]);
+    });
+
+    it('keeps a cross-provider escape hatch in the four-entry smart chain', () => {
+      const mgr = new FallbackProfileManager(
+        makeConfig({
+          providers: {
+            openai: {
+              type: 'openai',
+              apiKey: 'sk-test',
+              models: ['gpt-4o', 'same-1', 'same-2', 'same-3', 'same-4', 'same-5'],
+            },
+            anthropic: { type: 'anthropic', apiKey: 'sk-ant-test', models: ['cross-1'] },
+          },
+        }),
+      );
+      const refs = mgr
+        .resolveEffective({ fallbackAuto: true })
+        .map((entry) => `${entry.providerId}/${entry.model}`);
+      expect(refs).toHaveLength(4);
+      expect(refs).toContain('anthropic/cross-1');
+    });
+
+    it('exposes an uncapped last-resort inventory separately from the smart chain', () => {
+      const mgr = new FallbackProfileManager(
+        makeConfig({
+          providers: {
+            openai: {
+              type: 'openai',
+              apiKey: 'sk-test',
+              models: ['gpt-4o', 'same-1', 'same-2', 'same-3', 'same-4', 'same-5'],
+            },
+            anthropic: {
+              type: 'anthropic',
+              apiKey: 'sk-ant-test',
+              models: ['cross-1', 'cross-2'],
+            },
+          },
+        }),
+      );
+      expect(mgr.resolveEffective({ fallbackAuto: true })).toHaveLength(4);
+      expect(mgr.resolveAllConfigured()).toHaveLength(7);
     });
 
     describe('favoriteModelsOnly contract on smart default', () => {
@@ -324,7 +375,7 @@ describe('FallbackProfileManager', () => {
           limited: { apiKey: 'sk-test', models: ['allowed-model'] },
         },
         fallbackProfiles: {
-          'restricted': ['limited/allowed-model', 'limited/blocked-model'],
+          restricted: ['limited/allowed-model', 'limited/blocked-model'],
         },
       });
       const mgr = new FallbackProfileManager(cfg);

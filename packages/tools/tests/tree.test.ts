@@ -113,6 +113,29 @@ describe('treeTool', () => {
     expect(final).toBeDefined();
   });
 
+  it('bounds retained entries even when unlimited depth is requested', async () => {
+    await Promise.all(
+      Array.from({ length: 30 }, (_, i) => fs.writeFile(path.join(tmpDir, `f${i}.txt`), '')),
+    );
+
+    const result = await treeTool.execute({ path: tmpDir, depth: 0, max_entries: 10 }, makeCtx(), {
+      signal: new AbortController().signal,
+    });
+
+    expect(result.truncated).toBe(true);
+    expect(result.tree.split('\n')).toHaveLength(11);
+    expect(Buffer.byteLength(result.tree, 'utf8')).toBeLessThanOrEqual(256 * 1024);
+  });
+
+  it('stops traversal when its abort signal is already cancelled', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      treeTool.execute({ path: tmpDir, depth: 0 }, makeCtx(), { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('throws when executeStream is unavailable', async () => {
     const original = treeTool.executeStream;
     treeTool.executeStream = undefined;

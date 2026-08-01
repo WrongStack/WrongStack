@@ -1,6 +1,6 @@
-import { readBundledInstructionText, renderInstructionTemplate } from '@wrongstack/core/utils';
-import type { Config, Provider } from '@wrongstack/core/types';
 import type { OneShotOrchestrator } from '@wrongstack/core/execution';
+import type { Config, Provider } from '@wrongstack/core/types';
+import { readBundledInstructionText, renderInstructionTemplate } from '@wrongstack/core/utils';
 
 /**
  * Result of refining a user's raw goal into a clear, actionable mission.
@@ -84,9 +84,14 @@ export function resolveRefinerTarget(
   // ── Tier 1: fallback profile ──
   const refinerFallback = cfg.autonomy?.refinerFallbackProfile;
   if (refinerFallback) {
-    const profileChain = cfg.fallbackProfiles?.[refinerFallback];
-    if (profileChain?.[0]) {
-      const resolved = resolveProfileEntry(profileChain[0], cfg, createProvider, activeProviderId, activeModel);
+    for (const entry of cfg.fallbackProfiles?.[refinerFallback] ?? []) {
+      const resolved = resolveProfileEntry(
+        entry,
+        cfg,
+        createProvider,
+        activeProviderId,
+        activeModel,
+      );
       if (resolved) return resolved;
     }
   }

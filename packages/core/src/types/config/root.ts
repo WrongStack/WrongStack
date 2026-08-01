@@ -1,21 +1,5 @@
 import type { ConfiguredHook, HookEvent } from '../hooks.js';
 import type {
-  AdaptiveConcurrencyConfig,
-  CircuitBreakerRuntimeConfig,
-  ContextConfig,
-} from './context.js';
-import type { HqClientConfig, ModelRuntimeConfig, SystemPromptConfig } from './runtime.js';
-import type { ToolsConfig } from './tools.js';
-import type { ProviderConfig, CustomModelDefinition, ModelMatrixEntry } from './providers.js';
-import type {
-  MCPServerConfig,
-  LogConfig,
-  FeaturesConfig,
-  SageConfig,
-  PluginConfig,
-  PluginManagerConfig,
-} from './mcp-features.js';
-import type {
   AutonomyConfig,
   ChronicleConfig,
   IndexingConfig,
@@ -23,7 +7,23 @@ import type {
   SessionLoggingConfig,
   SyncConfig,
 } from './autonomy.js';
-import type { SkillsConfig, FleetConfig, BrainConfig } from './skills-fleet-brain.js';
+import type {
+  AdaptiveConcurrencyConfig,
+  CircuitBreakerRuntimeConfig,
+  ContextConfig,
+} from './context.js';
+import type {
+  FeaturesConfig,
+  LogConfig,
+  MCPServerConfig,
+  PluginConfig,
+  PluginManagerConfig,
+  SageConfig,
+} from './mcp-features.js';
+import type { CustomModelDefinition, ModelMatrixEntry, ProviderConfig } from './providers.js';
+import type { HqClientConfig, ModelRuntimeConfig, SystemPromptConfig } from './runtime.js';
+import type { BrainConfig, FleetConfig, SkillsConfig } from './skills-fleet-brain.js';
+import type { ToolsConfig } from './tools.js';
 
 export interface GitBehaviorConfig {
   /**
@@ -115,6 +115,12 @@ export interface Config {
    */
   fallbackModels?: string[] | undefined;
   /**
+   * A single emergency continuity route tried before the normal fallback
+   * chain. Must be a full `provider/model` reference so it can escape the
+   * active provider's failure domain.
+   */
+  fallbackBridge?: string | undefined;
+  /**
    * Named fallback chains. A profile's first entry can be used as a primary
    * model by `/setmodel`, while the whole ordered list is used for failover.
    */
@@ -144,10 +150,12 @@ export interface Config {
    *   Set to e.g. 3 to require three full turns on the fallback before the
    *   primary is eligible for a half-open probe, regardless of cooldown.
    */
-  fallbackStickiness?: {
-    primaryProbeInterval?: number | undefined;
-    stickyFallbackTurns?: number | undefined;
-  } | undefined;
+  fallbackStickiness?:
+    | {
+        primaryProbeInterval?: number | undefined;
+        stickyFallbackTurns?: number | undefined;
+      }
+    | undefined;
   /**
    * Lifecycle command/HTTP hooks, keyed by event. Commands receive HookInput
    * JSON on stdin; HTTP hooks receive the same object as a POST body. A typed

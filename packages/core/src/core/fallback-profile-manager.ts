@@ -18,8 +18,8 @@
 
 import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
 import type { Config, ProviderConfig } from '../types/config.js';
-import { parseModelRef } from './model-ref.js';
 import { evaluateModelCalendar } from './model-availability-calendar.js';
+import { parseModelRef } from './model-ref.js';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -202,25 +202,52 @@ export class FallbackProfileManager {
       exclude?: { providerId: string; model: string } | undefined;
     } = {},
   ): FallbackChain {
+    const bridge = this.resolveBridge(opts.exclude);
+    let selected: FallbackChain = FREEZER_EMPTY;
+
     // 1. Explicit fallbackModels (already resolved refs)
     //    Only return if non-empty; empty chain falls through to next source.
     if (opts.fallbackModels && opts.fallbackModels.length > 0) {
       const resolved = this.resolveRefs(opts.fallbackModels, opts.exclude);
-      if (resolved.length > 0) return resolved;
+      if (resolved.length > 0) selected = resolved;
     }
 
     // 2. Named profile — only return if non-empty
-    if (opts.fallbackProfile) {
+    if (selected.length === 0 && opts.fallbackProfile) {
       const resolved = this.resolve(opts.fallbackProfile, { exclude: opts.exclude });
-      if (resolved.length > 0) return resolved;
+      if (resolved.length > 0) selected = resolved;
     }
 
     // 3. Smart default
-    if (opts.fallbackAuto !== false) {
-      return this.smartDefault(opts.exclude);
+    if (selected.length === 0 && opts.fallbackAuto !== false) {
+      selected = this.smartDefault(opts.exclude);
     }
 
-    return FREEZER_EMPTY;
+    if (bridge.length === 0) return selected;
+    if (selected.length === 0) return bridge;
+    const seen = new Set(bridge.map((entry) => `${entry.providerId}/${entry.model}`));
+    return Object.freeze([
+      ...bridge,
+      ...selected.filter((entry) => !seen.has(`${entry.providerId}/${entry.model}`)),
+    ]);
+  }
+
+  /** Resolve the optional, fully-qualified emergency continuity route. */
+  resolveBridge(exclude?: { providerId: string; model: string }): FallbackChain {
+    const ref = this.config.fallbackBridge?.trim();
+    if (!ref) return FREEZER_EMPTY;
+    const parsed = parseModelRef(ref);
+    if (!parsed.provider || !parsed.model) return FREEZER_EMPTY;
+    return this.resolveRefs([ref], exclude);
+  }
+
+  /**
+   * Resolve every usable configured target as an uncapped last-resort chain.
+   * Normal smart defaults stay bounded; callers append this only after the
+   * preferred chain and only when automatic fallback is enabled.
+   */
+  resolveAllConfigured(exclude?: { providerId: string; model: string }): FallbackChain {
+    return this.smartDefault(exclude, Number.POSITIVE_INFINITY);
   }
 
   // ── Provider availability (read-only) ──────────────────────────────────
@@ -300,7 +327,10 @@ export class FallbackProfileManager {
    * explicit is set. Same-provider alternatives first, then cross-provider.
    * Limited to 4 entries to avoid burning through models on a transient blip.
    */
-  private smartDefault(exclude?: { providerId: string; model: string }): FallbackChain {
+  private smartDefault(
+    exclude?: { providerId: string; model: string },
+    maxCandidates = 4,
+  ): FallbackChain {
     const leaderProvider = this.config.provider;
     const leaderModel = this.config.model;
     const providers = this.config.providers ?? {};
@@ -348,8 +378,26 @@ export class FallbackProfileManager {
       }
     }
 
-    const MAX = 4;
-    const all = [...favorites, ...sameProvider, ...crossProvider].slice(0, MAX);
+    const ordered = [...favorites, ...sameProvider, ...crossProvider];
+    const all = Number.isFinite(maxCandidates)
+      ? ordered.slice(0, Math.max(0, maxCandidates))
+      : [...ordered];
+    // A provider-wide quota makes every sibling model useless. Keep one
+    // cross-provider escape hatch in the bounded smart chain when available.
+    const firstCrossProvider = ordered.find((ref) => {
+      const parsed = parseModelRef(ref);
+      return (parsed.provider ?? leaderProvider) !== leaderProvider;
+    });
+    if (
+      all.length > 0 &&
+      firstCrossProvider &&
+      !all.some((ref) => {
+        const parsed = parseModelRef(ref);
+        return (parsed.provider ?? leaderProvider) !== leaderProvider;
+      })
+    ) {
+      all[all.length - 1] = firstCrossProvider;
+    }
     return Object.freeze(
       all.map((ref) => {
         const p = parseModelRef(ref);
