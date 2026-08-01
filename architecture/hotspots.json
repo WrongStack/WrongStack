@@ -61,7 +61,7 @@
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1042,
+      "lines": 1046,
       "relativeImports": 19
     },
     "packages/core/src/chronicle/metrics-store.ts": {
@@ -246,11 +246,11 @@
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 908,
+      "lines": 942,
       "relativeImports": 4
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1185,
+      "lines": 1198,
       "relativeImports": 15
     },
     "packages/tools/src/kanban.ts": {
@@ -347,7 +347,7 @@
       "relativeImports": 12
     },
     "packages/webui/src/components/ContextDashboard.tsx": {
-      "lines": 887,
+      "lines": 889,
       "relativeImports": 2
     },
     "packages/webui/src/components/FileActivityDrawer.tsx": {
@@ -399,7 +399,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1044,
+      "lines": 1045,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
