@@ -47,8 +47,6 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   ACP_PROTOCOL_VERSION,
-  WRONGSTACK_VERSION,
-  toWire,
   type ACPMessage,
   type ClientCapabilities,
   type ContentBlock,
@@ -61,9 +59,10 @@ import {
   type SessionMode,
   type SessionPersistence,
   type SessionState,
+  toWire,
+  WRONGSTACK_VERSION,
 } from './protocol-contract.js';
 
-export { WRONGSTACK_VERSION };
 export type {
   AgentCapabilities,
   ClientCapabilities,
@@ -79,6 +78,7 @@ export type {
   SessionPersistence,
   SessionState,
 } from './protocol-contract.js';
+export { WRONGSTACK_VERSION };
 
 const WRONGSTACK_AUTH_METHODS = [
   {
@@ -129,7 +129,11 @@ export class ACPProtocolHandler {
   // session/request_permission). Keyed by our own `srv_N` ids.
   private readonly pendingOut = new Map<
     string,
-    { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
+    {
+      resolve: (v: unknown) => void;
+      reject: (e: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
   >();
   private nextOutId = 1;
 
@@ -173,13 +177,11 @@ export class ACPProtocolHandler {
         reject(new Error(`${method} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       this.pendingOut.set(id, { resolve, reject, timer });
-      this.transport
-        .send(toWire({ jsonrpc: '2.0', id, method, params }))
-        .catch((e: unknown) => {
-          clearTimeout(timer);
-          this.pendingOut.delete(id);
-          reject(e instanceof Error ? e : new Error(String(e)));
-        });
+      this.transport.send(toWire({ jsonrpc: '2.0', id, method, params })).catch((e: unknown) => {
+        clearTimeout(timer);
+        this.pendingOut.delete(id);
+        reject(e instanceof Error ? e : new Error(String(e)));
+      });
     });
   }
 
@@ -202,7 +204,13 @@ export class ACPProtocolHandler {
    */
   async handleMessage(msg: unknown): Promise<boolean> {
     if (typeof msg !== 'object' || msg === null) return false;
-    const m = msg as { id?: unknown; method?: unknown; params?: unknown; result?: unknown; error?: unknown };
+    const m = msg as {
+      id?: unknown;
+      method?: unknown;
+      params?: unknown;
+      result?: unknown;
+      error?: unknown;
+    };
 
     // Response (we never initiate requests, but be defensive).
     if (m.id !== undefined && (m.result !== undefined || m.error !== undefined)) {
@@ -312,7 +320,10 @@ export class ACPProtocolHandler {
   }
 
   private async handleInitialize(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { protocolVersion?: unknown; clientCapabilities?: ClientCapabilities };
+    const p = (params ?? {}) as {
+      protocolVersion?: unknown;
+      clientCapabilities?: ClientCapabilities;
+    };
     if (p.clientCapabilities && typeof p.clientCapabilities === 'object') {
       this.clientCapabilities = p.clientCapabilities;
     }
@@ -324,66 +335,72 @@ export class ACPProtocolHandler {
     // speak and let the client decide whether to proceed. The client side
     // (`ACPSession.initialize`) already mirrors this lenient negotiation.
     this.initialized = true;
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {
-        protocolVersion: ACP_PROTOCOL_VERSION,
-        agentCapabilities: {
-          loadSession: true,
-          promptCapabilities: {
-            // We route ACP image blocks into the core agent's multimodal
-            // input (server-agent-turn.promptToAgentInput); whether the
-            // model can see them is the configured provider's concern.
-            image: true,
-            audio: false,
-            embeddedContext: true,
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {
+          protocolVersion: ACP_PROTOCOL_VERSION,
+          agentCapabilities: {
+            loadSession: true,
+            promptCapabilities: {
+              // We route ACP image blocks into the core agent's multimodal
+              // input (server-agent-turn.promptToAgentInput); whether the
+              // model can see them is the configured provider's concern.
+              image: true,
+              audio: false,
+              embeddedContext: true,
+            },
+            mcpCapabilities: {
+              http: false,
+              sse: false,
+            },
+            sessionCapabilities: {
+              close: {},
+              list: {},
+              delete: {},
+              resume: {},
+              fork: {},
+            },
+            auth: {
+              logout: {},
+            },
           },
-          mcpCapabilities: {
-            http: false,
-            sse: false,
+          agentInfo: {
+            name: this.agentName,
+            title: 'WrongStack',
+            version: WRONGSTACK_VERSION,
           },
-          sessionCapabilities: {
-            close: {},
-            list: {},
-            delete: {},
-            resume: {},
-            fork: {},
-          },
-          auth: {
-            logout: {},
-          },
+          authMethods: WRONGSTACK_AUTH_METHODS,
+          modes: this.modes,
+          configOptions: this.configOptions,
         },
-        agentInfo: {
-          name: this.agentName,
-          title: 'WrongStack',
-          version: WRONGSTACK_VERSION,
-        },
-        authMethods: WRONGSTACK_AUTH_METHODS,
-        modes: this.modes,
-        configOptions: this.configOptions,
-      },
-    }));
+      }),
+    );
     return false;
   }
 
   private async handleAuthenticate(id: string | number, _params: unknown): Promise<boolean> {
     // WrongStack doesn't currently require auth.
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: { outcome: 'unauthenticated' },
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: { outcome: 'unauthenticated' },
+      }),
+    );
     return false;
   }
 
   private async handleLogout(id: string | number, _params: unknown): Promise<boolean> {
     // WrongStack doesn't have persistent auth state, so logout is a no-op.
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {},
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {},
+      }),
+    );
     return false;
   }
 
@@ -436,15 +453,17 @@ export class ACPProtocolHandler {
       });
     }
 
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {
-        sessionId,
-        modes: this.modes,
-        configOptions: this.configOptions,
-      },
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {
+          sessionId,
+          modes: this.modes,
+          configOptions: this.configOptions,
+        },
+      }),
+    );
     return false;
   }
 
@@ -497,13 +516,15 @@ export class ACPProtocolHandler {
           sessionId,
           update: { sessionUpdate: 'current_mode_update', modeId: restored.modeId },
         });
-        await this.transport.send(toWire({
-          jsonrpc: '2.0',
-          id,
-          result: {
-            initialMode: { currentModeId: restored.modeId, availableModes: this.modes },
-          },
-        }));
+        await this.transport.send(
+          toWire({
+            jsonrpc: '2.0',
+            id,
+            result: {
+              initialMode: { currentModeId: restored.modeId, availableModes: this.modes },
+            },
+          }),
+        );
         return false;
       }
     }
@@ -533,16 +554,18 @@ export class ACPProtocolHandler {
           modeId: existing.modeId,
         },
       });
-      await this.transport.send(toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          initialMode: {
-            currentModeId: existing.modeId,
-            availableModes: this.modes,
+      await this.transport.send(
+        toWire({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            initialMode: {
+              currentModeId: existing.modeId,
+              availableModes: this.modes,
+            },
           },
-        },
-      }));
+        }),
+      );
       return false;
     }
 
@@ -558,16 +581,18 @@ export class ACPProtocolHandler {
 
     if (existing) {
       existing.updatedAt = new Date().toISOString();
-      await this.transport.send(toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          initialMode: {
-            currentModeId: existing.modeId,
-            availableModes: this.modes,
+      await this.transport.send(
+        toWire({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            initialMode: {
+              currentModeId: existing.modeId,
+              availableModes: this.modes,
+            },
           },
-        },
-      }));
+        }),
+      );
       return false;
     }
 
@@ -590,11 +615,13 @@ export class ACPProtocolHandler {
     this.sessions.delete(sessionId!);
     this.disposeSession(sessionId!);
 
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {},
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {},
+      }),
+    );
     return false;
   }
 
@@ -608,7 +635,9 @@ export class ACPProtocolHandler {
     }
 
     if (!this.sessions.has(sessionId)) {
-      await this.transport.send(toWire({ jsonrpc: '2.0', id, result: { configOptions: [...this.configOptions] } }));
+      await this.transport.send(
+        toWire({ jsonrpc: '2.0', id, result: { configOptions: [...this.configOptions] } }),
+      );
       return false;
     }
     const session = this.sessions.get(sessionId)!;
@@ -616,11 +645,13 @@ export class ACPProtocolHandler {
     this.sessions.delete(sessionId);
     this.disposeSession(sessionId);
 
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {},
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {},
+      }),
+    );
     return false;
   }
 
@@ -671,42 +702,52 @@ export class ACPProtocolHandler {
       sessionId,
       update: { sessionUpdate: 'current_mode_update', modeId: forked.modeId },
     });
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {
-        sessionId,
-        modes: this.modes,
-        configOptions: this.configOptions,
-      },
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {
+          sessionId,
+          modes: this.modes,
+          configOptions: this.configOptions,
+        },
+      }),
+    );
     return false;
   }
 
   private async handleProvidersList(id: string | number, _params: unknown): Promise<boolean> {
     // Return the current provider configuration.
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {
-        providers: [],
-        currentProviderId: null,
-      },
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {
+          providers: [],
+          currentProviderId: null,
+        },
+      }),
+    );
     return false;
   }
 
   private async handleProvidersSet(id: string | number, _params: unknown): Promise<boolean> {
-    await this.sendError(id, -32000, 'provider configuration not available through ACP; use wstack auth');
+    await this.sendError(
+      id,
+      -32000,
+      'provider configuration not available through ACP; use wstack auth',
+    );
     return false;
   }
 
   private async handleProvidersDisable(id: string | number, _params: unknown): Promise<boolean> {
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: {},
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: {},
+      }),
+    );
     return false;
   }
 
@@ -770,7 +811,10 @@ export class ACPProtocolHandler {
         const terminalId = created?.terminalId;
         if (!terminalId) return { output: '', exitCode: null };
         try {
-          const exit = (await this.request('terminal/wait_for_exit', { sessionId, terminalId })) as {
+          const exit = (await this.request('terminal/wait_for_exit', {
+            sessionId,
+            terminalId,
+          })) as {
             exitCode?: number | null;
           };
           const out = (await this.request('terminal/output', { sessionId, terminalId })) as {
@@ -807,11 +851,13 @@ export class ACPProtocolHandler {
     session.updatedAt = new Date().toISOString();
     await this.persist(session);
 
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: { stopReason: result.stopReason },
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: { stopReason: result.stopReason },
+      }),
+    );
     return false;
   }
 
@@ -854,7 +900,9 @@ export class ACPProtocolHandler {
         configOptions: [...this.configOptions],
       },
     });
-    await this.transport.send(toWire({ jsonrpc: '2.0', id, result: { configOptions: [...this.configOptions] } }));
+    await this.transport.send(
+      toWire({ jsonrpc: '2.0', id, result: { configOptions: [...this.configOptions] } }),
+    );
     return false;
   }
 
@@ -868,11 +916,13 @@ export class ACPProtocolHandler {
       if (s.title !== undefined) out.title = s.title;
       return out;
     });
-    await this.transport.send(toWire({
-      jsonrpc: '2.0',
-      id,
-      result: { sessions },
-    }));
+    await this.transport.send(
+      toWire({
+        jsonrpc: '2.0',
+        id,
+        result: { sessions },
+      }),
+    );
     return false;
   }
 

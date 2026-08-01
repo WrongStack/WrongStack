@@ -77,6 +77,11 @@ export {
 } from './message-invariants.js';
 export * from './newline-normalize.js';
 export {
+  isSafePathSegment,
+  MAX_PATH_SEGMENT_LENGTH,
+  resolveContainedPath,
+} from './path-segment.js';
+export {
   getPerfProfile,
   indexParallelBatchSize,
   isFrugalPerf,
@@ -86,11 +91,6 @@ export {
   tuiStreamFlushMs,
   useDaemonPerfDefaults,
 } from './perf-profile.js';
-export {
-  isSafePathSegment,
-  MAX_PATH_SEGMENT_LENGTH,
-  resolveContainedPath,
-} from './path-segment.js';
 export { isPidAlive } from './pid.js';
 export * from './project-identity.js';
 export {
