@@ -349,6 +349,7 @@ export async function recoverStaleTaskAssignments(
   const requestedMode = input.mode ?? 'retry';
   const checkedAt = input.now ?? nowIso();
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    const isManaged = board.lifecycle?.mode === 'managed';
     for (const task of board.tasks) {
       const assignment = task.assignment;
       if (!assignment || (assignment.status !== 'queued' && assignment.status !== 'running')) {
@@ -380,7 +381,11 @@ export async function recoverStaleTaskAssignments(
         assignment.status = 'failed';
         assignment.error = reason;
         delete assignment.completedAt;
-        task.status = 'failed';
+        // Managed boards: preserve lifecycle stage. Only the assignment
+        // status changes — the card's lifecycle column is authoritative and
+        // must not be overridden by a raw status→column sync. A reviewer
+        // or repair_managed_projection can correct the stage if needed.
+        if (!isManaged) task.status = 'failed';
         delete task.completedAt;
       } else if (mode === 'release') {
         delete task.assignment;
@@ -388,7 +393,14 @@ export async function recoverStaleTaskAssignments(
           delete task.assignedAgent;
           delete task.assignee;
         }
-        task.status = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+        // Managed boards: keep the card in its current lifecycle stage
+        // (e.g. 'running'). The lifecycle transition todo→running is
+        // irreversible on managed boards — releasing a claim does not move
+        // the card backward. Use repair_managed_projection or manual
+        // transition to correct the stage if rollback is desired.
+        if (!isManaged) {
+          task.status = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+        }
         delete task.completedAt;
       } else {
         const nextAttempt = (assignment.attempt ?? 0) + 1;
@@ -396,7 +408,7 @@ export async function recoverStaleTaskAssignments(
           assignment.status = 'failed';
           assignment.error = `${reason}; max attempts exceeded (${assignment.maxAttempts})`;
           delete assignment.completedAt;
-          task.status = 'failed';
+          if (!isManaged) task.status = 'failed';
           delete task.completedAt;
         } else {
           task.assignment = {
@@ -416,19 +428,29 @@ export async function recoverStaleTaskAssignments(
             delete task.assignedAgent;
             delete task.assignee;
           }
-          task.status = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+          // Managed boards: retry keeps the card in its current lifecycle
+          // stage. The task is re-queued for dispatch but does not move
+          // backward in the lifecycle.
+          if (!isManaged) {
+            task.status = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+          }
           delete task.completedAt;
         }
       }
 
-      syncTaskColumnForStatus(board, task, previousColumnId);
+      // Only sync column for non-managed boards. Managed boards have
+      // lifecycle-authoritative columns that must not be overridden by
+      // status-based projection.
+      if (!isManaged) {
+        syncTaskColumnForStatus(board, task, previousColumnId);
+      }
       task.updatedAt = now;
       board.updatedAt = now;
+      board.lastStaleRecoveredAt = now;
       recoveredTasks.push({
         ...task,
         assignment: task.assignment ? { ...task.assignment } : undefined,
       });
-      board.lastStaleRecoveredAt = now;
       events.push(
         createKanbanEvent(board.id, task, 'task.stale_recovered', {
           before: beforeAssignment,
@@ -510,6 +532,7 @@ export async function releaseTaskClaim(
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
+    const isManaged = board.lifecycle?.mode === 'managed';
     const previousColumnId = task.columnId;
     const beforeAssignment = task.assignment ? { ...task.assignment } : undefined;
     delete task.assignment;
@@ -517,7 +540,13 @@ export async function releaseTaskClaim(
       delete task.assignedAgent;
       delete task.assignee;
     }
-    task.status = input.status ?? (areDependenciesMet(board, task.id) ? 'ready' : 'blocked');
+    // Managed boards: preserve lifecycle stage. The card stays in its
+    // current column (e.g. 'running'). Lifecycle columns are authoritative —
+    // releasing a claim does not move a managed card backward. Use
+    // repair_managed_projection or manual transition to correct the stage.
+    if (!isManaged) {
+      task.status = input.status ?? (areDependenciesMet(board, task.id) ? 'ready' : 'blocked');
+    }
     delete task.completedAt;
     const now = nowIso();
     if (input.reason) {
@@ -531,7 +560,10 @@ export async function releaseTaskClaim(
         },
       ];
     }
-    syncTaskColumnForStatus(board, task, previousColumnId);
+    // Only sync column for non-managed boards.
+    if (!isManaged) {
+      syncTaskColumnForStatus(board, task, previousColumnId);
+    }
     task.updatedAt = now;
     board.updatedAt = now;
     event = createKanbanEvent(board.id, task, 'task.released', {
