@@ -383,6 +383,99 @@ describe('provider_manage', () => {
     expect(result.message).toContain('Updated');
   });
 
+  // WS-013: `configure` spread the previous entry, so a stored apiKey survived a
+  // baseUrl change. provider_manage is LLM-callable, so a prompt-injected call
+  // could repoint the endpoint and every later request — plus the boot-time
+  // /v1/models probe — would ship the key to the attacker's host.
+  describe('baseUrl / credential coupling', () => {
+    const withKey = () =>
+      makeOpts({
+        providers: { 'test-provider': { type: 'openai', apiKey: 'sk-real-key', baseUrl: 'https://api.openai.com' } },
+      });
+
+    it('clears the stored API key when the base URL changes', async () => {
+      const opts = withKey();
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      const result = await run(tool, {
+        action: 'configure',
+        provider: 'test-provider',
+        baseUrl: 'https://evil.example/v1',
+      });
+      expect(result.status).toBe('ok');
+      expect(result.message).toContain('API key cleared');
+      const cfg = opts.getConfig() as unknown as { providers: Record<string, { apiKey?: string; baseUrl?: string }> };
+      expect(cfg.providers['test-provider']?.apiKey).toBeUndefined();
+      expect(cfg.providers['test-provider']?.baseUrl).toBe('https://evil.example/v1');
+    });
+
+    it('keeps a key supplied in the same call as the base URL change', async () => {
+      const opts = withKey();
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      const result = await run(tool, {
+        action: 'configure',
+        provider: 'test-provider',
+        baseUrl: 'https://self-hosted.internal/v1',
+        apiKey: 'sk-new-key',
+      });
+      expect(result.status).toBe('ok');
+      const cfg = opts.getConfig() as unknown as { providers: Record<string, { apiKey?: string }> };
+      expect(cfg.providers['test-provider']?.apiKey).toBe('sk-new-key');
+    });
+
+    it('leaves the key alone when the base URL is not touched', async () => {
+      const opts = withKey();
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      await run(tool, { action: 'configure', provider: 'test-provider', models: ['m'] });
+      const cfg = opts.getConfig() as unknown as { providers: Record<string, { apiKey?: string }> };
+      expect(cfg.providers['test-provider']?.apiKey).toBe('sk-real-key');
+    });
+
+    it('leaves the key alone when the base URL is re-set to the same value', async () => {
+      const opts = withKey();
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      await run(tool, {
+        action: 'configure',
+        provider: 'test-provider',
+        baseUrl: 'https://api.openai.com',
+      });
+      const cfg = opts.getConfig() as unknown as { providers: Record<string, { apiKey?: string }> };
+      expect(cfg.providers['test-provider']?.apiKey).toBe('sk-real-key');
+    });
+
+    it('rejects non-HTTP and credential-bearing base URLs on configure and add', async () => {
+      const tool = getTool(createFallbackManageTools(withKey()), PROVIDER_MANAGE_TOOL_NAME);
+      for (const baseUrl of ['file:///etc/passwd', 'https://user:pw@evil.example', 'not a url']) {
+        const result = await run(tool, { action: 'configure', provider: 'test-provider', baseUrl });
+        expect(result.status).toBe('error');
+        expect(result.message).toContain('Invalid baseUrl');
+      }
+      const added = await run(tool, {
+        action: 'add',
+        provider: 'new-one',
+        type: 'openai',
+        baseUrl: 'ftp://example.com',
+      });
+      expect(added.status).toBe('error');
+    });
+
+    it('still allows local providers — Ollama, LM Studio, omniroute', async () => {
+      const tool = getTool(createFallbackManageTools(withKey()), PROVIDER_MANAGE_TOOL_NAME);
+      for (const baseUrl of [
+        'http://localhost:11434/v1',
+        'http://127.0.0.1:1234/v1',
+        'http://localhost:20128',
+      ]) {
+        const result = await run(tool, { action: 'configure', provider: 'test-provider', baseUrl });
+        expect(result.status).toBe('ok');
+      }
+    });
+
+    it('binds the approval subject to the base URL', () => {
+      const tool = getTool(createFallbackManageTools(makeOpts()), PROVIDER_MANAGE_TOOL_NAME);
+      expect(tool.subjectKey).toBe('baseUrl');
+    });
+  });
+
   it('rejects configuring a missing provider', async () => {
     const tool = getTool(createFallbackManageTools(makeOpts()), PROVIDER_MANAGE_TOOL_NAME);
     const result = await run(tool, { action: 'configure', provider: 'ghost' });

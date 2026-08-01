@@ -440,6 +440,27 @@ interface ProviderManageOutput {
   providers?: string[];
 }
 
+/**
+ * Reject provider base URLs that are malformed, non-HTTP, or carry embedded
+ * credentials (WS-013). Private and loopback hosts stay allowed on purpose —
+ * Ollama, LM Studio and omniroute are first-class local providers.
+ */
+export function validateProviderBaseUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return `Invalid baseUrl: ${raw} is not a valid URL.`;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return `Invalid baseUrl: ${url.protocol} is not supported — use http: or https:.`;
+  }
+  if (url.username || url.password) {
+    return 'Invalid baseUrl: credentials embedded in the URL are not accepted.';
+  }
+  return null;
+}
+
 function createProviderManageTool(opts: FallbackManageToolOptions): Tool<ProviderManageInput, ProviderManageOutput> {
   return {
     name: PROVIDER_MANAGE_TOOL_NAME,
@@ -456,6 +477,11 @@ function createProviderManageTool(opts: FallbackManageToolOptions): Tool<Provide
     inputSchema: PROVIDER_MANAGE_SCHEMA,
     permission: 'auto',
     mutating: true,
+    // WS-013: without a subjectKey the approval subject collapses to the bare
+    // tool name, so one "always allow" answered for `list` also authorised any
+    // future call with any baseUrl. Bind it to the endpoint, mirroring
+    // packages/tools/src/fetch.ts:74.
+    subjectKey: 'baseUrl',
     riskTier: 'standard',
     icon: 'settings',
     async execute(input) {
@@ -494,6 +520,10 @@ function createProviderManageTool(opts: FallbackManageToolOptions): Tool<Provide
         if (providers[input.provider]) {
           return { status: 'error', message: `Provider "${input.provider}" already exists. Use "configure" to update.` };
         }
+        if (input.baseUrl) {
+          const invalid = validateProviderBaseUrl(input.baseUrl);
+          if (invalid) return { status: 'error', message: invalid };
+        }
         const entry: Record<string, unknown> = { type: input.type };
         if (input.models) entry.models = input.models;
         if (input.baseUrl) entry.baseUrl = input.baseUrl;
@@ -515,19 +545,39 @@ function createProviderManageTool(opts: FallbackManageToolOptions): Tool<Provide
         if (!providers[input.provider]) {
           return { status: 'error', message: `Provider "${input.provider}" not found. Use "add" first or check "list".` };
         }
-        const entry: Record<string, unknown> = { ...providers[input.provider] };
+        if (input.baseUrl) {
+          const invalid = validateProviderBaseUrl(input.baseUrl);
+          if (invalid) return { status: 'error', message: invalid };
+        }
+        const previous: Record<string, unknown> = { ...providers[input.provider] };
+        const entry: Record<string, unknown> = { ...previous };
         if (input.models !== undefined) entry.models = input.models;
         if (input.baseUrl !== undefined) entry.baseUrl = input.baseUrl || undefined;
         if (input.family !== undefined) entry.family = input.family || undefined;
         if (input.envVars !== undefined) entry.envVars = input.envVars;
         if (input.autoDiscoverModels !== undefined) entry.autoDiscoverModels = input.autoDiscoverModels;
         if (input.apiKey !== undefined) entry.apiKey = input.apiKey || undefined;
+
+        // WS-013: an API key is issued for one endpoint. Spreading the previous
+        // entry carried it across a baseUrl change, so a single `configure` call
+        // could repoint the provider at an attacker-chosen host and every
+        // subsequent request — plus the boot-time /v1/models probe — would send
+        // the stored key there. Moving the endpoint now drops the key unless the
+        // caller supplies a new one in the same call.
+        const endpointChanged =
+          input.baseUrl !== undefined && (entry.baseUrl ?? undefined) !== (previous.baseUrl ?? undefined);
+        const keyDropped = endpointChanged && input.apiKey === undefined && previous.apiKey !== undefined;
+        if (keyDropped) entry.apiKey = undefined;
+
         providers[input.provider] = entry;
         await opts.updateConfig((cfg) => {
           cfg.providers = providers;
         });
         const updated = Object.keys({ ...entry }).filter((k) => k !== 'apiKey').join(', ');
-        return { status: 'ok', message: `✓ Updated ${input.provider}: ${updated}` };
+        const keyNote = keyDropped
+          ? ' — stored API key cleared because the base URL changed; set it again with provider_key_set'
+          : '';
+        return { status: 'ok', message: `✓ Updated ${input.provider}: ${updated}${keyNote}` };
       }
 
       if (input.action === 'remove') {
