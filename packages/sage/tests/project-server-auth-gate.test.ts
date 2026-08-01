@@ -13,11 +13,11 @@
  * about what crosses the wire.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { accessSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -30,20 +30,9 @@ import type {
   SageProjectServerMetadata,
 } from '../src/project-server-protocol.js';
 
-// Resolve the daemon entry point. In CI the dist/ directory may not exist,
-// so we use tsx to run the TypeScript source directly when dist/ is absent.
-import { accessSync } from 'node:fs';
-import { dirname, join as pathJoin } from 'node:path';
-
-const __dirname_test = dirname(fileURLToPath(import.meta.url));
-const DIST_ENTRY = pathJoin(__dirname_test, '..', 'dist', 'project-server.js');
-const SRC_ENTRY = pathJoin(__dirname_test, '..', 'src', 'project-server.ts');
-
-const sageDistServer = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
-const sageDistIndex = fileURLToPath(new URL('../dist/index.js', import.meta.url));
-const coreDistIndex = fileURLToPath(new URL('../../core/dist/index.js', import.meta.url));
-const distReady =
-  existsSync(sageDistServer) && existsSync(sageDistIndex) && existsSync(coreDistIndex);
+const sageTestDir = dirname(fileURLToPath(import.meta.url));
+const DIST_ENTRY = join(sageTestDir, '..', 'dist', 'project-server.js');
+const SRC_ENTRY = join(sageTestDir, '..', 'src', 'project-server.ts');
 
 function resolveServerEntry(): { cmd: string; args: string[] } {
   try {
@@ -140,7 +129,7 @@ afterEach(async () => {
   await rm(projectRoot, { recursive: true, force: true }).catch(() => undefined);
 });
 
-describe.skipIf(!distReady)('SAGE daemon auth gate', () => {
+describe('SAGE daemon auth gate', () => {
   it('never puts the token on the wire, and refuses a peer that did not read server.json', async () => {
     child = spawn(SERVER_LAUNCH.cmd, [...SERVER_LAUNCH.args, '--project-root', projectRoot], {
       stdio: 'ignore',
