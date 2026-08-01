@@ -10,12 +10,14 @@
  */
 
 import { allServers } from '@wrongstack/core/infrastructure';
+import { DefaultSecretScrubber, isSecretField } from '@wrongstack/core/security';
 import {
   addMcp,
   disableMcp,
   discoverMcp,
   enableMcp,
   listMcp,
+  MCP_ENV_MASK,
   type MCPRegistry,
   type MCPServerOperationalHealth,
   type McpManageDeps,
@@ -67,8 +69,38 @@ function mapStatus(raw: string): MCPServerView['status'] {
   }
 }
 
+const envScrubber = new DefaultSecretScrubber();
+
+/**
+ * Replace secret-bearing MCP env values with {@link MCP_ENV_MASK}.
+ *
+ * WS-036: `mcp.list` echoed this map verbatim to the browser, and MCP server
+ * env is exactly where server credentials live — `GITHUB_TOKEN`, `*_API_KEY`,
+ * and so on. Two independent signals decide, because either alone misses real
+ * cases:
+ *
+ *   - the KEY looks secret (`isSecretField`, the project's own answer), which
+ *     catches `FOO_TOKEN=<anything>`;
+ *   - the VALUE looks like a credential to the scrubber, which catches a
+ *     secret hiding behind an innocuous name like `GH_PAT=ghp_…`.
+ *
+ * Non-secret env (`NODE_ENV`, a path) still shows through, so editing a server
+ * in the UI stays workable. Sending the mask back means "leave that value
+ * alone" — `buildConfig` restores it from the stored config.
+ */
+function maskServerEnv(env: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    out[key] = isSecretField(key) || envScrubber.scrub(value) !== value ? MCP_ENV_MASK : value;
+  }
+  return out;
+}
+
 /** Project the shared {@link McpServerInfo} into the browser wire shape. */
-function toView(info: McpServerInfo, health?: MCPServerOperationalHealth | undefined): MCPServerView {
+export function toView(
+  info: McpServerInfo,
+  health?: MCPServerOperationalHealth | undefined,
+): MCPServerView {
   const view: MCPServerView = {
     name: info.name,
     transport: info.transport,
@@ -87,7 +119,7 @@ function toView(info: McpServerInfo, health?: MCPServerOperationalHealth | undef
   if (info.lazy !== undefined) view.lazy = info.lazy;
   if (info.command !== undefined) view.command = info.command;
   if (info.args !== undefined) view.args = info.args;
-  if (info.env !== undefined) view.env = info.env;
+  if (info.env !== undefined) view.env = maskServerEnv(info.env);
   if (info.url !== undefined) view.url = info.url;
   if (health !== undefined) view.health = health;
   return view;
@@ -134,8 +166,9 @@ export async function handleMcpList(
     presets: allServers(),
   });
   const health = new Map(
-    (
-      typeof mcpRegistry.operationalHealth === 'function' ? mcpRegistry.operationalHealth() : []
+    (typeof mcpRegistry.operationalHealth === 'function'
+      ? mcpRegistry.operationalHealth()
+      : []
     ).map((item) => [item.name, item]),
   );
   send(ws, {
@@ -155,7 +188,10 @@ export async function handleMcpAdd(
   if (!d) return;
   const validated = validateMcpServerPayload(msg.payload, 'mcp.add');
   if (!validated.ok) {
-    send(ws, { type: 'mcp.operation_result', payload: { success: false, message: validated.message } });
+    send(ws, {
+      type: 'mcp.operation_result',
+      payload: { success: false, message: validated.message },
+    });
     return;
   }
   const result = await addMcp(validated.value as unknown as McpServerInput, d);
@@ -187,7 +223,10 @@ export async function handleMcpUpdate(
   if (!d) return;
   const validated = validateMcpServerPayload(msg.payload, 'mcp.update');
   if (!validated.ok) {
-    send(ws, { type: 'mcp.operation_result', payload: { success: false, message: validated.message } });
+    send(ws, {
+      type: 'mcp.operation_result',
+      payload: { success: false, message: validated.message },
+    });
     return;
   }
   const result = await updateMcp(validated.value as unknown as McpServerInput, d);

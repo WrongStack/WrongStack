@@ -146,6 +146,51 @@ function normalizeTransport(t: string | undefined): MCPServerConfig['transport']
  * `exactOptionalPropertyTypes` stays satisfied and we never write `null`-ish
  * holes into config.json. `base` lets `update` merge onto an existing entry.
  */
+/**
+ * Placeholder a caller receives in place of a secret-bearing env value.
+ *
+ * WS-036: `mcp.list` echoed MCP server env verbatim over the WebSocket, and
+ * MCP env is where server credentials live (`GITHUB_TOKEN`, `*_API_KEY`, …).
+ * Read surfaces substitute this; sending it back means "leave that value
+ * alone", so the browser can still edit a server without ever having been
+ * given its secrets.
+ */
+export const MCP_ENV_MASK = '__wrongstack_unchanged__';
+
+/**
+ * Restore masked values from the stored config.
+ *
+ * Done here rather than in a handler because this is the one place where the
+ * incoming input and the existing config are both in hand. A caller that
+ * echoes the mask back unchanged must not overwrite the real value with the
+ * placeholder — that would silently destroy the user's credential, which is a
+ * worse outcome than the leak being fixed.
+ */
+function unmaskEnv(
+  env: Record<string, string> | undefined,
+  base: Record<string, string> | undefined,
+): Record<string, string> | undefined {
+  if (env === undefined) return undefined;
+  let changed = false;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value === MCP_ENV_MASK) {
+      const stored = base?.[key];
+      // An unknown key carrying the mask has no stored value to restore, so
+      // it is dropped rather than persisted as the literal placeholder.
+      if (stored === undefined) {
+        changed = true;
+        continue;
+      }
+      out[key] = stored;
+      changed = true;
+      continue;
+    }
+    out[key] = value;
+  }
+  return changed ? out : env;
+}
+
 function buildConfig(input: McpServerInput, base?: MCPServerConfig | undefined): MCPServerConfig {
   const cfg: MCPServerConfig = {
     name: input.name,
@@ -159,7 +204,7 @@ function buildConfig(input: McpServerInput, base?: MCPServerConfig | undefined):
   if (command !== undefined) cfg.command = command;
   const args = input.args ?? base?.args;
   if (args !== undefined) cfg.args = args;
-  const env = input.env ?? base?.env;
+  const env = unmaskEnv(input.env ?? base?.env, base?.env);
   if (env !== undefined) cfg.env = env;
   const url = input.url ?? base?.url;
   if (url !== undefined) cfg.url = url;

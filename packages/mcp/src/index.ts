@@ -63,6 +63,7 @@ export {
   discoverMcp,
   enableMcp,
   listMcp,
+  MCP_ENV_MASK,
   type McpManageDeps,
   type McpOpResult,
   type McpServerInfo,
