@@ -299,3 +299,96 @@ Files changed: `verification-context.ts`, `_internal.ts`, `goal-kanban.ts`, `goa
 
 Tracking board: `df3a3373` — all items moved to Done.
 
+---
+
+## Phase 0-4 Architecture Program (2026-08-01)
+
+> Five-phase Kanban architecture improvement program executed in a single session.
+> Builds on the 17 audit findings above to harden dispatch, enforcement, lifecycle,
+> and board hygiene across the entire Kanban surface.
+
+### Phase 0 — Canonical task classifier
+
+| Item | Status |
+|------|--------|
+| `classifyTaskForQueue()` with 15 queue buckets | ✅ Done |
+| Classifier diagnostics in `KanbanQueueHealth.classifications` | ✅ Done |
+| Types: `KanbanTaskQueueBucket`, `KanbanTaskQueueClassification`, `KanbanQueueClassificationSummary` | ✅ Done |
+
+### Phase 1 — Board kind and retention filtering
+
+| Item | Status |
+|------|--------|
+| `KanbanBoardKind` (project, session_mirror, sdd_mirror, import, archive) | ✅ Done |
+| `KanbanBoardRetentionPolicy` (keep, archive_after_ttl, delete_after_ttl) | ✅ Done |
+| `normalizeBoardKind()` infers kind at creation + read | ✅ Done |
+| Session-kanban.ts tags session boards with kind + 7-day archive retention | ✅ Done |
+| Queue operations exclude session mirrors + archives by default | ✅ Done |
+| BoardKindFilter module with `resolveKindFilter` / `boardPassesKindFilter` | ✅ Done |
+
+### Deterministic enforcement
+
+| Item | Status |
+|------|--------|
+| `initializeAndValidateManagedTask()` rejects title-only tasks at creation | ✅ Done |
+| `claimReadyTask()` uses deterministic `updatedAt` sort (no random shuffle) | ✅ Done |
+| `adoptManagedLifecycle()` sets strict completion gate, converts off→strict | ✅ Done |
+| `wrongstack-kanban` skill codifies anti-fake-progress contract | ✅ Done |
+
+### Phase 2 — Shared dispatch service
+
+| Item | Status |
+|------|--------|
+| `dispatch.ts`: 6 operations (reserve, start, complete, fail, cancel, heartbeat) | ✅ Done |
+| All operations lease-fenced via `expectedLeaseId` | ✅ Done |
+| Managed lifecycle auto-advance: todo→running→review (no manual transitionTask) | ✅ Done |
+| Director `kanban_queue` migrated to dispatch service | ✅ Done |
+| WebUI `kanban-dispatch.ts` migrated to dispatch service | ✅ Done |
+| Dispatch operations wired through IPC: domain-operations, client-domain, kanban-store | ✅ Done |
+| 13 dispatch-service conformance tests + 12 cross-surface tests | ✅ Done |
+
+### Phase 3 — Lifecycle-aware stale recovery
+
+| Item | Status |
+|------|--------|
+| `recoverStaleTaskAssignments` preserves lifecycle stage on managed boards | ✅ Done |
+| `releaseTaskClaim` preserves lifecycle stage on managed boards | ✅ Done |
+| Legacy boards continue to sync status→column as before | ✅ Done |
+| 8 managed-recovery tests (retry, release, fail + legacy backward compat) | ✅ Done |
+
+### Phase 4 — Parent/child dispatch semantics
+
+| Item | Status |
+|------|--------|
+| Parent/child atomic gate: parent cannot reach Done until all children completed | ✅ Done |
+| `validateParentChildGate()` with `parent-child-incomplete` issue code | ✅ Done |
+| `compareTasksForWork()` prefers children before parents at same priority | ✅ Done |
+| 4 Phase 4 tests (gate blocks, gate allows, sort ordering, no-op) | ✅ Done |
+
+### Session board prune operation
+
+| Item | Status |
+|------|--------|
+| `pruneSessionBoards()` archives or deletes expired session mirrors | ✅ Done |
+| `archive_after_ttl`: kind→archive, retention.archivedAt stamped | ✅ Done |
+| `delete_after_ttl`: board permanently deleted | ✅ Done |
+| Daily cron job scheduled (`prune-session-boards`, 24h interval) | ✅ Done |
+| 7 prune tests (archive, delete, skip, keep, non-session, idempotent, mixed) | ✅ Done |
+
+### Verification summary
+
+| Metric | Value |
+|--------|-------|
+| Test files across session | 47 |
+| Total tests passing | 656 |
+| Packages typechecked clean | 29/30 (1 skipped) |
+| Architecture health check | PASS |
+| Commits pushed | 8 |
+| Roadmap cards closed | 23 of 34 (15 stale + 8 shipped) |
+
+### Files changed (Phase 0-4)
+
+**New files:** `task-classifier.ts`, `board-kind-filter.ts`, `dispatch.ts`, `prune.ts`, `dispatch-service.test.ts`, `dispatch-conformance.test.ts`, `managed-recovery.test.ts`, `phase4-parent-child.test.ts`, `prune-session-boards.test.ts`, `deterministic-enforcement.test.ts`, `docs/kanban-deterministic-enforcement-design.md`
+
+**Modified:** `types.ts`, `types-operations.ts`, `storage.ts`, `domain-operations.ts`, `client-domain.ts`, `index.ts`, `manager.ts`, `assignment.ts`, `_internal.ts`, `lifecycle.ts`, `tasks.ts`, `boards.ts`, `board-health.ts`, `kanban-store.ts`, `director-tools.ts`, `kanban-dispatch.ts`, `session-kanban.ts`, `wrongstack-kanban/SKILL.md`, plus 6 test files updated
+
