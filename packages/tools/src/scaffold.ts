@@ -89,6 +89,7 @@ export const scaffoldTool: Tool<ScaffoldInput, ScaffoldOutput> = {
     'Much cleaner and safer than manually writing multiple files.',
   permission: 'confirm',
   mutating: true,
+  subjectKey: 'name',
   capabilities: ['fs.write.outside-project', 'fs.write'],
   icon: 'scaffold',
   timeoutMs: 30_000,
@@ -183,15 +184,39 @@ async function handleBuiltIn(
   };
 }
 
+/** Escape a string so it matches literally inside a regular expression. */
+function escapeRegexLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Substitute `{{name}}`, `{{Name}}` and caller-supplied `{{key}}` placeholders
+ * (WS-057).
+ *
+ * Both halves of this used to be injectable, and both inputs come from the
+ * tool's arguments:
+ *
+ *  - The variable NAME was interpolated raw into `new RegExp(...)`. A key of
+ *    `.*` compiled to `\{\{.*\}\}`, which is greedy and matches from the first
+ *    `{{` to the LAST `}}` — replacing whole spans of the template rather than
+ *    one placeholder. A key containing `(` threw instead, aborting the
+ *    scaffold with a regex syntax error.
+ *  - The VALUE was passed as a replacement STRING, where `$&`, `` $` ``, `$'`
+ *    and `$1` are special. A value of `` $` `` expands to everything before
+ *    the match, so a variable could duplicate or relocate template content it
+ *    was never given.
+ *
+ * Names are escaped; values go through a replacer FUNCTION, which is the only
+ * form `String.replace` treats as fully literal.
+ */
 function substituteVars(content: string, name: string, vars: Record<string, string>): string {
+  const kebab = name.toLowerCase().replace(/\s+/g, '-');
+  const pascal = name.replace(/(?:^|[-_\s]+)([a-z])/g, (_, c: string) => c.toUpperCase());
   let result = content;
-  result = result.replace(/\{\{name\}\}/g, name.toLowerCase().replace(/\s+/g, '-'));
-  result = result.replace(
-    /\{\{Name\}\}/g,
-    name.replace(/(?:^|[-_\s]+)([a-z])/g, (_, c) => c.toUpperCase()),
-  );
+  result = result.replace(/\{\{name\}\}/g, () => kebab);
+  result = result.replace(/\{\{Name\}\}/g, () => pascal);
   for (const [k, v] of Object.entries(vars)) {
-    result = result.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v);
+    result = result.replace(new RegExp(`\\{\\{${escapeRegexLiteral(k)}\\}\\}`, 'g'), () => v);
   }
   return result;
 }
