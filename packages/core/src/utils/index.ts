@@ -6,6 +6,7 @@ export * from './config-backup.js';
 export { checkConnectivity, resetConnectivityCache } from './connectivity.js';
 export { deriveCachePrefixKey } from './cache-key.js';
 export * from './config-json.js';
+export * from './env-typed.js';
 export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';
 export {
   buildCompletedWorkLedgerBlock,
