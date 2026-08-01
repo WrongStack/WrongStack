@@ -474,7 +474,7 @@ export function SelfLearningTab({
       </div>
 
       {/* Right: detail */}
-      <div className="flex-1 min-w-0 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 min-w-0 overflow-y-auto p-4">
         {!selectedRole && (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             Select an agent to view learning details

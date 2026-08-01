@@ -112,7 +112,7 @@ export function MemoryEditor({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-5">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 md:p-5">
         <div className="mx-auto max-w-4xl space-y-5">
           {error && (
             <div
