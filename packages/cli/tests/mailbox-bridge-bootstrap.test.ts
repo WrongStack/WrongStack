@@ -33,7 +33,6 @@ let projectDir: string;
  * conflating the two is the bug these tests guard against.
  */
 let projectRoot: string;
-const _spawnedPid = 0;
 
 beforeEach(async () => {
   projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-bootstrap-test-'));
@@ -90,7 +89,9 @@ async function probeViaFetch(url: string): Promise<boolean> {
   }
 }
 
+/** @deprecated unused — kept for reference */
 function _failingProbe(): ProbeFn {
+  void 0;
   return async () => false;
 }
 
@@ -113,7 +114,7 @@ function makeSpawnFnWritingLock(
   token: string,
   lockDir: string,
 ): SpawnFn {
-  return async (_args, cwd) => {
+  return (async (_args: string[], cwd: string) => {
     lastSpawnCwd = cwd;
     // Use the test process's own PID so `isProcessAlive` accepts the
     // lock as live — `readLiveLock` checks both PID and /healthz, and
@@ -139,7 +140,7 @@ function makeSpawnFnWritingLock(
         /* noop — already detached from the test's perspective */
       },
     };
-  };
+  }) as unknown as SpawnFn;
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────
@@ -326,14 +327,14 @@ describe('tryAcquireMailboxBridge', () => {
   it('returns source=failed when spawn succeeds but lock never appears', async () => {
     // SpawnFn that does NOT write the lock file (simulating a bridge
     // that crashes before listen succeeds).
-    const noopSpawn: SpawnFn = async () => {
+    const noopSpawn = (async () => {
       return {
         pid: 12345,
         unref: () => {
           /* noop */
         },
       };
-    };
+    }) as unknown as SpawnFn;
     const handle = await tryAcquireMailboxBridge({
       projectDir,
       projectRoot,
@@ -404,7 +405,7 @@ describe('tryAcquireMailboxBridge', () => {
     const result = await readLiveLock(projectDir);
     expect(result.kind).toBe('probe-failed');
     if (result.kind === 'probe-failed') {
-      expect(result.lock.token).toBe(lock.lock.token);
+      expect((result as { lock?: { token?: string } })?.lock?.token).toBe(lock.lock.token);
     }
   });
 

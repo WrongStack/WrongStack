@@ -45,7 +45,7 @@ describe('SimpleUI full-auto launch profile', () => {
   });
 
   it('leaves config and flags untouched when the profile is absent', () => {
-    const config = { yolo: false, tools: { disabledTools: ['bash'] } } as Config;
+    const config = { yolo: false, tools: { disabledTools: ['bash'] } } as unknown as Config;
     const flags = { simpleui: true, webui: true };
 
     expect(applySimpleUiFullAutoProfile(config, flags)).toBe(config);
@@ -53,7 +53,7 @@ describe('SimpleUI full-auto launch profile', () => {
   });
 
   it('does not apply outside the SimpleUI surface', () => {
-    const config = { yolo: false, tools: { disabledTools: ['bash'] } } as Config;
+    const config = { yolo: false, tools: { disabledTools: ['bash'] } } as unknown as Config;
     const flags = { webui: true, 'full-auto': true };
 
     expect(applySimpleUiFullAutoProfile(config, flags)).toBe(config);
@@ -63,7 +63,7 @@ describe('SimpleUI full-auto launch profile', () => {
   it('preserves project-root containment across full-auto YOLO', () => {
     const config = {
       tools: { restrictToProjectRoot: true, disabledTools: [] },
-    } as Config;
+    } as unknown as Config;
     const flags = { simpleui: true, 'full-auto': true } as Record<string, string | boolean>;
 
     const resolved = applySimpleUiFullAutoProfile(config, flags);
@@ -78,7 +78,7 @@ describe('SimpleUI full-auto launch profile', () => {
         disabledTools: [],
         exec: { deny: ['shutdown', 'rm -rf', 'mkfs'] },
       },
-    } as Config;
+    } as unknown as Config;
     const flags = { simpleui: true, 'full-auto': true } as Record<string, string | boolean>;
 
     const resolved = applySimpleUiFullAutoProfile(config, flags);
@@ -90,7 +90,7 @@ describe('SimpleUI full-auto launch profile', () => {
   it('returns a deeply frozen config when the profile applies', () => {
     const config = {
       tools: { disabledTools: ['bash'] },
-    } as Config;
+    } as unknown as Config;
     const flags = { simpleui: true, 'full-auto': true } as Record<string, string | boolean>;
 
     const resolved = applySimpleUiFullAutoProfile(config, flags);
@@ -106,7 +106,7 @@ describe('SimpleUI full-auto launch profile', () => {
   });
 
   it('does not mutate flags outside the SimpleUI keys when profile is absent', () => {
-    const config = { tools: { disabledTools: [] } } as Config;
+    const config = { tools: { disabledTools: [] } } as unknown as Config;
     const flags = {
       simpleui: true,
       webui: true,
@@ -128,7 +128,7 @@ describe('SimpleUI full-auto launch profile', () => {
 describe('isSimpleUiFullAuto predicate', () => {
   it('is true only when both simpleui and full-auto are exactly `true`', () => {
     expect(isSimpleUiFullAuto({ simpleui: true, 'full-auto': true })).toBe(true);
-    expect(isSimpleUiFullAuto({ simpleui: true, 'full-auto': true, extra: 1 })).toBe(true);
+    expect(isSimpleUiFullAuto({ simpleui: true, 'full-auto': true, extra: 1 as unknown as boolean })).toBe(true);
   });
 
   it('rejects non-boolean truthy values for simpleui', () => {

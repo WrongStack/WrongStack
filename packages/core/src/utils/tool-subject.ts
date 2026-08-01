@@ -53,6 +53,12 @@ export function subjectForToolInput(
       // A `command` subject renders the full invocation, not just the program.
       // `bash` is unaffected — it has no `args`, its command IS the line.
       if (subjectKey === 'command') return escapeGlobSubject(renderCommandLine(value, obj['args']));
+      // A dry-run patch must not share a subject with a real patch on the same
+      // directory: trusting a preview would otherwise silently authorize the
+      // actual application (over-grant). Mirror the `command` special-case.
+      if (subjectKey === 'directory' && obj['dry_run'] === true) {
+        return `${escapeGlobSubject(value)}:dry-run`;
+      }
       return escapeGlobSubject(value);
     }
   }

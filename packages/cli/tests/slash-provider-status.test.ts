@@ -10,9 +10,9 @@ describe('/provider-status waiting room', () => {
 
     const result = await buildProviderStatusCommand(tracker).run('waiting');
 
-    expect(result.message).toContain('cc/claude-opus-4.8');
-    expect(result.message).not.toContain('omniroute/cc/claude-opus-4.8');
-    expect(result.message).not.toContain('other/healthy-model');
+    expect((result as { message?: string })?.message).toContain('cc/claude-opus-4.8');
+    expect((result as { message?: string })?.message).not.toContain('omniroute/cc/claude-opus-4.8');
+    expect((result as { message?: string })?.message).not.toContain('other/healthy-model');
   });
 
   it('releases a namespaced OmniRoute model for a half-open probe', async () => {
@@ -21,7 +21,7 @@ describe('/provider-status waiting room', () => {
 
     const result = await buildProviderStatusCommand(tracker).run('retry cc claude-opus-4.8');
 
-    expect(result.message).toContain('half-open probe');
+    expect((result as { message?: string })?.message).toContain('half-open probe');
     expect(tracker.isAvailable('omniroute', 'cc/claude-opus-4.8')).toBe(true);
   });
 });

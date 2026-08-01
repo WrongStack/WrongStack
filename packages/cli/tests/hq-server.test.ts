@@ -1092,7 +1092,7 @@ describe('HQ server frame validation', () => {
     // not registered yet.
     const beforeSnapshot = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) =>
       r.json(),
-    );
+    ) as { totals: { activeClients: number } };
     expect(beforeSnapshot.totals.activeClients).toBe(0);
 
     client.send(
@@ -1113,7 +1113,7 @@ describe('HQ server frame validation', () => {
     // Give the server a tick to process the dropped frame.
     await new Promise((r) => setTimeout(r, 30));
 
-    const afterPre = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) => r.json());
+    const afterPre = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) => r.json()) as { totals: { activeClients: number; unreadMailboxMessages: number } };
     expect(afterPre.totals.activeClients).toBe(0);
     expect(afterPre.totals.unreadMailboxMessages).toBe(0);
 
@@ -1141,7 +1141,7 @@ describe('HQ server frame validation', () => {
       }),
     );
     await new Promise((r) => setTimeout(r, 30));
-    const afterHello = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) => r.json());
+    const afterHello = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) => r.json()) as { totals: { activeClients: number } };
     expect(afterHello.totals.activeClients).toBe(1);
 
     client.close();

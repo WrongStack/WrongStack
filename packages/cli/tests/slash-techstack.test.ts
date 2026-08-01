@@ -192,16 +192,16 @@ describe('/techstack', () => {
     const { command } = rig({ withFetch: true, onSpawnAndWait: spawn });
     const res = expectSlashResult(await command.run('', {} as never));
     expect(spawn).toHaveBeenCalledTimes(1);
-    const passedOpts = spawn.mock.calls[0]?.[1] as { tools?: string[]; allowedCapabilities?: string[] } | undefined;
+    const passedOpts = (spawn.mock.calls as unknown[][])[0]?.[1] as { tools?: string[]; allowedCapabilities?: string[] } | undefined;
     expect(passedOpts).toBeDefined();
-    expect(passedOpts.tools).toEqual(expect.arrayContaining(['read', 'fetch', 'write']));
+    expect(passedOpts?.tools).toEqual(expect.arrayContaining(['read', 'fetch', 'write']));
     // Shell tools must NOT be granted.
-    expect(passedOpts.tools).not.toContain('bash');
-    expect(passedOpts.tools).not.toContain('exec');
-    expect(passedOpts.allowedCapabilities).toEqual(
+    expect(passedOpts?.tools).not.toContain('bash');
+    expect(passedOpts?.tools).not.toContain('exec');
+    expect(passedOpts?.allowedCapabilities).toEqual(
       expect.arrayContaining(['fs.read', 'net.outbound', 'fs.write']),
     );
-    expect(passedOpts.allowedCapabilities).not.toContain('shell.arbitrary');
+    expect(passedOpts?.allowedCapabilities).not.toContain('shell.arbitrary');
     expect(res.message).toBe('done');
   });
 

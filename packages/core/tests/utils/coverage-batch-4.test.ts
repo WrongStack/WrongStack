@@ -148,6 +148,15 @@ describe('tool-subject utilities', () => {
     // escapeGlobSubject then escapes the glob metacharacters ([ and ]).
     expect(subjectForToolInput('exec', { command: 'run', args: [{ nested: true }] }, 'command')).toBe('run "\\[object Object\\]"');
   });
+  it('subjectForToolInput gives dry-run patches a distinct subject (regression: dry-run/real over-grant)', () => {
+    // A dry-run patch and a real patch on the same directory must NOT share a
+    // subject, or trusting the preview would authorize the actual application.
+    expect(subjectForToolInput('patch', { directory: 'src', dry_run: true }, 'directory')).toBe('src:dry-run');
+    expect(subjectForToolInput('patch', { directory: 'src', dry_run: false }, 'directory')).toBe('src');
+    expect(subjectForToolInput('patch', { directory: 'src' }, 'directory')).toBe('src');
+    // Glob metacharacters in the directory are still escaped before the suffix.
+    expect(subjectForToolInput('patch', { directory: 'a[b]', dry_run: true }, 'directory')).toBe('a\\[b\\]:dry-run');
+  });
 });
 
 // ── config-json pure functions ──────────────────────────────────────────

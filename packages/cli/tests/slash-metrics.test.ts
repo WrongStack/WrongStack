@@ -3,13 +3,13 @@ import { buildMetricsCommand } from '../src/slash-commands/metrics.js';
 
 describe('/metrics', () => {
   it('reports "metrics not enabled" when no sink', async () => {
-    const cmd = buildMetricsCommand({});
+    const cmd = buildMetricsCommand({} as never);
     const res = await cmd.run('');
     expect(res!.message).toContain('Metrics not enabled');
   });
 
   it('exposes deep help and structured unavailable output', async () => {
-    const cmd = buildMetricsCommand({ metricsStatus: { collectionEnabled: false, httpExporter: 'disabled' } });
+    const cmd = buildMetricsCommand({ metricsStatus: { collectionEnabled: false, httpExporter: 'disabled' } } as never);
     expect(cmd.category).toBe('Inspect');
     expect(cmd.argsHint).toBe('[--json]');
     expect(cmd.help).toContain('Usage: /metrics [--json]');
@@ -25,7 +25,7 @@ describe('/metrics', () => {
 
   it('reports "no metrics recorded" when series is empty', async () => {
     const sink = { snapshot: () => ({ series: [] }) };
-    const cmd = buildMetricsCommand({ metricsSink: sink as never });
+    const cmd = buildMetricsCommand({ metricsSink: sink as never } as never);
     const res = await cmd.run('');
     expect(res!.message).toContain('No metrics recorded');
     expect(res!.message).toContain('http_exporter=unknown');
@@ -75,7 +75,7 @@ describe('/metrics', () => {
         ],
       }),
     };
-    const cmd = buildMetricsCommand({ metricsSink: sink as never });
+    const cmd = buildMetricsCommand({ metricsSink: sink as never } as never);
     const res = await cmd.run('');
     const out = res!.message ?? '';
     expect(out).toContain('# latency_ms');

@@ -55,7 +55,7 @@ describe('consoleLogger (PR 1 of #30)', () => {
   it('error() routes to console.error with structured JSON', () => {
     consoleLogger.error('something broke');
     expect(errorSpy).toHaveBeenCalledOnce();
-    const arg = errorSpy.mock.calls[0][0] as string;
+    const arg = errorSpy.mock.calls[0]?.[0] as string;
     const parsed = JSON.parse(arg);
     expect(parsed.level).toBe('error');
     expect(parsed.event).toBe('webui.goal');
@@ -66,28 +66,28 @@ describe('consoleLogger (PR 1 of #30)', () => {
   it('warn() routes to console.warn', () => {
     consoleLogger.warn('careful');
     expect(warnSpy).toHaveBeenCalledOnce();
-    const parsed = JSON.parse(warnSpy.mock.calls[0][0]);
+    const parsed = JSON.parse(warnSpy.mock.calls[0]?.[0]);
     expect(parsed.level).toBe('warn');
   });
 
   it('info() routes to console.log', () => {
     consoleLogger.info('hello');
     expect(logSpy).toHaveBeenCalledOnce();
-    const parsed = JSON.parse(logSpy.mock.calls[0][0]);
+    const parsed = JSON.parse(logSpy.mock.calls[0]?.[0]);
     expect(parsed.level).toBe('info');
   });
 
   it('debug() routes to console.debug', () => {
     consoleLogger.debug('details');
     expect(debugSpy).toHaveBeenCalledOnce();
-    const parsed = JSON.parse(debugSpy.mock.calls[0][0]);
+    const parsed = JSON.parse(debugSpy.mock.calls[0]?.[0]);
     expect(parsed.level).toBe('debug');
   });
 
   it('trace() collapses to console.debug (pre-refactor behavior pinned)', () => {
     consoleLogger.trace('verbose');
     expect(debugSpy).toHaveBeenCalledOnce();
-    const parsed = JSON.parse(debugSpy.mock.calls[0][0]);
+    const parsed = JSON.parse(debugSpy.mock.calls[0]?.[0]);
     expect(parsed.level).toBe('trace');
   });
 

@@ -55,7 +55,7 @@ describe('HQ React dashboard delivery', () => {
     handle = await startServer();
     const response = await fetch(`http://127.0.0.1:${handle.port}/`);
     const html = await response.text();
-    const document = new JSDOM(html).window.document;
+    const document = new JSDOM(html).window.document as unknown as { querySelector: (s: string) => { textContent: string | null; getAttribute: (a: string) => string | null } | null; getElementById: (id: string) => unknown; querySelectorAll: (s: string) => unknown[] };
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/html');

@@ -65,13 +65,14 @@ function makeDeps(): MultiAgentDeps {
   } as unknown as TokenCounter;
 
   const container = new Container();
-  container.bind(TOKENS.Logger, new DefaultLogger({ level: 'error', stderr: false }));
-  container.bind(TOKENS.ErrorHandler, new DefaultErrorHandler());
-  container.bind(TOKENS.RetryPolicy, new DefaultRetryPolicy());
+  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
+  container.bind(TOKENS.ErrorHandler, () => new DefaultErrorHandler());
+  container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
 
   return {
     container,
     toolRegistry: new ToolRegistry(),
+    fallbackProfileManager: {} as never,
     providerRegistry: new ProviderRegistry(),
     configStore,
     events: new EventBus(),
