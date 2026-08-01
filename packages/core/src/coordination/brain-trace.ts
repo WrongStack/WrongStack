@@ -38,6 +38,7 @@ import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
 import { scrubErrorText } from '../security/error-sanitize.js';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { BrainDecision, BrainDecisionRequest } from './brain.js';
 import type { BrainDecisionTier } from './brain-telemetry.js';
 
@@ -450,7 +451,9 @@ export class BrainTraceRecorder {
           await mkdir(dirname(this.opts.filePath), { recursive: true });
           this.dirReady = true;
         }
-        await appendFile(this.opts.filePath, line, 'utf8');
+        // WS-035: under `content: 'full'` every trace row holds the question and
+        // context verbatim. Create owner-only.
+        await appendFile(this.opts.filePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
       })
       .catch(() => {
         // Tracing is best-effort — it must never destabilize the host.

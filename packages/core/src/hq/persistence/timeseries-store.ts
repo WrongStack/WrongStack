@@ -8,6 +8,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { SECRET_FILE_MODE } from '../../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../../utils/atomic-write.js';
 import { BestEffortLatestQueue } from '../write-queues.js';
 import { countNonEmptyLines, readJsonlLines } from './jsonl-io.js';
@@ -194,7 +195,7 @@ export class HqTimeseriesStore {
     const lines = snapshot.samples.map((bucket) => JSON.stringify(bucket)).join('\n') + '\n';
     await withFileLock(this.filePath, async () => {
       this.diskLineCount ??= await countNonEmptyLines(this.filePath);
-      await fs.appendFile(this.filePath, lines, { encoding: 'utf8' });
+      await fs.appendFile(this.filePath, lines, { encoding: 'utf8', mode: SECRET_FILE_MODE });
       this.diskLineCount += snapshot.samples.length;
       const compactAt = Math.max(this.maxBuckets + 1, this.maxBuckets * 4);
       if (this.diskLineCount >= compactAt) {

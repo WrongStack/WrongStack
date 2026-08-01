@@ -2,6 +2,7 @@ import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '../kernel/events.js';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import type { Logger } from '../types/logger.js';
 import type { Message } from '../types/messages.js';
@@ -22,8 +23,8 @@ import type {
 import { atomicWrite, ensureDir, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import { FileSessionWriter } from './file-session-writer.js';
-import { sessionContentText } from './session-helpers.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
+import { sessionContentText } from './session-helpers.js';
 import { generateSessionId } from './session-id.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
@@ -32,23 +33,33 @@ import {
   formatResumeValidationNotice,
   validateResumeFileObservations,
 } from './session-resume-validation.js';
-import { applySessionIndexLines, readFileRange } from './session-store/index-reader.js';
+import { deleteSessionArtifacts } from './session-store/delete-session-artifacts.js';
+import { assertSessionCanBeDeleted } from './session-store/delete-session-guards.js';
 import { shouldSkipSessionDirectoryEntry } from './session-store/directory-scan.js';
 import {
   collectSessionFiles as collectSessionFilesFromDirectory,
   collectSessionIds as collectSessionIdsFromDirectory,
 } from './session-store/directory-session-files.js';
-import { deleteSessionArtifacts } from './session-store/delete-session-artifacts.js';
-import { assertSessionCanBeDeleted } from './session-store/delete-session-guards.js';
-import { SessionLoadCache } from './session-store/load-cache.js';
-import { pruneSessionFiles } from './session-store/prune-helpers.js';
 import {
   emitSessionStoreError,
   emitSessionStoreRead,
   emitSessionStoreWrite,
 } from './session-store/events.js';
 import { forkSession } from './session-store/fork-session.js';
+import { applySessionIndexLines, readFileRange } from './session-store/index-reader.js';
+import { SessionLoadCache } from './session-store/load-cache.js';
 import { loadSessionDataFromFile } from './session-store/load-session-data.js';
+import {
+  ensureShardDir as ensureSessionShardDir,
+  sessionPath as sessionStorePath,
+  shardKeyForSessionId,
+  shardManifestPath,
+} from './session-store/paths.js';
+import { pruneSessionFiles } from './session-store/prune-helpers.js';
+import { searchSessionEvents } from './session-store/search-events.js';
+import { readOrBuildShardManifestEntry } from './session-store/shard-manifest.js';
+import { summarizeSessionEvents, summarizeSessionFile } from './session-store/summary-builder.js';
+import { readSessionSummaryHeader } from './session-store/summary-header.js';
 import type {
   DirectorySummaryCandidate,
   IndexCacheEntry,
@@ -56,19 +67,6 @@ import type {
   SessionStoreOptions,
   ShardManifestEntry,
 } from './session-store/types.js';
-import {
-  ensureShardDir as ensureSessionShardDir,
-  sessionPath as sessionStorePath,
-  shardKeyForSessionId,
-  shardManifestPath,
-} from './session-store/paths.js';
-import {
-  summarizeSessionEvents,
-  summarizeSessionFile,
-} from './session-store/summary-builder.js';
-import { readSessionSummaryHeader } from './session-store/summary-header.js';
-import { readOrBuildShardManifestEntry } from './session-store/shard-manifest.js';
-import { searchSessionEvents } from './session-store/search-events.js';
 import { compareSessionSummaries, matchesSessionFilter } from './session-summary.js';
 import { mapWithConcurrency } from './storage-concurrency.js';
 
@@ -95,7 +93,10 @@ export class DefaultSessionStore implements SessionStore {
    * Max size is capped to prevent unbounded memory growth in long-running
    * processes. When the limit is reached, the oldest entry is evicted.
    */
-  private readonly _loadCache = new Map<string, import('./session-store/types.js').LoadCacheEntry>();
+  private readonly _loadCache = new Map<
+    string,
+    import('./session-store/types.js').LoadCacheEntry
+  >();
   private readonly loadCache = new SessionLoadCache(this._loadCache);
   private _indexCache: IndexCacheEntry | null = null;
   private readonly shardManifestCache = new Map<string, ShardManifestEntry>();
@@ -275,18 +276,19 @@ export class DefaultSessionStore implements SessionStore {
     // The summary must be derived from the full file, and file-observation
     // validation must use the streaming search path to see every observation.
     const eventsDropped = data.eventsDropped ?? 0;
-    const derivedSummary = eventsDropped > 0
-      ? await summarizeSessionFile({
-          id: canonicalId,
-          file,
-          mtime: fileStat.mtime.toISOString(),
-          secretScrubber: this.secretScrubber,
-        })
-      : await summarizeSessionEvents({
-          id: canonicalId,
-          events: data.events,
-          mtime: fileStat.mtime.toISOString(),
-        });
+    const derivedSummary =
+      eventsDropped > 0
+        ? await summarizeSessionFile({
+            id: canonicalId,
+            file,
+            mtime: fileStat.mtime.toISOString(),
+            secretScrubber: this.secretScrubber,
+          })
+        : await summarizeSessionEvents({
+            id: canonicalId,
+            events: data.events,
+            mtime: fileStat.mtime.toISOString(),
+          });
     const initialSummary: SessionSummary = {
       ...derivedSummary,
       ...(persistedSummary?.name !== undefined ? { name: persistedSummary.name } : {}),
@@ -297,12 +299,15 @@ export class DefaultSessionStore implements SessionStore {
     let resumeValidation: import('../types/session.js').ResumeValidation | undefined;
     if (this.projectRoot) {
       try {
-        const validationEvents = eventsDropped > 0
-          ? (await this.searchEvents(
-              canonicalId,
-              (ev: SessionEvent, _i: number, _ts: string) => ev.type === 'file_observation',
-            )).map((h) => h.event)
-          : data.events;
+        const validationEvents =
+          eventsDropped > 0
+            ? (
+                await this.searchEvents(
+                  canonicalId,
+                  (ev: SessionEvent, _i: number, _ts: string) => ev.type === 'file_observation',
+                )
+              ).map((h) => h.event)
+            : data.events;
         resumeValidation = await validateResumeFileObservations(validationEvents, this.projectRoot);
         const notice = formatResumeValidationNotice(resumeValidation, this.projectRoot);
         if (notice) {
@@ -347,9 +352,12 @@ export class DefaultSessionStore implements SessionStore {
       /* v8 ignore start -- defensive: load() above already validated the file is readable */
     } catch (err) {
       emitSessionStoreError(this.events, canonicalId, file, 'resume', toErrorMessage(err), false);
-      throw new Error(`Failed to open session "${canonicalId}" for append: ${toErrorMessage(err)}`, {
-        cause: err,
-      });
+      throw new Error(
+        `Failed to open session "${canonicalId}" for append: ${toErrorMessage(err)}`,
+        {
+          cause: err,
+        },
+      );
     }
     /* v8 ignore stop */
     try {
@@ -603,7 +611,7 @@ export class DefaultSessionStore implements SessionStore {
       // successfully-updated index paired with a stale persisted shard view.
       await this.invalidateShardManifestBySessionId(summary.id);
       const line = JSON.stringify(summary) + '\n';
-      await fsp.appendFile(this.indexFile, line, 'utf8');
+      await fsp.appendFile(this.indexFile, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
       this._indexCache = null;
       this.indexAppendCount++;
       // Auto-compact periodically to remove tombstones and duplicates.
@@ -634,7 +642,7 @@ export class DefaultSessionStore implements SessionStore {
       await ensureDir(this.dir);
       await withFileLock(this.indexFile, async () => {
         const line = JSON.stringify({ action: 'delete', id }) + '\n';
-        await fsp.appendFile(this.indexFile, line, 'utf8');
+        await fsp.appendFile(this.indexFile, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
         this._indexCache = null;
         await this.invalidateShardManifestBySessionId(id);
         this.indexAppendCount++;
@@ -886,12 +894,28 @@ export class DefaultSessionStore implements SessionStore {
       });
       outcome = 'failure';
       errorMsg = 'summary fallback â€” manifest rebuilt';
-      emitSessionStoreRead(this.events, id, manifest, 'summary', outcome, Date.now() - t0, errorMsg);
+      emitSessionStoreRead(
+        this.events,
+        id,
+        manifest,
+        'summary',
+        outcome,
+        Date.now() - t0,
+        errorMsg,
+      );
       return summary;
     } catch (err) {
       outcome = 'failure';
       errorMsg = toErrorMessage(err);
-      emitSessionStoreRead(this.events, id, manifest, 'summary', outcome, Date.now() - t0, errorMsg);
+      emitSessionStoreRead(
+        this.events,
+        id,
+        manifest,
+        'summary',
+        outcome,
+        Date.now() - t0,
+        errorMsg,
+      );
       return {
         id,
         title: '(damaged)',
@@ -910,14 +934,7 @@ export class DefaultSessionStore implements SessionStore {
     const manifest = this.sessionPath(id, '.summary.json');
     try {
       const raw = await fsp.readFile(manifest, 'utf8');
-      emitSessionStoreRead(
-        this.events,
-        id,
-        manifest,
-        'summary',
-        'success',
-        Date.now() - startTime,
-      );
+      emitSessionStoreRead(this.events, id, manifest, 'summary', 'success', Date.now() - startTime);
       return JSON.parse(raw) as SessionSummary;
     } catch {
       return null;

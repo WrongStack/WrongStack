@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle.js';
 import { normalizeKanbanBoundaryPolicy } from './boundary.js';
+import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle.js';
 import { getProductionKanbanStorage } from './server/remote-storage.js';
 import { getInstalledKanbanStorageBackend } from './storage-backend.js';
 import {
@@ -242,7 +242,9 @@ export async function appendKanbanEvent(
   await withFileLock(filePath, async () => {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     const line = `${JSON.stringify(event)}\n`;
-    await fs.appendFile(filePath, line, 'utf8');
+    // WS-035: board events carry task content; create owner-only (0600)
+    // rather than inheriting the umask default of 0644.
+    await fs.appendFile(filePath, line, { encoding: 'utf8', mode: 0o600 });
     // Trim the event log to prevent unbounded growth (best-effort).
     await trimKanbanEventLog(filePath, Buffer.byteLength(line));
   });

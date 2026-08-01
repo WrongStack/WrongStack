@@ -16,6 +16,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import type { FleetBus } from './fleet-bus.js';
 
@@ -614,7 +615,7 @@ export class AgentMonitorService {
     }
     const filePath = path.join(dir, 'transcript.jsonl');
     try {
-      await fs.appendFile(filePath, line, { encoding: 'utf8' });
+      await fs.appendFile(filePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
     } catch (error) {
       this._ensuredDirs.delete(dir);
       throw error;

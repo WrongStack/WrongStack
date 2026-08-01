@@ -34,6 +34,7 @@ import { access, appendFile, mkdir, rename, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from './brain.js';
 import { markDecisionTier } from './brain-telemetry.js';
 
@@ -436,7 +437,7 @@ export class BrainDecisionLedger {
           this.dirReady = true;
         }
         await this.maybeRotate();
-        await appendFile(this.opts.filePath, line, 'utf8');
+        await appendFile(this.opts.filePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
       })
       .catch(() => {
         // Ledger persistence is best-effort — never destabilize the host.

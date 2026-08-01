@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import type { EventBus } from '../kernel/events.js';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';
@@ -172,7 +173,13 @@ export class ToolAuditLog {
           // record; a 1000-call session rewrote a multi-MB audit file 1000
           // times (quadratic in session length). `withFileLock` above
           // guarantees no concurrent writer interleaves with our append.
-          await fs.appendFile(fp, JSON.stringify(entry) + '\n', 'utf8');
+          await fs.appendFile(fp, JSON.stringify(entry) + '\n', {
+            encoding: 'utf8',
+            // WS-035: this file records raw tool INPUT and OUTPUT. Created
+            // without a mode it lands 0644 — world-readable — while its
+            // siblings under the same directory correctly use 0600.
+            mode: SECRET_FILE_MODE,
+          });
 
           // Refresh caches + fsync bookkeeping. We stat post-write so the
           // mtime+size tracker reflects the just-appended line — the next

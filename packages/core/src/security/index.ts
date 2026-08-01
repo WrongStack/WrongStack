@@ -1,5 +1,6 @@
 // Security domain: secret scrubbing, vault encryption, permission policies
 
+export { noOpVault } from '../types/secret-vault.js';
 export {
   DANGEROUS_FOR_SUBAGENTS,
   getDangerousCapabilities,
@@ -11,11 +12,31 @@ export {
 } from './capabilities.js';
 export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';
 export {
+  DirectoryPermissionPolicy,
+  type DirectoryPermissionPolicyOptions,
+  matchRule,
+  resolveTargetPath,
+} from './directory-permission-policy.js';
+export {
+  DIRECTORY_POLICY_LIMITS,
+  DIRECTORY_POLICY_SCHEMA_VERSION,
+  type DirectoryPolicyDiagnostic,
+  type DirectoryPolicyDiagnosticCode,
+  type DirectoryPolicyValidationResult,
+  validateDirectoryPolicy,
+} from './directory-policy-schema.js';
+export {
   ERROR_DETAIL_MAX,
   sanitizeApiError,
   scrubErrorDetail,
   scrubErrorText,
 } from './error-sanitize.js';
+export {
+  restrictDirPermissions,
+  restrictFilePermissions,
+  SECRET_DIR_MODE,
+  SECRET_FILE_MODE,
+} from './file-permissions.js';
 export {
   evaluateToolKanbanBoundary,
   type ToolKanbanBoundaryEvaluation,
@@ -34,25 +55,8 @@ export {
   type TrustPolicyValidationResult,
   validateTrustPolicy,
 } from './permission-policy-schema.js';
+export { ReadOnlyPermissionPolicy } from './readonly-permission-policy.js';
 export { DefaultSecretScrubber } from './secret-scrubber.js';
-export { noOpVault } from '../types/secret-vault.js';
-export {
-  ReadOnlyPermissionPolicy,
-} from './readonly-permission-policy.js';
-export {
-  DirectoryPermissionPolicy,
-  matchRule,
-  resolveTargetPath,
-  type DirectoryPermissionPolicyOptions,
-} from './directory-permission-policy.js';
-export {
-  DIRECTORY_POLICY_LIMITS,
-  DIRECTORY_POLICY_SCHEMA_VERSION,
-  type DirectoryPolicyDiagnostic,
-  type DirectoryPolicyDiagnosticCode,
-  type DirectoryPolicyValidationResult,
-  validateDirectoryPolicy,
-} from './directory-policy-schema.js';
 export {
   DefaultSecretVault,
   migratePlaintextSecrets,

@@ -94,12 +94,30 @@ export function createPersistencePrimitives(
       // fsync is best-effort; the atomic rename still protects readers.
     }
 
+    // WS-045: an explicitly requested mode is a CEILING on permissiveness, not
+    // a suggestion. This used to stat first and use `opts.mode` only when the
+    // target did not exist — so a file created once as 0644 (by an older
+    // version, a different tool, an inherited umask) could never be tightened:
+    // every later `atomicWrite(..., {mode: 0o600})` silently re-applied 0644.
+    //
+    // The rule is now "most restrictive of the two" — a bitwise AND. Requested
+    // 0600 over an existing 0644 gives 0600 (the fix); requested 0640 over an
+    // existing 0600 still gives 0600, so a caller can never widen a file the
+    // user or an earlier, stricter caller deliberately locked down. With no
+    // requested mode the target's own bits are preserved unchanged, which is
+    // what keeps a user's deliberate `chmod` on an ordinary config file.
     let mode: number | undefined;
+    let existing: number | undefined;
     try {
       const stat = await fs.stat(targetPath);
-      mode = stat.mode & 0o777;
+      existing = stat.mode & 0o777;
     } catch {
-      mode = opts.mode;
+      existing = undefined;
+    }
+    if (opts.mode !== undefined) {
+      mode = existing === undefined ? opts.mode : opts.mode & existing;
+    } else {
+      mode = existing;
     }
     if (mode !== undefined) await fs.chmod(tmp, mode);
 

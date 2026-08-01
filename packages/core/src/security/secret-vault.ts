@@ -2,15 +2,13 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { ConfigError, ERROR_CODES } from '../types/errors.js';
 import type { Logger } from '../types/logger.js';
 import type { RotatableSecretVault, SecretVault } from '../types/secret-vault.js';
-import { ConfigError, ERROR_CODES } from '../types/errors.js';
-import {
-  ENCRYPTED_PREFIX_PATTERN,
-  encryptedPrefixForVersion,
-} from '../types/secret-vault.js';
+import { ENCRYPTED_PREFIX_PATTERN, encryptedPrefixForVersion } from '../types/secret-vault.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { encryptConfigSecrets, isSecretField } from './config-secrets.js';
+import { restrictFilePermissions as restrictPermissions } from './file-permissions.js';
 
 export interface SecretVaultOptions {
   /** Absolute path to the key file. Created with mode 0o600 if missing. */
@@ -64,7 +62,9 @@ function getVaultPassphrase(): string | undefined {
 
 /** True if `buf` is a passphrase-wrapped (v3) key file. */
 function isWrappedKeyFile(buf: Buffer): boolean {
-  return buf.length === WRAPPED_KEY_FILE_SIZE && buf.subarray(0, KEK_MAGIC.length).equals(KEK_MAGIC);
+  return (
+    buf.length === WRAPPED_KEY_FILE_SIZE && buf.subarray(0, KEK_MAGIC.length).equals(KEK_MAGIC)
+  );
 }
 
 /** Derive the 32-byte KEK from a passphrase + salt via scrypt. */
@@ -87,11 +87,16 @@ function wrapDataKey(dataKey: Buffer, keyVersion: number, passphrase: string): B
   const tag = cipher.getAuthTag();
   const out = Buffer.alloc(WRAPPED_KEY_FILE_SIZE);
   let off = 0;
-  KEK_MAGIC.copy(out, off); off += KEK_MAGIC.length;
-  out[off] = keyVersion & 0xff; off += 1;
-  salt.copy(out, off); off += KEK_SALT_BYTES;
-  iv.copy(out, off); off += IV_BYTES;
-  tag.copy(out, off); off += TAG_BYTES;
+  KEK_MAGIC.copy(out, off);
+  off += KEK_MAGIC.length;
+  out[off] = keyVersion & 0xff;
+  off += 1;
+  salt.copy(out, off);
+  off += KEK_SALT_BYTES;
+  iv.copy(out, off);
+  off += IV_BYTES;
+  tag.copy(out, off);
+  off += TAG_BYTES;
   ct.copy(out, off);
   return out;
 }
@@ -112,10 +117,14 @@ function unwrapDataKey(buf: Buffer, keyFile: string): { key: Buffer; version: nu
     });
   }
   let off = KEK_MAGIC.length;
-  const version = buf[off]!; off += 1;
-  const salt = buf.subarray(off, off + KEK_SALT_BYTES); off += KEK_SALT_BYTES;
-  const iv = buf.subarray(off, off + IV_BYTES); off += IV_BYTES;
-  const tag = buf.subarray(off, off + TAG_BYTES); off += TAG_BYTES;
+  const version = buf[off]!;
+  off += 1;
+  const salt = buf.subarray(off, off + KEK_SALT_BYTES);
+  off += KEK_SALT_BYTES;
+  const iv = buf.subarray(off, off + IV_BYTES);
+  off += IV_BYTES;
+  const tag = buf.subarray(off, off + TAG_BYTES);
+  off += TAG_BYTES;
   const ct = buf.subarray(off, off + KEY_BYTES);
   const kek = deriveKEK(passphrase, salt);
   const decipher = createDecipheriv(ALGO, kek, iv);
@@ -273,16 +282,18 @@ export class DefaultSecretVault implements RotatableSecretVault {
     const iv = Buffer.from(ivB64, 'base64');
     const tag = Buffer.from(tagB64, 'base64');
     const ct = Buffer.from(ctB64, 'base64');
-    if (iv.length !== IV_BYTES) throw new ConfigError({
-      message: 'SecretVault: bad IV length',
-      code: ERROR_CODES.CONFIG_PARSE_FAILED,
-      context: { expected: IV_BYTES, actual: iv.length },
-    });
-    if (tag.length !== TAG_BYTES) throw new ConfigError({
-      message: 'SecretVault: bad tag length',
-      code: ERROR_CODES.CONFIG_PARSE_FAILED,
-      context: { expected: TAG_BYTES, actual: tag.length },
-    });
+    if (iv.length !== IV_BYTES)
+      throw new ConfigError({
+        message: 'SecretVault: bad IV length',
+        code: ERROR_CODES.CONFIG_PARSE_FAILED,
+        context: { expected: IV_BYTES, actual: iv.length },
+      });
+    if (tag.length !== TAG_BYTES)
+      throw new ConfigError({
+        message: 'SecretVault: bad tag length',
+        code: ERROR_CODES.CONFIG_PARSE_FAILED,
+        context: { expected: TAG_BYTES, actual: tag.length },
+      });
     const key = this.loadOrCreateKey();
     const decipher = createDecipheriv(ALGO, key, iv);
     decipher.setAuthTag(tag);
@@ -569,7 +580,9 @@ export async function rotateConfigKeys(
   } catch {
     // No config file — just rotate the key without re-encrypting anything
     const { oldVersion, newVersion } = vault.rotateKey();
-    log(`[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — no config file to re-encrypt`);
+    log(
+      `[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — no config file to re-encrypt`,
+    );
     return { rotated: 0, oldVersion, newVersion, file: configPath };
   }
 
@@ -578,7 +591,12 @@ export async function rotateConfigKeys(
     parsed = JSON.parse(raw);
   } catch {
     warn(`[secret-vault] Config file ${configPath} is not valid JSON — skipping rotation`);
-    return { rotated: 0, oldVersion: vault.keyVersion, newVersion: vault.keyVersion, file: configPath };
+    return {
+      rotated: 0,
+      oldVersion: vault.keyVersion,
+      newVersion: vault.keyVersion,
+      file: configPath,
+    };
   }
 
   // Count encrypted fields and decrypt them
@@ -601,7 +619,9 @@ export async function rotateConfigKeys(
   if (counter.n === 0) {
     // No encrypted fields — just rotate the key
     const { oldVersion, newVersion } = vault.rotateKey();
-    log(`[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — no encrypted fields to re-encrypt`);
+    log(
+      `[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — no encrypted fields to re-encrypt`,
+    );
     return { rotated: 0, oldVersion, newVersion, file: configPath };
   }
 
@@ -615,7 +635,9 @@ export async function rotateConfigKeys(
   await atomicWrite(configPath, JSON.stringify(reencrypted, null, 2), { mode: 0o600 });
   await restrictFilePermissions(configPath, { warn });
 
-  log(`[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — re-encrypted ${counter.n} field(s)`);
+  log(
+    `[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — re-encrypted ${counter.n} field(s)`,
+  );
   return { rotated: counter.n, oldVersion, newVersion, file: configPath };
 }
 
@@ -694,51 +716,16 @@ function walkReencrypt<T>(node: T, vault: SecretVault): T {
 }
 
 /**
- * Restrict a file to owner-only access. On POSIX this is chmod 0o600.
- * On Windows, chmod is a no-op — we use icacls to remove inherited
- * permissions and grant only the current user. Failures are logged
- * but not thrown so callers are not blocked on unsupported platforms.
+ * WS-045: the implementation moved to `security/file-permissions.ts` so the HQ
+ * auth store and runtime file — which hold bearer tokens — can reach the same
+ * Windows-aware hardening instead of a chmod that Windows ignores. This thin
+ * wrapper keeps the `[secret-vault]` prefix on warnings operators already grep.
  */
 async function restrictFilePermissions(
   filePath: string,
   opts?: { warn?: (msg: string) => void },
 ): Promise<void> {
-  const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
-  if (process.platform === 'win32') {
-    try {
-      const { execFile } = await import('node:child_process');
-      const { promisify } = await import('node:util');
-      const execFileAsync = promisify(execFile);
-      const user = windowsAccountName();
-      if (!user) {
-        warn(
-          `[secret-vault] Could not determine the current Windows user for ${filePath}; skipping icacls hardening.`,
-        );
-        return;
-      }
-      // Remove inherited ACEs, grant full control only to current user.
-      await execFileAsync('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`]);
-    } catch {
-      // Best-effort: icacls may not be available in all environments.
-      warn(
-        `[secret-vault] Could not restrict permissions on ${filePath} — config file may be readable by other users on this system.`,
-      );
-    }
-  } else {
-    try {
-      await fsp.chmod(filePath, 0o600);
-    } catch {
-      // Best-effort
-    }
-  }
-}
-
-function windowsAccountName(): string | undefined {
-  const username = process.env.USERNAME || process.env.USER;
-  if (!username || username.includes('\0')) return undefined;
-  const domain = process.env.USERDOMAIN;
-  if (domain && !domain.includes('\0')) return `${domain}\\${username}`;
-  return username;
+  await restrictPermissions(filePath, { label: 'secret-vault', warn: opts?.warn });
 }
 
 function walkCount<T>(node: T, vault: SecretVault, counter: { n: number }): T {

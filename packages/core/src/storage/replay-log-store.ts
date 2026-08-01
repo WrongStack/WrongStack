@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '../kernel/events.js';
 import { hashRequest } from '../replay/hash.js';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { Request, Response } from '../types/provider.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
@@ -150,7 +151,7 @@ export class ReplayLogStore {
             } catch (err) {
               if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
             }
-            await fs.appendFile(fp, line, 'utf8');
+            await fs.appendFile(fp, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
             cache.set(hash, { entry, offset, length: Buffer.byteLength(line, 'utf8') });
             this.diskCount.set(input.sessionId, currentCount + 1);
             this.events?.emit('storage.write', {

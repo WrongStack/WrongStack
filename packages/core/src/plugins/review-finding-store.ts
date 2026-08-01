@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type {
   ChimeraFinding,
@@ -18,10 +19,7 @@ import type {
   FindingStatus,
   ResolutionOutcome,
 } from './review-finding-types.js';
-import {
-  validateTransition,
-  validateResolution,
-} from './review-finding-types.js';
+import { validateResolution, validateTransition } from './review-finding-types.js';
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -128,10 +126,7 @@ export class JsonlFindingStore implements FindingStore {
 
   // ── Path helpers ─────────────────────────────────────────────────
 
-  async upsert(
-    newFindings: ChimeraFinding[],
-    context: UpsertContext,
-  ): Promise<UpsertResult> {
+  async upsert(newFindings: ChimeraFinding[], context: UpsertContext): Promise<UpsertResult> {
     if (newFindings.length === 0) return { created: 0, relinked: 0, reopened: 0 };
 
     const result: UpsertResult = { created: 0, relinked: 0, reopened: 0 };
@@ -145,21 +140,39 @@ export class JsonlFindingStore implements FindingStore {
           // Materialize current status from events before checking reopen eligibility.
           const materialized = this._materialize(match);
           if (materialized.status === 'resolved' || materialized.status === 'ignored') {
-            const reopenEvent = this._makeEvent(match.finding.id, 'reopened', materialized.status, 'active', context);
+            const reopenEvent = this._makeEvent(
+              match.finding.id,
+              'reopened',
+              materialized.status,
+              'active',
+              context,
+            );
             match.finding.status = 'active';
             match.finding.resolution = undefined;
             // Re-persist the finding record so status + cleared resolution survive reads.
             const updatedRecord: FindingRecord = { __finding: 1, data: match.finding };
             await fsp.appendFile(
               this.filePath,
-              JSON.stringify(updatedRecord) + LINE_SEPARATOR +
-              JSON.stringify({ __findingEvent: 1, data: reopenEvent }) + LINE_SEPARATOR,
-              'utf8',
+              JSON.stringify(updatedRecord) +
+                LINE_SEPARATOR +
+                JSON.stringify({ __findingEvent: 1, data: reopenEvent }) +
+                LINE_SEPARATOR,
+              { encoding: 'utf8', mode: SECRET_FILE_MODE },
             );
             result.reopened++;
           } else {
-            const relinkEvent = this._makeEvent(match.finding.id, 'relinked', match.finding.status, match.finding.status, context);
-            await fsp.appendFile(this.filePath, JSON.stringify({ __findingEvent: 1, data: relinkEvent }) + LINE_SEPARATOR, 'utf8');
+            const relinkEvent = this._makeEvent(
+              match.finding.id,
+              'relinked',
+              match.finding.status,
+              match.finding.status,
+              context,
+            );
+            await fsp.appendFile(
+              this.filePath,
+              JSON.stringify({ __findingEvent: 1, data: relinkEvent }) + LINE_SEPARATOR,
+              { encoding: 'utf8', mode: SECRET_FILE_MODE },
+            );
             result.relinked++;
           }
         } else {
@@ -167,9 +180,11 @@ export class JsonlFindingStore implements FindingStore {
           const record: FindingRecord = { __finding: 1, data: finding };
           const createdEvent = this._makeEvent(finding.id, 'created', null, 'active', context);
           const lines =
-            JSON.stringify(record) + LINE_SEPARATOR +
-            JSON.stringify({ __findingEvent: 1, data: createdEvent }) + LINE_SEPARATOR;
-          await fsp.appendFile(this.filePath, lines, 'utf8');
+            JSON.stringify(record) +
+            LINE_SEPARATOR +
+            JSON.stringify({ __findingEvent: 1, data: createdEvent }) +
+            LINE_SEPARATOR;
+          await fsp.appendFile(this.filePath, lines, { encoding: 'utf8', mode: SECRET_FILE_MODE });
           result.created++;
         }
       }
@@ -194,7 +209,8 @@ export class JsonlFindingStore implements FindingStore {
     const event: FindingLifecycleEvent = {
       id: randomUUID(),
       findingId,
-      eventType: to === 'resolved' ? 'resolved' : to === 'ignored' ? 'ignored' : this._eventTypeFor(to),
+      eventType:
+        to === 'resolved' ? 'resolved' : to === 'ignored' ? 'ignored' : this._eventTypeFor(to),
       fromStatus: from,
       toStatus: to,
       actorId: actor.id,
@@ -218,9 +234,11 @@ export class JsonlFindingStore implements FindingStore {
     const updatedRecord: FindingRecord = { __finding: 1, data: entry.finding };
     await fsp.appendFile(
       this.filePath,
-      JSON.stringify(updatedRecord) + LINE_SEPARATOR +
-      JSON.stringify({ __findingEvent: 1, data: event }) + LINE_SEPARATOR,
-      'utf8',
+      JSON.stringify(updatedRecord) +
+        LINE_SEPARATOR +
+        JSON.stringify({ __findingEvent: 1, data: event }) +
+        LINE_SEPARATOR,
+      { encoding: 'utf8', mode: SECRET_FILE_MODE },
     );
 
     return { ...entry.finding };
@@ -247,7 +265,12 @@ export class JsonlFindingStore implements FindingStore {
     }
 
     // Sort by severity (critical first), then by age (oldest first).
-    const severityRank: Record<FindingSeverity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const severityRank: Record<FindingSeverity, number> = {
+      critical: 0,
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
     findings.sort((a, b) => {
       const sa = severityRank[a.severity] - severityRank[b.severity];
       if (sa !== 0) return sa;
@@ -305,12 +328,17 @@ export class JsonlFindingStore implements FindingStore {
       }
 
       // Fold events older than maxAge into a single compacted marker.
-      const oldEvents = entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() > maxAge);
+      const oldEvents = entry.events.filter(
+        (ev) => now - new Date(ev.timestamp).getTime() > maxAge,
+      );
       if (oldEvents.length > 1) {
         eventsFolded += oldEvents.length - 1;
         // Keep only the newest event before maxAge (fold the rest).
         const newestOld = oldEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
-        entry.events = [newestOld, ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge)];
+        entry.events = [
+          newestOld,
+          ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge),
+        ];
       }
       kept.push({ record: { __finding: 1, data: entry.finding }, events: entry.events });
     }
@@ -324,12 +352,14 @@ export class JsonlFindingStore implements FindingStore {
       }
     }
     // Append a compaction marker.
-    lines.push(JSON.stringify({
-      __findingCompact: 1,
-      compactedAt: new Date().toISOString(),
-      removedFindings: removed,
-      foldedEvents: eventsFolded,
-    } as CompactMarker));
+    lines.push(
+      JSON.stringify({
+        __findingCompact: 1,
+        compactedAt: new Date().toISOString(),
+        removedFindings: removed,
+        foldedEvents: eventsFolded,
+      } as CompactMarker),
+    );
 
     await atomicWrite(this.filePath, lines.join(LINE_SEPARATOR) + LINE_SEPARATOR, { mode: 0o600 });
 
@@ -353,10 +383,14 @@ export class JsonlFindingStore implements FindingStore {
   }
 
   private _isLifecycleEvent(v: unknown): v is LifecycleEventRecord {
-    return typeof v === 'object' && v !== null && (v as Record<string, unknown>)['__findingEvent'] === 1;
+    return (
+      typeof v === 'object' && v !== null && (v as Record<string, unknown>)['__findingEvent'] === 1
+    );
   }
 
-  private async _readAll(): Promise<Array<{ finding: ChimeraFinding; events: FindingLifecycleEvent[] }>> {
+  private async _readAll(): Promise<
+    Array<{ finding: ChimeraFinding; events: FindingLifecycleEvent[] }>
+  > {
     const lines = await this._readAllLines();
     const findings = new Map<string, ChimeraFinding>();
     const eventsMap = new Map<string, FindingLifecycleEvent[]>();
@@ -384,7 +418,10 @@ export class JsonlFindingStore implements FindingStore {
   }
 
   /** Materialize a finding's current status from its events. */
-  private _materialize(entry: { finding: ChimeraFinding; events: FindingLifecycleEvent[] }): ChimeraFinding {
+  private _materialize(entry: {
+    finding: ChimeraFinding;
+    events: FindingLifecycleEvent[];
+  }): ChimeraFinding {
     if (entry.events.length === 0) return { ...entry.finding };
 
     // Events are already sorted by timestamp (appended in order).
@@ -419,12 +456,18 @@ export class JsonlFindingStore implements FindingStore {
 
   private _eventTypeFor(to: FindingStatus): FindingEventType {
     switch (to) {
-      case 'triaged': return 'triaged';
-      case 'in_progress': return 'started';
-      case 'resolved': return 'resolved';
-      case 'ignored': return 'ignored';
-      case 'active': return 'reopened';
-      default: return 'created';
+      case 'triaged':
+        return 'triaged';
+      case 'in_progress':
+        return 'started';
+      case 'resolved':
+        return 'resolved';
+      case 'ignored':
+        return 'ignored';
+      case 'active':
+        return 'reopened';
+      default:
+        return 'created';
     }
   }
 }

@@ -16,6 +16,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type {
   ReviewReport,
@@ -24,10 +25,10 @@ import type {
   ReviewReportFile,
 } from './review-report-types.js';
 import {
-  reportEventTypeFor,
-  validateReportTransition,
   type ReportActorKind,
   type ReportLifecycleStatus,
+  reportEventTypeFor,
+  validateReportTransition,
 } from './review-report-types.js';
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -145,11 +146,10 @@ export class JsonlReportStore implements ReportStore {
           rawText: input.rawText || existing.rawText,
           files: input.files.length > 0 ? input.files : existing.files,
         };
-        await fsp.appendFile(
-          this.filePath,
-          JSON.stringify({ __report: 1, data: updated }) + NL,
-          'utf8',
-        );
+        await fsp.appendFile(this.filePath, JSON.stringify({ __report: 1, data: updated }) + NL, {
+          encoding: 'utf8',
+          mode: SECRET_FILE_MODE,
+        });
         return updated;
       }
 
@@ -183,9 +183,11 @@ export class JsonlReportStore implements ReportStore {
       };
 
       const lines =
-        JSON.stringify({ __report: 1, data: report }) + NL +
-        JSON.stringify({ __reportEvent: 1, data: createdEvent }) + NL;
-      await fsp.appendFile(this.filePath, lines, 'utf8');
+        JSON.stringify({ __report: 1, data: report }) +
+        NL +
+        JSON.stringify({ __reportEvent: 1, data: createdEvent }) +
+        NL;
+      await fsp.appendFile(this.filePath, lines, { encoding: 'utf8', mode: SECRET_FILE_MODE });
       return report;
     });
   }
@@ -222,11 +224,10 @@ export class JsonlReportStore implements ReportStore {
 
     entry.report.lifecycle = to;
 
-    await fsp.appendFile(
-      this.filePath,
-      JSON.stringify({ __reportEvent: 1, data: event }) + NL,
-      'utf8',
-    );
+    await fsp.appendFile(this.filePath, JSON.stringify({ __reportEvent: 1, data: event }) + NL, {
+      encoding: 'utf8',
+      mode: SECRET_FILE_MODE,
+    });
 
     return { ...entry.report };
   }
@@ -248,11 +249,10 @@ export class JsonlReportStore implements ReportStore {
       reason: note,
     };
 
-    await fsp.appendFile(
-      this.filePath,
-      JSON.stringify({ __reportEvent: 1, data: event }) + NL,
-      'utf8',
-    );
+    await fsp.appendFile(this.filePath, JSON.stringify({ __reportEvent: 1, data: event }) + NL, {
+      encoding: 'utf8',
+      mode: SECRET_FILE_MODE,
+    });
 
     return { ...entry.report };
   }
@@ -315,7 +315,8 @@ export class JsonlReportStore implements ReportStore {
     for (const entry of all) {
       const age = now - new Date(entry.report.reviewedAt).getTime();
       const materialized = this._materialize(entry);
-      const isTerminal = materialized.lifecycle === 'completed' || materialized.lifecycle === 'skipped';
+      const isTerminal =
+        materialized.lifecycle === 'completed' || materialized.lifecycle === 'skipped';
 
       if (isTerminal && age > maxAge) {
         removed++;
@@ -324,11 +325,16 @@ export class JsonlReportStore implements ReportStore {
       }
 
       // Fold old events into a single marker per report.
-      const oldEvents = entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() > maxAge);
+      const oldEvents = entry.events.filter(
+        (ev) => now - new Date(ev.timestamp).getTime() > maxAge,
+      );
       if (oldEvents.length > 1) {
         eventsFolded += oldEvents.length - 1;
         const newestOld = oldEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
-        entry.events = [newestOld, ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge)];
+        entry.events = [
+          newestOld,
+          ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge),
+        ];
       }
       kept.push({ record: { __report: 1, data: entry.report }, events: entry.events });
     }
@@ -340,12 +346,14 @@ export class JsonlReportStore implements ReportStore {
         lines.push(JSON.stringify({ __reportEvent: 1, data: ev }));
       }
     }
-    lines.push(JSON.stringify({
-      __reportCompact: 1,
-      compactedAt: new Date().toISOString(),
-      removedReports: removed,
-      foldedEvents: eventsFolded,
-    } as ReportCompactMarker));
+    lines.push(
+      JSON.stringify({
+        __reportCompact: 1,
+        compactedAt: new Date().toISOString(),
+        removedReports: removed,
+        foldedEvents: eventsFolded,
+      } as ReportCompactMarker),
+    );
 
     await atomicWrite(this.filePath, lines.join(NL) + NL, { mode: 0o600 });
     return { removed, eventsFolded };
@@ -368,7 +376,9 @@ export class JsonlReportStore implements ReportStore {
   }
 
   private _isEventRecord(v: unknown): v is ReportEventRecord {
-    return typeof v === 'object' && v !== null && (v as Record<string, unknown>)['__reportEvent'] === 1;
+    return (
+      typeof v === 'object' && v !== null && (v as Record<string, unknown>)['__reportEvent'] === 1
+    );
   }
 
   private async _readAll(): Promise<Array<{ report: ReviewReport; events: ReviewReportEvent[] }>> {

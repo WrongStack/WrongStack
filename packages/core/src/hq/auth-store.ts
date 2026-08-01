@@ -22,10 +22,11 @@
  * @module hq/auth-store
  */
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
-import * as fs from 'node:fs/promises';
 import * as syncFs from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 import type { HqAlertRuleConfig } from './alerts.js';
@@ -268,12 +269,20 @@ export function hqRuntimeFilePath(dataDir: string): string {
   return path.join(dataDir, 'runtime.json');
 }
 
-export async function writeHqRuntimeFile(dataDir: string, file: Omit<HqRuntimeFile, 'updatedAt'>): Promise<void> {
+export async function writeHqRuntimeFile(
+  dataDir: string,
+  file: Omit<HqRuntimeFile, 'updatedAt'>,
+): Promise<void> {
   const payload: HqRuntimeFile = {
     ...file,
     updatedAt: new Date().toISOString(),
   };
-  await atomicWrite(hqRuntimeFilePath(dataDir), `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+  const target = hqRuntimeFilePath(dataDir);
+  await atomicWrite(target, `${JSON.stringify(payload, null, 2)}\n`, { mode: SECRET_FILE_MODE });
+  // WS-045: this file carries the local client token. `mode: 0o600` alone is a
+  // no-op on Windows beyond the read-only bit, so every other account on the
+  // machine could read it.
+  await restrictFilePermissions(target, { label: 'hq-runtime' });
 }
 
 function isProcessAlive(pid: number): boolean {
@@ -288,7 +297,9 @@ function isProcessAlive(pid: number): boolean {
 
 export function readHqRuntimeFileSync(dataDir: string): HqRuntimeFile | undefined {
   try {
-    const parsed = JSON.parse(syncFs.readFileSync(hqRuntimeFilePath(dataDir), 'utf8')) as Partial<HqRuntimeFile>;
+    const parsed = JSON.parse(
+      syncFs.readFileSync(hqRuntimeFilePath(dataDir), 'utf8'),
+    ) as Partial<HqRuntimeFile>;
     if (typeof parsed.url !== 'string' || parsed.url.trim().length === 0) return undefined;
     if (typeof parsed.pid === 'number' && !isProcessAlive(parsed.pid)) return undefined;
     return {
@@ -326,7 +337,7 @@ export async function readHqAuthFile(
     // Non-ENOENT (EACCES, EIO, …) — fail closed.
     throw new Error(
       `HQ auth file at ${file} cannot be read: ${(err as Error).message}. ` +
-      'Fix the file permissions or delete it to start with an empty auth state.',
+        'Fix the file permissions or delete it to start with an empty auth state.',
     );
   }
   let parsed: HqAuthFile;
@@ -335,23 +346,27 @@ export async function readHqAuthFile(
   } catch (err) {
     throw new Error(
       `HQ auth file at ${file} is not valid JSON: ${(err as Error).message}. ` +
-      'Fix the file or delete it to start with an empty auth state.',
+        'Fix the file or delete it to start with an empty auth state.',
     );
   }
   if (parsed.version !== HQ_AUTH_FILE_VERSION) {
     throw new Error(
       `HQ auth file at ${file} has unsupported version ${String(parsed.version)} ` +
-      `(expected ${String(HQ_AUTH_FILE_VERSION)}). ` +
-      'Remove or update the file to match the current schema version.',
+        `(expected ${String(HQ_AUTH_FILE_VERSION)}). ` +
+        'Remove or update the file to match the current schema version.',
     );
   }
   return parsed;
 }
 
 /**
- * Write `auth.json` atomically with mode 0o600. Creates the data directory
- * if needed. Throws on I/O failure — callers (CLI commands) should surface
- * the error to the operator.
+ * Write `auth.json` atomically, owner-only. Creates the data directory if
+ * needed. Throws on I/O failure — callers (CLI commands) should surface the
+ * error to the operator.
+ *
+ * WS-045: the `mode: 0o600` here was the whole protection, and Windows ignores
+ * it. The file holds browser and client bearer tokens; it now also goes
+ * through the icacls path so it is genuinely owner-only on both platforms.
  */
 export async function writeHqAuthFile(dataDir: string, file: HqAuthFile): Promise<void> {
   const target = hqAuthFilePath(dataDir);
@@ -360,7 +375,8 @@ export async function writeHqAuthFile(dataDir: string, file: HqAuthFile): Promis
     version: HQ_AUTH_FILE_VERSION,
     updatedAt: new Date().toISOString(),
   };
-  await atomicWrite(target, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+  await atomicWrite(target, `${JSON.stringify(payload, null, 2)}\n`, { mode: SECRET_FILE_MODE });
+  await restrictFilePermissions(target, { label: 'hq-auth' });
 }
 
 export interface EnsureHqFirstRunAuthOptions {
@@ -515,8 +531,7 @@ export async function ensureHqFirstRunAuthFile(
         ...actorField,
       },
       {
-        onError: (err) =>
-          opts.warn?.(`HQ first-run audit write failed: ${(err as Error).message}`),
+        onError: (err) => opts.warn?.(`HQ first-run audit write failed: ${(err as Error).message}`),
       },
     );
   }

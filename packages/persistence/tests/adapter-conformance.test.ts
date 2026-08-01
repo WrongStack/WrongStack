@@ -51,7 +51,7 @@ describe.each(adapters)('%s persistence conformance', (_label, adapter) => {
     ).toEqual([]);
   });
 
-  it('preserves an existing target mode and cleans a failed rename temp file', async () => {
+  it('never widens an existing target mode and cleans a failed rename temp file', async () => {
     const modePath = path.join(tempDir, 'mode.txt');
     await fs.writeFile(modePath, 'old');
     if (process.platform !== 'win32') await fs.chmod(modePath, 0o600);
@@ -64,6 +64,38 @@ describe.each(adapters)('%s persistence conformance', (_label, adapter) => {
     await fs.mkdir(directoryTarget);
     await expect(adapter.atomicWrite(directoryTarget, 'failure')).rejects.toBeTruthy();
     expect((await fs.readdir(tempDir)).filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
+  });
+
+  // WS-045: the reverse direction was the bug. `commitTemp` stat'ed the target
+  // first and used `opts.mode` ONLY when the target did not exist, so a file
+  // that had once been created 0644 could never be tightened again: every
+  // subsequent `atomicWrite(..., {mode: 0o600})` re-applied 0644. Secret files
+  // (`auth.json`, `runtime.json`) go through exactly this path.
+  it('tightens a pre-existing world-readable file to the requested mode', async () => {
+    if (process.platform === 'win32') return; // POSIX bits are meaningless here
+    const target = path.join(tempDir, 'was-0644.json');
+    await fs.writeFile(target, '{}');
+    await fs.chmod(target, 0o644);
+
+    await adapter.atomicWrite(target, '{"secret":1}', { mode: 0o600 });
+
+    expect((await fs.stat(target)).mode & 0o777).toBe(0o600);
+  });
+
+  it('applies the requested mode verbatim when the target does not exist', async () => {
+    if (process.platform === 'win32') return;
+    const target = path.join(tempDir, 'brand-new.json');
+    await adapter.atomicWrite(target, '{}', { mode: 0o600 });
+    expect((await fs.stat(target)).mode & 0o777).toBe(0o600);
+  });
+
+  it('leaves the target mode untouched when no mode is requested', async () => {
+    if (process.platform === 'win32') return;
+    const target = path.join(tempDir, 'user-chmodded.txt');
+    await fs.writeFile(target, 'a');
+    await fs.chmod(target, 0o664);
+    await adapter.atomicWrite(target, 'b');
+    expect((await fs.stat(target)).mode & 0o777).toBe(0o664);
   });
 
   it('creates the lock directory lazily and always releases after callback failure', async () => {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { MemoryEntry, MemoryScope } from '../types/memory.js';
 import { MEMORY_TYPE_LABELS, type MemoryPriority, type MemoryType } from '../types/memory.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
@@ -14,9 +15,19 @@ export interface MemoryBackend {
   forget(scope: MemoryScope, query: string, filePath: string): Promise<number>;
   readAll(scope: MemoryScope, filePath: string): Promise<string>;
   list(scope: MemoryScope, filePath: string, limit?: number | undefined): Promise<MemoryEntry[]>;
-  search(scope: MemoryScope, query: string, filePath: string, limit?: number | undefined): Promise<MemoryEntry[]>;
+  search(
+    scope: MemoryScope,
+    query: string,
+    filePath: string,
+    limit?: number | undefined,
+  ): Promise<MemoryEntry[]>;
   /** Find memories related to the given text via graph traversal. Optional — falls back to search. */
-  findRelated?(scope: MemoryScope, filePath: string, text: string, limit: number): Promise<MemoryEntry[]>;
+  findRelated?(
+    scope: MemoryScope,
+    filePath: string,
+    text: string,
+    limit: number,
+  ): Promise<MemoryEntry[]>;
   clear(scope: MemoryScope, filePath: string): Promise<void>;
   consolidate(scope: MemoryScope, filePath: string): Promise<number>;
 }
@@ -97,7 +108,10 @@ function lineToEntry(line: string, scope: MemoryScope): MemoryEntry | null {
     tags.push(tagMatch[1] ?? '');
   }
   // Remove tags from display text
-  const cleanText = text.replace(TAG_RE, '').replace(/\s{2,}/g, ' ').trim();
+  const cleanText = text
+    .replace(TAG_RE, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 
   if (!cleanText) return null;
 
@@ -149,7 +163,10 @@ export function buildInvertedIndex(entries: MemoryEntry[]): InvertedIndex {
 
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i]!;
-    const words = e.text.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+    const words = e.text
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
     const tags = (e.tags ?? []).map((t) => t.toLowerCase());
     indexed[i] = { entry: e, words, tags };
 
@@ -178,12 +195,11 @@ export function buildInvertedIndex(entries: MemoryEntry[]): InvertedIndex {
 const MIN_SUBSTRING_NEEDLE_LEN = 3;
 
 // Exported alongside buildInvertedIndex for the perf microbenchmark.
-export function searchIndex(
-  index: InvertedIndex,
-  query: string,
-  limit?: number,
-): MemoryEntry[] {
-  const needles = query.toLowerCase().split(/\s+/).filter((n) => n.length > 0);
+export function searchIndex(index: InvertedIndex, query: string, limit?: number): MemoryEntry[] {
+  const needles = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((n) => n.length > 0);
   if (needles.length === 0) return [];
 
   const scores = new Map<number, number>();
@@ -338,7 +354,9 @@ export class FileMemoryBackend implements MemoryBackend {
     // append only the new line; inspect one trailing byte solely to preserve a
     // valid line boundary for hand-edited files that lack a final newline.
     await withFileLock(file, async () => {
-      const handle = await fs.open(file, 'a+');
+      // WS-035: memory notes are user content; create owner-only rather than
+      // inheriting the umask default of 0644.
+      const handle = await fs.open(file, 'a+', SECRET_FILE_MODE);
       try {
         const stat = await handle.stat();
         let prefix = '';
@@ -364,7 +382,11 @@ export class FileMemoryBackend implements MemoryBackend {
     const file = this.resolveFile(filePath, scope);
     return withFileLock(file, async () => {
       let existing: string;
-      try { existing = await fs.readFile(file, 'utf8'); } catch { return 0; /* best-effort */ }
+      try {
+        existing = await fs.readFile(file, 'utf8');
+      } catch {
+        return 0; /* best-effort */
+      }
 
       const needle = query.toLowerCase();
       const idMatcher = /mem_\d+_\w+/;
@@ -374,9 +396,15 @@ export class FileMemoryBackend implements MemoryBackend {
         if (!trimmed.startsWith('- ')) return true;
         if (idMatcher.test(query)) {
           const entryIdMatch = /mem_\d+_\w+/.exec(trimmed);
-          if (entryIdMatch && entryIdMatch[0] === query) { removed++; return false; }
+          if (entryIdMatch && entryIdMatch[0] === query) {
+            removed++;
+            return false;
+          }
         }
-        if (trimmed.toLowerCase().includes(needle)) { removed++; return false; }
+        if (trimmed.toLowerCase().includes(needle)) {
+          removed++;
+          return false;
+        }
         return true;
       });
       if (removed > 0) {
@@ -393,7 +421,11 @@ export class FileMemoryBackend implements MemoryBackend {
 
   async readAll(scope: MemoryScope, filePath: string): Promise<string> {
     const file = this.resolveFile(filePath, scope);
-    try { return await fs.readFile(file, 'utf8'); } catch { return ''; /* best-effort */ }
+    try {
+      return await fs.readFile(file, 'utf8');
+    } catch {
+      return ''; /* best-effort */
+    }
   }
 
   async list(scope: MemoryScope, filePath: string, limit?: number): Promise<MemoryEntry[]> {
@@ -402,7 +434,12 @@ export class FileMemoryBackend implements MemoryBackend {
     return limit ? entries.slice(0, limit) : entries;
   }
 
-  async search(scope: MemoryScope, query: string, filePath: string, limit?: number): Promise<MemoryEntry[]> {
+  async search(
+    scope: MemoryScope,
+    query: string,
+    filePath: string,
+    limit?: number,
+  ): Promise<MemoryEntry[]> {
     const file = this.resolveFile(filePath, scope);
     const index = await this.getIndex(file, scope);
     return searchIndex(index, query, limit);
@@ -417,7 +454,11 @@ export class FileMemoryBackend implements MemoryBackend {
   async consolidate(scope: MemoryScope, filePath: string): Promise<number> {
     const file = this.resolveFile(filePath, scope);
     let existing: string;
-    try { existing = await fs.readFile(file, 'utf8'); } catch { return 0; /* best-effort */ }
+    try {
+      existing = await fs.readFile(file, 'utf8');
+    } catch {
+      return 0; /* best-effort */
+    }
 
     const seen = new Set<string>();
     let removed = 0;
@@ -432,7 +473,10 @@ export class FileMemoryBackend implements MemoryBackend {
         .replace(/\s+/g, ' ')
         .trim()
         .toLowerCase();
-      if (seen.has(norm)) { removed++; return false; }
+      if (seen.has(norm)) {
+        removed++;
+        return false;
+      }
       seen.add(norm);
       return true;
     });
@@ -442,9 +486,15 @@ export class FileMemoryBackend implements MemoryBackend {
     try {
       await fs.copyFile(file, backup);
       await pruneConsolidateBackups(file);
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
     /* v8 ignore next -- best-effort: atomicWrite failure during consolidate is non-fatal */
-    try { await atomicWrite(file, next); } catch { return 0; /* best-effort */ }
+    try {
+      await atomicWrite(file, next);
+    } catch {
+      return 0; /* best-effort */
+    }
     this.invalidateCache(file);
     return removed;
   }

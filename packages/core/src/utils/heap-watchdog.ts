@@ -163,7 +163,7 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
         await fsp.mkdir(path.dirname(targetPath), { recursive: true });
         dirReady = true;
       }
-      await fsp.appendFile(targetPath, `${line}\n`, 'utf8');
+      await fsp.appendFile(targetPath, `${line}\n`, { encoding: 'utf8', mode: 0o600 });
     });
 
   const drainWrites = async (firstLine: string): Promise<void> => {

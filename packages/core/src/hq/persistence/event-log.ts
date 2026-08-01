@@ -9,6 +9,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { SECRET_FILE_MODE } from '../../security/file-permissions.js';
 import { atomicReplaceWithWriter, withFileLock } from '../../utils/atomic-write.js';
 import type { HqEventEnvelope } from '../protocol.js';
 import { BestEffortBatchQueue } from '../write-queues.js';
@@ -72,10 +73,15 @@ export interface HqEventLogOptions {
  */
 export type HqEventLogPreset = 'vps8' | 'vps32' | 'desktop';
 
-export const HQ_EVENT_LOG_PRESETS: Readonly<Record<HqEventLogPreset, {
-  maxBytes: number;
-  rotateKeepBytes: number;
-}>> = Object.freeze({
+export const HQ_EVENT_LOG_PRESETS: Readonly<
+  Record<
+    HqEventLogPreset,
+    {
+      maxBytes: number;
+      rotateKeepBytes: number;
+    }
+  >
+> = Object.freeze({
   vps8: { maxBytes: 8 * 1024 * 1024, rotateKeepBytes: 2 * 1024 * 1024 },
   vps32: { maxBytes: 32 * 1024 * 1024, rotateKeepBytes: 16 * 1024 * 1024 },
   desktop: { maxBytes: 64 * 1024 * 1024, rotateKeepBytes: 24 * 1024 * 1024 },
@@ -142,7 +148,8 @@ export class HqEventLog {
   private async appendInternal(events: HqEventEnvelope[]): Promise<void> {
     await this.ensureLineCount();
     const lines = events.map((event) => JSON.stringify(event)).join('\n') + '\n';
-    await fs.appendFile(this.filePath, lines, { encoding: 'utf8' });
+    // WS-035: HQ events carry session content; create owner-only.
+    await fs.appendFile(this.filePath, lines, { encoding: 'utf8', mode: SECRET_FILE_MODE });
     this.lineCount += events.length;
     this.byteCount += Buffer.byteLength(lines, 'utf8');
     if (this.lineCount >= this.maxLines || this.byteCount >= this.maxBytes) {

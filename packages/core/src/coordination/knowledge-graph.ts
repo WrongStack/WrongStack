@@ -21,6 +21,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 
 // ── Core types ────────────────────────────────────────────────────────────
@@ -560,7 +561,7 @@ export class KnowledgeGraph {
     await this.graphDirReady;
     const line = `${JSON.stringify(record)}\n`;
     await withFileLock(this.graphFilePath, async () => {
-      await fsp.appendFile(this.graphFilePath, line, 'utf8');
+      await fsp.appendFile(this.graphFilePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
       this.writesSinceCompaction++;
       if (this.writesSinceCompaction < this.compactEveryWrites) return;
       try {

@@ -232,7 +232,7 @@ export class DefaultLogger implements Logger {
         root.pendingFileBytes += bytes;
         this.enqueueRotate(this.file);
         this._tail = this._tail
-          .then(() => fsp.appendFile(this.file!, line))
+          .then(() => fsp.appendFile(this.file!, line, { mode: 0o600 }))
           .catch(() => undefined)
           .finally(() => {
             root.pendingFileWrites = Math.max(0, root.pendingFileWrites - 1);
