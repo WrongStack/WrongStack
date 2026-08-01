@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 227,
-      "typeOnly": 185,
+      "files": 228,
+      "typeOnly": 186,
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/agent-catalog": {
@@ -19,8 +19,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 164,
-      "typeOnly": 69,
+      "files": 165,
+      "typeOnly": 70,
       "runtimeOrMixed": 143
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -65,8 +65,13 @@
     },
     "@wrongstack/core/hq": {
       "files": 95,
-      "typeOnly": 67,
-      "runtimeOrMixed": 51
+      "typeOnly": 68,
+      "runtimeOrMixed": 50
+    },
+    "@wrongstack/core/hq/protocol": {
+      "files": 2,
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     "@wrongstack/core/infrastructure": {
       "files": 36,
@@ -139,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 821,
-      "typeOnly": 790,
-      "runtimeOrMixed": 203
+      "files": 822,
+      "typeOnly": 789,
+      "runtimeOrMixed": 205
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -164,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 453,
+      "files": 455,
       "typeOnly": 51,
-      "runtimeOrMixed": 459
+      "runtimeOrMixed": 461
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -1141,6 +1146,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/replace-rg.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/session-kanban-mailbox.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -2340,6 +2351,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tools/tests/session-kanban-mailbox.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/tui/src/app-key-handler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3198,6 +3215,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/auth.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/preflight.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -3462,12 +3485,6 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/lib/peer-resume-id.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/src/lib/transcript-store.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3493,8 +3510,8 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/src/store.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -3729,6 +3746,18 @@
       "file": "packages/webui-server/src/server/standalone-session-identity.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/hq/protocol",
+      "file": "packages/webui-hq/src/lib/peer-resume-id.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq/protocol",
+      "file": "packages/webui-hq/src/store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
@@ -11221,8 +11250,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/tool-use.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -11319,6 +11348,12 @@
       "file": "packages/tools/tests/tool-tier.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/tests/tool-use.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12534,6 +12569,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/acp/src/win32-cmd.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/acp/tests/env-sanitization.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 3
@@ -13585,6 +13626,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/update-check.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/utils/win32-cmd.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

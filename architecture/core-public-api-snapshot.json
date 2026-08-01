@@ -437,6 +437,7 @@
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
         "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, type MouseProtocol, safeEmit, setTitle, type TerminalCapability, TerminalLifecycle, isStdinTTY, onResize, setOutputLineGuard, setRawMode, } from './term.js';",
         "export { buildUserContentBlocks, IncomingImageError, type IncomingImagePayload, MAX_INCOMING_IMAGE_BYTES, MAX_INCOMING_IMAGES, parseIncomingImages, } from './incoming-images.js';",
+        "export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';",
         "export { checkConnectivity, resetConnectivityCache } from './connectivity.js';",
         "export { completePartialObject } from './json-repair.js';",
         "export { computeMessageTokens, estimateMessageTokens, estimateRequestTokens, estimateRequestTokensCalibrated, estimateTextTokens, estimateToolDefTokens, estimateToolInputTokens, estimateToolResultTokens, getCalibrationState, type RequestTokenBreakdown, recordActualUsage, resetCalibration, } from './token-estimate.js';",
@@ -854,6 +855,29 @@
       ]
     },
     {
+      "subpath": "./hq/protocol",
+      "target": {
+        "types": "./dist/hq/protocol.d.ts",
+        "import": "./dist/hq/protocol.js"
+      },
+      "source": "packages/core/src/hq/protocol.ts",
+      "declarations": [
+        "export * from './protocol/brain.js';",
+        "export * from './protocol/browser.js';",
+        "export * from './protocol/client.js';",
+        "export * from './protocol/core.js';",
+        "export * from './protocol/fleet.js';",
+        "export * from './protocol/kanban.js';",
+        "export * from './protocol/mailbox.js';",
+        "export * from './protocol/mcp.js';",
+        "export * from './protocol/peer.js';",
+        "export * from './protocol/project.js';",
+        "export * from './protocol/resume.js';",
+        "export * from './protocol/session.js';",
+        "export * from './protocol/tool.js';"
+      ]
+    },
+    {
       "subpath": "./notifications",
       "target": {
         "types": "./dist/notifications/index.d.ts",
@@ -1048,14 +1072,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 143,
-      "sourceLines": 41548
+      "sourceLines": 41566
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8639
+      "sourceLines": 8701
     },
     {
       "directory": "defaults",
@@ -1076,7 +1100,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 50,
-      "sourceLines": 16517
+      "sourceLines": 16572
     },
     {
       "directory": "extension",
@@ -1104,7 +1128,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 42,
-      "sourceLines": 8246
+      "sourceLines": 8257
     },
     {
       "directory": "infrastructure",
@@ -1160,7 +1184,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6276
+      "sourceLines": 6281
     },
     {
       "directory": "prompts",
@@ -1188,7 +1212,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 13,
-      "sourceLines": 4538
+      "sourceLines": 4626
     },
     {
       "directory": "skills",
@@ -1202,7 +1226,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 74,
-      "sourceLines": 16120
+      "sourceLines": 16187
     },
     {
       "directory": "tasking",
@@ -1216,21 +1240,21 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 2959
+      "sourceLines": 3034
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9422
+      "sourceLines": 9439
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 61,
-      "sourceLines": 9321
+      "sourceFiles": 62,
+      "sourceLines": 9412
     },
     {
       "directory": "worktree",
