@@ -1,5 +1,5 @@
 import { Bot, Command, Cpu, Moon, Search, Settings, Sparkles, Sun, Wifi, WifiOff } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useDesktopBridge } from '@/hooks/useDesktopBridge';
 import { useF5Resilience } from '@/hooks/useF5Resilience';
@@ -17,6 +17,7 @@ import {
   useUIStore,
 } from '@/stores';
 import { ActivityBar } from './components/activity-bar';
+import { useViewport } from '@/hooks/useViewport';
 import { navigateToView, openMainView, showPanel } from './components/activity-bar/nav';
 import { ChatView } from './components/ChatView';
 import {
@@ -253,28 +254,18 @@ function AppInner() {
   //
   // Also tracks whether the sidebar is currently acting as a modal overlay
   // (below md + open) so we can set `inert` on <main> for accessibility.
-  const [mobileSidebarModal, setMobileSidebarModal] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 768px)');
-    const apply = () => {
-      const open = useUIStore.getState().sidebarOpen;
-      if (mq.matches && open) {
-        setSidebarOpen(false);
-      }
-      setMobileSidebarModal(mq.matches && open);
-    };
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, [setSidebarOpen]);
+  const { isMobile } = useViewport();
 
-  // Update mobileSidebarModal when sidebarOpen changes (user opens/closes).
+  // Auto-close sidebar when entering mobile breakpoint.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 768px)');
-    setMobileSidebarModal(mq.matches && sidebarOpen);
-  }, [sidebarOpen]);
+    if (isMobile) {
+      const open = useUIStore.getState().sidebarOpen;
+      if (open) setSidebarOpen(false);
+    }
+  }, [isMobile, setSidebarOpen]);
+
+  // Track whether the sidebar is acting as a modal overlay (mobile + open).
+  const mobileSidebarModal = isMobile && sidebarOpen;
   // Install WS handlers exactly once for the whole app. Every other consumer
   // (ChatInput, ConfirmDialog, SettingsPanel) uses the cheap `useWebSocket()`
   // hook which returns action methods only — see hooks/useWebSocket.ts for
