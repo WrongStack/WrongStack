@@ -179,6 +179,9 @@ export class ServerKanbanStore {
   heartbeatKanbanDispatch(input: NonNullable<DomainArgs<'heartbeatKanbanDispatch'>[0]>) {
     return this.callDomain('heartbeatKanbanDispatch', input);
   }
+  pruneSessionBoards(options: NonNullable<DomainArgs<'pruneSessionBoards'>[0]> = {}) {
+    return this.callDomain('pruneSessionBoards', options);
+  }
   heartbeatTaskAssignment(
     boardId: string,
     taskId: string,

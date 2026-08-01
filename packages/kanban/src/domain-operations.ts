@@ -69,6 +69,7 @@ export const KANBAN_DOMAIN_OPERATIONS = [
   'failKanbanDispatch',
   'cancelKanbanDispatch',
   'heartbeatKanbanDispatch',
+  'pruneSessionBoards',
 ] as const;
 
 export type KanbanDomainOperation = (typeof KANBAN_DOMAIN_OPERATIONS)[number];

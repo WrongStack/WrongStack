@@ -8,6 +8,7 @@ export * from './manager/lifecycle.js';
 export * from './manager/task-classifier.js';
 export * from './manager/board-kind-filter.js';
 export * from './manager/dispatch.js';
+export * from './manager/prune.js';
 export * from './manager/presence.js';
 export * from './manager/atomicity.js';
 export * from './manager/decomposition.js';

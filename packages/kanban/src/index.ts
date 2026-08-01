@@ -68,6 +68,7 @@ export {
   failKanbanDispatch,
   cancelKanbanDispatch,
   heartbeatKanbanDispatch,
+  pruneSessionBoards,
 } from './client-domain.js';
 export * from './manager.js';
 export {
