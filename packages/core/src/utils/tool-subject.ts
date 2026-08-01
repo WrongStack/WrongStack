@@ -86,6 +86,12 @@ export function subjectForToolInput(
       if (subjectKey === 'packages' && obj['dry_run'] === true) {
         return `${escapeGlobSubject(value)}:dry-run`;
       }
+      // A dry-run scaffold must not share a subject with a real scaffold of the
+      // same name (over-grant). `name` is scaffold's subjectKey; no other tool
+      // uses it, so this only matches scaffold.
+      if (subjectKey === 'name' && obj['dry_run'] === true) {
+        return `${escapeGlobSubject(value)}:dry-run`;
+      }
       return escapeGlobSubject(value);
     }
   }

@@ -176,6 +176,12 @@ describe('tool-subject utilities', () => {
     // Other git subcommands are unaffected by the dry-run special-case.
     expect(subjectForToolInput('git', { command: 'push' }, 'command')).toBe('push');
   });
+  it('subjectForToolInput gives dry-run scaffold a distinct subject (over-grant)', () => {
+    // A dry-run scaffold must not share a subject with a real scaffold.
+    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo', dry_run: true }, 'name')).toBe('foo:dry-run');
+    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo', dry_run: false }, 'name')).toBe('foo');
+    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo' }, 'name')).toBe('foo');
+  });
 });
 
 // ── config-json pure functions ──────────────────────────────────────────
