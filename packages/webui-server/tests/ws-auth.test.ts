@@ -119,6 +119,50 @@ describe('ws-auth', () => {
       })).toBe(true);
     });
 
+    // WS-003: the WS handshake is exempt from the same-origin policy, so a
+    // hostname-only loopback check trusts every other process listening on this
+    // machine. An XSS on any local dev server could otherwise open a tokenless
+    // socket here and drive the agent.
+    it('rejects a loopback browser origin on a DIFFERENT port', () => {
+      expect(verifyClient({
+        origin: 'http://localhost:9999',
+        url: '/',
+        hostHeader: 'localhost:3456',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(false);
+    });
+
+    it('rejects a cross-port loopback origin even across loopback aliases', () => {
+      expect(verifyClient({
+        origin: 'http://127.0.0.1:5173',
+        url: '/',
+        hostHeader: 'localhost:3456',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(false);
+    });
+
+    it('still admits a cross-port origin when it presents a valid cookie', () => {
+      expect(verifyClient({
+        origin: 'http://localhost:9999',
+        url: '/',
+        hostHeader: 'localhost:3456',
+        cookieHeader: `ws_token=${TOKEN}`,
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(true);
+    });
+
+    it('rejects a loopback origin when the Host header is missing', () => {
+      expect(verifyClient({
+        origin: 'http://localhost:3456',
+        url: '/',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(false);
+    });
+
     it('rejects file:// origin even on loopback', () => {
       expect(verifyClient({
         origin: 'file:///index.html',

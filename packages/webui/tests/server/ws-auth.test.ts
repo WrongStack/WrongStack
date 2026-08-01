@@ -16,7 +16,9 @@ const LOOPBACK_HOST = '127.0.0.1:3456';
 
 describe('verifyClient (WebSocket auth)', () => {
   it('allows loopback browser origin without token (loopback bind)', () => {
-    for (const origin of ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
+    // Same-origin: the Origin port must match the port the browser actually
+    // connected to, which is what LOOPBACK_HOST carries.
+    for (const origin of ['http://localhost:3456', 'http://127.0.0.1:3456', 'http://[::1]:3456']) {
       expect(
         verifyClient({
           origin,
@@ -26,6 +28,24 @@ describe('verifyClient (WebSocket auth)', () => {
           expectedToken: TOKEN,
         }),
       ).toBe(true);
+    }
+  });
+
+  // WS-003: a hostname-only loopback check trusted every other process
+  // listening on this machine. The WS handshake is exempt from the same-origin
+  // policy, so an XSS on any local dev server could open a tokenless socket
+  // here and drive the agent. This test previously asserted the opposite.
+  it('rejects a tokenless loopback browser origin on a different port', () => {
+    for (const origin of ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
+      expect(
+        verifyClient({
+          origin,
+          url: '/',
+          hostHeader: LOOPBACK_HOST,
+          wsHost: '127.0.0.1',
+          expectedToken: TOKEN,
+        }),
+      ).toBe(false);
     }
   });
 

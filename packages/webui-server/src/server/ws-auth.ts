@@ -39,23 +39,37 @@ export function isLoopbackHostname(hostname: string): boolean {
   );
 }
 
+/** Effective port of a URL, filling in the protocol default when implicit. */
+function effectivePort(url: URL): string {
+  if (url.port) return url.port;
+  return url.protocol === 'https:' ? '443' : '80';
+}
+
 /**
- * Check if an origin is a trusted loopback browser origin.
- * Defense-in-depth: when wsHost=0.0.0.0, only accept explicit localhost origins,
- * not arbitrary loopback hostnames that could be spoofed by local malware.
+ * Check if an origin is a trusted loopback browser origin *for this server*.
+ *
+ * WS-003: the WebSocket handshake is exempt from the same-origin policy, so a
+ * hostname-only check trusts every other process listening on this machine — a
+ * second dev server, a local app's UI, a notebook kernel. Any XSS on any of
+ * those origins could then open a tokenless socket here and drive the agent.
+ *
+ * The `Host` header carries the authority the browser actually connected to, so
+ * comparing the Origin's port against it is a genuine same-origin test and needs
+ * no extra plumbing. Both sides must still be loopback, and non-http(s) schemes
+ * (file://, data://) are rejected outright.
  */
-function isTrustedLoopbackOrigin(origin: string): boolean {
+function isTrustedLoopbackOrigin(origin: string, hostHeader: string | undefined): boolean {
   try {
     const url = new URL(origin);
-    // Only allow explicit loopback http(s) origins.
-    // Reject file://, data://, and other schemes even on loopback.
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-    return (
-      url.hostname === 'localhost' ||
-      url.hostname === '127.0.0.1' ||
-      url.hostname === '::1' ||
-      url.hostname === '[::1]'
-    );
+    if (!isLoopbackHostname(url.hostname)) return false;
+
+    const host = (hostHeader ?? '').trim();
+    if (!host) return false;
+    const hostUrl = new URL(`${url.protocol}//${host}`);
+    if (!isLoopbackHostname(hostUrl.hostname)) return false;
+
+    return effectivePort(url) === effectivePort(hostUrl);
   } catch {
     return false;
   }
@@ -243,7 +257,10 @@ export function verifyClient(input: VerifyClientInput): boolean {
     // Reject file://, data://, and other schemes even on loopback.
     if (isLoopbackHostname(originHostname)) {
       if (requireToken || !isLoopbackBind(wsHost)) return cookieTokenOk;
-      return isTrustedLoopbackOrigin(origin);
+      // A valid cookie authenticates regardless of port; otherwise the origin
+      // must be this exact server (scheme + loopback host + port), not merely
+      // "some loopback origin" (WS-003).
+      return cookieTokenOk || isTrustedLoopbackOrigin(origin, hostHeader);
     }
     // Non-loopback browser origins normally authenticate via the HttpOnly cookie
     // set by `/ws-auth`. When an operator supplies a separate public WS URL, the
