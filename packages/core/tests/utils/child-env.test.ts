@@ -100,6 +100,23 @@ describe('buildChildEnv', () => {
     expect(result.WRONGSTACK_HOME).toBe('/custom/home');
   });
 
+  // WS-033: the vault KEK matched no SECRET_NAME_PARTS entry, so it fell through
+  // to the WRONGSTACK_ prefix allow-rule above and was handed to every child
+  // process — including the agent's own exec/bash tools and MCP stdio servers.
+  it('should strip WRONGSTACK_VAULT_PASSPHRASE despite the WRONGSTACK_ prefix', () => {
+    process.env = { WRONGSTACK_VAULT_PASSPHRASE: 'kek-secret', WRONGSTACK_HOME: '/h' };
+    const result = buildChildEnv();
+    expect(result.WRONGSTACK_VAULT_PASSPHRASE).toBeUndefined();
+    expect(result.WRONGSTACK_HOME).toBe('/h');
+  });
+
+  it('should strip any PASSPHRASE-bearing var', () => {
+    process.env = { PATH: '/usr/bin', GPG_PASSPHRASE: 'p', SSH_KEY_PASSPHRASE: 'q' };
+    const result = buildChildEnv();
+    expect(result.GPG_PASSPHRASE).toBeUndefined();
+    expect(result.SSH_KEY_PASSPHRASE).toBeUndefined();
+  });
+
   it('should forward NODE_ prefixed vars', () => {
     process.env = { NODE_ENV: 'test' };
     const result = buildChildEnv();

@@ -40,6 +40,8 @@ jobs:
     steps:
       # Third-party actions pinned to full commit SHAs (see ci.yml for rationale).
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4 (resolved 2026-05-29)
+        with:
+          persist-credentials: false
 
       # The website is a standalone npm project (its own package-lock.json), not
       # part of the pnpm workspace — so it builds with npm, cached on its lockfile.

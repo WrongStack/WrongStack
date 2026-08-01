@@ -64,6 +64,11 @@ const SECRET_NAME_PARTS = [
   'SECRET',
   'PASSWORD',
   'PASSWD',
+  // WRONGSTACK_VAULT_PASSPHRASE is the vault KEK. Without this entry it matched
+  // no rule here and fell through to the `WRONGSTACK_` prefix allow-rule, so the
+  // key that protects the credential vault was forwarded to every child process
+  // — including the agent's own exec/bash tools and MCP stdio servers (WS-033).
+  'PASSPHRASE',
   'AUTH',
   'CRED',
   'BEARER',
