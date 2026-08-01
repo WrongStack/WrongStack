@@ -238,6 +238,14 @@ export interface SageConfig {
          * repeats.
          */
         repeatCooldownMs?: number | undefined;
+        /**
+         * Which tools trigger SAGE memory injection on their results.
+         * Supported triggers: read, tree, grep, glob, codebase_search,
+         * write, edit, patch. Bash/exec are intentionally excluded —
+         * command-execution tools do not produce file-path-anchored
+         * results that are useful for memory injection.
+         * Default: all supported triggers enabled.
+         */
         triggers?:
           | Partial<
               Record<
@@ -246,7 +254,6 @@ export interface SageConfig {
                 | 'grep'
                 | 'glob'
                 | 'codebase_search'
-                | 'bash'
                 | 'write'
                 | 'edit'
                 | 'patch',
