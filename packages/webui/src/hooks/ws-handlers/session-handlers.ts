@@ -3,6 +3,7 @@ import { i18n } from '@/i18n';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
 import { streamCoalescer } from '@/lib/stream-coalescer';
+import { isMobileViewport } from '@/hooks/useViewport';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
@@ -401,7 +402,7 @@ export function handleSessionStart(msg: WSServerMessage) {
         else if (useUIStore.getState().currentView !== 'chat') showPanel('chat');
       }
     }
-    if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)').matches) {
+    if (isMobileViewport()) {
       useUIStore.getState().setSidebarOpen(false);
     }
   }
