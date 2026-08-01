@@ -29,10 +29,17 @@ interface DisplaySectionProps {
 // packages/tui/src/components/settings-picker-model.ts (`SAGE_THRESHOLD_PRESETS`).
 // Values are serialised to fixed-decimal strings so the generic
 // `PreferenceSelect<string>` accepts them; we re-parse on the change handler.
+// A fallback entry (`"0.85"`) is the `DEFAULT_VALUE` used when the
+// persisted value is outside the [0, 1] range or non-finite — the
+// local-prefs v13 migration handles this on load, but a raw
+// `prefs.snapshot` from a server with a hand-edited config.json can
+// still land here. The fallback option keeps the select usable in
+// that edge case (no NaN, no crash, no UI jank).
+const DEFAULT_SAGE_THRESHOLD = '0.85';
 const SAGE_THRESHOLD_OPTIONS = [
   { value: '0.72', label: '0.72 (relaxed)' },
   { value: '0.75', label: '0.75' },
-  { value: '0.85', label: '0.85 (default)' },
+  { value: DEFAULT_SAGE_THRESHOLD, label: '0.85 (default)' },
   { value: '0.90', label: '0.90' },
   { value: '0.95', label: '0.95 (strict)' },
 ] as const;
@@ -288,7 +295,13 @@ export function DisplaySection({ syncPref }: DisplaySectionProps) {
             <PreferenceSelect
               label={t('settings:display.sageMemoryInjectThresholdLabel')}
               hint={t('settings:display.sageMemoryInjectThresholdHint')}
-              value={localPrefs.sageMemoryInjectThreshold.toFixed(2)}
+              value={
+                Number.isFinite(localPrefs.sageMemoryInjectThreshold) &&
+                localPrefs.sageMemoryInjectThreshold >= 0 &&
+                localPrefs.sageMemoryInjectThreshold <= 1
+                  ? localPrefs.sageMemoryInjectThreshold.toFixed(2)
+                  : DEFAULT_SAGE_THRESHOLD
+              }
               options={SAGE_THRESHOLD_OPTIONS.map((o) => ({
                 value: o.value,
                 label: o.label,
