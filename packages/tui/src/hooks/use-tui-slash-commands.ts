@@ -12,14 +12,9 @@ import {
   setDesignOverrides,
 } from '@wrongstack/core/design';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-  useEffect,
-} from 'react';
-import type { AppProps } from '../app-props.js';
+import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import type { Settings, State } from '../app-state.js';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
 import {
@@ -174,7 +169,9 @@ export function useTuiSlashCommands({
             motion: pairs['motion'],
           });
           if (Object.keys(patch).length === 0) {
-            return { message: 'Usage: /design tune radius=lg density=compact font="…" motion=snappy' };
+            return {
+              message: 'Usage: /design tune radius=lg density=compact font="…" motion=snappy',
+            };
           }
           const merged = await recordOverrides(projectRoot, patch, new Date().toISOString());
           if (!merged) return { message: 'No active kit. Pin one first: /design <kit-id>.' };
@@ -223,7 +220,14 @@ export function useTuiSlashCommands({
           });
           const fsp = await import('node:fs/promises');
           const nodePath = await import('node:path');
-          const abs = nodePath.join(projectRoot, result.path);
+          // WS-052: share the containment resolver with the tool and WS paths.
+          const { resolveMaterializeTarget } = await import('@wrongstack/core/design');
+          let abs: string;
+          try {
+            abs = await resolveMaterializeTarget(result.path, projectRoot);
+          } catch (e) {
+            return { message: (e as Error).message };
+          }
           try {
             await fsp.mkdir(nodePath.dirname(abs), { recursive: true });
             await fsp.writeFile(abs, result.content);
@@ -575,5 +579,4 @@ export function useTuiSlashCommands({
       slashRegistry.unregister('resume');
     };
   }, [slashRegistry, listSessions]);
-
 }

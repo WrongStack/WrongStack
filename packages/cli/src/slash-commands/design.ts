@@ -1,7 +1,22 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import {
+  applyTokenOverrides,
+  clearActiveKit,
+  clearPersistedActiveKit,
+  getDesignKitLoader,
+  getDesignState,
+  isDesignStack,
+  loadActiveKit,
+  materializeTokens,
+  recordOverrides,
+  resolveMaterializeTarget,
+  resolveSemanticTune,
+  type SemanticTune,
+  setActiveKit,
+  setDesignOverrides,
+} from '@wrongstack/core/design';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { applyTokenOverrides, clearActiveKit, clearPersistedActiveKit, getDesignKitLoader, getDesignState, isDesignStack, loadActiveKit, materializeTokens, recordOverrides, resolveSemanticTune, type SemanticTune, setActiveKit, setDesignOverrides } from '@wrongstack/core/design';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
@@ -109,7 +124,9 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
         };
         const patch = resolveSemanticTune(tune);
         if (Object.keys(patch).length === 0) {
-          return { message: 'Usage: /design tune radius=lg density=compact font="…" motion=snappy' };
+          return {
+            message: 'Usage: /design tune radius=lg density=compact font="…" motion=snappy',
+          };
         }
         const merged = await recordOverrides(opts.projectRoot, patch, new Date().toISOString());
         if (!merged) {
@@ -138,7 +155,9 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
         await clearPersistedActiveKit(opts.projectRoot);
         if (ctx) setActiveKit(ctx, kit.id, stack, {});
         return {
-          message: color.green(`Swapped to design kit "${kit.name}" (${kit.id}). Old overrides dropped.`),
+          message: color.green(
+            `Swapped to design kit "${kit.name}" (${kit.id}). Old overrides dropped.`,
+          ),
           runText: `design use ${kit.id}${stack ? ` --stack ${stack}` : ''}`,
           metadata: { designKit: kit.id, ...(stack ? { designStack: stack } : {}) },
         };
@@ -166,7 +185,13 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
           kitId: active.kit,
           outPath,
         });
-        const abs = path.join(opts.projectRoot, result.path);
+        // WS-052: share the containment resolver with the tool and WS paths.
+        let abs: string;
+        try {
+          abs = await resolveMaterializeTarget(result.path, opts.projectRoot);
+        } catch (e) {
+          return { message: (e as Error).message };
+        }
         try {
           await fs.mkdir(path.dirname(abs), { recursive: true });
           await fs.writeFile(abs, result.content);

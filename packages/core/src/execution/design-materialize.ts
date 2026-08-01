@@ -346,3 +346,64 @@ export function materializeTokens(opts: {
   }
   return { path: opts.outPath?.trim() || DEFAULT_PATHS[stack], content, format };
 }
+
+/**
+ * Resolve a `materializeTokens` result path to an absolute destination pinned
+ * inside `projectRoot`, or throw if it would escape.
+ *
+ * WS-021/052: `materializeTokens` returns `outPath` verbatim, and each caller
+ * was responsible for containing it. The LLM-tool path in
+ * `packages/tools/src/design.ts` was hardened for issue #249; the WebSocket
+ * handler (`design.materialize`) and the two slash-command paths were not — so
+ * a payload-supplied `out` of `../../../.wrongstack/profiles/default/config.json`
+ * reached `fs.writeFile` unchecked. One shared resolver so a fix cannot land on
+ * one of three sites again.
+ *
+ * Symlinks are resolved before the check (a `/tmp` that is really
+ * `/private/tmp`, a bind mount, or an attacker-planted link would otherwise
+ * smuggle a path past a plain prefix test). The destination usually does not
+ * exist yet, so the parent is realpath'd and the basename re-joined.
+ *
+ * On Windows `path.join(absoluteA, absoluteB)` concatenates literally rather
+ * than collapsing onto the drive root, so an absolute result path is treated as
+ * absolute instead of as a join input — matching the tools-side behaviour.
+ */
+export async function resolveMaterializeTarget(
+  resultPath: string,
+  projectRoot: string,
+): Promise<string> {
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+
+  const resolveReal = async (p: string): Promise<string> => {
+    const resolved = path.resolve(p);
+    let probe = resolved;
+    const missing: string[] = [];
+    for (;;) {
+      try {
+        return path.resolve(await fs.realpath(probe), ...missing);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          const parent = path.dirname(probe);
+          if (parent === probe) return resolved;
+          missing.unshift(path.basename(probe));
+          probe = parent;
+          continue;
+        }
+        return resolved;
+      }
+    }
+  };
+
+  const root = await resolveReal(projectRoot);
+  const absResolved = path.isAbsolute(resultPath)
+    ? path.resolve(resultPath)
+    : path.resolve(path.join(projectRoot, resultPath));
+  const absParent = await resolveReal(path.dirname(absResolved));
+  const abs = path.join(absParent, path.basename(absResolved));
+  const rel = path.relative(root, abs);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new Error(`design: materialize path "${resultPath}" would escape the project root`);
+  }
+  return abs;
+}

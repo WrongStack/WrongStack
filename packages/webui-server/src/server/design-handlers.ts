@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import {
   applyTokenOverrides,
   clearPersistedActiveKit,
+  type DesignStack,
   getDesignKitLoader,
   getDesignState,
   isDesignStack,
@@ -27,12 +28,12 @@ import {
   materializeTokens,
   recordKitChoice,
   recordOverrides,
+  resolveMaterializeTarget,
   resolveSemanticTune,
-  type SemanticTune,
   runDesignVerify,
+  type SemanticTune,
   setActiveKit,
   setDesignOverrides,
-  type DesignStack,
 } from '@wrongstack/core/design';
 import type { WebSocket } from 'ws';
 import { send } from './ws-utils.js';
@@ -306,7 +307,12 @@ export async function handleDesignMaterialize(
       kitId: active.kit,
       outPath: typeof payload.out === 'string' ? payload.out : undefined,
     });
-    const abs = path.join(ctx.projectRoot, result.path);
+    // WS-021: `payload.out` reached this join verbatim, so a WebSocket frame
+    // could write anywhere on disk — `.git/hooks/pre-commit` turns an arbitrary
+    // write into execution. The equivalent LLM-tool path was hardened for issue
+    // #249; this one and the two slash-command paths were missed. All four now
+    // share one resolver.
+    const abs = await resolveMaterializeTarget(result.path, ctx.projectRoot);
     await fs.mkdir(path.dirname(abs), { recursive: true });
     await fs.writeFile(abs, result.content);
     send(ws, {
