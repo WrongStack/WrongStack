@@ -18,6 +18,8 @@ export interface InlineToken {
   italic?: boolean | undefined;
   code?: boolean | undefined;
   strike?: boolean | undefined;
+  /** Markdown link target (the URL part of [text](url)). */
+  link?: boolean | undefined;
 }
 
 /**
@@ -133,6 +135,44 @@ export function parseInline(text: string): InlineToken[] {
         continue;
       }
     }
+    // [text](url) — Markdown link. Renders the link text in accent color
+    // so URLs are visually distinct from surrounding prose. The URL itself
+    // is not shown (terminal links are not clickable in most terminals).
+    if (ch === '[') {
+      const textEnd = text.indexOf(']', i + 1);
+      if (textEnd > i && text[textEnd + 1] === '(') {
+        const urlEnd = text.indexOf(')', textEnd + 2);
+        if (urlEnd > textEnd) {
+          flush();
+          const linkText = text.slice(i + 1, textEnd);
+          tokens.push({ text: linkText, link: true });
+          i = urlEnd + 1;
+          continue;
+        }
+      }
+    }
+    // Bare URLs (http/https) — highlight in accent color so they're
+    // distinguishable from prose without wrapping in link syntax.
+    if (text.startsWith('http://', i) || text.startsWith('https://', i)) {
+      let urlEnd = i + 8;
+      while (urlEnd < text.length) {
+        const c = text[urlEnd];
+        if (c !== undefined && c.match(/[a-zA-Z0-9._~:/?#@!$&+,;=%\-\[\]()'*]/)) {
+          urlEnd++;
+        } else {
+          break;
+        }
+      }
+      const trailing = text.slice(i, urlEnd);
+      const stripped = trailing.replace(/[.,;!?)]+$/, '');
+      urlEnd = i + stripped.length;
+      if (urlEnd > i + 8) {
+        flush();
+        tokens.push({ text: stripped, link: true });
+        i = urlEnd;
+        continue;
+      }
+    }
     plain += ch;
     i += 1;
   }
@@ -154,7 +194,7 @@ function InlineLine({ tokens, dim }: { tokens: InlineToken[]; dim?: boolean | un
       {tokens.map((t, j) => (
         <Text
           key={j}
-          color={t.code ? theme.accent : 'white'}
+          color={t.code ? theme.accent : t.link ? theme.accent : 'white'}
           bold={Boolean(t.bold)}
           italic={Boolean(t.italic)}
           strikethrough={Boolean(t.strike)}
