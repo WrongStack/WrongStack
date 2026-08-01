@@ -262,7 +262,7 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
     // Parse ustar header
     const name = readTarString(buf, offset, 100); // name field
     const prefix = readTarString(buf, offset + 345, 155); // ustar prefix
-    const size = Number.parseInt(readTarString(buf, offset + 124, 12).trim(), 8) || 0;
+    const size = readTarSize(buf, offset + 124);
     const typeflag = buf[offset + 156] ?? 0;
 
     // Full path: prefix/name (ustar) or just name
@@ -309,6 +309,60 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
   }
 }
 
+/**
+ * Read a tar header's 12-byte size field (WS-056).
+ *
+ * This was `parseInt(readTarString(...), 8) || 0`, which is wrong in a way
+ * that matters more than a wrong number.
+ *
+ * GNU tar encodes a size that does not fit 11 octal digits in "base-256":
+ * the high bit of the first byte is set and the remaining bytes are a
+ * big-endian binary integer. Read as an octal STRING that is binary garbage,
+ * so `parseInt` returned `NaN` and `|| 0` quietly turned it into a size of 0.
+ *
+ * A size of 0 does not merely mis-report the entry — it DESYNCHRONISES the
+ * parser. The loop advances by `512 + ceil(size / 512) * 512`, so a zero size
+ * advances one block and the entry's own DATA is then parsed as the next tar
+ * header. From that point every "entry" is attacker-chosen content that was
+ * never visible as a file, and the extractor writes whatever those synthetic
+ * headers name. The zip-slip guard still holds, so this is not a path out of
+ * `destDir` — but it is arbitrary file creation inside it from data no
+ * inspection of the archive's real entry list would show.
+ *
+ * So: parse base-256 properly, and treat a size that is neither valid octal
+ * nor valid base-256 as fatal. Continuing from an unknown size is exactly the
+ * desync; refusing to extract is the only safe response.
+ */
+function readTarSize(buf: Buffer, start: number): number {
+  const first = buf[start] ?? 0;
+  // Base-256: high bit set. 0xff means a negative value, which has no meaning
+  // for a size.
+  if ((first & 0x80) !== 0) {
+    if (first === 0xff) {
+      throw new Error('tar: negative base-256 size field');
+    }
+    let value = first & 0x7f;
+    for (let i = start + 1; i < start + 12; i++) {
+      value = value * 256 + (buf[i] ?? 0);
+      if (!Number.isSafeInteger(value)) {
+        throw new Error('tar: base-256 size exceeds the safe integer range');
+      }
+    }
+    return value;
+  }
+  const text = readTarString(buf, start, 12).trim();
+  // An all-NUL or empty field is a legitimate zero (directories use it).
+  if (text === '') return 0;
+  if (!/^[0-7]+$/.test(text)) {
+    throw new Error(`tar: unparseable size field ${JSON.stringify(text)}`);
+  }
+  const parsed = Number.parseInt(text, 8);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error('tar: size field out of range');
+  }
+  return parsed;
+}
+
 function readTarString(buf: Buffer, start: number, maxLen: number): string {
   let end = start;
   while (end < start + maxLen && end < buf.length && buf[end] !== 0) {
@@ -326,3 +380,11 @@ function stripTopDir(p: string): string {
   if (idx === -1) return ''; // top-level file, skip
   return p.slice(idx + 1);
 }
+
+/**
+ * Internal seam for the per-file coverage suite (mirrors
+ * `protocolHandlerCoverage` in the ACP handler). `extractTar` and
+ * `readTarSize` are the security-relevant halves of this module and are
+ * otherwise unreachable from a test without performing a real download.
+ */
+export const githubFetcherCoverage = { extractTar, readTarSize };
