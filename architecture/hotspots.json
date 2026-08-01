@@ -22,12 +22,12 @@
       "lines": 917,
       "relativeImports": 1
     },
-    "packages/cli/src/hq-server/routes.ts": { "lines": 960, "relativeImports": 11 },
+    "packages/cli/src/hq-server/routes.ts": { "lines": 963, "relativeImports": 11 },
     "packages/cli/src/hq-server/ws.ts": {
       "lines": 1114,
       "relativeImports": 3
     },
-    "packages/cli/src/hq-server.ts": { "lines": 878, "relativeImports": 9 },
+    "packages/cli/src/hq-server.ts": { "lines": 890, "relativeImports": 9 },
     "packages/cli/src/picker.ts": {
       "lines": 824,
       "relativeImports": 11
@@ -89,8 +89,9 @@
       "relativeImports": 8
     },
     "packages/core/src/coordination/director-tools.ts": { "lines": 826, "relativeImports": 13 },
+    "packages/core/src/coordination/fleet-supervisor.ts": { "lines": 815, "relativeImports": 6 },
     "packages/core/src/coordination/director.ts": {
-      "lines": 819,
+      "lines": 834,
       "relativeImports": 38
     },
     "packages/core/src/coordination/mailbox-http-router.ts": {
@@ -143,8 +144,9 @@
     },
     "packages/core/src/execution/tool-executor.ts": {
       "lines": 1018,
-      "relativeImports": 20
+      "relativeImports": 21
     },
+    "packages/core/src/hq/auth-store.ts": { "lines": 803, "relativeImports": 6 },
     "packages/core/src/hq/protocol/core.ts": {
       "lines": 930,
       "relativeImports": 12
@@ -167,8 +169,8 @@
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1053,
-      "relativeImports": 36
+      "lines": 1070,
+      "relativeImports": 37
     },
     "packages/core/src/tools/fallback-manage-tools.ts": { "lines": 924, "relativeImports": 13 },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -316,10 +318,6 @@
       "lines": 1207,
       "relativeImports": 1
     },
-    "packages/webui/src/App.tsx": {
-      "lines": 981,
-      "relativeImports": 46
-    },
     "packages/webui/src/components/AgentOfficeView.tsx": {
       "lines": 965,
       "relativeImports": 5
@@ -428,7 +426,7 @@
       "lines": 940,
       "relativeImports": 2
     },
-    "packages/webui-server/src/server/http-server.ts": { "lines": 947, "relativeImports": 10 },
+    "packages/webui-server/src/server/http-server.ts": { "lines": 948, "relativeImports": 10 },
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 967,
       "relativeImports": 8

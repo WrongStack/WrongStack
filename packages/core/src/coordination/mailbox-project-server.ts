@@ -120,7 +120,8 @@ const stopMemoryWatchdog = startSharedHeapWatchdog({
 const authToken = randomBytes(16).toString('hex');
 
 /**
- * Resolves once `server.json` — the only place the token exists — is on disk.
+ * Resolves once `.mailbox-server.json` — the only place the token exists — is
+ * on disk.
  *
  * The endpoint bind IS the ownership election, so metadata cannot be written
  * before listening (a losing contender would clobber the winner's file). But
@@ -351,7 +352,7 @@ function checkAuthToken(state: ClientState, message: MailboxProjectServerClientM
     ok: false,
     error:
       'Mailbox IPC request rejected: missing or invalid authToken. ' +
-      'Reconnect to refresh metadata (server.json#authToken).',
+      'Reconnect to refresh metadata (.mailbox-server.json#authToken).',
     errorName: 'UnauthorizedMailboxRequest',
   });
   return false;
@@ -440,6 +441,14 @@ async function writeMetadata(): Promise<void> {
   await fsPromises.mkdir(projectDir, { recursive: true });
   const temporary = `${metadataPath}.${process.pid}.tmp`;
   // The token lives ONLY in this owner-only file, never on the wire (WS-027).
+  //
+  // RESIDUAL RISK (Windows): `mode: 0o600` is honored on POSIX but Node ignores
+  // it on Windows, where this file instead inherits the `projectDir` ACLs. The
+  // IPC endpoint offers no exclusion on Windows either (see WS-027 above), so if
+  // `projectDir` is world-readable another local user can read this file, lift
+  // the token, and bypass WS-027 entirely. Hardening needs an explicit
+  // restrictive ACL (e.g. `icacls` granting only the owner) on the project state
+  // directory or this file; until then the owner-only guarantee is POSIX-only.
   const metadata: MailboxProjectServerMetadata = { ...serverStatus(), authToken };
   await fsPromises.writeFile(temporary, `${JSON.stringify(metadata, null, 2)}\n`, {
     encoding: 'utf8',
