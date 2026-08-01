@@ -196,7 +196,7 @@ export function verifyMailboxCredential(
     actualBytes.length !== expectedBytes.length ||
     !crypto.timingSafeEqual(actualBytes, expectedBytes)
   ) {
-    return { valid: false, reason: 'invalid secret', credential };
+    return { valid: false, reason: 'invalid secret' };
   }
 
   return { valid: true, credential };
