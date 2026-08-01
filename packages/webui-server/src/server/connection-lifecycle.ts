@@ -44,6 +44,20 @@ export interface ClientWithConnectionInfo {
   remoteAddress?: string;
 }
 
+/**
+ * Message types that never count against a connection's rate budget.
+ *
+ * WS-029: the limiter shipped disabled because it "was tripping during normal
+ * use" — it charged keepalives, which the browser sends on a timer regardless
+ * of what the user is doing, so an idle tab could exhaust the budget. Exempting
+ * them is what makes a default limit safe to turn on; raising the number
+ * without fixing the counting would only move the same bug further out.
+ *
+ * Keep this list to traffic that is genuinely automatic and cheap. Anything a
+ * caller can use to make the server do work belongs in the budget.
+ */
+export const RATE_LIMIT_EXEMPT_TYPES: ReadonlySet<string> = new Set(['ping', 'pong']);
+
 export interface ConnectionLifecycleOptions<Client, Request, Message> {
   clients: Map<WebSocket, Client>;
   pendingConfirms: Map<string, PendingConfirm>;
@@ -208,26 +222,41 @@ export function createConnectionLifecycle<Client, Request, Message>(
 
     let messageCount = 0;
     let rateWindowResetAt = Date.now() + rateLimitWindowMs;
-    ws.on('message', async (data) => {
-      if (rateLimitMax > 0) {
-        const now = Date.now();
-        if (now > rateWindowResetAt) {
-          messageCount = 0;
-          rateWindowResetAt = now + rateLimitWindowMs;
-        }
-        if (++messageCount > rateLimitMax) {
-          options.send(ws, {
-            type: 'error',
-            payload: options.sessionPayload({
-              phase: 'rate_limit',
-              message: options.rateLimitMessage ?? 'Too many messages. Please wait.',
-            }),
-          });
-          return;
-        }
-      }
 
+    /**
+     * Charge one unit against the window. Returns false when the connection
+     * has exceeded its budget and the frame should be dropped.
+     */
+    const chargeRateLimit = (): boolean => {
+      if (rateLimitMax <= 0) return true;
+      const now = Date.now();
+      if (now > rateWindowResetAt) {
+        messageCount = 0;
+        rateWindowResetAt = now + rateLimitWindowMs;
+      }
+      if (++messageCount <= rateLimitMax) return true;
+      options.send(ws, {
+        type: 'error',
+        payload: options.sessionPayload({
+          phase: 'rate_limit',
+          message: options.rateLimitMessage ?? 'Too many messages. Please wait.',
+        }),
+      });
+      return false;
+    };
+
+    ws.on('message', async (data) => {
+      // WS-029: the limiter used to charge EVERY frame, keepalives included,
+      // before the frame was even decoded. That is why it shipped disabled —
+      // the comment at its call site records it "was tripping during normal
+      // use". A limiter that is off is not a limiter, so rather than raise the
+      // number and leave the miscounting in place, the counting is fixed:
+      //
+      //   - keepalives are exempt (see RATE_LIMIT_EXEMPT_TYPES),
+      //   - undecodable frames are charged, because a flood of garbage is
+      //     precisely the abuse case and it never reaches a type check.
       const decoded = options.decode(data.toString());
+      if (!decoded.ok && !chargeRateLimit()) return;
       if (!decoded.ok) {
         const eventName =
           decoded.issue.message === 'Protocol frame is not valid JSON'
@@ -292,6 +321,13 @@ export function createConnectionLifecycle<Client, Request, Message>(
             message: decoded.issue.message,
           }),
         });
+        return;
+      }
+      const messageType = (decoded.message as { type?: unknown }).type;
+      if (
+        (typeof messageType !== 'string' || !RATE_LIMIT_EXEMPT_TYPES.has(messageType)) &&
+        !chargeRateLimit()
+      ) {
         return;
       }
       try {

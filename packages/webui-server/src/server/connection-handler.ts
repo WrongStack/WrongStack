@@ -49,7 +49,28 @@ export interface ConnectionHandlerOptions {
   onSecurityRejection?: (event: import('./connection-lifecycle.js').SecurityRejectionEvent) => void;
 }
 
-const RATE_LIMIT_MESSAGES = Number.parseInt(process.env['WEBUI_RATE_LIMIT'] ?? '0', 10);
+/**
+ * Per-connection message budget, in non-keepalive messages per 60s.
+ *
+ * WS-029: this was `?? '0'` — OFF by default — with the call site recording
+ * that the limiter "was tripping during normal use" because it counted pings
+ * and list calls. That reason is now addressed at the source: keepalives are
+ * exempt and the charge happens after decode (see RATE_LIMIT_EXEMPT_TYPES),
+ * so the budget only counts frames that actually ask the server to do work.
+ *
+ * 600/60s is deliberately far above interactive use — a burst of ten messages
+ * a second, sustained for a minute — so a human at a keyboard cannot reach it
+ * while a runaway client or a hostile local page still hits a ceiling. It is a
+ * backstop, not a quota.
+ *
+ * `WEBUI_RATE_LIMIT=0` remains the explicit opt-out.
+ */
+const DEFAULT_WS_RATE_LIMIT = 600;
+
+const RATE_LIMIT_MESSAGES = Number.parseInt(
+  process.env['WEBUI_RATE_LIMIT'] ?? String(DEFAULT_WS_RATE_LIMIT),
+  10,
+);
 
 /**
  * When true, rejection/parse-failure logs include per-connection context

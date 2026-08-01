@@ -128,11 +128,15 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // caused startup to reject before the HTTP/WS server could report errors.
   const profileConfigPath =
     opts.profileConfigPath ?? opts.globalConfigPath ?? path.join(globalRoot, 'config.json');
-  // Per-connection message rate limit. OFF by default — this is a local,
-  // single-user tool and the limit (which counted pings/list calls too) was
-  // tripping during normal use. Opt back in by setting WEBUI_RATE_LIMIT to a
-  // positive messages-per-60s number (useful only when exposing on a LAN).
-  const rateLimitMax = Number.parseInt(process.env['WEBUI_RATE_LIMIT'] ?? '0', 10);
+  // Per-connection message budget, in non-keepalive messages per 60s.
+  //
+  // WS-029: this was OFF by default because the limiter "counted pings/list
+  // calls too" and tripped during normal use. That cause is fixed at the
+  // source — keepalives are exempt and the charge happens after decode (see
+  // `RATE_LIMIT_EXEMPT_TYPES` in connection-lifecycle.ts) — so a default is
+  // now safe. 600/60s is far above interactive use and still bounds a runaway
+  // client or a hostile local page. `WEBUI_RATE_LIMIT=0` opts out.
+  const rateLimitMax = Number.parseInt(process.env['WEBUI_RATE_LIMIT'] ?? '600', 10);
   const clients = new Map<WebSocket, ConnectedClient>();
   // Pending permission confirmations keyed by toolUseId. When the agent emits
   // tool.confirm_needed, we stash its resolver here and forward the prompt to
