@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reduceComposer } from '../src/reducers/composer.js';
 import { createTestState } from './helpers/create-test-state.js';
+import type { Action } from '../src/app-action-type.js';
 
 /**
  * Regression tests for the `replaceHistory` context-window snapshot path in
@@ -15,13 +16,14 @@ import { createTestState } from './helpers/create-test-state.js';
  * and left the statusline chip showing the old session's tokens.
  */
 describe('reduceComposer replaceHistory context snapshot', () => {
-  const replaceHistory = (contextSnapshot?: { tokens: number; maxContext: number }) =>
-    ({
-      type: 'replaceHistory',
-      entries: [],
-      nextId: 1,
-      contextSnapshot,
-    }) as never;
+  const replaceHistory = (
+    contextSnapshot?: { tokens: number; maxContext: number },
+  ): Extract<Action, { type: 'replaceHistory' }> => ({
+    type: 'replaceHistory',
+    entries: [],
+    nextId: 1,
+    contextSnapshot,
+  });
 
   it('overwrites a stale ctxTokens from a previous session on a second resume', () => {
     const base = createTestState();
