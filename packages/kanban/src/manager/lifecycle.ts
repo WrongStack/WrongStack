@@ -411,9 +411,40 @@ export function validateManagedTaskTransition(
     validateRequiredCardDetails(task, issues);
     if (input.to === 'running') validateRunningOwnership(task, issues);
     if (input.to === 'review') validateReviewEvidence(task, input, issues);
-    if (input.to === 'done') validateDoneEvidence(task, input, issues);
+    if (input.to === 'done') {
+      validateDoneEvidence(task, input, issues);
+      validateParentChildGate(board, task, issues);
+    }
   }
   return issues;
+}
+
+/**
+ * Parent/child atomic gate: a parent task with childTaskIds cannot reach
+ * Done until every child task has reached Done. This prevents a composite
+ * task from being marked complete when its constituent work is still in
+ * progress or review.
+ *
+ * Non-atomic parents (where every child is done but the parent has no
+ * verification report) are handled by validateDoneEvidence above.
+ */
+function validateParentChildGate(
+  board: KanbanBoard,
+  task: KanbanTask,
+  issues: KanbanLifecycleValidationIssue[],
+): void {
+  if (!task.childTaskIds?.length) return;
+  const incompleteChildren = task.childTaskIds
+    .map((childId) => findTask(board, childId))
+    .filter((child): child is KanbanTask => Boolean(child))
+    .filter((child) => child.status !== 'completed');
+  if (incompleteChildren.length) {
+    issues.push({
+      code: 'parent-child-incomplete',
+      field: 'childTaskIds',
+      message: `Parent task cannot reach Done: ${incompleteChildren.length} child task(s) are not completed (${incompleteChildren.map((c) => c.id.slice(0, 8)).join(', ')}).`,
+    });
+  }
 }
 
 export async function transitionTask(

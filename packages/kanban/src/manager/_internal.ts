@@ -636,6 +636,17 @@ export function compareTasksForWork(a: KanbanTask, b: KanbanTask): number {
     medium: 2,
     low: 3,
   };
+  // Child-before-parent: tasks with a parentTaskId are preferred over tasks
+  // that have childTaskIds (i.e., composite/parent tasks). This ensures
+  // constituent work is dispatched before the parent, matching the atomic
+  // gate semantics that prevent a parent from reaching Done until children
+  // are complete. Only applies when both tasks are at the same priority.
+  const aIsChild = a.parentTaskId !== undefined;
+  const bIsChild = b.parentTaskId !== undefined;
+  const aIsParent = (a.childTaskIds?.length ?? 0) > 0;
+  const bIsParent = (b.childTaskIds?.length ?? 0) > 0;
+  if (aIsChild && bIsParent) return -1;
+  if (aIsParent && bIsChild) return 1;
   return (
     priorityRank[a.priority] - priorityRank[b.priority] ||
     a.columnId.localeCompare(b.columnId) ||

@@ -207,7 +207,8 @@ export interface KanbanLifecycleValidationIssue {
     | 'transition-skipped'
     | 'task-detail-missing'
     | 'review-evidence-missing'
-    | 'acceptance-criteria-incomplete';
+    | 'acceptance-criteria-incomplete'
+    | 'parent-child-incomplete';
   field?: string | undefined;
   message: string;
 }
