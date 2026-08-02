@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 235,
-      "typeOnly": 190,
+      "files": 236,
+      "typeOnly": 191,
       "runtimeOrMixed": 65
     },
     "@wrongstack/core/agent-catalog": {
@@ -1367,6 +1367,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/tests/helpers/app-journey-harness.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/tests/sidebar-mission-queue.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

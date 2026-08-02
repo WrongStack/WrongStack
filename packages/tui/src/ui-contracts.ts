@@ -1,6 +1,16 @@
 import type { AgentTimelineEntry } from '@wrongstack/core/coordination';
 import type { StatuslineItem as StatuslineItemSource } from './components/statusline-picker.js';
 
+/**
+ * Maximum mission-queue rows rendered in the right sidebar. Shared contract:
+ * SidebarContent (components/sidebar-content.tsx) caps the rendered rows at
+ * this value, and computeMaxSidebarScroll (reducers/workspace-panels.ts)
+ * reserves this many rows in the ↑↓ scroll clamp. Keeping both on this single
+ * constant prevents the clamp from silently drifting out of sync with the
+ * rendered layout.
+ */
+export const SIDEBAR_MISSION_ROWS = 8;
+
 export interface AgentTranscriptReader {
   getTranscript(subagentId: string, limit?: number): AgentTimelineEntry[];
 }

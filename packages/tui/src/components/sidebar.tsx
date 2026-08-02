@@ -78,7 +78,7 @@ export function RightSidebar({ width, maxHeight, focused = false, children }: Ri
       height={maxHeight}
       overflowY="hidden"
       flexShrink={0}
-      borderStyle={focused ? 'double' : 'single'}
+      borderStyle={focused ? 'double' : 'round'}
       borderColor={focused ? theme.accent : theme.borderSubtle}
       paddingX={1}
     >

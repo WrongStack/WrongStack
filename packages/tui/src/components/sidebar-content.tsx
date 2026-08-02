@@ -1,26 +1,34 @@
-// Compact sidebar content — fleet status + context meter + mission queue + sessions.
+// Compact sidebar content — a layered, color-coded mission-control rail.
 //
-// Designed for the narrow RightSidebar region (~20-48 columns). Shows:
-//   1. Context usage meter (reuses the statusline bracket meter)
-//   2. Fleet summary (running/idle/completed counts)
-//   3. Per-agent compact rows (name + status + ctx%) for running subagents
-//   4. Mission Queue (todo items) when showSwarmSection is enabled
-//   5. Sessions section: live sessions (F10) + recent resume sessions (/resume)
+// Designed for the narrow RightSidebar region (~20-48 columns). Each section
+// is a "card" with a glyph header, a dotted leader line, and a right-aligned
+// status badge. Shows, top to bottom:
+//   1. Context — big % badge + full-width block meter + token count
+//   2. Model — provider/model identity line
+//   3. Agent Swarm — LIVE badge, composition summary, per-agent 2-line rows
+//   4. Mission Queue — a longer todo board (up to 8 rows) with done/total badge
+//   5. Sessions — live sessions (F10) + recent resume sessions (/resume)
 //
 // All data is passed as props — this component is pure presentation with no
 // hooks, no event listeners, no keyboard input. It fits inside the sidebar
 // shell (components/sidebar.tsx).
+//
+// Width contract: every section box is exactly `innerWidth` columns wide so
+// dotted-leader fills and block meters line up. Row counts deliberately mirror
+// computeMaxSidebarScroll() in reducers/workspace-panels.ts — keep the two in
+// sync when changing the layout.
 
 import type { ResumeSessionEntry } from '../app-state.js';
 import type { FleetEntry } from '../app-state-fleet.js';
 import type { TodoItem } from '@wrongstack/core/agent';
 import type React from 'react';
 import { Box, Text } from '../ink.js';
-import { buildTodoPreviewRows } from './fleet-panel.js';
-import { contextBarColor, fmtTok, renderMeter } from './status-bar-format.js';
+import { displayWidth } from '../terminal-width.js';
+import { blockMeter, contextBarColor, fmtTok } from './status-bar-format.js';
 import type { LiveSessionEntry } from './sessions-panel.js';
+import { SIDEBAR_MISSION_ROWS } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
-import { theme } from '../theme.js';
+import { pastel, theme } from '../theme.js';
 
 export interface SidebarContentProps {
   /** Live context window data from useStatusbarViewModel. */
@@ -44,8 +52,8 @@ export interface SidebarContentProps {
   focused?: boolean | undefined;
   /** Live leader todo board — rendered as a compact mission queue. */
   todos?: readonly TodoItem[] | undefined;
-  /** When true, show the agent-swarm + mission-queue section. Gated by
-   *  resolveAgentSwarmPanelVisibility() from app-status-region.tsx. */
+  /** When true, show the agent-swarm + mission-queue section. Gated by the
+   *  effective agent-swarm panel mode being 'sidebar' (see app-view.tsx). */
   showSwarmSection?: boolean | undefined;
   /** Live sessions from the SessionRegistry — same data as the F10 panel.
    *  Shown as compact "live" rows with project name + status + agent count. */
@@ -67,15 +75,15 @@ function trunc(s: string, max: number): string {
 function statusGlyph(entry: FleetEntry): { icon: string; color: string } {
   switch (entry.status) {
     case 'running':
-      return { icon: '●', color: theme.accent };
+      return { icon: glyphs.running, color: theme.success };
     case 'idle':
-      return { icon: '○', color: theme.textMuted };
+      return { icon: glyphs.idle, color: theme.textMuted };
     case 'success':
-      return { icon: '✓', color: theme.success };
+      return { icon: glyphs.success, color: theme.success };
     case 'failed':
     case 'timeout':
     case 'stopped':
-      return { icon: '✗', color: theme.error };
+      return { icon: glyphs.failure, color: theme.error };
     default:
       return { icon: '?', color: theme.textMuted };
   }
@@ -112,9 +120,9 @@ function outcomeBadge(
 ): { label: string; color: string } | null {
   switch (outcome) {
     case 'completed':
-      return { label: '✓', color: theme.success };
+      return { label: glyphs.success, color: theme.success };
     case 'error':
-      return { label: '✗', color: theme.error };
+      return { label: glyphs.failure, color: theme.error };
     case 'timeout':
       return { label: '⏱', color: theme.warn };
     case 'aborted':
@@ -136,6 +144,102 @@ function fmtRelative(iso: string | undefined): string {
   return `${Math.floor(h / 24)}d`;
 }
 
+/**
+ * A section header: colored glyph + bold uppercase label, a dotted leader
+ * filling the remaining width, and an optional right-aligned badge. Always
+ * renders exactly one row of exactly `innerWidth` columns — the badge is
+ * dropped gracefully when there is no room (narrow terminals).
+ */
+function SectionHeader({
+  glyph,
+  label,
+  color,
+  badge,
+  badgeColor,
+  innerWidth,
+}: {
+  glyph: string;
+  label: string;
+  color: string;
+  badge?: string | undefined;
+  badgeColor?: string | undefined;
+  innerWidth: number;
+}): React.ReactElement {
+  const left = `${glyph} ${label}`;
+  const leftW = displayWidth(left);
+  const badgeW = badge ? displayWidth(badge) + 1 : 0;
+  const fitsBadge = !!badge && innerWidth - leftW - badgeW >= 0;
+  const fillCount = Math.max(0, innerWidth - leftW - (fitsBadge ? badgeW : 0));
+  return (
+    <Box>
+      <Text color={color} bold>
+        {left}
+      </Text>
+      <Text color={theme.borderSubtle}>{'·'.repeat(fillCount)}</Text>
+      {fitsBadge ? (
+        <Text color={badgeColor ?? color} bold>
+          {' '}
+          {badge}
+        </Text>
+      ) : null}
+    </Box>
+  );
+}
+
+/** A raised "card" wrapper. On truecolor terminals it gets a subtle lifted
+ *  surface so sections read as stacked panels; otherwise it is a plain box. */
+function Card({
+  innerWidth,
+  marginBottom = 1,
+  children,
+}: {
+  innerWidth: number;
+  marginBottom?: number | undefined;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <Box
+      flexDirection="column"
+      width={innerWidth}
+      marginBottom={marginBottom}
+      {...(theme.supportsBackground ? { backgroundColor: theme.surfaceRaised } : {})}
+    >
+      {children}
+    </Box>
+  );
+}
+
+interface MissionRow {
+  id: string;
+  status: TodoItem['status'];
+  label: string;
+}
+
+/** Sort + cap the todo board for the mission queue, plus done/total stats. */
+function buildMissionRows(
+  todos: readonly TodoItem[] | undefined,
+  maxRows: number,
+  textWidth: number,
+): { rows: MissionRow[]; overflow: number; done: number; total: number } {
+  const list = todos ?? [];
+  const total = list.length;
+  const done = list.filter((t) => t.status === 'completed').length;
+  if (total === 0 || maxRows <= 0) return { rows: [], overflow: 0, done, total };
+  const rank = (t: TodoItem): number =>
+    t.status === 'in_progress' ? 0 : t.status === 'pending' ? 1 : 2;
+  const ordered = [...list].sort((a, b) => rank(a) - rank(b));
+  const shown = ordered.slice(0, maxRows);
+  const rows = shown.map<MissionRow>((t) => ({
+    id: t.id,
+    status: t.status,
+    label: trunc(
+      t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content,
+      textWidth,
+    ),
+  }));
+  return { rows, overflow: ordered.length - shown.length, done, total };
+}
+
 export function SidebarContent({
   contextWindow,
   entries,
@@ -153,13 +257,14 @@ export function SidebarContent({
 }: SidebarContentProps): React.ReactElement {
   // Subtract border (2) + padding (2) = 4 cols of chrome to get content area
   const innerWidth = Math.max(8, width - 4);
-  const meterWidth = Math.max(6, innerWidth - 8);
 
   // Context meter
   const ctxRatio = contextWindow
     ? Math.min(1, contextWindow.used / contextWindow.max)
     : 0;
   const ctxColor = contextBarColor(ctxRatio);
+  const ctxPct = Math.round(ctxRatio * 100);
+  const meter = blockMeter(ctxRatio, innerWidth);
 
   // Fleet entries: show leader first, then running subagents.
   // Cap at 12 agents total (leader + up to 11 subagents), each rendered
@@ -180,13 +285,12 @@ export function SidebarContent({
 
   const running = fleetCounts?.running ?? runningSubagents.length;
 
-  // Mission queue: only show when the swarm section is enabled and there
-  // are todos to display. buildTodoPreviewRows is already width-parametric
-  // and returns rows sorted by status priority (in_progress → pending →
-  // completed). We cap to 3 rows to fit the narrow sidebar.
-  const todoRows = showSwarmSection
-    ? buildTodoPreviewRows(todos, innerWidth, 3)
-    : [];
+  // Mission queue — a longer board than the bottom swarm panel. Sorted by
+  // status priority (in_progress → pending → completed), capped at
+  // SIDEBAR_MISSION_ROWS. Only populated when the swarm section is enabled.
+  const mission = showSwarmSection
+    ? buildMissionRows(todos, SIDEBAR_MISSION_ROWS, innerWidth - 3)
+    : { rows: [] as MissionRow[], overflow: 0, done: 0, total: 0 };
 
   return (
     <Box
@@ -196,66 +300,89 @@ export function SidebarContent({
     >
       {/* ── Focus indicator ── */}
       {focused ? (
-        <Text color={theme.accent} dimColor>
-          ↑↓ scroll · Shift+Tab unfocus
-        </Text>
+        <Box width={innerWidth} marginBottom={1}>
+          <Text color={theme.accent} bold>
+            ↑↓
+          </Text>
+          <Text color={theme.textMuted}> scroll · Shift+Tab exits</Text>
+        </Box>
       ) : null}
 
-      {/* ── Context meter ── */}
-      <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={ctxColor}>
-          Context
-        </Text>
+      {/* ── Context card: big % + block meter + token count ── */}
+      <Card innerWidth={innerWidth}>
+        <SectionHeader
+          glyph={glyphs.context}
+          label="CONTEXT"
+          color={pastel.peach}
+          badge={contextWindow ? `${ctxPct}%` : '—'}
+          badgeColor={ctxColor}
+          innerWidth={innerWidth}
+        />
         {contextWindow ? (
           <>
-            <Text>
-              <Text color={ctxColor}>{renderMeter(ctxRatio, meterWidth)}</Text>
-            </Text>
+            <Box>
+              <Text color={ctxColor}>{meter.filled}</Text>
+              <Text color={theme.borderSubtle}>{meter.empty}</Text>
+            </Box>
             <Text color={theme.textMuted} wrap="truncate">
-              {fmtTok(contextWindow.used)}/{fmtTok(contextWindow.max)}
+              {fmtTok(contextWindow.used)} / {fmtTok(contextWindow.max)} tokens
             </Text>
           </>
         ) : (
           <Text color={theme.textMuted}>—</Text>
         )}
-      </Box>
+      </Card>
 
-      {/* ── Model ── */}
+      {/* ── Model card ── */}
       {provider && model ? (
-        <Box flexDirection="column" marginBottom={1}>
-          <Text bold color={theme.tool}>
-            Model
-          </Text>
+        <Card innerWidth={innerWidth}>
+          <SectionHeader
+            glyph={glyphs.tools}
+            label="MODEL"
+            color={theme.brand}
+            innerWidth={innerWidth}
+          />
           <Text color={theme.textSecondary} wrap="truncate">
             {trunc(`${provider}/${model}`, innerWidth)}
           </Text>
-        </Box>
+        </Card>
       ) : null}
 
-      {/* ── Agent Swarm ── */}
-      <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={theme.monitor.fleet}>
-          {glyphs.fleet} AGENT SWARM
-        </Text>
+      {/* ── Agent Swarm card ── */}
+      <Card innerWidth={innerWidth} marginBottom={shownAgents.length > 0 ? 0 : 1}>
+        <SectionHeader
+          glyph={glyphs.fleet}
+          label="AGENT SWARM"
+          color={theme.monitor.fleet}
+          badge={running > 0 ? `${running} LIVE` : 'IDLE'}
+          badgeColor={running > 0 ? theme.success : theme.textMuted}
+          innerWidth={innerWidth}
+        />
         {running > 0 ? (
-          <Text color={theme.accent}>
-            ● {running} running
-          </Text>
+          <Box>
+            <Text color={theme.success}>{glyphs.running}</Text>
+            <Text color={theme.textSecondary} wrap="truncate">
+              {' '}
+              {running} running
+            </Text>
+          </Box>
         ) : (
-          <Text color={theme.textMuted}>○ idle</Text>
+          <Box>
+            <Text color={theme.textMuted}>{glyphs.pending}</Text>
+            <Text color={theme.textMuted}> idle</Text>
+          </Box>
         )}
-      </Box>
+      </Card>
 
       {/* ── Agent rows (2-line format: name+ctx% / status+tool) ── */}
       {shownAgents.length > 0 ? (
-        <Box flexDirection="column">
+        <Box flexDirection="column" width={innerWidth} marginBottom={1}>
           {shownAgents.map((entry) => {
             const { icon, color } = statusGlyph(entry);
+            const isRunning = entry.status === 'running';
             const name = trunc(entry.name || entry.id, innerWidth - 6);
-            const ctxPct =
-              entry.ctxPct != null
-                ? `${Math.round(entry.ctxPct * 100)}%`
-                : '';
+            const ctxPctAgent =
+              entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
             const statusLabel = entry.status === 'running' ? 'running'
               : entry.status === 'idle' ? 'idle'
               : entry.status;
@@ -267,18 +394,32 @@ export function SidebarContent({
                 {/* Line 1: icon + name + ctx% */}
                 <Box flexDirection="row">
                   <Text color={color}>{icon} </Text>
-                  <Text color={theme.textSecondary} wrap="truncate">
+                  <Text
+                    color={isRunning ? theme.textPrimary : theme.textSecondary}
+                    bold={isRunning}
+                    wrap="truncate"
+                  >
                     {name}
                   </Text>
-                  {ctxPct ? (
-                    <Text color={ctxColor}> {ctxPct}</Text>
+                  {ctxPctAgent ? (
+                    <Text
+                      color={
+                        entry.ctxPct != null
+                          ? contextBarColor(entry.ctxPct)
+                          : theme.textMuted
+                      }
+                    >
+                      {' '}
+                      {ctxPctAgent}
+                    </Text>
                   ) : null}
                 </Box>
-                {/* Line 2: status + current tool */}
+                {/* Line 2: status + current tool (indented under the name) */}
                 <Box flexDirection="row">
                   <Text color={color}>  </Text>
                   <Text color={theme.textMuted} wrap="truncate">
-                    {statusLabel}{tool ? ` · ${tool}` : ''}
+                    {statusLabel}
+                    {tool ? ` · ${tool}` : ''}
                   </Text>
                 </Box>
               </Box>
@@ -290,33 +431,68 @@ export function SidebarContent({
         </Box>
       ) : null}
 
-      {/* ── Mission Queue ── */}
-      {todoRows.length > 0 ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold color={theme.accent}>
-            Mission Queue
-          </Text>
-          {todoRows.map((row) => (
-            <Box key={row.id} flexDirection="row">
-              <Text color={row.color}>{row.marker} </Text>
-              <Text
-                color={row.dim ? theme.textMuted : theme.textSecondary}
-                wrap="truncate"
-                {...(row.dim ? { dimColor: true } : {})}
-              >
-                {row.text}
-              </Text>
-            </Box>
-          ))}
-        </Box>
+      {/* ── Mission Queue card (longer board than the bottom panel) ── */}
+      {mission.total > 0 ? (
+        <Card innerWidth={innerWidth}>
+          <SectionHeader
+            glyph={glyphs.queue}
+            label="MISSIONS"
+            color={theme.warn}
+            badge={`${mission.done}/${mission.total}`}
+            badgeColor={
+              mission.done === mission.total ? theme.success : theme.warn
+            }
+            innerWidth={innerWidth}
+          />
+          {mission.rows.map((m) => {
+            if (m.status === 'completed') {
+              return (
+                <Box key={m.id}>
+                  <Text color={theme.success}>{glyphs.success} </Text>
+                  <Text color={theme.textMuted} dimColor strikethrough wrap="truncate">
+                    {m.label}
+                  </Text>
+                </Box>
+              );
+            }
+            if (m.status === 'in_progress') {
+              return (
+                <Box key={m.id}>
+                  <Text color={theme.accent}>{glyphs.running} </Text>
+                  <Text color={theme.textPrimary} bold wrap="truncate">
+                    {m.label}
+                  </Text>
+                </Box>
+              );
+            }
+            return (
+              <Box key={m.id}>
+                <Text color={theme.textMuted}>{glyphs.pending} </Text>
+                <Text color={theme.textSecondary} wrap="truncate">
+                  {m.label}
+                </Text>
+              </Box>
+            );
+          })}
+          {mission.overflow > 0 ? (
+            <Text color={theme.textMuted} dimColor>
+              {'  '}+{mission.overflow} more
+            </Text>
+          ) : null}
+        </Card>
       ) : null}
 
-      {/* ── Sessions ── */}
+      {/* ── Sessions card ── */}
       {(liveSessions?.length ?? 0) > 0 || (resumeSessions?.length ?? 0) > 0 ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold color={theme.accent}>
-            Sessions
-          </Text>
+        <Card innerWidth={innerWidth} marginBottom={0}>
+          <SectionHeader
+            glyph={glyphs.sessions}
+            label="SESSIONS"
+            color={theme.success}
+            badge={String((liveSessions?.length ?? 0) + (resumeSessions?.length ?? 0))}
+            badgeColor={theme.textSecondary}
+            innerWidth={innerWidth}
+          />
 
           {/* Live sessions (F10) */}
           {liveSessions && liveSessions.length > 0 ? (
@@ -326,8 +502,7 @@ export function SidebarContent({
                 const icon = isCurrent ? '●' : liveSessionIcon(s.status);
                 const color = liveSessionColor(s.status);
                 const name = trunc(s.projectName, innerWidth - 6);
-                const agents =
-                  s.agentCount > 0 ? ` ${s.agentCount}a` : '';
+                const agents = s.agentCount > 0 ? ` ${s.agentCount}a` : '';
                 return (
                   <Box key={s.sessionId} flexDirection="row">
                     <Text color={color}>{icon} </Text>
@@ -347,7 +522,10 @@ export function SidebarContent({
 
           {/* Resume sessions (/resume) */}
           {resumeSessions && resumeSessions.length > 0 ? (
-            <Box flexDirection="column" marginTop={liveSessions && liveSessions.length > 0 ? 1 : 0}>
+            <Box
+              flexDirection="column"
+              marginTop={liveSessions && liveSessions.length > 0 ? 1 : 0}
+            >
               {resumeSessions.slice(0, 3).map((rs) => {
                 const badge = outcomeBadge(rs.outcome);
                 const title = trunc(
@@ -367,15 +545,13 @@ export function SidebarContent({
                     >
                       {title}
                     </Text>
-                    {rel ? (
-                      <Text color={theme.textMuted}> {rel}</Text>
-                    ) : null}
+                    {rel ? <Text color={theme.textMuted}> {rel}</Text> : null}
                   </Box>
                 );
               })}
             </Box>
           ) : null}
-        </Box>
+        </Card>
       ) : null}
     </Box>
   );

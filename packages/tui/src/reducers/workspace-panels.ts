@@ -1,7 +1,7 @@
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import { retainCheckpoints } from '../checkpoint-retention.js';
-import type { WorktreeRow } from '../ui-contracts.js';
+import { SIDEBAR_MISSION_ROWS, type WorktreeRow } from '../ui-contracts.js';
 import { closePanels } from './helpers.js';
 
 /**
@@ -9,14 +9,19 @@ import { closePanels } from './helpers.js';
  * content exist beyond what the sidebar can display at once. This prevents
  * scrolling past the end into blank space.
  *
- * Layout (mirrors SidebarContent in sidebar-content.tsx):
- *   - Context meter: 3 rows (header + bar + tokens)
- *   - Model label: 2 rows (header + value), if present
- *   - Fleet header: 2 rows (header + status)
- *   - Agent rows: 2 rows each (name+ctx% / status+tool), capped at 12 agents
- *   - Mission Queue: 1 (header) + up to 3 todo rows, if visible
- *   - Sessions: 1 (header) + up to 3 live + up to 3 resume, if present
- *   - Focus hint: 1 row, if focused
+ * Layout (mirrors the card layout in SidebarContent in sidebar-content.tsx).
+ * Each section is a "card" whose marginBottom gap is counted here too, keeping
+ * the ↑↓ scroll clamp aligned with the rendered layout (over-estimating is safe
+ * — a little blank space at the end; under-estimating clips content):
+ *   - Context card: 3 rows (header + meter + tokens) + 1 margin
+ *   - Model card: 2 rows (header + value) + 1 margin, if present
+ *   - Fleet card: 2 rows (header + summary); margin 0 if agent rows follow
+ *   - Agent rows: 2 rows each (name+ctx% / status+tool), capped at 12 agents,
+ *     + 1 "+N more" overflow row + 1 margin
+ *   - Mission Queue card: 1 header + up to 8 todo rows + 1 overflow + 1 margin
+ *   - Sessions card: 1 header + up to 3 live + up to 3 resume, + 1 gap when
+ *     both subsections are present (no bottom margin)
+ *   - Focus indicator: 1 row + 1 margin, if focused
  *
  * @param state Current app state
  * @param viewportHeight Visible sidebar height in rows (terminal height minus
@@ -26,16 +31,13 @@ import { closePanels } from './helpers.js';
 function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
   let contentHeight = 0;
 
-  // Context meter
+  // Context card: header + meter + tokens (3) + marginBottom (1)
+  contentHeight += 4;
+
+  // Model card: header + value (2) + marginBottom (1) — treated as always present
   contentHeight += 3;
 
-  // Model label (provider + model) — always present
-  contentHeight += 2;
-
-  // Fleet section
-  contentHeight += 2;
-
-  // Agent rows: count fleet entries, cap at 12, 2 lines each
+  // Fleet card + agent rows
   const fleetEntries = Object.values(state.fleet);
   const leader = fleetEntries.find(
     (e) => e.id === 'leader' || e.name === 'Leader Agent',
@@ -45,27 +47,45 @@ function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
     .filter((e) => e.status === 'running');
   const agentCap = leader ? 11 : 12;
   const shownAgents = (leader ? 1 : 0) + Math.min(runningSubagents.length, agentCap);
-  contentHeight += shownAgents * 2;
-
-  // Mission Queue (only if showSwarmSection would be active)
-  // Note: todos are passed as a runtime prop (liveTodos), not in state.
-  // We can't count them here, so we add a small fixed reserve (1 header + 3 rows max).
-  const swarmMode = state.settingsPicker.showAgentSwarmPanel;
-  if (swarmMode === 'sidebar') {
-    contentHeight += 4; // header + up to 3 todo rows (worst case)
+  const hasAgents = shownAgents > 0;
+  // Fleet card: header + summary (2). marginBottom is 0 when agent rows follow,
+  // otherwise 1.
+  contentHeight += 2 + (hasAgents ? 0 : 1);
+  if (hasAgents) {
+    // Agent rows: 2 lines each, + "+N more" overflow row, + marginBottom (1)
+    contentHeight += shownAgents * 2;
+    if (runningSubagents.length > agentCap) contentHeight += 1;
+    contentHeight += 1;
   }
 
-  // Sessions
+  // Mission Queue card (only when the swarm panel mode is 'sidebar').
+  // Note: todos are a runtime prop (liveTodos), not in state, so we reserve the
+  // worst case: header + SIDEBAR_MISSION_ROWS + overflow row + marginBottom
+  // (SIDEBAR_MISSION_ROWS is the shared constant in ui-contracts.ts).
+  // The gate reads the settings-picker draft, which matches the renderer while
+  // the picker is open. When the picker is closed the renderer falls back to
+  // live settings (app-view.tsx) which the reducer cannot read, so this reserve
+  // is exact once the draft reflects the live mode; until then a never-opened
+  // 'sidebar' config may under-reserve these rows.
+  const swarmMode = state.settingsPicker.showAgentSwarmPanel;
+  if (swarmMode === 'sidebar') {
+    contentHeight += 1 + SIDEBAR_MISSION_ROWS + 1 + 1;
+  }
+
+  // Sessions card: header + up to 3 live + up to 3 resume (marginBottom 0),
+  // plus the 1-row marginTop gap between the live and resume subsections when
+  // both are present.
   const liveSessionCount = state.sessionsPanel.sessions.length;
   const resumeSessionCount = state.resumePicker.sessions.length;
   if (liveSessionCount > 0 || resumeSessionCount > 0) {
-    contentHeight += 1; // header
+    contentHeight += 1;
     contentHeight += Math.min(3, liveSessionCount);
     contentHeight += Math.min(3, resumeSessionCount);
+    if (liveSessionCount > 0 && resumeSessionCount > 0) contentHeight += 1;
   }
 
-  // Focus hint
-  if (state.sidebarFocused) contentHeight += 1;
+  // Focus indicator: 1 row + marginBottom (1)
+  if (state.sidebarFocused) contentHeight += 2;
 
   return Math.max(0, contentHeight - viewportHeight);
 }

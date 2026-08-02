@@ -65,7 +65,7 @@ describe('Sidebar focus + scroll key routing', () => {
     for (let i = 0; i < 100; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // With no agents/sessions/todos, content is ~7 rows, viewport ~20 → maxScroll = 0
+    // With no agents/sessions/todos, content is ~10 rows, viewport ~20 → maxScroll = 0
     expect(s.sidebarScrollOffset).toBe(0);
   });
 
@@ -81,9 +81,10 @@ describe('Sidebar focus + scroll key routing', () => {
     for (let i = 0; i < 100; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // 1 leader + 11 visible (capped) = 12 agents × 2 rows = 24
-    // + context 3 + model 2 + fleet 2 = 31 total, minus 20 viewport = 11 max
-    expect(s.sidebarScrollOffset).toBe(11);
+    // Mirrors the card layout (content rows + card margins + overflow):
+    // context 4 + model 3 + fleet card 2 + agent rows (12×2 + overflow 1
+    // + margin 1 = 26) = 35 total, minus 20 viewport = 15 max
+    expect(s.sidebarScrollOffset).toBe(15);
   });
 
   it('sidebarScrollReset sets offset to 0', () => {
