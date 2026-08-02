@@ -606,10 +606,15 @@ export interface RememberSageInput {
  * the candidate to the memory it reviews without parsing tags. Distinct from
  * `memoryId`/`reason` on `MemoryCandidate`, which record resolution results
  * (accepted memory id / rejection reason) and must not be overwritten.
+ *
+ * Candidates are PROPOSALS, not memories: they carry no `persistence` class
+ * (the accepted memory is created by `rememberSage` with its own defaults),
+ * so the field is omitted even though it exists on `RememberSageInput`.
+ * Kind/scope are still runtime-validated through `validateRememberInput`.
  */
 export type CreateCandidateInput = Omit<
   RememberSageInput,
-  'legacyScope' | 'priority' | 'type'
+  'legacyScope' | 'priority' | 'type' | 'persistence'
 > & {
   /** Id of the memory this proposal reviews (e.g. a suggested delete/archive target). */
   targetMemoryId?: string | undefined;

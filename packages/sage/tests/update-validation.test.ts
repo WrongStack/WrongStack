@@ -66,3 +66,45 @@ describe('updateSage field validation (2026-08-02)', () => {
     ).rejects.toThrow(/persistence/);
   });
 });
+
+describe('createCandidate field validation (B3, 2026-08-02)', () => {
+  it('rejects an unknown kind via validateRememberInput', async () => {
+    await expect(
+      store.createCandidate({
+        text: 'candidate validation probe alpha',
+        kind: 'bogus_kind' as never,
+      }),
+    ).rejects.toThrow(/kind/);
+  });
+
+  it('rejects an unknown scope', async () => {
+    await expect(
+      store.createCandidate({
+        text: 'candidate validation probe beta',
+        scope: 'galaxy' as never,
+      }),
+    ).rejects.toThrow(/scope/);
+  });
+
+  it('rejects an unknown persistence class (defense-in-depth beyond the type)', async () => {
+    // 'persistence' is omitted from CreateCandidateInput (candidates are
+    // proposals) — the whole-object cast is deliberate: the RUNTIME path still
+    // receives it and must reject via validateRememberInput.
+    await expect(
+      store.createCandidate({
+        text: 'candidate validation probe gamma',
+        persistence: 'temporary',
+      } as never),
+    ).rejects.toThrow(/persistence/);
+  });
+
+  it('accepts a valid candidate', async () => {
+    const candidate = await store.createCandidate({
+      text: 'candidate validation probe delta',
+      kind: 'fact',
+      importance: 0.5,
+    });
+    expect(candidate.text).toBe('candidate validation probe delta');
+    expect(candidate.status).toBe('pending');
+  });
+});

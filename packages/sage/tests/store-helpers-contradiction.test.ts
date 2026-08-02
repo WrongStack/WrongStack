@@ -35,7 +35,7 @@ describe('isPossiblyContradictory (shared heuristic)', () => {
     ).toBe(false);
   });
 
-  it('recognizes contraction stems (doesn’t / hasn’t)', () => {
+  it('recognizes contraction stems (doesn’t / hasn’t / don’t / haven’t)', () => {
     expect(
       isPossiblyContradictory(
         { text: 'the driver caches query results by default' },
@@ -48,21 +48,21 @@ describe('isPossiblyContradictory (shared heuristic)', () => {
         { text: "the suite hasn't fixed the flaky test" },
       ),
     ).toBe(true);
-  });
-
-  it('does not treat standalone don/haven as cues', () => {
+    // 'don'/'haven' collide with standalone words — a false positive is only a
+    // review candidate, while missing don't/haven't would let the negative
+    // claim merge into its positive at write time, so detection wins.
     expect(
       isPossiblyContradictory(
-        { text: 'the harbor is a safe haven for wintering ships' },
-        { text: 'the harbor is a safe base for wintering ships' },
+        { text: 'we cache the intermediate build artifacts' },
+        { text: "we don't cache the intermediate build artifacts" },
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isPossiblyContradictory(
-        { text: 'the mayor will don the ceremonial hat at noon' },
-        { text: 'the mayor will wear the ceremonial hat at noon' },
+        { text: 'the builders finalized the release image' },
+        { text: "the builders haven't finalized the release image" },
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('does not flag identical or unrelated texts', () => {

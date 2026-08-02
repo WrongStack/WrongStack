@@ -83,16 +83,39 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
   });
 
   it('resolves a KNOWN value-taking flag and demotes a genuinely missing command', async () => {
-    // `npx --registry https://x CMD` — '--registry' is a known value-taking
-    // flag, so 'https://x' is consumed as its argument and 'CMD' is what the
-    // probe looks for. CMD is genuinely missing, all flags were known, so the
-    // stale verdict (and its demotion) is correct.
+    // `sudo -u www CMD` — '-u' is known value-taking (sudo is not a
+    // demand-fetch wrapper), so CMD is genuinely missing and 'stale' (and its
+    // demotion) is correct.
+    const anchor: MemoryAnchor = {
+      type: 'command',
+      command: 'sudo -u www definitely-not-a-real-command-xyz',
+    };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    expect(result.anchors[0]?.status).toBe('stale');
+  });
+
+  it('treats a missing target under npx as unknown (demand-fetch wrapper)', async () => {
+    // npx installs packages on demand — PATH absence is NOT staleness evidence,
+    // so a missing target must be 'unknown', never 'stale'.
     const anchor: MemoryAnchor = {
       type: 'command',
       command: 'npx --registry https://x definitely-not-a-real-command-xyz',
     };
     const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
-    expect(result.anchors[0]?.status).toBe('stale');
+    expect(result.anchors[0]?.status).toBe('unknown');
+    expect(result.anchors[0]?.reason).toContain('Ambiguous');
+  });
+
+  it('treats command -p and sudo -h as no-argument flags', async () => {
+    // `command -p` uses the default PATH (no argument); `sudo -h` prints help.
+    // Neither may consume the following token as its value.
+    const commandAnchor: MemoryAnchor = { type: 'command', command: 'command -p node --version' };
+    const commandResult = await verifyMemoryAnchors(tempDir, makeMemory([commandAnchor]));
+    expect(commandResult.anchors[0]?.status).toBe('verified');
+
+    const sudoAnchor: MemoryAnchor = { type: 'command', command: 'sudo -h node --version' };
+    const sudoResult = await verifyMemoryAnchors(tempDir, makeMemory([sudoAnchor]));
+    expect(sudoResult.anchors[0]?.status).toBe('verified');
   });
 
   it('treats shell builtins as verified (no PATH entry needed)', async () => {

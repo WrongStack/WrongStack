@@ -106,17 +106,18 @@ describe('hygiene contradiction detection (v1, 2026-08-02)', () => {
 
   it('keeps a same-kind polarity pair separate at write time (remember guard)', async () => {
     const a = await store.rememberSage({
-      text: 'the cache layer keeps retry counts separate',
+      text: 'the cache layer keeps retry counts',
       kind: 'fact',
       importance: 0.7,
     });
     const b = await store.rememberSage({
-      text: 'the cache layer does not keep retry counts separate',
+      text: 'the cache layer does not keep retry counts',
       kind: 'fact',
       importance: 0.7,
     });
-    // findNearDuplicate must refuse to merge a polarity pair (same kind, ≥0.88
-    // overlap) so the contradiction survives to the hygiene pass.
+    // True ≥0.88 near-dup pair (overlap 6/6): findNearDuplicate passes the
+    // near-dup threshold, so it is the polarity guard (isPossiblyContradictory)
+    // that must refuse the merge — removing that guard turns this red.
     expect(a.id).not.toBe(b.id);
   });
 });

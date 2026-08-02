@@ -237,19 +237,22 @@ export const NEGATION_CUES = new Set([
   'cant',
   'no_longer',
   // Contraction stems — tokenize splits on the apostrophe, so "doesn't" ->
-  // ["doesn", "t"] and the stem is the detectable cue. Bare "can"/"won" are
-  // NOT cues ("the api can cache" is positive; "won" can mean victory), and
-  // "don" ("don the hat") / "haven" ("safe haven") are standalone English
-  // words, so they are excluded too — every stem here is an unambiguous
-  // contraction fragment. Qualifier-style words ("without", "unable") are
-  // deliberately excluded: "X without concurrent writers" adds a constraint,
-  // it does not negate X.
+  // ["doesn", "t"] and the stem is the detectable cue. 'don'/'haven' collide
+  // with standalone words ("don the hat", "safe haven") — the resulting false
+  // POSITIVE is only a review-candidate (noise), while a false NEGATIVE would
+  // let a don't/haven't claim MERGE into its positive at write time (data
+  // loss), so the stems stay. Bare "can"/"won" are NOT cues ("the api can
+  // cache" is positive; "won" can mean victory). Qualifier-style words
+  // ("without", "unable") are deliberately excluded: "X without concurrent
+  // writers" adds a constraint, it does not negate X.
+  'don',
   'doesn',
   'isn',
   'aren',
   'wasn',
   'weren',
   'hasn',
+  'haven',
   'didn',
   'couldn',
   'shouldn',

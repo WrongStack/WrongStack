@@ -57,7 +57,6 @@ const WRAPPER_VALUE_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = {
   sudo: new Set([
     '-u',
     '-g',
-    '-h',
     '-p',
     '-C',
     '-R',
@@ -70,7 +69,9 @@ const WRAPPER_VALUE_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = {
     '--command-timeout',
   ]),
   env: new Set(['-u', '-C', '--unset', '--chdir']),
-  command: new Set(['-p', '--path']),
+  // `command -p` and `command --path` are NO-ARGUMENT flags (use the default
+  // PATH); `sudo -h` prints help. They must not consume the following token.
+  command: new Set(),
   doas: new Set(['-u']),
   runuser: new Set(['-u', '-g']),
   time: new Set(),
@@ -87,6 +88,13 @@ interface ResolvedExecutable {
    * would demote the persisted memory (sqlite-store-verify.ts).
    */
   skippedFlag: boolean;
+  /**
+   * True when the wrapper installs its target on demand (`npx` fetches
+   * packages). PATH absence is NOT staleness evidence for such targets —
+   * the package may simply not be installed yet, so a missing verdict must
+   * be 'unknown', never 'stale'.
+   */
+  demandFetch: boolean;
 }
 
 /**
@@ -94,21 +102,25 @@ interface ResolvedExecutable {
  * (`"C:\Program Files\node\node.exe" --version` -> `C:\Program Files\node\node.exe`)
  * and skipping wrappers that delegate to the next token.
  */
+/** Wrappers that install their target on demand (PATH absence is not staleness). */
+const DEMAND_FETCH_WRAPPERS = new Set(['npx', 'pnpm', 'yarn', 'bun']);
+
 function resolveCommandExecutable(command: string): ResolvedExecutable {
   const trimmed = command.trim();
-  if (!trimmed) return { executable: undefined, skippedFlag: false };
+  if (!trimmed) return { executable: undefined, skippedFlag: false, demandFetch: false };
   const first = firstToken(trimmed);
-  if (!first) return { executable: undefined, skippedFlag: false };
+  if (!first) return { executable: undefined, skippedFlag: false, demandFetch: false };
   if (!COMMAND_WRAPPERS.has(first)) {
-    return { executable: first, skippedFlag: false };
+    return { executable: first, skippedFlag: false, demandFetch: false };
   }
+  const demandFetch = DEMAND_FETCH_WRAPPERS.has(first);
   const valueFlags = WRAPPER_VALUE_FLAGS[first] ?? new Set<string>();
   const rest = trimmed.slice(trimmed.indexOf(first) + first.length).trim();
   let cursor = rest;
   let skippedFlag = false;
   for (let i = 0; i < 8; i++) {
     const token = firstToken(cursor);
-    if (!token) return { executable: undefined, skippedFlag };
+    if (!token) return { executable: undefined, skippedFlag, demandFetch };
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
       // env-style assignment (`env FOO=bar node`) — unambiguous, not a flag.
       cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
@@ -126,9 +138,9 @@ function resolveCommandExecutable(command: string): ResolvedExecutable {
       }
       continue;
     }
-    return { executable: token, skippedFlag };
+    return { executable: token, skippedFlag, demandFetch };
   }
-  return { executable: undefined, skippedFlag };
+  return { executable: undefined, skippedFlag, demandFetch };
 }
 
 function firstToken(input: string): string | undefined {
@@ -169,9 +181,10 @@ async function verifyCommandAnchor(
   if (found) {
     return { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` };
   }
-  if (resolved.skippedFlag) {
-    // An UNKNOWN flag was skipped during resolution, so `executable` may be
-    // that flag's ARGUMENT. A wrong 'stale' would demote the persisted
+  if (resolved.skippedFlag || resolved.demandFetch) {
+    // Either an UNKNOWN flag was skipped (the token may be the flag's
+    // argument) or the wrapper installs targets on demand (npx/pnpm/… — PATH
+    // absence is not staleness). A wrong 'stale' would demote the persisted
     // memory — report 'unknown' instead.
     return {
       anchor,
@@ -192,9 +205,68 @@ async function verifyCommandAnchor(
  */
 function buildShellBuiltins(): ReadonlySet<string> {
   const isWin32 = process.platform === 'win32';
-  const common = ['cd', 'echo', 'type', 'alias', 'exit', 'set', 'unset', 'printf'];
-  if (isWin32) return new Set([...common, 'dir', 'copy', 'del', 'ren']);
-  return new Set([...common, 'pwd', 'export', 'test', 'true', 'false', 'read', 'shift', 'source', '.']);
+  // bash/zsh keywords apply on BOTH platforms — Git Bash is the standard
+  // Windows shell for bash workflows, so excluding them on win32 would make
+  // `source deploy.sh` deterministically 'stale' there (a keyword has no PATH
+  // entry to probe). win32 additionally lists cmd.exe builtins ('dir', ...).
+  const bash = [
+    'cd',
+    'echo',
+    'type',
+    'alias',
+    'exit',
+    'set',
+    'unset',
+    'printf',
+    'pwd',
+    'export',
+    'test',
+    'true',
+    'false',
+    'read',
+    'shift',
+    'source',
+    '.',
+  ];
+  if (isWin32) {
+    // cmd.exe internals (case-insensitive on win32) + the Git Bash keyword set
+    // (the standard Windows shell for bash workflows).
+    return new Set([
+      ...bash,
+      'dir',
+      'copy',
+      'del',
+      'ren',
+      'mkdir',
+      'md',
+      'rd',
+      'rmdir',
+      'move',
+      'erase',
+      'call',
+      'pushd',
+      'popd',
+      'cls',
+      'if',
+      'for',
+      'goto',
+      'rem',
+      'pause',
+      'color',
+      'chcp',
+      'setlocal',
+      'endlocal',
+      'ver',
+      'vol',
+      'path',
+      'prompt',
+      'title',
+      'break',
+      'assoc',
+      'ftype',
+    ]);
+  }
+  return new Set(bash);
 }
 const SHELL_BUILTINS = buildShellBuiltins();
 
