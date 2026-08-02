@@ -382,7 +382,14 @@ describe('GoogleProvider', () => {
   // ── maxTools ───────────────────────────────────────────────
 
   function toolList(names: string[]): import('@wrongstack/core/types').Tool[] {
-    return names.map((name) => ({ name, description: `Tool ${name}`, inputSchema: { type: 'object', properties: {} } }));
+    return names.map((name) => ({
+      name,
+      description: `Tool ${name}`,
+      inputSchema: { type: 'object', properties: {} },
+      permission: 'auto',
+      mutating: false,
+      async execute() {},
+    }));
   }
 
   it('trims tools to maxTools limit on the wire', async () => {

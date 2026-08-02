@@ -2,10 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import type { PermissionDecision } from '@wrongstack/core/types';
+import { ToolExecutor } from '@wrongstack/core/execution';
+import type { PermissionDecision, ToolResultBlock, ToolUseBlock } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ToolExecutor } from '../../core/src/execution/tool-executor.js';
-import type { ToolResultBlock, ToolUseBlock } from '../../core/src/types/blocks.js';
 import { builtinTools } from '../src/builtin.js';
 
 // This suite drives the codebase index in-process. The project daemon now
@@ -109,7 +108,7 @@ function makeExecutor() {
   };
   return new ToolExecutor(registry, {
     permissionPolicy: policy as never,
-    confirmAwaiter: vi.fn(async () => 'yes'),
+    confirmAwaiter: vi.fn(async () => 'yes' as const),
     secretScrubber: { scrub: (s: string) => s } as never,
     perIterationOutputCapBytes: 200_000,
     maxToolTimeoutMs: 30_000,

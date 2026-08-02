@@ -1,11 +1,22 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import * as http from 'node:http';
+import type * as http from 'node:http';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { createHttpServer } from '../src/index.js';
 
 const mockRunDeadCodeScan = vi.fn();
+
+interface ErrorResponse {
+  error: string;
+}
+
+interface DeadCodeActionPlanResponse {
+  totalDeadSymbols: number;
+  totalDeadFiles: number;
+  totalDeadPackages: number;
+  files: Array<{ priority: number; file: string }>;
+}
 
 vi.mock('@wrongstack/tools/codebase-index', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/tools/codebase-index')>();
@@ -86,7 +97,7 @@ describe('Dead-Code Scan Endpoints', () => {
       }),
     });
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body = (await res.json()) as ErrorResponse;
     expect(body.error).toContain('Invalid indexDir');
   });
 
@@ -112,18 +123,22 @@ describe('Dead-Code Scan Endpoints', () => {
     });
 
     expect(res.status).toBe(200);
-    const plan = await res.json();
+    const plan = (await res.json()) as DeadCodeActionPlanResponse;
     expect(plan.totalDeadSymbols).toBe(7);
     expect(plan.totalDeadFiles).toBe(1);
     expect(plan.totalDeadPackages).toBe(1);
-    expect(plan.files.length).toBe(3);
+    expect(plan.files).toHaveLength(3);
+    const [deadPackage, deadFile, aliveFile] = plan.files;
+    if (!deadPackage || !deadFile || !aliveFile) {
+      throw new Error('Expected package, dead-file, and symbol action-plan entries');
+    }
 
     // Assert priority sorting: pkg-dead (0) -> src/dead-file.ts (1) -> src/alive.ts (2)
-    expect(plan.files[0].priority).toBe(0);
-    expect(plan.files[0].file).toContain('pkg-dead');
-    expect(plan.files[1].priority).toBe(1);
-    expect(plan.files[1].file).toBe('src/dead-file.ts');
-    expect(plan.files[2].priority).toBe(2);
-    expect(plan.files[2].file).toBe('src/alive.ts');
+    expect(deadPackage.priority).toBe(0);
+    expect(deadPackage.file).toContain('pkg-dead');
+    expect(deadFile.priority).toBe(1);
+    expect(deadFile.file).toBe('src/dead-file.ts');
+    expect(aliveFile.priority).toBe(2);
+    expect(aliveFile.file).toBe('src/alive.ts');
   });
 });

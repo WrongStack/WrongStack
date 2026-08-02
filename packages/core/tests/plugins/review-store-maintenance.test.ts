@@ -93,18 +93,16 @@ function makeFinding(): ChimeraFinding {
     title: 'Issue',
     description: 'Details',
     severity: 'high',
+    source: 'chimera',
     status: 'active',
     location: { file: 'src/file.ts', line: 1 },
-    remediation: 'Fix it',
+    suggestedFix: 'Fix it',
     originReport: {
       reportId: 'report-1',
       sessionId: 'session-1',
       agentId: 'chimera',
       reviewerModel: 'reviewer',
-      reviewType: 'chimera',
-      reviewedAt: '2026-08-02T00:00:00.000Z',
     },
     createdAt: '2026-08-02T00:00:00.000Z',
-    updatedAt: '2026-08-02T00:00:00.000Z',
   };
 }

@@ -87,6 +87,79 @@ describe('isPrivateIPv6', () => {
   it('blocks malformed input defensively', () => {
     expect(isPrivateIPv6('12345::xyz')).toBe(true); // expandIPv6 → null
   });
+
+  // WS-095. Only the IPv4-MAPPED form (::ffff:a.b.c.d) was decoded. The other
+  // transition formats carry an IPv4 address too and sailed past every range
+  // check below it, so a private or link-local IPv4 could be smuggled through
+  // in IPv6 clothing.
+  describe('IPv4 embedded in other transition formats', () => {
+    it('blocks the cloud metadata address over NAT64', () => {
+      // 64:ff9b::/96 is the RFC 6052 well-known prefix; a9fe:a9fe is
+      // 169.254.169.254.
+      expect(isPrivateIPv6('64:ff9b::a9fe:a9fe')).toBe(true);
+    });
+
+    it('blocks loopback and RFC1918 over NAT64', () => {
+      expect(isPrivateIPv6('64:ff9b::7f00:1')).toBe(true); // 127.0.0.1
+      expect(isPrivateIPv6('64:ff9b::c0a8:1')).toBe(true); // 192.168.0.1
+    });
+
+    it('conservatively blocks the RFC 8215 local-use NAT64 prefix', () => {
+      // The configured translation layout is unavailable to this guard, so the
+      // whole 64:ff9b:1::/48 range must be rejected, including its boundaries.
+      expect(isPrivateIPv6('64:ff9b:1::')).toBe(true);
+      expect(isPrivateIPv6('64:ff9b:1:7f00:1::')).toBe(true); // loopback destination
+      expect(isPrivateIPv6('64:ff9b:1:c0a8:1::')).toBe(true); // RFC1918 destination
+      expect(isPrivateIPv6('64:ff9b:1:a9fe:a9fe::')).toBe(true); // link-local destination
+      expect(isPrivateIPv6('64:ff9b:1:ffff:ffff:ffff:ffff:ffff')).toBe(true);
+      expect(isPrivateIPv6('64:ff9b:2::')).toBe(false); // outside the reserved /48
+    });
+
+    it('blocks loopback over 6to4', () => {
+      expect(isPrivateIPv6('2002:7f00:1::')).toBe(true); // 127.0.0.1
+      expect(isPrivateIPv6('2002:a9fe:a9fe::')).toBe(true); // 169.254.169.254
+    });
+
+    it('blocks loopback over ISATAP', () => {
+      // ::5efe:<ipv4> — the IANA IID marker 0x5efe precedes the embedded IPv4.
+      expect(isPrivateIPv6('::5efe:7f00:1')).toBe(true); // 127.0.0.1
+      expect(isPrivateIPv6('2001:db8::5efe:a9fe:a9fe')).toBe(true); // 169.254.169.254
+      // Public address over the same format stays reachable.
+      expect(isPrivateIPv6('::5efe:808:808')).toBe(false); // 8.8.8.8
+    });
+
+    it('blocks loopback over Teredo', () => {
+      // 2001:0000::/32 — the client IPv4 in the last 32 bits is XOR-obfuscated
+      // with 0xffffffff, so 127.0.0.1 (0x7f000001) appears as 0x80fffffe.
+      expect(isPrivateIPv6('2001::80ff:fffe')).toBe(true); // 127.0.0.1
+      expect(isPrivateIPv6('2001:0:4136:e378:8000:63bf:80ff:fffe')).toBe(true);
+      // 169.254.169.254 (0xa9fea9fe) XOR 0xffffffff = 0x56015601.
+      expect(isPrivateIPv6('2001::5601:5601')).toBe(true);
+      // Ordering pin: group 5 is the attacker-chosen obscured UDP port — when
+      // it collides with the ISATAP 0x5efe marker, Teredo must win (checked
+      // first), or ISATAP would read the *obscured* client IPv4 as plain and
+      // let a private destination through.
+      expect(isPrivateIPv6('2001:0:0:0:0:5efe:5601:5601')).toBe(true); // 169.254.169.254
+    });
+
+    it('blocks loopback in the IPv4-translated form', () => {
+      // 0xffff sits in group 4 here, not group 5 — a different shape from the
+      // mapped form the original check handled.
+      expect(isPrivateIPv6('::ffff:0:7f00:1')).toBe(true);
+    });
+
+    it('blocks loopback in the deprecated IPv4-compatible form', () => {
+      expect(isPrivateIPv6('::7f00:1')).toBe(true); // ::127.0.0.1
+    });
+
+    it('still allows a PUBLIC address in each of those formats', () => {
+      // The embedded address is what is judged, so these prefixes are not
+      // blocked wholesale.
+      expect(isPrivateIPv6('64:ff9b::808:808')).toBe(false); // 8.8.8.8
+      expect(isPrivateIPv6('2002:808:808::')).toBe(false); // 8.8.8.8
+      expect(isPrivateIPv6('::ffff:0:808:808')).toBe(false);
+    });
+  });
 });
 
 describe('assertNotPrivateHost', () => {
