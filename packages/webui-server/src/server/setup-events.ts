@@ -441,6 +441,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     });
     pendingConfirms.set(id, {
       resolve: e.resolve,
+      sessionId: e.sessionId,
       decisionSource: e.decisionSource,
       riskTier: e.riskTier,
       boundaryReason: e.boundaryReason,

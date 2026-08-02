@@ -2,6 +2,15 @@ export type ConfirmDecision = 'yes' | 'no' | 'always' | 'deny';
 
 export interface PendingConfirm {
   resolve: (decision: ConfirmDecision) => void;
+  /**
+   * Session this prompt belongs to. `pendingConfirms` is one process-wide map
+   * replayed to every connected client, and the resolver keyed only on a
+   * client-supplied id — with a session check that no-op'd whenever the client
+   * omitted `sessionId`. So any client could answer any session's prompt
+   * (WS-082). Recorded here so ownership is checked against the server's own
+   * record rather than against whatever the client chose to send.
+   */
+  sessionId?: string | undefined;
   decisionSource?: string | undefined;
   riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
   boundaryReason?: string | undefined;

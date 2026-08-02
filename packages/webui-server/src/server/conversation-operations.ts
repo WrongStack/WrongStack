@@ -179,9 +179,6 @@ export function createConversationOperations(
     },
     ping: (ws) => ctx.send(ws, { type: 'pong', payload: {} }),
     confirmTool: (_ws, msg) => {
-      const requested = requestedSessionId(msg);
-      const current = ctx.getSessionId();
-      if (requested && current && requested !== current) return;
       const { id, decision } = (msg.payload ?? {}) as {
         id?: unknown;
         decision?: unknown;
@@ -189,6 +186,17 @@ export function createConversationOperations(
       if (typeof id !== 'string') return;
       const confirm = ctx.pendingConfirms.get(id);
       if (!confirm) return;
+
+      // Ownership is checked against the session recorded on the confirm when
+      // it was created, not against whatever the client sent. The previous
+      // check was `if (requested && current && requested !== current) return`,
+      // which skipped entirely when the client omitted `sessionId` — so
+      // omitting the field was enough to answer another session's prompt
+      // (WS-082). Falling back to the server's current session means a client
+      // that sends nothing is judged against the session it is actually on.
+      const claimedSession = requestedSessionId(msg) ?? ctx.getSessionId();
+      if (confirm.sessionId !== undefined && confirm.sessionId !== claimedSession) return;
+
       ctx.pendingConfirms.delete(id);
       confirm.resolve(decision as ConfirmDecision);
     },
