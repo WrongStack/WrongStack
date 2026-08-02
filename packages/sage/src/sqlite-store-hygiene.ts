@@ -5,6 +5,7 @@ import { ulid } from '@wrongstack/core/utils';
 
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
 import { readSqliteSageRow } from './sqlite-store-codec.js';
+import { applySemanticChange } from './shared/semantic-rewrite.js';
 import {
   isNearDuplicateMemory,
   normalizeAudience,
@@ -114,12 +115,15 @@ export async function runSqliteSageHygiene(
         if (!current) continue;
         if (current.status !== 'active') continue;
         if (allValid && current.anchors.length === 0) continue;
-        const updated: Sage = {
-          ...current,
-          status: allValid ? 'active' : 'stale',
-          lastVerifiedAt: verificationRunAt,
-          ...(allValid ? { freshness: 1 } : {}),
-        };
+        const updated = applySemanticChange(
+          current,
+          {
+            status: allValid ? ('active' as const) : ('stale' as const),
+            lastVerifiedAt: verificationRunAt,
+            ...(allValid ? { freshness: 1 } : {}),
+          },
+          ctx.nowIso(),
+        );
         ctx.upsertMemory(updated);
         ctx.syncAnchorEdges(updated);
       }
@@ -148,32 +152,33 @@ export async function runSqliteSageHygiene(
       );
       const keeper = sorted[0]!;
       const duplicates = sorted.slice(1);
-      const updatedKeeper: Sage = {
-        ...keeper,
-        tags: [...new Set(sorted.flatMap((m) => m.tags))],
-        anchors: [
-          ...new Map(
-            [...sorted.flatMap((m) => m.anchors)].map((a) => [
-              JSON.stringify(a, Object.keys(a).sort()),
-              a,
-            ]),
-          ).values(),
-        ] as MemoryAnchor[],
-        sources: [...new Set(sorted.flatMap((m) => m.sources.map((s) => JSON.stringify(s))))].map(
-          (s) => JSON.parse(s),
-        ),
-        supersedes: [...new Set([...(keeper.supersedes ?? []), ...duplicates.map((m) => m.id)])],
-        updatedAt: ctx.nowIso(),
-      };
+      const updatedKeeper = applySemanticChange(
+        keeper,
+        {
+          tags: [...new Set(sorted.flatMap((m) => m.tags))],
+          anchors: [
+            ...new Map(
+              [...sorted.flatMap((m) => m.anchors)].map((a) => [
+                JSON.stringify(a, Object.keys(a).sort()),
+                a,
+              ]),
+            ).values(),
+          ] as MemoryAnchor[],
+          sources: [...new Set(sorted.flatMap((m) => m.sources.map((s) => JSON.stringify(s))))].map(
+            (s) => JSON.parse(s),
+          ),
+          supersedes: [...new Set([...(keeper.supersedes ?? []), ...duplicates.map((m) => m.id)])],
+        },
+        ctx.nowIso(),
+      );
       ctx.upsertMemory(updatedKeeper);
       ctx.syncAnchorEdges(updatedKeeper);
       for (const dup of duplicates) {
-        const supersededDup: Sage = {
-          ...dup,
-          status: 'superseded',
-          supersededBy: keeper.id,
-          updatedAt: ctx.nowIso(),
-        };
+        const supersededDup = applySemanticChange(
+          dup,
+          { status: 'superseded' as const, supersededBy: keeper.id },
+          ctx.nowIso(),
+        );
         ctx.upsertMemory(supersededDup);
         ctx.syncAnchorEdges(supersededDup);
         try {
@@ -272,35 +277,36 @@ export async function runSqliteSageHygiene(
           const richest = mergeSet.reduce((best, cur) =>
             cur.text.length > best.text.length ? cur : best,
           );
-          const updatedKeeper: Sage = {
-            ...keeper,
-            text: richest.text.length > keeper.text.length ? richest.text : keeper.text,
-            tags: [...new Set(mergeSet.flatMap((m) => m.tags))],
-            anchors: [
-              ...new Map(
-                [...mergeSet.flatMap((m) => m.anchors)].map((a) => [
-                  JSON.stringify(a, Object.keys(a).sort()),
-                  a,
-                ]),
-              ).values(),
-            ] as MemoryAnchor[],
-            sources: [
-              ...new Set(mergeSet.flatMap((m) => m.sources.map((s) => JSON.stringify(s)))),
-            ].map((s) => JSON.parse(s)),
-            supersedes: [
-              ...new Set([...(keeper.supersedes ?? []), ...duplicates.map((m) => m.id)]),
-            ],
-            updatedAt: ctx.nowIso(),
-          };
+          const updatedKeeper = applySemanticChange(
+            keeper,
+            {
+              text: richest.text.length > keeper.text.length ? richest.text : keeper.text,
+              tags: [...new Set(mergeSet.flatMap((m) => m.tags))],
+              anchors: [
+                ...new Map(
+                  [...mergeSet.flatMap((m) => m.anchors)].map((a) => [
+                    JSON.stringify(a, Object.keys(a).sort()),
+                    a,
+                  ]),
+                ).values(),
+              ] as MemoryAnchor[],
+              sources: [
+                ...new Set(mergeSet.flatMap((m) => m.sources.map((s) => JSON.stringify(s)))),
+              ].map((s) => JSON.parse(s)),
+              supersedes: [
+                ...new Set([...(keeper.supersedes ?? []), ...duplicates.map((m) => m.id)]),
+              ],
+            },
+            ctx.nowIso(),
+          );
           ctx.upsertMemory(updatedKeeper);
           ctx.syncAnchorEdges(updatedKeeper);
           for (const dup of duplicates) {
-            const supersededDup: Sage = {
-              ...dup,
-              status: 'superseded',
-              supersededBy: keeper.id,
-              updatedAt: ctx.nowIso(),
-            };
+            const supersededDup = applySemanticChange(
+              dup,
+              { status: 'superseded' as const, supersededBy: keeper.id },
+              ctx.nowIso(),
+            );
             ctx.upsertMemory(supersededDup);
             ctx.syncAnchorEdges(supersededDup);
             try {

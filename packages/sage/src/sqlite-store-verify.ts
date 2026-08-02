@@ -4,6 +4,7 @@ import { verifyMemoryAnchors } from './anchors/verify.js';
 import { anchorsChanged } from './sqlite-store-anchor-diff.js';
 import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
+import { applySemanticChange } from './shared/semantic-rewrite.js';
 import type { MemoryVerificationResult, Sage } from './types.js';
 
 export interface SqliteVerifyContext {
@@ -104,12 +105,15 @@ export async function verifySqliteSage(
             : update.status === 'active' && current.status === 'stale'
               ? 'active'
               : current.status;
-        const verified: Sage = {
-          ...current,
-          status: nextStatus,
-          lastVerifiedAt: update.lastVerifiedAt,
-          ...(update.freshness !== undefined && { freshness: update.freshness }),
-        };
+        const verified = applySemanticChange(
+          current,
+          {
+            status: nextStatus,
+            lastVerifiedAt: update.lastVerifiedAt,
+            ...(update.freshness !== undefined && { freshness: update.freshness }),
+          },
+          ctx.nowIso(),
+        );
         ctx.upsertMemory(verified);
         if (verified.status !== current.status) ctx.syncAnchorEdges(verified);
       }

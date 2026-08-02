@@ -305,7 +305,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     await expect(store.verify('concurrent-edit')).resolves.toHaveLength(1);
     state.runMutation = originalRunMutation;
     expect(await store.getSage('concurrent-edit')).toMatchObject({
-      revision: 2,
+      revision: 3,
       text: 'edited while anchors were being verified',
       tags: ['concurrent'],
       lastVerifiedAt: expect.any(String),

@@ -706,6 +706,81 @@ describe('SqliteSageStore', () => {
       });
     });
 
+    it('increments revision monotonically across hygiene operations (P1-9)', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+
+      // Create a memory with a file anchor pointing to a real file so
+      // verification has something to check.
+      const anchorFile = path.join(tempDir, 'src', 'test-file.ts');
+      fs.mkdirSync(path.dirname(anchorFile), { recursive: true });
+      fs.writeFileSync(anchorFile, 'export const x = 1;');
+
+      const mem = await store.rememberSage({
+        text: 'Memory with a file anchor for revision tracking',
+        kind: 'file_note',
+        importance: 0.8,
+        anchors: [{ type: 'file', path: 'src/test-file.ts' }],
+      });
+      expect(mem.revision).toBe(1);
+
+      // Run verification — should increment revision (P1-9 fix).
+      await store.verify();
+      const afterVerify = await store.getSage(mem.id);
+      expect(afterVerify!.revision).toBe(2);
+      expect(afterVerify!.lastVerifiedAt).toBeTruthy();
+
+      // Run hygiene — verify pass inside hygiene increments again.
+      await store.hygiene();
+      const afterHygiene = await store.getSage(mem.id);
+      expect(afterHygiene!.revision).toBeGreaterThanOrEqual(3);
+
+      // Revision must be monotonically increasing.
+      expect(afterHygiene!.revision).toBeGreaterThan(afterVerify!.revision);
+    });
+
+    it('increments revision when superseded by dedup (P1-9)', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+
+      // Create two memories that will be deduplicated by hygiene.
+      // Use raw upsert to bypass remember's inline dedup.
+      const internals = store as unknown as {
+        runMutation: <T>(work: () => T) => Promise<T>;
+        upsertMemory: (memory: Sage) => void;
+      };
+      const makeMem = (id: string, importance: number): Sage => ({
+        id,
+        revision: 1,
+        scope: 'project',
+        kind: 'fact',
+        status: 'active',
+        text: 'Duplicate memory for revision tracking test',
+        importance,
+        confidence: 0.8,
+        freshness: 1,
+        tags: [],
+        anchors: [],
+        sources: [{ type: 'user' }],
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      });
+
+      await internals.runMutation(() => {
+        internals.upsertMemory(makeMem('rev-low', 0.5));
+        internals.upsertMemory(makeMem('rev-high', 0.9));
+      });
+
+      const report = await store.hygiene({ verify: false });
+      expect(report.deduplicated).toBeGreaterThanOrEqual(1);
+
+      // The superseded dup should have revision > 1 (incremented by helper).
+      const superseded = await store.getSage('rev-low');
+      expect(superseded).not.toBeNull();
+      expect(superseded!.status).toBe('superseded');
+      expect(superseded!.revision).toBeGreaterThan(1);
+    });
+
     it('deduplicates identical-text memories and marks losers superseded', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
