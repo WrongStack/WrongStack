@@ -704,6 +704,9 @@ importers:
       '@wrongstack/kanban':
         specifier: workspace:*
         version: link:../kanban
+      '@wrongstack/plugins':
+        specifier: workspace:*
+        version: link:../plugins
       '@wrongstack/providers':
         specifier: workspace:*
         version: link:../providers
