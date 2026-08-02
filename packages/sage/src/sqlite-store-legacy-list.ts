@@ -32,7 +32,20 @@ export function listLegacySqliteMemory(
     })
     .filter((item): item is { memory: Sage; id: string; createdAt: string } => item !== null)
     .filter(({ memory }) => (memory.legacyScope ?? sageToLegacyScope(memory.scope)) === scope);
-  parsed.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  // Byte comparison (locale-safe): ISO-8601 timestamps sort lexicographically;
+  // `localeCompare` can reorder them across locales (see shared/pagination.ts).
+  parsed.sort(
+    (a, b) =>
+      b.createdAt > a.createdAt
+        ? 1
+        : b.createdAt < a.createdAt
+          ? -1
+          : b.id > a.id
+            ? 1
+            : b.id < a.id
+              ? -1
+              : 0,
+  );
   const entries = parsed.map(({ memory }) => toLegacyEntry(memory));
   return limit === undefined ? entries : entries.slice(0, Math.max(0, limit));
 }

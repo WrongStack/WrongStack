@@ -122,6 +122,9 @@ export interface SessionScopeFilter {
  * existing WHERE conditions; callers that join conditions with ` AND `
  * must strip the leading operator.
  *
+ * `includeAllSessions` takes precedence over `sessionId` when both are set
+ * (administrative opt-out wins).
+ *
  * @param opts   - session filter; a subset of each retrieval surface's options.
  * @param prefix - SQL table-alias prefix for the columns (e.g. `'m.'`) when
  *                 the query joins the memories table under an alias.

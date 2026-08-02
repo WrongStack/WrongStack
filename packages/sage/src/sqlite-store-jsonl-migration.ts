@@ -98,7 +98,11 @@ export async function migrateSqliteLegacyJsonl(input: {
         | undefined;
       if (existingRow) {
         const existing = sqliteRowToCandidate(existingRow);
-        if (existing.updatedAt.localeCompare(candidate.updatedAt) > 0) continue;
+        // Byte comparison (locale-safe): keep the newer candidate when both
+        // the JSONL replay and the SQLite row claim the same id. ISO-8601
+        // timestamps sort lexicographically; `localeCompare` can reorder them
+        // across locales (see shared/pagination.ts).
+        if (existing.updatedAt > candidate.updatedAt) continue;
       }
       upsertCandidate.run(
         candidate.id,

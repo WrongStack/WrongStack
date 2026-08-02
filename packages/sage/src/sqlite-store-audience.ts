@@ -7,9 +7,11 @@ import type { MemoryAudienceContext, Sage } from './types.js';
 export interface SqliteAudienceContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   /**
-   * Optional callback fired when the SQL prefilter is fully exhausted
-   * but more matching rows likely exist beyond the over-fetch factor.
-   * Surfaces truncation so a caller can paginate, log, or escalate.
+   * Optional callback fired when the SQL prefilter was saturated: the scan
+   * window hit `AUDIENCE_MAX_SCAN` before the corpus ran out, and more
+   * audience-matching rows likely exist beyond the scanned range than the
+   * caller's limit allowed. Surfaces truncation so a caller can paginate,
+   * log, or escalate. Mirrors the `memory.audience_truncated` audit event.
    */
   onTruncated?: ((info: { sqlRowsExamined: number; returned: number }) => void) | undefined;
 }
@@ -65,6 +67,11 @@ export function retrieveSqliteSageForAudience(
   let totalScanned = 0;
 
   while (matched.length < limit && offset < AUDIENCE_MAX_SCAN) {
+    // Clamp the growing window so AUDIENCE_MAX_SCAN bounds the rows actually
+    // scanned — the ×3 growth otherwise lets limit=20 scan ~12k rows and
+    // limit=100 scan ~20k rows while the loop guard only caps the offset.
+    windowSize = Math.min(windowSize, AUDIENCE_MAX_SCAN - offset);
+    if (windowSize <= 0) break;
     const rows = ctx
       .stmt(
         `SELECT data FROM memories

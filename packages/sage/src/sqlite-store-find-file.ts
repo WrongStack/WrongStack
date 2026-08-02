@@ -24,6 +24,20 @@ function anchorPath(projectRoot: string, value: string): string | null {
   }
 }
 
+/**
+ * Descending byte comparison for ISO-8601 timestamps (newest first),
+ * matching the sign convention of `compareByUpdatedDesc` in
+ * `shared/pagination.ts`. `localeCompare` is locale-aware and can reorder
+ * ASCII-only ISO strings across locales. Valid for uniform-format strings
+ * (all writers use `new Date().toISOString()`); mixed precision (with/without
+ * milliseconds) does not compare byte-wise chronologically.
+ */
+function compareIsoDescending(a: string, b: string): number {
+  if (a > b) return -1;
+  if (a < b) return 1;
+  return 0;
+}
+
 function matchMemory(
   projectRoot: string,
   memory: Sage,
@@ -150,7 +164,7 @@ export async function findSqliteMemoriesForFile(
 
   const sorter = (left: MemoryForFileMatch, right: MemoryForFileMatch): number =>
     right.matchStrength - left.matchStrength ||
-    right.memory.updatedAt.localeCompare(left.memory.updatedAt);
+    compareIsoDescending(left.memory.updatedAt, right.memory.updatedAt);
   primaryMatches.sort(sorter);
   symbolMatches.sort(sorter);
   relatedMatches.sort(sorter);

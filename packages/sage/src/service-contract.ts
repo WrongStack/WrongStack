@@ -123,12 +123,12 @@ export interface SageSurface {
     context: { role?: string; taskType?: string; mode?: string },
     limit?: number,
     /**
-     * Optional truncation callback. Fires when the SQL prefilter is fully
-     * exhausted and more matching rows likely exist beyond it. When
-     * omitted, the store still emits an internal `memory.audience_truncated`
-     * audit event so downstream observers (e.g. CLI hygiene teardown) can
-     * pick it up without having to thread a callback through every call
-     * site.
+     * Optional truncation callback. Fires when the SQL prefilter was
+     * saturated — the scan window hit `AUDIENCE_MAX_SCAN` before the corpus
+     * ran out and more matching rows likely exist beyond it. When omitted,
+     * the store still emits an internal `memory.audience_truncated` audit
+     * event so downstream observers (e.g. CLI hygiene teardown) can pick it
+     * up without having to thread a callback through every call site.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
     /**
@@ -180,12 +180,12 @@ export interface SageServiceLike extends MemoryStore {
     context: { role?: string; taskType?: string; mode?: string },
     limit?: number,
     /**
-     * Optional truncation callback. Fires when the SQL prefilter is fully
-     * exhausted and more matching rows likely exist beyond it. When
-     * omitted, the store still emits an internal `memory.audience_truncated`
-     * audit event so downstream observers (e.g. CLI hygiene teardown) can
-     * pick it up without having to thread a callback through every call
-     * site.
+     * Optional truncation callback. Fires when the SQL prefilter was
+     * saturated — the scan window hit `AUDIENCE_MAX_SCAN` before the corpus
+     * ran out and more matching rows likely exist beyond it. When omitted,
+     * the store still emits an internal `memory.audience_truncated` audit
+     * event so downstream observers (e.g. CLI hygiene teardown) can pick it
+     * up without having to thread a callback through every call site.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
     /**

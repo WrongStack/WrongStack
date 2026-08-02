@@ -141,3 +141,161 @@ describe('executeUnifiedSearch (commit 1.5, MVP)', () => {
     expect(result.hits[0]?.importance).toBe(0.9);
   });
 });
+
+describe('executeUnifiedSearch — declared-field contract (2026-08-02)', () => {
+  it('rejects cursor pagination explicitly instead of ignoring it', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    await seedCorpus(store);
+    await expect(
+      store.unifiedSearchService({
+        text: 'cursor',
+        cursor: { memoryId: 'mem-x', direction: 'before' },
+      }),
+    ).rejects.toThrow(/cursor pagination/);
+  });
+
+  it('honors freshness.createdAfter', async () => {
+    let current = new Date('2026-01-01T00:00:00.000Z');
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir, now: () => current }));
+    await store.initialize();
+    const early = await store.rememberSage({
+      text: 'early memory freshness probe alpha',
+      kind: 'fact',
+      importance: 0.5,
+    });
+    current = new Date('2026-02-01T00:00:00.000Z');
+    const late = await store.rememberSage({
+      text: 'late memory freshness probe alpha',
+      kind: 'fact',
+      importance: 0.5,
+    });
+
+    const result = await store.unifiedSearchService({
+      text: 'freshness probe',
+      freshness: { createdAfter: '2026-01-15T00:00:00.000Z' },
+    });
+    const ids = result.hits.map((hit) => hit.id);
+    expect(ids).toContain(late.id);
+    expect(ids).not.toContain(early.id);
+  });
+
+  it('honors the audience filter', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const reviewer = await store.rememberSage({
+      text: 'reviewer scoped memory audience probe',
+      kind: 'fact',
+      importance: 0.6,
+      audience: { roles: ['reviewer'] },
+    });
+    const general = await store.rememberSage({
+      text: 'general memory audience probe',
+      kind: 'fact',
+      importance: 0.6,
+    });
+
+    const result = await store.unifiedSearchService({
+      text: 'audience probe',
+      audience: { roles: ['reviewer'] },
+    });
+    const ids = result.hits.map((hit) => hit.id);
+    expect(ids).toContain(reviewer.id);
+    expect(ids).not.toContain(general.id);
+  });
+
+  it('honors the anchor filter', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const anchored = await store.rememberSage({
+      text: 'anchored memory anchor probe alpha',
+      kind: 'file_note',
+      importance: 0.6,
+      anchors: [{ type: 'file', path: 'src/probe-config.ts' }],
+    });
+    const unanchored = await store.rememberSage({
+      text: 'unanchored memory anchor probe alpha',
+      kind: 'fact',
+      importance: 0.6,
+    });
+
+    const result = await store.unifiedSearchService({
+      text: 'anchor probe',
+      anchor: { type: 'file', path: 'src/probe-config.ts' },
+    });
+    const ids = result.hits.map((hit) => hit.id);
+    expect(ids).toContain(anchored.id);
+    expect(ids).not.toContain(unanchored.id);
+  });
+
+  it('honors the paths filter via the anchor graph', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const onPath = await store.rememberSage({
+      text: 'memory on the filtered path probe alpha',
+      kind: 'file_note',
+      importance: 0.6,
+      anchors: [{ type: 'file', path: 'src/path-probe.ts' }],
+    });
+    const offPath = await store.rememberSage({
+      text: 'second note about the filtered path probe beta',
+      kind: 'file_note',
+      importance: 0.6,
+      anchors: [{ type: 'file', path: 'src/other-file.ts' }],
+    });
+
+    const result = await store.unifiedSearchService({
+      text: 'filtered path probe',
+      paths: ['src/path-probe.ts'],
+    });
+    const ids = result.hits.map((hit) => hit.id);
+    expect(ids).toContain(onPath.id);
+    expect(ids).not.toContain(offPath.id);
+  });
+
+  it('populates suggestions on empty hits (suggest="empty" default)', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const alpha = await store.rememberSage({
+      text: 'alpha term memory probe',
+      kind: 'fact',
+      importance: 0.6,
+    });
+    const gamma = await store.rememberSage({
+      text: 'gamma term memory probe',
+      kind: 'fact',
+      importance: 0.6,
+    });
+
+    // No single memory contains BOTH 'alpha' and 'gamma', so the AND query
+    // yields zero hits; the OR-expanded suggestion query surfaces both.
+    const result = await store.unifiedSearchService({ text: 'alpha gamma' });
+    expect(result.hits).toHaveLength(0);
+    const suggestionIds = result.suggestions.map((hit) => hit.id);
+    expect(suggestionIds).toContain(alpha.id);
+    expect(suggestionIds).toContain(gamma.id);
+  });
+
+  it('never and always suggestion modes', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const a = await store.rememberSage({
+      text: 'alpha beta probe',
+      kind: 'fact',
+      importance: 0.6,
+    });
+    const b = await store.rememberSage({
+      text: 'gamma beta probe',
+      kind: 'fact',
+      importance: 0.6,
+    });
+
+    const never = await store.unifiedSearchService({ text: 'beta alpha' }, { suggest: 'never' });
+    expect(never.hits.map((hit) => hit.id)).toContain(a.id);
+    expect(never.suggestions).toEqual([]);
+
+    const always = await store.unifiedSearchService({ text: 'beta alpha' }, { suggest: 'always' });
+    expect(always.hits.map((hit) => hit.id)).toContain(a.id);
+    expect(always.suggestions.map((hit) => hit.id)).toContain(b.id);
+  });
+});

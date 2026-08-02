@@ -85,10 +85,12 @@ import {
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import {
+  createSageContextMonitorMiddleware,
   createSageToolCallMiddleware,
   createSageTurnMiddleware,
   getSageRetrieval,
   getSageService,
+  InjectionTracker,
 } from '@wrongstack/sage';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
 import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
@@ -227,6 +229,15 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   installDesignStudioMiddleware({ pipelines, ctx: context });
   const memoryRetrieval = getSageRetrieval(memoryStore);
   if (config.features.memory !== false && config.Sage?.enabled !== false && memoryRetrieval) {
+    // One tracker shared by both middlewares, mirroring cli/src/wiring/sage.ts:
+    // tool-result injections must be matchable when the turn middleware scans
+    // assistant messages for references (the usefulness signal behind
+    // recordUse), and the context monitor needs the same registry to emit
+    // provider-context presence snapshots. Without this shared instance,
+    // WebUI sessions get no cross-path use attribution and no injector or
+    // context telemetry.
+    const sageInjectionTracker = new InjectionTracker();
+    const getSageSessionId = (): string | undefined => input.sessionGetter().id;
     if (config.Sage?.inject?.toolResults !== false) {
       pipelines.toolCall.use(
         createSageToolCallMiddleware({
@@ -244,7 +255,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           // middleware falls back to ctx.session.id for cooldown but passes
           // undefined to retrieval, causing owned session-scoped memories to be
           // silently excluded from tool-call injection.
-          getSessionId: () => input.sessionGetter().id,
+          getSessionId: getSageSessionId,
+          tracker: sageInjectionTracker,
+          events,
         }),
       );
     }
@@ -260,9 +273,21 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           maxMemories: config.Sage?.inject?.maxTurnMemories,
           maxChars: config.Sage?.inject?.maxCharsPerTurn,
           minScore: config.Sage?.inject?.minScore,
+          getSessionId: getSageSessionId,
+          tracker: sageInjectionTracker,
         }),
       );
     }
+    // Emit an exact memory-presence snapshot for every provider-bound request,
+    // matching the CLI wiring so WebUI sessions get the same context-monitor
+    // telemetry.
+    pipelines.request.use(
+      createSageContextMonitorMiddleware({
+        tracker: sageInjectionTracker,
+        events,
+        getSessionId: getSageSessionId,
+      }),
+    );
   }
   const codebaseIndexing = setupWebUICodebaseIndexing({
     config,

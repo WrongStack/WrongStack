@@ -33,12 +33,14 @@ interface RemoteSageRetrievalCapability extends SageRetrieverLike {
     context: { role?: string; taskType?: string; mode?: string },
     limit?: number,
     /**
-     * Optional truncation callback. The remote port cannot forward the
-     * callback across IPC, but the interface declares it for parity with
-     * the in-process `SageRetrievalCapability`. The server side still
-     * emits an internal `memory.audience_truncated` audit event when
-     * truncation is detected, so remote callers can observe it through
-     * the audit log.
+     * Optional truncation callback. Fires when the SQL prefilter was
+     * saturated — the scan window hit `AUDIENCE_MAX_SCAN` before the corpus
+     * ran out and more matching rows likely exist beyond it. The remote
+     * port cannot forward the callback across IPC, but the interface
+     * declares it for parity with the in-process `SageRetrievalCapability`.
+     * The server side still emits an internal `memory.audience_truncated`
+     * audit event when truncation is detected, so remote callers can
+     * observe it through the audit log.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
     /**

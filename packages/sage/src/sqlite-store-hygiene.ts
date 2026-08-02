@@ -23,6 +23,20 @@ import { DEFAULT_PERSISTENCE } from './types.js';
 /** Cap pairwise near-dup work inside a single scope/kind/audience bucket. */
 const HYGIENE_NEAR_DUP_BUCKET_CAP = 80;
 
+/**
+ * Ascending byte comparison for ISO-8601 timestamps. `localeCompare` is
+ * locale-aware and can reorder ASCII-only ISO strings across locales (Turkish
+ * `i`/`I`, German `ß`/`ss`) — see `shared/pagination.ts:compareByUpdatedDesc`
+ * for the canonical rationale. Oldest-first keeps the earliest record as the
+ * dedup keeper. Valid for uniform-format strings (all writers use
+ * `new Date().toISOString()`).
+ */
+function compareIsoAscending(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 export interface SqliteHygieneContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -148,7 +162,7 @@ export async function runSqliteSageHygiene(
         (a, b) =>
           b.importance - a.importance ||
           b.confidence - a.confidence ||
-          a.createdAt.localeCompare(b.createdAt),
+          compareIsoAscending(a.createdAt, b.createdAt),
       );
       const keeper = sorted[0]!;
       const duplicates = sorted.slice(1);
@@ -223,7 +237,7 @@ export async function runSqliteSageHygiene(
             (a, b) =>
               b.importance - a.importance ||
               b.confidence - a.confidence ||
-              a.createdAt.localeCompare(b.createdAt),
+              compareIsoAscending(a.createdAt, b.createdAt),
           )
           .slice(0, HYGIENE_NEAR_DUP_BUCKET_CAP);
         const parent = new Map<string, string>();
@@ -264,7 +278,7 @@ export async function runSqliteSageHygiene(
             (a, b) =>
               b.importance - a.importance ||
               b.confidence - a.confidence ||
-              a.createdAt.localeCompare(b.createdAt),
+              compareIsoAscending(a.createdAt, b.createdAt),
           );
           const keeper = sorted[0]!;
           // Pair validation: only supersede members that are near-dup with the
