@@ -3,6 +3,7 @@ import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { injectWebsiteCsp } from './csp.mjs';
 
 const baseRoutes = [
   'features',
@@ -382,6 +383,12 @@ export default defineConfig({
         const outDir = path.resolve(__dirname, 'dist');
         const source = path.join(outDir, 'index.html');
         if (!fs.existsSync(source)) return;
+        // WS-071: stamp the CSP onto the emitted HTML before it is fanned out
+        // to the per-route copies below, so every route gets the same policy
+        // from one write. Build-time rather than source-time because the dev
+        // server injects its own inline refresh preamble, which no static hash
+        // list can cover — see csp.mjs.
+        fs.writeFileSync(source, injectWebsiteCsp(fs.readFileSync(source, 'utf8')), 'utf8');
         const routes = contentRoutes();
         // Enforce the ASCII-only route invariant at the emission site.
         // Routes are produced from regex captures over data files (`[^']+`)

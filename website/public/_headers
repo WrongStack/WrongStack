@@ -1,0 +1,27 @@
+# WS-071 — response headers for wrongstack.com.
+#
+# READ THIS FIRST: this file does NOTHING on GitHub Pages, which is where the
+# site is served from today (see CNAME). GitHub Pages cannot emit custom
+# response headers at all. Netlify and Cloudflare Pages both read `_headers`
+# from the publish root, so the day the site moves behind either — or behind
+# Cloudflare in front of Pages, with a Transform Rule built from this list —
+# the protection turns on with no further work.
+#
+# It is committed now because the one control that genuinely cannot be shipped
+# any other way is `frame-ancestors`: a policy delivered by `<meta>` ignores
+# that directive, so the meta CSP the build injects (csp.mjs) closes the script
+# and exfiltration surface but leaves the site framable by any origin. The
+# realistic abuse is UI redress — framing the real site under a fake
+# "Download / Install" overlay to lend a malicious install command credibility.
+#
+# Keep the CSP below in sync with `websiteCsp()` in `csp.mjs`. The script
+# hashes deliberately do not appear here: header CSP and meta CSP are
+# intersected by the browser, so the meta policy's hashes still apply, and
+# duplicating them would create a second place to drift.
+
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  Cross-Origin-Opener-Policy: same-origin
