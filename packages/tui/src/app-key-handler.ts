@@ -493,11 +493,11 @@ export function createAppKeyHandler(
     }
     if (state.sidebarFocused && !overlayOpen) {
       if (key.upArrow) {
-        dispatch({ type: 'sidebarScroll', delta: -1 });
+        dispatch({ type: 'sidebarScroll', delta: -1, viewportHeight: termRows - 2 });
         return;
       }
       if (key.downArrow) {
-        dispatch({ type: 'sidebarScroll', delta: 1 });
+        dispatch({ type: 'sidebarScroll', delta: 1, viewportHeight: termRows - 2 });
         return;
       }
       if (key.escape) {
@@ -606,6 +606,7 @@ export function createAppKeyHandler(
           dispatch({
             type: 'sidebarScroll',
             delta: key.mouse.wheel > 0 ? -1 : 1,
+            viewportHeight: termRows - 2,
           });
           return;
         }

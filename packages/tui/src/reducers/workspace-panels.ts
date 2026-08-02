@@ -18,16 +18,12 @@ import { closePanels } from './helpers.js';
  *   - Sessions: 1 (header) + up to 3 live + up to 3 resume, if present
  *   - Focus hint: 1 row, if focused
  *
- * The sidebar viewport height is roughly termRows (the full terminal height),
- * minus border (2) + padding. Since the reducer doesn't know termRows, we
- * estimate conservatively: assume ~20 visible rows. If content is shorter
- * than that, maxScroll is 0 (nothing to scroll).
- *
  * @param state Current app state
+ * @param viewportHeight Visible sidebar height in rows (terminal height minus
+ *   border 2 + padding). Falls back to 20 when not provided.
  * @returns Maximum scroll offset (always >= 0)
  */
-function computeMaxSidebarScroll(state: State): number {
-  const VISIBLE_HEIGHT_ESTIMATE = 20;
+function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
   let contentHeight = 0;
 
   // Context meter
@@ -71,7 +67,7 @@ function computeMaxSidebarScroll(state: State): number {
   // Focus hint
   if (state.sidebarFocused) contentHeight += 1;
 
-  return Math.max(0, contentHeight - VISIBLE_HEIGHT_ESTIMATE);
+  return Math.max(0, contentHeight - viewportHeight);
 }
 
 const workspacePanelActionTypes = [
@@ -187,8 +183,12 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
     case 'sidebarScroll': {
       // Dynamic upper clamp: estimate the sidebar content height from the
       // current state so the user can't scroll past the end into blank space.
-      // Each section contributes: headers (1 row each) + rows (variable).
-      const maxScroll = computeMaxSidebarScroll(state);
+      // The caller passes viewportHeight (terminal height minus sidebar
+      // border+padding) when available; falls back to 20.
+      const maxScroll = computeMaxSidebarScroll(
+        state,
+        action.viewportHeight,
+      );
       return {
         ...state,
         sidebarScrollOffset: Math.min(

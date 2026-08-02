@@ -574,7 +574,7 @@ export type Action =
   /** Toggle keyboard focus between input and the right sidebar. */
   | { type: 'toggleSidebarFocus' }
   /** Scroll the sidebar content by delta rows (clamped to >=0). */
-  | { type: 'sidebarScroll'; delta: number }
+  | { type: 'sidebarScroll'; delta: number; viewportHeight?: number | undefined }
   /** Reset sidebar scroll offset to 0. */
   | { type: 'sidebarScrollReset' }
   | { type: 'toggleKanbanPanel' }
