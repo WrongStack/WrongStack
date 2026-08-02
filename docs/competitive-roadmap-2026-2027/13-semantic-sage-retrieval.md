@@ -15,7 +15,7 @@ Sage is already the default store across runtime surfaces. This plan does not re
 ## Architecture
 
 - Introduce an embedding provider interface independent of chat providers.
-- Store vector index metadata separately from canonical `memories.jsonl`; JSONL remains the source of truth.
+- Store vector index metadata separately from the canonical SQLite `memories` table; SQLite remains the source of truth (JSONL was replaced as canonical storage in 2026-07).
 - Key embeddings by normalized content hash, model ID, dimensions, and scope.
 - Fuse semantic, lexical, anchor, recency, quality, and graph scores with inspectable contributions.
 - Rebuild incrementally and degrade to current retrieval when embeddings are unavailable.

@@ -275,9 +275,9 @@ export async function resolveSqliteCandidate(
     : null;
   const policy = computeResolution(snapshot, decision, reason, target ?? null);
 
-  // Fold candidate claim + target mutation into a single runMutation boundary.
-  // If the mutation fails, revert the candidate back to 'pending' so a retry
-  // can attempt the resolution again instead of returning alreadyResolved.
+  // Claim the candidate, then perform the target mutation. If the mutation
+  // fails, revert the candidate back to 'pending' so a retry can attempt
+  // the resolution again instead of returning alreadyResolved.
   let applied = false;
   let claimed = false;
   let mutationError: string | undefined;
