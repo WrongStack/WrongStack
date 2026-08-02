@@ -683,7 +683,7 @@ async function startHqServerWithAuth(
           mutableAuth.cookieSecret !== undefined &&
           (() => {
             const cookies = parseCookieHeader(req.headers.cookie);
-            const raw = cookies[HQ_SESSION_COOKIE];
+            const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
             if (!raw) return false;
             const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret!);
             if (sessionId === undefined) return false;

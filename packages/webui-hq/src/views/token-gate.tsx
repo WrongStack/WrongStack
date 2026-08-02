@@ -14,6 +14,7 @@
  */
 import { useEffect, useState } from 'react';
 import { clearHqToken, setHqToken } from '../lib/auth.js';
+import { PasswordInput } from '../components/password-input.js';
 
 interface AuthStatus {
   tokenMode: boolean;
@@ -115,16 +116,15 @@ function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
           ? 'The saved token was rejected — it may have been revoked or the server was reset. Paste a current browser token.'
           : 'This HQ server runs in token mode. Paste the browser token printed at startup (the ?token= value in the URL wstack --hq shows).'}
       </p>
-      <input
-        className="hq-token-input"
-        type="password"
-        placeholder="browser token"
-        autoComplete="off"
+      <PasswordInput
         value={value}
-        onChange={(ev) => setValue(ev.target.value)}
+        onChange={setValue}
         onKeyDown={(ev) => {
           if (ev.key === 'Enter') submit();
         }}
+        placeholder="browser token"
+        autoComplete="off"
+        autoFocus
       />
       <button
         type="button"
@@ -280,16 +280,15 @@ function PasswordForm(): React.ReactElement {
         This HQ server is protected by a password. Enter it to open the dashboard.
       </p>
       {error ? <p className="hq-token-error">{error}</p> : null}
-      <input
-        className="hq-token-input"
-        type="password"
-        placeholder="password"
-        autoComplete="current-password"
+      <PasswordInput
         value={value}
-        onChange={(ev) => setValue(ev.target.value)}
+        onChange={setValue}
         onKeyDown={(ev) => {
           if (ev.key === 'Enter') void submit();
         }}
+        placeholder="password"
+        autoComplete="current-password"
+        autoFocus
       />
       <button
         type="button"

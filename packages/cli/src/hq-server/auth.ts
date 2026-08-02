@@ -13,6 +13,24 @@ import type { HqRouterMutableAuth, HqSessionEntry } from './types.js';
 // ── Cookie / session constants ─────────────────────────────────────────────
 
 export const HQ_SESSION_COOKIE = 'hq.session';
+
+/**
+ * When the server is running with `Secure` cookies (HTTPS / public tunnel),
+ * use the `__Host-` prefix for defense-in-depth. Browsers enforce:
+ * - Must be sent only over HTTPS (Secure)
+ * - Must have Path=/
+ * - Must NOT have a Domain attribute
+ * This prevents cookie injection from subdomains on shared origins.
+ *
+ * On loopback (HTTP, no Secure), the prefix can't be used — browsers reject
+ * `__Host-` cookies without `Secure`. The plain `hq.session` name is fine
+ * there since subdomain injection isn't a concern on localhost.
+ */
+const HQ_SESSION_COOKIE_SECURE = '__Host-hq.session';
+
+function cookieName(secure: boolean | undefined): string {
+  return secure ? HQ_SESSION_COOKIE_SECURE : HQ_SESSION_COOKIE;
+}
 export const HQ_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Idle timeout: sessions unused for this long are rejected and evicted. */
@@ -237,8 +255,9 @@ export function setHqSessionCookie(
   value: string,
   secure?: boolean,
 ): void {
+  const name = cookieName(secure);
   const parts = [
-    `${HQ_SESSION_COOKIE}=${encodeURIComponent(value)}`,
+    `${name}=${encodeURIComponent(value)}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
@@ -249,7 +268,8 @@ export function setHqSessionCookie(
 }
 
 export function clearHqSessionCookie(res: http.ServerResponse, secure?: boolean): void {
-  const parts = [`${HQ_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`];
+  const name = cookieName(secure);
+  const parts = [`${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`];
   if (secure) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
 }
@@ -412,7 +432,9 @@ export function authenticateBrowserRequest(
   }
   if (mutableAuth.cookieSecret) {
     const cookies = parseCookieHeader(req.headers.cookie);
-    const raw = cookies[HQ_SESSION_COOKIE];
+    // Check both cookie names: __Host-hq.session (secure) and hq.session
+    // (loopback). The browser only sends the one that was set.
+    const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
     if (raw) {
       const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret);
       // Server-side session expiry: reject and evict entries past Max-Age

@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { authorizedFetch, clearHqToken } from '../lib/auth.js';
+import { PasswordInput } from '../components/password-input.js';
 
 interface AuthStatus {
   tokenMode: boolean;
@@ -55,7 +56,7 @@ const COMMON_PASSWORDS = new Set([
   'letmein1', 'welcome1', 'admin123', 'monkey123', 'iloveyou1',
 ]);
 
-function scorePassword(pw: string): StrengthResult {
+export function scorePassword(pw: string): StrengthResult {
   if (pw.length === 0) return { level: 'empty', score: 0, label: '' };
 
   let score = 0;
@@ -262,36 +263,35 @@ export function SettingsView(): React.ReactElement {
           {requiresCurrentPassword ? (
             <label>
               <span>Current password</span>
-              <input
-                type="password"
-                autoComplete="current-password"
+              <PasswordInput
                 value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
+                onChange={setCurrentPassword}
+                autoFocus={requiresCurrentPassword}
+                autoComplete="current-password"
               />
             </label>
           ) : null}
           <label>
             <span>New password</span>
-            <input
-              type="password"
+            <PasswordInput
+              value={newPassword}
+              onChange={setNewPassword}
+              autoFocus={!requiresCurrentPassword}
               autoComplete="new-password"
               minLength={8}
               maxLength={1024}
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
             />
             <small>Minimum 8 characters.</small>
           </label>
           <PasswordStrengthMeter password={newPassword} />
           <label>
             <span>Confirm new password</span>
-            <input
-              type="password"
+            <PasswordInput
+              value={confirmPassword}
+              onChange={setConfirmPassword}
               autoComplete="new-password"
               minLength={8}
               maxLength={1024}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void savePassword();
               }}

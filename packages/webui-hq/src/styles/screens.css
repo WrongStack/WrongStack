@@ -480,6 +480,34 @@
   color: var(--dim);
 }
 
+/* Password input with show/hide toggle */
+.hq-password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.hq-password-input-wrapper input {
+  width: 100%;
+  padding-right: 32px;
+}
+.hq-password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hq-password-toggle:hover {
+  color: var(--bright);
+}
+
 /* Small button variant for inline actions */
 .hq-btn.small {
   padding: 4px 8px;

@@ -191,7 +191,7 @@ export async function handleApiLogout(
   );
   if (isCookieAuth(auth)) {
     const cookies = parseCookieHeader(req.headers.cookie);
-    const raw = cookies[HQ_SESSION_COOKIE];
+    const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
     if (raw) {
       const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret ?? '');
       if (sessionId) sessions.delete(sessionId);
@@ -678,7 +678,7 @@ export async function handleApiLoginVerify(
 
   // Extract the pending-2FA session from the cookie.
   const cookies = parseCookieHeader(req.headers.cookie);
-  const raw = cookies[HQ_SESSION_COOKIE];
+  const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
   const sessionId = raw ? parseHqSessionCookie(raw, mutableAuth.cookieSecret) : undefined;
   if (!sessionId) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
