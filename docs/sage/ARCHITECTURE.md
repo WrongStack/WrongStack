@@ -1,5 +1,12 @@
 # @wrongstack/sage — Architecture Reference
 
+> **⚠️ PARTIALLY SUPERSEDED:** This document references JSONL as the canonical
+> storage backend. As of 2026-07, SQLite replaced JSONL as the sole persistent
+> store (`SqliteSageStore` with FTS5 + WAL mode). JSONL is now only a one-shot
+> migration source (`sqlite-store-jsonl-migration.ts`). Sections describing
+> JSONL data flow, file-watching, and atomic-write semantics are historical.
+> Refer to `packages/sage/README.md` for the current architecture.
+
 > **Package:** `@wrongstack/sage`  
 > **Version:** `0.295.0`  
 > **License:** MIT  

@@ -330,6 +330,24 @@ describe('SqliteSageStore', () => {
       );
     });
 
+    it('requires force to delete non-permanent memories (P1-4)', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const mem = await store.rememberSage({
+        text: 'Normal long-lived memory',
+        kind: 'fact',
+      });
+
+      // Without force, the deletion guard rejects ALL deletions, not just permanent.
+      await expect(
+        store.updateSage(mem.id, { status: 'deleted' }),
+      ).rejects.toThrow(/cannot be deleted without explicit authorization/);
+
+      // With force, the deletion succeeds.
+      const deleted = await store.updateSage(mem.id, { status: 'deleted', force: true });
+      expect(deleted.status).toBe('deleted');
+    });
+
     it('throws for a non-existent id', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();

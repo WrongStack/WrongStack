@@ -1,5 +1,12 @@
 # @wrongstack/sage — Refactor & Bug Report
 
+> **⚠️ HISTORICAL:** This refactor report (2026-07-21) documents findings from
+> a manual review of the pre-SQLite codebase. Many issues have since been
+> addressed by the SQLite migration (JSONL→SQLite, 2026-07), Phase 1-5
+> remediation (atomic writes, IPC auth, audience pagination), and the
+> 2026-08-02 correctness review (`docs/sage-memory-report-2026-08-02.md`).
+> Treat this document as historical context, not a current issue list.
+
 > **Analysis Date:** 2026-07-21  
 > **Scope:** `packages/sage/src/` (7,478 lines across 16 modules)  
 > **Method:** Manual code review of every source file  

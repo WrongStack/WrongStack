@@ -42,27 +42,8 @@ export function executeUnifiedSearch(
   // Match clause: build a safe FTS5 MATCH expression from the query text.
   const matchExpr = buildMatchExpr(query);
 
-  // WHERE filters — every conditional clause builds its own parameter.
+  // WHERE filters — built inline in the FTS and non-FTS query paths below.
   const statusPlaceholders = statusFilter.map(() => '?').join(',');
-
-  // Kind filter
-  const kindClauses: string[] = [];
-  const kindParams: SQLInputValue[] = [];
-  if (query.kinds && query.kinds.length > 0) {
-    kindClauses.push(`kind IN (${query.kinds.map(() => '?').join(',')})`);
-    kindParams.push(...query.kinds);
-  }
-
-  // Scope filter
-  const scopeClauses: string[] = [];
-  const scopeParams: SQLInputValue[] = [];
-  if (query.scopes && query.scopes.length > 0) {
-    scopeClauses.push(`scope IN (${query.scopes.map(() => '?').join(',')})`);
-    scopeParams.push(...query.scopes);
-  }
-
-  // Importance filter (applied in the WHERE clause construction below)
-  // No standalone clause needed here — it's added inline.
 
   // ORDER BY clause per ranking mode
   const orderBy = buildOrderBy(ranking, matchExpr !== undefined);

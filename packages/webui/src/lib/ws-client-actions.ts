@@ -184,7 +184,7 @@ const actionMethods = {
   deleteSage(this: WsClientActionHost, id: string, reason?: string) {
     this.send({
       type: 'memory.sage.delete',
-      payload: { id, ...(reason !== undefined ? { reason } : {}) },
+      payload: { id, force: true, ...(reason !== undefined ? { reason } : {}) },
     });
   },
 

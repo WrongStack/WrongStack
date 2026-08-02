@@ -1,5 +1,12 @@
 # SAGE Memory Architecture
 
+> **⚠️ PARTIALLY SUPERSEDED:** This design draft (2026-07-11) describes the
+> original JSONL-based architecture. As of 2026-07, the implementation uses
+> SQLite (`SqliteSageStore`) with FTS5, WAL mode, graph edges, anchor
+> verification, session-scoped ownership (`ownerSessionId`), and unified
+> search with configurable ranking. JSONL is only a migration source. See
+> `packages/sage/README.md` for the current architecture.
+
 Status: design draft
 Date: 2026-07-11
 

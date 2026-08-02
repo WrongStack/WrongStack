@@ -321,7 +321,7 @@ export type WSClientMessageCore =
     }
   | {
       type: 'memory.sage.delete';
-      payload: { id: string; reason?: string | undefined; neverInject?: boolean | undefined };
+      payload: { id: string; force?: boolean | undefined; reason?: string | undefined; neverInject?: boolean | undefined };
     }
   | {
       type: 'memory.sage.recover';

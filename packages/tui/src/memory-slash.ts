@@ -751,7 +751,7 @@ async function handleMemoryWrite(
     try {
       const existing = await Sage.getSage(id);
       if (!existing) return { message: `No memory with id \`${id}\`.` };
-      await Sage.deleteSage(id, reason);
+      await Sage.deleteSage(id, reason, { force: true });
       return { message: `Deleted \`${id}\`.` };
     } catch (err) {
       return { message: `Could not delete: ${memErr(err)}` };

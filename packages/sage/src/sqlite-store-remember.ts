@@ -132,6 +132,7 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         importance: Math.max(existing.importance, importance),
         confidence: Math.max(existing.confidence, confidence),
         freshness: Math.max(existing.freshness, freshness),
+        ...(input.persistence !== undefined ? { persistence: input.persistence } : {}),
         updatedAt: nowIso,
         revision: existing.revision + 1,
         // ownerSessionId is preserved on merge. The strict SQL clause

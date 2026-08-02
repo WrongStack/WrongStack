@@ -336,20 +336,20 @@ describe('memory-handlers', () => {
       expect(sent.payload.success).toBe(false);
     });
 
-    it('deletes with force default true', async () => {
+    it('deletes with force default false', async () => {
       const ws = mockWs();
       const sage = makeSage();
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageDelete(ws, msg({ id: 'mem-1' }), {} as any);
-      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, { force: true, neverInject: false });
+      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, { force: false, neverInject: false });
     });
 
-    it('respects force:false', async () => {
+    it('respects explicit force:true', async () => {
       const ws = mockWs();
       const sage = makeSage();
       mockGetSageSurface.mockReturnValue(sage);
-      await handleSageDelete(ws, msg({ id: 'mem-1', force: false, neverInject: true }), {} as any);
-      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, { force: false, neverInject: true });
+      await handleSageDelete(ws, msg({ id: 'mem-1', force: true, neverInject: true }), {} as any);
+      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, { force: true, neverInject: true });
     });
   });
 

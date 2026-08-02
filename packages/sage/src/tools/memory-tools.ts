@@ -285,7 +285,7 @@ function memoryUpdateTool(
         force: {
           type: 'boolean',
           description:
-            'Override the permanent-memory guard when setting status to "deleted". The override is audit-logged.',
+            'Required to set status to "deleted" — authorizes all deletions, not just permanent memories. The override is audit-logged.',
         },
       },
       ['id'],
