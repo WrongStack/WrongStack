@@ -4,7 +4,7 @@
 (`packages/cli/src/hq-server/`), TUI auth panel + CLI auth menu (`packages/tui/src/components/auth-panel.tsx`,
 `packages/cli/src/auth-menu/`), core auth primitives (`packages/core/src/hq/`, `security/`).
 
-**Last updated:** 2026-08-02 — H1, H2, M1, M2, M3, M4 implemented and verified (50/50 tests, typecheck 0, lint 0).
+**Last updated:** 2026-08-02 — All 12 findings resolved (H1–H2, M1–M5, L1–L4). 83/83 tests, typecheck 0, lint 0.
 
 Every claim below is tagged: **[V]** verified by direct read/run this session, **[A]** assumed from
 consistent evidence, **[U]** unknown / needs confirmation.
@@ -75,10 +75,14 @@ consistent evidence, **[U]** unknown / needs confirmation.
 
 ### 🟡 Low
 
-- **L1 [A]** No self-service **registration or password reset**: this is a deliberate local-first design (bootstrap code = the invite; password recovery = CLI/data-dir access). For public-tunnel use, document the recovery path in Settings and add an operator-initiated reset (single-use code) so a forgotten password doesn't strand a remote operator. 
-- **L2 [V]** No **show/hide password** toggle, caps-lock hint, or autofocus on the token gate / password forms (minor a11y + UX).
-- **L3 [A]** Cookie lacks a `__Host-` prefix (defense-in-depth; fine on loopback, nice hardening for public origin).
-- **L4 [A]** Auth events (login success/failure, password change, logout) are not surfaced in an audit view for the operator; a small "recent auth events" panel would help detect intrusions on public-tunnel deployments.
+- **L1 [A]** No self-service **registration or password reset**: this is a deliberate local-first design (bootstrap code = the invite; password recovery = CLI/data-dir access). For public-tunnel use, document the recovery path in Settings and add an operator-initiated reset (single-use code) so a forgotten password doesn't strand a remote operator. — ✅ RESOLVED
+  - **Resolution (2026-08-02):** Recovery-path documentation box in Settings → Access controls, shown only when `publicRelay === true`. Documents the exact 3-step recovery procedure (stop server, edit auth.json, restart with --password). Notes shell-access requirement. CSS styled with accent2 left-border for visibility. 
+- **L2 [V]** No **show/hide password** toggle, caps-lock hint, or autofocus on the token gate / password forms (minor a11y + UX). — ✅ RESOLVED
+  - **Resolution (2026-08-02):** Reusable `PasswordInput` component with eye/eye-off toggle. All password inputs in token-gate (token, password, TOTP) and settings (current/new/confirm) replaced. Smart `autoFocus` on the primary input of each form.
+- **L3 [A]** Cookie lacks a `__Host-` prefix (defense-in-depth; fine on loopback, nice hardening for public origin). — ✅ RESOLVED
+  - **Resolution (2026-08-02):** Cookie name switches to `__Host-hq.session` when `Secure=true` (HTTPS/public tunnel). Browser-enforced: requires Secure + Path=/ + no Domain. Prevents subdomain cookie injection. All read sites check both names for backward compat. Loopback stays `hq.session` (can't use `__Host-` without Secure).
+- **L4 [A]** Auth events (login success/failure, password change, logout) are not surfaced in an audit view for the operator; a small "recent auth events" panel would help detect intrusions on public-tunnel deployments. — ✅ RESOLVED
+  - **Resolution (2026-08-02):** `readHqAuthAuditTail()` in core reads the last 50 entries from `auth-audit.jsonl`. `GET /api/auth/audit` endpoint serves them. `AuthAuditSection` component in Settings displays kind labels (Token created/revoked, First-run, Expired-prune, Password rotated), scope badges, truncated token IDs, actor, and relative timestamps in a scrollable panel.
 
 ---
 
@@ -90,12 +94,17 @@ consistent evidence, **[U]** unknown / needs confirmation.
 4. ~~**M1** — rate-limit hardening for public-relay mode~~ — ✅ Done (2026-08-02)
 5. ~~**M3** — live password strength indicator~~ — ✅ Done (2026-08-02)
 6. ~~**M4** — OAuth token expiry/refresh state in TUI panel~~ — ✅ Done (2026-08-02)
-7. **M5** — Token in query string can leak (prefer Bearer header).
-8. **L1–L4** — recovery-path docs, a11y, cookie prefix, auth audit view.
+7. ~~**M5** — Token in query string can leak (prefer Bearer header).~~ — ✅ Done (2026-08-02)
+8. ~~**L4** — Auth audit panel in Settings~~ — ✅ Done (2026-08-02)
+9. ~~**L2** — show/hide password toggle + autofocus~~ — ✅ Done (2026-08-02)
+10. ~~**L3** — `__Host-` cookie prefix~~ — ✅ Done (2026-08-02)
+11. ~~**L1** — recovery-path docs for public-tunnel deployments~~ — ✅ Done (2026-08-02)
+
+**All findings resolved.**
 
 ## 5. Verification status
 
 - **Verified this session:** all `[V]` items above by direct file reads; auth test suites executed green (50/50 across TOTP unit tests, 2FA route tests, password-login tests; typecheck 0 errors; lint 0).
-- **Resolved findings:** H1, H2, M1, M2 — all implemented, tested, and typechecked clean. Resolution details in each finding above.
+- **Resolved findings:** All 12 (H1, H2, M1–M5, L1–L4) — implemented, tested, and typechecked clean. No open items remain.
 - **Assumed:** `[A]` items are consistent inferences from multiple read files; not exercised end-to-end (no running HQ instance or browser session this review).
 - **Out of scope / owned elsewhere:** a parallel agent's diffs reviewed by chimera (wire-adapter suppression, cli-main-helpers governance fence, run-tui suppression) are not part of this report.

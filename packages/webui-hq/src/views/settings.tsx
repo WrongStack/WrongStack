@@ -380,6 +380,29 @@ export function SettingsView(): React.ReactElement {
           </div>
           <ShieldOff size={22} />
         </div>
+
+        {status?.publicRelay ? (
+          <div className="hq-security-recovery-info">
+            <strong>Lost your password?</strong>
+            <p>
+              If you forget the HQ password, you can reset it from the machine running{' '}
+              <code>wstack hq</code>:
+            </p>
+            <ol>
+              <li>Stop the HQ server (<code>Ctrl+C</code> or <code>wstack hq stop</code>).</li>
+              <li>
+                Edit <code>~/.wrongstack/hq/auth.json</code> — remove the{' '}
+                <code>passwordHash</code> and <code>cookieSecret</code> fields. Also remove{' '}
+                <code>totpSecret</code> / <code>totpRecoveryCodes</code> if 2FA is enabled.
+              </li>
+              <li>Restart: <code>wstack hq --password &lt;new-password&gt;</code>.</li>
+            </ol>
+            <p>
+              This requires shell access to the host machine. If the machine is also lost, the data
+              dir at <code>~/.wrongstack/hq/</code> contains all credentials.
+            </p>
+          </div>
+        ) : null}
         <div className="hq-security-actions split">
           <button
             type="button"

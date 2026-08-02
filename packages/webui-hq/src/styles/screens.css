@@ -514,6 +514,40 @@
   font-size: 12px;
 }
 
+/* Recovery path info (shown on public relay deployments) */
+.hq-security-recovery-info {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hq-security-recovery-info strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--bright);
+}
+.hq-security-recovery-info p {
+  margin: 4px 0;
+  color: var(--muted);
+}
+.hq-security-recovery-info ol {
+  margin: 6px 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+.hq-security-recovery-info li {
+  margin: 3px 0;
+}
+.hq-security-recovery-info code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent2);
+}
+
 /* Auth audit log */
 .hq-audit-list {
   display: flex;
