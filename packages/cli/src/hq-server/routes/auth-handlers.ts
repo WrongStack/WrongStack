@@ -210,6 +210,37 @@ export async function handleApiPassword(
     return;
   }
 
+  if (localOpenBootstrap) {
+    // WS-049: an unauthenticated loopback caller is claiming a fresh, open
+    // instance by setting its first password.
+    //
+    // What this is NOT: a way in. In open mode the control plane is already
+    // reachable unauthenticated from loopback (`POST /api/command`), so
+    // claiming the password grants no access the caller did not already have.
+    // The cross-origin web path is closed separately — the router's origin
+    // guard runs before this route and a browser always sends `Origin` on a
+    // POST, which must match the request Host.
+    //
+    // What it IS: silent lockout. The operator who never set a password is now
+    // shut out of their own HQ, across restarts, with nothing to tell them why.
+    // A same-user local process cannot be authenticated away by a loopback
+    // server — it can read the data dir and the console — so the honest
+    // mitigation is to make the claim impossible to miss rather than to
+    // pretend it can be prevented.
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'hq.auth.password_claimed_unauthenticated',
+        message:
+          'An unauthenticated loopback request set the HQ password on an open instance. ' +
+          'If this was not you, stop HQ and remove passwordHash from auth.json.',
+        remoteAddress: req.socket.remoteAddress ?? 'unknown',
+        dataDir,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
+
   let body: { currentPassword?: unknown; newPassword?: unknown } = {};
   try {
     body = JSON.parse(await readRequestBody(req)) as typeof body;
