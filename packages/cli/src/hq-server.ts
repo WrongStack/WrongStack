@@ -118,6 +118,16 @@ export interface HqServerOptions {
   secureCookies?: boolean;
   requireBrowserAuth?: boolean;
   /**
+   * Trust `Origin: file://` on the HTTP and WebSocket surfaces, for serving the
+   * HQ dashboard from a local file in air-gapped use. Default false.
+   *
+   * Off by default because the Host check does not contain a `file:` page — it
+   * can aim at the real HQ authority — so trusting it unconditionally let any
+   * locally-opened HTML file clear HQ's only cross-origin control (WS-081).
+   * Enable only when you actually serve the dashboard that way.
+   */
+  allowFileOrigin?: boolean;
+  /**
    * Optional time-to-live (milliseconds) stamped on the first-run browser
    * and client tokens minted on a brand-new HQ data directory. Existing
    * auth.json files are not modified. When set, tokens carry an `expiresAt`
@@ -533,6 +543,7 @@ async function startHqServerWithAuth(
       host,
       listeningPort,
       trustedPublicOrigins,
+      allowFileOrigin: options.allowFileOrigin,
       mutableAuth,
       sessions,
       loginAttempts,
@@ -584,7 +595,15 @@ async function startHqServerWithAuth(
         return;
       }
 
-      if (!hasTrustedBrowserOrigin(req, host, listeningPort, trustedPublicOrigins)) {
+      if (
+        !hasTrustedBrowserOrigin(
+          req,
+          host,
+          listeningPort,
+          trustedPublicOrigins,
+          options.allowFileOrigin,
+        )
+      ) {
         socket.write(
           'HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n' +
             JSON.stringify({

@@ -108,6 +108,8 @@ export interface HqRouterDeps {
   host: string;
   listeningPort: number;
   trustedPublicOrigins: Set<string>;
+  /** Trust `Origin: file://`. Off by default — see StartHqServerOptions (WS-081). */
+  allowFileOrigin?: boolean | undefined;
   mutableAuth: HqRouterMutableAuth;
   sessions: Map<string, HqSessionEntry>;
   loginAttempts: Map<string, { count: number; blockedUntil: number; lastAttempt: number }>;
@@ -150,6 +152,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
     host,
     listeningPort,
     trustedPublicOrigins,
+    allowFileOrigin,
     mutableAuth,
     sessions,
     loginAttempts,
@@ -178,7 +181,15 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       setHqSecurityHeaders(res);
 
       // ── Origin guard (DNS-rebinding / CSRF boundary) ───────────────
-      if (!hasTrustedBrowserOrigin(req, host, listeningPort, trustedPublicOrigins)) {
+      if (
+        !hasTrustedBrowserOrigin(
+          req,
+          host,
+          listeningPort,
+          trustedPublicOrigins,
+          allowFileOrigin,
+        )
+      ) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'forbidden: untrusted request origin' }));
         return;

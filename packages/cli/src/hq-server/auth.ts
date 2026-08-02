@@ -138,6 +138,7 @@ export function hasTrustedBrowserOrigin(
   boundHost?: string,
   boundPort?: number,
   trustedPublicOrigins: ReadonlySet<string> = new Set(),
+  allowFileOrigin = false,
 ): boolean {
   // Host authorization is required even when browsers omit Origin (notably on
   // same-origin GET/HEAD). Otherwise DNS rebinding can still read open-mode HQ
@@ -150,9 +151,19 @@ export function hasTrustedBrowserOrigin(
   if (origin === undefined) return true;
   try {
     const parsed = new URL(origin);
-    // File:// origins (the HQ dashboard served from a local file for
-    // air-gapped use) are also trusted. The request Host was checked above.
-    if (parsed.protocol === 'file:') return true;
+    // `file:` origins support serving the HQ dashboard from a local file for
+    // air-gapped use, but they are OFF unless explicitly enabled (WS-081).
+    //
+    // The Host check above does not contain them: any local HTML file can aim
+    // its requests at the real HQ authority, and Chromium sends a literal
+    // `Origin: file://` on WebSocket handshakes too. So an unconditional trust
+    // here meant any page the user opened from disk cleared the ONLY
+    // cross-origin control on both the HTTP and WS surfaces — and in open mode
+    // /ws/browser needs no token, making that a full telemetry and transcript
+    // read. The session cookie is not reachable this way (SameSite=Lax blocks
+    // it on a cross-site WS), so token and password modes were unaffected;
+    // open mode was not.
+    if (parsed.protocol === 'file:') return allowFileOrigin;
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
 
     const rawRequestHost = req.headers.host?.trim();

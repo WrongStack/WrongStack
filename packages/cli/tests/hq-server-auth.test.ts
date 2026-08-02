@@ -79,4 +79,33 @@ describe('HQ browser origin validation', () => {
       true,
     );
   });
+
+  // WS-081. `file:` was trusted unconditionally, and the Host check above does
+  // not contain it: a page opened from disk can aim at the real HQ authority,
+  // and Chromium sends a literal `Origin: file://` on WebSocket handshakes too.
+  // So any locally-opened HTML file cleared HQ's only cross-origin control on
+  // both surfaces — and /ws/browser needs no token in open mode.
+  describe('file:// origins', () => {
+    const fileReq = () => request('file://', '127.0.0.1:3499');
+
+    it('rejects a file:// origin by default', () => {
+      expect(hasTrustedBrowserOrigin(fileReq(), '127.0.0.1', 3499)).toBe(false);
+    });
+
+    it('rejects it even though the Host header names the real HQ endpoint', () => {
+      // The point of the finding: the Host check cannot distinguish a local
+      // file's request from the dashboard's own.
+      expect(hasTrustedBrowserOrigin(fileReq(), '127.0.0.1', 3499, new Set())).toBe(false);
+    });
+
+    it('accepts it when air-gapped file serving is explicitly enabled', () => {
+      expect(hasTrustedBrowserOrigin(fileReq(), '127.0.0.1', 3499, new Set(), true)).toBe(true);
+    });
+
+    it('still enforces the Host check when file origins are enabled', () => {
+      expect(
+        hasTrustedBrowserOrigin(request('file://', 'attacker.example'), '127.0.0.1', 3499, new Set(), true),
+      ).toBe(false);
+    });
+  });
 });
