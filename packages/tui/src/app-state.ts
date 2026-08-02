@@ -310,8 +310,8 @@ export type State = {
      * (API-level provisioning). Default: true.
      */
     showModelReasoning: boolean;
-    /** Show the persistent AGENT SWARM and todo mission queue panel. Default: true. */
-    showAgentSwarmPanel: boolean;
+    /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off'. Default: 'bottom'. */
+    showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
     /** Show SAGE Memory Inject blocks in tool results. Default: false. */
     showSageMemoryInject: boolean;
     /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
@@ -648,6 +648,10 @@ export type State = {
   connectionsPanelOpen: boolean;
   /** When true, the sessions panel is shown (F10). */
   sessionsPanelOpen: boolean;
+  /** When true, keyboard focus is on the right sidebar (↑↓ scrolls sidebar content). */
+  sidebarFocused: boolean;
+  /** Vertical scroll offset for the sidebar content (in rows). */
+  sidebarScrollOffset: number;
   /** Live session data for the sessions panel (F10). */
   sessionsPanel: {
     sessions: LiveSessionEntry[];

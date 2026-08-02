@@ -69,7 +69,7 @@ describe('settingsPickerJumpByName', () => {
   });
 
   it('resolves the agent swarm panel row by its full name', () => {
-    expect(settingsPickerJumpByName('show-agent-swarm-panel')).toBe(40);
+    expect(settingsPickerJumpByName('agent-swarm-panel')).toBe(40);
   });
 
   it('is case-insensitive', () => {

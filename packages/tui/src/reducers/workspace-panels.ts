@@ -14,6 +14,9 @@ const workspacePanelActionTypes = [
   'toggleCronMonitor',
   'togglePlanPanel',
   'closeAllPanels',
+  'toggleSidebarFocus',
+  'sidebarScroll',
+  'sidebarScrollReset',
   'toggleKanbanPanel',
   'toggleGoalPanel',
   'toggleGoalKanbanPanel',
@@ -105,7 +108,25 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
         : { ...state, planPanelOpen: false };
     }
     case 'closeAllPanels':
-      return { ...state, ...closePanels(state) };
+      return { ...state, ...closePanels(state), sidebarFocused: false };
+    case 'toggleSidebarFocus':
+      // Reset scroll offset when unfocusing so re-focus starts at top.
+      return state.sidebarFocused
+        ? { ...state, sidebarFocused: false, sidebarScrollOffset: 0 }
+        : { ...state, sidebarFocused: true };
+    case 'sidebarScroll':
+      return {
+        ...state,
+        // Conservative clamp: content rarely exceeds ~50 rows at full load.
+        // For short content the user may scroll a few rows past — acceptable
+        // since overflowY="hidden" clips and re-focus resets to 0.
+        sidebarScrollOffset: Math.min(
+          50,
+          Math.max(0, state.sidebarScrollOffset + action.delta),
+        ),
+      };
+    case 'sidebarScrollReset':
+      return { ...state, sidebarScrollOffset: 0 };
     case 'toggleKanbanPanel': {
       const opening = !state.kanbanPanelOpen;
       return opening

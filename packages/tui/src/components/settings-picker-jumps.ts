@@ -31,7 +31,7 @@ export const SETTINGS_PICKER_JUMP_CHORDS: ReadonlyArray<SettingsPickerJumpChord>
   { mod: 'alt-shift', letter: 'b', field: 33, label: 'Stream debug logging' },
   { mod: 'alt-shift', letter: 'g', field: 35, label: 'Config scope' },
   { mod: 'alt', letter: 'n', field: 36, label: 'Animation' },
-  { mod: 'alt', letter: 'p', field: 40, label: 'Show agent swarm panel' },
+  { mod: 'alt', letter: 'p', field: 40, label: 'Agent swarm panel' },
   { mod: 'alt', letter: 'r', field: 41, label: 'Pre-refine countdown' },
   { mod: 'alt-shift', letter: 's', field: 43, label: 'Show SAGE Memory Inject' },
   { mod: 'alt-shift', letter: 't', field: 44, label: 'SAGE Memory Inject threshold' },

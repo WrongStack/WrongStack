@@ -145,7 +145,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     // DEFAULT_STATUSLINE_MODE (packages/tui/src/components/settings-picker-model.ts).
     statuslineMode: 'minimum',
     thinkingWord: DEFAULT_TUI_THINKING_WORD,
-    showAgentSwarmPanel: true,
+    showAgentSwarmPanel: 'bottom',
   },
   circuitBreaker: { ...DEFAULT_CIRCUIT_BREAKER_CONFIG },
   modelRuntime: {

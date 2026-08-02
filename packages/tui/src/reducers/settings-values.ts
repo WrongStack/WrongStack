@@ -475,12 +475,18 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state,
           settingsPicker: { ...sp, showModelReasoning: !sp.showModelReasoning, hint: undefined },
         };
-      // Field 40: show persistent agent swarm panel (boolean toggle)
-      if (f === 40)
+      // Field 40: agent swarm panel placement (enum cycle: bottom → sidebar → off → bottom)
+      if (f === 40) {
+        const SWARM_CYCLE = ['bottom', 'sidebar', 'off'] as const;
+        const current = sp.showAgentSwarmPanel as string;
+        const j = SWARM_CYCLE.indexOf(current as (typeof SWARM_CYCLE)[number]);
+        const base = j < 0 ? 0 : j;
+        const next = SWARM_CYCLE[(base + action.delta + SWARM_CYCLE.length) % SWARM_CYCLE.length] ?? 'bottom';
         return {
           ...state,
-          settingsPicker: { ...sp, showAgentSwarmPanel: !sp.showAgentSwarmPanel, hint: undefined },
+          settingsPicker: { ...sp, showAgentSwarmPanel: next, hint: undefined },
         };
+      }
       // Field 41: pre-refine countdown (cycle presets [0, 2, 3, 5, 8, 10])
       if (f === 41) {
         const j = PRE_REFINE_SECONDS_PRESETS.indexOf(sp.preRefineSeconds);

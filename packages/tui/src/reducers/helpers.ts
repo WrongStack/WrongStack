@@ -20,6 +20,7 @@ type PanelResetState = Pick<
   | 'contextPanelOpen'
   | 'connectionsPanelOpen'
   | 'sessionsPanelOpen'
+  | 'sidebarFocused'
   | 'settingsPicker'
   | 'statuslinePicker'
   | 'pluginPicker'
@@ -54,6 +55,7 @@ export function closePanels(state: State): PanelResetState {
     contextPanelOpen: false,
     connectionsPanelOpen: false,
     sessionsPanelOpen: false,
+    sidebarFocused: false,
     settingsPicker: { ...state.settingsPicker, open: false },
     statuslinePicker: { ...state.statuslinePicker, open: false },
     pluginPicker: { ...state.pluginPicker, open: false },

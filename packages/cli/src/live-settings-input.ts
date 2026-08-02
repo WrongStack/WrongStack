@@ -64,8 +64,9 @@ export interface LiveSettingsInput {
   cacheTtl?: 'default' | '5m' | '1h' | undefined;
   /** Show "Model Reasoning" blocks in chat history. Default: true. */
   showModelReasoning?: boolean | undefined;
-  /** Optionally show the persistent AGENT SWARM and todo mission queue panel; defaults to true at the storage layer. */
-  showAgentSwarmPanel?: boolean | undefined;
+  /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off' (hidden).
+   * Backward-compat: legacy boolean values are coerced by the TUI settings adapter. Default: 'bottom'. */
+  showAgentSwarmPanel?: 'bottom' | 'sidebar' | 'off' | boolean | undefined;
   /** Show SAGE Memory Inject blocks in tool results. Default: false. */
   showSageMemoryInject?: boolean | undefined;
   /**

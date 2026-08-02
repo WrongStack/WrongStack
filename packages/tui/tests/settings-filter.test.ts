@@ -52,7 +52,7 @@ function baseProps(over: Record<string, unknown> = {}) {
     breakerEnabled: false,
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
-    showAgentSwarmPanel: true,
+    showAgentSwarmPanel: 'bottom',
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     filter: '',
@@ -113,14 +113,14 @@ describe('SettingsPicker filter mode', () => {
     });
 
     it('keeps the Display header visible when the last row is selected', () => {
-      const field = settingsPickerJumpByName('Show agent swarm panel');
+      const field = settingsPickerJumpByName('Agent swarm panel');
       expect(field).toBeDefined();
       const { lastFrame } = render(
         React.createElement(SettingsPicker, baseProps({ field })),
       );
       const frame = lastFrame() ?? '';
       expect(frame).toContain('Display');
-      expect(frame).toContain('Show agent swarm panel');
+      expect(frame).toContain('Agent swarm panel');
     });
 
     it('does not show a filter indicator', () => {

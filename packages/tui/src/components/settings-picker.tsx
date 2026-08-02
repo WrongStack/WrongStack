@@ -117,11 +117,11 @@ export interface SettingsPickerProps {
   /** Show the "Model Reasoning" blocks in chat history. Default: true. */
   showModelReasoning: boolean;
   /**
-   * Show the persistent FleetPanel below the status bar, including AGENT SWARM
-   * activity and its todo mission queue. Full-screen agent/queue/goal overlays
-   * remain independently available through their panel shortcuts. Default: true.
+   * Show the Mission Queue section (todo items) in the right sidebar. The
+   * lower-region FleetPanel is always visible when there is fleet activity;
+   * this toggle controls only the sidebar mission queue. Default: 'bottom'.
    */
-  showAgentSwarmPanel: boolean;
+  showAgentSwarmPanel: import('../app-settings-type.js').AgentSwarmPanelMode;
   /** Show SAGE Memory Inject blocks in tool results. Default: false. */
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
@@ -430,9 +430,9 @@ export function SettingsPicker({
       detail: 'Show LLM reasoning blocks in chat history',
     },
     {
-      label: 'Show agent swarm panel',
-      value: boolVal(showAgentSwarmPanel),
-      detail: 'Show persistent agent activity and mission queue',
+      label: 'Agent swarm panel',
+      value: showAgentSwarmPanel,
+      detail: 'bottom = lower region, sidebar = right sidebar, off = hidden',
     },
     {
       label: 'Pre-refine countdown',

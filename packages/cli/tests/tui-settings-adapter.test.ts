@@ -158,7 +158,7 @@ describe('TUI settings adapter', () => {
       reasoningEffort: 'minimal',
       reasoningPreserve: true,
       cacheTtl: '5m',
-      showAgentSwarmPanel: false,
+      showAgentSwarmPanel: 'off',
     });
 
     expect(err).toBeNull();
@@ -172,7 +172,7 @@ describe('TUI settings adapter', () => {
     expect(written.autonomy.enhanceDelayMs).toBe(15_000);
     expect(written.autonomy.enhance).toBe(false);
     expect(written.autonomy.enhanceLanguage).toBe('english');
-    expect(written.autonomy.showAgentSwarmPanel).toBe(false);
+    expect(written.autonomy.showAgentSwarmPanel).toBe('off');
     expect(written.features.tokenSavingMode).toBe('light');
     expect(written.features.allowOutsideProjectRoot).toBe(false);
     expect(written.tools.restrictToProjectRoot).toBe(true);
@@ -206,7 +206,7 @@ describe('TUI settings adapter', () => {
     expect(settings['maxConcurrent']).toBe(25);
     expect(settings['reasoningMode']).toBe('off');
     expect(settings['cacheTtl']).toBe('5m');
-    expect(settings['showAgentSwarmPanel']).toBe(false);
+    expect(settings['showAgentSwarmPanel']).toBe('off');
   });
 
   it('restrictFsToRoot=true alone keeps both fs-access keys consistent', async () => {

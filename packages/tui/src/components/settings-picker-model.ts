@@ -301,7 +301,7 @@ export type SettingsPickerPatch = Partial<{
   breakerEnabled: boolean;
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
-  showAgentSwarmPanel: boolean;
+  showAgentSwarmPanel: import('../app-settings-type.js').AgentSwarmPanelMode;
   readSymbols: boolean;
   showSageMemoryInject: boolean;
   sageMemoryInjectThreshold: number;
@@ -353,7 +353,7 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Circuit breaker', // 37
   'Breaker timeout', // 38
   'Show model reasoning', // 39
-  'Show agent swarm panel', // 40
+  'Agent swarm panel', // 40
   'Pre-refine countdown', // 41
   'Read symbols', // 42
   'Show SAGE Memory Inject', // 43
@@ -405,7 +405,7 @@ export function resolveSettingsFieldValue(
     [33, 'debugStream'],
     [37, 'breakerEnabled'],
     [39, 'showModelReasoning'],
-    [40, 'showAgentSwarmPanel'],
+    // [40, 'showAgentSwarmPanel'] — now an enum, see ENUM_FIELDS below
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
   ]);
@@ -474,6 +474,7 @@ export function resolveSettingsFieldValue(
     [34, 'statuslineMode', STATUSLINE_MODES],
     [35, 'configScope', CONFIG_SCOPES],
     [36, 'animationStyle', ANIMATION_STYLE_CHOICES],
+    [40, 'showAgentSwarmPanel', ['bottom', 'sidebar', 'off']],
   ];
   for (const [f, key, values] of ENUM_FIELDS) {
     if (field !== f) continue;
@@ -629,7 +630,7 @@ export function getSettingsFieldValue(
     [33, 'debugStream'],
     [37, 'breakerEnabled'],
     [39, 'showModelReasoning'],
-    [40, 'showAgentSwarmPanel'],
+    // [40, 'showAgentSwarmPanel'] — now an enum, see ENUM_KEYS below
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
   ];
@@ -654,6 +655,7 @@ export function getSettingsFieldValue(
     [34, 'statuslineMode'],
     [35, 'configScope'],
     [36, 'animationStyle'],
+    [40, 'showAgentSwarmPanel'],
   ];
   for (const [f, key] of ENUM_KEYS) {
     if (field !== f) continue;
@@ -829,7 +831,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   breakerEnabled: false,
   breakerAutoKillResetMs: 60_000,
   showModelReasoning: true,
-  showAgentSwarmPanel: true,
+  showAgentSwarmPanel: 'bottom',
   readSymbols: false,
   showSageMemoryInject: false,
   sageMemoryInjectThreshold: 0.85,

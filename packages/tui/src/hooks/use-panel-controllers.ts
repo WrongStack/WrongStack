@@ -2,6 +2,7 @@ import type { TokenSavingTier } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import React, { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
+import { coerceAgentSwarmMode } from '../app-settings-type.js';
 import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from '../components/settings-picker.js';
@@ -191,7 +192,7 @@ export function usePanelControllers({
       breakerEnabled: s.breakerEnabled ?? false,
       breakerAutoKillResetMs: s.breakerAutoKillResetMs ?? 60_000,
       showModelReasoning: s.showModelReasoning ?? true,
-      showAgentSwarmPanel: s.showAgentSwarmPanel ?? true,
+      showAgentSwarmPanel: coerceAgentSwarmMode(s.showAgentSwarmPanel),
       showSageMemoryInject: s.showSageMemoryInject ?? false,
       sageMemoryInjectThreshold: s.sageMemoryInjectThreshold ?? 0.85,
       readSymbols: s.readSymbols ?? false,

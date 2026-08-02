@@ -231,6 +231,10 @@ export function createAppKeyHandler(
     // we swallow every fragment until the end marker (\x1b[201~ / [201~),
     // then finalize the whole payload at once.
     if (input) {
+      // Unfocus sidebar before processing paste so the buffer receives focus.
+      if (state.sidebarFocused) {
+        dispatch({ type: 'toggleSidebarFocus' });
+      }
       const paste = feedPaste(pasteAccumRef.current, input);
       if (paste) {
         pasteAccumRef.current = paste.accum;
@@ -465,6 +469,39 @@ export function createAppKeyHandler(
     // check it. Also used below in the multi-line input navigation and
     // scroll sections to prevent arrow-key conflicts with overlay internals.
     const overlayOpen = isLowerOverlayOpen(state);
+
+    // ── Sidebar focus + scroll ───────────────────────────────────────
+    // Shift+Tab on an empty draft toggles keyboard focus between the
+    // chat input and the right sidebar. When sidebar-focused, ↑/↓ scroll
+    // the sidebar content. Esc or typing unfocuses automatically.
+    if (
+      key.tab &&
+      key.shift &&
+      draftRef.current.buffer === '' &&
+      !overlayOpen
+    ) {
+      dispatch({ type: 'toggleSidebarFocus' });
+      return;
+    }
+    if (state.sidebarFocused && !overlayOpen) {
+      if (key.upArrow) {
+        dispatch({ type: 'sidebarScroll', delta: -1 });
+        return;
+      }
+      if (key.downArrow) {
+        dispatch({ type: 'sidebarScroll', delta: 1 });
+        return;
+      }
+      if (key.escape) {
+        dispatch({ type: 'toggleSidebarFocus' });
+        return;
+      }
+      if (input) {
+        // Non-empty input unfocuses the sidebar so the keystroke lands
+        // in the chat input buffer (falls through below).
+        dispatch({ type: 'toggleSidebarFocus' });
+      }
+    }
 
     // `?` on an empty prompt opens the keys-&-commands help overlay (lazygit
     // style). With any draft text it types normally, so a literal `?` mid-

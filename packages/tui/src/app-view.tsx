@@ -31,6 +31,9 @@ import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
+import { isPickerOverlayOpen } from './app-ui-state.js';
+import { computeSidebarWidth, RightSidebar } from './components/sidebar.js';
+import { SidebarContent } from './components/sidebar-content.js';
 import { SendModePicker } from './components/send-mode-picker.js';
 import { SettingsPicker } from './components/settings-picker.js';
 import { ShadowPanel } from './components/shadow-panel.js';
@@ -42,7 +45,7 @@ import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { SlashMenu } from './components/slash-menu.js';
 import { StatuslinePicker } from './components/statusline-picker.js';
 import { ToolsPicker } from './components/tools-picker.js';
-import { Box } from './ink.js';
+import { Box, useStdout } from './ink.js';
 import type { SendMode } from './ui-contracts.js';
 
 const CONTINUE_CONFIRM_DELAY_MS = 4000;
@@ -64,6 +67,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     dispatch,
     activity,
     environment,
+    statusbar,
     viewState,
     historyScrollRef,
     onScrollInfo,
@@ -84,10 +88,59 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     setEnhanceCountdown,
     enhanceDelayMs,
     layoutStore,
+    mailbox,
   } = runtime;
   const { nowTick, workingTimeMs, enhanceDots } = activity;
-  const { setYoloLive, autonomyLive } = environment;
+  const { setYoloLive, autonomyLive, liveModel, liveProvider } = environment;
   const { inputHint, composerStatus, composerAnimationStyle, inputHeight, hideInput } = viewState;
+
+  // ── Sidebar layout ──────────────────────────────────────────────────
+  // The chat history area shares its row with a right-hand sidebar. The
+  // sidebar gets a fixed fraction of the terminal width (clamped), and the
+  // main column narrows to the remainder so entry text wraps before the
+  // sidebar boundary.
+  const { stdout } = useStdout();
+  const termCols = stdout?.columns ?? 80;
+  // Hide the sidebar while any overlay/picker/monitor is open so they get
+  // the full terminal width. isPickerOverlayOpen covers pickers/panels/help;
+  // we supplement with the remaining interactive overlays that aren't in it.
+  const overlayOpen =
+    isPickerOverlayOpen(state) ||
+    state.coordinator.monitorOpen ||
+    state.auditPanelOpen ||
+    state.connectionsPanelOpen ||
+    state.helpOpen ||
+    state.agentsMonitorOpen ||
+    state.monitorOpen ||
+    state.contextPanelOpen ||
+    state.processListOpen ||
+    state.todosMonitorOpen ||
+    state.worktreeMonitorOpen ||
+    state.planPanelOpen ||
+    state.kanbanPanelOpen ||
+    state.queuePanelOpen ||
+    state.goalPanelOpen ||
+    state.goalKanbanPanelOpen ||
+    state.cronMonitorOpen ||
+    state.rewindOverlay != null ||
+    state.shellCommandWarning != null ||
+    state.confirmQueue.length > 0 ||
+    state.clearConfirm != null ||
+    state.exitConfirm != null ||
+    state.slashConfirm != null ||
+    state.escConfirm != null ||
+    state.sendModePicker != null ||
+    state.enhance != null ||
+    state.enhanceBusy ||
+    state.refineCountdown != null ||
+    state.refineFailure != null ||
+    state.continueConfirm != null ||
+    state.brainPrompt != null ||
+    mailbox.mailboxPanelOpen ||
+    (state.goalRun?.monitorOpen ?? false) ||
+    (state.sddBoard?.monitorOpen ?? false);
+  const sidebarWidth = overlayOpen ? 0 : computeSidebarWidth(termCols);
+  const mainColumnWidth = termCols - sidebarWidth;
 
   return (
     /* Hard viewport cap. The managed layout aims for exactly termRows
@@ -108,7 +161,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
       overflowY="hidden"
       justifyContent="flex-end"
     >
-      <Box flexDirection="column" flexShrink={0}>
+    <Box flexDirection="row" width={termCols} flexShrink={0} overflowX="hidden">
+      <Box flexDirection="column" flexShrink={0} width={mainColumnWidth} overflowX="hidden">
         <ScrollableHistory
           // Remount on every history-generation bump (e.g. /clear). The managed
           // viewport keeps its scroll position, height-cache buffer, and
@@ -123,6 +177,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
           entries={state.entries}
           toolStream={state.toolStream}
           viewportRows={state.viewportRows}
+          maxWidth={mainColumnWidth}
           controllerRef={historyScrollRef}
           onScrollInfo={onScrollInfo}
           setSuggestions={setSuggestions}
@@ -143,7 +198,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
           copiedEntryId={state.copiedEntryId}
           onRequestOlderEntries={runtime.onRequestOlderEntries}
         />
-        <Box flexDirection="column" flexShrink={0} ref={bottomRegionRef}>
+        <Box flexDirection="column" flexShrink={0} ref={bottomRegionRef} width={mainColumnWidth}>
           {/* NOTE: the LiveActivityStrip is deliberately NOT rendered here yet.
               It sits
               at the bottom edge of a full terminal, so every fleet tool.progress
@@ -174,6 +229,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             animationStyle={composerAnimationStyle}
             hidden={hideInput}
             placeholderHeight={inputHeight}
+            maxWidth={mainColumnWidth}
             disabled={
               (state.status === 'aborting' && !state.steeringPending) ||
               state.confirmQueue.length > 0
@@ -650,9 +706,31 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                 );
               })()
             : null}
-          <AppStatusRegion host={host} runtime={runtime} />
+          <AppStatusRegion host={host} runtime={runtime} mainColumnWidth={mainColumnWidth} />
         </Box>
       </Box>
+      {sidebarWidth > 0 ? (
+        <RightSidebar width={sidebarWidth} maxHeight={runtime.termRows} focused={state.sidebarFocused}>
+          <SidebarContent
+            contextWindow={statusbar.contextWindow}
+            entries={statusbar.entriesWithLeader}
+            fleetCounts={statusbar.fleetCounts}
+            provider={liveProvider}
+            model={liveModel}
+            width={sidebarWidth}
+            scrollOffset={state.sidebarScrollOffset}
+            focused={state.sidebarFocused}
+            todos={liveTodos}
+            showSwarmSection={state.settingsPicker.open
+              ? state.settingsPicker.showAgentSwarmPanel === 'sidebar'
+              : (liveSettings?.showAgentSwarmPanel ?? 'bottom') === 'sidebar'}
+            liveSessions={state.sessionsPanel.sessions}
+            resumeSessions={state.resumePicker.sessions}
+            currentSessionId={agent.ctx.session?.id}
+          />
+        </RightSidebar>
+      ) : null}
+    </Box>
     </Box>
   );
 }

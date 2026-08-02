@@ -6,6 +6,29 @@ import type {
   StatuslineMode,
 } from './settings-contracts.js';
 
+/** Where to render the agent swarm panel: lower region, sidebar, or hidden. */
+export type AgentSwarmPanelMode = 'bottom' | 'sidebar' | 'off';
+
+/**
+ * Coerce a persisted showAgentSwarmPanel value (which may be a legacy boolean
+ * or the new tri-state string) into a valid AgentSwarmPanelMode.
+ * - true / undefined → 'bottom' (default)
+ * - false → 'off'
+ * - Valid string ('bottom' | 'sidebar' | 'off') → returned as-is
+ * - Any other string → 'bottom' (safe fallback)
+ *
+ * This is the single canonical coercion — all read sites should call this
+ * rather than re-implementing the mapping to avoid divergent defaults.
+ */
+export function coerceAgentSwarmMode(
+  v: boolean | AgentSwarmPanelMode | string | undefined,
+): AgentSwarmPanelMode {
+  if (v === true || v === undefined) return 'bottom';
+  if (v === false) return 'off';
+  if (v === 'bottom' || v === 'sidebar' || v === 'off') return v;
+  return 'bottom';
+}
+
 export type Settings = {
   mode: 'off' | 'suggest' | 'auto';
   delayMs: number;
@@ -62,8 +85,10 @@ export type Settings = {
   /** Single word shown in the TUI rainbow working-state chip. */
   thinkingWord: string;
   showModelReasoning: boolean;
-  /** Show the persistent AGENT SWARM and todo mission queue panel. Default: true. */
-  showAgentSwarmPanel: boolean;
+  /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right
+   *  sidebar, vertical), or 'off' (hidden). Default: 'bottom'.
+   *  Backward-compat: old boolean configs are coerced — true→'bottom', false→'off'. */
+  showAgentSwarmPanel: AgentSwarmPanelMode;
   /** Show SAGE Memory Inject blocks in tool results. Default: false (hidden). */
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */

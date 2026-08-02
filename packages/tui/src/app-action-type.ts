@@ -210,7 +210,7 @@ export type Action =
       breakerEnabled: boolean;
       breakerAutoKillResetMs: number;
       showModelReasoning: boolean;
-      showAgentSwarmPanel: boolean;
+      showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
       readSymbols: boolean;
       showSageMemoryInject: boolean;
       sageMemoryInjectThreshold: number;
@@ -571,6 +571,12 @@ export type Action =
   | { type: 'togglePlanPanel' }
   /** Close every open panel/monitor/overlay at once. */
   | { type: 'closeAllPanels' }
+  /** Toggle keyboard focus between input and the right sidebar. */
+  | { type: 'toggleSidebarFocus' }
+  /** Scroll the sidebar content by delta rows (clamped to >=0). */
+  | { type: 'sidebarScroll'; delta: number }
+  /** Reset sidebar scroll offset to 0. */
+  | { type: 'sidebarScrollReset' }
   | { type: 'toggleKanbanPanel' }
   | { type: 'toggleGoalPanel' }
   | { type: 'toggleGoalKanbanPanel' }

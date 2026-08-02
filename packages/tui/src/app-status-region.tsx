@@ -1,5 +1,6 @@
 import { getProcessRegistry } from '@wrongstack/tools';
 import type React from 'react';
+import type { AgentSwarmPanelMode } from './app-settings-type.js';
 import type { AppViewProps } from './app-view-contract.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
 import { ContextPanel } from './components/context-panel.js';
@@ -29,13 +30,18 @@ import { renderRunningTools } from './running-tools.js';
 
 export function resolveAgentSwarmPanelVisibility(
   settingsOpen: boolean,
-  pickerValue: boolean,
-  persistedValue: boolean | undefined,
-): boolean {
-  return settingsOpen ? pickerValue : (persistedValue ?? true);
+  pickerValue: AgentSwarmPanelMode,
+  persistedValue: AgentSwarmPanelMode | undefined,
+): AgentSwarmPanelMode {
+  return settingsOpen ? pickerValue : (persistedValue ?? 'bottom');
 }
 
-export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactElement {
+export interface AppStatusRegionProps extends AppViewProps {
+  /** Optional column width cap for the status bar (when beside a sidebar). */
+  mainColumnWidth?: number | undefined;
+}
+
+export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusRegionProps): React.ReactElement {
   const {
     agent,
     agentTranscripts,
@@ -193,6 +199,7 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
               tokenSavingMode={liveSettings?.featureTokenSaving ?? tokenSavingMode}
               toolCount={liveToolCount}
               sideEffectCount={agent.ctx.sideEffects?.length ?? 0}
+              maxWidth={mainColumnWidth}
             />
           </Box>
           {/* Mailbox panel — toggled via /mailbox slash command */}
@@ -339,11 +346,9 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
                 }
                 currentSessionId={agent.ctx.session?.id}
               />
-            ) : resolveAgentSwarmPanelVisibility(
-                state.settingsPicker.open,
-                state.settingsPicker.showAgentSwarmPanel,
-                liveSettings?.showAgentSwarmPanel,
-              ) && (director || hasVisibleFleetPanel || state.collabSession) ? (
+            ) : (director || hasVisibleFleetPanel || state.collabSession) &&
+              (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off' &&
+              (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'sidebar' ? (
               <FleetPanel
                 entries={entriesWithLeader}
                 totalCost={state.fleetCost}
@@ -351,6 +356,7 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
                 todos={liveTodos}
                 nowTick={nowTick}
                 collabSession={state.collabSession}
+                maxWidth={mainColumnWidth}
               />
             ) : null}
             {state.goalRun && !lowerFunctionPanelOpen ? (

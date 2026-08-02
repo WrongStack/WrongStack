@@ -54,7 +54,7 @@ export type SettingsPickerPatch = Partial<{
   breakerEnabled: boolean;
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
-  showAgentSwarmPanel: boolean;
+  showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
   /**
    * When true, the read tool includes codebase-index symbols alongside
    * file content. Toggle via `/settings read-symbols on|off`.

@@ -1,5 +1,6 @@
 import type { Director } from '@wrongstack/core/coordination';
 import type { Action, State } from './app-reducer.js';
+import { coerceAgentSwarmMode } from './app-settings-type.js';
 import { clearConfirmationKeyResult } from './components/clear-confirm-panel.js';
 import { exitConfirmationDecision } from './components/exit-confirm-panel.js';
 import type { KeyEvent } from './components/input.js';
@@ -304,7 +305,7 @@ export function routeSettingsOverlayKey(
     breakerEnabled: config.breakerEnabled ?? false,
     breakerAutoKillResetMs: config.breakerAutoKillResetMs ?? 60_000,
     showModelReasoning: config.showModelReasoning ?? true,
-    showAgentSwarmPanel: config.showAgentSwarmPanel ?? true,
+    showAgentSwarmPanel: coerceAgentSwarmMode(config.showAgentSwarmPanel),
     showSageMemoryInject: config.showSageMemoryInject ?? false,
     sageMemoryInjectThreshold: config.sageMemoryInjectThreshold ?? 0.85,
     readSymbols: config.readSymbols ?? false,

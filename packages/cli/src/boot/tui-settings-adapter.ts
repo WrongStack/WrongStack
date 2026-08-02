@@ -26,6 +26,19 @@ import {
 } from '../settings-menu.js';
 import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
 
+/**
+ * Coerce a persisted showAgentSwarmPanel value (legacy boolean or tri-state
+ * string) into a valid mode. Mirrors coerceAgentSwarmMode in the TUI package.
+ */
+function coerceAgentSwarmMode(
+  v: boolean | string | undefined | unknown,
+): 'bottom' | 'sidebar' | 'off' {
+  if (v === true || v === undefined) return 'bottom';
+  if (v === false) return 'off';
+  if (typeof v === 'string' && (v === 'bottom' || v === 'sidebar' || v === 'off')) return v;
+  return 'bottom';
+}
+
 export interface SettingsAdapterContext {
   configStore: ConfigStore;
   wpaths: WstackPaths;
@@ -181,7 +194,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       breakerEnabled: cfg.circuitBreaker?.enabled === true,
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
       showModelReasoning: autonomy?.showModelReasoning ?? true,
-      showAgentSwarmPanel: autonomy?.showAgentSwarmPanel ?? true,
+      showAgentSwarmPanel: coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel),
       showSageMemoryInject: autonomy?.showSageMemoryInject ?? false,
       readSymbols: autonomy?.readAdvancedMode ?? false,
       sageMemoryInjectThreshold: (cfg.Sage as Record<string, unknown> | undefined)?.inject

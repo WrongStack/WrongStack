@@ -229,7 +229,7 @@ describe('resolveSettingsFieldValue', () => {
 
     it('all boolean field indices are covered', () => {
       const boolFields = [
-        2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18, 20, 25, 27, 33, 37, 39, 40, 42, 43,
+        2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18, 20, 25, 27, 33, 37, 39, 42, 43,
       ];
       for (const f of boolFields) {
         const r = resolveSettingsFieldValue(f, 'on');
@@ -238,7 +238,7 @@ describe('resolveSettingsFieldValue', () => {
     });
 
     it('all enum field indices are covered', () => {
-      const enumFields = [0, 4, 13, 19, 23, 24, 26, 28, 29, 31, 32, 34, 35, 36];
+      const enumFields = [0, 4, 13, 19, 23, 24, 26, 28, 29, 31, 32, 34, 35, 36, 40];
       for (const f of enumFields) {
         // Use the first value from SETTINGS_FIELD_LABELS to construct a dummy test
         const r = resolveSettingsFieldValue(f, 'invalid_value_xyz');
@@ -303,7 +303,7 @@ describe('getSettingsFieldValue', () => {
     breakerEnabled: false,
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
-    showAgentSwarmPanel: false,
+    showAgentSwarmPanel: 'off',
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     readSymbols: true,
@@ -324,15 +324,6 @@ describe('getSettingsFieldValue', () => {
       expect(r.ok).toBe(true);
       if (r.ok) expect(r.displayValue).toBe('on');
     });
-
-    it('returns the agent swarm panel toggle', () => {
-      const r = getSettingsFieldValue(baseValues, 40);
-      expect(r).toEqual({
-        ok: true,
-        label: 'Show agent swarm panel',
-        displayValue: 'off',
-      });
-    });
   });
 
   describe('enum fields', () => {
@@ -343,6 +334,15 @@ describe('getSettingsFieldValue', () => {
         expect(r.label).toBe('Default autonomy mode');
         expect(r.displayValue).toBe('auto');
       }
+    });
+
+    it('returns the agent swarm panel mode', () => {
+      const r = getSettingsFieldValue(baseValues, 40);
+      expect(r).toEqual({
+        ok: true,
+        label: 'Agent swarm panel',
+        displayValue: 'off',
+      });
     });
 
     it('returns reasoning effort', () => {
@@ -463,7 +463,7 @@ describe('formatAllSettingsSummary', () => {
     breakerEnabled: false,
     breakerAutoKillResetMs: 60_000,
     showModelReasoning: true,
-    showAgentSwarmPanel: true,
+    showAgentSwarmPanel: 'bottom',
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     readSymbols: false,
@@ -528,13 +528,13 @@ describe('resetSettingsFieldValue', () => {
     }
   });
 
-  it('resets the agent swarm panel field to visible', () => {
+  it('resets the sidebar mission queue field to visible', () => {
     const r = resetSettingsFieldValue(40);
     expect(r).toEqual({
       ok: true,
-      patch: { showAgentSwarmPanel: true },
-      label: 'Show agent swarm panel',
-      displayValue: 'on',
+      patch: { showAgentSwarmPanel: 'bottom' },
+      label: 'Agent swarm panel',
+      displayValue: 'bottom',
     });
   });
 
