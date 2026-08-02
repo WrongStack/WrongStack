@@ -16,6 +16,7 @@ import {
   resolveHqToken,
   scrubTokenFromUrl,
   setHqToken,
+  upgradeStoredTokenToCookie,
 } from '../src/lib/auth.js';
 
 function setUrl(pathAndQuery: string): void {
@@ -224,5 +225,79 @@ describe('error-path catch blocks', () => {
     } finally {
       Object.defineProperty(window, 'sessionStorage', origDescriptor);
     }
+  });
+});
+
+describe('upgradeStoredTokenToCookie (WS-065)', () => {
+  /** A fetch stub that records the request and replies with `body`. */
+  function stubFetch(
+    reply: { ok: boolean; body?: unknown } | Error,
+  ): { calls: Array<[string, RequestInit | undefined]> } {
+    const calls: Array<[string, RequestInit | undefined]> = [];
+    vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
+      calls.push([input, init]);
+      if (reply instanceof Error) return Promise.reject(reply);
+      return Promise.resolve({
+        ok: reply.ok,
+        json: () => Promise.resolve(reply.body ?? {}),
+      } as unknown as Response);
+    });
+    return { calls };
+  }
+
+  it('does not call the server when nothing is stored', async () => {
+    const { calls } = stubFetch({ ok: true, body: { loggedIn: true } });
+    await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('sends the stored token as Bearer and clears storage on success', async () => {
+    setHqToken('tok-legacy');
+    const { calls } = stubFetch({ ok: true, body: { loggedIn: true, upgraded: true } });
+
+    await expect(upgradeStoredTokenToCookie()).resolves.toBe(true);
+
+    expect(calls[0]?.[0]).toBe('/api/auth/upgrade');
+    expect(calls[0]?.[1]?.method).toBe('POST');
+    const headers = calls[0]?.[1]?.headers as Record<string, string> | undefined;
+    expect(headers?.Authorization).toBe('Bearer tok-legacy');
+    // Cookie must be accepted from the response, so the request has to opt in.
+    expect(calls[0]?.[1]?.credentials).toBe('same-origin');
+    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBeNull();
+  });
+
+  it('KEEPS the stored token when the server rejects', async () => {
+    // The stored token is the user's only credential on the legacy paths.
+    // Clearing it without a confirmed cookie locks them out of the dashboard —
+    // strictly worse than the exposure this change removes.
+    setHqToken('tok-legacy');
+    stubFetch({ ok: false });
+    await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
+    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
+  });
+
+  it('KEEPS the stored token when the server is too old to know the route', async () => {
+    // A 404 arrives as ok:false, but pin the 200-with-wrong-body case too:
+    // an SPA served by an older HQ could get an HTML fallback parsed as JSON.
+    setHqToken('tok-legacy');
+    stubFetch({ ok: true, body: { notWhatWeExpect: true } });
+    await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
+    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
+  });
+
+  it('KEEPS the stored token when the request throws', async () => {
+    setHqToken('tok-legacy');
+    stubFetch(new Error('network down'));
+    await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
+    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
+  });
+
+  it('leaves nothing for resolveHqToken to find after a successful upgrade', () => {
+    // The end state the finding asks for: no readable credential on the origin.
+    setHqToken('tok-legacy');
+    clearHqToken();
+    setUrl('/');
+    expect(resolveHqToken()).toBeNull();
+    expect(authHeaders()).toEqual({});
   });
 });

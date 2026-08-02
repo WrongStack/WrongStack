@@ -34,6 +34,7 @@ import {
   handleApiLogin,
   handleApiLogout,
   handleApiPassword,
+  handleApiTokenUpgrade,
 } from './routes/auth-handlers.js';
 import {
   handleApiAlerts,
@@ -252,6 +253,13 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
             }),
           );
         }
+        return;
+      }
+
+      // WS-065: deliberately NOT in the gate's exemption list above — the gate
+      // authenticating the Bearer token is exactly the proof this route needs.
+      if (url.pathname === '/api/auth/upgrade' && req.method === 'POST') {
+        await handleApiTokenUpgrade(req, res, url, mutableAuth, sessions, secureCookies);
         return;
       }
 

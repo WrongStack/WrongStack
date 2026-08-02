@@ -9,6 +9,15 @@
  * Legacy fallback: `?token=` URLs and sessionStorage remain supported for
  * backward compatibility with older startup URLs and manual token entry.
  * HTTP requests attach the token as `Authorization: Bearer`.
+ *
+ * WS-065: those legacy paths left the raw token in `sessionStorage`, readable
+ * by any script on the origin. They can't simply be deleted — an old `?token=`
+ * URL and manual token entry are the only credential those users have, and
+ * dropping storage would break reload survival for them. Instead
+ * `upgradeStoredTokenToCookie` finishes the migration at runtime: authenticate
+ * once with the stored token, take the HttpOnly cookie, delete the copy. Only
+ * on a confirmed upgrade — a failed exchange leaves storage untouched, because
+ * a token the user cannot recover is worse than one a script could read.
  */
 
 const STORAGE_KEY = 'wrongstack.hq.token.v1';
@@ -179,6 +188,40 @@ export async function exchangeBootstrapIfNeeded(): Promise<boolean> {
       return true;
     }
     return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * WS-065 — trade a stored browser token for an HttpOnly session cookie and
+ * delete the stored copy.
+ *
+ * Returns true when storage no longer holds a token *because* the exchange
+ * succeeded. Every other outcome — nothing stored, server too old to know the
+ * route, network failure, a token with no server-side record — returns false
+ * and leaves storage exactly as it was. That asymmetry is the whole safety
+ * argument: the only way to lose the fallback credential is to have provably
+ * gained the stronger one.
+ *
+ * A cookie-authenticated caller gets `upgraded: false` from the server and no
+ * new session, but the stored token is still cleared here — the cookie already
+ * covers every request, so the copy is pure exposure.
+ */
+export async function upgradeStoredTokenToCookie(): Promise<boolean> {
+  if (readStoredToken() === null) return false;
+  try {
+    const res = await fetch('/api/auth/upgrade', {
+      method: 'POST',
+      headers: authHeaders(),
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { loggedIn?: unknown };
+    if (body.loggedIn !== true) return false;
+    clearHqToken();
+    return true;
   } catch {
     return false;
   }

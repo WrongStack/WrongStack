@@ -13,7 +13,11 @@ import {
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HqApp } from './app.js';
-import { exchangeBootstrapIfNeeded, scrubTokenFromUrl } from './lib/auth.js';
+import {
+  exchangeBootstrapIfNeeded,
+  scrubTokenFromUrl,
+  upgradeStoredTokenToCookie,
+} from './lib/auth.js';
 import { getHqClient } from './lib/hq-ws-client.js';
 import { fetchJson, useHqStore } from './store.js';
 
@@ -25,6 +29,14 @@ if (container !== null) {
   // all subsequent HTTP and WebSocket requests.
   void exchangeBootstrapIfNeeded().finally(() => {
     scrubTokenFromUrl();
+
+    // WS-065: legacy `?token=` URLs and manual token entry leave the raw token
+    // in sessionStorage. Trade it for the HttpOnly cookie and delete the copy.
+    // Deliberately not awaited — it must not delay first paint, and both
+    // orderings are correct: a WS URL built before the swap still carries a
+    // valid token, one built after rides the cookie. A no-op after a successful
+    // bootstrap exchange, which already cleared storage.
+    void upgradeStoredTokenToCookie();
 
     const client = getHqClient({
       resumeCursor: () => useHqStore.getState().resumeCursors,

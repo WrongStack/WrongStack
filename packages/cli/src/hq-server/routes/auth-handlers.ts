@@ -466,3 +466,102 @@ export async function handleApiBootstrap(
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ loggedIn: true }));
 }
+
+/**
+ * WS-065 — exchange a live browser token for an HttpOnly session cookie.
+ *
+ * The bootstrap flow above already gives fresh startup URLs a cookie and never
+ * persists a client-side credential. What it does not cover is the *legacy*
+ * paths: an older `?token=` startup URL, and manual token entry in the token
+ * gate. Both leave the raw token in `sessionStorage`, where any script on the
+ * origin can read it. This endpoint lets the SPA complete that migration on
+ * its own — authenticate once with the token it already holds, receive a
+ * cookie, and delete the stored copy.
+ *
+ * The minted session is exactly the one `handleApiBootstrap` mints: `kind:
+ * 'token'` carrying the source token's id. That matters because
+ * `authenticateBrowserRequest` re-resolves a token-origin session's
+ * capabilities from the LIVE token record on every request, so upgrading
+ * grants nothing the token did not already grant and dies the moment the token
+ * is revoked. No privilege boundary is crossed: the caller proved possession
+ * of the token, and the cookie is strictly weaker (HttpOnly, same-origin,
+ * server-expiring).
+ */
+export async function handleApiTokenUpgrade(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  url: URL,
+  mutableAuth: HqRouterMutableAuth,
+  sessions: Map<string, HqSessionEntry>,
+  secureCookies: boolean | undefined,
+): Promise<void> {
+  if (!mutableAuth.cookieSecret) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'UPGRADE_UNAVAILABLE',
+          message: 'Cookie signing is not configured on this HQ server.',
+        },
+      }),
+    );
+    return;
+  }
+
+  const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
+
+  // Already on a cookie — report success WITHOUT minting a second session.
+  // The client calls this on every load until it succeeds, so a mint-per-call
+  // would grow the session table for the lifetime of the tab.
+  if (isCookieAuth(auth)) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ loggedIn: true, upgraded: false }));
+    return;
+  }
+
+  if (!isTokenAuth(auth)) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: { code: 'UNAUTHORIZED', message: 'A valid browser token is required.' },
+      }),
+    );
+    return;
+  }
+
+  // `authenticateBrowserRequest` falls back to `id: 'unknown'` when the matched
+  // token has no record in `browserTokenObjs`. Minting a session for that id
+  // would produce a cookie that authenticates ONCE and is then evicted, because
+  // the cookie path resolves capabilities by looking the id back up and deletes
+  // the session when it finds nothing. The client clears its stored token on
+  // success, so handing back a doomed cookie would lock the user out. Refuse,
+  // and let the client keep what it has.
+  const tokenLive = [...mutableAuth.browserTokenObjs.values()].some((obj) => obj.id === auth.id);
+  if (!tokenLive) {
+    res.writeHead(409, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'TOKEN_NOT_UPGRADEABLE',
+          message: 'This token has no server-side record to bind a session to.',
+        },
+      }),
+    );
+    return;
+  }
+
+  const sessionId = randomUUID();
+  sessions.set(sessionId, {
+    createdAt: Date.now(),
+    kind: 'token',
+    tokenId: auth.id,
+    ...(auth.capabilities !== undefined ? { capabilities: auth.capabilities } : {}),
+  });
+  setHqSessionCookie(
+    res,
+    serializeHqSessionCookie(sessionId, mutableAuth.cookieSecret),
+    secureCookies,
+  );
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ loggedIn: true, upgraded: true }));
+}
