@@ -47,8 +47,17 @@ describe('gitTool buildArgs (mocked spawn, real .git)', () => {
   it('builds branch args and rejects flag-injection names', async () => {
     await run({ command: 'branch', branch: 'feature-x' });
     expect(capturedArgs).toEqual(['branch', 'feature-x']);
-    await run({ command: 'branch', branch: '-D evil' });
-    expect(capturedArgs).toEqual(['branch']); // dash-prefixed name dropped
+
+    // WS-090: a dash-prefixed branch used to be silently DROPPED, which turned
+    // `branch -D evil` into a plain `git branch` listing — the caller was told
+    // nothing and got a different command than it asked for. It is now
+    // rejected before spawn, so no git process runs at all.
+    capturedArgs = [];
+    const rejected = await run({ command: 'branch', branch: '-D evil' });
+    expect(capturedArgs).toEqual([]);
+    expect(rejected.exitCode).toBe(1);
+    expect(rejected.stderr).toMatch(/unsafe branch/);
+
     await run({ command: 'branch' });
     expect(capturedArgs).toEqual(['branch']);
   });

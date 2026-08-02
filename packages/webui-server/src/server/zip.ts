@@ -87,10 +87,26 @@ export function readZipEntries(archive: Uint8Array): Map<string, Buffer> {
     const dataStart = nameStart + nameLength + extraLength;
     const dataEnd = dataStart + compressedSize;
     if (dataEnd > buffer.length) throw new Error('Truncated ZIP entry.');
-    const name = buffer.subarray(nameStart, nameStart + nameLength).toString('utf8');
-    if (!isSafeZipPath(name)) throw new Error(`Unsafe ZIP entry path: ${name}`);
+    const rawName = buffer.subarray(nameStart, nameStart + nameLength).toString('utf8');
+    // Normalise BEFORE the safety check, exactly as the write path does via
+    // normalizeZipPath. Checking the raw name let `..\..\evil.txt` through:
+    // isSafeZipPath splits on '/' only, so a backslash-separated traversal is
+    // one opaque segment that never equals '..'. Windows resolves it as a
+    // traversal all the same (WS-092).
+    const name = normalizeZipPath(rawName);
     const compressed = buffer.subarray(dataStart, dataEnd);
-    const data = method === 0 ? Buffer.from(compressed) : method === 8 ? inflateRawSync(compressed) : undefined;
+    // Bound the inflate itself. The size and ratio checks above read
+    // `expectedSize`/`compressedSize` from the entry header — attacker-declared
+    // values — so a lying header sailed past them and inflateRawSync then
+    // expanded without limit. maxOutputLength makes zlib stop allocating; the
+    // declared-size mismatch below still catches the lie afterwards.
+    const inflateLimit = Math.min(expectedSize, maxEntryBytes) + 1;
+    const data =
+      method === 0
+        ? Buffer.from(compressed)
+        : method === 8
+          ? inflateRawSync(compressed, { maxOutputLength: inflateLimit })
+          : undefined;
     if (!data) throw new Error(`Unsupported ZIP compression method: ${method}`);
     if (data.length !== expectedSize) throw new Error(`ZIP size mismatch for ${name}`);
     if (crc32(data) !== buffer.readUInt32LE(offset + 14)) throw new Error(`ZIP CRC mismatch for ${name}`);

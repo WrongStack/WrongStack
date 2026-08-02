@@ -265,6 +265,63 @@ describe('zip', () => {
       expect(() => readZipEntries(archive)).toThrow('Unsafe ZIP entry path');
     });
 
+    // WS-092. The read path checked the RAW entry name while the write path
+    // normalised backslashes first via normalizeZipPath. isSafeZipPath splits
+    // on '/' only, so `..\..\evil.txt` is one opaque segment that never equals
+    // '..' — it passed, and Windows resolves it as a traversal all the same.
+    it.each([
+      ['..\\escape.txt'],
+      ['..\\..\\Windows\\System32\\evil.dll'],
+      ['sub\\..\\..\\escape.txt'],
+    ])('throws on backslash traversal %s', (entryName) => {
+      const name = Buffer.from(entryName, 'utf8');
+      const payload = Buffer.from('test', 'utf8');
+      const data = zlib.deflateRawSync(payload);
+      const crc = crc32Manual(payload);
+
+      const header = Buffer.alloc(30);
+      header.writeUInt32LE(0x04034b50, 0);
+      header.writeUInt16LE(20, 4);
+      header.writeUInt16LE(0, 6);
+      header.writeUInt16LE(8, 8);
+      header.writeUInt16LE(0, 10);
+      header.writeUInt16LE(0, 12);
+      header.writeUInt32LE(crc, 14);
+      header.writeUInt32LE(data.length, 18);
+      header.writeUInt32LE(payload.length, 22);
+      header.writeUInt16LE(name.length, 26);
+
+      const archive = Buffer.concat([header, name, data]);
+      expect(() => readZipEntries(archive)).toThrow('Unsafe ZIP entry path');
+    });
+
+    it('bounds the inflate when the header understates the real size', () => {
+      // The size and ratio guards read the entry header, which the archive
+      // author controls. A header claiming a small size used to let an
+      // unbounded inflateRawSync run anyway; maxOutputLength stops the
+      // allocation before the declared-size mismatch is even reached.
+      const payload = Buffer.alloc(4 * 1024 * 1024, 0x41); // compresses tiny
+      const data = zlib.deflateRawSync(payload);
+      const name = Buffer.from('bomb.txt', 'utf8');
+
+      const header = Buffer.alloc(30);
+      header.writeUInt32LE(0x04034b50, 0);
+      header.writeUInt16LE(20, 4);
+      header.writeUInt16LE(0, 6);
+      header.writeUInt16LE(8, 8);
+      header.writeUInt16LE(0, 10);
+      header.writeUInt16LE(0, 12);
+      header.writeUInt32LE(crc32Manual(payload), 14);
+      header.writeUInt32LE(data.length, 18);
+      header.writeUInt32LE(16, 22); // lie: claim 16 bytes uncompressed
+      header.writeUInt16LE(name.length, 26);
+
+      const archive = Buffer.concat([header, name, data]);
+      // Either zlib refuses to exceed maxOutputLength, or the size check
+      // catches the lie — both are a rejection, neither expands unbounded.
+      expect(() => readZipEntries(archive)).toThrow();
+    });
+
     it('throws when ZIP has too many entries', () => {
       // We need to create an archive with 1001 entries
       // Instead, test the limit by creating entries that exceed maxEntries

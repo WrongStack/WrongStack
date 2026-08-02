@@ -159,8 +159,18 @@ export const gitTool: Tool<GitInput, GitOutput> = {
       };
     }
 
-    // Validate worktree paths/branches before touching the filesystem: reject
-    // flag injection and any path that escapes the project root.
+    // A flag-shaped `branch` is rejected for EVERY command, not just worktree.
+    // The leading-dash check used to live inside validateWorktreeInput, so
+    // `fetch` — which passes input.branch as a bare positional — accepted
+    // `--upload-pack=<prog>` and handed git a program to execute. `exec.ts`
+    // already denylists exactly those flags for the `git` binary; the git tool
+    // did not reuse it. Checked centrally so the next command that forwards a
+    // branch cannot reintroduce the gap (WS-090).
+    const branchGuard = validateBranchInput(input);
+    if (branchGuard) return branchGuard;
+
+    // Validate worktree paths before touching the filesystem: reject any path
+    // that escapes the project root.
     if (input.command === 'worktree') {
       const guard = validateWorktreeInput(input, ctx.projectRoot);
       if (guard) return guard;
@@ -237,6 +247,28 @@ export const gitTool: Tool<GitInput, GitOutput> = {
  * Reject worktree inputs that could inject git flags or escape the project
  * root. Returns a `GitOutput` describing the rejection, or `null` if safe.
  */
+/**
+ * Reject a `branch` that git would parse as an option, for every command.
+ *
+ * `git fetch --upload-pack=<prog>` (and `--exec=`, `--receive-pack=`) makes git
+ * run an arbitrary program, so a branch name is a code-execution sink wherever
+ * it reaches git as a bare positional. `' --'` is caught too: a value like
+ * `main --upload-pack=x` splits into extra argv entries in any path that later
+ * word-splits the branch.
+ */
+function validateBranchInput(input: GitInput): GitOutput | null {
+  const branch = input.branch;
+  if (branch === undefined) return null;
+  if (!branch.startsWith('-') && !branch.includes(' --')) return null;
+  return {
+    command: input.command,
+    stdout: '',
+    stderr: `unsafe branch name (parsed as a git option): ${branch}`,
+    exitCode: 1,
+    truncated: false,
+  };
+}
+
 function validateWorktreeInput(input: GitInput, projectRoot: string): GitOutput | null {
   const reject = (stderr: string): GitOutput => ({
     command: 'worktree',
@@ -246,8 +278,8 @@ function validateWorktreeInput(input: GitInput, projectRoot: string): GitOutput 
     truncated: false,
   });
 
-  // Flag injection: a leading '-' would be parsed as a git option.
-  if (input.branch?.startsWith('-')) return reject(`unsafe branch name: ${input.branch}`);
+  // Flag injection on the path. Branch names are handled centrally by
+  // validateBranchInput before this runs (WS-090).
   if (input.worktreePath?.startsWith('-')) {
     return reject(`unsafe worktree path: ${input.worktreePath}`);
   }

@@ -26,6 +26,7 @@ export async function planLanguageOperation(
   options: PlanLanguageOptions,
 ): Promise<PlanLanguageResult> {
   validateOperationOptions(options.operation, options.operationOptions?.packages);
+  validateFilterOption(options.operationOptions?.filter);
   const detection = await detectLanguageWorkspaces(options);
   const candidates = detection.workspaces.filter((workspace) =>
     workspace.capabilities.includes(options.operation),
@@ -251,6 +252,29 @@ function compareCandidates(a: DetectedWorkspace, b: DetectedWorkspace): number {
 function workspaceDepth(workspaceRoot: string, projectRoot: string): number {
   const relative = path.relative(path.resolve(projectRoot), path.resolve(workspaceRoot));
   return relative === '' ? 0 : relative.split(path.sep).length;
+}
+
+/**
+ * Reject a test filter that a runner would parse as an option.
+ *
+ * `filter` is model-supplied. Most profiles pass it behind a flag (`-run`,
+ * `--filter`), which contains it, but the Rust profile passes it as a bare
+ * positional: `cargo test <filter>`. `validateCommandPlan` never rejected
+ * leading dashes — it cannot, since profile-authored args legitimately start
+ * with one — so `--config target.…runner=[…]` reached cargo and chose the
+ * program used to run the test binary (WS-091).
+ *
+ * Checked at the source rather than per profile, so a profile that starts
+ * forwarding `filter` positionally cannot reopen this.
+ */
+function validateFilterOption(filter: string | undefined): void {
+  if (filter === undefined) return;
+  if (filter.startsWith('-') || filter.includes(' --')) {
+    throw new Error(`Invalid test filter (parsed as a runner option): "${filter}"`);
+  }
+  if (filter.length > MAX_ARGUMENT_LENGTH || /[\r\n\0]/.test(filter)) {
+    throw new Error('Invalid test filter (oversized or contains a control character)');
+  }
 }
 
 function validateOperationOptions(

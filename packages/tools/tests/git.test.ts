@@ -476,6 +476,44 @@ describe('gitTool worktree hardening', () => {
     }
   });
 
+  // WS-090. The leading-dash check lived inside validateWorktreeInput, so it
+  // only ran for `command: 'worktree'`. `fetch` passes input.branch as a bare
+  // positional, and `git fetch --upload-pack=<prog>` makes git execute that
+  // program — a code-execution sink reachable from model-supplied input.
+  it.each([
+    ['--upload-pack=/tmp/evil'],
+    ['--exec=/tmp/evil'],
+    ['--receive-pack=/tmp/evil'],
+    ['main --upload-pack=/tmp/evil'],
+  ])('rejects flag-injection branch %s on fetch', async (branch) => {
+    const base = await fs.mkdtemp(path.join(os.tmpdir(), 'git-fetch-flag-'));
+    try {
+      const ctx = { cwd: base, tools: [], projectRoot: base } as any;
+      const result = await gitTool.execute({ command: 'fetch', branch }, ctx, makeOpts());
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/unsafe branch/);
+    } finally {
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it('still accepts an ordinary branch name on fetch', async () => {
+    const base = await fs.mkdtemp(path.join(os.tmpdir(), 'git-fetch-ok-'));
+    try {
+      const ctx = { cwd: base, tools: [], projectRoot: base } as any;
+      const result = await gitTool.execute(
+        { command: 'fetch', branch: 'feature/my-branch' },
+        ctx,
+        makeOpts(),
+      );
+      // Not a git repo, so this fails downstream — the point is that it is NOT
+      // rejected by the branch guard.
+      expect(result.stderr).not.toMatch(/unsafe branch/);
+    } finally {
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  });
+
   it('rejects flag-injection worktree paths', async () => {
     const base = await fs.mkdtemp(path.join(os.tmpdir(), 'wt-flagp-'));
     try {
