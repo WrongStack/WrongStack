@@ -2,7 +2,7 @@ import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   DefaultSecretVault,
   decryptConfigSecrets,
@@ -11,66 +11,86 @@ import {
   rotateConfigKeys,
 } from '../../src/security/secret-vault.js';
 
+// Every vault and temp dir created here is tracked so afterEach can drain
+// pending key-file hardening promises BEFORE the temp dirs are removed.
+// `scheduleKeyHardening()` shells out to `icacls` on Windows; if a hardening
+// is still in flight when fs.rm deletes the key file, it fails and its
+// console.warn fallback fires during environment teardown — vitest then
+// reports an unhandled "Closing rpc while onUserConsoleLog was pending"
+// EnvironmentTeardownError. Flushing inside the hook keeps every async
+// warning inside the window where the environment is still open.
+const activeVaults: DefaultSecretVault[] = [];
+const tmpDirs: string[] = [];
+
+function trackVault(vault: DefaultSecretVault): DefaultSecretVault {
+  activeVaults.push(vault);
+  return vault;
+}
+
 async function makeVault() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-vault-'));
+  tmpDirs.push(dir);
   const keyFile = path.join(dir, '.key');
-  return { dir, keyFile, vault: new DefaultSecretVault({ keyFile }) };
+  return { dir, keyFile, vault: trackVault(new DefaultSecretVault({ keyFile })) };
 }
+
+afterEach(async () => {
+  await Promise.allSettled(
+    activeVaults.splice(0, activeVaults.length).map((v) => v.flushHardening()),
+  );
+  for (const dir of tmpDirs.splice(0, tmpDirs.length)) {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
 
 describe('DefaultSecretVault', () => {
   it('encrypt/decrypt round-trip with auto-generated key', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const enc = vault.encrypt('sk-test-1234');
     expect(enc.startsWith('enc:v1:')).toBe(true);
     expect(enc).not.toContain('sk-test-1234');
     expect(vault.decrypt(enc)).toBe('sk-test-1234');
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('passes plaintext through unchanged on decrypt', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     expect(vault.decrypt('plain-key')).toBe('plain-key');
     expect(vault.isEncrypted('plain-key')).toBe(false);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('does not re-encrypt an already-encrypted value', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const enc = vault.encrypt('secret');
     const enc2 = vault.encrypt(enc);
     expect(enc2).toBe(enc);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('different IVs produce different ciphertexts for the same plaintext', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const a = vault.encrypt('same');
     const b = vault.encrypt('same');
     expect(a).not.toBe(b);
     expect(vault.decrypt(a)).toBe('same');
     expect(vault.decrypt(b)).toBe('same');
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rejects malformed encrypted values', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     expect(() => vault.decrypt('enc:v1:bad')).toThrow(/malformed/);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('creates key file with restrictive mode (best-effort)', async () => {
-    const { dir, keyFile, vault } = await makeVault();
+    const { keyFile, vault } = await makeVault();
     vault.encrypt('x');
     const stat = fsSync.statSync(keyFile);
     expect(stat.size).toBe(32);
     if (process.platform !== 'win32') {
       expect(stat.mode & 0o777).toBe(0o600);
     }
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('decryptConfigSecrets walks nested apiKey fields', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const cfg = {
       apiKey: vault.encrypt('top'),
       providers: {
@@ -85,21 +105,19 @@ describe('DefaultSecretVault', () => {
     expect(dec.providers.b.apiKey).toBe('plain');
     expect(dec.providers.b.baseUrl).toBe('http://x');
     expect(dec.mcpServers.s.authToken).toBe('mcp');
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('throws when key file has wrong size instead of silently overwriting', async () => {
-    const { dir, keyFile, vault: _vault } = await makeVault();
+    const { keyFile, vault: _vault } = await makeVault();
     // Write a key that is the wrong size (16 bytes instead of 32).
     fsSync.writeFileSync(keyFile, Buffer.alloc(16));
-    const vault = new DefaultSecretVault({ keyFile });
+    const vault = trackVault(new DefaultSecretVault({ keyFile }));
     expect(() => vault.encrypt('anything')).toThrow(/is 16 bytes/);
     expect(() => vault.encrypt('anything')).toThrow(/expected 32/);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('encryptConfigSecrets covers refreshToken / sessionKey / password / private_key (suffix matching)', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const enc = encryptConfigSecrets(
       {
         refreshToken: 'r-1',
@@ -122,18 +140,16 @@ describe('DefaultSecretVault', () => {
     // publicKey is on the override list — must NOT be encrypted.
     expect(enc.publicKey).toBe('pub-not-secret');
     expect(enc.baseUrl).toBe('http://x');
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('encryptConfigSecrets idempotent on already-encrypted values', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const enc1 = encryptConfigSecrets({ providers: { a: { apiKey: 'plain' } } }, vault) as {
       providers: { a: { apiKey: string } };
     };
     expect(enc1.providers.a.apiKey.startsWith('enc:v1:')).toBe(true);
     const enc2 = encryptConfigSecrets(enc1, vault) as typeof enc1;
     expect(enc2.providers.a.apiKey).toBe(enc1.providers.a.apiKey);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('migratePlaintextSecrets encrypts plaintext apiKey fields in place', async () => {
@@ -173,7 +189,6 @@ describe('DefaultSecretVault', () => {
     expect(vault.decrypt(after.apiKey)).toBe('top-level-plain');
     expect(vault.decrypt(after.providers.a.apiKey)).toBe('nested-plain');
     expect(vault.decrypt(after.mcpServers.s.authToken)).toBe('mcp-plain');
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('migratePlaintextSecrets is a no-op when nothing is plaintext', async () => {
@@ -193,7 +208,6 @@ describe('DefaultSecretVault', () => {
     expect(migrated).toBe(0);
     const after = await fs.readFile(cfgPath, 'utf8');
     expect(after).toBe(before);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('migratePlaintextSecrets ignores missing files', async () => {
@@ -202,7 +216,6 @@ describe('DefaultSecretVault', () => {
       await import('../../src/security/secret-vault.js')
     ).migratePlaintextSecrets(path.join(dir, 'nope.json'), vault);
     expect(result.migrated).toBe(0);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rewriteConfigEncrypted merges + encrypts + writes 0600 file', async () => {
@@ -219,26 +232,23 @@ describe('DefaultSecretVault', () => {
     expect(raw.version).toBe(1);
     expect(raw.providers.foo.apiKey.startsWith('enc:v1:')).toBe(true);
     expect(vault.decrypt(raw.providers.foo.apiKey)).toBe('newkey');
-    await fs.rm(dir, { recursive: true, force: true });
   });
 });
 
 describe('Key rotation', () => {
   it('starts at keyVersion 1 for new vaults', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     expect(vault.keyVersion).toBe(1);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('encrypt emits enc:v1: prefix before rotation', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     const enc = vault.encrypt('secret');
     expect(enc.startsWith('enc:v1:')).toBe(true);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateKey increments version and writes versioned key file', async () => {
-    const { dir, keyFile, vault } = await makeVault();
+    const { keyFile, vault } = await makeVault();
     // Encrypt something with v1 key
     const v1Enc = vault.encrypt('secret-v1');
     expect(v1Enc.startsWith('enc:v1:')).toBe(true);
@@ -263,12 +273,10 @@ describe('Key rotation', () => {
     expect(() => vault.decrypt(v1Enc)).toThrow();
     // But v2-encrypted values work fine
     expect(vault.decrypt(v2Enc)).toBe('secret-v2');
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateKey generates a new key that differs from the old one', async () => {
-    const { dir, keyFile, vault } = await makeVault();
+    const { keyFile, vault } = await makeVault();
     const v1Enc = vault.encrypt('test');
 
     // Read the old key
@@ -290,12 +298,10 @@ describe('Key rotation', () => {
     // Old encrypted value should fail to decrypt with new key
     // (because the key material changed, not just the prefix)
     expect(() => vault.decrypt(v1Enc)).toThrow();
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('multiple rotations increment version correctly', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     expect(vault.keyVersion).toBe(1);
 
     vault.rotateKey();
@@ -309,12 +315,10 @@ describe('Key rotation', () => {
 
     const enc = vault.encrypt('test');
     expect(enc.startsWith('enc:v4:')).toBe(true);
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('isEncrypted recognizes all version prefixes', async () => {
-    const { dir, vault } = await makeVault();
+    const { vault } = await makeVault();
     expect(vault.isEncrypted('enc:v1:abc:def:ghi')).toBe(true);
     expect(vault.isEncrypted('enc:v2:abc:def:ghi')).toBe(true);
     expect(vault.isEncrypted('enc:v99:abc:def:ghi')).toBe(true);
@@ -322,38 +326,33 @@ describe('Key rotation', () => {
     expect(vault.isEncrypted('plaintext')).toBe(false);
     expect(vault.isEncrypted('enc:invalid')).toBe(false);
     expect(vault.isEncrypted('')).toBe(false);
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('new vault instance reads versioned key file correctly', async () => {
-    const { dir, keyFile, vault: vault1 } = await makeVault();
+    const { keyFile, vault: vault1 } = await makeVault();
     vault1.rotateKey(); // Now at v2
     const enc = vault1.encrypt('secret');
     expect(enc.startsWith('enc:v2:')).toBe(true);
 
     // Create a new vault instance pointing to the same key file
-    const vault2 = new DefaultSecretVault({ keyFile });
+    const vault2 = trackVault(new DefaultSecretVault({ keyFile }));
     expect(vault2.keyVersion).toBe(2);
     expect(vault2.decrypt(enc)).toBe('secret');
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('legacy 32-byte key file is still readable', async () => {
-    const { dir, keyFile } = await makeVault();
+    const { keyFile } = await makeVault();
     // Write a legacy 32-byte key file
     const legacyKey = Buffer.alloc(32, 0xAB);
     fsSync.writeFileSync(keyFile, legacyKey);
 
-    const vault = new DefaultSecretVault({ keyFile });
+    const vault = trackVault(new DefaultSecretVault({ keyFile }));
     expect(vault.keyVersion).toBe(1);
 
     // Should be able to encrypt/decrypt
     const enc = vault.encrypt('test');
     expect(enc.startsWith('enc:v1:')).toBe(true);
     expect(vault.decrypt(enc)).toBe('test');
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateConfigKeys re-encrypts all secrets with new key', async () => {
@@ -396,8 +395,6 @@ describe('Key rotation', () => {
     // Should decrypt correctly with the new key
     expect(vault.decrypt(after.providers.anthropic.apiKey)).toBe(secret1);
     expect(vault.decrypt(after.providers.openai.apiKey)).toBe(secret2);
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateConfigKeys handles missing config file gracefully', async () => {
@@ -409,8 +406,6 @@ describe('Key rotation', () => {
     expect(result.oldVersion).toBe(1);
     expect(result.newVersion).toBe(2);
     expect(vault.keyVersion).toBe(2);
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateConfigKeys handles config with no encrypted fields', async () => {
@@ -431,8 +426,6 @@ describe('Key rotation', () => {
     expect(result.rotated).toBe(0);
     expect(result.oldVersion).toBe(1);
     expect(result.newVersion).toBe(2);
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateConfigKeys handles malformed JSON gracefully', async () => {
@@ -445,8 +438,6 @@ describe('Key rotation', () => {
     expect(result.rotated).toBe(0);
     // Key should NOT be rotated if config is malformed
     expect(vault.keyVersion).toBe(1);
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it('rotateConfigKeys aborts and preserves the key when a field cannot be decrypted', async () => {
@@ -493,7 +484,5 @@ describe('Key rotation', () => {
     expect(after.providers.anthropic.apiKey).toBe(good);
     expect(after.providers.openai.apiKey).toBe(corrupt);
     expect(vault.decrypt(after.providers.anthropic.apiKey)).toBe('api-key-good');
-
-    await fs.rm(dir, { recursive: true, force: true });
   });
 });

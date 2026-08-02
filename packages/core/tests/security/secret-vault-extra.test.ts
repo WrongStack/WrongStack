@@ -20,7 +20,14 @@ vi.mock('node:fs', async (importOriginal) => {
 
 let tmp: string;
 let keyFile: string;
-const vault = () => new DefaultSecretVault({ keyFile });
+// Every vault created via the helper is tracked so afterEach can drain its
+// pending key-file hardening promises (see the afterEach rationale).
+const activeVaults: DefaultSecretVault[] = [];
+const vault = () => {
+  const v = new DefaultSecretVault({ keyFile });
+  activeVaults.push(v);
+  return v;
+};
 
 function withPlatform(value: string, fn: () => Promise<void> | void) {
   const orig = Object.getOwnPropertyDescriptor(process, 'platform');
@@ -39,6 +46,17 @@ beforeEach(async () => {
   keyFile = path.join(tmp, 'key', '.key');
 });
 afterEach(async () => {
+  // Drain pending key-file hardening promises BEFORE removing the tmp dir.
+  // `scheduleKeyHardening()` shells out to `icacls` on Windows; tests that
+  // only call encrypt/decrypt never flush those promises. If the hardening
+  // is still in flight when fs.rm deletes the key file, it fails and its
+  // console.warn fallback fires during environment teardown — vitest then
+  // reports an unhandled "Closing rpc while onUserConsoleLog was pending"
+  // EnvironmentTeardownError. Flushing here keeps every async warning inside
+  // the hook, while the environment is still open.
+  await Promise.allSettled(
+    activeVaults.splice(0, activeVaults.length).map((v) => v.flushHardening()),
+  );
   vi.restoreAllMocks();
   await fs.rm(tmp, { recursive: true, force: true });
 });
