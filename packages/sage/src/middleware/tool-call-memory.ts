@@ -232,7 +232,13 @@ export function createSageToolCallMiddleware(
               contextualInjectionScore(a.memory, a.relationStrength),
           );
         const eligible = eligibleItems.map((item) => item.memory);
-        const sessionId = (nextPayload.ctx.session as { id?: string } | undefined)?.id;
+        // Unify the session source: retrieval uses opts.getSessionId?.() (line
+        // above), so the cooldown ledger must key on the same value. When no
+        // getSessionId is provided, fall back to ctx.session.id so the ledger
+        // is still scoped per-session rather than process-global.
+        const sessionId =
+          opts.getSessionId?.() ??
+          (nextPayload.ctx.session as { id?: string } | undefined)?.id;
         const fresh = applyCooldown(
           eligible,
           seen,

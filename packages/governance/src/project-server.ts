@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
-
+import type { GovernanceAttachmentBrokerLifecycleEvent } from './attachment-broker-controller.js';
 import { AuthenticatedGovernanceProjectService } from './authenticated-project-service.js';
 import {
   GovernanceCapabilityGrantRegistry,
@@ -192,6 +192,25 @@ export class GovernanceProjectServer {
   revokeGrant(grantId: string, reason?: string): boolean {
     if (!this.grants || this.state !== 'ready') throw new Error('Governance server is not ready.');
     return this.grants.revoke(grantId, reason);
+  }
+
+  recordAttachmentBrokerEvent(event: GovernanceAttachmentBrokerLifecycleEvent): void {
+    if (!this.store || this.state !== 'ready') {
+      throw new Error('Governance event store is unavailable for attachment broker audit.');
+    }
+    if (event.projectId !== this.projectId) {
+      throw new Error('Attachment broker event belongs to another governance project.');
+    }
+    const result = this.store.appendObservation({
+      observationId: `daemon:${event.instanceId}:attachment-broker:${event.sequence}`,
+      projectId: this.projectId,
+      taskId: null,
+      source: 'governance-daemon-attachment-broker',
+      category: 'daemon_attachment_broker_lifecycle',
+      observedAt: event.occurredAt,
+      payload: { ...event },
+    });
+    if (!result.handled) throw new Error(result.message);
   }
 
   async close(): Promise<void> {

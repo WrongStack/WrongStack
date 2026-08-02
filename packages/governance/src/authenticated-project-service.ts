@@ -24,6 +24,7 @@ function isManagementRequestType(input: unknown): boolean {
   return (
     type === 'issue_capability_grant' ||
     type === 'claim_runtime_attachment' ||
+    type === 'release_runtime_attachment' ||
     type === 'list_capability_grants' ||
     type === 'revoke_capability_grant' ||
     type === 'rotate_capability_grant'
@@ -86,6 +87,7 @@ function daemonControlFailure(
 /** External facade for a future IPC transport. Raw capability sets never cross this boundary. */
 export class AuthenticatedGovernanceProjectService {
   readonly projectId: string;
+  readonly #attachmentModelGrantByControlGrant = new Map<string, string>();
 
   constructor(
     private readonly service: GovernanceProjectService,
@@ -132,6 +134,7 @@ export class AuthenticatedGovernanceProjectService {
     if (
       request.type !== 'issue_capability_grant' &&
       request.type !== 'claim_runtime_attachment' &&
+      request.type !== 'release_runtime_attachment' &&
       request.type !== 'read_own_capability_grant' &&
       request.type !== 'read_daemon_status' &&
       request.type !== 'request_daemon_shutdown' &&
@@ -171,11 +174,16 @@ export class AuthenticatedGovernanceProjectService {
       const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
       if (!reservation) return receiptCapacityExceeded(request.requestId);
       let controlGrantId: string | undefined;
+      let modelGrantId: string | undefined;
       try {
         const control = this.grants.issue({
           clientId: request.controlClientId,
           issuedBy: authentication.client.clientId,
-          capabilities: ['workspace_snapshot_record'],
+          capabilities: [
+            'workspace_snapshot_record',
+            'runtime_attachment_release',
+            'daemon_status_read',
+          ],
           ttlMs,
         });
         controlGrantId = control.grant.grantId;
@@ -185,6 +193,8 @@ export class AuthenticatedGovernanceProjectService {
           capabilities: request.modelCapabilities,
           ttlMs,
         });
+        modelGrantId = model.grant.grantId;
+        this.#attachmentModelGrantByControlGrant.set(control.grant.grantId, model.grant.grantId);
         const response: GovernanceServiceResponse = {
           ok: true,
           requestId: request.requestId,
@@ -211,6 +221,17 @@ export class AuthenticatedGovernanceProjectService {
         this.receipts.commit(reservation, response);
         return response;
       } catch {
+        if (modelGrantId) {
+          try {
+            this.grants.revoke(
+              modelGrantId,
+              'runtime attachment claim rolled back',
+              authentication.client.clientId,
+            );
+          } catch {
+            // Continue with control-grant compensation below.
+          }
+        }
         if (controlGrantId) {
           try {
             this.grants.revoke(
@@ -222,16 +243,64 @@ export class AuthenticatedGovernanceProjectService {
             // The original request must still fail closed. Audit-sink recovery is
             // surfaced by the registry ledger and handled by daemon supervision.
           }
+          this.#attachmentModelGrantByControlGrant.delete(controlGrantId);
         }
         this.receipts.release(reservation);
         return invalidManagementRequest(request.requestId);
       }
     }
-    if (request.type === 'read_daemon_status' || request.type === 'request_daemon_shutdown') {
-      if (!authentication.client.capabilities.has('daemon_control')) {
+    if (request.type === 'release_runtime_attachment') {
+      if (!authentication.client.capabilities.has('runtime_attachment_release')) {
         return permissionDenied(
           request.requestId,
-          `Client ${authentication.client.clientId} lacks capability daemon_control.`,
+          `Client ${authentication.client.clientId} lacks capability runtime_attachment_release.`,
+        );
+      }
+      const modelGrantId = this.#attachmentModelGrantByControlGrant.get(
+        authentication.grant.grantId,
+      );
+      if (!modelGrantId) return invalidManagementRequest(request.requestId);
+      const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
+      if (!reservation) return receiptCapacityExceeded(request.requestId);
+      try {
+        this.grants.revoke(
+          modelGrantId,
+          'runtime attachment released',
+          authentication.client.clientId,
+        );
+        this.grants.revoke(
+          authentication.grant.grantId,
+          'runtime attachment released',
+          authentication.client.clientId,
+        );
+        this.#attachmentModelGrantByControlGrant.delete(authentication.grant.grantId);
+        const response: GovernanceServiceResponse = {
+          ok: true,
+          requestId: request.requestId,
+          result: {
+            type: 'runtime_attachment_released',
+            controlGrantId: authentication.grant.grantId,
+            modelGrantId,
+          },
+        };
+        this.receipts.commit(reservation, response, true);
+        return response;
+      } catch {
+        this.receipts.release(reservation);
+        return invalidManagementRequest(request.requestId);
+      }
+    }
+    if (request.type === 'read_daemon_status' || request.type === 'request_daemon_shutdown') {
+      const requiredCapability =
+        request.type === 'read_daemon_status' ? 'daemon_status_read' : 'daemon_control';
+      const authorized =
+        authentication.client.capabilities.has(requiredCapability) ||
+        (request.type === 'read_daemon_status' &&
+          authentication.client.capabilities.has('daemon_control'));
+      if (!authorized) {
+        return permissionDenied(
+          request.requestId,
+          `Client ${authentication.client.clientId} lacks capability ${requiredCapability}.`,
         );
       }
       if (!this.daemonControl) {
@@ -286,7 +355,9 @@ export class AuthenticatedGovernanceProjectService {
       if (
         request.capabilities.includes('capability_admin') ||
         request.capabilities.includes('daemon_control') ||
-        request.capabilities.includes('runtime_attach')
+        request.capabilities.includes('daemon_status_read') ||
+        request.capabilities.includes('runtime_attach') ||
+        request.capabilities.includes('runtime_attachment_release')
       ) {
         return permissionDenied(
           request.requestId,
@@ -416,6 +487,7 @@ export class AuthenticatedGovernanceProjectService {
   }
 
   close(): void {
+    this.#attachmentModelGrantByControlGrant.clear();
     this.receipts.clear();
     this.service.close();
   }

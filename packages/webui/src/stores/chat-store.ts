@@ -66,6 +66,66 @@ const MAX_CHAT_MESSAGES = 1000;
 const MAX_PERSISTED_MESSAGES = 200;
 
 export const MAX_CHAT_RETAINED_BYTES = 48 * 1024 * 1024;
+const dispatchedGraceTimers = new Map<number, ReturnType<typeof setTimeout>>();
+
+function cancelDispatchedGraceTimer(itemId: number): void {
+  const handle = dispatchedGraceTimers.get(itemId);
+  if (handle === undefined) return;
+  clearTimeout(handle);
+  dispatchedGraceTimers.delete(itemId);
+}
+
+/**
+ * Monotonic per-store counter threaded through every queued item so the
+ * grace-timer map and the queue filter never collide on `Date.now()`
+ * resolution. Two enqueues sharing the same millisecond (a pending note
+ * followed by a dispatched BTW, or two BTWs back-to-back) used to cross-
+ * cancel each other's timers when the map keyed on `addedAt`. The counter
+ * is bumped in `enqueue` and stamped on the item as `itemId`; all
+ * timer/cancel/filter operations key on it.
+ */
+let enqueueSequence = 0;
+
+function nextQueueItemId(): number {
+  enqueueSequence += 1;
+  return enqueueSequence;
+}
+
+function normalizeQueuedItem(value: unknown): QueuedItem | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const item = value as Partial<QueuedItem>;
+  if (
+    typeof item.text !== 'string' ||
+    (item.mode !== 'btw' && item.mode !== 'steer' && item.mode !== 'queue') ||
+    typeof item.addedAt !== 'number' ||
+    !Number.isFinite(item.addedAt)
+  ) {
+    return null;
+  }
+  const itemId =
+    typeof item.itemId === 'number' && Number.isSafeInteger(item.itemId) && item.itemId > 0
+      ? item.itemId
+      : nextQueueItemId();
+  enqueueSequence = Math.max(enqueueSequence, itemId);
+  return {
+    text: item.text,
+    mode: item.mode,
+    addedAt: item.addedAt,
+    itemId,
+    ...(item.images ? { images: item.images } : {}),
+  };
+}
+
+/**
+ * How long a `btw` chip stays visible after entering the "SENT" state
+ * (i.e. after the wire-send succeeded at submit time). The chip is removed
+ * from the queue automatically after this delay so the user sees the
+ * queue → SENT → leave-screen transition instead of the chip getting
+ * stuck until the next `run.result` lands. UX spec (2026-08): "shortly
+ * after it is processed, the message should leave my screen".
+ */
+export const BTW_DISPATCH_GRACE_MS = 1_800;
+
 export const MAX_CHAT_FIELD_CHARS = 2 * 1024 * 1024;
 
 interface ChatRetentionBudget {
@@ -184,15 +244,33 @@ function indexToolMessages(messages: readonly ChatMessage[]): Map<string, string
 export type QueueMode = 'btw' | 'steer' | 'queue';
 
 /** One entry in the message queue — the text plus how it was added.
- *  `addedAt` powers the optional sort-by-newest toggle. */
+ *  `addedAt` powers the optional sort-by-newest toggle.
+ *  `itemId` is a monotonic per-store counter stamped by `enqueue`;
+ *  the dispatched-chip grace-timer map and queue-filter operations
+ *  key on it instead of `addedAt` so two enqueues sharing the same
+ *  millisecond cannot cross-cancel each other. */
 export interface QueuedItem {
   text: string;
   mode: QueueMode;
   addedAt: number;
+  itemId: number;
   /** True once a `btw` item has already been wire-sent via the mailbox
    *  (immediate mid-run dispatch). The run.result drain must skip re-sending
    *  these — they remain in the queue only as a visible "dispatched" chip. */
   alreadyDispatched?: boolean | undefined;
+  /** Idempotency latch for the drain path. Set by
+   *  `addBubbleFor` in chat-handlers.handleRunResult (drain emits
+   *  a bubble for the popped front chip) and by `dequeueDrainable`
+   *  (drain emits bubbles for every leading dispatched chip it skips
+   *  past). The grace timer callback in `enqueue` *reads* this flag
+   *  to gate bubble emission (`target.bubbleAdded !== true`) — without
+   *  this gate, a second `run.result` landing inside the grace window
+   *  would call `addBubbleFor(front)` a second time and emit a duplicate
+   *  user bubble for the same chip. Reset implicitly on a fresh
+   * `enqueue` (the chip is constructed with `bubbleAdded` undefined).
+   * The flag is the idempotency latch for the drain path; the timer
+   * path reads it but does not write it. */
+  bubbleAdded?: boolean | undefined;
   /** Image attachments riding with the queued message. Kept as full data
    *  URLs so the drain path can rebuild the wire payload + local bubble. */
   images?:
@@ -293,6 +371,7 @@ interface ChatState {
     alreadyDispatched?: boolean,
   ) => void;
   dequeue: () => QueuedItem | null;
+  dequeueDrainable: () => QueuedItem | null;
   removeQueued: (idx: number) => void;
   clearQueue: () => void;
   setRefining: (v: boolean) => void;
@@ -566,28 +645,263 @@ export const useChatStore = create<ChatState>()(
         set({
           pendingRefinement: text !== null ? { text, images: images ?? [], mode } : null,
         }),
-      enqueue: (text, mode = 'queue', images, alreadyDispatched) =>
+      enqueue: (text, mode = 'queue', images, alreadyDispatched) => {
+        const addedAt = Date.now();
+        const itemId = ++enqueueSequence;
         set((state) => ({
           queue: [
             ...state.queue,
             {
               text,
               mode,
-              addedAt: Date.now(),
+              addedAt,
+              itemId,
               ...(images?.length ? { images } : {}),
               ...(alreadyDispatched ? { alreadyDispatched: true } : {}),
             },
           ],
-        })),
+        }));
+        // Schedule the auto-remove for dispatched chips. The grace timer
+        // is the only owner of the chip's visible lifecycle once the
+        // wire-send succeeded at submit time — re-sending on the next
+        // `run.result` would fold the same note into the agent's
+        // context a second time. Keyed by `itemId` (a monotonic
+        // counter) so two enqueues sharing the same millisecond cannot
+        // cross-cancel each other.
+        if (alreadyDispatched) {
+          const handle = setTimeout(() => {
+            dispatchedGraceTimers.delete(itemId);
+            // Emit the bubble (if not already emitted by the drain path)
+            // and remove the chip atomically. The bubble emission is the
+            // *only* way a BTW note sent mid-run (where the run outlasts
+            // the 1.8s grace window) can land in the transcript — if the
+            // run takes longer than `BTW_DISPATCH_GRACE_MS`, `run.result`
+            // arrives after the timer fires, so this callback is the
+            // sole owner of the user bubble for that case. The
+            // `bubbleAdded` gate keeps this idempotent against the drain
+            // path: when `run.result` lands first, the drain stamps the
+            // flag and the timer reads it and skips the second emit.
+            let bubblePayload: {
+              role: 'user';
+              content: string;
+              attachments?: Array<{
+                id: string;
+                kind: 'image';
+                dataUrl: string;
+                mediaType: string;
+                bytes: number;
+                name?: string | undefined;
+              }>;
+            } | null = null;
+            useChatStore.setState((state) => {
+              const target = state.queue.find(
+                (q) => q.itemId === itemId && q.alreadyDispatched === true,
+              );
+              if (target && target.bubbleAdded !== true) {
+                const images = target.images ?? [];
+                bubblePayload = {
+                  role: 'user',
+                  content: target.text,
+                  ...(images.length > 0
+                    ? {
+                        attachments: images.map((img) => ({
+                          id: img.id,
+                          kind: 'image' as const,
+                          dataUrl: img.dataUrl,
+                          mediaType: img.mediaType,
+                          bytes: img.bytes,
+                          name: img.name,
+                        })),
+                      }
+                    : {}),
+                };
+              }
+              return {
+                queue: state.queue.filter(
+                  (q) => !(q.itemId === itemId && q.alreadyDispatched === true),
+                ),
+              };
+            });
+            if (bubblePayload) {
+              useChatStore.getState().addMessage(bubblePayload);
+            }
+          }, BTW_DISPATCH_GRACE_MS);
+          dispatchedGraceTimers.set(itemId, handle);
+        }
+      },
       dequeue: () => {
         const { queue } = get();
         if (queue.length === 0) return null;
         const [next, ...rest] = queue;
+        // Cancel any pending grace timer for the popped item — the drain
+        // path is taking ownership of its lifecycle. `itemId` is the
+        // monotonic timer key; every queued item carries one now.
+        if (next?.itemId !== undefined) cancelDispatchedGraceTimer(next.itemId);
         set({ queue: rest });
         return expectDefined(next);
       },
-      removeQueued: (idx) => set((state) => ({ queue: state.queue.filter((_, i) => i !== idx) })),
-      clearQueue: () => set({ queue: [] }),
+      /**
+       * Drain the front non-dispatched item AND emit bubbles for every
+       * leading dispatched chip that hasn't been emitted yet. Used by
+       * `handleRunResult` so the drain can skip past BTW chips that
+       * are mid-way through their SENT-grace window (whose visible
+       * lifecycle is owned by the auto-remove timer) and pick the
+       * first truly-pending item.
+       *
+       * Side effects (in order):
+       *  1. Emit a user bubble for every leading dispatched chip whose
+       *     `bubbleAdded` flag is still false. These chips are emitted
+       *     by the dispatcher on the front one when the chat sees
+       *     `run.result` arrive inside the grace window; chips behind
+       *     the front skip the dispatcher's path, so we emit them here
+       *     to keep the transcript complete. The `bubbleAdded` flag is
+       *     the idempotency gate — a chip that was already emitted by
+       *     the dispatcher or by a previous drain's grace timer is
+       *     skipped.
+       *  2. Pop the first non-dispatched item (or return null if every
+       *     remaining item is dispatched).
+       *  3. Cancel the popped item's grace timer — the drain is now
+       *     taking ownership of its lifecycle.
+       *
+       * Implementation note: this MUST be one atomic `set` updater.
+       * Reading the queue from `get()` and then splicing `state.queue`
+       * at the same index inside `set` is a stale-snapshot splice —
+       * another `run.result`, `removeQueued`, or `clearQueue` between
+       * the two can mutate the queue, and the splice then operates on
+       * the wrong slot. The fix derives `idx` and `next` inside the
+       * updater and captures the popped item via a wrapper object.
+       */
+      dequeueDrainable: () => {
+        const wrapper: {
+          popped: QueuedItem | null;
+          leadingBubbles: Array<Parameters<ChatState['addMessage']>[0]>;
+        } = { popped: null, leadingBubbles: [] };
+        set((state) => {
+          const idx = state.queue.findIndex((q) => q.alreadyDispatched !== true);
+          // No drainable item is found. If the queue contains only
+          // dispatched chips whose bubbles haven't been emitted yet,
+          // surface them now — `addBubbleFor` in the handler only fires
+          // for the *front* chip, so chips behind it would otherwise stay
+          // invisible in the transcript.
+          if (idx === -1) {
+            for (const q of state.queue) {
+              if (q.alreadyDispatched === true && q.bubbleAdded !== true) {
+                const images = q.images ?? [];
+                wrapper.leadingBubbles.push({
+                  role: 'user',
+                  content: q.text,
+                  ...(images.length > 0
+                    ? {
+                        attachments: images.map((img) => ({
+                          id: img.id,
+                          kind: 'image' as const,
+                          dataUrl: img.dataUrl,
+                          mediaType: img.mediaType,
+                          bytes: img.bytes,
+                          name: img.name,
+                        })),
+                      }
+                    : {}),
+                });
+              }
+            }
+            if (wrapper.leadingBubbles.length === 0) return {};
+            // Always remove the stamped dispatched chips — leaving
+            // them in the queue after stamping creates a permanent
+            // zombie "SENT" chip with no removal affordance (the queue
+            // panel hides remove/clear buttons when every item is
+            // dispatched). The bubbles were captured in
+            // `wrapper.leadingBubbles`; the stamp isn't useful once
+            // the chip is gone, so a filter is sufficient.
+            return {
+              queue: state.queue.filter(
+                (q) => !(q.alreadyDispatched === true && q.bubbleAdded !== true),
+              ),
+            };
+          }
+          // Emit bubbles for leading dispatched chips in front of `idx`
+          // and stamp their `bubbleAdded` flag inside the same atomic
+          // update so a concurrent `run.result` cannot double-emit.
+          for (let i = 0; i < idx; i += 1) {
+            const q = state.queue[i]!;
+            if (q.bubbleAdded === true) continue;
+            const images = q.images ?? [];
+            wrapper.leadingBubbles.push({
+              role: 'user',
+              content: q.text,
+              ...(images.length > 0
+                ? {
+                    attachments: images.map((img) => ({
+                      id: img.id,
+                      kind: 'image' as const,
+                      dataUrl: img.dataUrl,
+                      mediaType: img.mediaType,
+                      bytes: img.bytes,
+                      name: img.name,
+                    })),
+                  }
+                : {}),
+            });
+          }
+          const next = state.queue[idx]!;
+          // Stamp `bubbleAdded: true` on every leading dispatched chip so
+          // (a) the timer path's idempotency gate skips re-emitting and
+          // (b) a second `run.result` landing inside the grace window
+          // doesn't double-stamp. Then slice the pending item out. The
+          // stamped rest always has the same length as the unstamped
+          // rest (`state.queue.length - 1`), so no length guard is
+          // needed here.
+          const stampedRest = state.queue
+            .map((q, i) =>
+              i < idx && q.bubbleAdded !== true && q.alreadyDispatched === true
+                ? { ...q, bubbleAdded: true }
+                : q,
+            )
+            .slice(0, idx)
+            .concat(
+              state.queue
+                .map((q, i) =>
+                  i < idx && q.bubbleAdded !== true && q.alreadyDispatched === true
+                    ? { ...q, bubbleAdded: true }
+                    : q,
+                )
+                .slice(idx + 1),
+            );
+          wrapper.popped = next;
+          return { queue: stampedRest };
+        });
+        // Emit the captured leading-chip bubbles now that the queue
+        // mutation has settled. Each call is its own `set` updater, which
+        // is exactly how `addBubbleFor` does it in chat-handlers.ts —
+        // doing this outside the inner updater avoids re-entrant set
+        // calls that would race against the queue mutation.
+        for (const payload of wrapper.leadingBubbles) {
+          useChatStore.getState().addMessage(payload);
+        }
+        const poppedItem: QueuedItem | null = wrapper.popped;
+        if (poppedItem?.itemId !== undefined) {
+          cancelDispatchedGraceTimer(poppedItem.itemId);
+        }
+        return poppedItem;
+      },
+      removeQueued: (idx) =>
+        set((state) => {
+          const removed = state.queue[idx];
+          // Cancel any pending grace timer for this item. `itemId` is the
+          // monotonic timer key, so two enqueues in the same millisecond
+          // can no longer cross-cancel each other's grace windows.
+          if (removed?.itemId !== undefined) cancelDispatchedGraceTimer(removed.itemId);
+          return { queue: state.queue.filter((_, i) => i !== idx) };
+        }),
+      clearQueue: () => {
+        // Snapshot the values BEFORE canceling — `cancelDispatchedGraceTimer`
+        // mutates the map, and iterating `keys()` while we mutate it is
+        // undefined behavior. Snapshot, then clear, then cancel.
+        const handles = Array.from(dispatchedGraceTimers.values());
+        dispatchedGraceTimers.clear();
+        for (const handle of handles) clearTimeout(handle);
+        set({ queue: [] });
+      },
       removeMessage: (id) =>
         set((state) => {
           const messages = state.messages.filter((m) => m.id !== id);
@@ -636,7 +950,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'wrongstack-chat',
-      version: 2,
+      version: 3,
       // Persist enough to recreate the visible transcript after F5.
       //
       //   messages         — the full user/assistant/tool/transcript.
@@ -678,17 +992,21 @@ export const useChatStore = create<ChatState>()(
       // call above it, which is cosmetic. Persist dying for the whole store is
       // not.
       partialize: (s) => ({
-        messages: s.messages.slice(-MAX_PERSISTED_MESSAGES).map((m) =>
-          m.attachments?.some((a) => a.dataUrl)
-            ? { ...m, attachments: m.attachments.map((a) => ({ ...a, dataUrl: undefined })) }
-            : m,
-        ),
-        queue: s.queue.map((q) => (q.images ? { ...q, images: undefined } : q)),
+        messages: s.messages
+          .slice(-MAX_PERSISTED_MESSAGES)
+          .map((m) =>
+            m.attachments?.some((a) => a.dataUrl)
+              ? { ...m, attachments: m.attachments.map((a) => ({ ...a, dataUrl: undefined })) }
+              : m,
+          ),
+        queue: s.queue
+          .filter((q) => q.alreadyDispatched !== true)
+          .map((q) => (q.images ? { ...q, images: undefined } : q)),
         boundSessionId: s.boundSessionId,
         thinkingLogBuffer: s.thinkingLogBuffer,
       }),
       migrate: (persisted, version) => {
-        if (version > 2) {
+        if (version > 3) {
           // Future shape; drop and start clean.
           return null as never as {
             messages: ChatState['messages'];
@@ -705,10 +1023,52 @@ export const useChatStore = create<ChatState>()(
         // the persisted blob is from a build that emitted a different
         // shape — wipe and start from defaults.
         const safeMessages = Array.isArray(p.messages) ? p.messages : [];
-        const safeQueue = Array.isArray(p.queue) ? p.queue : [];
+        let safeQueue = Array.isArray(p.queue) ? p.queue : [];
+        if (version < 3) {
+          // v2 persisted already-dispatched chips without live grace timers;
+          // discard them rather than rehydrate unremovable zombie chips.
+          safeQueue = safeQueue.filter(
+            (item): item is QueuedItem =>
+              typeof item === 'object' &&
+              item !== null &&
+              (item as QueuedItem).alreadyDispatched !== true,
+          );
+        }
+        // Seed `enqueueSequence` from the highest persisted `itemId` so a
+        // fresh session's first `enqueue` cannot reuse a rehydrated chip's
+        // id — `dispatchedGraceTimers` keys on `itemId` and `removeQueued`
+        // cancels by `itemId`, so an id collision would let a persisted
+        // chip's pop/remove cancel the fresh chip's grace timer (zombie
+        // SENT chip + missing user bubble). `normalizeQueuedItem` does the
+        // same seeding for any item that flows through it; the rehydrate
+        // path skipped that helper, which is why this `for` loop is
+        // here instead.
+        //
+        // v2 items may lack `itemId` entirely (the field was added in v3);
+        // stamp one on every legacy item so the queue honors the now-required
+        // `QueuedItem.itemId` contract after rehydrate. Without this, a
+        // rehydrated pending item could pass `removeQueued`/`dequeue` with
+        // `itemId === undefined` and bypass the `cancelDispatchedGraceTimer`
+        // guard (which already null-checks), but still violate the declared
+        // `QueuedItem` shape every downstream consumer reads.
+        const stampedQueue: ChatState['queue'] = safeQueue.flatMap((raw): ChatState['queue'] => {
+          // Route every rehydrated item through `normalizeQueuedItem` so
+          // (a) the shape is validated, (b) `itemId` is always a positive
+          // safe integer, and (c) `enqueueSequence` is seeded from the max
+          // persisted value so a fresh session's first enqueue cannot reuse
+          // a rehydrated chip's id. Without this, a reload with a queued
+          // pending item + a subsequent dispatched BTW would collide on
+          // `itemId`, and `cancelDispatchedGraceTimer` would kill the
+          // fresh BTW's grace timer — leaving a zombie SENT chip + a
+          // missing user bubble. Drop entries that fail validation (no
+          // `flatMap`-side exception).
+          const normalized = normalizeQueuedItem(raw);
+          if (normalized) return [normalized];
+          return [];
+        });
         return {
           messages: retainWebChatMessages(safeMessages as ChatState['messages']),
-          queue: safeQueue as ChatState['queue'],
+          queue: stampedQueue,
           boundSessionId: typeof p.boundSessionId === 'string' ? p.boundSessionId : null,
           thinkingLogBuffer: typeof p.thinkingLogBuffer === 'string' ? p.thinkingLogBuffer : '',
         };

@@ -11,7 +11,9 @@ import {
   connectGovernanceProjectClient,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
   type GovernanceModelCapability,
+  governanceDaemonAttachmentBrokerPath,
   inspectGovernanceDaemon,
+  readGovernanceDaemonAttachmentBroker,
   readGovernanceDaemonMetadata,
 } from '../src/index.js';
 import { prepareGovernanceCompatibilityRuntimeWithAdapters } from '../src/runtime-compatibility.js';
@@ -101,6 +103,7 @@ const adapters = {
   connectAttached: connectGovernanceAdminSession,
   connectLaunched: connectGovernanceAdminSessionFromLaunch,
   connectModel: connectGovernanceProjectClient,
+  readAttachmentBroker: readGovernanceDaemonAttachmentBroker,
 };
 
 function options(root: string) {
@@ -210,7 +213,7 @@ describe('governance runtime compatibility factory', () => {
       },
     });
 
-    const pid = snapshot.admin.daemon.pid;
+    const pid = snapshot.daemon.pid;
     await expect(
       prepared.runtime.shutdownDaemon('compatibility test complete'),
     ).resolves.toMatchObject({
@@ -220,51 +223,183 @@ describe('governance runtime compatibility factory', () => {
     await waitForGracefulStop(root, pid);
   });
 
-  it('requires an explicit credential for an existing owner, then attaches without replacing it', async () => {
+  it('keeps one daemon owner while a second runtime attaches and detaches independently', async () => {
+    const root = projectRoot();
+    const owner = await prepareGovernanceCompatibilityRuntimeWithAdapters(options(root), adapters);
+    expect(owner).toMatchObject({ mode: 'governed' });
+    if (owner.mode !== 'governed') throw new Error(owner.message);
+    const ownerSnapshot = owner.runtime.snapshot();
+
+    const attached = await prepareGovernanceCompatibilityRuntimeWithAdapters(
+      {
+        ...options(root),
+        adminClientId: 'webui-control',
+        modelClientId: 'webui-model',
+      },
+      adapters,
+    );
+    expect(attached).toMatchObject({ mode: 'governed' });
+    if (attached.mode !== 'governed') throw new Error(attached.message);
+    expect(attached.runtime.snapshot()).toMatchObject({
+      source: 'attached',
+      daemon: {
+        pid: ownerSnapshot.daemon.pid,
+        instanceId: ownerSnapshot.daemon.instanceId,
+      },
+      control: { kind: 'attachment', clientId: 'webui-control' },
+      admin: null,
+      model: { clientId: 'webui-model' },
+    });
+
+    await expect(
+      attached.runtime.model.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'second-runtime-health',
+        type: 'health',
+      }),
+    ).resolves.toMatchObject({ ok: true, result: { status: 'ready' } });
+    await expect(attached.runtime.close()).resolves.toMatchObject({
+      ok: true,
+      result: { type: 'runtime_attachment_released' },
+    });
+    expect(isAlive(ownerSnapshot.daemon.pid)).toBe(true);
+    await expect(
+      owner.runtime.model.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'owner-model-after-detach',
+        type: 'health',
+      }),
+    ).resolves.toMatchObject({ ok: true, result: { status: 'ready' } });
+
+    await expect(owner.runtime.shutdownDaemon('multi-client test complete')).resolves.toMatchObject(
+      {
+        ok: true,
+        result: { type: 'daemon_shutdown_accepted' },
+      },
+    );
+    await waitForGracefulStop(root, ownerSnapshot.daemon.pid);
+  });
+
+  it('attaches to an existing owner through the limited broker without replacing it', async () => {
     const root = projectRoot();
     const existing = await launch(root, 'compat-admin');
 
-    const unavailable = await prepareGovernanceCompatibilityRuntimeWithAdapters(
-      options(root),
-      adapters,
-    );
-    expect(unavailable).toEqual({
-      mode: 'legacy',
-      code: 'existing_owner_requires_credential',
-      phase: 'inspect',
-      message:
-        'A governance daemon already owns this project; an explicit admin credential is required to attach.',
-      cleanup: 'not_required',
-    });
-    expect(isAlive(existing.pid)).toBe(true);
-
     const prepared = await prepareGovernanceCompatibilityRuntimeWithAdapters(
-      {
-        ...options(root),
-        existingAdmin: { grantId: existing.grantId, credential: existing.credential },
-      },
+      options(root),
       adapters,
     );
     expect(prepared).toMatchObject({ mode: 'governed' });
     if (prepared.mode !== 'governed') throw new Error(prepared.message);
     expect(prepared.runtime.snapshot()).toMatchObject({
       source: 'attached',
-      admin: { mode: 'attached', daemon: { pid: existing.pid, instanceId: existing.instanceId } },
+      daemon: { pid: existing.pid, instanceId: existing.instanceId },
+      control: { kind: 'attachment', clientId: 'compat-admin' },
+      admin: null,
     });
-
+    expect(JSON.stringify(prepared.runtime.snapshot())).not.toContain('wsg_');
+    expect(isAlive(existing.pid)).toBe(true);
+    await expect(prepared.runtime.recordWorkspaceSnapshot('b'.repeat(64))).resolves.toMatchObject({
+      ok: true,
+      result: { type: 'workspace_snapshot_recorded' },
+    });
+    await expect(prepared.runtime.shutdownDaemon()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'permission_denied' },
+    });
     await expect(prepared.runtime.close()).resolves.toMatchObject({
       ok: true,
-      result: { type: 'capability_grant_revoked', revoked: true },
+      result: { type: 'runtime_attachment_released' },
     });
     expect(prepared.runtime.snapshot().closed).toBe(true);
     expect(isAlive(existing.pid)).toBe(true);
     await expect(
       prepared.runtime.model.request({
         protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
-        requestId: 'closed-model-health',
+        requestId: 'released-model-health',
         type: 'health',
       }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'authentication_failed' } });
+
+    const explicitAdmin = await prepareGovernanceCompatibilityRuntimeWithAdapters(
+      {
+        ...options(root),
+        existingAdmin: { grantId: existing.grantId, credential: existing.credential },
+      },
+      adapters,
+    );
+    expect(explicitAdmin).toMatchObject({ mode: 'governed' });
+    if (explicitAdmin.mode !== 'governed') throw new Error(explicitAdmin.message);
+    expect(explicitAdmin.runtime.snapshot()).toMatchObject({
+      source: 'attached',
+      control: { kind: 'admin' },
+      admin: { mode: 'attached', daemon: { pid: existing.pid, instanceId: existing.instanceId } },
+    });
+
+    await expect(explicitAdmin.runtime.close()).resolves.toMatchObject({
+      ok: true,
+      result: { type: 'capability_grant_revoked', revoked: true },
+    });
+    expect(explicitAdmin.runtime.snapshot().closed).toBe(true);
+    expect(isAlive(existing.pid)).toBe(true);
+  });
+
+  it('falls back without disturbing an older live daemon that has no attachment broker', async () => {
+    const root = projectRoot();
+    const existing = await launch(root, 'compat-admin');
+    rmSync(governanceDaemonAttachmentBrokerPath(root), { force: true });
+
+    await expect(
+      prepareGovernanceCompatibilityRuntimeWithAdapters(options(root), adapters),
+    ).resolves.toEqual({
+      mode: 'legacy',
+      code: 'existing_owner_requires_credential',
+      phase: 'inspect',
+      message: 'The existing governance daemon does not publish a compatible attachment broker.',
+      cleanup: 'not_required',
+    });
+    expect(isAlive(existing.pid)).toBe(true);
+  });
+
+  it('releases both claimed grants when attached client verification fails', async () => {
+    const root = projectRoot();
+    const existing = await launch(root, 'owner-admin');
+    let connectionAttempt = 0;
+    const prepared = await prepareGovernanceCompatibilityRuntimeWithAdapters(options(root), {
+      ...adapters,
+      connectModel: async (connectionOptions) => {
+        connectionAttempt += 1;
+        if (connectionAttempt === 3) throw new Error('simulated model connection failure');
+        return connectGovernanceProjectClient(connectionOptions);
+      },
+    });
+    expect(prepared).toMatchObject({
+      mode: 'legacy',
+      code: 'model_connection_rejected',
+      phase: 'provision',
+      cleanup: 'attachment_grants_released',
+    });
+    const admin = await connectGovernanceAdminSessionFromLaunch(existing, { startLease: false });
+    if (!admin.connected) throw new Error(admin.message);
+    const grants = await admin.session.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'inspect-failed-attachment-cleanup',
+      type: 'list_capability_grants',
+      limit: 50,
+    });
+    if (!grants.ok || grants.result.type !== 'capability_grants') {
+      throw new Error('Expected capability grants after attachment cleanup.');
+    }
+    const failedAttachmentGrants = grants.result.grants.filter(
+      (grant) => grant.clientId === 'compat-admin' || grant.clientId === 'autonomous-model',
+    );
+    expect(failedAttachmentGrants).toHaveLength(2);
+    expect(failedAttachmentGrants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ clientId: 'compat-admin', status: 'revoked' }),
+        expect.objectContaining({ clientId: 'autonomous-model', status: 'revoked' }),
+      ]),
+    );
+    admin.session.stop();
   });
 
   it('rolls back a newly launched owner when model connection verification fails', async () => {
@@ -325,6 +460,7 @@ describe('governance runtime compatibility factory', () => {
         connectAttached: failIfCalled,
         connectLaunched: failIfCalled,
         connectModel: failIfCalled,
+        readAttachmentBroker: failIfCalled,
       },
     );
     expect(prepared).toMatchObject({

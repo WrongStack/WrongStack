@@ -15,9 +15,11 @@ import {
   GovernanceCredentialLeaseController,
   GovernanceProjectClient,
   type GovernanceServiceCapability,
+  governanceDaemonAttachmentBrokerPath,
   governanceDaemonEnvironment,
   governanceDaemonStartupLeasePath,
   inspectGovernanceDaemon,
+  readGovernanceDaemonAttachmentBroker,
   readGovernanceDaemonMetadata,
   resolveGovernanceDaemonAvailability,
 } from '../src/index.js';
@@ -200,6 +202,39 @@ describe('governance project daemon bootstrap', () => {
       metadata: { pid: launched.pid, instanceId: launched.instanceId },
     });
     expect(existsSync(governanceDaemonStartupLeasePath(root))).toBe(false);
+    const brokerRead = await readGovernanceDaemonAttachmentBroker(root);
+    expect(brokerRead).toMatchObject({
+      kind: 'valid',
+      broker: {
+        pid: launched.pid,
+        instanceId: launched.instanceId,
+        projectId: 'daemon-project',
+        credential: { clientId: expect.stringContaining('governance-attachment-broker-') },
+      },
+    });
+    if (brokerRead.kind !== 'valid') throw new Error('Expected a valid attachment broker.');
+    const operatorStatusClient = new GovernanceProjectClient(root, brokerRead.broker.credential);
+    await expect(
+      operatorStatusClient.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'broker-operator-status',
+        type: 'read_daemon_status',
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      result: {
+        type: 'daemon_status',
+        attachmentBroker: { health: 'healthy', auditHealthy: true },
+      },
+    });
+    await expect(
+      operatorStatusClient.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'broker-shutdown-denied',
+        type: 'request_daemon_shutdown',
+        expectedInstanceId: launched.instanceId,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
 
     await expect(client.request(request('health', 'daemon-health'))).resolves.toMatchObject({
       ok: true,
@@ -218,12 +253,41 @@ describe('governance project daemon bootstrap', () => {
       ok: true,
       result: {
         type: 'observations',
-        observations: [
-          { category: 'capability_grant_issued', source: 'governance-capability-registry' },
-        ],
       },
     });
+    if (!audit.ok || audit.result.type !== 'observations') {
+      throw new Error('Expected governance audit observations.');
+    }
+    expect(
+      audit.result.observations.filter(
+        (observation) => observation.category === 'capability_grant_issued',
+      ),
+    ).toHaveLength(2);
+    expect(audit.result.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: 'daemon_attachment_broker_lifecycle',
+          source: 'governance-daemon-attachment-broker',
+          payload: expect.objectContaining({
+            type: 'published',
+            state: 'active',
+            health: 'healthy',
+            consecutiveFailures: 0,
+            pendingRevocations: 0,
+          }),
+        }),
+      ]),
+    );
+    expect(audit.result.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: 'capability_grant_issued',
+          source: 'governance-capability-registry',
+        }),
+      ]),
+    );
     expect(JSON.stringify(audit)).not.toContain(launched.credential.token);
+    expect(JSON.stringify(audit)).not.toContain('wsg_');
   });
 
   it('returns the identity-bound shutdown response before graceful process cleanup', async () => {
@@ -243,6 +307,14 @@ describe('governance project daemon bootstrap', () => {
         pid: launched.pid,
         instanceId: launched.instanceId,
         startedAt: launched.startedAt,
+        attachmentBroker: {
+          state: 'active',
+          health: 'healthy',
+          grantId: expect.any(String),
+          consecutiveFailures: 0,
+          pendingRevocations: 0,
+          auditHealthy: true,
+        },
       },
     });
     await expect(
@@ -269,6 +341,8 @@ describe('governance project daemon bootstrap', () => {
     });
     await waitForGracefulDaemonStop(root, launched.pid);
     await expect(readGovernanceDaemonMetadata(root)).resolves.toEqual({ kind: 'missing' });
+    await expect(readGovernanceDaemonAttachmentBroker(root)).resolves.toEqual({ kind: 'missing' });
+    expect(existsSync(governanceDaemonAttachmentBrokerPath(root))).toBe(false);
   });
 
   it('reports owner conflict without disturbing the current daemon', async () => {
@@ -379,7 +453,13 @@ describe('governance project daemon bootstrap', () => {
       ok: true,
       result: {
         type: 'capability_grants',
-        grants: [{ clientId: 'bootstrap-admin', issuedBy: 'governance-daemon-bootstrap' }],
+        grants: [
+          {
+            clientId: expect.stringContaining('governance-attachment-broker-'),
+            issuedBy: 'governance-daemon-owner',
+            capabilities: ['runtime_attach', 'daemon_status_read'],
+          },
+        ],
         nextCursor: expect.any(String),
       },
     });
@@ -397,11 +477,29 @@ describe('governance project daemon bootstrap', () => {
       ok: true,
       result: {
         type: 'capability_grants',
+        grants: [{ clientId: 'bootstrap-admin', issuedBy: 'governance-daemon-bootstrap' }],
+        nextCursor: expect.any(String),
+      },
+    });
+    if (!secondPage.ok || secondPage.result.type !== 'capability_grants') {
+      throw new Error('Expected a second paginated capability grant response.');
+    }
+    const thirdPage = await admin.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'list-grants-third-page',
+      type: 'list_capability_grants',
+      cursor: secondPage.result.nextCursor,
+      limit: 1,
+    });
+    expect(thirdPage).toMatchObject({
+      ok: true,
+      result: {
+        type: 'capability_grants',
         grants: [{ clientId: 'model-reader', issuedBy: 'bootstrap-admin' }],
       },
     });
-    if (secondPage.ok && secondPage.result.type === 'capability_grants') {
-      expect(secondPage.result.nextCursor).toBeUndefined();
+    if (thirdPage.ok && thirdPage.result.type === 'capability_grants') {
+      expect(thirdPage.result.nextCursor).toBeUndefined();
     }
     const rotationRequest = {
       protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
-
+import type { GovernanceServiceCredential } from './capability-grant.js';
 import {
   canonicalGovernanceProjectRoot,
   governanceProjectKey,
@@ -11,10 +11,12 @@ import { GOVERNANCE_SERVICE_PROTOCOL_VERSION } from './service-protocol.js';
 
 export const GOVERNANCE_DAEMON_METADATA_SCHEMA_VERSION = 1 as const;
 export const GOVERNANCE_DAEMON_STARTUP_LEASE_SCHEMA_VERSION = 1 as const;
+export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_SCHEMA_VERSION = 1 as const;
 export const GOVERNANCE_DAEMON_METADATA_MAX_BYTES = 64 * 1024;
 export const GOVERNANCE_DAEMON_ENDPOINT_PROBE_TIMEOUT_MS = 750;
 export const GOVERNANCE_DAEMON_STARTUP_LEASE_TIMEOUT_MS = 10_000;
 export const GOVERNANCE_DAEMON_STARTUP_LEASE_RETRY_MS = 50;
+export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_TTL_MS = 60 * 60 * 1_000;
 
 export const GOVERNANCE_DAEMON_METADATA_RELATIVE_PATH = path.join(
   '.wrongstack',
@@ -25,6 +27,11 @@ export const GOVERNANCE_DAEMON_STARTUP_LEASE_RELATIVE_PATH = path.join(
   '.wrongstack',
   'governance',
   'daemon-startup.lock',
+);
+export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RELATIVE_PATH = path.join(
+  '.wrongstack',
+  'governance',
+  'attachment-broker.json',
 );
 
 export interface GovernanceDaemonMetadata {
@@ -46,6 +53,24 @@ export interface GovernanceDaemonStartupLeaseRecord {
   readonly instanceId: string;
   readonly startedAt: string;
 }
+
+export interface GovernanceDaemonAttachmentBrokerRecord {
+  readonly schemaVersion: typeof GOVERNANCE_DAEMON_ATTACHMENT_BROKER_SCHEMA_VERSION;
+  readonly protocolVersion: typeof GOVERNANCE_SERVICE_PROTOCOL_VERSION;
+  readonly projectKey: string;
+  readonly projectRoot: string;
+  readonly projectId: string;
+  readonly pid: number;
+  readonly instanceId: string;
+  readonly grantId: string;
+  readonly expiresAt: string;
+  readonly credential: GovernanceServiceCredential;
+}
+
+export type GovernanceDaemonAttachmentBrokerReadResult =
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'invalid'; readonly reason: string }
+  | { readonly kind: 'valid'; readonly broker: GovernanceDaemonAttachmentBrokerRecord };
 
 export type GovernanceDaemonMetadataReadResult =
   | { readonly kind: 'missing' }
@@ -216,6 +241,73 @@ function parseLease(raw: string, projectRoot: string): GovernanceDaemonStartupLe
   return Object.freeze(record as unknown as GovernanceDaemonStartupLeaseRecord);
 }
 
+function parseAttachmentBroker(
+  raw: string,
+  projectRoot: string,
+): GovernanceDaemonAttachmentBrokerReadResult {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch {
+    return { kind: 'invalid', reason: 'Attachment broker record is not valid JSON.' };
+  }
+  const record = plainRecord(value);
+  const credential = record ? plainRecord(record.credential) : null;
+  const expectedKeys = [
+    'credential',
+    'expiresAt',
+    'grantId',
+    'instanceId',
+    'pid',
+    'projectId',
+    'projectKey',
+    'projectRoot',
+    'protocolVersion',
+    'schemaVersion',
+  ];
+  if (
+    !record ||
+    !exactKeys(record, expectedKeys) ||
+    !credential ||
+    !exactKeys(credential, ['clientId', 'projectId', 'token'])
+  ) {
+    return { kind: 'invalid', reason: 'Attachment broker fields do not match the strict schema.' };
+  }
+  const token = credential.token;
+  const tokenPrefix = `wsg_${String(record.grantId)}.`;
+  const tokenSecret = typeof token === 'string' ? token.slice(tokenPrefix.length) : '';
+  if (
+    record.schemaVersion !== GOVERNANCE_DAEMON_ATTACHMENT_BROKER_SCHEMA_VERSION ||
+    record.protocolVersion !== GOVERNANCE_SERVICE_PROTOCOL_VERSION ||
+    record.projectKey !== governanceProjectKey(projectRoot) ||
+    record.projectRoot !== canonicalGovernanceProjectRoot(projectRoot) ||
+    typeof record.projectId !== 'string' ||
+    record.projectId.trim().length === 0 ||
+    record.projectId.length > 512 ||
+    !validPid(record.pid) ||
+    !tokenSafe(record.instanceId) ||
+    !tokenSafe(record.grantId) ||
+    !validTimestamp(record.expiresAt) ||
+    credential.projectId !== record.projectId ||
+    typeof credential.clientId !== 'string' ||
+    credential.clientId.trim().length === 0 ||
+    credential.clientId.length > 512 ||
+    typeof token !== 'string' ||
+    token.length > 700 ||
+    !token.startsWith(tokenPrefix) ||
+    !/^[A-Za-z0-9_-]{32,512}$/u.test(tokenSecret)
+  ) {
+    return { kind: 'invalid', reason: 'Attachment broker identity or value validation failed.' };
+  }
+  return {
+    kind: 'valid',
+    broker: Object.freeze({
+      ...(record as unknown as GovernanceDaemonAttachmentBrokerRecord),
+      credential: Object.freeze({ ...(credential as unknown as GovernanceServiceCredential) }),
+    }),
+  };
+}
+
 async function removeIfUnchanged(pathname: string, expected: string): Promise<boolean> {
   const current = await readBounded(pathname);
   if (current === null || current !== expected) return false;
@@ -237,6 +329,93 @@ export function governanceDaemonMetadataPath(projectRoot: string): string {
 
 export function governanceDaemonStartupLeasePath(projectRoot: string): string {
   return path.join(path.resolve(projectRoot), GOVERNANCE_DAEMON_STARTUP_LEASE_RELATIVE_PATH);
+}
+
+export function governanceDaemonAttachmentBrokerPath(projectRoot: string): string {
+  return path.join(path.resolve(projectRoot), GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RELATIVE_PATH);
+}
+
+export function createGovernanceDaemonAttachmentBroker(options: {
+  readonly metadata: GovernanceDaemonMetadata;
+  readonly grantId: string;
+  readonly expiresAt: string;
+  readonly credential: GovernanceServiceCredential;
+}): GovernanceDaemonAttachmentBrokerRecord {
+  const broker: GovernanceDaemonAttachmentBrokerRecord = {
+    schemaVersion: GOVERNANCE_DAEMON_ATTACHMENT_BROKER_SCHEMA_VERSION,
+    protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+    projectKey: options.metadata.projectKey,
+    projectRoot: options.metadata.projectRoot,
+    projectId: options.metadata.projectId,
+    pid: options.metadata.pid,
+    instanceId: options.metadata.instanceId,
+    grantId: options.grantId,
+    expiresAt: options.expiresAt,
+    credential: Object.freeze({ ...options.credential }),
+  };
+  const validated = parseAttachmentBroker(JSON.stringify(broker), options.metadata.projectRoot);
+  if (validated.kind !== 'valid') {
+    throw new Error(
+      validated.kind === 'invalid'
+        ? validated.reason
+        : 'Governance attachment broker record is missing.',
+    );
+  }
+  return validated.broker;
+}
+
+export async function writeGovernanceDaemonAttachmentBroker(
+  projectRoot: string,
+  broker: GovernanceDaemonAttachmentBrokerRecord,
+): Promise<void> {
+  const validated = parseAttachmentBroker(JSON.stringify(broker), projectRoot);
+  if (validated.kind !== 'valid') {
+    throw new Error(
+      validated.kind === 'invalid'
+        ? validated.reason
+        : 'Governance attachment broker record is missing.',
+    );
+  }
+  const expected = validated.broker;
+  await ensurePrivateDirectory(projectRoot);
+  const pathname = governanceDaemonAttachmentBrokerPath(projectRoot);
+  const temporary = `${pathname}.${process.pid}.${expected.instanceId}.tmp`;
+  await fs.writeFile(temporary, `${JSON.stringify(expected, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+  if (process.platform !== 'win32') await fs.chmod(temporary, 0o600);
+  try {
+    await fs.rename(temporary, pathname);
+  } catch (error) {
+    await fs.rm(temporary, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function readGovernanceDaemonAttachmentBroker(
+  projectRoot: string,
+): Promise<GovernanceDaemonAttachmentBrokerReadResult> {
+  const raw = await readBounded(governanceDaemonAttachmentBrokerPath(projectRoot));
+  return raw === null ? { kind: 'missing' } : parseAttachmentBroker(raw, projectRoot);
+}
+
+export async function removeOwnedGovernanceDaemonAttachmentBroker(
+  projectRoot: string,
+  owner: Pick<GovernanceDaemonMetadata, 'pid' | 'instanceId'>,
+): Promise<boolean> {
+  const pathname = governanceDaemonAttachmentBrokerPath(projectRoot);
+  const raw = await readBounded(pathname);
+  if (raw === null) return false;
+  const parsed = parseAttachmentBroker(raw, projectRoot);
+  if (
+    parsed.kind !== 'valid' ||
+    parsed.broker.pid !== owner.pid ||
+    parsed.broker.instanceId !== owner.instanceId
+  ) {
+    return false;
+  }
+  return removeIfUnchanged(pathname, raw);
 }
 
 export function createGovernanceDaemonMetadata(options: {

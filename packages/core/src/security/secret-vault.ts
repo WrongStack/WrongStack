@@ -581,6 +581,9 @@ export async function rewriteConfigEncrypted(
   // atomicWrite: torn write here would erase every saved encrypted API key.
   await atomicWrite(configPath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
   await restrictFilePermissions(configPath);
+  // Flush any pending key-file hardening so a short-lived CLI caller does
+  // not process.exit() before icacls completes (WS-088 / TOCTOU fix).
+  await vault.flushHardening?.();
 }
 
 /**
@@ -617,6 +620,7 @@ export async function migratePlaintextSecrets(
     configPath,
     logger ? { warn: (msg) => logger.warn(msg) } : undefined,
   );
+  await vault.flushHardening?.();
   return { migrated: counter.n, file: configPath };
 }
 
@@ -652,6 +656,7 @@ export async function rotateConfigKeys(
     log(
       `[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — no config file to re-encrypt`,
     );
+    await vault.flushHardening?.();
     return { rotated: 0, oldVersion, newVersion, file: configPath };
   }
 
@@ -691,6 +696,7 @@ export async function rotateConfigKeys(
     log(
       `[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — no encrypted fields to re-encrypt`,
     );
+    await vault.flushHardening?.();
     return { rotated: 0, oldVersion, newVersion, file: configPath };
   }
 
@@ -707,6 +713,7 @@ export async function rotateConfigKeys(
   log(
     `[secret-vault] Key rotated (v${oldVersion} → v${newVersion}) — re-encrypted ${counter.n} field(s)`,
   );
+  await vault.flushHardening?.();
   return { rotated: counter.n, oldVersion, newVersion, file: configPath };
 }
 

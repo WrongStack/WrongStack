@@ -28,15 +28,15 @@
  * or session — those are owned by the post-boot phase.
  */
 
-import { atomicWrite, color, isStdinTTY, setRawMode } from '@wrongstack/core/utils';
+import * as fs from 'node:fs/promises';
 import { HQ_CLI_DEFAULT_HOST } from '@wrongstack/core/hq';
 import type { LaunchMenuChoice } from '@wrongstack/core/types';
-import * as fs from 'node:fs/promises';
+import { atomicWrite, color, isStdinTTY, setRawMode } from '@wrongstack/core/utils';
 import { DEFAULT_PORT as HQ_DEFAULT_PORT } from '../hq-server.js';
-import { launchBannerLines } from './launch-banner.js';
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { TerminalRenderer } from '../renderer.js';
 import { CLI_VERSION } from '../version.js';
+import { launchBannerLines } from './launch-banner.js';
 
 /** Top-level surfaces the user can launch from the menu. */
 export type LaunchMenuMode = LaunchMenuChoice['mode'];
@@ -68,11 +68,41 @@ function defaultHostFor(mode: Exclude<LaunchMenuMode, 'tui-repl'>): string {
 }
 
 /** Numbered choices shown to the user. Order MUST match the menu printout. */
-const MODE_OPTIONS: ReadonlyArray<{ key: number; mode: LaunchMenuMode; label: string; hint: string; icon: string }> = [
-  { key: 1, mode: 'tui-repl', label: 'TUI / REPL', hint: 'interactive terminal (default)', icon: '⌨' },
-  { key: 2, mode: 'webui', label: 'WebUI', hint: `browser-based project UI (port ${DEFAULT_PORTS.webui})`, icon: '🌐' },
-  { key: 3, mode: 'simpleui', label: 'SimpleUI', hint: `lightweight browser UI (port ${DEFAULT_PORTS.simpleui})`, icon: '📄' },
-  { key: 4, mode: 'hq', label: 'HQ', hint: `project-independent dashboard (port ${HQ_DEFAULT_PORT})`, icon: '📊' },
+const MODE_OPTIONS: ReadonlyArray<{
+  key: number;
+  mode: LaunchMenuMode;
+  label: string;
+  hint: string;
+  icon: string;
+}> = [
+  {
+    key: 1,
+    mode: 'tui-repl',
+    label: 'TUI / REPL',
+    hint: 'interactive terminal (default)',
+    icon: '⌨',
+  },
+  {
+    key: 2,
+    mode: 'webui',
+    label: 'WebUI',
+    hint: `browser-based project UI (port ${DEFAULT_PORTS.webui})`,
+    icon: '🌐',
+  },
+  {
+    key: 3,
+    mode: 'simpleui',
+    label: 'SimpleUI',
+    hint: `lightweight browser UI (port ${DEFAULT_PORTS.simpleui})`,
+    icon: '📄',
+  },
+  {
+    key: 4,
+    mode: 'hq',
+    label: 'HQ',
+    hint: `project-independent dashboard (port ${HQ_DEFAULT_PORT})`,
+    icon: '📊',
+  },
 ];
 
 const MENU_TIMEOUT_MS = 8_000;
@@ -143,6 +173,7 @@ const KNOWN_SUBCOMMANDS = new Set<string>([
   'help',
   'provider',
   'project',
+  'governance',
   'session',
   'sessions',
   'replay',
@@ -284,11 +315,7 @@ function writeBanner(renderer: TerminalRenderer): void {
 function canUseArrowMenu(): boolean {
   if (process.env.VITEST || process.env.NODE_ENV === 'test') return false;
   const stdin = process.stdin as NodeJS.ReadStream & { setRawMode?: unknown };
-  return (
-    isStdinTTY() &&
-    process.stdout.isTTY === true &&
-    typeof stdin.setRawMode === 'function'
-  );
+  return isStdinTTY() && process.stdout.isTTY === true && typeof stdin.setRawMode === 'function';
 }
 
 interface ArrowPickResult {
@@ -479,9 +506,7 @@ async function promptSummaryGate(
 
   const modeLabel = describeMode(lastChoice.mode);
   const portStr =
-    typeof lastChoice.port === 'number'
-      ? ` · port ${color.bold(String(lastChoice.port))}`
-      : '';
+    typeof lastChoice.port === 'number' ? ` · port ${color.bold(String(lastChoice.port))}` : '';
   const hostStr =
     typeof lastChoice.host === 'string' ? ` · host ${color.dim(lastChoice.host)}` : '';
   renderer.write(`\n  ${color.dim('─'.repeat(48))}\n`);
@@ -565,18 +590,13 @@ async function promptHost(deps: RunLaunchMenuDeps, defaultHost: string): Promise
  * default port (it would just shadow the source-of-truth in
  * port-utils.ts).
  */
-function finalize(
-  choice: LaunchMenuChoice,
-  ports: typeof DEFAULT_PORTS,
-): LaunchMenuResult {
+function finalize(choice: LaunchMenuChoice, ports: typeof DEFAULT_PORTS): LaunchMenuResult {
   if (choice.mode === 'tui-repl') return { ...choice, cancelled: false };
   const fallback = ports[choice.mode];
   return {
     ...choice,
     port: typeof choice.port === 'number' ? choice.port : fallback,
-    host:
-      choice.host ??
-      defaultHostFor(choice.mode),
+    host: choice.host ?? defaultHostFor(choice.mode),
     cancelled: false,
   };
 }
@@ -617,10 +637,7 @@ function describeMode(mode: LaunchMenuMode): string {
  * so unit tests can pin the transformation down without mocking
  * readers or renderers.
  */
-export function applyLaunchMenuToArgv(
-  argv: string[],
-  result: LaunchMenuResult,
-): string[] {
+export function applyLaunchMenuToArgv(argv: string[], result: LaunchMenuResult): string[] {
   if (result.cancelled) return argv;
   const out = [...argv];
   switch (result.mode) {
@@ -661,22 +678,20 @@ export function applyLaunchMenuToArgv(
  * to `undefined` so the next boot uses the surface default rather
  * than a value that would crash the server.
  */
-export function toPersistedMenuChoice(
-  result: LaunchMenuResult,
-): LaunchMenuChoice | undefined {
+export function toPersistedMenuChoice(result: LaunchMenuResult): LaunchMenuChoice | undefined {
   if (result.cancelled) return undefined;
   if (result.mode === 'tui-repl') return undefined;
   const port =
-    typeof result.port === 'number' && Number.isFinite(result.port) &&
-    result.port > 0 && result.port < 65536
+    typeof result.port === 'number' &&
+    Number.isFinite(result.port) &&
+    result.port > 0 &&
+    result.port < 65536
       ? result.port
       : undefined;
   return {
     mode: result.mode,
     ...(port !== undefined ? { port } : {}),
-    ...(typeof result.host === 'string' && result.host.length > 0
-      ? { host: result.host }
-      : {}),
+    ...(typeof result.host === 'string' && result.host.length > 0 ? { host: result.host } : {}),
   };
 }
 

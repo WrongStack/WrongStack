@@ -1,7 +1,7 @@
 export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
-  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox';
+  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox' | 'governance';
   label: string;
   status: ConnectionHealthStatus;
   required: boolean;
@@ -17,6 +17,14 @@ export interface ConnectionHealthService {
   queuedWork?: number | undefined;
   watcher?: { active: boolean; watchedFiles?: number | undefined } | undefined;
   lastError?: string | undefined;
+  control?: 'shutdown' | 'none' | undefined;
+  advisory?:
+    | {
+        code: string;
+        operatorAction: 'none' | 'observe' | 'investigate';
+        executionDisposition: 'continue';
+      }
+    | undefined;
 }
 
 export interface ConnectionsHealthReport {

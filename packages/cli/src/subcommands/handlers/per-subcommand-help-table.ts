@@ -398,7 +398,8 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
   plugins: {
     name: 'plugins',
     title: 'wstack plugins — alias for wstack plugin',
-    description: 'Alias for `wstack plugin`. See `wstack plugin --help` for the full set of subcommands.',
+    description:
+      'Alias for `wstack plugin`. See `wstack plugin --help` for the full set of subcommands.',
     usage: 'wstack plugins (alias for wstack plugin)',
     seeAlso: 'wstack plugin (the canonical command)',
   },
@@ -438,9 +439,7 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'sending, checking, and acknowledging messages. Use `wstack mailbox serve` ' +
       'to start the listener.',
     usage: 'wstack mailbox serve [--port <n>]',
-    subcommands: [
-      { name: 'serve', description: 'Start the mailbox HTTP bridge listener.' },
-    ],
+    subcommands: [{ name: 'serve', description: 'Start the mailbox HTTP bridge listener.' }],
     seeAlso: 'wstack hq (the HQ server includes mailbox routing)',
   },
   // -- Permissions ────────────────────────────────────────────────────
@@ -476,6 +475,17 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       { name: 'status', description: 'Show project registration details.' },
     ],
     seeAlso: 'wstack projects (list all tracked projects)',
+  },
+  governance: {
+    name: 'governance',
+    title: 'wstack governance — inspect deterministic project-daemon health',
+    description:
+      'Read token-free attachment-broker health from the current project daemon. ' +
+      'Warnings are advisory: they surface deterministic operator escalation signals ' +
+      'without stopping active tasks or model execution.',
+    usage: 'wstack governance status [--json]',
+    subcommands: [{ name: 'status', description: 'Show daemon and attachment-broker health.' }],
+    seeAlso: 'wstack doctor (broader environment diagnostics)',
   },
   // -- Chronicle ──────────────────────────────────────────────────────
   chronicle: {

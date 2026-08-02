@@ -22,6 +22,14 @@ export interface SecretVault {
   isEncrypted(value: string): boolean;
   /** Current key version. Starts at 1; incremented by `rotateKey()`. */
   readonly keyVersion: number;
+  /**
+   * Flush any pending asynchronous key-file hardening (e.g. Windows ACL
+   * restrictions via icacls). Callers in async contexts should await this
+   * before returning so a short-lived process does not exit before the
+   * hardening promise resolves. Sync-only callers may skip it — the
+   * hardening remains best-effort in that case.
+   */
+  flushHardening?(): Promise<void>;
 }
 
 /**

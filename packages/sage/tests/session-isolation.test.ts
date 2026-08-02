@@ -3,7 +3,6 @@ import * as os from 'node:os';
 import { rm } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SqliteSageStore } from '../src/sqlite-store.js';
-import type { Sage } from '../src/types.js';
 
 let tempDir: string;
 let store: SqliteSageStore;
@@ -96,6 +95,7 @@ describe('Cross-session isolation (P0-1c regression tests)', () => {
 
     // Session B retrieves for the same path — must NOT find session A's memory.
     const sessionBResults = await store.retrieveForPath(['src/config.ts'], {
+      path: 'src/config.ts',
       sessionId: SESSION_B,
       includeAudienceScoped: false,
     });
@@ -106,6 +106,7 @@ describe('Cross-session isolation (P0-1c regression tests)', () => {
 
   it('session-A memory IS returned by session-A retrieveForPath', async () => {
     const sessionAResults = await store.retrieveForPath(['src/config.ts'], {
+      path: 'src/config.ts',
       sessionId: SESSION_A,
       includeAudienceScoped: false,
     });

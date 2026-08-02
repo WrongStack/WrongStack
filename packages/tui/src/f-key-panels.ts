@@ -125,7 +125,7 @@ export const F_KEY_PANEL_ENTRIES: readonly FKeyPanelEntry[] = [
     key: 12,
     label: 'Kanban board panel',
     action: 'toggleKanbanPanel',
-    helpKeys: 'F12 or Ctrl+J',
+    helpKeys: 'F12 or Ctrl+Y',
     helpDescription: 'kanban board panel (also /kanban)',
   },
   {

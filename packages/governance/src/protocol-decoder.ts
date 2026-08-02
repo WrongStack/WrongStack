@@ -714,6 +714,9 @@ export function decodeGovernanceServiceRequest(
         );
       }
       break;
+    case 'release_runtime_attachment':
+      exactKeys(record, ['protocolVersion', 'requestId', 'type'], '$', issues);
+      break;
     case 'list_capability_grants':
       exactKeys(record, ['protocolVersion', 'requestId', 'type', 'cursor', 'limit'], '$', issues);
       if (record.cursor !== undefined) {

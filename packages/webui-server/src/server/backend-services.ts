@@ -239,6 +239,12 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           repeatCooldownMs: config.Sage?.inject?.repeatCooldownMs,
           verifyOnMutation: config.Sage?.hygiene?.autoOnFileChange,
           triggers: config.Sage?.inject?.triggers,
+          // Resolve the live session so retrieval and cooldown are session-scoped
+          // (matching the CLI wiring in wiring/sage.ts). Without this, the
+          // middleware falls back to ctx.session.id for cooldown but passes
+          // undefined to retrieval, causing owned session-scoped memories to be
+          // silently excluded from tool-call injection.
+          getSessionId: () => input.sessionGetter().id,
         }),
       );
     }

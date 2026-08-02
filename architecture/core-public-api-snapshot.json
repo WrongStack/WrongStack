@@ -691,9 +691,12 @@
         "export { createSkillsPlugin } from '../plugins/skills-plugin.js';",
         "export { createSyncPlugin } from '../plugins/sync-plugin.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type ResolvePluginConfigInput, type ResolvedPluginConfig, redactPluginConfig, resolvePluginConfig, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
-        "export { emitReviewIfChanged } from '../plugins/review-claim-registry.js';",
-        "export { parseChimeraReviewReport, type ParsedReviewReport, } from '../plugins/review-finding-parser.js';",
-        "export { type CascadeAgentKind, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';"
+        "export { emitReviewIfChanged, recordCompletedReview, recordStartedReview, } from '../plugins/review-claim-registry.js';",
+        "export { maybeCompactReviewStores, type ReviewStoreMaintenanceResult, } from '../plugins/review-store-maintenance.js';",
+        "export { persistReviewReport, type ReportIntegrationResult, } from '../plugins/review-report-integration.js';",
+        "export { type CascadeAgentKind, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';",
+        "export { type FindingsIntegrationResult, integrateFindings, } from '../plugins/review-finding-integration.js';",
+        "export { type ParsedReviewReport, parseChimeraReviewReport, } from '../plugins/review-finding-parser.js';"
       ]
     },
     {
@@ -758,7 +761,6 @@
       "declarations": [
         "export type { CompatibilityTrustBoundaryOptions, TrustActor, TrustActorKind, TrustAllowDecision, TrustAttribute, TrustAuthContext, TrustAuthMethod, TrustBoundary, TrustBoundaryAuditEntry, TrustBoundaryDecision, TrustBoundaryRequest, TrustConfirmDecision, TrustDecodeIssue, TrustDecodeResult, TrustDenyDecision, TrustRisk, TrustScope, TrustScopedTokenDecision, TrustSubject, TrustSurface, } from './trust-boundary.js';",
         "export { AutoApprovePermissionPolicy, alwaysAllowUnavailableReason, DefaultPermissionPolicy, type PermissionPolicyOptions, } from './permission-policy.js';",
-        "export { DANGEROUS_FOR_SUBAGENTS, getDangerousCapabilities, hasCapability, hasDangerousCapabilityForSubagents, ToolCapabilities, type ToolCapability, WIDE_SUBAGENT_CAPABILITIES, } from './capabilities.js';",
         "export { DIRECTORY_POLICY_LIMITS, DIRECTORY_POLICY_SCHEMA_VERSION, type DirectoryPolicyDiagnostic, type DirectoryPolicyDiagnosticCode, type DirectoryPolicyValidationResult, validateDirectoryPolicy, } from './directory-policy-schema.js';",
         "export { DefaultSecretScrubber } from './secret-scrubber.js';",
         "export { DefaultSecretVault, migratePlaintextSecrets, rewriteConfigEncrypted, rotateConfigKeys, type SecretVaultOptions, } from './secret-vault.js';",
@@ -766,6 +768,8 @@
         "export { ERROR_DETAIL_MAX, sanitizeApiError, scrubErrorDetail, scrubErrorText, } from './error-sanitize.js';",
         "export { ReadOnlyPermissionPolicy } from './readonly-permission-policy.js';",
         "export { TRUST_POLICY_JSON_SCHEMA, TRUST_POLICY_LIMITS, TRUST_POLICY_SCHEMA_VERSION, type TrustPolicyDiagnostic, type TrustPolicyDiagnosticCode, type TrustPolicyValidationResult, validateTrustPolicy, } from './permission-policy-schema.js';",
+        "export { base32Decode, base32Encode, buildOtpAuthUri, generateRecoveryCodes, generateTotpSecret, generateTotp, hashRecoveryCode, verifyRecoveryCode, verifyTotp, } from './totp.js';",
+        "export { clampSubagentCapabilities, DANGEROUS_FOR_SUBAGENTS, getDangerousCapabilities, hasCapability, hasDangerousCapabilityForSubagents, ToolCapabilities, type ToolCapability, WIDE_SUBAGENT_CAPABILITIES, } from './capabilities.js';",
         "export { createCompatibilityTrustBoundary, decodeTrustBoundaryDecision, decodeTrustBoundaryRequest, isTrustDecisionAllowed, TRUST_BOUNDARY_VERSION, } from './trust-boundary.js';",
         "export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';",
         "export { evaluateToolKanbanBoundary, type ToolKanbanBoundaryEvaluation, } from './kanban-boundary.js';",
@@ -874,6 +878,7 @@
         "export * from './protocol/client.js';",
         "export * from './protocol/core.js';",
         "export * from './protocol/fleet.js';",
+        "export * from './protocol/governance.js';",
         "export * from './protocol/kanban.js';",
         "export * from './protocol/mailbox.js';",
         "export * from './protocol/mcp.js';",
@@ -1079,7 +1084,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 144,
-      "sourceLines": 42095
+      "sourceLines": 42127
     },
     {
       "directory": "core",
@@ -1121,7 +1126,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 14,
-      "sourceLines": 3372
+      "sourceLines": 3375
     },
     {
       "directory": "hooks",
@@ -1134,8 +1139,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 42,
-      "sourceLines": 8344
+      "sourceFiles": 43,
+      "sourceLines": 8584
     },
     {
       "directory": "infrastructure",
@@ -1177,21 +1182,21 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 12,
-      "sourceLines": 1524
+      "sourceLines": 1570
     },
     {
       "directory": "plugin",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1520
+      "sourceLines": 1536
     },
     {
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
-      "sourceFiles": 16,
-      "sourceLines": 6381
+      "sourceFiles": 17,
+      "sourceLines": 6488
     },
     {
       "directory": "prompts",
@@ -1218,22 +1223,22 @@
       "directory": "security",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
-      "sourceFiles": 15,
-      "sourceLines": 5312
+      "sourceFiles": 16,
+      "sourceLines": 5694
     },
     {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2265
+      "sourceLines": 2287
     },
     {
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 75,
-      "sourceLines": 16306
+      "sourceLines": 16335
     },
     {
       "directory": "tasking",
@@ -1254,14 +1259,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9467
+      "sourceLines": 9490
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9801
+      "sourceLines": 9870
     },
     {
       "directory": "worktree",

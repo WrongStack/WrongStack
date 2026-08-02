@@ -3,6 +3,7 @@ import {
   type BootstrapGovernanceRuntimeOptions,
   bootstrapGovernanceRuntimeWithFactory,
   MAX_PENDING_GOVERNANCE_OBSERVATIONS,
+  readGovernanceDaemonOperatorStatusWithDependencies,
 } from '../src/governance-bootstrap.js';
 
 const options: BootstrapGovernanceRuntimeOptions = {
@@ -67,6 +68,19 @@ function governedRuntime(source: 'attached' | 'launched') {
       snapshot: () => ({
         source,
         closed: false,
+        daemon: {
+          projectRoot: 'D:/project',
+          projectId: 'project-1',
+          pid: 42,
+          instanceId: 'instance-1',
+          startedAt: '2026-08-02T12:00:00.000Z',
+        },
+        control: {
+          kind: 'admin' as const,
+          clientId: 'runtime-admin',
+          grantId: 'admin-grant',
+          expiresAt: '2026-08-02T13:00:00.000Z',
+        },
         admin: {
           mode: source,
           daemon: {
@@ -304,6 +318,133 @@ describe('runtime governance bootstrap adapter', () => {
       phase: 'bootstrap',
       message: 'failed with [credential]',
       cleanup: 'unavailable',
+    });
+  });
+
+  it('reads token-free operator status through the private broker credential', async () => {
+    const token = 'wsg_broker.secret-material-that-must-not-leak';
+    const request = vi.fn(async () => ({
+      ok: true as const,
+      requestId: 'operator-status',
+      result: {
+        type: 'daemon_status' as const,
+        projectId: 'project-1',
+        pid: 42,
+        instanceId: 'instance-1',
+        startedAt: '2026-08-02T12:00:00.000Z',
+        attachmentBroker: {
+          state: 'retry_wait' as const,
+          health: 'degraded' as const,
+          grantId: 'broker-grant',
+          expiresAt: '2026-08-02T13:00:00.000Z',
+          consecutiveFailures: 3,
+          pendingRevocations: 0,
+          auditHealthy: true,
+        },
+      },
+    }));
+    const readBroker = vi.fn(async () => ({
+      kind: 'valid' as const,
+      broker: {
+        schemaVersion: 1 as const,
+        protocolVersion: 1 as const,
+        projectKey: 'project-key',
+        projectRoot: 'D:/project',
+        projectId: 'project-1',
+        pid: 42,
+        instanceId: 'instance-1',
+        grantId: 'broker-grant',
+        expiresAt: '2026-08-02T13:00:00.000Z',
+        credential: { token, projectId: 'project-1', clientId: 'broker-client' },
+      },
+    }));
+    const connectClient = vi.fn(async () => ({
+      connected: true as const,
+      metadata: {
+        schemaVersion: 1 as const,
+        protocolVersion: 1 as const,
+        projectKey: 'project-key',
+        projectRoot: 'D:/project',
+        projectId: 'project-1',
+        endpoint: 'test-endpoint',
+        pid: 42,
+        instanceId: 'instance-1',
+        startedAt: '2026-08-02T12:00:00.000Z',
+      },
+      client: { request },
+    }));
+
+    const result = await readGovernanceDaemonOperatorStatusWithDependencies('D:/project', {
+      readBroker: readBroker as never,
+      connectClient: connectClient as never,
+    });
+
+    expect(result).toMatchObject({
+      available: true,
+      status: {
+        signal: {
+          level: 'warning',
+          code: 'attachment_broker_degraded',
+          executionDisposition: 'continue',
+        },
+      },
+    });
+    expect(connectClient).toHaveBeenCalledWith(
+      expect.objectContaining({ credential: expect.objectContaining({ token }) }),
+    );
+    expect(JSON.stringify(result)).not.toContain(token);
+    expect(JSON.stringify(result)).not.toContain('wsg_');
+  });
+
+  it('redacts credentials from operator status connection failures', async () => {
+    const result = await readGovernanceDaemonOperatorStatusWithDependencies('D:/project', {
+      readBroker: vi.fn(async () => ({
+        kind: 'valid',
+        broker: {
+          projectId: 'project-1',
+          credential: {
+            token: 'wsg_broker.secret-material-that-must-not-leak',
+            projectId: 'project-1',
+            clientId: 'broker-client',
+          },
+        },
+      })) as never,
+      connectClient: vi.fn(async () => ({
+        connected: false,
+        code: 'authentication_failed',
+        message: 'rejected wsg_broker.secret-material-that-must-not-leak',
+      })) as never,
+    });
+
+    expect(result).toEqual({
+      available: false,
+      code: 'connection_failed',
+      message: 'rejected [credential]',
+    });
+  });
+
+  it('converts unexpected operator connection throws into a redacted unavailable result', async () => {
+    const result = await readGovernanceDaemonOperatorStatusWithDependencies('D:/project', {
+      readBroker: vi.fn(async () => ({
+        kind: 'valid',
+        broker: {
+          projectId: 'project-1',
+          credential: {
+            token: 'wsg_broker.secret-material-that-must-not-leak',
+            projectId: 'project-1',
+            clientId: 'broker-client',
+          },
+        },
+      })) as never,
+      connectClient: vi.fn(async () => {
+        throw new Error('connect exploded with wsg_broker.secret-material-that-must-not-leak');
+      }) as never,
+    });
+
+    expect(result).toEqual({
+      available: false,
+      code: 'connection_failed',
+      message: 'connect exploded with [credential]',
     });
   });
 });

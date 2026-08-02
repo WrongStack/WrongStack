@@ -1,51 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
-// scorePassword is not exported from settings.tsx (it's a module-private
-// function). Rather than export it just for tests, we replicate the scoring
-// logic here and test it against the same vectors. If the function changes
-// in settings.tsx, these tests will need updating — but they serve as a
-// regression guard for the scoring algorithm itself.
-//
-// When the function IS eventually exported, replace this with a direct import.
-
-type StrengthLevel = 'empty' | 'weak' | 'fair' | 'good' | 'strong';
-
-interface StrengthResult {
-  level: StrengthLevel;
-  score: number;
-  label: string;
-}
-
-const COMMON_PASSWORDS = new Set([
-  'password', '12345678', '123456789', 'qwerty123', 'abc12345',
-  'letmein1', 'welcome1', 'admin123', 'monkey123', 'iloveyou1',
-]);
-
-function scorePassword(pw: string): StrengthResult {
-  if (pw.length === 0) return { level: 'empty', score: 0, label: '' };
-
-  let score = 0;
-  if (pw.length >= 8) score += 20;
-  if (pw.length >= 12) score += 15;
-  if (pw.length >= 16) score += 15;
-  if (/[a-z]/.test(pw)) score += 10;
-  if (/[A-Z]/.test(pw)) score += 10;
-  if (/\d/.test(pw)) score += 10;
-  if (/[^a-zA-Z0-9]/.test(pw)) score += 15;
-  if (/(.)\1{2,}/.test(pw)) score -= 10;
-  if (/(?:0123|1234|2345|3456|4567|5678|6789|abcd|qwer|asdf)/i.test(pw)) score -= 10;
-  if (COMMON_PASSWORDS.has(pw.toLowerCase())) score = 0;
-  score = Math.max(0, Math.min(100, score));
-
-  let level: StrengthLevel;
-  let label: string;
-  if (score < 30) { level = 'weak'; label = 'Weak'; }
-  else if (score < 55) { level = 'fair'; label = 'Fair'; }
-  else if (score < 80) { level = 'good'; label = 'Good'; }
-  else { level = 'strong'; label = 'Strong'; }
-
-  return { level, score, label };
-}
+import { scorePassword } from '../src/views/settings.js';
 
 describe('scorePassword', () => {
   it('returns empty for zero-length input', () => {

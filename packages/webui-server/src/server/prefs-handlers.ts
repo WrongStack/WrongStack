@@ -75,6 +75,17 @@ export function handlePrefsUpdate(
   for (const [key, value] of Object.entries(payload)) ctx.meta[key] = value;
   void ctx.persist(payload);
 
+  // Mirror `autonomy.switch`: an `autonomy` payload arriving through
+  // `prefs.update` must drive `setAutonomy` so the runtime mode flips
+  // immediately, not just on restart. Without this, the validator
+  // accepts `eternal` / `eternal-parallel`, `persistPrefsToConfig`
+  // writes them through (after the fix above), but the live engine
+  // never receives the change and the browser's "set autonomy to
+  // eternal" click is silently a no-op until the next process boot.
+  if (typeof payload['autonomy'] === 'string') {
+    ctx.setAutonomy?.(payload['autonomy']);
+  }
+
   if (typeof payload['yolo'] === 'boolean') {
     ctx.setYolo?.(payload['yolo']);
     if (payload['yolo']) resolveYoloEligiblePendingConfirms(ctx.pendingConfirms);

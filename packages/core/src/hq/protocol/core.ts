@@ -16,6 +16,7 @@ import type {
   HqQueuedCommand,
   HqWorktreeEventPayload,
 } from './fleet.js';
+import { type HqGovernanceSnapshotPayload, isHqGovernanceSnapshotPayload } from './governance.js';
 import type {
   HqMailboxAgentSummary,
   HqMailboxEventPayload,
@@ -393,6 +394,7 @@ const KNOWN_HQ_EVENT_PAYLOAD_TYPES = new Set<string>([
   'client.heartbeat',
   'mcp.health.snapshot',
   'mcp.operation',
+  'governance.snapshot',
   'peer.rehydrate',
   'peer.lost',
 ]);
@@ -887,6 +889,10 @@ export function parseHqEventPayload(
     case 'mcp.operation':
       return isHqMcpOperationPayload(payload)
         ? { ok: true, payload }
+        : { ok: false, reason: 'malformed-payload' };
+    case 'governance.snapshot':
+      return isHqGovernanceSnapshotPayload(payload)
+        ? { ok: true, payload: payload as HqGovernanceSnapshotPayload }
         : { ok: false, reason: 'malformed-payload' };
     case 'peer.rehydrate':
       return isHqPeerRehydratePayload(payload)

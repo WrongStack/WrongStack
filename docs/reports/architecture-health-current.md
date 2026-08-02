@@ -1,18 +1,18 @@
 # Architecture Health Report
 
-**Generated:** 2026-07-31T23:22:04.898Z
+**Generated:** 2026-08-02T13:00:05.863Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
 
 | Measure | Value |
 |---|---:|
-| Workspace packages | 28 |
-| Production source files | 2742 |
-| Production source lines | 642717 |
-| Test files | 2292 |
-| Workspace dependency edges | 85 |
-| Relative module edges | 8130 |
+| Workspace packages | 29 |
+| Production source files | 2826 |
+| Production source lines | 672698 |
+| Test files | 2415 |
+| Workspace dependency edges | 86 |
+| Relative module edges | 8468 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 2 |
 | Type-inclusive module cycles | 16 |
@@ -21,39 +21,40 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/webui/src/stores/chat-store.ts: stale hotspot baseline; remove or tighten it in the same change
 
 ## Workspace packages
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 38 | 32 | @wrongstack/core |
+| @wrongstack/acp | 38 | 33 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 385 | 314 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
+| @wrongstack/cli | 395 | 338 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 663 | 531 | @wrongstack/kanban, @wrongstack/persistence |
-| @wrongstack/desktop | 37 | 15 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-server |
-| @wrongstack/kanban | 63 | 43 | @wrongstack/persistence |
+| @wrongstack/core | 674 | 560 | @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/desktop | 37 | 16 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-server |
+| @wrongstack/governance | 39 | 25 | — |
+| @wrongstack/kanban | 67 | 52 | @wrongstack/persistence |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/mailbox-mcp | 5 | 6 | @wrongstack/core, @wrongstack/mcp |
-| @wrongstack/mcp | 34 | 27 | @wrongstack/core |
+| @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
+| @wrongstack/mcp | 34 | 29 | @wrongstack/core |
 | @wrongstack/persistence | 3 | 3 | — |
 | @wrongstack/plug-lsp | 41 | 28 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 78 | 115 | @wrongstack/core, @wrongstack/tools |
-| @wrongstack/providers | 53 | 47 | @wrongstack/core |
-| @wrongstack/runtime | 9 | 14 | @wrongstack/core, @wrongstack/sage, @wrongstack/tools |
-| @wrongstack/sage | 76 | 45 | @wrongstack/core |
+| @wrongstack/providers | 55 | 49 | @wrongstack/core |
+| @wrongstack/runtime | 12 | 15 | @wrongstack/core, @wrongstack/governance, @wrongstack/sage, @wrongstack/tools |
+| @wrongstack/sage | 77 | 47 | @wrongstack/core |
 | @wrongstack/sage-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 33 | 29 | @wrongstack/core, @wrongstack/kanban |
 | @wrongstack/security-scanner | 15 | 26 | @wrongstack/core |
-| @wrongstack/simpleui | 67 | 37 | @wrongstack/tools, @wrongstack/webui-server |
+| @wrongstack/simpleui | 74 | 43 | @wrongstack/tools, @wrongstack/webui-server |
 | @wrongstack/techstack | 46 | 32 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/telegram | 20 | 28 | @wrongstack/core |
-| @wrongstack/tools | 148 | 153 | @wrongstack/core, @wrongstack/kanban |
-| @wrongstack/tui | 275 | 266 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
-| @wrongstack/webui | 401 | 298 | @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-server |
-| @wrongstack/webui-hq | 52 | 33 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-server |
-| @wrongstack/webui-server | 162 | 113 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools |
+| @wrongstack/tools | 148 | 158 | @wrongstack/core, @wrongstack/kanban |
+| @wrongstack/tui | 275 | 270 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/webui | 406 | 300 | @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-server |
+| @wrongstack/webui-hq | 53 | 36 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-server |
+| @wrongstack/webui-server | 163 | 119 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools |
 | wrongstack | 1 | 0 | @wrongstack/cli |
 
 ## Module cycles
@@ -70,7 +71,7 @@ PASS — no blocking architecture-health errors.
 - packages/cli/src/fleet/host.ts ↔ packages/cli/src/fleet/routing.ts
 - packages/core/src/coordination/brain-telemetry.ts ↔ packages/core/src/coordination/brain.ts ↔ packages/core/src/kernel/events.ts ↔ packages/core/src/kernel/events/brain-events.ts ↔ packages/core/src/kernel/events/session-events.ts
 - packages/core/src/core/agent-internals.ts ↔ packages/core/src/core/agent-loop.ts ↔ packages/core/src/core/agent-response.ts ↔ packages/core/src/core/agent-tools.ts ↔ packages/core/src/core/agent-types.ts ↔ packages/core/src/core/agent.ts ↔ packages/core/src/extension/extension-points.ts ↔ packages/core/src/extension/registry.ts ↔ packages/core/src/mailbox-attach.ts ↔ packages/core/src/types/plugin.ts
-- packages/core/src/core/context.ts ↔ packages/core/src/core/conversation-state.ts ↔ packages/core/src/core/run-env.ts ↔ packages/core/src/types/compactor.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts ↔ packages/core/src/utils/context-evidence.ts ↔ packages/core/src/utils/token-estimate.ts ↔ packages/core/src/utils/tool-wire-compact.ts
+- packages/core/src/core/context.ts ↔ packages/core/src/core/conversation-state.ts ↔ packages/core/src/core/run-env.ts ↔ packages/core/src/types/blocks.ts ↔ packages/core/src/types/compactor.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts ↔ packages/core/src/utils/context-evidence.ts ↔ packages/core/src/utils/token-estimate.ts ↔ packages/core/src/utils/tool-wire-compact.ts
 - packages/core/src/hq/protocol/client.ts ↔ packages/core/src/hq/protocol/core.ts ↔ packages/core/src/hq/protocol/fleet.ts ↔ packages/core/src/hq/protocol/session.ts
 - packages/core/src/index.ts ↔ packages/core/src/plugins/prompts-plugin.ts ↔ packages/core/src/plugins/skills-plugin.ts ↔ packages/core/src/plugins/sync-plugin.ts ↔ packages/core/src/tools/mcp-control.ts ↔ packages/core/src/tools/mcp-use.ts
 - packages/kanban/src/manager/_internal.ts ↔ packages/kanban/src/manager/lifecycle.ts ↔ packages/kanban/src/server/remote-storage.ts ↔ packages/kanban/src/storage.ts
@@ -86,56 +87,56 @@ PASS — no blocking architecture-health errors.
 
 | Lines | File |
 |---:|---|
-| 1356 | `packages/simpleui/src/simple-ui-session.tsx` |
-| 1247 | `packages/sage/src/middleware/tool-call-memory.ts` |
+| 1522 | `packages/tui/src/components/scrollable-history.tsx` |
+| 1266 | `packages/sage/src/middleware/tool-call-memory.ts` |
+| 1261 | `packages/core/src/security/permission-policy.ts` |
+| 1257 | `packages/tools/src/exec.ts` |
+| 1226 | `packages/tools/src/codebase-index/writer.ts` |
 | 1207 | `packages/tui/src/memory-slash.ts` |
-| 1185 | `packages/tools/src/codebase-index/writer.ts` |
 | 1150 | `packages/core/src/storage/file-session-writer.ts` |
+| 1149 | `packages/tui/src/components/status-bar.tsx` |
 | 1148 | `packages/webui/src/components/ChatInput.tsx` |
-| 1141 | `packages/tui/src/components/status-bar.tsx` |
+| 1130 | `packages/cli/src/hq-server/ws.ts` |
+| 1129 | `packages/cli/src/hq-server/routes/auth-handlers.ts` |
 | 1129 | `packages/webui/src/lib/ws-client.ts` |
-| 1114 | `packages/cli/src/hq-server/ws.ts` |
 | 1111 | `packages/cli/src/slash-commands/memory.ts` |
-| 1109 | `packages/cli/src/cli-main.ts` |
-| 1089 | `packages/webui/src/components/SettingsPanel/index.tsx` |
+| 1110 | `packages/cli/src/cli-main.ts` |
+| 1101 | `packages/webui/src/components/SettingsPanel/index.tsx` |
 | 1087 | `packages/cli/src/slash-commands/settings.ts` |
 | 1087 | `packages/cli/src/subcommands/handlers/modeldiag.ts` |
 | 1087 | `packages/tui/src/components/history/entry.tsx` |
-| 1061 | `packages/core/src/plugins/auto-review-plugin.ts` |
-| 1053 | `packages/core/src/storage/session-store.ts` |
-| 1044 | `packages/webui/src/hooks/ws-handlers/session-handlers.ts` |
-| 1036 | `packages/webui-server/src/server/start-webui.ts` |
-| 1035 | `packages/sage/src/sqlite-store.ts` |
-| 1035 | `packages/tui/src/components/scrollable-history.tsx` |
-| 1034 | `packages/cli/src/execution.ts` |
-| 1033 | `packages/cli/src/webui-server.ts` |
+| 1070 | `packages/core/src/storage/session-store.ts` |
+| 1066 | `packages/core/src/plugins/auto-review-plugin.ts` |
+| 1064 | `packages/acp/src/agent/protocol-handler.ts` |
+| 1061 | `packages/webui-server/src/server/start-webui.ts` |
+| 1046 | `packages/cli/src/webui-server.ts` |
+| 1045 | `packages/webui/src/hooks/ws-handlers/session-handlers.ts` |
+| 1038 | `packages/sage/src/sqlite-store.ts` |
+| 1034 | `packages/cli/src/hq-server/routes.ts` |
 | 1033 | `packages/tui/src/app.tsx` |
 | 1022 | `packages/kanban/src/verification/verification-context.ts` |
+| 1018 | `packages/core/src/execution/tool-executor.ts` |
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
+| 1012 | `packages/mcp/src/client.ts` |
 | 1006 | `packages/acp/src/client/acp-session.ts` |
 | 1006 | `packages/webui/src/components/ChatView/index.tsx` |
-| 1003 | `packages/webui-server/src/server/setup-events.ts` |
+| 1004 | `packages/webui-server/src/server/setup-events.ts` |
+| 1002 | `packages/core/src/coordination/agents/project-agent-identity.ts` |
 | 1000 | `packages/mcp/src/registry.ts` |
-| 997 | `packages/mcp/src/client.ts` |
 | 997 | `packages/tui/src/components/agents-monitor.tsx` |
 | 996 | `packages/webui/src/components/MemoryManager/index.tsx` |
 | 995 | `packages/cli/src/repl.ts` |
 | 994 | `packages/core/src/coordination/mailbox-http-router.ts` |
 | 991 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
-| 989 | `packages/core/src/coordination/agents/project-agent-identity.ts` |
 | 989 | `packages/core/src/index.ts` |
 | 985 | `packages/core/src/chronicle/metrics-store.ts` |
-| 984 | `packages/core/src/execution/tool-executor.ts` |
 | 984 | `packages/tui/src/hooks/use-picker-keys.ts` |
 | 982 | `packages/core/src/coordination/autonomous-coordinator.ts` |
-| 982 | `packages/webui/src/App.tsx` |
 | 980 | `packages/core/src/execution/brain-runtime.ts` |
 | 980 | `packages/sdd/src/sdd-parallel-run.ts` |
 | 979 | `packages/webui/src/components/AgentsPage.tsx` |
-| 967 | `packages/webui-server/src/server/kanban-routes.ts` |
-| 965 | `packages/webui/src/components/AgentOfficeView.tsx` |
-| 962 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
-| 962 | `packages/core/src/execution/autonomy-brain.ts` |
+| 976 | `packages/simpleui/src/simple-ui-session.tsx` |
+| 973 | `packages/cli/src/hq-server.ts` |
 
 ## TypeScript test coverage debt
 

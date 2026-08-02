@@ -59,6 +59,17 @@ const BOOLEAN_PREF_KEYS = new Set([
   // Display-only toggles (purely visual, persisted in localStorage via Zustand).
   'groupToolCalls',
   'showThinkingLogs',
+  // v11 Display parity: agent-swarm panel + inverse fsAccess flag.
+  'showAgentSwarmPanel',
+  'allowOutsideProjectRoot',
+  // v13 Display parity (TUI SettingsPicker fields 42 & 43): the read tool
+  // includes codebase-index symbols, and SAGE memory-inject blocks are
+  // surfaced in tool results. Both are pure WebUI-display toggles mirrored
+  // against the TUI's settings picker; the server mirrors them through
+  // `prefs.update` exactly so the panel does not error with
+  // "unknown preference key".
+  'readSymbols',
+  'showSageMemoryInject',
 ]);
 
 /** Keys whose value must be an array of strings (e.g. an ordered model list). */
@@ -89,6 +100,7 @@ const NUMBER_PREF_KEYS = new Set([
   'maxIterations',
   'maxConcurrent',
   'enhanceDelayMs',
+  'enhanceCountdownMs',
   'tgLongToolMs',
   'breakerAutoKillResetMs',
   // Chimera + auto-review numeric knobs
@@ -96,7 +108,43 @@ const NUMBER_PREF_KEYS = new Set([
   'autoReviewDebounceMs',
   'autoReviewMaxFilesPerBatch',
   'autoReviewMaxConcurrentReviews',
+  // v13 Display parity (TUI SettingsPicker fields 41, 44, 21): the
+  // pre-refine grace countdown (seconds), the SAGE memory-inject relation
+  // floor (0..1), and the minimum file count for the multi-diff summary
+  // footer. All three are driven by the WebUI sliders in DisplaySection
+  // and previously tripped the "unknown preference key" rejection.
+  'preRefineSeconds',
+  'sageMemoryInjectThreshold',
+  'multiDiffSummaryThreshold',
 ]);
+
+/**
+ * Per-key inclusive min/max bounds for `NUMBER_PREF_KEYS`. Entries absent
+ * from this map fall back to the generic "must be a finite number" rule
+ * (preserving the original behaviour for ms timings and similar). Keys
+ * listed here get an extra bounds check that fires *before* the value is
+ * handed to the persist layer; bounds are aligned with the validation
+ * that `pref-helpers.ts` already applies to chimera / auto-review
+ * extensions (`>= 1` for `maxFiles`) so out-of-range values like
+ * `maxIterations: -5` or `maxConcurrent: 0` are rejected loudly instead
+ * of silently landing in `config.tools` / `config.maxConcurrent`.
+ */
+const NUMBER_PREF_BOUNDS: Record<string, { min: number; max: number }> = {
+  // Iteration / concurrency — must be at least 1 to make progress.
+  maxIterations: { min: 1, max: Number.POSITIVE_INFINITY },
+  maxConcurrent: { min: 1, max: Number.POSITIVE_INFINITY },
+  autoProceedMaxIterations: { min: 1, max: Number.POSITIVE_INFINITY },
+  chimeraMaxFiles: { min: 1, max: Number.POSITIVE_INFINITY },
+  autoReviewMaxFilesPerBatch: { min: 1, max: Number.POSITIVE_INFINITY },
+  autoReviewMaxConcurrentReviews: { min: 1, max: Number.POSITIVE_INFINITY },
+  // Counts (must be >= 1 to render a footer at all).
+  multiDiffSummaryThreshold: { min: 1, max: Number.POSITIVE_INFINITY },
+  preRefineSeconds: { min: 0, max: Number.POSITIVE_INFINITY },
+  // Probability — must lie in [0, 1].
+  sageMemoryInjectThreshold: { min: 0, max: 1 },
+  // Debounce / delay — non-negative ms.
+  autoReviewDebounceMs: { min: 0, max: Number.POSITIVE_INFINITY },
+};
 
 const STRING_PREF_KEYS = new Set([
   'hqUrl',
@@ -246,9 +294,16 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     return typeof value === 'boolean' ? null : `prefs.update payload.${key} must be a boolean`;
   }
   if (NUMBER_PREF_KEYS.has(key)) {
-    return typeof value === 'number' && Number.isFinite(value)
-      ? null
-      : `prefs.update payload.${key} must be a finite number`;
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return `prefs.update payload.${key} must be a finite number`;
+    }
+    const bounds = NUMBER_PREF_BOUNDS[key];
+    if (bounds && (value < bounds.min || value > bounds.max)) {
+      const maxStr =
+        bounds.max === Number.POSITIVE_INFINITY ? '∞' : String(bounds.max);
+      return `prefs.update payload.${key} must be in [${bounds.min}, ${maxStr}]`;
+    }
+    return null;
   }
   if (STRING_PREF_KEYS.has(key)) {
     return typeof value === 'string' ? null : `prefs.update payload.${key} must be a string`;
@@ -274,12 +329,24 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     return null;
   }
   if (STRING_ARRAY_RECORD_PREF_KEYS.has(key)) {
-    return isRecord(value) &&
-      Object.values(value).every(
+    if (
+      !isRecord(value) ||
+      !Object.values(value).every(
         (v) => Array.isArray(v) && v.every((item) => typeof item === 'string'),
       )
-      ? null
-      : `prefs.update payload.${key} must be an object of string arrays`;
+    ) {
+      return `prefs.update payload.${key} must be an object of string arrays`;
+    }
+    // The KEYS here become profile names that get assigned directly into
+    // `config.fallbackProfiles` (see `pref-helpers.ts:298`), so a payload
+    // like `{ "__proto__": ["x"] }` would otherwise reach the persist
+    // layer and pollute Object.prototype. Mirror the
+    // `BOOLEAN_RECORD_PREF_KEYS` guard above for parity.
+    const badKey = Object.keys(value).find((k) => FORBIDDEN_PROTO_KEYS.has(k));
+    if (badKey) {
+      return `prefs.update payload.${key} contains a forbidden key: ${badKey}`;
+    }
+    return null;
   }
   if (BOOLEAN_RECORD_PREF_KEYS.has(key)) {
     if (!isRecord(value) || !Object.values(value).every((v) => typeof v === 'boolean')) {
@@ -298,6 +365,15 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
   }
   if (MODEL_MATRIX_PREF_KEYS.has(key)) {
     if (!isRecord(value)) return `prefs.update payload.${key} must be an object`;
+    // Role-name keys become property keys on `config.modelMatrix`
+    // (`pref-helpers.ts:311`), so guard against prototype-pollution keys
+    // the same way `BOOLEAN_RECORD_PREF_KEYS` and `STRING_ARRAY_RECORD_PREF_KEYS`
+    // do. Validate keys first so a polluted entry doesn't leak past the
+    // per-entry shape checks before we reject it.
+    const badMatrixKey = Object.keys(value).find((k) => FORBIDDEN_PROTO_KEYS.has(k));
+    if (badMatrixKey) {
+      return `prefs.update payload.${key} contains a forbidden key: ${badMatrixKey}`;
+    }
     for (const entry of Object.values(value)) {
       if (!isRecord(entry)) return `prefs.update payload.${key} entries must be objects`;
       const provider = entry['provider'];

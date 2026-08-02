@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 232,
-      "typeOnly": 189,
-      "runtimeOrMixed": 61
+      "files": 235,
+      "typeOnly": 190,
+      "runtimeOrMixed": 65
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 48,
+      "files": 50,
       "typeOnly": 19,
-      "runtimeOrMixed": 47
+      "runtimeOrMixed": 49
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -64,13 +64,13 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/hq": {
-      "files": 100,
-      "typeOnly": 70,
-      "runtimeOrMixed": 54
+      "files": 106,
+      "typeOnly": 74,
+      "runtimeOrMixed": 60
     },
     "@wrongstack/core/hq/protocol": {
-      "files": 2,
-      "typeOnly": 0,
+      "files": 3,
+      "typeOnly": 1,
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/infrastructure": {
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 197,
-      "typeOnly": 104,
+      "files": 198,
+      "typeOnly": 105,
       "runtimeOrMixed": 103
     },
     "@wrongstack/core/kernel/events.js": {
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 109,
+      "files": 113,
       "typeOnly": 19,
-      "runtimeOrMixed": 92
+      "runtimeOrMixed": 96
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 827,
-      "typeOnly": 793,
-      "runtimeOrMixed": 206
+      "files": 833,
+      "typeOnly": 797,
+      "runtimeOrMixed": 208
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -222,12 +222,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/boot/dispatch-webui.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/boot/governance-mutation-snapshot-bridge.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -515,6 +509,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/codebase-index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -660,6 +660,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/multi-agent.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -877,7 +883,13 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/governance-mutation-snapshot-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -907,7 +919,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1434,6 +1446,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/governance-runtime.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -2951,6 +2969,18 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/tools/tests/batch-tool-use.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/tui/src/app-props.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -3221,6 +3251,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/governance-hq-telemetry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-command-controller.ts",
       "typeOnly": 2,
       "runtimeOrMixed": 0
@@ -3235,7 +3271,7 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -3271,7 +3307,7 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/routes/auth-handlers.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -3353,8 +3389,20 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/governance-hq-telemetry.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-audit-verify.test.ts",
       "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-auth-floor.test.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -3378,6 +3426,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-dashboard.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-governance-snapshot.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3409,6 +3463,12 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-peer-rehydrate.test.ts",
       "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-preflight-expiry.test.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -3468,6 +3528,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-token-verifier.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-totp-2fa.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3820,6 +3886,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/hq/protocol",
+      "file": "packages/webui-hq/tests/cockpit-governance.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
@@ -4062,12 +4134,6 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/boot/event-wiring.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/kernel",
-      "file": "packages/cli/src/boot/governance-mutation-snapshot-bridge.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4781,6 +4847,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/runtime/src/governance-mutation-snapshot-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/runtime/src/host.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5058,6 +5130,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/src/server/governance-runtime.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6275,9 +6353,21 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/hq-server/login-attempt-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/hq-server/routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/hq-server/routes/auth-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -6479,6 +6569,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/hq-totp-2fa.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/hq-trust-boundary-actor.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6618,6 +6714,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/tools/src/browser/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/tools/src/kanban-task-inputs.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7736,12 +7838,6 @@
       "file": "packages/cli/src/boot/dispatch-webui.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/cli/src/boot/governance-mutation-snapshot-bridge.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10319,6 +10415,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/tool-priority.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/trusted-presets.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10340,6 +10442,12 @@
       "file": "packages/providers/tests/anthropic-oauth.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/anthropic.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10379,6 +10487,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/google.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/local-llm-presets.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10410,6 +10524,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/openai-compatible-policy.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/openai-compatible.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10463,6 +10583,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/tool-priority.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/wire-format.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -10482,6 +10608,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/runtime/src/governance-mutation-snapshot-bridge.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12095,6 +12227,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/governance-runtime.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/http-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13056,6 +13194,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/goal-host.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/hq-server/login-attempt-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14580,12 +14724,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/security-scanner/src/report-generator.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/simpleui/tests/image-attachment-limits.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

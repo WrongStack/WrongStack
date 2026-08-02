@@ -190,7 +190,11 @@ describe('ChatInput — send-mode buttons', () => {
 
     expect(wsMock.sendMessage).not.toHaveBeenCalled();
     expect(useChatStore.getState().queue).toEqual([
-      { text: 'for later', mode: 'queue', addedAt: expect.any(Number) },
+      expect.objectContaining({
+        text: 'for later',
+        mode: 'queue',
+        addedAt: expect.any(Number),
+      }),
     ]);
   });
 
@@ -249,13 +253,17 @@ describe('ChatInput — send-mode buttons', () => {
     });
     // The chip stays in the queue for visibility, marked alreadyDispatched so
     // the run.result drain skips re-sending it (no double injection).
+    // Use `objectContaining` so the assertion doesn't break when the store
+    // adds an internal `itemId` field (monotonic timer key for the
+    // dispatched-grace timer). The public surface the panel asserts on
+    // is `text`, `mode`, `addedAt`, and `alreadyDispatched`.
     expect(useChatStore.getState().queue).toEqual([
-      {
+      expect.objectContaining({
         text: 'btw consider edge case',
         mode: 'btw',
         addedAt: expect.any(Number),
         alreadyDispatched: true,
-      },
+      }),
     ]);
   });
 
@@ -290,7 +298,11 @@ describe('ChatInput — send-mode buttons', () => {
     expect(wsMock.sendAbort).not.toHaveBeenCalled();
     expect(wsMock.sendMessage).not.toHaveBeenCalled();
     expect(useChatStore.getState().queue).toEqual([
-      { text: 'hold this', mode: 'queue', addedAt: expect.any(Number) },
+      expect.objectContaining({
+        text: 'hold this',
+        mode: 'queue',
+        addedAt: expect.any(Number),
+      }),
     ]);
   });
 

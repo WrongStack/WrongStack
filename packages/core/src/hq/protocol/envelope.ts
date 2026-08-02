@@ -40,6 +40,7 @@ export type HqEventType =
   | 'worktree.event'
   | 'mcp.health.snapshot'
   | 'mcp.operation'
+  | 'governance.snapshot'
   | 'peer.rehydrate'
   | 'peer.lost';
 

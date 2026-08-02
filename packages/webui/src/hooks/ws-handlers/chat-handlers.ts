@@ -10,6 +10,7 @@ import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage, pipeViz, safePayload } from '@/lib/ws-client-utils';
 import { useChatStore, useConfigStore, useSessionStore, useUIStore } from '@/stores';
+import type { QueuedItem } from '@/stores/chat-store';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
@@ -324,9 +325,88 @@ export function handleRunResult(msg: WSServerMessage) {
       document.dispatchEvent(new CustomEvent('chat:next-step-countdown'));
     }
   }
-  const next = useChatStore.getState().dequeue();
-  if (!next) return;
+  const store = useChatStore.getState();
+  // ── Drain target selection ───────────────────────────────────────────
+  // Peek at the front without popping. If the front is a BTW chip that
+  // is already wire-sent (mid-way through its visible SENT grace window,
+  // owned by `BTW_DISPATCH_GRACE_MS` / `dispatchedGraceTimers`), leave
+  // it where it is — its visible lifecycle is owned by the grace timer,
+  // not by `run.result`. Drain the first non-dispatched item.
+  const front = store.queue[0];
+  if (!front) return;
+  if (front.alreadyDispatched === true) {
+    // Add the user bubble for the dispatched chip so the transcript
+    // stays complete — same intent as the pre-fix drain path. The
+    // `bubbleAdded` flag gates idempotency: a second `run.result`
+    // landing inside the grace window must NOT add a duplicate bubble.
+    // The grace timer still owns the chip's removal from the queue.
+    addBubbleFor(front);
+    const drained = store.dequeueDrainable();
+    if (!drained) return;
+    return runDrain(drained);
+  }
+  // Front is a pending item — pop it and drain. Cancels any pending
+  // grace timer for it (none should exist since `alreadyDispatched`
+  // is false, but the cancel is idempotent and safe).
+  const drained = store.dequeue();
+  if (!drained) return;
+  return runDrain(drained);
+}
 
+/**
+ * Add a user message bubble for the drained item. Idempotent per chip:
+ * once added, the chip's `bubbleAdded` flag prevents subsequent
+ * `run.result` events inside the grace window from emitting a duplicate
+ * bubble for the same chat note. The pre-fix path popped the chip
+ * exactly once, so the bubble was emitted exactly once; the new
+ * path keeps the chip in the queue for its visible lifecycle, so
+ * the gate is the only thing preserving the "one bubble per chip"
+ * invariant.
+ *
+ * Mirrors the wire-encoding of a regular user_message so the
+ * bubble's `attachments` carry the same image chips a typed send
+ * would produce.
+ */
+function addBubbleFor(next: QueuedItem): void {
+  if (next.bubbleAdded === true) return;
+  const images = next.images ?? [];
+  useChatStore.getState().addMessage({
+    role: 'user',
+    content: next.text,
+    ...(images.length > 0
+      ? {
+          attachments: images.map((img) => ({
+            id: img.id,
+            kind: 'image' as const,
+            dataUrl: img.dataUrl,
+            mediaType: img.mediaType,
+            bytes: img.bytes,
+            name: img.name,
+          })),
+        }
+      : {}),
+  });
+  // Stamp the flag in-place so the next `run.result` skips the second
+  // emit. We mutate the next object directly (the queue array holds
+  // the same reference) which is safe because the queue is rebuilt
+  // by `dequeue`/`dequeueDrainable` before its members are read.
+  next.bubbleAdded = true;
+}
+
+/**
+ * Drain a single queued item into the chat + wire.
+ *
+ * - 'btw' mode: the note rides alongside the running agent via the
+ *   mailbox and is injected into context on the next iteration. If it
+ *   was already dispatched at submit time (immediate mid-run mailbox
+ *   injection in ChatInput.submitWith), re-sending would fold the same
+ *   note into the agent's context a second time — skip the mailbox
+ *   branch but still add the user bubble so the transcript stays
+ *   complete.
+ * - 'queue' / 'steer' (default): sends as a regular user_message,
+ *   starting a fresh run after the current one finishes.
+ */
+function runDrain(next: QueuedItem): void {
   const client = getWSClient(useConfigStore.getState().wsUrl);
   const images = next.images ?? [];
   useChatStore.getState().addMessage({
@@ -347,17 +427,7 @@ export function handleRunResult(msg: WSServerMessage) {
   });
 
   // ── Mode-aware dispatch ──────────────────────────────────────────────
-  // 'btw' messages ride alongside the running agent via the mailbox
-  // system — they are injected into context on the next iteration without
-  // starting a new run. 'queue' (the default) sends as a regular
-  // user_message, starting a fresh run after the current one finishes.
   if (next.mode === 'btw') {
-    // alreadyDispatched btw notes were wire-sent the moment the user typed
-    // them (immediate mid-run mailbox injection in ChatInput.submitWith).
-    // Re-sending here would fold the same note into the agent's context a
-    // second time, risking the agent acting on it twice. The user bubble was
-    // still added above, so the transcript stays complete — just skip the
-    // mailbox branch.
     if (next.alreadyDispatched !== true) {
       client.sendMailboxMessage({
         type: 'btw',

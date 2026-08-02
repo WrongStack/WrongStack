@@ -72,6 +72,7 @@ export const GOVERNANCE_OBSERVATION_CATEGORIES = [
   'capability_grant_revoked',
   'capability_grant_expired',
   'capability_grant_rotated',
+  'daemon_attachment_broker_lifecycle',
   'daemon_shutdown_requested',
 ] as const;
 

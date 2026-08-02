@@ -1,3 +1,5 @@
+import type { HqGovernanceSnapshotPayload } from './governance.js';
+
 export type HqWorkspaceKind = 'git' | 'directory' | 'unknown';
 
 export type HqProjectStatus = 'active' | 'idle' | 'stale' | 'error';
@@ -26,4 +28,6 @@ export interface HqProjectRecord {
   totalCostUsd: number;
   lastActivityAt: string;
   status: HqProjectStatus;
+  /** Latest project-owner advisory. It never grants HQ transition authority. */
+  governance?: HqGovernanceSnapshotPayload;
 }

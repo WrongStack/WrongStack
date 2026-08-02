@@ -27,7 +27,12 @@ import { useFileReferenceStore } from '../../src/stores/file-reference-store.js'
 // `addedAt` is the index in the source list so tests can keep a stable
 // display order without having to mock `Date.now`.
 function makeQueue(items: ReadonlyArray<{ text: string; mode: QueuedItem['mode'] }>): QueuedItem[] {
-  return items.map((item, idx) => ({ text: item.text, mode: item.mode, addedAt: idx }));
+  return items.map((item, idx) => ({
+    text: item.text,
+    mode: item.mode,
+    addedAt: idx,
+    itemId: idx,
+  }));
 }
 
 function _mockTextarea(): HTMLTextAreaElement {

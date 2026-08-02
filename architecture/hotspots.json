@@ -11,7 +11,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1109,
+      "lines": 1110,
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
@@ -22,17 +22,21 @@
       "lines": 917,
       "relativeImports": 1
     },
+    "packages/cli/src/hq-server/routes/auth-handlers.ts": {
+      "lines": 1129,
+      "relativeImports": 5
+    },
     "packages/cli/src/hq-server/routes.ts": {
-      "lines": 963,
-      "relativeImports": 11
+      "lines": 1034,
+      "relativeImports": 12
     },
     "packages/cli/src/hq-server/ws.ts": {
-      "lines": 1114,
+      "lines": 1130,
       "relativeImports": 3
     },
     "packages/cli/src/hq-server.ts": {
-      "lines": 890,
-      "relativeImports": 9
+      "lines": 973,
+      "relativeImports": 10
     },
     "packages/cli/src/picker.ts": {
       "lines": 824,
@@ -79,8 +83,8 @@
       "relativeImports": 3
     },
     "packages/core/src/coordination/agents/project-agent-identity.ts": {
-      "lines": 989,
-      "relativeImports": 21
+      "lines": 1002,
+      "relativeImports": 22
     },
     "packages/core/src/coordination/autonomous-coordinator.ts": {
       "lines": 982,
@@ -159,12 +163,12 @@
       "relativeImports": 21
     },
     "packages/core/src/hq/auth-store.ts": {
-      "lines": 803,
+      "lines": 829,
       "relativeImports": 6
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 930,
-      "relativeImports": 12
+      "lines": 936,
+      "relativeImports": 13
     },
     "packages/core/src/hq/publisher.ts": {
       "lines": 858,
@@ -182,6 +186,10 @@
       "lines": 1261,
       "relativeImports": 12
     },
+    "packages/core/src/security/secret-vault.ts": {
+      "lines": 830,
+      "relativeImports": 9
+    },
     "packages/core/src/storage/file-session-writer.ts": {
       "lines": 1150,
       "relativeImports": 9
@@ -197,6 +205,14 @@
     "packages/core/src/utils/tool-output-serializer.ts": {
       "lines": 863,
       "relativeImports": 0
+    },
+    "packages/governance/src/runtime-compatibility.ts": {
+      "lines": 849,
+      "relativeImports": 8
+    },
+    "packages/governance/src/verification-ledger-store.ts": {
+      "lines": 892,
+      "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
       "lines": 805,
@@ -219,7 +235,7 @@
       "relativeImports": 0
     },
     "packages/mcp/src/client.ts": {
-      "lines": 1006,
+      "lines": 1012,
       "relativeImports": 10
     },
     "packages/mcp/src/registry.ts": {
@@ -235,19 +251,19 @@
       "relativeImports": 1
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
-      "lines": 1247,
+      "lines": 1266,
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 1035,
+      "lines": 1038,
       "relativeImports": 41
     },
     "packages/sage/src/tools/memory-tools.ts": {
-      "lines": 805,
+      "lines": 816,
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 834,
+      "lines": 868,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -283,7 +299,7 @@
       "relativeImports": 4
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1198,
+      "lines": 1226,
       "relativeImports": 15
     },
     "packages/tools/src/exec.ts": {
@@ -297,6 +313,10 @@
     "packages/tools/src/session-kanban.ts": {
       "lines": 942,
       "relativeImports": 0
+    },
+    "packages/tui/src/app-key-handler.ts": {
+      "lines": 819,
+      "relativeImports": 17
     },
     "packages/tui/src/app-state.ts": {
       "lines": 815,
@@ -331,15 +351,15 @@
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 1035,
-      "relativeImports": 13
+      "lines": 1611,
+      "relativeImports": 14
     },
     "packages/tui/src/components/settings-picker-model.ts": {
       "lines": 917,
       "relativeImports": 2
     },
     "packages/tui/src/components/status-bar.tsx": {
-      "lines": 1141,
+      "lines": 1149,
       "relativeImports": 16
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
@@ -443,12 +463,16 @@
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
-      "lines": 835,
+      "lines": 843,
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
       "lines": 1129,
       "relativeImports": 8
+    },
+    "packages/webui/src/stores/chat-store.ts": {
+      "lines": 1080,
+      "relativeImports": 1
     },
     "packages/webui/src/stores/viz-store.ts": {
       "lines": 878,
@@ -458,9 +482,17 @@
       "lines": 838,
       "relativeImports": 10
     },
+    "packages/webui-hq/src/views/settings.tsx": {
+      "lines": 895,
+      "relativeImports": 2
+    },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
       "lines": 926,
       "relativeImports": 2
+    },
+    "packages/webui-server/src/server/connections-health-route.ts": {
+      "lines": 820,
+      "relativeImports": 1
     },
     "packages/webui-server/src/server/context-editor.ts": {
       "lines": 872,
@@ -479,19 +511,19 @@
       "relativeImports": 8
     },
     "packages/webui-server/src/server/setup-events.ts": {
-      "lines": 1003,
+      "lines": 1004,
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1038,
-      "relativeImports": 17
+      "lines": 1061,
+      "relativeImports": 18
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 894,
       "relativeImports": 1
     },
     "apps/desktop/src/main/runtime-manager.ts": {
-      "lines": 955,
+      "lines": 960,
       "relativeImports": 4
     },
     "apps/desktop/src/renderer/src/renderer.ts": {

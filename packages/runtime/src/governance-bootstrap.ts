@@ -6,6 +6,7 @@ import type {
   GovernanceCompatibilityFallbackCode,
   GovernanceCompatibilityRuntime,
   GovernanceCompatibilityRuntimeSnapshot,
+  GovernanceDaemonOperatorStatus,
   GovernanceModelCapability,
   GovernanceModelSession,
   GovernanceObservationCategory,
@@ -13,8 +14,11 @@ import type {
   PrepareGovernanceCompatibilityResult,
 } from '@wrongstack/governance';
 import {
+  connectGovernanceProjectClient,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
   prepareGovernanceCompatibilityRuntime,
+  projectGovernanceDaemonOperatorStatus,
+  readGovernanceDaemonAttachmentBroker,
 } from '@wrongstack/governance';
 import { sanitizeGovernanceMessage } from './governance-sanitize.js';
 
@@ -44,7 +48,7 @@ export interface BootstrapGovernanceRuntimeOptions {
 export interface GovernanceRuntimeBootstrapSnapshot {
   readonly mode: 'governed';
   readonly source: 'attached' | 'launched';
-  readonly daemon: GovernanceCompatibilityRuntimeSnapshot['admin']['daemon'];
+  readonly daemon: GovernanceCompatibilityRuntimeSnapshot['daemon'];
   readonly model: GovernanceCompatibilityRuntimeSnapshot['model'];
 }
 
@@ -52,6 +56,123 @@ export interface GovernanceRuntimeBootstrapCloseResult {
   readonly ok: boolean;
   readonly action: 'detach' | 'shutdown';
   readonly message: string;
+}
+
+export type GovernanceDaemonOperatorStatusReadResult =
+  | { readonly available: true; readonly status: GovernanceDaemonOperatorStatus }
+  | {
+      readonly available: false;
+      readonly code:
+        | 'broker_missing'
+        | 'broker_invalid'
+        | 'connection_failed'
+        | 'request_rejected'
+        | 'unexpected_response';
+      readonly message: string;
+    };
+
+export interface GovernanceDaemonOperatorStatusReaderDependencies {
+  readonly readBroker: typeof readGovernanceDaemonAttachmentBroker;
+  readonly connectClient: typeof connectGovernanceProjectClient;
+}
+
+const GOVERNANCE_DAEMON_OPERATOR_STATUS_DEPENDENCIES: GovernanceDaemonOperatorStatusReaderDependencies =
+  {
+    readBroker: readGovernanceDaemonAttachmentBroker,
+    connectClient: connectGovernanceProjectClient,
+  };
+
+export function readGovernanceDaemonOperatorStatus(
+  projectRoot: string,
+): Promise<GovernanceDaemonOperatorStatusReadResult> {
+  return readGovernanceDaemonOperatorStatusWithDependencies(
+    projectRoot,
+    GOVERNANCE_DAEMON_OPERATOR_STATUS_DEPENDENCIES,
+  );
+}
+
+/** Internal source-test seam. Package consumers use readGovernanceDaemonOperatorStatus. */
+export async function readGovernanceDaemonOperatorStatusWithDependencies(
+  projectRoot: string,
+  dependencies: GovernanceDaemonOperatorStatusReaderDependencies,
+): Promise<GovernanceDaemonOperatorStatusReadResult> {
+  let broker: Awaited<ReturnType<typeof readGovernanceDaemonAttachmentBroker>>;
+  try {
+    broker = await dependencies.readBroker(projectRoot);
+  } catch (error) {
+    return Object.freeze({
+      available: false,
+      code: 'broker_invalid',
+      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+    });
+  }
+  if (broker.kind === 'missing') {
+    return Object.freeze({
+      available: false,
+      code: 'broker_missing',
+      message: 'Governance attachment broker is not published for this project.',
+    });
+  }
+  if (broker.kind === 'invalid') {
+    return Object.freeze({
+      available: false,
+      code: 'broker_invalid',
+      message: sanitizeGovernanceMessage(broker.reason),
+    });
+  }
+  let connection: Awaited<ReturnType<typeof connectGovernanceProjectClient>>;
+  try {
+    connection = await dependencies.connectClient({
+      projectRoot,
+      projectId: broker.broker.projectId,
+      credential: broker.broker.credential,
+    });
+  } catch (error) {
+    return Object.freeze({
+      available: false,
+      code: 'connection_failed',
+      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+    });
+  }
+  if (!connection.connected) {
+    return Object.freeze({
+      available: false,
+      code: 'connection_failed',
+      message: sanitizeGovernanceMessage(connection.message),
+    });
+  }
+  let response: Awaited<ReturnType<typeof connection.client.request>>;
+  try {
+    response = await connection.client.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: `operator-daemon-status-${randomUUID()}`,
+      type: 'read_daemon_status',
+    });
+  } catch (error) {
+    return Object.freeze({
+      available: false,
+      code: 'connection_failed',
+      message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+    });
+  }
+  if (!response.ok) {
+    return Object.freeze({
+      available: false,
+      code: 'request_rejected',
+      message: sanitizeGovernanceMessage(response.error.message),
+    });
+  }
+  if (response.result.type !== 'daemon_status') {
+    return Object.freeze({
+      available: false,
+      code: 'unexpected_response',
+      message: 'Governance daemon returned an unexpected status response.',
+    });
+  }
+  return Object.freeze({
+    available: true,
+    status: projectGovernanceDaemonOperatorStatus(response.result),
+  });
 }
 
 export interface GovernanceRuntimeObservationInput {
@@ -123,7 +244,7 @@ export class GovernanceRuntimeBootstrapHandle {
     this.#snapshot = Object.freeze({
       mode: 'governed',
       source: snapshot.source,
-      daemon: snapshot.admin.daemon,
+      daemon: snapshot.daemon,
       model: snapshot.model,
     });
   }
@@ -228,15 +349,17 @@ export class GovernanceRuntimeBootstrapHandle {
           message: sanitizeGovernanceMessage(response.error.message),
         });
       }
-      const expectedType =
-        action === 'shutdown' ? 'daemon_shutdown_accepted' : 'capability_grant_revoked';
+      const completed =
+        action === 'shutdown'
+          ? response.result.type === 'daemon_shutdown_accepted'
+          : response.result.type === 'capability_grant_revoked' ||
+            response.result.type === 'runtime_attachment_released';
       return Object.freeze({
-        ok: response.result.type === expectedType,
+        ok: completed,
         action,
-        message:
-          response.result.type === expectedType
-            ? `Governance runtime ${action} completed.`
-            : `Governance runtime ${action} returned an unexpected response.`,
+        message: completed
+          ? `Governance runtime ${action} completed.`
+          : `Governance runtime ${action} returned an unexpected response.`,
       });
     } catch (error) {
       return Object.freeze({

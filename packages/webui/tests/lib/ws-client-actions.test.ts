@@ -152,21 +152,27 @@ describe('SAGE actions', () => {
     });
   });
 
-  it('deleteSage includes a reason only when given', () => {
+  it('deleteSage always authorizes the confirmed deletion and includes a reason only when given', () => {
     client.deleteSage('m1');
-    expect(frame()).toEqual({ type: 'memory.sage.delete', payload: { id: 'm1' } });
+    expect(frame()).toEqual({
+      type: 'memory.sage.delete',
+      payload: { id: 'm1', force: true },
+    });
 
     client = new Host() as Client;
     client.deleteSage('m1', 'superseded');
     expect(frame()).toEqual({
       type: 'memory.sage.delete',
-      payload: { id: 'm1', reason: 'superseded' },
+      payload: { id: 'm1', force: true, reason: 'superseded' },
     });
   });
 
   it('deleteSage keeps an explicitly empty reason', () => {
     client.deleteSage('m1', '');
-    expect(frame()).toEqual({ type: 'memory.sage.delete', payload: { id: 'm1', reason: '' } });
+    expect(frame()).toEqual({
+      type: 'memory.sage.delete',
+      payload: { id: 'm1', force: true, reason: '' },
+    });
   });
 
   it.each([

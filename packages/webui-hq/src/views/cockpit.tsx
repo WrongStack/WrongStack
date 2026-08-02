@@ -56,6 +56,12 @@ export function CockpitView(): React.ReactElement {
   const projects = snapshot?.projects ?? [];
   const clients = snapshot?.clients ?? [];
   const sessions = snapshot?.liveSessions ?? [];
+  const governanceProjects = projects.filter((project) => project.governance !== undefined);
+  const governanceWarnings = governanceProjects.filter(
+    (project) =>
+      project.governance?.signal.level === 'warning' ||
+      project.governance?.signal.level === 'unavailable',
+  );
 
   const controllableClients = clients.filter((client) =>
     client.capabilities.includes('control.receive'),
@@ -246,6 +252,39 @@ export function CockpitView(): React.ReactElement {
     body: <TokenStatsCard tokenStats={totals?.tokenStats} />,
   };
 
+  const governanceSection: CockpitSection = {
+    title: 'Governance Advisory',
+    view: 'fleet',
+    cta: 'open fleet',
+    body:
+      governanceProjects.length === 0 ? (
+        <div className="hq-empty hq-cockpit-empty">No project governance snapshots yet.</div>
+      ) : (
+        <div className="hq-cockpit-alert-list">
+          {governanceProjects.map((project) => {
+            const governance = project.governance;
+            if (governance === undefined) return null;
+            const tone =
+              governance.signal.level === 'healthy'
+                ? 'green'
+                : governance.signal.level === 'notice'
+                  ? 'warn'
+                  : 'error';
+            return (
+              <div key={project.projectId} className="hq-cockpit-alert-row">
+                <span className={`hq-pill ${tone}`}>{governance.signal.level}</span>
+                <span>{project.projectName}</span>
+                <span className="hq-mono hq-cockpit-alert-msg">{governance.signal.code}</span>
+                <span className="hq-mono hq-text-dim hq-ml-auto">
+                  {governance.signal.executionDisposition}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ),
+  };
+
   const alertSection: CockpitSection = {
     title: 'Alerts',
     view: 'alerts',
@@ -339,6 +378,9 @@ export function CockpitView(): React.ReactElement {
           {(apiActive?.length ?? 0) > 0 && (
             <span className="hq-pill error">{apiActive?.length ?? 0} active alerts</span>
           )}
+          {governanceWarnings.length > 0 && (
+            <span className="hq-pill error">{governanceWarnings.length} governance advisories</span>
+          )}
           {alertsError !== null && <span className="hq-pill error">{alertsError}</span>}
           <button
             type="button"
@@ -430,23 +472,23 @@ export function CockpitView(): React.ReactElement {
         </div>
       ) : null}
 
-      {[...fleetSections, tokenStatsSection, alertSection, costSection].map((section) => (
-        <div key={section.title} className="hq-card hq-cockpit-section">
-          <div className="hq-row">
-            <span className="hq-cockpit-section-title">
-              {section.title}
-            </span>
-            <button
-              type="button"
-              className="hq-btn secondary hq-ml-auto"
-              onClick={() => useHqStore.getState().setActiveView(section.view)}
-            >
-              {section.cta}
-            </button>
+      {[...fleetSections, governanceSection, tokenStatsSection, alertSection, costSection].map(
+        (section) => (
+          <div key={section.title} className="hq-card hq-cockpit-section">
+            <div className="hq-row">
+              <span className="hq-cockpit-section-title">{section.title}</span>
+              <button
+                type="button"
+                className="hq-btn secondary hq-ml-auto"
+                onClick={() => useHqStore.getState().setActiveView(section.view)}
+              >
+                {section.cta}
+              </button>
+            </div>
+            {section.body}
           </div>
-          {section.body}
-        </div>
-      ))}
+        ),
+      )}
     </div>
   );
 }

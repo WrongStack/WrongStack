@@ -53,7 +53,7 @@ describe('helpSections', () => {
       desc: 'plan panel (F5 may be host refresh/run)',
     });
     expect(monitorEntries).toContainEqual({
-      keys: 'F12 or Ctrl+J',
+      keys: 'F12 or Ctrl+Y',
       desc: 'kanban board panel (also /kanban)',
     });
   });

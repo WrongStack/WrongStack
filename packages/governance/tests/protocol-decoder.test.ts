@@ -294,6 +294,24 @@ describe('governance service protocol decoder', () => {
     expect(
       decodeGovernanceServiceRequest({
         protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'release-runtime-attachment',
+        type: 'release_runtime_attachment',
+      }),
+    ).toMatchObject({ decoded: true, request: { type: 'release_runtime_attachment' } });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'release-runtime-attachment-forged',
+        type: 'release_runtime_attachment',
+        modelGrantId: 'caller-selected-model',
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: [expect.objectContaining({ code: 'unknown_field', path: '$.modelGrantId' })],
+    });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
         requestId: 'claim-runtime-attachment-forged',
         type: 'claim_runtime_attachment',
         controlClientId: 'shared-client',

@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SqliteSageStore } from '../src/sqlite-store.js';
+import type { Sage } from '../src/types.js';
 
 let tempDir: string;
 

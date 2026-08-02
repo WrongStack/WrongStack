@@ -273,7 +273,10 @@ describe('WebUI preference persistence helpers', () => {
     });
 
     const config = await readConfig();
-    expect(config.autonomy).toEqual({ existing: true, chime: false });
+    // 'eternal' round-trips through `defaultMode` now (was silently dropped
+    // before the autonomy-mode persist-layer fix); see
+    // `pref-helpers.ts` AUTONOMY_VALUES + persist filter.
+    expect(config.autonomy).toEqual({ existing: true, chime: false, defaultMode: 'eternal' });
     expect(config.features).toEqual({ existing: true, mcp: false });
     expect(config.context).toEqual({ existing: true, mode: 'frugal' });
     expect(config.log).toEqual({ format: 'json', level: 'warn' });

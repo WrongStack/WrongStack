@@ -10,6 +10,7 @@ import {
   RefreshCw,
   RotateCcw,
   Server,
+  ShieldCheck,
   TriangleAlert,
   Wifi,
 } from 'lucide-react';
@@ -231,7 +232,9 @@ function ServiceCard({
           ? KanbanSquare
           : service.id === 'mailbox'
             ? Mail
-            : MemoryStick;
+            : service.id === 'governance'
+              ? ShieldCheck
+              : MemoryStick;
   const displayLabel =
     service.id === 'kanban'
       ? (t('settings:connection.services.kanban.label', { defaultValue: service.label }) as string)
@@ -294,7 +297,7 @@ function ServiceCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!isWebui && onAction && (
+          {!isWebui && service.control !== 'none' && onAction && (
             <Button
               variant="outline"
               size="sm"
@@ -344,6 +347,19 @@ function ServiceCard({
             </b>
             {service.watcher.watchedFiles !== undefined ? ` · ${service.watcher.watchedFiles}` : ''}
           </span>
+        )}
+        {service.advisory && (
+          <>
+            <span>
+              signal <b className="text-foreground">{service.advisory.code}</b>
+            </span>
+            <span>
+              action <b className="text-foreground">{service.advisory.operatorAction}</b>
+            </span>
+            <span>
+              execution <b className="text-success">{service.advisory.executionDisposition}</b>
+            </span>
+          </>
         )}
       </div>
 

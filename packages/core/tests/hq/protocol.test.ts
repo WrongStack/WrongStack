@@ -556,6 +556,52 @@ describe('parseHqEventPayload', () => {
     }
   });
 
+  it('validates credential-free governance snapshots and rejects control dispositions', () => {
+    const valid = {
+      schemaVersion: 1,
+      projectId: 'p_1',
+      observedAt: '2026-08-02T12:00:00.000Z',
+      available: true,
+      signal: {
+        level: 'warning',
+        code: 'attachment_broker_degraded',
+        operatorAction: 'investigate',
+        executionDisposition: 'continue',
+      },
+      daemon: { pid: 123, startedAt: '2026-08-02T11:00:00.000Z' },
+      attachmentBroker: {
+        state: 'retry_wait',
+        health: 'degraded',
+        consecutiveFailures: 3,
+        pendingRevocations: 1,
+        auditHealthy: true,
+      },
+    };
+
+    expect(parseHqEventPayload('governance.snapshot', valid)).toEqual({
+      ok: true,
+      payload: valid,
+    });
+    expect(
+      parseHqEventPayload('governance.snapshot', {
+        ...valid,
+        signal: { ...valid.signal, executionDisposition: 'stop' },
+      }),
+    ).toEqual({ ok: false, reason: 'malformed-payload' });
+    expect(
+      parseHqEventPayload('governance.snapshot', {
+        ...valid,
+        attachmentBroker: { ...valid.attachmentBroker, pendingRevocations: -1 },
+      }),
+    ).toEqual({ ok: false, reason: 'malformed-payload' });
+    expect(
+      parseHqEventPayload('governance.snapshot', {
+        ...valid,
+        credential: 'must-never-cross-hq-boundary',
+      }),
+    ).toEqual({ ok: false, reason: 'malformed-payload' });
+  });
+
   // ── Phase 1 telemetry event payloads ────────────────────────────────────
 
   it('validates fleet.snapshot payloads', () => {

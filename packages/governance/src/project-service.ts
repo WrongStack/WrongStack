@@ -1,3 +1,4 @@
+import type { GovernanceAttachmentBrokerControllerSnapshot } from './attachment-broker-controller.js';
 import type { GovernanceCapabilityGrant, GovernanceServiceCredential } from './capability-grant.js';
 import type {
   AppendGovernanceObservationResult,
@@ -82,6 +83,11 @@ export type GovernanceServiceResult =
       };
     }
   | {
+      readonly type: 'runtime_attachment_released';
+      readonly controlGrantId: string;
+      readonly modelGrantId: string;
+    }
+  | {
       readonly type: 'own_capability_grant';
       readonly grant: GovernanceCapabilityGrant;
     }
@@ -91,6 +97,7 @@ export type GovernanceServiceResult =
       readonly pid: number;
       readonly instanceId: string;
       readonly startedAt: string;
+      readonly attachmentBroker?: GovernanceAttachmentBrokerControllerSnapshot | undefined;
     }
   | {
       readonly type: 'daemon_shutdown_accepted';
@@ -157,10 +164,11 @@ const REQUIRED_CAPABILITY: Readonly<
   record_workspace_snapshot: 'workspace_snapshot_record',
   issue_capability_grant: 'capability_admin',
   claim_runtime_attachment: 'runtime_attach',
+  release_runtime_attachment: 'runtime_attachment_release',
   list_capability_grants: 'capability_admin',
   revoke_capability_grant: 'capability_admin',
   rotate_capability_grant: 'capability_admin',
-  read_daemon_status: 'daemon_control',
+  read_daemon_status: 'daemon_status_read',
   request_daemon_shutdown: 'daemon_control',
 };
 
@@ -416,6 +424,7 @@ export class GovernanceProjectService {
         };
       case 'issue_capability_grant':
       case 'claim_runtime_attachment':
+      case 'release_runtime_attachment':
       case 'read_own_capability_grant':
       case 'read_daemon_status':
       case 'request_daemon_shutdown':

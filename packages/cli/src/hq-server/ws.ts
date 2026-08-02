@@ -10,6 +10,7 @@ import type {
   HqCommandAuditLog,
   HqEventEnvelope,
   HqFleetSnapshotPayload,
+  HqGovernanceSnapshotPayload,
   HqKanbanSnapshotPayload,
   HqMailboxEventPayload,
   HqMailboxSnapshotPayload,
@@ -1043,6 +1044,21 @@ export function handleClient(
             clientId: client.clientId,
           }));
           client.mcpSnapshots.set(sessionId, { servers: stamped, receivedAt: Date.now() });
+          snapshotBroadcaster.broadcast();
+        }
+        return;
+      }
+
+      // Governance is project-owner telemetry, not an HQ control channel.
+      // Only the deterministically elected project leader may replace the
+      // latest snapshot, and the payload must remain bound to its project.
+      if (event.type === 'governance.snapshot' && client !== undefined) {
+        if (!client.isLeader) return;
+        const result = parseHqEventPayload(event.type, event.payload);
+        if (result.ok) {
+          const payload = result.payload as HqGovernanceSnapshotPayload;
+          if (payload.projectId !== client.projectId) return;
+          client.governanceSnapshot = { payload, receivedAt: Date.now() };
           snapshotBroadcaster.broadcast();
         }
         return;

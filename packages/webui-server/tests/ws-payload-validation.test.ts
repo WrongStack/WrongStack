@@ -293,6 +293,42 @@ describe('WebUI payload validation', () => {
       expect(result).toMatchObject({ ok: true });
     });
 
+    // v11 + v13 Display parity regression: the WebUI SettingsPanel sends
+    // these v11/v13 fields through `prefs.update` (Display section + Agent
+    // section). Before this fix the server rejected them with
+    // "unknown preference key: …", breaking the WebUI settings save flow.
+    it('accepts every v11 + v13 Display parity preference key', () => {
+      const result = validatePrefsUpdatePayload({
+        // v11 booleans.
+        showModelReasoning: true,
+        showAgentSwarmPanel: false,
+        allowOutsideProjectRoot: true,
+        // v13 booleans (TUI SettingsPicker fields 42 & 43).
+        readSymbols: true,
+        showSageMemoryInject: false,
+        // v13 numbers (TUI SettingsPicker fields 21, 41, 44).
+        preRefineSeconds: 3,
+        multiDiffSummaryThreshold: 5,
+        sageMemoryInjectThreshold: 0.85,
+        // Agent section number that previously slipped through the
+        // whitelist (`enhanceCountdownMs`).
+        enhanceCountdownMs: 3_000,
+      });
+
+      expect(result).toMatchObject({ ok: true });
+    });
+
+    it('rejects v13 Display parity keys with the wrong type', () => {
+      expectInvalid(validatePrefsUpdatePayload, [
+        { readSymbols: 'yes' },
+        { showSageMemoryInject: 1 },
+        { preRefineSeconds: '3' },
+        { multiDiffSummaryThreshold: Number.NaN },
+        { sageMemoryInjectThreshold: '0.85' },
+        { enhanceCountdownMs: '3000' },
+      ]);
+    });
+
     it('accepts complete and runtime-only model matrix entries', () => {
       expect(
         validatePrefsUpdatePayload({

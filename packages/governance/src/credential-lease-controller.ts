@@ -94,7 +94,8 @@ function tokenSafe(value: string, name: string): void {
 }
 
 function failureMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return sanitizeGovernanceMessage(error.message);
+  if (error instanceof Error && error.message.trim())
+    return sanitizeGovernanceMessage(error.message);
   return 'Governance credential rotation failed.';
 }
 
@@ -112,7 +113,8 @@ function validRotationResult(
       readonly expiresAtMs: number;
     }
   | { readonly valid: false; readonly message: string } {
-  if (!response.ok) return { valid: false, message: sanitizeGovernanceMessage(response.error.message) };
+  if (!response.ok)
+    return { valid: false, message: sanitizeGovernanceMessage(response.error.message) };
   if (response.result.type !== 'capability_grant_rotated') {
     return { valid: false, message: 'Credential rotation returned an unexpected response type.' };
   }

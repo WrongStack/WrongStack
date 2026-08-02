@@ -217,7 +217,7 @@ describe('ensureHqFirstRunAuthFile — first-run audit logging', () => {
       const file = await readHqAuthFile(dir);
       const rotatedSecretFile: typeof file = {
         ...file,
-        browserTokens: file.browserTokens?.map((t) =>
+        browserTokens: file.browserTokens!.map((t) =>
           t.id === first.browserToken!.id ? { ...t, token: 'rotated-secret-string' } : t,
         ),
       };
@@ -228,7 +228,7 @@ describe('ensureHqFirstRunAuthFile — first-run audit logging', () => {
       // tie-back.
       const relabeledFile: typeof file = {
         ...file,
-        browserTokens: file.browserTokens?.map((t) =>
+        browserTokens: file.browserTokens!.map((t) =>
           t.id === first.browserToken!.id ? { ...t, label: 'relabeled' } : t,
         ),
       };

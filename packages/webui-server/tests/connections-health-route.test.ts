@@ -3,6 +3,7 @@ import type { WebSocket } from 'ws';
 import {
   type ConnectionsHealthReport,
   handleConnectionsHealthRoute,
+  handleConnectionsServiceAction,
 } from '../src/server/connections-health-route.js';
 import type { WSServerMessage } from '../src/server/types.js';
 
@@ -249,5 +250,120 @@ describe('connections health mailbox service', () => {
   it('reports sleeping only when no owner answers', async () => {
     const { mailbox } = await collectWithFakeMailbox(null);
     expect(mailbox).toMatchObject({ id: 'mailbox', status: 'offline' });
+  });
+});
+
+describe('connections health governance service', () => {
+  async function collectWithFakeGovernance(result: unknown) {
+    vi.resetModules();
+    vi.doMock('@wrongstack/runtime/governance-bootstrap', () => ({
+      readGovernanceDaemonOperatorStatus: vi.fn(async () => result),
+    }));
+    const { collectConnectionsHealth: collectFresh } = await import(
+      '../src/server/connections-health-route.js'
+    );
+    const report = await collectFresh({
+      projectRoot: '/project',
+      indexDir: undefined,
+      backend: 'cli-embedded',
+    });
+    return {
+      report,
+      governance: report.services.find((service) => service.id === 'governance'),
+    };
+  }
+
+  it('projects a token-free advisory warning without degrading required services', async () => {
+    const secret = 'wsg_broker.secret-material-that-must-not-leak';
+    const { report, governance } = await collectWithFakeGovernance({
+      available: true,
+      status: {
+        schemaVersion: 1,
+        projectId: 'project-1',
+        pid: 4242,
+        instanceId: 'daemon-1',
+        startedAt: new Date(Date.now() - 5_000).toISOString(),
+        signal: {
+          level: 'warning',
+          code: 'attachment_broker_degraded',
+          message: 'Attachment broker renewal health is degraded.',
+          operatorAction: 'investigate',
+          executionDisposition: 'continue',
+        },
+        attachmentBroker: {
+          state: 'retry_wait',
+          health: 'degraded',
+          consecutiveFailures: 3,
+          pendingRevocations: 0,
+          auditHealthy: true,
+        },
+        credential: { token: secret },
+      },
+    });
+
+    expect(governance).toMatchObject({
+      id: 'governance',
+      status: 'degraded',
+      required: false,
+      mode: 'project-daemon-advisory',
+      ownerPid: 4242,
+      control: 'none',
+      advisory: {
+        code: 'attachment_broker_degraded',
+        operatorAction: 'investigate',
+        executionDisposition: 'continue',
+      },
+    });
+    expect(governance?.detail).toContain('no automatic task or model stop');
+    expect(JSON.stringify(report)).not.toContain(secret);
+    expect(JSON.stringify(report)).not.toContain('wsg_');
+  });
+
+  it('keeps default-off projects compatible as an optional sleeping service', async () => {
+    const { governance } = await collectWithFakeGovernance({
+      available: false,
+      code: 'broker_missing',
+      message: 'Governance attachment broker is not published for this project.',
+    });
+
+    expect(governance).toMatchObject({
+      id: 'governance',
+      status: 'offline',
+      required: false,
+      mode: 'compatibility-default-off',
+      control: 'none',
+    });
+    expect(governance?.detail).toContain('execution remains unchanged');
+  });
+
+  it('rejects direct WebSocket attempts to shut down governance', async () => {
+    const sent: WSServerMessage[] = [];
+    const handled = await handleConnectionsServiceAction(
+      {} as WebSocket,
+      {
+        type: 'connections.service_action',
+        payload: { serviceId: 'governance', action: 'shutdown' },
+      },
+      {
+        getProjectRoot: () => '/project',
+        getIndexDir: () => undefined,
+        backend: 'cli-embedded',
+        send: (_ws, message) => sent.push(message),
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(sent).toEqual([
+      {
+        type: 'connections.service_action_result',
+        payload: {
+          serviceId: 'governance',
+          action: 'shutdown',
+          success: false,
+          message:
+            'Governance health is read-only; daemon shutdown requires a separate admin control capability.',
+        },
+      },
+    ]);
   });
 });

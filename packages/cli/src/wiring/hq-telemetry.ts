@@ -12,6 +12,7 @@ import {
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, SessionWriter } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
+import { startGovernanceHqTelemetry } from '../governance-hq-telemetry.js';
 import { createHqCommandDispatcher, type HqCommandController } from '../hq-command-controller.js';
 import { startCliHqConnection } from '../hq-publisher.js';
 import type { KanbanHqSyncStats } from '../kanban-hq-sync.js';
@@ -146,6 +147,11 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
         );
       } catch {
         /* optional */
+      }
+      try {
+        stopHqAuxBridges.push(startGovernanceHqTelemetry({ publisher, projectRoot }));
+      } catch {
+        /* optional advisory telemetry */
       }
       try {
         publisher.publishEvent({

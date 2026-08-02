@@ -9,6 +9,7 @@ import {
 } from '@wrongstack/core/coordination';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { getKanbanServerConnection } from '@wrongstack/kanban';
+import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
   checkCodebaseIndexServerHealth,
@@ -22,7 +23,7 @@ import type { WSClientMessage, WSServerMessage } from './types.js';
 export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
-  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox';
+  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox' | 'governance';
   label: string;
   status: ConnectionHealthStatus;
   required: boolean;
@@ -38,6 +39,14 @@ export interface ConnectionHealthService {
   queuedWork?: number | undefined;
   watcher?: { active: boolean; watchedFiles?: number | undefined } | undefined;
   lastError?: string | undefined;
+  control?: 'shutdown' | 'none' | undefined;
+  advisory?:
+    | {
+        code: string;
+        operatorAction: 'none' | 'observe' | 'investigate';
+        executionDisposition: 'continue';
+      }
+    | undefined;
 }
 
 export interface ConnectionsHealthReport {
@@ -93,6 +102,7 @@ export async function collectConnectionsHealth(options: {
     sageHealth(options.projectRoot),
     kanbanHealth(options.projectRoot),
     mailboxHealth(options.projectRoot),
+    governanceHealth(options.projectRoot),
   ]);
   const required = services.filter((service) => service.required);
   const overall = required.some((service) => service.status === 'error')
@@ -441,6 +451,45 @@ async function mailboxHealth(projectRoot: string): Promise<ConnectionHealthServi
   }
 }
 
+async function governanceHealth(projectRoot: string): Promise<ConnectionHealthService> {
+  const startedAt = Date.now();
+  const result = await readGovernanceDaemonOperatorStatus(projectRoot);
+  if (!result.available) {
+    const missing = result.code === 'broker_missing';
+    return {
+      id: 'governance',
+      label: 'Governance control plane',
+      status: missing ? 'offline' : 'error',
+      required: false,
+      mode: missing ? 'compatibility-default-off' : 'project-daemon',
+      detail: missing
+        ? 'Not active for this project. Existing agent and model execution remains unchanged.'
+        : `Read-only governance status is unavailable: ${result.message}`,
+      latencyMs: Date.now() - startedAt,
+      control: 'none',
+      ...(missing ? {} : { lastError: result.message }),
+    };
+  }
+  const { status } = result;
+  return {
+    id: 'governance',
+    label: 'Governance control plane',
+    status: status.signal.level === 'healthy' ? 'healthy' : 'degraded',
+    required: false,
+    mode: 'project-daemon-advisory',
+    detail: `${status.signal.message} Execution continues; no automatic task or model stop.`,
+    ownerPid: status.pid,
+    uptimeMs: Math.max(0, Date.now() - Date.parse(status.startedAt)),
+    latencyMs: Date.now() - startedAt,
+    control: 'none',
+    advisory: {
+      code: status.signal.code,
+      operatorAction: status.signal.operatorAction,
+      executionDisposition: status.signal.executionDisposition,
+    },
+  };
+}
+
 // ── Service action (reset/kill) ──────────────────────────────────────────────
 
 export interface ServiceActionResult {
@@ -546,6 +595,14 @@ async function executeServiceAction(
       return killCodebaseIndexServer(projectRoot, indexDir, action);
     case 'mailbox':
       return killMailboxServer(projectRoot, action);
+    case 'governance':
+      return {
+        serviceId: 'governance',
+        action,
+        success: false,
+        message:
+          'Governance health is read-only; daemon shutdown requires a separate admin control capability.',
+      };
     default:
       return {
         serviceId: serviceId as ConnectionHealthService['id'],

@@ -294,6 +294,7 @@ describe('audience filtering before SQL LIMIT (P0-2 regression)', () => {
     });
 
     const results = await store.retrieveForPath(['src/config.ts'], {
+      path: 'src/config.ts',
       limit: 3,
       includeAudienceScoped: false,
     });

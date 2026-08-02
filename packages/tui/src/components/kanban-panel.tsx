@@ -375,7 +375,7 @@ export function KanbanPanel({
           </>
         ) : null}
         <Text dimColor>
-          | n/p board | Tab task | ←→ move | c/a/d create/add/dup | C/T copy/transfer | Ctrl+J
+          | n/p board | Tab task | ←→ move | c/a/d create/add/dup | C/T copy/transfer | Ctrl+Y
           toggle | Esc close
         </Text>
       </Box>

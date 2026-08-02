@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { GovernanceAttachmentBrokerController } from './attachment-broker-controller.js';
 import {
   acquireGovernanceDaemonStartupLease,
   createGovernanceDaemonMetadata,
@@ -75,6 +76,7 @@ async function run(): Promise<void> {
     startedAt,
   });
   let stop: (exitCode: number) => Promise<void>;
+  let attachmentBrokerController: GovernanceAttachmentBrokerController | undefined;
   const createServer = (): GovernanceProjectServer =>
     new GovernanceProjectServer({
       projectRoot: parsed.projectRoot,
@@ -85,6 +87,9 @@ async function run(): Promise<void> {
           pid: process.pid,
           instanceId,
           startedAt,
+          ...(attachmentBrokerController
+            ? { attachmentBroker: attachmentBrokerController.snapshot() }
+            : {}),
         }),
       },
       onDaemonShutdownResponseFlushed: () => void stop(0),
@@ -100,6 +105,8 @@ async function run(): Promise<void> {
     if (stopping) return;
     stopping = true;
     if (bootstrapTimer) clearTimeout(bootstrapTimer);
+    await attachmentBrokerController?.stop().catch(() => undefined);
+    attachmentBrokerController = undefined;
     await server.close().catch(() => {});
     if (metadataWritten) {
       await removeOwnedGovernanceDaemonMetadata(parsed.projectRoot, metadata).catch(() => false);
@@ -206,6 +213,16 @@ async function run(): Promise<void> {
   }
 
   try {
+    attachmentBrokerController = new GovernanceAttachmentBrokerController({
+      projectRoot: parsed.projectRoot,
+      metadata,
+      grants: {
+        issueGrant: (options) => server.issueGrant(options),
+        revokeGrant: (grantId, reason) => server.revokeGrant(grantId, reason),
+      },
+      onEvent: (event) => server.recordAttachmentBrokerEvent(event),
+    });
+    await attachmentBrokerController.start();
     await writeGovernanceDaemonMetadata(parsed.projectRoot, metadata);
     metadataWritten = true;
     if (!(await startupLease.release())) {
@@ -214,7 +231,11 @@ async function run(): Promise<void> {
     }
     startupLease = undefined;
   } catch {
-    failStartup('startup_failed', 'Governance daemon metadata could not be committed.', 1);
+    failStartup(
+      'startup_failed',
+      'Governance daemon metadata or attachment broker could not be committed.',
+      1,
+    );
     return;
   }
 

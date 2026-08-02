@@ -1,4 +1,5 @@
 import type { SubcommandHandler } from './contracts.js';
+
 export type { SubcommandDeps, SubcommandHandler } from './contracts.js';
 
 /**
@@ -56,6 +57,7 @@ const loaders: Record<string, SubcommandLoader> = {
   mailbox: async () => (await import('./handlers/mailbox-serve.js')).mailboxServeCmd,
   permissions: async () => (await import('./handlers/permissions.js')).permissionsCmd,
   project: async () => (await import('./handlers/project.js')).projectCmd,
+  governance: async () => (await import('./handlers/governance.js')).governanceCmd,
 };
 
 /**

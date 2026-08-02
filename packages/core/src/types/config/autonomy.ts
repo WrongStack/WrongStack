@@ -1,8 +1,23 @@
 import type { FleetChatVerbosity } from './fleet-chat.js';
 
 export interface AutonomyConfig {
-  /** Default autonomy mode at startup. Default: "auto". */
-  defaultMode?: 'off' | 'suggest' | 'auto' | undefined;
+  /** Default autonomy mode at startup. Default: "auto".
+   *
+   * The 'eternal' / 'eternal-parallel' modes drive the long-running
+   * autonomy engines (see `EternalAutonomyEngine` /
+   * `ParallelEternalEngine`) once the session transitions through a
+   * `/autonomy eternal` (or equivalent) command or `prefs.update`
+   * with `autonomy: 'eternal'`. They are accepted here so the value
+   * round-trips through the persist layer without reverting on
+   * restart, and so the standalone server matches the embedded
+   * server's autocomplete parity (TUI settings picker). */
+  defaultMode?:
+    | 'off'
+    | 'suggest'
+    | 'auto'
+    | 'eternal'
+    | 'eternal-parallel'
+    | undefined;
   /** ms to wait before auto-proceeding in 'auto' mode. Default: 45000. */
   autoProceedDelayMs?: number | undefined;
   /** Maximum consecutive auto-proceed turns before pausing. 0 = unlimited. Default: 50. */

@@ -557,7 +557,11 @@ describe('authenticated governance project service', () => {
           grant: {
             clientId: 'webui-control',
             issuedBy: 'attachment-broker',
-            capabilities: ['workspace_snapshot_record'],
+            capabilities: [
+              'workspace_snapshot_record',
+              'runtime_attachment_release',
+              'daemon_status_read',
+            ],
             expiresAt: broker.grant.expiresAt,
           },
           credential: { projectId: 'project-1', clientId: 'webui-control' },
@@ -582,7 +586,34 @@ describe('authenticated governance project service', () => {
     expect(first.result.control.grant.capabilities).not.toContain('runtime_attach');
     expect(first.result.control.grant.capabilities).not.toContain('capability_admin');
     expect(first.result.control.grant.capabilities).not.toContain('daemon_control');
+    expect(first.result.control.grant.capabilities).toContain('daemon_status_read');
     expect(first.result.model.grant.capabilities).not.toContain('runtime_attach');
+    const releaseRequest = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'release-runtime-once',
+      type: 'release_runtime_attachment',
+    } as const;
+    expect(
+      authenticated.handleUnknown(releaseRequest, first.result.model.credential),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    const released = authenticated.handleUnknown(releaseRequest, first.result.control.credential);
+    expect(authenticated.handleUnknown(releaseRequest, first.result.control.credential)).toEqual(
+      released,
+    );
+    expect(released).toMatchObject({
+      ok: true,
+      result: {
+        type: 'runtime_attachment_released',
+        controlGrantId: first.result.control.grant.grantId,
+        modelGrantId: first.result.model.grant.grantId,
+      },
+    });
+    expect(registry.getGrant(first.result.control.grant.grantId)).toMatchObject({
+      status: 'revoked',
+    });
+    expect(registry.getGrant(first.result.model.grant.grantId)).toMatchObject({
+      status: 'revoked',
+    });
     authenticated.close();
   });
 
@@ -623,6 +654,32 @@ describe('authenticated governance project service', () => {
           type: 'issue_capability_grant',
           clientId: 'forged-broker',
           capabilities: ['runtime_attach'],
+          ttlMs: 10_000,
+        },
+        credential,
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'admin-cannot-delegate-release',
+          type: 'issue_capability_grant',
+          clientId: 'forged-control',
+          capabilities: ['runtime_attachment_release'],
+          ttlMs: 10_000,
+        },
+        credential,
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'admin-cannot-delegate-status-read',
+          type: 'issue_capability_grant',
+          clientId: 'forged-status-reader',
+          capabilities: ['daemon_status_read'],
           ttlMs: 10_000,
         },
         credential,

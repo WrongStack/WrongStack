@@ -172,35 +172,41 @@ describe('summarizeGoalMetrics', () => {
   });
 });
 
-// ── Ctrl+J chord advertising ─────────────────────────────────────────────────
+// ── Ctrl+Y chord advertising ─────────────────────────────────────────────────
 
-describe('KanbanPanel header hint advertises Ctrl+J', () => {
-  // Defensive regression: Sprint 2 introduced Ctrl+J as the chord-only
+describe('KanbanPanel header hint advertises Ctrl+Y', () => {
+  // Defensive regression: Sprint 2 introduced Ctrl+Y as the chord-only
   // way to toggle the kanban panel. The panel itself advertises this in
   // its footer so a user reading the screen can discover it without
   // consulting the help overlay.
-  it('mentions Ctrl+J in the footer', async () => {
+  //
+  // The chord was originally Ctrl+J (0x0A), but Ink 7 special-cases
+  // 0x0A as `name='enter'` with `key.ctrl=false` BEFORE the ctrl+letter
+  // branch — so on mainstream terminals (xterm, ConPTY, iTerm) the
+  // event arrived as `input='\n'` and fell through to the submit path.
+  // Ctrl+Y (0x19) is not special-cased by Ink and works.
+  it('mentions Ctrl+Y in the footer', async () => {
     const { readFile } = await import('node:fs/promises');
     const path = await import('node:path');
     const { fileURLToPath } = await import('node:url');
     const here = fileURLToPath(import.meta.url);
     const panelPath = path.resolve(path.dirname(here), '../src/components/kanban-panel.tsx');
     const source = await readFile(panelPath, 'utf8');
-    expect(source).toContain('Ctrl+J');
-    expect(source).toMatch(/Ctrl\+J\s*\n?\s*toggle|toggle[\s\S]*Ctrl\+J/);
+    expect(source).toContain('Ctrl+Y');
+    expect(source).toMatch(/Ctrl\+Y\s*\n?\s*toggle|toggle[\s\S]*Ctrl\+Y/);
   });
 
-  it('registers a Ctrl+J chord handler in the app key router that toggles the kanban panel', async () => {
+  it('registers a Ctrl+Y chord handler in the app key router that toggles the kanban panel', async () => {
     const { readFile } = await import('node:fs/promises');
     const path = await import('node:path');
     const { fileURLToPath } = await import('node:url');
     const here = fileURLToPath(import.meta.url);
     const routerPath = path.resolve(path.dirname(here), '../src/app-key-handler.ts');
     const source = await readFile(routerPath, 'utf8');
-    expect(source).toContain("key.ctrl && input === 'j'");
+    expect(source).toContain("key.ctrl && input === 'y'");
     // The handler must dispatch the kanban-specific toggle action — not
     // reuse an existing panel action — so it stays isolated from the
     // F-key / Ctrl-alias dispatch table that follows.
-    expect(source).toMatch(/key\.ctrl && input === 'j'[\s\S]{0,200}toggleKanbanPanel/);
+    expect(source).toMatch(/key\.ctrl && input === 'y'[\s\S]{0,200}toggleKanbanPanel/);
   });
 });

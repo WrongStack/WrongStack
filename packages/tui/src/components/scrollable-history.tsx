@@ -1348,7 +1348,14 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     .map((s) => `${s.entryId}:${s.viewportStartRow}:${s.viewportEndRow}`)
     .join('|');
   if (nextSignature !== spansSignatureRef.current) {
-    if (selectionRef.current.anchor !== null || selectionRef.current.head !== null) {
+    // Only clear committed (inProgress === false) selections on geometry drift.
+    // An active drag (inProgress === true) must survive the estimate→measured
+    // height promotion that follows every fresh mount, otherwise the next
+    // extendSelection no-ops (anchor null) and commitSelection returns false.
+    if (
+      selectionRef.current.anchor !== null &&
+      !selectionRef.current.inProgress
+    ) {
       selectionRef.current = { anchor: null, head: null, inProgress: false };
     }
     spansSignatureRef.current = nextSignature;

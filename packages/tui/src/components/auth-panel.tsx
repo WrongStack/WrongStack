@@ -49,7 +49,7 @@ const OAUTH_LABEL: Record<string, { title: string; detail: string }> = {
   copilot: { title: 'GitHub Copilot', detail: '→ github-copilot' },
 };
 
-function formatExpiry(expiresAt: string | undefined): { text: string; color: string } | null {
+export function formatExpiry(expiresAt: string | undefined): { text: string; color: string } | null {
   if (!expiresAt) return null;
   const expiry = Date.parse(expiresAt);
   if (!Number.isFinite(expiry)) return null;

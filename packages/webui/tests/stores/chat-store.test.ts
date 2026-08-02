@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { boundChatField, retainWebChatMessages, useChatStore } from '../../src/stores/chat-store';
+import {
+  boundChatField,
+  BTW_DISPATCH_GRACE_MS,
+  retainWebChatMessages,
+  useChatStore,
+} from '../../src/stores/chat-store';
 import type { ChatMessage } from '../../src/stores/types.js';
 
 // ── crypto mock ───────────────────────────────────────────────────────
@@ -773,6 +778,84 @@ describe('clearQueue', () => {
   });
 });
 
+// ── BTW queue → SENT → leave-screen lifecycle ───────────────────────────
+// Regression: a `btw` chip that was wire-sent at submit time (the
+// "SENT" stage) stays visible until the next `run.result` lands, and
+// the run.result drain must skip re-sending it via the mailbox. The
+// chip carries `alreadyDispatched` plus an internal monotonic `itemId`
+// used to own its grace timer without `Date.now()` collisions.
+describe('BTW dispatched chip lifecycle', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    useChatStore.setState({ queue: [], messages: [] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    useChatStore.setState({ queue: [], messages: [] });
+  });
+
+  it('stamps alreadyDispatched when enqueue fires with the flag', () => {
+    useChatStore.getState().enqueue('btw note', 'btw', undefined, true);
+    const item = useChatStore.getState().queue[0]!;
+    expect(item.alreadyDispatched).toBe(true);
+    // No wall-clock dispatch timestamp or bubble state is stamped at enqueue.
+    // `itemId` is the internal monotonic key for the grace timer.
+    expect(item).not.toHaveProperty('dispatchedAt');
+    expect(typeof item.itemId).toBe('number');
+    expect(item.bubbleAdded).toBeUndefined();
+  });
+
+  it('treats a non-dispatched chip as the regular queue path', () => {
+    useChatStore.getState().enqueue('btw note', 'btw', undefined, false);
+    const item = useChatStore.getState().queue[0]!;
+    expect(item.alreadyDispatched).toBeFalsy();
+  });
+
+  it('assigns a unique itemId to each enqueue even within the same millisecond', () => {
+    const before = Date.now();
+    useChatStore.getState().enqueue('a', 'btw', undefined, true);
+    useChatStore.getState().enqueue('b', 'btw', undefined, true);
+    const ids = useChatStore.getState().queue.map((q) => q.itemId);
+    expect(ids[0]).toBeDefined();
+    expect(ids[1]).toBeDefined();
+    expect(ids[0]).not.toBe(ids[1]);
+    // Both addedAt are identical (same-ms) — the itemId counter is what
+    // keeps the grace timers from cross-cancelling.
+    expect(useChatStore.getState().queue[0]!.addedAt).toBe(before);
+    expect(useChatStore.getState().queue[1]!.addedAt).toBe(before);
+  });
+
+  it('removes the chip from the queue after BTW_DISPATCH_GRACE_MS', () => {
+    useChatStore.getState().enqueue('btw note', 'btw', undefined, true);
+    vi.advanceTimersByTime(BTW_DISPATCH_GRACE_MS + 1);
+    expect(useChatStore.getState().queue).toEqual([]);
+  });
+
+  it('does NOT auto-remove non-dispatched items (no grace timer scheduled)', () => {
+    useChatStore.getState().enqueue('btw note', 'btw', undefined, false);
+    vi.advanceTimersByTime(60_000);
+    expect(useChatStore.getState().queue).toHaveLength(1);
+  });
+
+  it('cancels the grace timer when the user removes the chip manually', () => {
+    useChatStore.getState().enqueue('btw note', 'btw', undefined, true);
+    useChatStore.getState().removeQueued(0);
+    expect(useChatStore.getState().queue).toEqual([]);
+    // Advance past the grace window — even if a stale timer remained,
+    // the queue is empty so nothing happens.
+    vi.advanceTimersByTime(BTW_DISPATCH_GRACE_MS + 1);
+    expect(useChatStore.getState().queue).toEqual([]);
+  });
+
+  it('cancels all pending grace timers when clearQueue is called', () => {
+    useChatStore.getState().enqueue('a', 'btw', undefined, true);
+    useChatStore.getState().enqueue('b', 'btw', undefined, true);
+    useChatStore.getState().clearQueue();
+    vi.advanceTimersByTime(BTW_DISPATCH_GRACE_MS + 1);
+    expect(useChatStore.getState().queue).toEqual([]);
+  });
+});
+
 // ── runStart ─────────────────────────────────────────────────────────
 
 describe('setRunStart', () => {
@@ -970,6 +1053,55 @@ describe('F5 resilience — chat transcript persistence', () => {
     ).persist;
     const result = api?.getOptions?.().migrate?.({ messages: [] }, 99);
     expect(result).toBeNull();
+  });
+
+  it('migrate() stamps `itemId` on v2 queue items that lack one (CHIMERA fix)', () => {
+    // Legacy v2 blob: persisted pending items had no `itemId` field. The v3
+    // schema declares `itemId: number` as required on every QueuedItem, so
+    // migrate must stamp one — otherwise a rehydrated queue would violate the
+    // type contract and `removeQueued`/`dequeue` would see `itemId === undefined`.
+    const api = (
+      useChatStore as unknown as {
+        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
+      }
+    ).persist;
+    const restored = api
+      ?.getOptions?.()
+      .migrate?.(
+        {
+          messages: [],
+          queue: [{ text: 'legacy pending', mode: 'queue', addedAt: 1 }],
+          boundSessionId: null,
+        },
+        2,
+      ) as { queue: Array<{ itemId: number }> } | null;
+    expect(restored).not.toBeNull();
+    expect(restored?.queue).toHaveLength(1);
+    expect(typeof restored?.queue[0]?.itemId).toBe('number');
+    expect(restored?.queue[0]?.itemId).toBeGreaterThan(0);
+  });
+
+  it('migrate() seeds enqueueSequence from max persisted itemId (no id collision after F5)', () => {
+    // After migrate sees a rehydrated itemId, the next live enqueue must
+    // produce a fresh id strictly greater than the persisted one — otherwise
+    // a fade-in's first enqueue could collide with a rehydrated chip's id,
+    // and `removeQueued` would cancel the new chip's grace timer.
+    const api = (
+      useChatStore as unknown as {
+        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
+      }
+    ).persist;
+    api?.getOptions?.().migrate?.(
+      {
+        messages: [],
+        queue: [{ text: 'rehydrated', mode: 'queue', addedAt: 1, itemId: 42 }],
+        boundSessionId: null,
+      },
+      3,
+    );
+    useChatStore.getState().enqueue('fresh', 'queue');
+    const fresh = useChatStore.getState().queue[0]!;
+    expect(fresh.itemId).toBeGreaterThan(42);
   });
 
   it('clearMessages() also clears boundSessionId (so a rehydrate detects cross-session bleed)', () => {

@@ -100,7 +100,12 @@ const KNOWN_TOP_LEVEL_KEYS = [
 
 const BOOLEAN_FIELDS = ['hints', 'debugStream', 'yolo', 'nextPrediction'] as const;
 const AUTONOMY_ENUMS: Record<string, readonly string[]> = {
-  defaultMode: ['off', 'suggest', 'auto'],
+  // Parity with `AutonomyMode` (cli/src/services/autonomy-mode.ts) and the
+  // TUI settings picker; the persist layer (`pref-helpers.ts`) now
+  // round-trips all five modes instead of silently dropping 'eternal' /
+  // 'eternal-parallel', and the doctor must accept them too or it would
+  // flag a config that the rest of the system happily writes.
+  defaultMode: ['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'],
   enhanceLanguage: ['original', 'english'],
 };
 const AUTONOMY_BOOLEANS = ['enhance'] as const;

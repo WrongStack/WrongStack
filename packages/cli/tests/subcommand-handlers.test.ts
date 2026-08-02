@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── auth handler ────────────────────────────────────────────────────────────
 const runAuthMenu = vi.fn().mockResolvedValue(0);
@@ -65,6 +65,7 @@ describe('helpCmd', () => {
     expect(output).toContain('wstack webui');
     expect(output).toContain('wstack hq');
     expect(output).toContain('--hq');
+    expect(output).toContain('wstack governance status');
   });
 });
 
@@ -112,36 +113,28 @@ describe('authCmd', () => {
     const deps = fakeDeps();
     const code = await authCmd(['status'], deps);
     expect(code).toBe(1);
-    expect(deps.renderer.writeError).toHaveBeenCalledWith(
-      expect.stringContaining('Usage:'),
-    );
+    expect(deps.renderer.writeError).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
   });
 
   it('status with unknown provider reports not found', async () => {
     const deps = fakeDeps();
     const code = await authCmd(['status', 'unknown-prov'], deps);
     expect(code).toBe(1);
-    expect(deps.renderer.writeError).toHaveBeenCalledWith(
-      expect.stringContaining('not found'),
-    );
+    expect(deps.renderer.writeError).toHaveBeenCalledWith(expect.stringContaining('not found'));
   });
 
   it('remove with no provider id prints usage and exits 1', async () => {
     const deps = fakeDeps();
     const code = await authCmd(['remove'], deps);
     expect(code).toBe(1);
-    expect(deps.renderer.writeError).toHaveBeenCalledWith(
-      expect.stringContaining('Usage:'),
-    );
+    expect(deps.renderer.writeError).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
   });
 
   it('rm alias works like remove', async () => {
     const deps = fakeDeps();
     const code = await authCmd(['rm'], deps);
     expect(code).toBe(1);
-    expect(deps.renderer.writeError).toHaveBeenCalledWith(
-      expect.stringContaining('Usage:'),
-    );
+    expect(deps.renderer.writeError).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
   });
 });
 
@@ -151,9 +144,7 @@ describe('historyCmd', () => {
     const deps = fakeDeps();
     const code = await historyCmd(['--id', 'abc'], deps);
     expect(code).toBe(1);
-    expect(deps.renderer.write).toHaveBeenCalledWith(
-      expect.stringContaining("'abc' not found"),
-    );
+    expect(deps.renderer.write).toHaveBeenCalledWith(expect.stringContaining("'abc' not found"));
   });
 
   it('prints entry details when --id resolves', async () => {
@@ -205,9 +196,7 @@ describe('restoreCmd', () => {
     const deps = fakeDeps();
     const code = await restoreCmd(['--latest'], deps);
     expect(code).toBe(0);
-    expect(deps.renderer.write).toHaveBeenCalledWith(
-      expect.stringContaining('config.json.last'),
-    );
+    expect(deps.renderer.write).toHaveBeenCalledWith(expect.stringContaining('config.json.last'));
   });
 
   it('--latest failure surfaces error and exits 1', async () => {

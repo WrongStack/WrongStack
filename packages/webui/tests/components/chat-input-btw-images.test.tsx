@@ -123,14 +123,18 @@ describe('ChatInput — btw with image attachments mid-run', () => {
     expect(wsMock.sendMessage).not.toHaveBeenCalled();
     // Instead the note is enqueued as 'queue' WITH its images and WITHOUT the
     // alreadyDispatched mark, so the run.result drain forwards the images via
-    // toWireImages on the next run.
+    // toWireImages on the next run. Use `objectContaining` so the assertion
+    // doesn't break when the store adds an internal `itemId` field
+    // (monotonic timer key for the dispatched-grace timer). The public
+    // surface the panel asserts on is `text`, `mode`, `addedAt`, and
+    // `images`.
     expect(useChatStore.getState().queue).toEqual([
-      {
+      expect.objectContaining({
         text: 'btw with a screenshot',
         mode: 'queue',
         addedAt: expect.any(Number),
         images: [mocks.testImage],
-      },
+      }),
     ]);
   });
 });

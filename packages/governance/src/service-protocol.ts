@@ -10,6 +10,8 @@ export const GOVERNANCE_SERVICE_CAPABILITIES = [
   'shadow_observe',
   'workspace_snapshot_record',
   'runtime_attach',
+  'runtime_attachment_release',
+  'daemon_status_read',
   'capability_admin',
   'daemon_control',
 ] as const;
@@ -74,6 +76,7 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
         readonly modelCapabilities: readonly GovernanceRuntimeModelCapability[];
         readonly ttlMs: number;
       }
+    | { readonly type: 'release_runtime_attachment' }
     | {
         readonly type: 'list_capability_grants';
         readonly cursor?: string | undefined;

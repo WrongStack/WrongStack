@@ -210,8 +210,51 @@ export async function updateGlobalConfig(
  * and serialized behind the holder's `lock`; failures log but never break
  * the WS reply.
  */
-/** Display-only keys listed in PREF_KEYS for snapshot/get but never persisted. */
-const DISPLAY_ONLY_KEYS = new Set(['groupToolCalls', 'showThinkingLogs', 'autoReviewFallbackModels']);
+/** Display-only keys listed in PREF_KEYS for snapshot/get but never persisted.
+ *
+ * Strip-before-persist is mandatory because `persistPrefsToConfig` (line 224)
+ * walks these keys off the payload BEFORE the no-op-write early return, so
+ * a `prefs.update` that contains ONLY display-only keys short-circuits at
+ * line 225 without entering `updateGlobalConfig`. If a v11/v13 panel-only
+ * key is missing from this set, the persist layer runs the full
+ * read → decrypt → encrypt → atomicWrite cycle with zero mutations — a
+ * silent "config rewritten for nothing" footgun that serializes behind
+ * the write lock for no reason.
+ *
+ * Notes on the non-obvious entries:
+ * - `allowOutsideProjectRoot` and `enhanceCountdownMs` are listed for
+ *   mirror-only parity (browser mirrors the value into `ctx.meta` so the
+ *   panel can re-read it from the snapshot). The canonical persist path
+ *   for filesystem scope is the `fsAccess` branch below, which dual-writes
+ *   the inverse pair (`tools.restrictToProjectRoot` ↔
+ *   `features.allowOutsideProjectRoot`); a direct `allowOutsideProjectRoot`
+ *   key would otherwise never reach that branch.
+ * - `autoReviewFallbackModels` is a *resolved output* from the auto-review
+ *   plugin's FallbackProfileManager, surfaced read-only on the panel.
+ *   The write side is `autoReviewFallbackProfile` /
+ *   `autoReviewProvider` / `autoReviewModel`. */
+const DISPLAY_ONLY_KEYS = new Set([
+  'groupToolCalls',
+  'showThinkingLogs',
+  'autoReviewFallbackModels',
+  // v11 Display parity: agent-swarm panel + inverse fsAccess flag.
+  // The TUI settings picker mirrors these so the browser can keep the
+  // panel state in sync without round-tripping through config.
+  'showAgentSwarmPanel',
+  'allowOutsideProjectRoot',
+  // v13 Display parity: codebase-index read-tool, SAGE memory-inject
+  // surfacing, pre-refine countdown, inject threshold, multi-diff
+  // footer threshold, refine-panel enhance countdown. All six are
+  // pure panel-toggles; the underlying engine knobs (when applicable)
+  // live in the TUI keyboard shortcut or the agent runtime, not in
+  // config.
+  'readSymbols',
+  'showSageMemoryInject',
+  'preRefineSeconds',
+  'sageMemoryInjectThreshold',
+  'multiDiffSummaryThreshold',
+  'enhanceCountdownMs',
+]);
 
 export async function persistPrefsToConfig(
   deps: PrefHelperDeps,
@@ -236,7 +279,7 @@ export async function persistPrefsToConfig(
       };
       if (
         typeof payload['autonomy'] === 'string' &&
-        ['off', 'suggest', 'auto'].includes(payload['autonomy'])
+        ['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'].includes(payload['autonomy'])
       ) {
         setAutonomy('defaultMode', payload['autonomy']);
       }

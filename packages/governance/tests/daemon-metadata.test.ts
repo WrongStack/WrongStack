@@ -6,13 +6,18 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   acquireGovernanceDaemonStartupLease,
   connectGovernanceProjectClient,
+  createGovernanceDaemonAttachmentBroker,
   createGovernanceDaemonMetadata,
+  governanceDaemonAttachmentBrokerPath,
   governanceDaemonMetadataPath,
   governanceDaemonStartupLeasePath,
   inspectGovernanceDaemon,
+  readGovernanceDaemonAttachmentBroker,
   readGovernanceDaemonMetadata,
+  removeOwnedGovernanceDaemonAttachmentBroker,
   removeOwnedGovernanceDaemonMetadata,
   shouldRecoverGovernanceEndpoint,
+  writeGovernanceDaemonAttachmentBroker,
   writeGovernanceDaemonMetadata,
 } from '../src/index.js';
 
@@ -53,6 +58,91 @@ describe('governance daemon metadata', () => {
     expect(existsSync(governanceDaemonMetadataPath(root))).toBe(true);
     await expect(removeOwnedGovernanceDaemonMetadata(root, metadata)).resolves.toBe(true);
     expect(existsSync(governanceDaemonMetadataPath(root))).toBe(false);
+  });
+
+  it('keeps the limited attachment broker separate and removes only the owning instance', async () => {
+    const root = projectRoot();
+    const metadata = createGovernanceDaemonMetadata({
+      projectRoot: root,
+      projectId: 'project-one',
+      pid: 111,
+      instanceId: 'instance-one',
+      startedAt,
+    });
+    const broker = createGovernanceDaemonAttachmentBroker({
+      metadata,
+      grantId: 'broker-grant',
+      expiresAt: '2026-08-01T13:00:00.000Z',
+      credential: {
+        token: 'wsg_broker-grant.0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+        projectId: 'project-one',
+        clientId: 'attachment-broker',
+      },
+    });
+
+    await writeGovernanceDaemonAttachmentBroker(root, broker);
+
+    await expect(readGovernanceDaemonAttachmentBroker(root)).resolves.toEqual({
+      kind: 'valid',
+      broker,
+    });
+    expect(existsSync(governanceDaemonMetadataPath(root))).toBe(false);
+    const serialized = readFileSync(governanceDaemonAttachmentBrokerPath(root), 'utf8');
+    expect(serialized).toContain('wsg_broker-grant.');
+    expect(serialized).not.toContain('capability_admin');
+    expect(serialized).not.toContain('daemon_control');
+    const replacement = createGovernanceDaemonAttachmentBroker({
+      metadata,
+      grantId: 'replacement-grant',
+      expiresAt: '2026-08-01T14:00:00.000Z',
+      credential: {
+        token: 'wsg_replacement-grant.0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+        projectId: 'project-one',
+        clientId: 'attachment-broker',
+      },
+    });
+    await writeGovernanceDaemonAttachmentBroker(root, replacement);
+    await expect(readGovernanceDaemonAttachmentBroker(root)).resolves.toEqual({
+      kind: 'valid',
+      broker: replacement,
+    });
+    await expect(
+      removeOwnedGovernanceDaemonAttachmentBroker(root, {
+        pid: metadata.pid,
+        instanceId: 'other-instance',
+      }),
+    ).resolves.toBe(false);
+    await expect(removeOwnedGovernanceDaemonAttachmentBroker(root, metadata)).resolves.toBe(true);
+    expect(existsSync(governanceDaemonAttachmentBrokerPath(root))).toBe(false);
+  });
+
+  it('rejects an attachment broker with injected authority without deleting it', async () => {
+    const root = projectRoot();
+    const pathname = governanceDaemonAttachmentBrokerPath(root);
+    const metadata = createGovernanceDaemonMetadata({
+      projectRoot: root,
+      projectId: 'project-one',
+      pid: 112,
+      instanceId: 'instance-one',
+      startedAt,
+    });
+    const broker = createGovernanceDaemonAttachmentBroker({
+      metadata,
+      grantId: 'broker-grant',
+      expiresAt: '2026-08-01T13:00:00.000Z',
+      credential: {
+        token: 'wsg_broker-grant.0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+        projectId: 'project-one',
+        clientId: 'attachment-broker',
+      },
+    });
+    await writeGovernanceDaemonAttachmentBroker(root, broker);
+    writeFileSync(pathname, JSON.stringify({ ...broker, capabilities: ['capability_admin'] }));
+
+    await expect(readGovernanceDaemonAttachmentBroker(root)).resolves.toMatchObject({
+      kind: 'invalid',
+    });
+    expect(existsSync(pathname)).toBe(true);
   });
 
   it('rejects injected fields without deleting the invalid metadata', async () => {

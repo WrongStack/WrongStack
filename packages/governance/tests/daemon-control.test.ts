@@ -84,6 +84,28 @@ describe('governance daemon control', () => {
       },
     });
 
+    const statusGrant = server.issueGrant({
+      clientId: 'operator-status-reader',
+      capabilities: ['daemon_status_read'],
+      ttlMs: 60_000,
+    });
+    const statusReader = client(root, statusGrant, 'operator-status-reader');
+    await expect(
+      statusReader.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'read-only-daemon-status',
+        type: 'read_daemon_status',
+      }),
+    ).resolves.toMatchObject({ ok: true, result: { type: 'daemon_status' } });
+    await expect(
+      statusReader.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'read-only-shutdown-denied',
+        type: 'request_daemon_shutdown',
+        expectedInstanceId: 'instance-1',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+
     const adminOnlyGrant = server.issueGrant({
       clientId: 'ordinary-admin',
       capabilities: ['capability_admin'],
@@ -105,6 +127,17 @@ describe('governance daemon control', () => {
         type: 'issue_capability_grant',
         clientId: 'delegated-controller',
         capabilities: ['daemon_control'],
+        ttlMs: 30_000,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+
+    await expect(
+      control.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'delegate-daemon-status-read',
+        type: 'issue_capability_grant',
+        clientId: 'delegated-status-reader',
+        capabilities: ['daemon_status_read'],
         ttlMs: 30_000,
       }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
@@ -226,6 +259,23 @@ describe('governance daemon control', () => {
           category: 'daemon_shutdown_requested',
           observedAt: '2026-08-02T12:01:00.000Z',
           payload: { expectedInstanceId: 'instance-audit' },
+        },
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+
+    await expect(
+      shadow.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'spoof-attachment-broker-audit',
+        type: 'record_observation',
+        observation: {
+          observationId: 'model-forged-attachment-broker',
+          projectId: 'project-1',
+          taskId: null,
+          source: 'model-shadow',
+          category: 'daemon_attachment_broker_lifecycle',
+          observedAt: '2026-08-02T12:01:01.000Z',
+          payload: { type: 'published', health: 'healthy' },
         },
       }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });

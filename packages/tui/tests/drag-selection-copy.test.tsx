@@ -121,7 +121,6 @@ describe('buildMountedCardSpans + selectionHitAt', () => {
     clip: 0,
     tailRows: 0,
     viewportRows: 10,
-    contentWidth: 80,
   });
 
   it('returns per-card viewport spans covering the mounted rows', () => {

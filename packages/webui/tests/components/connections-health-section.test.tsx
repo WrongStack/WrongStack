@@ -78,6 +78,22 @@ describe('ConnectionsHealthSection', () => {
               mode: 'on-demand project-server',
               detail: 'starts on demand',
             },
+            {
+              id: 'governance',
+              label: 'Governance control plane',
+              status: 'degraded',
+              required: false,
+              mode: 'project-daemon-advisory',
+              detail:
+                'Attachment broker renewal health is degraded. Execution continues; no automatic task or model stop.',
+              ownerPid: 44,
+              control: 'none',
+              advisory: {
+                code: 'attachment_broker_degraded',
+                operatorAction: 'investigate',
+                executionDisposition: 'continue',
+              },
+            },
           ],
         },
       });
@@ -86,6 +102,11 @@ describe('ConnectionsHealthSection', () => {
     expect(screen.getByText('Connection health')).toBeTruthy();
     expect(screen.getByText('Chronicle telemetry')).toBeTruthy();
     expect(screen.getByText('SAGE memory')).toBeTruthy();
+    expect(screen.getByText('Governance control plane')).toBeTruthy();
+    expect(screen.getByText('attachment_broker_degraded')).toBeTruthy();
+    expect(screen.getByText('investigate')).toBeTruthy();
+    expect(screen.getByText('continue')).toBeTruthy();
+    expect(screen.queryByTitle(/Reset Governance control plane/u)).toBeNull();
     expect(screen.getByText('server')).toBeTruthy();
     expect(screen.getByText('on-demand project-server')).toBeTruthy();
     expect(screen.getByText('/state/project/chronicle')).toBeTruthy();

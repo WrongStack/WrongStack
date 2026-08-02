@@ -123,6 +123,12 @@ export function reapStaleClientState(
     for (const [sessionId, tracked] of client.mcpSnapshots) {
       if (nowMs - tracked.receivedAt > HQ_STALE_SNAPSHOT_MS) client.mcpSnapshots.delete(sessionId);
     }
+    if (
+      client.governanceSnapshot !== undefined &&
+      nowMs - client.governanceSnapshot.receivedAt > HQ_STALE_SNAPSHOT_MS
+    ) {
+      delete client.governanceSnapshot;
+    }
   }
 }
 
@@ -183,6 +189,15 @@ export function buildSnapshot(
       projectMap.set(client.projectId, project);
     } else if (machineId && !project.machineIds.includes(machineId)) {
       project.machineIds = [...project.machineIds, machineId];
+    }
+
+    const governance = client.governanceSnapshot?.payload;
+    if (
+      governance !== undefined &&
+      (project.governance === undefined ||
+        Date.parse(governance.observedAt) >= Date.parse(project.governance.observedAt))
+    ) {
+      project.governance = governance;
     }
 
     for (const tracked of client.sessions.values()) {

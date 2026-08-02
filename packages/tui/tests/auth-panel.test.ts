@@ -1,27 +1,9 @@
 import { describe, expect, it } from 'vitest';
-
-// formatExpiry is a module-private function in auth-panel.tsx. We replicate
-// the logic here for test purposes — if the function changes in auth-panel.tsx,
-// these tests need updating. When the function IS exported, replace this
-// import with the real one.
+import { formatExpiry } from '../src/components/auth-panel.js';
 
 const UI_COLORS_ERROR = '#f38ba8';
 const UI_COLORS_WARNING = '#f9e2af';
 const UI_COLORS_INACTIVE = '#585b70';
-
-function formatExpiry(expiresAt: string | undefined): { text: string; color: string } | null {
-  if (!expiresAt) return null;
-  const expiry = Date.parse(expiresAt);
-  if (!Number.isFinite(expiry)) return null;
-
-  const now = Date.now();
-  const msLeft = expiry - now;
-
-  if (msLeft <= 0) return { text: 'expired', color: UI_COLORS_ERROR };
-  if (msLeft < 60 * 60_000) return { text: `${Math.round(msLeft / 60_000)}m left`, color: UI_COLORS_ERROR };
-  if (msLeft < 24 * 60 * 60_000) return { text: `${Math.round(msLeft / (60 * 60_000))}h left`, color: UI_COLORS_WARNING };
-  return { text: `${Math.round(msLeft / (24 * 60 * 60_000))}d left`, color: UI_COLORS_INACTIVE };
-}
 
 describe('formatExpiry', () => {
   it('returns null for undefined', () => {
@@ -72,7 +54,6 @@ describe('formatExpiry', () => {
     const boundary = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
     const result = formatExpiry(boundary);
     expect(result).not.toBeNull();
-    // At 24h: msLeft = 86400000, 86400000 / 86400000 = 1 → "1d left"
     expect(result!.text).toBe('1d left');
   });
 

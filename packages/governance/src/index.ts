@@ -1,4 +1,5 @@
 export * from './admin-session.js';
+export * from './attachment-broker-controller.js';
 export * from './authenticated-project-service.js';
 export * from './autonomy-envelope.js';
 export * from './capability-grant.js';

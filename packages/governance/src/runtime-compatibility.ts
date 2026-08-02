@@ -19,7 +19,12 @@ import {
   type GovernanceProjectDaemonLaunch,
   launchGovernanceProjectDaemon,
 } from './daemon-launcher.js';
-import { inspectGovernanceDaemon } from './daemon-metadata.js';
+import {
+  type GovernanceDaemonAttachmentBrokerRecord,
+  type GovernanceDaemonMetadata,
+  inspectGovernanceDaemon,
+  readGovernanceDaemonAttachmentBroker,
+} from './daemon-metadata.js';
 import {
   type ConnectGovernanceProjectClientResult,
   connectGovernanceProjectClient,
@@ -72,6 +77,7 @@ export type GovernanceCompatibilityFallbackCode =
 export type GovernanceCompatibilityCleanup =
   | 'not_required'
   | 'admin_session_stopped'
+  | 'attachment_grants_released'
   | 'launched_daemon_shutdown_requested'
   | 'cleanup_failed'
   | 'unavailable';
@@ -130,9 +136,25 @@ export class GovernanceModelSession {
 export interface GovernanceCompatibilityRuntimeSnapshot {
   readonly source: 'attached' | 'launched';
   readonly closed: boolean;
-  readonly admin: GovernanceAdminSessionSnapshot;
+  readonly daemon: GovernanceAdminSessionSnapshot['daemon'];
+  readonly control: {
+    readonly kind: 'admin' | 'attachment';
+    readonly clientId: string;
+    readonly grantId: string;
+    readonly expiresAt: string;
+  };
+  readonly admin: GovernanceAdminSessionSnapshot | null;
   readonly model: GovernanceModelSessionSnapshot;
 }
+
+type GovernanceCompatibilityControl =
+  | { readonly kind: 'admin'; readonly session: GovernanceAdminSession }
+  | {
+      readonly kind: 'attachment';
+      readonly client: GovernanceProjectClient;
+      readonly metadata: GovernanceDaemonMetadata;
+      readonly grant: GovernanceCapabilityGrant;
+    };
 
 const GOVERNANCE_COMPATIBILITY_RUNTIME_CONSTRUCTION = Symbol(
   'governance-compatibility-runtime-construction',
@@ -140,7 +162,7 @@ const GOVERNANCE_COMPATIBILITY_RUNTIME_CONSTRUCTION = Symbol(
 
 export class GovernanceCompatibilityRuntime {
   readonly model: GovernanceModelSession;
-  readonly #admin: GovernanceAdminSession;
+  readonly #control: GovernanceCompatibilityControl;
   readonly #source: 'attached' | 'launched';
   readonly #modelGrantId: string;
   #closed = false;
@@ -149,23 +171,43 @@ export class GovernanceCompatibilityRuntime {
   constructor(
     construction: typeof GOVERNANCE_COMPATIBILITY_RUNTIME_CONSTRUCTION,
     source: 'attached' | 'launched',
-    admin: GovernanceAdminSession,
+    control: GovernanceCompatibilityControl,
     model: GovernanceModelSession,
   ) {
     if (construction !== GOVERNANCE_COMPATIBILITY_RUNTIME_CONSTRUCTION) {
       throw new Error('Governance compatibility runtimes must be created through the factory.');
     }
     this.#source = source;
-    this.#admin = admin;
+    this.#control = control;
     this.model = model;
     this.#modelGrantId = model.snapshot().grantId;
   }
 
   snapshot(): GovernanceCompatibilityRuntimeSnapshot {
+    const control = this.#control;
+    const admin = control.kind === 'admin' ? control.session.snapshot() : null;
+    const daemon =
+      control.kind === 'admin'
+        ? admin!.daemon
+        : Object.freeze({
+            projectRoot: control.metadata.projectRoot,
+            projectId: control.metadata.projectId,
+            pid: control.metadata.pid,
+            instanceId: control.metadata.instanceId,
+            startedAt: control.metadata.startedAt,
+          });
+    const controlGrant = control.kind === 'admin' ? admin!.lease : control.grant;
     return Object.freeze({
       source: this.#source,
       closed: this.#closed,
-      admin: this.#admin.snapshot(),
+      daemon,
+      control: Object.freeze({
+        kind: control.kind,
+        clientId: controlGrant.clientId,
+        grantId: controlGrant.grantId,
+        expiresAt: controlGrant.expiresAt,
+      }),
+      admin,
       model: this.model.snapshot(),
     });
   }
@@ -173,11 +215,30 @@ export class GovernanceCompatibilityRuntime {
   close(): Promise<GovernanceServiceResponse | null> {
     if (this.#closed) return Promise.resolve(null);
     if (this.#closePromise) return this.#closePromise;
+    if (this.#control.kind === 'attachment') {
+      this.#closePromise = this.#control.client
+        .request({
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: `compat-release-${randomUUID()}`,
+          type: 'release_runtime_attachment',
+        })
+        .then((response) => {
+          if (response.ok && response.result.type === 'runtime_attachment_released') {
+            this.#closed = true;
+          }
+          return response;
+        })
+        .finally(() => {
+          this.#closePromise = undefined;
+        });
+      return this.#closePromise;
+    }
+    const adminSession = this.#control.session;
     this.#closePromise = this.revokeModelGrant()
       .then((response) => {
         if (response.ok && response.result.type === 'capability_grant_revoked') {
           this.#closed = true;
-          this.#admin.stop();
+          adminSession.stop();
         }
         return response;
       })
@@ -190,14 +251,25 @@ export class GovernanceCompatibilityRuntime {
   async shutdownDaemon(
     reason = 'governance compatibility runtime requested graceful shutdown',
   ): Promise<GovernanceServiceResponse> {
+    if (this.#control.kind === 'attachment') {
+      return {
+        ok: false,
+        requestId: `compat-shutdown-denied-${randomUUID()}`,
+        error: {
+          code: 'permission_denied',
+          message: 'Attached runtimes cannot shut down the project governance daemon.',
+        },
+      };
+    }
     if (!this.#closed) await this.close().catch(() => null);
-    const response = await this.#admin.shutdownDaemon(reason);
+    const response = await this.#control.session.shutdownDaemon(reason);
     if (response.ok && response.result.type === 'daemon_shutdown_accepted') this.#closed = true;
     return response;
   }
 
   recordWorkspaceSnapshot(manifestHash: string): Promise<GovernanceServiceResponse> {
-    return this.#admin.request({
+    const client = this.#control.kind === 'admin' ? this.#control.session : this.#control.client;
+    return client.request({
       protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
       requestId: `workspace-snapshot-${randomUUID()}`,
       type: 'record_workspace_snapshot',
@@ -206,7 +278,10 @@ export class GovernanceCompatibilityRuntime {
   }
 
   private revokeModelGrant(): Promise<GovernanceServiceResponse> {
-    return this.#admin.request({
+    if (this.#control.kind !== 'admin') {
+      throw new Error('Attached runtimes release their paired grants through the control grant.');
+    }
+    return this.#control.session.request({
       protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
       requestId: `compat-revoke-${randomUUID()}`,
       type: 'revoke_capability_grant',
@@ -231,6 +306,7 @@ interface GovernanceCompatibilityAdapters {
     options?: GovernanceAdminSessionLeaseOptions,
   ) => Promise<ConnectGovernanceAdminSessionResult>;
   readonly connectModel: typeof connectGovernanceProjectClient;
+  readonly readAttachmentBroker: typeof readGovernanceDaemonAttachmentBroker;
 }
 
 const DEFAULT_ADAPTERS: GovernanceCompatibilityAdapters = {
@@ -239,6 +315,7 @@ const DEFAULT_ADAPTERS: GovernanceCompatibilityAdapters = {
   connectAttached: connectGovernanceAdminSession,
   connectLaunched: connectGovernanceAdminSessionFromLaunch,
   connectModel: connectGovernanceProjectClient,
+  readAttachmentBroker: readGovernanceDaemonAttachmentBroker,
 };
 
 function legacy(
@@ -327,6 +404,168 @@ function modelGrantMatches(
     ) &&
     Number.isFinite(Date.parse(grant.expiresAt))
   );
+}
+
+function attachmentClaimMatches(
+  response: GovernanceServiceResponse,
+  options: PrepareGovernanceCompatibilityOptions,
+): response is Extract<GovernanceServiceResponse, { readonly ok: true }> & {
+  readonly result: Extract<
+    Extract<GovernanceServiceResponse, { readonly ok: true }>['result'],
+    { readonly type: 'runtime_attachment_claimed' }
+  >;
+} {
+  if (!response.ok || response.result.type !== 'runtime_attachment_claimed') return false;
+  const { control, model } = response.result;
+  return (
+    control.grant.projectId === options.projectId &&
+    control.grant.clientId === options.adminClientId &&
+    control.grant.status === 'active' &&
+    control.grant.capabilities.length === 3 &&
+    control.grant.capabilities.includes('workspace_snapshot_record') &&
+    control.grant.capabilities.includes('runtime_attachment_release') &&
+    control.grant.capabilities.includes('daemon_status_read') &&
+    control.credential.projectId === options.projectId &&
+    control.credential.clientId === options.adminClientId &&
+    control.credential.token.startsWith(`wsg_${control.grant.grantId}.`) &&
+    model.grant.projectId === options.projectId &&
+    model.grant.clientId === options.modelClientId &&
+    model.grant.status === 'active' &&
+    model.credential.projectId === options.projectId &&
+    model.credential.clientId === options.modelClientId &&
+    model.credential.token.startsWith(`wsg_${model.grant.grantId}.`) &&
+    model.grant.capabilities.length === options.modelCapabilities.length &&
+    model.grant.capabilities.every((capability) =>
+      options.modelCapabilities.includes(capability as GovernanceModelCapability),
+    ) &&
+    Number.isFinite(Date.parse(control.grant.expiresAt)) &&
+    Number.isFinite(Date.parse(model.grant.expiresAt))
+  );
+}
+
+async function provisionAttachment(
+  options: PrepareGovernanceCompatibilityOptions,
+  adapters: GovernanceCompatibilityAdapters,
+  metadata: GovernanceDaemonMetadata,
+  broker: GovernanceDaemonAttachmentBrokerRecord,
+): Promise<PrepareGovernanceCompatibilityResult> {
+  let brokerConnection: ConnectGovernanceProjectClientResult;
+  try {
+    brokerConnection = await adapters.connectModel({
+      projectRoot: options.projectRoot,
+      projectId: options.projectId,
+      credential: broker.credential,
+      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+    });
+  } catch (error) {
+    return legacy(
+      'attachment_rejected',
+      'attach',
+      `Governance attachment broker connection failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!brokerConnection.connected) {
+    return legacy('attachment_rejected', 'attach', brokerConnection.message);
+  }
+  let claim: GovernanceServiceResponse;
+  try {
+    claim = await brokerConnection.client.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: `compat-attach-${randomUUID()}`,
+      type: 'claim_runtime_attachment',
+      controlClientId: options.adminClientId,
+      modelClientId: options.modelClientId,
+      modelCapabilities: options.modelCapabilities,
+      ttlMs: options.modelTtlMs ?? GOVERNANCE_COMPATIBILITY_MODEL_TTL_MS,
+    });
+  } catch (error) {
+    return legacy(
+      'attachment_rejected',
+      'attach',
+      `Governance attachment claim failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!attachmentClaimMatches(claim, options)) {
+    return legacy(
+      'attachment_rejected',
+      'attach',
+      claim.ok
+        ? 'Governance attachment response did not match the requested identities and capabilities.'
+        : `Governance attachment was rejected: ${claim.error.message}`,
+    );
+  }
+  const releaseClaim = (): Promise<GovernanceServiceResponse | null> =>
+    new GovernanceProjectClient(options.projectRoot, claim.result.control.credential, {
+      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+    })
+      .request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: `compat-release-failed-connect-${randomUUID()}`,
+        type: 'release_runtime_attachment',
+      })
+      .catch(() => null);
+  let controlConnection: ConnectGovernanceProjectClientResult;
+  let modelConnection: ConnectGovernanceProjectClientResult;
+  try {
+    [controlConnection, modelConnection] = await Promise.all([
+      adapters.connectModel({
+        projectRoot: options.projectRoot,
+        projectId: options.projectId,
+        credential: claim.result.control.credential,
+        ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+      }),
+      adapters.connectModel({
+        projectRoot: options.projectRoot,
+        projectId: options.projectId,
+        credential: claim.result.model.credential,
+        ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+      }),
+    ]);
+  } catch (error) {
+    const released = await releaseClaim();
+    const cleanup =
+      released?.ok && released.result.type === 'runtime_attachment_released'
+        ? 'attachment_grants_released'
+        : 'cleanup_failed';
+    return legacy(
+      'model_connection_rejected',
+      'provision',
+      `Governance attachment client connection failed: ${error instanceof Error ? error.message : String(error)}`,
+      cleanup,
+    );
+  }
+  if (!controlConnection.connected || !modelConnection.connected) {
+    const released = await releaseClaim();
+    const cleanup =
+      released?.ok && released.result.type === 'runtime_attachment_released'
+        ? 'attachment_grants_released'
+        : 'cleanup_failed';
+    const connectionMessage = !controlConnection.connected
+      ? controlConnection.message
+      : !modelConnection.connected
+        ? modelConnection.message
+        : 'Governance attachment clients could not be verified.';
+    return legacy('model_connection_rejected', 'provision', connectionMessage, cleanup);
+  }
+  const model = new GovernanceModelSession(
+    GOVERNANCE_MODEL_SESSION_CONSTRUCTION,
+    modelConnection.client,
+    claim.result.model.grant,
+  );
+  return Object.freeze({
+    mode: 'governed',
+    runtime: new GovernanceCompatibilityRuntime(
+      GOVERNANCE_COMPATIBILITY_RUNTIME_CONSTRUCTION,
+      'attached',
+      {
+        kind: 'attachment',
+        client: controlConnection.client,
+        metadata,
+        grant: claim.result.control.grant,
+      },
+      model,
+    ),
+  });
 }
 
 async function cleanupFailedProvision(
@@ -460,7 +699,7 @@ async function provisionModel(
     runtime: new GovernanceCompatibilityRuntime(
       GOVERNANCE_COMPATIBILITY_RUNTIME_CONSTRUCTION,
       source,
-      session,
+      { kind: 'admin', session },
       model,
     ),
   });
@@ -514,11 +753,41 @@ export async function prepareGovernanceCompatibilityRuntimeWithAdapters(
       );
     }
     if (inspection.kind === 'live') {
-      return legacy(
-        'existing_owner_requires_credential',
-        'inspect',
-        'A governance daemon already owns this project; an explicit admin credential is required to attach.',
-      );
+      let broker: Awaited<ReturnType<typeof readGovernanceDaemonAttachmentBroker>>;
+      try {
+        broker = await adapters.readAttachmentBroker(options.projectRoot);
+      } catch (error) {
+        return legacy(
+          'attachment_rejected',
+          'attach',
+          `Governance attachment broker could not be read: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      if (broker.kind === 'missing') {
+        return legacy(
+          'existing_owner_requires_credential',
+          'inspect',
+          'The existing governance daemon does not publish a compatible attachment broker.',
+        );
+      }
+      if (broker.kind === 'invalid') {
+        return legacy('attachment_rejected', 'attach', broker.reason);
+      }
+      if (
+        broker.broker.projectId !== options.projectId ||
+        broker.broker.pid !== inspection.metadata.pid ||
+        broker.broker.instanceId !== inspection.metadata.instanceId ||
+        broker.broker.projectKey !== inspection.metadata.projectKey ||
+        broker.broker.projectRoot !== inspection.metadata.projectRoot ||
+        Date.parse(broker.broker.expiresAt) <= Date.now()
+      ) {
+        return legacy(
+          'attachment_rejected',
+          'attach',
+          'Governance attachment broker does not match the live daemon identity or has expired.',
+        );
+      }
+      return provisionAttachment(options, adapters, inspection.metadata, broker.broker);
     }
     if (
       inspection.kind === 'endpoint_invalid' ||
