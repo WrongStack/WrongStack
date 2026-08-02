@@ -1,4 +1,4 @@
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import { sqliteRowToMemory, CorruptMemoryError } from './sqlite-store-codec.js';
 import { encodePageCursor } from './shared/pagination.js';
 import type { ListSagePageResult, Sage, SageStats } from './types.js';
 
@@ -6,16 +6,56 @@ export type SqliteMemoryDataRow = { data: string };
 export type SqliteCountRow = { status?: string; kind?: string; n: number };
 export type SqlitePageRow = { data: string; updated_at: string; id: string };
 
+/**
+ * Decode a batch of memory rows, skipping and logging corrupt records.
+ *
+ * Unlike the old silent-skip behavior, corrupt records now emit a
+ * structured warning to stderr so operators can detect data degradation.
+ * The records are still skipped (not returned) to preserve the "search
+ * is advisory" contract — a corrupt row should not crash the caller.
+ */
 export function sqliteRowsToMemories(rows: readonly SqliteMemoryDataRow[]): Sage[] {
-  return rows
-    .map((row) => {
-      try {
-        return sqliteRowToMemory(row);
-      } catch {
-        return null;
+  const result: Sage[] = [];
+  let corruptCount = 0;
+  for (const row of rows) {
+    try {
+      result.push(sqliteRowToMemory(row));
+    } catch (err) {
+      corruptCount++;
+      // Emit a structured warning for each corrupt record so operators
+      // can detect data degradation without a crash.
+      if (err instanceof CorruptMemoryError) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'sage.corrupt_memory_record',
+            message: err.message,
+            rawDataPreview: err.rawData.slice(0, 200),
+          }),
+        );
+      } else {
+        // JSON parse failure (not a shape validation error)
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'sage.corrupt_memory_json',
+            message: err instanceof Error ? err.message : String(err),
+          }),
+        );
       }
-    })
-    .filter((memory): memory is Sage => memory !== null);
+    }
+  }
+  if (corruptCount > 0 && result.length === 0) {
+    // All rows were corrupt — this is a health signal, not just noise.
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'sage.all_rows_corrupt_in_batch',
+        corruptCount,
+      }),
+    );
+  }
+  return result;
 }
 
 /**

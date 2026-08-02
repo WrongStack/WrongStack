@@ -118,8 +118,25 @@ export function searchSqliteSage(
       rows = runFts(terms.join(' OR '));
     }
     return sqliteRowsToMemories(rows).filter(audienceFilter);
-  } catch {
-    // FTS5 unavailable; use LIKE fallback below.
+  } catch (err) {
+    // Fall back to LIKE only for FTS-unavailable errors, not for
+    // corruption or SQL defects. The known FTS-unavailable patterns are:
+    // - "no such table: memories_fts" (FTS5 not compiled / table missing)
+    // - "no such function: bm25" (FTS5 extension missing)
+    // - "FTS_SKIP" (no queryable terms — internal signal)
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg === 'FTS_SKIP' ||
+      msg.includes('no such table') ||
+      msg.includes('no such function') ||
+      msg.includes('memories_fts')
+    ) {
+      // FTS5 unavailable or no terms; fall through to LIKE fallback below.
+    } else {
+      // Re-surface unexpected errors (corruption, SQL defects) instead
+      // of silently falling back to LIKE and hiding the real problem.
+      throw err;
+    }
   }
 
   const likePattern = `%${escapeLikePattern(query.toLowerCase())}%`;

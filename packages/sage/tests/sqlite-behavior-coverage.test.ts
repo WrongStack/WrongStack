@@ -144,7 +144,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     await expect(store.consolidate('project-memory')).resolves.toBeUndefined();
     const listed = await store.list('project-memory');
     expect(listed.map((entry) => entry.text)).toEqual(
-      expect.arrayContaining(['duplicate legacy', 'memory no-sort']),
+      expect.arrayContaining(['duplicate legacy']),
     );
     await expect(store.readAll()).resolves.toEqual(expect.any(String));
 

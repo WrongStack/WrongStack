@@ -10,29 +10,75 @@ export interface SqliteAuditRow {
 }
 
 export function sqliteRowToMemory(row: { data: string }): Sage {
-  return JSON.parse(row.data) as Sage;
+  const parsed: unknown = JSON.parse(row.data);
+  validateMemoryShape(parsed, row.data);
+  return parsed as Sage;
+}
+
+/**
+ * Minimum runtime validation for a persisted Sage record. Checks the
+ * structural fields that make the record usable by the store layer.
+ * Throws `CorruptMemoryError` on validation failure so callers can
+ * distinguish corruption from a missing row.
+ *
+ * Does NOT validate every optional field — the goal is to catch
+ * truncated/garbled JSON and schema-mismatch records, not to enforce
+ * full type safety on every property.
+ */
+function validateMemoryShape(value: unknown, rawData: string): void {
+  if (!value || typeof value !== 'object') {
+    throw new CorruptMemoryError(
+      'Memory record is not an object',
+      rawData,
+    );
+  }
+  const m = value as Record<string, unknown>;
+  const required: Array<[string, string]> = [
+    ['id', 'string'],
+    ['text', 'string'],
+    ['scope', 'string'],
+    ['kind', 'string'],
+    ['status', 'string'],
+    ['importance', 'number'],
+    ['confidence', 'number'],
+    ['freshness', 'number'],
+    ['createdAt', 'string'],
+    ['updatedAt', 'string'],
+  ];
+  for (const [field, expectedType] of required) {
+    const v = m[field];
+    if (v === undefined || typeof v !== expectedType) {
+      throw new CorruptMemoryError(
+        `Memory record field "${field}" is ${v === undefined ? 'missing' : `type ${typeof v}`}, expected ${expectedType}`,
+        rawData,
+      );
+    }
+  }
+}
+
+/**
+ * Error thrown when a persisted memory record fails runtime validation.
+ * Carries the raw JSON so callers can log or audit the corruption detail.
+ */
+export class CorruptMemoryError extends Error {
+  readonly rawData: string;
+  constructor(message: string, rawData: string) {
+    super(`Corrupt SAGE memory record: ${message}`);
+    this.name = 'CorruptMemoryError';
+    this.rawData = rawData;
+  }
 }
 
 /**
  * Read a single memory by id from the `memories` table and parse it into
- * the typed `Sage` shape. Returns `null` when the row is missing or the
- * JSON payload is unparseable — the helper does NOT throw, so callers
- * branch on `null` instead of a try/catch.
+ * the typed `Sage` shape. Returns `null` when the row is missing.
+ * Throws `CorruptMemoryError` when the row exists but the JSON payload
+ * fails validation — so callers can distinguish corruption from absence.
  *
  * Pure read; does not mutate. The `stmt` is whatever the caller already
  * threads through (typically a `SqliteStatementCache` lookup), so the
  * helper fits the existing `Sqlite*Context` interfaces without imposing
  * a new dependency.
- *
- * Replaces the seven remaining callsites that were open-coding the same
- * query+cast pair (after the Phase 1 migration: `sqlite-store-delete`,
- * `sqlite-store-hygiene`, `sqlite-store-jsonl-migration`, `sqlite-store-
- * update`, `sqlite-store-verify` x2, `sqlite-store-compat`). The
- * `sqlite-store-compat` callsite uses a custom JSON-parse warning log
- * and is intentionally left on the raw `sqliteRowToMemory` path; the
- * helper covers the other six files. Centralizing the cast avoids the
- * type-narrowing traps that bit at least two of the original callsites
- * (the cast is now in one place, not seven).
  */
 export function readSqliteSageRow(
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>,
@@ -42,11 +88,8 @@ export function readSqliteSageRow(
     | { data: string }
     | undefined;
   if (!row) return null;
-  try {
-    return sqliteRowToMemory(row);
-  } catch {
-    return null;
-  }
+  // Validation: throws CorruptMemoryError on bad shape, Error on bad JSON.
+  return sqliteRowToMemory(row);
 }
 
 export function sqliteRowToCandidate(row: { data: string }): MemoryCandidate {

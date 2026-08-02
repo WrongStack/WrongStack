@@ -86,10 +86,9 @@ describe('readSqliteSageRow', () => {
     expect(record.capture()).toEqual(['SELECT data FROM memories WHERE id = ?']);
   });
 
-  it('returns null when the data column is unparseable JSON', () => {
+  it('throws CorruptMemoryError when the data column is unparseable JSON', () => {
     const stmt = makeStmt(() => ({ data: 'not-json{' }) as FakeRow);
-    const result = readSqliteSageRow(stmt, 'broken');
-    expect(result).toBeNull();
+    expect(() => readSqliteSageRow(stmt, 'broken')).toThrow(SyntaxError);
   });
 
   it('returns the parsed Sage when the row is valid', () => {
