@@ -25,6 +25,7 @@ export function helpSections(): HelpSection[] {
   const nav: HelpEntry[] = [];
   nav.push(
     { keys: '↑/↓', desc: 'previous / next input (empty prompt)' },
+    { keys: 'Shift+Tab', desc: 'focus sidebar for scroll (↑/↓), Esc to unfocus' },
     { keys: '?', desc: 'open this help (empty prompt)' },
   );
 
