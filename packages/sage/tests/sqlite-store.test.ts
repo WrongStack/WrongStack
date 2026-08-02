@@ -1246,24 +1246,33 @@ describe('SqliteSageStore', () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
 
-      // Create a permanent memory — deleting it requires force:true, which
-      // the candidate resolution path does NOT pass (by design). This makes
-      // the delete mutation fail, triggering our revert-on-failure path.
+      // Create a memory as the candidate target.
       const memory = await store.rememberSage({
-        text: 'Permanent memory that rejects non-forced delete',
+        text: 'Memory that will be physically removed to trigger mutation failure',
         scope: 'project',
-        persistence: 'permanent',
       });
 
       const candidate = await store.createCandidate({
-        text: 'Review: delete this permanent memory',
+        text: 'Review: delete this memory',
         kind: 'fact',
         scope: 'project',
         targetMemoryId: memory.id,
       });
 
-      // Resolve as delete — the mutation will fail because the target is
-      // permanent and force:true is not passed.
+      // Physically remove the target memory row so that the candidate
+      // resolution mutation fails — readSqliteSageRow returns null and
+      // updateSqliteSage throws "not found". Using raw SQL DELETE to
+      // bypass the soft-delete tombstone path.
+      const internals = store as unknown as {
+        runMutation: <T>(work: () => T) => Promise<T>;
+        stmt: (sql: string) => { run: (...args: unknown[]) => void };
+      };
+      await internals.runMutation(() => {
+        internals.stmt('DELETE FROM memories WHERE id = ?').run(memory.id);
+      });
+
+      // Resolve as delete — the mutation will fail because the target row
+      // no longer exists (readSqliteSageRow returns null → updateSage throws).
       const first = await store.resolveCandidate(candidate.id, 'delete');
 
       // The resolution should report applied: false (mutation failed).
@@ -1275,11 +1284,6 @@ describe('SqliteSageStore', () => {
       const reverted = candidates.find((c) => c.id === candidate.id);
       expect(reverted).toBeDefined();
       expect(reverted!.status).toBe('pending');
-
-      // The target memory must still be active (not deleted).
-      const stillThere = await store.getSage(memory.id);
-      expect(stillThere).not.toBeNull();
-      expect(stillThere!.status).toBe('active');
     });
   });
 

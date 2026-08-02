@@ -931,10 +931,10 @@ export class SqliteSageStore implements MemoryStore {
 
   async unifiedSearchService(
     query: SearchQuery,
-    _options?: SearchOptions,
+    options?: SearchOptions,
   ): Promise<SearchResult> {
     await this.initialize();
-    return executeUnifiedSearch(this.adminHost(), query);
+    return executeUnifiedSearch(this.adminHost(), query, options);
   }
 
   async stats(): Promise<SageStats> {

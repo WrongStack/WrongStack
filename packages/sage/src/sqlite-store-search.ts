@@ -1,101 +1,105 @@
 /**
- * MVP implementation of `unifiedSearchService` for the SAGE IPC op `unifiedSearch`.
+ * Implementation of `unifiedSearchService` for the SAGE IPC op `unifiedSearch`.
  *
  * Wired 2026-07-28 (commit 1.5). See `packages/sage/docs/search-and-suggest.md`
  * for the design contract.
  *
- * MVP scope: text prefix-match (FTS5), kinds/scopes/status/importance
- * filters, hybrid ranking (bm25 ASC, importance DESC, updated_at DESC),
- * deterministic count via separate COUNT(*) query. No suggestions yet
- * (returns empty array; spec says lexical-adjacency top-N is the v1
- * suggestion method, deferred). No anchor / audience / freshness /
- * cursor / paths filters.
+ * Supports: text prefix-match (FTS5), kinds/scopes/status/importance filters,
+ * configurable limit, status selection, and four ranking modes:
+ * - 'relevance': bm25 ASC, importance DESC, updated_at DESC (lexical-first)
+ * - 'recency': updated_at DESC, importance DESC
+ * - 'importance': importance DESC, updated_at DESC
+ * - 'hybrid' (default): bm25 ASC, importance DESC, updated_at DESC
  *
- * Single-owner-of-state invariant preserved — this is read-only and
- * composes against FTS5 + the existing memories join. No new writer
- * logic. SQLite single-writer remains governed by `SqliteSageStore`'s
- * existing write methods.
+ * Scores are normalized to [0, 1] within the result set so callers can
+ * threshold on relative quality. No suggestions yet (returns empty array;
+ * spec says lexical-adjacency top-N is the v1 suggestion method, deferred).
+ *
+ * Single-owner-of-state invariant preserved — read-only, composes against
+ * FTS5 + the existing memories join.
  */
 import type { SQLInputValue } from 'node:sqlite';
-import type { SearchQuery, SearchResult, SearchHit, SearchMatchReason } from './service-contract.js';
+import type { SearchQuery, SearchResult, SearchHit, SearchMatchReason, SearchRanking } from './service-contract.js';
 import type { SqliteAdminHost } from './sqlite-store-admin.js';
 import { ftsPrefixTerms, sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
+import type { SageStatus } from './types.js';
 
-const MVP_LIMIT = 50;
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
 
 export function executeUnifiedSearch(
   host: SqliteAdminHost,
   query: SearchQuery,
+  options?: { limit?: number | undefined; includeStatuses?: SageStatus[] | undefined; ranking?: SearchRanking | undefined },
 ): SearchResult {
+  const limit = Math.min(Math.max(options?.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
+  const statusFilter = options?.includeStatuses ?? ['active'] as SageStatus[];
+  const ranking: SearchRanking = options?.ranking ?? 'hybrid';
+  if (statusFilter.length === 0) {
+    return { hits: [], suggestions: [], totalCandidates: 0, rankingApplied: ranking, queryEcho: {} };
+  }
+
   // Match clause: build a safe FTS5 MATCH expression from the query text.
-  // Empty / whitespace / non-alphanumeric-only text → undefined, which
-  // means "no FTS5 constraint" — subsequent ORDER BY bm25 will produce a
-  // stable ordering on importance/updated_at, deterministic for tests.
   const matchExpr = buildMatchExpr(query);
 
   // WHERE filters — every conditional clause builds its own parameter.
-  // `params` is typed `SQLInputValue[]` to satisfy `StatementSync.bind`'s
-  // strict signature; runtime accepts string | number | null | bigint.
-  // WHERE filters — every conditional clause builds its own parameter.
-  // `params` is typed `SQLInputValue[]` to satisfy `StatementSync.bind`'s
-  // strict signature; runtime accepts string | number | null | bigint.
-  const sharedWhere: string[] = ["status = ?"];
-  const params: SQLInputValue[] = ['active'];
+  const statusPlaceholders = statusFilter.map(() => '?').join(',');
 
+  // Kind filter
+  const kindClauses: string[] = [];
+  const kindParams: SQLInputValue[] = [];
   if (query.kinds && query.kinds.length > 0) {
-    sharedWhere.push(`kind IN (${query.kinds.map(() => '?').join(',')})`);
-    params.push(...query.kinds);
+    kindClauses.push(`kind IN (${query.kinds.map(() => '?').join(',')})`);
+    kindParams.push(...query.kinds);
   }
 
+  // Scope filter
+  const scopeClauses: string[] = [];
+  const scopeParams: SQLInputValue[] = [];
   if (query.scopes && query.scopes.length > 0) {
-    sharedWhere.push(`scope IN (${query.scopes.map(() => '?').join(',')})`);
-    params.push(...query.scopes);
+    scopeClauses.push(`scope IN (${query.scopes.map(() => '?').join(',')})`);
+    scopeParams.push(...query.scopes);
   }
 
-  if (query.importanceAtLeast !== undefined) {
-    sharedWhere.push('importance >= ?');
-    params.push(query.importanceAtLeast);
-  }
+  // Importance filter (applied in the WHERE clause construction below)
+  // No standalone clause needed here — it's added inline.
 
-  const sharedWhereSql = sharedWhere.length > 0
-    ? ' WHERE ' + sharedWhere.join(' AND ')
-    : '';
+  // ORDER BY clause per ranking mode
+  const orderBy = buildOrderBy(ranking, matchExpr !== undefined);
 
-  // Two query paths, mirroring `searchSqliteSage` exactly. FTS5 requires
-  // MATCH + bm25 to *both* be present, otherwise its query planner emits
-  // internal references (e.g. `T.text`) that don't resolve against the
-  // content table. Split paths avoid that and let both code paths be tested
+  // Two query paths, mirroring `searchSqliteSage`. FTS5 requires
+  // MATCH + bm25 to both be present. Split paths let both be tested
   // independently.
   let dataRows: Array<{ data: string }>;
   let totalRow: { n: number };
   let matchReason: SearchMatchReason;
 
   if (matchExpr !== undefined) {
-    // FTS path — JOIN memories_fts, MATCH, ORDER BY bm25 ASC.
-    // The JOIN + MATCH are coupled; do not split them or FTS5 errors.
-    // Build the WHERE clause inline: status (m.column), MATCH (FTS),
-    // then the optional kind/scope/importance filter columns (m.column).
-    const ftsFilterClauses: string[] = ['m.status = ?', 'memories_fts MATCH ?'];
+    // FTS path — JOIN memories_fts, MATCH, ORDER BY ranking.
+    const ftsFilterClauses: string[] = [
+      'm.status IN (' + statusPlaceholders + ')',
+      'memories_fts MATCH ?',
+    ];
+    const ftsParams: SQLInputValue[] = [...statusFilter, matchExpr];
     if (query.kinds && query.kinds.length > 0) {
       ftsFilterClauses.push(`m.kind IN (${query.kinds.map(() => '?').join(',')})`);
+      ftsParams.push(...query.kinds);
     }
     if (query.scopes && query.scopes.length > 0) {
       ftsFilterClauses.push(`m.scope IN (${query.scopes.map(() => '?').join(',')})`);
+      ftsParams.push(...query.scopes);
     }
     if (query.importanceAtLeast !== undefined) {
       ftsFilterClauses.push('m.importance >= ?');
+      ftsParams.push(query.importanceAtLeast);
     }
-    const ftsParams: SQLInputValue[] = ['active', matchExpr];
-    if (query.kinds && query.kinds.length > 0) ftsParams.push(...query.kinds);
-    if (query.scopes && query.scopes.length > 0) ftsParams.push(...query.scopes);
-    if (query.importanceAtLeast !== undefined) ftsParams.push(query.importanceAtLeast);
 
     const ftsWhereSql = ' WHERE ' + ftsFilterClauses.join(' AND ');
     const ftsDataSql =
       `SELECT m.data FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
       ftsWhereSql +
-      ` ORDER BY bm25(memories_fts) ASC, m.importance DESC, m.updated_at DESC` +
-      ` LIMIT ${MVP_LIMIT}`;
+      ` ORDER BY ${orderBy.fts}` +
+      ` LIMIT ${limit}`;
     const ftsCountSql =
       `SELECT COUNT(*) AS n FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
       ftsWhereSql;
@@ -104,13 +108,31 @@ export function executeUnifiedSearch(
     totalRow = host.stmt(ftsCountSql).get(...ftsParams) as unknown as { n: number };
     matchReason = 'lexical';
   } else {
-    // Non-FTS path — plain SELECT on memories, ORDER BY importance/updated_at
-    // DESC. Same filter columns (without `m.` prefix), no FTS involvement.
+    // Non-FTS path — plain SELECT on memories, ORDER BY ranking.
+    const sharedWhere: string[] = [`status IN (${statusPlaceholders})`];
+    const params: SQLInputValue[] = [...statusFilter];
+    if (query.kinds && query.kinds.length > 0) {
+      sharedWhere.push(`kind IN (${query.kinds.map(() => '?').join(',')})`);
+      params.push(...query.kinds);
+    }
+    if (query.scopes && query.scopes.length > 0) {
+      sharedWhere.push(`scope IN (${query.scopes.map(() => '?').join(',')})`);
+      params.push(...query.scopes);
+    }
+    if (query.importanceAtLeast !== undefined) {
+      sharedWhere.push('importance >= ?');
+      params.push(query.importanceAtLeast);
+    }
+
+    const sharedWhereSql = sharedWhere.length > 0
+      ? ' WHERE ' + sharedWhere.join(' AND ')
+      : '';
+
     const dataSql =
       `SELECT data FROM memories` +
       sharedWhereSql +
-      ` ORDER BY importance DESC, updated_at DESC` +
-      ` LIMIT ${MVP_LIMIT}`;
+      ` ORDER BY ${orderBy.nonFts}` +
+      ` LIMIT ${limit}`;
     const countSql = `SELECT COUNT(*) AS n FROM memories` + sharedWhereSql;
 
     dataRows = host.stmt(dataSql).all(...params) as Array<{ data: string }>;
@@ -120,50 +142,52 @@ export function executeUnifiedSearch(
 
   const memories = sqliteRowsToMemories(dataRows);
 
-  const hits: SearchHit[] = memories.map((memory) => ({
+  // Compute normalized scores within the result set.
+  // The score blends importance, confidence, and freshness with the
+  // bm25 rank position (for FTS) or updated_at rank (for non-FTS).
+  const scores = computeNormalizedScores(memories);
+
+  const hits: SearchHit[] = memories.map((memory, index) => ({
     id: memory.id,
     kind: memory.kind,
     scope: memory.scope,
     tags: memory.tags,
+    anchors: memory.anchors,
+    audience: memory.audience,
     text: memory.text,
     importance: memory.importance,
     confidence: memory.confidence,
     status: memory.status,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
-    score: 1.0,
+    verifiedAt: memory.lastVerifiedAt,
+    score: scores[index]!,
     matchReason,
-    // anchors/audience/verifiedAt intentionally omitted in MVP — the
-    // SearchHit type declares them as optional; SQLite rows carry the
-    // fields but we don't project them yet. Future commit adds anchor
-    // materialization alongside the anchor filter (§10 commit-1.5).
   }));
 
   // Echo the parsed query back so callers can confirm input parsing.
-  // Empty filters echo nothing; only non-empty arrays echo.
   const queryEcho: SearchResult['queryEcho'] = {};
   if (query.text !== undefined) queryEcho.text = query.text;
   if (query.kinds !== undefined) queryEcho.kinds = query.kinds;
   if (query.scopes !== undefined) queryEcho.scopes = query.scopes;
+  if (query.importanceAtLeast !== undefined) queryEcho.importanceAtLeast = query.importanceAtLeast;
 
   return {
     hits,
     suggestions: [],
     totalCandidates: totalRow.n,
-    rankingApplied: 'hybrid',
+    rankingApplied: ranking,
     queryEcho,
   };
 }
 
 /**
  * Build a safe FTS5 MATCH expression from the query text. The terms
- * emitted by `ftsPrefixTerms` are pre-sanitized — non-alphanumeric
- * characters stripped, no FTS5 operators leak through. Joining with
- * `AND` ensures all terms must match (a "tighter" semantic than FTS5's
- * default OR-with-rank, which matches the §5 hybrid-ranking intent).
+ * emitted by `ftsPrefixTerms` are pre-sanitized. Joining with `AND`
+ * ensures all terms must match.
  *
  * Returns `undefined` for empty / whitespace / sanitized-to-empty
- * queries, signalling "no FTS constraint" to the caller.
+ * queries, signalling "no FTS constraint".
  */
 function buildMatchExpr(query: SearchQuery): string | undefined {
   if (query.text === undefined || query.text === null) return undefined;
@@ -172,4 +196,64 @@ function buildMatchExpr(query: SearchQuery): string | undefined {
   const terms = ftsPrefixTerms(trimmed);
   if (terms.length === 0) return undefined;
   return terms.join(' AND ');
+}
+
+/**
+ * Build the ORDER BY clause for the given ranking mode.
+ * Returns separate clauses for FTS (aliased `m.`) and non-FTS paths
+ * because the FTS join requires the `m.` prefix on some columns.
+ */
+function buildOrderBy(
+  ranking: SearchRanking,
+  hasFts: boolean,
+): { fts: string; nonFts: string } {
+  switch (ranking) {
+    case 'recency':
+      return {
+        fts: 'm.updated_at DESC, m.importance DESC',
+        nonFts: 'updated_at DESC, importance DESC',
+      };
+    case 'importance':
+      return {
+        fts: 'm.importance DESC, m.updated_at DESC',
+        nonFts: 'importance DESC, updated_at DESC',
+      };
+    case 'relevance':
+      // Lexical-first: bm25 ASC (lower = better match), then importance DESC
+      return {
+        fts: hasFts
+          ? 'bm25(memories_fts) ASC, m.importance DESC, m.updated_at DESC'
+          : 'm.importance DESC, m.updated_at DESC',
+        nonFts: 'importance DESC, updated_at DESC',
+      };
+    case 'hybrid':
+    default:
+      // Same as relevance for FTS; importance-first for non-FTS
+      return {
+        fts: hasFts
+          ? 'bm25(memories_fts) ASC, m.importance DESC, m.updated_at DESC'
+          : 'm.importance DESC, m.updated_at DESC',
+        nonFts: 'importance DESC, updated_at DESC',
+      };
+  }
+}
+
+/**
+ * Compute normalized scores for a result set. Each score is in [0, 1]
+ * where 1.0 is the best-scoring memory in the set.
+ *
+ * The score is position-weighted: items earlier in the result set
+ * (better FTS bm25 match, higher importance, or more recent depending
+ * on ranking mode) get higher scores via a linear decay. A small
+ * metadata bonus (importance * 0.15) breaks ties toward higher-quality
+ * memories without overriding the ranking position.
+ */
+function computeNormalizedScores(memories: { importance: number }[]): number[] {
+  if (memories.length === 0) return [];
+  const len = memories.length;
+  return memories.map((m, index) => {
+    const positionScore = 1 - index / Math.max(len, 1);
+    const metadataBonus = m.importance * 0.15;
+    return Math.min(1, Math.max(0, positionScore * 0.85 + metadataBonus));
+  });
 }

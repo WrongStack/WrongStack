@@ -91,11 +91,17 @@ describe('executeUnifiedSearch (commit 1.5, MVP)', () => {
     expect(result.rankingApplied).toBe('hybrid');
     expect(result.queryEcho.text).toBe('cursor');
 
-    // MVP score is 1.0 constant (no ranking signal until commit 1.5.1).
-    for (const hit of result.hits) {
-      expect(hit.score).toBe(1.0);
-      expect(hit.matchReason).toBe('lexical');
-      expect(hit.status).toBe('active');
+    // Scores are normalized to [0,1] — the top hit gets the highest score.
+    // Verify descending order and that scores are in valid range.
+    for (let i = 0; i < result.hits.length; i++) {
+      expect(result.hits[i]!.score).toBeGreaterThan(0);
+      expect(result.hits[i]!.score).toBeLessThanOrEqual(1);
+      expect(result.hits[i]!.matchReason).toBe('lexical');
+      expect(result.hits[i]!.status).toBe('active');
+    }
+    // Scores should be monotonically non-increasing.
+    for (let i = 1; i < result.hits.length; i++) {
+      expect(result.hits[i]!.score).toBeLessThanOrEqual(result.hits[i - 1]!.score);
     }
 
     // Every hit text contains "cursor" (case-insensitive) — sanity check on
@@ -121,10 +127,12 @@ describe('executeUnifiedSearch (commit 1.5, MVP)', () => {
     expect(result.rankingApplied).toBe('hybrid');
     expect(result.queryEcho.text).toBe('   ');
     // Non-FTS path uses `matchReason: 'recency'` (the secondary sort key).
+    // Scores are normalized to [0,1].
     for (const hit of result.hits) {
       expect(hit.matchReason).toBe('recency');
       expect(hit.status).toBe('active');
-      expect(hit.score).toBe(1.0);
+      expect(hit.score).toBeGreaterThan(0);
+      expect(hit.score).toBeLessThanOrEqual(1);
     }
 
     // Non-FTS path ordering: importance DESC, then updated_at DESC. Verify

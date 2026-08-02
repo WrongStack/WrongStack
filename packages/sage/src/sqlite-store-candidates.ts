@@ -341,9 +341,12 @@ export async function resolveSqliteCandidate(
     applied = false;
   }
 
-  // If the target mutation failed, revert the candidate to 'pending' so
-  // the caller can retry. The audit log records the failure for diagnostics.
-  if (claimed && !applied) {
+  // If the target mutation failed (threw an exception), revert the candidate
+  // to 'pending' so the caller can retry. Do NOT revert for by-design noops
+  // where applied is false without an error (e.g. permanent target, keep
+  // decision, mutation without targetId) — those are intentional terminal
+  // states, not retryable failures.
+  if (claimed && !applied && mutationError !== undefined) {
     const reverted = await ctx.runMutation(() => {
       const revertResult = ctx
         .stmt(
