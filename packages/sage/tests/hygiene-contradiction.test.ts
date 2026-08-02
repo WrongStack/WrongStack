@@ -79,4 +79,28 @@ describe('hygiene contradiction detection (v1, 2026-08-02)', () => {
     const second = await store.hygiene(CONTRADICTION_ONLY);
     expect(second.contradicted).toBe(0);
   });
+
+  it('flags the canonical "not" superset and prevents the near-dup merge', async () => {
+    const first = await store.rememberSage({
+      text: 'the build is stable when tests pass',
+      kind: 'fact',
+      importance: 0.7,
+    });
+    const second = await store.rememberSage({
+      text: 'the build is not stable when tests pass',
+      kind: 'fact',
+      importance: 0.7,
+    });
+
+    const report = await store.hygiene(CONTRADICTION_ONLY);
+    expect(report.contradicted).toBe(1);
+
+    // The polarity pair must NOT have been near-dup merged: both records
+    // remain active, with the newer one linked via contradicts.
+    const [a, b] = await Promise.all([store.getSage(first.id), store.getSage(second.id)]);
+    expect(a?.status).toBe('active');
+    expect(b?.status).toBe('active');
+    const newer = b && a && b.createdAt >= a.createdAt ? b : a;
+    expect(newer?.contradicts).toContain(newer === b ? first.id : second.id);
+  });
 });

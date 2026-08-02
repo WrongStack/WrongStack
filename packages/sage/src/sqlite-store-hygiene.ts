@@ -8,9 +8,9 @@ import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { applySemanticChange } from './shared/semantic-rewrite.js';
 import {
   isNearDuplicateMemory,
+  isPossiblyContradictory,
   normalizeAudience,
   normalizeTextKey,
-  tokenize,
 } from './store-helpers.js';
 import type {
   MemoryAnchor,
@@ -36,45 +36,6 @@ function compareIsoAscending(a: string, b: string): number {
   if (a < b) return -1;
   if (a > b) return 1;
   return 0;
-}
-
-/** Negation cues that flip the polarity of an otherwise-overlapping claim. */
-const NEGATION_CUES = new Set([
-  'not',
-  'no',
-  'never',
-  'none',
-  'neither',
-  'nor',
-  'cannot',
-  'cant',
-  "n't",
-  'without',
-  'unable',
-  'no_longer',
-]);
-
-/**
- * Deterministic v1 contradiction heuristic: both texts tokenize to ≥5 tokens,
- * their unique-token overlap is ≥0.72 (the near-dup structural threshold), and
- * exactly ONE member's exclusive tokens contain a negation cue. Deliberately
- * conservative — it only flags near-identical claims with opposite polarity,
- * never stylistic differences or ordinary factual disagreements.
- */
-function isPossiblyContradictory(a: Sage, b: Sage): boolean {
-  const tokensA = tokenize(a.text);
-  const tokensB = tokenize(b.text);
-  if (tokensA.length < 5 || tokensB.length < 5) return false;
-  const setA = new Set(tokensA);
-  const setB = new Set(tokensB);
-  const overlap = [...setA].filter((token) => setB.has(token)).length;
-  const min = Math.min(setA.size, setB.size);
-  if (min === 0 || overlap / min < 0.72) return false;
-  const diffA = [...setA].filter((token) => !setB.has(token));
-  const diffB = [...setB].filter((token) => !setA.has(token));
-  const aNegated = diffA.some((token) => NEGATION_CUES.has(token));
-  const bNegated = diffB.some((token) => NEGATION_CUES.has(token));
-  return aNegated !== bNegated;
 }
 
 export interface SqliteHygieneContext {
@@ -300,7 +261,15 @@ export async function runSqliteSageHygiene(
           const left = capped[i]!;
           for (let j = i + 1; j < capped.length; j++) {
             const right = capped[j]!;
-            if (isNearDuplicateMemory(left, right)) union(left.id, right.id);
+            // Skip pairs the contradiction pass is responsible for: merging a
+            // polarity pair here would destroy the contradiction (e.g. "is
+            // stable" vs "is not stable" would collapse into one memory).
+            if (
+              isNearDuplicateMemory(left, right) &&
+              !isPossiblyContradictory(left, right)
+            ) {
+              union(left.id, right.id);
+            }
           }
         }
         const mergedGroups = new Map<string, Sage[]>();
@@ -426,6 +395,7 @@ export async function runSqliteSageHygiene(
         }
       }
     }
+    const pendingCandidates: Array<{ memory: Sage; other: Sage }> = [];
     if (flagged.size > 0) {
       await ctx.runMutation(() => {
         for (const { memory, other } of flagged.values()) {
@@ -433,38 +403,45 @@ export async function runSqliteSageHygiene(
           const updated = applySemanticChange(memory, { contradicts: contradictions }, ctx.nowIso());
           ctx.upsertMemory(updated);
           ctx.syncAnchorEdges(updated);
-          try {
-            ctx.addCandidate({
-              id: ulid(),
-              schemaVersion: 1,
-              targetMemoryId: memory.id,
-              text: memory.text,
-              kind: 'memory_review',
-              status: 'pending',
-              scope: memory.scope,
-              confidence: memory.confidence,
-              importance: memory.importance,
-              tags: [
-                ...memory.tags,
-                `review:possible_contradiction_with_${other.id}`,
-                'suggested:investigate',
-                `source:${memory.id}`,
-              ],
-              anchors: memory.anchors,
-              sources: [{ type: 'session' }],
-              createdAt: ctx.nowIso(),
-              updatedAt: ctx.nowIso(),
-            });
-          } catch {
-            // Candidate creation is best-effort — the contradicts link, audit
-            // event, and report count still land without it.
-          }
+          pendingCandidates.push({ memory, other });
           contradicted++;
         }
         ctx.audit('memory.hygiene_contradictions', {
           details: { candidates: contradicted },
         });
       });
+    }
+    // Candidate creation is async and must not run inside the (synchronous)
+    // mutation work; await it after the mutation commits. Failures are
+    // best-effort — the contradicts link, audit event, and report count
+    // already landed.
+    for (const { memory, other } of pendingCandidates) {
+      try {
+        await ctx.addCandidate({
+          id: ulid(),
+          schemaVersion: 1,
+          targetMemoryId: memory.id,
+          text: memory.text,
+          kind: 'memory_review',
+          status: 'pending',
+          scope: memory.scope,
+          confidence: memory.confidence,
+          importance: memory.importance,
+          tags: [
+            ...memory.tags,
+            `review:possible_contradiction_with_${other.id}`,
+            'suggested:investigate',
+            `source:${memory.id}`,
+          ],
+          anchors: memory.anchors,
+          sources: [{ type: 'session' }],
+          createdAt: ctx.nowIso(),
+          updatedAt: ctx.nowIso(),
+        });
+      } catch {
+        // Best-effort — the contradicts link, audit event, and report count
+        // already landed without the candidate.
+      }
     }
   }
 

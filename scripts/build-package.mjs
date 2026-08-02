@@ -57,6 +57,7 @@ const coreEntries = entryMap([
   'src/utils/index.ts',
   'src/utils/expect-defined.ts',
   'src/utils/error.ts',
+  'src/utils/sage-output-block.ts',
   'src/utils/tree-kill.ts',
   'src/utils/heap-watchdog.ts',
   'src/execution/prompt-enhancer.ts',

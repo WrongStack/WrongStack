@@ -20,7 +20,7 @@ export function formatMemoryHintsDetailed(
   opts: FormatMemoryHintsOptions = {},
 ): FormattedMemoryHints {
   if (memories.length === 0) return { text: '', memoryIds: [] };
-  const heading = opts.heading ?? 'SAGE: related project knowledge';
+  const heading = opts.heading ?? 'SAGE: related project knowledge (Memory Injector)';
   const maxChars = Math.max(0, Math.floor(opts.maxChars ?? 1200));
   if (maxChars === 0) return { text: '', memoryIds: [] };
   const lines = [`--- ${heading} ---`];

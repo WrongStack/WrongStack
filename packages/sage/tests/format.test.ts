@@ -97,7 +97,9 @@ describe('formatMemoryHintsDetailed', () => {
   it('stops at previous memory when a new one does not fit', () => {
     const m1 = makeMemory('1', { text: 'First memory' });
     const m2 = makeMemory('2', { text: 'Second memory is too long to fit' });
-    const result = formatMemoryHintsDetailed([m1, m2], { maxChars: 80 });
+    // Short custom heading so the truncation math is about MEMORY lines, not
+    // the (longer) canonical default heading.
+    const result = formatMemoryHintsDetailed([m1, m2], { maxChars: 80, heading: 'H' });
     expect(result.text).toContain('First memory');
     expect(result.text).not.toContain('Second memory');
     expect(result.memoryIds).toEqual(['mem_1']);

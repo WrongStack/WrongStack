@@ -226,6 +226,69 @@ function commandFamily(command: string): string {
   return command.split(/\s+/).slice(0, 2).join(' ');
 }
 
+/** Negation cues that flip the polarity of an otherwise-overlapping claim. */
+export const NEGATION_CUES = new Set([
+  'not',
+  'never',
+  'none',
+  'neither',
+  'nor',
+  'cannot',
+  'cant',
+  'no_longer',
+  // Contraction stems — tokenize splits on the apostrophe, so "doesn't" ->
+  // ["doesn", "t"] and the stem is the detectable cue. Bare "can"/"won" are
+  // NOT cues ("the api can cache" is positive; "won" can mean victory).
+  // Qualifier-style words ("without", "unable") are deliberately excluded:
+  // "X without concurrent writers" adds a constraint, it does not negate X.
+  'don',
+  'doesn',
+  'isn',
+  'aren',
+  'wasn',
+  'weren',
+  'hasn',
+  'haven',
+  'didn',
+  'couldn',
+  'shouldn',
+  'wouldn',
+]);
+
+/**
+ * Deterministic v1 contradiction heuristic: both texts tokenize to ≥5 tokens,
+ * their unique-token overlap is ≥0.72 (the near-dup structural threshold), and
+ * exactly ONE member's exclusive tokens contain a negation cue (or a strict
+ * superset whose extras are a hard negation, e.g. "is stable" vs "is NOT
+ * stable"). Deliberately conservative — it only flags near-identical claims
+ * with opposite polarity, never stylistic differences or ordinary factual
+ * disagreements. Shared by the remember merge path (a polarity pair must NOT
+ * collapse into one memory) and the hygiene contradiction pass.
+ */
+export function isPossiblyContradictory(
+  a: { text: string },
+  b: { text: string },
+): boolean {
+  const tokensA = tokenize(a.text);
+  const tokensB = tokenize(b.text);
+  if (tokensA.length < 5 || tokensB.length < 5) return false;
+  const setA = new Set(tokensA);
+  const setB = new Set(tokensB);
+  const overlap = [...setA].filter((token) => setB.has(token)).length;
+  const min = Math.min(setA.size, setB.size);
+  if (min === 0 || overlap / min < 0.72) return false;
+  const diffA = [...setA].filter((token) => !setB.has(token));
+  const diffB = [...setB].filter((token) => !setA.has(token));
+  // A strict superset is usually an additive qualifier ("X" vs "X without
+  // concurrent writers") — but when the extras are a hard negation it IS a
+  // contradiction and must be flagged (and never merged).
+  if (diffA.length === 0) return diffB.some((token) => NEGATION_CUES.has(token));
+  if (diffB.length === 0) return diffA.some((token) => NEGATION_CUES.has(token));
+  const aNegated = diffA.some((token) => NEGATION_CUES.has(token));
+  const bNegated = diffB.some((token) => NEGATION_CUES.has(token));
+  return aNegated !== bNegated;
+}
+
 /** Kinds that are meaningless without a concrete structural binding. */
 export const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
   'file_note',

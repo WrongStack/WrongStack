@@ -13,8 +13,8 @@
  * - 'hybrid' (default): bm25 ASC, importance DESC, updated_at DESC
  *
  * Scores are absolute in [0, 1] — the same formula runs for every query
- * (sigmoid-bm25 × metadata for FTS, recency × metadata otherwise), so a
- * ≥0.5 threshold means the same thing across result sets (design doc §6).
+ * (sigmoid-bm25 × metadata for FTS, additive recency + metadata otherwise),
+ * so a ≥0.5 threshold means the same thing across result sets (design doc §6).
  * Suggestions implement the design doc's v1
  * lexical-adjacency method: 'never' / 'empty' (default) / 'always' via an
  * OR-expanded FTS query (graph BFS is the documented v2 method, deferred).
@@ -553,7 +553,7 @@ function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[]
   // path's JS_FILTER_OVERFETCH).
   const suggestionSqlLimit =
     jsFilters.length > 0
-      ? Math.min(limit * JS_FILTER_OVERFETCH, MAX_LIMIT)
+      ? Math.min(limit * JS_FILTER_OVERFETCH, MAX_LIMIT * 5)
       : Math.min(Math.max(limit * 2, 10), MAX_LIMIT);
   const rows = host
     .stmt(

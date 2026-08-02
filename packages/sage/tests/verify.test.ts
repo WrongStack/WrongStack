@@ -36,13 +36,22 @@ function makeMemory(overrides: Partial<Sage> = {}): Sage {
 }
 
 describe('verifyMemoryAnchors', () => {
-  it('returns unknown for command anchors', async () => {
+  it('verifies command anchors whose executable resolves', async () => {
     const memory = makeMemory({
-      anchors: [{ type: 'command', command: 'npm test' }],
+      anchors: [{ type: 'command', command: `"${process.execPath}" --version` }],
     });
     const result = await verifyMemoryAnchors(tmpDir, memory);
-    expect(result.status).toBe('unknown');
-    expect(result.anchors[0]?.reason).toContain('Command anchors require execution evidence');
+    expect(result.status).toBe('verified');
+    expect(result.anchors[0]?.status).toBe('verified');
+  });
+
+  it('marks command anchors with a missing executable stale', async () => {
+    const memory = makeMemory({
+      anchors: [{ type: 'command', command: 'definitely-not-a-real-command-xyz-123' }],
+    });
+    const result = await verifyMemoryAnchors(tmpDir, memory);
+    expect(result.status).toBe('stale');
+    expect(result.anchors[0]?.reason).toContain('was not found');
   });
 
   it('returns unknown for anchor with no path', async () => {

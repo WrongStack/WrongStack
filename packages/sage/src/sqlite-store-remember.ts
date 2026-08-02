@@ -8,6 +8,7 @@ import {
   assessRememberQuality,
   clamp01,
   isNearDuplicateMemory,
+  isPossiblyContradictory,
   normalizeAnchors,
   normalizeAudience,
   normalizeSources,
@@ -239,6 +240,10 @@ function findNearDuplicate(
     ) {
       continue;
     }
+    // A polarity pair ("is stable" vs "is not stable") is NOT a duplicate —
+    // merging it at write time would destroy the contradiction before the
+    // hygiene pass can flag it. Create a separate memory instead.
+    if (isPossiblyContradictory({ text: opts.text }, candidate)) continue;
     // Prefer same-kind already enforced; score by importance then recency.
     const score = candidate.importance * 2 + candidate.confidence + candidate.freshness;
     if (!best || score > best.score) best = { memory: candidate, score };

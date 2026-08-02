@@ -32,6 +32,134 @@ export async function verifyMemoryAnchors(
   };
 }
 
+/** Shell wrappers that delegate to the following command — the probe resolves the real executable. */
+const COMMAND_WRAPPERS = new Set(['sudo', 'npx', 'env', 'time', 'command', 'doas', 'runuser']);
+
+interface ResolvedExecutable {
+  /** Resolved executable name/path, or undefined when nothing resolvable. */
+  executable: string | undefined;
+  /**
+   * True when the resolved token directly follows a SHORT flag (-X), so it is
+   * likely the flag's ARGUMENT (`sudo -u www cmd` -> `www`) rather than the
+   * command. Verification must NOT demote on this — a stale result flips the
+   * persisted memory status (sqlite-store-verify.ts), so ambiguity resolves
+   * to 'unknown' instead of a possibly-wrong 'stale'.
+   */
+  flagArgument: boolean;
+}
+
+/**
+ * Extract the first command token, honoring a quoted executable
+ * (`"C:\Program Files\node\node.exe" --version` -> `C:\Program Files\node\node.exe`)
+ * and skipping wrappers that delegate to the next token.
+ */
+function resolveCommandExecutable(command: string): ResolvedExecutable {
+  const trimmed = command.trim();
+  if (!trimmed) return { executable: undefined, flagArgument: false };
+  const first = firstToken(trimmed);
+  if (!first) return { executable: undefined, flagArgument: false };
+  if (!COMMAND_WRAPPERS.has(first)) return { executable: first, flagArgument: false };
+  // Skip wrapper options and env assignments: `npx --yes eslint` -> eslint,
+  // `time -v cmd` -> cmd, `env FOO=bar node` -> node. A token that directly
+  // follows a SHORT flag is ambiguous (the flag's argument vs the command) —
+  // `sudo -u www cmd` yields `www`, `npx -y node` yields `node`; callers must
+  // treat that as 'unknown', never 'stale' (a stale verdict demotes the
+  // persisted memory).
+  const rest = trimmed.slice(trimmed.indexOf(first) + first.length).trim();
+  let cursor = rest;
+  let afterShortFlag = false;
+  for (let i = 0; i < 8; i++) {
+    const token = firstToken(cursor);
+    if (!token) return { executable: undefined, flagArgument: false };
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
+      cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
+      continue;
+    }
+    if (token.startsWith('-')) {
+      afterShortFlag = /^-[a-zA-Z]$/.test(token);
+      cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
+      continue;
+    }
+    return { executable: token, flagArgument: afterShortFlag };
+  }
+  return { executable: undefined, flagArgument: false };
+}
+
+function firstToken(input: string): string | undefined {
+  const match = /^"([^"]+)"|^'([^']+)'|^(\S+)/.exec(input);
+  const token = (match?.[1] ?? match?.[2] ?? match?.[3] ?? '').trim();
+  return token || undefined;
+}
+
+/**
+ * Command anchors are verifiable by EXISTENCE probe, never by execution: the
+ * executable is resolved from the first command token (skipping common
+ * wrappers, honoring a quoted first token) and looked up on PATH — or at an
+ * explicit path when the token contains a separator. A missing executable
+ * marks the anchor stale, so command memories are no longer permanently
+ * 'unknown'. Zero execution risk: no shell is ever invoked.
+ */
+async function verifyCommandAnchor(
+  projectRoot: string,
+  anchor: MemoryAnchor,
+  signal?: AbortSignal,
+): Promise<AnchorVerificationResult> {
+  signal?.throwIfAborted();
+  const resolved = resolveCommandExecutable(anchor.command ?? '');
+  const executable = resolved.executable;
+  if (!executable) {
+    return { anchor, status: 'stale', reason: 'Command anchor has no executable to resolve.' };
+  }
+  if (resolved.flagArgument) {
+    // Ambiguous: the token follows a short flag, so it may be the flag's
+    // argument, not the command. A stale verdict would demote the persisted
+    // memory, so report 'unknown' and let a human/agent resolve it.
+    return {
+      anchor,
+      status: 'unknown',
+      reason: `Ambiguous command anchor: "${executable}" follows a short flag (likely a flag argument, not an executable).`,
+    };
+  }
+  const found = await commandExists(projectRoot, executable, signal);
+  return found
+    ? { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` }
+    : { anchor, status: 'stale', reason: `Command executable "${executable}" was not found on PATH.` };
+}
+
+async function commandExists(projectRoot: string, executable: string, signal?: AbortSignal): Promise<boolean> {
+  signal?.throwIfAborted();
+  if (executable.includes('/') || executable.includes('\\')) {
+    // Explicit path: absolute paths resolve as-is; relative paths (e.g.
+    // `./scripts/build.sh`) resolve against the project root, not the probe's
+    // process CWD.
+    const target = path.isAbsolute(executable) ? executable : path.resolve(projectRoot, executable);
+    try {
+      const stat = await fs.stat(target);
+      return stat.isFile();
+    } catch {
+      return false;
+    }
+  }
+  const isWin32 = process.platform === 'win32';
+  const extensions = isWin32 ? ['.exe', '.cmd', '.bat', '.com', ''] : [''];
+  const pathVar = process.env['PATH'] ?? '';
+  for (const dir of pathVar.split(path.delimiter)) {
+    if (!dir) continue;
+    for (const ext of extensions) {
+      signal?.throwIfAborted();
+      const candidate = path.join(dir, `${executable}${ext}`);
+      try {
+        const stat = await fs.stat(candidate);
+        // Existence is not executability: on POSIX require the execute bit.
+        if (stat.isFile() && (isWin32 || (stat.mode & 0o111) !== 0)) return true;
+      } catch {
+        // Keep looking.
+      }
+    }
+  }
+  return false;
+}
+
 async function verifyAnchor(
   projectRoot: string,
   anchor: MemoryAnchor,
@@ -39,7 +167,7 @@ async function verifyAnchor(
 ): Promise<AnchorVerificationResult> {
   signal?.throwIfAborted();
   if (anchor.type === 'command') {
-    return { anchor, status: 'unknown', reason: 'Command anchors require execution evidence.' };
+    return verifyCommandAnchor(projectRoot, anchor, signal);
   }
   if (anchor.type === 'agent') {
     let role: string;

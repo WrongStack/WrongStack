@@ -63,7 +63,7 @@ describe('memory hint formatting completion coverage', () => {
           text: `line\r\nsecond\u2028third\u2029${' '.repeat(20)}`,
         }),
       ],
-      { maxChars: 90 },
+      { maxChars: 90, heading: 'H' },
     );
     expect(result.text).toContain('\\r\\n');
     expect(result.text).toContain('\\u2028');
