@@ -594,6 +594,22 @@ export function createAppKeyHandler(
       // Horizontal trackpad reports are also encoded as "wheel" with delta 0;
       // ignore them so diagonal gestures do not accidentally move chat down.
       if (key.mouse?.kind === 'wheel' && key.mouse.wheel !== 0) {
+        // ── Sidebar wheel scroll ──
+        // When the wheel lands in the sidebar region (right of the main
+        // column) and the sidebar is visible, scroll sidebar content
+        // instead of chat history.
+        if (
+          historyWidth < (stdout?.columns ?? 80) &&
+          key.mouse.x > historyWidth &&
+          state.sidebarFocused
+        ) {
+          dispatch({
+            type: 'sidebarScroll',
+            delta: key.mouse.wheel > 0 ? -1 : 1,
+          });
+          return;
+        }
+        // ── History wheel scroll ──
         if (
           isHistoryScrollTarget(
             { termRows, termCols: historyWidth, viewportRows: state.viewportRows },
