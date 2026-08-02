@@ -60,22 +60,36 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'wrongstack-config',
+      // WS-069: `apiKey` is deliberately NOT persisted. Nothing writes it
+      // today — provider credentials travel over the WebSocket to the server,
+      // which owns them — so this was a latent sink: the day something did set
+      // it, a provider key would land in `localStorage`, readable by any script
+      // on the origin and surviving until the user clears site data.
+      // Removing it from `partialize` costs nothing precisely because it is
+      // dormant, which is the cheapest moment to close a sink.
       partialize: (state) => ({
         provider: state.provider,
         model: state.model,
         baseUrl: state.baseUrl,
-        apiKey: state.apiKey,
         theme: state.theme,
         autoConnect: state.autoConnect,
         soundOnComplete: state.soundOnComplete,
       }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<ConfigState> | undefined),
-        wsUrl: defaultWsUrl(),
-        wsConnected: false,
-        wsStatus: { state: 'connecting' },
-      }),
+      merge: (persisted, current) => {
+        // A build that ran before the change above may have written one, and
+        // dropping it from `partialize` alone would leave that value sitting in
+        // storage and rehydrating into memory on every load. Strip it on read
+        // so the next persist drops it from disk too.
+        const { apiKey: _discardedLegacyApiKey, ...rest } =
+          (persisted as Partial<ConfigState> | undefined) ?? {};
+        return {
+          ...current,
+          ...rest,
+          wsUrl: defaultWsUrl(),
+          wsConnected: false,
+          wsStatus: { state: 'connecting' },
+        };
+      },
     },
   ),
 );

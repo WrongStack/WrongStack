@@ -47,6 +47,24 @@ function dedupeRepeatedBlocks(text: string): string {
  * messages can be tens of KB each).
  */
 const MAX_CHAT_MESSAGES = 1000;
+
+/**
+ * How many messages reach `localStorage` (WS-062).
+ *
+ * Deliberately much smaller than {@link MAX_CHAT_MESSAGES}. That cap protects
+ * the tab's HEAP and is sized for it — up to 48 MB of retained transcript. The
+ * `localStorage` origin quota is ~5 MB, and a tool-heavy message can be tens of
+ * KB, so the in-memory budget is roughly an order of magnitude past what
+ * storage can hold. Persisting the full in-memory window therefore trends
+ * toward a quota exception, at which point `persist` silently stops writing
+ * ANYTHING — including the typed-but-unsubmitted queue it exists to protect.
+ *
+ * 200 is sized for the stated purpose: recreating the VISIBLE transcript after
+ * F5. Older messages live on the server, which is the authority, and a resume
+ * re-fetches them.
+ */
+const MAX_PERSISTED_MESSAGES = 200;
+
 export const MAX_CHAT_RETAINED_BYTES = 48 * 1024 * 1024;
 export const MAX_CHAT_FIELD_CHARS = 2 * 1024 * 1024;
 
@@ -640,8 +658,27 @@ export const useChatStore = create<ChatState>()(
       // for the whole transcript. Metadata (name/size/type) survives so the
       // bubble can render a placeholder chip after refresh. Queued items
       // lose their images entirely on refresh for the same reason.
+      // WS-062: the persisted slice is now bounded separately from the
+      // in-memory one. It was not literally unbounded — `MAX_CHAT_MESSAGES`
+      // already caps the array at 1000 — but that cap is sized for the HEAP
+      // (up to 48 MB retained), and `localStorage` holds ~5 MB. Writing the
+      // full in-memory window at a realistic tool-message size trends toward a
+      // quota exception, and when `persist` throws it silently stops writing
+      // ANYTHING, including the typed-but-unsubmitted queue this block exists
+      // to protect. The attachment stripping below already acknowledged the
+      // quota; the message count was the other half of the same problem.
+      //
+      // It also bounds how much conversation stays readable on the machine.
+      // `script-src` is strict again as of WS-061, so the script-injection
+      // surface is much smaller than the finding assumed — but that is a
+      // reason to keep the copy small, not a reason to keep it whole.
+      //
+      // Known tradeoff, accepted: truncating can orphan a tool_result whose
+      // tool_use fell outside the window. That renders as a result card with no
+      // call above it, which is cosmetic. Persist dying for the whole store is
+      // not.
       partialize: (s) => ({
-        messages: s.messages.map((m) =>
+        messages: s.messages.slice(-MAX_PERSISTED_MESSAGES).map((m) =>
           m.attachments?.some((a) => a.dataUrl)
             ? { ...m, attachments: m.attachments.map((a) => ({ ...a, dataUrl: undefined })) }
             : m,
