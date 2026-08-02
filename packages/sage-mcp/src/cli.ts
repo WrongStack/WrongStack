@@ -26,10 +26,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalProjectRoot } from '@wrongstack/core/utils';
 import { serveHttp, serveStdio } from '@wrongstack/mcp';
-import {
-  ProjectSageMemoryPort,
-  isSageProjectServerAvailable,
-} from '@wrongstack/sage';
+import { isSageProjectServerAvailable, ProjectSageMemoryPort } from '@wrongstack/sage';
 import { createSageMcpServer } from './adapter.js';
 import { SERVER_INFO } from './version.js';
 
@@ -61,6 +58,8 @@ function printHelp(stdout: NodeJS.WriteStream): void {
       '  --host <h>              Bind host for HTTP mode (default 127.0.0.1;',
       '                          non-loopback REQUIRES --token, refused by serveHttp).',
       '  --token <t>             Bearer token for HTTP mode.',
+      '                          Prefer WRONGSTACK_MCP_TOKEN — a command line is readable',
+      '                          by other local processes (WS-064).',
       '  --writable              Expose standard-tier (write/delete) tools.',
       '  -h, --help              Show this message.',
       '',
@@ -70,7 +69,27 @@ function printHelp(stdout: NodeJS.WriteStream): void {
   );
 }
 
-export function parseArgs(argv: readonly string[]): ParsedArgs {
+/**
+ * Environment variable carrying the HTTP auth token (WS-064).
+ *
+ * `--token <value>` was the ONLY way to supply it, which puts the secret in
+ * places any local process can read: `/proc/<pid>/cmdline` is world-readable on
+ * Linux, `Win32_Process.CommandLine` is readable by any process on Windows, and
+ * the value lands in shell history either way. An environment variable is not
+ * secret-storage, but `/proc/<pid>/environ` is restricted to the owning user,
+ * so it is strictly better than the command line.
+ *
+ * The flag still wins when both are given — an explicit argument overriding the
+ * ambient environment is the behaviour a caller expects, and silently
+ * preferring the env var could route a token the operator did not intend. Using
+ * it just warns.
+ */
+const HTTP_TOKEN_ENV = 'WRONGSTACK_MCP_TOKEN';
+
+export function parseArgs(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): ParsedArgs {
   const out: ParsedArgs = {
     projectRoot: '',
     transport: 'stdio',
@@ -114,6 +133,17 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
         // ignore unknown flags (forward-compat)
         break;
     }
+  }
+  // WS-064: fall back to the environment, and warn when the token came from
+  // the command line where other local processes can read it.
+  if (out.httpToken === undefined) {
+    const fromEnv = env[HTTP_TOKEN_ENV]?.trim();
+    if (fromEnv) out.httpToken = fromEnv;
+  } else if (out.httpToken.length > 0) {
+    console.warn(
+      `[mcp] --token puts the auth token in this process's command line, which other ` +
+        `local processes can read. Prefer ${HTTP_TOKEN_ENV}.`,
+    );
   }
   return out;
 }

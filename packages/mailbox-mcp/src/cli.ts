@@ -46,6 +46,8 @@ export function printHelp(stdout: NodeJS.WriteStream): void {
       '  --port <n>              HTTP port (default 0 = ephemeral).',
       '  --host <h>              HTTP bind host (default 127.0.0.1).',
       '  --token <t>             Bearer token. Required for a non-loopback HTTP bind.',
+      '                          Prefer WRONGSTACK_MCP_TOKEN — a command line is readable',
+      '                          by other local processes (WS-064).',
       '  --writable              Expose send, receipts, soft-delete/restore, and self-presence.',
       '  --admin                 Expose full maintenance and credential operations; implies writable.',
       '  -h, --help              Show this message.',
@@ -53,7 +55,27 @@ export function printHelp(stdout: NodeJS.WriteStream): void {
   );
 }
 
-export function parseArgs(argv: readonly string[]): ParsedArgs {
+/**
+ * Environment variable carrying the HTTP auth token (WS-064).
+ *
+ * `--token <value>` was the ONLY way to supply it, which puts the secret in
+ * places any local process can read: `/proc/<pid>/cmdline` is world-readable on
+ * Linux, `Win32_Process.CommandLine` is readable by any process on Windows, and
+ * the value lands in shell history either way. An environment variable is not
+ * secret-storage, but `/proc/<pid>/environ` is restricted to the owning user,
+ * so it is strictly better than the command line.
+ *
+ * The flag still wins when both are given — an explicit argument overriding the
+ * ambient environment is the behaviour a caller expects, and silently
+ * preferring the env var could route a token the operator did not intend. Using
+ * it just warns.
+ */
+const HTTP_TOKEN_ENV = 'WRONGSTACK_MCP_TOKEN';
+
+export function parseArgs(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): ParsedArgs {
   const parsed: ParsedArgs = {
     projectRoot: '',
     actor: '',
@@ -111,6 +133,17 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
       default:
         break;
     }
+  }
+  // WS-064: fall back to the environment, and warn when the token came from
+  // the command line where other local processes can read it.
+  if (parsed.httpToken === undefined) {
+    const fromEnv = env[HTTP_TOKEN_ENV]?.trim();
+    if (fromEnv) parsed.httpToken = fromEnv;
+  } else if (parsed.httpToken.length > 0) {
+    console.warn(
+      `[mcp] --token puts the auth token in this process's command line, which other ` +
+        `local processes can read. Prefer ${HTTP_TOKEN_ENV}.`,
+    );
   }
   return parsed;
 }
