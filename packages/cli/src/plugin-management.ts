@@ -1,87 +1,17 @@
 import * as fs from 'node:fs/promises';
 import { atomicWrite } from '@wrongstack/core/utils';
 import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
-import { OFFICIAL_PLUGIN_AUDIT_ENTRIES } from '@wrongstack/plugins/audit';
+import {
+  PLUGIN_AUDIT_ENTRIES,
+  type PluginAuditEntry,
+} from '@wrongstack/plugins/plugin-audit-catalog';
 
-export interface PluginAuditEntry {
-  name: string;
-  risk: 'low' | 'medium' | 'high';
-  summary: string;
-  defaultState: 'active' | 'inactive';
-  canDisable: boolean;
-}
-
-/** Host-owned plugins that are not published by @wrongstack/plugins. */
-const HOST_PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
-  {
-    name: 'wstack-prompts',
-    risk: 'medium',
-    summary: 'Prompt library and prompt authoring commands.',
-    defaultState: 'active',
-    canDisable: true,
-  },
-  {
-    name: 'wstack-sync',
-    risk: 'medium',
-    summary: 'Cloud sync commands for prompts, skills, settings, memory, and history.',
-    defaultState: 'active',
-    canDisable: true,
-  },
-  {
-    name: 'wstack-git',
-    risk: 'high',
-    summary: 'Git commands for commit, status checks, and push.',
-    defaultState: 'active',
-    canDisable: true,
-  },
-  {
-    name: 'wstack-observability',
-    risk: 'low',
-    summary: 'Runtime metrics and health slash commands.',
-    defaultState: 'active',
-    canDisable: true,
-  },
-  {
-    name: 'wstack-chimera',
-    risk: 'medium',
-    summary: 'Spawns a post-session code review subagent when explicitly enabled.',
-    defaultState: 'inactive',
-    canDisable: true,
-  },
-  {
-    name: 'wstack-skills',
-    risk: 'medium',
-    summary: 'Skill library, authoring, install, update, and uninstall commands.',
-    defaultState: 'active',
-    canDisable: true,
-  },
-  {
-    name: 'wstack-plan',
-    risk: 'medium',
-    summary: 'Strategic plan board slash command.',
-    defaultState: 'active',
-    canDisable: true,
-  },
-  {
-    name: '@wrongstack/plug-lsp',
-    risk: 'medium',
-    summary: 'Language Server Protocol tools and slash commands.',
-    defaultState: 'inactive',
-    canDisable: true,
-  },
-  {
-    name: 'telegram',
-    risk: 'medium',
-    summary: 'Telegram bridge for messages, approvals, and notifications.',
-    defaultState: 'inactive',
-    canDisable: true,
-  },
-] as const;
-
-export const PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = Object.freeze([
-  ...HOST_PLUGIN_AUDIT_ENTRIES,
-  ...OFFICIAL_PLUGIN_AUDIT_ENTRIES,
-]);
+// The plugin audit catalog now lives in @wrongstack/plugins/plugin-audit-catalog
+// (host-owned entries joined with the generated official catalog) so the CLI
+// plugin manager and the WebUI settings panel share one source of truth.
+// Re-exported here for existing CLI consumers (management-tools.ts, /plugin).
+export { PLUGIN_AUDIT_ENTRIES };
+export type { PluginAuditEntry };
 
 export const OFFICIAL_PLUGINS = [
   {

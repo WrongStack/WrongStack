@@ -24,6 +24,10 @@
       "types": "./dist/audit.d.ts",
       "import": "./dist/audit.js"
     },
+    "./plugin-audit-catalog": {
+      "types": "./dist/plugin-audit-catalog.d.ts",
+      "import": "./dist/plugin-audit-catalog.js"
+    },
     "./agent-handoff": {
       "types": "./dist/agent-handoff.d.ts",
       "import": "./dist/agent-handoff.js"
