@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { promisify } from 'node:util';
 import { assertProjectAgentRole, FLEET_ROSTER } from '@wrongstack/core/coordination';
 import type {
   AnchorVerificationResult,
@@ -10,6 +11,9 @@ import type {
   Sage,
   VerificationStatus,
 } from '../types.js';
+
+/** Single-anchor fallback spawn (the batch path in `batchGitBlobHashes` uses `execFile` directly). */
+const execFileAsync = promisify(execFile);
 
 export async function verifyMemoryAnchors(
   projectRoot: string,
@@ -56,9 +60,23 @@ async function batchGitBlobHashes(
     // `git hash-object` on fs.realpath output): git hashes a symlink itself,
     // not its target, so resolving first keeps gitBlobHash stable for
     // symlinked anchors.
-    const realTargets = await Promise.all(
-      targets.map((target) => fs.realpath(target).catch(() => target)),
+    const resolved = await Promise.all(
+      targets.map(async (target) => {
+        const real = await fs.realpath(target).catch(() => target);
+        const stat = await fs.stat(real).catch(() => undefined);
+        // `--stdin-paths` emits NO stdout line for a failing read (errors go
+        // to stderr), so a mixed existing/missing batch would misalign the
+        // index mapping below. Filter to existing files; missing anchors stay
+        // cache-misses and the per-anchor branch resolves them (the
+        // file-existence check marks them stale before the git branch).
+        if (!stat?.isFile()) return undefined;
+        return real;
+      }),
     );
+    const pairs = resolved
+      .map((real, index) => (real ? { target: targets[index]!, real } : undefined))
+      .filter((p): p is { target: string; real: string } => p !== undefined);
+    if (pairs.length === 0) return cache;
     const stdout = await new Promise<string>((resolve, reject) => {
       const child = execFile(
         'git',
@@ -70,12 +88,14 @@ async function batchGitBlobHashes(
         },
       );
       child.stdin?.once('error', reject);
-      child.stdin?.end(`${realTargets.join('\n')}\n`);
+      child.stdin?.end(`${pairs.map((p) => p.real).join('\n')}\n`);
     });
     const lines = stdout.split('\n');
-    targets.forEach((target, index) => {
+    // Cache is keyed by the ORIGINAL absolutePath (what verifyAnchor looks
+    // up); the real path is only what gets hashed (symlink parity).
+    pairs.forEach((pair, index) => {
       const hash = lines[index]?.trim();
-      if (hash) cache.set(target, hash);
+      if (hash) cache.set(pair.target, hash);
     });
   } catch {
     // Per-anchor branch falls back to 'unknown'.
@@ -481,9 +501,7 @@ async function verifyAnchor(
           timeout: 5_000,
           signal,
         });
-        const stdout =
-          typeof result.stdout === 'string' ? result.stdout : result.stdout.toString('utf8');
-        gitBlobHash = stdout.trim();
+        gitBlobHash = result.stdout.trim();
       } catch {
         return {
           anchor,

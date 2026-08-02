@@ -26,7 +26,13 @@ const NON_PACKAGE_AUDIT_NAMES = new Set([
  * the package's surface area but are excluded from plugin-level
  * parity checks.
  */
-const NON_PLUGIN_EXPORT_NAMES = new Set(['audit', 'factories', 'manifest', 'runtime']);
+const NON_PLUGIN_EXPORT_NAMES = new Set([
+  'audit',
+  'factories',
+  'manifest',
+  'plugin-audit-catalog',
+  'runtime',
+]);
 
 async function bundledPluginNames(): Promise<string[]> {
   const entries = await fs.readdir(path.join(pluginsRoot, 'src'), { withFileTypes: true });

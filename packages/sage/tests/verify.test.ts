@@ -235,4 +235,23 @@ describe('git anchor verification via batched hash-object (D5, 2026-08-02)', () 
     },
     30_000,
   );
+
+  it('keeps a mixed existing/missing git batch aligned', async () => {
+    const target = path.join(tmpDir, 'src', 'git-probe.ts');
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, 'export const probe = 1;\n');
+    const memory = makeMemory({
+      anchors: [
+        { type: 'git', path: 'src/git-probe.ts' },
+        { type: 'git', path: 'src/missing-probe.ts' },
+      ],
+    });
+    const result = await verifyMemoryAnchors(tmpDir, memory);
+    // The existing file hashes correctly (index alignment survives the
+    // missing-file filter in batchGitBlobHashes)…
+    expect(result.anchors[0]?.status).toBe('verified');
+    expect(result.anchors[0]?.gitBlobHash).toBeTruthy();
+    // …and the missing file fails the existence check before the git branch.
+    expect(result.anchors[1]?.status).toBe('stale');
+  });
 });
