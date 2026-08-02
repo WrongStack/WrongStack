@@ -45,7 +45,8 @@ export interface ChatMessage {
   /**
    * SAGE Memory Injector block for this tool call — header line plus one line
    * per injected memory — delivered as a dedicated `tool.executed.sage` field
-   * instead of being buried in `toolResult`. Rendered by `SageMemoryCard`.
+   * instead of being buried in `toolResult`. Rendered as a compact badge by
+   * `ToolResult`; full details in the `MemoryInjectorPanel` side drawer.
    *
    * Absent on replayed messages, where the block is still inline in the
    * persisted tool_result content; `extractSageBlock` recovers it there.

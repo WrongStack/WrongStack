@@ -59,6 +59,7 @@
     "scrollTopTitle": "Scorri in alto (più vecchio)",
     "jkNavigateTitle": "j/k per navigare",
     "noProvider": "nessun-provider",
-    "noModel": "nessun-modello"
+    "noModel": "nessun-modello",
+    "memoryContextTitle": "Contesto memoria — ricordi SAGE iniettati"
   }
 }

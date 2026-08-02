@@ -3,6 +3,7 @@ import {
   ArrowDown,
   ArrowUp,
   Bot,
+  Brain,
   ChevronDown,
   ChevronUp,
   Cpu,
@@ -16,7 +17,8 @@ import {
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VList, type VListHandle } from 'virtua';
 import { useShallow } from 'zustand/react/shallow';
-import { MemoryInjectorTrace } from '@/components/MemoryManager/MemoryInjectorTrace';
+import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
+import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -273,6 +275,7 @@ export function ChatView() {
   // Overlay toggles — triggered by header buttons
   const [processOpen, setProcessOpen] = useState(false);
   const [checkpointOpen, setCheckpointOpen] = useState(false);
+  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
   // Collapsed input: when there's an active session, the input area shrinks
   // to a thin bar. Click to expand. Initialised true when messages exist.
   const [inputCollapsed, setInputCollapsed] = useState(messages.length > 0);
@@ -283,6 +286,18 @@ export function ChatView() {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   // Context window editor
   const [editorOpen, setEditorOpen] = useState(false);
+
+  // Memory injector — active count for header badge
+  const activeMemoryCount = useMemoryInjectorTraceStore((s) =>
+    Object.values(s.contextMemories).filter((m) => m.state !== 'exited').length,
+  );
+
+  // Listen for the custom event fired by sage-memory badges in ToolResult
+  useEffect(() => {
+    const handler = () => setMemoryPanelOpen(true);
+    window.addEventListener('open:memory-panel', handler);
+    return () => window.removeEventListener('open:memory-panel', handler);
+  }, []);
 
   // Listen for the custom event fired by ContextModePicker's ops menu → "Debug Context"
   useEffect(() => {
@@ -667,6 +682,23 @@ export function ChatView() {
               ActivityBar's bottom group now. */}
           <div className="ml-auto flex items-center gap-0.5 shrink-0">
             <Button
+              variant={memoryPanelOpen ? 'secondary' : 'ghost'}
+              size="icon"
+              className={cn('h-7 w-7 relative', memoryPanelOpen && 'bg-primary/10 text-primary')}
+              onClick={() => setMemoryPanelOpen((v) => !v)}
+              title={t('chat:header.memoryContextTitle', 'Memory context')}
+            >
+              <Brain className="h-4 w-4" />
+              {activeMemoryCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center tabular-nums">
+                  {activeMemoryCount}
+                </span>
+              )}
+              {memoryPanelOpen && (
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+              )}
+            </Button>
+            <Button
               variant={processOpen ? 'secondary' : 'ghost'}
               size="icon"
               className={cn('h-7 w-7 relative', processOpen && 'bg-warning/10 text-warning')}
@@ -713,7 +745,6 @@ export function ChatView() {
                 <Wand2 className="h-3 w-3" />
                 <span>Edit</span>
               </button>
-              <MemoryInjectorTrace />
               {totalTokens.input > 0 && (
                 <>
                   <span className="flex items-center gap-1">
@@ -1000,6 +1031,7 @@ export function ChatView() {
       <CheckpointTimeline open={checkpointOpen} onClose={() => setCheckpointOpen(false)} />
       <ContextBreakdownModal open={breakdownOpen} onClose={() => setBreakdownOpen(false)} />
       <ContextWindowEditor open={editorOpen} onClose={() => setEditorOpen(false)} />
+      <MemoryInjectorPanel open={memoryPanelOpen} onClose={() => setMemoryPanelOpen(false)} />
     </div>
   );
 }

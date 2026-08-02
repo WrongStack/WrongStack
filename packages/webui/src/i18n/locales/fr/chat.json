@@ -59,6 +59,7 @@
     "scrollTopTitle": "Défiler vers le haut (le plus ancien)",
     "jkNavigateTitle": "j/k pour naviguer",
     "noProvider": "aucun-fournisseur",
-    "noModel": "aucun-modèle"
+    "noModel": "aucun-modèle",
+    "memoryContextTitle": "Contexte mémoire — souvenirs SAGE injectés"
   }
 }

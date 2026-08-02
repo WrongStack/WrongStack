@@ -1,9 +1,8 @@
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { Brain, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { extractSageBlock } from '@/lib/sage-block';
-import { SageMemoryCard } from './SageMemoryCard.js';
 
 /** When a tool dumps hundreds of lines of output, the chat turns into a
  *  scroll-wall. This threshold gates the auto-collapse: anything longer
@@ -174,6 +173,26 @@ export const ToolResult = memo(function ToolResult({
   // is just a different initial state, not a permanent gate.
   const defaultCollapsed = renderMode === 'simple';
 
+  // SAGE memory badge — tiny pill indicator, not a full card.
+  // The full memory detail lives in the Memory Injector side panel.
+  const sageCount = sageLines.length > 0 ? sageLines.length - 1 : 0;
+
+  const memoryBadge = sageCount > 0 && (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new CustomEvent('open:memory-panel'))}
+      className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/[0.06] px-2 py-0.5 text-[10px] font-medium text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors"
+      title={`${sageCount} SAGE ${sageCount === 1 ? 'memory' : 'memories'} injected — click to open Memory panel`}
+      data-testid="sage-memory-badge"
+    >
+      <Brain className="size-2.5" />
+      <span className="tabular-nums">{sageCount}</span>
+      <span className="text-[9px] uppercase tracking-wide opacity-70">
+        {sageCount === 1 ? 'memory' : 'memories'}
+      </span>
+    </button>
+  );
+
   if (shape.kind === 'json') {
     return (
       <>
@@ -183,7 +202,7 @@ export const ToolResult = memo(function ToolResult({
           className={className}
           defaultCollapsed={defaultCollapsed}
         />
-        <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+        {memoryBadge}
       </>
     );
   }
@@ -197,7 +216,7 @@ export const ToolResult = memo(function ToolResult({
           wrapClass="whitespace-pre"
           defaultCollapsed={defaultCollapsed}
         />
-        <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+        {memoryBadge}
       </>
     );
   }
@@ -233,7 +252,7 @@ export const ToolResult = memo(function ToolResult({
             </div>
           )}
         </div>
-        <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+        {memoryBadge}
       </>
     );
   }
@@ -247,7 +266,7 @@ export const ToolResult = memo(function ToolResult({
         showLineNumbers
         defaultCollapsed={defaultCollapsed}
       />
-      <SageMemoryCard sageLines={sageLines} toolName={toolName} />
+      {memoryBadge}
     </>
   );
 });

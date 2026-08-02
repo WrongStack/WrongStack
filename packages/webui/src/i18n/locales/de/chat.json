@@ -59,6 +59,7 @@
     "scrollTopTitle": "Nach oben scrollen (älteste)",
     "jkNavigateTitle": "j/k zum Navigieren",
     "noProvider": "kein-anbieter",
-    "noModel": "kein-modell"
+    "noModel": "kein-modell",
+    "memoryContextTitle": "Speicherkontext — injizierte SAGE-Erinnerungen"
   }
 }

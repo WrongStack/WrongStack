@@ -59,6 +59,7 @@
     "scrollTopTitle": "Başa kaydır (en eski)",
     "jkNavigateTitle": "gezinmek için j/k",
     "noProvider": "sağlayıcı-yok",
-    "noModel": "model-yok"
+    "noModel": "model-yok",
+    "memoryContextTitle": "Bellek bağlamı — enjekte edilen SAGE anıları"
   }
 }

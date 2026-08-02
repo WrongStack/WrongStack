@@ -59,6 +59,7 @@
     "scrollTopTitle": "Desplazar arriba (más antiguo)",
     "jkNavigateTitle": "j/k para navegar",
     "noProvider": "sin-proveedor",
-    "noModel": "sin-modelo"
+    "noModel": "sin-modelo",
+    "memoryContextTitle": "Contexto de memoria — recuerdos SAGE inyectados"
   }
 }

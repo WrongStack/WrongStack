@@ -59,6 +59,7 @@
     "scrollTopTitle": "Scroll to top (oldest)",
     "jkNavigateTitle": "j/k to navigate",
     "noProvider": "no-provider",
-    "noModel": "no-model"
+    "noModel": "no-model",
+    "memoryContextTitle": "Memory context — injected SAGE memories"
   }
 }
