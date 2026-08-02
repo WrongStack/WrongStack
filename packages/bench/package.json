@@ -23,6 +23,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "subsets",
     "README.md"
   ],

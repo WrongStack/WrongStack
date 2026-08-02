@@ -160,6 +160,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "skills",
     "design-kits",
     "instructions",

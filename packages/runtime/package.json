@@ -36,6 +36,10 @@
       "types": "./dist/governance-sanitize.d.ts",
       "import": "./dist/governance-sanitize.js"
     },
+    "./governance-mutation-snapshot-bridge": {
+      "types": "./dist/governance-mutation-snapshot-bridge.d.ts",
+      "import": "./dist/governance-mutation-snapshot-bridge.js"
+    },
     "./vision": {
       "types": "./dist/vision.d.ts",
       "import": "./dist/vision.js"
@@ -56,6 +60,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "README.md"
   ],
   "scripts": {
