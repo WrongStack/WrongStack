@@ -2,6 +2,7 @@
 
 export { noOpVault } from '../types/secret-vault.js';
 export {
+  clampSubagentCapabilities,
   DANGEROUS_FOR_SUBAGENTS,
   getDangerousCapabilities,
   hasCapability,

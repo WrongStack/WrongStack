@@ -21,6 +21,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import type { SubagentConfig } from '../../types/multi-agent.js';
+import { clampSubagentCapabilities } from '../../security/capabilities.js';
 import { validateProjectAgentConfig } from './project-agent-config-validation.js';
 import { BUILT_IN_KNOWLEDGE_MANIFESTS } from './project-agent-knowledge-manifests.js';
 import {
@@ -322,11 +323,23 @@ export function applyProjectAgentConfig(
     };
   }
   if (projectConfig.allowedCapabilities !== undefined) {
-    result.allowedCapabilities = options.protectSystemRole
+    // `projectConfig` is a repo-committed file — untrusted by the same standard
+    // as `.wrongstack/config.json`, which in-project-policy already strips. It
+    // may NARROW a grant but never widen one, so everything sourced from it is
+    // clamped to the wide-subagent ceiling. Without this, a cloned repo could
+    // hand its subagents fs.write.outside-project / tool.mutate.any /
+    // config.mutate — the exact set WIDE_SUBAGENT_CAPABILITIES withholds.
+    //
+    // Note `protectSystemRole` UNIONS rather than restricts here; it protects
+    // the role's identity, not its blast radius, so it is not a substitute
+    // for this clamp (WS-079).
+    const merged = options.protectSystemRole
       ? base.allowedCapabilities === undefined
         ? undefined
         : [...new Set([...base.allowedCapabilities, ...projectConfig.allowedCapabilities])]
       : [...projectConfig.allowedCapabilities];
+    result.allowedCapabilities =
+      merged === undefined ? undefined : clampSubagentCapabilities(merged).granted;
   }
   if (projectConfig.budget) {
     if (projectConfig.budget.timeoutMs !== undefined)

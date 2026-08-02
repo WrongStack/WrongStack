@@ -138,6 +138,39 @@ export const WIDE_SUBAGENT_CAPABILITIES: readonly ToolCapability[] = [
 ];
 
 /**
+ * Clamp a requested capability grant to a ceiling.
+ *
+ * The per-spawn `allowedCapabilities` grant documented above is an escape hatch
+ * for a TRUSTED caller — the user, or in-process code the user invoked. It was
+ * also reachable from two untrusted sources, which could therefore hand a
+ * subagent the capabilities the list above deliberately withholds:
+ *
+ *   1. `<projectRoot>/.wrongstack/agents/<role>/config.json`, a repo-committed
+ *      file that `applyProjectAgentConfig` merged in. Note this sits beside
+ *      `.wrongstack/config.json`, which IS strip-listed by in-project-policy —
+ *      the denylist guarded one file while the dangerous one lay next to it.
+ *   2. Model output, via the un-enum'd `allowedCapabilities` array on the
+ *      kanban/director tool schemas.
+ *
+ * Untrusted input may NARROW a grant; it may never widen one. Returns the
+ * intersection, preserving `ceiling` order for stable output.
+ *
+ * @returns the clamped list plus the capabilities that were dropped, so callers
+ *   can surface the reduction instead of silently disagreeing with the config.
+ */
+export function clampSubagentCapabilities(
+  requested: readonly string[],
+  ceiling: readonly ToolCapability[] = WIDE_SUBAGENT_CAPABILITIES,
+): { granted: string[]; dropped: string[] } {
+  const ceilingSet = new Set<string>(ceiling);
+  const requestedSet = new Set(requested);
+  return {
+    granted: ceiling.filter((capability) => requestedSet.has(capability)),
+    dropped: [...requestedSet].filter((capability) => !ceilingSet.has(capability)),
+  };
+}
+
+/**
  * Check if a tool (or its capabilities array) includes any dangerous capability
  * for subagent execution.
  */

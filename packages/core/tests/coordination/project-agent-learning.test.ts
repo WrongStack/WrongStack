@@ -219,7 +219,11 @@ describe('project agent self-learning lifecycle', () => {
       'executor',
       {
         tools: ['bash'],
-        allowedCapabilities: ['shell.execute'],
+        // Was 'shell.execute', which is not a capability this codebase defines
+        // (the real name is 'shell.exec') and appeared nowhere outside this
+        // test. It survived only because project-supplied capabilities used to
+        // be stored verbatim; the WS-079 clamp now drops unknown strings.
+        allowedCapabilities: ['shell.exec', 'config.mutate'],
         budget: { timeoutMs: 1, maxIterations: 1, maxToolCalls: 1, maxTokens: 1 },
         modelPolicy: {
           allowed: [{ provider: 'openai', model: 'gpt-system' }],
@@ -249,7 +253,10 @@ describe('project agent self-learning lifecycle', () => {
 
     expect(roster['executor']).toMatchObject({
       tools: ['read_file', 'bash'],
-      allowedCapabilities: ['fs.read', 'shell.execute'],
+      // 'config.mutate' is requested above but is outside the wide-subagent
+      // ceiling, so the clamp drops it: a repo-committed agent config may
+      // narrow a grant, never widen one (WS-079).
+      allowedCapabilities: ['fs.read', 'shell.exec'],
       timeoutMs: 300_000,
       maxIterations: 20,
       maxToolCalls: 40,

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AssignKanbanTaskInput, KanbanAgentAssignment } from '@wrongstack/kanban';
+import { clampSubagentCapabilities } from '@wrongstack/core/security';
 import type { KanbanToolInput } from './kanban-tool-types.js';
 
 export function taskInput(input: KanbanToolInput) {
@@ -117,6 +118,21 @@ export function taskPatch(input: KanbanToolInput) {
   };
 }
 
+/**
+ * `allowedCapabilities` reaches here straight off a tool schema that declares it
+ * as an un-enum'd `string[]`, so its contents are model output. That is an
+ * untrusted source and must not be able to widen a grant past the wide-subagent
+ * ceiling — the more so because an assignment PERSISTS onto the board, turning
+ * one injected call into a standing grant that a later user-initiated dispatch
+ * carries silently (WS-079).
+ */
+function clampRequestedCapabilities(
+  requested: readonly string[] | undefined,
+): string[] | undefined {
+  if (requested === undefined) return undefined;
+  return clampSubagentCapabilities(requested).granted;
+}
+
 export function assignmentInput(input: KanbanToolInput): AssignKanbanTaskInput {
   return {
     agentId: input.agentId,
@@ -127,7 +143,7 @@ export function assignmentInput(input: KanbanToolInput): AssignKanbanTaskInput {
     fallbackProfile: input.fallbackProfile,
     fallbackModels: input.fallbackModels,
     tools: input.tools,
-    allowedCapabilities: input.allowedCapabilities,
+    allowedCapabilities: clampRequestedCapabilities(input.allowedCapabilities),
     assignee: input.assignee,
     leaseId: input.leaseId,
     claimedAt: input.claimedAt,
@@ -178,7 +194,7 @@ function assignmentForTaskCreate(input: KanbanToolInput): KanbanAgentAssignment 
     ...(input.fallbackModels !== undefined ? { fallbackModels: input.fallbackModels } : {}),
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
     ...(input.allowedCapabilities !== undefined
-      ? { allowedCapabilities: input.allowedCapabilities }
+      ? { allowedCapabilities: clampRequestedCapabilities(input.allowedCapabilities) }
       : {}),
     ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
     ...(input.claimedAt !== undefined ? { claimedAt: input.claimedAt } : {}),
