@@ -164,18 +164,25 @@ export function replaySessionMessages(
       }
     }
 
-    appendText(
-      message.role,
-      message.content
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join(''),
-      ts,
-      !message.content.some((block) => block.type === 'tool_use'),
-    );
+    // Walk content blocks in order, interleaving text and tool entries.
+    // Concatenating all text first would move prose that appeared after a
+    // tool ahead of that tool on resume — the same class of bug as sorting
+    // messages by role instead of by timeline.
+    const final = !message.content.some((block) => block.type === 'tool_use');
+    const textParts: string[] = [];
+    const flushText = (): void => {
+      const text = textParts.join('').trim();
+      if (text) appendText(message.role, text, ts, final);
+      textParts.length = 0;
+    };
 
     for (const block of message.content) {
+      if (block.type === 'text') {
+        textParts.push(block.text);
+        continue;
+      }
       if (block.type === 'tool_use') {
+        flushText();
         const end = toolEnds.get(block.id);
         const entry = push(ts, {
           kind: 'tool',
@@ -191,6 +198,7 @@ export function replaySessionMessages(
         continue;
       }
       if (block.type !== 'tool_result') continue;
+      flushText();
       const existing = toolEntries.get(block.tool_use_id);
       if (existing) {
         existing.output = toolOutputPreview(block.content);
@@ -210,6 +218,7 @@ export function replaySessionMessages(
         outputLines: end?.outputLines,
       });
     }
+    flushText();
   }
 
   // ── Marker events (already chronological in JSONL order) ──────────────────
