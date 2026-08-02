@@ -19,6 +19,7 @@ import { Box, Text } from '../ink.js';
 import { buildTodoPreviewRows } from './fleet-panel.js';
 import { contextBarColor, fmtTok, renderMeter } from './status-bar-format.js';
 import type { LiveSessionEntry } from './sessions-panel.js';
+import { glyphs } from '../ui-glyphs.js';
 import { theme } from '../theme.js';
 
 export interface SidebarContentProps {
@@ -231,10 +232,10 @@ export function SidebarContent({
         </Box>
       ) : null}
 
-      {/* ── Fleet ── */}
+      {/* ── Agent Swarm ── */}
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={theme.assistant}>
-          Fleet
+        <Text bold color={theme.monitor.fleet}>
+          {glyphs.fleet} AGENT SWARM
         </Text>
         {running > 0 ? (
           <Text color={theme.accent}>
