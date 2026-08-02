@@ -63,6 +63,12 @@ export function searchSqliteSage(
   const ftsScopeClause = scopeFilter ? ' AND m.scope = ?' : '';
   const scopeParams = scopeFilter ? [scopeFilter] : [];
   const includeAudienceScoped = opts?.includeAudienceScoped !== false;
+  // SQL-level audience filter: when includeAudienceScoped is false, exclude
+  // audience-scoped rows BEFORE LIMIT so a general memory at position N+1
+  // is not hidden behind N audience-scoped rows that the JS filter would
+  // strip anyway. The JS filter remains as a secondary safety net.
+  const audienceSqlClause = includeAudienceScoped ? '' : ' AND audience IS NULL';
+  const ftsAudienceClause = includeAudienceScoped ? '' : ' AND m.audience IS NULL';
   const audienceFilter = (memory: Sage): boolean => includeAudienceScoped || !memory.audience;
   const neverInjectClause = automaticContext
     ? ` AND CASE
@@ -80,7 +86,7 @@ export function searchSqliteSage(
     const rows = ctx
       .stmt(
         `SELECT data FROM memories
-           WHERE status IN (${placeholders})${scopeClause}${session.clause}${neverInjectClause}
+           WHERE status IN (${placeholders})${scopeClause}${session.clause}${audienceSqlClause}${neverInjectClause}
            ORDER BY importance DESC, updated_at DESC
            LIMIT ?`,
       )
@@ -99,7 +105,7 @@ export function searchSqliteSage(
         .stmt(
           `SELECT m.data FROM memories m
              JOIN memories_fts f ON m.rowid = f.rowid
-             WHERE m.status IN (${placeholders})${ftsScopeClause}${ftsSession.clause}${neverInjectClause}
+             WHERE m.status IN (${placeholders})${ftsScopeClause}${ftsSession.clause}${ftsAudienceClause}${neverInjectClause}
              AND memories_fts MATCH ?
              ORDER BY bm25(memories_fts) ASC, m.importance DESC
              LIMIT ?`,
@@ -121,7 +127,7 @@ export function searchSqliteSage(
   const rows = ctx
     .stmt(
       `SELECT data FROM memories
-         WHERE status IN (${placeholders})${scopeClause}${session.clause}${neverInjectClause}
+         WHERE status IN (${placeholders})${scopeClause}${session.clause}${audienceSqlClause}${neverInjectClause}
          AND LOWER(json_extract(data, '$.text')) LIKE ? ESCAPE '\\'
          ORDER BY importance DESC
          LIMIT ?`,

@@ -222,3 +222,84 @@ describe('project agent memory audiences', () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe('audience filtering before SQL LIMIT (P0-2 regression)', () => {
+  it('returns a general memory even when audience-scoped rows occupy the entire initial window', async () => {
+    const store = openStore();
+    await store.initialize();
+
+    // Create audience-scoped memories with HIGHER importance than the
+    // general memory. Without SQL-level audience filtering, these would
+    // fill the entire result window before the general memory appears.
+    for (let i = 0; i < 5; i++) {
+      await store.rememberSage({
+        text: `Audience-scoped fact number ${i} about authentication patterns`,
+        kind: 'workflow',
+        scope: 'project',
+        importance: 0.9,
+        audience: { roles: ['reviewer'] },
+        tags: ['auth', 'audience-test'],
+      });
+    }
+
+    // General memory with lower importance — without the fix, this would
+    // be at position 6+ and hidden behind the 5 audience-scoped rows.
+    const general = await store.rememberSage({
+      text: 'General authentication convention that applies to all agents',
+      kind: 'convention',
+      scope: 'project',
+      importance: 0.5,
+      tags: ['auth', 'audience-test'],
+    });
+
+    // Search with a small limit and includeAudienceScoped: false.
+    // Before the fix: LIMIT 3 returns the 3 highest-importance rows
+    //   (all audience-scoped), JS filter strips them → empty result.
+    // After the fix: SQL `AND audience IS NULL` excludes audience-scoped
+    //   rows before LIMIT → general memory is returned.
+    const results = await store.searchSage('authentication', {
+      limit: 3,
+      includeAudienceScoped: false,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.find((m) => m.id === general.id)).toBeDefined();
+    // No audience-scoped memories should leak through.
+    expect(results.every((m) => !m.audience)).toBe(true);
+  });
+
+  it('returns a general memory via retrieveForPath when audience-scoped memories fill the window', async () => {
+    const store = openStore();
+    await store.initialize();
+
+    // Audience-scoped memories anchored to the same file, higher importance.
+    for (let i = 0; i < 5; i++) {
+      await store.rememberSage({
+        text: `Audience-scoped file note ${i} for config module`,
+        kind: 'file_note',
+        scope: 'project',
+        importance: 0.9,
+        audience: { roles: ['security-scanner'] },
+        anchors: [{ type: 'file', path: 'src/config.ts' }],
+      });
+    }
+
+    // General file note with lower importance.
+    const general = await store.rememberSage({
+      text: 'General config module convention for all contributors',
+      kind: 'file_note',
+      scope: 'project',
+      importance: 0.5,
+      anchors: [{ type: 'file', path: 'src/config.ts' }],
+    });
+
+    const results = await store.retrieveForPath(['src/config.ts'], {
+      limit: 3,
+      includeAudienceScoped: false,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.find((m) => m.id === general.id)).toBeDefined();
+    expect(results.every((m) => !m.audience)).toBe(true);
+  });
+});

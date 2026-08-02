@@ -53,6 +53,11 @@ export function retrieveSqliteSageForPath(
   if (relPaths.length === 0) return [];
 
   const includeAudienceScoped = opts?.includeAudienceScoped !== false;
+  // SQL-level audience filter: exclude audience-scoped rows BEFORE LIMIT
+  // so a general memory at position N+1 is not hidden behind N audience-
+  // scoped rows. The JS filter remains as a secondary safety net.
+  const audienceEdgeClause = includeAudienceScoped ? '' : ' AND m.audience IS NULL';
+  const audienceFallbackClause = includeAudienceScoped ? '' : ' AND audience IS NULL';
   const audienceFilter = (memory: Sage): boolean => includeAudienceScoped || !memory.audience;
   const session = buildPathSessionClause(opts);
   const targetPlaceholders = targetList.map(() => '?').join(',');
@@ -69,6 +74,7 @@ export function retrieveSqliteSageForPath(
        )
        AND m.status IN ('active', 'stale')
        ${session.clause}
+       ${audienceEdgeClause}
        ORDER BY m.importance DESC, m.updated_at DESC
        LIMIT ?`,
     )
@@ -86,6 +92,7 @@ export function retrieveSqliteSageForPath(
        WHERE status IN (?, ?)
        AND (${fallback.conditions.join(' OR ')})
        ${session.clause}
+       ${audienceFallbackClause}
        ORDER BY importance DESC, updated_at DESC
        LIMIT ?`,
     )
