@@ -13,6 +13,7 @@ import {
   normalizeTextKey,
 } from './store-helpers.js';
 import type {
+  CandidateSuggestedAction,
   MemoryAnchor,
   MemoryCandidate,
   Sage,
@@ -436,12 +437,11 @@ export async function runSqliteSageHygiene(
           scope: memory.scope,
           confidence: memory.confidence,
           importance: memory.importance,
-          tags: [
-            ...memory.tags,
-            `review:possible_contradiction_with_${other.id}`,
-            'suggested:investigate',
-            `source:${memory.id}`,
-          ],
+          // E1: typed proposal metadata instead of review:/suggested:/
+          // source: tag prefixes.
+          reviewReason: `Possible contradiction with memory ${other.id}`,
+          suggestedAction: 'investigate',
+          tags: [...memory.tags],
           anchors: memory.anchors,
           sources: [{ type: 'session' }],
           createdAt: ctx.nowIso(),
@@ -531,10 +531,14 @@ export async function runSqliteSageHygiene(
         scope: 'project',
         confidence: 0.6,
         importance: 0.4,
+        // E1: proposal metadata is typed (reviewReason / suggestedAction)
+        // instead of the legacy `review:` / `suggested:` tag prefixes.
+        reviewReason: reason,
+        suggestedAction: suggestedAction as CandidateSuggestedAction,
         tags: [
           ...m.tags,
-          `review:${reason}`,
-          `suggested:${suggestedAction}`,
+          // Review context about the TARGET memory: candidates carry no
+          // persistence field, so the target's class is conveyed via a tag.
           `persistence:${persistence}`,
         ],
         anchors: m.anchors,

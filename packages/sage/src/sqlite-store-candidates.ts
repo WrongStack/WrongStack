@@ -128,6 +128,7 @@ export function createSqliteCandidate(
       updatedAt: now,
       ...(input.targetMemoryId ? { targetMemoryId: input.targetMemoryId } : {}),
       ...(input.reviewReason ? { reviewReason: input.reviewReason } : {}),
+      ...(input.suggestedAction ? { suggestedAction: input.suggestedAction } : {}),
     };
     ctx.upsertCandidate(candidate, key);
     ctx.audit('memory.candidate_created', { details: { candidateId: candidate.id } });

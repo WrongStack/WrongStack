@@ -51,7 +51,6 @@ describe('memory candidates branch coverage', () => {
     await tool.execute({ action: 'propose', text: 'Minimal proposal' }, {} as never, options);
     expect(memory.createCandidate).toHaveBeenLastCalledWith({
       text: 'Minimal proposal',
-      tags: [],
     });
     expect(tool.validate?.({ action: 'propose', text: ' valid ' })).toEqual([]);
   });

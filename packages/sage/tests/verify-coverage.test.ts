@@ -3,8 +3,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { anchorVerificationCoverage as coverage } from '../src/anchors/verify.js';
-import type { AnchorVerificationResult, MemoryAnchor } from '../src/types.js';
+import {
+  anchorVerificationCoverage as coverage,
+  verifyMemoryAnchors,
+} from '../src/anchors/verify.js';
+import type { AnchorVerificationResult, MemoryAnchor, Sage } from '../src/types.js';
 
 let directory: string;
 const originalPath = process.env['PATH'];
@@ -67,12 +70,27 @@ describe('anchor verification completion coverage', () => {
     const file = path.join(directory, 'source.ts');
     await fs.writeFile(file, body);
     const expectedHash = createHash('sha256').update(body).digest('hex');
-    const initial = await coverage.verifyAnchor(directory, {
-      type: 'git',
-      path: 'source.ts',
-      symbol: 'value.test',
+    const sage = (anchors: MemoryAnchor[]): Sage => ({
+      id: 'coverage-git',
+      revision: 1,
+      text: 'git probe',
+      kind: 'file_note',
+      scope: 'project',
+      status: 'active',
+      importance: 0.5,
+      confidence: 0.5,
+      freshness: 0.5,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      tags: [],
+      anchors,
+      sources: [],
     });
-    expect(initial).toEqual(
+    const initial = await verifyMemoryAnchors(
+      directory,
+      sage([{ type: 'git', path: 'source.ts', symbol: 'value.test' }]),
+    );
+    expect(initial.anchors[0]).toEqual(
       expect.objectContaining({
         status: 'verified',
         contentHash: `sha256:${expectedHash}`,
@@ -81,15 +99,18 @@ describe('anchor verification completion coverage', () => {
     );
 
     await expect(
-      coverage.verifyAnchor(directory, {
-        type: 'git',
-        path: 'source.ts',
-        gitBlobHash: 'wrong',
-      }),
+      verifyMemoryAnchors(
+        directory,
+        sage([{ type: 'git', path: 'source.ts', gitBlobHash: 'wrong' }]),
+      ),
     ).resolves.toEqual(
       expect.objectContaining({
-        status: 'stale',
-        reason: expect.stringContaining('Git blob hash'),
+        anchors: [
+          expect.objectContaining({
+            status: 'stale',
+            reason: expect.stringContaining('Git blob hash'),
+          }),
+        ],
       }),
     );
   });

@@ -663,9 +663,9 @@ describe('memory_candidates tool', () => {
     expect(createCandidate).toHaveBeenCalledWith({
       text: 'Outdated convention about callbacks',
       kind: 'convention',
-      tags: ['review:noise', 'suggested:delete', 'source:mem_old'],
       targetMemoryId: 'mem_old',
       reviewReason: 'noise',
+      suggestedAction: 'delete',
     });
   });
 

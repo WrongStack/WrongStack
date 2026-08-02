@@ -73,7 +73,7 @@ The system is a SQLite-backed (`node:sqlite`, WAL, FTS5, external-content trigge
 ### G. Docs & contract drift
 
 - **G1. [MEDIUM] Four-tier SAGE guidance kept in sync by hand** — `system-pro.md` / `system.md` / `system-lite.md` / `coordination/subagent-baseline.md` (verified memory `01KYSQ89EYVQYHCBDK5SHNANB6`).
-- **G2. [LOW] `search-and-suggest.md` contract vs implementation** — see A2.
+- **G2. [LOW → SUPERSEDED] `search-and-suggest.md` contract vs implementation** — A2 is FIXED: declared fields honored-or-rejected, `suggest` modes implemented, absolute scores; any remaining doc-vs-code deltas (e.g. the DEFAULT_LIMIT 50 vs doc 10) follow the doc's own "change the doc first" rule.
 - **G3. [MEDIUM — meta] SAGE's own memories drift from code** — e.g. "InjectionTracker 500→250, statement cache 128→48 with max-age" (shipped code: 500 + `Set`, 128, no expiry) and "session isolation in all retrieval paths" (was false for graph/audience/unifiedSearch). Anchor verification checks files/symbols, not semantic claims.
 
 ## 3. Proposed improvement roadmap
@@ -87,6 +87,6 @@ The system is a SQLite-backed (`node:sqlite`, WAL, FTS5, external-content trigge
 ## 4. Assumptions / unverified
 
 - `packages/cli/src/wiring/sage.ts` passes the shared tracker/events (per verified memory, not re-read during research).
-- `packages/core/src/utils/sage-output-block.ts` is byte-identical to the two read mirrors.
+- C5 superseded the "byte-identical mirrors" assumption: the SAGE suffix parser is centralized in `packages/core/src/utils/sage-output-block.ts` (exported via `./utils/sage-output-block` + the utils barrel); webui/tui delegate to it, and simpleui keeps a deliberate core-free copy guarded by a source-drift test.
 - `project-server-client.ts`/`remote-memory-port.ts` transport details and the `sage-mcp` adapter were not deep-audited.
 - Embeddings: only `HashingEmbeddingProvider` exists; no vector index is wired into retrieval.

@@ -1,9 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { verifyMemoryAnchors } from '../src/anchors/verify.js';
 import type { Sage } from '../src/types.js';
+
+const execFileAsync = promisify(execFile);
 
 let tmpDir: string;
 
@@ -12,7 +16,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await fs.rm(tmpDir, { recursive: true, force: true });
+  await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
 function makeMemory(overrides: Partial<Sage> = {}): Sage {
@@ -194,4 +198,41 @@ describe('verifyMemoryAnchors', () => {
     const result = await verifyMemoryAnchors(tmpDir, memory, '2026-06-01T00:00:00.000Z');
     expect(result.checkedAt).toBe('2026-06-01T00:00:00.000Z');
   });
+});
+
+describe('git anchor verification via batched hash-object (D5, 2026-08-02)', () => {
+  it(
+    'verifies a git anchor and reports stale when the blob changes',
+    async () => {
+      const target = path.join(tmpDir, 'src', 'git-probe.ts');
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, 'export const probe = 1;\n');
+      await execFileAsync('git', ['init', '-q'], { cwd: tmpDir });
+      await execFileAsync('git', ['config', 'user.email', 'probe@test'], { cwd: tmpDir });
+      await execFileAsync('git', ['config', 'user.name', 'probe'], { cwd: tmpDir });
+      await execFileAsync('git', ['add', 'src/git-probe.ts'], { cwd: tmpDir });
+      await execFileAsync('git', ['commit', '-q', '-m', 'probe'], { cwd: tmpDir });
+
+      const first = await verifyMemoryAnchors(
+        tmpDir,
+        makeMemory({ anchors: [{ type: 'git', path: 'src/git-probe.ts' }] }),
+      );
+      expect(first.anchors[0]?.status).toBe('verified');
+      const blobHash = first.anchors[0]?.gitBlobHash;
+      expect(blobHash).toBeTruthy();
+
+      // Change the file and pin the original hash: the batched prefetch must
+      // detect the blob change and mark the anchor stale.
+      await fs.writeFile(target, 'export const probe = 2;\n');
+      const changed = await verifyMemoryAnchors(
+        tmpDir,
+        makeMemory({
+          anchors: [{ type: 'git', path: 'src/git-probe.ts', gitBlobHash: blobHash }],
+        }),
+      );
+      expect(changed.anchors[0]?.status).toBe('stale');
+      expect(changed.anchors[0]?.reason).toBe('Git blob hash changed.');
+    },
+    30_000,
+  );
 });

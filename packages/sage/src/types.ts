@@ -402,6 +402,8 @@ export interface MemoryCandidate {
   targetMemoryId?: string | undefined;
   /** Why the review was proposed (proposal metadata — never overwritten by resolution). */
   reviewReason?: string | undefined;
+  /** Advisory suggested action (typed successor of the legacy `suggested:` tag prefix). */
+  suggestedAction?: CandidateSuggestedAction | undefined;
 }
 
 export interface SessionConsolidationInput {
@@ -620,10 +622,19 @@ export type CreateCandidateInput = Omit<
   targetMemoryId?: string | undefined;
   /** Review reason (e.g. 'noise', 'contradiction', 'expires_at_passed'). */
   reviewReason?: string | undefined;
+  /** Advisory suggested action (typed successor of the legacy `suggested:` tag prefix). */
+  suggestedAction?: CandidateSuggestedAction | undefined;
 };
 
 /** Outcome of resolving a review candidate (the redesign contract's decision path). */
 export type CandidateDecision = 'delete' | 'archive' | 'keep';
+
+/**
+ * Advisory action a review proposal suggests (typed successor of the legacy
+ * `suggested:` tag prefix). The resolver's `CandidateDecision` remains the
+ * authoritative outcome; `'investigate'`/`'update'` are advisory-only.
+ */
+export type CandidateSuggestedAction = CandidateDecision | 'investigate' | 'update';
 
 export interface MemoryCandidateResolution {
   candidateId: string;

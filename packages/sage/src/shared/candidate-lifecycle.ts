@@ -75,8 +75,11 @@ export interface ResolutionDecision {
  * text — the previous fallback that parsed `source:<id>` from candidate
  * tags let any caller silently retarget a resolution by including the
  * tag in their `memory_candidates({ action: 'propose', memory_id: X })`
- * call (which writes `source:${memory_id}` into the tag list). The
- * fallback is removed; `targetMemoryId` is now the sole source.
+ * call (which used to write `source:${memory_id}` into the tag list). The
+ * fallback is removed AND the tag channel is fully retired (E1, 2026-08-02):
+ * no producer writes `source:`/`review:`/`suggested:` prefixes anymore —
+ * `targetMemoryId`, `reviewReason`, and `suggestedAction` are the sole,
+ * typed channels. `targetMemoryId` is the single resolution source.
  */
 export function resolveTargetId(candidate: MemoryCandidate): string | undefined {
   return candidate.targetMemoryId;

@@ -106,5 +106,50 @@ describe('createCandidate field validation (B3, 2026-08-02)', () => {
     });
     expect(candidate.text).toBe('candidate validation probe delta');
     expect(candidate.status).toBe('pending');
+    expect(candidate.kind).toBe('fact');
+    expect(candidate.importance).toBe(0.5);
+  });
+});
+
+describe('candidate typed review metadata (E1, 2026-08-02)', () => {
+  it('correlates pending reviews via targetMemoryId and typed fields', async () => {
+    const memory = await store.rememberSage({
+      text: 'e1 correlation probe file note',
+      kind: 'file_note',
+      importance: 0.5,
+      anchors: [{ type: 'file', path: 'src/e1-probe.ts' }],
+    });
+    await store.createCandidate({
+      text: 'review this memory',
+      kind: 'memory_review',
+      importance: 0.4,
+      targetMemoryId: memory.id,
+      reviewReason: 'noise',
+      suggestedAction: 'delete',
+    });
+
+    const found = await store.findMemoriesForFile('src/e1-probe.ts', {});
+    const match = found.primaryMatches.find((m) => m.memory.id === memory.id);
+    expect(match?.pendingReview?.reason).toBe('noise');
+    expect(match?.pendingReview?.suggestedAction).toBe('delete');
+  });
+
+  it('does not correlate candidates that only carry a legacy source: user tag', async () => {
+    const memory = await store.rememberSage({
+      text: 'e1 correlation probe second file note',
+      kind: 'file_note',
+      importance: 0.5,
+      anchors: [{ type: 'file', path: 'src/e1-probe-2.ts' }],
+    });
+    await store.createCandidate({
+      text: 'tag-only proposal',
+      kind: 'memory_review',
+      importance: 0.4,
+      tags: [`source:${memory.id}`],
+    });
+
+    const found = await store.findMemoriesForFile('src/e1-probe-2.ts', {});
+    const match = found.primaryMatches.find((m) => m.memory.id === memory.id);
+    expect(match?.pendingReview).toBeUndefined();
   });
 });

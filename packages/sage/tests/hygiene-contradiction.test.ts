@@ -53,10 +53,10 @@ describe('hygiene contradiction detection (v1, 2026-08-02)', () => {
     const candidate = pending.find(
       (c) =>
         c.targetMemoryId === newer.id &&
-        c.tags.some((tag) => tag.startsWith('review:possible_contradiction_with_')),
+        c.reviewReason?.startsWith('Possible contradiction with'),
     );
     expect(candidate).toBeDefined();
-    expect(candidate?.tags).toContain('suggested:investigate');
+    expect(candidate?.suggestedAction).toBe('investigate');
   });
 
   it('does not flag overlapping pairs without a negation cue, nor re-flag linked pairs', async () => {
@@ -111,13 +111,14 @@ describe('hygiene contradiction detection (v1, 2026-08-02)', () => {
       importance: 0.7,
     });
     const b = await store.rememberSage({
-      text: 'the cache layer does not keep retry counts',
+      text: 'the cache layer never keeps retry counts',
       kind: 'fact',
       importance: 0.7,
     });
-    // True ≥0.88 near-dup pair (overlap 6/6): findNearDuplicate passes the
-    // near-dup threshold, so it is the polarity guard (isPossiblyContradictory)
-    // that must refuse the merge — removing that guard turns this red.
+    // True ≥0.88 near-dup pair (overlap 6/6, no stemming differences):
+    // findNearDuplicate passes the near-dup threshold, so it is the polarity
+    // guard (isPossiblyContradictory) that must refuse the merge — removing
+    // that guard turns this red.
     expect(a.id).not.toBe(b.id);
   });
 });

@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 458,
+      "files": 459,
       "typeOnly": 51,
-      "runtimeOrMixed": 463
+      "runtimeOrMixed": 464
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -182,6 +182,11 @@
       "files": 13,
       "typeOnly": 0,
       "runtimeOrMixed": 13
+    },
+    "@wrongstack/core/utils/sage-output-block": {
+      "files": 3,
+      "typeOnly": 0,
+      "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
       "files": 4,
@@ -14603,6 +14608,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage/tests/sage-heading-contract.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/sdd/src/conflict-resolver.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15644,6 +15655,24 @@
       "file": "packages/webui/src/stores/chat-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/sage-output-block",
+      "file": "packages/tui/src/components/history/sage-output-format.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/sage-output-block",
+      "file": "packages/webui/src/lib/sage-block.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/sage-output-block",
+      "file": "packages/webui/tests/lib/sage-block.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",

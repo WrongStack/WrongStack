@@ -958,7 +958,7 @@ describe('SqliteSageStore', () => {
       const report = await store.hygiene({ archiveLowConfidenceAfterDays: 30, verify: false });
       expect(report.reviewCandidatesCreated).toBeGreaterThanOrEqual(1);
       const candidates = await store.listCandidates();
-      const lowConfCandidates = candidates.filter((c) => c.tags.some((t) => t === 'review:confidence_low'));
+      const lowConfCandidates = candidates.filter((c) => c.reviewReason === 'confidence_low');
       expect(lowConfCandidates.length).toBeGreaterThanOrEqual(1);
     });
 

@@ -12,7 +12,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await rm(tempDir, { recursive: true, force: true });
+  if (tempDir) await rm(tempDir, { recursive: true, force: true });
 });
 
 function makeMemory(anchors: MemoryAnchor[]): Sage {
@@ -103,7 +103,7 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
     };
     const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
     expect(result.anchors[0]?.status).toBe('unknown');
-    expect(result.anchors[0]?.reason).toContain('Ambiguous');
+    expect(result.anchors[0]?.reason).toContain('installs it on demand');
   });
 
   it('treats command -p and sudo -h as no-argument flags', async () => {

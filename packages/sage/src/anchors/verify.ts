@@ -2,7 +2,6 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { promisify } from 'node:util';
 import { assertProjectAgentRole, FLEET_ROSTER } from '@wrongstack/core/coordination';
 import type {
   AnchorVerificationResult,
@@ -12,8 +11,6 @@ import type {
   VerificationStatus,
 } from '../types.js';
 
-const execFileAsync = promisify(execFile);
-
 export async function verifyMemoryAnchors(
   projectRoot: string,
   memory: Sage,
@@ -21,8 +18,16 @@ export async function verifyMemoryAnchors(
   signal?: AbortSignal,
 ): Promise<MemoryVerificationResult> {
   signal?.throwIfAborted();
+  // D5: batch ALL git blob hashes for this memory's git anchors in ONE
+  // subprocess (`git hash-object --stdin-paths`) instead of one spawn per
+  // anchor; per-anchor verification reads the shared cache.
+  const gitTargets = memory.anchors
+    .filter((anchor) => anchor.gitBlobHash || anchor.type === 'git')
+    .map((anchor) => path.resolve(projectRoot, anchor.path ?? ''))
+    .filter((target) => isInside(projectRoot, target));
+  const gitBlobCache = await batchGitBlobHashes(projectRoot, gitTargets, signal);
   const anchors = await Promise.all(
-    memory.anchors.map((anchor) => verifyAnchor(projectRoot, anchor, signal)),
+    memory.anchors.map((anchor) => verifyAnchor(projectRoot, anchor, signal, gitBlobCache)),
   );
   return {
     memoryId: memory.id,
@@ -30,6 +35,52 @@ export async function verifyMemoryAnchors(
     checkedAt,
     anchors,
   };
+}
+
+/**
+ * D5: resolve git blob hashes for a batch of paths in a single `git
+ * hash-object --stdin-paths` call (one hash per input line, order-preserving).
+ * Returns an empty cache on any git failure — the per-anchor branch then
+ * reports 'unknown' (Git blob could not be calculated), matching the old
+ * per-anchor spawn failure behavior.
+ */
+async function batchGitBlobHashes(
+  projectRoot: string,
+  targets: string[],
+  signal?: AbortSignal,
+): Promise<ReadonlyMap<string, string>> {
+  const cache = new Map<string, string>();
+  if (targets.length === 0) return cache;
+  try {
+    // Hash the REAL paths (parity with the old per-anchor behavior, which ran
+    // `git hash-object` on fs.realpath output): git hashes a symlink itself,
+    // not its target, so resolving first keeps gitBlobHash stable for
+    // symlinked anchors.
+    const realTargets = await Promise.all(
+      targets.map((target) => fs.realpath(target).catch(() => target)),
+    );
+    const stdout = await new Promise<string>((resolve, reject) => {
+      const child = execFile(
+        'git',
+        ['hash-object', '--stdin-paths'],
+        { cwd: projectRoot, windowsHide: true, timeout: 10_000, signal },
+        (error, output) => {
+          if (error) reject(error);
+          else resolve(output);
+        },
+      );
+      child.stdin?.once('error', reject);
+      child.stdin?.end(`${realTargets.join('\n')}\n`);
+    });
+    const lines = stdout.split('\n');
+    targets.forEach((target, index) => {
+      const hash = lines[index]?.trim();
+      if (hash) cache.set(target, hash);
+    });
+  } catch {
+    // Per-anchor branch falls back to 'unknown'.
+  }
+  return cache;
 }
 
 /** Shell wrappers that delegate to the following command — the probe resolves the real executable. */
@@ -95,6 +146,8 @@ interface ResolvedExecutable {
    * be 'unknown', never 'stale'.
    */
   demandFetch: boolean;
+  /** The wrapper token that delegated resolution (e.g. 'npx'), for reason text. */
+  wrapper: string | undefined;
 }
 
 /**
@@ -103,15 +156,19 @@ interface ResolvedExecutable {
  * and skipping wrappers that delegate to the next token.
  */
 /** Wrappers that install their target on demand (PATH absence is not staleness). */
-const DEMAND_FETCH_WRAPPERS = new Set(['npx', 'pnpm', 'yarn', 'bun']);
+const DEMAND_FETCH_WRAPPERS = new Set(['npx']);
 
 function resolveCommandExecutable(command: string): ResolvedExecutable {
   const trimmed = command.trim();
-  if (!trimmed) return { executable: undefined, skippedFlag: false, demandFetch: false };
+  if (!trimmed) {
+    return { executable: undefined, skippedFlag: false, demandFetch: false, wrapper: undefined };
+  }
   const first = firstToken(trimmed);
-  if (!first) return { executable: undefined, skippedFlag: false, demandFetch: false };
+  if (!first) {
+    return { executable: undefined, skippedFlag: false, demandFetch: false, wrapper: undefined };
+  }
   if (!COMMAND_WRAPPERS.has(first)) {
-    return { executable: first, skippedFlag: false, demandFetch: false };
+    return { executable: first, skippedFlag: false, demandFetch: false, wrapper: undefined };
   }
   const demandFetch = DEMAND_FETCH_WRAPPERS.has(first);
   const valueFlags = WRAPPER_VALUE_FLAGS[first] ?? new Set<string>();
@@ -120,7 +177,7 @@ function resolveCommandExecutable(command: string): ResolvedExecutable {
   let skippedFlag = false;
   for (let i = 0; i < 8; i++) {
     const token = firstToken(cursor);
-    if (!token) return { executable: undefined, skippedFlag, demandFetch };
+    if (!token) return { executable: undefined, skippedFlag, demandFetch, wrapper: first };
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
       // env-style assignment (`env FOO=bar node`) — unambiguous, not a flag.
       cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
@@ -138,9 +195,9 @@ function resolveCommandExecutable(command: string): ResolvedExecutable {
       }
       continue;
     }
-    return { executable: token, skippedFlag, demandFetch };
+    return { executable: token, skippedFlag, demandFetch, wrapper: first };
   }
-  return { executable: undefined, skippedFlag, demandFetch };
+  return { executable: undefined, skippedFlag, demandFetch, wrapper: first };
 }
 
 function firstToken(input: string): string | undefined {
@@ -181,15 +238,22 @@ async function verifyCommandAnchor(
   if (found) {
     return { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` };
   }
-  if (resolved.skippedFlag || resolved.demandFetch) {
-    // Either an UNKNOWN flag was skipped (the token may be the flag's
-    // argument) or the wrapper installs targets on demand (npx/pnpm/… — PATH
-    // absence is not staleness). A wrong 'stale' would demote the persisted
+  if (resolved.skippedFlag) {
+    // An UNKNOWN flag was skipped during resolution, so `executable` may be
+    // that flag's ARGUMENT. A wrong 'stale' would demote the persisted
     // memory — report 'unknown' instead.
     return {
       anchor,
       status: 'unknown',
       reason: `Ambiguous command anchor: "${executable}" follows a flag (likely a flag argument); not found on PATH.`,
+    };
+  }
+  if (resolved.demandFetch) {
+    // `npx` installs packages on demand — PATH absence is not staleness.
+    return {
+      anchor,
+      status: 'unknown',
+      reason: `Command "${executable}" is not installed; "${resolved.wrapper}" installs it on demand, so absence is not staleness.`,
     };
   }
   return { anchor, status: 'stale', reason: `Command executable "${executable}" was not found on PATH.` };
@@ -320,6 +384,7 @@ async function verifyAnchor(
   projectRoot: string,
   anchor: MemoryAnchor,
   signal?: AbortSignal,
+  gitBlobCache?: ReadonlyMap<string, string>,
 ): Promise<AnchorVerificationResult> {
   signal?.throwIfAborted();
   if (anchor.type === 'command') {
@@ -405,29 +470,49 @@ async function verifyAnchor(
 
   let gitBlobHash: string | undefined;
   if (anchor.gitBlobHash || anchor.type === 'git') {
-    try {
-      const result = await execFileAsync('git', ['hash-object', realPath], {
-        cwd: projectRoot,
-        windowsHide: true,
-        timeout: 5_000,
-        signal,
-      });
-      gitBlobHash = result.stdout.trim();
-      if (anchor.gitBlobHash && anchor.gitBlobHash !== gitBlobHash) {
+    if (gitBlobCache === undefined) {
+      // Direct seam call without a batch pre-fetch — fall back to a single
+      // spawn (matches the pre-D5 per-anchor behavior). verifyMemoryAnchors
+      // always passes a cache, so the batch path never takes this branch.
+      try {
+        const result = await execFileAsync('git', ['hash-object', realPath], {
+          cwd: projectRoot,
+          windowsHide: true,
+          timeout: 5_000,
+          signal,
+        });
+        const stdout =
+          typeof result.stdout === 'string' ? result.stdout : result.stdout.toString('utf8');
+        gitBlobHash = stdout.trim();
+      } catch {
         return {
           anchor,
-          status: 'stale',
-          reason: 'Git blob hash changed.',
+          status: 'unknown',
+          reason: 'Git blob could not be calculated.',
           contentHash,
-          gitBlobHash,
         };
       }
-    } catch {
+    } else {
+      // D5: the hash comes from the batch pre-fetch (single git subprocess per
+      // verify run); a cache miss means the batch failed, mirroring the old
+      // per-anchor spawn failure.
+      gitBlobHash = gitBlobCache.get(absolutePath);
+      if (gitBlobHash === undefined) {
+        return {
+          anchor,
+          status: 'unknown',
+          reason: 'Git blob could not be calculated.',
+          contentHash,
+        };
+      }
+    }
+    if (anchor.gitBlobHash && anchor.gitBlobHash !== gitBlobHash) {
       return {
         anchor,
-        status: 'unknown',
-        reason: 'Git blob could not be calculated.',
+        status: 'stale',
+        reason: 'Git blob hash changed.',
         contentHash,
+        gitBlobHash,
       };
     }
   }

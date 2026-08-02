@@ -183,8 +183,8 @@
       "relativeImports": 10
     },
     "packages/core/src/security/permission-policy.ts": {
-      "lines": 1261,
-      "relativeImports": 12
+      "lines": 970,
+      "relativeImports": 15
     },
     "packages/core/src/security/secret-vault.ts": {
       "lines": 830,
@@ -251,11 +251,11 @@
       "relativeImports": 1
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
-      "lines": 1266,
+      "lines": 1271,
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 1038,
+      "lines": 1051,
       "relativeImports": 41
     },
     "packages/sage/src/tools/memory-tools.ts": {
@@ -263,7 +263,7 @@
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 868,
+      "lines": 884,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -302,10 +302,6 @@
       "lines": 1226,
       "relativeImports": 15
     },
-    "packages/tools/src/exec.ts": {
-      "lines": 1257,
-      "relativeImports": 7
-    },
     "packages/tools/src/kanban.ts": {
       "lines": 944,
       "relativeImports": 11
@@ -315,7 +311,7 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 881,
+      "lines": 882,
       "relativeImports": 17
     },
     "packages/tui/src/app-state.ts": {
@@ -351,8 +347,8 @@
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 1600,
-      "relativeImports": 13
+      "lines": 1023,
+      "relativeImports": 22
     },
     "packages/tui/src/components/settings-picker-model.ts": {
       "lines": 919,

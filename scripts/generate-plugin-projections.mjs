@@ -95,6 +95,10 @@ function expectedPackageExports(pkg) {
       types: './dist/audit.d.ts',
       import: './dist/audit.js',
     },
+    './plugin-audit-catalog': {
+      types: './dist/plugin-audit-catalog.d.ts',
+      import: './dist/plugin-audit-catalog.js',
+    },
   };
   for (const entry of OFFICIAL_PLUGIN_MANIFEST) {
     result[entry.packageSubpath] = {

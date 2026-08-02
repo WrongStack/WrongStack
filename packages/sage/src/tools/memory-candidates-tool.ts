@@ -104,21 +104,19 @@ export function memoryCandidatesTool(memory: SageServiceLike): Tool<
         return memory.resolveCandidate(input.candidate_id!, input.decision!, input.reason);
       }
       if (input.action === 'propose') {
-        const tags = [
-          ...(input.tags ?? []),
-          ...(input.reason ? [`review:${input.reason}`] : []),
-          ...(input.suggested_action ? [`suggested:${input.suggested_action}`] : []),
-          ...(input.memory_id ? [`source:${input.memory_id}`] : []),
-        ];
+        // Proposal metadata lives in typed fields (targetMemoryId /
+        // reviewReason / suggestedAction) — E1: the legacy `review:` /
+        // `suggested:` / `source:` tag prefixes are no longer written.
         return memory.createCandidate({
           text: input.text!,
           ...(input.kind ? { kind: input.kind } : {}),
           ...(input.scope ? { scope: input.scope } : {}),
-          tags,
+          ...(input.tags ? { tags: input.tags } : {}),
           ...(input.importance !== undefined ? { importance: input.importance } : {}),
           ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
           ...(input.memory_id ? { targetMemoryId: input.memory_id } : {}),
           ...(input.reason ? { reviewReason: input.reason } : {}),
+          ...(input.suggested_action ? { suggestedAction: input.suggested_action } : {}),
         });
       }
       return memory.listCandidates(input.include_resolved ?? false);

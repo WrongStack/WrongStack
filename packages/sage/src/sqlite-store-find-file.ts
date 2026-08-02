@@ -100,19 +100,18 @@ export async function findSqliteMemoriesForFile(
   try {
     for (const candidate of await ctx.listCandidates()) {
       if (candidate.status !== 'pending') continue;
-      const sourceId = candidate.tags.find((tag) => tag.startsWith('source:'))?.slice(7);
+      // E1: correlation uses the typed targetMemoryId linkage (the legacy
+      // `source:<id>` tag channel is fully retired); review metadata comes
+      // from the typed reviewReason/suggestedAction fields.
+      const sourceId = candidate.targetMemoryId ?? candidate.memoryId;
       if (!sourceId || !memoryById.has(sourceId)) continue;
-      const action = candidate.tags
-        .find((tag) => tag.startsWith('suggested:'))
-        ?.slice('suggested:'.length);
+      const suggestedAction = candidate.suggestedAction;
       pendingByMemoryId.set(sourceId, {
         candidateId: candidate.id,
-        reason:
-          candidate.tags.find((tag) => tag.startsWith('review:'))?.slice('review:'.length) ??
-          candidate.kind,
+        reason: candidate.reviewReason ?? candidate.kind,
         suggestedAction:
-          action === 'delete' || action === 'archive' || action === 'update'
-            ? action
+          suggestedAction === 'delete' || suggestedAction === 'archive' || suggestedAction === 'update'
+            ? suggestedAction
             : 'investigate',
         ageDays: Math.max(
           0,
