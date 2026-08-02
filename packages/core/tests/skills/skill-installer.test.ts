@@ -467,3 +467,62 @@ describe('SkillInstaller.search', () => {
     expect(blocks.flatMap((b) => b.results)).toEqual([]);
   });
 });
+
+// ── delete containment (WS-097) ─────────────────────────────────────────────
+
+/**
+ * `removeSkillFiles` runs `fs.rm(dir, { recursive: true, force: true })` on a
+ * path built from a skill NAME taken from manifest frontmatter. `path.join`
+ * normalises `..`, so a crafted name escaped the skills directory and took the
+ * recursive delete with it. The file already had `isInside` and applied it on
+ * the copy path, but not here.
+ *
+ * Reached through the private method directly: the install path only calls it
+ * when overwriting an already-installed skill, and the guard is what is under
+ * test, not the route to it.
+ */
+describe('SkillInstaller delete containment (WS-097)', () => {
+  const callRemove = (inst: SkillInstaller, name: string, scope: 'project' | 'user') =>
+    (
+      inst as unknown as {
+        removeSkillFiles(n: string, s: 'project' | 'user'): Promise<void>;
+      }
+    ).removeSkillFiles(name, scope);
+
+  it('refuses a traversing skill name', async () => {
+    const inst = mkInstaller();
+    const outside = path.join(tmpRoot, 'DO-NOT-DELETE');
+    await fs.mkdir(outside, { recursive: true });
+
+    await expect(callRemove(inst, '../DO-NOT-DELETE', 'project')).rejects.toThrow(
+      /outside the skills directory/,
+    );
+    // The directory it aimed at is still there.
+    await expect(fs.stat(outside)).resolves.toBeDefined();
+  });
+
+  it('refuses a name that resolves to the skills directory itself', async () => {
+    // `isInside` allows equality by design, so an empty or `.` name would have
+    // deleted every installed skill.
+    const inst = mkInstaller();
+    await fs.mkdir(projectSkillsDir, { recursive: true });
+    await fs.mkdir(path.join(projectSkillsDir, 'keeper'), { recursive: true });
+
+    for (const name of ['', '.', './']) {
+      await expect(callRemove(inst, name, 'project')).rejects.toThrow(
+        /outside the skills directory/,
+      );
+    }
+    await expect(fs.stat(path.join(projectSkillsDir, 'keeper'))).resolves.toBeDefined();
+  });
+
+  it('still removes an ordinary skill directory', async () => {
+    const inst = mkInstaller();
+    const dir = path.join(projectSkillsDir, 'ordinary');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'SKILL.md'), 'x');
+
+    await callRemove(inst, 'ordinary', 'project');
+    await expect(fs.stat(dir)).rejects.toThrow();
+  });
+});

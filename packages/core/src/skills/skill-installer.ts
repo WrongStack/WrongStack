@@ -522,9 +522,31 @@ export class SkillInstaller {
   /**
    * Remove all files for an installed skill.
    */
+  /**
+   * Delete an installed skill's directory.
+   *
+   * The containment check is not ceremonial: this is a `recursive: true,
+   * force: true` delete whose target is built from a skill NAME taken from
+   * manifest frontmatter. `path.join` normalises `..`, so a crafted name
+   * escapes `targetDir` and takes the recursive delete with it. This file
+   * already had `isInside` and applied it on the copy path but not here.
+   *
+   * The strict-subdirectory requirement matters separately: `isInside` allows
+   * equality by design, and an empty or `.` name resolves `skillDir` to
+   * `targetDir` itself — deleting every installed skill (WS-097).
+   */
   private async removeSkillFiles(name: string, scope: 'project' | 'user'): Promise<void> {
     const targetDir = scope === 'project' ? this.opts.projectSkillsDir : this.opts.globalSkillsDir;
-    const skillDir = path.join(targetDir, name);
+    const root = path.resolve(targetDir);
+    const skillDir = path.resolve(path.join(targetDir, name));
+    if (skillDir === root || !isInside(skillDir, root)) {
+      throw new FsError({
+        message: `Refusing to delete skill files outside the skills directory: ${name}`,
+        code: ERROR_CODES.FS_DELETE_FAILED,
+        path: skillDir,
+        context: { reason: 'path_traversal', skillName: name, scope },
+      });
+    }
     await fs.rm(skillDir, { recursive: true, force: true });
   }
 
