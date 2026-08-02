@@ -1,4 +1,9 @@
-import { assessHqExposure, ensureHqFirstRunAuthFile, resolveHqDataDir } from '@wrongstack/core/hq';
+import {
+  assessHqExposure,
+  ensureHqFirstRunAuthFile,
+  isTokenExpired,
+  resolveHqDataDir,
+} from '@wrongstack/core/hq';
 import { HqInsecureExposureError, type EnsureHqFirstRunAuthResult } from '@wrongstack/core/hq';
 import { resolveAuditActor } from './audit-actor.js';
 
@@ -42,22 +47,42 @@ export async function prepareHqServerStart(
     ...(options.tokenTtlMs !== undefined ? { tokenTtlMs: options.tokenTtlMs } : {}),
   });
   const { authFile } = firstRunAuth;
-  if (
-    options.requireBrowserAuth &&
-    (authFile.browserTokens ?? []).length === 0 &&
-    authFile.passwordHash === undefined
-  ) {
+
+  // Count only LIVE tokens. This used to read `browserTokens.length` straight
+  // from the file while the runtime built its usable set through liveTokens(),
+  // which drops expired entries. The two disagreed in exactly one direction: an
+  // auth file whose tokens had all expired satisfied the exposure check here,
+  // so HQ bound the wildcard host, and then presented `browserTokens.size === 0`
+  // to the router — which read that as "no auth configured" and skipped the
+  // /api/* gate entirely. Enabling token TTL rotation, the more careful
+  // configuration, was the trigger (WS-078).
+  const rawBrowserTokens = authFile.browserTokens ?? [];
+  const liveBrowserTokens = rawBrowserTokens.filter((token) => !isTokenExpired(token));
+  const hasPassword = authFile.passwordHash !== undefined;
+  const allTokensExpired = rawBrowserTokens.length > 0 && liveBrowserTokens.length === 0;
+
+  if (options.requireBrowserAuth && liveBrowserTokens.length === 0 && !hasPassword) {
     throw new HqInsecureExposureError(
-      'HQ public relay requires browser authentication. Set --password or create a browser token first.',
+      allTokensExpired
+        ? `HQ public relay requires browser authentication, but all ${rawBrowserTokens.length} browser token(s) in the auth file have expired. Create a fresh token or set --password.`
+        : 'HQ public relay requires browser authentication. Set --password or create a browser token first.',
     );
   }
   const exposure = assessHqExposure({
     host,
-    hasBrowserTokens: (authFile.browserTokens ?? []).length > 0,
-    hasPassword: authFile.passwordHash !== undefined,
+    hasBrowserTokens: liveBrowserTokens.length > 0,
+    hasPassword,
     allowInsecure: options.allowInsecureOpen,
   });
-  if (exposure.kind === 'refuse') throw new HqInsecureExposureError(exposure.message);
+  if (exposure.kind === 'refuse') {
+    // Without this the operator sees "no browser tokens" while looking at an
+    // auth file that visibly contains some.
+    throw new HqInsecureExposureError(
+      allTokensExpired
+        ? `${exposure.message} (all ${rawBrowserTokens.length} browser token(s) in the auth file have expired)`
+        : exposure.message,
+    );
+  }
   if (exposure.kind === 'warn') {
     console.warn(
       JSON.stringify({
