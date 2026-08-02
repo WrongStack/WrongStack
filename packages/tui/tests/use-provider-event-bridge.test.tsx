@@ -122,6 +122,162 @@ describe('useProviderEventBridge', () => {
     unmount();
   });
 
+  // ── Memory event session filtering ──────────────────────────────
+  // Regression: memory lifecycle events from other sessions/agents
+  // were appearing in the leader's chat history because four handlers
+  // in use-provider-event-bridge.ts were missing the session filter.
+
+  function setupBridge(sessionId: string) {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const agent = { ctx: { session: { id: sessionId }, todos: [] } };
+    const { unmount } = renderHook(() => {
+      const streamingTextRef = useRef('');
+      const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
+      const pendingDeltaRef = useRef('');
+      const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+      const sessionGenerationRef = useRef(1);
+      const activeRunGenerationRef = useRef(1);
+      const assistantCommittedThisRunRef = useRef(false);
+      useProviderEventBridge({
+        events,
+        agent: agent as never,
+        dispatch,
+        streamingTextRef,
+        streamSegmentsRef,
+        pendingDeltaRef,
+        flushTimerRef,
+        sessionGenerationRef,
+        activeRunGenerationRef,
+        assistantCommittedThisRunRef,
+        setMemoryContextMonitor: vi.fn(),
+      });
+    });
+    return { events, dispatch, unmount };
+  }
+
+  function memoryEntries(dispatch: ReturnType<typeof vi.fn>): unknown[] {
+    return dispatch.mock.calls
+      .map(([action]) => action)
+      .filter(
+        (action) =>
+          action.type === 'addEntry' &&
+          ['memory-lifecycle', 'warn', 'info'].includes(action.entry.kind) &&
+          (action.entry.text?.includes('SAGE') ||
+            'action' in (action.entry as Record<string, unknown>)),
+      );
+  }
+
+  it('filters out memory.staled events from other sessions', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.staled', {
+        memoryId: 'mem-1',
+        reason: 'anchor drift',
+        sessionId: 'other-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(0);
+    unmount();
+  });
+
+  it('allows memory.staled events from the current session', () => {
+    // memory.staled fires both the named handler (kind: 'warn') and the
+    // memory.* pattern handler (kind: 'memory-lifecycle'), so we expect 2.
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.staled', {
+        memoryId: 'mem-1',
+        reason: 'anchor drift',
+        sessionId: 'leader-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(2);
+    unmount();
+  });
+
+  it('filters out memory.contradicted events from other sessions', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.contradicted', {
+        memoryId: 'mem-2',
+        contradicts: ['mem-1'],
+        sessionId: 'subagent-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(0);
+    unmount();
+  });
+
+  it('filters out memory.hygiene_completed events from other sessions', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.hygiene_completed', {
+        examined: 10,
+        deduplicated: 2,
+        staled: 1,
+        archived: 0,
+        sessionId: 'other-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(0);
+    unmount();
+  });
+
+  it('allows memory.hygiene_completed events from the current session', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.hygiene_completed', {
+        examined: 10,
+        deduplicated: 2,
+        staled: 1,
+        archived: 0,
+        sessionId: 'leader-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(1);
+    unmount();
+  });
+
+  it('filters out memory.accepted lifecycle events from other sessions', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.accepted', {
+        memoryId: 'mem-3',
+        kind: 'fact',
+        sessionId: 'other-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(0);
+    unmount();
+  });
+
+  it('allows memory.accepted lifecycle events from the current session', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.accepted', {
+        memoryId: 'mem-3',
+        kind: 'fact',
+        sessionId: 'leader-session',
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(1);
+    unmount();
+  });
+
+  it('allows memory events with undefined sessionId (backward compat)', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emit('memory.accepted', {
+        memoryId: 'mem-4',
+        kind: 'fact',
+        // sessionId intentionally omitted
+      });
+    });
+    expect(memoryEntries(dispatch)).toHaveLength(1);
+    unmount();
+  });
+
   it.each([
     ['tool_use', false],
     ['end_turn', true],

@@ -421,18 +421,21 @@ export function useProviderEventBridge({
       });
     });
     const offMemoryStale = events.on('memory.staled', (e) => {
+      if (!memoryEventMatchesSession(e, agent.ctx.session.id)) return;
       dispatch({
         type: 'addEntry',
         entry: { kind: 'warn', text: `SAGE stale: ${e.memoryId} — ${e.reason}` },
       });
     });
     const offMemoryContradicted = events.on('memory.contradicted', (e) => {
+      if (!memoryEventMatchesSession(e, agent.ctx.session.id)) return;
       dispatch({
         type: 'addEntry',
         entry: { kind: 'warn', text: `SAGE contradicted: ${e.memoryId}` },
       });
     });
     const offMemoryHygiene = events.on('memory.hygiene_completed', (e) => {
+      if (!memoryEventMatchesSession(e, agent.ctx.session.id)) return;
       dispatch({
         type: 'addEntry',
         entry: {
@@ -544,6 +547,7 @@ export function useProviderEventBridge({
       pendingSageStats.clear();
     });
     const offMemoryLifecycle = events.onPattern('memory.*', (event, payload) => {
+      if (!memoryEventMatchesSession(payload, agent.ctx.session.id)) return;
       const lifecycle = memoryLifecycleEntry(event, payload as Record<string, unknown>);
       if (!lifecycle) return;
       dispatch({ type: 'addEntry', entry: { kind: 'memory-lifecycle', ...lifecycle } });
