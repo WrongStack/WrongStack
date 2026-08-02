@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { confirmButtonSegments } from '../src/components/confirm-prompt.js';
+import { confirmButtonSegments, payloadDiff } from '../src/components/confirm-prompt.js';
 
 // Pure function tests — no React/Ink rendering needed.
 // We import the helpers by testing the exported component's internal
@@ -20,12 +20,6 @@ function stringifyInput(input: unknown): string {
     .filter(([k]) => k !== 'content' && k !== 'new_string' && k !== 'diff')
     .map(([k, v]) => `${k}: ${truncate(JSON.stringify(v), 80)}`)
     .join('  ');
-}
-
-function hasDiff(input: unknown): boolean {
-  return Boolean(
-    input && typeof input === 'object' && 'diff' in (input as Record<string, unknown>),
-  );
 }
 
 describe('ConfirmPrompt helpers', () => {
@@ -90,25 +84,41 @@ describe('ConfirmPrompt helpers', () => {
     });
   });
 
-  describe('hasDiff', () => {
-    it('returns true when input has diff', () => {
-      expect(hasDiff({ diff: '--- a\n+++ b' })).toBe(true);
+  // WS-080. The old `hasDiff` tests exercised the COPY above, not the shipped
+  // function — which is how `hasDiff` stayed green while being dead in
+  // production: it keyed on `input.diff`, and `diff` exists only on EditOutput,
+  // never on the EditInput/WriteInput the dialog receives. The replacement is
+  // imported from the real module so it cannot drift the same way.
+  describe('payloadDiff (imported from the component, not copied)', () => {
+    it('synthesises a diff from old_string/new_string', () => {
+      const diff = payloadDiff({
+        path: 'a.ts',
+        old_string: 'const a = 1;',
+        new_string: 'const a = 2;',
+      });
+      expect(diff).toContain('-const a = 1;');
+      expect(diff).toContain('+const a = 2;');
     });
 
-    it('returns false for plain object', () => {
-      expect(hasDiff({ path: 'a.ts' })).toBe(false);
+    it('renders a whole-file write as an all-added diff', () => {
+      const diff = payloadDiff({ path: 'a.ts', content: 'export const x = 1;' });
+      expect(diff).toContain('+export const x = 1;');
     });
 
-    it('returns false for null', () => {
-      expect(hasDiff(null)).toBe(false);
+    it('shows new_string even when old_string is missing', () => {
+      // A malformed payload is exactly when the user most needs to see it.
+      expect(payloadDiff({ path: 'a.ts', new_string: 'injected' })).toContain('+injected');
     });
 
-    it('returns false for non-object', () => {
-      expect(hasDiff('string')).toBe(false);
+    it('still honours a prebuilt diff when one is genuinely supplied', () => {
+      expect(payloadDiff({ diff: '--- a\n+++ b' })).toBe('--- a\n+++ b');
     });
 
-    it('returns true even if diff is empty string', () => {
-      expect(hasDiff({ diff: '' })).toBe(true);
+    it('returns empty for inputs with no payload', () => {
+      expect(payloadDiff({ path: 'a.ts' })).toBe('');
+      expect(payloadDiff(null)).toBe('');
+      expect(payloadDiff('string')).toBe('');
+      expect(payloadDiff({ diff: '' })).toBe('');
     });
   });
 });

@@ -107,7 +107,7 @@ describe('makePromptDelegate', () => {
     });
   });
 
-  it('omits long content and new_string from summary', async () => {
+  it('omits long content and new_string from the summary LINE', async () => {
     captureStdout();
     const reader: InputReader = {
       readLine: vi.fn(async () => ''),
@@ -120,7 +120,63 @@ describe('makePromptDelegate', () => {
       { path: '/a', content: 'x'.repeat(500), new_string: 'y'.repeat(500) },
       'edit:/a',
     );
-    expect(getStdout()).not.toContain('xxxxxx');
-    expect(getStdout()).not.toContain('yyyyyy');
+    // The summary line stays readable — that is what this test was protecting.
+    // It previously asserted against the WHOLE of stdout, which pinned the
+    // defect rather than the intent: with the compensating diff branch dead,
+    // "not in the summary" meant "not shown anywhere" (WS-080).
+    const summaryLine = getStdout()
+      .split('\n')
+      .find((line) => line.includes('path:'));
+    expect(summaryLine).toBeDefined();
+    expect(summaryLine).not.toContain('xxxxxx');
+    expect(summaryLine).not.toContain('yyyyyy');
+  });
+
+  it('shows the payload a mutating call is about to write', async () => {
+    captureStdout();
+    const reader: InputReader = {
+      readLine: vi.fn(async () => ''),
+      readKey: vi.fn(async () => 'no'),
+      close: vi.fn(async () => undefined),
+    };
+    await makePromptDelegate(reader)(
+      fakeTool,
+      { path: '/a', old_string: 'before-text', new_string: 'after-text' },
+      'edit:/a',
+    );
+    // Approving an edit without seeing the replacement is not consent.
+    expect(getStdout()).toContain('after-text');
+  });
+
+  it('shows the full content of a whole-file write', async () => {
+    captureStdout();
+    const reader: InputReader = {
+      readLine: vi.fn(async () => ''),
+      readKey: vi.fn(async () => 'no'),
+      close: vi.fn(async () => undefined),
+    };
+    await makePromptDelegate(reader)(
+      fakeTool,
+      { path: '/a', content: 'overwritten-by-agent' },
+      'write:/a',
+    );
+    // `write` replaces the entire file; the user saw only a path before.
+    expect(getStdout()).toContain('overwritten-by-agent');
+  });
+
+  it('states how much of an oversized payload it withheld', async () => {
+    captureStdout();
+    const reader: InputReader = {
+      readLine: vi.fn(async () => ''),
+      readKey: vi.fn(async () => 'no'),
+      close: vi.fn(async () => undefined),
+    };
+    await makePromptDelegate(reader)(
+      fakeTool,
+      { path: '/a', content: Array.from({ length: 120 }, (_, i) => `line-${i}`).join('\n') },
+      'write:/a',
+    );
+    // A silent cap would recreate the same class of bug at a different size.
+    expect(getStdout()).toMatch(/more lines? not shown/);
   });
 });

@@ -1,6 +1,6 @@
 import { alwaysAllowUnavailableReason } from '@wrongstack/core/security';
 import type { InputReader, Tool } from '@wrongstack/core/types';
-import { color, truncate, writeOut } from '@wrongstack/core/utils';
+import { color, truncate, unifiedDiff, writeOut } from '@wrongstack/core/utils';
 import { renderDiff } from './diff-renderer.js';
 import { theme } from './theme.js';
 
@@ -25,11 +25,11 @@ export function makePromptDelegate(reader: InputReader) {
     );
     writeOut(`${color.dim(stringifyInput(input))}\n`);
 
-    if (tool.name === 'edit' && hasDiff(input)) {
-      const inp = input as { diff?: unknown | undefined };
-      const diff = typeof inp.diff === 'string' ? inp.diff : '';
-      if (diff) writeOut(`${renderDiff(diff)}\n`);
-    }
+    // Not gated on tool.name: `write`, `edit`, and any future mutating tool
+    // that carries a payload must all show it. The previous check was
+    // `tool.name === 'edit' && hasDiff(input)`, and hasDiff was never true.
+    const preview = renderPayloadPreview(input);
+    if (preview) writeOut(`${preview}\n`);
 
     writeOut(color.dim('─────────────────\n'));
 
@@ -82,8 +82,65 @@ function stringifyInput(input: unknown): string {
     .join('  ');
 }
 
-function hasDiff(input: unknown): boolean {
-  return Boolean(
-    input && typeof input === 'object' && 'diff' in (input as Record<string, unknown>),
-  );
+/**
+ * Longest payload preview shown before an approval. A cap is unavoidable for a
+ * terminal prompt, but a SILENT cap would recreate the bug being fixed, so the
+ * renderer always states how much it withheld.
+ */
+const PREVIEW_MAX_LINES = 40;
+
+function clipPreview(body: string): string {
+  const lines = body.split('\n');
+  if (lines.length <= PREVIEW_MAX_LINES) return body;
+  const hidden = lines.length - PREVIEW_MAX_LINES;
+  return `${lines.slice(0, PREVIEW_MAX_LINES).join('\n')}\n${color.dim(
+    `… ${hidden} more line${hidden === 1 ? '' : 's'} not shown — review the file before approving`,
+  )}`;
+}
+
+/**
+ * Render the payload a mutating tool is about to write.
+ *
+ * `stringifyInput` strips `content` and `new_string` so the one-line summary
+ * stays readable. The compensating branch that was meant to restore them keyed
+ * on `input.diff` — but `diff` exists only on EditOutput, never on EditInput,
+ * and nothing enriches the input before the prompt sees it. So it was dead code
+ * and the user approved edits and whole-file writes having seen only a path
+ * (WS-080).
+ *
+ * For `edit` the diff is synthesised from the two strings the tool was given.
+ * For `write` there is no "before" to diff against, so the content is shown.
+ */
+function renderPayloadPreview(input: unknown): string {
+  if (!input || typeof input !== 'object') return '';
+  const obj = input as Record<string, unknown>;
+
+  const newString = obj['new_string'];
+  if (typeof newString === 'string') {
+    // `old_string` absent is treated as an insertion rather than as a reason to
+    // show nothing: a malformed or partial payload is exactly when the user most
+    // needs to see what will be written.
+    const oldString = typeof obj['old_string'] === 'string' ? obj['old_string'] : '';
+    const diff = unifiedDiff(oldString, newString, {
+      fromFile: 'before',
+      toFile: 'after',
+      context: 2,
+    });
+    return diff ? clipPreview(renderDiff(diff)) : color.dim('(replacement is identical)');
+  }
+
+  const content = obj['content'];
+  if (typeof content === 'string') {
+    if (content === '') return color.dim('(writes an empty file)');
+    return clipPreview(
+      content
+        .split('\n')
+        .map((line) => color.dim('│ ') + line)
+        .join('\n'),
+    );
+  }
+
+  // A caller that genuinely supplies a prebuilt diff still renders.
+  const diff = obj['diff'];
+  return typeof diff === 'string' && diff ? clipPreview(renderDiff(diff)) : '';
 }

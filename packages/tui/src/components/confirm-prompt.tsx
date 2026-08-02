@@ -1,5 +1,5 @@
 import { Box, Text, useInput } from '../ink.js';
-import { writeOut } from '@wrongstack/core/utils';
+import { unifiedDiff, writeOut } from '@wrongstack/core/utils';
 import React from 'react';
 import { langFromPath } from '../highlight.js';
 import { theme } from '../theme.js';
@@ -82,10 +82,43 @@ function truncate(s: string, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }
 
-function hasDiff(input: unknown): boolean {
-  return Boolean(
-    input && typeof input === 'object' && 'diff' in (input as Record<string, unknown>),
-  );
+/**
+ * Unified-diff text for the payload a mutating tool is about to write.
+ *
+ * `stringifyInput` strips `content`/`new_string` to keep the summary line
+ * readable, and the branch meant to compensate keyed on `input.diff`. But
+ * `diff` lives on EditOutput, never on EditInput/WriteInput, and no layer
+ * enriches the input before the dialog receives it — so the branch was dead
+ * and this dialog asked the user to approve an edit, or an arbitrary
+ * whole-file overwrite, having shown them only a path (WS-080).
+ *
+ * Synthesised here from the fields the tool was actually given, so it renders
+ * through the same DiffBlock the committed history entries use.
+ */
+export function payloadDiff(input: unknown): string {
+  if (!input || typeof input !== 'object') return '';
+  const obj = input as Record<string, unknown>;
+  const filePath = typeof obj['path'] === 'string' ? obj['path'] : 'file';
+
+  // A caller that genuinely supplies a prebuilt diff keeps working.
+  if (typeof obj['diff'] === 'string' && obj['diff']) return obj['diff'];
+
+  const newString = obj['new_string'];
+  if (typeof newString === 'string') {
+    // `old_string` absent is treated as an insertion rather than as a reason to
+    // show nothing: a malformed or partial payload is exactly when the user most
+    // needs to see what will be written.
+    const oldString = typeof obj['old_string'] === 'string' ? obj['old_string'] : '';
+    return unifiedDiff(oldString, newString, { fromFile: filePath, toFile: filePath, context: 2 });
+  }
+
+  // `write` replaces the whole file and has no "before", so every line is an
+  // addition. Rendering it as a diff keeps one preview component for both.
+  const content = obj['content'];
+  if (typeof content === 'string' && content) {
+    return unifiedDiff('', content, { fromFile: '/dev/null', toFile: filePath, context: 0 });
+  }
+  return '';
 }
 
 /** Max diff lines shown inside the approval dialog before truncation. */
@@ -180,9 +213,8 @@ export function ConfirmPrompt({
   });
 
   const inputSummary = stringifyInput(input);
-  const showDiff = hasDiff(input);
-  const inp = input as { diff?: unknown | undefined; path?: unknown | undefined };
-  const diff = typeof inp?.diff === 'string' ? inp.diff : '';
+  const inp = input as { path?: unknown | undefined };
+  const diff = payloadDiff(input);
   const diffPath = typeof inp?.path === 'string' ? inp.path : undefined;
 
   // NOTE: no marginY here — the call site wraps this in a measured Box that
@@ -202,7 +234,7 @@ export function ConfirmPrompt({
       </Box>
       {inputSummary ? <Text dimColor>{inputSummary}</Text> : null}
       {boundaryReason ? <Text color="yellow">KANBAN BOUNDARY: {boundaryReason}</Text> : null}
-      {showDiff && diff ? (
+      {diff ? (
         <Box flexDirection="column" marginY={1}>
           {renderDiff(diff, diffPath)}
         </Box>
