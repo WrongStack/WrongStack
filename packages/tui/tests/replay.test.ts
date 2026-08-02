@@ -440,4 +440,42 @@ describe('replaySessionEvents', () => {
     const entries = replaySessionMessages(messages, events, 1);
     expect(entries.map((e) => e.kind)).toEqual(['user', 'info', 'assistant']);
   });
+
+  it('replaySessionMessages interleaves text and tool entries block-by-block (not all text first)', () => {
+    // Regression: an assistant message carrying prose BEFORE a tool_use
+    // followed by prose AFTER that tool_use must render three separate entries
+    // in block order: assistant(pre) → tool → assistant(post).
+    //
+    // The old code concatenated ALL text blocks first and emitted them before
+    // any tool entry, so the continuation prose appeared ahead of the tool on
+    // resume — breaking the visual timeline.
+    const messages = [
+      {
+        role: 'assistant' as const,
+        content: [
+          { type: 'text' as const, text: 'Let me check that file.' },
+          { type: 'tool_use' as const, id: 'tu-1', name: 'read', input: { path: 'a.ts' } },
+          { type: 'text' as const, text: 'Now I can see the issue is on line 5.' },
+        ],
+        ts: '2026-01-01T00:00:00Z',
+      },
+      {
+        role: 'user' as const,
+        content: [{ type: 'tool_result' as const, tool_use_id: 'tu-1', content: 'actual contents', is_error: false }],
+        ts: '2026-01-01T00:00:01Z',
+      },
+    ];
+
+    const entries = replaySessionMessages(messages, [], 1);
+
+    // Expected block order: assistant(pre) → tool → assistant(post)
+    expect(entries.map((e) => e.kind)).toEqual(['assistant', 'tool', 'assistant']);
+    expect((entries[0] as { text: string }).text).toBe('Let me check that file.');
+    expect(entries[1]).toMatchObject({ kind: 'tool', name: 'read', ok: true, output: 'actual contents' });
+    expect((entries[2] as { text: string }).text).toBe('Now I can see the issue is on line 5.');
+    // Both text segments are mid-turn (the message carries a tool_use),
+    // so neither is `final`. `final` is per-message, not per-text-block.
+    expect((entries[0] as { final: boolean }).final).toBe(false);
+    expect((entries[2] as { final: boolean }).final).toBe(false);
+  });
 });
