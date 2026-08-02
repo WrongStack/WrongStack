@@ -41,6 +41,16 @@ interface RemoteSageRetrievalCapability extends SageRetrieverLike {
      * the audit log.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
+    /**
+     * Session ownership filter. When set, only session-scoped memories owned
+     * by this session (plus all non-session memories) are returned. When
+     * unset (and `includeAllSessions` is not true), owned session-scoped
+     * memories are hidden — only unowned session memories remain visible,
+     * so pass `sessionId` to see your own session's records.
+     */
+    sessionId?: string | undefined,
+    /** Admin opt-out: include all sessions' session-scoped memories. */
+    includeAllSessions?: boolean | undefined,
   ): Promise<import('./types.js').Sage[]>;
 }
 
@@ -79,8 +89,8 @@ export class ProjectSageMemoryPort implements MemoryPort {
     recordUse: (memoryIds, source, sessionId) =>
       this.call('recordUse', { memoryIds, source, sessionId }),
     flushPendingCounters: async () => {},
-    retrieveForAudience: (context, limit, _onTruncated) =>
-      this.call('retrieveForAudience', { context, limit }),
+    retrieveForAudience: (context, limit, _onTruncated, sessionId, includeAllSessions) =>
+      this.call('retrieveForAudience', { context, limit, sessionId, includeAllSessions }),
   };
 
   private readonly surfaceCapability: SageSurface = {
@@ -96,8 +106,8 @@ export class ProjectSageMemoryPort implements MemoryPort {
     acceptCandidate: (candidateId) => this.call('acceptCandidate', { candidateId }),
     rejectCandidate: (candidateId, reason) =>
       this.call('rejectCandidate', { candidateId, reason }),
-    retrieveForAudience: (context, limit, _onTruncated) =>
-      this.call('retrieveForAudience', { context, limit }),
+    retrieveForAudience: (context, limit, _onTruncated, sessionId, includeAllSessions) =>
+      this.call('retrieveForAudience', { context, limit, sessionId, includeAllSessions }),
     hygiene: (options) =>
       this.call('hygiene', { options }, { timeoutMs: 5 * 60_000 }),
     listCandidates: (includeResolved) => this.call('listCandidates', { includeResolved }),
@@ -137,8 +147,8 @@ export class ProjectSageMemoryPort implements MemoryPort {
     retrieveForPath: (options) =>
       this.call('retrieveForPath', { options: options as SageForPathOptions }),
     searchSage: (query, options) => this.call('searchSage', { query, options }),
-    retrieveForAudience: (context, limit, _onTruncated) =>
-      this.call('retrieveForAudience', { context, limit }),
+    retrieveForAudience: (context, limit, _onTruncated, sessionId, includeAllSessions) =>
+      this.call('retrieveForAudience', { context, limit, sessionId, includeAllSessions }),
     graphFor: (query, maxDepth, limit) => this.call('graphFor', { query, maxDepth, limit }),
     verify: (memoryId, signal) =>
       this.call('verify', { memoryId }, { signal, timeoutMs: 2 * 60_000 }),

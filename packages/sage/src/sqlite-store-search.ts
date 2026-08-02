@@ -19,9 +19,20 @@
  * FTS5 + the existing memories join.
  */
 import type { SQLInputValue } from 'node:sqlite';
-import type { SearchQuery, SearchResult, SearchHit, SearchMatchReason, SearchRanking } from './service-contract.js';
+import type {
+  SearchOptions,
+  SearchQuery,
+  SearchResult,
+  SearchHit,
+  SearchMatchReason,
+  SearchRanking,
+} from './service-contract.js';
 import type { SqliteAdminHost } from './sqlite-store-admin.js';
-import { ftsPrefixTerms, sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
+import {
+  buildSessionClause,
+  ftsPrefixTerms,
+  sqliteRowsToMemories,
+} from './sqlite-store-search-helpers.js';
 import type { SageStatus } from './types.js';
 
 const DEFAULT_LIMIT = 50;
@@ -30,11 +41,15 @@ const MAX_LIMIT = 200;
 export function executeUnifiedSearch(
   host: SqliteAdminHost,
   query: SearchQuery,
-  options?: { limit?: number | undefined; includeStatuses?: SageStatus[] | undefined; ranking?: SearchRanking | undefined },
+  options?: SearchOptions | undefined,
 ): SearchResult {
   const limit = Math.min(Math.max(options?.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
   const statusFilter = options?.includeStatuses ?? ['active'] as SageStatus[];
   const ranking: SearchRanking = options?.ranking ?? 'hybrid';
+  // Session isolation: session-scoped memories must only be visible to their
+  // owning session (or to administrative callers that opt out explicitly).
+  const session = buildSessionClause(options);
+  const ftsSession = buildSessionClause(options, 'm.');
   if (statusFilter.length === 0) {
     return { hits: [], suggestions: [], totalCandidates: 0, rankingApplied: ranking, queryEcho: {} };
   }
@@ -74,6 +89,10 @@ export function executeUnifiedSearch(
       ftsFilterClauses.push('m.importance >= ?');
       ftsParams.push(query.importanceAtLeast);
     }
+    if (ftsSession.clause) {
+      ftsFilterClauses.push(ftsSession.clause.replace(/^\s*AND\s+/i, ''));
+      ftsParams.push(...ftsSession.params);
+    }
 
     const ftsWhereSql = ' WHERE ' + ftsFilterClauses.join(' AND ');
     const ftsDataSql =
@@ -103,6 +122,10 @@ export function executeUnifiedSearch(
     if (query.importanceAtLeast !== undefined) {
       sharedWhere.push('importance >= ?');
       params.push(query.importanceAtLeast);
+    }
+    if (session.clause) {
+      sharedWhere.push(session.clause.replace(/^\s*AND\s+/i, ''));
+      params.push(...session.params);
     }
 
     const sharedWhereSql = sharedWhere.length > 0

@@ -422,7 +422,13 @@ async function dispatch(
     }
     case 'retrieveForAudience': {
       const args = rawArgs as SageServerOperations['retrieveForAudience']['args'];
-      return store.retrieveForAudience(args.context, args.limit);
+      return store.retrieveForAudience(
+        args.context,
+        args.limit,
+        undefined,
+        args.sessionId,
+        args.includeAllSessions,
+      );
     }
     case 'graphFor': {
       const args = rawArgs as SageServerOperations['graphFor']['args'];

@@ -61,6 +61,16 @@ export interface SearchOptions {
   includeStatuses?: SageStatus[] | undefined;
   ranking?: SearchRanking | undefined;
   suggest?: SearchSuggestionMode | undefined;
+  /**
+   * Session ownership filter. When set, only session-scoped memories owned
+   * by this session (plus all non-session memories) are returned. When
+   * unset (and `includeAllSessions` is not true), owned session-scoped
+   * memories are hidden — only unowned session memories remain visible,
+   * so pass `sessionId` to see your own session's records.
+   */
+  sessionId?: string | undefined;
+  /** Admin opt-out: include all sessions' session-scoped memories. */
+  includeAllSessions?: boolean | undefined;
 }
 
 export interface SearchHit {
@@ -121,6 +131,16 @@ export interface SageSurface {
      * site.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
+    /**
+     * Session ownership filter. When set, only session-scoped memories owned
+     * by this session (plus all non-session memories) are returned. When
+     * unset (and `includeAllSessions` is not true), owned session-scoped
+     * memories are hidden — only unowned session memories remain visible,
+     * so pass `sessionId` to see your own session's records.
+     */
+    sessionId?: string | undefined,
+    /** Admin opt-out: include all sessions' session-scoped memories. */
+    includeAllSessions?: boolean | undefined,
   ): Promise<Sage[]>;
   hygiene(options?: SageHygieneOptions): Promise<SageHygieneReport>;
   listCandidates(includeResolved?: boolean): Promise<MemoryCandidate[]>;
@@ -168,6 +188,16 @@ export interface SageServiceLike extends MemoryStore {
      * site.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
+    /**
+     * Session ownership filter. When set, only session-scoped memories owned
+     * by this session (plus all non-session memories) are returned. When
+     * unset (and `includeAllSessions` is not true), owned session-scoped
+     * memories are hidden — only unowned session memories remain visible,
+     * so pass `sessionId` to see your own session's records.
+     */
+    sessionId?: string | undefined,
+    /** Admin opt-out: include all sessions' session-scoped memories. */
+    includeAllSessions?: boolean | undefined,
   ): Promise<Sage[]>;
   graphFor(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]>;
   verify(memoryId?: string, signal?: AbortSignal): Promise<MemoryVerificationResult[]>;

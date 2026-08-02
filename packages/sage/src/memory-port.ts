@@ -33,6 +33,16 @@ export interface SageRetrievalCapability extends SageRetrieverLike {
      * site.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
+    /**
+     * Session ownership filter. When set, only session-scoped memories owned
+     * by this session (plus all non-session memories) are returned. When
+     * unset (and `includeAllSessions` is not true), owned session-scoped
+     * memories are hidden — only unowned session memories remain visible,
+     * so pass `sessionId` to see your own session's records.
+     */
+    sessionId?: string | undefined,
+    /** Admin opt-out: include all sessions' session-scoped memories. */
+    includeAllSessions?: boolean | undefined,
   ): Promise<import('./types.js').Sage[]>;
 }
 
@@ -84,8 +94,8 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     // flushPendingCounters is the no-op signal that "everything is already
     // durable".
     flushPendingCounters: async () => {},
-    retrieveForAudience: (context, limit, onTruncated) =>
-      super.retrieveForAudience(context, limit, onTruncated),
+    retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
+      super.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
   };
   private readonly surfaceCapability: SageSurface = {
     stats: () => super.stats(),
@@ -100,8 +110,8 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     searchSage: (query, options) => super.searchSage(query, options),
     acceptCandidate: (candidateId) => super.acceptCandidate(candidateId),
     rejectCandidate: (candidateId, reason) => super.rejectCandidate(candidateId, reason),
-    retrieveForAudience: (context, limit, onTruncated) =>
-      super.retrieveForAudience(context, limit, onTruncated),
+    retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
+      super.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
     hygiene: (options) => super.hygiene(options),
     listCandidates: (includeResolved) => super.listCandidates(includeResolved),
     graphFor: (query, maxDepth, limit) => super.graphFor(query, maxDepth, limit),
@@ -139,8 +149,8 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     retrieveForPath: (options) =>
       super.retrieveForPath([options.path], { ...options, path: options.path }),
     searchSage: (query, options) => super.searchSage(query, options),
-    retrieveForAudience: (context, limit, onTruncated) =>
-      super.retrieveForAudience(context, limit, onTruncated),
+    retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
+      super.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
     graphFor: (query, maxDepth, limit) => super.graphFor(query, maxDepth, limit),
     verify: (memoryId, signal) => super.verify(memoryId, signal),
     listCandidates: (includeResolved) => super.listCandidates(includeResolved),

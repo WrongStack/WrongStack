@@ -259,6 +259,22 @@ describe.skipIf(!isSqliteAvailable())('SqliteSageStore feedback counters', () =>
     expect(loaded?.lastAccessedAt).toBe(current.toISOString());
   });
 
+  it('does not advance updated_at on injection/use (content recency clock)', async () => {
+    const store = makeSqliteStore();
+    const memory = await store.rememberSage({ text: 'Use pnpm for all package operations.' });
+    const createdUpdatedAt = memory.updatedAt;
+
+    await store.recordInjection([memory.id], 'tool:read');
+    await store.recordUse([memory.id], 'assistant_reference');
+
+    const [loaded] = await store.listMemories({ status: 'active', limit: 10 });
+    // Feedback bookkeeping must not pollute the content recency clock used by
+    // pagination ordering and retention aging.
+    expect(loaded?.updatedAt).toBe(createdUpdatedAt);
+    expect(loaded?.injectionCount).toBe(1);
+    expect(loaded?.useCount).toBe(1);
+  });
+
   it('skips corrupt SQLite rows while recording injection counters', async () => {
     const store = makeSqliteStore();
     await store.initialize();

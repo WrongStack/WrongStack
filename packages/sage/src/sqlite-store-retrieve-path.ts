@@ -6,6 +6,7 @@ import {
   buildRetrieveFallbackQuery,
   buildRetrievePathTargets,
 } from './sqlite-store-retrieve-helpers.js';
+import { buildSessionClause as buildSharedSessionClause } from './sqlite-store-search-helpers.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { Sage, SageForPathOptions } from './types.js';
 
@@ -23,17 +24,10 @@ function buildPathSessionClause(opts?: SageForPathOptions): {
   clause: string;
   params: string[];
 } {
-  if (opts?.includeAllSessions) return { clause: '', params: [] };
-  if (opts?.sessionId) {
-    return {
-      clause: " AND (scope != 'session' OR owner_session_id = ?)",
-      params: [opts.sessionId],
-    };
-  }
-  return {
-    clause: " AND (scope != 'session' OR owner_session_id IS NULL)",
-    params: [],
-  };
+  return buildSharedSessionClause({
+    sessionId: opts?.sessionId,
+    includeAllSessions: opts?.includeAllSessions,
+  });
 }
 
 export function retrieveSqliteSageForPath(

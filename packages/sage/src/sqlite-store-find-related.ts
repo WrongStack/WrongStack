@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { MEMORY_NODE_PREFIX, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import { collectRelatedSqliteCandidateIds } from './sqlite-store-related-candidates.js';
+import { buildSessionClause } from './sqlite-store-search-helpers.js';
 import { scoreMemoryRelationship } from './store-helpers.js';
 import type { MemoryGraphEdge, Sage, SageStatus } from './types.js';
 
@@ -32,6 +33,16 @@ export interface SqliteFindRelatedOptions {
   maxDepth?: number;
   includeStatuses?: SageStatus[];
   includeAudienceScoped?: boolean;
+  /**
+   * Session ownership filter. When set, only session-scoped memories owned
+   * by this session (plus all non-session memories) are returned. When
+   * unset (and `includeAllSessions` is not true), owned session-scoped
+   * memories are hidden — only unowned session memories remain visible,
+   * so pass `sessionId` to see your own session's records.
+   */
+  sessionId?: string | undefined;
+  /** Admin opt-out: include all sessions' session-scoped memories. */
+  includeAllSessions?: boolean | undefined;
 }
 
 export async function findRelatedSqliteSage(
@@ -42,6 +53,7 @@ export async function findRelatedSqliteSage(
   if (memoryIds.length === 0) return [];
 
   const statuses = opts.includeStatuses ?? ['active'];
+  const session = buildSessionClause(opts);
   const seedPlaceholders = memoryIds.map(() => '?').join(',');
   const seedRows = ctx
     .stmt(`SELECT data FROM memories WHERE id IN (${seedPlaceholders})`)
@@ -63,6 +75,7 @@ export async function findRelatedSqliteSage(
     seeds,
     graphRelatedIds,
     statuses,
+    opts,
   );
 
   if (candidateIds.length < bfsBudget) {
@@ -82,6 +95,7 @@ export async function findRelatedSqliteSage(
         seeds,
         graphRelatedIds,
         statuses,
+        opts,
       );
     }
   }
@@ -97,9 +111,9 @@ export async function findRelatedSqliteSage(
     const rows = ctx
       .stmt(
         `SELECT data FROM memories
-         WHERE id IN (${idPh}) AND status IN (${statusPlaceholders})`,
+         WHERE id IN (${idPh}) AND status IN (${statusPlaceholders})${session.clause}`,
       )
-      .all(...chunk, ...statuses) as Array<{ data: string }>;
+      .all(...chunk, ...statuses, ...session.params) as Array<{ data: string }>;
     for (const row of rows) candidates.push(sqliteRowToMemory(row));
   }
 

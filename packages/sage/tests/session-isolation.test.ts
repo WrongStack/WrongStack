@@ -150,4 +150,169 @@ describe('Cross-session isolation (P0-1c regression tests)', () => {
     expect(sessionAMem.ownerSessionId).toBe(SESSION_A);
     expect(sessionBMem.ownerSessionId).toBe(SESSION_B);
   });
+
+  it('session-A memory is not returned by session-B findRelatedSage (graph/tag expansion)', async () => {
+    const seedA = await store.rememberSage({
+      text: 'Session A seed memory for graph isolation probe',
+      scope: 'session',
+      ownerSessionId: SESSION_A,
+      kind: 'fact',
+      importance: 0.8,
+      tags: ['isolation-graph'],
+    });
+    const relatedA = await store.rememberSage({
+      text: 'Session A related memory sharing the isolation graph tag',
+      scope: 'session',
+      ownerSessionId: SESSION_A,
+      kind: 'fact',
+      importance: 0.8,
+      tags: ['isolation-graph'],
+    });
+    const relatedB = await store.rememberSage({
+      text: 'Session B related memory sharing the isolation graph tag',
+      scope: 'session',
+      ownerSessionId: SESSION_B,
+      kind: 'fact',
+      importance: 0.8,
+      tags: ['isolation-graph'],
+    });
+
+    // Session B expands from session A's seed: sees its own related memory,
+    // never session A's.
+    const forB = await store.findRelatedSage([seedA.id], {
+      limit: 20,
+      sessionId: SESSION_B,
+    });
+    expect(forB.find((m) => m.id === relatedB.id)).toBeDefined();
+    expect(forB.find((m) => m.id === relatedA.id)).toBeUndefined();
+
+    // Session A expands from its own seed: sees its own related memory,
+    // never session B's.
+    const forA = await store.findRelatedSage([seedA.id], {
+      limit: 20,
+      sessionId: SESSION_A,
+    });
+    expect(forA.find((m) => m.id === relatedA.id)).toBeDefined();
+    expect(forA.find((m) => m.id === relatedB.id)).toBeUndefined();
+
+    // Admin opt-out sees both sessions' related memories.
+    const all = await store.findRelatedSage([seedA.id], {
+      limit: 20,
+      sessionId: SESSION_B,
+      includeAllSessions: true,
+    });
+    expect(all.find((m) => m.id === relatedA.id)).toBeDefined();
+    expect(all.find((m) => m.id === relatedB.id)).toBeDefined();
+
+    // Unscoped callers only see unowned session memories — both related
+    // records are owned, so neither is visible.
+    const unscoped = await store.findRelatedSage([seedA.id], { limit: 20 });
+    expect(unscoped.find((m) => m.id === relatedA.id)).toBeUndefined();
+    expect(unscoped.find((m) => m.id === relatedB.id)).toBeUndefined();
+  });
+
+  it('session-scoped audience memories are isolated by session', async () => {
+    const audA = await store.rememberSage({
+      text: 'Session A reviewer-only audience memory',
+      scope: 'session',
+      ownerSessionId: SESSION_A,
+      kind: 'fact',
+      importance: 0.8,
+      audience: { roles: ['reviewer'] },
+    });
+    const audB = await store.rememberSage({
+      text: 'Session B reviewer-only audience memory',
+      scope: 'session',
+      ownerSessionId: SESSION_B,
+      kind: 'fact',
+      importance: 0.8,
+      audience: { roles: ['reviewer'] },
+    });
+
+    // Session A sees only its own reviewer-audience memory.
+    const forA = await store.retrieveForAudience(
+      { role: 'reviewer' },
+      undefined,
+      undefined,
+      SESSION_A,
+    );
+    expect(forA.find((m) => m.id === audA.id)).toBeDefined();
+    expect(forA.find((m) => m.id === audB.id)).toBeUndefined();
+
+    // Session B sees only its own.
+    const forB = await store.retrieveForAudience(
+      { role: 'reviewer' },
+      undefined,
+      undefined,
+      SESSION_B,
+    );
+    expect(forB.find((m) => m.id === audB.id)).toBeDefined();
+    expect(forB.find((m) => m.id === audA.id)).toBeUndefined();
+
+    // Unscoped: owned session memories are hidden.
+    const unscoped = await store.retrieveForAudience({ role: 'reviewer' });
+    expect(unscoped.find((m) => m.id === audA.id)).toBeUndefined();
+    expect(unscoped.find((m) => m.id === audB.id)).toBeUndefined();
+
+    // Admin opt-out: both visible.
+    const all = await store.retrieveForAudience(
+      { role: 'reviewer' },
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+    expect(all.find((m) => m.id === audA.id)).toBeDefined();
+    expect(all.find((m) => m.id === audB.id)).toBeDefined();
+  });
+
+  it('unifiedSearchService is session-isolated', async () => {
+    const uA = await store.rememberSage({
+      text: 'isolation unified probe alpha',
+      scope: 'session',
+      ownerSessionId: SESSION_A,
+      kind: 'fact',
+      importance: 0.8,
+    });
+    const uB = await store.rememberSage({
+      text: 'isolation unified probe alpha',
+      scope: 'session',
+      ownerSessionId: SESSION_B,
+      kind: 'fact',
+      importance: 0.8,
+    });
+
+    // Session A only sees its own copy.
+    const forA = await store.unifiedSearchService(
+      { text: 'isolation unified probe' },
+      { sessionId: SESSION_A },
+    );
+    const forAIds = forA.hits.map((hit) => hit.id);
+    expect(forAIds).toContain(uA.id);
+    expect(forAIds).not.toContain(uB.id);
+
+    // Session B only sees its own copy.
+    const forB = await store.unifiedSearchService(
+      { text: 'isolation unified probe' },
+      { sessionId: SESSION_B },
+    );
+    const forBIds = forB.hits.map((hit) => hit.id);
+    expect(forBIds).toContain(uB.id);
+    expect(forBIds).not.toContain(uA.id);
+
+    // Unscoped: owned session memories are hidden from both.
+    const unscoped = await store.unifiedSearchService({ text: 'isolation unified probe' });
+    const unscopedIds = unscoped.hits.map((hit) => hit.id);
+    expect(unscopedIds).not.toContain(uA.id);
+    expect(unscopedIds).not.toContain(uB.id);
+
+    // Admin opt-out: both visible.
+    const all = await store.unifiedSearchService(
+      { text: 'isolation unified probe' },
+      { includeAllSessions: true },
+    );
+    const allIds = all.hits.map((hit) => hit.id);
+    expect(allIds).toContain(uA.id);
+    expect(allIds).toContain(uB.id);
+  });
 });

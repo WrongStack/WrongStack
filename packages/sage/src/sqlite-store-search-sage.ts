@@ -1,7 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import { escapeLikePattern } from './sqlite-store-pagination.js';
-import { ftsPrefixTerms, sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
+import {
+  buildSessionClause as buildSharedSessionClause,
+  ftsPrefixTerms,
+  sqliteRowsToMemories,
+} from './sqlite-store-search-helpers.js';
 import type { Sage, SageSearchOptions } from './types.js';
 
 export interface SqliteSearchSageContext {
@@ -34,19 +38,10 @@ function buildSessionClause(
   clause: string;
   params: string[];
 } {
-  const scopeCol = `${prefix}scope`;
-  const ownerCol = `${prefix}owner_session_id`;
-  if (opts?.includeAllSessions) return { clause: '', params: [] };
-  if (opts?.sessionId) {
-    return {
-      clause: ` AND (${scopeCol} != 'session' OR ${ownerCol} = ?)`,
-      params: [opts.sessionId],
-    };
-  }
-  return {
-    clause: ` AND (${scopeCol} != 'session' OR ${ownerCol} IS NULL)`,
-    params: [],
-  };
+  return buildSharedSessionClause(
+    { sessionId: opts?.sessionId, includeAllSessions: opts?.includeAllSessions },
+    prefix,
+  );
 }
 
 export function searchSqliteSage(

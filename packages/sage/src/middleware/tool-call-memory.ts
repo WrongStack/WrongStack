@@ -92,6 +92,8 @@ export interface SageRetrieverLike {
       maxDepth?: number;
       includeStatuses?: Sage['status'][];
       includeAudienceScoped?: boolean;
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
     },
   ): Promise<Sage[]>;
   verifyForPaths?(paths: string[], signal?: AbortSignal): Promise<unknown>;
@@ -654,6 +656,9 @@ async function retrieveTriggeredMemories(
         maxDepth: 2,
         includeStatuses: isMutationTrigger(trigger.trigger) ? ['active', 'stale'] : ['active'],
         includeAudienceScoped: false,
+        // Session isolation: graph expansion must never surface another
+        // session's session-scoped memories into this session's context.
+        sessionId,
       },
     );
     for (const item of related) {

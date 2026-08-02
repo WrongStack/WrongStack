@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
+import { buildSessionClause } from './sqlite-store-search-helpers.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { MemoryAudienceContext, Sage } from './types.js';
 
@@ -32,9 +33,14 @@ const AUDIENCE_MAX_SCAN = 10_000;
 export function retrieveSqliteSageForAudience(
   ctx: SqliteAudienceContext,
   context: MemoryAudienceContext,
-  opts?: { limit?: number },
+  opts?: {
+    limit?: number | undefined;
+    sessionId?: string | undefined;
+    includeAllSessions?: boolean | undefined;
+  },
 ): Sage[] {
   const limit = opts?.limit ?? 20;
+  const session = buildSessionClause(opts);
   const role = context.role?.toLowerCase() ?? '';
   const taskType = context.taskType?.toLowerCase() ?? '';
   const mode = context.mode?.toLowerCase() ?? '';
@@ -63,11 +69,13 @@ export function retrieveSqliteSageForAudience(
       .stmt(
         `SELECT data FROM memories
            WHERE status IN ('active','stale')
-           AND audience IS NOT NULL
+           AND audience IS NOT NULL${session.clause}
            ORDER BY importance DESC
            LIMIT ? OFFSET ?`,
       )
-      .all(windowSize, offset) as Array<{ data: string }>;
+      // Placeholder order in the SQL above: session clause params come before
+      // LIMIT/OFFSET, so bind session params first.
+      .all(...session.params, windowSize, offset) as Array<{ data: string }>;
 
     totalScanned += rows.length;
 

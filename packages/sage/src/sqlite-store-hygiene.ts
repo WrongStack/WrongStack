@@ -383,7 +383,11 @@ export async function runSqliteSageHygiene(
       m.scope !== 'session' &&
       (m.injectionCount ?? 0) >= unusedMinInjections &&
       (m.useCount ?? 0) === 0 &&
-      nowMs - Date.parse(m.updatedAt) >= unusedMs
+      // Age by injection activity (`age` = lastAccessedAt ?? updatedAt), not
+      // content `updatedAt`: `recordInjection` no longer advances the content
+      // clock, and a memory that keeps getting injected but never referenced
+      // should only be flagged once it drops out of the rotation.
+      age >= unusedMs
     ) {
       reason = 'injected_never_used';
       suggestedAction = 'delete';

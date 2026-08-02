@@ -170,6 +170,8 @@ export interface SageServerOperations {
         maxDepth?: number;
         includeStatuses?: SageStatus[];
         includeAudienceScoped?: boolean;
+        sessionId?: string | undefined;
+        includeAllSessions?: boolean | undefined;
       };
     };
     result: Sage[];
@@ -186,6 +188,8 @@ export interface SageServerOperations {
     args: {
       context: { role?: string; taskType?: string; mode?: string };
       limit?: number | undefined;
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
     };
     result: Sage[];
   };

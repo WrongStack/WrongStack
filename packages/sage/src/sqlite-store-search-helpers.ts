@@ -94,6 +94,62 @@ export function ftsPrefixTerms(query: string): string[] {
   return terms;
 }
 
+export interface SessionScopeFilter {
+  sessionId?: string | undefined;
+  includeAllSessions?: boolean | undefined;
+}
+
+/**
+ * Build the SQL clause + params that enforce session isolation for a
+ * retrieval query. Shared by every SQL retrieval surface (search, path,
+ * related/graph, audience, unified search) so session-scoped memories can
+ * only be seen by their owning session — and by unscoped calls only when
+ * they are unowned.
+ *
+ * Returns `{ clause: '', params: [] }` (no-op) when `includeAllSessions` is
+ * true — administrative surfaces opt into cross-session visibility.
+ *
+ * When `sessionId` is provided:
+ *   `(scope != 'session' OR owner_session_id = ?)`
+ * Non-session scopes pass; session-scoped memories must match the caller.
+ *
+ * When neither is set (unscoped call):
+ *   `(scope != 'session' OR owner_session_id IS NULL)`
+ * Unowned session memories remain visible for backward compatibility; owned
+ * session memories are hidden from callers that did not identify themselves.
+ *
+ * The clause carries a leading `AND ` so it can be appended directly after
+ * existing WHERE conditions; callers that join conditions with ` AND `
+ * must strip the leading operator.
+ *
+ * @param opts   - session filter; a subset of each retrieval surface's options.
+ * @param prefix - SQL table-alias prefix for the columns (e.g. `'m.'`) when
+ *                 the query joins the memories table under an alias.
+ *                 Parameterized instead of string-replaced so both variants
+ *                 come from one function and cannot diverge.
+ */
+export function buildSessionClause(
+  opts: SessionScopeFilter | undefined,
+  prefix = '',
+): {
+  clause: string;
+  params: string[];
+} {
+  const scopeCol = `${prefix}scope`;
+  const ownerCol = `${prefix}owner_session_id`;
+  if (opts?.includeAllSessions) return { clause: '', params: [] };
+  if (opts?.sessionId) {
+    return {
+      clause: ` AND (${scopeCol} != 'session' OR ${ownerCol} = ?)`,
+      params: [opts.sessionId],
+    };
+  }
+  return {
+    clause: ` AND (${scopeCol} != 'session' OR ${ownerCol} IS NULL)`,
+    params: [],
+  };
+}
+
 export function countRowsByField(rows: readonly SqliteCountRow[], field: 'status' | 'kind'): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {

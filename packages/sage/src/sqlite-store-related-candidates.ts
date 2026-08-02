@@ -7,6 +7,10 @@ import {
   MEMORY_NODE_PREFIX,
   memoryNodeId,
 } from './sqlite-store-graph-helpers.js';
+import {
+  buildSessionClause,
+  type SessionScopeFilter,
+} from './sqlite-store-search-helpers.js';
 import { sqliteCommandFamily, sqliteNormalizeCommand } from './sqlite-store-schema.js';
 import type { Sage, SageStatus } from './types.js';
 
@@ -19,6 +23,13 @@ export function collectRelatedSqliteCandidateIds(
   seeds: readonly Sage[],
   graphRelatedIds: ReadonlySet<string>,
   statuses: readonly SageStatus[],
+  /**
+   * Optional session ownership filter. Applied to the tag-similarity query
+   * (the only candidate source that reads `memories` directly) so candidate
+   * ids stay session-clean; `findRelatedSqliteSage` additionally backstops
+   * the final fetch with the same clause.
+   */
+  session?: SessionScopeFilter | undefined,
 ): string[] {
   const ids = new Set<string>(graphRelatedIds);
   const statusPlaceholders = statuses.map(() => '?').join(',');
@@ -69,15 +80,16 @@ export function collectRelatedSqliteCandidateIds(
   }
 
   const tags = new Set(seeds.flatMap((s) => s.tags));
+  const tagSession = buildSessionClause(session, 'm.');
   for (const tag of tags) {
     const rows = ctx
       .stmt(
         `SELECT DISTINCT m.id FROM memories m, json_each(m.tags) AS je
          WHERE m.status IN (${statusPlaceholders})
            AND json_valid(m.tags)
-           AND je.value = ?`,
+           AND je.value = ?${tagSession.clause}`,
       )
-      .all(...statuses, tag) as Array<{ id: string }>;
+      .all(...statuses, tag, ...tagSession.params) as Array<{ id: string }>;
     for (const row of rows) ids.add(row.id);
   }
 

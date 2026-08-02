@@ -37,7 +37,7 @@ import { legacyScopeLabel } from './sqlite-store-legacy.js';
 import { probeSqliteAvailable } from './sqlite-store-loader.js';
 import { graphSqliteSageFor } from './sqlite-store-graph-for.js';
 import { traverseSqliteGraph } from './sqlite-store-graph-traverse.js';
-import { findRelatedSqliteSage } from './sqlite-store-find-related.js';
+import { findRelatedSqliteSage, type SqliteFindRelatedOptions } from './sqlite-store-find-related.js';
 import { runSqliteSageHygiene } from './sqlite-store-hygiene.js';
 import { syncSqliteAnchorEdges } from './sqlite-store-anchor-sync.js';
 import {
@@ -616,12 +616,7 @@ export class SqliteSageStore implements MemoryStore {
   /** SQLite equivalent of JSONL graph/metadata expansion. */
   async findRelatedSage(
     memoryIds: string[],
-    opts: {
-      limit?: number;
-      maxDepth?: number;
-      includeStatuses?: SageStatus[];
-      includeAudienceScoped?: boolean;
-    } = {},
+    opts: SqliteFindRelatedOptions = {},
   ): Promise<Sage[]> {
     await this.initialize();
     return findRelatedSqliteSage(
@@ -662,6 +657,16 @@ export class SqliteSageStore implements MemoryStore {
      * whichever channel fits their observability story.
      */
     onTruncated?: (info: { sqlRowsExamined: number; returned: number }) => void,
+    /**
+     * Session ownership filter. When set, only session-scoped memories owned
+     * by this session (plus all non-session memories) are returned. When
+     * unset (and `includeAllSessions` is not true), owned session-scoped
+     * memories are hidden — only unowned session memories remain visible,
+     * so pass `sessionId` to see your own session's records.
+     */
+    sessionId?: string | undefined,
+    /** Admin opt-out: include all sessions' session-scoped memories. */
+    includeAllSessions?: boolean | undefined,
   ): Promise<Sage[]> {
     await this.initialize();
     return retrieveSqliteSageForAudience(
@@ -673,7 +678,9 @@ export class SqliteSageStore implements MemoryStore {
         },
       },
       context,
-      limit === undefined ? undefined : { limit },
+      limit === undefined
+        ? { sessionId, includeAllSessions }
+        : { limit, sessionId, includeAllSessions },
     );
   }
 
