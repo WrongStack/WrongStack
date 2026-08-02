@@ -275,7 +275,7 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 888,
+      "lines": 911,
       "relativeImports": 15
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -351,8 +351,8 @@
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 1611,
-      "relativeImports": 14
+      "lines": 1595,
+      "relativeImports": 13
     },
     "packages/tui/src/components/settings-picker-model.ts": {
       "lines": 917,
@@ -471,7 +471,7 @@
       "relativeImports": 8
     },
     "packages/webui/src/stores/chat-store.ts": {
-      "lines": 1080,
+      "lines": 1090,
       "relativeImports": 1
     },
     "packages/webui/src/stores/viz-store.ts": {

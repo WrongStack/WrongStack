@@ -496,7 +496,7 @@ describe('/memory slash command', () => {
       expect(updateSage).toHaveBeenCalledWith('mem_123', { status: 'archived' });
 
       const out = await run(cmd, 'delete mem_123 obsolete');
-      expect(deleteSage).toHaveBeenCalledWith('mem_123', 'obsolete');
+      expect(deleteSage).toHaveBeenCalledWith('mem_123', 'obsolete', { force: true });
       expect(out).toContain('Deleted');
     });
 

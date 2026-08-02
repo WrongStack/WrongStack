@@ -29,29 +29,28 @@
  *        also check it explicitly in the cursor-shift subset below).
  */
 
-import { render } from 'ink-testing-library';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-
 import { writeClipboardText } from '@wrongstack/runtime/clipboard';
-
+import { render } from 'ink-testing-library';
+import { describe, expect, it, vi } from 'vitest';
+import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
+import type { RenderGroup } from '../src/components/history/tool-group.js';
+import type { HistoryEntry } from '../src/components/history.js';
 import {
   assembleSelectionText,
   buildMountedCardSpans,
+  type HistoryScrollController,
   isOutOfBand,
-  HistoryScrollController,
-  normalizeSelection,
   type MountedCardSpan,
+  normalizeSelection,
+  ScrollableHistory,
   type SelectionRect,
   type SelectionSlice,
-  ScrollableHistory,
   selectionHitAt,
   selectionToSlices,
 } from '../src/components/scrollable-history.js';
-import { parseMouseEvent } from '../src/mouse.js';
-import type { HistoryEntry } from '../src/components/history.js';
-import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
 import { EntryHeightCache } from '../src/height-cache.js';
-import type { RenderGroup } from '../src/components/history/tool-group.js';
+import { SCROLLBAR_HIT_WIDTH } from '../src/hit-test.js';
+import { parseMouseEvent } from '../src/mouse.js';
 
 // Capture every clipboard write so we can assert exact text + call count.
 vi.mock('@wrongstack/runtime/clipboard', () => ({
@@ -60,6 +59,17 @@ vi.mock('@wrongstack/runtime/clipboard', () => ({
   readClipboardImage: vi.fn(async () => null),
   ClipboardImage: class {},
 }));
+
+// ink-testing-library does not run Yoga layout, so Ink reports mounted boxes
+// as zero rows high. Give component-level hit-testing a deterministic one-row
+// measurement while preserving the real Box/Text implementations.
+vi.mock('../src/ink.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/ink.js')>();
+  return {
+    ...actual,
+    measureElement: vi.fn(() => ({ width: 120, height: 1 })),
+  };
+});
 
 const writeClipboardTextMock = writeClipboardText as unknown as ReturnType<typeof vi.fn>;
 
@@ -160,9 +170,7 @@ describe('selectionToSlices', () => {
       inProgress: false,
     };
     const slices = selectionToSlices({ selection: rect, cards, cardVisibleCols: 80 });
-    expect(slices).toEqual([
-      { entryId: 10, startRow: 1, startCol: 4, endRow: 1, endCol: 12 },
-    ]);
+    expect(slices).toEqual([{ entryId: 10, startRow: 1, startCol: 4, endRow: 1, endCol: 12 }]);
   });
 
   it('crosses into a second card with column clipped to 0/maxCol', () => {
@@ -194,7 +202,9 @@ describe('selectionToSlices', () => {
 
 describe('assembleSelectionText', () => {
   const CARD_TEXT = 'line one\nline two\nline three';
-  const entries = new Map<number, HistoryEntry>([[42, { id: 42, kind: 'assistant', text: CARD_TEXT }]]);
+  const entries = new Map<number, HistoryEntry>([
+    [42, { id: 42, kind: 'assistant', text: CARD_TEXT }],
+  ]);
 
   it('returns "" when no slices are provided', () => {
     expect(assembleSelectionText({ slices: [], entriesById: entries })).toBe('');
@@ -266,11 +276,7 @@ describe('assembleSelectionText', () => {
       { entryId: 50, startRow: 0, startCol: 0, endRow: 99, endCol: 99 },
     ];
     const toolGroupsByHeadId = new Map<number, readonly number[]>([[50, [50, 51]]]);
-    const expected = JSON.stringify(
-      [groupEntries.get(50), groupEntries.get(51)],
-      null,
-      2,
-    );
+    const expected = JSON.stringify([groupEntries.get(50), groupEntries.get(51)], null, 2);
     expect(
       assembleSelectionText({ slices, entriesById: groupEntries, toolGroupsByHeadId }),
     ).toContain(expected);
@@ -281,6 +287,7 @@ describe('assembleSelectionText', () => {
 
 interface MountedHandle {
   controller: HistoryScrollController;
+  copyIconCol: number;
   entries: readonly HistoryEntry[];
   unmount: () => void;
 }
@@ -318,6 +325,7 @@ function mountHistory(entries: readonly HistoryEntry[]): MountedHandle {
   if (controllerRef.current === null) throw new Error('controllerRef not populated');
   return {
     controller: controllerRef.current,
+    copyIconCol: Math.min(app.stdout.columns, 120) - SCROLLBAR_HIT_WIDTH,
     entries,
     unmount: () => app.unmount(),
   };
@@ -327,21 +335,7 @@ function textEntry(id: number, text: string): HistoryEntry {
   return { id, kind: 'assistant', text };
 }
 
-// Component-level controller tests are skipped because ink-testing-library's
-// `measureElement` returns height 0 (no real yoga layout). The post-render
-// `useLayoutEffect` records 0-row groups, collapsing the copy-hit registry
-// and mounted-card spans to empty. This makes every controller method that
-// reads those refs (beginSelection, hasCopyTargetAt, copyAtViewportCell,
-// commitSelection) return false/null regardless of the input geometry.
-//
-// The pure-helper tests below (buildMountedCardSpans, selectionHitAt,
-// selectionToSlices, assembleSelectionText) already cover the selection
-// contract end-to-end without mounting the component. Enabling these tests
-// requires either (a) mocking `measureElement` from `../src/ink.js` to return
-// non-zero heights, or (b) switching to a real-yoga test harness. Both are
-// out of scope for the v1 follow-up PR.
-
-describe.skip('HistoryScrollController: beginSelection / extendSelection / commitSelection', () => {
+describe('HistoryScrollController: beginSelection / extendSelection / commitSelection', () => {
   it('starts a drag inside a card, extends, ends, and copies the right text', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
@@ -444,34 +438,12 @@ describe.skip('HistoryScrollController: beginSelection / extendSelection / commi
   });
 });
 
-describe.skip('HistoryScrollController: existing copy-icon path is preserved', () => {
-  // Pin `stdout.columns = 120` so the copy-icon assertions at col 118 are
-  // valid. The default width 100 makes col 118 out of bounds; without this
-  // pin the copy-icon tests fail alongside the gutter-cross test which
-  // assumes width 118. Both column sets are valid at width 120.
-  const originalColumns = (process.stdout as { columns?: number }).columns;
-  beforeAll(() => {
-    Object.defineProperty(process.stdout, 'columns', {
-      value: 120,
-      configurable: true,
-    });
-  });
-  afterAll(() => {
-    if (originalColumns === undefined) {
-      delete (process.stdout as { columns?: number }).columns;
-    } else {
-      Object.defineProperty(process.stdout, 'columns', {
-        value: originalColumns,
-        configurable: true,
-      });
-    }
-  });
-
+describe('HistoryScrollController: existing copy-icon path is preserved', () => {
   it('hasCopyTargetAt returns true on the icon row and false off it', () => {
     const h = mountHistory([textEntry(1, 'alpha')]);
     try {
       // With viewportRows={1} the card's icon is at row 0.
-      expect(h.controller.hasCopyTargetAt(0, 118)).toBe(true);
+      expect(h.controller.hasCopyTargetAt(0, h.copyIconCol)).toBe(true);
       // Off-row check
       expect(h.controller.hasCopyTargetAt(99, 99)).toBe(false);
     } finally {
@@ -485,13 +457,15 @@ describe.skip('HistoryScrollController: existing copy-icon path is preserved', (
     try {
       // With viewportRows={1} the card's icon is at row 0. No beginSelection
       // was called — the icon click works in isolation.
-      const entryId = await h.controller.copyAtViewportCell(0, 118);
+      const entryId = await h.controller.copyAtViewportCell(0, h.copyIconCol);
       expect(entryId).toBe(1);
-      expect(writeClipboardTextMock).toHaveBeenCalledWith(copyableTextForEntry({
-        id: 1,
-        kind: 'assistant',
-        text: 'icon-test text',
-      }));
+      expect(writeClipboardTextMock).toHaveBeenCalledWith(
+        copyableTextForEntry({
+          id: 1,
+          kind: 'assistant',
+          text: 'icon-test text',
+        }),
+      );
     } finally {
       h.unmount();
     }
@@ -504,14 +478,12 @@ describe('Regression: dummy coverage', () => {
   });
 });
 
-// Component-level: same measureElement=0 limitation as above.
-describe.skip('Regression: SGR decoder + endSelection round trip', () => {
+describe('Regression: SGR decoder + endSelection round trip', () => {
   // The drag-select gesture is gated on real SGR mouse reports arriving as
-  // `press` (left, button='left') and `release` (left, button='none'). The
-  // decoder in mouse.ts maps release Cb (3) to `MouseButton = 'none'` —
-  // anyone writing `button === 'left'` on the release branch will silently
-  // miss every real release. This test pins the decoder's contract so any
-  // future tweak that flips the mapping is caught here.
+  // `press` and `release` events that both retain `button='left'`. Anyone
+  // collapsing the lowercase-SGR release to `button='none'` would silently
+  // bypass the drag-select release branch. These tests pin that decoder
+  // contract and the controller's idempotent release behavior together.
 
   it('decodes a left-press as kind=press button=left', () => {
     // SGR: ESC[<0;10;5M   (Cb=0 → button 0 = left, no modifiers)
@@ -543,12 +515,12 @@ describe.skip('Regression: SGR decoder + endSelection round trip', () => {
       // start a gesture, the controller must not crash or corrupt state.
       expect(() => h.controller.endSelection()).not.toThrow();
       expect(() => h.controller.endSelection()).not.toThrow();
-      // A later begin→end→begin→end cycle still works. With viewportRows={1}
+      // A later begin→extend→end cycle still works, and repeating endSelection
+      // after release preserves the committed range. With viewportRows={1}
       // the card is at row 0.
       h.controller.beginSelection(0, 0);
       h.controller.extendSelection(0, 4);
       h.controller.endSelection();
-      h.controller.beginSelection(0, 1);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
