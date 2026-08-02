@@ -332,6 +332,25 @@ export class MailboxProjectServerConnection {
         this.startHeartbeat();
         this.transition('connected');
         resolve();
+        // Send one authenticated request as soon as the handshake completes.
+        //
+        // A connection that only calls `connect()` and subscribes via
+        // `onEvent` received NO events before this — the shape RemoteMailbox
+        // takes when it is built for its event stream (subscribe, then a
+        // fire-and-forget `connect()`), so in that window a consumer was
+        // silently deaf until its first real operation. Heartbeats do not
+        // help: they carry no token and the daemon treats them as liveness
+        // only. Covered by a new IPC test that fails without this (WS-098).
+        //
+        // Deliberately an ordinary `ping`, not a new message type, so no
+        // protocol version skew is possible between a client and a daemon
+        // built at different times. Fired AFTER resolve and detached, so
+        // connecting does not become slower or newly failable. The daemon
+        // greets only once its metadata file is readable, so the token is on
+        // disk by the time this runs.
+        void this.request({ type: 'request', op: 'ping', args: {} }, 3_000).catch(
+          () => undefined,
+        );
       };
       this.connectReject = (error) => {
         clearTimeout(timer);

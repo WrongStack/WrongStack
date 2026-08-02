@@ -619,3 +619,61 @@ describe('WS-025 credential verifier redaction at the IPC boundary', () => {
     }
   });
 });
+
+// ── broadcast authentication (WS-098) ───────────────────────────────────────
+
+/**
+ * Sockets joined the daemon's `clients` set on `connection`, before presenting
+ * any credential, and `broadcast()` wrote to every member — so a local process
+ * that never read the owner-only metadata file still received the live event
+ * stream, `mailbox.message_sent` (with `from`/`to`/`subject`) included.
+ *
+ * There was NO test asserting cross-process event delivery at all, which is why
+ * gating the broadcast was risky to land: a regression would have been silent.
+ * This exercises the real IPC path — two independent connections, one only
+ * listening — so a broken gate fails here rather than in production.
+ */
+describe('mailbox IPC event broadcast (WS-098)', () => {
+  it('delivers events over IPC to a connection that only listens', async () => {
+    const previousInline = process.env['WRONGSTACK_MAILBOX_INLINE'];
+    delete process.env['WRONGSTACK_MAILBOX_INLINE'];
+
+    const listener = new MailboxProjectServerConnection(projectDir);
+    const sender = new RemoteMailbox(projectDir);
+    const seen: string[] = [];
+
+    try {
+      // `connect()` is the path RemoteMailbox uses fire-and-forget when it is
+      // built purely for the event stream. It must be enough on its own to
+      // start receiving broadcasts.
+      await listener.connect();
+      listener.onEvent((event) => seen.push(event));
+
+      await sender.initialize();
+      await sender.send({
+        from: 'leader@bcast',
+        to: 'worker@bcast',
+        type: 'note',
+        subject: 'broadcast-reaches-listening-clients',
+        body: 'x',
+      });
+
+      // Poll rather than sleep a fixed amount: the broadcast is asynchronous,
+      // and a fixed delay is either flaky or needlessly slow.
+      const deadline = Date.now() + 5_000;
+      while (seen.length === 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(seen.some((e) => e.startsWith('mailbox.'))).toBe(true);
+    } finally {
+      listener.close();
+      await sender.close().catch(() => undefined);
+      const control = new MailboxProjectServerConnection(projectDir);
+      await control.shutdown('broadcast-test-complete').catch(() => undefined);
+      control.close();
+      if (previousInline === undefined) delete process.env['WRONGSTACK_MAILBOX_INLINE'];
+      else process.env['WRONGSTACK_MAILBOX_INLINE'] = previousInline;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }, 30_000);
+});
