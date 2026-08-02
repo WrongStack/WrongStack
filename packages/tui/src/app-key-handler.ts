@@ -596,7 +596,7 @@ export function createAppKeyHandler(
       if (key.mouse?.kind === 'wheel' && key.mouse.wheel !== 0) {
         if (
           isHistoryScrollTarget(
-            { termRows, termCols: historyWidth, viewportRows: state.viewportRows },
+            { termRows, termCols: stdout?.columns ?? 80, viewportRows: state.viewportRows },
             key.mouse.x,
             key.mouse.y,
           )

@@ -820,7 +820,21 @@ export function App(props: AppProps): React.ReactElement {
     termRows,
     terminalColumns: stdout?.columns ?? 80,
     terminalRows: stdout?.rows ?? 24,
-    mainColumnWidth: (stdout?.columns ?? 80) - computeSidebarWidth(stdout?.columns ?? 80),
+    mainColumnWidth: (() => {
+      const cols = stdout?.columns ?? 80;
+      const sw = computeSidebarWidth(cols);
+      // When any overlay is open the sidebar hides, so the main column
+      // gets the full terminal width and scrollbar hit-tests must too.
+      if (sw === 0 || isPickerOverlayOpen(state) || state.coordinator.monitorOpen ||
+          state.auditPanelOpen || state.connectionsPanelOpen || state.helpOpen ||
+          state.agentsMonitorOpen || state.monitorOpen || state.contextPanelOpen ||
+          state.processListOpen || state.todosMonitorOpen || state.worktreeMonitorOpen ||
+          state.planPanelOpen || state.kanbanPanelOpen || state.queuePanelOpen ||
+          state.goalPanelOpen || state.goalKanbanPanelOpen || state.cronMonitorOpen) {
+        return cols;
+      }
+      return cols - sw;
+    })(),
     statusBarWrapRef,
     belowStatusBarRef,
     liveStatuslineMode,
