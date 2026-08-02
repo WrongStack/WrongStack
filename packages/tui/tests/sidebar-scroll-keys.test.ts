@@ -7,7 +7,7 @@ describe('Sidebar focus + scroll key routing', () => {
   function createStateWithContent() {
     return createTestState({
       fleet: (() => {
-        const f: Record<string, { id: string; name: string; status: string }> = {};
+        const f: Record<string, { id: string; name: string; status: 'running' }> = {};
         f['leader'] = { id: 'leader', name: 'Leader Agent', status: 'running' };
         for (let i = 1; i <= 14; i++) {
           f[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
