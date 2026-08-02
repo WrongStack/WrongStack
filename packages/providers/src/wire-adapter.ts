@@ -337,7 +337,7 @@ export abstract class WireAdapter implements Provider {
       // have already been received (e.g. Undici closes the connection mid-stream),
       // so the fetch-level catch block above does not cover them.
       try {
-        yield* this.parseStream(sseBody, req.model, req);
+        yield* this.parseStream(sseBody, effectiveReq.model, effectiveReq);
       } catch (err) {
         if (opts.signal.aborted || err instanceof ProviderError) throw err;
         // Transport-shaped errors below this point become retryable network errors.

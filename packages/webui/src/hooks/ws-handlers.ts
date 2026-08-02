@@ -375,12 +375,16 @@ export function handleDiagGet(msg: WSServerMessage) {
     cwd: string;
     sessionId: string;
     tools: { count: number; names: string[] };
+    maxTools: number;
+    droppedTools: number;
     features: { memory: boolean; skills: boolean; modelsRegistry: boolean };
     mode: string;
     usage: { input: number; output: number; cacheRead?: number | undefined };
     messages: number;
     todos: number;
   };
+  // Store the dropped count for the status-bar chip (reactive).
+  useSessionStore.getState().setDroppedTools(p.droppedTools ?? 0);
   useChatStore.getState().addMessage({
     role: 'assistant',
     content: [

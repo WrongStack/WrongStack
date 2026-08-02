@@ -168,13 +168,31 @@ function checkKeyFilePermissions(
 }
 
 /**
- * Crash-atomic synchronous key-file write: temp (0o600) + fsync + rename.
- * A plain writeFileSync torn by a crash would leave a corrupt key file —
- * and a corrupt key file means every secret in the vault is unrecoverable.
- * Sync because the vault's rotate/migrate paths are synchronous; these run
- * rarely (rotation, at-rest upgrade), never on a hot path.
+ * Crash-atomic synchronous key-file write: temp (0o600) + fsync + rename,
+ * then harden the result.
+ *
+ * A plain writeFileSync torn by a crash would leave a corrupt key file — and a
+ * corrupt key file means every secret in the vault is unrecoverable. Sync
+ * because the vault's rotate/migrate paths are synchronous; these run rarely
+ * (rotation, at-rest upgrade), never on a hot path.
+ *
+ * The `0o600` on `openSync` below is the whole ACL story on POSIX, but on
+ * Windows `chmod`-style modes only move the read-only bit: the renamed file
+ * picks up the parent directory's inherited ACEs and stays readable by every
+ * other account on the machine. `restrictFilePermissions` exists precisely for
+ * that — its own module docstring names the vault `.key` as a motivating case —
+ * yet this writer never called it, so the file holding the key that decrypts
+ * every stored provider credential was the one secret left unhardened (WS-088).
+ *
+ * Hardening runs after the rename (an ACL set on the temp path would not
+ * survive it) and is best-effort: it warns, never throws, so a missing `icacls`
+ * in a minimal environment cannot block the write it is protecting.
  */
-function writeKeyFileAtomicSync(keyFile: string, content: Buffer): void {
+function writeKeyFileAtomicSync(
+  keyFile: string,
+  content: Buffer,
+  warn?: ((msg: string) => void) | undefined,
+): void {
   const tmp = `${keyFile}.${randomBytes(4).toString('hex')}.tmp`;
   const fd = fs.openSync(tmp, 'w', 0o600);
   try {
@@ -197,6 +215,14 @@ function writeKeyFileAtomicSync(keyFile: string, content: Buffer): void {
     }
     throw err;
   }
+  // Detached on purpose: this writer is sync (it runs inside the vault's lazy
+  // key-load path) and the Windows implementation shells out to icacls. The
+  // helper already swallows and reports its own failures; the extra catch is
+  // for the promise itself, so a rejection can never become an unhandled one.
+  void restrictPermissions(keyFile, {
+    label: 'secret-vault-key',
+    ...(warn ? { warn } : {}),
+  }).catch(() => undefined);
 }
 
 /**
@@ -316,14 +342,16 @@ export class DefaultSecretVault implements RotatableSecretVault {
     if (passphrase) {
       // Keep the rotated key passphrase-wrapped (v3) so rotation never
       // downgrades a protected key file to plaintext.
-      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(newKey, newVersion, passphrase));
+      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(newKey, newVersion, passphrase), (msg) =>
+        this.logWarn(msg),
+      );
     } else {
       // Write versioned key file: WSKV + version byte + key
       const keyFileBuf = Buffer.alloc(VERSIONED_KEY_FILE_SIZE);
       KEY_FILE_MAGIC.copy(keyFileBuf, 0);
       keyFileBuf[KEY_FILE_MAGIC.length] = newVersion;
       newKey.copy(keyFileBuf, KEY_FILE_MAGIC.length + 1);
-      writeKeyFileAtomicSync(this.keyFile, keyFileBuf);
+      writeKeyFileAtomicSync(this.keyFile, keyFileBuf, (msg) => this.logWarn(msg));
     }
     checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
 
@@ -343,7 +371,11 @@ export class DefaultSecretVault implements RotatableSecretVault {
     const passphrase = getVaultPassphrase();
     if (!passphrase || !this.key) return;
     try {
-      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(this.key, this._keyVersion, passphrase));
+      writeKeyFileAtomicSync(
+        this.keyFile,
+        wrapDataKey(this.key, this._keyVersion, passphrase),
+        (msg) => this.logWarn(msg),
+      );
       checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
     } catch {
       // Non-fatal: the at-rest upgrade failed, but the loaded key is valid.

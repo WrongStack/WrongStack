@@ -8,6 +8,10 @@ export interface WSDiagGet {
     cwd: string;
     sessionId: string;
     tools: { count: number; names: string[] };
+    /** Provider maxTools limit (0 = no limit). */
+    maxTools: number;
+    /** Tools dropped from requests because they exceed maxTools. */
+    droppedTools: number;
     features: { memory: boolean; skills: boolean; modelsRegistry: boolean };
     mode: string;
     usage: { input: number; output: number; cacheRead?: number | undefined };

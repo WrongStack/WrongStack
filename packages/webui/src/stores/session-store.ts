@@ -65,6 +65,8 @@ interface SessionState {
   latestVersion: string;
   /** True when a newer published version exists than appVersion. */
   updateAvailable: boolean;
+  /** Number of tools dropped from provider requests due to maxTools limit (0 = no limit or within limit). */
+  droppedTools: number;
 
   setSession: (session: SessionInfo | null) => void;
   updateUsage: (usage: Usage) => void;
@@ -88,6 +90,7 @@ interface SessionState {
   setContextModes: (modes: SessionState['contextModes']) => void;
   setTodos: (todos: SessionState['todos']) => void;
   setUpdateInfo: (info: { appVersion: string; latestVersion: string; updateAvailable: boolean }) => void;
+  setDroppedTools: (count: number) => void;
 }
 
 /** Persistence schema version. Bump whenever the shape or partialize set
@@ -126,6 +129,7 @@ export const useSessionStore = create<SessionState>()(
       appVersion: '',
       latestVersion: '',
       updateAvailable: false,
+      droppedTools: 0,
 
       setSession: (session) => set({ session, lastVisitedAt: Date.now() }),
 
@@ -156,6 +160,7 @@ export const useSessionStore = create<SessionState>()(
           totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
           cost: 0,
           lastVisitedAt: Date.now(),
+          droppedTools: 0,
         }),
 
       endSession: () =>
@@ -196,6 +201,7 @@ export const useSessionStore = create<SessionState>()(
           latestVersion: info.latestVersion,
           updateAvailable: info.updateAvailable,
         }),
+      setDroppedTools: (count) => set({ droppedTools: count }),
     }),
     {
       name: 'wrongstack-session',

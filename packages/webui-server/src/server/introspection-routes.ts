@@ -92,6 +92,11 @@ export async function handleIntrospectionRoute(
           cwd: ctx.getProjectRoot(),
           sessionId: ctx.getSessionId(),
           tools: { count: tools.length, names: tools.map((tool) => tool.name) },
+          maxTools: (actx.provider as { maxToolsCount?: number }).maxToolsCount ?? 0,
+          droppedTools: (() => {
+            const mt = (actx.provider as { maxToolsCount?: number }).maxToolsCount ?? 0;
+            return mt > 0 ? Math.max(0, tools.length - mt) : 0;
+          })(),
           features: {
             memory: !!config.features?.memory,
             skills: !!config.features?.skills,

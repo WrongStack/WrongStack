@@ -6,7 +6,12 @@ function makeTool(name: string): Tool {
   return {
     name,
     description: `Tool ${name}`,
+    permission: 'auto',
+    mutating: false,
     inputSchema: { type: 'object', properties: {} },
+    async execute() {
+      return undefined as never;
+    },
   };
 }
 

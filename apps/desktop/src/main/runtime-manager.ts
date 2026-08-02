@@ -83,9 +83,7 @@ export class DesktopRuntimeManager extends EventEmitter {
   private restoring = false;
   private workspaceRestoreCompleted = false;
 
-  constructor(
-    private readonly trustBoundary: TrustBoundary = desktopCompatibilityTrustBoundary,
-  ) {
+  constructor(private readonly trustBoundary: TrustBoundary = desktopCompatibilityTrustBoundary) {
     super();
   }
 
@@ -285,8 +283,6 @@ export class DesktopRuntimeManager extends EventEmitter {
           String(wsPort),
           '--dist-dir',
           distDir,
-          '--token',
-          token,
           '--require-token',
         ],
         {
@@ -296,6 +292,15 @@ export class DesktopRuntimeManager extends EventEmitter {
             ELECTRON_RUN_AS_NODE: '1',
             WEBUI_STRICT_PORT: '1',
             WRONGSTACK_DESKTOP: '1',
+            // Passed by environment, not argv. A process command line is
+            // world-readable on every platform this ships to — `ps -ef` on
+            // POSIX, Task Manager's command-line column or a plain WMI query on
+            // Windows — so `--token <secret>` handed the WebUI access token to
+            // any local process that cared to look. The token grants full agent
+            // control, so that is a credential disclosure, not a nuisance.
+            // entry.ts already reads WEBUI_TOKEN; argv only took precedence
+            // over it (WS-087).
+            WEBUI_TOKEN: token,
           },
           stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,

@@ -117,6 +117,7 @@ export function WorkbenchTopbar({
   const appVersion = useSessionStore((s) => s.appVersion);
   const latestVersion = useSessionStore((s) => s.latestVersion);
   const updateAvailable = useSessionStore((s) => s.updateAvailable);
+  const droppedTools = useSessionStore((s) => s.droppedTools);
   const effectiveTheme =
     theme === 'system'
       ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -222,6 +223,14 @@ export function WorkbenchTopbar({
                     .join(' · ')}
                 >
                   Index {indexHealth?.status ?? indexServer.status}
+                </span>
+              ) : null}
+              {droppedTools > 0 ? (
+                <span
+                  className="rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-warning"
+                  title={`${droppedTools} tool(s) dropped from provider requests due to maxTools limit`}
+                >
+                  -{droppedTools} tools
                 </span>
               ) : null}
             </div>
