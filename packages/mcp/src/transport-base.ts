@@ -11,6 +11,9 @@ import type { ConnectionState, MCPTool } from './client.js';
 import type { MCPServerMetadata } from './protocol.js';
 import { isTlsUnsafeAllowed, validateTransportUrl } from './transport-security.js';
 
+/** Redirect hops an MCP HTTP transport will follow, each revalidated (WS-085). */
+const MAX_TRANSPORT_REDIRECTS = 5;
+
 export interface HttpTransportOptions {
   name: string;
   url: string;
@@ -157,7 +160,37 @@ export abstract class BaseHTTPTransport {
           authorizationHeaderForToken(token, this.authorizationResource),
         );
       }
-      return fetch(input, { ...init, headers });
+      // `validateTransportUrl` runs once, in the constructor. With the default
+      // `redirect: 'follow'` a server could answer 307 and move the connection
+      // to a host that never passed that check — an internal service, or the
+      // loopback surfaces of this very machine. Redirects are followed here
+      // instead, revalidating each hop, and the Authorization header is dropped
+      // when the origin changes (fetch would do that itself, but only because
+      // it happens to be the header MCP uses — doing it explicitly keeps the
+      // guarantee if that changes). (WS-085)
+      let currentUrl = typeof input === 'string' ? input : String(input);
+      let hopHeaders = headers;
+      for (let hop = 0; hop < MAX_TRANSPORT_REDIRECTS; hop++) {
+        const res = await fetch(currentUrl, { ...init, headers: hopHeaders, redirect: 'manual' });
+        if (res.status !== 301 && res.status !== 302 && res.status !== 303 && res.status !== 307 && res.status !== 308) {
+          return res;
+        }
+        const location = res.headers.get('location');
+        if (!location) return res;
+        const nextUrl = new URL(location, currentUrl).toString();
+        // Same gate the configured URL had to clear.
+        validateTransportUrl(nextUrl);
+        if (new URL(nextUrl).origin !== new URL(currentUrl).origin) {
+          hopHeaders = new Headers(hopHeaders);
+          hopHeaders.delete('Authorization');
+        }
+        await res.body?.cancel().catch(() => undefined);
+        currentUrl = nextUrl;
+      }
+      throw new ConfigError({
+        message: `MCP server "${this.name}" exceeded ${MAX_TRANSPORT_REDIRECTS} redirects.`,
+        code: 'CONFIG_INVALID',
+      });
     };
 
     let response = await send();

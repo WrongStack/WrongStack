@@ -4,6 +4,7 @@ import { parseProviderHttpError, type HeadersLike } from './error-parse.js';
 import type { BuildBodyContext } from './model-output-limits.js';
 import { isDebugStreamEnabled, pushDebugChunkStats } from './stream-debug-state.js';
 import { isNodeReadable } from './object-utils.js';
+import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import { Readable } from 'node:stream';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { filterToolsByMaxCount } from './tool-priority.js';
@@ -153,23 +154,21 @@ export abstract class WireAdapter implements Provider {
     this.headersTimeoutMs = streamOpts.headersTimeoutMs ?? DEFAULT_HEADERS_TIMEOUT_MS;
   }
 
-  /** Track whether the maxTools warning has already been logged this session. */
-  private _maxToolsWarned = false;
+  // Module-scoped state keyed by provider id so warning suppression and
+  // dedup survive provider rebuilds on /model switch and fallback hops.
+  // Per-instance flags would reset with every new Provider construction.
+  private static readonly _warnedProviders = new Set<string>();
+  private static readonly _suppressedProviders = new Set<string>();
 
   /**
-   * When true, suppress the one-time maxTools stderr warning. The TUI sets
-   * this on provider instances because it surfaces the dropped count as a
-   * status-bar chip — the raw `process.emitWarning` would garble the Ink layout.
-   */
-  private _suppressMaxToolsWarning = false;
-
-  /**
-   * Suppress the one-time maxTools warning on this provider. Set by the TUI
-   * host when it takes over the terminal, since the status-bar chip provides
-   * equivalent visibility without writing to stderr.
+   * Suppress the one-time maxTools warning for this provider id. Set by the
+   * TUI host when it takes over the terminal, since the status-bar chip
+   * provides equivalent visibility without writing to stderr. Persists across
+   * provider rebuilds (model switch, fallback hop) because it is keyed by
+   * provider id, not instance.
    */
   suppressMaxToolsWarning(): void {
-    this._suppressMaxToolsWarning = true;
+    WireAdapter._suppressedProviders.add(this.id);
   }
 
   /**
@@ -214,8 +213,14 @@ export abstract class WireAdapter implements Provider {
    * instead).
    */
   private logMaxToolsWarning(droppedNames: string[]): void {
-    if (this._maxToolsWarned || this._suppressMaxToolsWarning || droppedNames.length === 0) return;
-    this._maxToolsWarned = true;
+    if (
+      WireAdapter._warnedProviders.has(this.id) ||
+      WireAdapter._suppressedProviders.has(this.id) ||
+      droppedNames.length === 0
+    ) {
+      return;
+    }
+    WireAdapter._warnedProviders.add(this.id);
     const preview = droppedNames.slice(0, 10).join(', ');
     const suffix = droppedNames.length > 10 ? ` (and ${droppedNames.length - 10} more)` : '';
     process.emitWarning(
