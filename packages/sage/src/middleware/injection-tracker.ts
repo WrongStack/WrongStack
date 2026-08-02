@@ -162,8 +162,12 @@ export class InjectionTracker {
    * The assistant text is tokenized once; each entry's token set was cached
    * at record() time, so this loop is O(entries × |tokenSet|) set lookups
    * instead of O(entries × tokenize_cost) re-normalizations.
+   *
+   * When `sessionId` is provided, only entries recorded for that session
+   * are eligible for matching — preventing cross-session use attribution
+   * when a shared tracker serves concurrent sessions.
    */
-  consumeMatches(assistantText: string, now = Date.now()): string[] {
+  consumeMatches(assistantText: string, now = Date.now(), sessionId?: string): string[] {
     if (this.entries.size === 0) return [];
     const textKey = normalizeTextKey(assistantText);
     if (!textKey) return [];
@@ -172,7 +176,27 @@ export class InjectionTracker {
     // Empty assistant text after tokenization still allows id citation matches
     // (e.g. the model only wrote a memory id reference).
     const matched: string[] = [];
+
+    // When sessionId is provided, build a set of memory ids that belong to
+    // a DIFFERENT session so they can be excluded. Entries recorded without
+    // a session, or recorded for the requesting session, remain eligible.
+    let otherSessionMemoryIds: Set<string> | undefined;
+    if (sessionId) {
+      otherSessionMemoryIds = new Set<string>();
+      for (const [contextKey] of this.contextEntries) {
+        const nullIdx = contextKey.indexOf('\0');
+        const entrySession = nullIdx >= 0 ? contextKey.slice(0, nullIdx) : '<no-session>';
+        const memoryId = nullIdx >= 0 ? contextKey.slice(nullIdx + 1) : contextKey;
+        if (entrySession !== '<no-session>' && entrySession !== sessionId) {
+          otherSessionMemoryIds.add(memoryId);
+        }
+      }
+    }
+
     for (const [memoryId, entry] of this.entries) {
+      // Session filter: skip entries that belong to a different session.
+      // Entries with no session or the same session remain eligible.
+      if (otherSessionMemoryIds?.has(memoryId)) continue;
       // Explicit id citation is the strongest usefulness signal — models often
       // reference `<memory id="…">` without restating the full body.
       if (textKey.includes(normalizeTextKey(memoryId)) || assistantText.includes(memoryId)) {

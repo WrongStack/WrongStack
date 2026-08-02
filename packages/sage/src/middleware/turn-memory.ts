@@ -49,7 +49,7 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
         // registering this turn's injections.
         const assistantText = lastAssistantText(request.messages);
         if (assistantText) {
-          const used = tracker.consumeMatches(assistantText);
+          const used = tracker.consumeMatches(assistantText, Date.now(), opts.getSessionId?.());
           if (used.length > 0) await opts.memory.recordUse?.(used, 'assistant_reference');
         }
         const query = lastUserText(request.messages);

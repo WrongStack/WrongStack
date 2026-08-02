@@ -316,4 +316,47 @@ describe.skipIf(!isSqliteAvailable())('SqliteSageStore feedback counters', () =>
     const refreshed = await store.listMemories({ status: 'active', limit: 100 });
     expect(refreshed.some((item) => item.id === memory.id)).toBe(true);
   });
+
+  it('does not cross-attribute use between concurrent sessions (P1-7)', () => {
+    const tracker = new InjectionTracker();
+    const SESSION_A = 'session-alpha';
+    const SESSION_B = 'session-beta';
+
+    // Session A records an injection
+    tracker.record('mem_a', 'Use pnpm for installing dependencies in this repo', SESSION_A);
+    // Session B records a different injection with overlapping vocabulary
+    tracker.record('mem_b', 'Use pnpm for running tests in this repo', SESSION_B);
+
+    // Session A's assistant references the dependency install path.
+    // consumeMatches with sessionId=A should only match mem_a, not mem_b.
+    const matchedA = tracker.consumeMatches(
+      'I will use pnpm for installing dependencies now.',
+      Date.now(),
+      SESSION_A,
+    );
+    expect(matchedA).toEqual(['mem_a']);
+    expect(matchedA).not.toContain('mem_b');
+
+    // Session B's assistant references the test path.
+    // consumeMatches with sessionId=B should only match mem_b, not mem_a
+    // (mem_a was already consumed for session A, but even without that,
+    // it would be filtered out because it belongs to a different session).
+    const matchedB = tracker.consumeMatches(
+      'I will use pnpm for running tests now.',
+      Date.now(),
+      SESSION_B,
+    );
+    expect(matchedB).toEqual(['mem_b']);
+    expect(matchedB).not.toContain('mem_a');
+  });
+
+  it('falls back to unscoped matching when sessionId is omitted (backward compat)', () => {
+    const tracker = new InjectionTracker();
+    tracker.record('mem_a', 'Use pnpm for installing dependencies in this repo', 'some-session');
+
+    // No sessionId → matches any entry regardless of session ownership.
+    expect(
+      tracker.consumeMatches('I will use pnpm for installing dependencies now.'),
+    ).toEqual(['mem_a']);
+  });
 });
