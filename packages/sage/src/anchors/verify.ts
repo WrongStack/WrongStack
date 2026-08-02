@@ -35,23 +35,56 @@ export async function verifyMemoryAnchors(
 /** Shell wrappers that delegate to the following command — the probe resolves the real executable. */
 const COMMAND_WRAPPERS = new Set(['sudo', 'npx', 'env', 'time', 'command', 'doas', 'runuser']);
 
+/**
+ * Per-wrapper flags that consume a SEPARATE argument. Knowing these lets the
+ * resolver skip flag+value pairs (`sudo -u www cmd` -> cmd, `env -u NAME node`
+ * -> node) instead of misreading the value as the executable. UNKNOWN flags
+ * are still skipped, but they set `skippedFlag` so a not-found verdict becomes
+ * 'unknown' (never a wrongful 'stale' demotion of the persisted memory).
+ */
+const WRAPPER_VALUE_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = {
+  npx: new Set([
+    '-p',
+    '--package',
+    '--registry',
+    '--cache',
+    '--userconfig',
+    '--globalconfig',
+    '--prefix',
+    '--cwd',
+    '--shell',
+  ]),
+  sudo: new Set([
+    '-u',
+    '-g',
+    '-h',
+    '-p',
+    '-C',
+    '-R',
+    '-D',
+    '-T',
+    '--user',
+    '--group',
+    '--prompt',
+    '--chdir',
+    '--command-timeout',
+  ]),
+  env: new Set(['-u', '-C', '--unset', '--chdir']),
+  command: new Set(['-p', '--path']),
+  doas: new Set(['-u']),
+  runuser: new Set(['-u', '-g']),
+  time: new Set(),
+};
+
 interface ResolvedExecutable {
   /** Resolved executable name/path, or undefined when nothing resolvable. */
   executable: string | undefined;
   /**
-   * True when the resolved token directly follows a SHORT flag (-X), so it is
-   * likely the flag's ARGUMENT (`sudo -u www cmd` -> `www`) rather than the
-   * command. Verification must NOT demote on this — a stale result flips the
-   * persisted memory status (sqlite-store-verify.ts), so ambiguity resolves
-   * to 'unknown' instead of a possibly-wrong 'stale'.
-   */
-  flagArgument: boolean;
-  /**
-   * True when any flag or env-assignment token was skipped during wrapper
-   * resolution (`npx --registry https://x eslint` skips `--registry` but the
-   * next token is the flag's ARGUMENT, not the command). If the resolved
-   * executable is then NOT found, the verdict must be 'unknown' — a wrong
-   * 'stale' would demote the persisted memory.
+   * True when an UNKNOWN flag was skipped during wrapper resolution (a known
+   * value-taking flag consumed its argument instead). If the resolved
+   * executable is then NOT found, the verdict must be 'unknown' — the flag
+   * may have taken the executable's place as an argument, and a wrong 'stale'
+   * would demote the persisted memory (sqlite-store-verify.ts).
    */
   skippedFlag: boolean;
 }
@@ -63,41 +96,39 @@ interface ResolvedExecutable {
  */
 function resolveCommandExecutable(command: string): ResolvedExecutable {
   const trimmed = command.trim();
-  if (!trimmed) return { executable: undefined, flagArgument: false, skippedFlag: false };
+  if (!trimmed) return { executable: undefined, skippedFlag: false };
   const first = firstToken(trimmed);
-  if (!first) return { executable: undefined, flagArgument: false, skippedFlag: false };
+  if (!first) return { executable: undefined, skippedFlag: false };
   if (!COMMAND_WRAPPERS.has(first)) {
-    return { executable: first, flagArgument: false, skippedFlag: false };
+    return { executable: first, skippedFlag: false };
   }
-  // Skip wrapper options and env assignments: `npx --yes eslint` -> eslint,
-  // `time -v cmd` -> cmd, `env FOO=bar node` -> node. A token that directly
-  // follows a SHORT flag is ambiguous (the flag's argument vs the command) —
-  // `sudo -u www cmd` yields `www`, `npx -y node` yields `node`; callers must
-  // treat that as 'unknown', never 'stale' (a stale verdict demotes the
-  // persisted memory). Any skipped flag makes the whole resolution
-  // 'skippedFlag' — a long flag's argument (`--registry https://x eslint`)
-  // is indistinguishable from a command without per-tool knowledge.
+  const valueFlags = WRAPPER_VALUE_FLAGS[first] ?? new Set<string>();
   const rest = trimmed.slice(trimmed.indexOf(first) + first.length).trim();
   let cursor = rest;
-  let afterShortFlag = false;
   let skippedFlag = false;
   for (let i = 0; i < 8; i++) {
     const token = firstToken(cursor);
-    if (!token) return { executable: undefined, flagArgument: false, skippedFlag };
+    if (!token) return { executable: undefined, skippedFlag };
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
-      skippedFlag = true;
+      // env-style assignment (`env FOO=bar node`) — unambiguous, not a flag.
       cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
       continue;
     }
     if (token.startsWith('-')) {
-      skippedFlag = true;
-      afterShortFlag = /^-[a-zA-Z]$/.test(token);
       cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
+      if (valueFlags.has(token)) {
+        // Known value-taking flag: consume its argument too.
+        const value = firstToken(cursor);
+        if (value) cursor = cursor.slice(cursor.indexOf(value) + value.length).trim();
+      } else {
+        // Unknown flag: conservative — a not-found verdict becomes 'unknown'.
+        skippedFlag = true;
+      }
       continue;
     }
-    return { executable: token, flagArgument: afterShortFlag, skippedFlag };
+    return { executable: token, skippedFlag };
   }
-  return { executable: undefined, flagArgument: false, skippedFlag };
+  return { executable: undefined, skippedFlag };
 }
 
 function firstToken(input: string): string | undefined {
@@ -125,19 +156,9 @@ async function verifyCommandAnchor(
   if (!executable) {
     return { anchor, status: 'stale', reason: 'Command anchor has no executable to resolve.' };
   }
-  if (resolved.flagArgument) {
-    // Ambiguous: the token follows a short flag, so it may be the flag's
-    // argument, not the command. A stale verdict would demote the persisted
-    // memory, so report 'unknown' and let a human/agent resolve it.
-    return {
-      anchor,
-      status: 'unknown',
-      reason: `Ambiguous command anchor: "${executable}" follows a short flag (likely a flag argument, not an executable).`,
-    };
-  }
   // Shell builtins (echo/cd/dir/...) have no PATH entry — the shell provides
   // them, so existence is satisfied without a filesystem hit.
-  if (SHELL_BUILTINS.has(executable)) {
+  if (isShellBuiltin(executable)) {
     return {
       anchor,
       status: 'verified',
@@ -149,9 +170,9 @@ async function verifyCommandAnchor(
     return { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` };
   }
   if (resolved.skippedFlag) {
-    // A flag was skipped during resolution, so `executable` may be that
-    // flag's ARGUMENT (`npx --registry https://x eslint`). A wrong 'stale'
-    // would demote the persisted memory — report 'unknown' instead.
+    // An UNKNOWN flag was skipped during resolution, so `executable` may be
+    // that flag's ARGUMENT. A wrong 'stale' would demote the persisted
+    // memory — report 'unknown' instead.
     return {
       anchor,
       status: 'unknown',
@@ -161,27 +182,26 @@ async function verifyCommandAnchor(
   return { anchor, status: 'stale', reason: `Command executable "${executable}" was not found on PATH.` };
 }
 
-/** Shell builtins with no PATH entry — their existence is provided by the shell itself. */
-const SHELL_BUILTINS = new Set([
-  'cd',
-  'echo',
-  'pwd',
-  'dir',
-  'type',
-  'alias',
-  'exit',
-  'export',
-  'set',
-  'unset',
-  'printf',
-  'test',
-  'true',
-  'false',
-  'read',
-  'shift',
-  'source',
-  '.',
-]);
+/**
+ * Shell builtins with no PATH entry — their existence is provided by the
+ * shell itself. Platform-gated: `dir` is a cmd.exe builtin on Windows only
+ * (on POSIX it is an external coreutils binary and must be PATH-probed);
+ * `source`/`.` are bash/zsh keywords (kept — anchors typically reference
+ * bash workflows). Windows builtins are case-insensitive, so the comparison
+ * lowercases there; POSIX stays case-sensitive.
+ */
+function buildShellBuiltins(): ReadonlySet<string> {
+  const isWin32 = process.platform === 'win32';
+  const common = ['cd', 'echo', 'type', 'alias', 'exit', 'set', 'unset', 'printf'];
+  if (isWin32) return new Set([...common, 'dir', 'copy', 'del', 'ren']);
+  return new Set([...common, 'pwd', 'export', 'test', 'true', 'false', 'read', 'shift', 'source', '.']);
+}
+const SHELL_BUILTINS = buildShellBuiltins();
+
+function isShellBuiltin(executable: string): boolean {
+  const key = process.platform === 'win32' ? executable.toLowerCase() : executable;
+  return SHELL_BUILTINS.has(key);
+}
 
 function isExecutableFile(
   stat: { isFile(): boolean; mode: number },

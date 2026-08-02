@@ -56,20 +56,67 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
     expect(result.anchors[0]?.status).toBe('verified');
   });
 
-  it('treats a short wrapper flag + token as ambiguous (unknown, never demoting stale)', async () => {
-    // `npx -y node` is indistinguishable from `sudo -u www` (flag argument vs
-    // command) without per-tool knowledge; a wrong 'stale' would demote the
-    // persisted memory, so the probe reports 'unknown'.
-    const anchor: MemoryAnchor = { type: 'command', command: 'npx -y node --version' };
+  it('resolves known value-taking wrapper flags and their arguments', async () => {
+    // `sudo -u www node` — '-u' consumes 'www'; the command is 'node'.
+    const anchor: MemoryAnchor = { type: 'command', command: 'sudo -u www node --version' };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    expect(result.anchors[0]?.status).toBe('verified');
+  });
+
+  it('marks a missing executable after KNOWN flags stale (demotion preserved)', async () => {
+    const anchor: MemoryAnchor = {
+      type: 'command',
+      command: 'sudo -u www definitely-not-a-command-xyz-123',
+    };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    expect(result.anchors[0]?.status).toBe('stale');
+  });
+
+  it('marks a missing executable after an UNKNOWN flag unknown (no wrongful demotion)', async () => {
+    const anchor: MemoryAnchor = {
+      type: 'command',
+      command: 'npx --definitely-unknown-flag definitely-not-a-command-xyz-123',
+    };
     const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
     expect(result.anchors[0]?.status).toBe('unknown');
     expect(result.anchors[0]?.reason).toContain('Ambiguous');
+  });
+
+  it('resolves a KNOWN value-taking flag and demotes a genuinely missing command', async () => {
+    // `npx --registry https://x CMD` — '--registry' is a known value-taking
+    // flag, so 'https://x' is consumed as its argument and 'CMD' is what the
+    // probe looks for. CMD is genuinely missing, all flags were known, so the
+    // stale verdict (and its demotion) is correct.
+    const anchor: MemoryAnchor = {
+      type: 'command',
+      command: 'npx --registry https://x definitely-not-a-real-command-xyz',
+    };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    expect(result.anchors[0]?.status).toBe('stale');
   });
 
   it('treats shell builtins as verified (no PATH entry needed)', async () => {
     const anchor: MemoryAnchor = { type: 'command', command: 'echo probe' };
     const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
     expect(result.anchors[0]?.status).toBe('verified');
+  });
+
+  it('verifies a shell builtin even after an unknown wrapper flag', async () => {
+    const anchor: MemoryAnchor = { type: 'command', command: 'npx -y echo probe' };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    expect(result.anchors[0]?.status).toBe('verified');
+  });
+
+  it('marks a non-executable explicit path stale on POSIX', async () => {
+    const target = path.join(tempDir, 'not-exec.sh');
+    await writeFile(target, '#!/bin/sh\necho x\n'); // 0644: no exec bits
+    const anchor: MemoryAnchor = { type: 'command', command: target };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    if (process.platform === 'win32') {
+      expect(result.anchors[0]?.status).toBe('verified'); // win32: no exec-bit gate
+    } else {
+      expect(result.anchors[0]?.status).toBe('stale');
+    }
   });
 
   it('resolves a relative command path against the project root', async () => {
@@ -86,6 +133,8 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
     const withSpace = path.join(tempDir, 'tool dir');
     await mkdir(withSpace, { recursive: true });
     await writeFile(path.join(withSpace, 'tool'), 'tool');
+    // POSIX: the exec-bit probe requires an executable file.
+    await chmod(path.join(withSpace, 'tool'), 0o755);
     const anchor: MemoryAnchor = {
       type: 'command',
       command: `"${path.join(withSpace, 'tool')}" --version`,

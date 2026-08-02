@@ -72,6 +72,15 @@ export async function runSqliteSageHygiene(
   const stale: string[] = [];
   const verified: string[] = [];
 
+  // Anchor verification is deliberately EXISTENCE-ONLY here (report finding
+  // D2): hygiene is an O(N) periodic sweep that must stay cheap, and it only
+  // needs stale-vs-active for retention purposes. The expensive, content-aware
+  // checks (content hash, symbol presence, git blob) live in
+  // `verifySqliteSage` -> `verifyMemoryAnchors` (anchors/verify.ts +
+  // sqlite-store-verify.ts), which callers invoke on demand via `/memory
+  // verify` / the store `verify` op. Consequence by design: a memory whose
+  // anchored file CHANGED (not vanished) stays active here until an explicit
+  // deep verify runs; hygiene only stales anchors that are gone.
   if (opts?.verify !== false) {
     const anchorPaths = new Set<string>();
     for (const m of active) {

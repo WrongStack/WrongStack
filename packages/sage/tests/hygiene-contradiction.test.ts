@@ -103,4 +103,20 @@ describe('hygiene contradiction detection (v1, 2026-08-02)', () => {
     const newer = b && a && b.createdAt >= a.createdAt ? b : a;
     expect(newer?.contradicts).toContain(newer === b ? first.id : second.id);
   });
+
+  it('keeps a same-kind polarity pair separate at write time (remember guard)', async () => {
+    const a = await store.rememberSage({
+      text: 'the cache layer keeps retry counts separate',
+      kind: 'fact',
+      importance: 0.7,
+    });
+    const b = await store.rememberSage({
+      text: 'the cache layer does not keep retry counts separate',
+      kind: 'fact',
+      importance: 0.7,
+    });
+    // findNearDuplicate must refuse to merge a polarity pair (same kind, ≥0.88
+    // overlap) so the contradiction survives to the hygiene pass.
+    expect(a.id).not.toBe(b.id);
+  });
 });
