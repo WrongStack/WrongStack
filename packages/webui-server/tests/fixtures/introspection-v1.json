@@ -13,6 +13,8 @@
         "count": 2,
         "names": ["read", "bash"]
       },
+      "maxTools": 0,
+      "droppedTools": 0,
       "features": {
         "memory": false,
         "skills": false,

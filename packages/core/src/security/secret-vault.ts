@@ -177,8 +177,7 @@ function checkKeyFilePermissions(
 }
 
 /**
- * Crash-atomic synchronous key-file write: temp (0o600) + fsync + rename,
- * then harden the result.
+ * Crash-atomic synchronous key-file write: temp (0o600) + fsync + rename.
  *
  * A plain writeFileSync torn by a crash would leave a corrupt key file — and a
  * corrupt key file means every secret in the vault is unrecoverable. Sync
@@ -189,18 +188,17 @@ function checkKeyFilePermissions(
  * Windows `chmod`-style modes only move the read-only bit: the renamed file
  * picks up the parent directory's inherited ACEs and stays readable by every
  * other account on the machine. `restrictFilePermissions` exists precisely for
- * that — its own module docstring names the vault `.key` as a motivating case —
- * yet this writer never called it, so the file holding the key that decrypts
- * every stored provider credential was the one secret left unhardened (WS-088).
+ * that — its own module docstring names the vault `.key` as a motivating case.
  *
- * Hardening runs after the rename (an ACL set on the temp path would not
- * survive it) and is best-effort: it warns, never throws, so a missing `icacls`
- * in a minimal environment cannot block the write it is protecting.
+ * Hardening is NOT fired here — the caller must call `scheduleKeyHardening()`
+ * after the rename so the hardening promise is tracked and flushable via
+ * `flushHardening()`. This avoids both the detached-promise silent-loss-on-exit
+ * problem and the TOCTOU gap where the key file sits with inherited ACLs until
+ * the event loop ticks.
  */
 function writeKeyFileAtomicSync(
   keyFile: string,
   content: Buffer,
-  warn?: ((msg: string) => void) | undefined,
 ): void {
   const tmp = `${keyFile}.${randomBytes(4).toString('hex')}.tmp`;
   const fd = fs.openSync(tmp, 'w', 0o600);
@@ -224,14 +222,6 @@ function writeKeyFileAtomicSync(
     }
     throw err;
   }
-  // Detached on purpose: this writer is sync (it runs inside the vault's lazy
-  // key-load path) and the Windows implementation shells out to icacls. The
-  // helper already swallows and reports its own failures; the extra catch is
-  // for the promise itself, so a rejection can never become an unhandled one.
-  void restrictPermissions(keyFile, {
-    label: 'secret-vault-key',
-    ...(warn ? { warn } : {}),
-  }).catch(() => undefined);
 }
 
 /**
@@ -252,6 +242,14 @@ export class DefaultSecretVault implements RotatableSecretVault {
   private readonly logger: Logger | undefined;
   private key?: Buffer | undefined;
   private _keyVersion: number = 1;
+  /**
+   * Pending key-file hardening promises (Windows ACL restrictions via icacls).
+   * Tracked so async callers can `flushHardening()` before returning, ensuring
+   * a short-lived CLI process does not exit before the hardening resolves.
+   * Sync-only callers (encrypt/decrypt lazy-load) leave these pending —
+   * hardening remains best-effort in that case.
+   */
+  private pendingHardening: Promise<void>[] = [];
 
   constructor(opts: SecretVaultOptions) {
     this.keyFile = opts.keyFile;
@@ -269,6 +267,28 @@ export class DefaultSecretVault implements RotatableSecretVault {
     } else {
       console.warn(JSON.stringify({ ...ctx, message: msg, timestamp: new Date().toISOString() }));
     }
+  }
+
+  /**
+   * Schedule best-effort key-file hardening and track the promise so async
+   * callers can await it via `flushHardening()` before returning. Rejections
+   * are swallowed here (the helper already warns on failure) so a rejection
+   * can never become an unhandled one.
+   */
+  private scheduleKeyHardening(): void {
+    const p = restrictPermissions(this.keyFile, {
+      label: 'secret-vault-key',
+      warn: (msg) => this.logWarn(msg),
+    }).catch(() => undefined);
+    this.pendingHardening.push(p);
+  }
+
+  /** Flush all pending key-file hardening promises. */
+  flushHardening(): Promise<void> {
+    if (this.pendingHardening.length === 0) return Promise.resolve();
+    const all = Promise.all(this.pendingHardening).then(() => undefined);
+    this.pendingHardening = [];
+    return all;
   }
 
   /** Current key version. Starts at 1; incremented by rotateKey(). */
@@ -351,17 +371,16 @@ export class DefaultSecretVault implements RotatableSecretVault {
     if (passphrase) {
       // Keep the rotated key passphrase-wrapped (v3) so rotation never
       // downgrades a protected key file to plaintext.
-      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(newKey, newVersion, passphrase), (msg) =>
-        this.logWarn(msg),
-      );
+      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(newKey, newVersion, passphrase));
     } else {
       // Write versioned key file: WSKV + version byte + key
       const keyFileBuf = Buffer.alloc(VERSIONED_KEY_FILE_SIZE);
       KEY_FILE_MAGIC.copy(keyFileBuf, 0);
       keyFileBuf[KEY_FILE_MAGIC.length] = newVersion;
       newKey.copy(keyFileBuf, KEY_FILE_MAGIC.length + 1);
-      writeKeyFileAtomicSync(this.keyFile, keyFileBuf, (msg) => this.logWarn(msg));
+      writeKeyFileAtomicSync(this.keyFile, keyFileBuf);
     }
+    this.scheduleKeyHardening();
     checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
 
     this.key = newKey;
@@ -383,8 +402,8 @@ export class DefaultSecretVault implements RotatableSecretVault {
       writeKeyFileAtomicSync(
         this.keyFile,
         wrapDataKey(this.key, this._keyVersion, passphrase),
-        (msg) => this.logWarn(msg),
       );
+      this.scheduleKeyHardening();
       checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
     } catch {
       // Non-fatal: the at-rest upgrade failed, but the loaded key is valid.
@@ -480,19 +499,13 @@ export class DefaultSecretVault implements RotatableSecretVault {
       // flags only flip the read-only bit — the file inherits the parent
       // directory's ACEs and stays readable by other accounts.
       // `restrictFilePermissions` closes that gap by shelling out to icacls.
-      void restrictPermissions(this.keyFile, {
-        label: 'secret-vault',
-        warn: (msg) => this.logWarn(msg),
-      }).catch(() => undefined);
+      this.scheduleKeyHardening();
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       // Another process won the race — re-read what they wrote.
       // Harden defensively: the winner may have been an older build
       // that didn't call restrictPermissions (WS-088).
-      void restrictPermissions(this.keyFile, {
-        label: 'secret-vault',
-        warn: (msg) => this.logWarn(msg),
-      }).catch(() => undefined);
+      this.scheduleKeyHardening();
       const buf = fs.readFileSync(this.keyFile);
       if (isWrappedKeyFile(buf)) {
         const { key: winnerKey, version } = unwrapDataKey(buf, this.keyFile);

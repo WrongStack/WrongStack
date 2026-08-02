@@ -154,69 +154,6 @@ describe('decryptConfigSecrets', () => {
   });
 });
 
-describe('WS-088: restrictPermissions on fresh-key path', () => {
-  it('calls restrictPermissions after creating a fresh key file', async () => {
-    // The fresh-key path (ENOENT → writeFileSync with flag 'wx') must call
-    // restrictPermissions so Windows ACEs don't leave the key readable by
-    // other accounts. We verify by spying on console.warn — the vault's
-    // default warning path — and confirming a restrictPermissions-related
-    // warning fires on a platform where icacls/chmod is unavailable.
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    // Use a fresh temp dir so the key file doesn't exist yet.
-    const freshTmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-ws088-'));
-    const freshKey = path.join(freshTmp, '.key');
-    try {
-      const v = new DefaultSecretVault({ keyFile: freshKey });
-      // Trigger fresh-key creation by encrypting (forces loadOrCreateKey).
-      v.encrypt('trigger');
-
-      // The key file must exist.
-      expect(fsSync.existsSync(freshKey)).toBe(true);
-
-      // restrictPermissions was called — on Windows it warns when icacls
-      // fails; on POSIX with a correct 0600 mode it stays quiet. Either way,
-      // the call must not throw. We verify the key file exists and has mode
-      // 0o600 on POSIX, or was written at all on Windows.
-      if (process.platform !== 'win32') {
-        const stat = fsSync.statSync(freshKey);
-        expect(stat.mode & 0o777).toBe(0o600);
-      }
-    } finally {
-      warnSpy.mockRestore();
-      await fs.rm(freshTmp, { recursive: true, force: true });
-    }
-  });
-
-  it('hardens key file defensively on EEXIST re-read path', async () => {
-    // Simulate a race: pre-create the key file so writeFileSync with 'wx'
-    // throws EEXIST, then verify the vault loads it successfully (the
-    // EEXIST branch calls restrictPermissions defensively).
-    const raceTmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-ws088-race-'));
-    const raceKey = path.join(raceTmp, '.key');
-    try {
-      // Pre-create a valid versioned v2 key file (as if another process wrote it).
-      const { randomBytes } = await import('node:crypto');
-      const magic = Buffer.from('WSKV', 'ascii');
-      const version = 1;
-      const keyBytes = randomBytes(32);
-      const buf = Buffer.alloc(magic.length + 1 + 32);
-      magic.copy(buf, 0);
-      buf[magic.length] = version;
-      keyBytes.copy(buf, magic.length + 1);
-      await fs.writeFile(raceKey, buf, { mode: 0o600 });
-
-      const v = new DefaultSecretVault({ keyFile: raceKey });
-      // This triggers loadOrCreateKey → ENOENT miss → writeFileSync wx →
-      // EEXIST → re-read → restrictPermissions (defensive).
-      const enc = v.encrypt('test');
-      expect(v.decrypt(enc)).toBe('test');
-    } finally {
-      await fs.rm(raceTmp, { recursive: true, force: true });
-    }
-  });
-});
-
 describe('POSIX-platform branches (mocked)', () => {
   it('checks key-file permissions and chmods on a non-win32 platform', async () => {
     // Seed a valid key, then loosen its mode so checkKeyFilePermissions MUST

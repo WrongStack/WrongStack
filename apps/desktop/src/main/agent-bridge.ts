@@ -339,10 +339,14 @@ export class DesktopAgentBridge extends EventEmitter {
     conversation.status = 'disconnected';
     conversation.activeAssistantMessageId = null;
     this.emitChanged(conversation);
+
+    // Remove from the map so closed conversations don't accumulate in memory.
+    this.conversations.delete(runtimeId);
   }
 
   closeAll(): void {
-    for (const runtimeId of this.conversations.keys()) {
+    // Snapshot keys first — close() deletes from the map during iteration.
+    for (const runtimeId of [...this.conversations.keys()]) {
       this.close(runtimeId);
     }
   }
