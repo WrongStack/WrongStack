@@ -23,8 +23,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Context } from '../../src/core/context.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
-import type { Context, Tool } from '../../src/types/index.js';
+import type { Tool } from '../../src/types/index.js';
 
 function tool(overrides: Partial<Tool> = {}): Tool {
   return {

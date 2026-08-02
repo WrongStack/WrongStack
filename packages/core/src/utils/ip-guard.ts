@@ -46,6 +46,11 @@ export function isPrivateIPv6(raw: string): boolean {
   const groups = expandIPv6(lower);
   if (!groups) return true;
 
+  // RFC 8215 reserves 64:ff9b:1::/48 for local-use NAT64. Its network-specific
+  // translation layout cannot be decoded safely without the configured prefix,
+  // so block the entire range rather than risk a private IPv4 destination.
+  if (groups[0] === 0x0064 && groups[1] === 0xff9b && groups[2] === 0x0001) return true;
+
   // IPv4-mapped: ::ffff:0:0/96 → groups[0..5] all 0, groups[6..7] hold the
   // embedded IPv4 as two 16-bit words.  Node URL normalises the dotted form to
   // this representation (e.g. ::ffff:127.0.0.1 → ::ffff:7f00:1).
@@ -105,15 +110,26 @@ function embeddedIPv4(groups: number[]): string | undefined {
     if (g(2) === 0 && g(3) === 0 && g(4) === 0 && g(5) === 0) {
       return quad(g(6), g(7));
     }
-    // RFC 8215 local-use prefix 64:ff9b:1::/48 — the IPv4 sits in groups 3-4.
-    // Not covered by the well-known branch above (g(2) is 0x0001), so without
-    // this a private address could be smuggled past the guard as 64:ff9b:1:0:<ipv4>.
-    if (g(2) === 0x0001) {
-      return quad(g(3), g(4));
-    }
   }
   // 6to4: 2002:<ipv4>::/48
   if (g(0) === 0x2002) return quad(g(1), g(2));
+
+  // Teredo (RFC 4380): 2001:0000::/32 — the client IPv4 in the last 32 bits
+  // is stored XOR-obfuscated with 0xffffffff. MUST be checked before ISATAP:
+  // group 5 holds the attacker-chosen obscured UDP port, which can collide
+  // with the ISATAP 0x5efe marker and make ISATAP read the *obscured* client
+  // IPv4 as plain (SSRF bypass + false positives).
+  if (g(0) === 0x2001 && g(1) === 0) {
+    return quad((~g(6)) & 0xffff, (~g(7)) & 0xffff);
+  }
+
+  // ISATAP (RFC 5214): the embedded IPv4 sits in the last 32 bits, preceded
+  // by the IANA IID marker 0x5efe. The IID is `g(4):g(5) = 0000:5efe` (or the
+  // u-bit variant 0200:5efe); requiring both words avoids false positives on
+  // unrelated addresses that merely contain 0x5efe somewhere.
+  if ((g(4) === 0x0000 || g(4) === 0x0200) && g(5) === 0x5efe) {
+    return quad(g(6), g(7));
+  }
 
   const highZero = g(0) === 0 && g(1) === 0 && g(2) === 0 && g(3) === 0;
   // IPv4-translated: ::ffff:0:<ipv4>

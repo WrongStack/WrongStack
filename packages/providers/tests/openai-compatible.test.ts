@@ -379,7 +379,14 @@ describe('OpenAICompatibleProvider', () => {
   }
 
   function toolList(names: string[]): Tool[] {
-    return names.map((name) => ({ name, description: `Tool ${name}`, inputSchema: { type: 'object', properties: {} } }));
+    return names.map((name) => ({
+      name,
+      description: `Tool ${name}`,
+      inputSchema: { type: 'object', properties: {} },
+      permission: 'auto',
+      mutating: false,
+      async execute() {},
+    }));
   }
 
   it('trims tools to maxTools limit on the wire', async () => {
@@ -447,7 +454,7 @@ describe('OpenAICompatibleProvider', () => {
         messages: [{ role: 'user', content: 'hi' }],
         maxTokens: 1,
         tools: toolList(['read', 'lint_gate_status']),
-        toolChoice: { name: 'lint_gate_status' },
+        toolChoice: { type: 'tool', name: 'lint_gate_status' },
       },
       { signal: new AbortController().signal },
     );
@@ -473,7 +480,7 @@ describe('OpenAICompatibleProvider', () => {
         messages: [{ role: 'user', content: 'hi' }],
         maxTokens: 1,
         tools: toolList(['read', 'write', 'lint_gate_status']),
-        toolChoice: { name: 'write' },
+        toolChoice: { type: 'tool', name: 'write' },
       },
       { signal: new AbortController().signal },
     );

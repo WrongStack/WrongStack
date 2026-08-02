@@ -43,7 +43,9 @@ afterEach(async () => {
 const makeCtx = () => ({ cwd: tmpDir, tools: [], projectRoot: tmpDir }) as never;
 
 async function scaffold(input: Record<string, unknown>): Promise<string> {
-  await scaffoldTool.execute({ template: 'npm-package', ...input } as never, makeCtx());
+  await scaffoldTool.execute({ template: 'npm-package', ...input } as never, makeCtx(), {
+    signal: new AbortController().signal,
+  });
   return await fs.readFile(path.join(tmpDir, 'package.json'), 'utf8');
 }
 
@@ -98,6 +100,7 @@ describe('variable NAMES are regex-escaped (WS-057)', () => {
     await scaffoldTool.execute(
       { template: 'npm-package', name: 'plain', vars: { 'a.b': 'v' } } as never,
       makeCtx(),
+      { signal: new AbortController().signal },
     );
     await expect(fs.stat(path.join(tmpDir, 'package.json'))).resolves.toBeTruthy();
   });

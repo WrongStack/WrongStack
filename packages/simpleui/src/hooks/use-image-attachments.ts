@@ -15,7 +15,7 @@ export interface AttachedImage {
  * deliberate and not laziness: SimpleUI imports nothing from `@wrongstack/core`
  * on purpose — it is a browser bundle, and pulling the core barrel in drags
  * Node built-ins into it. `tests/image-attachment-limits.test.ts` runs in Node,
- * imports the canonical values, and fails if these drift, so the copy cannot
+ * reads the canonical core source, and fails if these drift, so the copy cannot
  * silently diverge.
  *
  * The SERVER remains the enforcing layer: `parseIncomingImages` re-checks all

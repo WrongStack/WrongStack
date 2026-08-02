@@ -20,45 +20,60 @@
  *
  * The limits are duplicated in SimpleUI rather than imported, because it is a
  * browser bundle that deliberately depends on nothing from `@wrongstack/core`.
- * This file runs in Node, so it CAN import the canonical values — which is the
- * whole point: it fails if the copy drifts.
+ * This file runs in Node, so it reads the canonical core source directly —
+ * which is the whole point: it fails if the copy drifts.
  */
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import {
-  ALLOWED_IMAGE_MEDIA_TYPES,
-  MAX_INCOMING_IMAGE_BYTES,
-  MAX_INCOMING_IMAGES,
-} from '@wrongstack/core/utils';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
   resolve(import.meta.dirname, '../src/hooks/use-image-attachments.ts'),
   'utf8',
 );
+const canonicalSource = readFileSync(
+  resolve(import.meta.dirname, '../../core/src/utils/incoming-images.ts'),
+  'utf8',
+);
 
-/** Pull a literal out of the hook source, so the assertion reads the copy. */
-function literal(name: string): string {
-  const match = new RegExp(`const ${name} =\\s*([^;]+);`).exec(source);
-  expect(match, `${name} must exist in use-image-attachments.ts`).not.toBeNull();
+/** Pull a literal out of source text, so assertions compare both maintained copies. */
+function literal(name: string, text = source): string {
+  const match = new RegExp(`const ${name} =\\s*([^;]+);`).exec(text);
+  expect(match, `${name} must exist in source`).not.toBeNull();
   return match![1]!.trim();
+}
+
+function productValue(expression: string): number {
+  expect(expression, 'byte cap must be a plain product of integers').toMatch(
+    /^\d+(\s*\*\s*\d+)*$/,
+  );
+  return expression.split('*').reduce((acc, part) => acc * Number(part.trim()), 1);
+}
+
+function canonicalMediaTypes(): string[] {
+  const match = /ALLOWED_IMAGE_MEDIA_TYPES[^=]*= new Set<string>\(\[([\s\S]*?)\]\)/.exec(
+    canonicalSource,
+  );
+  expect(match, 'canonical image media type set must exist').not.toBeNull();
+  return match?.[1]?.match(/'([^']+)'/g)?.map((value) => value.slice(1, -1)) ?? [];
 }
 
 describe('SimpleUI client limits match the canonical ones (WS-055)', () => {
   it('allows exactly the media types core allows', () => {
     const declared = literal('ALLOWED_IMAGE_MIME_TYPES');
-    for (const type of ALLOWED_IMAGE_MEDIA_TYPES) {
+    const canonical = canonicalMediaTypes();
+    for (const type of canonical) {
       expect(declared, `${type} missing from the SimpleUI copy`).toContain(type);
     }
     // And nothing extra — a wider client list would let a file through to a
     // server rejection, which is the confusing failure this is meant to avoid.
     const listed = declared.match(/'([^']+)'/g)?.map((s) => s.replaceAll("'", '')) ?? [];
-    expect([...listed].sort()).toEqual([...ALLOWED_IMAGE_MEDIA_TYPES].sort());
+    expect([...listed].sort()).toEqual([...canonical].sort());
   });
 
   it('uses the same count cap', () => {
-    expect(literal('MAX_IMAGES')).toBe(String(MAX_INCOMING_IMAGES));
+    expect(literal('MAX_IMAGES')).toBe(literal('MAX_INCOMING_IMAGES', canonicalSource));
   });
 
   it('uses the same byte cap', () => {
@@ -67,10 +82,9 @@ describe('SimpleUI client limits match the canonical ones (WS-055)', () => {
     // Parsed with a strict digits-and-`*` reducer instead of eval: this reads
     // a source file, and a test has no business executing what it finds there
     // even when the file is ours.
-    const expr = literal('MAX_IMAGE_BYTES');
-    expect(expr, 'byte cap must be a plain product of integers').toMatch(/^\d+(\s*\*\s*\d+)*$/);
-    const clientBytes = expr.split('*').reduce((acc, part) => acc * Number(part.trim()), 1);
-    expect(clientBytes).toBe(MAX_INCOMING_IMAGE_BYTES);
+    const clientBytes = productValue(literal('MAX_IMAGE_BYTES'));
+    const canonicalBytes = productValue(literal('MAX_INCOMING_IMAGE_BYTES', canonicalSource));
+    expect(clientBytes).toBe(canonicalBytes);
   });
 
   it('screens before reading, not after', () => {
