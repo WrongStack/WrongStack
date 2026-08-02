@@ -194,6 +194,7 @@ export function StatusBar({
   sessionId,
   eternalStage,
   goalSummary,
+  droppedTools,
   indexState,
   breakerCountdown,
   modeLabel,
@@ -1105,6 +1106,13 @@ export function StatusBar({
                 {isNoColor
                   ? `auto in ${autoProceedCountdown}s`
                   : `${STATUSLINE_ICONS.auto_proceed} auto in ${autoProceedCountdown}s`}
+              </Text>
+            ) : null,
+            droppedTools && droppedTools > 0 ? (
+              <Text color={isNoColor ? undefined : theme.warn}>
+                {isNoColor
+                  ? `-${droppedTools} tools`
+                  : `${STATUSLINE_ICONS.tools} -${droppedTools}`}
               </Text>
             ) : null,
             ...detailChips,

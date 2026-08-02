@@ -377,7 +377,12 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
       // bar / pickers / fallback chain all see `id === 'anthropic'` and the
       // configured alias is silently lost — which is exactly the drift that
       // used to happen on `/model` switch and session resume.
-      return new AnthropicProvider({ apiKey: expectDefined(apiKey), baseUrl, id: p.id });
+      return new AnthropicProvider({
+        apiKey: expectDefined(apiKey),
+        baseUrl,
+        id: p.id,
+        maxTools: validateQuirks(p.id, cfg.quirks)?.maxTools,
+      });
     case 'openai':
       return new OpenAIProvider({
         apiKey: expectDefined(apiKey),
@@ -493,7 +498,12 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
       });
     }
     case 'google':
-      return new GoogleProvider({ id: p.id, apiKey: expectDefined(apiKey), baseUrl });
+      return new GoogleProvider({
+        id: p.id,
+        apiKey: expectDefined(apiKey),
+        baseUrl,
+        maxTools: validateQuirks(p.id, cfg.quirks)?.maxTools,
+      });
     default:
       throw new ConfigError({
         message: `Unknown provider family: ${String(family)}`,

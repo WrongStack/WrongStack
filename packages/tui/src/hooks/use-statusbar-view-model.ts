@@ -75,6 +75,7 @@ export function useStatusbarViewModel({
   entriesWithLeader: Record<string, FleetEntry>;
   planCounts: PlanCounts | null;
   taskCounts: TaskCounts | null;
+  droppedTools: number;
 } {
   const maxContext = activeMaxContext ?? agent.ctx.provider.capabilities.maxContext;
   // `currentRequestTokens()` is the per-request snapshot — the right number
@@ -318,6 +319,15 @@ export function useStatusbarViewModel({
     };
   }, [taskPath]);
 
+  // Dropped-tool count: how many tools the provider's maxTools limit will
+  // remove from the next request. 0 when the provider has no limit or the
+  // registered tool count is within the limit. Surfaced in the StatusBar as
+  // a chip so the user knows tools were omitted.
+  const providerMaxTools = (agent.ctx.provider as { maxToolsCount?: number }).maxToolsCount ?? 0;
+  const droppedTools = providerMaxTools > 0
+    ? Math.max(0, (agent.ctx.tools?.length ?? 0) - providerMaxTools)
+    : 0;
+
   return {
     contextBreakdown,
     currentContextTokens,
@@ -329,5 +339,6 @@ export function useStatusbarViewModel({
     entriesWithLeader,
     planCounts,
     taskCounts,
+    droppedTools,
   };
 }

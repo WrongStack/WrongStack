@@ -139,4 +139,71 @@ describe('buildProviderFactoriesFromRegistry', () => {
     const calls = spy.mock.calls.map((c) => String(c[0]));
     expect(calls.some((m) => m.includes('mistral'))).toBe(false);
   });
+
+  // ── maxTools quirks acceptance ─────────────────────────────
+
+  it('accepts quirks.maxTools for anthropic family providers', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const f = factories.find((x) => x.type === 'anthropic');
+    expect(() =>
+      f!.create({
+        type: 'anthropic',
+        apiKey: 'sk-test',
+        quirks: { maxTools: 128 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('accepts quirks.maxTools for google family providers', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const f = factories.find((x) => x.type === 'google');
+    expect(() =>
+      f!.create({
+        type: 'google',
+        apiKey: 'AIza-test',
+        quirks: { maxTools: 128 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('accepts quirks.maxTools for openai-compatible family providers', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const f = factories.find((x) => x.type === 'groq');
+    expect(() =>
+      f!.create({
+        type: 'groq',
+        apiKey: 'gsk-test',
+        quirks: { maxTools: 64 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects invalid maxTools (non-integer) for any family', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const f = factories.find((x) => x.type === 'groq');
+    expect(() =>
+      f!.create({
+        type: 'groq',
+        apiKey: 'gsk-test',
+        quirks: { maxTools: 2.5 },
+      }),
+    ).toThrow(/Invalid quirks/);
+  });
+
+  it('rejects invalid maxTools (zero) for any family', async () => {
+    const registry = makeRegistry();
+    const factories = await buildProviderFactoriesFromRegistry({ registry });
+    const f = factories.find((x) => x.type === 'anthropic');
+    expect(() =>
+      f!.create({
+        type: 'anthropic',
+        apiKey: 'sk-test',
+        quirks: { maxTools: 0 },
+      }),
+    ).toThrow(/Invalid quirks/);
+  });
 });

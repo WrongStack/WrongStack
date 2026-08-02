@@ -45,6 +45,16 @@
     }
   },
   {
+    "id": "zyloo",
+    "name": "Zyloo",
+    "family": "openai-compatible",
+    "description": "Zyloo API — OpenAI-compatible with a 128-tool limit per request",
+    "icon": "🚀",
+    "color": "from-accent/12 to-accent/5 border-accent/30 hover:border-accent/50",
+    "keyPlaceholder": "zy-...",
+    "docsUrl": "https://docs.zyloo.io/"
+  },
+  {
     "id": "openrouter",
     "name": "OpenRouter (Metered)",
     "family": "openai-compatible",

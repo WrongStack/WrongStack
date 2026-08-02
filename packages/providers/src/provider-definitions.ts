@@ -118,6 +118,24 @@ const CORE_PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     docsUrl: 'https://docs.x.ai/',
     requestPolicy: 'xai',
   },
+  {
+    id: 'zyloo',
+    name: 'Zyloo',
+    family: 'openai-compatible',
+    baseUrl: 'https://api.zyloo.io/v1',
+    envVars: ['ZYLOO_API_KEY'],
+    models: [],
+    usage: 'metered-api',
+    docsUrl: 'https://docs.zyloo.io/',
+    autoDiscover: true,
+    quirks: { maxTools: 128 },
+    catalog: {
+      description: 'Zyloo API — OpenAI-compatible with a 128-tool limit per request',
+      icon: '🚀',
+      color: 'from-accent/12 to-accent/5 border-accent/30 hover:border-accent/50',
+      keyPlaceholder: 'zy-...',
+    },
+  },
 ] as const;
 
 export const LOCAL_PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [

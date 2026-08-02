@@ -378,4 +378,56 @@ describe('GoogleProvider', () => {
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
     ]);
   });
+
+  // ── maxTools ───────────────────────────────────────────────
+
+  function toolList(names: string[]): import('@wrongstack/core/types').Tool[] {
+    return names.map((name) => ({ name, description: `Tool ${name}`, inputSchema: { type: 'object', properties: {} } }));
+  }
+
+  it('trims tools to maxTools limit on the wire', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new GoogleProvider({ apiKey: 'k', fetchImpl, maxTools: 2 });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'write', 'lint_gate_status', 'secret_scanner_test']),
+      },
+      { signal: new AbortController().signal },
+    );
+    const toolsWrapper = captured?.['tools'] as Array<{ functionDeclarations: Array<{ name: string }> }>;
+    expect(toolsWrapper).toBeDefined();
+    const wireTools = toolsWrapper[0]!.functionDeclarations;
+    expect(wireTools).toHaveLength(2);
+    const names = wireTools.map((t) => t.name);
+    expect(names).toContain('read');
+    expect(names).toContain('write');
+    expect(names).not.toContain('lint_gate_status');
+  });
+
+  it('preserves all tools when under maxTools limit', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new GoogleProvider({ apiKey: 'k', fetchImpl, maxTools: 128 });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'write', 'bash']),
+      },
+      { signal: new AbortController().signal },
+    );
+    const toolsWrapper = captured?.['tools'] as Array<{ functionDeclarations: Array<{ name: string }> }>;
+    expect(toolsWrapper[0]!.functionDeclarations).toHaveLength(3);
+  });
 });

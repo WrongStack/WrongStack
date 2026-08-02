@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Tool } from '@wrongstack/core/types';
 import {
   isCompatibilityQuirks,
   OpenAICompatibleProvider,
@@ -75,6 +76,30 @@ describe('isCompatibilityQuirks', () => {
       emptyToolCallContent: 'null',
       thinkingParam: 'always-on',
     })).toBe(true);
+  });
+
+  // ── maxTools ───────────────────────────────────────────────
+
+  it('accepts valid maxTools values', () => {
+    expect(isCompatibilityQuirks({ maxTools: 1 })).toBe(true);
+    expect(isCompatibilityQuirks({ maxTools: 128 })).toBe(true);
+    expect(isCompatibilityQuirks({ maxTools: 1000 })).toBe(true);
+  });
+
+  it('rejects non-positive maxTools values', () => {
+    expect(isCompatibilityQuirks({ maxTools: 0 })).toBe(false);
+    expect(isCompatibilityQuirks({ maxTools: -1 })).toBe(false);
+  });
+
+  it('rejects non-integer maxTools values', () => {
+    expect(isCompatibilityQuirks({ maxTools: 2.5 })).toBe(false);
+    expect(isCompatibilityQuirks({ maxTools: NaN })).toBe(false);
+  });
+
+  it('rejects non-number maxTools values', () => {
+    expect(isCompatibilityQuirks({ maxTools: '128' })).toBe(false);
+    expect(isCompatibilityQuirks({ maxTools: true })).toBe(false);
+    expect(isCompatibilityQuirks({ maxTools: null })).toBe(false);
   });
 });
 
@@ -340,5 +365,119 @@ describe('OpenAICompatibleProvider', () => {
       { signal: new AbortController().signal },
     );
     expect(res.stopReason).toBe('end_turn');
+  });
+
+  // ── maxTools ───────────────────────────────────────────────
+
+  function captureBodySpy(): { spy: typeof fetch; getBody: () => Record<string, unknown> } {
+    let captured: Record<string, unknown> | undefined;
+    const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+    }) as never as typeof fetch;
+    return { spy, getBody: () => captured ?? {} };
+  }
+
+  function toolList(names: string[]): Tool[] {
+    return names.map((name) => ({ name, description: `Tool ${name}`, inputSchema: { type: 'object', properties: {} } }));
+  }
+
+  it('trims tools to maxTools limit on the wire', async () => {
+    const { spy, getBody } = captureBodySpy();
+    const p = new OpenAICompatibleProvider({
+      id: 'zyloo',
+      apiKey: 'k',
+      baseUrl: 'https://api.zyloo.io/v1',
+      quirks: { maxTools: 3 },
+      fetchImpl: spy,
+    });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'write', 'bash', 'lint_gate_status', 'secret_scanner_test']),
+      },
+      { signal: new AbortController().signal },
+    );
+    const wireTools = getBody()['tools'] as Array<{ function: { name: string } }>;
+    expect(wireTools).toHaveLength(3);
+    const names = wireTools.map((t) => t.function.name);
+    expect(names).toContain('read');
+    expect(names).toContain('write');
+    expect(names).toContain('bash');
+    expect(names).not.toContain('lint_gate_status');
+  });
+
+  it('preserves all tools when under maxTools limit', async () => {
+    const { spy, getBody } = captureBodySpy();
+    const p = new OpenAICompatibleProvider({
+      id: 'zyloo',
+      apiKey: 'k',
+      baseUrl: 'https://api.zyloo.io/v1',
+      quirks: { maxTools: 128 },
+      fetchImpl: spy,
+    });
+    const tools = toolList(['read', 'write', 'bash']);
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools,
+      },
+      { signal: new AbortController().signal },
+    );
+    const wireTools = getBody()['tools'] as Array<{ function: { name: string } }>;
+    expect(wireTools).toHaveLength(3);
+  });
+
+  it('falls back to auto tool_choice when the chosen tool is filtered out', async () => {
+    const { spy, getBody } = captureBodySpy();
+    const p = new OpenAICompatibleProvider({
+      id: 'zyloo',
+      apiKey: 'k',
+      baseUrl: 'https://api.zyloo.io/v1',
+      quirks: { maxTools: 1 },
+      fetchImpl: spy,
+    });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'lint_gate_status']),
+        toolChoice: { name: 'lint_gate_status' },
+      },
+      { signal: new AbortController().signal },
+    );
+    // Only 'read' survives (priority 0); toolChoice fell back to 'auto'.
+    expect(getBody()['tool_choice']).toBe('auto');
+    const wireTools = getBody()['tools'] as Array<{ function: { name: string } }>;
+    expect(wireTools).toHaveLength(1);
+    expect(wireTools[0]!.function.name).toBe('read');
+  });
+
+  it('keeps tool_choice when the chosen tool survives filtering', async () => {
+    const { spy, getBody } = captureBodySpy();
+    const p = new OpenAICompatibleProvider({
+      id: 'zyloo',
+      apiKey: 'k',
+      baseUrl: 'https://api.zyloo.io/v1',
+      quirks: { maxTools: 2 },
+      fetchImpl: spy,
+    });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'write', 'lint_gate_status']),
+        toolChoice: { name: 'write' },
+      },
+      { signal: new AbortController().signal },
+    );
+    const tc = getBody()['tool_choice'] as { function: { name: string } };
+    expect(tc.function.name).toBe('write');
   });
 });

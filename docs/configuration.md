@@ -242,8 +242,36 @@ A map of provider id → provider config. Each entry can declare its own API key
 | `family` | `string` | auto-detected | Wire family override (`anthropic`, `openai`, `openai-compatible`, `google`). Required for offline/custom endpoints. |
 | `envVars` | `string[]` | provider default | Custom env var names to probe for API keys. |
 | `models` | `string[]` | — | Restrict visible models for this provider. |
-| `quirks` | `Record<string, unknown>` | — | Provider-specific behavior flags. See provider-author-guide.md. |
+| `quirks` | `Record<string, unknown>` | — | Provider-specific behavior flags. See [CompatibilityQuirks](#compatibility-quirks) below. |
 | `capabilities` | `Record<string, unknown>` | — | Override reported capabilities (e.g. `maxContext`, `vision`). |
+
+### CompatibilityQuirks
+
+Wire-level behavior flags for OpenAI-compatible and family-overridden providers. Set them under the `quirks` key on any provider config entry. All quirks are optional.
+
+```jsonc
+{
+  "providers": {
+    "zyloo": {
+      "type": "openai-compatible",
+      "apiKey": "zy-...",
+      "baseUrl": "https://api.zyloo.io/v1",
+      "quirks": { "maxTools": 128 }
+    }
+  }
+}
+```
+
+| Quirk | Type | Description |
+|---|---|---|
+| `maxTools` | `number` | Maximum tool definitions the provider accepts per request. When the registered tool count exceeds this limit, lower-priority tools are filtered out before the request is sent. Priority is name-based: core file/shell tools (`read`, `write`, `edit`, `bash`, `exec`, `grep`, `glob`) are kept last; diagnostic tools ending in `_status` or `_test` are dropped first. If a `tool_choice` pin points to a filtered-out tool, it falls back to `auto`. A warning is logged on first use listing the dropped tool names. Applies to all wire families (OpenAI, Anthropic, Google). |
+| `stripCacheControl` | `boolean` | Strip `cache_control` annotations from system prompt blocks before sending. Use for providers that reject Anthropic-style cache breakpoints. |
+| `systemAsMessage` | `boolean` | Send the system prompt as the first user message instead of the `system` field. Some compatible endpoints do not support a top-level `system` parameter. |
+| `flattenContentToString` | `boolean` | Flatten structured message content to plain strings. Needed by endpoints that only accept `content: string` and reject `content: ContentBlock[]`. |
+| `preserveToolCallIds` | `boolean` | Preserve tool-call IDs verbatim. Some endpoints assign their own IDs and reject client-provided ones. |
+| `parallelToolsDisabled` | `boolean` | Disable parallel tool calls. Set for endpoints that return errors when multiple tool calls appear in a single response. |
+| `thinkingParam` | `'zai-glm' \| 'kimi-toggle' \| 'always-on'` | Control how thinking/reasoning parameters are serialized. `zai-glm` maps effort to Z.AI's `reasoning_effort` values; `kimi-toggle` uses Kimi's `{ type: 'enabled' }` toggle; `always-on` suppresses disabled-thinking parameters for models that reject them. |
+| `stripThinkTags` | `boolean` | Route literal `<think>` tags to the thinking channel and drop stray closers. For models that emit raw think tags in content instead of structured thinking blocks. |
 
 ---
 

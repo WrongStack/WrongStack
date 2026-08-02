@@ -112,6 +112,7 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
     entriesWithLeader,
     planCounts,
     taskCounts,
+    droppedTools,
   } = statusbar;
   const { mailboxStatus, mailboxPanelOpen, mailboxMessages, mailboxAgents } = mailbox;
   const { lowerFunctionPanelOpen } = viewState;
@@ -140,6 +141,7 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
               queueCount={state.queue.length}
               yolo={yoloLive}
               autonomy={autonomyLive}
+              droppedTools={droppedTools}
               startedAt={startedAt}
               fleetWorkingTime={fleetWorkingTimeMs}
               todos={todos}

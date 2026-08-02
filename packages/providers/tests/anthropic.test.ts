@@ -413,4 +413,54 @@ describe('AnthropicProvider', () => {
     expect(captured).not.toHaveProperty('logprobs');
     expect(captured).not.toHaveProperty('top_logprobs');
   });
+
+  // ── maxTools ───────────────────────────────────────────────
+
+  function toolList(names: string[]): import('@wrongstack/core/types').Tool[] {
+    return names.map((name) => ({ name, description: `Tool ${name}`, inputSchema: { type: 'object', properties: {} } }));
+  }
+
+  it('trims tools to maxTools limit on the wire', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl, maxTools: 2 });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'write', 'lint_gate_status', 'secret_scanner_test']),
+      },
+      { signal: new AbortController().signal },
+    );
+    const wireTools = captured?.['tools'] as Array<{ name: string }>;
+    expect(wireTools).toHaveLength(2);
+    const names = wireTools.map((t) => t.name);
+    expect(names).toContain('read');
+    expect(names).toContain('write');
+    expect(names).not.toContain('lint_gate_status');
+  });
+
+  it('preserves all tools when under maxTools limit', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl, maxTools: 128 });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        tools: toolList(['read', 'write', 'bash']),
+      },
+      { signal: new AbortController().signal },
+    );
+    const wireTools = captured?.['tools'] as Array<{ name: string }>;
+    expect(wireTools).toHaveLength(3);
+  });
 });

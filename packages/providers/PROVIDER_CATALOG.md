@@ -12,6 +12,7 @@
 | github-copilot | GitHub Copilot | github-copilot | subscription-interactive | — | — | catalog/discovery |
 | opencode-go | OpenCode Go | openai-compatible | subscription-interactive | https://opencode.ai/zen/go/v1 | OPENCODE_API_KEY | catalog/discovery |
 | xai | xAI | openai-compatible | metered-api | https://api.x.ai/v1 | XAI_API_KEY | catalog/discovery |
+| zyloo | Zyloo | openai-compatible | metered-api | https://api.zyloo.io/v1 | ZYLOO_API_KEY | catalog/discovery |
 | openrouter | OpenRouter (Metered) | openai-compatible | metered-api | https://openrouter.ai/api/v1 | OPENROUTER_API_KEY | openai/gpt-4o, openai/gpt-4o-mini, anthropic/claude-sonnet-4-20250514, google/gemini-2.0-flash-001, meta-llama/llama-4-scout, deepseek/deepseek-chat |
 | kimi-for-coding | Kimi Code (Subscription) | openai-compatible | subscription-interactive | https://api.kimi.com/coding/v1 | KIMI_API_KEY | kimi-for-coding, kimi-for-coding-highspeed |
 | moonshotai | Moonshot Platform (Metered) | openai-compatible | metered-api | https://api.moonshot.ai/v1 | MOONSHOT_API_KEY | kimi-k2.7-code, kimi-k2.7-code-highspeed |

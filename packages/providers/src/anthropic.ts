@@ -25,6 +25,12 @@ export interface AnthropicProviderOptions {
   id?: string | undefined;
   /** Raw stream debugging and hang-detection options. */
   streamOpts?: WireAdapterStreamOptions | undefined;
+  /**
+   * Maximum number of tool definitions the provider accepts per request.
+   * When set, lower-priority tools are filtered out centrally by
+   * `WireAdapter.stream()` before the request body is built.
+   */
+  maxTools?: number | undefined;
 }
 
 function isAnthropicHost(baseUrl: string): boolean {
@@ -55,6 +61,9 @@ export class AnthropicProvider extends WireFormatProvider<AnthropicStreamState> 
     // explicit opts override wins when present.
     this.id = opts.id ?? anthropicWireFormat.id;
     this.opts = opts;
+    if (opts.maxTools && opts.maxTools > 0) {
+      this.maxToolsCount = opts.maxTools;
+    }
   }
 
   /**

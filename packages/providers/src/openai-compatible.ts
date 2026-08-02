@@ -17,6 +17,7 @@ const VALID_QUIRK_KEYS = new Set<keyof CompatibilityQuirks>([
   'emptyToolCallContent',
   'thinkingParam',
   'stripThinkTags',
+  'maxTools',
 ]);
 
 export function isCompatibilityQuirks(value: unknown): value is CompatibilityQuirks {
@@ -30,6 +31,8 @@ export function isCompatibilityQuirks(value: unknown): value is CompatibilityQui
       if (v !== 'null' && v !== 'empty_string') return false;
     } else if (key === 'thinkingParam') {
       if (v !== 'zai-glm' && v !== 'kimi-toggle' && v !== 'always-on') return false;
+    } else if (key === 'maxTools') {
+      if (typeof v !== 'number' || v < 1 || !Number.isInteger(v)) return false;
     } else if (typeof v !== 'boolean') {
       return false;
     }

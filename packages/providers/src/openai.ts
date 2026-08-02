@@ -37,6 +37,7 @@ export interface OpenAIProviderOptions {
     parallelToolsDisabled?: boolean | undefined;
     thinkingParam?: 'zai-glm' | 'kimi-toggle' | 'always-on' | undefined;
     stripThinkTags?: boolean | undefined;
+    maxTools?: number | undefined;
   } | undefined;
   id?: string | undefined;
   capabilities?: Partial<Capabilities> | undefined;
@@ -61,6 +62,9 @@ export class OpenAIProvider extends WireAdapter {
       systemPrompt: !opts.quirks?.systemAsMessage,
       ...opts.capabilities,
     });
+    if (opts.quirks?.maxTools && opts.quirks.maxTools > 0) {
+      this.maxToolsCount = opts.quirks.maxTools;
+    }
   }
 
   protected override buildUrl(_req: Request): string {

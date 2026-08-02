@@ -18,6 +18,12 @@ export interface GoogleProviderOptions {
   capabilities?: Partial<Capabilities> | undefined;
   /** Raw stream debugging and hang-detection options. */
   streamOpts?: WireAdapterStreamOptions | undefined;
+  /**
+   * Maximum number of tool definitions the provider accepts per request.
+   * When set, lower-priority tools are filtered out centrally by
+   * `WireAdapter.stream()` before the request body is built.
+   */
+  maxTools?: number | undefined;
 }
 
 export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
@@ -36,6 +42,9 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       ...googleWireFormat.capabilities,
       ...opts.capabilities,
     };
+    if (opts.maxTools && opts.maxTools > 0) {
+      this.maxToolsCount = opts.maxTools;
+    }
   }
 
   protected override translateError(
@@ -59,26 +68,32 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
     req: Request,
     opts: { signal: AbortSignal },
   ): AsyncIterable<StreamEvent> {
+    // Pre-filter tools for the maxTools limit so the explicit-cache hash
+    // and toolChoice guard match the tools actually sent on the wire.
+    // Uses the shared WireAdapter.applyMaxToolsFilter so Google gets the
+    // same toolChoice-fallback behavior as all other families.
+    const effectiveReq = this.applyMaxToolsFilter(req);
+
     // Explicit caching is opt-in and best-effort: any failure resolving the
     // cached-content resource falls back to the normal inline request (where
     // Gemini's implicit caching still applies), so enabling it can never break
     // a request.
-    if (req.cache?.geminiExplicit && req.system && req.system.length > 0) {
+    if (effectiveReq.cache?.geminiExplicit && effectiveReq.system && effectiveReq.system.length > 0) {
       let name: string | undefined;
       try {
-        name = await this.resolveCachedContent(req, opts.signal);
+        name = await this.resolveCachedContent(effectiveReq, opts.signal);
       } catch {
         name = undefined;
       }
       if (name) {
         yield* super.stream(
-          { ...req, cache: { ...req.cache, geminiCachedContentName: name } },
+          { ...effectiveReq, cache: { ...effectiveReq.cache, geminiCachedContentName: name } },
           opts,
         );
         return;
       }
     }
-    yield* super.stream(req, opts);
+    yield* super.stream(effectiveReq, opts);
   }
 
   private async resolveCachedContent(

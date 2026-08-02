@@ -6,6 +6,7 @@ import { isDebugStreamEnabled, pushDebugChunkStats } from './stream-debug-state.
 import { isNodeReadable } from './object-utils.js';
 import { Readable } from 'node:stream';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { filterToolsByMaxCount } from './tool-priority.js';
 
 const STREAM_DEBUG_TEXT_ENCODER = new TextEncoder();
 
@@ -115,6 +116,18 @@ export abstract class WireAdapter implements Provider {
   protected readonly streamHangTimeoutMs: number;
   protected readonly headersTimeoutMs: number;
 
+  /**
+   * Provider-imposed tool-count limit (0 or undefined = no limit). When > 0,
+   * `stream()` filters `req.tools` down to this many entries before delegating
+   * to `buildBody()`, so every wire family (OpenAI, Anthropic, Google, …)
+   * gets the same guarantee without each adapter repeating the logic.
+   * Set by subclasses from their provider-specific options/quirks.
+   *
+   * Public so consumers (e.g. the TUI status bar view model) can read it to
+   * compute the dropped-tool count: `max(0, ctx.tools.length - maxToolsCount)`.
+   */
+  maxToolsCount: number = 0;
+
   constructor(
     protected readonly apiKey: string,
     protected readonly baseUrl: string,
@@ -140,6 +153,77 @@ export abstract class WireAdapter implements Provider {
     this.headersTimeoutMs = streamOpts.headersTimeoutMs ?? DEFAULT_HEADERS_TIMEOUT_MS;
   }
 
+  /** Track whether the maxTools warning has already been logged this session. */
+  private _maxToolsWarned = false;
+
+  /**
+   * When true, suppress the one-time maxTools stderr warning. The TUI sets
+   * this on provider instances because it surfaces the dropped count as a
+   * status-bar chip — the raw `process.emitWarning` would garble the Ink layout.
+   */
+  private _suppressMaxToolsWarning = false;
+
+  /**
+   * Suppress the one-time maxTools warning on this provider. Set by the TUI
+   * host when it takes over the terminal, since the status-bar chip provides
+   * equivalent visibility without writing to stderr.
+   */
+  suppressMaxToolsWarning(): void {
+    this._suppressMaxToolsWarning = true;
+  }
+
+  /**
+   * Apply the maxTools limit to a request, returning a possibly-filtered copy.
+   * Centralized so both {@link stream} and provider overrides (e.g.
+   * {@link GoogleProvider.stream}) share one implementation.
+   *
+   * Returns the original request reference unchanged when no filtering is
+   * needed (no allocation, preserves WeakMap caches).
+   */
+  protected applyMaxToolsFilter(req: Request): Request {
+    if (this.maxToolsCount <= 0 || !req.tools || req.tools.length <= this.maxToolsCount) {
+      return req;
+    }
+    const filteredTools = filterToolsByMaxCount(req.tools, this.maxToolsCount);
+    // Log the dropped tools once per session so the user knows tools were
+    // omitted — conversation history may reference them.
+    const droppedNames = req.tools
+      .filter((t) => !filteredTools.includes(t))
+      .map((t) => t.name);
+    if (droppedNames.length > 0) {
+      this.logMaxToolsWarning(droppedNames);
+    }
+    // If a specific tool was pinned via toolChoice but was filtered out,
+    // fall back to 'auto' so the provider never receives a tool_choice
+    // for a tool it wasn't given.
+    const tc = req.toolChoice;
+    const pinnedName = tc && typeof tc === 'object' ? tc.name : undefined;
+    const droppedToolChoice =
+      pinnedName !== undefined && !filteredTools.some((t) => t.name === pinnedName);
+    return {
+      ...req,
+      tools: filteredTools,
+      ...(droppedToolChoice ? { toolChoice: 'auto' as const } : {}),
+    };
+  }
+
+  /**
+   * Emit a one-time warning when the maxTools limit drops tools, so the user
+   * knows conversation history may reference tools the model can no longer
+   * call. Suppressed when the TUI owns the terminal (use the status-bar chip
+   * instead).
+   */
+  private logMaxToolsWarning(droppedNames: string[]): void {
+    if (this._maxToolsWarned || this._suppressMaxToolsWarning || droppedNames.length === 0) return;
+    this._maxToolsWarned = true;
+    const preview = droppedNames.slice(0, 10).join(', ');
+    const suffix = droppedNames.length > 10 ? ` (and ${droppedNames.length - 10} more)` : '';
+    process.emitWarning(
+      `Provider "${this.id}" maxTools limit (${this.maxToolsCount}) dropped ${droppedNames.length} tool(s): ${preview}${suffix}. Conversation history may reference unavailable tools.`,
+      'MaxToolsWarning',
+    );
+  }
+
   async complete(req: Request, opts: { signal: AbortSignal }): Promise<Response> {
     const { aggregateStream } = await import('./aggregate.js');
     return aggregateStream(this.stream(req, opts));
@@ -148,12 +232,16 @@ export abstract class WireAdapter implements Provider {
   async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     const url = this.buildUrl(req);
     const headers = this.buildHeaders(req);
+    // Apply the provider-imposed tool-count limit centrally so every wire
+    // family (OpenAI, Anthropic, Google, …) gets the same guarantee without
+    // each buildBody repeating the logic.
+    const effectiveReq = this.applyMaxToolsFilter(req);
     // Subclasses with their own buildBody (anthropic, openai, openai-codex,
     // openai-compatible, github-copilot) size the response from this context
     // via `resolveMaxOutputTokens`. `providerId` is what lets that lookup hit
     // the catalog for `req.model` — `capabilities` alone is provider-scoped
     // and goes stale the moment the session switches model.
-    const body = this.buildBody(req, { capabilities: this.capabilities, providerId: this.id });
+    const body = this.buildBody(effectiveReq, { capabilities: this.capabilities, providerId: this.id });
 
     // Linked abort: forward the caller's signal to a controller we ALSO trip
     // if response headers never arrive. `streamHangTimeoutMs` only guards the
@@ -179,7 +267,10 @@ export abstract class WireAdapter implements Provider {
     try {
       let httpRes: Response2;
       try {
-        const raw = await this.fetchImpl(url, {
+        // Redirects are followed manually so a cross-origin hop cannot replay
+        // `x-api-key` / `x-goog-api-key` / custom gateway headers to a host the
+        // user never configured — fetch only strips Authorization/Cookie (WS-084).
+        const raw = await redirectSafeFetch(this.fetchImpl, url, {
           method: 'POST',
           headers,
           body: JSON.stringify(body),

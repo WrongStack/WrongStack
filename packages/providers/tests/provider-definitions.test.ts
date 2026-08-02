@@ -65,6 +65,24 @@ describe('canonical ProviderDefinition projections', () => {
     });
   });
 
+  it('registers Zyloo with maxTools: 128 and auto-discovery', () => {
+    const def = PROVIDER_DEFINITIONS['zyloo'];
+    expect(def).toBeDefined();
+    expect(def.family).toBe('openai-compatible');
+    expect(def.baseUrl).toBe('https://api.zyloo.io/v1');
+    expect(def.quirks?.maxTools).toBe(128);
+    expect(def.autoDiscover).toBe(true);
+    expect(def.envVars).toContain('ZYLOO_API_KEY');
+
+    // Verify quirks flow through the compatible-presets projection.
+    const presets = projectCompatibleProviderPresets();
+    expect(presets.zyloo).toEqual({
+      defaultBaseUrl: 'https://api.zyloo.io/v1',
+      quirks: { maxTools: 128 },
+      autoDiscover: true,
+    });
+  });
+
   it('resolves trusted aliases without duplicating policy metadata', () => {
     expect(resolveProviderDefinition('kimi-for-coding-work')?.requestPolicy).toBe('kimi');
     expect(resolveProviderDefinition('alibaba-token-plan-team')?.requestPolicy).toBe('alibaba');

@@ -221,6 +221,12 @@ export interface StatusBarProps {
   workingDir?: string | undefined;
   /** Autonomy mode chip: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel'. */
   autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
+  /**
+   * Number of tools dropped from the provider request due to the maxTools
+   * limit. When > 0, renders a warning chip on line 2 (e.g. "⊘ 5 tools")
+   * so the user knows some tools are unavailable to the model this session.
+   */
+  droppedTools?: number | undefined;
   /** Number of tracked bash/exec processes from the process registry. Currently unused on the rail. */
   processCount?: number | undefined;
   /** Current RSS/heap sample for this CLI process. */

@@ -55,6 +55,19 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // the block comment above `silenceTerminal` for the full rationale.
   silenceTerminal();
 
+  // Suppress the one-time maxTools warning on the provider — the StatusBar
+  // surfaces the dropped-tool count as a visible chip instead, so a raw
+  // process.emitWarning to stderr is redundant (and already swallowed by
+  // silenceTerminal's process.on('warning') interceptor). This call is
+  // explicit defense-in-depth: it documents intent and survives a future
+  // change to silenceTerminal's warning interception.
+  const provider = opts.agent.ctx.provider as unknown as {
+    suppressMaxToolsWarning?: (() => void) | undefined;
+  } | undefined;
+  if (provider?.suppressMaxToolsWarning) {
+    provider.suppressMaxToolsWarning();
+  }
+
   // Resolve the full pointer-mode opt-in. The App component owns the actual
   // lifecycle: managed history always captures wheel reports, while this flag
   // adds drag/clickable UI. cleanup() below sends MOUSE_OFF unconditionally so
