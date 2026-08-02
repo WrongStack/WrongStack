@@ -335,8 +335,10 @@ async function startHqServerWithAuth(
       const requestUrl = new URL(req.url ?? '/', `http://${host}:${port}`);
       const auth = authenticateBrowserRequest(req, requestUrl, mutableAuth, sessions);
       const tokenMode = mutableAuth.browserTokens.size > 0;
-      const passwordMode = mutableAuth.passwordHash !== undefined;
-      if ((tokenMode || passwordMode) && auth === undefined) {
+      // Was `tokenMode || passwordMode`, which ignored the WS-010 fail-closed
+      // latch — so a live revocation or an all-expired token file turned this
+      // mailbox gateway back into an open surface (WS-077).
+      if (HqServerAuth.hqAuthRequired(mutableAuth) && auth === undefined) {
         return {
           allowed: false,
           status: 401,
@@ -598,12 +600,15 @@ async function startHqServerWithAuth(
 
       const tokenSet =
         pathname === '/ws/browser' ? mutableAuth.browserTokens : mutableAuth.clientTokens;
+      // Both arms previously open-coded a `tokenSet.size > 0` test that ignored
+      // the WS-010 fail-closed latch. The WebSocket is the highest-value surface
+      // here — /ws/browser streams transcripts and telemetry, /ws/client lets a
+      // peer register as a fleet session — and it was the one gate WS-010 never
+      // reached (WS-077).
       const needsAuth =
         pathname === '/ws/browser'
-          ? options.requireBrowserAuth ||
-            tokenSet.size > 0 ||
-            mutableAuth.passwordHash !== undefined
-          : tokenSet.size > 0;
+          ? HqServerAuth.hqAuthRequired(mutableAuth, options.requireBrowserAuth)
+          : HqServerAuth.hqClientAuthRequired(mutableAuth);
       if (needsAuth) {
         const supplied = url.searchParams.get('token') ?? '';
         const tokenValid = HqServerAuth.timingSafeTokenMatch(tokenSet, supplied) !== undefined;

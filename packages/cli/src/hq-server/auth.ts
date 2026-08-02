@@ -8,7 +8,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type * as http from 'node:http';
 import { isIP } from 'node:net';
 import { hqTokenVerifier, isLoopbackHost, isTokenExpired } from '@wrongstack/core/hq';
-import type { HqSessionEntry } from './types.js';
+import type { HqRouterMutableAuth, HqSessionEntry } from './types.js';
 
 // ── Cookie / session constants ─────────────────────────────────────────────
 
@@ -248,6 +248,44 @@ export function isTokenAuth(auth: HqBrowserAuthResult): auth is HqBrowserAuthCon
 
 export function isCookieAuth(auth: HqBrowserAuthResult): auth is HqCookieAuthContext {
   return auth !== undefined && auth.kind === 'cookie';
+}
+
+// ── Auth requirement predicate ──────────────────────────────────────────────
+
+/**
+ * Single source of truth for "must this HQ surface see a credential?".
+ *
+ * WS-010 introduced `requireAuthFloor` so that revoking the last credential on
+ * a running, network-reachable `wstack hq` could not silently drop it into open
+ * mode. That latch was then honoured at only three of the seven decision
+ * points. The four that open-coded their own `browserTokens.size > 0 ||
+ * passwordHash` test stayed open: the main `/api/*` gate, the mailbox gateway,
+ * the WebSocket upgrade, and `callerCanEnqueue` — which backs `/api/mailbox-send`,
+ * i.e. message injection into live agents.
+ *
+ * Any new gate MUST call this rather than re-deriving the condition; the bug
+ * was not a wrong condition but seven independent copies of it (WS-077).
+ */
+export function hqAuthRequired(
+  mutableAuth: HqRouterMutableAuth,
+  requireBrowserAuth?: boolean | undefined,
+): boolean {
+  return (
+    requireBrowserAuth === true ||
+    mutableAuth.requireAuthFloor === true ||
+    mutableAuth.browserTokens.size > 0 ||
+    mutableAuth.passwordHash !== undefined
+  );
+}
+
+/**
+ * The `/ws/client` counterpart. Fleet clients authenticate with `clientTokens`,
+ * which are a separate set from the browser tokens, but the same fail-closed
+ * floor applies: an all-expired client-token file must not mean "no auth
+ * configured, let anyone register as a session".
+ */
+export function hqClientAuthRequired(mutableAuth: HqRouterMutableAuth): boolean {
+  return mutableAuth.requireAuthFloor === true || mutableAuth.clientTokens.size > 0;
 }
 
 // ── Request auth ───────────────────────────────────────────────────────────

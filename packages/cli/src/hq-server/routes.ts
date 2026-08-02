@@ -57,6 +57,7 @@ export const hasTrustedBrowserOrigin = HqServerAuth.hasTrustedBrowserOrigin;
 export const authenticateBrowserRequest = HqServerAuth.authenticateBrowserRequest;
 export const isTokenAuth = HqServerAuth.isTokenAuth;
 export const isCookieAuth = HqServerAuth.isCookieAuth;
+export const hqAuthRequired = HqServerAuth.hqAuthRequired;
 export const setHqSessionCookie = HqServerAuth.setHqSessionCookie;
 export const clearHqSessionCookie = HqServerAuth.clearHqSessionCookie;
 export const serializeHqSessionCookie = HqServerAuth.serializeHqSessionCookie;
@@ -189,9 +190,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         url.pathname !== '/api/auth/status' &&
         url.pathname !== '/api/login' &&
         url.pathname !== '/api/auth/bootstrap' &&
-        (requireBrowserAuth ||
-          mutableAuth.browserTokens.size > 0 ||
-          mutableAuth.passwordHash)
+        hqAuthRequired(mutableAuth, requireBrowserAuth)
       ) {
         const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
         if (!auth) {
@@ -551,9 +550,7 @@ async function handleApiCommand(
   trustBoundary: TrustBoundary,
 ): Promise<void> {
   const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
-  const inBrowserTokenMode = mutableAuth.browserTokens.size > 0 || mutableAuth.requireAuthFloor === true;
-  const inPasswordMode = mutableAuth.passwordHash !== undefined;
-  if ((inBrowserTokenMode || inPasswordMode) && !auth) {
+  if (hqAuthRequired(mutableAuth) && !auth) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'unauthorized' }));
     return;
@@ -688,6 +685,16 @@ async function handleApiMailboxSend(
     mutableAuth,
     sessions,
   );
+  // This route enqueues a message into a LIVE agent session — a control-plane
+  // write. It had no 401 branch at all and leaned entirely on callerCanEnqueue,
+  // which returned true whenever the browser-token set was empty. A missing
+  // credential and an insufficient capability are distinct failures and must
+  // not collapse into one status (WS-077).
+  if (hqAuthRequired(mutableAuth) && !auth) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'unauthorized' } }));
+    return;
+  }
   const canEnqueue = callerCanEnqueue(auth, mutableAuth);
   if (!canEnqueue) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -839,9 +846,12 @@ function callerCanEnqueue(
   if (isTokenAuth(auth)) {
     return auth.capabilities === undefined || auth.capabilities.includes('control.enqueue');
   }
-  // No credential presented at all: only legitimate when HQ has no browser
-  // tokens configured (open mode), which the caller has already gated on.
-  return mutableAuth.browserTokens.size === 0;
+  // No credential presented at all: only legitimate when HQ genuinely has no
+  // auth configured. This previously tested `browserTokens.size === 0` alone,
+  // so an all-expired token file or a live revocation (requireAuthFloor) read
+  // as "open mode" and this returned true — unauthenticated enqueue into
+  // running agents via /api/mailbox-send (WS-077).
+  return !hqAuthRequired(mutableAuth);
 }
 
 async function handleMailboxAction(
@@ -863,9 +873,7 @@ async function handleMailboxAction(
     mutableAuth,
     sessions,
   );
-  const inBrowserTokenMode = mutableAuth.browserTokens.size > 0 || mutableAuth.requireAuthFloor === true;
-  const inPasswordMode = mutableAuth.passwordHash !== undefined;
-  if ((inBrowserTokenMode || inPasswordMode) && !auth) {
+  if (hqAuthRequired(mutableAuth) && !auth) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'unauthorized' }));
     return;
