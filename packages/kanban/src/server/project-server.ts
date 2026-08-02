@@ -222,10 +222,21 @@ async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void>
   // Close the listener, or the ref'd handle keeps the event loop — and the
   // process — alive indefinitely. Every sibling daemon (tools, sage, chronicle,
   // mailbox) does this; kanban was the one that did not.
+  //
+  // On Windows named pipes, server.close() can hang indefinitely when the
+  // kernel retains a reference to the pipe handle. The 500 ms hard fallback
+  // (matching packages/tools codebase-index project-server) ensures stop()
+  // resolves within bounded time so the process can exit.
   if (server) {
     const listener = server;
     server = null;
-    await new Promise<void>((resolve) => listener.close(() => resolve()));
+    await new Promise<void>((resolve) => {
+      listener.close(() => resolve());
+      const timer = setTimeout(() => {
+        resolve();
+      }, 500);
+      timer.unref?.();
+    });
   }
   if (process.platform !== 'win32' && endpoint) {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
