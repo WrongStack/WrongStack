@@ -16,7 +16,10 @@ const MAX_ARGUMENTS = 128;
 const MAX_ARGUMENT_LENGTH = 4_096;
 const PACKAGE_NAME_RE = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:@[a-z0-9*+._~^<>=|-]+)?$/i;
 const COMPOSER_PACKAGE_RE = /^[a-z0-9_.-]+\/[a-z0-9_.-]+(?::[a-z0-9*+._~^<>=|-]+)?$/i;
-const GO_MODULE_RE = /^(?:[a-z0-9.-]+\.)+[a-z0-9.-]+\/[a-z0-9._~+/@-]+$/i;
+// Host labels must exclude `.` so the separator is unambiguous. Allowing `.` inside
+// the label classes made this `(a+)+` — a 106-dot name stayed under the 214-char cap
+// while backtracking without bound, wedging the event loop synchronously (WS-073).
+const GO_MODULE_RE = /^(?:[a-z0-9-]+\.)+[a-z0-9-]+\/[a-z0-9._~+/@-]+$/i;
 const PYTHON_PACKAGE_RE = /^[a-z0-9._-]+(?:\[[a-z0-9._,-]+\])?==[a-z0-9*+._!~-]+$/i;
 
 export async function planLanguageOperation(
