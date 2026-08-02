@@ -1,5 +1,9 @@
 import type { HqCommand } from '@wrongstack/core/hq';
-import { isTrustDecisionAllowed, type TrustBoundary, type TrustBoundaryRequest } from '@wrongstack/core/security';
+import {
+  isTrustDecisionAllowed,
+  type TrustBoundary,
+  type TrustBoundaryRequest,
+} from '@wrongstack/core/security';
 import type { ConnectedClient } from './types.js';
 
 export async function authorizeHqCommand(input: {
@@ -26,11 +30,29 @@ export async function authorizeHqCommand(input: {
   const request: TrustBoundaryRequest = {
     version: 1,
     requestId: commandId,
-    // This request is initiated by the authenticated HQ operator. Browser and
-    // target-client capability checks have already passed before this adapter
-    // is called, so classifying it as an unauthenticated remote client would
-    // make the compatibility policy deny every legitimate run-command.
-    actor: { kind: 'user', id: enqueuedBy },
+    // WS-050: this was hardcoded to `kind: 'user'`, which made the
+    // compatibility policy's ONLY deny rule — `remote-client` + `critical` —
+    // unreachable from HQ. A boundary whose single rule can never fire is not
+    // defence in depth, it is decoration.
+    //
+    // The provenance is derived from how the caller authenticated, because
+    // that is the honest signal available here:
+    //
+    //   session cookie → `user`. The dashboard's primary flow is a bootstrap
+    //     code exchanged for an HttpOnly cookie, so this is a human at the
+    //     browser. NOTE: bootstrap sessions DO carry a `tokenId`, so a
+    //     "cookie without tokenId" test would have misclassified every normal
+    //     dashboard user as remote and denied them run-command. Checked before
+    //     writing this, not assumed.
+    //   raw bearer token → `remote-client`. The legacy `?token=` / manual-entry
+    //     path and any script calling the HTTP API directly. A credential that
+    //     can be copied into a script is not a person at a console.
+    //
+    // Consequence, deliberate: a bearer-token caller can no longer trigger
+    // `run-command` (the only `critical` capability here). `enqueue` is `high`
+    // and unaffected. The migration for automation that needs execute is the
+    // bootstrap exchange, which is the same thing the dashboard does.
+    actor: { kind: authMethod === 'session' ? 'user' : 'remote-client', id: enqueuedBy },
     surface: 'hq',
     capability: command.type === 'run-command' ? 'hq.control.execute' : 'hq.control.enqueue',
     subject,

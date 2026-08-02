@@ -1,8 +1,8 @@
-import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
-import type { HqAuthFile } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { HqAuthFile } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
@@ -22,7 +22,10 @@ afterEach(async () => {
   await fs.rm(dataDir, { recursive: true, force: true });
 });
 
-async function start(auth: HqAuthFile, options: Record<string, number> = {}): Promise<HqServerHandle> {
+async function start(
+  auth: HqAuthFile,
+  options: Record<string, number> = {},
+): Promise<HqServerHandle> {
   await writeHqAuthFile(dataDir, auth);
   handle = await startHqServer({ port: 0, exactPort: true, dataDir, ...options });
   return handle;
@@ -198,9 +201,7 @@ describe('HQ security and control-plane hardening', () => {
     });
     expect(oversized.status).toBe(413);
 
-    const malformed = await fetch(
-      `http://127.0.0.1:${server.port}/api/projects/%E0%A4%A`,
-    );
+    const malformed = await fetch(`http://127.0.0.1:${server.port}/api/projects/%E0%A4%A`);
     expect(malformed.status).toBe(400);
   });
 
@@ -258,15 +259,26 @@ describe('HQ security and control-plane hardening', () => {
     expect(await response.text()).toContain('control.execute');
   });
 
-  it('accepts run-command only when both browser and client scopes allow it', async () => {
+  // WS-050 (inverted). This asserted 202 — that a BEARER-token browser caller
+  // could run-command once both scopes allowed it. That is precisely the case
+  // the trust boundary exists to refuse: its only deny rule is
+  // `remote-client` + `critical`, and the hardcoded `actor: 'user'` had made
+  // the rule unreachable, so scopes were effectively the last gate.
+  //
+  // The scope-AND logic is still covered: the negative half is the test above
+  // ("requires the target client token to grant control.execute"), which
+  // fails on the scope check before reaching the boundary. What this now pins
+  // is the stronger property — satisfying every scope is NOT sufficient for a
+  // token-authenticated caller to execute. The cookie-session path that the
+  // dashboard actually uses remains allowed, asserted in
+  // tests/hq-trust-boundary-actor.test.ts.
+  it('refuses run-command from a bearer-token caller even when all scopes allow it', async () => {
     const browserToken = 'browser-control';
     const clientToken = 'client-with-exec';
     const server = await start(
       authFile({
         browserTokens: [token('bt-control', browserToken, ['control.enqueue'])],
-        clientTokens: [
-          token('ct-exec', clientToken, ['telemetry.publish', 'control.execute']),
-        ],
+        clientTokens: [token('ct-exec', clientToken, ['telemetry.publish', 'control.execute'])],
       }),
     );
     const client = connect(`ws://127.0.0.1:${server.port}/ws/client?token=${clientToken}`);
@@ -278,7 +290,10 @@ describe('HQ security and control-plane hardening', () => {
       type: 'run-command',
       payload: { command: 'echo safe' },
     });
-    expect(response.status).toBe(202);
+    expect(response.status).not.toBe(202);
+    // Refused by the boundary, not by a scope check — the scopes are both
+    // satisfied here, which is what makes this the interesting case.
+    expect(await response.text()).toMatch(/remote-client/);
   });
 
   it('binds command polling identity to the registered socket', async () => {
@@ -435,9 +450,7 @@ describe('HQ security and control-plane hardening', () => {
         },
       }),
     );
-    expect((await eventPromise).event.payload.entries[0]?.text).toBe(
-      '[REDACTED:hq_raw_content]',
-    );
+    expect((await eventPromise).event.payload.entries[0]?.text).toBe('[REDACTED:hq_raw_content]');
   });
 
   it('broadcasts a zero-client snapshot when the final stale client is evicted', async () => {
@@ -453,8 +466,7 @@ describe('HQ security and control-plane hardening', () => {
       snapshot: { totals: { activeClients: number } };
     }>(
       browser,
-      (message) =>
-        message.type === 'hq.snapshot' && message.snapshot.totals.activeClients === 1,
+      (message) => message.type === 'hq.snapshot' && message.snapshot.totals.activeClients === 1,
     );
 
     const client = connect(`ws://127.0.0.1:${server.port}/ws/client`);
@@ -467,8 +479,7 @@ describe('HQ security and control-plane hardening', () => {
       snapshot: { totals: { activeClients: number } };
     }>(
       browser,
-      (message) =>
-        message.type === 'hq.snapshot' && message.snapshot.totals.activeClients === 0,
+      (message) => message.type === 'hq.snapshot' && message.snapshot.totals.activeClients === 0,
     );
     expect(empty.snapshot.totals.activeClients).toBe(0);
   });
