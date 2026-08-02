@@ -88,7 +88,7 @@ describe('resolveProviderCfg', () => {
     // user-visible id for both cfg.type and factoryType.
     const cfg = fakeConfig({
       providers: {
-        'my-proxy': { apiKey: 'sk-proxy', family: 'openai-compatible' },
+        'my-proxy': { type: 'my-proxy', apiKey: 'sk-proxy', family: 'openai-compatible' },
       },
     });
     const out = resolveProviderCfg(cfg, 'my-proxy');

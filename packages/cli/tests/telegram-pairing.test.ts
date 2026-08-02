@@ -83,7 +83,7 @@ function mockBotApi(updates: TelegramPairingUpdate[]) {
       return { json: async () => ({ ok: true, result: updates }) };
     }
     throw new Error('unexpected request');
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
 }
 
 async function expectConfigAbsent(configPath: string) {
@@ -277,7 +277,7 @@ describe('/telegram-setup safe discovery pairing', () => {
         };
       }
       throw new Error(`failure containing ${TOKEN}`);
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const failed = await setupRig('1');
     const result = await failed.command.run('');
     expect(result?.message).toContain('Could not discover');

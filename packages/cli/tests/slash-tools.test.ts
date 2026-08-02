@@ -21,7 +21,7 @@ function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandCon
   const writeFn = vi.fn();
   return {
     toolRegistry: makeRegistry(),
-    renderer: { write: writeFn },
+    renderer: { write: writeFn } as never,
     onPanelOpen: { current: null },
     ...overrides,
   } as never as SlashCommandContext;
@@ -30,7 +30,7 @@ function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandCon
 describe('buildToolsCommand', () => {
   it('renders tool list with header and rows', async () => {
     const writeFn = vi.fn();
-    const cmd = buildToolsCommand(makeOpts({ renderer: { write: writeFn } }));
+    const cmd = buildToolsCommand(makeOpts({ renderer: { write: writeFn } as never }));
     const res = await cmd.run('');
     expect(res?.message).toContain('Tools');
     expect(res?.message).toContain('read');
@@ -58,7 +58,7 @@ describe('buildToolsCommand', () => {
 
   it('shows no-match message when filter finds nothing', async () => {
     const writeFn = vi.fn();
-    const cmd = buildToolsCommand(makeOpts({ renderer: { write: writeFn } }));
+    const cmd = buildToolsCommand(makeOpts({ renderer: { write: writeFn } as never }));
     const res = await cmd.run('zzznonexistent');
     expect(res?.message).toMatch(/no tool name or owner matched/);
     expect(writeFn).toHaveBeenCalled();

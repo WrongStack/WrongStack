@@ -74,7 +74,7 @@ describe('provider-config', () => {
         anthropic: { apiKey: 'new-key', models: ['anthropic-test-model'] },
       };
 
-      await saveProviders(configPath, providers);
+      await saveProviders(configPath, providers as never);
 
       const saved = JSON.parse(fsSync.readFileSync(configPath, 'utf8'));
       // API keys are encrypted, so check structure
@@ -87,7 +87,7 @@ describe('provider-config', () => {
       const configPath = path.join(tempDir, 'new-config.json');
       const providers = { openai: { apiKey: 'key' } as never };
 
-      await saveProviders(configPath, providers);
+      await saveProviders(configPath, providers as never);
 
       const saved = JSON.parse(fsSync.readFileSync(configPath, 'utf8'));
       expect(saved.providers.openai).toBeDefined();

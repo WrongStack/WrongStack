@@ -46,7 +46,7 @@ afterEach(() => {
 
 describe('/hq slash command', () => {
   it('reports name and category', () => {
-    const cmd = buildHqCommand(makeCtx());
+    const cmd = buildHqCommand(makeCtx() as never);
     expect(cmd.name).toBe('hq');
     expect(cmd.category).toBe('Config');
     expect(cmd.description.toLowerCase()).toContain('hq');

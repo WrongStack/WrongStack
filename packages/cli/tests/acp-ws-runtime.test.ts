@@ -35,7 +35,7 @@ describe('wstack acp --ws runtime', () => {
     // exactly like runACPWebSocketServer does. Use the constructor's listening
     // callback to avoid racing the 'listening' event.
     const wss = await new Promise<WebSocketServer>((resolve) => {
-      const s = new WebSocketServer({ host: '127.0.0.1', port: 0 }, () => resolve(s));
+      const s: WebSocketServer = new WebSocketServer({ host: '127.0.0.1', port: 0 }, () => resolve(s));
     });
     cleanups.push(() => new Promise<void>((r) => wss.close(() => r())));
     wss.on('connection', (socket: WebSocket) => {

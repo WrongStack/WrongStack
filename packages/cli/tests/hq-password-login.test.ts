@@ -71,6 +71,7 @@ function waitForOpen(ws: WebSocket, timeout = 3_000): Promise<void> {
   });
 }
 
+// @ts-expect-error — kept for reference but unused in current test suite
 function _waitForClose(ws: WebSocket, timeout = 3_000): Promise<number | undefined> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(undefined), timeout);
@@ -213,7 +214,7 @@ describe('HQ server — optional browser password login', () => {
     expect(cookie).toBeTruthy();
     const good = new WebSocket(wsUrl(handle, '/ws/browser'), {
       headers: { Cookie: cookie! },
-    } as ConstructorParameters<typeof WebSocket>[1]);
+    } as never);
     await expect(waitForOpen(good)).resolves.toBeUndefined();
     good.close();
   });

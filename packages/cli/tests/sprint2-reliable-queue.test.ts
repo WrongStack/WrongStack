@@ -334,7 +334,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         action: 'claim_task',
         boardId: board.id,
         agentId: 'worker-tool',
-        status: 'running',
+        status: 'running' as never,
       },
       { projectRoot: tmpDir } as never,
       { signal: new AbortController().signal },
@@ -798,7 +798,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
     );
     // The dispatch should complete but the task should be marked failed with a budget error.
     expect(result).toMatchObject({ ok: false, count: 0 });
-    expect(result.errors).toBeDefined();
+    expect((result as { errors?: unknown[] })?.errors).toBeDefined();
     const loaded = await getBoard(tmpDir, board.id);
     expect(loaded?.tasks[0]?.assignment?.status).toBe('failed');
     expect(loaded?.tasks[0]?.assignment?.error).toContain('exceeds remaining budget');

@@ -22,7 +22,7 @@ import { mailboxServeCmd } from '../src/subcommands/handlers/mailbox-serve.js';
 
 let tmpProject: string;
 let mailboxProjectDir: string;
-let serverPromise: Promise<number>; // resolves to the bound port
+let serverPromise: Promise<number> | undefined; // resolves to the bound port
 let token: string;
 let credentialAuthorization: string;
 let baseUrl: string;
@@ -56,7 +56,7 @@ async function http(
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(5_000),
-  });
+  } as never);
   let parsed: unknown = null;
   const text = await res.text();
   try {

@@ -83,13 +83,13 @@ describe('interactive config backup recovery', () => {
       write: vi.fn(),
       writeWarning: vi.fn(),
     } as unknown as TerminalRenderer;
-    const reader: Pick<ReadlineInputReader, 'readLine'> = { readLine: vi.fn().mockResolvedValue('') };
+    const reader: Pick<ReadlineInputReader, 'readLine'> = { readLine: vi.fn().mockResolvedValue('') } as never;
 
     const restored = await maybeRestoreDefaultProfileFromBackup({
       globalRoot,
       profilePath,
       renderer,
-      reader,
+      reader: reader as never,
     });
 
     expect(restored).toBe(true);
@@ -110,13 +110,13 @@ describe('interactive config backup recovery', () => {
       ),
       JSON.stringify({ providers: { openai: {} }, theme: 'backup' }),
     );
-    const reader = { readLine: vi.fn().mockResolvedValue('n') };
+    const reader = { readLine: vi.fn().mockResolvedValue('n') } as never;
 
     const restored = await maybeRestoreDefaultProfileFromBackup({
       globalRoot,
       profilePath,
       renderer: { write: vi.fn(), writeWarning: vi.fn() } as unknown as TerminalRenderer,
-      reader: reader as Pick<ReadlineInputReader, 'readLine'>,
+      reader: reader as never,
     });
 
     expect(restored).toBe(false);

@@ -120,7 +120,7 @@ describe('/security redact-test sample payload', () => {
     expect(r?.message).toMatch(/non-sensitive fields? passed through/);
     // Sanity: the redacted section must list multiple fields so the
     // demo shows the scrubber doing useful work, not just one match.
-    const redactedMatches = r?.message.match(/\[REDACTED:/g) ?? [];
+    const redactedMatches = r?.message?.match(/\[REDACTED:/g) ?? [];
     expect(redactedMatches.length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -70,7 +70,7 @@ describe('/yolo slash command', () => {
       const cmd = buildYoloCommand(ctx);
       await cmd.run!('');
       // Reads only — every call is undefined-arg
-      for (const call of onYolo.mock.calls) {
+      for (const call of (onYolo as never as { mock: { calls: unknown[][] } }).mock.calls) {
         expect(call[0]).toBeUndefined();
       }
     });

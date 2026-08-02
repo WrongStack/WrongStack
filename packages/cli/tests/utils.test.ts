@@ -29,7 +29,7 @@ describe('fmtTok', () => {
 
 describe('patchConfig', () => {
   it('returns a new frozen object with the patch merged', () => {
-    const base = Object.freeze({ a: 1, b: 2 });
+    const base: Record<string, number> = Object.freeze({ a: 1, b: 2 });
     const patched = patchConfig(base, { b: 99 });
     expect(patched).toEqual({ a: 1, b: 99 });
     expect(patched).not.toBe(base);

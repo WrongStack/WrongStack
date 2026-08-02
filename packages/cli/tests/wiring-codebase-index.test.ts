@@ -91,9 +91,9 @@ describe('setupCodebaseIndexing — startup', () => {
     // Startup index that never resolves during this test.
     let resolveIdx: (v: unknown) => void = () => {};
     runStartupIndexMock.mockReturnValueOnce(
-      new Promise((res) => {
+      new Promise<unknown>((res) => {
         resolveIdx = res;
-      }),
+      }) as never,
     );
     const p = createDefaultPipelines();
     // setup resolves even though the index promise is still pending → non-blocking.

@@ -160,8 +160,8 @@ describe('subscribeBrainDecisionLog', () => {
     expect(() => dispose()).not.toThrow();
     events.emit('brain.decision_answered', {
       at: 1000,
-      request: { question: 'after dispose?' },
-      decision: { type: 'answer', optionId: 'no' },
+      request: { question: 'after dispose?' } as never,
+      decision: { type: 'answer', optionId: 'no' } as never,
     });
 
     expect(brainLog).toEqual([]);

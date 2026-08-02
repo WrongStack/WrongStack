@@ -178,7 +178,7 @@ describe('setupSessionRegistry', () => {
         onUpdate: expect.any(Function),
       }),
     );
-    const trackerArg = t.AgentStatusTrackerMock.mock.calls[0]![0] as unknown as {
+    const trackerArg = (t.AgentStatusTrackerMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
       sessionId: () => string;
     };
     expect(trackerArg.sessionId()).toBe('sess_abc123');
@@ -191,7 +191,7 @@ describe('setupSessionRegistry', () => {
   it('wires shutdown to mark closing, stop tracking, and remove the exact owner', async () => {
     await setupSessionRegistry(makeDeps());
 
-    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
+    const shutdownArg = (t.createGracefulShutdownMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
       run: () => Promise<void>;
     };
     await shutdownArg.run();
@@ -211,7 +211,7 @@ describe('setupSessionRegistry', () => {
 
     await setupSessionRegistry(makeDeps());
 
-    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
+    const shutdownArg = (t.createGracefulShutdownMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
       run: () => Promise<void>;
     };
     await expect(shutdownArg.run()).resolves.toBeUndefined();
@@ -335,7 +335,7 @@ describe('setupSessionRegistry', () => {
       expect.objectContaining({ sessionId: 'sess_next', pid: process.pid }),
     );
 
-    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
+    const shutdownArg = (t.createGracefulShutdownMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
       run: () => Promise<void>;
     };
     await expect(shutdownArg.run()).resolves.toBeUndefined();
@@ -376,7 +376,7 @@ describe('setupSessionRegistry', () => {
     const before = Date.now();
     await setupSessionRegistry(makeDeps());
 
-    const callArg = t.registerMock.mock.calls[0]![0] as Record<string, unknown>;
+    const callArg = (t.registerMock.mock.calls as unknown[][])[0]?.[0] as Record<string, unknown>;
     expect(callArg.pid).toBe(process.pid);
     expect(typeof callArg.startedAt).toBe('string');
     const startedAt = new Date(callArg.startedAt as string).getTime();
@@ -387,7 +387,7 @@ describe('setupSessionRegistry', () => {
   it('invokes FleetNotifier notify on every status change via onUpdate', async () => {
     await setupSessionRegistry(makeDeps());
 
-    const trackerArg = t.AgentStatusTrackerMock.mock.calls[0]![0] as unknown as {
+    const trackerArg = (t.AgentStatusTrackerMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
       onUpdate: () => void;
     };
 

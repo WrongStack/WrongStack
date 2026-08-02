@@ -38,7 +38,7 @@ describe('patchConfig', () => {
   });
 
   it('does not mutate the input', () => {
-    const base = Object.freeze({ a: 1, b: 2 });
+    const base: Record<string, number> = Object.freeze({ a: 1, b: 2 });
     const out = patchConfig(base, { b: 3 });
     expect(base.b).toBe(2);
     expect(out.b).toBe(3);

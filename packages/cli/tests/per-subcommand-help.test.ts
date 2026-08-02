@@ -228,7 +228,7 @@ describe('PerSubcommandHelp shape (data contract)', () => {
     for (const name of subcommandsWithFocusedHelp) {
       const renderer = makeRenderer();
       renderFocusedHelp(name, renderer);
-      const _out = capture(renderer);
+      void capture(renderer);
       // The doctor/diag/init/etc. entries have no subcommands;
       // they should NOT render the table header. mcp/plugin/
       // models/etc. should. The test below is loose: we just

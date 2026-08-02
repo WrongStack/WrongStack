@@ -39,7 +39,7 @@ describe('/metrics', () => {
     const cmd = buildMetricsCommand({
       metricsSink: { snapshot: () => snapshot } as never,
       metricsStatus: { collectionEnabled: true, httpExporter: 'listening' },
-    });
+    } as never);
     const res = await cmd.run('--json');
     expect(JSON.parse(res!.message!)).toEqual({
       enabled: true,

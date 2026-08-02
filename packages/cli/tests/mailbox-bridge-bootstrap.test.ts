@@ -89,7 +89,7 @@ async function probeViaFetch(url: string): Promise<boolean> {
   }
 }
 
-/** @deprecated unused — kept for reference */
+/** @internal kept for reference */
 function _failingProbe(): ProbeFn {
   void 0;
   return async () => false;
@@ -405,7 +405,7 @@ describe('tryAcquireMailboxBridge', () => {
     const result = await readLiveLock(projectDir);
     expect(result.kind).toBe('probe-failed');
     if (result.kind === 'probe-failed') {
-      expect((result as { lock?: { token?: string } })?.lock?.token).toBe(lock.lock.token);
+      expect((result as { lock?: { token?: string } })?.lock?.token).toBe((lock as { lock?: { token?: string } })?.lock?.token);
     }
   });
 
@@ -437,3 +437,6 @@ describe('tryAcquireMailboxBridge', () => {
     }
   });
 });
+
+// Silence TS6133: _failingProbe is kept for reference but unused.
+void _failingProbe;

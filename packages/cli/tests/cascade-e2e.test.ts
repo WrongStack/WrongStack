@@ -304,7 +304,7 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
       { status: 'success', result: 'security scan complete' },
       { status: 'success', result: 'bug hunt complete' },
     ]);
-    const session = { append: vi.fn(async () => {}) };
+    const session = { append: vi.fn(async (_e?: unknown) => {}) };
 
     const cascadePayload: ChimeraCascadeNeededPayload = {
       bundle: makeBundle('high'),
@@ -329,7 +329,7 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
   it('spawns only bug-hunter for High bug-only findings', async () => {
     const events = new EventBus();
     const director = makeDirector([{ status: 'success', result: 'bug hunt done' }]);
-    const session = { append: vi.fn(async () => {}) };
+    const session = { append: vi.fn(async (_e?: unknown) => {}) };
 
     const cascadePayload: ChimeraCascadeNeededPayload = {
       bundle: makeBundle('high'),
@@ -350,7 +350,7 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
   it('appends an error when the follow-up agent fails', async () => {
     const events = new EventBus();
     const director = makeDirector([{ status: 'timeout', result: null }]);
-    const session = { append: vi.fn(async () => {}) };
+    const session = { append: vi.fn(async (_e?: unknown) => {}) };
 
     const cascadePayload: ChimeraCascadeNeededPayload = {
       bundle: makeBundle('high'),
@@ -381,7 +381,7 @@ describe('Cascade chain: full e2e (review_complete → cascade_needed → spawn)
       { status: 'success', result: 'security scan complete' },
       { status: 'success', result: 'bug hunt complete' },
     ]);
-    const session = { append: vi.fn(async () => {}) };
+    const session = { append: vi.fn(async (_e?: unknown) => {}) };
 
     // Wire the real auto-review plugin
     const api = makeApiWithRealBus(events, {

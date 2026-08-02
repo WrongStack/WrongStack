@@ -52,7 +52,7 @@ describe('wireGoal', () => {
     // Simulate emitting events through the captured handlers
     // Find one of the registered handler calls
     const phaseEventCall = events.on.mock.calls.find(
-      ([event]: [string]) => event === 'phase.started',
+      ([event]: [string, ...unknown[]]) => event === 'phase.started',
     );
     if (phaseEventCall) {
       const [, h] = phaseEventCall as [string, (p: unknown) => void];

@@ -214,7 +214,7 @@ describe('refineGoalWithFallback', () => {
   });
 
   it('tier 2 succeeds when refiner model is used on primary provider', async () => {
-    const _refiner = fakeProvider({ shouldThrow: true }); // tier 1 fails (no provider instance)
+    void fakeProvider({ shouldThrow: true }); // tier 1 fails (no provider instance)
     const primary = fakeProvider();
 
     const result = await refineGoalWithFallback('build auth', {

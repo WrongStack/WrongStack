@@ -60,7 +60,7 @@ function makeRig(onMcp?: (args: string) => Promise<string>) {
     tokenCounter,
     renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
     onMcp,
-  });
+  } as never);
   for (const c of cmds) registry.register(c);
   return { registry, renderer };
 }

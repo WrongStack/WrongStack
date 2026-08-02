@@ -107,7 +107,7 @@ describe('CLI governance shadow bridge', () => {
       durationMs: 100,
     });
 
-    expect(observe).toHaveBeenCalledTimes(5);
+    expect(observe).toHaveBeenCalledTimes(6);
     expect(JSON.stringify(observe.mock.calls)).not.toContain(secret);
     expect(observe.mock.calls[2]?.[0]).toMatchObject({
       taskId: 'task-1',
@@ -120,6 +120,17 @@ describe('CLI governance shadow bridge', () => {
       },
     });
     expect(observe.mock.calls[4]?.[0]).toMatchObject({
+      taskId: 'task-1',
+      category: 'evidence_candidate',
+      payload: {
+        status: 'unverified',
+        candidateId: null,
+        binding: { state: 'incomplete', missing: ['plan', 'workspace'] },
+        tool: { callId: 'tool-1', name: 'shell' },
+        outcome: { status: 'succeeded', durationMs: 25, outputBytes: 128 },
+      },
+    });
+    expect(observe.mock.calls[5]?.[0]).toMatchObject({
       category: 'failure_reported',
       payload: { phase: 'error', errorName: 'Error' },
     });

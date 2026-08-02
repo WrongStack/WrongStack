@@ -141,7 +141,7 @@ describe('fmtTaskResultLine', () => {
 
 describe('patchConfig', () => {
   it('returns frozen result', () => {
-    const base = Object.freeze({ a: 1 });
+    const base: Record<string, number> = Object.freeze({ a: 1 });
     const patched = patchConfig(base, { a: 2 });
     expect(Object.isFrozen(patched)).toBe(true);
   });

@@ -60,7 +60,7 @@ function makeWpaths(): WstackPaths {
 }
 
 function fakeConfig(tier: string): Config {
-  return {
+  return ({
     version: 1,
     provider: 'anthropic',
     model: 'anthropic-test-model',
@@ -80,11 +80,11 @@ function fakeConfig(tier: string): Config {
       perIterationOutputCapBytes: 100_000,
       descriptionMode: {},
     },
-  } as Config;
+  }) as unknown as Config;
 }
 
 function fakeCompactor() {
-  return { compact: async () => ({ ok: true }) };
+  return { compact: async () => ({ ok: true }) } as never;
 }
 
 async function measureMemoryBlock(tier: string): Promise<{ tier: string; total: number; memory: number }> {

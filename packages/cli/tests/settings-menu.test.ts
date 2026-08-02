@@ -33,7 +33,7 @@ describe('profile persistence routing', () => {
 
   it('never resolves a user-settings write to the root bootstrap', () => {
     expect(resolvePersistPath(deps())).toBe(profile);
-    expect(resolvePersistPath({ ...deps('project'), forceGlobal: true })).toBe(profile);
+    expect(resolvePersistPath({ ...(deps('project') as object), forceGlobal: true } as never)).toBe(profile);
     expect(resolveActualTarget(deps(), { configScope: 'global' }, root)).toBe(profile);
   });
 

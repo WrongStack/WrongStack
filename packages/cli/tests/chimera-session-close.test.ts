@@ -48,7 +48,8 @@ describe('chimera session.close ordering', () => {
       clearSession: vi.fn(),
       writeInFlightMarker: vi.fn(),
       clearInFlightMarker: vi.fn(),
-    };
+      recordSideEffect: vi.fn(),
+    } as never;
   }
 
   function makeDirector() {

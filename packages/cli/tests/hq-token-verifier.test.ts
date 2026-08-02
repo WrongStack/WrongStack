@@ -25,9 +25,8 @@ function authFileWith(browserTokens: HqAuthFile['browserTokens']): HqAuthFile {
     version: HQ_AUTH_FILE_VERSION,
     updatedAt: new Date().toISOString(),
     browserTokens,
-  };
+  } as HqAuthFile;
 }
-
 function req(authorization: string): http.IncomingMessage {
   return {
     headers: { host: '127.0.0.1:3499', authorization },

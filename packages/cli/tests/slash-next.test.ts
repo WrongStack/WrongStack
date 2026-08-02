@@ -67,7 +67,7 @@ describe('/next slash command', () => {
     it('reads only — never passes an argument when querying', async () => {
       const cmd = buildNextCommand(ctx);
       await cmd.run!('');
-      for (const call of onNextPredict.mock.calls) {
+      for (const call of (onNextPredict as never as { mock: { calls: unknown[][] } }).mock.calls) {
         expect(call[0]).toBeUndefined();
       }
     });
@@ -118,7 +118,7 @@ describe('/next slash command', () => {
       expect(result?.message).toMatch(/Unknown argument/);
       expect(ctx.renderer.writeWarning).toHaveBeenCalled();
       // Only the initial status read happened — no set call.
-      for (const call of onNextPredict.mock.calls) {
+      for (const call of (onNextPredict as never as { mock: { calls: unknown[][] } }).mock.calls) {
         expect(call[0]).toBeUndefined();
       }
       expect(state).toBe(false);

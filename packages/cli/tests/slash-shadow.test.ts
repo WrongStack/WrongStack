@@ -57,7 +57,7 @@ describe('buildShadowCommand', () => {
         tools: expect.arrayContaining(['fleet', 'terminate_subagent']),
       }),
     );
-    const spawnOpts = onSpawn.mock.calls[0]?.[1] as { tools?: string[]; allowedCapabilities?: unknown; shadowIntervalMs?: number } | undefined;
+    const spawnOpts = (onSpawn.mock.calls as unknown[][])[0]?.[1] as { tools?: string[]; allowedCapabilities?: unknown; shadowIntervalMs?: number } | undefined;
     expect(spawnOpts?.tools).not.toContain('spawn_subagent');
     expect(spawnOpts?.tools).not.toContain('assign_task');
     expect(spawnOpts?.tools).not.toContain('cron_schedule');

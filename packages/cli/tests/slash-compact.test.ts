@@ -53,7 +53,7 @@ describe('/compact slash command', () => {
 
   it('calls compactor with aggressive:false by default', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     await cmd.run!('', makeFakeContext());
     expect(compact).toHaveBeenCalledWith(expect.anything(), { aggressive: false });
@@ -61,7 +61,7 @@ describe('/compact slash command', () => {
 
   it('passes aggressive:true when args trim to "aggressive"', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     await cmd.run!('  aggressive  ', makeFakeContext());
     expect(compact).toHaveBeenCalledWith(expect.anything(), { aggressive: true });
@@ -69,7 +69,7 @@ describe('/compact slash command', () => {
 
   it('renders before/after token totals and per-phase reductions', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const result = await cmd.run!('', makeFakeContext());
     expect(result!.message).toMatch(/100000.*→.*60000 tokens/);
@@ -86,7 +86,7 @@ describe('/compact slash command', () => {
         removedMessages: 3,
       },
     }) as typeof baseReport & { repaired: { removedToolUses: string[]; removedToolResults: string[]; removedMessages: number } });
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const result = await cmd.run!('', makeFakeContext());
     expect(result!.message).toContain('repaired 2 tool_use');
@@ -96,7 +96,7 @@ describe('/compact slash command', () => {
 
   it('omits repair section when the field is absent', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const result = await cmd.run!('', makeFakeContext());
     expect(result!.message).not.toMatch(/repaired/);
@@ -104,7 +104,7 @@ describe('/compact slash command', () => {
 
   it('shows context percentage when provider has maxContext', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const result = await cmd.run!('', makeFakeContext({ provider: { capabilities: { maxContext: 200_000 } } as Provider }));
     // 60k / 200k = 30%
@@ -120,7 +120,7 @@ describe('/compact slash command', () => {
       reductions: [],
     };
     const compact = vi.fn(async () => noopReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const result = await cmd.run!('', makeFakeContext());
     expect(result!.message).toMatch(/already optimal|nothing to compact/i);
@@ -128,7 +128,7 @@ describe('/compact slash command', () => {
 
   it('updates ctx.lastRequestTokens after compact', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const fakeCtx = makeFakeContext();
     await cmd.run!('', fakeCtx);
@@ -138,7 +138,7 @@ describe('/compact slash command', () => {
   it('pushes post-compaction tokens into tokenCounter', async () => {
     const setSpy = vi.fn();
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const fakeCtx = makeFakeContext({ tokenCounter: { setCurrentRequestTokens: setSpy } } as unknown as Context);
     await cmd.run!('', fakeCtx);
@@ -147,9 +147,9 @@ describe('/compact slash command', () => {
 
   it('skips tokenCounter push when tokenCounter is absent', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
-    const fakeCtx = makeFakeContext({ tokenCounter: undefined });
+    const fakeCtx = makeFakeContext({ tokenCounter: undefined } as never);
     await expect(cmd.run!('', fakeCtx)).resolves.toBeDefined();
   });
 
@@ -159,7 +159,7 @@ describe('/compact slash command', () => {
       fullRequestTokensBefore: undefined, fullRequestTokensAfter: undefined,
       reductions: [],
     }));
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     await cmd.run!('', makeFakeContext());
     expect(ctx.renderer.writeInfo).toHaveBeenCalledWith(expect.stringMatching(/already optimal/i));
@@ -167,7 +167,7 @@ describe('/compact slash command', () => {
 
   it('writes the summary line to the renderer info channel', async () => {
     const compact = vi.fn(async () => baseReport);
-    const ctx = makeCtx({ compact });
+    const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     await cmd.run!('', makeFakeContext());
     expect(ctx.renderer.writeInfo).toHaveBeenCalledTimes(1);

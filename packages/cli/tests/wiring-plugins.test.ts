@@ -482,7 +482,7 @@ describe('setupPlugins', () => {
   it('injects default todo-tracker filePath from paths.projectDir', async () => {
     const deps = {
       ...baseDeps(),
-      paths: { ...fakePaths(), projectDir: '/p/proj' } as never,
+      paths: { ...(fakePaths() as object), projectDir: '/p/proj' } as never,
     };
     await setupPlugins(deps as never);
     const [, opts] = loadPluginsMock.mock.calls[0]!;
@@ -497,7 +497,7 @@ describe('setupPlugins', () => {
       ...baseDeps({
         extensions: { 'todo-tracker': { filePath: '/custom/todos.json' } } as never,
       }),
-      paths: { ...fakePaths(), projectDir: '/p/proj' } as never,
+      paths: { ...(fakePaths() as object), projectDir: '/p/proj' } as never,
     };
     await setupPlugins(deps as never);
     const [, opts] = loadPluginsMock.mock.calls[0]!;

@@ -20,8 +20,9 @@ describe('/health', () => {
 
   it('runs all checks and summarizes the worst status', async () => {
     const registry = {
-      runAll: vi.fn(async () => ({
+      run: vi.fn(async () => ({
         timestamp: 0,
+        status: 'unhealthy',
         checks: [
           { name: 'session-store', status: 'healthy' },
           { name: 'provider', status: 'unhealthy', detail: 'rate limited' },
@@ -40,8 +41,9 @@ describe('/health', () => {
 
   it('emits JSON when --json is passed', async () => {
     const registry = {
-      runAll: vi.fn(async () => ({
+      run: vi.fn(async () => ({
         timestamp: 42,
+        status: 'healthy',
         checks: [{ name: 'db', status: 'healthy' }],
       })),
     };

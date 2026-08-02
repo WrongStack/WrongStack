@@ -33,7 +33,7 @@ describe('registerWebuiInstance', () => {
         startedAt: '2026-06-13T00:00:00.000Z',
         registryBaseDir: '/cfg',
       },
-      { registerFn: async (record, baseDir) => void calls.push({ record, baseDir }) },
+      { registerFn: async (record: never, baseDir: string | undefined) => void calls.push({ record, baseDir } as never) } as never,
     );
     // fire-and-forget — let the microtask run
     await Promise.resolve();

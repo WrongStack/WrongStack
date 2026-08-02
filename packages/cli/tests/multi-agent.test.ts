@@ -103,6 +103,7 @@ function makeDeps(): MultiAgentDeps {
 
   return {
     container,
+    fallbackProfileManager: {} as never,
     toolRegistry: new ToolRegistry(),
     providerRegistry: new ProviderRegistry(),
     configStore,
@@ -1174,7 +1175,7 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
       agent.ctx,
       'sequential',
     );
-    return { result: r.outputs[0]!.result as never, tool, dispose };
+    return { result: r.outputs[0]!.result as never, tool, dispose } as never;
   }
 
   it('explicit allowedCapabilities lets a granted fs.write tool run', async () => {

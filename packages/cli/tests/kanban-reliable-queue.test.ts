@@ -335,7 +335,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
       { signal: new AbortController().signal },
     );
     expect(toolEvents).toMatchObject({ ok: true });
-    expect(toolEvents.events.length).toBe(events.length);
+    expect(toolEvents?.events?.length).toBe(events.length);
   });
 
   it('bridges recovery into the same append-only event chain', async () => {
@@ -424,7 +424,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         action: 'claim_task',
         boardId: board.id,
         agentId: 'worker-tool',
-        status: 'running',
+        status: 'running' as never,
       },
       { projectRoot: tmpDir } as never,
       { signal: new AbortController().signal },

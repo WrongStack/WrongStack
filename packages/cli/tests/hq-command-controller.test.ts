@@ -84,7 +84,7 @@ describe('createHqCommandDispatcher', () => {
   });
 
   it('spawn rejects when no director (spawnAgent undefined)', async () => {
-    const controller = makeController({ spawnAgent: undefined });
+    const controller = makeController({ spawnAgent: undefined as never });
     const dispatch = createHqCommandDispatcher(controller);
     const result = await dispatch({ commandId: 'c1', type: 'spawn', payload: { role: 'bug-hunter' } });
     expect(result.status).toBe('rejected');

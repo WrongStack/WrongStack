@@ -159,8 +159,7 @@ const restartServer = async (capabilities?: string[]): Promise<void> => {
   handle = await startHqServer({
     port: getPort(),
     dataDir,
-    projectRoot: dataDir,
-  });
+  } as never);
 };
 
 beforeEach(async () => {
@@ -554,13 +553,13 @@ describe('HQ mailbox — gateway-level contract', () => {
   });
 
   it('returns 401 without an Authorization header', async () => {
-    const res = await post(gatewayUrl(handle!, 'mut-send'), {
+    const res = await post(gatewayUrl(handle!, 'proj', '/mut-send'), {
       from: 'x',
       to: 'y',
       type: 'note',
       subject: 's',
       body: 'b',
-    });
+    }, {});
     expect(res.status).toBe(401);
   });
 

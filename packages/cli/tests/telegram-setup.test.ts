@@ -56,7 +56,7 @@ describe('/telegram-setup secure token flow', () => {
 
     globalThis.fetch = vi.fn(async () => {
       throw new Error(`network failure while using ${TOKEN}`);
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const second = await rig();
     const failed = await second.command.run('');
     expect(failed?.message).not.toContain(TOKEN);
@@ -69,7 +69,7 @@ describe('/telegram-setup secure token flow', () => {
         ok: true,
         result: { id: 1, is_bot: true, first_name: 'SecureBot', username: 'secure_bot' },
       }),
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
     const { command, configPath, readSecret } = await rig();
 
     const result = await command.run('-10042');

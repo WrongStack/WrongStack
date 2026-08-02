@@ -202,9 +202,9 @@ describe('probeLocalLlm', () => {
     let capturedHeaders: Record<string, string> = {};
     const fetchImpl = (async (
       _input: unknown,
-      init: { headers: HeadersInit } | undefined,
+      init: { headers: unknown } | undefined,
     ) => {
-      capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      capturedHeaders = Object.fromEntries(new Headers(init?.headers as never).entries());
       return jsonResponse({ data: [] });
     }) as never as typeof fetch;
     await probeLocalLlm({
@@ -222,9 +222,9 @@ describe('probeLocalLlm', () => {
     let capturedHeaders: Record<string, string> = {};
     const fetchImpl = (async (
       _input: unknown,
-      init: { headers: HeadersInit } | undefined,
+      init: { headers: unknown } | undefined,
     ) => {
-      capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      capturedHeaders = Object.fromEntries(new Headers(init?.headers as never).entries());
       return jsonResponse({ data: [] });
     }) as never as typeof fetch;
     await probeLocalLlm({
@@ -242,9 +242,9 @@ describe('probeLocalLlm', () => {
     let capturedHeaders: Record<string, string> = {};
     const fetchImpl = (async (
       _input: unknown,
-      init: { headers: HeadersInit } | undefined,
+      init: { headers: unknown } | undefined,
     ) => {
-      capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      capturedHeaders = Object.fromEntries(new Headers(init?.headers as never).entries());
       return jsonResponse({ data: [] });
     }) as never as typeof fetch;
     await probeLocalLlm({

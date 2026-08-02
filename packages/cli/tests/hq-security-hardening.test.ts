@@ -183,7 +183,7 @@ describe('HQ security and control-plane hardening', () => {
 
     const rejected = connect(`ws://127.0.0.1:${server.port}/ws/browser`, {
       headers: { Origin: 'https://evil.example' },
-    });
+    } as never);
     const outcome = await new Promise<'rejected' | 'opened'>((resolve) => {
       rejected.once('unexpected-response', () => resolve('rejected'));
       rejected.once('error', () => resolve('rejected'));

@@ -111,7 +111,7 @@ describe('/brain slash command', () => {
       const message = stripAnsi(result!.message!);
       expect(message).toContain('Ship it.');
       expect(message).toContain('Tests pass and scope is small.');
-      const request = decide.mock.calls[0]?.[0] as BrainDecisionRequest;
+      const request = (decide.mock.calls as unknown[][])[0]?.[0] as unknown as BrainDecisionRequest;
       expect(request.source).toBe('user');
       expect(request.question).toBe('should we ship?');
       expect(request.fallback).toBe('ask_human');

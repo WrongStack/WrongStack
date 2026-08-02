@@ -55,13 +55,13 @@ function makeWpaths(): WstackPaths {
   } as WstackPaths;
 }
 
-function makeMemoryStore(): MemoryStore {
+function makeMemoryStore(): ReturnType<typeof makeFakeMemoryStore> {
   return makeFakeMemoryStore();
 }
 
 function makeContainer() {
   const c = new Container();
-  c.bind(TOKENS.Compactor, () => ({ compact: async () => ({ ok: true }) }));
+  c.bind(TOKENS.Compactor, () => ({ compact: async () => ({ ok: true }) } as never));
   return c;
 }
 

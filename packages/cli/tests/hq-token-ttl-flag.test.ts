@@ -62,7 +62,7 @@ function renderText(input: string | TextBlock): string {
 
 function makeDeps(overrides: Partial<SubcommandDeps> = {}): TestDeps {
   const captured: CapturedRenderer = { out: [], err: [], warn: [] };
-  const renderer: RendererWithCapture = {
+  const renderer = {
     write: vi.fn((input: string | TextBlock) => { captured.out.push(renderText(input)); }),
     writeLine: vi.fn((text = '') => { captured.out.push(text ? `${text}\n` : '\n'); }),
     writeBlock: vi.fn((block: ContentBlock) => {
@@ -75,8 +75,8 @@ function makeDeps(overrides: Partial<SubcommandDeps> = {}): TestDeps {
     writeDiff: vi.fn((diff: string) => { captured.out.push(diff); }),
     writeError: vi.fn((s: string) => { captured.err.push(s); }),
     writeWarning: vi.fn((s: string) => { captured.warn.push(s); }),
-    writeInfo: vi.fn((s: string) => { captured.out.push(s); }),
-    clear: vi.fn(),
+    writeInfo: vi.fn((s: string) => { captured.out.push(s); }) as never,
+    clear: vi.fn() as never,
     captured,
   };
   return {

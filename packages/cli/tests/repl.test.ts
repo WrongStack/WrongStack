@@ -876,7 +876,7 @@ describe('runRepl', () => {
           // Mirror what the CLI host does — replace, not append.
           stored = parsed ?? [];
         },
-        getSuggestions: getStored,
+        getSuggestions: getStored as never,
       });
 
       // The runtime gated the parse on the open todo, so onSuggestionsParsed
