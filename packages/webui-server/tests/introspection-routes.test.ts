@@ -62,15 +62,21 @@ describe('canonical introspection handler family', () => {
   it('reports droppedTools as 0 when maxToolsCount is unset (no limit)', async () => {
     const { context, sent } = harness();
     await handleIntrospectionRoute(context, {} as WebSocket, { type: 'diag.get' });
-    expect((sent[0].payload as { maxTools: number }).maxTools).toBe(0);
-    expect((sent[0].payload as { droppedTools: number }).droppedTools).toBe(0);
+    const message = sent[0];
+    expect(message).toBeDefined();
+    if (!message) throw new Error('Expected diag.get response');
+    expect((message.payload as { maxTools: number }).maxTools).toBe(0);
+    expect((message.payload as { droppedTools: number }).droppedTools).toBe(0);
   });
 
   it('reports droppedTools as the surplus when maxToolsCount is set below tool count', async () => {
     const { context, sent } = harness(1);
     await handleIntrospectionRoute(context, {} as WebSocket, { type: 'diag.get' });
-    expect((sent[0].payload as { maxTools: number }).maxTools).toBe(1);
-    expect((sent[0].payload as { droppedTools: number }).droppedTools).toBe(1);
+    const message = sent[0];
+    expect(message).toBeDefined();
+    if (!message) throw new Error('Expected diag.get response');
+    expect((message.payload as { maxTools: number }).maxTools).toBe(1);
+    expect((message.payload as { droppedTools: number }).droppedTools).toBe(1);
   });
 
   it('claims every family member and rejects foreign messages', async () => {

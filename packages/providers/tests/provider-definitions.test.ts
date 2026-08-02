@@ -68,6 +68,7 @@ describe('canonical ProviderDefinition projections', () => {
   it('registers Zyloo with maxTools: 128 and auto-discovery', () => {
     const def = PROVIDER_DEFINITIONS['zyloo'];
     expect(def).toBeDefined();
+    if (!def) throw new Error('Zyloo provider definition is missing');
     expect(def.family).toBe('openai-compatible');
     expect(def.baseUrl).toBe('https://api.zyloo.io/v1');
     expect(def.quirks?.maxTools).toBe(128);

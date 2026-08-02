@@ -46,6 +46,11 @@ export function isPrivateIPv6(raw: string): boolean {
   const groups = expandIPv6(lower);
   if (!groups) return true;
 
+  // RFC 8215 reserves 64:ff9b:1::/48 for local-use NAT64. Its network-specific
+  // translation layout cannot be decoded safely without the configured prefix,
+  // so block the entire range rather than risk a private IPv4 destination.
+  if (groups[0] === 0x0064 && groups[1] === 0xff9b && groups[2] === 0x0001) return true;
+
   // IPv4-mapped: ::ffff:0:0/96 → groups[0..5] all 0, groups[6..7] hold the
   // embedded IPv4 as two 16-bit words.  Node URL normalises the dotted form to
   // this representation (e.g. ::ffff:127.0.0.1 → ::ffff:7f00:1).
@@ -64,11 +69,75 @@ export function isPrivateIPv6(raw: string): boolean {
     return isPrivateIPv4(`${a}.${b}.${c}.${d}`);
   }
 
+  // Other transition formats that carry an IPv4 address inside an IPv6 one.
+  // Each was reachable past the mapped-address branch above, so a private or
+  // link-local IPv4 could be smuggled through in IPv6 clothing — most sharply
+  // `64:ff9b::a9fe:a9fe`, which embeds 169.254.169.254 (WS-095).
+  //
+  // The embedded address is checked rather than the prefix being blocked
+  // outright, so `2002:808:808::` (8.8.8.8 over 6to4) stays reachable while
+  // `2002:7f00:1::` (127.0.0.1) does not.
+  const embedded = embeddedIPv4(groups);
+  if (embedded) return isPrivateIPv4(embedded);
+
   const high = groups[0] ?? 0;
   if ((high & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local (fc..fd)
   if ((high & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
   if ((high & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   return false;
+}
+
+/** Render two 16-bit groups as a dotted IPv4 quad. */
+function quad(hi: number | undefined, lo: number | undefined): string {
+  return `${(hi ?? 0) >> 8}.${(hi ?? 0) & 0xff}.${(lo ?? 0) >> 8}.${(lo ?? 0) & 0xff}`;
+}
+
+/**
+ * Extract the IPv4 address embedded in an IPv6 transition format, or undefined
+ * when the address carries none.
+ *
+ * Covers the formats the mapped-address branch does not:
+ *   - `64:ff9b::/96`   NAT64 well-known prefix (RFC 6052)
+ *   - `2002::/16`      6to4 (RFC 3056) — the IPv4 sits in groups 1-2
+ *   - `::ffff:0:0:0/96` IPv4-translated — 0xffff in group 4, not group 5
+ *   - `::/96`          IPv4-compatible (deprecated, RFC 4291)
+ */
+function embeddedIPv4(groups: number[]): string | undefined {
+  const g = (i: number): number => groups[i] ?? 0;
+
+  // NAT64 well-known prefix: 0064:ff9b:0:0:0:0:<ipv4> (RFC 6052 /96)
+  if (g(0) === 0x0064 && g(1) === 0xff9b) {
+    if (g(2) === 0 && g(3) === 0 && g(4) === 0 && g(5) === 0) {
+      return quad(g(6), g(7));
+    }
+  }
+  // 6to4: 2002:<ipv4>::/48
+  if (g(0) === 0x2002) return quad(g(1), g(2));
+
+  // Teredo (RFC 4380): 2001:0000::/32 — the client IPv4 in the last 32 bits
+  // is stored XOR-obfuscated with 0xffffffff. MUST be checked before ISATAP:
+  // group 5 holds the attacker-chosen obscured UDP port, which can collide
+  // with the ISATAP 0x5efe marker and make ISATAP read the *obscured* client
+  // IPv4 as plain (SSRF bypass + false positives).
+  if (g(0) === 0x2001 && g(1) === 0) {
+    return quad((~g(6)) & 0xffff, (~g(7)) & 0xffff);
+  }
+
+  // ISATAP (RFC 5214): the embedded IPv4 sits in the last 32 bits, preceded
+  // by the IANA IID marker 0x5efe. The IID is `g(4):g(5) = 0000:5efe` (or the
+  // u-bit variant 0200:5efe); requiring both words avoids false positives on
+  // unrelated addresses that merely contain 0x5efe somewhere.
+  if ((g(4) === 0x0000 || g(4) === 0x0200) && g(5) === 0x5efe) {
+    return quad(g(6), g(7));
+  }
+
+  const highZero = g(0) === 0 && g(1) === 0 && g(2) === 0 && g(3) === 0;
+  // IPv4-translated: ::ffff:0:<ipv4>
+  if (highZero && g(4) === 0xffff && g(5) === 0) return quad(g(6), g(7));
+  // IPv4-compatible: ::<ipv4>. `::` and `::1` are handled by the early return.
+  if (highZero && g(4) === 0 && g(5) === 0) return quad(g(6), g(7));
+
+  return undefined;
 }
 
 /**
