@@ -80,6 +80,15 @@ export { StorePool } from './writer-store-pool.js';
 
 const DB_FILE = 'index.db';
 
+/**
+ * Upper bound on compiled statements held by {@link IndexStore.stmt}.
+ *
+ * Matches the 128 that Sage's SqliteStatementCache already uses. The fixed
+ * hot-path statements number in the low dozens, so this only ever evicts
+ * one-off search SQL (WS-096).
+ */
+const MAX_STATEMENT_CACHE = 128;
+
 export class IndexStore {
   private db: DatabaseSync;
   /** Absolute path to this project's index directory. */
@@ -119,12 +128,31 @@ export class IndexStore {
   // an empty or pre-existing corpus makes a stale IDF table meaningless.
   private bm25Dirty = true;
 
-  /** Prepare-once helper: compile `sql` on first use, reuse thereafter. */
+  /**
+   * Prepare-once helper: compile `sql` on first use, reuse thereafter.
+   *
+   * Bounded LRU rather than an open Map. The cache is keyed by SQL TEXT, and
+   * the fallback search builder emits one `text LIKE ?` clause per query token
+   * — so the SQL varies with the token count and a stream of differently-sized
+   * queries grew the cache without limit. Sage's store already bounds its
+   * equivalent at 128 (WS-096).
+   *
+   * Re-inserting on a hit keeps the hot fixed-SQL statements (upsertFile,
+   * insertRefs, …) at the young end, so a burst of one-off search SQL evicts
+   * itself rather than the reindex hot path.
+   */
   private stmt(sql: string): ReturnType<DatabaseSync['prepare']> {
-    let s = this.stmtCache.get(sql);
-    if (s === undefined) {
-      s = this.db.prepare(sql);
-      this.stmtCache.set(sql, s);
+    const cached = this.stmtCache.get(sql);
+    if (cached !== undefined) {
+      this.stmtCache.delete(sql);
+      this.stmtCache.set(sql, cached);
+      return cached;
+    }
+    const s = this.db.prepare(sql);
+    this.stmtCache.set(sql, s);
+    if (this.stmtCache.size > MAX_STATEMENT_CACHE) {
+      const oldest = this.stmtCache.keys().next();
+      if (!oldest.done) this.stmtCache.delete(oldest.value);
     }
     return s;
   }

@@ -28,6 +28,16 @@ export function sqliteRowsToMemories(rows: readonly SqliteMemoryDataRow[]): Sage
  * they match the literal word, not the operator — because the MATCH string
  * never concatenates unescaped user punctuation.
  */
+/**
+ * Upper bound on prefix terms sent to FTS5 in one MATCH.
+ *
+ * Each term becomes a branch of a prefix-OR expression, and the cost is
+ * superlinear in the branch count: an unclamped 50k-word query built a
+ * 50k-branch expression from a single tool call. Recall past a few dozen prefix
+ * terms is not meaningfully better, so the clamp costs nothing real (WS-096).
+ */
+const MAX_FTS_PREFIX_TERMS = 64;
+
 export function ftsPrefixTerms(query: string): string[] {
   const terms: string[] = [];
   for (const term of query.split(/\s+/)) {
@@ -38,6 +48,7 @@ export function ftsPrefixTerms(query: string): string[] {
       // the prefix index without improving recall.
       if (token.length < 2) continue;
       terms.push(`${token}*`);
+      if (terms.length >= MAX_FTS_PREFIX_TERMS) return terms;
     }
   }
   return terms;
