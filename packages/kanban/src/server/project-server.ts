@@ -197,7 +197,7 @@ function scheduleIdleStop(): void {
   if (idleTimer) clearTimeout(idleTimer);
   const idleInput = Number(process.env['WRONGSTACK_KANBAN_SERVER_IDLE_MS']);
   const idleMs = Number.isFinite(idleInput) && idleInput >= 100 ? idleInput : DEFAULT_IDLE_MS;
-  idleTimer = setTimeout(() => void stop('idle-timeout'), idleMs);
+  idleTimer = setTimeout(() => void stop('idle-timeout').then(() => process.exit(0)), idleMs);
   idleTimer.unref?.();
 }
 
@@ -231,7 +231,10 @@ async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void>
     const listener = server;
     server = null;
     await new Promise<void>((resolve) => {
-      listener.close(() => resolve());
+      listener.close(() => {
+        clearTimeout(timer);
+        resolve();
+      });
       const timer = setTimeout(() => {
         resolve();
       }, 500);
