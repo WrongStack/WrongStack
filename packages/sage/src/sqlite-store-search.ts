@@ -208,12 +208,15 @@ export function executeUnifiedSearch(
   // limit. Corrupt rows are skipped leniently by sqliteRowsToMemories, so
   // bm25 is looked up by memory id instead of by position.
   const decodedMemories = sqliteRowsToMemories(dataRows);
+  // bm25 is only selected on the FTS path — skip the decode loop otherwise.
   const bm25ById = new Map<string, number | undefined>();
-  for (const row of dataRows) {
-    try {
-      bm25ById.set(sqliteRowToMemory(row).id, row.bm25);
-    } catch {
-      // Corrupt row — already warned about by the decode path.
+  if (matchExpr !== undefined) {
+    for (const row of dataRows) {
+      try {
+        bm25ById.set(sqliteRowToMemory(row).id, row.bm25);
+      } catch {
+        // Corrupt row — already warned about by the decode path.
+      }
     }
   }
   let kept: Sage[] = decodedMemories;
@@ -349,14 +352,18 @@ function buildOrderBy(
  *
  * FTS hits: relevance = sigmoid(bm25) — SQLite's bm25 is ≤ 0, so a strong
  * match approaches 1 and a weak one approaches 0.5, independent of the
- * result-set size. Non-FTS hits (no text query): relevance = recency over
- * `RECENCY_WINDOW_MS`, so fresh memories score near 1 regardless of corpus
- * size.
+ * result-set size; the metadata factor (importance/confidence/freshness)
+ * scales relevance within [0.75, 1.0].
  *
- * The metadata factor (importance/confidence/freshness) scales relevance
- * within [0.75, 1.0]. Scores therefore track the ORDER BY ranking but are
- * not guaranteed to be strictly monotonic across adjacent hits — a later
- * hit with far stronger metadata can edge out an earlier one.
+ * Non-FTS hits (no text query): an ADDITIVE blend, 0.6·recency + 0.4·metadata,
+ * where recency = 1 - age/`RECENCY_WINDOW_MS` floored at 0. The additive
+ * blend keeps an old-but-high-quality memory from scoring exactly 0 in every
+ * ranking mode (a pure recency × metadata product did).
+ *
+ * Scores are NOT guaranteed to track the ORDER BY ranking: e.g. the
+ * 'importance' ranking orders by importance while the score blends bm25 and
+ * metadata, so an adjacent hit with far stronger metadata can edge out an
+ * earlier one.
  */
 function computeAbsoluteScores(
   memories: Sage[],
@@ -365,18 +372,16 @@ function computeAbsoluteScores(
 ): number[] {
   return memories.map((memory, index) => {
     const rank = bm25Ranks[index];
-    let relevance: number;
-    if (rank !== undefined) {
-      relevance = 1 / (1 + Math.exp(rank));
-    } else {
-      const age = nowMs - Date.parse(memory.updatedAt);
-      relevance = Number.isFinite(age) ? clamp01(1 - age / RECENCY_WINDOW_MS) : 0;
-    }
     const metadata =
       (memory.importance ?? 0.5) * 0.5 +
       (memory.confidence ?? 0.5) * 0.3 +
       (memory.freshness ?? 0.5) * 0.2;
-    return relevance * (0.75 + 0.25 * metadata);
+    if (rank !== undefined) {
+      return (1 / (1 + Math.exp(rank))) * (0.75 + 0.25 * metadata);
+    }
+    const age = nowMs - Date.parse(memory.updatedAt);
+    const recency = Number.isFinite(age) ? clamp01(1 - age / RECENCY_WINDOW_MS) : 0;
+    return 0.6 * recency + 0.4 * metadata;
   });
 }
 
@@ -543,12 +548,19 @@ function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[]
   }
 
   const whereSql = ' WHERE ' + clauses.join(' AND ');
+  // Scale the fetch window when JS-side filters are active so the filtered
+  // suggestion set can still reach the caller's limit (mirrors the primary
+  // path's JS_FILTER_OVERFETCH).
+  const suggestionSqlLimit =
+    jsFilters.length > 0
+      ? Math.min(limit * JS_FILTER_OVERFETCH, MAX_LIMIT)
+      : Math.min(Math.max(limit * 2, 10), MAX_LIMIT);
   const rows = host
     .stmt(
       `SELECT m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
         whereSql +
         ` ORDER BY ${buildOrderBy(ranking, true).fts}` +
-        ` LIMIT ${Math.min(Math.max(limit * 2, 10), MAX_LIMIT)}`,
+        ` LIMIT ${suggestionSqlLimit}`,
     )
     .all(...params) as Array<{ data: string; bm25?: number }>;
 

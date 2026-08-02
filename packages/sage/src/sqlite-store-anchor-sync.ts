@@ -29,7 +29,7 @@ export function syncSqliteAnchorEdges(
     `INSERT INTO edges (from_node, to_node, relation, weight, created_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(from_node, to_node, relation) DO UPDATE SET
-       weight = excluded.weight`,
+       weight = MAX(weight, excluded.weight)`,
   );
   for (const anchor of memory.anchors) {
     const target = sqliteAnchorNode(anchor);

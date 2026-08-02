@@ -10,6 +10,7 @@ import {
   isNearDuplicateMemory,
   normalizeAudience,
   normalizeTextKey,
+  tokenize,
 } from './store-helpers.js';
 import type {
   MemoryAnchor,
@@ -35,6 +36,45 @@ function compareIsoAscending(a: string, b: string): number {
   if (a < b) return -1;
   if (a > b) return 1;
   return 0;
+}
+
+/** Negation cues that flip the polarity of an otherwise-overlapping claim. */
+const NEGATION_CUES = new Set([
+  'not',
+  'no',
+  'never',
+  'none',
+  'neither',
+  'nor',
+  'cannot',
+  'cant',
+  "n't",
+  'without',
+  'unable',
+  'no_longer',
+]);
+
+/**
+ * Deterministic v1 contradiction heuristic: both texts tokenize to ≥5 tokens,
+ * their unique-token overlap is ≥0.72 (the near-dup structural threshold), and
+ * exactly ONE member's exclusive tokens contain a negation cue. Deliberately
+ * conservative — it only flags near-identical claims with opposite polarity,
+ * never stylistic differences or ordinary factual disagreements.
+ */
+function isPossiblyContradictory(a: Sage, b: Sage): boolean {
+  const tokensA = tokenize(a.text);
+  const tokensB = tokenize(b.text);
+  if (tokensA.length < 5 || tokensB.length < 5) return false;
+  const setA = new Set(tokensA);
+  const setB = new Set(tokensB);
+  const overlap = [...setA].filter((token) => setB.has(token)).length;
+  const min = Math.min(setA.size, setB.size);
+  if (min === 0 || overlap / min < 0.72) return false;
+  const diffA = [...setA].filter((token) => !setB.has(token));
+  const diffB = [...setB].filter((token) => !setA.has(token));
+  const aNegated = diffA.some((token) => NEGATION_CUES.has(token));
+  const bNegated = diffB.some((token) => NEGATION_CUES.has(token));
+  return aNegated !== bNegated;
 }
 
 export interface SqliteHygieneContext {
@@ -200,7 +240,7 @@ export async function runSqliteSageHygiene(
             .stmt(
               `INSERT INTO edges (from_node, to_node, relation, weight, created_at)
                VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = excluded.weight`,
+               ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = MAX(weight, excluded.weight)`,
             )
             .run(memoryNodeId(keeper.id), memoryNodeId(dup.id), 'supersedes', 1, ctx.nowIso());
         } catch {
@@ -328,7 +368,7 @@ export async function runSqliteSageHygiene(
                 .stmt(
                   `INSERT INTO edges (from_node, to_node, relation, weight, created_at)
                    VALUES (?, ?, ?, ?, ?)
-                   ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = excluded.weight`,
+                   ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = MAX(weight, excluded.weight)`,
                 )
                 .run(memoryNodeId(keeper.id), memoryNodeId(dup.id), 'supersedes', 1, ctx.nowIso());
             } catch {
@@ -346,6 +386,86 @@ export async function runSqliteSageHygiene(
         });
       }
     });
+  }
+
+  // ─── Contradiction detection (v1, deterministic) ─────────────────────
+  // Active pairs in the same scope+audience bucket whose token sets overlap
+  // ≥ the near-dup threshold and differ by a negation cue (not/no/never/…)
+  // are flagged as possible contradictions. Consistent with how archive and
+  // delete retention work, hygiene never flips statuses here: it emits an
+  // 'investigate' review candidate for the newer member, links `contradicts`
+  // on it, and counts the pair in the report so a human/agent can resolve it
+  // (memory_update can set status 'contradicted' explicitly).
+  let contradicted = 0;
+  {
+    const activeNow = await ctx.listMemories({ status: 'active', limit: 0 });
+    const buckets = new Map<string, Sage[]>();
+    for (const memory of activeNow) {
+      const audienceKey = JSON.stringify(normalizeAudience(memory.audience) ?? null);
+      const key = `${memory.scope}\u0000${audienceKey}`;
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(memory);
+      else buckets.set(key, [memory]);
+    }
+    const flagged = new Map<string, { memory: Sage; other: Sage }>();
+    for (const bucket of buckets.values()) {
+      if (bucket.length < 2) continue;
+      const capped = bucket.slice(0, HYGIENE_NEAR_DUP_BUCKET_CAP);
+      for (let i = 0; i < capped.length; i++) {
+        for (let j = i + 1; j < capped.length; j++) {
+          const a = capped[i]!;
+          const b = capped[j]!;
+          if (!isPossiblyContradictory(a, b)) continue;
+          // Skip pairs that are already linked — repeated hygiene runs must
+          // not re-flag (and re-candidate) the same contradiction.
+          if (a.contradicts?.includes(b.id) || b.contradicts?.includes(a.id)) continue;
+          // Flag the newer member; the older one is the contradicted claim.
+          const newer = compareIsoAscending(a.createdAt, b.createdAt) <= 0 ? b : a;
+          const other = newer === a ? b : a;
+          if (!flagged.has(newer.id)) flagged.set(newer.id, { memory: newer, other });
+        }
+      }
+    }
+    if (flagged.size > 0) {
+      await ctx.runMutation(() => {
+        for (const { memory, other } of flagged.values()) {
+          const contradictions = [...new Set([...(memory.contradicts ?? []), other.id])];
+          const updated = applySemanticChange(memory, { contradicts: contradictions }, ctx.nowIso());
+          ctx.upsertMemory(updated);
+          ctx.syncAnchorEdges(updated);
+          try {
+            ctx.addCandidate({
+              id: ulid(),
+              schemaVersion: 1,
+              targetMemoryId: memory.id,
+              text: memory.text,
+              kind: 'memory_review',
+              status: 'pending',
+              scope: memory.scope,
+              confidence: memory.confidence,
+              importance: memory.importance,
+              tags: [
+                ...memory.tags,
+                `review:possible_contradiction_with_${other.id}`,
+                'suggested:investigate',
+                `source:${memory.id}`,
+              ],
+              anchors: memory.anchors,
+              sources: [{ type: 'session' }],
+              createdAt: ctx.nowIso(),
+              updatedAt: ctx.nowIso(),
+            });
+          } catch {
+            // Candidate creation is best-effort — the contradicts link, audit
+            // event, and report count still land without it.
+          }
+          contradicted++;
+        }
+        ctx.audit('memory.hygiene_contradictions', {
+          details: { candidates: contradicted },
+        });
+      });
+    }
   }
 
   const nowMs = ctx.now().getTime();
@@ -510,7 +630,7 @@ export async function runSqliteSageHygiene(
     examined: active.length,
     deduplicated,
     superseded,
-    contradicted: 0,
+    contradicted,
     staled: stale.length,
     reviewCandidatesCreated,
     archived: 0,

@@ -8,6 +8,7 @@ import { normalizeProjectPath, normalizeSlashes } from './paths.js';
 import {
   DEFAULT_PERSISTENCE,
   legacyToSageScope,
+  VALID_PERSISTENCE,
   type MemoryAnchor,
   type MemoryAudienceSelector,
   type RememberSageInput,
@@ -19,8 +20,8 @@ import {
 const MAX_MEMORY_TEXT_CHARS = 20_000;
 const MAX_MEMORY_METADATA_ITEMS = 128;
 
-const VALID_SCOPES = new Set<SageScope>(['project', 'user', 'session', 'file', 'symbol']);
-const VALID_KINDS = new Set<SageKind>([
+export const VALID_SCOPES = new Set<SageScope>(['project', 'user', 'session', 'file', 'symbol']);
+export const VALID_KINDS = new Set<SageKind>([
   'fact',
   'decision',
   'convention',
@@ -418,6 +419,15 @@ export function validateRememberInput(input: RememberSageInput): void {
   }
   if (input.scope && !VALID_SCOPES.has(input.scope)) throw new Error('Invalid SAGE scope.');
   if (input.kind && !VALID_KINDS.has(input.kind)) throw new Error('Invalid SAGE kind.');
+  // Runtime enforcement of the persistence class (the types.ts doc promises
+  // this; unknown values previously slipped through and silently behaved as
+  // non-permanent everywhere). UpdateSageInput goes through the same check in
+  // sqlite-store-update.ts.
+  if (input.persistence !== undefined && !VALID_PERSISTENCE.has(input.persistence)) {
+    throw new Error(
+      `Invalid SAGE persistence: expected one of ${[...VALID_PERSISTENCE].join(', ')}, got "${input.persistence}".`,
+    );
+  }
   if (input.kind && STRUCTURAL_KINDS.has(input.kind) && !(input.anchors && input.anchors.length > 0)) {
     throw new Error(
       `SAGE kind "${input.kind}" requires at least one anchor (file/symbol/command binding).`,

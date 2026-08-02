@@ -651,7 +651,7 @@ describe('SqliteSageStore', () => {
 
     });
 
-    it('aggregates edge weights on duplicate inserts', async () => {
+    it('keeps edge weights monotone on duplicate inserts (MAX policy)', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
       await store.addGraphEdge('mem:x', 'mem:y', 'related_to', 1);
@@ -659,8 +659,10 @@ describe('SqliteSageStore', () => {
       const edges = await store.traverseGraph(['mem:x']);
       const xy = edges.find((e) => e.from === 'mem:x' && e.to === 'mem:y');
       expect(xy).toBeDefined();
-      expect(xy!.weight).toBeGreaterThanOrEqual(2);
-
+      // Unified 2026-08-02 monotone policy (see sqlite-store-schema.ts):
+      // repeated identical assertions are idempotent — MAX(1, 1) = 1, not the
+      // pre-policy accumulate result (2).
+      expect(xy!.weight).toBe(1);
     });
   });
 

@@ -9,9 +9,10 @@ import {
   normalizeAudience,
   normalizeTags,
   normalizeText,
+  VALID_KINDS,
 } from './store-helpers.js';
 import type { Sage, SageStatus, UpdateSageInput } from './types.js';
-import { DEFAULT_PERSISTENCE } from './types.js';
+import { DEFAULT_PERSISTENCE, VALID_PERSISTENCE } from './types.js';
 
 export interface SqliteUpdateContext {
   projectRoot: string;
@@ -31,6 +32,23 @@ export function updateSqliteSage(
   input: UpdateSageInput,
 ): Sage {
   rejectIfUnsafeInput(input);
+  // Field-value validation mirrors validateRememberInput (store-helpers.ts):
+  // unknown persistence/kind values are rejected instead of silently behaving
+  // as a different class (an invalid persistence used to slip through and act
+  // as non-permanent everywhere; an invalid kind would pollute byStatus and
+  // byKind stats). `scope` is deliberately NOT part of UpdateSageInput — a
+  // memory's scope and session ownership are immutable after creation
+  // (change = delete+recreate).
+  if (input.persistence !== undefined && !VALID_PERSISTENCE.has(input.persistence)) {
+    throw new Error(
+      `SAGE persistence must be one of: ${[...VALID_PERSISTENCE].join(', ')}; got "${input.persistence}".`,
+    );
+  }
+  if (input.kind !== undefined && !VALID_KINDS.has(input.kind)) {
+    throw new Error(
+      `SAGE kind must be one of: ${[...VALID_KINDS].join(', ')}; got "${input.kind}".`,
+    );
+  }
   const existing = readSqliteSageRow(ctx.stmt, id);
   if (!existing) throw new Error(`SAGE ${id} not found.`);
   if (

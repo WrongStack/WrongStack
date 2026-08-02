@@ -121,6 +121,9 @@ export async function migrateSqliteLegacyJsonl(input: {
        ON CONFLICT(from_node, to_node, relation) DO UPDATE SET
          weight = excluded.weight`,
     );
+    // EXEMPTION from the monotone MAX policy (see sqlite-store-schema.ts): the
+    // JSONL migration is a REPLAY of historical edges, not a live merge — the
+    // persisted legacy weight is the source of truth and must win verbatim.
     const deleteEdge = stmt(
       'DELETE FROM edges WHERE from_node = ? AND to_node = ? AND relation = ?',
     );

@@ -497,11 +497,13 @@ export class SqliteSageStore implements MemoryStore {
    *   the edge rewrite runs inside `runMutation` so it is serialized,
    *   and `ON CONFLICT … DO UPDATE` makes the inserts idempotent.
    *
-   *   NOTE: `weight = excluded.weight` means the last memory to sync wins
-   *   when multiple memories share the same anchor target. This is acceptable
-   *   because weight reflects the most-recently-refreshed confidence score,
-   *   but it's not a CRDT merge — concurrent writes from separate processes
-   *   race on edge weight.
+   *   NOTE: with `ON CONFLICT … DO UPDATE SET weight = MAX(weight, excluded.weight)`
+   *   (unified 2026-08-02, see sqlite-store-schema.ts) concurrent writers can
+   *   never erode an edge, but the weight is still the confidence of whichever
+   *   memory synced LAST when multiple memories share the same anchor target —
+   *   a last-sync-wins race on WHICH memory's confidence is reflected, not a
+   *   CRDT merge. Acceptable because the value tracks the most recently
+   *   refreshed confidence and re-sync converges to the newer memory.
    */
   private syncAnchorEdges(memory: Sage): void {
     syncSqliteAnchorEdges({ stmt: (sql) => this.stmt(sql), nowIso: () => this.nowIso() }, memory);
@@ -724,10 +726,14 @@ export class SqliteSageStore implements MemoryStore {
   ): Promise<void> {
     await this.initialize();
     const edgeId = `edge_${ulid()}`;
+    // Monotone merge policy (unified 2026-08-02): `MAX(weight, excluded.weight)`
+    // — concurrent writers can never erode an edge and repeated identical
+    // assertions are idempotent instead of inflating strength. See the policy
+    // note beside the `edges` table in sqlite-store-schema.ts.
     this.stmt(
       `INSERT INTO edges (from_node, to_node, relation, weight, created_at)
          VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = weight + excluded.weight`,
+         ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = MAX(weight, excluded.weight)`,
     ).run(from, to, relation, weight, this.nowIso());
     this.events?.emit(
       'memory.graph_edge_added',

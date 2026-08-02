@@ -151,3 +151,31 @@ export function initSchema(db: DatabaseSync): void {
   );
   db.exec('CREATE INDEX IF NOT EXISTS idx_edge_to_relation ON edges(to_node, relation)');
 }
+
+// ─── Edge-weight policy (unified 2026-08-02) ───────────────────────────────
+//
+// Every LIVE writer converges on the same ON CONFLICT semantic:
+//   `weight = MAX(weight, excluded.weight)`
+// so concurrent writers can never ERODE an edge, and idempotent replays are
+// stable instead of inflating strength (the pre-2026-08-02 code had three
+// semantics: accumulate in SqliteSageStore.addGraphEdge, overwrite in
+// syncSqliteAnchorEdges / hygiene supersedes / the JSONL migration, and MAX
+// in the recovery edge helper).
+//
+// Producers still decide the INCOMING weight:
+//   - anchor edges (about_* and related_to from syncSqliteAnchorEdges):
+//     the memory's current `confidence`. syncSqliteAnchorEdges DELETEs the
+//     memory's about_* edges first, so for about_* the conflict branch is a
+//     pure cross-process race net and MAX keeps the newer confidence; the
+//     related_to structural edges are upserted WITHOUT a delete, so MAX
+//     keeps the higher historical confidence (re-syncing a memory whose
+//     confidence dropped does not erode the structural weight).
+//   - relationship edges (supersedes / contradicts / addGraphEdge):
+//     caller-supplied weight (1 for supersedes) — MAX is monotone and
+//     idempotent, so repeated identical assertions cannot inflate strength.
+//   - the JSONL migration (sqlite-store-jsonl-migration.ts) replays
+//     HISTORICAL edges verbatim with `weight = excluded.weight`: the
+//     persisted legacy weight is the source of truth for a replay, not a
+//     live merge.
+//   - the admin/recovery `addRelationshipEdge` helper (sqlite-store-admin.ts)
+//     was already MAX and stays MAX.
