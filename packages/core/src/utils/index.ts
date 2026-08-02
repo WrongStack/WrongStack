@@ -187,3 +187,9 @@ export { isUlid, ulid } from './ulid.js';
 export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';
 export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';
 export * from './wstack-paths.js';
+export {
+  capSageLines,
+  SAGE_INJECTOR_HEADINGS,
+  splitSageOutputBlock,
+  type SageOutputSplit,
+} from './sage-output-block.js';

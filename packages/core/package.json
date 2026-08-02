@@ -56,6 +56,10 @@
       "types": "./dist/utils/expect-defined.d.ts",
       "import": "./dist/utils/expect-defined.js"
     },
+    "./utils/sage-output-block": {
+      "types": "./dist/utils/sage-output-block.d.ts",
+      "import": "./dist/utils/sage-output-block.js"
+    },
     "./utils/error": {
       "types": "./dist/utils/error.d.ts",
       "import": "./dist/utils/error.js"

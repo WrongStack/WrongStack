@@ -91,17 +91,16 @@ describe('executeUnifiedSearch (commit 1.5, MVP)', () => {
     expect(result.rankingApplied).toBe('hybrid');
     expect(result.queryEcho.text).toBe('cursor');
 
-    // Scores are normalized to [0,1] — the top hit gets the highest score.
-    // Verify descending order and that scores are in valid range.
+    // Scores are absolute in [0,1] — the same formula runs for every query
+    // (sigmoid-bm25 × metadata), so every hit's score is valid regardless of
+    // result-set size (the old position-relative formula scored the top hit
+    // ~0.85 whether it was a strong match in a 2-hit set or a weak one in a
+    // 50-hit set).
     for (let i = 0; i < result.hits.length; i++) {
       expect(result.hits[i]!.score).toBeGreaterThan(0);
       expect(result.hits[i]!.score).toBeLessThanOrEqual(1);
       expect(result.hits[i]!.matchReason).toBe('lexical');
       expect(result.hits[i]!.status).toBe('active');
-    }
-    // Scores should be monotonically non-increasing.
-    for (let i = 1; i < result.hits.length; i++) {
-      expect(result.hits[i]!.score).toBeLessThanOrEqual(result.hits[i - 1]!.score);
     }
 
     // Every hit text contains "cursor" (case-insensitive) — sanity check on
@@ -127,13 +126,15 @@ describe('executeUnifiedSearch (commit 1.5, MVP)', () => {
     expect(result.rankingApplied).toBe('hybrid');
     expect(result.queryEcho.text).toBe('   ');
     // Non-FTS path uses `matchReason: 'recency'` (the secondary sort key).
-    // Scores are normalized to [0,1].
+    // Scores are absolute in [0,1] — recency over a fixed window × metadata —
+    // so a fresh, high-importance memory clears the §6 trust bar (≥ 0.5).
     for (const hit of result.hits) {
       expect(hit.matchReason).toBe('recency');
       expect(hit.status).toBe('active');
       expect(hit.score).toBeGreaterThan(0);
       expect(hit.score).toBeLessThanOrEqual(1);
     }
+    expect(result.hits[0]!.score).toBeGreaterThanOrEqual(0.5);
 
     // Non-FTS path ordering: importance DESC, then updated_at DESC. Verify
     // that the highest-importance memory ('placeholder cursor…' at 0.9)
@@ -297,5 +298,94 @@ describe('executeUnifiedSearch — declared-field contract (2026-08-02)', () => 
     const always = await store.unifiedSearchService({ text: 'beta alpha' }, { suggest: 'always' });
     expect(always.hits.map((hit) => hit.id)).toContain(a.id);
     expect(always.suggestions.map((hit) => hit.id)).toContain(b.id);
+  });
+
+  it('honors freshness.verifiedAfter (anchor verification time)', async () => {
+    let current = new Date('2026-01-01T00:00:00.000Z');
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir, now: () => current }));
+    await store.initialize();
+    await fs.promises.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.promises.writeFile(path.join(tempDir, 'src', 'verify-probe.ts'), 'export const probe = 1;\n');
+    const memory = await store.rememberSage({
+      text: 'verify probe memory alpha',
+      kind: 'file_note',
+      importance: 0.6,
+      anchors: [{ type: 'file', path: 'src/verify-probe.ts' }],
+    });
+    // Verify at T1 (2026-03) — sets lastVerifiedAt on the memory.
+    current = new Date('2026-03-01T00:00:00.000Z');
+    await store.verify(memory.id);
+
+    const after = await store.unifiedSearchService({
+      text: 'verify probe',
+      freshness: { verifiedAfter: '2026-02-01T00:00:00.000Z' },
+    });
+    expect(after.hits.map((hit) => hit.id)).toContain(memory.id);
+    const before = await store.unifiedSearchService({
+      text: 'verify probe',
+      freshness: { verifiedAfter: '2026-04-01T00:00:00.000Z' },
+    });
+    expect(before.hits.map((hit) => hit.id)).not.toContain(memory.id);
+  });
+
+  it('suggestions honor the paths filter', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const a = await store.rememberSage({
+      text: 'alpha beta probe alpha',
+      kind: 'file_note',
+      importance: 0.6,
+      anchors: [{ type: 'file', path: 'src/path-suggest.ts' }],
+    });
+    const b = await store.rememberSage({
+      text: 'gamma beta probe gamma',
+      kind: 'fact',
+      importance: 0.6,
+    });
+
+    const unfiltered = await store.unifiedSearchService(
+      { text: 'beta alpha' },
+      { suggest: 'always' },
+    );
+    expect(unfiltered.hits.map((hit) => hit.id)).toContain(a.id);
+    expect(unfiltered.suggestions.map((hit) => hit.id)).toContain(b.id);
+
+    // With the paths filter, the OR-expanded suggestion query must not
+    // surface the unanchored memory either.
+    const filtered = await store.unifiedSearchService(
+      { text: 'beta alpha', paths: ['src/path-suggest.ts'] },
+      { suggest: 'always' },
+    );
+    expect(filtered.hits.map((hit) => hit.id)).toContain(a.id);
+    expect(filtered.suggestions.map((hit) => hit.id)).not.toContain(b.id);
+  });
+
+  it('scores reflect memory quality, not result-set position', async () => {
+    const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+    await store.initialize();
+    const strong = await store.rememberSage({
+      text: 'quality scoring probe alpha',
+      kind: 'fact',
+      importance: 0.9,
+      confidence: 0.95,
+    });
+    const weak = await store.rememberSage({
+      text: 'quality scoring probe beta',
+      kind: 'fact',
+      importance: 0.3,
+      confidence: 0.4,
+    });
+
+    // Both memories match the query with the same lexical profile; the
+    // metadata factor (importance/confidence/freshness) must dominate so the
+    // high-quality memory outscores the low-quality one. Under the old
+    // position-relative formula both would land within ~0.1 of each other
+    // purely by result-set position.
+    const result = await store.unifiedSearchService({ text: 'quality scoring' });
+    const strongScore = result.hits.find((hit) => hit.id === strong.id)?.score;
+    const weakScore = result.hits.find((hit) => hit.id === weak.id)?.score;
+    expect(strongScore).toBeDefined();
+    expect(weakScore).toBeDefined();
+    expect(strongScore!).toBeGreaterThan(weakScore!);
   });
 });

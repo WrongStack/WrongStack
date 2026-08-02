@@ -1,27 +1,21 @@
+/**
+ * sage-output-format — TUI formatting of SAGE memory injection.
+ *
+ * Block SPLITTING (headings, memory-line regexes, walk, truncation recovery)
+ * is delegated to the canonical parser in
+ * `@wrongstack/core/utils/sage-output-block` — WebUI's `lib/sage-block.ts`
+ * delegates to the same module, so the three surfaces can never drift. This
+ * file keeps the TUI-specific rendering logic: strict detail parsing
+ * (`parseSageMemoryLine`), entity unescaping, and tool-output formatting.
+ */
+import { splitSageOutputBlock } from '@wrongstack/core/utils/sage-output-block';
+
 export interface SageSplit {
   /** Tool result text with the SAGE block removed. */
   cleanOutput: string;
   /** Extracted SAGE block lines (including the `--- SAGE:` header), or empty. */
   sageLines: string[];
 }
-
-const SAGE_INJECTOR_HEADINGS = new Set([
-  '--- SAGE: task-aware project knowledge (Memory Injector) ---',
-  '--- SAGE: related project knowledge (Memory Injector) ---',
-]);
-
-const SAGE_MEMORY_LINE = /^- \[[^\]]+\](?:\[[^\]]+\])* <memory id="[^"]+">.*<\/memory>(?: .*)?$/;
-
-/**
- * A memory line whose tail was cut by a character cap somewhere upstream (the
- * `…` marker appended by an event preview, the fleet bridge, the HQ raw-content
- * cap, or history retention). Accepted only as the LAST line of a candidate
- * block: the `- [labels] <memory id="…">` prefix is specific enough that no
- * ordinary tool output produces it, so recognising the fragment keeps a
- * truncated block rendering as memory instead of decaying into raw tool text.
- * Mirrors `packages/core/src/utils/sage-output-block.ts`.
- */
-const SAGE_MEMORY_LINE_TRUNCATED = /^- \[[^\]]+\](?:\[[^\]]+\])* <memory id="[^"]+">.*…$/;
 
 /**
  * One SAGE memory line split into its structured fields, so the renderer shows
@@ -40,12 +34,13 @@ export interface ParsedSageMemoryLine {
 }
 
 /**
- * Strict counterpart to `SAGE_MEMORY_LINE`. The gate above only decides "does
- * this line belong to a SAGE block?" and stays permissive (greedy body, opaque
- * `(?: .*)?` trailer) so block extraction survives future format additions.
- * This one captures named groups and therefore requires the exact `(anchor)` /
- * `[meta]` shapes the producer emits today; a line that passes the gate but
- * fails here falls back to a literal render row, so the memory is still shown.
+ * Strict counterpart to the canonical gate regex (kept private in
+ * `sage-output-block.ts`). The gate only decides "does this line belong to a
+ * SAGE block?" and stays permissive (greedy body, opaque `(?: .*)?` trailer)
+ * so block extraction survives future format additions. This one captures
+ * named groups and therefore requires the exact `(anchor)` / `[meta]` shapes
+ * the producer emits today; a line that passes the gate but fails here falls
+ * back to a literal render row, so the memory is still shown.
  */
 export const SAGE_MEMORY_DETAIL =
   /^- (?<labels>\[[^\]]+\](?:\[[^\]]+\])*) <memory id="(?<id>[^"]+)">(?<text>.*?)<\/memory>(?: \((?<anchor>[^)]+)\))?(?: \[(?<meta>[^\]]+)\])?$/;
@@ -102,39 +97,8 @@ export function parseSageMemoryLine(line: string): ParsedSageMemoryLine | null {
 }
 
 export function extractSageBlock(output: string): SageSplit {
-  const lines = output.split('\n');
-  for (let sageIdx = lines.length - 1; sageIdx >= 0; sageIdx--) {
-    if (!SAGE_INJECTOR_HEADINGS.has(lines[sageIdx] ?? '')) continue;
-    const candidate = lines.slice(sageIdx);
-    if (candidate.length < 2) continue;
-    // Tolerate trailing blank/whitespace-only lines that may follow the SAGE
-    // block if the injector or a downstream serializer appends them. Every
-    // non-blank line after the header must still match the memory-line regex.
-    const rawMemoryLines = candidate.slice(1);
-    // Validate the truncation marker against the raw final entry before
-    // filtering trailing blanks; a future producer may emit a fragment whose
-    // only visible content is the marker itself.
-    const memoryLines = rawMemoryLines.filter((line) => line.trim().length > 0);
-    if (
-      memoryLines.length === 0 ||
-      !memoryLines.every(
-        (line, index) =>
-          SAGE_MEMORY_LINE.test(line) ||
-          (index === memoryLines.length - 1 && SAGE_MEMORY_LINE_TRUNCATED.test(line)),
-      )
-    ) {
-      continue;
-    }
-    // Exclude trailing blank/whitespace lines from sageLines so the rendered
-    // memory panel doesn't show empty rows.
-    let end = candidate.length;
-    while (end > 1 && candidate[end - 1]!.trim().length === 0) end--;
-    return {
-      cleanOutput: lines.slice(0, sageIdx).join('\n').trimEnd(),
-      sageLines: candidate.slice(0, end),
-    };
-  }
-  return { cleanOutput: output, sageLines: [] };
+  const { body, sageLines } = splitSageOutputBlock(output);
+  return { cleanOutput: body, sageLines };
 }
 
 /**

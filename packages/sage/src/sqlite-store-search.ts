@@ -12,8 +12,10 @@
  * - 'importance': importance DESC, updated_at DESC
  * - 'hybrid' (default): bm25 ASC, importance DESC, updated_at DESC
  *
- * Scores are normalized to [0, 1] within the result set so callers can
- * threshold on relative quality. Suggestions implement the design doc's v1
+ * Scores are absolute in [0, 1] — the same formula runs for every query
+ * (sigmoid-bm25 × metadata for FTS, recency × metadata otherwise), so a
+ * ≥0.5 threshold means the same thing across result sets (design doc §6).
+ * Suggestions implement the design doc's v1
  * lexical-adjacency method: 'never' / 'empty' (default) / 'always' via an
  * OR-expanded FTS query (graph BFS is the documented v2 method, deferred).
  * `cursor` pagination is explicitly rejected — use `listSagePage` for
@@ -32,6 +34,7 @@ import type {
   SearchRanking,
 } from './service-contract.js';
 import type { SqliteAdminHost } from './sqlite-store-admin.js';
+import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { buildRetrievePathTargets } from './sqlite-store-retrieve-helpers.js';
 import {
   buildSessionClause,
@@ -50,6 +53,13 @@ const MAX_LIMIT = 200;
  * limit, so a narrow filter does not silently starve the result set.
  */
 const JS_FILTER_OVERFETCH = 5;
+/**
+ * Recency window for the non-FTS relevance component: a memory whose
+ * `updatedAt` is inside the window scores `1 - age/window`; older memories
+ * floor at 0. Fixed window keeps the score absolute (comparable across
+ * result sets) rather than rank-relative.
+ */
+const RECENCY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
 export function executeUnifiedSearch(
   host: SqliteAdminHost,
@@ -101,8 +111,9 @@ export function executeUnifiedSearch(
 
   // Two query paths, mirroring `searchSqliteSage`. FTS5 requires
   // MATCH + bm25 to both be present. Split paths let both be tested
-  // independently.
-  let dataRows: Array<{ data: string }>;
+  // independently. The FTS path additionally selects the raw bm25 rank so
+  // hits can be scored absolutely (see computeAbsoluteScores).
+  let dataRows: Array<{ data: string; bm25?: number }>;
   let totalRow: { n: number };
   let matchReason: SearchMatchReason;
 
@@ -138,7 +149,7 @@ export function executeUnifiedSearch(
 
     const ftsWhereSql = ' WHERE ' + ftsFilterClauses.join(' AND ');
     const ftsDataSql =
-      `SELECT m.data FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      `SELECT m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
       ftsWhereSql +
       ` ORDER BY ${orderBy.fts}` +
       ` LIMIT ${sqlLimit}`;
@@ -146,7 +157,7 @@ export function executeUnifiedSearch(
       `SELECT COUNT(*) AS n FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
       ftsWhereSql;
 
-    dataRows = host.stmt(ftsDataSql).all(...ftsParams) as Array<{ data: string }>;
+    dataRows = host.stmt(ftsDataSql).all(...ftsParams) as Array<{ data: string; bm25?: number }>;
     totalRow = host.stmt(ftsCountSql).get(...ftsParams) as unknown as { n: number };
     matchReason = 'lexical';
   } else {
@@ -192,16 +203,28 @@ export function executeUnifiedSearch(
     matchReason = 'recency';
   }
 
-  let memories = sqliteRowsToMemories(dataRows);
-  if (jsFilters.length > 0) {
-    memories = memories.filter((memory) => jsFilters.every((filter) => filter(memory)));
+  // Decode rows, carry the per-row bm25 rank alongside, apply JS-side
+  // filters (audience/anchor) index-aligned, then slice to the caller's
+  // limit. Corrupt rows are skipped leniently by sqliteRowsToMemories, so
+  // bm25 is looked up by memory id instead of by position.
+  const decodedMemories = sqliteRowsToMemories(dataRows);
+  const bm25ById = new Map<string, number | undefined>();
+  for (const row of dataRows) {
+    try {
+      bm25ById.set(sqliteRowToMemory(row).id, row.bm25);
+    } catch {
+      // Corrupt row — already warned about by the decode path.
+    }
   }
-  const finalMemories = memories.slice(0, limit);
+  let kept: Sage[] = decodedMemories;
+  if (jsFilters.length > 0) {
+    kept = kept.filter((memory) => jsFilters.every((filter) => filter(memory)));
+  }
+  const finalMemories = kept.slice(0, limit);
+  const finalBm25 = finalMemories.map((memory) => bm25ById.get(memory.id));
 
-  // Compute normalized scores within the result set.
-  // The score blends importance, confidence, and freshness with the
-  // bm25 rank position (for FTS) or updated_at rank (for non-FTS).
-  const scores = computeNormalizedScores(finalMemories);
+  // Compute absolute quality scores (comparable across result sets).
+  const scores = computeAbsoluteScores(finalMemories, finalBm25, host.now().getTime());
 
   const hits: SearchHit[] = finalMemories.map((memory, index) => ({
     id: memory.id,
@@ -236,6 +259,7 @@ export function executeUnifiedSearch(
       statuses: statusFilter,
       ranking,
       ftsSession,
+      jsFilters,
     });
   }
 
@@ -253,6 +277,8 @@ export function executeUnifiedSearch(
   return {
     hits,
     suggestions,
+    // SQL-level match count — before JS-side audience/anchor filters are
+    // applied, so it can overstate when query.audience / query.anchor are set.
     totalCandidates: totalRow.n,
     rankingApplied: ranking,
     queryEcho,
@@ -317,23 +343,45 @@ function buildOrderBy(
 }
 
 /**
- * Compute normalized scores for a result set. Each score is in [0, 1]
- * where 1.0 is the best-scoring memory in the set.
+ * Absolute quality score in [0, 1], comparable across result sets (design
+ * doc search-and-suggest.md §6: the same formula runs for every query, so a
+ * ≥0.5 threshold means the same thing everywhere).
  *
- * The score is position-weighted: items earlier in the result set
- * (better FTS bm25 match, higher importance, or more recent depending
- * on ranking mode) get higher scores via a linear decay. A small
- * metadata bonus (importance * 0.15) breaks ties toward higher-quality
- * memories without overriding the ranking position.
+ * FTS hits: relevance = sigmoid(bm25) — SQLite's bm25 is ≤ 0, so a strong
+ * match approaches 1 and a weak one approaches 0.5, independent of the
+ * result-set size. Non-FTS hits (no text query): relevance = recency over
+ * `RECENCY_WINDOW_MS`, so fresh memories score near 1 regardless of corpus
+ * size.
+ *
+ * The metadata factor (importance/confidence/freshness) scales relevance
+ * within [0.75, 1.0]. Scores therefore track the ORDER BY ranking but are
+ * not guaranteed to be strictly monotonic across adjacent hits — a later
+ * hit with far stronger metadata can edge out an earlier one.
  */
-function computeNormalizedScores(memories: { importance: number }[]): number[] {
-  if (memories.length === 0) return [];
-  const len = memories.length;
-  return memories.map((m, index) => {
-    const positionScore = 1 - index / Math.max(len, 1);
-    const metadataBonus = m.importance * 0.15;
-    return Math.min(1, Math.max(0, positionScore * 0.85 + metadataBonus));
+function computeAbsoluteScores(
+  memories: Sage[],
+  bm25Ranks: ReadonlyArray<number | undefined>,
+  nowMs: number,
+): number[] {
+  return memories.map((memory, index) => {
+    const rank = bm25Ranks[index];
+    let relevance: number;
+    if (rank !== undefined) {
+      relevance = 1 / (1 + Math.exp(rank));
+    } else {
+      const age = nowMs - Date.parse(memory.updatedAt);
+      relevance = Number.isFinite(age) ? clamp01(1 - age / RECENCY_WINDOW_MS) : 0;
+    }
+    const metadata =
+      (memory.importance ?? 0.5) * 0.5 +
+      (memory.confidence ?? 0.5) * 0.3 +
+      (memory.freshness ?? 0.5) * 0.2;
+    return relevance * (0.75 + 0.25 * metadata);
   });
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 
 /**
@@ -370,37 +418,52 @@ function buildPathExistsClause(
 ): { clause: string; params: string[] } | undefined {
   if (!query.paths || query.paths.length === 0) return undefined;
   const { targetList, symbolGlobs } = buildRetrievePathTargets(projectRoot, query.paths, true);
-  if (targetList.length === 0 && symbolGlobs.length === 0) return undefined;
-  const targetPlaceholders = targetList.map(() => '?').join(',');
-  const globConditions = symbolGlobs.map(() => 'e.to_node GLOB ?').join(' OR ');
-  const inner = [
-    `e.to_node IN (${targetPlaceholders})`,
-    ...(globConditions ? [globConditions] : []),
-  ].join(' OR ');
+  const conditions: string[] = [];
+  if (targetList.length > 0) {
+    const targetPlaceholders = targetList.map(() => '?').join(',');
+    conditions.push(`e.to_node IN (${targetPlaceholders})`);
+  }
+  if (symbolGlobs.length > 0) {
+    conditions.push(symbolGlobs.map(() => 'e.to_node GLOB ?').join(' OR '));
+  }
+  if (conditions.length === 0) return undefined;
   return {
-    clause: `EXISTS (SELECT 1 FROM edges e WHERE e.from_node = 'mem:' || ${prefix}id AND (${inner}))`,
+    clause: `EXISTS (SELECT 1 FROM edges e WHERE e.from_node = 'mem:' || ${prefix}id AND (${conditions.join(' OR ')}))`,
     params: [...targetList, ...symbolGlobs],
   };
 }
 
 /**
- * True when the caller's audience selector intersects the memory's selector
- * on at least one dimension. The design doc (search-and-suggest.md §7)
- * treats audience as an opt-in filter: passing one means "only memories
- * tagged with that audience".
+ * True when a memory's audience selector is satisfied by the caller's
+ * selector. Mirrors the canonical `retrieveSqliteSageForAudience` semantics:
+ * every dimension the MEMORY specifies (roles/taskTypes/modes) must be
+ * satisfied by at least one of the requested values for that dimension, and
+ * values are normalized the same way the store normalizes them at write time
+ * (NFKC, trimmed, lowercased) so case/format never leaks into matching.
  */
 function audienceSelectorMatches(
   wanted: MemoryAudienceSelector,
   have: MemoryAudienceSelector | undefined,
 ): boolean {
   if (!have) return false;
+  const normalize = (values?: string[]): string[] | undefined =>
+    values?.map((value) => value.normalize('NFKC').trim().toLowerCase());
+  const want = {
+    roles: normalize(wanted.roles),
+    taskTypes: normalize(wanted.taskTypes),
+    modes: normalize(wanted.modes),
+  };
+  const memoryAudience = {
+    roles: normalize(have.roles),
+    taskTypes: normalize(have.taskTypes),
+    modes: normalize(have.modes),
+  };
   const intersects = (a?: string[], b?: string[]): boolean =>
     a !== undefined && b !== undefined && a.some((value) => b.includes(value));
-  return (
-    intersects(wanted.roles, have.roles) ||
-    intersects(wanted.taskTypes, have.taskTypes) ||
-    intersects(wanted.modes, have.modes)
-  );
+  if (memoryAudience.roles && !intersects(want.roles, memoryAudience.roles)) return false;
+  if (memoryAudience.taskTypes && !intersects(want.taskTypes, memoryAudience.taskTypes)) return false;
+  if (memoryAudience.modes && !intersects(want.modes, memoryAudience.modes)) return false;
+  return true;
 }
 
 /** True when a memory carries an anchor matching the caller's `anchor` filter. */
@@ -433,17 +496,20 @@ interface SuggestLexicalAdjacentInput {
   statuses: SageStatus[];
   ranking: SearchRanking;
   ftsSession: { clause: string; params: string[] };
+  /** Same audience/anchor filters as the primary query — suggestions must honor them too. */
+  jsFilters: Array<(memory: Sage) => boolean>;
 }
 
 /**
  * Design-doc v1 suggestions: lexical adjacency. When the primary query found
- * nothing (or 'always' is requested), re-run the same filters with an
- * OR-expanded FTS expression so memories sharing any query term surface as
- * neighbors. Graph-adjacency BFS is the documented v2 method (deferred).
- * Sorted by the same ranking policy as `hits`.
+ * nothing (or 'always' is requested), re-run the same filters (kinds, scopes,
+ * importance, freshness, paths, session, audience/anchor) with an OR-expanded
+ * FTS expression so memories sharing any query term surface as neighbors.
+ * Graph-adjacency BFS is the documented v2 method (deferred). Sorted by the
+ * same ranking policy as `hits` and scored with the same absolute formula.
  */
 function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[] {
-  const { host, query, matchExpr, limit, hits, statuses, ranking, ftsSession } = input;
+  const { host, query, matchExpr, limit, hits, statuses, ranking, ftsSession, jsFilters } = input;
   if (!matchExpr) return []; // filters-only query: no lexical neighborhood
   const terms = ftsPrefixTerms(query.text ?? '');
   if (terms.length < 2) return []; // a single term has no meaningful OR expansion
@@ -466,6 +532,11 @@ function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[]
     params.push(query.importanceAtLeast);
   }
   appendFreshnessClauses(query, clauses, params, 'm.');
+  const pathClause = buildPathExistsClause(host.projectRoot, query, 'm.');
+  if (pathClause) {
+    clauses.push(pathClause.clause);
+    params.push(...pathClause.params);
+  }
   if (ftsSession.clause) {
     clauses.push(ftsSession.clause.replace(/^\s*AND\s+/i, ''));
     params.push(...ftsSession.params);
@@ -474,16 +545,29 @@ function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[]
   const whereSql = ' WHERE ' + clauses.join(' AND ');
   const rows = host
     .stmt(
-      `SELECT m.data FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      `SELECT m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
         whereSql +
         ` ORDER BY ${buildOrderBy(ranking, true).fts}` +
         ` LIMIT ${Math.min(Math.max(limit * 2, 10), MAX_LIMIT)}`,
     )
-    .all(...params) as Array<{ data: string }>;
+    .all(...params) as Array<{ data: string; bm25?: number }>;
 
-  const candidates = sqliteRowsToMemories(rows).filter((memory) => !excluded.has(memory.id));
-  const chosen = candidates.slice(0, limit);
-  const scores = computeNormalizedScores(chosen);
+  const bm25ById = new Map<string, number | undefined>();
+  for (const row of rows) {
+    try {
+      bm25ById.set(sqliteRowToMemory(row).id, row.bm25);
+    } catch {
+      // Corrupt row — skipped by the decode below.
+    }
+  }
+  const kept = sqliteRowsToMemories(rows).filter(
+    (memory) =>
+      !excluded.has(memory.id) &&
+      (jsFilters.length === 0 || jsFilters.every((filter) => filter(memory))),
+  );
+  const chosen = kept.slice(0, limit);
+  const chosenBm25 = chosen.map((memory) => bm25ById.get(memory.id));
+  const scores = computeAbsoluteScores(chosen, chosenBm25, host.now().getTime());
   return chosen.map((memory, index) => ({
     id: memory.id,
     kind: memory.kind,

@@ -181,3 +181,31 @@ describe('extractSageBlock', () => {
     });
   });
 });
+
+describe('SAGE suffix parser sync contract (2026-08-02)', () => {
+  // WebUI's extractSageBlock must delegate to the canonical core parser
+  // (@wrongstack/core/utils/sage-output-block). The TUI's extractSageBlock
+  // delegates to the same module (see verify-sage-all-tools.test.ts), so a
+  // future producer-format change lands in ONE place and every surface
+  // inherits it. This test pins the delegation so a regression back to a
+  // local copy (the old byte-identical three-copy layout) fails loudly.
+  it('delegates to splitSageOutputBlock from core', async () => {
+    const core = await import('@wrongstack/core/utils/sage-output-block');
+    const sample =
+      'packages/a.ts\n\n--- SAGE: related project knowledge (Memory Injector) ---\n- [fact] <memory id="sync-1">sync probe</memory>';
+    const fromWebui = extractSageBlock(sample);
+    const fromCore = core.splitSageOutputBlock(sample);
+    expect(fromWebui.sageLines).toEqual(fromCore.sageLines);
+    expect(fromWebui.cleanOutput).toBe(fromCore.body);
+  });
+
+  it('shares the canonical heading set', async () => {
+    const core = await import('@wrongstack/core/utils/sage-output-block');
+    expect(
+      core.SAGE_INJECTOR_HEADINGS.has('--- SAGE: task-aware project knowledge (Memory Injector) ---'),
+    ).toBe(true);
+    expect(
+      core.SAGE_INJECTOR_HEADINGS.has('--- SAGE: related project knowledge (Memory Injector) ---'),
+    ).toBe(true);
+  });
+});
