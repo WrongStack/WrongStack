@@ -22,6 +22,13 @@ export interface SqliteAudienceContext {
  */
 const AUDIENCE_OVERFETCH_FACTOR = 5;
 
+/**
+ * Maximum rows to scan when paging for rare audience matches. Caps the
+ * total work even for very large corpora so the paging loop terminates
+ * in bounded time.
+ */
+const AUDIENCE_MAX_SCAN = 10_000;
+
 export function retrieveSqliteSageForAudience(
   ctx: SqliteAudienceContext,
   context: MemoryAudienceContext,
@@ -32,22 +39,7 @@ export function retrieveSqliteSageForAudience(
   const taskType = context.taskType?.toLowerCase() ?? '';
   const mode = context.mode?.toLowerCase() ?? '';
 
-  // Over-fetch by AUDIENCE_OVERFETCH_FACTOR x the requested limit instead
-  // of the previous hard-coded 1000. The old value was both arbitrary
-  // (silently truncating large corpora) and uncorrelated with the
-  // caller's requested limit (a small `limit` could over-fetch by 50x).
-  const prefilterSize = limit * AUDIENCE_OVERFETCH_FACTOR;
-  const rows = ctx
-    .stmt(
-      `SELECT data FROM memories
-         WHERE status IN ('active','stale')
-         AND audience IS NOT NULL
-         ORDER BY importance DESC
-         LIMIT ?`,
-    )
-    .all(prefilterSize) as Array<{ data: string }>;
-
-  const matched = sqliteRowsToMemories(rows).filter((m) => {
+  const audienceMatch = (m: Sage): boolean => {
     if (!m.audience) return false;
     const a = m.audience;
     if (a.roles?.length && !a.roles.some((r) => r.toLowerCase() === role)) return false;
@@ -55,15 +47,56 @@ export function retrieveSqliteSageForAudience(
       return false;
     if (a.modes?.length && !a.modes.some((m) => m.toLowerCase() === mode)) return false;
     return true;
-  });
+  };
+
+  // Paging loop: escalate the fetch window until enough matches are found
+  // or the maximum scan size is reached. Starts at limit * OVERFETCH_FACTOR,
+  // then multiplies by 3 each iteration (factor: 5, 15, 45, ...).
+  let offset = 0;
+  let windowSize = limit * AUDIENCE_OVERFETCH_FACTOR;
+  const matched: Sage[] = [];
+  let exhausted = false;
+  let totalScanned = 0;
+
+  while (matched.length < limit && offset < AUDIENCE_MAX_SCAN) {
+    const rows = ctx
+      .stmt(
+        `SELECT data FROM memories
+           WHERE status IN ('active','stale')
+           AND audience IS NOT NULL
+           ORDER BY importance DESC
+           LIMIT ? OFFSET ?`,
+      )
+      .all(windowSize, offset) as Array<{ data: string }>;
+
+    totalScanned += rows.length;
+
+    // If the SQL returned fewer rows than the window, the corpus is
+    // exhausted — no need to page further.
+    if (rows.length < windowSize) exhausted = true;
+
+    const pageMatches = sqliteRowsToMemories(rows).filter(audienceMatch);
+    matched.push(...pageMatches);
+
+    if (exhausted) break;
+
+    offset += windowSize;
+    // Grow the window by 3x each iteration to find rare-role matches
+    // without doing a full corpus scan on every call.
+    windowSize *= 3;
+  }
+
   const truncated = matched.slice(0, limit);
-  // Truncation signal: only fire when the SQL prefilter was fully
-  // exhausted AND more matching rows likely live past it. With the
-  // 5x over-fetch factor this fires mostly for narrow filters (e.g.
-  // a single role match out of thousands) — exactly the case where
-  // the caller should know.
-  if (rows.length >= prefilterSize && matched.length > truncated.length) {
-    ctx.onTruncated?.({ sqlRowsExamined: rows.length, returned: truncated.length });
+  // Truncation signal: fire when the corpus was not exhausted (more rows
+  // exist beyond what was scanned) AND more matching rows were found than
+  // the caller's limit allows. This tells the caller there are additional
+  // audience-matching memories beyond what was returned.
+  if (
+    !exhausted &&
+    totalScanned > 0 &&
+    matched.length > truncated.length
+  ) {
+    ctx.onTruncated?.({ sqlRowsExamined: totalScanned, returned: truncated.length });
   }
   return truncated;
 }
