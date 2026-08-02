@@ -2,8 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SlashCommand } from '../../src/index.js';
 import { buildPlanCommand as buildCliPlanCommand } from '../../../cli/src/slash-commands/plan.js';
+
+type SlashCommand = ReturnType<typeof buildCliPlanCommand>;
 
 let tmp: string;
 let planPath: string;

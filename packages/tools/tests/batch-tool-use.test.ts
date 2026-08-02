@@ -1,6 +1,6 @@
+import { ToolExecutor } from '@wrongstack/core/execution';
 import { GOVERNED_TOOL_EXECUTOR_META_KEY, type GovernedToolExecutor } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import { ToolExecutor } from '../../core/src/execution/tool-executor.js';
 import { batchToolUseTool } from '../src/batch-tool-use.js';
 
 const makeCtx = (tools: any[] = []) => {
@@ -212,7 +212,7 @@ describe('batchToolUseTool', () => {
       },
       {
         permissionPolicy: { evaluate } as never,
-        confirmAwaiter: vi.fn(async () => 'yes'),
+        confirmAwaiter: vi.fn(async () => 'yes' as const),
         secretScrubber: { scrub: (text: string) => text } as never,
       },
     );
