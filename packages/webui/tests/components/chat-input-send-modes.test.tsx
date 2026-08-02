@@ -58,6 +58,7 @@ vi.mock('@/components/ChatInput/file-mention-picker', () => ({
 
 import { ChatInput } from '../../src/components/ChatInput.js';
 import { useChatStore } from '../../src/stores/chat-store.js';
+import { useFileReferenceStore } from '../../src/stores/file-reference-store.js';
 import { useLocalPrefs } from '../../src/stores/local-prefs.js';
 import { useUIStore } from '../../src/stores/ui-store.js';
 
@@ -75,6 +76,7 @@ beforeEach(() => {
     queue: [],
     isLoading: false,
   });
+  useFileReferenceStore.setState({ refs: [] });
   // Refinement (enhance) defaults to enabled, but these tests focus on the
   // plain send path. Force it off so the refine branch doesn't swallow our
   // assertions. The enhance gate lives in local-prefs (`enhanceEnabled`); the
@@ -202,6 +204,23 @@ describe('ChatInput — send-mode buttons', () => {
     expect(wsMock.sendAbort).not.toHaveBeenCalled();
     expect(wsMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(wsMock.sendMessage).toHaveBeenCalledWith('hello agent', undefined);
+  });
+
+  it('/fix preserves file refs and sends an explicit complete-read contract', () => {
+    useFileReferenceStore.getState().addRef({ kind: 'file', path: 'src/large.ts' });
+    render(<ChatInput />);
+
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, '/fix');
+    fireEvent.click(screen.getByTestId('send-submit'));
+
+    expect(wsMock.sendMessage).toHaveBeenCalledTimes(1);
+    const prompt = vi.mocked(wsMock.sendMessage).mock.calls[0]?.[0] ?? '';
+    expect(prompt).toContain('Diagnose and fix this error');
+    expect(prompt).toContain('@src/large.ts');
+    expect(prompt).toContain('read each complete project file');
+    expect(prompt).toContain('until EOF');
+    expect(useFileReferenceStore.getState().refs).toEqual([]);
   });
 
   it('btw while running dispatches immediately via mailbox and marks the chip dispatched', () => {

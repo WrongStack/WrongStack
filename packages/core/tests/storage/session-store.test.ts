@@ -145,6 +145,13 @@ describe('DefaultSessionStore — with EventBus', () => {
     const store = new DefaultSessionStore({ dir: tmpDir, projectRoot: '/some/project' });
     expect(store).toBeDefined();
   });
+
+  it('fails closed when workspace identity capture has no project root', async () => {
+    const store = new DefaultSessionStore({ dir: tmpDir });
+    await expect(store.captureWorkspaceCheckpoint('session-1', 0)).rejects.toThrow(
+      'projectRoot-aware session store',
+    );
+  });
 });
 
 describe('DefaultSessionStore — delete on nonexistent', () => {

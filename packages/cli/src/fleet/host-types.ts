@@ -1,4 +1,4 @@
-import type { FallbackProfileManager } from '@wrongstack/core/agent';
+import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
 import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
@@ -37,6 +37,11 @@ export interface MultiAgentDeps {
   renderer?: Renderer | undefined;
   /** Shared live fallback profile manager from the runtime container. */
   fallbackProfileManager: FallbackProfileManager;
+  /**
+   * Optional trusted control-plane hook installed on every in-process
+   * subagent pipeline. This is host wiring, never a model-visible capability.
+   */
+  installToolBoundary?: ((pipelines: AgentPipelines) => void) | undefined;
 }
 
 /**

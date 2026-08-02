@@ -462,7 +462,10 @@ export class ToolAuditLog {
     } catch {
       // fsync is best-effort; a failure here does not corrupt the chain.
     } finally {
-      this.unSyncedWrites.set(sessionId, 0);
+      // Delete rather than reset to zero — after a sync the counter is
+      // no longer needed and keeping a stale zero entry wastes map space
+      // for long-lived instances that handle many sessions.
+      this.unSyncedWrites.delete(sessionId);
     }
   }
 

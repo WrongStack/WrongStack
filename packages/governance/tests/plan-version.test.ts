@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculatePlanVersionFingerprint,
   decideReplanAuthorization,
   freezePlanVersionV1,
   PLAN_VERSION_SCHEMA_VERSION,
@@ -102,6 +103,31 @@ function plan(overrides: Partial<PlanVersionV1> = {}): PlanVersionV1 {
 }
 
 describe('PlanVersion v1', () => {
+  it('calculates a deterministic content fingerprint', () => {
+    const canonical = plan();
+    const reordered = {
+      edges: canonical.edges,
+      steps: canonical.steps,
+      changeReason: canonical.changeReason,
+      createdAt: canonical.createdAt,
+      createdBy: canonical.createdBy,
+      contractVersion: canonical.contractVersion,
+      parentPlanVersion: canonical.parentPlanVersion,
+      planVersion: canonical.planVersion,
+      taskId: canonical.taskId,
+      planId: canonical.planId,
+      schemaVersion: canonical.schemaVersion,
+    } satisfies PlanVersionV1;
+
+    expect(calculatePlanVersionFingerprint(canonical)).toMatch(/^[a-f0-9]{64}$/);
+    expect(calculatePlanVersionFingerprint(reordered)).toBe(
+      calculatePlanVersionFingerprint(canonical),
+    );
+    expect(calculatePlanVersionFingerprint({ ...canonical, changeReason: 'Changed.' })).not.toBe(
+      calculatePlanVersionFingerprint(canonical),
+    );
+  });
+
   it('accepts an immutable, requirement-traceable DAG', () => {
     expect(validatePlanVersionV1(plan(), taskContract())).toEqual({ valid: true });
   });

@@ -462,6 +462,7 @@
         "export { type CompactToolDefinitionForWireOptions, type CompactWireToolDefinition, compactSchemaDescriptions, compactToolDefinitionForWire, normalizeTopLevelToolSchema, type ToolWireDefinitionLike, } from './tool-wire-compact.js';",
         "export { type CompileFail, type CompileResult, compileUserRegex } from './regex-guard.js';",
         "export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';",
+        "export { type CrashShieldOptions, installCrashShield } from './crash-shield.js';",
         "export { type DeepMergeOptions, deepMerge, FORBIDDEN_PROTO_KEYS, isPrimitiveArray, } from './deep-merge.js';",
         "export { type ProjectWatchEvent, type ProjectWatchSubscription, watchProjectTree, } from './project-watch.js';",
         "export { withSqliteExperimentalWarningSuppressed } from './sqlite-warning.js';"
@@ -691,6 +692,7 @@
         "export { createSyncPlugin } from '../plugins/sync-plugin.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type ResolvePluginConfigInput, type ResolvedPluginConfig, redactPluginConfig, resolvePluginConfig, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
         "export { emitReviewIfChanged } from '../plugins/review-claim-registry.js';",
+        "export { parseChimeraReviewReport, type ParsedReviewReport, } from '../plugins/review-finding-parser.js';",
         "export { type CascadeAgentKind, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';"
       ]
     },
@@ -1070,21 +1072,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 30,
-      "sourceLines": 8234
+      "sourceLines": 8236
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 144,
-      "sourceLines": 42059
+      "sourceLines": 42095
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8779
+      "sourceLines": 8783
     },
     {
       "directory": "defaults",
@@ -1147,7 +1149,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3436
+      "sourceLines": 3438
     },
     {
       "directory": "middleware",
@@ -1182,14 +1184,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1516
+      "sourceLines": 1520
     },
     {
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6334
+      "sourceLines": 6381
     },
     {
       "directory": "prompts",
@@ -1217,21 +1219,21 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 15,
-      "sourceLines": 5265
+      "sourceLines": 5312
     },
     {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2201
+      "sourceLines": 2265
     },
     {
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 74,
-      "sourceLines": 16269
+      "sourceFiles": 75,
+      "sourceLines": 16306
     },
     {
       "directory": "tasking",
@@ -1252,14 +1254,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9462
+      "sourceLines": 9467
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9761
+      "sourceLines": 9801
     },
     {
       "directory": "worktree",

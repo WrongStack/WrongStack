@@ -3,6 +3,7 @@ import type {
   GovernanceRuntimeObservationInput,
   GovernanceRuntimeObservationResult,
 } from '@wrongstack/runtime/governance-bootstrap';
+import { createGovernanceEvidenceCandidate } from './governance-evidence-candidate.js';
 import type { GovernanceTraceContext } from './governance-trace-context.js';
 
 const SHADOW_SOURCE = 'wrongstack.cli.shadow.v1';
@@ -202,6 +203,7 @@ export function createGovernanceShadowBridge(input: {
         toolName: event.name,
         durationMs: event.durationMs,
         ok: event.ok,
+        ...optional('mutating', event.mutating),
         ...optional('toolCallId', event.id),
         ...optional('sessionId', event.sessionId),
         ...optional('traceId', event.traceId),
@@ -218,6 +220,27 @@ export function createGovernanceShadowBridge(input: {
       event.boardId,
     ),
   }));
+  on('tool.executed', (event) => {
+    const trace = input.trace.snapshot(event.taskId ?? null, event.boardId);
+    return {
+      taskId: event.taskId ?? null,
+      category: 'evidence_candidate',
+      observedAt: new Date().toISOString(),
+      payload: {
+        observer: SHADOW_SOURCE,
+        ...createGovernanceEvidenceCandidate(trace, {
+          toolCallId: event.id,
+          toolName: event.name,
+          ok: event.ok,
+          durationMs: event.durationMs,
+          outputBytes: event.outputBytes,
+          outputTokens: event.outputTokens,
+          outputLines: event.outputLines,
+        }),
+        trace,
+      },
+    };
+  });
 
   on('checkpoint.written', (event) => {
     input.trace.updateWorkspaceCheckpoint(event.promptIndex, event.ts, event.workspaceCheckpoint);

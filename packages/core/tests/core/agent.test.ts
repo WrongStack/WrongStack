@@ -372,6 +372,10 @@ describe('Agent', () => {
     };
     const { agent, tmp } = await buildAgent(provider, [danger]);
     cleanupDirs.push(tmp);
+    const mutationFlags: boolean[] = [];
+    (agent as never as { events: EventBus }).events.on('tool.executed', (event) => {
+      mutationFlags.push(event.mutating === true);
+    });
     // Approve the confirmation the moment the agent asks.
     (agent as never as { events: EventBus }).events.on(
       'tool.confirm_needed',
@@ -385,6 +389,7 @@ describe('Agent', () => {
     expect(JSON.stringify(requestSnapshots)).not.toContain('tool_confirm_pending');
     // The resolved tool_result must be present in the follow-up request.
     expect(JSON.stringify(requestSnapshots[1])).toContain('did the thing');
+    expect(mutationFlags).toEqual([true]);
   });
 
   it('handles unknown tool with error result', async () => {
@@ -970,9 +975,21 @@ describe('Agent — additional coverage', () => {
     const { agent, tmp } = await buildAgent(provider, [echo]);
     cleanupDirs.push(tmp);
 
-    const executed: Array<{ name: string; output?: string; input?: unknown; ok: boolean }> = [];
+    const executed: Array<{
+      name: string;
+      output?: string | undefined;
+      input?: unknown | undefined;
+      ok: boolean;
+      mutating?: boolean | undefined;
+    }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, output: e.output, input: e.input, ok: e.ok });
+      executed.push({
+        name: e.name,
+        output: e.output,
+        input: e.input,
+        ok: e.ok,
+        mutating: e.mutating,
+      });
     });
 
     const result = await agent.run('go');
@@ -980,6 +997,7 @@ describe('Agent — additional coverage', () => {
     expect(executed).toHaveLength(1);
     expect(executed[0]?.name).toBe('echo');
     expect(executed[0]?.input).toEqual({ text: 'big' });
+    expect(executed[0]?.mutating).toBe(false);
     // Capped at 400 with trailing ellipsis.
     expect(executed[0]?.output?.length).toBe(400);
     expect(executed[0]?.output?.endsWith('…')).toBe(true);

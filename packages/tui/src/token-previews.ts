@@ -9,11 +9,13 @@ export const TOKEN_PREVIEW_MAX_CHARS = 8 * 1024;
 export const TOKEN_PREVIEW_MAX_LINES = 6;
 /** Maximum characters retained across all attachment previews. */
 export const TOKEN_PREVIEWS_MAX_CHARS = 256 * 1024;
-/** Maximum UTF-8 bytes accepted for an attached text file. */
-export const TEXT_FILE_ATTACHMENT_MAX_BYTES = 1024 * 1024;
+/** Maximum UTF-8 bytes inlined for a text-file mention. Larger files remain
+ * attachable as path references with an explicit read-until-EOF contract. */
+export const TEXT_FILE_ATTACHMENT_INLINE_MAX_BYTES = 1024 * 1024;
 
 const TRUNCATION_MARKER = '… [preview truncated]';
-const ATTACHMENT_WRAPPER_RE = /^<(?:pasted|file(?: path="[^"]*")?)>\n([\s\S]*)\n<\/(?:pasted|file)>$/;
+const ATTACHMENT_WRAPPER_RE =
+  /^<(?:pasted|file(?: path="[^"]*")?)>\n([\s\S]*)\n<\/(?:pasted|file)>$/;
 
 export interface TokenPreviewBudget {
   maxEntries?: number | undefined;

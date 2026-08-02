@@ -8,11 +8,23 @@ export const GOVERNANCE_SERVICE_CAPABILITIES = [
   'audit_read',
   'command_submit',
   'shadow_observe',
+  'workspace_snapshot_record',
+  'runtime_attach',
   'capability_admin',
   'daemon_control',
 ] as const;
 
 export type GovernanceServiceCapability = (typeof GOVERNANCE_SERVICE_CAPABILITIES)[number];
+
+export const GOVERNANCE_RUNTIME_MODEL_CAPABILITIES = [
+  'task_read',
+  'audit_read',
+  'command_submit',
+  'shadow_observe',
+] as const satisfies readonly GovernanceServiceCapability[];
+
+export type GovernanceRuntimeModelCapability =
+  (typeof GOVERNANCE_RUNTIME_MODEL_CAPABILITIES)[number];
 
 export interface GovernanceServiceClientContext {
   readonly clientId: string;
@@ -32,6 +44,12 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
     | { readonly type: 'read_events'; readonly taskId: string }
     | { readonly type: 'read_receipt'; readonly commandId: string }
     | { readonly type: 'read_observations'; readonly taskId?: string | undefined }
+    | {
+        readonly type: 'read_evidence_candidates';
+        readonly taskId: string;
+        readonly afterSequence?: number | undefined;
+        readonly limit?: number | undefined;
+      }
     | { readonly type: 'read_audit_observations' }
     | { readonly type: 'read_own_capability_grant' }
     | { readonly type: 'read_daemon_status' }
@@ -42,10 +60,18 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
       }
     | { readonly type: 'submit_command'; readonly command: GovernanceCommand }
     | { readonly type: 'record_observation'; readonly observation: GovernanceObservation }
+    | { readonly type: 'record_workspace_snapshot'; readonly manifestHash: string }
     | {
         readonly type: 'issue_capability_grant';
         readonly clientId: string;
         readonly capabilities: readonly GovernanceServiceCapability[];
+        readonly ttlMs: number;
+      }
+    | {
+        readonly type: 'claim_runtime_attachment';
+        readonly controlClientId: string;
+        readonly modelClientId: string;
+        readonly modelCapabilities: readonly GovernanceRuntimeModelCapability[];
         readonly ttlMs: number;
       }
     | {

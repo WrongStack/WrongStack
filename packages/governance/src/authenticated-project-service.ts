@@ -7,6 +7,8 @@ import { GovernanceManagementReceiptCache } from './management-receipt-cache.js'
 import type { GovernanceProjectService, GovernanceServiceResponse } from './project-service.js';
 import { decodeGovernanceServiceRequest } from './protocol-decoder.js';
 
+export const GOVERNANCE_RUNTIME_ATTACHMENT_MAX_TTL_MS = 30 * 60 * 1_000;
+
 function requestIdFromUnknown(input: unknown): string {
   return input &&
     typeof input === 'object' &&
@@ -21,6 +23,7 @@ function isManagementRequestType(input: unknown): boolean {
   const type = (input as { type?: unknown }).type;
   return (
     type === 'issue_capability_grant' ||
+    type === 'claim_runtime_attachment' ||
     type === 'list_capability_grants' ||
     type === 'revoke_capability_grant' ||
     type === 'rotate_capability_grant'
@@ -100,7 +103,7 @@ export class AuthenticatedGovernanceProjectService {
     input: unknown,
     credential: GovernanceServiceCredential,
   ): GovernanceServiceResponse {
-    // Receipts only protect the four management request types. A recycled requestId
+    // Receipts protect management request types. A recycled requestId
     // across a non-management request type must not be masked by a stored receipt
     // that belongs to a different (management) request.
     const receiptScoped = isManagementRequestType(input)
@@ -128,6 +131,7 @@ export class AuthenticatedGovernanceProjectService {
     const request = decoded.request;
     if (
       request.type !== 'issue_capability_grant' &&
+      request.type !== 'claim_runtime_attachment' &&
       request.type !== 'read_own_capability_grant' &&
       request.type !== 'read_daemon_status' &&
       request.type !== 'request_daemon_shutdown' &&
@@ -143,6 +147,85 @@ export class AuthenticatedGovernanceProjectService {
         requestId: request.requestId,
         result: { type: 'own_capability_grant', grant: authentication.grant },
       };
+    }
+    if (request.type === 'claim_runtime_attachment') {
+      if (!authentication.client.capabilities.has('runtime_attach')) {
+        return permissionDenied(
+          request.requestId,
+          `Client ${authentication.client.clientId} lacks capability runtime_attach.`,
+        );
+      }
+      if (
+        request.controlClientId === authentication.client.clientId ||
+        request.modelClientId === authentication.client.clientId
+      ) {
+        return invalidManagementRequest(request.requestId);
+      }
+      const remainingTtlMs = this.grants.remainingTtlMs(authentication.grant.grantId);
+      if (remainingTtlMs === null) return invalidManagementRequest(request.requestId);
+      const ttlMs = Math.min(
+        request.ttlMs,
+        remainingTtlMs,
+        GOVERNANCE_RUNTIME_ATTACHMENT_MAX_TTL_MS,
+      );
+      const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
+      if (!reservation) return receiptCapacityExceeded(request.requestId);
+      let controlGrantId: string | undefined;
+      try {
+        const control = this.grants.issue({
+          clientId: request.controlClientId,
+          issuedBy: authentication.client.clientId,
+          capabilities: ['workspace_snapshot_record'],
+          ttlMs,
+        });
+        controlGrantId = control.grant.grantId;
+        const model = this.grants.issue({
+          clientId: request.modelClientId,
+          issuedBy: authentication.client.clientId,
+          capabilities: request.modelCapabilities,
+          ttlMs,
+        });
+        const response: GovernanceServiceResponse = {
+          ok: true,
+          requestId: request.requestId,
+          result: {
+            type: 'runtime_attachment_claimed',
+            control: {
+              grant: control.grant,
+              credential: {
+                token: control.token,
+                projectId: this.projectId,
+                clientId: request.controlClientId,
+              },
+            },
+            model: {
+              grant: model.grant,
+              credential: {
+                token: model.token,
+                projectId: this.projectId,
+                clientId: request.modelClientId,
+              },
+            },
+          },
+        };
+        this.receipts.commit(reservation, response);
+        return response;
+      } catch {
+        if (controlGrantId) {
+          try {
+            this.grants.revoke(
+              controlGrantId,
+              'runtime attachment claim rolled back',
+              authentication.client.clientId,
+            );
+          } catch {
+            // The original request must still fail closed. Audit-sink recovery is
+            // surfaced by the registry ledger and handled by daemon supervision.
+          }
+        }
+        this.receipts.release(reservation);
+        return invalidManagementRequest(request.requestId);
+      }
     }
     if (request.type === 'read_daemon_status' || request.type === 'request_daemon_shutdown') {
       if (!authentication.client.capabilities.has('daemon_control')) {
@@ -202,7 +285,8 @@ export class AuthenticatedGovernanceProjectService {
     if (request.type === 'issue_capability_grant') {
       if (
         request.capabilities.includes('capability_admin') ||
-        request.capabilities.includes('daemon_control')
+        request.capabilities.includes('daemon_control') ||
+        request.capabilities.includes('runtime_attach')
       ) {
         return permissionDenied(
           request.requestId,

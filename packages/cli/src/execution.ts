@@ -213,6 +213,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     mailbox,
     agent,
     config,
+    projectDir: wpaths.projectDir,
     setPendingWork: (work) => {
       pendingChimeraWork = work;
     },

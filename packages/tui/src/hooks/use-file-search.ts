@@ -9,13 +9,13 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { useEffect } from 'react';
 import type { InputBuilder } from '@wrongstack/core/agent';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { useEffect } from 'react';
 import type { Action, State } from '../app-reducer.js';
 import { searchFiles } from '../file-search.js';
 import {
-  TEXT_FILE_ATTACHMENT_MAX_BYTES,
+  TEXT_FILE_ATTACHMENT_INLINE_MAX_BYTES,
   type TokenPreviewStore,
 } from '../token-previews.js';
 
@@ -68,7 +68,8 @@ export interface FileSearchResult {
  * provides the Enter handler for the <FilePicker> component.
  */
 export function useFileSearch(options: UseFileSearchOptions): FileSearchResult {
-  const { state, dispatch, projectRoot, builderRef, draftRef, setDraft, tokenPreviewsRef } = options;
+  const { state, dispatch, projectRoot, builderRef, draftRef, setDraft, tokenPreviewsRef } =
+    options;
 
   // ── @-token detection + file search ──────────────────────────────
   useEffect(() => {
@@ -118,17 +119,17 @@ export function useFileSearch(options: UseFileSearchOptions): FileSearchResult {
     const absPath = path.isAbsolute(picked) ? picked : path.join(projectRoot, picked);
     try {
       const stat = await fs.stat(absPath);
-      if (stat.size > TEXT_FILE_ATTACHMENT_MAX_BYTES) {
-        throw new Error(
-          `file exceeds ${(TEXT_FILE_ATTACHMENT_MAX_BYTES / (1024 * 1024)).toFixed(0)} MiB attachment limit (${stat.size.toLocaleString()} bytes)`,
-        );
-      }
-      const data = await fs.readFile(absPath, 'utf8');
-      const bytes = Buffer.byteLength(data, 'utf8');
-      if (bytes > TEXT_FILE_ATTACHMENT_MAX_BYTES) {
-        throw new Error(
-          `file exceeds ${(TEXT_FILE_ATTACHMENT_MAX_BYTES / (1024 * 1024)).toFixed(0)} MiB attachment limit (${bytes.toLocaleString()} UTF-8 bytes)`,
-        );
+      let data: string;
+      if (stat.size > TEXT_FILE_ATTACHMENT_INLINE_MAX_BYTES) {
+        // Do not read a potentially huge file into the TUI merely to attach
+        // it. Keep the project-relative path and give the agent a concrete,
+        // provider-bound contract to read every chunk before acting.
+        data = fileReadContract(picked, stat.size);
+      } else {
+        const inline = await fs.readFile(absPath, 'utf8');
+        const bytes = Buffer.byteLength(inline, 'utf8');
+        data =
+          bytes > TEXT_FILE_ATTACHMENT_INLINE_MAX_BYTES ? fileReadContract(picked, bytes) : inline;
       }
       const token = await builder.registerFile({
         kind: 'file',
@@ -156,4 +157,13 @@ export function useFileSearch(options: UseFileSearchOptions): FileSearchResult {
   };
 
   return { onPickerEnter: acceptPickerSelection };
+}
+
+function fileReadContract(filePath: string, bytes: number): string {
+  return [
+    '[File reference contract]',
+    `Referenced project file: ${JSON.stringify(filePath)} (${bytes.toLocaleString()} bytes; content not inlined).`,
+    'Before answering or modifying anything related to this reference, use the available file-reading tools to read the complete file.',
+    'If a read is paginated or chunked, continue from the same path until EOF. Do not treat a partial read or preview as the complete file.',
+  ].join('\n');
 }

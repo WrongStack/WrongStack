@@ -431,6 +431,21 @@ describe('persistReviewReport', () => {
     const report = await store.get('int-2');
     expect(report!.reviewStatus).toBe('failed');
     expect(report!.counts).toEqual({ critical: 0, high: 0, medium: 0, low: 0 });
+    expect(report!.lifecycle).toBe('open');
+  });
+
+  it('keeps an unparseable non-clean review open for leader disposition', async () => {
+    await persistReviewReport(
+      makePayload({ reviewText: '### High (1)\nThis item does not match the finding format.' }),
+      'int-unparseable',
+      dir,
+    );
+
+    const store = new JsonlReportStore(dir);
+    const report = await store.get('int-unparseable');
+    expect(report!.totalFindings).toBe(0);
+    expect(report!.unparseableCount).toBe(1);
+    expect(report!.lifecycle).toBe('open');
   });
 
   it('classifies source as cascade when cascadeDepth > 0', async () => {
@@ -658,8 +673,7 @@ describe('syncReportCompletion', () => {
     expect(report!.lifecycle).toBe('open');
   });
 
-  it('does NOT complete a report with zero findings', async () => {
-    // Persist a report with no findings (e.g. a clean review)
+  it('auto-completes a successful all-clear report with zero findings', async () => {
     await persistReviewReport(makePayload({ reviewText: '## 🦂 Chimera Review — all clear ✅\n\nNo issues found.' }), 'auto-5', dir);
 
     const result = await syncReportCompletion('auto-5', dir, { id: 'operator', kind: 'operator' });
@@ -668,7 +682,7 @@ describe('syncReportCompletion', () => {
 
     const reportStore = new JsonlReportStore(dir);
     const report = await reportStore.get('auto-5');
-    expect(report!.lifecycle).toBe('open');
+    expect(report!.lifecycle).toBe('completed');
   });
 
   it('returns not-found for unknown reportId', async () => {
@@ -954,7 +968,7 @@ describe('/review report <id> complete|skip|action', () => {
   beforeEach(async () => {
     // Create a couple of reports for the tests.
     await persistReviewReport(makePayload({ reviewText: '### High (1)\n1. src/a.ts:1 — Bug' }), 'rpt-1', dir);
-    await persistReviewReport(makePayload({ reviewText: '' }), 'rpt-2', dir);
+    await persistReviewReport(makePayload({ reviewText: '', status: 'failed' }), 'rpt-2', dir);
   });
 
   it('completes an open report', async () => {

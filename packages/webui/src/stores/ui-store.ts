@@ -68,6 +68,7 @@ const VIEWS = [
   'codemap',
   'techstack',
   'chronicle',
+  'deadcode',
 ] as const;
 type View = (typeof VIEWS)[number];
 

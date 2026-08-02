@@ -163,9 +163,21 @@ The `cascadeOn` and `maxCascadeDepth` settings are owned by the runtime plugin
 to a different config path, this section will become stale — update it as part
 of the config migration.
 
-If the leader session has ended before cascade agents complete, their results
-are still captured in the session transcript and can be reviewed when the
-leader next resumes the session.
+If an actionable ordinary Chimera report finishes after the main leader turn,
+`autoFix: auto` resumes that same session leader through a serialized system
+follow-up before shutdown. An approved `ask` follows the same path. Review-only,
+denied, timed-out, failed, or session-switched work remains captured in the
+mailbox and transcript for a later explicit resume. Cascade agents continue to
+use their bounded fix-and-re-review lifecycle described below.
+
+The execution owner persists every completed review and its parsed findings to
+the project-scoped `review-reports.jsonl` and `review-findings.jsonl` stores
+before publishing `chimera.review_complete`. This durability contract is
+independent of whether the optional post-session `wstack-chimera` plugin is
+enabled; auto-review-only sessions must retain the same report history.
+Mutations and compaction use cross-process file locks. When the combined stores
+reach 8 MiB, retention compaction is checked at most once per 24 hours and uses
+atomic replacement so concurrent clients cannot lose appended review data.
 
 ---
 

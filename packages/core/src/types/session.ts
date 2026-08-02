@@ -479,6 +479,11 @@ export interface SessionStore {
    * filesystem isolation is the caller's worktree/CAS responsibility.
    */
   fork?(id: string, opts?: SessionForkOptions): Promise<ForkedSession>;
+  /** Capture a content-addressed identity for the current project workspace. */
+  captureWorkspaceCheckpoint?(
+    sessionId: string,
+    promptIndex: number,
+  ): Promise<WorkspaceCheckpointRef | undefined>;
   /** Apply a captured workspace manifest to an already-isolated checkout. */
   materializeWorkspaceCheckpoint?(
     checkpoint: WorkspaceCheckpointRef,

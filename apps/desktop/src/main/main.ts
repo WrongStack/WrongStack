@@ -537,6 +537,10 @@ app.on('before-quit', () => {
   }
   bridge.closeAll();
   webuiController.disposeAll();
+  // Terminate WebUI child processes so they don't become orphans after the
+  // desktop app exits. closeAll() is async but before-quit is synchronous —
+  // we fire-and-forget and rely on OS process-group cleanup for stragglers.
+  void manager.closeAll({ persistWorkspace: false });
 });
 
 app.on('activate', () => {

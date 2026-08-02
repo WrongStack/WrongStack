@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Heavy mocking: backend-services constructs ~20 core modules.
 // We mock the constructor-level imports so the factory body runs.
@@ -84,6 +84,7 @@ vi.mock('../src/server/codebase-indexing.js', () => ({
 vi.mock('../src/server/discover-mailbox-bridge.js', () => ({ discoverMailboxBridgeForWebui: vi.fn(async () => undefined) }));
 vi.mock('../src/server/model-catalog.js', () => ({ resolveProviderModelMetadata: vi.fn(async () => null) }));
 
+import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { createAgentServices } from '../src/server/backend-services.js';
 
 function makeInput(): any {
@@ -168,6 +169,20 @@ describe('createAgentServices', () => {
     expect(services.collabHandler).toBeDefined();
     expect(typeof services.disposeRealtimeHandlers).toBe('function');
     expect(typeof services.updateAutoCompactionMaxContext).toBe('function');
+  });
+
+  it('installs one trusted boundary and forwards it to light subagents', async () => {
+    const input = makeInput();
+    const installToolBoundary = vi.fn();
+    input.installToolBoundary = installToolBoundary;
+
+    await createAgentServices(input);
+
+    expect(installToolBoundary).toHaveBeenCalledOnce();
+    expect(installToolBoundary).toHaveBeenCalledWith(input.pipelines);
+    expect(vi.mocked(makeLightSubagentFactory)).toHaveBeenCalledWith(
+      expect.objectContaining({ installToolBoundary }),
+    );
   });
 
   it('disposeRealtimeHandlers is safe to call', async () => {

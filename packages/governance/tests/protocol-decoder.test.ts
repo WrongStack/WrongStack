@@ -451,9 +451,13 @@ describe('governance service protocol decoder', () => {
         projectId: 'project-1',
         taskId: 'legacy-task',
         source: 'wire-test',
-        category: 'tool_invoked',
+        category: 'evidence_candidate',
         observedAt: '2026-08-01T13:04:00.000Z',
-        payload: { tool: 'shell', outcome: { exitCode: 0, outputBytes: 42 } },
+        payload: {
+          status: 'unverified',
+          tool: 'shell',
+          outcome: { status: 'succeeded', outputBytes: 42 },
+        },
       },
     };
     expect(service.handleUnknown(request, client('shadow_observe'))).toMatchObject({
@@ -472,6 +476,36 @@ describe('governance service protocol decoder', () => {
       ),
     ).toMatchObject({ ok: true, result: { type: 'task', task: null } });
     service.close();
+  });
+
+  it('strictly decodes workspace snapshot recording without accepting injected authority', () => {
+    const manifestHash = 'a'.repeat(64);
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-workspace-snapshot',
+        type: 'record_workspace_snapshot',
+        manifestHash,
+      }),
+    ).toMatchObject({
+      decoded: true,
+      request: { type: 'record_workspace_snapshot', manifestHash },
+    });
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-workspace-snapshot-invalid',
+        type: 'record_workspace_snapshot',
+        manifestHash: 'not-a-hash',
+        projectId: 'forged-project',
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: [
+        expect.objectContaining({ code: 'unknown_field', path: '$.projectId' }),
+        expect.objectContaining({ code: 'invalid_value', path: '$.manifestHash' }),
+      ],
+    });
   });
 
   it('rejects unsupported protocol versions and excessive JSON nesting', () => {

@@ -36,6 +36,26 @@ export {
   type ReviewContextBundle,
 } from '../plugins/chimera-plugin.js';
 export { createPromptsPlugin } from '../plugins/prompts-plugin.js';
+export {
+  emitReviewIfChanged,
+  recordCompletedReview,
+  recordStartedReview,
+} from '../plugins/review-claim-registry.js';
+export {
+  type FindingsIntegrationResult,
+  integrateFindings,
+} from '../plugins/review-finding-integration.js';
+export {
+  type ParsedReviewReport,
+  parseChimeraReviewReport,
+} from '../plugins/review-finding-parser.js';
+export {
+  persistReviewReport,
+  type ReportIntegrationResult,
+} from '../plugins/review-report-integration.js';
+export {
+  maybeCompactReviewStores,
+  type ReviewStoreMaintenanceResult,
+} from '../plugins/review-store-maintenance.js';
 export { createSkillsPlugin } from '../plugins/skills-plugin.js';
 export { createSyncPlugin } from '../plugins/sync-plugin.js';
-export { emitReviewIfChanged } from '../plugins/review-claim-registry.js';

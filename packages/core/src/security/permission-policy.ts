@@ -270,9 +270,13 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   /** Pre-compiled wildcard patterns — rebuilt on reload for O(1) lookup. */
   private wildcardEntries: { pattern: string; value: TrustPolicy[string] }[] = [];
   /**
-   * Evaluate-result cache. Keyed by `tool.name::subject` so repeated calls
-   * with the same tool+input skip namespace matching, subject computation,
-   * and pattern matching (matchAny).
+   * Evaluate-result cache. Keyed by `tool.name::subject::permissionFingerprint`
+   * so repeated calls with the same tool+input skip namespace matching,
+   * subject computation, and pattern matching (matchAny). The fingerprint
+   * suffix covers the `Tool` fields `evaluate()` reads (`permission`,
+   * `riskTier`, `mutating`, `capabilities`), so a tool redefined via
+   * `ToolRegistry.wrap()` misses the cache instead of inheriting a stale
+   * verdict.
    *
    * Cleared on any state change (reload, trust, deny, yolo toggle) because
    * the result depends on the full policy state. The write-tool smart-bypass

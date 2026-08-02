@@ -92,6 +92,10 @@ export interface BrainOrchestrationDeps {
   modeId?: string | undefined;
   /** Shared provider/model status tracker for the Director. */
   statusTracker?: import('@wrongstack/core/coordination').ProviderModelStatusTracker | undefined;
+  /** Trusted governance hook for in-process Fleet tool pipelines. */
+  installToolBoundary?:
+    | ((pipelines: import('@wrongstack/core/agent').AgentPipelines) => void)
+    | undefined;
 }
 
 export interface BrainOrchestrationResult {
@@ -147,6 +151,7 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
     effectiveMaxContextRef,
     mcpRegistry,
     sessResult,
+    installToolBoundary,
   } = deps;
   const profileConfigPath = activeProfileConfigPath(wpaths, config);
 
@@ -390,6 +395,7 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       cwd,
       skillLoader,
       secretScrubber: container.resolve(TOKENS.SecretScrubber),
+      ...(installToolBoundary ? { installToolBoundary } : {}),
     },
     {
       manifestPath,

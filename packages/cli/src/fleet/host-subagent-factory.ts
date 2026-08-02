@@ -298,6 +298,7 @@ export function createHostSubagentFactory(
 
     installDesignStudioMiddleware({ pipelines, ctx });
     installSubagentAutoCompaction(pipelines, ctx, config.context, events);
+    host.deps.installToolBoundary?.(pipelines);
 
     const agent = new Agent({
       container: host.deps.container,

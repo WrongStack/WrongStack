@@ -460,6 +460,13 @@ export class GovernanceCapabilityGrantRegistry {
     return record ? this.describe(record, this.now()) : null;
   }
 
+  remainingTtlMs(grantId: string): number | null {
+    const record = this.records.get(grantId);
+    if (!record || record.revokedAtMs !== undefined) return null;
+    const remaining = record.expiresAtMs - this.now();
+    return remaining > 0 ? remaining : null;
+  }
+
   listGrants(): readonly GovernanceCapabilityGrant[] {
     const now = this.now();
     return Object.freeze(

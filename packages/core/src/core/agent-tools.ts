@@ -152,6 +152,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     toolName: string,
     durationMs: number,
     ok: boolean,
+    mutating: boolean,
     input: unknown,
     content: string,
   ): void {
@@ -183,6 +184,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       name: toolName,
       durationMs,
       ok,
+      mutating,
       input,
       output: truncateForEvent(
         body,
@@ -309,6 +311,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
             tool.name,
             reRunResult.durationMs,
             !reRunResult.result.is_error,
+            tool.mutating,
             result.input,
             reRunResult.result.content,
           );
@@ -335,6 +338,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         use.name,
         durationMs,
         !result.is_error,
+        tool?.mutating ?? false,
         use.input,
         result.content,
       );

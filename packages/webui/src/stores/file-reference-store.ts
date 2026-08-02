@@ -98,7 +98,11 @@ function basename(path: string): string {
   return path.replace(/\\/g, '/').split('/').pop() ?? path;
 }
 
-function truncateContent(content: string, maxLines = 20, maxChars = 2000): string {
+function truncateContent(
+  content: string,
+  maxLines = 20,
+  maxChars = 2000,
+): { text: string; truncated: boolean } {
   const lines = content.split('\n');
   let truncated = false;
   let result = content;
@@ -113,7 +117,17 @@ function truncateContent(content: string, maxLines = 20, maxChars = 2000): strin
   if (truncated) {
     result = result.replace(/\s+$/, '') + '\n…';
   }
-  return result;
+  return { text: result, truncated };
+}
+
+function completeReadContract(paths: readonly string[]): string {
+  if (paths.length === 0) return '';
+  return [
+    '[File reference contract]',
+    'Before answering or modifying anything related to these references, use the available file-reading tools to read each complete project file:',
+    ...paths.map((path) => `- ${JSON.stringify(path)}`),
+    'If a read is paginated or chunked, continue on the same path until EOF. Do not treat an inline preview as the complete file.',
+  ].join('\n');
 }
 
 /**
@@ -128,25 +142,32 @@ export function refsToMarkdown(
 ): string {
   if (refs.length === 0) return '';
   const blocks: string[] = [];
+  const completeReadPaths = new Set<string>();
   for (const ref of refs) {
     if (ref.kind === 'file') {
       const content = fileContents?.[ref.path];
       if (content) {
         const lang = languageFromPath(ref.path);
         const fence = lang ? `\`\`\`${lang}` : '```';
-        blocks.push(`${fence}\n// ${ref.path} (entire file)\n${truncateContent(content)}\n\`\`\``);
+        const rendered = truncateContent(content);
+        const scope = rendered.truncated ? 'preview; complete read required' : 'entire file';
+        blocks.push(`${fence}\n// ${ref.path} (${scope})\n${rendered.text}\n\`\`\``);
+        if (rendered.truncated) completeReadPaths.add(ref.path);
       } else {
         blocks.push(`@${ref.path}`);
+        completeReadPaths.add(ref.path);
       }
       continue;
     }
     const lang = languageFromPath(ref.path);
     const fence = lang ? `\`\`\`${lang}` : '```';
     const header = `// ${ref.path}:${ref.startLine}-${ref.endLine}`;
-    const body = ref.kind === 'snippet' ? truncateContent(ref.content) : truncateContent(ref.preview);
-    blocks.push(`${fence}\n${header}\n${body}\n\`\`\``);
+    const rendered = truncateContent(ref.kind === 'snippet' ? ref.content : ref.preview);
+    blocks.push(`${fence}\n${header}\n${rendered.text}\n\`\`\``);
+    if (rendered.truncated) completeReadPaths.add(ref.path);
   }
-  return blocks.join('\n\n');
+  const contract = completeReadContract([...completeReadPaths]);
+  return [...blocks, contract].filter(Boolean).join('\n\n');
 }
 
 export function refLabel(ref: FileReference): string {

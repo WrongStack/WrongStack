@@ -1,3 +1,4 @@
+import type { AgentPipelines } from '@wrongstack/core/agent';
 import { getSharedProjectMailbox, type MailboxAgentStatus } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
@@ -7,6 +8,7 @@ import type {
   GovernanceRuntimeBootstrapHandle,
   GovernanceRuntimeBootstrapResult,
 } from '@wrongstack/runtime/governance-bootstrap';
+import { createGovernanceMutationSnapshotBridge } from '@wrongstack/runtime/governance-mutation-snapshot-bridge';
 import { sanitizeGovernanceMessage } from '@wrongstack/runtime/governance-sanitize';
 import { createGovernanceShadowBridge } from './boot/governance-shadow-bridge.js';
 import { createGovernanceTraceContext } from './boot/governance-trace-context.js';
@@ -57,6 +59,7 @@ export function governedHandle(
 }
 
 export interface CliGovernanceRuntimeHandle {
+  installToolBoundary(pipelines: AgentPipelines): void;
   close(): Promise<GovernanceRuntimeBootstrapCloseResult>;
 }
 
@@ -110,6 +113,9 @@ export async function setupCliGovernance(input: {
   readonly logger: Pick<Logger, 'info' | 'warn'>;
   readonly events: EventBus;
   readonly planPath: string;
+  readonly captureWorkspaceCheckpoint: () => Promise<
+    import('@wrongstack/core/types').WorkspaceCheckpointRef | undefined
+  >;
 }): Promise<CliGovernanceRuntimeHandle | undefined> {
   const result = await bootstrapCliGovernance({
     environment: process.env,
@@ -133,8 +139,17 @@ export async function setupCliGovernance(input: {
       logger: input.logger,
       trace,
     });
+    const mutationSnapshots = createGovernanceMutationSnapshotBridge({
+      events: input.events,
+      sink: result.handle,
+      captureWorkspaceCheckpoint: input.captureWorkspaceCheckpoint,
+      logger: input.logger,
+    });
     return Object.freeze({
-      close: () => {
+      installToolBoundary: (pipelines: AgentPipelines) =>
+        mutationSnapshots.installToolBoundary(pipelines),
+      close: async () => {
+        await mutationSnapshots.close();
         shadow.close();
         return result.handle.close();
       },

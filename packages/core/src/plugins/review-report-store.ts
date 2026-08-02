@@ -200,61 +200,66 @@ export class JsonlReportStore implements ReportStore {
     actor: ReportActor,
     opts?: { reason?: string },
   ): Promise<ReviewReport> {
-    const all = await this._readAll();
-    const entry = all.find((e) => e.report.id === reportId);
-    if (!entry) throw new Error(`Review report not found: ${reportId}`);
+    return withFileLock(this.filePath, async () => {
+      const all = await this._readAll();
+      const entry = all.find((e) => e.report.id === reportId);
+      if (!entry) throw new Error(`Review report not found: ${reportId}`);
 
-    // Materialize current lifecycle from events — the stored record's
-    // lifecycle field is the original value (set at creation time); only
-    // events reflect subsequent transitions.
-    const from = this._materialize(entry).lifecycle;
-    validateReportTransition(from, to);
+      // Materialize current lifecycle from events — the stored record's
+      // lifecycle field is the original value (set at creation time); only
+      // events reflect subsequent transitions.
+      const from = this._materialize(entry).lifecycle;
+      validateReportTransition(from, to);
 
-    const event: ReviewReportEvent = {
-      id: randomUUID(),
-      reportId,
-      eventType: reportEventTypeFor(to),
-      fromLifecycle: from,
-      toLifecycle: to,
-      actorId: actor.id,
-      actorKind: actor.kind,
-      timestamp: new Date().toISOString(),
-      reason: opts?.reason,
-    };
+      const event: ReviewReportEvent = {
+        id: randomUUID(),
+        reportId,
+        eventType: reportEventTypeFor(to),
+        fromLifecycle: from,
+        toLifecycle: to,
+        actorId: actor.id,
+        actorKind: actor.kind,
+        timestamp: new Date().toISOString(),
+        reason: opts?.reason,
+      };
 
-    entry.report.lifecycle = to;
+      entry.report.lifecycle = to;
 
-    await fsp.appendFile(this.filePath, JSON.stringify({ __reportEvent: 1, data: event }) + NL, {
-      encoding: 'utf8',
-      mode: SECRET_FILE_MODE,
+      await fsp.appendFile(this.filePath, JSON.stringify({ __reportEvent: 1, data: event }) + NL, {
+        encoding: 'utf8',
+        mode: SECRET_FILE_MODE,
+      });
+
+      return { ...entry.report };
     });
-
-    return { ...entry.report };
   }
 
   async addNote(reportId: string, actor: ReportActor, note: string): Promise<ReviewReport> {
-    const all = await this._readAll();
-    const entry = all.find((e) => e.report.id === reportId);
-    if (!entry) throw new Error(`Review report not found: ${reportId}`);
+    return withFileLock(this.filePath, async () => {
+      const all = await this._readAll();
+      const entry = all.find((e) => e.report.id === reportId);
+      if (!entry) throw new Error(`Review report not found: ${reportId}`);
 
-    const event: ReviewReportEvent = {
-      id: randomUUID(),
-      reportId,
-      eventType: 'note_added',
-      fromLifecycle: entry.report.lifecycle,
-      toLifecycle: entry.report.lifecycle,
-      actorId: actor.id,
-      actorKind: actor.kind,
-      timestamp: new Date().toISOString(),
-      reason: note,
-    };
+      const materialized = this._materialize(entry);
+      const event: ReviewReportEvent = {
+        id: randomUUID(),
+        reportId,
+        eventType: 'note_added',
+        fromLifecycle: materialized.lifecycle,
+        toLifecycle: materialized.lifecycle,
+        actorId: actor.id,
+        actorKind: actor.kind,
+        timestamp: new Date().toISOString(),
+        reason: note,
+      };
 
-    await fsp.appendFile(this.filePath, JSON.stringify({ __reportEvent: 1, data: event }) + NL, {
-      encoding: 'utf8',
-      mode: SECRET_FILE_MODE,
+      await fsp.appendFile(this.filePath, JSON.stringify({ __reportEvent: 1, data: event }) + NL, {
+        encoding: 'utf8',
+        mode: SECRET_FILE_MODE,
+      });
+
+      return materialized;
     });
-
-    return { ...entry.report };
   }
 
   // ── Query ────────────────────────────────────────────────────────
@@ -304,59 +309,61 @@ export class JsonlReportStore implements ReportStore {
   // ── Compaction ───────────────────────────────────────────────────
 
   async compact(opts?: { maxAgeMs?: number }): Promise<{ removed: number; eventsFolded: number }> {
-    const maxAge = opts?.maxAgeMs ?? REPORT_RETENTION_MS;
-    const now = Date.now();
+    return withFileLock(this.filePath, async () => {
+      const maxAge = opts?.maxAgeMs ?? REPORT_RETENTION_MS;
+      const now = Date.now();
 
-    const all = await this._readAll();
-    const kept: Array<{ record: ReportRecord | null; events: ReviewReportEvent[] }> = [];
-    let removed = 0;
-    let eventsFolded = 0;
+      const all = await this._readAll();
+      const kept: Array<{ record: ReportRecord | null; events: ReviewReportEvent[] }> = [];
+      let removed = 0;
+      let eventsFolded = 0;
 
-    for (const entry of all) {
-      const age = now - new Date(entry.report.reviewedAt).getTime();
-      const materialized = this._materialize(entry);
-      const isTerminal =
-        materialized.lifecycle === 'completed' || materialized.lifecycle === 'skipped';
+      for (const entry of all) {
+        const age = now - new Date(entry.report.reviewedAt).getTime();
+        const materialized = this._materialize(entry);
+        const isTerminal =
+          materialized.lifecycle === 'completed' || materialized.lifecycle === 'skipped';
 
-      if (isTerminal && age > maxAge) {
-        removed++;
-        eventsFolded += entry.events.length;
-        continue;
+        if (isTerminal && age > maxAge) {
+          removed++;
+          eventsFolded += entry.events.length;
+          continue;
+        }
+
+        // Fold old events into a single marker per report.
+        const oldEvents = entry.events.filter(
+          (ev) => now - new Date(ev.timestamp).getTime() > maxAge,
+        );
+        if (oldEvents.length > 1) {
+          eventsFolded += oldEvents.length - 1;
+          const newestOld = oldEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
+          entry.events = [
+            newestOld,
+            ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge),
+          ];
+        }
+        kept.push({ record: { __report: 1, data: entry.report }, events: entry.events });
       }
 
-      // Fold old events into a single marker per report.
-      const oldEvents = entry.events.filter(
-        (ev) => now - new Date(ev.timestamp).getTime() > maxAge,
+      const lines: string[] = [];
+      for (const { record, events } of kept) {
+        if (record) lines.push(JSON.stringify(record));
+        for (const ev of events) {
+          lines.push(JSON.stringify({ __reportEvent: 1, data: ev }));
+        }
+      }
+      lines.push(
+        JSON.stringify({
+          __reportCompact: 1,
+          compactedAt: new Date().toISOString(),
+          removedReports: removed,
+          foldedEvents: eventsFolded,
+        } as ReportCompactMarker),
       );
-      if (oldEvents.length > 1) {
-        eventsFolded += oldEvents.length - 1;
-        const newestOld = oldEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
-        entry.events = [
-          newestOld,
-          ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge),
-        ];
-      }
-      kept.push({ record: { __report: 1, data: entry.report }, events: entry.events });
-    }
 
-    const lines: string[] = [];
-    for (const { record, events } of kept) {
-      if (record) lines.push(JSON.stringify(record));
-      for (const ev of events) {
-        lines.push(JSON.stringify({ __reportEvent: 1, data: ev }));
-      }
-    }
-    lines.push(
-      JSON.stringify({
-        __reportCompact: 1,
-        compactedAt: new Date().toISOString(),
-        removedReports: removed,
-        foldedEvents: eventsFolded,
-      } as ReportCompactMarker),
-    );
-
-    await atomicWrite(this.filePath, lines.join(NL) + NL, { mode: 0o600 });
-    return { removed, eventsFolded };
+      await atomicWrite(this.filePath, lines.join(NL) + NL, { mode: 0o600 });
+      return { removed, eventsFolded };
+    });
   }
 
   // ── Private helpers ──────────────────────────────────────────────

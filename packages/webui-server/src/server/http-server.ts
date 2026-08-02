@@ -29,6 +29,7 @@ import * as path from 'node:path';
 import * as v8 from 'node:v8';
 import { sanitizeApiError } from '@wrongstack/core/security';
 import { getIndexState } from '@wrongstack/tools';
+import { handleDeadCodeScan, handleDeadCodeActionPlan } from './deadcode-handlers.js';
 import {
   handleCodemapFiles,
   handleCodemapPackages,
@@ -816,6 +817,29 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
             timestamp: Date.now(),
           }),
         );
+        return;
+      }
+
+      // /api/deadcode/scan
+      if (url.pathname === '/api/deadcode/scan' && req.method === 'POST') {
+        if (!opts.projectRoot) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Project root not configured' }));
+          return;
+        }
+        await handleDeadCodeScan(res, {
+          projectRoot: opts.projectRoot,
+          indexDir: opts.indexDir,
+        }, req);
+        return;
+      }
+
+      // /api/deadcode/action-plan
+      if (url.pathname === '/api/deadcode/action-plan' && req.method === 'POST') {
+        await handleDeadCodeActionPlan(res, {
+          projectRoot: opts.projectRoot ?? '',
+          indexDir: opts.indexDir,
+        }, req);
         return;
       }
 

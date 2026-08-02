@@ -35,6 +35,7 @@ import { createAgentServices } from './backend-services.js';
 import { bootConfig, patchConfig } from './boot.js';
 import { createConnectionHandler } from './connection-handler.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
+import { setupWebUiGovernance } from './governance-runtime.js';
 import { unregisterInstance } from './instance-registry.js';
 import { createMessageDispatcher } from './message-dispatcher.js';
 import { formatExternalAccessUrls } from './network-info.js';
@@ -313,6 +314,21 @@ export async function startWebUI(
   const trustBoundary =
     opts.trustBoundary ??
     createCompatibilityTrustBoundary({ policyId: 'webui-trusted-host-compat-v1' });
+  const governanceHandle =
+    opts.installToolBoundary === undefined
+      ? await setupWebUiGovernance({
+          environment: process.env,
+          projectRoot,
+          projectId: wpaths.projectSlug,
+          sessionId: session.id,
+          contextMeta: context.meta,
+          events,
+          logger,
+          captureWorkspaceCheckpoint: async () =>
+            sessionStore.captureWorkspaceCheckpoint?.(session.id, 0),
+        })
+      : undefined;
+  const installToolBoundary = opts.installToolBoundary ?? governanceHandle?.installToolBoundary;
   const agentServices = await createAgentServices({
     trustBoundary,
     config,
@@ -335,6 +351,7 @@ export async function startWebUI(
     skillInstaller,
     tokenCounter,
     pipelines: createDefaultPipelines(),
+    ...(installToolBoundary ? { installToolBoundary } : {}),
     modelCapabilitiesRef,
     sessionGetter: () => session,
     sessionReader,
@@ -983,6 +1000,12 @@ export async function startWebUI(
       await stopHeapWatchdog();
       credentialWatcherClose?.();
       disposeRealtimeHandlers();
+      const governanceCleanup = await governanceHandle?.close();
+      if (governanceCleanup && !governanceCleanup.ok) {
+        logger.warn(`governance: standalone WebUI ${governanceCleanup.action} cleanup failed`, {
+          message: governanceCleanup.message,
+        });
+      }
       brainMonitor.stop();
       // Read via the services getter — ledger toggles swap the instance.
       await agentServices.brainLedger?.stop().catch(() => {});

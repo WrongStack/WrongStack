@@ -158,12 +158,31 @@ function parseFindingSegment(
     remaining = content.slice(tagMatch[0].length).trim();
   }
 
-  // Extract file:line reference before the ` — ` or ` - ` separator
+  // Un-wrap the first balanced backtick pair at the citation position so the
+  // canonical `` `path/file.ts:42` `` format is recognised by the path regexes
+  // below. We only unwrap the FIRST balanced pair and only when the inner
+  // content starts with a path-like character — this prevents over-matching
+  // when the description contains an inline backtick construct that is not
+  // a citation. Backticks further into the description are preserved verbatim.
+  const citationMatch = remaining.match(
+    /^(`+)([a-zA-Z_./\\:][^`]*[a-zA-Z0-9_./\\:])\1(?=\s*[—–-]|\s*$)/,
+  );
+  if (citationMatch) {
+    const inner = citationMatch[2]!;
+    const afterCitation = remaining.slice(citationMatch[0].length);
+    remaining = `${inner}${afterCitation}`;
+  }
+
+  // Extract a path-like file reference before a spaced Markdown separator.
+  // Requiring an extension prevents hyphens inside paths from becoming the
+  // separator (for example, `execution-chimera-review.ts`).
   let file: string | undefined;
   let line: number | undefined;
   let desc = remaining;
 
-  const refMatch = remaining.match(/^(.+?)(?::(\d+))?\s*[—–-]\s*(.+)$/);
+  const refMatch = remaining.match(
+    /^([a-zA-Z_./\\][a-zA-Z0-9_./\\-]*\.\w+)(?::(\d+))?\s+(?:[—–]|-)\s+(.+)$/,
+  );
   if (refMatch) {
     file = refMatch[1]!.trim();
     if (refMatch[2] !== undefined) {

@@ -104,6 +104,42 @@ describe('parseChimeraReviewReport', () => {
     expect(result.findings[0]!.suggestedFix).toContain('@');
   });
 
+  it('parses canonical backtick-wrapped citation in citation position', () => {
+    // Regression: the prompt at chimera-review.md mandates
+    //   `1. [BUG] `path/file.ts:42` — description`
+    // but the parser's location regex required the citation to begin with
+    // `[a-zA-Z_./\\]`, so every canonical finding came through as
+    // uncited and the gating pipeline degraded to `(no file)`.
+    const report = [
+      '### High (1)',
+      '1. [BUG] `packages/cli/src/execution-chimera-review.ts:241` — parser rejects backtick citations',
+      '   → Strip wrapping backticks before applying the path regex',
+    ].join('\n');
+
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.severity).toBe('high');
+    expect(result.findings[0]!.location).toEqual({
+      file: 'packages/cli/src/execution-chimera-review.ts',
+      line: 241,
+    });
+    expect(result.findings[0]!.description).toContain('parser rejects backtick citations');
+  });
+
+  it('parses canonical citation without [TAG] prefix', () => {
+    const report = [
+      '### Medium (1)',
+      '1. `packages/core/src/foo.ts:7` — bare citation, no tag',
+    ].join('\n');
+
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location).toEqual({
+      file: 'packages/core/src/foo.ts',
+      line: 7,
+    });
+  });
+
   it('sets context fields on findings', () => {
     const report = '### High (1)\n1. src/a.ts:1 — Bug\n';
     const result = parseChimeraReviewReport(report, {
@@ -180,10 +216,90 @@ describe('parseChimeraReviewReport — edge cases', () => {
     expect(result.unparseableCount).toBe(0);
   });
 
+  it('preserves hyphenated file paths before the separator', () => {
+    const report = [
+      '### High (2)',
+      '1. packages/cli/src/boot/governance-shadow-bridge.ts:12 — Bridge failure',
+      '2. packages/cli/src/execution-chimera-review.ts:42 - Review failure',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+
+    expect(result.findings[0]!.location).toEqual({
+      file: 'packages/cli/src/boot/governance-shadow-bridge.ts',
+      line: 12,
+    });
+    expect(result.findings[1]!.location).toEqual({
+      file: 'packages/cli/src/execution-chimera-review.ts',
+      line: 42,
+    });
+  });
+
   it('handles findings with Unicode dash characters', () => {
     const report = '### High (1)\n1. src/a.ts:1 – Unicode dash\n';
     const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
     expect(result.findings).toHaveLength(1);
+  });
+
+  it('strips backticks from the canonical citation format', () => {
+    // The chimera-review instruction mandates backtick-wrapped citations:
+    // `` `packages/foo.ts:42` — description ``. The parser must strip the
+    // backticks so the file path is recognized for downstream gating
+    // (citation validation against the changed-file set, etc.).
+    const report = [
+      '### Critical (1)',
+      '1. [BUG] `src/backticked.ts:7` — Backtick-strip regression',
+      '   → Remove the wrapping backticks',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location).toEqual({
+      file: 'src/backticked.ts',
+      line: 7,
+    });
+    expect(result.findings[0]!.title).toContain('Backtick-strip');
+    expect(result.findings[0]!.suggestedFix).toContain('Remove the wrapping');
+  });
+
+  it('strips backticks from the fallback path-only match', () => {
+    // The primary regex requires a ` — ` (or other spaced) separator after
+    // the citation; this input omits the separator so the primary regex
+    // misses and the fallback path matcher is what actually runs. The
+    // test must use this form — otherwise the assertion is a false
+    // assurance (the primary regex would match first and the fallback
+    // branch would never execute).
+    const report = '### High (1)\n1. `src/fallback-backticks.ts:3`\n';
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location?.file).toBe('src/fallback-backticks.ts');
+    expect(result.findings[0]!.location?.line).toBe(3);
+  });
+
+  it('handles tight-format citations with no space before the em-dash', () => {
+    // The protected group requires a path-like inner content and a separator
+    // immediately after the closing backtick (with optional whitespace). A
+    // tight-format like `` `src/tight.ts:9`—desc `` (no space) must still
+    // unwrap and parse the citation.
+    const report = '### High (1)\n1. `src/tight-format.ts:9`—No space before dash\n';
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location).toEqual({
+      file: 'src/tight-format.ts',
+      line: 9,
+    });
+    expect(result.findings[0]!.title).toContain('No space before dash');
+  });
+
+  it('does not unwrap non-citation backtick constructs', () => {
+    // The protected group only matches when the inner content starts with a
+    // path-like character. An inline backtick construct mid-description that
+    // happens to be balanced (e.g. `` `not a path` ``) must not be unwrapped
+    // — the description should be preserved verbatim.
+    const report = '### High (1)\n1. src/x.ts:1 — Inline `not a path` here\n';
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location?.file).toBe('src/x.ts');
+    expect(result.findings[0]!.location?.line).toBe(1);
+    expect(result.findings[0]!.title).toContain('Inline `not a path` here');
   });
 });
 

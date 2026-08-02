@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   decideOperationAutonomy,
   type GovernedOperation,
@@ -35,6 +36,26 @@ export interface PlanVersionV1 {
   readonly changeReason: string;
   readonly steps: readonly PlanStepV1[];
   readonly edges: readonly PlanEdgeV1[];
+}
+
+function canonicalPlanValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalPlanValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+        .map(([key, entryValue]) => [key, canonicalPlanValue(entryValue)]),
+    );
+  }
+  return value;
+}
+
+export function calculatePlanVersionFingerprint(plan: PlanVersionV1): string {
+  return createHash('sha256')
+    .update('wrongstack-plan-version-v1\0', 'utf8')
+    .update(JSON.stringify(canonicalPlanValue(plan)), 'utf8')
+    .digest('hex');
 }
 
 export interface PlanStepAutonomy {

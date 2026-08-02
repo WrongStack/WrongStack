@@ -275,9 +275,8 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       return async () => sessionRegistry.unregister();
     },
   });
-  const session = sessResult.session;
+  const { context, planPath, session } = sessResult;
   sessionRef.current = session;
-  const context = sessResult.context;
   const governanceHandle = await setupCliGovernance({
     projectRoot,
     projectId: wpaths.projectSlug,
@@ -285,12 +284,12 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     contextMeta: context.meta,
     logger,
     events,
-    planPath: sessResult.planPath,
+    planPath,
+    captureWorkspaceCheckpoint: async () =>
+      sessionStore.captureWorkspaceCheckpoint?.(session.id, 0),
   });
   configureSimpleUiRuntimeContext(context.meta, flags);
-  const attachments = sessResult.attachments;
-  const queueStore = sessResult.queueStore;
-  const planPath = sessResult.planPath;
+  const { attachments, queueStore } = sessResult;
   const detachTodosCheckpoint = sessResult.detachTodosCheckpoint;
   const priorFleetState = sessResult.priorFleetState;
 
@@ -369,6 +368,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       },
     },
   });
+  governanceHandle?.installToolBoundary(pipelines);
 
   // ── Lifecycle hooks → compaction → agent → MCP → plugins ─────────────
   // Extracted to wiring/lifecycle-plugins.ts.
@@ -560,6 +560,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       sessResult,
       modeId,
       statusTracker,
+      ...(governanceHandle ? { installToolBoundary: governanceHandle.installToolBoundary } : {}),
     });
 
   // HQ command dispatch + telemetry bridges (WebSocket, session/fleet/brain/

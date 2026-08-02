@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
@@ -16,14 +15,11 @@ import {
 } from './review-claim-registry.js';
 import { buildReviewContext } from './review-context-builder.js';
 import type {
-  ChimeraReviewCompletePayload,
   ResolvedChimeraConfig,
   ReviewContextBundle,
   ReviewFileEntry,
 } from './review-types.js';
 import { executeFindingCommand } from './review-finding-commands.js';
-import { integrateFindings } from './review-finding-integration.js';
-import { persistReviewReport } from './review-report-integration.js';
 
 // Re-export the shared review types so existing importers keep resolving them
 // from './chimera-plugin.js' (and the package barrel). Their definitions live
@@ -273,26 +269,6 @@ function buildReviewCommand(
   };
 }
 
-// ── Finding + report store persistence helper ────────────────
-async function tryPersistFindings(payload: unknown): Promise<void> {
-  if (!payload || typeof payload !== 'object') return;
-  const p = payload as { bundle?: { cwd?: string }; reviewText?: string; status?: string; cwd?: string };
-  const cwd = p.cwd ?? p.bundle?.cwd;
-  if (!cwd) return;
-  const slug = projectSlug(cwd);
-  const globalRoot = path.join(os.homedir(), '.wrongstack');
-  const projectDir = path.join(globalRoot, 'projects', slug);
-
-  // One shared reportId links the finding store and the report store.
-  const reportId = randomUUID();
-
-  // Persist the report first (parent record), then findings (children).
-  // If the process crashes between writes, an orphan report with no findings
-  // is recoverable; orphan findings pointing at a nonexistent reportId are not.
-  await persistReviewReport(payload as ChimeraReviewCompletePayload, reportId, projectDir);
-  await integrateFindings(payload as ChimeraReviewCompletePayload, projectDir, reportId);
-}
-
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -332,13 +308,6 @@ export function createChimeraPlugin(): Plugin {
       });
       api.onPattern('chimera.review_complete', (_event, payload) => {
         recordCompletedReview(api.events, payload);
-
-        // FS-P0.6: Persist findings from the review into the finding store.
-        // This runs even when chimera is disabled so findings from manual
-        // reviews and other sessions are captured too.
-        tryPersistFindings(payload).catch((err) => {
-          api.log.warn(`[review-finding] failed to persist findings: ${toErrorMessage(err)}`);
-        });
       });
 
       if (!resolved.enabled) {

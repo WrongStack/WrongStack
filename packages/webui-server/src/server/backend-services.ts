@@ -125,6 +125,8 @@ interface AgentServicesInput {
   skillInstaller: SkillInstaller | undefined;
   tokenCounter: DefaultTokenCounter;
   pipelines: AgentPipelines;
+  /** Trusted host-only hook shared by the leader and light-subagent pipelines. */
+  installToolBoundary?: ((pipelines: AgentPipelines) => void) | undefined;
   /** Mutable capabilities ref — the factory populates `.current`. */
   modelCapabilitiesRef: { current: unknown };
   /** Returns the LIVE session (swapped on /new + resume) — read at send time. */
@@ -388,6 +390,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       config.tools?.perIterationOutputCapBytes ?? DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
     tracer: undefined,
   });
+  input.installToolBoundary?.(pipelines);
 
   // Mailbox bridge discovery — fire-and-forget. Best-effort: a failed
   // discovery never blocks the WebUI from starting.
@@ -627,6 +630,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         // round-robin keeps reassigning the doomed model. Mirrors the CLI
         // factory wiring at host-subagent-factory.ts:337.
         statusTracker: container.safeResolve(TOKENS.ProviderModelStatusTracker),
+        ...(input.installToolBoundary ? { installToolBoundary: input.installToolBoundary } : {}),
       }),
       paths: {
         projectSpecs: wpaths.projectSpecs,

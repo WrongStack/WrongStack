@@ -10,7 +10,7 @@ import type {
   SessionStore,
 } from '@wrongstack/core/types';
 import type { JournalEntry } from '@wrongstack/core/storage';
-import type { Agent } from '@wrongstack/core/agent';
+import type { Agent, AgentPipelines } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 
@@ -31,6 +31,8 @@ export interface WebUIOptions {
   surface?: 'webui' | 'simpleui' | undefined;
   /** Policy authority for terminal/process/native-shell actions. */
   trustBoundary?: TrustBoundary | undefined;
+  /** Trusted host-only hook installed around leader and light-subagent tools. */
+  installToolBoundary?: ((pipelines: AgentPipelines) => void) | undefined;
   /** HTTP frontend port. Prefer `httpPort`; `port` is kept for compatibility. */
   port?: number | undefined;
   /** HTTP frontend port. */

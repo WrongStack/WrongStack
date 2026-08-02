@@ -71,7 +71,7 @@ async function launch(root: string, clientId: string) {
       projectRoot: root,
       projectId: 'compat-project',
       clientId,
-      capabilities: ['capability_admin', 'daemon_control'],
+      capabilities: ['capability_admin', 'daemon_control', 'workspace_snapshot_record'],
       ttlMs: 60_000,
       timeoutMs: 10_000,
     },
@@ -194,6 +194,21 @@ describe('governance runtime compatibility factory', () => {
         ttlMs: 30_000,
       }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    await expect(
+      prepared.runtime.model.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'model-workspace-snapshot',
+        type: 'record_workspace_snapshot',
+        manifestHash: 'a'.repeat(64),
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    await expect(prepared.runtime.recordWorkspaceSnapshot('a'.repeat(64))).resolves.toMatchObject({
+      ok: true,
+      result: {
+        type: 'workspace_snapshot_recorded',
+        result: { recorded: true, snapshot: { projectId: 'compat-project', revision: 1 } },
+      },
+    });
 
     const pid = snapshot.admin.daemon.pid;
     await expect(

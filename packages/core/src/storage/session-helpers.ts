@@ -1,5 +1,7 @@
 import type { ContentBlock } from '../types/blocks.js';
 
+export { captureCheckpoint, materializeCheckpoint } from './session-workspace-checkpoints.js';
+
 function consumeControlString(value: string, start: number): number {
   let index = start;
   while (index < value.length) {
@@ -65,10 +67,7 @@ export function sessionContentText(content: string | ContentBlock[]): string {
   return stripTerminalControls(text).trim().replace(/\s+/g, ' ');
 }
 
-export function sessionContentPreview(
-  content: string | ContentBlock[],
-  maxLength = 160,
-): string {
+export function sessionContentPreview(content: string | ContentBlock[], maxLength = 160): string {
   const text = sessionContentText(content) || '(non-text input)';
   return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 1))}…` : text;
 }

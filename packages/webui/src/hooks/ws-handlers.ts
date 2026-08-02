@@ -384,7 +384,11 @@ export function handleDiagGet(msg: WSServerMessage) {
     todos: number;
   };
   // Store the dropped count for the status-bar chip (reactive).
-  useSessionStore.getState().setDroppedTools(p.droppedTools ?? 0);
+  // Defense-in-depth: guard against maxTools=0 (no limit) even though
+  // the server already sends droppedTools=0 in that case.
+  useSessionStore.getState().setDroppedTools(
+    (p.maxTools ?? 0) > 0 ? (p.droppedTools ?? 0) : 0,
+  );
   useChatStore.getState().addMessage({
     role: 'assistant',
     content: [

@@ -228,6 +228,7 @@ const profiles = {
       host: 'src/host.ts',
       'governance-bootstrap': 'src/governance-bootstrap.ts',
       'governance-sanitize': 'src/governance-sanitize.ts',
+      'governance-mutation-snapshot-bridge': 'src/governance-mutation-snapshot-bridge.ts',
       vision: 'src/vision.ts',
       clipboard: 'src/clipboard.ts',
       probe: 'src/local-llm-probe.ts',

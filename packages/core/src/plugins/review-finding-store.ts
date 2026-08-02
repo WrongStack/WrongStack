@@ -131,9 +131,8 @@ export class JsonlFindingStore implements FindingStore {
 
     const result: UpsertResult = { created: 0, relinked: 0, reopened: 0 };
 
-    const existing = await this._readAll();
-
     return withFileLock(this.filePath, async () => {
+      const existing = await this._readAll();
       for (const finding of newFindings) {
         const match = existing.find((e) => e.finding.fingerprint === finding.fingerprint);
         if (match) {
@@ -198,50 +197,52 @@ export class JsonlFindingStore implements FindingStore {
     actor: { id: string; kind: 'agent' | 'operator' | 'system' },
     opts?: { reason?: string; outcome?: ResolutionOutcome },
   ): Promise<ChimeraFinding> {
-    const all = await this._readAll();
-    const entry = all.find((e) => e.finding.id === findingId);
-    if (!entry) throw new Error(`Finding not found: ${findingId}`);
+    return withFileLock(this.filePath, async () => {
+      const all = await this._readAll();
+      const entry = all.find((e) => e.finding.id === findingId);
+      if (!entry) throw new Error(`Finding not found: ${findingId}`);
 
-    const from = entry.finding.status;
-    validateTransition(from, to);
-    validateResolution(to, opts?.outcome);
+      const from = this._materialize(entry).status;
+      validateTransition(from, to);
+      validateResolution(to, opts?.outcome);
 
-    const event: FindingLifecycleEvent = {
-      id: randomUUID(),
-      findingId,
-      eventType:
-        to === 'resolved' ? 'resolved' : to === 'ignored' ? 'ignored' : this._eventTypeFor(to),
-      fromStatus: from,
-      toStatus: to,
-      actorId: actor.id,
-      actorKind: actor.kind,
-      timestamp: new Date().toISOString(),
-      reason: opts?.reason,
-    };
-
-    entry.finding.status = to;
-    if (to === 'resolved' && opts?.outcome) {
-      entry.finding.resolution = {
-        outcome: opts.outcome,
-        resolvedAt: event.timestamp,
-        resolvedBy: actor.id,
-        notes: opts.reason,
+      const event: FindingLifecycleEvent = {
+        id: randomUUID(),
+        findingId,
+        eventType:
+          to === 'resolved' ? 'resolved' : to === 'ignored' ? 'ignored' : this._eventTypeFor(to),
+        fromStatus: from,
+        toStatus: to,
+        actorId: actor.id,
+        actorKind: actor.kind,
+        timestamp: new Date().toISOString(),
+        reason: opts?.reason,
       };
-    }
 
-    // Re-persist the finding record so non-event fields (resolution, etc.)
-    // survive _readAll + _materialize. The latest record wins on read.
-    const updatedRecord: FindingRecord = { __finding: 1, data: entry.finding };
-    await fsp.appendFile(
-      this.filePath,
-      JSON.stringify(updatedRecord) +
-        LINE_SEPARATOR +
-        JSON.stringify({ __findingEvent: 1, data: event }) +
-        LINE_SEPARATOR,
-      { encoding: 'utf8', mode: SECRET_FILE_MODE },
-    );
+      entry.finding.status = to;
+      if (to === 'resolved' && opts?.outcome) {
+        entry.finding.resolution = {
+          outcome: opts.outcome,
+          resolvedAt: event.timestamp,
+          resolvedBy: actor.id,
+          notes: opts.reason,
+        };
+      }
 
-    return { ...entry.finding };
+      // Re-persist the finding record so non-event fields (resolution, etc.)
+      // survive _readAll + _materialize. The latest record wins on read.
+      const updatedRecord: FindingRecord = { __finding: 1, data: entry.finding };
+      await fsp.appendFile(
+        this.filePath,
+        JSON.stringify(updatedRecord) +
+          LINE_SEPARATOR +
+          JSON.stringify({ __findingEvent: 1, data: event }) +
+          LINE_SEPARATOR,
+        { encoding: 'utf8', mode: SECRET_FILE_MODE },
+      );
+
+      return { ...entry.finding };
+    });
   }
 
   async list(opts?: ListOptions): Promise<ChimeraFinding[]> {
@@ -306,64 +307,68 @@ export class JsonlFindingStore implements FindingStore {
   }
 
   async compact(opts?: CompactOptions): Promise<{ removed: number; eventsFolded: number }> {
-    const resolvedMaxAge = opts?.resolvedMaxAgeMs ?? FINDING_RESOLVED_RETENTION_MS;
-    const ignoredMaxAge = opts?.ignoredMaxAgeMs ?? FINDING_IGNORED_RETENTION_MS;
-    const now = Date.now();
+    return withFileLock(this.filePath, async () => {
+      const resolvedMaxAge = opts?.resolvedMaxAgeMs ?? FINDING_RESOLVED_RETENTION_MS;
+      const ignoredMaxAge = opts?.ignoredMaxAgeMs ?? FINDING_IGNORED_RETENTION_MS;
+      const now = Date.now();
 
-    const all = await this._readAll();
-    const kept: Array<{ record: FindingRecord | null; events: FindingLifecycleEvent[] }> = [];
-    let removed = 0;
-    let eventsFolded = 0;
+      const all = await this._readAll();
+      const kept: Array<{ record: FindingRecord | null; events: FindingLifecycleEvent[] }> = [];
+      let removed = 0;
+      let eventsFolded = 0;
 
-    for (const entry of all) {
-      const age = now - new Date(entry.finding.createdAt).getTime();
-      const isResolved = entry.finding.status === 'resolved';
-      const isIgnored = entry.finding.status === 'ignored';
-      const maxAge = isResolved ? resolvedMaxAge : isIgnored ? ignoredMaxAge : Infinity;
+      for (const entry of all) {
+        const age = now - new Date(entry.finding.createdAt).getTime();
+        const isResolved = entry.finding.status === 'resolved';
+        const isIgnored = entry.finding.status === 'ignored';
+        const maxAge = isResolved ? resolvedMaxAge : isIgnored ? ignoredMaxAge : Infinity;
 
-      if (age > maxAge && (isResolved || isIgnored)) {
-        removed++;
-        eventsFolded += entry.events.length;
-        continue;
+        if (age > maxAge && (isResolved || isIgnored)) {
+          removed++;
+          eventsFolded += entry.events.length;
+          continue;
+        }
+
+        // Fold events older than maxAge into a single compacted marker.
+        const oldEvents = entry.events.filter(
+          (ev) => now - new Date(ev.timestamp).getTime() > maxAge,
+        );
+        if (oldEvents.length > 1) {
+          eventsFolded += oldEvents.length - 1;
+          // Keep only the newest event before maxAge (fold the rest).
+          const newestOld = oldEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
+          entry.events = [
+            newestOld,
+            ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge),
+          ];
+        }
+        kept.push({ record: { __finding: 1, data: entry.finding }, events: entry.events });
       }
 
-      // Fold events older than maxAge into a single compacted marker.
-      const oldEvents = entry.events.filter(
-        (ev) => now - new Date(ev.timestamp).getTime() > maxAge,
+      // Rewrite the file.
+      const lines: string[] = [];
+      for (const { record, events } of kept) {
+        if (record) lines.push(JSON.stringify(record));
+        for (const ev of events) {
+          lines.push(JSON.stringify({ __findingEvent: 1, data: ev }));
+        }
+      }
+      // Append a compaction marker.
+      lines.push(
+        JSON.stringify({
+          __findingCompact: 1,
+          compactedAt: new Date().toISOString(),
+          removedFindings: removed,
+          foldedEvents: eventsFolded,
+        } as CompactMarker),
       );
-      if (oldEvents.length > 1) {
-        eventsFolded += oldEvents.length - 1;
-        // Keep only the newest event before maxAge (fold the rest).
-        const newestOld = oldEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
-        entry.events = [
-          newestOld,
-          ...entry.events.filter((ev) => now - new Date(ev.timestamp).getTime() <= maxAge),
-        ];
-      }
-      kept.push({ record: { __finding: 1, data: entry.finding }, events: entry.events });
-    }
 
-    // Rewrite the file.
-    const lines: string[] = [];
-    for (const { record, events } of kept) {
-      if (record) lines.push(JSON.stringify(record));
-      for (const ev of events) {
-        lines.push(JSON.stringify({ __findingEvent: 1, data: ev }));
-      }
-    }
-    // Append a compaction marker.
-    lines.push(
-      JSON.stringify({
-        __findingCompact: 1,
-        compactedAt: new Date().toISOString(),
-        removedFindings: removed,
-        foldedEvents: eventsFolded,
-      } as CompactMarker),
-    );
+      await atomicWrite(this.filePath, lines.join(LINE_SEPARATOR) + LINE_SEPARATOR, {
+        mode: 0o600,
+      });
 
-    await atomicWrite(this.filePath, lines.join(LINE_SEPARATOR) + LINE_SEPARATOR, { mode: 0o600 });
-
-    return { removed, eventsFolded };
+      return { removed, eventsFolded };
+    });
   }
 
   // ── Private helpers ──────────────────────────────────────────────

@@ -1,7 +1,9 @@
 import { AUTONOMY_TIERS, GOVERNED_OPERATIONS } from './autonomy-envelope.js';
 import { GOVERNANCE_OBSERVATION_CATEGORIES } from './event-store.js';
+import { GOVERNANCE_EVIDENCE_CANDIDATE_MAX_PAGE_SIZE } from './evidence-candidate.js';
 import { PLAN_VERSION_SCHEMA_VERSION } from './plan-version.js';
 import {
+  GOVERNANCE_RUNTIME_MODEL_CAPABILITIES,
   GOVERNANCE_SERVICE_CAPABILITIES,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
   type GovernanceServiceRequest,
@@ -204,6 +206,32 @@ function capabilityArray(value: unknown, path: string, issues: MutableIssues): v
   for (let index = 0; index < value.length; index += 1) {
     const entryPath = `${path}[${index}]`;
     enumValue(value[index], GOVERNANCE_SERVICE_CAPABILITIES, entryPath, issues);
+    if (typeof value[index] === 'string') {
+      if (seen.has(value[index])) {
+        issue(issues, 'semantic_invalid', entryPath, `${entryPath} duplicates a capability.`);
+      }
+      seen.add(value[index]);
+    }
+  }
+}
+
+function runtimeModelCapabilityArray(value: unknown, path: string, issues: MutableIssues): void {
+  if (!Array.isArray(value)) {
+    issue(issues, 'expected_array', path, `${path} must be an array.`);
+    return;
+  }
+  if (value.length === 0 || value.length > GOVERNANCE_RUNTIME_MODEL_CAPABILITIES.length) {
+    issue(
+      issues,
+      'resource_limit',
+      path,
+      `${path} must contain between 1 and ${GOVERNANCE_RUNTIME_MODEL_CAPABILITIES.length} model-safe capabilities.`,
+    );
+  }
+  const seen = new Set<string>();
+  for (let index = 0; index < value.length; index += 1) {
+    const entryPath = `${path}[${index}]`;
+    enumValue(value[index], GOVERNANCE_RUNTIME_MODEL_CAPABILITIES, entryPath, issues);
     if (typeof value[index] === 'string') {
       if (seen.has(value[index])) {
         issue(issues, 'semantic_invalid', entryPath, `${entryPath} duplicates a capability.`);
@@ -572,6 +600,32 @@ export function decodeGovernanceServiceRequest(
       exactKeys(record, ['protocolVersion', 'requestId', 'type', 'taskId'], '$', issues);
       if (record.taskId !== undefined) stringValue(record.taskId, '$.taskId', issues);
       break;
+    case 'read_evidence_candidates':
+      exactKeys(
+        record,
+        ['protocolVersion', 'requestId', 'type', 'taskId', 'afterSequence', 'limit'],
+        '$',
+        issues,
+      );
+      boundedString(record.taskId, '$.taskId', issues, 512);
+      if (record.afterSequence !== undefined) {
+        integerValue(record.afterSequence, '$.afterSequence', issues);
+      }
+      if (record.limit !== undefined) {
+        integerValue(record.limit, '$.limit', issues, 1);
+        if (
+          typeof record.limit === 'number' &&
+          record.limit > GOVERNANCE_EVIDENCE_CANDIDATE_MAX_PAGE_SIZE
+        ) {
+          issue(
+            issues,
+            'resource_limit',
+            '$.limit',
+            `$.limit must not exceed ${GOVERNANCE_EVIDENCE_CANDIDATE_MAX_PAGE_SIZE}.`,
+          );
+        }
+      }
+      break;
     case 'read_audit_observations':
     case 'read_own_capability_grant':
     case 'read_daemon_status':
@@ -606,6 +660,18 @@ export function decodeGovernanceServiceRequest(
       exactKeys(record, ['protocolVersion', 'requestId', 'type', 'observation'], '$', issues);
       validateObservation(record.observation, '$.observation', issues);
       break;
+    case 'record_workspace_snapshot':
+      exactKeys(record, ['protocolVersion', 'requestId', 'type', 'manifestHash'], '$', issues);
+      boundedString(record.manifestHash, '$.manifestHash', issues, 64);
+      if (typeof record.manifestHash === 'string' && !/^[a-f0-9]{64}$/u.test(record.manifestHash)) {
+        issue(
+          issues,
+          'invalid_value',
+          '$.manifestHash',
+          '$.manifestHash must be a lowercase SHA-256 digest.',
+        );
+      }
+      break;
     case 'issue_capability_grant':
       exactKeys(
         record,
@@ -616,6 +682,37 @@ export function decodeGovernanceServiceRequest(
       boundedString(record.clientId, '$.clientId', issues, 512);
       capabilityArray(record.capabilities, '$.capabilities', issues);
       integerValue(record.ttlMs, '$.ttlMs', issues, 1);
+      break;
+    case 'claim_runtime_attachment':
+      exactKeys(
+        record,
+        [
+          'protocolVersion',
+          'requestId',
+          'type',
+          'controlClientId',
+          'modelClientId',
+          'modelCapabilities',
+          'ttlMs',
+        ],
+        '$',
+        issues,
+      );
+      boundedString(record.controlClientId, '$.controlClientId', issues, 512);
+      boundedString(record.modelClientId, '$.modelClientId', issues, 512);
+      runtimeModelCapabilityArray(record.modelCapabilities, '$.modelCapabilities', issues);
+      integerValue(record.ttlMs, '$.ttlMs', issues, 1);
+      if (
+        typeof record.controlClientId === 'string' &&
+        record.controlClientId === record.modelClientId
+      ) {
+        issue(
+          issues,
+          'semantic_invalid',
+          '$.modelClientId',
+          '$.modelClientId must differ from $.controlClientId.',
+        );
+      }
       break;
     case 'list_capability_grants':
       exactKeys(record, ['protocolVersion', 'requestId', 'type', 'cursor', 'limit'], '$', issues);

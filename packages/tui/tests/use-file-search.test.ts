@@ -1,13 +1,13 @@
+import type { InputBuilder } from '@wrongstack/core/agent';
 import { render } from 'ink-testing-library';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import type { InputBuilder } from '@wrongstack/core/agent';
-import { Text } from '../src/ink.js';
-import { detectAtToken, useFileSearch } from '../src/hooks/use-file-search.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { State } from '../src/app-state.js';
-import { TokenPreviewStore } from '../src/token-previews.js';
 import * as fileSearchModule from '../src/file-search.js';
+import { detectAtToken, useFileSearch } from '../src/hooks/use-file-search.js';
+import { Text } from '../src/ink.js';
+import { TokenPreviewStore } from '../src/token-previews.js';
 
 // Mock node:fs/promises for file reading tests
 vi.mock('node:fs/promises', () => ({
@@ -205,11 +205,13 @@ describe('useFileSearch - @-token detection effect', () => {
     expect(refs.dispatch).toHaveBeenCalledWith({ type: 'pickerClose' });
   });
 
-  it('rejects a text file over the 1 MiB byte cap before reading or registering it', async () => {
+  it('registers a path read contract for a text file over the 1 MiB inline cap', async () => {
     const { readFile, stat } = await import('node:fs/promises');
-    vi.mocked(stat).mockResolvedValue({ size: 1024 * 1024 + 1 } as Awaited<ReturnType<typeof stat>>);
+    vi.mocked(stat).mockResolvedValue({ size: 1024 * 1024 + 1 } as Awaited<
+      ReturnType<typeof stat>
+    >);
     const builder = {
-      registerFile: vi.fn(),
+      registerFile: vi.fn(async () => '[file:test]'),
     } as unknown as InputBuilder;
     const refs = buildHarness();
     refs.builderRef.current = builder;
@@ -220,11 +222,13 @@ describe('useFileSearch - @-token detection effect', () => {
     await refs.result.current!.onPickerEnter();
 
     expect(readFile).not.toHaveBeenCalled();
-    expect(builder.registerFile).not.toHaveBeenCalled();
-    expect(refs.dispatch).toHaveBeenCalledWith({
-      type: 'addEntry',
-      entry: { kind: 'error', text: expect.stringContaining('exceeds 1 MiB attachment limit') },
+    expect(builder.registerFile).toHaveBeenCalledWith({
+      kind: 'file',
+      data: expect.stringMatching(/src\/test\.ts[\s\S]*read the complete file[\s\S]*until EOF/),
+      meta: { filename: 'src/test.ts', label: 'src/test.ts' },
     });
+    expect(refs.setDraft).toHaveBeenCalledWith('[file:test]', '[file:test]'.length);
+    expect(refs.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'addEntry' }));
   });
 
   it('accepts a text file exactly at the 1 MiB UTF-8 byte cap', async () => {
@@ -250,12 +254,12 @@ describe('useFileSearch - @-token detection effect', () => {
     });
   });
 
-  it('rejects content whose UTF-8 bytes exceed the cap despite a smaller stat size', async () => {
+  it('falls back to a path read contract when decoded UTF-8 bytes exceed the inline cap', async () => {
     const { readFile, stat } = await import('node:fs/promises');
     vi.mocked(stat).mockResolvedValue({ size: 600_000 } as Awaited<ReturnType<typeof stat>>);
     vi.mocked(readFile).mockResolvedValue('é'.repeat(600_000));
     const builder = {
-      registerFile: vi.fn(),
+      registerFile: vi.fn(async () => '[file:test]'),
     } as unknown as InputBuilder;
     const refs = buildHarness();
     refs.builderRef.current = builder;
@@ -265,10 +269,10 @@ describe('useFileSearch - @-token detection effect', () => {
 
     await refs.result.current!.onPickerEnter();
 
-    expect(builder.registerFile).not.toHaveBeenCalled();
-    expect(refs.dispatch).toHaveBeenCalledWith({
-      type: 'addEntry',
-      entry: { kind: 'error', text: expect.stringContaining('UTF-8 bytes') },
+    expect(builder.registerFile).toHaveBeenCalledWith({
+      kind: 'file',
+      data: expect.stringMatching(/src\/test\.ts[\s\S]*read the complete file[\s\S]*until EOF/),
+      meta: { filename: 'src/test.ts', label: 'src/test.ts' },
     });
   });
 

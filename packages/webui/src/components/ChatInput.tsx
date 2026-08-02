@@ -25,7 +25,7 @@ import { ImageAttachControl } from './ChatInput/image-attach-control.js';
 import { toWireImages } from './ChatInput/image-attachments.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
-import { detectAtMention, matchSlash, } from './ChatInput/slash-commands.js';
+import { detectAtMention, matchSlash } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { StopControls } from './ChatInput/stop-controls.js';
@@ -98,9 +98,7 @@ export function ChatInput({
       if (current.mode !== undefined && useChatStore.getState().isLoading) {
         const panelImages = current.images;
         const panelMode =
-          panelImages && panelImages.length > 0 && current.mode === 'btw'
-            ? 'queue'
-            : current.mode;
+          panelImages && panelImages.length > 0 && current.mode === 'btw' ? 'queue' : current.mode;
         enqueue(current.original, panelMode, panelImages);
         return;
       }
@@ -419,7 +417,9 @@ export function ChatInput({
       const combined = [content, refsMarkdown].filter(Boolean).join('\n\n');
       clearRefs();
 
-      if (content.startsWith('/') && runSlashCommand(content)) {
+      // File refs are command arguments too. Dispatching only the textarea
+      // text silently dropped every @-mention from prompt-producing commands.
+      if (content.startsWith('/') && runSlashCommand(combined)) {
         pushPrompt(content);
         setInput('');
         setHistoryIdx(-1);

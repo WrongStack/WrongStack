@@ -898,6 +898,27 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     await built.dispose?.();
   });
 
+  it('installs the host-owned tool boundary on Fleet subagent pipelines', async () => {
+    const deps = depsWithTools();
+    const installToolBoundary = vi.fn(
+      (pipelines: import('@wrongstack/core/agent').AgentPipelines) => {
+        pipelines.toolCall.prepend({
+          name: 'TrustedFleetTestBoundary',
+          async handler(payload, next) {
+            return next(payload);
+          },
+        });
+      },
+    );
+    deps.installToolBoundary = installToolBoundary;
+    const built = await new MultiAgentHost(deps).makeSubagentFactory(config)(slotCfg);
+
+    expect(installToolBoundary).toHaveBeenCalledOnce();
+    expect(installToolBoundary).toHaveBeenCalledWith(built.agent.pipelines);
+    expect(built.agent.pipelines.toolCall.list()[0]).toBe('TrustedFleetTestBoundary');
+    await built.dispose?.();
+  });
+
   it('dispose() drains agent-lifetime hooks so retired subagents do not leak timers', async () => {
     // Regression for the subagent teardown leak: every retired subagent used
     // to leave its mailbox heartbeat interval, awareness polling interval,

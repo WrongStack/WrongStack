@@ -1,7 +1,7 @@
 import type { Context } from '../../core/context.js';
+import type { ToolOutputMetadata } from '../../types/context-evidence.js';
 import type { PermissionDecision } from '../../types/permission.js';
 import type { RiskTier, Tool, ToolErrorCategory, ToolProgressEvent } from '../../types/tool.js';
-import type { ToolOutputMetadata } from '../../types/context-evidence.js';
 
 export interface ToolEventMap {
   'tool.started': {
@@ -198,6 +198,8 @@ export interface ToolEventMap {
     name: string;
     durationMs: number;
     ok: boolean;
+    /** Canonical tool-registry mutation classification; absent only on legacy emit sites. */
+    mutating?: boolean | undefined;
     input?: unknown | undefined;
     output?: string | undefined;
     /**

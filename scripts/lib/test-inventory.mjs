@@ -8,10 +8,11 @@ function normalizeFile(repoRoot, file) {
   // Also handle Windows drive-letter paths (C:/...) which are NOT absolute
   // on POSIX — strip the drive before resolving.
   let normalizedFile = file.replace(/\\/g, '/');
-  const normalizedRoot = repoRoot.replace(/\\/g, '/');
+  let normalizedRoot = repoRoot.replace(/\\/g, '/');
   // Strip Windows drive-letter prefix (e.g. "C:/repo/..." → "/repo/...")
   // so path.posix.resolve treats the remainder as an absolute POSIX path.
   normalizedFile = normalizedFile.replace(/^[A-Za-z]:/, '');
+  normalizedRoot = normalizedRoot.replace(/^[A-Za-z]:/, '');
   const absolute = path.posix.isAbsolute(normalizedFile)
     ? normalizedFile
     : path.posix.resolve(normalizedRoot, normalizedFile);

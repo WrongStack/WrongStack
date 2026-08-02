@@ -247,6 +247,54 @@ export async function downloadGitHubTarball(parsed: ParsedRef): Promise<Download
 }
 
 /**
+ * Read a tar header's 12-byte size field (WS-056).
+ */
+function readTarSize(buf: Buffer, start: number): number {
+  const first = buf[start] ?? 0;
+  if ((first & 0x80) !== 0) {
+    if (first === 0xff) {
+      throw new Error('tar: negative base-256 size field');
+    }
+    let value = first & 0x7f;
+    for (let i = start + 1; i < start + 12; i++) {
+      value = value * 256 + (buf[i] ?? 0);
+      if (!Number.isSafeInteger(value)) {
+        throw new Error('tar: base-256 size exceeds the safe integer range');
+      }
+    }
+    return value;
+  }
+  const text = readTarString(buf, start, 12).trim();
+  if (text === '') return 0;
+  if (!/^[0-7]+$/.test(text)) {
+    throw new Error(`tar: unparseable size field ${JSON.stringify(text)}`);
+  }
+  const parsed = Number.parseInt(text, 8);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error('tar: size field out of range');
+  }
+  return parsed;
+}
+
+function readTarString(buf: Buffer, start: number, maxLen: number): string {
+  let end = start;
+  while (end < start + maxLen && end < buf.length && buf[end] !== 0) {
+    end++;
+  }
+  return buf.subarray(start, end).toString('utf8');
+}
+
+/**
+ * Strip the top-level directory from a tar path.
+ * GitHub tarballs have a single root dir like `owner-repo-sha/`.
+ */
+function stripTopDir(p: string): string {
+  const idx = p.indexOf('/');
+  if (idx === -1) return ''; // top-level file, skip
+  return p.slice(idx + 1);
+}
+
+/**
  * Minimal POSIX tar extractor. Handles the ustar format produced by GitHub.
  * Only extracts regular files and directories — symlinks and special entries
  * are skipped for security.
@@ -333,53 +381,7 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
  * nor valid base-256 as fatal. Continuing from an unknown size is exactly the
  * desync; refusing to extract is the only safe response.
  */
-function readTarSize(buf: Buffer, start: number): number {
-  const first = buf[start] ?? 0;
-  // Base-256: high bit set. 0xff means a negative value, which has no meaning
-  // for a size.
-  if ((first & 0x80) !== 0) {
-    if (first === 0xff) {
-      throw new Error('tar: negative base-256 size field');
-    }
-    let value = first & 0x7f;
-    for (let i = start + 1; i < start + 12; i++) {
-      value = value * 256 + (buf[i] ?? 0);
-      if (!Number.isSafeInteger(value)) {
-        throw new Error('tar: base-256 size exceeds the safe integer range');
-      }
-    }
-    return value;
-  }
-  const text = readTarString(buf, start, 12).trim();
-  // An all-NUL or empty field is a legitimate zero (directories use it).
-  if (text === '') return 0;
-  if (!/^[0-7]+$/.test(text)) {
-    throw new Error(`tar: unparseable size field ${JSON.stringify(text)}`);
-  }
-  const parsed = Number.parseInt(text, 8);
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new Error('tar: size field out of range');
-  }
-  return parsed;
-}
 
-function readTarString(buf: Buffer, start: number, maxLen: number): string {
-  let end = start;
-  while (end < start + maxLen && end < buf.length && buf[end] !== 0) {
-    end++;
-  }
-  return buf.subarray(start, end).toString('utf8');
-}
-
-/**
- * Strip the top-level directory from a tar path.
- * GitHub tarballs have a single root dir like `owner-repo-sha/`.
- */
-function stripTopDir(p: string): string {
-  const idx = p.indexOf('/');
-  if (idx === -1) return ''; // top-level file, skip
-  return p.slice(idx + 1);
-}
 
 /**
  * Internal seam for the per-file coverage suite (mirrors

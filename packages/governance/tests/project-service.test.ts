@@ -328,6 +328,29 @@ describe('project-scoped governance service', () => {
     service.close();
   });
 
+  it('keeps workspace snapshot revision writes behind a non-model capability', () => {
+    const service = openService();
+    const request: GovernanceServiceRequest = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'request-workspace-snapshot',
+      type: 'record_workspace_snapshot',
+      manifestHash: 'a'.repeat(64),
+    };
+
+    expect(service.handle(request, client('shadow_observe'))).toMatchObject({
+      ok: false,
+      error: { code: 'permission_denied' },
+    });
+    expect(service.handle(request, client('workspace_snapshot_record'))).toMatchObject({
+      ok: true,
+      result: {
+        type: 'workspace_snapshot_recorded',
+        result: { recorded: true, snapshot: { projectId: 'project-1', revision: 1 } },
+      },
+    });
+    service.close();
+  });
+
   it('ignores forged model facts and accepts only the service-owned policy provider', () => {
     const path = databasePath();
     const untrusted = new GovernanceProjectService(

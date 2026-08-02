@@ -196,7 +196,6 @@ export class MailboxProjectServerConnection {
     args: MailboxServerOperations[O]['args'],
     options: { timeoutMs?: number | undefined } = {},
   ): Promise<MailboxServerOperations[O]['result']> {
-    await this.ensureConnected(true);
     const timeoutMs = options.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
     let lastError: unknown;
     // WS-027: the daemon idles out and respawns routinely, and the new process
@@ -210,6 +209,7 @@ export class MailboxProjectServerConnection {
     // of wedging the caller (e.g. `RemoteMailbox.initialize()`'s first `ping`).
     for (let attempt = 0; attempt <= AUTH_RETRY_MAX_ATTEMPTS; attempt++) {
       try {
+        await this.ensureConnected(true);
         return await this.request<MailboxServerOperations[O]['result']>(
           { type: 'request', op, args },
           timeoutMs,

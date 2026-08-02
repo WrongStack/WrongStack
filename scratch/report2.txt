@@ -1,0 +1,461 @@
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\persistence\src\atomic-write.ts 319 const TRANSIENT_RENAME_CODES = new Set(['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\google.ts 56 private readonly explicitCache = new Map<string, { name: string; expiresAt: number }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\agent-status-tracker.ts 79 private agents = new Map<string, AgentEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\agent-status-tracker.ts 103 private leaderPendingTools = new Map<string, PendingTool>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\agent-status-tracker.ts 104 private subagentPendingTools = new Map<string, PendingTool>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\anthropic-oauth.ts 73 const CC_TOOL_BY_LOWER = new Map(CLAUDE_CODE_TOOLS.map((t) => [t.toLowerCase(), t]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\cache-breakpoint-cap.ts 105 const keep = new Set<number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\aggregate.ts 24 const toolBuffers = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\model-output-limits.ts 168 const models = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\runtime\src\fleet\light-subagent-factory.ts 284 const allowSet = new Set(allow);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\openai-compatible.ts 11 const VALID_QUIRK_KEYS = new Set<keyof CompatibilityQuirks>([
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\decision-adapter.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\providers\src\oauth\shared.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\domain-adapter.ts 29 const TRUNCATED_ARRAYS = new Set(['recentMail', 'recentTools', 'recentCommands', 'activated', 'injected']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\domain-adapter.ts 93 const activatedIds = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\oauth\copilot.ts 102 const TERMINAL_DEVICE_FLOW_ERRORS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\oauth\chatgpt.ts 85 const CODEX_CATALOG_FAMILIES = new Set(['gpt-codex', 'gpt-codex-spark']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\oauth\chatgpt.ts 88 const available = new Set(ids);
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\file-observer.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\file-observer.ts 89 const excluded = new Set(options.excludedDirectories ?? DEFAULT_EXCLUDED);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\file-observer.ts 95 const recentToolMutations = new Map<string, RecentToolMutation>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\file-observer.ts 432 const result = new Map<string, FileFingerprint>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\opencode-go.ts 18 export const OPENCODE_GO_ANTHROPIC_MODELS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\opencode-go.ts 27 const OPENCODE_GO_FIXED_ANTHROPIC_REASONING = new Set(['minimax-m2.7', 'minimax-m2.5']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\opencode-go.ts 28 const OPENCODE_GO_QWEN_MODELS = new Set(['qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-plus']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\openai.ts 345 const toolByIndex = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\journal.ts 521 const groups = new Map<string, string[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\openai-shared.ts 9 export const OPENAI_EFFORT_VALUES = new Set<ReasoningEffort>(['none', 'low', 'medium', 'high']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\metrics-store.ts 614 const keep = new Set(
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\process-adapter.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\partition-range-cache.ts 53 const entries = new Map<string, ChroniclePartitionRange>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\partition-range-cache.ts 85 const keep = new Set(existingFiles.map((file) => this.toKey(file)));
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server-client.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server-client.ts 140 private readonly pending = new Map<number, PendingRequest>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server-client.ts 455 private readonly inflight = new Set<Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\presets\google.ts 205 const GEMINI_ALLOWED_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-access.ts 247 private readonly journals = new Map<string, ChronicleJournal>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server.ts 142 const clients = new Set<ClientState>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server.ts 143 const journals = new Map<string, ChronicleJournal>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\project-server.ts 185 const keep = new Set([...journals.keys()].sort().reverse().slice(0, MAX_OPEN_JOURNAL_DAYS));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\presets\openai.ts 310 const OPENAI_EFFORT_VALUES = new Set<ReasoningEffort>(['none', 'low', 'medium', 'high']);
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\provider-adapter.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\providers\src\presets\local-llm.ts 101 const CANONICAL_BODY_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\models\provider-model-resolve.ts 95 const byId = new Map((catalog?.models ?? []).map((m) => [m.id, m]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\query.ts 303 const counts = new Map(uniqueFields.map((field) => [field, new Map<string, number>()]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\query.ts 349 const selected = new Map<string, ChronicleEvent>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\query.ts 362 const frontierKeys = new Set(frontier.flatMap((event) => relationKeys(event).map((relation) => relation.key)));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\query.ts 378 const byKey = new Map<string, ChronicleEvent[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\query.ts 835 const currentFiles = new Map(files.map((file) => [fileId(file), file]));
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\auth-store.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\models\models-registry.ts 487 const REASONING_EFFORTS = new Set<ReasoningEffort>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\worktree\worktree-manager.ts 54 private readonly handles = new Map<string, WorktreeHandle>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\rollup-adapter.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\rollup-adapter.ts 22 const buckets = new Map<string, Bucket>(); const windowMs = Math.max(1_000, options.windowMs ?? 10_000);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\sqlite-journal.ts 125 private readonly anchors = new Map<string, ChainAnchor>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\alerts.ts 147 private readonly active = new Map<string, HqAlert>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\worktree\worktree-git.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\tool-adapter.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\stream-adapter.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\stream-adapter.ts 30 const states = new Map<string, StreamState>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\sqlite-query.ts 235 const counts = new Map(uniqueFields.map((field) => [field, new Map<string, number>()]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\sqlite-query.ts 283 const selected = new Map<string, ChronicleEvent>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\sqlite-query.ts 298 const frontierKeys = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\chronicle\sqlite-query.ts 313 const byKey = new Map<string, ChronicleEvent[]>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\bridge-context.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agent-bridge.ts 19 private readonly pendingRequests = new Map<
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-cache.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-cache.ts 87 const CACHEABLE_TIERS = new Set(['council', 'llm']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-cache.ts 97 private readonly entries = new Map<string, CacheEntry>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\brain-bridge.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\bootstrap-store.ts 45 private readonly entries = new Map<string, HqBootstrapEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\autonomous-coordinator.ts 644 const knownGoalIds = new Set(goals.map((goal) => goal.id));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\autonomous-coordinator.ts 646 const remaining = new Map(goals.map((goal) => [goal.id, goal]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agent-monitor.ts 87 private readonly _sessions = new Map<string, AgentVirtualSession>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agent-monitor.ts 96 private readonly _openStreams = new Map<string, { entry: AgentTimelineEntry }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agent-monitor.ts 112 private readonly _subscriptions = new Map<string, () => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\autonomous-brain.ts 175 private failurePatterns = new Map<string, { failures: number; lastFailure: string }>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agent-subagent-runner.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\auto-extend.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\auto-extend.ts 72 const extendCounts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\agent-prompts.ts 22 const candidateCache = new Map<string, string[]>();
+LEAK: setTimeout D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\checkpoint-wiring.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\kanban-store.ts 12 private readonly cache = new Map<string, HqKanbanSnapshotPayload>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\kanban-store.ts 13 private readonly writers = new Map<string, BestEffortLatestQueue<HqKanbanSnapshotPayload>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\kanban-store.ts 14 private readonly mergeChains = new Map<string, Promise<HqKanbanSnapshotPayload>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\kanban-store.ts 68 const records = new Map<
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hooks\shell-executor.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hooks\shell-executor.ts 15 const ALLOWED_SHELL_COMMANDS = new Set([
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain.ts 137 private readonly pending = new Map<
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\worktree-bridge.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hooks\runner.ts 101 private readonly backgroundRuns = new Map<
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\cost-bridge.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\fleet-bridge.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-trace.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-trace.ts 238 private readonly open = new Map<string, OpenRecord>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-telemetry.ts 101 private readonly counts = new Map<BrainDecisionTier, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\transcript-mapper.ts 186 const argsById = new Map<string, HqTranscriptEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\redaction.ts 12 const RAW_CONTENT_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\redaction.ts 48 const HQ_PROJECT_STATE_EVENT_TYPES = new Set(['kanban.snapshot']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\redaction.ts 50 const SENSITIVE_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\redaction.ts 66 const PATH_KEYS = new Set([
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\tool-bridge.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\tool-bridge.ts 63 const inFlight = new Map<string, InFlightTool>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\session-bridge.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\session-bridge.ts 68 const VALID_AGENT_STATUS = new Set<HqSessionAgentLiveStatus>([
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-monitor.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-monitor.ts 175 private readonly failStreaks = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-monitor.ts 177 private readonly editTimestamps = new Map<string, number[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-monitor.ts 178 private readonly lastEngagedAt = new Map<string, number>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-ledger.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-ledger.ts 149 private readonly outcomeByRequest = new Map<string, 'success' | 'failure'>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\brain-ledger.ts 152 private readonly lastInterventionByKind = new Map<string, { requestId: string; at: number }>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\system-prompt-environment-probes.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\system-prompt-environment-probes.ts 123 const langs = new Set(hits.filter((l): l is string => l !== null));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\system-prompt-builder.ts 321 const loadedNames = new Set(skills.map((s) => s.name));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\system-prompt-builder.ts 446 const byCat = new Map<string, Tool[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\infrastructure\token-counter.ts 34 private priceCache = new Map<string, PriceEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\infrastructure\provider-cache-ledger.ts 38 private readonly byProvider = new Map<string, Accum>();
+LEAK: setTimeout D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\tool-executor.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\infrastructure\logger.ts 23 const LOG_LEVELS = new Set<LogLevel>(['error', 'warn', 'info', 'debug', 'trace']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\kernel\events.ts 99 protected readonly listeners = new Map<EventName, Set<Listener<EventName>>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\kernel\events.ts 112 private readonly listenerSnapshots = new Map<EventName, readonly Listener<EventName>[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\kernel\events.ts 391 private readonly registrations = new Map<number, () => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\protocol\peer.ts 27 export const HQ_PEER_REHYDRATE_REASONS = new Set<HqPeerRehydrateReason>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-task-registry.ts 45 private readonly completed = new Map<string, TaskResult>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-task-registry.ts 46 private readonly taskWaiters = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-task-registry.ts 50 private readonly anyWaiters = new Set<AnyWaiter>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-task-registry.ts 124 const done = new Set(completed.map((result) => result.taskId));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\session-registry.ts 448 const observed = new Map(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\session-registry.ts 655 const transientCodes = new Set(['EPERM', 'EBUSY', 'EACCES', 'ETXTBSY', 'ENOTEMPTY']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-config-validation.ts 4 const PROJECT_AGENT_CONFIG_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-config-validation.ts 18 const PROJECT_AGENT_BUDGET_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-config-validation.ts 109 const allowedKeys = new Set(['allowed', 'fallbacks', 'strict']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-config-validation.ts 132 const allowed = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-config-validation.ts 150 const allowedKeys = new Set(['timezone', 'days', 'start', 'end', 'mode']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-collab.ts 40 private readonly activeSessions = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-budget-policy.ts 35 private readonly extendTotals = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-budget-policy.ts 42 private readonly extendCounts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-budget-policy.ts 48 private readonly progressBySubagent = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director\director-budget-policy.ts 55 private readonly lastTimeoutProgress = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-store.ts 283 const phases = new Map<string, PhaseNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-store.ts 329 const nodes = new Map<string, TaskNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-learning-entries.ts 5 const setA = new Set(a.split(/\s+/));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-learning-entries.ts 6 const setB = new Set(b.split(/\s+/));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-learning-entries.ts 7 const intersect = new Set([...setA].filter((t) => setB.has(t)));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-learning-entries.ts 8 const union = new Set([...setA, ...setB]);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\dep-watcher.ts 183 const pending = new Map<string, ReturnType<typeof setTimeout>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-orchestrator.ts 67 private trackerCache = new Map<string, TaskTracker>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-orchestrator.ts 68 private taskRetryCounts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-orchestrator.ts 74 private readonly phaseWorktrees = new Map<string, WorktreeHandle>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-orchestrator.ts 78 private readonly phaseMergePromise = new Map<string, Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-identity.ts 563 const captureCooldowns = new Map<string, number>(); // role → timestamp
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\agents\project-agent-identity.ts 564 const captureFrequency = new Map<string, number>(); // role → count
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\skill-loader.ts 137 const claimedBy = new Map<string, { source: SkillManifest['source']; path: string }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\delegate-tool.ts 619 const budgetKinds = new Set([
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\commit-safety.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\commit-safety.ts 219 const map = new Map<string, FileAuthorEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\protocol\core.ts 136 const KNOWN_HQ_CLIENT_FRAME_TYPES = new Set<HqClientMessage['type']>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\protocol\core.ts 144 const HQ_CLIENT_KINDS = new Set<HqClientKind>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\protocol\core.ts 152 const HQ_WORKSPACE_KINDS = new Set<HqWorkspaceKind>(['git', 'directory', 'unknown']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\protocol\core.ts 153 const HQ_CLIENT_CAPABILITIES = new Set<HqClientCapability>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\protocol\core.ts 161 const HQ_COMMAND_ACK_STATUSES = new Set<HqClientCommandAckMessage['status']>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-debug.ts 100 private readonly bugs = new Map<string, BugFinding>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-debug.ts 101 private readonly plans = new Map<string, RefactorPlan>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-debug.ts 102 private readonly evaluations = new Map<string, CriticEvaluation>();
+LEAK: array D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-debug.ts 103 private readonly disposers = [] as (() => void)[];
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-debug.ts 112 private readonly progressBySubagent = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-debug.ts 114 private readonly lastTimeoutProgress = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-credential-throttle.ts 60 private readonly records = new Map<string, AttemptRecord>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\mailbox-loop.ts 165 const recent = new Set([...injectedIds].slice(-500));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\mailbox-loop.ts 216 const ACTION_FOOTER_TYPES = new Set<MailboxMessageType>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\mailbox-loop.ts 222 const BACKGROUND_DELIVERY_TYPES = new Set<MailboxMessageType>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\mailbox-loop.ts 229 const OUT_OF_BAND_TYPES = new Set<MailboxMessageType>(['control']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\mailbox-loop.ts 330 const blockRefs = new Set<TextBlock>(injectedBlocks);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\mailbox-loop.ts 331 const blockTexts = new Set(injectedBlocks.map((block) => block.text));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\collab-bus.ts 148 private readonly injectionQueue = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-graph-builder.ts 45 const phases = new Map<string, PhaseNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-graph-builder.ts 141 const dependents = new Map<string, string[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\phase-graph-builder.ts 149 const inDegree = new Map<string, number>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 135 private readonly pendingSince = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 137 private readonly lastActivityAt = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 139 private readonly failStreaks = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 145 private readonly lastEngagedAt = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 146 private readonly interventionsBySubagent = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 297 const pendingIds = new Set(pending.map((t) => t.id));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 320 const runningIds = new Set(running.map((s) => s.id));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-supervisor.ts 321 const pinnedByWorker = new Map<string, TaskSpec[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-auth-types.ts 101 const result = new Set<MailboxCapability>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director.ts 128 readonly subagentMeta = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director.ts 132 readonly priceLookups = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director.ts 141 readonly subagentBridges = new Map<string, InMemoryAgentBridge>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director.ts 142 readonly manifestEntries = new Map<string, unknown>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director.ts 151 private readonly subagentIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director.ts 168 readonly taskWorktrees = new Map<string, WorktreeTaskStateUpdate>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-status-tool.ts 101 const local = new Map<string, AgentEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director-tools.ts 563 const disposers = new Map<string, () => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director-tools.ts 619 const runTaskIds = new Set(dispatches.map((dispatch) => dispatch.runTaskId));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\prompt-loader.ts 103 const counts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\prompt-loader.ts 272 const declared = new Map((entry.variables ?? []).map((v) => [v.name, v]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-manager.ts 107 private readonly manifestEntries = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-manager.ts 122 private readonly pendingTasks = new Map<string, { subagentId: string; description: string }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-manager.ts 123 private readonly subagentMeta = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-manager.ts 127 private readonly priceLookups = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\large-answer-store.ts 40 private readonly store = new Map<string, AnswerEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\director-quality-gate-tool.ts 161 const taskRoleById = new Map<string, 'reviewer' | 'verifier'>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\fallback-profile-manager.ts 79 const entries = new Map<string, readonly string[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\fallback-profile-manager.ts 228 const seen = new Set(bridge.map((entry) => `${entry.providerId}/${entry.model}`));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\fallback-profile-manager.ts 337 const favoriteSet = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\prompt-enhancer.ts 116 const ENGLISH_PROMPT_WORDS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\prompt-enhancer.ts 182 const NON_ENGLISH_PROMPT_WORDS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\kernel\container.ts 37 private readonly entries = new Map<symbol, Entry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\kernel\container.ts 47 private readonly resolving = new Set<symbol>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\kernel\container.ts 149 const seen = new Set<symbol>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\goal\checkpoint.ts 48 private checkpoints = new Map<string, Checkpoint>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-bus.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-bus.ts 34 private readonly byId = new Map<string, Set<FleetHandler>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-bus.ts 35 private readonly byType = new Map<string, Set<FleetHandler>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-bus.ts 36 private readonly any = new Set<FleetHandler>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-bus.ts 194 private readonly perSubagent = new Map<string, SubagentUsageSnapshot>();
+LEAK: array D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\fleet-bus.ts 196 private readonly unsub = [] as (() => void)[];
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\directory-policy-schema.ts 46 const RULE_FIELDS = new Set(['directory', 'description', 'denyTools', 'denyProviders', 'allowOnlyTools']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\directory-policy-schema.ts 47 const UNSAFE_PROPERTY_NAMES = new Set(['__proto__', 'prototype', 'constructor']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\knowledge-graph.ts 191 private readonly nodes = new Map<string, GraphNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\knowledge-graph.ts 193 private readonly subs = new Map<string, GraphSubscription>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\knowledge-graph.ts 194 private readonly pendingDeliveries = new Map<string, GraphNode[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\knowledge-graph.ts 210 private readonly seq = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\knowledge-graph.ts 302 const evicted = new Set(terminal.slice(0, toEvict).map((e) => e.id));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\knowledge-graph.ts 580 const latest = new Map<string, GraphNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\yolo-risk.ts 36 const CATASTROPHIC_POSIX_ROOTS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\yolo-risk.ts 41 const CATASTROPHIC_WIN_SUBDIRS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\yolo-risk.ts 46 const SHELL_OPERATORS = new Set(['&&', '||', '|', ';', '>', '>>', '<', '2>', '2>>']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\persistence\timeseries-store.ts 69 private readonly buckets = new Map<number, HqTimeseriesSample>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\persistence\timeseries-store.ts 70 private readonly dirtyVersions = new Map<number, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\hq\persistence\timeseries-store.ts 171 const versions = new Map(this.dirtyVersions);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\file-author-tracker.ts 150 const map = new Map<string, FileAuthorEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\directory-permission-policy.ts 64 const PATH_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\conversation-state.ts 47 private readonly listeners = new Set<StateChangeHandler>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\dispatcher.ts 98 const haySet = new Set(normalize(task).split(/\s+/).filter(Boolean));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\in-memory-transport.ts 8 private readonly subs = new Map<string, Set<(msg: BridgeMessage) => void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\trust-boundary.ts 188 const SURFACES = new Set<TrustSurface>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\trust-boundary.ts 198 const ACTORS = new Set<TrustActorKind>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\trust-boundary.ts 206 const RISKS = new Set<TrustRisk>(['low', 'elevated', 'high', 'critical']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\trust-boundary.ts 207 const AUTH_METHODS = new Set<TrustAuthMethod>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\trust-boundary.ts 214 const SUBJECT_KINDS = new Set<TrustSubject['kind']>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\trust-boundary.ts 223 const RESERVED_BYPASS_FIELDS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\config-secrets.ts 80 const NON_SECRET_OVERRIDES = new Set(['publickey', 'public_key']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-receipt-folding.ts 74 const receiptsByMessage = new Map<string, MailboxReceiptRecordV2[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-validation.ts 196 const VALID_TYPES = new Set(Object.keys(MAILBOX_TYPE_PROPERTIES) as MailboxMessageType[]);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-validation.ts 197 const VALID_PRIORITIES = new Set(['low', 'normal', 'high']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-validation.ts 198 const VALID_AUDIENCES = new Set<MailboxAudience>(['all', 'leaders']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-validation.ts 199 const RESERVED_FROM_IDS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-validation.ts 208 const RESERVED_READER_IDS = new Set([
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server.ts 96 const clients = new Set<ClientState>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\multi-agent-coordinator.ts 62 private readonly subagents = new Map<string, SubagentEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\multi-agent-coordinator.ts 435 const ids = new Set(taskIds);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\multi-agent-coordinator.ts 438 const done = new Set(completed.map((r) => r.taskId));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\context.ts 497 private abortHooks = new Set<() => void | Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\context.ts 527 private agentHooks = new Set<() => void | Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-router.ts 154 const closeSseStreams = new Set<() => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-router.ts 476 const requestedIds = new Set(input.acks.map((ack) => ack.messageId));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-router.ts 477 const visibleIds = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-router.ts 613 const eligibleRecipients = new Set(eligibleRecipientsForActor(actor));
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server-client.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server-client.ts 132 private readonly pending = new Map<number, PendingRequest>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server-client.ts 133 private readonly eventListeners = new Set<(event: string, payload: unknown) => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server-client.ts 134 private readonly mailboxEventListeners = new Set<(event: MailboxEvent) => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-project-server-client.ts 135 private readonly stateListeners = new Set<(state: MailboxProjectServerConnectionState) => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-http-rate-limit.ts 6 private readonly hits = new Map<string, number[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-tool.ts 442 const ids = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-parse-state.ts 107 const staleExisting = new Set<number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\permission-policy.ts 166 const SHELL_READ_VERBS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\permission-policy.ts 249 private sessionDenied = new Map<string, boolean>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\permission-policy.ts 258 private sessionAllowed = new Map<string, boolean>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\agent-tools.ts 25 const DIFF_TOOL_NAMES = new Set(['edit', 'write', 'replace', 'patch', 'diff']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\agent-tools.ts 216 const useById = new Map(selectedToolUses.map((u) => [u.id, u]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-message-codec.ts 12 const MESSAGE_TYPES = new Set<MailboxMessageType>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-message-codec.ts 25 const PRIORITIES = new Set<MailboxMessage['priority']>(['low', 'normal', 'high']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-message-codec.ts 26 const AUDIENCES = new Set<MailboxAudience>(['all', 'leaders']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-message-codec.ts 27 const TASK_STATUSES = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\mailbox-events.ts 32 private listeners = new Set<MailboxEventListener>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\core\agent-loop.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugin\loader.ts 138 const map = new Map<string, Plugin>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugin\loader.ts 308 const names = new Set(plugins.map((p) => p.name));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\sqlite-mailbox.ts 109 private readonly lastHeartbeat = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\sqlite-mailbox.ts 110 private readonly lastClientHeartbeat = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\package-author-tracker.ts 194 const map = new Map<string, PackageAuthorEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\compaction-summary-cache.ts 43 private readonly pending = new Map<string, Promise<string>>();
+LEAK: setTimeout D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\tree-kill.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\remote-mailbox.ts 57 const sharedRemoteMailboxes = new Map<string, RemoteProjectCache>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\remote-mailbox.ts 58 const sharedProjectConnections = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\remote-mailbox.ts 102 private readonly hqEventPending = new Map<string, MailboxEvent>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\worktree-task-runner.ts 77 const MUTATING_TOOL_NAMES = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\design-verify.ts 172 const SKIP_DIR = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\compaction-scoring.ts 85 const failureCounts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\tool-wire-compact.ts 104 const common = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\provider-status-tracker.ts 190 private readonly map = new Map<string, MutableProviderModelStatus>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\provider-status-tracker.ts 192 private readonly providerQuotaBlocks = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\provider-status-tracker.ts 946 const PROVIDER_ERROR_KINDS = new Set<ProviderErrorKind>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\sqlite-mailbox-schema.ts 238 const result = new Map<string, T>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugin\config.ts 92 const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugin\config.ts 125 const expected = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\tool-registry.ts 34 private readonly tools = new Map<string, { tool: Tool; owner: string }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\tool-registry.ts 35 private readonly descriptionModes = new Map<string, ToolDescriptionMode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\tool-registry.ts 341 const map = new Map<string, Tool[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-dag.ts 55 private readonly nodes = new Map<string, DAGNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-dag.ts 56 private readonly handlers = new Set<DAGEdgeHandler>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-dag.ts 57 private readonly runnablesHandlers = new Set<RunnablesHandler>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\compaction-core.ts 276 const tokenCache = new Map<ContentBlock, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\compaction-core.ts 807 const newestIndexByKey = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\design-project-store.ts 28 const rulesCache = new Map<string, string | undefined>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\sqlite-mailbox-rows.ts 164 const receiptState = new Map<string, Record<string, MailboxRecipientState>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\sqlite-mailbox-rows.ts 240 const agents = new Map<string, RegisteredAgent>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\sqlite-mailbox-rows.ts 299 const clients = new Map<string, RegisteredClient>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-auctioneer.ts 104 private readonly pendingBids = new Map<string, TaskBid[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-auctioneer.ts 107 private readonly bidTimers = new Map<string, NodeJS.Timeout>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-auctioneer.ts 113 private readonly bidRetryCounts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\task-auctioneer.ts 116 private readonly agentTaskCounts = new Map<string, number>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugin\api.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugin\api.ts 402 const providerCache = new Map<string, Provider>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\coordination\subagent-budget.ts 559 private _pendingNegotiations = new Map<BudgetKind, Promise<BudgetThresholdDecision>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\slash-command-registry.ts 15 private readonly cmds = new Map<string, { cmd: SlashCommand; owner: string; official: boolean }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\slash-command-registry.ts 100 const seen = new Set<SlashCommand>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\slash-command-registry.ts 112 const seen = new Set<SlashCommand>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\tool-output-serializer.ts 467 const groups = new Map<string, string[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\tool-output-serializer.ts 605 const selected = new Set<number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\design-kit-loader.ts 149 private readonly tokenCache = new Map<string, DesignKitTokens | undefined>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\design-kit-loader.ts 150 private readonly rawTokenCache = new Map<string, DesignKitTokens | undefined>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\design-kit-loader.ts 357 const loaderMemo = new Map<string, DefaultDesignKitLoader>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\permission-policy-schema.ts 71 const RULE_FIELDS = new Set(['allow', 'deny', 'auto', 'trustWorkdir', 'denyPrivate']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\permission-policy-schema.ts 72 const UNSAFE_PROPERTY_NAMES = new Set(['__proto__', 'prototype', 'constructor']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\health.ts 22 private checks = new Map<string, HealthCheck>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\registry\provider-registry.ts 27 private readonly factories = new Map<string, ProviderFactory>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\event-bridge.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\brain-evaluation.ts 158 const requestIds = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\brain-evaluation.ts 210 const requestOptionIds = new Set(fixture.request.options?.map((option) => option.id) ?? []);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\kanban-boundary.ts 18 const PATH_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\security\kanban-boundary.ts 164 const pathKeys = new Set(PATH_KEYS);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\design-detect.ts 192 const WRITE_TOOLS = new Set(['write', 'edit', 'replace', 'patch']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\brain-circuit.ts 60 private readonly targetFailures = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\token-estimate.ts 46 const _cals = new Map<string, CalState>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\token-estimate.ts 86 const ESTIMATE_CACHE = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\metrics.ts 57 private counters = new Map<string, Map<string, CounterState>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\metrics.ts 58 private gauges = new Map<string, Map<string, GaugeState>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\metrics.ts 59 private histograms = new Map<string, Map<string, HistogramState>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\metrics.ts 65 private droppedByMetric = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\brain-chain.ts 209 const seatedLabels = new Set(voters.map((v) => v.label ?? v.model));
+LEAK: setTimeout D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\term.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\council-resolution.ts 69 const seatById = new Map(input.seats.map((seat) => [seat.id, seat] as const));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\council-resolution.ts 100 const weightByOption = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\task-format.ts 140 const groups = new Map<TaskStatus, TaskItem[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\council-profiles.ts 88 const entries = new Map<string, ResolvedCouncilProfile>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\autonomy-brain.ts 909 const byId = new Map(options.map((option) => [option.id, option] as const));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\council-personas.ts 64 const entries = new Map<string, CouncilPersona>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\observability\prometheus.ts 56 const groups = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\council-orchestrator.ts 638 const allowed = new Set([...question.options.map((option) => option.id.trim()), refusalOptionId]);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\execution\council-orchestrator.ts 665 const allowed = new Set([...question.options.map((option) => option.id.trim()), refusalOptionId]);
+LEAK: setTimeout D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\sleep.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-context-builder.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-context-builder.ts 323 const byPath = new Map(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\types\config\runtime.ts 138 const validTiers = new Set<ConcreteTokenSavingTier>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\types\prompt-registry.ts 159 const localBySlug = new Map(local.map((e) => [e.slug, e.checksum]));
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\chimera-plugin.ts
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\project-watch.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\project-watch.ts 68 const subscribers = new Set<Subscriber>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-claim-registry.ts 134 const claimedKeys = new Set(claims.map((claim) => claim.key));
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\auto-review-plugin.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\auto-review-plugin.ts 313 const agents = new Set<CascadeAgentKind>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\auto-review-plugin.ts 612 const pendingFiles = new Map<string, ChangedFileSnapshot>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\auto-review-plugin.ts 834 const trackedChangedPaths = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\auto-review-plugin.ts 859 const emittedPaths = new Set(emittedBundle.files.map((file) => file.path));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\auto-review-plugin.ts 974 const trackedChangedPaths = new Set(existing.map((file) => file.path));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\types\task-graph.ts 205 const nodes = new Map<string, TaskNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\deep-merge.ts 17 export const FORBIDDEN_PROTO_KEYS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-finding-store.ts 252 const sevs = new Set(opts.severities);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-finding-store.ts 256 const sts = new Set(opts.statuses);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-finding-store.ts 395 const findings = new Map<string, ChimeraFinding>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-finding-store.ts 396 const eventsMap = new Map<string, FindingLifecycleEvent[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\glob-expand.ts 14 const GLOB_CHARS = new Set(['*', '?', '[']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\json-repair.ts 123 const VALID_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-report-store.ts 267 const set = new Set(opts.statuses);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-report-store.ts 271 const set = new Set(opts.sources);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-report-store.ts 386 const reports = new Map<string, ReviewReport>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\plugins\review-report-store.ts 387 const eventsMap = new Map<string, ReviewReportEvent[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\heap-watchdog.ts 59 const counts = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\heap-watchdog.ts 339 const sharedContributors = new Map<number, SharedHeapWatchdogContributor>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\continuous-memory-profiler.ts 79 const functions = new Map(profile.function.map((entry) => [numeric(entry.id), entry]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\continuous-memory-profiler.ts 80 const locations = new Map(profile.location.map((entry) => [numeric(entry.id), entry]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\continuous-memory-profiler.ts 81 const stacks = new Map<string, MemoryAllocationStack>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\diff.ts 19 const v = new Map<number, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\diff.ts 24 const snapshot = new Map(v);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tools\plugin-manager.ts 311 const knownNames = new Set(catalog.flatMap((entry) => [entry.name, ...(entry.aliases ?? [])]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tools\plugin-manager.ts 330 const names = new Set([entry.name, ...aliases]);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tools\plugin-manager.ts 362 const locked = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tools\plugin-manager.ts 401 const names = new Set([plugin.name, ...plugin.aliases]);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\lru-cache.ts 20 private readonly store = new Map<K, V>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tools\mcp-control.ts 151 const liveMap = new Map(live.map((s) => [s.name, s]));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tools\mcp-control.ts 178 const configuredNames = new Set(Object.keys(configured));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\context-evidence.ts 24 const WRITE_TOOLS = new Set(['edit', 'write', 'replace', 'patch']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\utils\context-evidence.ts 25 const READ_TOOLS = new Set(['read', 'grep', 'glob', 'ls', 'tree']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\skills\foreign-sources.ts 36 const KNOWN_FOREIGN_IDS = new Set(FOREIGN_SKILL_TOOLS.map((t) => t.id));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\skills\frontmatter.ts 34 const SCALAR_KEYS = new Set(['name', 'description', 'trigger', 'version', 'license', 'compatibility']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\tasking\task-store.ts 12 private readonly graphs = new Map<string, TaskGraph>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\annotations-store.ts 92 private readonly writeChains = new Map<string, Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\annotations-store.ts 217 const toEvict = new Set(sorted.slice(0, evictCount).map((s) => s.a.id));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\attachment-store.ts 39 private readonly items = new Map<string, Attachment>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\skills\skill-installer.ts 356 const bySource = new Map<string, InstalledSkillEntry[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\cloud-sync.ts 398 const selected = new Set(categories.map((category) => `data/${category}`));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\cloud-sync.ts 399 const localPaths = new Set(localEntries.map((entry) => entry.path));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\skills\skill-generator.ts 297 const STOPWORDS = new Set([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\config-store.ts 34 private watchers = new Set<(next: Readonly<Config>, prev: Readonly<Config>) => void>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\config-loader.ts 86 private readonly jsonCache = new Map<string, MemoizedConfigSource>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\config-loader\bootstrap.ts 1 const BOOTSTRAP_KEYS = new Set(['version', 'activeProfile']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\config-loader\env-overrides.ts 11 const LOG_LEVELS = new Set<Config['log']['level']>(['error', 'warn', 'info', 'debug', 'trace']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\plan-templates.ts 118 const cats = new Map<PlanTemplate['category'], PlanTemplate[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\config-loader\inline-provider-models.ts 137 const derived = new Map<string, CustomModelDefinition>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-consolidator.ts 267 const allowed = new Set<ConsolidatorMemoryAnchor['type']>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-backend.ts 160 const wordMap = new Map<string, number[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-backend.ts 161 const tagMap = new Map<string, number[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-backend.ts 205 const scores = new Map<number, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-backend.ts 268 private readonly entryCache = new Map<string, MemoryEntry[]>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-backend.ts 270 private readonly indexCache = new Map<string, InvertedIndex>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-backend.ts 272 private readonly mtimeCache = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 68 private nodes = new Map<string, GraphNode>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 187 const nodeMap = new Map(this.nodes.entries());
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 205 const fileIds = new Set(fileEntries.map((e) => this.nodeId(e)));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 221 const candidates = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 462 const wordsA = new Set(a.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 463 const wordsB = new Set(b.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\memory-graph-backend.ts 475 const setB = new Set(b);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\goal-coordination.ts 42 const seen = new Set<number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\goal-coordination.ts 79 const completedIndices = new Set(completed.map((item) => item.index));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\goal-coordination.ts 229 const originKeys = new Set(completed.map((item) => `deliverable:${item.index}`));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\goal-coordination.ts 232 const completedTitles = new Set(completed.map((item) => normalizeTitle(item.text)));
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\goal-coordination.ts 266 const tasksByOrigin = new Map(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\goal-coordination.ts 271 const completedLegacyTitles = new Set(
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\replay-log-store.ts 89 private readonly writeChains = new Map<string, Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\replay-log-store.ts 91 private readonly cache = new Map<string, Map<string, ReplayEntryLocation>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\replay-log-store.ts 93 private readonly diskCount = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\replay-log-store.ts 175 const refreshed = new Map<string, ReplayEntryLocation>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\provider-config-watcher.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-analyzer.ts 52 const tasksById = new Map<string, TaskSummary>();
+LEAK: event_listener D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-checkpoint-cas.ts
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-event-bridge.ts 57 const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-event-bridge.ts 81 const STANDARD_AUDIT_EVENTS = new Set<SessionEvent['type']>([
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-event-bridge.ts 112 const FULL_ONLY_EVENTS = new Set<SessionEvent['type']>(['tool_progress']);
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-event-bridge.ts 164 const progressCounters = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-reader.ts 171 const scrubbedByIndex = new Map<number, SessionEvent>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-resume-validation.ts 34 const latest = new Map<string, FileObservation>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-rewinder.ts 67 const fileCountMap = new Map<number, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\tool-audit-log.ts 94 private readonly tailIndex = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\tool-audit-log.ts 101 private readonly tailStat = new Map<string, { mtimeMs: number; size: number }>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\tool-audit-log.ts 103 private readonly unSyncedWrites = new Map<string, number>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\tool-audit-log.ts 104 private readonly writeChains = new Map<string, Promise<void>>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-store.ts 95 private readonly _loadCache = new Map<
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-store.ts 101 private readonly shardManifestCache = new Map<string, ShardManifestEntry>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-store.ts 751 const byId = new Map<string, SessionSummary>();
+LEAK: map_set D:\Codebox\PROJECTS\WrongStack\packages\core\src\storage\session-store\load-cache.ts 13 constructor(private readonly entries = new Map<string, LoadCacheEntry>()) {}

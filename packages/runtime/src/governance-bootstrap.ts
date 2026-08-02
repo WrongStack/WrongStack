@@ -18,6 +18,17 @@ import {
 } from '@wrongstack/governance';
 import { sanitizeGovernanceMessage } from './governance-sanitize.js';
 
+export type {
+  GovernanceEvidenceCandidate,
+  GovernanceEvidenceCandidateMissingBinding,
+  GovernanceEvidenceTraceSnapshot,
+  GovernanceToolOutcomeMetadata,
+} from '@wrongstack/governance';
+export {
+  createGovernanceEvidenceCandidate,
+  GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION,
+} from '@wrongstack/governance';
+
 export interface BootstrapGovernanceRuntimeOptions {
   readonly projectRoot: string;
   readonly projectId: string;
@@ -50,6 +61,22 @@ export interface GovernanceRuntimeObservationInput {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
+export type GovernanceRuntimeWorkspaceSnapshotResult =
+  | {
+      readonly recorded: true;
+      readonly snapshot: import('@wrongstack/governance').WorkspaceSnapshotFenceDescriptor;
+    }
+  | {
+      readonly recorded: false;
+      readonly code:
+        | 'closed'
+        | 'request_failed'
+        | 'request_rejected'
+        | 'unexpected_response'
+        | 'workspace_snapshot_invalid';
+      readonly message: string;
+    };
+
 export type GovernanceRuntimeObservationResult =
   | {
       readonly recorded: true;
@@ -80,7 +107,7 @@ export class GovernanceRuntimeBootstrapHandle {
   readonly #runtime: GovernanceCompatibilityRuntime;
   readonly #snapshot: GovernanceRuntimeBootstrapSnapshot;
   readonly #pendingObservations = new Set<Promise<GovernanceRuntimeObservationResult>>();
-  #acceptingObservations = true;
+  #acceptingRuntimeWrites = true;
   #closePromise: Promise<GovernanceRuntimeBootstrapCloseResult> | undefined;
 
   constructor(
@@ -106,7 +133,7 @@ export class GovernanceRuntimeBootstrapHandle {
   }
 
   observe(input: GovernanceRuntimeObservationInput): Promise<GovernanceRuntimeObservationResult> {
-    if (!this.#acceptingObservations) {
+    if (!this.#acceptingRuntimeWrites) {
       return Promise.resolve(
         Object.freeze({
           recorded: false,
@@ -130,6 +157,52 @@ export class GovernanceRuntimeBootstrapHandle {
     return pending;
   }
 
+  async recordWorkspaceSnapshot(
+    manifestHash: string,
+  ): Promise<GovernanceRuntimeWorkspaceSnapshotResult> {
+    if (!this.#acceptingRuntimeWrites) {
+      return Object.freeze({
+        recorded: false,
+        code: 'closed',
+        message: 'Governance runtime is closing and no longer accepts workspace snapshots.',
+      });
+    }
+    try {
+      const response = await this.#runtime.recordWorkspaceSnapshot(manifestHash);
+      if (!response.ok) {
+        return Object.freeze({
+          recorded: false,
+          code: 'request_rejected',
+          message: sanitizeGovernanceMessage(response.error.message),
+        });
+      }
+      if (response.result.type !== 'workspace_snapshot_recorded') {
+        return Object.freeze({
+          recorded: false,
+          code: 'unexpected_response',
+          message: 'Governance workspace snapshot returned an unexpected response.',
+        });
+      }
+      if (!response.result.result.recorded) {
+        return Object.freeze({
+          recorded: false,
+          code: response.result.result.code,
+          message: sanitizeGovernanceMessage(response.result.result.message),
+        });
+      }
+      return Object.freeze({
+        recorded: true,
+        snapshot: response.result.result.snapshot,
+      });
+    } catch (error) {
+      return Object.freeze({
+        recorded: false,
+        code: 'request_failed',
+        message: sanitizeGovernanceMessage(error instanceof Error ? error.message : String(error)),
+      });
+    }
+  }
+
   close(): Promise<GovernanceRuntimeBootstrapCloseResult> {
     if (this.#closePromise) return this.#closePromise;
     this.#closePromise = this.closeOnce();
@@ -137,7 +210,7 @@ export class GovernanceRuntimeBootstrapHandle {
   }
 
   private async closeOnce(): Promise<GovernanceRuntimeBootstrapCloseResult> {
-    this.#acceptingObservations = false;
+    this.#acceptingRuntimeWrites = false;
     await Promise.allSettled([...this.#pendingObservations]);
     const action = this.#snapshot.source === 'launched' ? 'shutdown' : 'detach';
     try {

@@ -52,6 +52,9 @@ const SkillDetailView = lazy(() =>
 const TechStackView = lazy(() =>
   import('./TechStackView').then((m) => ({ default: m.TechStackView })),
 );
+const DeadCodeScanPanel = lazy(() =>
+  import('./DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({ default: m.DeadCodeScanPanel })),
+);
 
 /**
  * Main view router — switches the main content area based on `currentView`.
@@ -262,6 +265,15 @@ export function ViewRouter({ sessionId, desktopShell }: { sessionId: string | nu
           <Suspense fallback={<PanelSuspense label="Loading TechStack…" />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <TechStackView />
+            </div>
+          </Suspense>
+        </ErrorBoundary>
+      )}
+      {currentView === 'deadcode' && (
+        <ErrorBoundary level="panel" name="DeadCode">
+          <Suspense fallback={<PanelSuspense label="Loading Dead Code Scan…" />}>
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto">
+              <DeadCodeScanPanel />
             </div>
           </Suspense>
         </ErrorBoundary>

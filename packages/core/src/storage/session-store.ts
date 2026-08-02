@@ -18,13 +18,12 @@ import type {
   SessionSummary,
   SessionWriter,
   WorkspaceCheckpointRef,
-  WorkspaceMaterializationResult,
 } from '../types/session.js';
 import { atomicWrite, ensureDir, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import { FileSessionWriter } from './file-session-writer.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
-import { sessionContentText } from './session-helpers.js';
+import { captureCheckpoint, materializeCheckpoint, sessionContentText } from './session-helpers.js';
 import { generateSessionId } from './session-id.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
@@ -235,16 +234,17 @@ export class DefaultSessionStore implements SessionStore {
     return forkSession(this, id, opts);
   }
 
-  async materializeWorkspaceCheckpoint(
-    checkpoint: WorkspaceCheckpointRef,
-    targetRoot: string,
-  ): Promise<WorkspaceMaterializationResult> {
-    if (!this.checkpointCas) {
-      throw new Error(
-        'Workspace checkpoint materialization requires a projectRoot-aware session store',
-      );
-    }
-    return this.checkpointCas.materialize(checkpoint, targetRoot);
+  /**
+   * Capture the deterministic post-tool workspace identity through the store-owned CAS.
+   */
+  async captureWorkspaceCheckpoint(sessionId: string, promptIndex: number) {
+    return captureCheckpoint(this.checkpointCas, sessionId, promptIndex);
+  }
+  /**
+   * Materialize a store-owned checkpoint into an already isolated workspace.
+   */
+  async materializeWorkspaceCheckpoint(checkpoint: WorkspaceCheckpointRef, targetRoot: string) {
+    return materializeCheckpoint(this.checkpointCas, checkpoint, targetRoot);
   }
 
   async resolveId(query: string): Promise<string> {

@@ -14,12 +14,12 @@
  * @module review-report-integration
  */
 
-import type { ChimeraReviewCompletePayload } from './review-types.js';
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
 import type { FindingSource } from './review-finding-types.js';
 import { JsonlReportStore, type PersistReportInput } from './review-report-store.js';
 import type { ReviewReportCounts, ReviewReportFile } from './review-report-types.js';
+import type { ChimeraReviewCompletePayload } from './review-types.js';
 
 /**
  * Result of a report integration run.
@@ -54,8 +54,8 @@ export async function persistReviewReport(
   const existed = await store.get(reportId);
 
   const source = classifySource(payload);
-  const agentId = payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId
-    ?? 'chimera-review';
+  const agentId =
+    payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review';
   const sessionId = payload.sessionId ?? payload.cwd;
   const model = payload.bundle.config.model;
   const cascadeDepth = payload.bundle.cascadeDepth;
@@ -65,15 +65,15 @@ export async function persistReviewReport(
     status: f.status,
   }));
 
-  const reviewStatus: 'success' | 'failed' =
-    payload.status === 'success' ? 'success' : 'failed';
+  const reviewStatus: 'success' | 'failed' = payload.status === 'success' ? 'success' : 'failed';
 
   // Parse the report for counts + duration. For failed reviews, rawText may
   // be empty — we still persist the record so there's an audit trail of the
   // attempt.
-  const parsed = reviewStatus === 'success'
-    ? parseChimeraReviewReport(payload.reviewText, { reportId })
-    : { findings: [], unparseableCount: 0, durationSeconds: undefined };
+  const parsed =
+    reviewStatus === 'success'
+      ? parseChimeraReviewReport(payload.reviewText, { reportId })
+      : { findings: [], unparseableCount: 0, durationSeconds: undefined };
 
   const counts: ReviewReportCounts = { critical: 0, high: 0, medium: 0, low: 0 };
   for (const finding of parsed.findings) {
@@ -98,11 +98,39 @@ export async function persistReviewReport(
 
   await store.persist(input);
 
+  // A successful, fully parseable all-clear report has no work left for a
+  // leader to disposition. Close it at the authoritative persistence
+  // boundary instead of leaving an empty `open` report that can only be
+  // cleared by a later manual `/review report ... complete` command.
+  if (
+    reviewStatus === 'success' &&
+    parsed.findings.length === 0 &&
+    parsed.unparseableCount === 0 &&
+    isExplicitAllClearReview(payload.reviewText)
+  ) {
+    await store.transition(
+      reportId,
+      'completed',
+      { id: 'chimera', kind: 'system' },
+      {
+        reason: 'Successful Chimera review produced no actionable findings',
+      },
+    );
+  }
+
   return {
     reportId,
     created: !existed,
     totalFindings: parsed.findings.length,
   };
+}
+
+function isExplicitAllClearReview(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  return (
+    normalized.startsWith('## 🦂 chimera review — all clear') ||
+    normalized.includes('chimera review: all clear')
+  );
 }
 
 /**

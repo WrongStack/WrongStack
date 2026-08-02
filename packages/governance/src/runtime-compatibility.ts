@@ -38,7 +38,7 @@ export const GOVERNANCE_COMPATIBILITY_MODEL_TTL_MS = 30 * 60 * 1_000;
 
 export type GovernanceModelCapability = Exclude<
   GovernanceServiceCapability,
-  'capability_admin' | 'daemon_control'
+  'capability_admin' | 'daemon_control' | 'workspace_snapshot_record' | 'runtime_attach'
 >;
 
 export interface ExistingGovernanceAdminCredential {
@@ -197,6 +197,15 @@ export class GovernanceCompatibilityRuntime {
     return response;
   }
 
+  recordWorkspaceSnapshot(manifestHash: string): Promise<GovernanceServiceResponse> {
+    return this.#admin.request({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: `workspace-snapshot-${randomUUID()}`,
+      type: 'record_workspace_snapshot',
+      manifestHash,
+    });
+  }
+
   private revokeModelGrant(): Promise<GovernanceServiceResponse> {
     return this.#admin.request({
       protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
@@ -274,7 +283,9 @@ function validateOptions(options: PrepareGovernanceCompatibilityOptions): string
     if (
       !GOVERNANCE_SERVICE_CAPABILITIES.includes(capability) ||
       capability === 'capability_admin' ||
-      capability === 'daemon_control'
+      capability === 'daemon_control' ||
+      capability === 'workspace_snapshot_record' ||
+      capability === 'runtime_attach'
     ) {
       return `Capability ${String(capability)} is not model-safe.`;
     }
@@ -527,7 +538,7 @@ export async function prepareGovernanceCompatibilityRuntimeWithAdapters(
         projectRoot: options.projectRoot,
         projectId: options.projectId,
         clientId: options.adminClientId,
-        capabilities: ['capability_admin', 'daemon_control'],
+        capabilities: ['capability_admin', 'daemon_control', 'workspace_snapshot_record'],
         ttlMs: options.adminTtlMs ?? GOVERNANCE_COMPATIBILITY_ADMIN_TTL_MS,
         ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
       });

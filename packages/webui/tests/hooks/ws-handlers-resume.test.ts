@@ -42,6 +42,19 @@ const BASE_PAYLOAD = {
 describe('session.start resume transition', () => {
   beforeEach(() => {
     history.pushState(null, '', '/');
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     delete (window as unknown as { wrongstackDesktopHost?: unknown }).wrongstackDesktopHost;
     useChatStore.getState().clearMessages();
     useChatStore.getState().setLoading(false);

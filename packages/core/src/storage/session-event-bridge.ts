@@ -210,6 +210,13 @@ export function createSessionEventBridge(
     async append(event) {
       const target = resolveWriter();
       if (!target) return;
+
+      // Clean up sampling state when a tool call ends to prevent
+      // progressCounters from accumulating UUID keys indefinitely.
+      if (event.type === 'tool_call_end') {
+        progressCounters.delete(event.id);
+      }
+
       if (!isAllowed(event.type, currentLevel)) return;
 
       // Apply sampling for high-volume events (only at 'full' level)
@@ -228,6 +235,12 @@ export function createSessionEventBridge(
     async appendBatch(events) {
       const target = resolveWriter();
       if (!target || events.length === 0) return;
+
+      // Clean up sampling state for any tool_call_end events in the batch.
+      for (const e of events) {
+        if (e.type === 'tool_call_end') progressCounters.delete(e.id);
+      }
+
       const allowed = events.filter((e) => isAllowed(e.type, currentLevel) && shouldSample(e));
       if (allowed.length === 0) return;
       try {

@@ -509,11 +509,7 @@ describe('runChatSlashCommand — agent/autonomy commands', () => {
     expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('goal');
   });
 
-  it.each([
-    'pause',
-    'resume',
-    'stop',
-  ] as const)('/goal %s sends the matching message', (sub) => {
+  it.each(['pause', 'resume', 'stop'] as const)('/goal %s sends the matching message', (sub) => {
     const opts = makeOptions({ raw: `/goal ${sub}` });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.client?.send).toHaveBeenCalledWith({ type: `goal.${sub}`, payload: {} });
@@ -535,6 +531,16 @@ describe('runChatSlashCommand — agent/autonomy commands', () => {
     const opts = makeOptions({ raw: '/fix TypeError: x is undefined' });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.sendMsg).toHaveBeenCalledWith(expect.stringContaining('TypeError: x is undefined'));
+  });
+
+  it('/fix accepts multiline arguments such as appended file-reference contracts', () => {
+    const opts = makeOptions({
+      raw: '/fix\n\n@src/large.ts\n\n[File reference contract]\nRead until EOF.',
+    });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendMsg).toHaveBeenCalledWith(
+      expect.stringContaining('@src/large.ts\n\n[File reference contract]\nRead until EOF.'),
+    );
   });
 
   it('/fix with no arg targets the latest failure', () => {

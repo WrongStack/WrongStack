@@ -179,7 +179,7 @@
       "relativeImports": 10
     },
     "packages/core/src/security/permission-policy.ts": {
-      "lines": 1214,
+      "lines": 1261,
       "relativeImports": 12
     },
     "packages/core/src/storage/file-session-writer.ts": {
@@ -259,7 +259,7 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 885,
+      "lines": 888,
       "relativeImports": 15
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -471,8 +471,8 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 915,
-      "relativeImports": 9
+      "lines": 939,
+      "relativeImports": 10
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 967,

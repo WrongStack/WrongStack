@@ -1,3 +1,4 @@
+import type { UserInputPayload } from '@wrongstack/core/agent';
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
@@ -11,7 +12,6 @@ import {
   type SubagentConfig,
   type Tool,
 } from '@wrongstack/core/types';
-import type { UserInputPayload } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
 import {
   abortLightSubagent,
@@ -198,6 +198,25 @@ describe('makeLightSubagentFactory', () => {
     // Isolation: each subagent gets a distinct bus + context.
     expect(a.events).not.toBe(b.events);
     expect(a.agent).not.toBe(b.agent);
+  });
+
+  it('installs an opt-in trusted tool boundary on each isolated pipeline', async () => {
+    const installToolBoundary = vi.fn(
+      (pipelines: import('@wrongstack/core/agent').AgentPipelines) => {
+        pipelines.toolCall.prepend({
+          name: 'TrustedTestBoundary',
+          async handler(payload, next) {
+            return next(payload);
+          },
+        });
+      },
+    );
+    const factory = makeLightSubagentFactory({ ...makeDeps(), installToolBoundary });
+    const built = await factory({ id: 'governed-light' });
+
+    expect(installToolBoundary).toHaveBeenCalledOnce();
+    expect(installToolBoundary).toHaveBeenCalledWith(built.agent.pipelines);
+    expect(built.agent.pipelines.toolCall.list()[0]).toBe('TrustedTestBoundary');
   });
 
   it('honours per-task cwd (worktree isolation)', async () => {

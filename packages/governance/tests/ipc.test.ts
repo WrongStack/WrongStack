@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  createGovernanceEvidenceCandidate,
   decodeGovernanceIpcEnvelope,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
   GovernanceProjectClient,
@@ -182,6 +183,84 @@ describe('governance project IPC', () => {
       ]),
     );
     expect(JSON.stringify(observations)).not.toContain(issued.token);
+  });
+
+  it('reads identity-checked evidence candidates through task-scoped IPC', async () => {
+    const root = projectRoot();
+    const instance = server(root);
+    await instance.start();
+    const shadowGrant = instance.issueGrant({
+      clientId: 'model-shadow',
+      capabilities: ['shadow_observe'],
+      ttlMs: 60_000,
+    });
+    const readerGrant = instance.issueGrant({
+      clientId: 'evidence-reader',
+      capabilities: ['task_read'],
+      ttlMs: 60_000,
+    });
+    const shadow = client(root, shadowGrant, 'model-shadow');
+    const reader = client(root, readerGrant, 'evidence-reader');
+    const trace = {
+      sessionId: 'session-ipc',
+      task: { scope: 'kanban_task' as const, taskId: 'task-ipc', boardId: 'board-ipc' },
+      plan: { state: 'available' as const, fingerprint: 'a'.repeat(64) },
+      workspace: {
+        state: 'captured' as const,
+        manifestHash: 'b'.repeat(64),
+        baseHead: 'c'.repeat(40),
+      },
+    };
+    const candidate = createGovernanceEvidenceCandidate(trace, {
+      toolCallId: 'tool-ipc',
+      toolName: 'shell',
+      ok: true,
+      durationMs: 15,
+      outputBytes: 42,
+    });
+
+    await expect(
+      shadow.request({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'record-evidence-candidate',
+        type: 'record_observation',
+        observation: {
+          observationId: 'candidate-ipc-1',
+          projectId: 'project-1',
+          taskId: 'task-ipc',
+          source: 'model-shadow',
+          category: 'evidence_candidate',
+          observedAt: '2026-08-02T12:00:00.000Z',
+          payload: { ...candidate, trace },
+        },
+      }),
+    ).resolves.toMatchObject({ ok: true, result: { type: 'observation_result' } });
+    const query = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'read-evidence-candidates',
+      type: 'read_evidence_candidates',
+      taskId: 'task-ipc',
+      limit: 10,
+    } as const;
+    await expect(shadow.request(query)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'permission_denied' },
+    });
+    await expect(reader.request(query)).resolves.toMatchObject({
+      ok: true,
+      result: {
+        type: 'evidence_candidates',
+        taskId: 'task-ipc',
+        candidates: [
+          {
+            source: 'model-shadow',
+            candidateId: candidate.candidateId,
+            evaluation: { state: 'eligible_for_evaluation', reasons: [] },
+          },
+        ],
+        nextAfterSequence: null,
+      },
+    });
   });
 
   it('rejects credential fields inside the inner request over real transport', async () => {

@@ -1,11 +1,19 @@
+import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { effectiveFallbackChain } from '@wrongstack/core/agent';
-import { isMailboxLeader } from '@wrongstack/core/coordination';
+import { isMailboxLeader, resolveMailboxIdentity } from '@wrongstack/core/coordination';
 import {
   CHIMERA_REVIEW_PROMPT,
   type ChimeraReviewCompletePayload,
   type ChimeraReviewNeededPayload,
+  integrateFindings,
+  maybeCompactReviewStores,
+  parseChimeraReviewReport,
+  persistReviewReport,
+  recordCompletedReview,
 } from '@wrongstack/core/plugin';
 import type { StopReason } from '@wrongstack/core/types';
+import { createChimeraLeaderWakeQueue, shouldWakeChimeraLeader } from './chimera-leader-wake.js';
 import {
   buildChimeraReviewTaskDescription,
   isChimeraAllClearReview,
@@ -14,16 +22,11 @@ import {
 import {
   applyChimeraReviewerReadOnlyPolicy,
   assignReviewerModelsRoundRobin,
-  buildMutatingAgentLadder,
   buildReviewerAttemptLadder,
   REVIEWER_LADDER_BUDGET_MS,
   resolveReviewerFallbackModels,
 } from './chimera-reviewer-policy.js';
-import {
-  attemptLabel,
-  buildRetryPreamble,
-  runSubagentModelLadder,
-} from './chimera-subagent-ladder.js';
+import { attemptLabel, runSubagentModelLadder } from './chimera-subagent-ladder.js';
 import type { ExecuteDeps } from './execute-deps.js';
 import { waitForChimeraAskApproval } from './execution-chimera-ask.js';
 
@@ -36,10 +39,48 @@ type Config = ExecuteDeps['core']['config'];
 
 type PendingChimeraWork = Promise<void> | undefined;
 
-/** Per-attempt wall clock for the Chimera auto-fix agent. */
-const FIX_ATTEMPT_TIMEOUT_MS = 1_200_000;
-/** Ladder budget for the auto-fix agent — bounds how long shutdown can wait. */
-const FIX_LADDER_BUDGET_MS = 1_800_000;
+/**
+ * Strip fenced code blocks and Markdown blockquotes from a raw review-text
+ * excerpt before forwarding it to the mutating leader follow-up. The reviewer can
+ * quote cited file content inside fences or blockquotes; those regions are
+ * the most common vectors for embedded instructions piggybacking on
+ * otherwise-legitimate prose. The structured-report branch (the common
+ * path) is unaffected; this only fires when `parsedReview.findings.length
+ * === 0`, and the fix-agent prompt already warns the agent that the body
+ * is data, not instructions.
+ */
+function sanitizeReviewTextForFixAgent(text: string): string {
+  // Drop fenced code blocks (``` or ~~~) including the language hint.
+  // We collapse them to a single notice line so position context survives.
+  const stripped = text
+    .replace(/```[\s\S]*?```/g, '\n[code block elided]\n')
+    .replace(/~~~[\s\S]*?~~~/g, '\n[code block elided]\n')
+    // Drop indented blockquotes (lines beginning with `> ` or `>`).
+    .replace(/^>\s?.*$/gm, '')
+    // Drop lines that are pure HTML/script payloads.
+    .replace(/^\s*<(?:script|iframe|object|embed)\b.*$/gim, '[elided tag]');
+  return stripped.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * Canonicalize a file path for citation gating. The reviewer can cite
+ * absolute Windows paths (`D:\Codebox\...`) or mix casing on a
+ * case-insensitive filesystem; without this normalization, every citation
+ * counts as "out of scope" and the auto-fix eligibility guard silently
+ * suppresses the fix while the mailbox directive still claims findings.
+ *
+ * Exported for unit testing — the citation-gating pipeline is otherwise
+ * locked inside an event-handler closure and is not reachable from a
+ * direct test.
+ */
+export function normalizeFileKeyForCitation(raw: string, cwd: string): string {
+  const forward = raw.replace(/\\/g, '/').replace(/^\.\//, '');
+  const isAbsolute = forward.startsWith('/') || /^[a-zA-Z]:\//.test(forward);
+  const relative = isAbsolute
+    ? path.relative(cwd, forward).replace(/\\/g, '/').replace(/^\.\//, '')
+    : forward;
+  return process.platform === 'win32' ? relative.toLowerCase() : relative;
+}
 
 export type InstallChimeraReviewHandlerOptions = {
   events: Events;
@@ -48,6 +89,10 @@ export type InstallChimeraReviewHandlerOptions = {
   mailbox: Mailbox;
   agent: Agent;
   config: Config;
+  projectDir: string;
+  persistReview?:
+    | ((payload: ChimeraReviewCompletePayload, projectDir: string) => Promise<void>)
+    | undefined;
   setPendingWork: (work: PendingChimeraWork) => void;
 };
 
@@ -58,10 +103,15 @@ export function installChimeraReviewHandler({
   mailbox,
   agent,
   config,
+  projectDir,
+  persistReview = persistChimeraReview,
   setPendingWork,
 }: InstallChimeraReviewHandlerOptions): void {
+  const leaderWakeQueue = createChimeraLeaderWakeQueue({ agent, events });
+
   events.onPattern('chimera.review_needed', (_event, payload) => {
     const p = payload as ChimeraReviewNeededPayload;
+    const reviewSessionId = agent.ctx.activeRunSessionId ?? agent.ctx.session?.id ?? session.id;
     const dir = director;
     if (!dir) {
       return;
@@ -90,6 +140,43 @@ export function installChimeraReviewHandler({
             timestamp: new Date().toISOString(),
           }),
         );
+      }
+    };
+
+    /**
+     * Persist before publishing completion so report/finding durability is
+     * part of the same promise that shutdown already waits for. Completion
+     * still reaches cascade and observability listeners when persistence
+     * fails, but the failure is explicit in both the event stream and the
+     * session transcript.
+     */
+    const persistAndEmitCompletion = async (
+      completion: ChimeraReviewCompletePayload,
+    ): Promise<void> => {
+      try {
+        await persistReview(completion, projectDir);
+        events.emitCustom('chimera.review_persisted', {
+          reportId: completion.reportId,
+          sessionId: completion.sessionId,
+          cwd: completion.cwd,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        events.emitCustom('chimera.review_persistence_failed', {
+          reportId: completion.reportId,
+          sessionId: completion.sessionId,
+          cwd: completion.cwd,
+          error: message,
+        });
+        await appendChimeraNotice(
+          `🦂 Chimera report persistence failed: ${message}. The review remains in the session transcript and mailbox.`,
+        );
+      } finally {
+        // The optional post-session plugin previously owned this release.
+        // Keep it in the always-installed execution owner so auto-review-only
+        // sessions cannot retain content claims forever.
+        recordCompletedReview(events, completion);
+        events.emitCustom('chimera.review_complete', completion);
       }
     };
 
@@ -202,12 +289,13 @@ export function installChimeraReviewHandler({
                 }),
               );
             }
-            events.emitCustom('chimera.review_complete', {
+            await persistAndEmitCompletion({
               bundle: p,
               reviewText: '',
               status: result?.status ?? 'unknown',
               cwd: p.cwd,
-              sessionId: session.id,
+              sessionId: reviewSessionId,
+              reportId: randomUUID(),
             } satisfies ChimeraReviewCompletePayload);
             return;
           }
@@ -217,12 +305,14 @@ export function installChimeraReviewHandler({
               ? result.result.trim()
               : JSON.stringify(result.result);
 
-          events.emitCustom('chimera.review_complete', {
+          const reportId = randomUUID();
+          await persistAndEmitCompletion({
             bundle: p,
             reviewText,
             status: 'success',
             cwd: p.cwd,
-            sessionId: session.id,
+            sessionId: reviewSessionId,
+            reportId,
           } satisfies ChimeraReviewCompletePayload);
 
           if (reviewText) {
@@ -234,18 +324,68 @@ export function installChimeraReviewHandler({
               usage: { input: 0, output: 0 },
             });
 
-            const autoFix =
+            const configuredAutoFix =
               (agent.ctx.meta['chimeraAutoFix'] as string | undefined) ?? p.config.autoFix ?? 'off';
+            const autoFix =
+              configuredAutoFix === 'ask' || configuredAutoFix === 'auto'
+                ? configuredAutoFix
+                : 'off';
             const reviewHasFindings = !isChimeraAllClearReview(reviewText);
-            const isAskMode = autoFix === 'ask' && reviewHasFindings;
+            const parsedReview = parseChimeraReviewReport(reviewText);
+            const citedFindings = parsedReview.findings.filter((finding) => finding.location);
+            // Normalize the changed-file set so reviewer citations can match
+            // against absolute paths and case-variant spellings. The reviewer
+            // may cite absolute Windows paths or mix casing; without this,
+            // every citation counts as "dropped" and auto-fix silently
+            // suppresses while the mailbox directive still claims findings
+            // exist (contradictory guidance).
+            const citedPaths = new Set(
+              p.files.map((file) => normalizeFileKeyForCitation(file.path, p.cwd)),
+            );
+            // Build a basename index so subpath citations (`src/sub/x.ts`)
+            // and bare-filename citations (`x.ts`) still resolve to a
+            // changed file. Without this, the exact-match gate in
+            // `droppedCitations` flips false on every citation and the
+            // hallucination note mislabels in-scope findings as "outside
+            // the changed-file set".
+            //
+            // The index maps `basename -> [normalized changed paths]`. A
+            // basename is only honoured as a fallback when it is unique
+            // across the changed-file set; otherwise an out-of-scope file
+            // sharing the basename (e.g. `evil/src/index.ts` vs the real
+            // `acme/src/index.ts`) would slip through the gate.
+            const changedBasenameIndex = new Map<string, string[]>();
+            for (const file of p.files) {
+              const normalized = normalizeFileKeyForCitation(file.path, p.cwd);
+              const basename = path.basename(file.path).toLowerCase();
+              const bucket = changedBasenameIndex.get(basename);
+              if (bucket) bucket.push(normalized);
+              else changedBasenameIndex.set(basename, [normalized]);
+            }
+            const droppedCitations = citedFindings.filter((finding) => {
+              const citedKey = normalizeFileKeyForCitation(finding.location!.file, p.cwd);
+              if (citedPaths.has(citedKey)) return false;
+              const basename = path.basename(finding.location!.file).toLowerCase();
+              const bucket = changedBasenameIndex.get(basename);
+              return !(bucket && bucket.length === 1);
+            });
+            const effectiveHasFindings =
+              reviewHasFindings &&
+              (parsedReview.findings.length === 0 ||
+                parsedReview.findings.length > droppedCitations.length);
+            const hallucinationNote =
+              droppedCitations.length > 0
+                ? `\n\n⚠️ Citation validation: ${droppedCitations.length} finding(s) cite files outside the changed-file set. Auto-fix eligibility requires at least one in-scope or uncited finding; uncited findings remain eligible.`
+                : '';
+            const isAskMode = autoFix === 'ask' && effectiveHasFindings;
             const mailboxType = isAskMode ? 'ask' : 'result';
             const subject = isAskMode
               ? `🦂 Chimera review — ${p.files.length} file(s) changed. Shall I fix the findings?`
               : `🦂 Chimera review — ${p.files.length} file(s) changed`;
 
             let leaderApproved = false;
-            let spawnedFix = false;
-            let askMailMsgId: string | undefined;
+            let leaderWakeQueued = false;
+            let reviewMailMessageId: string | undefined;
 
             let leaderOnline = false;
             if (isAskMode) {
@@ -302,15 +442,15 @@ export function installChimeraReviewHandler({
                 : 30_000;
               const directive = isAskMode
                 ? `LEADER ACTION REQUIRED: The Chimera review below found issues. Reply with "yes" to auto-fix, or "no" to skip (${ASK_TIMEOUT_MS / 1000}s timeout).`
-                : reviewHasFindings
+                : effectiveHasFindings
                   ? 'LEADER ACTION REQUIRED: The Chimera review below found issues. Read the report and fix any Critical or High findings automatically using the edit tool. Verify with typecheck and linter.'
-                  : 'Chimera review completed with no findings. Read the report summary below; no fix action is requested.';
+                  : 'Chimera review completed with no actionable findings. Read the report summary below; no fix action is requested.';
               const reviewBody =
                 reviewText.length > 7500
                   ? truncateAtCodePointBoundary(reviewText, 7500) +
                     '\n\n…(truncated, full report in session transcript)'
                   : reviewText;
-              const body = `${directive}\n\n${reviewBody}`;
+              const body = `${directive}${hallucinationNote}\n\n${reviewBody}`;
 
               const mailMsg = await mailbox.send({
                 from: 'chimera-review',
@@ -322,12 +462,45 @@ export function installChimeraReviewHandler({
                 priority: 'normal',
               });
               if (!mailMsg?.id) throw new Error('mailbox.send returned no message id');
-              askMailMsgId = mailMsg.id;
+              reviewMailMessageId = mailMsg.id;
+
+              // Emit the success event BEFORE the optional ask-mode wait so the
+              // delivery signal is not blocked by leader-approval timing. The
+              // emit must live inside the try block — emitting on the failure
+              // path would lie about the mailbox having delivered the message.
+              events.emitCustom('chimera.mailbox_delivered', {
+                subject,
+                autoFixMode: autoFix,
+                fileCount: p.files.length,
+                reviewLength: reviewText.length,
+                messageId: reviewMailMessageId,
+              });
+
+              if (!effectiveHasFindings) {
+                try {
+                  await mailbox.ack({
+                    messageId: reviewMailMessageId,
+                    readerId: 'chimera',
+                    completed: true,
+                    outcome: 'Review completed with no actionable findings.',
+                  });
+                } catch (ackError) {
+                  console.warn(
+                    JSON.stringify({
+                      level: 'warn',
+                      event: 'execution.chimera_mailbox_completion_failed',
+                      message: ackError instanceof Error ? ackError.message : String(ackError),
+                      messageId: reviewMailMessageId,
+                      timestamp: new Date().toISOString(),
+                    }),
+                  );
+                }
+              }
 
               if (isAskMode) {
                 leaderApproved = await waitForChimeraAskApproval({
                   mailbox,
-                  messageId: askMailMsgId,
+                  messageId: reviewMailMessageId,
                   meta: agent.ctx.meta,
                   session: agent.ctx.session ?? session,
                   askTimeoutMs: ASK_TIMEOUT_MS,
@@ -343,6 +516,13 @@ export function installChimeraReviewHandler({
                   timestamp: new Date().toISOString(),
                 }),
               );
+              events.emitCustom('chimera.mailbox_failed', {
+                subject,
+                autoFixMode: autoFix,
+                fileCount: p.files.length,
+                reviewLength: reviewText.length,
+                error: errMsg,
+              });
               await session.append({
                 type: 'error',
                 ts: new Date().toISOString(),
@@ -350,13 +530,6 @@ export function installChimeraReviewHandler({
                 phase: 'agent',
               });
             }
-
-            events.emitCustom('chimera.mailbox_delivered', {
-              subject,
-              autoFixMode: autoFix,
-              fileCount: p.files.length,
-              reviewLength: reviewText.length,
-            });
 
             if (!leaderOnline) {
               try {
@@ -381,96 +554,89 @@ export function installChimeraReviewHandler({
               }
             }
 
-            const shouldSpawnFix =
-              !spawnedFix &&
-              reviewHasFindings &&
-              (autoFix === 'auto' || (isAskMode && leaderApproved)) &&
-              reviewText.length > 0;
+            const shouldWakeLeader =
+              !leaderWakeQueued &&
+              shouldWakeChimeraLeader({
+                autoFix,
+                hasActionableFindings: effectiveHasFindings,
+                leaderApproved,
+                reviewLength: reviewText.length,
+              });
 
-            if (shouldSpawnFix) {
-              spawnedFix = true; // guard against double-spawn from poll race
-              const fixTaskDesc = [
-                `You are a fix agent. Apply the fixes requested in this review report.`,
-                ``,
-                `Repository: ${p.cwd}`,
-                ``,
-                `--- Review report ---`,
-                truncateAtCodePointBoundary(reviewText, 12_000),
-                ``,
-                `--- Changed files ---`,
-                p.files.map((f) => `- ${f.path}`).join('\n'),
-                ``,
-                `Read each file, understand the issue, apply fixes using the edit tool.`,
-                `After fixing, run the project's typecheck and linter to verify.`,
-                `Do NOT remove or reorder existing code unless the bug requires it.`,
-              ].join('\n');
-
+            if (shouldWakeLeader) {
+              leaderWakeQueued = true; // guard against double-enqueue from poll races
+              // Format parsed findings into a structured, injection-resistant report.
+              // Raw reviewText is intentionally NOT passed to the mutating leader:
+              // the reviewer's prose can carry embedded instructions from cited file
+              // content. Use only the structured fields we already parsed. When
+              // the parser could not extract a finding (unparseableCount > 0),
+              // surface a sanitized excerpt so the leader is not blind to
+              // findings that survived the section heading but failed the
+              // per-finding regex.
+              const unparseableNote =
+                parsedReview.unparseableCount > 0
+                  ? `\n\n⚠️ ${parsedReview.unparseableCount} finding(s) under the severity headings could not be parsed (format may have drifted). Below is a sanitized excerpt of the original report for context; do not act on it directly.`
+                  : '';
+              const unparseableExcerpt =
+                parsedReview.unparseableCount > 0
+                  ? `\n\n${sanitizeReviewTextForFixAgent(truncateAtCodePointBoundary(reviewText, 4000))}`
+                  : '';
+              const structuredReport =
+                parsedReview.findings.length > 0
+                  ? parsedReview.findings
+                      .map((finding) => {
+                        const file = finding.location?.file;
+                        const line = finding.location?.line;
+                        const citation = file ? `${file}${line ? `:${line}` : ''}` : '(no file)';
+                        const fix = finding.suggestedFix ? `\n  → ${finding.suggestedFix}` : '';
+                        return `[${finding.severity.toUpperCase()}] ${citation} — ${finding.title}\n  ${finding.description}${fix}`;
+                      })
+                      .join('\n\n') +
+                    unparseableNote +
+                    unparseableExcerpt
+                  : `No structured findings parsed. Falling back to sanitized raw report (fences and quoted blocks stripped; injection surface closed per the structured-report contract):\n\n${sanitizeReviewTextForFixAgent(truncateAtCodePointBoundary(reviewText, 4000))}`;
               try {
-                const fixLadder = buildMutatingAgentLadder({
-                  profileChain: effectiveFallbackChain(config),
-                  session: { provider: config.provider, model: config.model },
+                const leaderResult = await leaderWakeQueue.enqueue({
+                  sessionId: reviewSessionId,
+                  cwd: p.cwd,
+                  changedFiles: p.files.map((file) => file.path),
+                  reportId,
+                  structuredReport: [hallucinationNote.trim(), structuredReport]
+                    .filter(Boolean)
+                    .join('\n\n'),
                 });
-                const fixOutcome = await runSubagentModelLadder({
-                  director: dir,
-                  ladder: fixLadder,
-                  attemptTimeoutMs: FIX_ATTEMPT_TIMEOUT_MS,
-                  budgetMs: FIX_LADDER_BUDGET_MS,
-                  buildConfig: (attempt, timeoutMs) => ({
-                    name: 'chimera-fix',
-                    role: 'fixer',
-                    maxIterations: 60,
-                    maxToolCalls: 350,
-                    timeoutMs,
-                    // Rung 0 stays unpinned so the role model matrix still
-                    // decides; later rungs pin precisely because it failed.
-                    ...(attempt.tier === 'inherit'
-                      ? {}
-                      : {
-                          provider: attempt.provider,
-                          model: attempt.model,
-                          fallbackModels: attempt.fallbackModels,
-                        }),
-                  }),
-                  // A fix agent writes files, so a successor must be told the
-                  // tree may already hold the dead attempt's partial edits.
-                  buildTask: (_attempt, failures) =>
-                    `${buildRetryPreamble(failures)}${fixTaskDesc}`,
-                  onAttemptFailed: async (failure, next) => {
-                    if (!next) return;
-                    await appendChimeraNotice(
-                      `🦂 Chimera auto-fix on ${failure.model} failed (${failure.reason}) — retrying on ${attemptLabel(next)} (${next.tier}).`,
-                    );
-                  },
-                });
-                const fixResult = fixOutcome.result;
-                if (fixResult?.status === 'success') {
-                  await session.append({
-                    type: 'llm_response',
-                    ts: new Date().toISOString(),
-                    content: [
-                      { type: 'text', text: `Chimera fix subagent completed: ${fixResult.result}` },
-                    ],
-                    stopReason: 'end_turn' as StopReason,
-                    usage: { input: 0, output: 0 },
-                  });
-                } else {
-                  const fixDetail = fixOutcome.lastError
-                    ? fixOutcome.lastError instanceof Error
-                      ? fixOutcome.lastError.message
-                      : String(fixOutcome.lastError)
-                    : `${fixResult?.status ?? 'unknown'}: ${fixResult?.error?.message ?? 'no result'}`;
+                if (leaderResult.status !== 'done') {
                   await session.append({
                     type: 'error',
                     ts: new Date().toISOString(),
-                    message: `Chimera fix subagent ${fixResult?.status ?? 'unknown'}: ${fixDetail} — exhausted ${fixOutcome.attemptsUsed} of ${fixLadder.length} model(s)`,
+                    message: `🦂 Chimera leader follow-up ended with status ${leaderResult.status}. The report remains available in the mailbox and session transcript.`,
                     phase: 'agent',
                   });
+                } else if (reviewMailMessageId) {
+                  try {
+                    await mailbox.ack({
+                      messageId: reviewMailMessageId,
+                      readerId: resolveMailboxIdentity(agent.ctx).callerId,
+                      completed: true,
+                      outcome: `Leader resumed automatically and completed the Chimera follow-up in ${leaderResult.iterations} iteration(s).`,
+                    });
+                  } catch (ackError) {
+                    console.warn(
+                      JSON.stringify({
+                        level: 'warn',
+                        event: 'execution.chimera_mailbox_completion_failed',
+                        message: ackError instanceof Error ? ackError.message : String(ackError),
+                        messageId: reviewMailMessageId,
+                        timestamp: new Date().toISOString(),
+                      }),
+                    );
+                  }
                 }
               } catch (fixErr) {
                 await session.append({
                   type: 'error',
                   ts: new Date().toISOString(),
-                  message: `🦂 Chimera auto-fix failed: ${fixErr instanceof Error ? fixErr.message : String(fixErr)}`,
+                  message: `🦂 Chimera could not wake the leader automatically: ${fixErr instanceof Error ? fixErr.message : String(fixErr)}. The report remains available in the mailbox and session transcript.`,
                   phase: 'agent',
                 });
               }
@@ -506,4 +672,30 @@ export function installChimeraReviewHandler({
       })(),
     );
   });
+}
+
+async function persistChimeraReview(
+  payload: ChimeraReviewCompletePayload,
+  projectDir: string,
+): Promise<void> {
+  const reportId = payload.reportId;
+  if (!reportId) throw new Error('Chimera completion is missing reportId');
+
+  // Parent first: a crash between the two writes leaves a recoverable report,
+  // never orphan findings that point at a missing report.
+  await persistReviewReport(payload, reportId, projectDir);
+  await integrateFindings(payload, projectDir, reportId);
+
+  try {
+    await maybeCompactReviewStores(projectDir);
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: 'warn',
+        event: 'execution.chimera_store_maintenance_failed',
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
 }

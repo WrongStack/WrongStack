@@ -6,6 +6,11 @@ import type {
   GovernanceEventStore,
   StoredGovernanceObservation,
 } from './event-store.js';
+import {
+  evaluateGovernanceEvidenceCandidateObservation,
+  GOVERNANCE_EVIDENCE_CANDIDATE_DEFAULT_PAGE_SIZE,
+  type GovernanceEvidenceCandidateLedgerEntry,
+} from './evidence-candidate.js';
 import { decodeGovernanceServiceRequest } from './protocol-decoder.js';
 import {
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
@@ -19,6 +24,7 @@ import type {
   GovernanceEvent,
   TaskAggregate,
 } from './task-aggregate.js';
+import type { RecordWorkspaceSnapshotResult } from './workspace-snapshot-fence.js';
 
 export type {
   GovernanceServiceCapability,
@@ -44,15 +50,36 @@ export type GovernanceServiceResult =
       readonly type: 'observations';
       readonly observations: readonly StoredGovernanceObservation[];
     }
+  | {
+      readonly type: 'evidence_candidates';
+      readonly taskId: string;
+      readonly candidates: readonly GovernanceEvidenceCandidateLedgerEntry[];
+      readonly nextAfterSequence: number | null;
+    }
   | { readonly type: 'command_result'; readonly execution: GovernanceCommandExecution }
   | {
       readonly type: 'observation_result';
       readonly result: AppendGovernanceObservationResult;
     }
   | {
+      readonly type: 'workspace_snapshot_recorded';
+      readonly result: RecordWorkspaceSnapshotResult;
+    }
+  | {
       readonly type: 'capability_grant_issued';
       readonly grant: GovernanceCapabilityGrant;
       readonly credential: GovernanceServiceCredential;
+    }
+  | {
+      readonly type: 'runtime_attachment_claimed';
+      readonly control: {
+        readonly grant: GovernanceCapabilityGrant;
+        readonly credential: GovernanceServiceCredential;
+      };
+      readonly model: {
+        readonly grant: GovernanceCapabilityGrant;
+        readonly credential: GovernanceServiceCredential;
+      };
     }
   | {
       readonly type: 'own_capability_grant';
@@ -123,10 +150,13 @@ const REQUIRED_CAPABILITY: Readonly<
   read_events: 'task_read',
   read_receipt: 'audit_read',
   read_observations: 'task_read',
+  read_evidence_candidates: 'task_read',
   read_audit_observations: 'audit_read',
   submit_command: 'command_submit',
   record_observation: 'shadow_observe',
+  record_workspace_snapshot: 'workspace_snapshot_record',
   issue_capability_grant: 'capability_admin',
+  claim_runtime_attachment: 'runtime_attach',
   list_capability_grants: 'capability_admin',
   revoke_capability_grant: 'capability_admin',
   rotate_capability_grant: 'capability_admin',
@@ -305,6 +335,29 @@ export class GovernanceProjectService {
               .filter((observation) => !reservedAuditCategory(observation.category)),
           },
         };
+      case 'read_evidence_candidates': {
+        const limit = request.limit ?? GOVERNANCE_EVIDENCE_CANDIDATE_DEFAULT_PAGE_SIZE;
+        const rows = this.store.readEvidenceCandidateObservations(this.projectId, request.taskId, {
+          afterSequence: request.afterSequence ?? 0,
+          limit: limit + 1,
+        });
+        const page = rows.slice(0, limit);
+        return {
+          ok: true,
+          requestId,
+          result: {
+            type: 'evidence_candidates',
+            taskId: request.taskId,
+            candidates: Object.freeze(
+              page.map((observation) =>
+                evaluateGovernanceEvidenceCandidateObservation(observation),
+              ),
+            ),
+            nextAfterSequence:
+              rows.length > limit && page.length > 0 ? (page.at(-1)?.sequence ?? null) : null,
+          },
+        };
+      }
       case 'read_audit_observations':
         return {
           ok: true,
@@ -352,7 +405,17 @@ export class GovernanceProjectService {
             result: this.store.appendObservation(request.observation),
           },
         };
+      case 'record_workspace_snapshot':
+        return {
+          ok: true,
+          requestId,
+          result: {
+            type: 'workspace_snapshot_recorded',
+            result: this.store.recordWorkspaceSnapshot(this.projectId, request.manifestHash),
+          },
+        };
       case 'issue_capability_grant':
+      case 'claim_runtime_attachment':
       case 'read_own_capability_grant':
       case 'read_daemon_status':
       case 'request_daemon_shutdown':

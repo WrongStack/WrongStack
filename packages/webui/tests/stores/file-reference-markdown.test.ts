@@ -23,8 +23,12 @@ describe('refsToMarkdown', () => {
     expect(refsToMarkdown([])).toBe('');
   });
 
-  it('renders a bare mention when no content is available', () => {
-    expect(refsToMarkdown([fileRef('src/a.ts')])).toBe('@src/a.ts');
+  it('renders a mention plus a complete-read contract when no content is available', () => {
+    const out = refsToMarkdown([fileRef('src/a.ts')]);
+    expect(out).toContain('@src/a.ts');
+    expect(out).toContain('read each complete project file');
+    expect(out).toContain('- "src/a.ts"');
+    expect(out).toContain('until EOF');
   });
 
   it('inlines whole-file content as a fenced block so the LLM skips a read', () => {
@@ -33,11 +37,15 @@ describe('refsToMarkdown', () => {
   });
 
   it('falls back to a mention when the map has no entry for that path', () => {
-    expect(refsToMarkdown([fileRef('src/a.ts')], { 'src/b.ts': 'x' })).toBe('@src/a.ts');
+    const out = refsToMarkdown([fileRef('src/a.ts')], { 'src/b.ts': 'x' });
+    expect(out).toContain('@src/a.ts');
+    expect(out).toContain('- "src/a.ts"');
   });
 
   it('falls back to a mention for empty file content', () => {
-    expect(refsToMarkdown([fileRef('src/a.ts')], { 'src/a.ts': '' })).toBe('@src/a.ts');
+    const out = refsToMarkdown([fileRef('src/a.ts')], { 'src/a.ts': '' });
+    expect(out).toContain('@src/a.ts');
+    expect(out).toContain('- "src/a.ts"');
   });
 
   it('renders a range ref with a line header', () => {
@@ -54,7 +62,8 @@ describe('refsToMarkdown', () => {
 
   it('separates multiple refs with a blank line', () => {
     const out = refsToMarkdown([fileRef('a.ts'), fileRef('b.ts')]);
-    expect(out).toBe('@a.ts\n\n@b.ts');
+    expect(out).toContain('@a.ts\n\n@b.ts');
+    expect(out).toContain('- "a.ts"\n- "b.ts"');
   });
 
   it('mixes mention and fenced forms in one payload', () => {
@@ -142,6 +151,9 @@ describe('refsToMarkdown', () => {
     const long = Array.from({ length: 40 }, (_, i) => `l${i}`).join('\n');
     const out = refsToMarkdown([fileRef('a.ts')], { 'a.ts': long });
     expect(out).toContain('…');
+    expect(out).toContain('// a.ts (preview; complete read required)');
+    expect(out).toContain('- "a.ts"');
+    expect(out).toContain('until EOF');
   });
 });
 

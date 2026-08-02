@@ -11,8 +11,22 @@ import {
   replayTaskEvents,
   type TaskAggregate,
 } from './task-aggregate.js';
+import type {
+  ConsumeVerificationExecutionLeaseResult,
+  IssueVerificationExecutionLeaseResult,
+  VerificationExecutionBinding,
+  VerificationExecutionLeaseCredential,
+  VerificationExecutionLeaseStatus,
+  VerificationLeaseIssuancePrecondition,
+} from './verification-execution-lease.js';
+import { SqliteVerificationLedger } from './verification-ledger-store.js';
+import type { VerificationRunContract } from './verification-run-contract.js';
+import type {
+  RecordWorkspaceSnapshotResult,
+  WorkspaceSnapshotFenceDescriptor,
+} from './workspace-snapshot-fence.js';
 
-const GOVERNANCE_EVENT_STORE_SCHEMA_VERSION = 1;
+const GOVERNANCE_EVENT_STORE_SCHEMA_VERSION = 2;
 
 interface EventRow {
   task_id: string;
@@ -49,6 +63,7 @@ export const GOVERNANCE_OBSERVATION_CATEGORIES = [
   'status_changed',
   'plan_updated',
   'tool_invoked',
+  'evidence_candidate',
   'verification_reported',
   'review_reported',
   'completion_claimed',
@@ -122,11 +137,31 @@ export interface GovernanceEventStore {
   readReceipt(commandId: string): GovernanceCommandReceipt | null;
   appendObservation(observation: GovernanceObservation): AppendGovernanceObservationResult;
   readObservations(projectId: string, taskId?: string): readonly StoredGovernanceObservation[];
+  readEvidenceCandidateObservations(
+    projectId: string,
+    taskId: string,
+    options: { readonly afterSequence: number; readonly limit: number },
+  ): readonly StoredGovernanceObservation[];
+  recordWorkspaceSnapshot(projectId: string, manifestHash: string): RecordWorkspaceSnapshotResult;
+  readLatestWorkspaceSnapshot(projectId: string): WorkspaceSnapshotFenceDescriptor | null;
+  issueVerificationExecutionLease(
+    run: VerificationRunContract,
+  ): IssueVerificationExecutionLeaseResult;
+  issueVerificationExecutionLeaseIfCurrent(
+    run: VerificationRunContract,
+    precondition: VerificationLeaseIssuancePrecondition,
+  ): IssueVerificationExecutionLeaseResult;
+  consumeVerificationExecutionLease(
+    credential: VerificationExecutionLeaseCredential,
+    binding: VerificationExecutionBinding,
+  ): ConsumeVerificationExecutionLeaseResult;
+  readVerificationExecutionLeaseStatus(leaseId: string): VerificationExecutionLeaseStatus;
   close(): void;
 }
 
 export interface SqliteGovernanceEventStoreOptions {
   readonly now?: (() => string) | undefined;
+  readonly verificationLeaseSecret?: (() => string) | undefined;
 }
 
 export class GovernanceStoreCorruptionError extends Error {
@@ -182,12 +217,17 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
 
   private readonly db: DatabaseSync;
   private readonly now: () => string;
+  private readonly verificationLedger: SqliteVerificationLedger;
   private closed = false;
 
   private constructor(databasePath: string, options: SqliteGovernanceEventStoreOptions) {
     this.databasePath = databasePath;
     this.now = options.now ?? (() => new Date().toISOString());
     this.db = new DatabaseSync(databasePath);
+    this.verificationLedger = new SqliteVerificationLedger(this.db, {
+      now: this.now,
+      verificationLeaseSecret: options.verificationLeaseSecret,
+    });
     try {
       this.initializeSchema();
     } catch (error) {
@@ -379,6 +419,69 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
     return Object.freeze(rows.map((row) => this.observationFromRow(row)));
   }
 
+  readEvidenceCandidateObservations(
+    projectId: string,
+    taskId: string,
+    options: { readonly afterSequence: number; readonly limit: number },
+  ): readonly StoredGovernanceObservation[] {
+    this.assertOpen();
+    if (!Number.isSafeInteger(options.afterSequence) || options.afterSequence < 0) {
+      throw new Error('Evidence candidate cursor must be a non-negative safe integer.');
+    }
+    if (!Number.isSafeInteger(options.limit) || options.limit < 1 || options.limit > 101) {
+      throw new Error('Evidence candidate query limit must be between 1 and 101.');
+    }
+    const rows = this.db
+      .prepare(
+        `SELECT sequence, observation_id, project_id, task_id, source, category,
+                observation_json, observation_hash, observed_at, recorded_at
+         FROM governance_observations
+         WHERE project_id = ? AND task_id = ? AND category = 'evidence_candidate' AND sequence > ?
+         ORDER BY sequence
+         LIMIT ?`,
+      )
+      .all(projectId, taskId, options.afterSequence, options.limit) as unknown as ObservationRow[];
+    return Object.freeze(rows.map((row) => this.observationFromRow(row)));
+  }
+
+  issueVerificationExecutionLease(
+    run: VerificationRunContract,
+  ): IssueVerificationExecutionLeaseResult {
+    this.assertOpen();
+    return this.verificationLedger.issue(run);
+  }
+
+  recordWorkspaceSnapshot(projectId: string, manifestHash: string): RecordWorkspaceSnapshotResult {
+    this.assertOpen();
+    return this.verificationLedger.recordWorkspaceSnapshot(projectId, manifestHash);
+  }
+
+  readLatestWorkspaceSnapshot(projectId: string): WorkspaceSnapshotFenceDescriptor | null {
+    this.assertOpen();
+    return this.verificationLedger.readLatestWorkspaceSnapshot(projectId);
+  }
+
+  issueVerificationExecutionLeaseIfCurrent(
+    run: VerificationRunContract,
+    precondition: VerificationLeaseIssuancePrecondition,
+  ): IssueVerificationExecutionLeaseResult {
+    this.assertOpen();
+    return this.verificationLedger.issueIfCurrent(run, precondition);
+  }
+
+  consumeVerificationExecutionLease(
+    credential: VerificationExecutionLeaseCredential,
+    binding: VerificationExecutionBinding,
+  ): ConsumeVerificationExecutionLeaseResult {
+    this.assertOpen();
+    return this.verificationLedger.consume(credential, binding);
+  }
+
+  readVerificationExecutionLeaseStatus(leaseId: string): VerificationExecutionLeaseStatus {
+    this.assertOpen();
+    return this.verificationLedger.readStatus(leaseId);
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
@@ -389,10 +492,11 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec('PRAGMA synchronous = FULL');
     this.db.exec('PRAGMA busy_timeout = 5000');
+    this.db.exec('PRAGMA foreign_keys = ON');
     const version = (
       this.db.prepare('PRAGMA user_version').get() as unknown as { user_version: number }
     ).user_version;
-    if (version !== 0 && version !== GOVERNANCE_EVENT_STORE_SCHEMA_VERSION) {
+    if (version !== 0 && version !== 1 && version !== GOVERNANCE_EVENT_STORE_SCHEMA_VERSION) {
       throw new Error(
         `Unsupported governance event store schema version ${version}; expected ${GOVERNANCE_EVENT_STORE_SCHEMA_VERSION}.`,
       );
@@ -433,11 +537,13 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
         recorded_at TEXT NOT NULL
       );
 
+
       CREATE INDEX IF NOT EXISTS governance_receipts_task_idx
         ON governance_command_receipts (task_id, recorded_at);
 
       CREATE INDEX IF NOT EXISTS governance_observations_project_task_idx
         ON governance_observations (project_id, task_id, sequence);
+
 
       CREATE TRIGGER IF NOT EXISTS governance_events_no_update
       BEFORE UPDATE ON governance_events
@@ -475,8 +581,10 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
         SELECT RAISE(ABORT, 'governance_observations is append-only');
       END;
 
-      PRAGMA user_version = ${GOVERNANCE_EVENT_STORE_SCHEMA_VERSION};
+
     `);
+    this.verificationLedger.initializeSchema();
+    this.db.exec(`PRAGMA user_version = ${GOVERNANCE_EVENT_STORE_SCHEMA_VERSION}`);
   }
 
   private readEventsUnlocked(taskId: string, upToRevision?: number): GovernanceEvent[] {

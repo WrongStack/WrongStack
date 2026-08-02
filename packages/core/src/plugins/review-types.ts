@@ -146,6 +146,12 @@ export interface ChimeraReviewCompletePayload {
   status: string;
   cwd: string;
   /**
+   * Stable report identifier allocated by the execution owner before the
+   * completion event is published. This keeps the durable report, parsed
+   * findings, mailbox follow-up, and any cascade consumers on one identity.
+   */
+  reportId?: string | undefined;
+  /**
    * Active session ID at review-complete time. Set by execution.ts when
    * emitting the event. Consumed by finding/report integration to stamp
    * findings with the correct session identifier instead of the working

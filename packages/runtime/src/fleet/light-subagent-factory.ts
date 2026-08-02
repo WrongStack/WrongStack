@@ -19,10 +19,10 @@
 import { randomUUID } from 'node:crypto';
 import {
   Agent,
-  FallbackProfileManager,
   Context,
   createDefaultPipelines,
   createFallbackModelExtension,
+  FallbackProfileManager,
 } from '@wrongstack/core/agent';
 import {
   type AgentFactory,
@@ -81,6 +81,13 @@ export interface LightSubagentFactoryDeps {
    * `host.opts.statusTracker` thread in the CLI factory.
    */
   statusTracker?: ProviderModelStatusTracker | undefined;
+  /**
+   * Optional trusted control-plane hook for the isolated tool pipeline.
+   * The host owns this hook; it is not exposed through the agent's tools.
+   */
+  installToolBoundary?:
+    | ((pipelines: import('@wrongstack/core/agent').AgentPipelines) => void)
+    | undefined;
 }
 
 /**
@@ -208,6 +215,7 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
     // thresholds (and get the last-resort emergency trim) like the leader,
     // instead of growing unbounded until the provider rejects the request.
     installSubagentAutoCompaction(pipelines, ctx, config.context, events);
+    deps.installToolBoundary?.(pipelines);
 
     // Subagents can't answer prompts — auto-approve the wide work capability set
     // (the spawn site may narrow it via allowedCapabilities). `source: 'yolo'`

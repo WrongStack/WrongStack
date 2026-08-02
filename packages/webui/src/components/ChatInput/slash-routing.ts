@@ -101,9 +101,9 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
   // Split into head (with leading slash) + the rest. Lowercase the
   // head so `/Todos` and `/TODOS` route the same; preserve case on
   // the args because the user might be inserting a content string.
-  const sp = trimmed.indexOf(' ');
-  const head = (sp === -1 ? trimmed : trimmed.slice(0, sp)).toLowerCase();
-  const args = sp === -1 ? '' : trimmed.slice(sp + 1).trim();
+  const firstWhitespace = trimmed.search(/\s/);
+  const head = (firstWhitespace === -1 ? trimmed : trimmed.slice(0, firstWhitespace)).toLowerCase();
+  const args = firstWhitespace === -1 ? '' : trimmed.slice(firstWhitespace).trim();
   const cmd = head;
   const openWorkTab = (tab: 'todos' | 'tasks' | 'plan') => {
     const ui = useUIStore.getState();
@@ -139,7 +139,8 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       client?.send?.({ type: 'webui.shutdown' });
       addMessage({
         role: 'assistant',
-        content: '👋 Shutting down WebUI server… Detached background processes will remain running.',
+        content:
+          '👋 Shutting down WebUI server… Detached background processes will remain running.',
       });
       return true;
     case '/compact':
@@ -206,8 +207,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       addMessage({ role: 'assistant', content: `🤖 Autonomy mode → **${mode}**.` });
       return true;
     }
-    case '/goal':
-      // start <title> | pause | resume | stop. No arg → open the full view.
+    case '/goal': // start <title> | pause | resume | stop. No arg → open the full view.
       {
         const [sub, ...rest] = args.split(/\s+/).filter(Boolean);
         const subcmd = (sub ?? '').toLowerCase();

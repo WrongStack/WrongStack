@@ -33,6 +33,24 @@ function governedRuntime(source: 'attached' | 'launched') {
       revoked: true,
     },
   }));
+  const recordWorkspaceSnapshot = vi.fn(async (manifestHash: string) => ({
+    ok: true as const,
+    requestId: 'workspace-snapshot',
+    result: {
+      type: 'workspace_snapshot_recorded' as const,
+      result: {
+        recorded: true as const,
+        snapshot: {
+          schemaVersion: 1 as const,
+          snapshotId: 'c'.repeat(64),
+          projectId: 'project-1',
+          revision: 1,
+          manifestHash,
+          capturedAt: '2026-08-02T12:00:00.000Z',
+        },
+      },
+    },
+  }));
   const model = {
     request: vi.fn(),
     snapshot: () => ({
@@ -71,9 +89,11 @@ function governedRuntime(source: 'attached' | 'launched') {
       }),
       shutdownDaemon,
       close,
+      recordWorkspaceSnapshot,
     },
     shutdownDaemon,
     close,
+    recordWorkspaceSnapshot,
   };
 }
 
@@ -182,6 +202,23 @@ describe('runtime governance bootstrap adapter', () => {
         payload: { phase: 'completed', toolName: 'read' },
       },
     });
+  });
+
+  it('records workspace snapshots through hidden admin authority, never the model session', async () => {
+    const fake = governedRuntime('attached');
+    const prepared = await bootstrapGovernanceRuntimeWithFactory(options, async () => ({
+      mode: 'governed',
+      runtime: fake.runtime as never,
+    }));
+    if (prepared.mode !== 'governed') throw new Error(prepared.message);
+    const manifestHash = 'a'.repeat(64);
+
+    await expect(prepared.handle.recordWorkspaceSnapshot(manifestHash)).resolves.toMatchObject({
+      recorded: true,
+      snapshot: { projectId: 'project-1', revision: 1, manifestHash },
+    });
+    expect(fake.recordWorkspaceSnapshot).toHaveBeenCalledWith(manifestHash);
+    expect(fake.runtime.model.request).not.toHaveBeenCalled();
   });
 
   it('drains pending observations before revoking the session grant', async () => {

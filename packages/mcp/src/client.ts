@@ -633,6 +633,12 @@ export class MCPClient {
           new Promise<void>((resolve) => setTimeout(resolve, FORCE_TIMEOUT_MS)),
         ]);
       }
+      // Detach all listeners and drop the reference so the child process
+      // object and its stdio streams can be garbage-collected.
+      child.stdout?.removeAllListeners();
+      child.stderr?.removeAllListeners();
+      child.removeAllListeners();
+      this.child = undefined;
     }
     // Reject pending requests BEFORE closing transports. This matters for
     // in-flight HTTP requests: they are not yet in `this.pending` (waiting

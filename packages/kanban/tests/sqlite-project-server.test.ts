@@ -470,7 +470,7 @@ function startDaemon(projectRoot: string): ChildProcess {
 }
 
 async function waitForEndpoint(endpoint: string): Promise<void> {
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + 30_000;
   for (;;) {
     const connected = await new Promise<boolean>((resolve) => {
       const socket = net.createConnection(endpoint);

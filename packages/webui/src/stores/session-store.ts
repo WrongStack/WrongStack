@@ -168,6 +168,7 @@ export const useSessionStore = create<SessionState>()(
           session: null,
           startTime: null,
           iteration: null,
+          droppedTools: 0,
           // Note: we intentionally do NOT clear lastVisitedAt here. The
           // verifier view uses it to show "previous activity at …" even
           // when the user explicitly ended a session.
