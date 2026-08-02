@@ -134,12 +134,13 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         freshness: Math.max(existing.freshness, freshness),
         updatedAt: nowIso,
         revision: existing.revision + 1,
-        // Preserve ownerSessionId on merge: prefer the existing owner so
-        // a re-remember of the same fact in the same session does not
-        // change ownership. Fall back to incoming owner only when the
-        // existing row pre-dates session ownership (back-compat).
-        ...(scope === 'session' && (existing.ownerSessionId ?? input.ownerSessionId)
-          ? { ownerSessionId: existing.ownerSessionId ?? input.ownerSessionId }
+        // ownerSessionId is preserved on merge. The strict SQL clause
+        // (owner_session_id = ?) guarantees the existing row is owned by
+        // the same session, so existing.ownerSessionId is always set here.
+        // No fallback to input.ownerSessionId is needed — the merge can
+        // only match same-session records.
+        ...(scope === 'session' && existing.ownerSessionId
+          ? { ownerSessionId: existing.ownerSessionId }
           : {}),
       };
       ctx.upsertMemory(merged);

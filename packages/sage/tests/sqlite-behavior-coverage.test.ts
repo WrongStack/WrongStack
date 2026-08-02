@@ -628,7 +628,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     };
     await expect(store.getSage(target.id)).resolves.toBeNull();
     rowState.rowToMemory = originalRowToMemory;
-    expect(console.warn).toHaveBeenCalledTimes(7);
+    expect(console.warn).toHaveBeenCalledTimes(8);
   });
 
   it('cleans independent reference shapes and considers project candidates in consolidation', async () => {

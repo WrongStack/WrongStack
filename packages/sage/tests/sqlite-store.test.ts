@@ -1241,6 +1241,46 @@ describe('SqliteSageStore', () => {
       expect(second!.alreadyResolved).toBe(true);
       expect(second!.applied).toBe(false);
     });
+
+    it('reverts candidate to pending when target mutation fails (P0-3c)', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+
+      // Create a permanent memory — deleting it requires force:true, which
+      // the candidate resolution path does NOT pass (by design). This makes
+      // the delete mutation fail, triggering our revert-on-failure path.
+      const memory = await store.rememberSage({
+        text: 'Permanent memory that rejects non-forced delete',
+        scope: 'project',
+        persistence: 'permanent',
+      });
+
+      const candidate = await store.createCandidate({
+        text: 'Review: delete this permanent memory',
+        kind: 'fact',
+        scope: 'project',
+        targetMemoryId: memory.id,
+      });
+
+      // Resolve as delete — the mutation will fail because the target is
+      // permanent and force:true is not passed.
+      const first = await store.resolveCandidate(candidate.id, 'delete');
+
+      // The resolution should report applied: false (mutation failed).
+      expect(first!.applied).toBe(false);
+      expect(first!.candidateId).toBe(candidate.id);
+
+      // The candidate must be reverted to 'pending' so the caller can retry.
+      const candidates = await store.listCandidates();
+      const reverted = candidates.find((c) => c.id === candidate.id);
+      expect(reverted).toBeDefined();
+      expect(reverted!.status).toBe('pending');
+
+      // The target memory must still be active (not deleted).
+      const stillThere = await store.getSage(memory.id);
+      expect(stillThere).not.toBeNull();
+      expect(stillThere!.status).toBe('active');
+    });
   });
 
   describe('consolidateSession', () => {

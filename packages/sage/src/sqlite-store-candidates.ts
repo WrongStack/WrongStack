@@ -164,24 +164,51 @@ export function acceptSqliteCandidate(
         sources: candidate.sources,
       });
 
-      await ctx.runMutation(() => {
-        const row = ctx.stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'").get(
-          candidateId,
-        ) as { data: string } | undefined;
-        if (!row) return;
-        const current = sqliteRowToCandidate(row);
-        const updated: MemoryCandidate = {
-          ...current,
-          status: 'accepted',
+      // Mark candidate as accepted. The reclaim-UPDATE pattern ensures
+      // atomicity: if a concurrent resolveCandidate already flipped the
+      // status away from 'pending', this UPDATE matches 0 rows and we
+      // log the orphaned memory for diagnostics instead of silently
+      // leaving the candidate in a stale state.
+      const accepted = await ctx.runMutation(() => {
+        const result = ctx
+          .stmt(
+            "UPDATE candidates SET data = ?, status = 'accepted', updated_at = ? WHERE id = ? AND status = 'pending'",
+          )
+          .run(
+            JSON.stringify({
+              ...candidate,
+              status: 'accepted',
+              memoryId: memory.id,
+              updatedAt: ctx.nowIso(),
+            }),
+            ctx.nowIso(),
+            candidateId,
+          );
+        return result.changes > 0;
+      });
+      if (!accepted) {
+        // A concurrent resolveCandidate raced us. The memory was already
+        // created — log the orphan so an operator can reconcile.
+        ctx.audit('memory.candidate_accept_orphaned', {
           memoryId: memory.id,
-          updatedAt: ctx.nowIso(),
-        };
-        ctx.upsertCandidate(updated);
+          details: { candidateId, reason: 'Candidate status was no longer pending during accept' },
+        });
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'sage.candidate_accept_orphaned',
+            candidateId,
+            memoryId: memory.id,
+            message: 'Memory created but candidate was resolved concurrently; orphaned memory logged.',
+            timestamp: ctx.nowIso(),
+          }),
+        );
+      } else {
         ctx.audit('memory.candidate_accepted', {
           memoryId: memory.id,
           details: { candidateId },
         });
-      });
+      }
       return memory;
     },
     {
@@ -247,73 +274,111 @@ export async function resolveSqliteCandidate(
     ? await ctx.runMutation(() => readSqliteSageRow(ctx.stmt, targetId))
     : null;
   const policy = computeResolution(snapshot, decision, reason, target ?? null);
-  const claimed = await ctx.runMutation(() => {
-    const updated: MemoryCandidate = {
-      ...snapshot,
-      status: policy.candidateStatus,
-      reason: policy.reason,
-      updatedAt: ctx.nowIso(),
-    };
-    const result = ctx
-      .stmt(
-        "UPDATE candidates SET data = ?, status = ?, updated_at = ? WHERE id = ? AND status = 'pending'",
-      )
-      .run(JSON.stringify(updated), updated.status, updated.updatedAt, candidateId);
-    return result.changes > 0;
-  });
-  if (!claimed) {
-    const failTargetId = resolveTargetId(snapshot);
+
+  // Fold candidate claim + target mutation into a single runMutation boundary.
+  // If the mutation fails, revert the candidate back to 'pending' so a retry
+  // can attempt the resolution again instead of returning alreadyResolved.
+  let applied = false;
+  let claimed = false;
+  let mutationError: string | undefined;
+  try {
+    claimed = await ctx.runMutation(() => {
+      const updated: MemoryCandidate = {
+        ...snapshot,
+        status: policy.candidateStatus,
+        reason: policy.reason,
+        updatedAt: ctx.nowIso(),
+      };
+      const result = ctx
+        .stmt(
+          "UPDATE candidates SET data = ?, status = ?, updated_at = ? WHERE id = ? AND status = 'pending'",
+        )
+        .run(JSON.stringify(updated), updated.status, updated.updatedAt, candidateId);
+      return result.changes > 0;
+    });
+    if (!claimed) {
+      const failTargetId = resolveTargetId(snapshot);
+      return {
+        candidateId,
+        decision,
+        applied: false,
+        alreadyResolved: true,
+        ...(failTargetId ? { targetMemoryId: failTargetId } : {}),
+      };
+    }
+
+    // Perform the target mutation. If it fails, revert the candidate to
+    // 'pending' so the caller can retry the same decision.
+    if (policy.mutation.kind === 'delete_memory' && policy.mutation.targetId) {
+      try {
+        // Candidate-resolved deletes go through in-process `ctx.updateSage`,
+        // not over IPC, so they do NOT need the `force: true` that the
+        // IPC dispatch guard (`project-server.ts:updateSage` case) added
+        // for `updateSage` IPC ops. The store-side permanent-guard still
+        // fires when the target is permanent at delete-time, preserving
+        // the pre-Phase-3 semantics covered by the promotion-race test
+        // in `sqlite-behavior-coverage.test.ts`.
+        await ctx.updateSage(policy.mutation.targetId, { status: 'deleted' });
+        applied = true;
+      } catch (err) {
+        mutationError = err instanceof Error ? err.message : String(err);
+        applied = false;
+      }
+    } else if (policy.mutation.kind === 'archive_memory' && policy.mutation.targetId) {
+      try {
+        await ctx.updateSage(policy.mutation.targetId, { status: 'archived' });
+        applied = true;
+      } catch (err) {
+        mutationError = err instanceof Error ? err.message : String(err);
+        applied = false;
+      }
+    } else if (decision === 'keep') {
+      applied = true;
+    }
+  } catch (outerErr) {
+    mutationError = outerErr instanceof Error ? outerErr.message : String(outerErr);
+    applied = false;
+  }
+
+  // If the target mutation failed, revert the candidate to 'pending' so
+  // the caller can retry. The audit log records the failure for diagnostics.
+  if (claimed && !applied) {
+    const reverted = await ctx.runMutation(() => {
+      const revertResult = ctx
+        .stmt(
+          "UPDATE candidates SET data = ?, status = 'pending', updated_at = ? WHERE id = ? AND status = ?",
+        )
+        .run(
+          JSON.stringify({ ...snapshot }),
+          ctx.nowIso(),
+          candidateId,
+          policy.candidateStatus,
+        );
+      return revertResult.changes > 0;
+    });
+    if (reverted) {
+      ctx.audit('memory.candidate_resolution_reverted', {
+        ...(targetId ? { memoryId: targetId } : {}),
+        reason: policy.reason,
+        details: { candidateId, decision, mutationError },
+      });
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'sage.candidate_resolution_reverted',
+          candidateId,
+          message: `Target mutation failed; candidate reverted to pending for retry. Error: ${mutationError}`,
+          timestamp: ctx.nowIso(),
+        }),
+      );
+    }
     return {
       candidateId,
       decision,
       applied: false,
-      alreadyResolved: true,
-      ...(failTargetId ? { targetMemoryId: failTargetId } : {}),
+      ...(targetId ? { targetMemoryId: targetId } : {}),
+      ...(mutationError ? { error: mutationError } : {}),
     };
-  }
-
-  let applied = false;
-  if (policy.mutation.kind === 'delete_memory' && policy.mutation.targetId) {
-    try {
-      // Candidate-resolved deletes go through in-process `ctx.updateSage`,
-      // not over IPC, so they do NOT need the `force: true` that the
-      // IPC dispatch guard (`project-server.ts:updateSage` case) added
-      // for `updateSage` IPC ops. The store-side permanent-guard still
-      // fires when the target is permanent at delete-time, preserving
-      // the pre-Phase-3 semantics covered by the promotion-race test
-      // in `sqlite-behavior-coverage.test.ts`.
-      await ctx.updateSage(policy.mutation.targetId, { status: 'deleted' });
-      applied = true;
-    } catch (err) {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'sage.delete_memory_mutation_failed',
-          candidateId,
-          message: err instanceof Error ? err.message : String(err),
-          timestamp: ctx.nowIso(),
-        }),
-      );
-      applied = false;
-    }
-  } else if (policy.mutation.kind === 'archive_memory' && policy.mutation.targetId) {
-    try {
-      await ctx.updateSage(policy.mutation.targetId, { status: 'archived' });
-      applied = true;
-    } catch (err) {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'sage.archive_memory_mutation_failed',
-          candidateId,
-          message: err instanceof Error ? err.message : String(err),
-          timestamp: ctx.nowIso(),
-        }),
-      );
-      applied = false;
-    }
-  } else if (decision === 'keep') {
-    applied = true;
   }
 
   ctx.audit('memory.candidate_resolved', {
