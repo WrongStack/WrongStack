@@ -93,13 +93,18 @@ export function DisplaySection({ syncPref }: DisplaySectionProps) {
               onChange={() => syncPref('showModelReasoning', !localPrefs.showModelReasoning)}
             />
           </div>
-          {/* TUI field 40 — showAgentSwarmPanel */}
+          {/* TUI field 40 — showAgentSwarmPanel (tri-state enum) */}
           <div className="py-3">
-            <PreferenceToggle
+            <PreferenceSelect
               label={t('settings:display.showAgentSwarmPanelLabel')}
               hint={t('settings:display.showAgentSwarmPanelHint')}
               value={localPrefs.showAgentSwarmPanel}
-              onChange={() => syncPref('showAgentSwarmPanel', !localPrefs.showAgentSwarmPanel)}
+              options={[
+                { value: 'bottom', label: t('settings:display.swarmPanelBottom') },
+                { value: 'sidebar', label: t('settings:display.swarmPanelSidebar') },
+                { value: 'off', label: t('settings:display.swarmPanelOff') },
+              ]}
+              onChange={(v) => syncPref('showAgentSwarmPanel', v)}
             />
           </div>
           {/* TUI field 2 — terminalTitleAnimation (already mirrored as

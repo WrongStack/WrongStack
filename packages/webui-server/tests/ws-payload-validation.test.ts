@@ -326,6 +326,9 @@ describe('WebUI payload validation', () => {
         { multiDiffSummaryThreshold: Number.NaN },
         { sageMemoryInjectThreshold: '0.85' },
         { enhanceCountdownMs: '3000' },
+        // showAgentSwarmPanel is now an enum, not boolean
+        { showAgentSwarmPanel: true },
+        { showAgentSwarmPanel: 'top' },
       ]);
     });
 

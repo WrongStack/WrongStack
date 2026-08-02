@@ -109,8 +109,8 @@ export interface LocalPrefs {
   groupToolCalls: boolean;
   /** Show model reasoning/thinking blocks inline in the chat */
   showModelReasoning: boolean;
-  /** Show the persistent agent-swarm fleet panel */
-  showAgentSwarmPanel: boolean;
+  /** Agent swarm panel placement: bottom, sidebar, or off */
+  showAgentSwarmPanel: 'bottom' | 'sidebar' | 'off';
   /** Allow tools to access paths outside the project root (inverse of fsAccess). */
   allowOutsideProjectRoot: boolean;
 
@@ -259,7 +259,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   showThinkingLogs: true,
   groupToolCalls: true,
   showModelReasoning: true,
-  showAgentSwarmPanel: false,
+  showAgentSwarmPanel: 'bottom',
   allowOutsideProjectRoot: true,
   reasoningMode: 'auto',
   reasoningEffort: 'high',
@@ -483,7 +483,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
         }
         // v11: new boolean flags — backfill with defaults
         if (typeof p.showModelReasoning !== 'boolean') p.showModelReasoning = true;
-        if (typeof p.showAgentSwarmPanel !== 'boolean') p.showAgentSwarmPanel = false;
+        if (typeof p.showAgentSwarmPanel !== 'string' || !['bottom', 'sidebar', 'off'].includes(p.showAgentSwarmPanel)) p.showAgentSwarmPanel = 'bottom';
         if (typeof p.allowOutsideProjectRoot !== 'boolean') p.allowOutsideProjectRoot = true;
         // v13: TUI-SettingsPicker Display parity fields. The boolean ones
         // mirror their v11 sibling guard pattern. The numeric ones need
