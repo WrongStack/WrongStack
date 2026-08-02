@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/mailbox-mcp",
-  "version": "0.298.0",
+  "version": "0.298.1",
   "license": "MIT",
   "description": "WrongStack project Mailbox as an MCP server with read, management, administration, and live-watch capability tiers.",
   "repository": {
@@ -42,7 +42,7 @@
     "@wrongstack/mcp": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },

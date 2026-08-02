@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugins",
-  "version": "0.298.0",
+  "version": "0.298.1",
   "description": "Official WrongStack collection of focused plugins for code quality, security, observability, planning, and agent coordination",
   "license": "MIT",
   "author": "ECOSTACK TECHNOLOGY OÜ",
@@ -297,7 +297,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },

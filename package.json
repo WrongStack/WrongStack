@@ -1,7 +1,7 @@
 {
   "name": "wrongstack-monorepo",
   "private": true,
-  "version": "0.298.0",
+  "version": "0.298.1",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.5.3+sha512.7ac1c919341c213a34dc0d02afb7143c5c26ac26ee8c4782deea821b8ac64d2134a081fd8941dae6e29bbb48f58dfc2b7fbceeccc07cb2f09d219d342a4969ed",
@@ -67,9 +67,9 @@
     "postinstall": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.5",
-    "@playwright/test": "^1.62.0",
-    "@types/node": "^26.1.1",
+    "@biomejs/biome": "2.5.6",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
     "@vitest/coverage-istanbul": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "@wrongstack/tools": "workspace:*",
