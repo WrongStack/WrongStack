@@ -71,6 +71,11 @@ jobs:
     timeout-minutes: 45
     outputs:
       version: ${{ steps.tag.outputs.version }}
+      # The commit this job actually validated. `publish` checks THIS out rather
+      # than re-resolving the tag, so a movable tag cannot be repointed at a
+      # different tree between the ancestor check here and the reviewer approval
+      # on the npm-publish environment (WS-089).
+      sha: ${{ steps.tag.outputs.sha }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -83,9 +88,18 @@ jobs:
 
       - name: Resolve and check the tag
         id: tag
+        # Bound through the environment, never interpolated into the script
+        # text. `${{ }}` is substituted BEFORE the shell parses anything, so
+        # `raw="${{ github.ref_name }}"` executed whatever the tag name
+        # contained. git ref-format permits `` ` ``, `$`, `(`, `)`, `;`, `"`,
+        # `#`, `|` and `&`, and `v1.0.0";…;#` still matches the `v*.*.*`
+        # trigger glob — so this ran before both safety checks below, with the
+        # cross-job pnpm cache as a path into the `id-token: write` job (WS-089).
+        env:
+          RAW_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          raw="${{ inputs.tag || github.ref_name }}"
+          raw="$RAW_TAG"
           version="${raw#v}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -103,6 +117,10 @@ jobs:
             echo "::error::Tag $raw is not an ancestor of origin/main; refusing to publish."
             exit 1
           fi
+
+          # Pin the exact commit that passed the checks above so `publish`
+          # cannot resolve the tag to something else later.
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Check the pnpm pin clears the OIDC floor
         run: |
@@ -147,7 +165,11 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          # The SHA `verify` validated, not the tag. Re-resolving the ref here
+          # meant a tag could be moved after the ancestor check and after the
+          # environment reviewer approved, and this job would build and publish
+          # the new tree (WS-089).
+          ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-08-01)
@@ -185,9 +207,13 @@ jobs:
 
       - name: Summary
         if: always()
+        # Same rule as the tag step: job outputs are tag-derived, so they go
+        # through the environment rather than into the script text.
+        env:
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
         run: |
           {
-            echo "### Release ${{ needs.verify.outputs.version }}"
+            echo "### Release $RELEASE_VERSION"
             echo ""
             echo "Published via npm trusted publishing (OIDC) from \`release.yml\`."
             echo "Provenance attestations are attached automatically — no \`--provenance\` flag is needed."
