@@ -92,6 +92,41 @@ export interface HistoryScrollController {
    * entry id is returned; otherwise returns null.
    */
   copyAtViewportCell(row: number, col: number): Promise<number | null>;
+  /**
+   * Begin a drag-to-select gesture at `row`,`col` (history-band viewport cell).
+   * The cell must be inside a card's row range and inside the rendered band
+   * (`0 <= col < termWidth`); the mouse handler has already excluded the rail.
+   * Calls that don't satisfy that contract are silently ignored. Existing
+   * scrollbar/copy-icon/wheel paths remain intact because they call their own
+   * handlers; this only kicks in when the mouse layer explicitly routes a
+   * left-press into the card band.
+   */
+  beginSelection(row: number, col: number): void;
+  /**
+   * Extend an active selection to `row`,`col`. If no selection is in progress,
+   * the call is a no-op. Crossing into the gutter or below the viewport cancels
+   * the drag internally — leaving stale viewport-relative coords around after
+   * a mid-drag escape would let the next right-click paste from the wrong
+   * card, which is the worse failure mode than the selection disappearing.
+   */
+  extendSelection(row: number, col: number): void;
+  /**
+   * End an active drag (left-release). Does NOT write to the clipboard — the
+   * copy is performed by {@link commitSelection}, which is triggered by a
+   * separate right-click in the history band (per the drag-select-then-commit
+   * contract). If no selection is in progress, the call is a no-op.
+   */
+  endSelection(): void;
+  /** Drop any in-progress or committed selection without copying. */
+  clearSelection(): void;
+  /**
+   * Commit the active selection to the system clipboard. Returns true if a
+   * non-empty selection was resolved and the write succeeded. Returns false
+   * silently when there is no selection, the selection is empty (e.g. the drag
+   * never moved), or the write fails — the caller can show a transient notice
+   * on the truthy branch and stay silent on the falsy branch.
+   */
+  commitSelection(): Promise<boolean>;
 }
 
 /**
@@ -112,6 +147,12 @@ export interface CopyHit {
 
 /** Sentinel returned after copying the active, non-retained tool-stream box. */
 export const LIVE_TOOL_STREAM_COPY_ID = -1;
+
+/** Sentinel returned after copying a drag-select-then-right-click selection.
+ *  Distinct from any retained entry id so the host can render a different
+ *  status-line notice ("Selected range copied") without flashing a specific
+ *  card's copy icon (which only makes sense when a single entry was copied). */
+export const SELECTION_COPY_ID = -2;
 
 /**
  * Resolve the copy target under a viewport cell, or null. A cell matches when
@@ -169,15 +210,20 @@ export function copyRegistryVisibleClip(opts: {
   return Math.max(0, opts.mountedRows + opts.tailRows - opts.viewportRows);
 }
 
-/** Build the live tool-stream header hit, accounting for ToolStreamBox's top margin. */
+/** Build the live tool-stream header hit, accounting for ToolStreamBox's top margin.
+ *  The `pinnedSlack` offset must match {@link buildCopyRegistry}'s card-hit math so
+ *  the live-stream icon stays visually aligned with its header row in underfilled
+ *  pinned frames (flex-end parks the mounted stack at the bottom of the viewport). */
 export function liveToolStreamCopyHit(opts: {
   visible: boolean;
   mountedRows: number;
   visibleClip: number;
   viewportRows: number;
   iconCol: number;
+  pinnedSlack?: number;
 }): CopyHit | null {
-  const headerRow = opts.mountedRows - opts.visibleClip + 1;
+  const slack = opts.pinnedSlack ?? 0;
+  const headerRow = opts.mountedRows - opts.visibleClip + 1 + slack;
   if (!opts.visible || headerRow < 0 || headerRow >= opts.viewportRows) return null;
   return {
     entryId: LIVE_TOOL_STREAM_COPY_ID,
@@ -185,6 +231,130 @@ export function liveToolStreamCopyHit(opts: {
     endRow: headerRow + 1,
     iconCol: opts.iconCol,
   };
+}
+
+/**
+ * Selection rectangle in viewport cell coordinates, normalized so
+ * `topLeft.row <= bottomRight.row` and the column pairs are likewise ordered.
+ * Both endpoints are inclusive — the cell at `bottomRight` is selected.
+ */
+export interface SelectionRect {
+  topLeft: { row: number; col: number };
+  bottomRight: { row: number; col: number };
+  /** True while the user is still dragging; false after left-release but
+   *  before either clearSelection or commitSelection runs. */
+  inProgress: boolean;
+}
+
+/** Canonicalize two viewport cells into a SelectionRect. Pure. */
+export function normalizeSelection(
+  a: { row: number; col: number },
+  b: { row: number; col: number },
+  inProgress: boolean,
+): SelectionRect {
+  const topLeft = { row: Math.min(a.row, b.row), col: Math.min(a.col, b.col) };
+  const bottomRight = { row: Math.max(a.row, b.row), col: Math.max(a.col, b.col) };
+  return { topLeft, bottomRight, inProgress };
+}
+
+/** True when the column lies outside the rendered card band. Inside the band
+ *  the layout reserves `SCROLLBAR_HIT_WIDTH` columns for the rail AFTER the
+ *  band, so `0..termWidth-1` is always in-band and nothing inside needs to be
+ *  excluded. The mouse handler must already have excluded the rail before
+ *  calling into the controller — we only check the band bounds here. */
+export function isOutOfBand(col: number, termWidth: number): boolean {
+  return col < 0 || col >= termWidth;
+}
+
+/**
+ * One entry's contribution to a drag-selected range. Returned in document
+ * (row-index-in-card) coordinates so the caller decides how to slice into
+ * the entry's source text. `start` is the column inside the card (0-based
+ * from the left edge of the card's visible rectangle, NOT the terminal
+ * column — the gutter is excluded by the caller before reaching here).
+ * `end` is inclusive. When `startRow === endRow`, the slice is one row; the
+ * caller is responsible for translating text columns into source offsets.
+ */
+export interface SelectionSlice {
+  entryId: number;
+  /** Inclusive row-in-card for the start of the slice. */
+  startRow: number;
+  /** Inclusive column, 0-based, inside the card's text area (gutter excluded). */
+  startCol: number;
+  /** Inclusive end row. */
+  endRow: number;
+  /** Inclusive end column, 0-based. */
+  endCol: number;
+}
+
+/**
+ * Translate a viewport-cell selection into per-entry row/col slices, walking
+ * the same mounted-group geometry the copy-hit registry uses so the two
+ * systems share one row index. Entries wholly outside the selection return
+ * nothing. Entries whose vertical span is wholly inside the selection are
+ * returned as a single row-range; entries the selection clips at the top or
+ * bottom are returned with row bounds matching the clip.
+ *
+ * `cardVisibleCols` is the number of columns inside the card the user can
+ * see — the band width minus the right gutter (`viewportWidth - SCROLLBAR_HIT_WIDTH`).
+ * Slices never include the gutter or any column to its right; the caller has
+ * already validated that.
+ *
+ * Returned slices are in document (entry-local) coordinates: `startRow`/`endRow`
+ * are rows inside the entry's own geometry, NOT viewport cells. This is what
+ * the assembler needs to recover text — slicing into the raw entry text uses
+ * per-row layout, which the caller resolves via the layout store.
+ */
+export function selectionToSlices(opts: {
+  selection: SelectionRect;
+  cards: ReadonlyArray<{
+    entryId: number;
+    /** 0-based viewport row of the card's first visible row. */
+    viewportStartRow: number;
+    /** 0-based viewport row just past the card's last visible row. */
+    viewportEndRow: number;
+  }>;
+  cardVisibleCols: number;
+}): SelectionSlice[] {
+  const { selection, cards, cardVisibleCols } = opts;
+  const maxCol = Math.max(0, cardVisibleCols - 1);
+  const result: SelectionSlice[] = [];
+  for (const card of cards) {
+    // Compute the intersection in viewport coordinates.
+    const visTop = Math.max(selection.topLeft.row, card.viewportStartRow);
+    const visBot = Math.min(selection.bottomRight.row, card.viewportEndRow - 1);
+    if (visTop > visBot) continue;
+    // Translate to entry-local rows.
+    const entryStartRow = visTop - card.viewportStartRow;
+    const entryEndRow = visBot - card.viewportStartRow;
+    // Clip the column range to the card's visible area. When the slice's
+    // first row is the selection's first viewport row, the left edge is the
+    // user's drag start column; otherwise we begin at col 0 (the rendered
+    // text starts at the card's left edge). The right edge is symmetric —
+    // except the right edge is *always* capped to `maxCol` so a drag that
+    // overshoots the card width never includes cells that don't exist.
+    // `selectionToSlices` emits INCLUSIVE end columns, matching the
+    // `SelectionSlice.endCol` contract — so col=3 from the user's drag
+    // means "include char 3" rather than "exclude char 3". This is the
+    // intuitive convention a user reading "drag col 0..3 copies 4 chars"
+    // expects.
+    const startCol =
+      entryStartRow === selection.topLeft.row - card.viewportStartRow
+        ? Math.max(0, Math.min(maxCol, selection.topLeft.col))
+        : 0;
+    const endCol =
+      entryEndRow === selection.bottomRight.row - card.viewportStartRow
+        ? Math.max(startCol, Math.min(maxCol, selection.bottomRight.col))
+        : maxCol;
+    result.push({
+      entryId: card.entryId,
+      startRow: entryStartRow,
+      startCol,
+      endRow: entryEndRow,
+      endCol,
+    });
+  }
+  return result;
 }
 
 interface CopyRegistry {
@@ -223,12 +393,20 @@ function buildCopyRegistry(opts: {
     tailRows: opts.tailRows,
     viewportRows: opts.viewportRows,
   });
+  // Pinned frames whose mounted stack is shorter than the viewport are
+  // rendered with flex-end (parking the first card at row `vp - mountedRows`).
+  // Mirror the same `pinnedSlack` offset `buildMountedCardSpans` uses so the
+  // copy icon row stays visually aligned with the card row — without this,
+  // icons render at row 0 while the card itself sits at row `vp - h`.
+  const pinnedSlack = !opts.scrolled
+    ? Math.max(0, opts.viewportRows - mountedGroupRows - opts.tailRows)
+    : 0;
   const hits: CopyHit[] = [];
   let offset = 0;
   for (const group of opts.renderGroups) {
     const gid = renderGroupId(group);
     const groupHeight = opts.heightCache.getHeight(gid) ?? 0;
-    const startRow = offset - visibleClip;
+    const startRow = offset - visibleClip + pinnedSlack;
     offset += groupHeight;
     const groupEntryIds =
       group.type === 'tool-group'
@@ -255,6 +433,7 @@ function buildCopyRegistry(opts: {
       visibleClip,
       viewportRows: opts.viewportRows,
       iconCol: opts.iconCol,
+      pinnedSlack,
     }),
   };
 }
@@ -321,6 +500,213 @@ export function scrollOffsetForTrackRow(rows: number, total: number, cell: numbe
   const clampedCell = Math.max(0, Math.min(rows - 1, cell));
   const windowTop = Math.round((clampedCell / Math.max(1, rows - 1)) * maxOffset);
   return Math.max(0, Math.min(maxOffset, maxOffset - windowTop));
+}
+
+/**
+ * Per-card viewport span for the currently-mounted groups. Mirrors
+ * {@link buildCopyRegistry}'s visibleClip math so the drag-select gesture asks
+ * the same geometry question the copy-hit registry already answers.
+ */
+export interface MountedCardSpan {
+  entryId: number;
+  /** 0-based viewport row of the first VISIBLE row of the card. */
+  viewportStartRow: number;
+  /** 0-based viewport row one past the last VISIBLE row of the card. */
+  viewportEndRow: number;
+  /** Card's geometry in rows; visibleClip + scrolled-clip aware. */
+  totalRows: number;
+  entryIds?: readonly number[];
+}
+
+/**
+ * Build per-card viewport spans for every mounted render group. Pure — given
+ * the same render-group list, height cache, scroll state, and viewport size,
+ * the result is deterministic and matches the copy-hit registry. Exported so
+ * tests can verify the span map without mounting the full component.
+ */
+export function buildMountedCardSpans(opts: {
+  renderGroups: readonly RenderGroup[];
+  heightCache: EntryHeightCache;
+  scrolled: boolean;
+  clip: number;
+  tailRows: number;
+  viewportRows: number;
+  showModelReasoning?: boolean | undefined;
+}): MountedCardSpan[] {
+  const mountedGroupRows = opts.renderGroups.reduce(
+    (rows, group) => rows + (opts.heightCache.getHeight(renderGroupId(group)) ?? 0),
+    0,
+  );
+  const visibleClip = copyRegistryVisibleClip({
+    scrolled: opts.scrolled,
+    clip: opts.clip,
+    mountedRows: mountedGroupRows,
+    tailRows: opts.tailRows,
+    viewportRows: opts.viewportRows,
+  });
+  const spans: MountedCardSpan[] = [];
+  let offset = 0;
+  // Pinned frames whose mounted stack is shorter than the viewport are
+  // rendered with flex-end (parking the first card at row `vp - mountedRows`).
+  // `visibleClip` alone is 0 in underfill, which would claim rows [0, H) while
+  // Ink draws the same cards at [vp-H, vp) — drags over visible text never
+  // start a selection, and clicks on the blank top band "select" off-screen
+  // content. Add the same slack `buildCopyRegistry` uses so spans, copy
+  // icons, and the rendered frame all share one coordinate system.
+  const pinnedSlack = !opts.scrolled
+    ? Math.max(0, opts.viewportRows - mountedGroupRows - opts.tailRows)
+    : 0;
+  for (const group of opts.renderGroups) {
+    const gid = renderGroupId(group);
+    const groupHeight = opts.heightCache.getHeight(gid) ?? 0;
+    const viewportStartRow = offset - visibleClip + pinnedSlack;
+    offset += groupHeight;
+    const entryIds =
+      group.type === 'tool-group'
+        ? group.data.entries.map((entry) => entry.id)
+        : isCopyableEntry(group.entry) &&
+            !(group.entry.kind === 'thinking' && opts.showModelReasoning === false)
+          ? [group.entry.id]
+          : [];
+    const entryId = entryIds[0];
+    if (entryId === undefined) continue;
+    const viewportEndRow = viewportStartRow + groupHeight;
+    if (viewportEndRow <= 0 || viewportStartRow >= opts.viewportRows) continue;
+    spans.push({
+      entryId,
+      viewportStartRow,
+      viewportEndRow,
+      totalRows: groupHeight,
+      ...(entryIds.length > 1 ? { entryIds } : {}),
+    });
+  }
+  return spans;
+}
+
+/**
+ * Find the card whose viewport row range contains `row`. Pure.
+ * Returns null when the row is in a blank gap or outside the viewport.
+ */
+export function selectionHitAt(
+  row: number,
+  spans: readonly MountedCardSpan[],
+): { entryId: number; entryIds?: readonly number[] } | null {
+  for (const span of spans) {
+    if (row >= span.viewportStartRow && row < span.viewportEndRow) {
+      return { entryId: span.entryId, ...(span.entryIds ? { entryIds: span.entryIds } : {}) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Build the clipboard payload for a selection by slicing into each affected
+ * entry's full renderable text. The v1 contract is line-then-column on the
+ * entry's source text: each slice exposes `startRow`/`endRow` and
+ * `startCol`/`endCol` in card-local coordinates; we split the entry's
+ * text on `\n`, keep only the rows inside the row range, and within those
+ * rows apply the column range. The matrix matches what the source line
+ * index would be when no wrapping occurs — i.e. one card row maps to one
+ * source line. Wrap-geometry translation is intentionally absent in v1
+ * because the layout store does not yet expose per-card-row wrap segments;
+ * it returns when those segments exist and a v1.1 test demands it.
+ *
+ * `toolGroupsByHeadId` lets a multi-member tool-group expand: when the
+ * head id appears with `entryIds.length > 1`, the assembler copies via
+ * `copyableTextForEntries` (raw ordered JSON of every member, matching
+ * the existing copy-icon contract). A single-entry head falls through
+ * to `copyableTextForEntry`.
+ *
+ * Multi-entry selections are joined with `\n---\n` so the user can see
+ * where one card ends and the next begins. Empty selections and
+ * selections that resolve to no text return `""` so the caller can fall
+ * through silently.
+ */
+export function assembleSelectionText(opts: {
+  slices: readonly SelectionSlice[];
+  entriesById: ReadonlyMap<number, HistoryEntry>;
+  /**
+   * For each tool-group head id present in `slices`, the ordered member list.
+   * When a head has a multi-member group, the assembler slices into the
+   * group's combined text via `copyableTextForEntries`. A single-entry
+   * head falls through to `copyableTextForEntry`.
+   */
+  toolGroupsByHeadId?: ReadonlyMap<number, readonly number[]> | undefined;
+}): string {
+  const { slices, entriesById, toolGroupsByHeadId } = opts;
+  if (slices.length === 0) return '';
+  const byEntry = new Map<number, SelectionSlice[]>();
+  for (const slice of slices) {
+    const list = byEntry.get(slice.entryId);
+    if (list) list.push(slice);
+    else byEntry.set(slice.entryId, [slice]);
+  }
+  const segments: string[] = [];
+  let toolGroupCount = 0;
+  for (const [entryId, entrySlices] of byEntry) {
+    const head = entriesById.get(entryId);
+    if (!head) continue;
+    // Tool-group expansion: when the head id resolves to a multi-member
+    // group, slice the combined text from every member in order. A
+    // single-entry head falls through to the existing path.
+    const groupMembers = toolGroupsByHeadId?.get(entryId);
+    const entries =
+      groupMembers && groupMembers.length > 1
+        ? groupMembers
+            .map((id) => entriesById.get(id))
+            .filter((entry): entry is HistoryEntry => entry !== undefined)
+        : [head];
+    if (entries.length === 0) continue;
+    if (entries.length > 1) toolGroupCount += 1;
+    const fullText =
+      entries.length === 1
+        ? copyableTextForEntry(entries[0] as HistoryEntry)
+        : copyableTextForEntries(entries);
+    if (fullText.length === 0) continue;
+    // For a multi-member tool-group, the slice's row range is in the
+    // group's *header* coordinate system (a small fixed box, typically
+    // 1-3 rows), NOT in the combined JSON text's row space — slicing
+    // `fullText` by that range picks an arbitrary fragment of the JSON
+    // rather than the group's content. The drag intent for a tool-group
+    // head is "copy the whole group", so emit the full `fullText`
+    // regardless of the slice geometry. Single-entry heads still slice
+    // normally because their text and slice share the same coordinate
+    // space.
+    if (entries.length > 1) {
+      segments.push(fullText);
+      continue;
+    }
+    for (const slice of entrySlices) {
+      const rows = fullText.split('\n');
+      const collected: string[] = [];
+      for (let r = slice.startRow; r <= slice.endRow && r < rows.length; r++) {
+        const line = rows[r] ?? '';
+        if (slice.startRow === slice.endRow) {
+          const start = Math.max(0, Math.min(line.length, slice.startCol));
+          const end = Math.max(start, Math.min(line.length, slice.endCol + 1));
+          if (end > start) collected.push(line.slice(start, end));
+        } else if (r === slice.startRow) {
+          const start = Math.max(0, Math.min(line.length, slice.startCol));
+          if (start < line.length) collected.push(line.slice(start));
+        } else if (r === slice.endRow) {
+          const end = Math.max(0, Math.min(line.length, slice.endCol + 1));
+          if (end > 0) collected.push(line.slice(0, end));
+        } else {
+          collected.push(line);
+        }
+      }
+      const seg = collected.join('\n');
+      if (seg.length > 0) segments.push(seg);
+    }
+  }
+  if (segments.length === 0) return '';
+  // Distinct heads use `---`; identical heads (multi-row drag in one
+  // card) join with a plain newline so the user sees the natural row
+  // break. A tool-group expansion acts like one logical entry, so the
+  // plain-newline rule applies within a tool-group; distinct cards (heads
+  // or tool-groups) get the boundary.
+  const separator = byEntry.size > 1 || toolGroupCount > 0 ? '\n---\n' : '\n';
+  return segments.join(separator);
 }
 
 /**
@@ -479,6 +865,33 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // controller's copyAtViewportCell when a left-click lands in the history band.
   const copyHitsRef = useRef<CopyHit[]>([]);
   const liveToolCopyHitRef = useRef<CopyHit | null>(null);
+  // Per-card viewport spans for the currently-mounted groups. Rebuilt every
+  // render from the same offset/visibleClip math the copy-hit registry uses, so
+  // the selection gesture asks the same geometry question as every other
+  // viewport-aware system. Uses the full {@link MountedCardSpan} shape so the
+  // controller can hand the array straight to `selectionHitAt` without
+  // reconstructing a wrapper object on every move event.
+  const mountedGroupSpansRef = useRef<readonly MountedCardSpan[]>([]);
+  // Compact signature of the last-rendered span geometry, used to invalidate
+  // `selectionRef` when entries mutate in place in pinned mode: a new entry
+  // appended (or a tool-stream tail growing) re-runs the render without an
+  // anchor change, so the controller's recorded drag coords still resolve
+  // against stale geometry. A change in this signature between renders clears
+  // any committed-but-not-yet-cleared selection so the next right-click
+  // doesn't paste text from cards the user can't see there anymore.
+  const spansSignatureRef = useRef('');
+  // Selection state for drag-to-select-then-right-click-copy. Lives in a ref
+  // so mid-gesture updates don't force extra renders — no setState fires in
+  // begin/extend/end/commit/clear, and the render tree does not currently
+  // read this ref (a visible drag-highlight overlay is a future addition;
+  // for now the user discovers the selection by right-clicking to commit).
+  // Cleared on every wheel/copy-icon/scrollbar interaction so it never
+  // outlives the gesture that created it.
+  const selectionRef = useRef<{
+    anchor: { row: number; col: number } | null;
+    head: { row: number; col: number } | null;
+    inProgress: boolean;
+  }>({ anchor: null, head: null, inProgress: false });
   const toolStreamRef = useRef(toolStream);
   toolStreamRef.current = toolStream;
   const entriesByIdRef = useRef(new Map<number, HistoryEntry>());
@@ -664,6 +1077,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     const nextId = next ? ids[next.index] : undefined;
     const normalized =
       next && nextId !== undefined ? { index: next.index, clip: Math.max(0, next.clip) } : null;
+    // Viewport-relative selection coordinates become invalid as soon as the
+    // viewport moves. Clear them on every controller scroll path so a later
+    // right-click cannot resolve the old rectangle against new card spans.
+    selectionRef.current = { anchor: null, head: null, inProgress: false };
     // Raw stdin often batches many trackpad/wheel reports in one chunk. Update
     // the imperative ref immediately so every report advances from the result
     // of the previous one even before React commits a frame.
@@ -720,8 +1137,110 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         if (payload === null) return null;
         return (await writeClipboardText(payload.text)) ? payload.entryId : null;
       },
+      beginSelection: (row, col) => {
+        // The mouse handler has already filtered to left-press on a non-gutter
+        // history-band cell that is NOT a copy-icon hit. We still re-check the
+        // gutter here because the gutter column set is the source of truth for
+        // any band-click that slipped through. Rows in the entry-row gap (no
+        // card at that viewport row) must not start a selection — that would
+        // let the user "select" blank padding that resolves to no text.
+        // Both early-return branches also clear any prior committed selection:
+        // a left-press on padding is the user's explicit signal that the
+        // previous drag is over, and leaving the old rectangle alive would let
+        // a later right-click commit stale viewport-relative geometry against
+        // the current card spans.
+        if (isOutOfBand(col, termWidth)) {
+          selectionRef.current = { anchor: null, head: null, inProgress: false };
+          return;
+        }
+        const cardHit = selectionHitAt(row, mountedGroupSpansRef.current);
+        if (cardHit === null) {
+          selectionRef.current = { anchor: null, head: null, inProgress: false };
+          return;
+        }
+        selectionRef.current = {
+          anchor: { row, col },
+          head: { row, col },
+          inProgress: true,
+        };
+      },
+      extendSelection: (row, col) => {
+        const cur = selectionRef.current;
+        if (cur.anchor === null) return;
+        // Once a drag has been released (inProgress=false), further motion
+        // events are explicitly a no-op. A stray post-release move event
+        // must not shift the head and silently widen the committed range.
+        if (cur.inProgress === false) return;
+        // Crossing outside the band (rail or below the viewport) cancels the
+        // drag — the user pulled outside the card. A stale selection survives
+        // only until commit or clear; mid-drag cancellation is the safer
+        // default.
+        if (isOutOfBand(col, termWidth) || row < 0 || row >= vp) {
+          selectionRef.current = { anchor: null, head: null, inProgress: false };
+          return;
+        }
+        selectionRef.current = { ...cur, head: { row, col } };
+      },
+      endSelection: () => {
+        const cur = selectionRef.current;
+        if (cur.anchor === null) return;
+        // Mark the selection as finalized (no longer in progress) but keep it
+        // available until the user right-clicks to commit, presses elsewhere,
+        // or starts a new gesture. The next beginSelection replaces the state.
+        selectionRef.current = { ...cur, inProgress: false };
+      },
+      clearSelection: () => {
+        const cur = selectionRef.current;
+        if (cur.anchor === null && cur.head === null) return;
+        selectionRef.current = { anchor: null, head: null, inProgress: false };
+      },
+      commitSelection: async () => {
+        const cur = selectionRef.current;
+        if (cur.anchor === null || cur.head === null) return false;
+        // A drag that never moved is not a real selection: the user pressed
+        // and released on the same cell without dragging. commitSelection
+        // must return false in that case so the host doesn't show a "Copied"
+        // notice for what was effectively a no-op click.
+        if (cur.anchor.row === cur.head.row && cur.anchor.col === cur.head.col) {
+          selectionRef.current = { anchor: null, head: null, inProgress: false };
+          return false;
+        }
+        const rect = normalizeSelection(cur.anchor, cur.head, cur.inProgress);
+        // Translate viewport cells into per-card slices using the same
+        // mounted-group geometry the scrollbar uses.
+        const slices = selectionToSlices({
+          selection: rect,
+          cards: mountedGroupSpansRef.current,
+          cardVisibleCols: termWidth,
+        });
+        const toolGroupsByHeadId = new Map<number, readonly number[]>();
+        for (const span of mountedGroupSpansRef.current) {
+          if (span.entryIds && span.entryIds.length > 1) {
+            toolGroupsByHeadId.set(span.entryId, span.entryIds);
+          }
+        }
+        const text = assembleSelectionText({
+          slices,
+          entriesById: entriesByIdRef.current,
+          ...(toolGroupsByHeadId.size > 0 ? { toolGroupsByHeadId } : {}),
+        });
+        // Always clear the selection — committing an empty drag should not
+        // leave state around. The next render reads the cleared ref.
+        selectionRef.current = { anchor: null, head: null, inProgress: false };
+        if (text.length === 0) return false;
+        // Wrap the write in try/catch: a denied clipboard (locked session,
+        // missing write permission, runtime timeout) must not turn into an
+        // unhandled rejection in the host. `writeClipboardText` returns
+        // `false` on its own for the documented "write failed" cases; this
+        // catches the rest (rare exceptions thrown by the underlying IPC).
+        try {
+          return await writeClipboardText(text);
+        } catch {
+          return false;
+        }
+      },
     }),
-    [applyAnchor],
+    [applyAnchor, termWidth, vp],
   );
 
   useEffect(() => {
@@ -808,6 +1327,33 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const copyRailHits = copyRegistry.liveHit
     ? [...copyRegistry.hits, copyRegistry.liveHit]
     : copyRegistry.hits;
+  // Mirror the same visibleClip math into per-card spans so beginSelection and
+  // commitSelection can answer "what card is row N on?" without re-walking the
+  // height cache or re-running buildCopyRegistry.
+  const nextSpans = buildMountedCardSpans({
+    renderGroups,
+    heightCache,
+    scrolled,
+    clip,
+    tailRows: plan.mountTail ? toolTailHeight : 0,
+    viewportRows: vp,
+    showModelReasoning,
+  });
+  // If span geometry drifted between renders (new entry appended, tool-stream
+  // tail growing, height-cache estimate promoted to measured), any committed
+  // selection rect now points at the wrong cards/rows. Clear it so a later
+  // right-click cannot paste stale geometry — the user must start a new drag
+  // against the current layout.
+  const nextSignature = nextSpans
+    .map((s) => `${s.entryId}:${s.viewportStartRow}:${s.viewportEndRow}`)
+    .join('|');
+  if (nextSignature !== spansSignatureRef.current) {
+    if (selectionRef.current.anchor !== null || selectionRef.current.head !== null) {
+      selectionRef.current = { anchor: null, head: null, inProgress: false };
+    }
+    spansSignatureRef.current = nextSignature;
+  }
+  mountedGroupSpansRef.current = nextSpans;
 
   // ── Post-render measurement ─────────────────────────────────────────
   // Measure the groups actually mounted this frame and replace their cached
@@ -924,6 +1470,13 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       onRequestOlderEntriesRef.current();
     }
     if (planStartIdxRef.current > 0) {
+      requestOlderFiredRef.current = false;
+    } else if (!scrolled) {
+      // Pinned mode can also be at plan.startIdx === 0 (short transcript
+      // fits the viewport). Without this `else if`, the flag stays set
+      // forever after a fire during a scrolled-to-pinned transition and
+      // the older-entries callback never fires again. Reset unconditionally
+      // on non-zero OR non-scrolled.
       requestOlderFiredRef.current = false;
     }
 

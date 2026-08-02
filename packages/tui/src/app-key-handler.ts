@@ -6,6 +6,7 @@ import type { State } from './app-state.js';
 import { AUTONOMY_OPTIONS } from './components/autonomy-picker.js';
 import { DEFAULT_INPUT_PROMPT, type KeyEvent } from './components/input.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
+import { SELECTION_COPY_ID } from './components/scrollable-history.js';
 import {
   COMPACT_THRESHOLD,
   statusBarAutonomySpan,
@@ -14,7 +15,7 @@ import {
 } from './components/status-bar.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from './components/statusline-picker.js';
 import { actionForFKeyPanel, fKeyEntryFor } from './f-key-panels.js';
-import { hitRegion, isHistoryScrollTarget, statusBarLineRow } from './hit-test.js';
+import { hitRegion, isHistoryScrollTarget, SCROLLBAR_HIT_WIDTH, statusBarLineRow } from './hit-test.js';
 import type { AutonomyStage } from './hooks/use-statusline-state.js';
 import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
@@ -331,12 +332,20 @@ export function createAppKeyHandler(
       dispatch({ type: 'toggleSddBoardMonitor' });
       return;
     }
-    // Ctrl+J → toggle the project kanban panel (not in the F-key table —
+    // Ctrl+Y → toggle the project kanban panel (not in the F-key table —
     // no F-key alias, chord-only). Mirrors Ctrl+B / SDD board pattern
     // because adding a 13th F-key slot would require expanding the picker
     // invariant `fn >= 1 && fn <= 12`. The slash command `/kanban` is the
-    // canonical discovery path; Ctrl+J is a power-user chord.
-    if (key.ctrl && input === 'j') {
+    // canonical discovery path; Ctrl+Y is a power-user chord.
+    //
+    // NB: Ctrl+J (0x0A) is unsuitable — Ink 7 special-cases 0x0A as
+    // `name='enter'` with `key.ctrl=false` BEFORE the ctrl+letter branch,
+    // so the event arrives as `input='\n'` on mainstream terminals (xterm,
+    // ConPTY, iTerm) and falls through to the submit path. Ctrl+B (0x02)
+    // works because Ink does not special-case 0x02; Ctrl+Y (0x19) likewise.
+    // Avoid 0x09/0x0A/0x0D (Ink special-case) and the existing F-key
+    // ctrl-aliases (K, U, D, V, E, F, G, T).
+    if (key.ctrl && input === 'y') {
       dispatch({ type: 'toggleKanbanPanel' });
       return;
     }
@@ -391,7 +400,19 @@ export function createAppKeyHandler(
     // all-phases view) and `c` / `z` / `x` drive run lifecycle — clean worktrees
     // / rollback commits / destroy. clean+rollback refuse while the run is still
     // live (stop it first with Ctrl+C); destroy stops it for you.
-    if (state.sddBoard?.monitorOpen && !key.ctrl && !key.meta) {
+    // The SDD board monitor is non-modal (chat input stays live above it),
+    // so the `c` / `z` / `x` lifecycle shortcuts MUST be gated on an empty
+    // input draft — otherwise typing the literal letters in chat would
+    // silently fire `cleanup_worktrees` / `rollback` / `destroy`, all of
+    // which are destructive and (per the fallback path) bypass the
+    // confirmation ladder. This mirrors the `?` help-shortcut gate above
+    // and the established non-modal pattern (F2/F3/F4/F6/F7 monitors).
+    if (
+      state.sddBoard?.monitorOpen &&
+      !key.ctrl &&
+      !key.meta &&
+      draftRef.current.buffer === ''
+    ) {
       if (key.rightArrow) {
         dispatch({ type: 'sddBoardFocusNext' });
         return;
@@ -501,6 +522,30 @@ export function createAppKeyHandler(
     // mode makes the wheel appear broken (especially on macOS terminals without
     // dedicated PageUp/PageDown keys). Full mode still gates drag/clickable UI.
     if (!overlayOpen) {
+      // Right-press in the history card band commits any in-progress drag
+      // selection to the clipboard. Gated on full mouse mode (managed mode
+      // never delivers the right-press the user expects here; the wheel /
+      // gutter / status-bar handlers all assume a click/wheel world). The
+      // selection gesture itself is still legal in managed mode's bookkeeping
+      // — only the *commit* trigger requires motion events to have been
+      // delivered alongside the press, which managed mode omits.
+      if (mouseMode && key.mouse?.kind === 'press' && key.mouse.button === 'right') {
+        const region = hitRegion(
+          { termRows, termCols: stdout?.columns ?? 80, viewportRows: state.viewportRows },
+          key.mouse.x,
+          key.mouse.y,
+        );
+        if (region?.kind === 'history' && key.mouse.x <= (stdout?.columns ?? 80) - SCROLLBAR_HIT_WIDTH) {
+          void historyScrollRef.current?.commitSelection().then((copied) => {
+            if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
+          });
+          return;
+        }
+        // Right-press outside the card area (gutter, bottom region, outside
+        // the viewport) clears any stale selection so a late commit doesn't
+        // fire on an old drag the user has forgotten about.
+        historyScrollRef.current?.clearSelection();
+      }
       // Horizontal trackpad reports are also encoded as "wheel" with delta 0;
       // ignore them so diagonal gestures do not accidentally move chat down.
       if (key.mouse?.kind === 'wheel' && key.mouse.wheel !== 0) {
@@ -514,6 +559,11 @@ export function createAppKeyHandler(
           if (key.mouse.shift)
             historyScrollRef.current?.scrollPage(key.mouse.wheel > 0 ? 'up' : 'down');
           else historyScrollRef.current?.scrollBy(key.mouse.wheel > 0 ? 1 : -1);
+          // Scrolling always cancels any pending drag-select: the user is
+          // moving through history, not committing a text selection. Without
+          // this clear, a Right-Click after a wheel-flushed drag would copy a
+          // stale range the user has already forgotten about.
+          historyScrollRef.current?.clearSelection();
           return;
         }
       }
@@ -545,6 +595,10 @@ export function createAppKeyHandler(
           key.mouse.kind === 'press' &&
           historyScrollRef.current?.hasCopyTargetAt(copyRow, key.mouse.x - 1)
         ) {
+          // A copy-icon press also clears any pending drag-selection: starting
+          // a fresh click cancels the previous gesture rather than letting the
+          // user accidentally copy an unrelated selection they no longer want.
+          historyScrollRef.current?.clearSelection();
           void historyScrollRef.current
             .copyAtViewportCell(copyRow, key.mouse.x - 1)
             .then((entryId) => {
@@ -556,10 +610,41 @@ export function createAppKeyHandler(
             .catch(() => null);
           return;
         }
+        // Drag-to-select-then-right-click-copy: gated on full mouse mode so we
+        // actually receive motion events (managed mode only emits press+release
+        // and would never carry the move inside the press/release stream). The
+        // press must land inside the history band on a non-gutter, non-icon
+        // cell — every other cell is owned by an existing handler below.
+        if (
+          mouseMode &&
+          region?.kind === 'history' &&
+          key.mouse.x <= (stdout?.columns ?? 80) - SCROLLBAR_HIT_WIDTH
+        ) {
+          if (key.mouse.kind === 'press') {
+            historyScrollRef.current?.beginSelection(region.row, key.mouse.x - 1);
+            return;
+          }
+          if (key.mouse.kind === 'move') {
+            historyScrollRef.current?.extendSelection(region.row, key.mouse.x - 1);
+            return;
+          }
+        }
         if (region?.kind === 'scrollbar') {
+          // Scrollbar drag also cancels any pending selection: the user is
+          // scrubbing chat, not selecting text.
+          historyScrollRef.current?.clearSelection();
           historyScrollRef.current?.scrollToTrackCell(region.cell);
           return;
         }
+      }
+      // Left-release after a drag-select. Routed before the existing
+      // hit-region branches because a release is meaningful only when a
+      // selection was started on the matching press; anything else falls
+      // through unchanged. The SGR decoder keeps the last-pressed button
+      // identity on release, so `button === 'left'` is the correct gate
+      // here for a primary-button drag-select.
+      if (mouseMode && key.mouse?.kind === 'release' && key.mouse.button === 'left') {
+        historyScrollRef.current?.endSelection();
       }
       // Clickable status-bar chips. The bar is bottom-anchored above the panels
       // in belowStatusBarRef; measure both to resolve each line's absolute row,
