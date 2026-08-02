@@ -93,7 +93,7 @@ describe('SQLite public API completion coverage', () => {
       supersedes: ['old'],
       contradicts: ['conflict'],
     });
-    await store.updateSage(value.id, { status: 'deleted' });
+    await store.updateSage(value.id, { status: 'deleted', force: true });
     expect(events.emit).toHaveBeenCalledWith(
       'memory.deleted',
       expect.objectContaining({ contextPolicy: 'eligible' }),
@@ -106,7 +106,7 @@ describe('SQLite public API completion coverage', () => {
       JSON.stringify(neverValue),
       never.id,
     );
-    await store.updateSage(never.id, { status: 'deleted' });
+    await store.updateSage(never.id, { status: 'deleted', force: true });
     expect(events.emit).toHaveBeenCalledWith(
       'memory.deleted',
       expect.objectContaining({ contextPolicy: 'never' }),

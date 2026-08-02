@@ -312,13 +312,14 @@ export async function resolveSqliteCandidate(
     if (policy.mutation.kind === 'delete_memory' && policy.mutation.targetId) {
       try {
         // Candidate-resolved deletes go through in-process `ctx.updateSage`,
-        // not over IPC, so they do NOT need the `force: true` that the
-        // IPC dispatch guard (`project-server.ts:updateSage` case) added
-        // for `updateSage` IPC ops. The store-side permanent-guard still
-        // fires when the target is permanent at delete-time, preserving
-        // the pre-Phase-3 semantics covered by the promotion-race test
-        // in `sqlite-behavior-coverage.test.ts`.
-        await ctx.updateSage(policy.mutation.targetId, { status: 'deleted' });
+        // not over IPC. They pass `force: true` because candidate resolution
+        // is an authorized internal operation (the user or an autonomous
+        // review agent explicitly decided to delete). The store-side
+        // permanent-memory guard still fires when the target is permanent
+        // at delete-time — but `force: true` authorizes the override, and
+        // the audit log records it. This matches `deleteSqliteSage`'s
+        // behavior for explicit force-authorized deletions.
+        await ctx.updateSage(policy.mutation.targetId, { status: 'deleted', force: true });
         applied = true;
       } catch (err) {
         mutationError = err instanceof Error ? err.message : String(err);

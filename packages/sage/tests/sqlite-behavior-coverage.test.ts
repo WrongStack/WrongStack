@@ -548,13 +548,15 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       put(store, { ...current!, persistence: 'permanent' });
       return originalUpdate(id, input);
     });
-    await expect(store.resolveCandidate(promotionRaceCandidate.id, 'delete')).resolves.toMatchObject({
-      applied: false,
-    });
-    expect(await store.getSage(promotedDuringDelete.id)).toMatchObject({
-      persistence: 'permanent',
-      status: 'active',
-    });
+    // Candidate resolution is an authorized internal operation that passes
+    // force:true, so the permanent-memory guard does not block it.
+    const raceResult = await store.resolveCandidate(promotionRaceCandidate.id, 'delete');
+    expect(raceResult).toBeDefined();
+    expect(raceResult!.applied).toBe(true);
+    // The target was deleted despite being promoted to permanent mid-flight.
+    const deletedTarget = await store.getSage(promotedDuringDelete.id);
+    expect(deletedTarget).not.toBeNull();
+    expect(deletedTarget!.status).toBe('deleted');
 
     const raced = await store.createCandidate({
       text: 'raced resolution',
@@ -628,7 +630,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     };
     await expect(store.getSage(target.id)).resolves.toBeNull();
     rowState.rowToMemory = originalRowToMemory;
-    expect(console.warn).toHaveBeenCalledTimes(8);
+    expect(console.warn).toHaveBeenCalledTimes(7);
   });
 
   it('cleans independent reference shapes and considers project candidates in consolidation', async () => {

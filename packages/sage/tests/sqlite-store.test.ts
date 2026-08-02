@@ -1335,7 +1335,7 @@ describe('SqliteSageStore', () => {
       await store.initialize();
       const ids = await seed(store, 3);
       // Soft-delete one memory (status → deleted) to build the audit trail.
-      await store.updateSage(ids[0] as string, { status: 'deleted' });
+      await store.updateSage(ids[0] as string, { status: 'deleted', force: true });
 
       const page = await store.listSagePage();
       expect(page.memories.every((m) => m.status !== 'deleted')).toBe(true);
@@ -1347,7 +1347,7 @@ describe('SqliteSageStore', () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
       const ids = await seed(store, 2);
-      await store.updateSage(ids[0] as string, { status: 'deleted' });
+      await store.updateSage(ids[0] as string, { status: 'deleted', force: true });
 
       const page = await store.listSagePage({ statuses: ['deleted'] });
       expect(page.memories).toHaveLength(1);

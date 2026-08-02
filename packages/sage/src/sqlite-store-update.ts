@@ -35,11 +35,22 @@ export function updateSqliteSage(
   if (!existing) throw new Error(`SAGE ${id} not found.`);
   if (
     input.status === 'deleted' &&
-    !input.force &&
-    ((existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ||
-      input.persistence === 'permanent')
+    !input.force
   ) {
-    throw new Error(`SAGE "${id}" is marked 'permanent' and cannot be deleted.`);
+    if (
+      ((existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ||
+        input.persistence === 'permanent')
+    ) {
+      throw new Error(
+        `SAGE "${id}" is marked 'permanent' and cannot be deleted. ` +
+          `Pass { force: true } to override; the override will be recorded in the audit log.`,
+      );
+    }
+    throw new Error(
+      `SAGE "${id}" cannot be deleted without explicit authorization. ` +
+        `Pass { force: true } to the memory_delete tool. ` +
+        `The force flag is recorded in the audit log.`,
+    );
   }
   const updated: Sage = {
     ...existing,

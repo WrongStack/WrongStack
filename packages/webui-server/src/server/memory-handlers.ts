@@ -377,9 +377,9 @@ export async function handleSageRemember(
  * Request:  { type: 'memory.sage.delete', payload: { id, reason?, force?, neverInject? } }
  * Response: { type: 'memory.sage.delete', payload: { success, message } }
  *
- * `force` defaults to `true` (backward-compatible). When `false`, the
- * permanent-memory guard in `deleteSage` is respected and
- * `persistence: 'permanent'` entries cannot be deleted.
+ * `force` defaults to `false`. The caller must explicitly pass `force: true`
+ * to authorize deletion. The permanent-memory guard in `deleteSage` is
+ * always respected when force is not set.
  *
  * `neverInject` (default false) marks the memory so context injection
  * never loads it — used when a memory is factually wrong, not just
@@ -420,11 +420,8 @@ export async function handleSageDelete(
     return;
   }
   try {
-    // Default force: true for backward compatibility — existing WebUI
-    // clients always force-delete.  Newer clients may pass force: false
-    // to respect the permanent-memory guard (soft-delete path).
     await Sage.deleteSage(id, reason, {
-      force: force ?? true,
+      force: force === true,
       neverInject: neverInject === true,
     });
     send(ws, {
