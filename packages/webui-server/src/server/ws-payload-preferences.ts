@@ -59,8 +59,7 @@ const BOOLEAN_PREF_KEYS = new Set([
   // Display-only toggles (purely visual, persisted in localStorage via Zustand).
   'groupToolCalls',
   'showThinkingLogs',
-  // v11 Display parity: agent-swarm panel + inverse fsAccess flag.
-  'showAgentSwarmPanel',
+  // v11 Display parity: inverse fsAccess flag.
   'allowOutsideProjectRoot',
   // v13 Display parity (TUI SettingsPicker fields 42 & 43): the read tool
   // includes codebase-index symbols, and SAGE memory-inject blocks are
@@ -180,6 +179,7 @@ const ENUM_PREF_KEYS: Record<string, Set<string>> = {
   chimeraAutoFix: new Set(['off', 'ask', 'auto']),
   autoReviewCascadeOn: new Set(['off', 'critical', 'high']),
   fleetChatVerbosity: new Set(['off', 'full']),
+  showAgentSwarmPanel: new Set(['bottom', 'sidebar', 'off']),
 };
 
 function validateModelRuntimeValue(

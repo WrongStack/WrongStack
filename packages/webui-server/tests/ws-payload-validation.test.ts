@@ -301,7 +301,7 @@ describe('WebUI payload validation', () => {
       const result = validatePrefsUpdatePayload({
         // v11 booleans.
         showModelReasoning: true,
-        showAgentSwarmPanel: false,
+        showAgentSwarmPanel: 'sidebar',
         allowOutsideProjectRoot: true,
         // v13 booleans (TUI SettingsPicker fields 42 & 43).
         readSymbols: true,
