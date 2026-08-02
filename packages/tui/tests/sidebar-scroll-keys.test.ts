@@ -5,13 +5,16 @@ import { createTestState } from './helpers/create-test-state.js';
 describe('Sidebar focus + scroll key routing', () => {
   /** Create a state with enough fleet entries to allow scrolling. */
   function createStateWithContent() {
-    let s = createTestState();
-    const fleet: Record<string, { id: string; name: string; status: string }> = {};
-    fleet['leader'] = { id: 'leader', name: 'Leader Agent', status: 'running' };
-    for (let i = 1; i <= 14; i++) {
-      fleet[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
-    }
-    return { ...s, fleet: fleet as never };
+    return createTestState({
+      fleet: (() => {
+        const f: Record<string, { id: string; name: string; status: string }> = {};
+        f['leader'] = { id: 'leader', name: 'Leader Agent', status: 'running' };
+        for (let i = 1; i <= 14; i++) {
+          f[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
+        }
+        return f;
+      })(),
+    });
   }
 
   it('toggleSidebarFocus flips focused state', () => {

@@ -69,6 +69,10 @@ interface AppKeyHandlerOptions {
   termRows: number;
   terminalColumns: number;
   terminalRows: number;
+  /** Width of the main column (terminal width minus sidebar). When > 0,
+   *  scrollbar hit-tests use this instead of terminalColumns so the scrollbar
+   *  track is correctly positioned to the left of the sidebar. */
+  mainColumnWidth: number;
   statusBarWrapRef: MutableRefObject<DOMElement | null>;
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
   liveStatuslineMode: string;
@@ -139,6 +143,7 @@ export function createAppKeyHandler(
     termRows,
     terminalColumns,
     terminalRows,
+    mainColumnWidth,
     statusBarWrapRef,
     belowStatusBarRef,
     liveStatuslineMode,
@@ -164,6 +169,9 @@ export function createAppKeyHandler(
     onHistoryCopy,
   } = options;
   const stdout = { columns: terminalColumns, rows: terminalRows };
+  /** Effective width of the history area (terminal minus sidebar).
+   *  Used for scrollbar/hit-test geometry so clicks land on the correct track. */
+  const historyWidth = mainColumnWidth > 0 ? mainColumnWidth : (stdout?.columns ?? 80);
   const handleKey = async (input: string, key: KeyEvent) => {
     // ── Ctrl+C: THE unconditional escape hatch ────────────────────────
     // Raw-mode terminals (ConPTY/Windows, and any tty in raw mode) deliver
@@ -568,11 +576,11 @@ export function createAppKeyHandler(
       // delivered alongside the press, which managed mode omits.
       if (mouseMode && key.mouse?.kind === 'press' && key.mouse.button === 'right') {
         const region = hitRegion(
-          { termRows, termCols: stdout?.columns ?? 80, viewportRows: state.viewportRows },
+          { termRows, termCols: historyWidth, viewportRows: state.viewportRows },
           key.mouse.x,
           key.mouse.y,
         );
-        if (region?.kind === 'history' && key.mouse.x <= (stdout?.columns ?? 80) - SCROLLBAR_HIT_WIDTH) {
+        if (region?.kind === 'history' && key.mouse.x <= historyWidth - SCROLLBAR_HIT_WIDTH) {
           void historyScrollRef.current?.commitSelection().then((copied) => {
             if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
           });
@@ -588,7 +596,7 @@ export function createAppKeyHandler(
       if (key.mouse?.kind === 'wheel' && key.mouse.wheel !== 0) {
         if (
           isHistoryScrollTarget(
-            { termRows, termCols: stdout?.columns ?? 80, viewportRows: state.viewportRows },
+            { termRows, termCols: historyWidth, viewportRows: state.viewportRows },
             key.mouse.x,
             key.mouse.y,
           )
@@ -614,7 +622,7 @@ export function createAppKeyHandler(
         key.mouse.button === 'left'
       ) {
         const region = hitRegion(
-          { termRows, termCols: stdout?.columns ?? 80, viewportRows: state.viewportRows },
+          { termRows, termCols: historyWidth, viewportRows: state.viewportRows },
           key.mouse.x,
           key.mouse.y,
         );
@@ -655,7 +663,7 @@ export function createAppKeyHandler(
         if (
           mouseMode &&
           region?.kind === 'history' &&
-          key.mouse.x <= (stdout?.columns ?? 80) - SCROLLBAR_HIT_WIDTH
+          key.mouse.x <= historyWidth - SCROLLBAR_HIT_WIDTH
         ) {
           if (key.mouse.kind === 'press') {
             historyScrollRef.current?.beginSelection(region.row, key.mouse.x - 1);

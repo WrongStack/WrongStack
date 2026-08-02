@@ -23,7 +23,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('is wired into the persist middleware at the current version', () => {
     const opts = useLocalPrefs.persist.getOptions();
     expect(opts.name).toBe('wrongstack-local-prefs');
-    expect(opts.version).toBe(13);
+    expect(opts.version).toBe(14);
     expect(typeof opts.migrate).toBe('function');
   });
 
@@ -302,22 +302,27 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('backfills the v11 boolean flags with their documented defaults', () => {
     const p = migrate({});
     expect(p.showModelReasoning).toBe(true);
-    expect(p.showAgentSwarmPanel).toBe(false);
+    expect(p.showAgentSwarmPanel).toBe('bottom');
     expect(p.allowOutsideProjectRoot).toBe(true);
   });
 
-  it('keeps explicitly persisted v11 flags', () => {
+  it('preserves explicitly-set v11 flags', () => {
     expect(
       migrate({
         showModelReasoning: false,
-        showAgentSwarmPanel: true,
+        showAgentSwarmPanel: 'sidebar',
         allowOutsideProjectRoot: false,
       }),
     ).toMatchObject({
       showModelReasoning: false,
-      showAgentSwarmPanel: true,
+      showAgentSwarmPanel: 'sidebar',
       allowOutsideProjectRoot: false,
     });
+  });
+
+  it('coerces legacy boolean showAgentSwarmPanel to the tri-state enum (v14)', () => {
+    expect(migrate({ showAgentSwarmPanel: true }).showAgentSwarmPanel).toBe('bottom');
+    expect(migrate({ showAgentSwarmPanel: false }).showAgentSwarmPanel).toBe('off');
   });
 
   it('coerces non-boolean v11 flags back to their defaults', () => {
@@ -327,7 +332,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
       allowOutsideProjectRoot: null,
     });
     expect(p.showModelReasoning).toBe(true);
-    expect(p.showAgentSwarmPanel).toBe(false);
+    expect(p.showAgentSwarmPanel).toBe('bottom');
     expect(p.allowOutsideProjectRoot).toBe(true);
   });
 

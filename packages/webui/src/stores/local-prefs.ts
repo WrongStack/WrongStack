@@ -317,7 +317,11 @@ export const useLocalPrefs = create<LocalPrefs>()(
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 13,
+      version: 14,
+      // v14 (2026-08-02): showAgentSwarmPanel changed from boolean to
+      // tri-state string ('bottom' | 'sidebar' | 'off'). Migration guard
+      // validates and coerces legacy boolean values.
+      //
       // v13 (2026-08-01): added TUI-SettingsPicker parity fields for
       // Display — readSymbols, showSageMemoryInject,
       // sageMemoryInjectThreshold, preRefineSeconds, multiDiffSummaryThreshold.
@@ -483,7 +487,14 @@ export const useLocalPrefs = create<LocalPrefs>()(
         }
         // v11: new boolean flags — backfill with defaults
         if (typeof p.showModelReasoning !== 'boolean') p.showModelReasoning = true;
-        if (typeof p.showAgentSwarmPanel !== 'string' || !['bottom', 'sidebar', 'off'].includes(p.showAgentSwarmPanel)) p.showAgentSwarmPanel = 'bottom';
+        // v14: showAgentSwarmPanel changed from boolean to tri-state string.
+        // Legacy booleans: true → 'bottom', false → 'off'.
+        // Invalid values (non-string, non-boolean) → 'bottom' (default).
+        if (typeof p.showAgentSwarmPanel === 'boolean') {
+          p.showAgentSwarmPanel = p.showAgentSwarmPanel ? 'bottom' : 'off';
+        } else if (typeof p.showAgentSwarmPanel !== 'string' || !['bottom', 'sidebar', 'off'].includes(p.showAgentSwarmPanel)) {
+          p.showAgentSwarmPanel = 'bottom';
+        }
         if (typeof p.allowOutsideProjectRoot !== 'boolean') p.allowOutsideProjectRoot = true;
         // v13: TUI-SettingsPicker Display parity fields. The boolean ones
         // mirror their v11 sibling guard pattern. The numeric ones need

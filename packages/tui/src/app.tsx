@@ -92,6 +92,7 @@ export { nextInputWordStart, previousInputWordStart } from './input-editing.js';
 // from '@wrongstack/tui' / '../src/app.js' keep working.
 import type { AppProps } from './app-props.js';
 import { createAppKeyHandler } from './app-key-handler.js';
+import { computeSidebarWidth } from './components/sidebar.js';
 
 export type { AppProps } from './app-props.js';
 
@@ -819,6 +820,7 @@ export function App(props: AppProps): React.ReactElement {
     termRows,
     terminalColumns: stdout?.columns ?? 80,
     terminalRows: stdout?.rows ?? 24,
+    mainColumnWidth: (stdout?.columns ?? 80) - computeSidebarWidth(stdout?.columns ?? 80),
     statusBarWrapRef,
     belowStatusBarRef,
     liveStatuslineMode,
