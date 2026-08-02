@@ -8,11 +8,12 @@ import {
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import { getKanbanServerConnection } from '@wrongstack/kanban';
+import { getKanbanServerConnection, isKanbanServerAvailable } from '@wrongstack/kanban';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
   checkCodebaseIndexServerHealth,
+  ensureCodebaseIndexServer,
   getIndexState,
   resolveProjectIndexDaemonAvailability,
   shutdownCodebaseIndexServer,
@@ -524,20 +525,20 @@ export async function handleConnectionsServiceAction(
     return true;
   }
 
-  if (rawAction !== 'shutdown') {
+  if (rawAction !== 'shutdown' && rawAction !== 'restart') {
     context.send(ws, {
       type: 'connections.service_action_result',
       payload: {
         serviceId: serviceId as ConnectionHealthService['id'],
         action: rawAction as 'shutdown' | 'restart',
         success: false,
-        message: `Unsupported action "${rawAction}" — only "shutdown" is currently supported`,
+        message: `Unsupported action "${rawAction}" — only "shutdown" and "restart" are supported`,
       } satisfies ServiceActionResult,
     });
     return true;
   }
 
-  const action: 'shutdown' = rawAction;
+  const action = rawAction;
 
   // 'webui' cannot kill itself
   if (serviceId === 'webui') {
@@ -648,13 +649,23 @@ async function killKanbanServer(
     const result = await connection.request('shutdown', {
       reason: `WebUI request: ${action}`,
     });
+    if (!result.stopping) {
+      return {
+        serviceId: 'kanban',
+        action,
+        success: false,
+        message: 'Kanban IPC daemon shutdown failed (not confirmed)',
+      };
+    }
+    if (action === 'restart') {
+      const restartResult = await restartKanbanServer(projectRoot);
+      return restartResult;
+    }
     return {
       serviceId: 'kanban',
       action,
-      success: result.stopping,
-      message: result.stopping
-        ? `Kanban IPC daemon ${action} requested`
-        : `Kanban IPC daemon ${action} failed (shutdown not confirmed)`,
+      success: true,
+      message: 'Kanban IPC daemon shutdown requested',
     };
   } catch (error) {
     return {
@@ -662,6 +673,35 @@ async function killKanbanServer(
       action,
       success: false,
       message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function restartKanbanServer(projectRoot: string): Promise<ServiceActionResult> {
+  await waitForShutdown(() => isKanbanServerAvailable(projectRoot));
+  try {
+    const connection = await getKanbanServerConnection(projectRoot);
+    if (!connection) {
+      return {
+        serviceId: 'kanban',
+        action: 'restart',
+        success: false,
+        message: 'Kanban IPC daemon failed to restart (no connection after re-init)',
+      };
+    }
+    await connection.request('ping', {}, { timeoutMs: 10_000 });
+    return {
+      serviceId: 'kanban',
+      action: 'restart',
+      success: true,
+      message: 'Kanban IPC daemon restarted successfully',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'kanban',
+      action: 'restart',
+      success: false,
+      message: `Kanban IPC daemon restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -681,13 +721,22 @@ async function killSageServer(
   const connection = new SageProjectServerConnection(projectRoot);
   try {
     const result = await connection.shutdown(`WebUI request: ${action}`);
+    if (!result.stopped) {
+      return {
+        serviceId: 'sage',
+        action,
+        success: false,
+        message: `SAGE memory server shutdown failed: ${result.reason ?? 'unknown'}`,
+      };
+    }
+    if (action === 'restart') {
+      return await restartSageServer(projectRoot);
+    }
     return {
       serviceId: 'sage',
       action,
-      success: result.stopped,
-      message: result.stopped
-        ? `SAGE memory server ${action} requested`
-        : `SAGE memory server ${action} failed: ${result.reason ?? 'unknown'}`,
+      success: true,
+      message: 'SAGE memory server shutdown requested',
     };
   } catch (error) {
     return {
@@ -701,6 +750,46 @@ async function killSageServer(
   }
 }
 
+async function restartSageServer(projectRoot: string): Promise<ServiceActionResult> {
+  await waitForShutdown(async () => {
+    const probe = new SageProjectServerConnection(projectRoot);
+    try {
+      return (await probe.status()) !== null;
+    } finally {
+      probe.close();
+    }
+  });
+  const verifyConn = new SageProjectServerConnection(projectRoot);
+  try {
+    // connect() calls ensureConnected(true) which spawns the daemon if absent
+    await verifyConn.connect();
+    const status = await verifyConn.status();
+    if (status) {
+      return {
+        serviceId: 'sage',
+        action: 'restart',
+        success: true,
+        message: 'SAGE memory server restarted successfully',
+      };
+    }
+    return {
+      serviceId: 'sage',
+      action: 'restart',
+      success: false,
+      message: 'SAGE memory server did not come back after restart (still offline)',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'sage',
+      action: 'restart',
+      success: false,
+      message: `SAGE memory server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  } finally {
+    verifyConn.close();
+  }
+}
+
 async function killChronicleServer(
   projectRoot: string,
   action: 'shutdown' | 'restart',
@@ -709,13 +798,22 @@ async function killChronicleServer(
   const client = new ChronicleProjectServerClient(options);
   try {
     const result = await client.shutdown(`WebUI request: ${action}`);
+    if (!result.stopped) {
+      return {
+        serviceId: 'chronicle',
+        action,
+        success: false,
+        message: `Chronicle telemetry server shutdown failed: ${result.reason ?? 'unknown'}`,
+      };
+    }
+    if (action === 'restart') {
+      return await restartChronicleServer(projectRoot);
+    }
     return {
       serviceId: 'chronicle',
       action,
-      success: result.stopped,
-      message: result.stopped
-        ? `Chronicle telemetry server ${action} requested`
-        : `Chronicle telemetry server ${action} failed: ${result.reason ?? 'unknown'}`,
+      success: true,
+      message: 'Chronicle telemetry server shutdown requested',
     };
   } catch (error) {
     return {
@@ -726,6 +824,40 @@ async function killChronicleServer(
     };
   } finally {
     client.close();
+  }
+}
+
+async function restartChronicleServer(projectRoot: string): Promise<ServiceActionResult> {
+  await waitForShutdown();
+  // createChronicleProjectAccess triggers auto-start of the project server
+  let access;
+  try {
+    access = createChronicleProjectAccess({ projectRoot });
+    // Verify the server actually came back in server mode (not inline fallback)
+    await access.call('ping', {}, { timeoutMs: 10_000 });
+    if (access.mode !== 'server') {
+      return {
+        serviceId: 'chronicle',
+        action: 'restart',
+        success: false,
+        message: `Chronicle telemetry server restarted but running in ${access.mode} mode (expected server)`,
+      };
+    }
+    return {
+      serviceId: 'chronicle',
+      action: 'restart',
+      success: true,
+      message: 'Chronicle telemetry server restarted successfully',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'chronicle',
+      action: 'restart',
+      success: false,
+      message: `Chronicle telemetry server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  } finally {
+    await access?.close();
   }
 }
 
@@ -740,13 +872,22 @@ async function killCodebaseIndexServer(
       indexDir,
       `websocket-request:${action}`,
     );
+    if (!result.stopped) {
+      return {
+        serviceId: 'codebase-index',
+        action,
+        success: false,
+        message: `Codebase index server shutdown failed: ${result.reason ?? 'unknown'}`,
+      };
+    }
+    if (action === 'restart') {
+      return await restartCodebaseIndexServer(projectRoot, indexDir);
+    }
     return {
       serviceId: 'codebase-index',
       action,
-      success: result.stopped,
-      message: result.stopped
-        ? `Codebase index server ${action} requested`
-        : `Codebase index server ${action} failed: ${result.reason ?? 'unknown'}`,
+      success: true,
+      message: 'Codebase index server shutdown requested',
     };
   } catch (error) {
     return {
@@ -754,6 +895,41 @@ async function killCodebaseIndexServer(
       action,
       success: false,
       message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function restartCodebaseIndexServer(
+  projectRoot: string,
+  indexDir: string | undefined,
+): Promise<ServiceActionResult> {
+  await waitForShutdown();
+  try {
+    // ensureCodebaseIndexServer spawns the detached daemon if absent
+    await ensureCodebaseIndexServer({ projectRoot, indexDir });
+    const health = await checkCodebaseIndexServerHealth(projectRoot, indexDir, {
+      timeoutMs: 10_000,
+    });
+    if (health.status === 'unresponsive') {
+      return {
+        serviceId: 'codebase-index',
+        action: 'restart',
+        success: false,
+        message: 'Codebase index server restarted but is unresponsive',
+      };
+    }
+    return {
+      serviceId: 'codebase-index',
+      action: 'restart',
+      success: true,
+      message: 'Codebase index server restarted successfully',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'codebase-index',
+      action: 'restart',
+      success: false,
+      message: `Codebase index server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -775,13 +951,22 @@ async function killMailboxServer(
   );
   try {
     const result = await connection.shutdown(`WebUI request: ${action}`);
+    if (!result.stopped) {
+      return {
+        serviceId: 'mailbox',
+        action,
+        success: false,
+        message: `Mailbox IPC server shutdown failed: ${result.reason ?? 'unknown'}`,
+      };
+    }
+    if (action === 'restart') {
+      return await restartMailboxServer(projectRoot);
+    }
     return {
       serviceId: 'mailbox',
       action,
-      success: result.stopped,
-      message: result.stopped
-        ? `Mailbox IPC server ${action} requested`
-        : `Mailbox IPC server ${action} failed: ${result.reason ?? 'unknown'}`,
+      success: true,
+      message: 'Mailbox IPC server shutdown requested',
     };
   } catch (error) {
     return {
@@ -795,7 +980,77 @@ async function killMailboxServer(
   }
 }
 
+async function restartMailboxServer(projectRoot: string): Promise<ServiceActionResult> {
+  await waitForShutdown(async () => {
+    const probe = new MailboxProjectServerConnection(
+      resolveWstackPaths({ projectRoot }).projectDir,
+    );
+    try {
+      return (await probe.probeStatus()) !== null;
+    } finally {
+      probe.close();
+    }
+  });
+  const verifyConn = new MailboxProjectServerConnection(
+    resolveWstackPaths({ projectRoot }).projectDir,
+  );
+  try {
+    // connect() calls ensureConnected(true) which spawns the daemon if absent
+    await verifyConn.connect();
+    const status = await verifyConn.probeStatus();
+    if (status) {
+      return {
+        serviceId: 'mailbox',
+        action: 'restart',
+        success: true,
+        message: 'Mailbox IPC server restarted successfully',
+      };
+    }
+    return {
+      serviceId: 'mailbox',
+      action: 'restart',
+      success: false,
+      message: 'Mailbox IPC server did not come back after restart (still offline)',
+    };
+  } catch (error) {
+    return {
+      serviceId: 'mailbox',
+      action: 'restart',
+      success: false,
+      message: `Mailbox IPC server restarted but verification failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  } finally {
+    verifyConn.close();
+  }
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+const RESTART_POLL_INTERVAL_MS = 250;
+const RESTART_DEADLINE_MS = 3_000;
+
+/**
+ * Give a shutdown signal time to take effect before re-establishing the
+ * connection. When a probe is provided, polls until the server confirms it
+ * is down. Falls back to a single sleep when no probe is available.
+ */
+async function waitForShutdown(probe?: () => Promise<boolean>): Promise<void> {
+  if (!probe) {
+    await new Promise((resolve) => setTimeout(resolve, RESTART_POLL_INTERVAL_MS));
+    return;
+  }
+  const deadline = Date.now() + RESTART_DEADLINE_MS;
+  while (Date.now() < deadline) {
+    try {
+      const stillUp = await probe();
+      if (!stillUp) return;
+    } catch {
+      return; // probe error → server is likely down
+    }
+    await new Promise((resolve) => setTimeout(resolve, RESTART_POLL_INTERVAL_MS));
+  }
+  // Deadline expired — proceed best-effort
+}
 
 function failureService(
   id: ConnectionHealthService['id'],

@@ -103,7 +103,8 @@
       "mailbox": {
         "label": "Mailbox IPC"
       }
-    }
+    },
+    "serviceActionRestart": "Restart {{label}}"
   },
   "provider": {
     "subscriptionHeading": "Subscription login",

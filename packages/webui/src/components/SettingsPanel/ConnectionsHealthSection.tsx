@@ -302,11 +302,11 @@ function ServiceCard({
               variant="outline"
               size="sm"
               disabled={actionPending}
-              onClick={() => onAction(service.id, 'shutdown')}
+              onClick={() => onAction(service.id, 'restart')}
               className="h-7 px-2 text-[10px]"
               title={
-                t('settings:connection.serviceActionReset', {
-                  defaultValue: `Reset ${displayLabel}`,
+                t('settings:connection.serviceActionRestart', {
+                  defaultValue: `Restart ${displayLabel}`,
                 }) as string
               }
             >
