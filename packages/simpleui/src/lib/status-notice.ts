@@ -2,8 +2,6 @@ import type { ServerMessage } from '../types.js';
 
 export interface StatusNoticeProjection {
   text: string;
-  /** `info` is never projected from a server message — it is reserved for
-   *  local confirmations the composer raises (queueing, steering). */
   tone: 'info' | 'warning' | 'error';
 }
 
@@ -16,6 +14,14 @@ function compactLine(value: unknown, prefix = ''): string {
 export function projectStatusNotice(message: ServerMessage): StatusNoticeProjection | null {
   const payload = message.payload ?? {};
   switch (message.type) {
+    case 'chimera.report_available': {
+      const text = compactLine(payload['message']);
+      return {
+        text:
+          text || '🦂 Chimera report ready. No follow-up started; open the mailbox to inspect it.',
+        tone: 'info',
+      };
+    }
     case 'sessions.list': {
       const text = compactLine(payload['error'], 'Sessions · ');
       return text ? { text, tone: 'error' } : null;

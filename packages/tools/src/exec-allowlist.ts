@@ -89,7 +89,11 @@ export const DEFAULT_ALLOWED_COMMANDS: ReadonlySet<string> = new Set([
   'docker',
   'podman',
   'kubectl',
-  // network (read-only intent; destructive ops still blocked by BLOCKED_ARG_PATTERNS)
+  // network fetch tools. Per-arg safety is NOT enforced by BLOCKED_ARG_PATTERNS
+  // (no curl/wget entries) — the real boundary is the per-call `confirm`
+  // permission gate (exec.ts permission:'confirm', subjectKey:'command'),
+  // the `pipe-to-shell` danger rule, and the kill guard. The allowlist is a
+  // guidance layer, not a security boundary on its own.
   'curl',
   'wget',
   // common POSIX file/text utilities
@@ -142,9 +146,15 @@ export const DEFAULT_ALLOWED_COMMANDS: ReadonlySet<string> = new Set([
   'powershell.exe',
   'pwsh',
   'pwsh.exe',
-  // [core] Extended default allowlist (added 4b3d18d1 + this commit). All
-  // non-destructive, broadly-used dev binaries. Per-arg safety is still
-  // enforced by BLOCKED_ARG_PATTERNS + bash-kill-guard.ts.
+  // [core] Extended default allowlist (added 4b3d18d1 + this commit). Broadly
+  // used dev binaries — NOT all non-destructive: this section contains
+  // process/system tools (kill, chown, mount, userdel), network scanners
+  // (nmap, masscan, zmap, nuclei), and launchers (env, perl, timeout, tmux).
+  // The real safety boundary for these is the per-call `confirm` permission
+  // gate (exec.ts permission:'confirm', subjectKey:'command' renders the full
+  // invocation) plus the danger rules in _danger-detect.ts. Per-arg hard-deny
+  // is still enforced by BLOCKED_ARG_PATTERNS + bash-kill-guard.ts, but only
+  // for the commands that have entries there (git, find, rm).
   // --- Archives & compression ---
   '7z',
   '7za',
@@ -349,39 +359,16 @@ export const DEFAULT_ALLOWED_COMMANDS: ReadonlySet<string> = new Set([
   'locate',
   'which',
   'whereis',
-  'type',
-  'hash',
-  'pushd',
-  'popd',
-  'dirs',
-  'history',
-  'fc',
-  'jobs',
-  'bg',
-  'fg',
-  'wait',
-  'ulimit',
-  'umask',
+  // NOTE: shell builtins with no standalone binary (type, hash, pushd,
+  // popd, dirs, history, fc, jobs, bg, fg, wait, ulimit, umask, trap,
+  // exit, return, source, ., alias, unalias, set, unset, export, readonly,
+  // typeset, declare, local, eval, exec) are intentionally excluded —
+  // spawn() would fail with ENOENT on every platform because they only
+  // exist inside a shell process. Use the `bash` tool for builtins.
   'nice',
   'nohup',
   'timeout',
   'time',
-  'trap',
-  'exit',
-  'return',
-  'source',
-  '.',
-  'alias',
-  'unalias',
-  'set',
-  'unset',
-  'export',
-  'readonly',
-  'typeset',
-  'declare',
-  'local',
-  'eval',
-  'exec',
   // --- Process / system inspection ---
   'htop',
   'top',

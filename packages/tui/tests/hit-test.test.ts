@@ -45,10 +45,10 @@ describe('hitRegion', () => {
   });
 
   it('honors SCROLLBAR_HIT_WIDTH at the boundary', () => {
-    // termCols - SCROLLBAR_HIT_WIDTH = 78 → column 78 is still history, 79 is bar.
-    expect(hitRegion(layout, 78, 5)).toEqual({ kind: 'history', row: 4 });
-    expect(hitRegion(layout, 79, 5)).toEqual({ kind: 'scrollbar', cell: 4 });
-    expect(SCROLLBAR_HIT_WIDTH).toBe(2);
+    // termCols - SCROLLBAR_HIT_WIDTH = 77 → column 77 is still history, 78 is bar.
+    expect(hitRegion(layout, 77, 5)).toEqual({ kind: 'history', row: 4 });
+    expect(hitRegion(layout, 78, 5)).toEqual({ kind: 'scrollbar', cell: 4 });
+    expect(SCROLLBAR_HIT_WIDTH).toBe(3);
   });
 
   it('maps clicks below the viewport to the bottom region (0-based)', () => {

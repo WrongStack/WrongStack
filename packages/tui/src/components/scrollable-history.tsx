@@ -244,9 +244,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     return maxWidth ? Math.min(raw, maxWidth) : raw;
   }, [stdout, maxWidth]);
   const [viewportWidth, setViewportWidth] = useState(resolveViewportWidth);
-  // The history column shares its row with a one-column scrollbar and its
-  // one-column gap. Pass only the remaining width into entry/tail renderers so
-  // long assistant/tool-result lines wrap before reaching the track.
+  // The history column shares its row with a multi-column scrollbar rail
+  // (SCROLLBAR_HIT_WIDTH columns). Pass only the remaining width into
+  // entry/tail renderers so long assistant/tool-result lines wrap before
+  // reaching the track.
   const termWidth = useMemo(
     () => Math.max(1, viewportWidth - SCROLLBAR_HIT_WIDTH),
     [viewportWidth],
@@ -255,6 +256,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     const handleResize = () => {
       setViewportWidth(resolveViewportWidth());
     };
+    handleResize(); // re-sync immediately when maxWidth changes (sidebar open/close)
     stdout?.on('resize', handleResize);
     return () => {
       stdout?.off('resize', handleResize);

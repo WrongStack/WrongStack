@@ -34,9 +34,10 @@ export type HitRegion =
 
 /**
  * Columns at the right edge of the history viewport reserved for the copy/scroll
- * rail. Copy icons use the first column and the scrollbar track uses the last.
+ * rail. Copy icons use the first column, a blank gap separates them from the
+ * scrollbar track in the last column.
  */
-export const SCROLLBAR_HIT_WIDTH = 2;
+export const SCROLLBAR_HIT_WIDTH = 3;
 
 /** Rows available to managed history after reserving the measured bottom UI. */
 export function historyViewportRows(termRows: number, bottomHeight: number): number {

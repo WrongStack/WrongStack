@@ -6,6 +6,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'agent.status_changed',
   'agent.timeline.message',
   'client.status_update',
+  'chimera.report_available',
   'compaction.failed',
   'completion.result',
   'context.compacted',

@@ -24,6 +24,8 @@ export interface FleetPanelProps {
     planCount: number;
     evalCount: number;
   } | null;
+  /** Optional column width cap (when rendered beside a sidebar). */
+  maxWidth?: number | undefined;
 }
 
 type SwarmColor = 'blue' | 'cyan' | 'green' | 'gray' | 'red' | 'yellow';
@@ -365,22 +367,25 @@ export function FleetPanel({
   todos,
   nowTick,
   collabSession,
+  maxWidth,
 }: FleetPanelProps): React.ReactElement | null {
   const { stdout } = useStdout();
+  const capColumns = (raw: number): number => (maxWidth ? Math.min(raw, maxWidth) : raw);
   const [terminal, setTerminal] = useState({
-    columns: stdout?.columns ?? 90,
+    columns: capColumns(stdout?.columns ?? 90),
     rows: stdout?.rows ?? 24,
   });
   useEffect(() => {
     const handleResize = () => {
-      setTerminal({ columns: stdout?.columns ?? 90, rows: stdout?.rows ?? 24 });
+      setTerminal({ columns: capColumns(stdout?.columns ?? 90), rows: stdout?.rows ?? 24 });
     };
     handleResize();
     process.stdout.on('resize', handleResize);
     return () => {
       process.stdout.off('resize', handleResize);
     };
-  }, [stdout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stdout, maxWidth]);
 
   const list = Object.values(entries);
   const leader = list.find(isLeaderEntry);

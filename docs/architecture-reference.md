@@ -46,7 +46,7 @@ core (depends on @wrongstack/kanban; no product-surface dependencies)
  └── types/      — All type definitions
       ↓
 providers/  — Anthropic/OpenAI/Google/OpenAI-compatible adapters
-tools/      — built-in tools (58 in the current `builtinTools` array)
+tools/      — built-in tools (59 in the current `builtinTools` array)
 mcp/        — MCP client + registry + transports
 runtime/    — Default runtime implementations
 acp/        — ACP server/client for external agent protocols

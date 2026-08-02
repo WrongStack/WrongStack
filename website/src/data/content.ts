@@ -38,6 +38,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { COMMAND_COUNT } from './content-commands';
+import { TOOL_COUNT, PLUGIN_COUNT } from './runtime-catalog';
 
 export { commandCategories, commandFromSlug, commandSlug, commands } from './content-commands';
 export type { CommandCategory, CommandEntry } from './content-commands';
@@ -66,6 +67,8 @@ export {
   version,
 } from './content-reference';
 export type { SettingGroup } from './content-reference';
+export { TOOL_COUNT, PLUGIN_COUNT } from './runtime-catalog';
+export { SKILL_COUNT } from '../lib/utils';
 
 
 
@@ -321,14 +324,14 @@ export const moreNav = [
   {
     href: '/tools',
     label: 'Built-in tools',
-    description: 'All 58 tools, permissions and tiers',
+    description: `All ${TOOL_COUNT} tools, permissions and tiers`,
     icon: Wrench,
     group: 'extend',
   },
   {
     href: '/plugins',
     label: 'Plugin catalog',
-    description: 'All 73 plugins, risk and lifecycle',
+    description: `All ${PLUGIN_COUNT} plugins, risk and lifecycle`,
     icon: PackageOpen,
     group: 'extend',
   },
@@ -729,12 +732,12 @@ export const pageMeta: Record<SiteRoute, { title: string; description: string }>
     description: 'Connect, secure and operate MCP servers over stdio, SSE and streamable HTTP.',
   },
   '/tools': {
-    title: '58 built-in tools — WrongStack',
+    title: `${TOOL_COUNT} built-in tools — WrongStack`,
     description:
       'Explore every built-in WrongStack tool, its permission level, mutability, execution contract and token-saving tier.',
   },
   '/plugins': {
-    title: '73 managed plugins — WrongStack',
+    title: `${PLUGIN_COUNT} managed plugins — WrongStack`,
     description:
       'Search all managed first-party WrongStack plugins by source, default state and operational risk.',
   },

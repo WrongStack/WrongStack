@@ -14,12 +14,12 @@ import {
   recordStartedReview,
 } from './review-claim-registry.js';
 import { buildReviewContext } from './review-context-builder.js';
+import { executeFindingCommand } from './review-finding-commands.js';
 import type {
   ResolvedChimeraConfig,
   ReviewContextBundle,
   ReviewFileEntry,
 } from './review-types.js';
-import { executeFindingCommand } from './review-finding-commands.js';
 
 // Re-export the shared review types so existing importers keep resolving them
 // from './chimera-plugin.js' (and the package barrel). Their definitions live
@@ -125,8 +125,12 @@ async function runGit(
     }
     let stdout = '';
     let stderr = '';
-    child.stdout?.on('data', (d) => { stdout += d; });
-    child.stderr?.on('data', (d) => { stderr += d; });
+    child.stdout?.on('data', (d) => {
+      stdout += d;
+    });
+    child.stderr?.on('data', (d) => {
+      stderr += d;
+    });
     child.on('error', () => resolve({ stdout, stderr, code: 1 }));
     child.on('close', (code) => resolve({ stdout, stderr, code: code ?? 0 }));
   });
@@ -189,7 +193,7 @@ function buildChimeraCommand(
       '  extensions.wstack-chimera.cascadeOn  off | critical | high (default off)',
       '  extensions.wstack-chimera.maxCascadeDepth  max fix+re-review cycles (default 2)',
       '',
-      'Output cap: the subagent runs up to the provider\'s model-native',
+      "Output cap: the subagent runs up to the provider's model-native",
       'output ceiling (Anthropic 64K, OpenAI 16K, Gemini 8K). No manual cap.',
     ].join('\n'),
     async run(args) {
@@ -240,9 +244,7 @@ function buildChimeraCommand(
 }
 
 // ── /review finding-store command ─────────────────────────────
-function buildReviewCommand(
-  _getConfig: () => ResolvedChimeraConfig,
-): SlashCommand {
+function buildReviewCommand(_getConfig: () => ResolvedChimeraConfig): SlashCommand {
   return {
     name: 'review',
     category: 'Session',
@@ -293,7 +295,11 @@ export function createChimeraPlugin(): Plugin {
       api.onConfigChange(() => {
         const old = resolved;
         resolved = recompute();
-        if (old.enabled !== resolved.enabled || old.provider !== resolved.provider || old.model !== resolved.model) {
+        if (
+          old.enabled !== resolved.enabled ||
+          old.provider !== resolved.provider ||
+          old.model !== resolved.model
+        ) {
           api.log.info(
             `[chimera] config changed — enabled=${resolved.enabled} provider=${resolved.provider} model=${resolved.model}`,
           );
@@ -328,65 +334,74 @@ export function createChimeraPlugin(): Plugin {
       // ── session.ended → emit review event ─────────────────────────
       api.onEvent('session.ended', async () => {
         try {
-        const cfg = resolved;
-        if (!cfg.enabled) return;
+          const cfg = resolved;
+          if (!cfg.enabled) return;
 
-        const cwd = api.config.cwd ?? process.cwd();
-        if (!(await isGitRepo(cwd))) {
-          api.log.info('[chimera] skipped — not a git repo');
-          return;
-        }
+          const cwd = api.config.cwd ?? process.cwd();
+          if (!(await isGitRepo(cwd))) {
+            api.log.info('[chimera] skipped — not a git repo');
+            return;
+          }
 
-        const allChanged = await getChangedFiles(cwd);
-        const existing: ChangedFile[] = [];
-        for (const f of allChanged) {
-          if (f.path.startsWith('.wrongstack/')) continue;
-          try { await fsp.access(path.join(cwd, f.path)); existing.push(f); } catch { /* deleted */ }
-        }
+          const allChanged = await getChangedFiles(cwd);
+          const existing: ChangedFile[] = [];
+          for (const f of allChanged) {
+            if (f.path.startsWith('.wrongstack/')) continue;
+            try {
+              await fsp.access(path.join(cwd, f.path));
+              existing.push(f);
+            } catch {
+              /* deleted */
+            }
+          }
 
-        if (existing.length === 0) {
-          api.log.info('[chimera] no changed files to review');
-          return;
-        }
+          if (existing.length === 0) {
+            api.log.info('[chimera] no changed files to review');
+            return;
+          }
 
-        const toReview = existing.slice(0, cfg.maxFiles);
-        if (existing.length > cfg.maxFiles) {
-          api.log.info(`[chimera] capping review at ${cfg.maxFiles} of ${existing.length} files`);
-        }
+          const toReview = existing.slice(0, cfg.maxFiles);
+          if (existing.length > cfg.maxFiles) {
+            api.log.info(`[chimera] capping review at ${cfg.maxFiles} of ${existing.length} files`);
+          }
 
-        // Read file contents
-        const filesWithContent: ReviewFileEntry[] = [];
-        for (const f of toReview) {
-          try {
-            const absPath = path.join(cwd, f.path);
-            const content = await fsp.readFile(absPath, 'utf8');
-            filesWithContent.push({ path: f.path, status: f.status, content });
-          } catch { /* skip */ }
-        }
+          // Read file contents
+          const filesWithContent: ReviewFileEntry[] = [];
+          for (const f of toReview) {
+            try {
+              const absPath = path.join(cwd, f.path);
+              const content = await fsp.readFile(absPath, 'utf8');
+              filesWithContent.push({ path: f.path, status: f.status, content });
+            } catch {
+              /* skip */
+            }
+          }
 
-        if (filesWithContent.length === 0) {
-          api.log.info('[chimera] could not read changed files');
-          return;
-        }
+          if (filesWithContent.length === 0) {
+            api.log.info('[chimera] could not read changed files');
+            return;
+          }
 
-        // ── Build enriched review context (diffs, siblings, commits) ──
-        const bundle: ReviewContextBundle = await buildReviewContext({
-          cwd,
-          config: cfg,
-          files: filesWithContent,
-          cascadeOn: cfg.cascadeOn,
-          maxCascadeDepth: cfg.maxCascadeDepth,
-        });
+          // ── Build enriched review context (diffs, siblings, commits) ──
+          const bundle: ReviewContextBundle = await buildReviewContext({
+            cwd,
+            config: cfg,
+            files: filesWithContent,
+            cascadeOn: cfg.cascadeOn,
+            maxCascadeDepth: cfg.maxCascadeDepth,
+          });
 
-        // Atomically skip exact file content already claimed by a mid-session,
-        // manual, or competing post-session review.
-        const emittedBundle = emitReviewIfChanged(api, bundle);
-        if (!emittedBundle) {
-          api.log.info('[chimera] skipped — changed files already have reviews in progress');
-          return;
-        }
+          // Atomically skip exact file content already claimed by a mid-session,
+          // manual, or competing post-session review.
+          const emittedBundle = emitReviewIfChanged(api, bundle);
+          if (!emittedBundle) {
+            api.log.info('[chimera] skipped — changed files already have reviews in progress');
+            return;
+          }
 
-        api.log.info(`[chimera] emitted review_needed event (${emittedBundle.files.length} files)`);
+          api.log.info(
+            `[chimera] emitted review_needed event (${emittedBundle.files.length} files)`,
+          );
         } catch (err) {
           api.log.warn(`[chimera] session.ended handler failed: ${toErrorMessage(err)}`);
         }

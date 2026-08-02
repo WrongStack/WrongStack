@@ -223,77 +223,29 @@ export function resolveAutoReviewConfig(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Severity parsing + cascade decision (exported for unit testing)
-// ---------------------------------------------------------------------------
-
 export interface ParsedSeverities {
   critical: number;
   high: number;
   medium: number;
 }
 
-/**
- * Extract Critical/High/Medium finding counts from a Chimera review report.
- *
- * The report format (from llm/chimera-review.md) uses section headers like
- * `### Critical (2)`, `### High (1)`, `### Medium (3)`. We match the count
- * in parentheses. Falls back to counting `1.`, `2.` list-item markers under
- * a severity heading when no `(N)` is present (defensive — the prompt asks
- * for both, but LLMs sometimes omit the count).
- *
- * Returns all-zero when the text doesn't match (clean report or unparseable).
- */
+/** Parse report counts for clean-vs-actionable classification. */
 export function parseReviewSeverity(text: string): ParsedSeverities {
   const result: ParsedSeverities = { critical: 0, high: 0, medium: 0 };
   if (!text) return result;
-
   for (const level of ['critical', 'high', 'medium'] as const) {
-    // Primary pattern: "### Critical (2)" — the canonical report format
-    const countRe = new RegExp(`###\\s*${level}\\s*\\((\\d+)\\)`, 'i');
-    const countMatch = text.match(countRe);
+    const countMatch = text.match(new RegExp(`###\\s*${level}\\s*\\((\\d+)\\)`, 'i'));
     if (countMatch?.[1]) {
       result[level] = Number.parseInt(countMatch[1], 10);
       continue;
     }
-    // Fallback: count ordered-list items under the heading until the next
-    // heading or end. Matches "1. [BUG] ..." style entries.
-    const sectionRe = new RegExp(`###\\s*${level}[^\\n]*\\n([\\s\\S]*?)(?=###|$)`, 'i');
-    const sectionMatch = text.match(sectionRe);
-    if (sectionMatch?.[1]) {
-      const items = sectionMatch[1].match(/^\s*\d+\.\s/gm);
-      result[level] = items ? items.length : 0;
-    }
+    const section = text.match(
+      new RegExp(`###\\s*${level}[^\\n]*\\n([\\s\\S]*?)(?=###|$)`, 'i'),
+    )?.[1];
+    result[level] = section?.match(/^\s*\d+\.\s/gm)?.length ?? 0;
   }
   return result;
 }
-
-/**
- * Keywords that indicate a security-class finding. When present in a
- * Critical or High finding line, the security-scanner cascade agent is
- * selected alongside bug-hunter.
- */
-const SECURITY_KEYWORDS = [
-  'injection',
-  'xss',
-  'csrf',
-  'ssrf',
-  'sql',
-  'secret',
-  'credential',
-  'password',
-  'api key',
-  'token',
-  'auth',
-  'shell injection',
-  'command injection',
-  'innerhtml',
-  'deserialization',
-  'path traversal',
-  'hardcoded',
-  'privilege',
-  'owasp',
-] as const;
 
 /**
  * Decide which follow-up cascade agents to spawn based on the review text.
@@ -311,23 +263,37 @@ export function decideCascadeAgents(
   severities: ParsedSeverities,
 ): CascadeAgentKind[] {
   const agents = new Set<CascadeAgentKind>();
-
-  // Any High+ finding → bug-hunter investigates the correctness concerns
-  if (severities.critical > 0 || severities.high > 0) {
-    agents.add('bug-hunter');
-  }
-
-  // Scan only the Critical and High sections for security keywords
-  const lower = text.toLowerCase();
-  const criticalHighRe = /###\s*(?:critical|high)[^\n]*\n([\s\S]*?)(?=###|$)/gi;
-  let section = criticalHighRe.exec(lower);
-  while (section !== null) {
+  if (severities.critical > 0 || severities.high > 0) agents.add('bug-hunter');
+  const securityKeywords = [
+    'injection',
+    'xss',
+    'csrf',
+    'ssrf',
+    'sql',
+    'secret',
+    'credential',
+    'password',
+    'api key',
+    'token',
+    'auth',
+    'shell injection',
+    'command injection',
+    'innerhtml',
+    'deserialization',
+    'path traversal',
+    'hardcoded',
+    'privilege',
+    'owasp',
+  ] as const;
+  const criticalHighSections = text
+    .toLowerCase()
+    .matchAll(/###\s*(?:critical|high)[^\n]*\n([\s\S]*?)(?=###|$)/gi);
+  for (const section of criticalHighSections) {
     const body = section[1] ?? '';
-    if (SECURITY_KEYWORDS.some((kw) => body.includes(kw))) {
+    if (securityKeywords.some((keyword) => body.includes(keyword))) {
       agents.add('security-scanner');
       break;
     }
-    section = criticalHighRe.exec(lower);
   }
   return [...agents];
 }
@@ -486,9 +452,8 @@ function buildAutoReviewCommand(
       'Detects git-tracked file edits and dispatches review subagents',
       'with configurable provider/model/fallback.',
       '',
-      'When a review report contains findings at or above the cascadeOn',
-      'threshold, follow-up agents (security-scanner, bug-hunter) are',
-      'automatically spawned to investigate.',
+      'Reports are persisted and shown as passive notifications.',
+      'They never wake the leader or spawn mutating follow-up agents.',
       '',
       'Commands:',
       '  /auto-review           Show current status and config',
@@ -503,11 +468,8 @@ function buildAutoReviewCommand(
       '  debounceMs           debounce window (default 15000)',
       '  maxFilesPerBatch     max files per review (default 15)',
       '  maxConcurrentReviews max parallel reviews (default 2)',
-      '  cascadeOn            "off" | "critical" | "high" (default off)',
-      '                       Spawns security-scanner/bug-hunter when',
-      '                       findings reach this severity. "high" fires',
-      '                       on any High+ finding; "critical" only on Critical.',
-      '  maxCascadeDepth      max fix+re-review cycles (default 2, 0=off)',
+      '  cascadeOn            off | critical | high (default off)',
+      '  maxCascadeDepth      max fix+re-review cycles (default 2)',
     ].join('\n'),
     async run(args: string) {
       const cfg = getConfig();
@@ -526,10 +488,6 @@ function buildAutoReviewCommand(
       }
 
       const inFlight = getInFlightCount();
-      const cascadeDesc =
-        cfg.cascadeOn === 'off'
-          ? 'disabled'
-          : `on ${cfg.cascadeOn}+ → spawns security-scanner/bug-hunter`;
       return {
         message: [
           `📋 Auto Review — ${cfg.enabled ? '✅ enabled' : '⏸️  disabled'}`,
@@ -540,7 +498,7 @@ function buildAutoReviewCommand(
           `  Debounce:       ${cfg.debounceMs} ms`,
           `  Max files:      ${cfg.maxFilesPerBatch}`,
           `  Max parallel:   ${cfg.maxConcurrentReviews}`,
-          `  Cascade:        ${cascadeDesc}`,
+          `  Cascade:        ${cfg.cascadeOn === 'off' ? 'off' : `on ${cfg.cascadeOn}+ → spawns security-scanner/bug-hunter`}`,
           `  Max depth:      ${cfg.maxCascadeDepth} re-review cycle(s)`,
           `  In-flight:      ${inFlight} review(s)`,
           '',
@@ -875,12 +833,8 @@ export function createAutoReviewPlugin(): Plugin {
             `[auto-review] #${reviewCounter} event emitted — ${emittedBundle.files.length}/${filesWithContent.length} files; requires Director (--director) for subagent spawning`,
           );
 
-          // ── Cascade: handled by the chimera.review_complete listener ──
-          // When the review subagent finishes, execution.ts emits
-          // chimera.review_complete. The listener registered below parses
-          // severity from the report and emits chimera.cascade_needed when
-          // findings cross the cascadeOn threshold. execution.ts then spawns
-          // follow-up agents (security-scanner, bug-hunter).
+          // Completion is handled by the execution owner: persist, notify,
+          // and stop. It never launches mutating follow-up work.
 
           // Clean in-flight after a timeout (reviews complete asynchronously)
           expireInFlight(inflightEntry);

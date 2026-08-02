@@ -382,4 +382,11 @@ export interface StatusBarProps {
    * Clicking opens /audit (TUI) — in the REPL it's informational.
    */
   sideEffectCount?: number | undefined;
+  /**
+   * Optional cap on the column width used for layout adaptation. When set,
+   * the status bar treats this as its effective terminal width instead of
+   * `stdout.columns` — needed when the bar sits in a column narrower than
+   * the full terminal (e.g. beside a sidebar).
+   */
+  maxWidth?: number | undefined;
 }

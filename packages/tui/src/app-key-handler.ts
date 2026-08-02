@@ -643,9 +643,10 @@ export function createAppKeyHandler(
           key.mouse.x,
           key.mouse.y,
         );
-        // Copy icons live in the first of the two reserved scrollbar columns.
-        // Give a fresh press on that exact cell priority over track jumping;
-        // the actual track remains the final column and drags still scrub.
+        // Copy icons live in the first of the three reserved scrollbar-rail
+        // columns (icon + gap + track). Give a fresh press on that exact cell
+        // priority over track jumping; the actual track remains the final
+        // column and drags still scrub.
         const copyRow =
           region?.kind === 'history'
             ? region.row

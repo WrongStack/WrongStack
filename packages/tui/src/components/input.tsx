@@ -134,6 +134,13 @@ export interface InputProps {
   /** Row count for the hidden placeholder so the bottom region never resizes. */
   placeholderHeight?: number | undefined;
   onKey: (input: string, key: KeyEvent) => void;
+  /**
+   * Optional cap on the column width used for wrapping and frame sizing.
+   * When set, the input area treats this as its effective terminal width
+   * instead of `stdout.columns` — needed when the input sits in a column
+   * narrower than the full terminal (e.g. beside a sidebar).
+   */
+  maxWidth?: number | undefined;
 }
 
 /**
@@ -294,6 +301,7 @@ export const Input = memo(function Input({
   hidden,
   placeholderHeight,
   onKey,
+  maxWidth,
 }: InputProps): React.ReactElement {
   // Suppress duplicate key events: when our raw-stdin handler catches a key
   // before Ink's useInput does, we set a suppression flag so Ink doesn't
@@ -484,16 +492,22 @@ export const Input = memo(function Input({
   // Track terminal width so the input wraps at the real column count and the
   // box grows to exactly the number of visual rows the content needs.
   const { stdout } = useStdout();
-  const [cols, setCols] = useState(stdout?.columns ?? 80);
+  const [cols, setCols] = useState(() => {
+    const raw = stdout?.columns ?? 80;
+    return maxWidth ? Math.min(raw, maxWidth) : raw;
+  });
   useEffect(() => {
     if (!stdout) return;
-    const onResize = () => setCols(stdout.columns ?? 80);
+    const onResize = () => {
+      const raw = stdout.columns ?? 80;
+      setCols(maxWidth ? Math.min(raw, maxWidth) : raw);
+    };
     onResize();
     stdout.on('resize', onResize);
     return () => {
       stdout.off('resize', onResize);
     };
-  }, [stdout]);
+  }, [stdout, maxWidth]);
 
   // Disabled (aborting an iteration) is the only signal that needs a
   // hard visual cue — paint the prompt red.

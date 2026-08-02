@@ -1,8 +1,9 @@
 /**
  * Tests for ChimeraSettingsPanel — the dedicated WebUI section that exposes
  * every knob of the post-session `wstack-chimera` plugin and the mid-session
- * `wstack-auto-review` plugin (provider, model, maxFiles, autoFix,
- * fallbackProfile, fallbackModels, debounce, concurrency, cascade, toggles).
+ * `wstack-auto-review` plugin (provider, model, maxFiles, fallbackProfile,
+ * fallbackModels, debounce, concurrency, toggles). Mutating follow-up controls
+ * are intentionally absent because report completion is passive.
  *
  * The decisive checks here are *contract*: every PrefKey the panel reads
  * must exist on LocalPrefs (catches drift between the panel and the typed
@@ -12,8 +13,9 @@
  * and `t(key)` falls back to the key string when a translation is missing,
  * which is fine for tests that assert on `key`-based text.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChimeraSettingsPanel } from '../../src/components/SettingsPanel/ChimeraSettingsPanel';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 
@@ -38,7 +40,13 @@ afterEach(() => {
 
 describe('ChimeraSettingsPanel — typed contract', () => {
   it('renders every PrefKey it binds to (catches drift between panel and store)', () => {
-    render(<ChimeraSettingsPanel syncPref={vi.fn()} sessionProvider="anthropic" sessionModel="claude-opus" />);
+    render(
+      <ChimeraSettingsPanel
+        syncPref={vi.fn()}
+        sessionProvider="anthropic"
+        sessionModel="claude-opus"
+      />,
+    );
     // The panel reads/writes these LocalPrefs slots. If any of them disappear
     // from LocalPrefs, this test fails — preventing silent panel/store drift.
     const required = [
@@ -46,7 +54,6 @@ describe('ChimeraSettingsPanel — typed contract', () => {
       'chimeraProvider',
       'chimeraModel',
       'chimeraMaxFiles',
-      'chimeraAutoFix',
       'autoReviewEnabled',
       'autoReviewProvider',
       'autoReviewModel',
@@ -54,7 +61,6 @@ describe('ChimeraSettingsPanel — typed contract', () => {
       'autoReviewDebounceMs',
       'autoReviewMaxFilesPerBatch',
       'autoReviewMaxConcurrentReviews',
-      'autoReviewCascadeOn',
     ];
     for (const k of required) {
       expect(
@@ -62,6 +68,12 @@ describe('ChimeraSettingsPanel — typed contract', () => {
         `LocalPrefs slot "${k}" missing — ChimeraSettingsPanel relies on it`,
       ).toBe(true);
     }
+  });
+
+  it('does not expose automatic fix or cascade controls', () => {
+    render(<ChimeraSettingsPanel syncPref={vi.fn()} />);
+    expect(screen.queryByText('Auto-fix mode')).toBeNull();
+    expect(screen.queryByText('Cascade on')).toBeNull();
   });
 });
 
@@ -101,9 +113,7 @@ describe('ChimeraSettingsPanel — model picker dialog opens', () => {
     // The picker row is a div[role=button] containing the "Model" label
     // from the English locale (the real i18n resolves translations
     // from the bundled JSON).
-    const picker = screen
-      .getAllByRole('button')
-      .find((el) => el.textContent?.includes('Model'));
+    const picker = screen.getAllByRole('button').find((el) => el.textContent?.includes('Model'));
     expect(picker, 'chimera model picker row').toBeDefined();
     fireEvent.click(picker!);
     // The dialog mounts ModelSelectDialog which renders the i18n title
@@ -122,9 +132,7 @@ describe('ChimeraSettingsPanel — fallback chain display', () => {
       version: 9,
     });
     render(<ChimeraSettingsPanel syncPref={vi.fn()} />);
-    expect(
-      screen.getByText('No fallback models configured'),
-    ).toBeTruthy();
+    expect(screen.getByText('No fallback models configured')).toBeTruthy();
   });
 
   it('surfaces the named profile chain when a fallback profile is selected', () => {

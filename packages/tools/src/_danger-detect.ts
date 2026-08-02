@@ -347,6 +347,62 @@ const RULES: readonly DangerRule[] = [
     },
     reason: 'chmod with world-writable octal mode (e.g. 777)',
   },
+  // ----- network recon / offensive scanners (caution) -----
+  // These tools are purpose-built for network reconnaissance and offensive
+  // security. They have legitimate uses in dev (security testing, infra
+  // debugging) but their presence in an agent's command stream is worth a
+  // caution banner so the user can notice an unexpected scan.
+  {
+    id: 'network-scanner',
+    level: 'caution',
+    test: (cmd) =>
+      cmd === 'nmap' ||
+      cmd === 'masscan' ||
+      cmd === 'zmap' ||
+      cmd === 'nuclei' ||
+      cmd === 'hping3' ||
+      cmd === 'naabu' ||
+      cmd === 'katana' ||
+      cmd === 'amass' ||
+      cmd === 'subfinder' ||
+      cmd === 'httpx' ||
+      cmd === 'rustscan' ||
+      cmd === 'zgrab',
+    reason: 'network scanner / offensive reconnaissance tool',
+  },
+  // ----- process termination (caution) -----
+  // kill/killall/pkill terminate processes. The exec kill guard
+  // (exec-kill-guard.ts) hard-blocks attempts on protected WrongStack
+  // processes; this rule adds a caution banner for generic process
+  // termination so the user sees a warning even for non-protected targets.
+  {
+    id: 'process-kill',
+    level: 'caution',
+    test: (cmd) => cmd === 'kill' || cmd === 'killall' || cmd === 'pkill',
+    reason: 'process termination command',
+  },
+  // ----- shell/interpreter launchers (caution) -----
+  // `env bash -c '…'`, `timeout sh`, `nohup perl -e '…'` etc. wrap a child
+  // binary that bypasses the allowlist name-gate entirely (the wrapper
+  // resolves the child from PATH, not from the allowlist). We flag caution
+  // when a known launcher has a shell/interpreter as its target program.
+  {
+    id: 'shell-launcher',
+    level: 'caution',
+    test: (cmd, args) => {
+      const launchers = ['env', 'timeout', 'nohup', 'nice', 'script', 'expect', 'tmux', 'screen', 'byobu', 'dtach'];
+      if (!launchers.includes(cmd)) return false;
+      const shells = ['sh', 'bash', 'zsh', 'fish', 'python', 'python3', 'perl', 'ruby', 'node', 'pwsh', 'powershell', 'cmd'];
+      // For `env`, the target program is the first arg that isn't VAR=value
+      // or a flag. For other launchers, check all args for a shell name.
+      if (cmd === 'env') {
+        const prog = args.find((a) => !a.includes('=') && !a.startsWith('-'));
+        return prog !== undefined && shells.includes(prog);
+      }
+      return args.some((a) => shells.includes(a));
+    },
+    reason: 'launcher wrapping a shell/interpreter (bypasses allowlist name-gate)',
+  },
 ];
 
 /**

@@ -16,10 +16,10 @@
  */
 import { Bug, ListPlus, Zap } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
 import { ModelSelectDialog } from '@/components/ModelSelectDialog';
-import { useLocalPrefs } from '@/stores/local-prefs';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useLocalPrefs } from '@/stores/local-prefs';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 
@@ -80,12 +80,16 @@ export function ChimeraSettingsPanel({
       <section
         className={cn(
           'space-y-3 rounded-lg border p-4',
-          localPrefs.chimeraEnabled ? 'border-border/70 bg-card/40' : 'border-dashed border-border/50 bg-muted/30',
+          localPrefs.chimeraEnabled
+            ? 'border-border/70 bg-card/40'
+            : 'border-dashed border-border/50 bg-muted/30',
         )}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold">{t('settings:features.chimeraSectionEnabled')}</h4>
+            <h4 className="text-sm font-semibold">
+              {t('settings:features.chimeraSectionEnabled')}
+            </h4>
             <p className="text-xs text-muted-foreground mt-0.5">
               {t('settings:features.chimeraSectionEnabledHint')}
             </p>
@@ -126,18 +130,26 @@ export function ChimeraSettingsPanel({
           onClick={openChimeraPicker}
         >
           <div className="min-w-0 flex-1">
-            <div className="text-xs text-muted-foreground">{t('settings:features.chimeraModelLabel')}</div>
+            <div className="text-xs text-muted-foreground">
+              {t('settings:features.chimeraModelLabel')}
+            </div>
             <div className="text-xs font-medium mt-0.5">
               {localPrefs.chimeraProvider || sessionProvider ? (
                 <span className="font-mono">
                   {localPrefs.chimeraProvider || sessionProvider}/
-                  {localPrefs.chimeraModel || sessionModel || t('settings:features.chimeraModelSessionDefault')}
+                  {localPrefs.chimeraModel ||
+                    sessionModel ||
+                    t('settings:features.chimeraModelSessionDefault')}
                 </span>
               ) : (
-                <span className="text-muted-foreground">{t('settings:features.chimeraModelSessionDefault')}</span>
+                <span className="text-muted-foreground">
+                  {t('settings:features.chimeraModelSessionDefault')}
+                </span>
               )}
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{t('settings:features.chimeraModelHint')}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {t('settings:features.chimeraModelHint')}
+            </p>
           </div>
           <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
@@ -151,32 +163,22 @@ export function ChimeraSettingsPanel({
           step={1}
           onChange={(v) => syncPref('chimeraMaxFiles', v)}
         />
-
-        <div className="pt-2 border-t">
-          <PreferenceSelect
-            label={t('settings:features.chimeraAutoFixLabel')}
-            hint={t('settings:features.chimeraAutoFixHint')}
-            value={localPrefs.chimeraAutoFix}
-            options={[
-              { value: 'off' as const, label: t('settings:features.chimeraAutoFixOff') },
-              { value: 'ask' as const, label: t('settings:features.chimeraAutoFixAsk') },
-              { value: 'auto' as const, label: t('settings:features.chimeraAutoFixAuto') },
-            ]}
-            onChange={(v) => syncPref('chimeraAutoFix', v)}
-          />
-        </div>
       </section>
 
       {/* ─── Auto-review (mid-session) ───────────────────────────────── */}
       <section
         className={cn(
           'space-y-3 rounded-lg border p-4',
-          localPrefs.autoReviewEnabled ? 'border-border/70 bg-card/40' : 'border-dashed border-border/50 bg-muted/30',
+          localPrefs.autoReviewEnabled
+            ? 'border-border/70 bg-card/40'
+            : 'border-dashed border-border/50 bg-muted/30',
         )}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold">{t('settings:features.autoReviewSectionEnabled')}</h4>
+            <h4 className="text-sm font-semibold">
+              {t('settings:features.autoReviewSectionEnabled')}
+            </h4>
             <p className="text-xs text-muted-foreground mt-0.5">
               {t('settings:features.autoReviewSectionEnabledHint')}
             </p>
@@ -229,7 +231,9 @@ export function ChimeraSettingsPanel({
               ))
             )}
           </div>
-          <p className="text-[10px] text-muted-foreground">{t('settings:features.autoReviewFallbackModelsHint')}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {t('settings:features.autoReviewFallbackModelsHint')}
+          </p>
         </div>
 
         <button
@@ -238,18 +242,26 @@ export function ChimeraSettingsPanel({
           onClick={openAutoReviewPicker}
         >
           <div className="min-w-0 flex-1">
-            <div className="text-xs text-muted-foreground">{t('settings:features.autoReviewModelLabel')}</div>
+            <div className="text-xs text-muted-foreground">
+              {t('settings:features.autoReviewModelLabel')}
+            </div>
             <div className="text-xs font-medium mt-0.5">
               {localPrefs.autoReviewProvider || sessionProvider ? (
                 <span className="font-mono">
                   {localPrefs.autoReviewProvider || sessionProvider}/
-                  {localPrefs.autoReviewModel || sessionModel || t('settings:features.chimeraModelSessionDefault')}
+                  {localPrefs.autoReviewModel ||
+                    sessionModel ||
+                    t('settings:features.chimeraModelSessionDefault')}
                 </span>
               ) : (
-                <span className="text-muted-foreground">{t('settings:features.chimeraModelSessionDefault')}</span>
+                <span className="text-muted-foreground">
+                  {t('settings:features.chimeraModelSessionDefault')}
+                </span>
               )}
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{t('settings:features.autoReviewModelHint')}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {t('settings:features.autoReviewModelHint')}
+            </p>
           </div>
           <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
@@ -286,20 +298,6 @@ export function ChimeraSettingsPanel({
           step={1}
           onChange={(v) => syncPref('autoReviewMaxConcurrentReviews', v)}
         />
-
-        <div className="pt-2 border-t">
-          <PreferenceSelect
-            label={t('settings:features.autoReviewCascadeLabel')}
-            hint={t('settings:features.autoReviewCascadeHint')}
-            value={localPrefs.autoReviewCascadeOn}
-            options={[
-              { value: 'off' as const, label: t('settings:features.autoReviewCascadeOff') },
-              { value: 'critical' as const, label: t('settings:features.autoReviewCascadeCritical') },
-              { value: 'high' as const, label: t('settings:features.autoReviewCascadeHigh') },
-            ]}
-            onChange={(v) => syncPref('autoReviewCascadeOn', v)}
-          />
-        </div>
       </section>
 
       <p className="text-xs text-muted-foreground flex items-center gap-1.5">

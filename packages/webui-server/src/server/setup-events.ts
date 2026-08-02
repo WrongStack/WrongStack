@@ -1,9 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
-import type {
-  EventBus,
-  EventName,
-  Listener,
-} from '@wrongstack/core/kernel';
+import type { EventBus, EventName, Listener } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { recordTaskFileActivity } from '@wrongstack/kanban';
@@ -11,16 +7,17 @@ import type { WebSocket } from 'ws';
 import { extractCodeMapFileTargets, normalizeCodeMapFileTarget } from './codemap-telemetry.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import type { SetupEventProjection } from './setup-event-projection.js';
-import { registerSetupEventsFleetBroadcaster } from './setup-events-fleet-broadcaster.js';
-import { registerSetupEventsProviderHandlers } from './setup-events-provider-handlers.js';
-import { createSetupEventSessionHelpers } from './setup-events-session-helpers.js';
-import { registerSetupEventsStatusWatcher } from './setup-events-status-watcher.js';
 import {
   registerSetupEventsClientStatusWriter,
   registerSetupEventsCoreWatchers,
 } from './setup-events-core-watchers.js';
+import { registerSetupEventsFleetBroadcaster } from './setup-events-fleet-broadcaster.js';
+import { registerSetupEventsProviderHandlers } from './setup-events-provider-handlers.js';
+import { createSetupEventSessionHelpers } from './setup-events-session-helpers.js';
+import { registerSetupEventsStatusWatcher } from './setup-events-status-watcher.js';
 import type { FileWatcherMetrics } from './setup-events-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
+
 export type { FileWatcherMetrics } from './setup-events-watcher.js';
 
 export interface SetupEventsDeps {
@@ -682,6 +679,12 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   // These events are emitted via emit() with untyped names (the mailbox
   // + mailbox-loop), so subscribe by pattern like the TUI does.
   disposers.push(
+    events.onPattern('chimera.report_available', (_event, payload) => {
+      broadcast(clients, {
+        type: 'chimera.report_available',
+        payload,
+      } as never as WSServerMessage);
+    }),
     events.onPattern('mailbox.received', (_e, payload) => {
       broadcast(clients, { type: 'mailbox.received', payload } as never as WSServerMessage);
     }),

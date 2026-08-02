@@ -148,7 +148,7 @@ Foreign skills are usable as-is, but to **own, edit, or commit** one, import it 
 
 ## Bundled skills
 
-WrongStack ships with 25 bundled skills:
+WrongStack ships with 29 bundled skills:
 
 | Skill | Description |
 |---|---|
@@ -177,6 +177,10 @@ WrongStack ships with 25 bundled skills:
 | `tech-stack` | Package version validation, ecosystem preference maps, dead-package detection |
 | `testing` | vitest patterns, mocking, coverage, unit/integration/e2e test strategy |
 | `typescript-strict` | Strict null checks, exhaustive switch, branded types, discriminated unions |
+| `data-governance` | Schema ownership, PII handling, retention, lineage, access policy, migration safety |
+| `design-system` | Build consistent interfaces from shared visual tokens and component rules |
+| `wrongstack-kanban` | Deterministic Kanban task lifecycle, verification, and evidence enforcement |
+| `wrongstack-mailbox-mcp` | Coordinate with agents through the project-scoped Mailbox MCP server |
 
 Override any bundled skill by creating a project- or user-level skill with the same `name`.
 

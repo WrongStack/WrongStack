@@ -3,13 +3,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SlashCommand } from '../../src/index.js';
+import { EventBus } from '../../src/kernel/events.js';
 import {
   CHIMERA_REVIEW_PROMPT,
   createChimeraPlugin,
   resolveChimeraConfig,
 } from '../../src/plugins/chimera-plugin.js';
-import { EventBus } from '../../src/kernel/events.js';
-import type { SlashCommand } from '../../src/index.js';
 
 let tmp: string;
 const gitInit = (dir: string) => {
@@ -30,16 +30,17 @@ function makeApi(config: Record<string, unknown> = {}, sharedEventBus?: EventBus
   const emitCustom = vi.fn((event: string, payload: unknown) => {
     eventBus.emitCustom(event, payload);
   });
-  const onPattern = vi.fn(
-    (pattern: string, handler: (event: string, payload: unknown) => void) =>
-      eventBus.onPattern(pattern, handler),
+  const onPattern = vi.fn((pattern: string, handler: (event: string, payload: unknown) => void) =>
+    eventBus.onPattern(pattern, handler),
   );
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
   const api = {
     config: { provider: 'anthropic', model: 'claude', cwd: tmp, ...config },
     events: eventBus,
     onConfigChange: (cb: () => void) => configChangeCbs.push(cb),
-    onEvent: (type: string, h: () => Promise<void>) => { events[type] = h; },
+    onEvent: (type: string, h: () => Promise<void>) => {
+      events[type] = h;
+    },
     onPattern,
     emitCustom,
     slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() },
@@ -66,12 +67,30 @@ describe('resolveChimeraConfig', () => {
   it('instructs Chimera to report findings without mutating files', () => {
     expect(CHIMERA_REVIEW_PROMPT).toContain('strictly read-only');
     expect(CHIMERA_REVIEW_PROMPT).toContain('Never edit, write, patch, update');
-    expect(CHIMERA_REVIEW_PROMPT).toContain('fix agents perform');
+    expect(CHIMERA_REVIEW_PROMPT).toContain('later explicit user request');
   });
 
   it('applies defaults and honors overrides', () => {
-    expect(resolveChimeraConfig({}, 'p', 'm')).toEqual({ enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off', maxCascadeDepth: 2 });
-    expect(resolveChimeraConfig({ enabled: false, provider: 'x', model: 'y', maxFiles: 3 }, 'p', 'm')).toEqual({ enabled: false, provider: 'x', model: 'y', maxFiles: 3, autoFix: 'off', cascadeOn: 'off', maxCascadeDepth: 2 });
+    expect(resolveChimeraConfig({}, 'p', 'm')).toEqual({
+      enabled: true,
+      provider: 'p',
+      model: 'm',
+      maxFiles: 15,
+      autoFix: 'off',
+      cascadeOn: 'off',
+      maxCascadeDepth: 2,
+    });
+    expect(
+      resolveChimeraConfig({ enabled: false, provider: 'x', model: 'y', maxFiles: 3 }, 'p', 'm'),
+    ).toEqual({
+      enabled: false,
+      provider: 'x',
+      model: 'y',
+      maxFiles: 3,
+      autoFix: 'off',
+      cascadeOn: 'off',
+      maxCascadeDepth: 2,
+    });
   });
 
   it('silently ignores the deprecated maxTokens override', () => {
@@ -79,14 +98,29 @@ describe('resolveChimeraConfig', () => {
     // `unknown` and dropped — output cap is now driven by the provider's
     // capabilities.maxOutput, not by chimera config.
     const cfg = resolveChimeraConfig({ maxTokens: 4096 }, 'p', 'm');
-    expect(cfg).toEqual({ enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off', maxCascadeDepth: 2 });
+    expect(cfg).toEqual({
+      enabled: true,
+      provider: 'p',
+      model: 'm',
+      maxFiles: 15,
+      autoFix: 'off',
+      cascadeOn: 'off',
+      maxCascadeDepth: 2,
+    });
   });
 
-  it('honors cascadeOn and maxCascadeDepth overrides', () => {
-    expect(resolveChimeraConfig({ cascadeOn: 'high', maxCascadeDepth: 5 }, 'p', 'm')).toEqual({
-      enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'high', maxCascadeDepth: 5,
+  it('honors cascade and autoFix overrides from config', () => {
+    expect(
+      resolveChimeraConfig({ autoFix: 'auto', cascadeOn: 'high', maxCascadeDepth: 5 }, 'p', 'm'),
+    ).toEqual({
+      enabled: true,
+      provider: 'p',
+      model: 'm',
+      maxFiles: 15,
+      autoFix: 'auto',
+      cascadeOn: 'high',
+      maxCascadeDepth: 5,
     });
-    expect(resolveChimeraConfig({ cascadeOn: 'critical' }, 'p', 'm').cascadeOn).toBe('critical');
   });
 });
 
@@ -100,7 +134,9 @@ describe('createChimeraPlugin lifecycle + command', () => {
     // config change with no enabled/provider/model delta → no log
     configChangeCbs[0]!();
     // config change flipping enabled → logs + command reflects the new state
-    (api as { config: Record<string, unknown> }).config.extensions = { 'wstack-chimera': { enabled: false } };
+    (api as { config: Record<string, unknown> }).config.extensions = {
+      'wstack-chimera': { enabled: false },
+    };
     configChangeCbs[0]!();
     expect(log.info).toHaveBeenCalledWith(expect.stringContaining('config changed'));
 
@@ -109,7 +145,9 @@ describe('createChimeraPlugin lifecycle + command', () => {
   });
 
   it('keeps claim bookkeeping listeners registered when disabled by config', () => {
-    const { api, registered, onPattern, log } = makeApi({ extensions: { 'wstack-chimera': { enabled: false } } });
+    const { api, registered, onPattern, log } = makeApi({
+      extensions: { 'wstack-chimera': { enabled: false } },
+    });
     createChimeraPlugin().setup!(api);
     expect(registered).toHaveLength(0);
     expect(onPattern).toHaveBeenCalledWith('chimera.review_needed', expect.any(Function));
@@ -124,10 +162,7 @@ describe('createChimeraPlugin lifecycle + command', () => {
     await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;');
 
     const eventBus = new EventBus();
-    const disabled = makeApi(
-      { extensions: { 'wstack-chimera': { enabled: false } } },
-      eventBus,
-    );
+    const disabled = makeApi({ extensions: { 'wstack-chimera': { enabled: false } } }, eventBus);
     const enabled = makeApi({}, eventBus);
     createChimeraPlugin().setup!(disabled.api);
     createChimeraPlugin().setup!(enabled.api);
@@ -153,7 +188,9 @@ describe('createChimeraPlugin lifecycle + command', () => {
     const cmd = registered[0]!;
     expect((await cmd.run!('', {} as never)).message).toContain('Chimera — enabled');
     // flip to disabled via config change → the live getter reflects it
-    (api as { config: Record<string, unknown> }).config.extensions = { 'wstack-chimera': { enabled: false } };
+    (api as { config: Record<string, unknown> }).config.extensions = {
+      'wstack-chimera': { enabled: false },
+    };
     configChangeCbs[0]!();
     expect((await cmd.run!('', {} as never)).message).toContain('Chimera — disabled');
   });
@@ -179,13 +216,16 @@ describe('session.ended review handler', () => {
     createChimeraPlugin().setup!(api);
     await events['session.ended']!();
 
-    expect(emitCustom).toHaveBeenCalledWith('chimera.review_needed', expect.objectContaining({
-      cwd: tmp,
-      files: expect.arrayContaining([
-        expect.objectContaining({ path: 'a.ts', status: 'modified' }),
-        expect.objectContaining({ path: 'b.ts', status: 'added' }),
-      ]),
-    }));
+    expect(emitCustom).toHaveBeenCalledWith(
+      'chimera.review_needed',
+      expect.objectContaining({
+        cwd: tmp,
+        files: expect.arrayContaining([
+          expect.objectContaining({ path: 'a.ts', status: 'modified' }),
+          expect.objectContaining({ path: 'b.ts', status: 'added' }),
+        ]),
+      }),
+    );
   });
 
   it('skips .wrongstack files and reports when nothing is left to review', async () => {
@@ -205,7 +245,9 @@ describe('session.ended review handler', () => {
     commit(tmp, 'init');
     await fs.writeFile(path.join(tmp, 'one.ts'), '1');
     await fs.writeFile(path.join(tmp, 'two.ts'), '2');
-    const { api, events, emitCustom, log } = makeApi({ extensions: { 'wstack-chimera': { maxFiles: 1 } } });
+    const { api, events, emitCustom, log } = makeApi({
+      extensions: { 'wstack-chimera': { maxFiles: 1 } },
+    });
     createChimeraPlugin().setup!(api);
     await events['session.ended']!();
     expect(log.info).toHaveBeenCalledWith(expect.stringContaining('capping review at 1 of 2'));
@@ -246,7 +288,9 @@ describe('session.ended review handler', () => {
     await fs.writeFile(path.join(tmp, 'changed.ts'), 'y');
     const { api, events, emitCustom, configChangeCbs } = makeApi();
     createChimeraPlugin().setup!(api);
-    (api as { config: Record<string, unknown> }).config.extensions = { 'wstack-chimera': { enabled: false } };
+    (api as { config: Record<string, unknown> }).config.extensions = {
+      'wstack-chimera': { enabled: false },
+    };
     configChangeCbs[0]!(); // resolved → disabled
     await events['session.ended']!();
     expect(emitCustom).not.toHaveBeenCalled();
@@ -258,7 +302,9 @@ describe('session.ended review handler', () => {
     commit(tmp, 'init');
     await fs.writeFile(path.join(tmp, 'c.ts'), 'changed');
     const { api, events, emitCustom, log } = makeApi();
-    emitCustom.mockImplementationOnce(() => { throw new Error('emit blew up'); });
+    emitCustom.mockImplementationOnce(() => {
+      throw new Error('emit blew up');
+    });
     createChimeraPlugin().setup!(api);
 
     await events['session.ended']!();

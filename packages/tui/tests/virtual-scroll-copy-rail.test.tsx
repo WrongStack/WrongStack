@@ -114,12 +114,12 @@ describe('virtual scroll copy rail geometry', () => {
     // pass at the cost of a giant first-frame layout.
     expect(measuredGroups).toBeGreaterThan(0);
     expect(measuredGroups).toBeLessThan(groups.length);
-    expect(tty.lastFrame()).toMatch(/❏[│█]$/m);
+    expect(tty.lastFrame()).toMatch(/❏ [│█]$/m);
     const lines = tty.lines();
     for (const line of lines) {
       expect(line.slice(0, -SCROLLBAR_HIT_WIDTH)).not.toContain(COPY_ICON);
     }
-    const iconRow = lines.findIndex((line) => /❏[│█]$/.test(line));
+    const iconRow = lines.findIndex((line) => /❏ [│█]$/.test(line));
     expect(iconRow).toBeGreaterThanOrEqual(0);
     expect(controllerRef.current?.hasCopyTargetAt(iconRow, expectedLayoutWidth)).toBe(true);
     expect(controllerRef.current?.hasCopyTargetAt(iconRow, expectedLayoutWidth + 1)).toBe(false);

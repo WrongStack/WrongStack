@@ -50,6 +50,35 @@ describe('useProviderEventBridge', () => {
     expect(result.current.flushTimerRef.current).toBeNull();
     expect(dispatch.mock.calls.some(([action]) => action.type === 'streamDelta')).toBe(false);
 
+    act(() => {
+      events.emitCustom('chimera.report_available', {
+        sessionId: 'session-1',
+        message: '🦂 Chimera report ready. No follow-up started.',
+      });
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'addEntry',
+      entry: {
+        kind: 'warn',
+        text: '🦂 Chimera report ready. No follow-up started.',
+      },
+    });
+
+    unmount();
+  });
+
+  it('filters out chimera.report_available events from other sessions', () => {
+    const { events, dispatch, unmount } = setupBridge('leader-session');
+    act(() => {
+      events.emitCustom('chimera.report_available', {
+        sessionId: 'other-session',
+        message: '🦂 Chimera report ready.',
+      });
+    });
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: 'addEntry',
+      entry: { kind: 'warn', text: '🦂 Chimera report ready.' },
+    });
     unmount();
   });
 

@@ -5,7 +5,7 @@
 - whether Chimera is enabled;
 - the provider and model selected for its review subagent;
 - the maximum number of changed files considered;
-- the auto-fix mode; and
+- the manual follow-up policy; and
 - that output uses the provider's model-native ceiling.
 
 ## Subcommands
@@ -13,15 +13,13 @@
 | Command | Effect |
 |---------|--------|
 | `/chimera` | Show current status. |
-| `/chimera autoFix <off\|ask\|auto>` | Set the auto-fix mode for the current session (runtime only, config file unchanged). |
+| `/chimera autoFix <off\|ask\|auto>` | Compatibility command; explains that follow-ups are manual. |
 
-The auto-fix modes:
-
-- **off** — Send the review result to the mailbox. The leader agent waits for a user command (default).
-- **ask** — Send the review as an ask. The leader prompts the user for permission before acting.
-- **auto** — Send the review result, then automatically resume the same session leader to verify and apply actionable findings. The runtime waits for the leader follow-up before closing the session and completes the mailbox item when that turn succeeds.
-
-Successful explicit “all clear” reports are completed automatically without waking the leader. Failed, unparseable, review-only, denied, timed-out, or failed-follow-up reports remain available for manual disposition.
+Every mode is now passive: the full report is persisted and sent to the mailbox,
+while TUI, WebUI, and SimpleUI receive a compact “report ready” notice. Reports
+never resume the leader or start mutating cascade agents. Successful explicit
+“all clear” reports are completed automatically; findings wait for the user to
+inspect them and explicitly request action.
 
 Every completed review is durably written before the runtime publishes its completion event, regardless of whether it came from manual review, auto-review, cascade, or the optional post-session Chimera plugin. The project-scoped stores are:
 

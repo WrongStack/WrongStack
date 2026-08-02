@@ -56,8 +56,8 @@
 
 Key numbers:
 - **~630 source files** across 17 packages + 2 apps
-- **60+ built-in tools** in `@wrongstack/tools`
-- **23 built-in skills** shipped with `@wrongstack/core`
+- **59 built-in tools** in `@wrongstack/tools`
+- **29 built-in skills** shipped with `@wrongstack/core`
 - **73 managed plugin rows** (8 core + 63 in `@wrongstack/plugins` + 2 bridges)
 - **~140 LLM providers** auto-discovered from models.dev
 - **~75 slash commands** in the CLI
@@ -100,7 +100,7 @@ packages/
         ↓
   ↓  ↓  ↓  ↓  ↓  ↓
   providers/        → LLM provider adapters (Anthropic, OpenAI, Google)
-  tools/            → 58 built-in tools (filesystem, shell, git, etc.)
+  tools/            → 59 built-in tools (filesystem, shell, git, etc.)
   sdd/              → Spec-Driven Development engine
   security-scanner/ → Security scanning tooling
   sage/     → SQLite-backed memory store
@@ -494,7 +494,7 @@ Bidirectional tool format conversion: `to-anthropic`, `to-openai`, `to-responses
 
 ## 12. Tools Package
 
-`packages/tools/` provides **58 built-in tools** — the largest individual tool collection. Each tool has a standalone file exporting the `Tool<I,O>` object.
+`packages/tools/` provides **59 built-in tools** — the largest individual tool collection. Each tool has a standalone file exporting the `Tool<I,O>` object.
 
 ### 12.1 Tool Architecture
 Every tool implements:

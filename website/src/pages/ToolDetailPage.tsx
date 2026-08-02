@@ -1,6 +1,6 @@
 import { ArrowRight, OctagonX, ShieldCheck, Wrench } from 'lucide-react';
 import { PageHero, PageNext, SectionIntro, heroTitleFontSize } from '@/components/site/primitives';
-import { toolCatalog, toolFromSlug, toolSlug } from '@/data/runtime-catalog';
+import { TOOL_COUNT, toolCatalog, toolFromSlug, toolSlug } from '@/data/runtime-catalog';
 import { toolDetails } from '@/data/tool-details';
 import { Link, useRouter } from '@/lib/router';
 
@@ -197,7 +197,7 @@ export function ToolDetailPage() {
       <PageNext
         label="Built-in tools"
         title="Browse the full tool atlas"
-        body="All 58 built-in tools with permission levels, mutability and categories."
+        body={`All ${TOOL_COUNT} built-in tools with permission levels, mutability and categories.`}
         href="/tools"
       />
     </>

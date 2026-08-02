@@ -17,14 +17,20 @@ import {
   SectionIntro,
   heroTitleFontSize,
 } from '@/components/site/primitives';
-import { toolCatalog, toolCategories, toolSlug } from '@/data/runtime-catalog';
+import { PLUGIN_COUNT, TOOL_COUNT, toolCatalog, toolCategories, toolSlug } from '@/data/runtime-catalog';
 import { Link } from '@/lib/router';
 import { cn } from '@/lib/utils';
+
+/** Derived permission/mutability counts — always match the catalog. */
+const AUTO_COUNT = toolCatalog.filter((t) => t.permission === 'auto').length;
+const CONFIRM_COUNT = toolCatalog.filter((t) => t.permission === 'confirm').length;
+const READONLY_COUNT = toolCatalog.filter((t) => !t.mutating).length;
+const MUTATING_COUNT = toolCatalog.filter((t) => t.mutating).length;
 
 type ToolScope = 'all' | 'auto' | 'confirm' | 'read-only' | 'mutating';
 
 const scopeOptions: Array<{ value: ToolScope; label: string }> = [
-  { value: 'all', label: 'All 58' },
+  { value: 'all', label: `All ${TOOL_COUNT}` },
   { value: 'auto', label: 'Auto' },
   { value: 'confirm', label: 'Confirm' },
   { value: 'read-only', label: 'Read-only' },
@@ -72,12 +78,12 @@ export function ToolsPage() {
         titleFontSize={heroTitleFontSize('One safety contract.')}
         title={
           <>
-            Fifty-eight tools.
+            {`${TOOL_COUNT} tools.`}
             <br />
             <span className="text-brand">One safety contract.</span>
           </>
         }
-        description="WrongStack does more than generate text. Its built-in tools read repositories, edit files, run quality gates, control a first-party browser and coordinate work — all through the same schema, permission and cancellation boundary."
+        description={`WrongStack does more than generate text. Its ${TOOL_COUNT} built-in tools read repositories, edit files, run quality gates, control a first-party browser and coordinate work — all through the same schema, permission and cancellation boundary.`}
         aside={
           <div className="flex flex-col gap-3">
             <ExternalDoc path="packages/tools/src/builtin.ts">
@@ -93,12 +99,12 @@ export function ToolsPage() {
       <section className="border-b border-line bg-surface">
         <div className="mx-auto grid max-w-[1380px] grid-cols-2 gap-px bg-line px-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-6 lg:px-10">
           {[
-            ['58', 'built-in tools'],
-            ['21', 'auto permission'],
-            ['37', 'confirm first'],
-            ['26', 'read-only'],
-            ['32', 'mutating'],
-            ['8', 'tool families'],
+            [String(TOOL_COUNT), 'built-in tools'],
+            [String(AUTO_COUNT), 'auto permission'],
+            [String(CONFIRM_COUNT), 'confirm first'],
+            [String(READONLY_COUNT), 'read-only'],
+            [String(MUTATING_COUNT), 'mutating'],
+            [String(toolCategories.length), 'tool families'],
           ].map(([value, label], index) => (
             <div key={label} className="bg-surface px-4 py-7 text-center">
               <strong
@@ -176,7 +182,7 @@ export function ToolsPage() {
                 className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint"
               />
               <span className="font-mono text-xs font-black text-faint">
-                {filtered.length} / 58
+                {filtered.length} / {TOOL_COUNT}
               </span>
             </label>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -275,15 +281,15 @@ export function ToolsPage() {
         />
         <div className="mt-12 overflow-hidden rounded-2xl border border-line">
           {[
-            ['off', '58', 'The complete built-in registry, including browser and E2E tools.'],
+            ['off', String(TOOL_COUNT), 'The complete built-in registry, including browser and E2E tools.'],
             [
               'minimal / light',
-              '10',
+              '13',
               'Core read, edit, search, shell and patch primitives. Light changes guidance, not membership.',
             ],
             [
               'medium',
-              '29',
+              '32',
               'Adds project state, Git, quality, language, dependency and design operations.',
             ],
             [
@@ -347,7 +353,7 @@ export function ToolsPage() {
       <PageNext
         label="Plugins"
         title="Extend the runtime without forking the kernel"
-        body="Explore all 73 managed first-party plugins, their risk levels and explicit activation state."
+        body={`Explore all ${PLUGIN_COUNT} managed first-party plugins, their risk levels and explicit activation state.`}
         href="/plugins"
       />
     </>

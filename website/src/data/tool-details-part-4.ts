@@ -401,4 +401,36 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Change the working directory so relative paths in subsequent tool calls resolve from a different directory. Pass `path` to set a new directory, or omit to query the current one.',
     ],
   },
+  'dead-code-scan': {
+    longDescription:
+      'Scan TypeScript/JavaScript source files for exported symbols that appear unused anywhere in the project. Uses the codebase-index reference graph (symbols + import/call/type-ref edges) to compute transitive reachability from package.json entry points (bin, main, exports, types, plus convention src/index.ts/src/main.ts). Requires a built codebase-index — run `codebase-index` first if you get no results.',
+    params: [
+      {
+        name: 'projectRoot',
+        type: 'string',
+        description: 'Project root (defaults to ctx.projectRoot).',
+      },
+      {
+        name: 'indexDir',
+        type: 'string',
+        description: 'Override the index directory if the default is not desired.',
+      },
+      {
+        name: 'entryPoints',
+        type: 'string[]',
+        description: 'Additional entry-point file paths to seed the reachability scan. Auto-detected from package.json by default.',
+      },
+    ],
+    doNotUseWhen: [
+      'No codebase-index exists yet — run `codebase-index` first.',
+      'The project uses only dynamic imports — dynamic imports are invisible to the static reference graph and will produce false positives.',
+    ],
+    useInstead: [
+      'Use `codebase-search` to find symbols by name when you do not need reachability analysis.',
+    ],
+    notes: [
+      'Read-only (permission: auto, mutating: false). Results are best-effort — dynamic imports, string-based require, and bare `export { X }` re-exports without a local function wrapper create no reference edge and may appear as false dead-code positives.',
+      'Entry-point discovery handles root + workspace packages, including pnpm-workspace.yaml packages block and build-output/bin entries mapped back to source.',
+    ],
+  },
 };

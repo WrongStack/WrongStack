@@ -33,6 +33,7 @@ const {
   handleBrainAnswer,
   handleBrainEvent,
   handleBrainStatus,
+  handleChimeraReportAvailable,
   handleCollabEvent,
   handleCollabInjectionGranted,
   handleCronJobFired,
@@ -69,12 +70,27 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
     useCronStore.getState().clear();
   });
 
+  it('shows Chimera availability without starting chat work', () => {
+    handleChimeraReportAvailable(
+      msg('chimera.report_available', {
+        message: '🦂 Chimera report ready. No follow-up started.',
+      }),
+    );
+    expect(toast.info).toHaveBeenCalledWith(
+      '🦂 Chimera report ready. No follow-up started.',
+      8_000,
+    );
+    expect(useChatStore.getState().messages).toEqual([]);
+  });
+
   // ── session gating ────────────────────────────────────────────────────────
 
   describe('active-session gating', () => {
     it('accepts a message with no sessionId', () => {
       useSessionStore.setState({ session: { id: 's1' } } as never);
-      handleBrainAnswer(msg('brain.answer', { question: 'q', decision: { type: 'answer', text: 'yes' } }));
+      handleBrainAnswer(
+        msg('brain.answer', { question: 'q', decision: { type: 'answer', text: 'yes' } }),
+      );
       expect(lastChat()?.content).toContain('yes');
     });
 
@@ -182,7 +198,10 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
     it('keeps a question exactly at the 70-char limit intact', () => {
       const q = 'q'.repeat(70);
       handleBrainStatus(
-        msg('brain.status', { maxAutoRisk: 'low', log: [{ at: Date.now(), kind: 'k', question: q, outcome: '' }] }),
+        msg('brain.status', {
+          maxAutoRisk: 'low',
+          log: [{ at: Date.now(), kind: 'k', question: q, outcome: '' }],
+        }),
       );
       expect(lastChat()?.content).toContain(q);
       expect(lastChat()?.content).not.toContain('…');
@@ -196,9 +215,7 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
         }),
       );
       // The header line itself contains an arrow, so assert on the entry row.
-      const row = (lastChat()?.content ?? '')
-        .split('\n')
-        .find((line) => line.startsWith('- `'));
+      const row = (lastChat()?.content ?? '').split('\n').find((line) => line.startsWith('- `'));
       expect(row).toBeDefined();
       expect(row).not.toContain('→');
     });
@@ -226,7 +243,10 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
 
     it('omits a rationale identical to the answer', () => {
       handleBrainAnswer(
-        msg('brain.answer', { question: 'q', decision: { type: 'answer', text: 'B', rationale: 'B' } }),
+        msg('brain.answer', {
+          question: 'q',
+          decision: { type: 'answer', text: 'B', rationale: 'B' },
+        }),
       );
       expect(lastChat()?.content).toBe('🧠 B');
     });
@@ -786,7 +806,10 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
           retryTimeoutMs: 30_000,
         }),
       );
-      expect(useUIStore.getState().refinePanel).toMatchObject({ status: 'refining', retried: true });
+      expect(useUIStore.getState().refinePanel).toMatchObject({
+        status: 'refining',
+        retried: true,
+      });
       expect(refineModel).toHaveBeenCalledWith('do it', { timeoutMs: 30_000 });
     });
 

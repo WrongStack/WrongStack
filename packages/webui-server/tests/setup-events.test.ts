@@ -1,11 +1,43 @@
 import * as path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '@wrongstack/core/agent';
 import { EventBus } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
-import { setupEvents } from '@wrongstack/webui-server';
+import { describe, expect, it, vi } from 'vitest';
+import { setupEvents } from '../src/server/setup-events.js';
 
 describe('setupEvents session scoping', () => {
+  it('forwards passive Chimera report notices to every browser surface', () => {
+    const events = new EventBus();
+    const broadcast = vi.fn();
+    const dispose = setupEvents({
+      events,
+      broadcast,
+      clients: new Map(),
+      config: {},
+      context: {
+        session: { id: 'session-live' },
+        todos: [],
+        state: { onChange: vi.fn(), revision: 0 },
+      } as unknown as Context,
+      pendingConfirms: new Map(),
+    });
+
+    events.emitCustom('chimera.report_available', {
+      sessionId: 'session-live',
+      reportId: 'report-1',
+      message: '🦂 Chimera report ready. No follow-up started.',
+    });
+
+    expect(broadcast).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.objectContaining({
+        type: 'chimera.report_available',
+        payload: expect.objectContaining({ reportId: 'report-1' }),
+      }),
+    );
+    dispose();
+  });
+
   it('only appends audit events for the active session', () => {
     const events = new EventBus();
     const append = vi.fn(async (_event: unknown) => {});

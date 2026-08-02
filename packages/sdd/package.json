@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/sdd",
-  "version": "0.298.0",
+  "version": "0.298.1",
   "license": "MIT",
   "description": "WrongStack Spec-Driven Development engine — standalone package extracted from @wrongstack/core. Task graph generation, tracking, execution, lifecycle management, and AI-driven spec building for SDD workflows.",
   "repository": {
@@ -37,7 +37,7 @@
     "@wrongstack/kanban": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

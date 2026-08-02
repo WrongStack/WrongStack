@@ -360,6 +360,20 @@ describe('SimpleUI session projection', () => {
 });
 
 describe('SimpleUI transient status notices', () => {
+  it('shows Chimera reports as passive informational notices', () => {
+    expect(
+      projectStatusNotice({
+        type: 'chimera.report_available',
+        payload: {
+          message: '🦂 Chimera report ready. No follow-up started.',
+        },
+      }),
+    ).toEqual({
+      text: '🦂 Chimera report ready. No follow-up started.',
+      tone: 'info',
+    });
+  });
+
   it('shows failed operations without surfacing successful housekeeping', () => {
     expect(
       projectStatusNotice({

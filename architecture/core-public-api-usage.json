@@ -19,9 +19,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 166,
-      "typeOnly": 70,
-      "runtimeOrMixed": 144
+      "files": 164,
+      "typeOnly": 69,
+      "runtimeOrMixed": 143
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 833,
-      "typeOnly": 797,
+      "files": 830,
+      "typeOnly": 794,
       "runtimeOrMixed": 208
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -254,12 +254,6 @@
       "file": "packages/cli/src/boot/tui-session-resume.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 2
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/chimera-leader-wake.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1241,6 +1235,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/src/components/sidebar-content.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/src/components/todos-monitor.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1760,18 +1760,6 @@
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 5
-    },
-    {
-      "specifier": "@wrongstack/core/coordination",
-      "file": "packages/cli/src/execution-chimera-ask.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/coordination",
-      "file": "packages/cli/src/execution-chimera-review.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -7907,12 +7895,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/cli/src/chimera-leader-wake.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/chimera-reviewer-policy.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7979,19 +7961,7 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/cli/src/execution-chimera-ask.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/execution-chimera-cascade.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/cli/src/execution-chimera-review.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

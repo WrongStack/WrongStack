@@ -28,8 +28,10 @@ import {
   homeJourneys,
   installCommand,
   nodeVersion,
+  PLUGIN_COUNT,
   repoUrl,
   surfaces,
+  TOOL_COUNT,
   version,
 } from '@/data/content';
 import { Link } from '@/lib/router';
@@ -221,9 +223,9 @@ export function HomePage() {
         <div className="relative border-t border-line bg-surface/70">
           <div className="mx-auto grid max-w-[1380px] grid-cols-2 divide-x divide-line px-4 sm:px-6 lg:grid-cols-4 lg:px-10">
             {[
-              ['58', 'built-in tools'],
+              [String(TOOL_COUNT), 'built-in tools'],
               [String(commands.length), 'documented commands'],
-              ['73', 'managed plugins'],
+              [String(PLUGIN_COUNT), 'managed plugins'],
               [String(surfaces.length), 'first-class surfaces'],
             ].map(([value, label]) => (
               <div key={label} className="py-5 text-center sm:py-6">

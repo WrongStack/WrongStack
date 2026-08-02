@@ -354,6 +354,18 @@ export type WSServerMessage =
   | { type: 'techstack.job.cancelled'; payload: { jobId: string } }
   | { type: 'client.status_update'; payload: Record<string, unknown> }
   | { type: 'sessions.status_update'; payload: { sessions: unknown[] } }
+  | {
+      type: 'chimera.report_available';
+      payload: {
+        reportId: string;
+        sessionId: string;
+        message: string;
+        fileCount: number;
+        findingCount: number;
+        hasActionableFindings: boolean;
+        messageId?: string | undefined;
+      };
+    }
   | { type: 'mailbox.event'; payload: Record<string, unknown> & { event: string } }
   | { type: 'mailbox.received'; payload: Record<string, unknown> }
   | { type: 'mailbox.agent_registered'; payload: Record<string, unknown> }

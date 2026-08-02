@@ -209,20 +209,23 @@ export function StatusBar({
   toolCount,
   visibleChips = [],
   sideEffectCount = 0,
+  maxWidth,
 }: StatusBarProps): React.ReactElement {
   // Track terminal width so we can adapt layout on narrow terminals.
   // We snapshot into state so that renders are stable — we don't want
   // the live-region to churn on every resize event during active streaming.
   const { stdout } = useStdout();
-  const [termWidth, setTermWidth] = useState(stdout?.columns ?? 90);
+  const capWidth = (raw: number): number => (maxWidth ? Math.min(raw, maxWidth) : raw);
+  const [termWidth, setTermWidth] = useState(capWidth(stdout?.columns ?? 90));
   useEffect(() => {
-    const handleResize = () => setTermWidth(stdout?.columns ?? 90);
+    const handleResize = () => setTermWidth(capWidth(stdout?.columns ?? 90));
     handleResize(); // snapshot immediately
     process.stdout.on('resize', handleResize);
     return () => {
       process.stdout.off('resize', handleResize);
     };
-  }, [stdout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stdout, maxWidth]);
 
   const isCompact = termWidth < COMPACT_THRESHOLD;
   const isComfortable = termWidth >= COMFORTABLE_THRESHOLD;

@@ -221,6 +221,93 @@ describe('project agent memory audiences', () => {
     // truncation condition can never be satisfied.
     expect(calls).toEqual([]);
   });
+
+  it('isolates session-scoped audience memories by sessionId', async () => {
+    const store = openStore();
+    await store.initialize();
+
+    // Session-scoped memory owned by session-A.
+    await store.rememberSage({
+      text: 'Session-A reviewer policy.',
+      scope: 'session',
+      ownerSessionId: 'session-a',
+      audience: { roles: ['reviewer'] },
+      importance: 0.8,
+    });
+
+    // Session-scoped memory owned by session-B (foreign — must NOT be visible to A).
+    await store.rememberSage({
+      text: 'Session-B reviewer policy.',
+      scope: 'session',
+      ownerSessionId: 'session-b',
+      audience: { roles: ['reviewer'] },
+      importance: 0.8,
+    });
+
+    // Project-scoped audience memory — visible to all sessions.
+    await store.rememberSage({
+      text: 'Project-wide reviewer policy.',
+      scope: 'project',
+      audience: { roles: ['reviewer'] },
+      importance: 0.8,
+    });
+
+    const asA = await store.retrieveForAudience(
+      { role: 'reviewer' },
+      undefined,
+      undefined,
+      'session-a',
+    );
+    const asB = await store.retrieveForAudience(
+      { role: 'reviewer' },
+      undefined,
+      undefined,
+      'session-b',
+    );
+    // No sessionId → only unowned session memories + non-session memories visible.
+    const unscoped = await store.retrieveForAudience({ role: 'reviewer' });
+
+    const textsA = asA.map((m) => m.text).sort();
+    const textsB = asB.map((m) => m.text).sort();
+    const textsUnscoped = unscoped.map((m) => m.text).sort();
+
+    // Each session sees its own + project, but NOT the foreign session's.
+    expect(textsA).toEqual(['Project-wide reviewer policy.', 'Session-A reviewer policy.']);
+    expect(textsB).toEqual(['Project-wide reviewer policy.', 'Session-B reviewer policy.']);
+    // Unscoped sees only project (no owner = no session-scoped rows).
+    expect(textsUnscoped).toEqual(['Project-wide reviewer policy.']);
+  });
+
+  it('includes all sessions when includeAllSessions is true', async () => {
+    const store = openStore();
+    await store.initialize();
+
+    await store.rememberSage({
+      text: 'Session-A reviewer policy.',
+      scope: 'session',
+      ownerSessionId: 'session-a',
+      audience: { roles: ['reviewer'] },
+      importance: 0.8,
+    });
+    await store.rememberSage({
+      text: 'Session-B reviewer policy.',
+      scope: 'session',
+      ownerSessionId: 'session-b',
+      audience: { roles: ['reviewer'] },
+      importance: 0.8,
+    });
+
+    const results = await store.retrieveForAudience(
+      { role: 'reviewer' },
+      undefined,
+      undefined,
+      undefined,
+      true, // includeAllSessions
+    );
+
+    const texts = results.map((m) => m.text).sort();
+    expect(texts).toEqual(['Session-A reviewer policy.', 'Session-B reviewer policy.']);
+  });
 });
 
 describe('audience filtering before SQL LIMIT (P0-2 regression)', () => {

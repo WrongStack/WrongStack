@@ -20,7 +20,7 @@ import {
 } from '@/components/site/primitives';
 import { pluginDetails } from '@/data/plugin-details';
 import { pluginLlmProfile, pluginSearchTerms } from '@/data/plugin-operational';
-import { pluginCatalog, pluginSlug, pluginSources } from '@/data/runtime-catalog';
+import { PLUGIN_COUNT, pluginCatalog, pluginSlug, pluginSources } from '@/data/runtime-catalog';
 import { Link } from '@/lib/router';
 import { cn } from '@/lib/utils';
 
@@ -64,11 +64,11 @@ const catalogStats = {
 const sourceDetails = {
   Core: {
     title: 'Core first-party plugins',
-    body: 'Eight host-level feature plugins composed by WrongStack itself: prompts, sync, Git, observability, security, Chimera, skills and strategic plans.',
+    body: 'Seven host-level feature plugins composed by WrongStack itself: prompts, sync, Git, observability, security, Chimera, skills and strategic plans.',
   },
   Suite: {
     title: '@wrongstack/plugins suite',
-    body: 'Sixty-three focused workflow, quality, security, provider-wire and developer-experience plugins available from one package.',
+    body: 'Sixty-four focused workflow, quality, security, provider-wire and developer-experience plugins available from one package.',
   },
   Bridge: {
     title: 'Interface bridges',
@@ -118,10 +118,10 @@ export function PluginsPage() {
       <PageHero
         index="21"
         eyebrow="Plugin field guide"
-        titleFontSize={heroTitleFontSize('Seventy-three plugins.')}
+        titleFontSize={heroTitleFontSize(`${PLUGIN_COUNT} plugins.`)}
         title={
           <>
-            Seventy-three plugins.
+            {`${PLUGIN_COUNT} plugins.`}
             <br />
             <span className="text-brand-2">Explicit activation.</span>
           </>
@@ -256,7 +256,7 @@ export function PluginsPage() {
                 className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint"
               />
               <span className="font-mono text-xs font-black text-faint">
-                {filtered.length} / 73
+                {filtered.length} / {PLUGIN_COUNT}
               </span>
             </label>
             <div className="mt-3 flex flex-wrap gap-2">

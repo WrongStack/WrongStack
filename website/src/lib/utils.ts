@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.298.0',
+  version: '0.298.1',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -20,14 +20,7 @@ export const META = {
   domain: 'wrongstack.com',
 } as const;
 
-export const heroStats = [
-  { value: '58', label: 'built-in tools' },
-  { value: '26', label: 'bundled skills' },
-  { value: '~140', label: 'model providers' },
-  { value: '73', label: 'managed plugins' },
-] as const;
-
-/** 26 bundled skills — README / packages/core/skills canonical list. */
+/** 29 bundled skills — README / packages/core/skills canonical list. */
 export const skills = [
   { name: 'api-design', description: 'REST conventions, pagination, auth, and error taxonomy' },
   { name: 'audit-log', description: 'Analyze session logs and event streams' },
@@ -70,9 +63,21 @@ export const skills = [
     name: 'wrongstack-mailbox',
     description: 'External-facing mailbox client for cross-agent coordination',
   },
+  {
+    name: 'data-governance',
+    description: 'Schema ownership, PII handling, retention, lineage, and migration safety',
+  },
+  {
+    name: 'wrongstack-kanban',
+    description: 'Deterministic Kanban task lifecycle, verification, and evidence enforcement',
+  },
+  {
+    name: 'wrongstack-mailbox-mcp',
+    description: 'Coordinate with agents through the project-scoped Mailbox MCP server',
+  },
 ] as const;
 
-/** The 58 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 59 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',
@@ -118,6 +123,7 @@ export const toolGroups = [
       'codebase-index',
       'codebase-search',
       'codebase-stats',
+      'dead-code-scan',
     ],
   },
 ] as const;
@@ -158,6 +164,9 @@ export const providerFamilies = [
     examples: ['Google AI Studio'],
   },
 ] as const;
+
+/** Derived count — always matches the actual array length, never hardcode. */
+export const SKILL_COUNT = skills.length;
 
 /** Visible slash commands from the CLI, TUI, plug-lsp, and core first-party plugins. */
 export const slashCommands = [
@@ -300,14 +309,73 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.298.1',
+    date: '2026-08-02',
+    latest: true,
+    tagline: 'Kanban architecture program, security hardening, and WebUI shell decomposition',
+    highlights: [
+      'Kanban architecture Phases 0–4: canonical task classifier (15 queue buckets), board kind system with retention policies, shared dispatch service with lease fencing, parent/child atomic gate, and session-board prune',
+      'Security hardening: 25+ fixes across HQ auth (expiry, capability gate, open-mode floor), ACP WebSocket authentication, CSRF/rebinding guard, MCP payload validation, OAuth callback escaping, YOLO escalation chain, and provider key isolation',
+      'WebUI App.tsx decomposed from 981 to 447 lines — WorkbenchTopbar, PanelSuspense, and ViewRouter extracted as focused modules; HQ CSS monolith split into 6 focused style modules',
+      'TUI link highlighting in markdown renderer; powerline-rail width budgeting fix; silence-terminal stdout restore leak fix',
+      'Core unified tool error taxonomy — structured ToolErrorInfo attached to all tool error results; typed environment-variable parsing helpers (envBool, envInt, envFloat, envString, envEnum)',
+      'CLI subcommand docs parity — 7 missing help entries added; manifest generator script',
+      'All workspace manifests, apps, README highlights, website metadata, and changelog content aligned to 0.298.1',
+    ],
+  },
+  {
+    version: '0.297.2',
+    date: '2026-07-31',
+    consolidated: true,
+    tagline: 'IPC socket hardening, statusline density, and SimpleUI decomposition',
+    highlights: [
+      'IPC daemon socket paths shortened for macOS sun_path headroom across SAGE, Kanban, Mailbox, and Chronicle; endpoint-invalid surfaced in health panels',
+      'Statusline default density changed to minimum across TUI/CLI/core/WebUI; picker and chip registry synced to the rendered four-line layout',
+      'Persistent version chip and update-available warning across TUI, WebUI, and SimpleUI',
+      'Dead-code-scan improvements: pnpm-workspace packages key scoping, barrel re-export traversal, and build-output entry-point mapping to source',
+      'SimpleUI decomposition: settings/prefs, mailbox, worklist commands, and topbar extracted into focused hooks and components',
+      'Heap-watchdog lastMajorGcAt stale-timestamp fix; coverage thresholds lowered from 100% per-file to 90% aggregate',
+      'Consolidates intermediate bumps 0.296.4 through 0.297.2',
+    ],
+  },
+  {
+    version: '0.296.3',
+    date: '2026-07-30',
+    tagline: 'Project IPC consolidation and Chronicle SQLite journal',
+    highlights: [
+      'Every CLI, TUI, WebUI, SimpleUI, Desktop, and HQ caller reaches one elected project mailbox owner over deterministic IPC; the owner alone opens _mailbox.sqlite and serializes messages, receipts, presence, and credentials',
+      'Kanban boards, assignments, queue claims, and live event bridges run through one elected IPC owner with revision-checked mutations and HQ/WebUI reconciliation',
+      'Chronicle stores the hash-chained event stream in SQLite with indexed SQL queries, row-level retention, and transactional legacy JSONL import',
+      'Codebase Index dead-code analysis follows real package entry points and traverses barrel re-exports without false dead-code reports',
+      'CLI startup defers the interactive session graph, separating flag parsing from full assembly',
+      'SimpleUI gains a project mailbox drawer with read, acknowledge, reopen, and soft-delete actions',
+      'All workspace manifests, apps, and website surfaces aligned to 0.296.3',
+    ],
+  },
+  {
     version: '0.296.2',
     date: '2026-07-28',
-    latest: true,
     tagline: 'Chronicle and release-gate stability under full-suite contention',
     highlights: [
       'Chronicle remote-journal and metrics-store suites tolerate transient full-suite worker contention and Windows SQLite WAL/SHM cleanup races',
       'HQ frame parsing retries its demonstrated transient full-suite contention case without weakening isolated assertions',
       'The complete release gate passed before the lockstep 0.296.2 package and website metadata update',
+    ],
+  },
+  {
+    version: '0.296.1',
+    date: '2026-07-27',
+    tagline: 'Per-project Chronicle telemetry, module decomposition, and leak fixes',
+    highlights: [
+      'Chronicle per-project telemetry server: CLI/TUI producers batch scrubbed events over IPC to one project owner with hash-chain serialization, rotation, and retention',
+      'WebUI Connections health screen reports WebUI, Chronicle, Codebase Index, and SAGE service ownership, PID, storage, queue, and latency',
+      'WebUI Context Window Editor for interactive context-window message removal with validation, repair preview, and conflict detection',
+      'Large-scale module decomposition across 10 packages with no behavioral changes — desktop, CLI, core, TUI, WebUI, tools, and SAGE modules extracted into focused units',
+      'TUI Map/ref leak fixes for fleet bridges, abort handler, and /clear — long-running sessions with heavy fan-out stay bounded',
+      '429 provider quarantine with sibling-model quarantine and WebUI waiting-room panel',
+      'SimpleUI art-deco design overhaul aligned to the corporate brand palette',
+      'CI TUI heap-soak regression gate asserts plateau slope within ±512 KiB/sample and mounted heap under 50 MiB',
+      'All workspace manifests, apps, and website surfaces aligned to 0.296.1',
     ],
   },
   {

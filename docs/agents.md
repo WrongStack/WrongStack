@@ -200,7 +200,7 @@ Skills are `SKILL.md` files (agentskills.io: YAML frontmatter `name`/`descriptio
 
 **Commands** (via `createSkillsPlugin`): `/skill`, `/skill-gen`, `/skill-search`, `/skill-install <user/repo|registry:id>`, `/skill-import`, `/skill-update`, `/skill-uninstall`. Config: `config.skills = { readClaudeSkills, foreignSources, mode, eagerMaxChars, extraDirs, registryUrl }`; `extraDirs`/`registryUrl` stripped from in-project config (prompt-injection / SSRF). `/skill-search` queries a registry (default skills.sh); private GitHub repos work with `GITHUB_TOKEN`/`GH_TOKEN`. **Limits** in one place — `core/src/skills/limits.ts` (`SKILL_LIMITS`).
 
-25 bundled skills live under `packages/core/skills/` (`output-standards` is depended on by almost every other skill — don't drop it). See `docs/skills.md`.
+29 bundled skills live under `packages/core/skills/` (`output-standards` is depended on by almost every other skill — don't drop it). See `docs/skills.md`.
 
 ## Prompt library
 

@@ -97,8 +97,8 @@ function harness(
   };
 }
 
-describe('Chimera leader wake integration', () => {
-  it('routes actionable auto-fix work back through the session leader', async () => {
+describe('Chimera passive report integration', () => {
+  it('publishes an actionable report without waking the session leader', async () => {
     const h = harness(
       [
         '### High (1)',
@@ -112,21 +112,24 @@ describe('Chimera leader wake integration', () => {
     await h.wait();
 
     expect(h.director.spawn).toHaveBeenCalledTimes(1);
-    expect(h.agentRun).toHaveBeenCalledTimes(1);
-    expect(h.agentRun.mock.calls[0]?.[0]?.[0]?.text).toContain(
-      'Resume the leader workflow automatically',
-    );
-    expect(h.agentRun.mock.calls[0]?.[0]?.[0]?.text).toContain('[HIGH] src/a.ts:1');
+    expect(h.agentRun).not.toHaveBeenCalled();
     expect(h.events.emitCustom).toHaveBeenCalledWith(
-      'chimera.leader_wake_completed',
-      expect.objectContaining({ sessionId: 'session-1', status: 'done' }),
-    );
-    expect(h.mailbox.ack).toHaveBeenCalledWith(
+      'chimera.report_available',
       expect.objectContaining({
-        messageId: 'mail-1',
-        completed: true,
-        outcome: expect.stringContaining('Leader resumed automatically'),
+        sessionId: 'session-1',
+        hasActionableFindings: true,
+        message: expect.stringContaining('No follow-up started'),
       }),
+    );
+    expect(h.mailbox.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'result',
+        body: expect.stringContaining('no leader turn, fix agent, or cascade was started'),
+      }),
+    );
+    expect(h.mailbox.ack).not.toHaveBeenCalled();
+    expect(h.session.append).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'llm_response' }),
     );
   });
 
@@ -148,6 +151,21 @@ describe('Chimera leader wake integration', () => {
     expect(reviewOnly.agentRun).not.toHaveBeenCalled();
     expect(reviewOnly.mailbox.ack).not.toHaveBeenCalled();
   });
+
+  it.each(['ask', 'auto'] as const)(
+    'treats legacy %s mode as passive and never starts a leader turn',
+    async (mode) => {
+      const h = harness('### High (1)\n1. src/a.ts:1 — Broken guard', mode);
+      h.emitReview();
+      await h.wait();
+      expect(h.agentRun).not.toHaveBeenCalled();
+      expect(h.mailbox.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'result' }));
+      expect(h.events.emitCustom).toHaveBeenCalledWith(
+        'chimera.report_available',
+        expect.objectContaining({ hasActionableFindings: true }),
+      );
+    },
+  );
 
   it('persists reports and findings when the optional Chimera plugin is not installed', async () => {
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'chimera-execution-owner-'));

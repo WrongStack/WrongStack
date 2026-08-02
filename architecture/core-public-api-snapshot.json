@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.298.0",
+  "packageVersion": "0.298.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1196,7 +1196,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 17,
-      "sourceLines": 6488
+      "sourceLines": 6457
     },
     {
       "directory": "prompts",
@@ -1259,7 +1259,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9490
+      "sourceLines": 9489
     },
     {
       "directory": "utils",

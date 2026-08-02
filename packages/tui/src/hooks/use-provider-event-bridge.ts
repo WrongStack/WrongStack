@@ -1,33 +1,24 @@
-import { tuiStreamFlushMs } from '@wrongstack/core/utils';
-import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
-import {
-  DEFAULT_MIN_IMPORTANCE,
-  DEFAULT_MIN_SCORE,
-  MIN_RELATION_STRENGTH,
-} from '@wrongstack/sage';
-import {
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-  useEffect,
-} from 'react';
 import type { ContentBlock } from '@wrongstack/core/types';
-import type { AppProps } from '../app-props.js';
+import { tuiStreamFlushMs } from '@wrongstack/core/utils';
+import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from '@wrongstack/sage';
+import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
+import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import {
   applyMemoryContextSnapshot,
   applyMemoryInjectorRun,
   emptyMemoryContextMonitor,
-  memoryEventMatchesSession,
   type MemoryContextMonitorState,
+  memoryEventMatchesSession,
 } from '../memory-context-monitor.js';
 import { memoryLifecycleEntry } from '../memory-lifecycle-entry.js';
-import { contentBlocksText } from '../rehydrate-history.js';
 import {
   MAX_ASSISTANT_STREAM_RETAINED_CHARS,
   MAX_TOOL_STREAM_RETAINED_CHARS,
   retainStreamTail,
 } from '../reducers/helpers.js';
+import { contentBlocksText } from '../rehydrate-history.js';
 import {
   recordProviderResponse,
   recordProviderTextDelta,
@@ -36,10 +27,7 @@ import {
   recordToolExecuted,
   recordToolProgress,
 } from '../tui-memory-counters.js';
-import {
-  formatDelegateStartedText,
-  formatDelegateSuccessText,
-} from './subagent-history-format.js';
+import { formatDelegateStartedText, formatDelegateSuccessText } from './subagent-history-format.js';
 
 function canonicalStreamSegments(content: readonly ContentBlock[]): Array<{
   kind: 'assistant' | 'thinking';
@@ -47,8 +35,10 @@ function canonicalStreamSegments(content: readonly ContentBlock[]): Array<{
 }> {
   const segments: Array<{ kind: 'assistant' | 'thinking'; text: string }> = [];
   for (const block of content) {
-    const kind = block.type === 'text' ? 'assistant' : block.type === 'thinking' ? 'thinking' : null;
-    const text = block.type === 'text' ? block.text : block.type === 'thinking' ? block.thinking : '';
+    const kind =
+      block.type === 'text' ? 'assistant' : block.type === 'thinking' ? 'thinking' : null;
+    const text =
+      block.type === 'text' ? block.text : block.type === 'thinking' ? block.thinking : '';
     if (!kind || !text.trim()) continue;
     const previous = segments.at(-1);
     if (previous?.kind === kind) previous.text += text;
@@ -64,10 +54,7 @@ function canonicalStreamSegments(content: readonly ContentBlock[]): Array<{
  * memory scores, gates, the searched query, reject buckets — lives in the
  * context panel, which keeps every run rather than only the injecting ones.
  */
-function formatSageInjectionStats(run: {
-  injectedChars: number;
-  contextPressure: number;
-}): string {
+function formatSageInjectionStats(run: { injectedChars: number; contextPressure: number }): string {
   const parts = [`+${run.injectedChars} chars`];
   if (run.contextPressure >= 0.65) {
     parts.push(`ctx ${Math.round(run.contextPressure * 100)}%`);
@@ -109,9 +96,12 @@ export function useProviderEventBridge({
     // state flushes on FLUSH_MS (balanced ~10fps, frugal ~6–7fps via profile).
     // Canonical output stays in provider.response / session log.
     const FLUSH_MS = tuiStreamFlushMs();
-    let pendingToolStream:
-      | { toolUseId: string; name: string; text: string; startedAt: number }
-      | null = null;
+    let pendingToolStream: {
+      toolUseId: string;
+      name: string;
+      text: string;
+      startedAt: number;
+    } | null = null;
     // Injector stats waiting for the tool entry they belong to. The injector
     // runs inside the tool-call pipeline, so `memory.injector_run` always
     // lands before the `tool.executed` that carries the injected block —
@@ -194,11 +184,7 @@ export function useProviderEventBridge({
       if (prev && prev.toolUseId === e.id) {
         pendingToolStream = {
           ...prev,
-          text: retainStreamTail(
-            prev.text,
-            e.event.text,
-            MAX_TOOL_STREAM_RETAINED_CHARS,
-          ),
+          text: retainStreamTail(prev.text, e.event.text, MAX_TOOL_STREAM_RETAINED_CHARS),
           startedAt: prev.startedAt,
         };
       } else {
@@ -236,9 +222,7 @@ export function useProviderEventBridge({
             // SAGE-injected memory travels beside the output preview so it
             // always renders as a memory block, never as tool text.
             sageLines: e.sage,
-            ...(pendingSageStats.has(e.name)
-              ? { sageStats: pendingSageStats.get(e.name)! }
-              : {}),
+            ...(pendingSageStats.has(e.name) ? { sageStats: pendingSageStats.get(e.name)! } : {}),
             // Real model-visible sizes — forwarded so the size chip beside
             // the tool header can show what the model paid for instead of
             // the misleading preview-byte count we used to surface.
@@ -420,6 +404,22 @@ export function useProviderEventBridge({
         },
       });
     });
+    const offChimeraReport = events.onPattern('chimera.report_available', (_event, payload) => {
+      const report = payload as {
+        sessionId?: string | undefined;
+        message?: string | undefined;
+      };
+      if (report.sessionId && report.sessionId !== agent.ctx.session.id) return;
+      dispatch({
+        type: 'addEntry',
+        entry: {
+          kind: 'warn',
+          text:
+            report.message ??
+            '🦂 Chimera report ready. No follow-up started; open the mailbox to inspect it.',
+        },
+      });
+    });
     const offMemoryStale = events.on('memory.staled', (e) => {
       if (!memoryEventMatchesSession(e, agent.ctx.session.id)) return;
       dispatch({
@@ -574,6 +574,7 @@ export function useProviderEventBridge({
       offTrustPersisted();
       offDelegateStart();
       offDelegateDone();
+      offChimeraReport();
       offMemoryStale();
       offMemoryContradicted();
       offMemoryHygiene();
@@ -584,5 +585,4 @@ export function useProviderEventBridge({
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
     };
   }, [events, agent.ctx.session.id]);
-
 }

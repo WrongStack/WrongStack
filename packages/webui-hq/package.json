@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/webui-hq",
-  "version": "0.298.0",
+  "version": "0.298.1",
   "license": "MIT",
   "description": "HQ Command Center dashboard — offline React app for the cross-machine coordination surface (port 3499).",
   "type": "module",
@@ -34,6 +34,7 @@
     "zustand": "5.0.14"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",

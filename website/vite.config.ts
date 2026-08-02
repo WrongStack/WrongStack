@@ -221,6 +221,68 @@ function validateProductCatalog() {
     );
   }
 
+  // --- Count-drift guard -------------------------------------------------
+  // Scan website source files for hardcoded count strings and verify they
+  // match the canonical array lengths. Catches the "tool count changed but
+  // someone forgot to update the homepage" class of drift at build time.
+  const websiteCommandCount = parseWebsiteCommands(
+    fs.readFileSync(path.resolve(websiteRoot, 'src/data/content-commands.ts'), 'utf8'),
+  ).length;
+  const utilsSource = fs.readFileSync(path.resolve(websiteRoot, 'src/lib/utils.ts'), 'utf8');
+  const skillsBlock = sourceSection(utilsSource, 'export const skills', '] as const;');
+  const runtimeSkillCount = captures(skillsBlock, /^\s*(?:\{\s*)?name:\s*'([^']+)'/gm).length;
+  const runtimePluginCount = captures(
+    sourceSection(runtimeCatalogSource, 'export const pluginCatalog'),
+    /\bname:\s*'([^']+)'/g,
+  ).length;
+
+  const countChecks: Array<[number, string, RegExp]> = [
+    [runtimeToolCount, 'tool', /(\d+)\s+built-in tools?/gi],
+    [runtimeToolCount, 'tool', /All\s+(\d+)\s+(?:built-in\s+)?tools?/gi],
+    [runtimeToolCount, 'tool', /tools\s*=\s*(\d+)/g],
+    [runtimeSkillCount, 'skill', /(\d+)\s+(?:bundled\s+)?skills?/gi],
+    [runtimePluginCount, 'plugin', /(\d+)\s+managed\s+plugins?/gi],
+    [websiteCommandCount, 'command', /(\d+)\s+documented\s+(?:slash\s+)?commands?/gi],
+  ];
+
+  const websiteSrcFiles = [
+    'index.html',
+    'src/lib/utils.ts',
+    'src/data/content.ts',
+    'src/data/content-reference.ts',
+    'src/pages/HomePage.tsx',
+    'src/pages/ToolsPage.tsx',
+    'src/pages/FeaturesPage.tsx',
+    'src/pages/BrandPage.tsx',
+    'src/pages/ToolDetailPage.tsx',
+  ];
+  for (const relPath of websiteSrcFiles) {
+    const fullPath = path.resolve(websiteRoot, relPath);
+    if (!fs.existsSync(fullPath)) continue;
+    const fileContent = fs.readFileSync(fullPath, 'utf8');
+    for (const [expected, label, pattern] of countChecks) {
+      const matches = [...fileContent.matchAll(pattern)];
+      for (const match of matches) {
+        const stated = parseInt(match[1], 10);
+        if (Number.isNaN(stated) || stated === expected) continue;
+        // Only flag if the number is plausibly a count (not a CSS value, line number, etc.)
+        // by checking it appears in a string literal or JSX text context
+        const lineStart = fileContent.lastIndexOf('\n', match.index ?? 0) + 1;
+        const lineEnd = fileContent.indexOf('\n', match.index ?? 0);
+        const line = fileContent.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
+        // Skip lines that look like CSS, comments about history, or changelog entries
+        if (/^\s*\*|^\s*\/\//.test(line)) continue;
+        if (/from 58 to 59|changelog|version|consolidat/i.test(line)) continue;
+        if (/^(export const|import|const|let|var)\s/.test(line.trim())) continue;
+        throw new Error(
+          `Hardcoded ${label} count drift in ${relPath}:${lineStart}. ` +
+          `Found "${stated}" but the canonical source has ${expected}. ` +
+          `Line: ${line.trim().slice(0, 120)}`,
+        );
+      }
+    }
+  }
+
   const websitePluginBlock = sourceSection(runtimeCatalogSource, 'export const pluginCatalog');
   // The runtime audit list is split: the CLI host contributes
   // HOST_PLUGIN_AUDIT_ENTRIES and the plugins package owns

@@ -702,4 +702,36 @@ export const pluginDetailsPart6: Record<string, PluginDetail> = {
     apiVersion: "^0.1.10",
     example: "telegram_approve({ prompt: \"Delete build artifacts?\", details: \"Frees 2.3 GB.\", timeout_ms: 60000 })",
   },
+  "process-guard": {
+    version: "0.1.0",
+    longDescription: "Three-layer kill defense for all WrongStack processes. The process-guard plugin provides observability via a PreToolUse hook that detects kill-related bash/exec commands and a process_guard_status tool. Actual blocking is enforced by the tool-level kill guards (bash-kill-guard.ts, exec-kill-guard.ts) in the bash and exec tools. All layers consult PersistentProcessRegistry for cross-instance PID protection.",
+    tools: [
+      {
+        name: "process_guard_status",
+        category: "Diagnostics",
+        mutating: false,
+        permission: "auto",
+        summary: "Reports process-guard state: mode, counters, and last detected kill-related command.",
+      },
+    ],
+    configOptions: [
+      {
+        name: "enabled",
+        type: "boolean",
+        defaultValue: "true",
+        description: "Master switch.",
+      },
+      {
+        name: "mode",
+        type: "\"block\" | \"warn\" | \"off\"",
+        defaultValue: "\"block\"",
+        description: "block = refuse the operation; warn = inject context; off = disable.",
+      },
+    ],
+    hooks: [
+      'preToolUse — Detects and logs kill-related bash/exec commands (kill, pkill, taskkill, Stop-Process, killall, tskill, wmic). Does not block directly; actual blocking is enforced by the tool-level kill guards in bash.ts and exec.ts.',
+    ],
+    apiVersion: "^0.1.10",
+    example: "process_guard_status — reports { enabled, mode, platform, selfPid, parentPid, counters: { invocations, detections, warns }, lastDetection }",
+  },
 };

@@ -25,16 +25,13 @@ iteration.completed → git diff → trailing quiet window → chimera.review_ne
                                     Director spawns review subagent
                                     (provider/model from config)
                                                   ↓
-                                    Severity-ranked report → session + mailbox
+                                    Severity-ranked report → store + mailbox
                                                   ↓
                                     chimera.review_complete event
                                                   ↓
-                                    parseReviewSeverity → shouldCascade
-                                                  ↓  (if threshold crossed)
-                                    chimera.cascade_needed event
+                                    chimera.report_available notification
                                                   ↓
-                                    Director spawns follow-up agents
-                                    (security-scanner, bug-hunter)
+                                    stop; wait for explicit user action
 ```
 
 ## Status
@@ -52,9 +49,7 @@ Enable it in your config:
       "model": "deepseek-chat",
       "fallbackProfile": "reliable",
       "debounceMs": 15000,
-      "maxFilesPerBatch": 15,
-      "cascadeOn": "high",
-      "maxCascadeDepth": 2
+      "maxFilesPerBatch": 15
     }
   }
 }
@@ -78,8 +73,6 @@ Enable it in your config:
 | `debounceMs` | number | 15000 | Required file-quiet period before a mid-session review starts |
 | `maxFilesPerBatch` | number | 15 | Files per review call |
 | `maxConcurrentReviews` | number | 2 | Parallel review subagent cap |
-| `cascadeOn` | "off"|"critical"|"high" | "off" | Follow-up agent threshold — spawns security-scanner/bug-hunter when findings cross this severity |
-| `maxCascadeDepth` | number | 2 | Max fix→re-review cycles (0 = open-loop, no re-review) |
 
 ## Slash commands
 
@@ -99,72 +92,14 @@ Enable it in your config:
 - **Skipped** — `.wrongstack/` files
 - **Deleted files** are silently omitted
 
-## Cascade (self-correcting follow-up agents)
+## Passive completion boundary
 
-When `cascadeOn` is `"high"` or `"critical"`, a review finding at or above that
-threshold triggers follow-up agents that **investigate and apply fixes**
-automatically. The cascade chain works as follows:
-
-```
-chimera.review_complete (carries report text + original bundle)
-         │
-         ▼
-auto-review plugin: parseReviewSeverity() extracts Critical/High/Medium counts
-         │
-         ▼  shouldCascade() gates on bundle.cascadeOn
-         │
-chimera.cascade_needed (carries severities + selected agents)
-         │
-         ▼
-execution.ts: spawns fix subagents via Director
-  • security-scanner — when a Critical/High finding mentions a security
-    keyword (injection, XSS, secret, shell, deserialization, etc.)
-  • bug-hunter — for any High+ finding (correctness concerns)
-         │
-         ▼  agents apply fixes (edit tool + typecheck/lint)
-         │
-re-read modified files → re-emit chimera.review_needed (depth N+1)
-         │
-         ▼  bounded by maxCascadeDepth — stops at limit or when clean
-```
-
-Both agents may spawn in parallel when a finding is both severe and
-security-related. The follow-up agents receive the review report (capped at
-12K chars) and the changed file list, read the flagged files, confirm or refute
-each finding, **apply fixes using the edit tool**, and run typecheck/lint to
-verify.
-
-### Closed self-correcting loop
-
-After fix agents apply their changes, the system re-reads the modified files
-and re-emits `chimera.review_needed` to trigger a fresh review of the post-fix
-state. If that review still finds High+ findings, the cycle repeats up to
-`maxCascadeDepth` iterations. When the depth limit is reached, a session message
-informs the user the loop stopped intentionally.
-
-| `maxCascadeDepth` | Behavior |
-|-------------------|----------|
-| `0` | Fix agents run once, no re-review (open-loop) |
-| `1` | Fix + one re-review to verify |
-| `2` (default) | Up to 2 re-review cycles |
-| `N` | Up to N re-review cycles |
-
-### Severity thresholds
-
-| `cascadeOn` | Fires when |
-|-------------|-----------|
-| `"off"` | Never (default) |
-| `"high"` | Any High OR Critical finding |
-| `"critical"` | Only Critical findings |
-
-### Agent selection
-
-`decideCascadeAgents()` scans only the Critical and High report sections for
-security keywords. A Medium-only security finding does **not** trigger the
-cascade — it doesn't cross the threshold. The 20 security keywords include:
-injection, xss, csrf, ssrf, sql, secret, credential, password, api key,
-token, auth, shell injection, command injection, innerhtml, deserialization,
-path traversal, hardcoded, privilege, owasp.
+Every completed review is persisted and announced through
+`chimera.report_available`. It does not become a normal assistant response,
+wake the leader, spawn a fix agent, or trigger a re-review. Legacy `cascadeOn`
+and `maxCascadeDepth` config values are compatibility-only and resolve to the
+passive policy. The user can inspect the mailbox and explicitly ask the leader
+to act later.
 
 ## Skills in scope
 

@@ -1,15 +1,15 @@
-import { normalizedEqual } from '@/lib/core-browser-shim';
 import type { PhaseItem } from '@/components/PhasePanel';
 import { toast } from '@/components/Toaster';
+import { normalizedEqual } from '@/lib/core-browser-shim';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
 import {
-  useGoalRunStore,
   useChatStore,
   useCronStore,
   useFileStore,
   useGitChangesStore,
   useGitInfoStore,
+  useGoalRunStore,
   useGoalStateStore,
   useSessionStore,
   useUIStore,
@@ -264,22 +264,25 @@ export function handleMemoryEvent(msg: WSServerMessage) {
     flowGroup: 'memory',
   });
   if (payload.event === 'memory.injector_run') {
-    useMemoryInjectorTraceStore.getState().pushTrace(
-      payload as unknown as import('@/stores/memory-injector-store').MemoryInjectorTrace,
-    );
+    useMemoryInjectorTraceStore
+      .getState()
+      .pushTrace(
+        payload as unknown as import('@/stores/memory-injector-store').MemoryInjectorTrace,
+      );
   }
   if (payload.event === 'memory.context_snapshot') {
-    useMemoryInjectorTraceStore.getState().applyContextSnapshot(
-      payload as unknown as import('@/stores/memory-injector-store').MemoryContextSnapshot,
-    );
+    useMemoryInjectorTraceStore
+      .getState()
+      .applyContextSnapshot(
+        payload as unknown as import('@/stores/memory-injector-store').MemoryContextSnapshot,
+      );
   }
   useMemoryLifecycleStore.getState().pushEvent(payload);
   if (payload.event === 'memory.staled')
     toast.warn(`Memory became stale: ${String(payload['memoryId'] ?? '')}`);
   else if (payload.event === 'memory.contradicted')
     toast.warn(`Memory contradicted: ${String(payload['memoryId'] ?? '')}`);
-  else if (payload.event === 'memory.hygiene_completed')
-    toast.info('SAGE hygiene completed');
+  else if (payload.event === 'memory.hygiene_completed') toast.info('SAGE hygiene completed');
 }
 
 export function handleCollabEvent(msg: WSServerMessage) {
@@ -387,7 +390,8 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     // drain) carries only a string body — no image channel — so preserving
     // btw would silently drop image attachments.
     const hasImages = !!refImages && refImages.length > 0;
-    const failMode = hasImages && pendingRef.mode === 'btw' ? 'queue' : (pendingRef.mode ?? 'queue');
+    const failMode =
+      hasImages && pendingRef.mode === 'btw' ? 'queue' : (pendingRef.mode ?? 'queue');
 
     if (p.error) {
       // Refinement failed — enqueue original as-is with images.
@@ -419,13 +423,12 @@ export function handleModelRefineResult(msg: WSServerMessage) {
       // handleDecision) can dispatch via it instead of degrading to a plain
       // normal send — e.g. a mid-run `btw` stays a `btw`. Degrade to 'queue'
       // when images are present: sendMailboxMessage carries no image channel.
-      mode: refImages && refImages.length > 0 && pendingRef.mode === 'btw' ? 'queue' : pendingRef.mode,
+      mode:
+        refImages && refImages.length > 0 && pendingRef.mode === 'btw' ? 'queue' : pendingRef.mode,
       // Carry images so the approval enqueue path can forward them — mirrors
       // the error/no-op branches above that pass refImages to enqueue.
       images: refImages,
-      ...(p.refinedWith
-        ? { provider: p.refinedWith.provider, model: p.refinedWith.model }
-        : {}),
+      ...(p.refinedWith ? { provider: p.refinedWith.provider, model: p.refinedWith.model } : {}),
       error: undefined,
       errorKind: undefined,
       resolve: () => {},
@@ -471,9 +474,7 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     status: 'ready',
     refined: p.refined,
     english: p.english,
-    ...(p.refinedWith
-      ? { provider: p.refinedWith.provider, model: p.refinedWith.model }
-      : {}),
+    ...(p.refinedWith ? { provider: p.refinedWith.provider, model: p.refinedWith.model } : {}),
     // Clear any stale failure state from a prior retry round.
     error: undefined,
     errorKind: undefined,
@@ -549,6 +550,14 @@ export function handleCronJobFired(msg: WSServerMessage) {
   useCronStore.getState().recordFired(p.name, p.ts);
 }
 
+export function handleChimeraReportAvailable(msg: WSServerMessage) {
+  const p = msg.payload as { message?: string | undefined };
+  toast.info(
+    p.message ?? '🦂 Chimera report ready. No follow-up started; open the mailbox to inspect it.',
+    8_000,
+  );
+}
+
 export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
   'goal-state.updated': handleGoalUpdated,
   'prefs.updated': handlePrefsUpdated,
@@ -579,4 +588,5 @@ export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'git.diff': handleGitDiff,
   'cron.snapshot': handleCronSnapshot,
   'cron.job_fired': handleCronJobFired,
+  'chimera.report_available': handleChimeraReportAvailable,
 };

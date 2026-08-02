@@ -14,9 +14,9 @@ Use this as a map; the deep docs it links to are authoritative.
 
 ---
 
-## Built-in tools (58)
+## Built-in tools (59)
 
-WrongStack ships **58 built-in tools** — no plugins required. They fall into
+WrongStack ships **59 built-in tools** — no plugins required. They fall into
 these families:
 
 | Family | Examples |
@@ -25,7 +25,7 @@ these families:
 | Code quality | `lint`, `format`, `typecheck`, `test`, `language`, `language_package` |
 | Execution | `bash`, `exec` |
 | Search & web | `search`, `fetch` |
-| Project insight | `codebase-index` (SQLite/FTS5 symbol index), `codebase-search`, `codebase-stats` |
+| Project insight | `codebase-index` (SQLite/FTS5 symbol index), `codebase-search`, `codebase-stats`, `dead-code-scan` |
 | Planning | `todo`, `plan`, `task`, `kanban` |
 | Git | `git`, `git_autocommit`, `semver_bump`, `semver_changelog` |
 | Packages | `install`, `audit`, `outdated` |
@@ -74,7 +74,7 @@ active mode prompt overrides conflicting baseline defaults.
 
 ---
 
-## Bundled skills (23)
+## Bundled skills (29)
 
 Skills are auto-activating capability packs matched on their trigger sentence.
 The bundle covers API design, testing, security scanning, refactor planning,

@@ -1,6 +1,6 @@
 import { ArrowRight, Check, MoveRight } from 'lucide-react';
 import { PageHero, PageNext, Reveal, SectionIntro } from '@/components/site/primitives';
-import { capabilityIndex, primaryFeatureStories, systemSpotlightStories } from '@/data/content';
+import { capabilityIndex, PLUGIN_COUNT, primaryFeatureStories, SKILL_COUNT, systemSpotlightStories, TOOL_COUNT } from '@/data/content';
 import { Link } from '@/lib/router';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +28,7 @@ export function FeaturesPage() {
         description="WrongStack covers the full coding loop—from understanding a repository to coordinating parallel work—without turning every capability into invisible magic."
         aside={
           <span className="font-mono text-xs font-bold text-faint">
-            58 tools · 23 skills · 73 managed plugins · open source & free
+            {`${TOOL_COUNT} tools · ${SKILL_COUNT} skills · ${PLUGIN_COUNT} managed plugins · open source & free`}
           </span>
         }
       />

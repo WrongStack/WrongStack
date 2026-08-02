@@ -9,6 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.298.1] — 2026-08-02
+
+### Added
+
+- **Kanban architecture program (Phases 0–4).** Canonical task classifier (15 queue buckets) with deterministic enforcement; board kind system (project, session mirror, SDD mirror, import, archive) with retention policies; shared dispatch service with lease fencing; parent/child atomic gate (parent cannot reach Done until all children completed); session-board prune (archive/delete past TTL); lifecycle-aware stale recovery preserving managed lifecycle stages. (`9226bb53a`, `44c9c57da`, `8638a2364`, `3e1fdfd4e`, `16d97e531`)
+- **TUI: link highlighting in markdown renderer.** `[text](url)` and bare URLs are colored in accent. (`127f92abd`)
+- **CLI: subcommand docs parity.** 7 missing help entries added; manifest generator script. (`2e365bfb6`)
+- **Core: typed environment-variable parsing helpers** — `envBool`, `envInt`, `envFloat`, `envString`, `envEnum`. (`e655ee336`)
+- **Core: unified tool error taxonomy.** Structured `ToolErrorInfo` attached to all tool error results. (`e12a16f3b`)
+- **WebUI: display settings tab** mirroring TUI display fields. (`ac2ca1cba`)
+
+### Changed
+
+- **WebUI shell decomposition.** App.tsx split from 981 to 447 lines — WorkbenchTopbar, PanelSuspense, and ViewRouter extracted as focused modules. (`f52a67730`, `9e2016fd0`)
+- **WebUI-HQ: CSS monolith consolidation.** The 4,340-line HQ stylesheet split into 6 focused style modules. (`020dfdfc8`)
+- **Core: tool error results wired into executor catch blocks** — replaced voided `classifyToolError` with structured `toolErrorResult`. (`70f97f9e9`)
+
+### Fixed
+
+- **Security hardening (25+ fixes).** WS-001: CSRF/rebinding guard on WebUI HTTP surface; WS-002: OAuth callback HTML escaping + headers; WS-003: port-aware loopback WS origin trust; WS-004: MCP payload validation + Win32 spawn hardening; WS-005: token required for Origin-less WS clients; WS-006: ACP WebSocket authentication; WS-007: unconditional HQ secret scrubbing; WS-008: YOLO escalation chain closed; WS-009: HQ query-param tokens confined to loopback; WS-010–012: HQ auth expiry, capability gate, open-mode floor; WS-013: provider API key isolation from baseUrl changes; WS-014/022/037/053: Pages job permissions + unwired controls; WS-016: repo-committed prompts can no longer redefine the agent; WS-021/052: design.materialize write containment; WS-034: scrubber anchor derivation; WS-038: gitignore security artifacts; WS-044: HQ browser tokens stored as SHA-256 verifiers. Vault KEK leak and CI supply-chain gaps closed; atomicWrite mode ceiling and Windows ACL hardening on sensitive appends.
+- **TUI: powerline-rail width budgeting** — separator cost mismatch fixed (5→2). (`3a1215c6c`)
+- **TUI: silence-terminal stdout.write restore leak** in `unsilenceTerminal`. (`f294de6eb`)
+- **WebUI: 8 vertical scroll containers** missing `min-h-0` constraint. (`f624c50a5`)
+- **SAGE: config drift** — removed `bash` from `inject.triggers` type. (`77dbf658b`)
+- **Tools: file-size caps** added to `json` and `diff` tools to prevent OOM on large files. (`0efc8d236`)
+
+## [0.297.2] — 2026-07-31
+
+Consolidates intermediate bumps 0.296.4 through 0.297.2.
+
+### Added
+
+- **Persistent version chip + update-available warning** across TUI, WebUI, and SimpleUI. (`31a0808de`, `6972df07c`)
+- **Statusline: default density changed to minimum** across TUI/CLI/core/WebUI; picker and chip registry synced to rendered four-line layout. (`9f715b387`, `95e67f20e`, `c84170895`)
+- **Dead-code-scan improvements** — pnpm-workspace.yaml `packages:` key scoping, barrel re-export traversal, build-output entry-point mapping to source. (`c69b9e95c`–`b431294d0`)
+- **SimpleUI decomposition** — settings/prefs, mailbox cluster, worklist commands, topbar chrome, and update banner extracted into focused hooks and components. (`51d09c16b`–`4c1b398ab`)
+
+### Changed
+
+- **IPC socket paths shortened** for macOS `sun_path` headroom across SAGE, Kanban, Mailbox, and Chronicle daemons; endpoint-invalid surfaced in health panels. (`4649d6c94`, `4779936e7`, `318ca33e0`, `f209b6183`)
+- **Coverage thresholds lowered** from 100% per-file to 90% aggregate across 6 vitest configs. (`f4606cea5`)
+- **Core: HQ protocol envelope primitives** extracted to a dependency leaf. (`603a61db3`)
+
+### Fixed
+
+- **Core: heap-watchdog `lastMajorGcAt`** read a stale timestamp from the previous GC event. (`391dc14ea`)
+- **TUI: settings picker field 42 (Read symbols)** now persists and applies live. (`725333105`)
+- **Next-steps suggestions** gated on the turn final message. (`974c31597`)
+- **WebUI-HQ: peer envelopes** no longer poison resume cursors; restart heuristic tightened. (`215c568a9`)
+- **Architecture: phantom tools cycle** removed; regex literals in module scanner stripped. (`b01687b51`)
+- **i18n: missing `endpointInvalidBadge` and `endpointInvalidRemedy`** added to 6 locales. (`d1c490d6b`)
+
 ## [0.296.3] — 2026-07-30
 
 ### Added

@@ -23,7 +23,7 @@ npm i -g wrongstack && wrongstack
 
 ---
 
-WrongStack is **free, open source, and MIT licensed**. It drives **autonomous goal loops**, **parallel subagent fan-out**, **multi-agent Director orchestration**, **Brain-governed policy decisions**, and **collaborative debugging** — and walks you through full **Spec-Driven Development** cycles. It ships with **58 built-in tools**, **23 skills**, and **73 managed first-party plugin rows** (8 core + 63 in `@wrongstack/plugins` + 2 bridges), plus **~140 providers** pulled live from [models.dev](https://models.dev). There is no paid WrongStack runtime tier; model providers and external services may charge for their own usage. Secrets are **AES-256-GCM** encrypted at rest with a per-machine key; every tool call clears a **per-tool permission policy**. Everything lives under `~/.wrongstack/` — the only thing you'd ever commit is `.wrongstack/AGENTS.md`.
+WrongStack is **free, open source, and MIT licensed**. It drives **autonomous goal loops**, **parallel subagent fan-out**, **multi-agent Director orchestration**, **Brain-governed policy decisions**, and **collaborative debugging** — and walks you through full **Spec-Driven Development** cycles. It ships with **59 built-in tools**, **29 skills**, and **73 managed first-party plugin rows** (8 core + 63 in `@wrongstack/plugins` + 2 bridges), plus **~140 providers** pulled live from [models.dev](https://models.dev). There is no paid WrongStack runtime tier; model providers and external services may charge for their own usage. Secrets are **AES-256-GCM** encrypted at rest with a per-machine key; every tool call clears a **per-tool permission policy**. Everything lives under `~/.wrongstack/` — the only thing you'd ever commit is `.wrongstack/AGENTS.md`.
 
 ### ✨ Why it slaps
 
@@ -143,7 +143,7 @@ wstack hq token create --client "build-box"
 
 ### Core built-in tools
 
-These 38 tools are registered out of the box — no plugin required. The full registry includes additional coordination, browser, memory, and meta tools (58 total).
+These 38 tools are registered out of the box — no plugin required. The full registry includes additional coordination, browser, memory, and meta tools (59 total).
 
 | Tool | What it does |
 |------|--------------|
@@ -480,9 +480,9 @@ Five-layer observability:
 - **Plugin trust tiers + capability gating**: only first-party (`official`) plugins may register bare slash-command names; tool `wrap`/`override`/`unregister` is gated on **declared capabilities** in addition to the officiality tier, so a plugin can only mutate tools it is actually authorized for
 - Threat model and adversary trust assumptions in [`SECURITY.md`](SECURITY.md); audit findings and verification in [`security-report/`](security-report/)
 
-### Bundled skills (23)
+### Bundled skills (29)
 
-`api-design`, `audit-log`, `bug-hunter`, `chimera`, `docker-deploy`, `git-flow`, `mailbox-bridge`, `multi-agent`, `node-modern`, `observability`, `output-standards`, `plugin-author`, `prompt-engineering`, `react-modern`, `refactor-planner`, `research-web`, `sdd`, `security-scanner`, `skill-creator`, `tech-stack`, `testing`, `typescript-strict`, `wrongstack-mailbox` — all following one structure (Overview → Rules → Patterns → Skills in scope). Discovered in order: project → user → bundled, with first-seen winning on name collisions.
+`api-design`, `audit-log`, `auto-review`, `bug-hunter`, `chimera`, `data-governance`, `design-system`, `docker-deploy`, `git-flow`, `mailbox-bridge`, `mnemosyne`, `multi-agent`, `node-modern`, `observability`, `output-standards`, `plugin-author`, `prompt-engineering`, `react-modern`, `refactor-planner`, `research-web`, `sdd`, `security-scanner`, `skill-creator`, `tech-stack`, `testing`, `typescript-strict`, `wrongstack-kanban`, `wrongstack-mailbox`, `wrongstack-mailbox-mcp` — all following one structure (Overview → Rules → Patterns → Skills in scope). Discovered in order: project → user → bundled, with first-seen winning on name collisions.
 
 ### Token-saving mode (`--token-saving-mode`)
 
@@ -505,7 +505,7 @@ saving indicator and the current registered-tool count.
 
 ### `--no-features` minimal kernel
 
-Flips off MCP, plugins, memory tools, models.dev fetch, and skill discovery. What's left: kernel (`Container` + `Pipeline` + `EventBus` + `RunController`, ~1670 lines incl. events) + agent (525 lines) + 58 built-in tools (subject to the selected token-saving tier) + permission policy + curated system prompt. The minimal-viable WrongStack runs offline with no network calls at startup. Provider family must be declared explicitly in config when using this mode.
+Flips off MCP, plugins, memory tools, models.dev fetch, and skill discovery. What's left: kernel (`Container` + `Pipeline` + `EventBus` + `RunController`, ~1670 lines incl. events) + agent (525 lines) + 59 built-in tools (subject to the selected token-saving tier) + permission policy + curated system prompt. The minimal-viable WrongStack runs offline with no network calls at startup. Provider family must be declared explicitly in config when using this mode.
 
 ---
 
@@ -763,7 +763,7 @@ Commit this file to share project conventions with the agent across all develope
 
 **2. Zero non-overridable behavior.** 16 services bound through `Container` (Logger, TokenCounter, SessionStore, MemoryStore, PermissionPolicy, Compactor, PathResolver, ConfigLoader, Renderer, InputReader, ErrorHandler, RetryPolicy, SkillLoader, SystemPromptBuilder, SecretScrubber, ModelsRegistry). 6 pipelines as middleware chains. Tools, providers, MCP servers, and slash commands all live in registries.
 
-**3. Standalone sufficiency.** Works with 58 built-in tools, 4 wire-family transports, permission policy, and a curated system prompt — no plugins required.
+**3. Standalone sufficiency.** Works with 59 built-in tools, 4 wire-family transports, permission policy, and a curated system prompt — no plugins required.
 
 **4. Layered, not monolithic.** `--no-features` flips off MCP, plugins, memory tools, models.dev fetch, and skill discovery. The minimal-viable WrongStack runs offline with no network calls at startup.
 
@@ -774,7 +774,7 @@ Commit this file to share project conventions with the agent across all develope
 | `@wrongstack/core` | Kernel, agent, types, registries, plugin contract |
 | `@wrongstack/runtime` | Default runtime implementations, host composition helpers, extension pack contracts |
 | `@wrongstack/providers` | Anthropic/OpenAI/OpenAI-compatible/Google wire adapters + SSE |
-| `@wrongstack/tools` | 58 built-in tools (incl. browser/E2E controls and SQLite codebase index) |
+| `@wrongstack/tools` | 59 built-in tools (incl. browser/E2E controls and SQLite codebase index) |
 | `@wrongstack/mcp` | MCP server registry + reconnection logic |
 | `@wrongstack/acp` | Agent Client Protocol client + agent support |
 | `@wrongstack/bench` | Model-independent benchmark harness (Aider polyglot + SWE-bench Verified) |

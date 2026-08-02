@@ -75,7 +75,7 @@ packages/
   webui-hq/         React HQ command-center dashboard.
   cli/              Boot assembly, REPL, commands, and surface launchers.
   bench/            Benchmark harness.
-  core/skills/      25 bundled SKILL.md directories (assets, not packages).
+  core/skills/      29 bundled SKILL.md directories (assets, not packages).
 
 docs/
   architecture.md           Lower-level architecture notes.
@@ -1328,16 +1328,17 @@ The CLI writes a metrics snapshot to the project session directory on shutdown w
 
 ## Built-in Skills and Modes
 
-Bundled skills live in `packages/core/skills` (25 total):
+Bundled skills live in `packages/core/skills` (29 total):
 
 ```text
-api-design        audit-log         auto-review       bug-hunter
-chimera           docker-deploy     git-flow          mailbox-bridge
-mnemosyne         multi-agent       node-modern       observability
-output-standards  plugin-author     prompt-engineering react-modern
-refactor-planner  research-web      sdd               security-scanner
-skill-creator     tech-stack        testing           typescript-strict
-wrongstack-mailbox
+api-design          audit-log           auto-review         bug-hunter
+chimera             data-governance     design-system       docker-deploy
+git-flow            mailbox-bridge      mnemosyne           multi-agent
+node-modern         observability       output-standards    plugin-author
+prompt-engineering  react-modern        refactor-planner    research-web
+sdd                 security-scanner    skill-creator       tech-stack
+testing             typescript-strict   wrongstack-kanban   wrongstack-mailbox
+wrongstack-mailbox-mcp
 ```
 
 `DefaultSkillLoader` can load bundled, user-global, and project-local skills. `DefaultSystemPromptBuilder` includes skill entries in the environment block when the skills feature is enabled.

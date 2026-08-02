@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { BrandMark } from '@/components/site/BrandMark';
 import { PageHero, PageNext, SectionIntro } from '@/components/site/primitives';
+import { TOOL_COUNT } from '@/data/runtime-catalog';
 import { cn } from '@/lib/utils';
 
 type BrandColor = {
@@ -457,7 +458,7 @@ export function BrandPage() {
               <code>
                 <span className="text-brand-2">$</span> wstack --tui{`\n`}
                 <span className="text-brand">fleet</span>.status = ready{`\n`}
-                tools = 58{`\n`}
+                tools = {TOOL_COUNT}{`\n`}
                 policy = confirm
               </code>
             </pre>

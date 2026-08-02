@@ -107,11 +107,13 @@ describe('trimKnownFingerprints', () => {
 });
 
 describe('auto-review change detection', () => {
-  it('leaves claim bookkeeping to Chimera while retaining cascade handling', () => {
+  it('registers the cascade review_complete listener but not review_needed', () => {
     const { api, onPattern } = makeApi();
     createAutoReviewPlugin().setup!(api);
 
     expect(onPattern).not.toHaveBeenCalledWith('chimera.review_needed', expect.any(Function));
+    // The auto-review plugin registers a review_complete listener to parse
+    // severity and emit cascade_needed when the threshold is crossed.
     expect(onPattern).toHaveBeenCalledWith('chimera.review_complete', expect.any(Function));
   });
 
@@ -258,6 +260,24 @@ describe('auto-review change detection', () => {
 });
 
 describe('resolveAutoReviewConfig — empty/unknown fallbackProfile', () => {
+  it('passes through cascade settings from config', () => {
+    const resolved = resolveAutoReviewConfig(
+      { enabled: true, cascadeOn: 'high', maxCascadeDepth: 4 },
+      sessionConfig(),
+    );
+    expect(resolved.cascadeOn).toBe('high');
+    expect(resolved.maxCascadeDepth).toBe(4);
+  });
+
+  it('defaults cascade settings to off/2 when not specified', () => {
+    const resolved = resolveAutoReviewConfig(
+      { enabled: true },
+      sessionConfig(),
+    );
+    expect(resolved.cascadeOn).toBe('off');
+    expect(resolved.maxCascadeDepth).toBe(2);
+  });
+
   // A minimal session Config with a healthy session provider/model but NO
   // fallbackProfiles map, so any profile name resolves to an empty chain.
   function sessionConfig(overrides: Partial<Config> = {}): Config {

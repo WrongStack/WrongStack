@@ -990,3 +990,7 @@ export function toolSlug(name: string): string {
 export function toolFromSlug(slug: string): ToolCatalogEntry | undefined {
   return toolCatalog.find((tool) => toolSlug(tool.name) === slug);
 }
+
+/** Derived counts — always match the actual array lengths, never hardcode. */
+export const TOOL_COUNT = toolCatalog.length;
+export const PLUGIN_COUNT = pluginCatalog.length;
