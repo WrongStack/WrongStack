@@ -6,15 +6,12 @@ import { test, expect } from '@playwright/test';
  * specific tests go in their own files.
  *
  * Known non-critical errors (ignored):
- *  - CSP errors for IPv6 loopback (ws://[::1]:XXXX) — browser console limitation
  *  - CSP errors for port mismatches during initial WS handshake — race condition
  *    in the port-injection meta tag vs the CSP header timing
  *  - "Connecting to 'ws://...3457/' violates CSP" — test env uses auto-assigned
  *    ports so the injected meta tag and the actual WS port may briefly mismatch
  */
 const IGNORED_ERRORS = [
-  "invalid source: 'ws://[::1]:",
-  "invalid source: 'wss://[::1]:",
   "violates the following Content Security Policy",
   '[object Event]', // internal ws-client error during handshake
 ];

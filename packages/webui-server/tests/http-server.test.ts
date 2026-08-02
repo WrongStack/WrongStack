@@ -135,21 +135,21 @@ describe('buildCspHeader', () => {
 });
 
 describe('buildCspHeader — loopback edge cases', () => {
-  it('emits bracketed IPv6 loopback entries for ::1 bind', () => {
+  it('excludes bracketed IPv6 from CSP for ::1 bind (covered by self)', () => {
     const csp = buildCspHeader(undefined, '::1', 3466);
-    // Bracketed IPv6 literals are valid CSP host-source syntax per CSP Level 3.
-    expect(csp).toContain('ws://[::1]:3466');
-    expect(csp).toContain('wss://[::1]:3466');
+    // CSP host-source grammar does not allow square brackets — ws://[::1]:PORT
+    // is invalid and silently ignored by browsers. Same-origin WS to IPv6
+    // loopback is covered by 'self' (CSP maps ws:→http:, wss:→https:).
+    expect(csp).not.toContain('[::1]');
     expect(csp).toContain('ws://127.0.0.1:3466');
     expect(csp).toContain('wss://127.0.0.1:3466');
     expect(csp).toContain('ws://localhost:3466');
     expect(csp).toContain('wss://localhost:3466');
   });
 
-  it('emits bracketed IPv6 loopback entries for [::1] bracketed bind', () => {
+  it('excludes bracketed IPv6 from CSP for [::1] bracketed bind', () => {
     const csp = buildCspHeader(undefined, '[::1]', 3466);
-    expect(csp).toContain('ws://[::1]:3466');
-    expect(csp).toContain('wss://[::1]:3466');
+    expect(csp).not.toContain('[::1]');
     expect(csp).toContain('ws://127.0.0.1:3466');
     expect(csp).toContain('wss://127.0.0.1:3466');
     expect(csp).toContain('ws://localhost:3466');

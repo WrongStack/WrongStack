@@ -263,7 +263,9 @@ const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'"];
  *   When set, this origin is added to `connect-src` as a `ws://`/`wss://` entry.
  * @param host - The server bind host. When it matches a known loopback address
  *   (`127.0.0.1`, `::1`, `[::1]`, or `localhost`), explicit `ws://`/`wss://`
- *   entries for all three canonical loopback hosts are added to `connect-src`.
+ *   entries for `127.0.0.1` and `localhost` are added to `connect-src`.
+ *   IPv6 loopback (`[::1]`) is excluded — it produces an invalid CSP source
+ *   and is covered by `'self'` (CSP maps ws:→http:, wss:→https:).
  * @param port - The server listen port. Defaults to `3456`. Unnecessary when
  *   only publicWsUrl is used (no loopback branch).
  */
@@ -277,16 +279,22 @@ export function buildCspHeader(
   if (publicWsSource) connect.add(publicWsSource);
   // Explicit WS origins for loopback binds — some CSP implementations do not
   // equate `ws:`/`wss:` with `http:`/`https:` for the `'self'` keyword in
-  // connect-src. Adding the canonical loopback addresses covers access via
-  // 127.0.0.1, localhost, and [::1] regardless of which interface the server
-  // is actually bound to (prevents drift from the ws-auth.ts policy).
+  // connect-src. Adding the canonical loopback hostnames covers access via
+  // 127.0.0.1 and localhost regardless of which interface the server is
+  // actually bound to (prevents drift from the ws-auth.ts policy).
+  //
+  // IPv6 loopback (`[::1]`) is intentionally excluded: the CSP host-source
+  // grammar (host-char = ALPHA / DIGIT / "-") does not permit square brackets,
+  // so `ws://[::1]:PORT` is an invalid source that browsers silently ignore.
+  // Same-origin WS connections to an IPv6 loopback are covered by `'self'`,
+  // which CSP maps ws:→http: / wss:→https: (CSP Level 3 §6.4.2.1).
   if (host && isLoopbackHostname(host)) {
     const p = port ?? 3456;
     // Guard against config typos (negative, zero, or impossibly large port).
     // This is NOT about ephemeral-port binds (listen(0)) — createHttpServer
     // resolves the real port from server.address() and passes it here.
     if (p > 0 && p <= 65535) {
-      for (const h of ['127.0.0.1', 'localhost', '[::1]']) {
+      for (const h of ['127.0.0.1', 'localhost']) {
         connect.add(`ws://${h}:${p}`);
         connect.add(`wss://${h}:${p}`);
       }
