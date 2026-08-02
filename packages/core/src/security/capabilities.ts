@@ -13,7 +13,26 @@ export const ToolCapabilities = {
   /** Can execute arbitrary commands in the user's shell (the `bash` tool). */
   SHELL_ARBITRARY: 'shell.arbitrary',
 
-  /** Can execute a restricted set of commands (the `exec` tool). */
+  /**
+   * Can execute the `exec` tool's allowlisted commands.
+   *
+   * "Restricted" describes the command NAME check, not the resulting power.
+   * Treat this as equivalent to {@link SHELL_ARBITRARY} when deciding what to
+   * grant: the allowlist includes general-purpose interpreters (`node`,
+   * `python`, `perl`, `ruby`) and, on Windows, the platform shells (`cmd`,
+   * `powershell`, `pwsh`) — deliberately, since without them `exec` cannot run
+   * `dir`/`type`/any cmdlet. `node -e …` or `cmd /c …` therefore reaches
+   * arbitrary execution, and per-argument denylisting cannot close that while
+   * the shells remain (blocking `node -e` still leaves `cmd /c node -e`).
+   *
+   * What actually bounds this is downstream, not the name check: the permission
+   * policy reconstructs the full command line and runs it through the
+   * destructive classifier, so destructive calls still require confirmation.
+   *
+   * Granting `shell.restricted` while withholding `shell.arbitrary` therefore
+   * buys no meaningful reduction in blast radius. Documented rather than
+   * silently implied, because the two read as a narrow/wide pair (WS-083).
+   */
   SHELL_RESTRICTED: 'shell.restricted',
 
   /** Can run a restricted project formatter/linter-style command. */
