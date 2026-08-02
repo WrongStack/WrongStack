@@ -3,6 +3,17 @@ import { reducer } from '../src/app-reducer.js';
 import { createTestState } from './helpers/create-test-state.js';
 
 describe('Sidebar focus + scroll key routing', () => {
+  /** Create a state with enough fleet entries to allow scrolling. */
+  function createStateWithContent() {
+    let s = createTestState();
+    const fleet: Record<string, { id: string; name: string; status: string }> = {};
+    fleet['leader'] = { id: 'leader', name: 'Leader Agent', status: 'running' };
+    for (let i = 1; i <= 14; i++) {
+      fleet[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
+    }
+    return { ...s, fleet: fleet as never };
+  }
+
   it('toggleSidebarFocus flips focused state', () => {
     let s = createTestState();
     expect(s.sidebarFocused).toBe(false);
@@ -15,7 +26,7 @@ describe('Sidebar focus + scroll key routing', () => {
   });
 
   it('unfocusing resets scroll offset to 0', () => {
-    let s = createTestState();
+    let s = createStateWithContent();
     s = reducer(s, { type: 'toggleSidebarFocus' }); // focus
     s = reducer(s, { type: 'sidebarScroll', delta: 5 });
     s = reducer(s, { type: 'sidebarScroll', delta: 3 });
@@ -28,7 +39,7 @@ describe('Sidebar focus + scroll key routing', () => {
   });
 
   it('sidebarScroll +1/-1 adjusts offset', () => {
-    let s = createTestState();
+    let s = createStateWithContent();
     s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     expect(s.sidebarScrollOffset).toBe(1);
 
@@ -45,16 +56,35 @@ describe('Sidebar focus + scroll key routing', () => {
     expect(s.sidebarScrollOffset).toBe(0);
   });
 
-  it('sidebarScroll clamps at 50 (upper bound)', () => {
+  it('sidebarScroll clamps at dynamic upper bound based on content', () => {
     let s = createTestState();
-    for (let i = 0; i < 60; i++) {
+    // Empty state → minimal content → maxScroll should be small (0 with no fleet)
+    for (let i = 0; i < 100; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    expect(s.sidebarScrollOffset).toBe(50);
+    // With no agents/sessions/todos, content is ~7 rows, viewport ~20 → maxScroll = 0
+    expect(s.sidebarScrollOffset).toBe(0);
+  });
+
+  it('sidebarScroll allows scrolling when content exceeds viewport', () => {
+    let s = createTestState();
+    // Add 15 fleet entries to push content past the viewport estimate
+    const fleet: Record<string, { id: string; name: string; status: string }> = {};
+    fleet['leader'] = { id: 'leader', name: 'Leader Agent', status: 'running' };
+    for (let i = 1; i <= 14; i++) {
+      fleet[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
+    }
+    s = { ...s, fleet: fleet as never };
+    for (let i = 0; i < 100; i++) {
+      s = reducer(s, { type: 'sidebarScroll', delta: 1 });
+    }
+    // 1 leader + 11 visible (capped) = 12 agents × 2 rows = 24
+    // + context 3 + model 2 + fleet 2 = 31 total, minus 20 viewport = 11 max
+    expect(s.sidebarScrollOffset).toBe(11);
   });
 
   it('sidebarScrollReset sets offset to 0', () => {
-    let s = createTestState();
+    let s = createStateWithContent();
     s = reducer(s, { type: 'sidebarScroll', delta: 10 });
     expect(s.sidebarScrollOffset).toBe(10);
 

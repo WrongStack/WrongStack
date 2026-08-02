@@ -4,6 +4,76 @@ import { retainCheckpoints } from '../checkpoint-retention.js';
 import type { WorktreeRow } from '../ui-contracts.js';
 import { closePanels } from './helpers.js';
 
+/**
+ * Estimate the maximum useful sidebar scroll offset — i.e. how many rows of
+ * content exist beyond what the sidebar can display at once. This prevents
+ * scrolling past the end into blank space.
+ *
+ * Layout (mirrors SidebarContent in sidebar-content.tsx):
+ *   - Context meter: 3 rows (header + bar + tokens)
+ *   - Model label: 2 rows (header + value), if present
+ *   - Fleet header: 2 rows (header + status)
+ *   - Agent rows: 2 rows each (name+ctx% / status+tool), capped at 12 agents
+ *   - Mission Queue: 1 (header) + up to 3 todo rows, if visible
+ *   - Sessions: 1 (header) + up to 3 live + up to 3 resume, if present
+ *   - Focus hint: 1 row, if focused
+ *
+ * The sidebar viewport height is roughly termRows (the full terminal height),
+ * minus border (2) + padding. Since the reducer doesn't know termRows, we
+ * estimate conservatively: assume ~20 visible rows. If content is shorter
+ * than that, maxScroll is 0 (nothing to scroll).
+ *
+ * @param state Current app state
+ * @returns Maximum scroll offset (always >= 0)
+ */
+function computeMaxSidebarScroll(state: State): number {
+  const VISIBLE_HEIGHT_ESTIMATE = 20;
+  let contentHeight = 0;
+
+  // Context meter
+  contentHeight += 3;
+
+  // Model label (provider + model) — always present
+  contentHeight += 2;
+
+  // Fleet section
+  contentHeight += 2;
+
+  // Agent rows: count fleet entries, cap at 12, 2 lines each
+  const fleetEntries = Object.values(state.fleet);
+  const leader = fleetEntries.find(
+    (e) => e.id === 'leader' || e.name === 'Leader Agent',
+  );
+  const runningSubagents = fleetEntries
+    .filter((e) => e !== leader)
+    .filter((e) => e.status === 'running');
+  const agentCap = leader ? 11 : 12;
+  const shownAgents = (leader ? 1 : 0) + Math.min(runningSubagents.length, agentCap);
+  contentHeight += shownAgents * 2;
+
+  // Mission Queue (only if showSwarmSection would be active)
+  // Note: todos are passed as a runtime prop (liveTodos), not in state.
+  // We can't count them here, so we add a small fixed reserve (1 header + 3 rows max).
+  const swarmMode = state.settingsPicker.showAgentSwarmPanel;
+  if (swarmMode === 'sidebar') {
+    contentHeight += 4; // header + up to 3 todo rows (worst case)
+  }
+
+  // Sessions
+  const liveSessionCount = state.sessionsPanel.sessions.length;
+  const resumeSessionCount = state.resumePicker.sessions.length;
+  if (liveSessionCount > 0 || resumeSessionCount > 0) {
+    contentHeight += 1; // header
+    contentHeight += Math.min(3, liveSessionCount);
+    contentHeight += Math.min(3, resumeSessionCount);
+  }
+
+  // Focus hint
+  if (state.sidebarFocused) contentHeight += 1;
+
+  return Math.max(0, contentHeight - VISIBLE_HEIGHT_ESTIMATE);
+}
+
 const workspacePanelActionTypes = [
   'toggleMonitor',
   'toggleAgentsMonitor',
@@ -114,17 +184,19 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
       return state.sidebarFocused
         ? { ...state, sidebarFocused: false, sidebarScrollOffset: 0 }
         : { ...state, sidebarFocused: true };
-    case 'sidebarScroll':
+    case 'sidebarScroll': {
+      // Dynamic upper clamp: estimate the sidebar content height from the
+      // current state so the user can't scroll past the end into blank space.
+      // Each section contributes: headers (1 row each) + rows (variable).
+      const maxScroll = computeMaxSidebarScroll(state);
       return {
         ...state,
-        // Conservative clamp: content rarely exceeds ~50 rows at full load.
-        // For short content the user may scroll a few rows past — acceptable
-        // since overflowY="hidden" clips and re-focus resets to 0.
         sidebarScrollOffset: Math.min(
-          50,
+          maxScroll,
           Math.max(0, state.sidebarScrollOffset + action.delta),
         ),
       };
+    }
     case 'sidebarScrollReset':
       return { ...state, sidebarScrollOffset: 0 };
     case 'toggleKanbanPanel': {
