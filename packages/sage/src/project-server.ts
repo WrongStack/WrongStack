@@ -9,6 +9,7 @@ import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
 import type { ScoredEntry } from '@wrongstack/core/types';
 import {
+  atomicWrite,
   canonicalProjectRoot,
   startSharedHeapWatchdog,
   useDaemonPerfDefaults,
@@ -595,19 +596,19 @@ function scheduleIdleStop(): void {
 
 async function writeMetadata(): Promise<void> {
   await fsPromises.mkdir(path.dirname(metadataPath), { recursive: true });
-  const temporary = `${metadataPath}.${process.pid}.tmp`;
   // `serverMetadata`, not `serverInfo`: the token lives ONLY in this
   // owner-only file now, never on the wire (WS-028).
-  await fsPromises.writeFile(temporary, `${JSON.stringify(serverMetadata, null, 2)}\n`, {
-    encoding: 'utf8',
+  //
+  // WS-059: was a hand-rolled write + rename with an `rm(metadataPath)`
+  // fallback. On Windows the rename fails whenever a reader holds the
+  // destination, so that fallback was the common path — and between the `rm`
+  // and the retry `rename` the file does not exist. A client reading in that
+  // window concludes there is no daemon and spawns a second one, breaking the
+  // one-daemon-per-project invariant. `atomicWrite` replaces in place with a
+  // bounded rename retry and never unlinks the destination first.
+  await atomicWrite(metadataPath, `${JSON.stringify(serverMetadata, null, 2)}\n`, {
     mode: 0o600,
   });
-  try {
-    await fsPromises.rename(temporary, metadataPath);
-  } catch {
-    await fsPromises.rm(metadataPath, { force: true });
-    await fsPromises.rename(temporary, metadataPath);
-  }
 }
 
 async function removeOwnedMetadata(): Promise<void> {
@@ -626,6 +627,11 @@ async function stop(_reason: string): Promise<void> {
   stopping = true;
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
+  // WS-059: remove metadata BEFORE releasing the endpoint. The bind is the
+  // ownership election, so while it is still held no successor daemon can
+  // exist — and therefore none can have its metadata deleted by the
+  // read-then-delete pid compare in `removeOwnedMetadata`.
+  await removeOwnedMetadata();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   for (const state of clients) {
     for (const controller of state.active.values()) {
@@ -635,7 +641,6 @@ async function stop(_reason: string): Promise<void> {
   }
   clients.clear();
   await store.dispose().catch(() => {});
-  await removeOwnedMetadata();
   if (process.platform !== 'win32') {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
   }

@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import { type ChronicleContext, createChronicleContext } from './context.js';
@@ -600,19 +601,16 @@ function scheduleIdleStop(): void {
 
 async function writeMetadata(): Promise<void> {
   await fsp.mkdir(path.dirname(metadataPath), { recursive: true });
-  const temporary = `${metadataPath}.${process.pid}.tmp`;
   // The token lives ONLY in this owner-only file, never on the wire (WS-027).
   const metadata: ChronicleProjectServerMetadata = { ...serverInfo, authToken };
-  await fsp.writeFile(temporary, `${JSON.stringify(metadata, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-  });
-  try {
-    await fsp.rename(temporary, metadataPath);
-  } catch {
-    await fsp.rm(metadataPath, { force: true });
-    await fsp.rename(temporary, metadataPath);
-  }
+  // WS-059: was a hand-rolled write + rename with an `rm(metadataPath)`
+  // fallback. On Windows the rename fails whenever a reader holds the
+  // destination, so that fallback was the common path — and between the `rm`
+  // and the retry `rename` the file does not exist. A client reading in that
+  // window concludes there is no daemon and spawns a second one, breaking the
+  // one-daemon-per-project invariant. `atomicWrite` replaces in place with a
+  // bounded rename retry and never unlinks the destination first.
+  await atomicWrite(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
 }
 
 async function removeOwnedMetadata(): Promise<void> {
@@ -629,6 +627,11 @@ async function stop(_reason: string): Promise<void> {
   stopping = true;
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
+  // WS-059: remove metadata BEFORE releasing the endpoint. The bind is the
+  // ownership election, so while it is still held no successor daemon can
+  // exist — and therefore none can have its metadata deleted by the
+  // read-then-delete pid compare in `removeOwnedMetadata`.
+  await removeOwnedMetadata();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   for (const state of clients) state.socket.destroy();
   clients.clear();
@@ -637,7 +640,6 @@ async function stop(_reason: string): Promise<void> {
   await flushJournals().catch(() => {});
   metricsStore?.close();
   metricsStore = undefined;
-  await removeOwnedMetadata();
   if (process.platform !== 'win32') await fsp.rm(endpoint, { force: true }).catch(() => {});
   await stopMemoryWatchdog();
 }

@@ -12,6 +12,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { EventBus } from '../kernel/events.js';
+import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
 import {
@@ -303,7 +304,12 @@ async function dispatch(op: MailboxServerOperationName, rawArgs: unknown): Promi
       return Promise.resolve(activeMailbox.credentialVerify(args.credentialId, args.secret)).then(
         (result) =>
           result.valid
-            ? { ...result, credential: result.credential ? redactMailboxCredential(result.credential) : undefined }
+            ? {
+                ...result,
+                credential: result.credential
+                  ? redactMailboxCredential(result.credential)
+                  : undefined,
+              }
             : { valid: false, reason: result.reason },
       );
     }
@@ -439,7 +445,6 @@ function scheduleIdleStop(): void {
 
 async function writeMetadata(): Promise<void> {
   await fsPromises.mkdir(projectDir, { recursive: true });
-  const temporary = `${metadataPath}.${process.pid}.tmp`;
   // The token lives ONLY in this owner-only file, never on the wire (WS-027).
   //
   // RESIDUAL RISK (Windows): `mode: 0o600` is honored on POSIX but Node ignores
@@ -450,18 +455,38 @@ async function writeMetadata(): Promise<void> {
   // restrictive ACL (e.g. `icacls` granting only the owner) on the project state
   // directory or this file; until then the owner-only guarantee is POSIX-only.
   const metadata: MailboxProjectServerMetadata = { ...serverStatus(), authToken };
-  await fsPromises.writeFile(temporary, `${JSON.stringify(metadata, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-  });
-  try {
-    await fsPromises.rename(temporary, metadataPath);
-  } catch {
-    await fsPromises.rm(metadataPath, { force: true });
-    await fsPromises.rename(temporary, metadataPath);
-  }
+  // WS-059: this used to be a hand-rolled write + rename with an
+  // `rm(metadataPath)` fallback. On Windows the rename fails whenever a reader
+  // holds the destination, so the rm branch was not an edge case — it was the
+  // common path. Between the `rm` and the retry `rename` the metadata file does
+  // not exist, and a client that reads it in that window concludes there is no
+  // daemon and spawns a second one, breaking the one-daemon-per-project
+  // invariant this file exists to hold.
+  //
+  // `atomicWrite` replaces in place with a bounded rename retry (~4s of
+  // backoff over the transient Windows codes) and never unlinks the
+  // destination first, so the file is present at every instant.
+  await atomicWrite(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
 }
 
+/**
+ * Delete this process's metadata file.
+ *
+ * WS-059: the pid check here is read-then-delete, which is a TOCTOU on its
+ * own — a successor daemon can write its metadata between the read and the
+ * `rm`, and this process then deletes the LIVE daemon's file. Clients can no
+ * longer find the running daemon and spawn duplicates.
+ *
+ * The pid comparison cannot be made atomic on a filesystem, so the fix is
+ * ordering rather than a tighter check: `stop()` calls this BEFORE closing the
+ * server. While this process still holds the endpoint, no successor can have
+ * won the ownership election, so no successor metadata can exist to delete.
+ * That makes shutdown the mirror of startup, which already documents that the
+ * endpoint bind IS the election and metadata cannot be written before `listen`.
+ *
+ * The pid check is retained as a backstop for the case this ordering does not
+ * cover: a stale file left by a previous, crashed process.
+ */
 async function removeOwnedMetadata(): Promise<void> {
   try {
     const current = JSON.parse(await fsPromises.readFile(metadataPath, 'utf8')) as {
@@ -480,6 +505,18 @@ async function stop(_reason: string): Promise<void> {
   idleTimer = undefined;
   clearInterval(leaseSweep);
   stopAutoCompact?.();
+  // WS-059: remove the metadata BEFORE releasing the endpoint. The endpoint
+  // bind is the ownership election, so while it is still held no successor
+  // daemon can exist — and therefore no successor metadata can be deleted by
+  // the pid-compare below. Doing this after `server.close()` left a window in
+  // which a successor bound, wrote its metadata, and had it removed by this
+  // process, leaving a live daemon that no client could find.
+  //
+  // The cost is a brief interval where this daemon is still serving but has no
+  // metadata. That direction is safe: a client that cannot read the token
+  // fails and retries, and it cannot spawn a replacement until the endpoint is
+  // actually free. The opposite ordering silently corrupts the invariant.
+  await removeOwnedMetadata();
   // Stop accepting new clients, then actively close the existing sockets.
   // Waiting for server.close() before closing them deadlocks explicit shutdown:
   // the requester keeps its IPC socket open while server.close() waits for
@@ -496,7 +533,6 @@ async function stop(_reason: string): Promise<void> {
   clients.clear();
   await mailbox?.close().catch(() => {});
   mailbox = undefined;
-  await removeOwnedMetadata();
   if (process.platform !== 'win32') {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});
   }
