@@ -394,6 +394,14 @@ export function validateRememberInput(input: RememberSageInput): void {
   if (normalizedText.length < 4) {
     throw new Error('SAGE text is too short to be useful long-term memory.');
   }
+  // Session-scoped memories MUST carry an owning session ID so retrieval and
+  // injection can filter by session. Without this, a session-A memory would
+  // leak into session-B search results and automatic injection.
+  if (input.scope === 'session' && !input.ownerSessionId) {
+    throw new Error(
+      "SAGE scope 'session' requires ownerSessionId so the memory can be isolated to its owning session.",
+    );
+  }
   for (const [name, values] of [
     ['tags', input.tags],
     ['anchors', input.anchors],

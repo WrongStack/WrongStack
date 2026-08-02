@@ -134,7 +134,7 @@ describe('SQLite migration completion coverage', () => {
           value: number;
         }
       ).value,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it('recovers a partially upgraded v1 database that already has canonical_text', async () => {
@@ -171,7 +171,7 @@ describe('SQLite migration completion coverage', () => {
           value: number;
         }
       ).value,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it('recovers populated versionless databases that already have canonical_text', async () => {
@@ -238,7 +238,7 @@ describe('SQLite migration completion coverage', () => {
           value: number;
         }
       ).value,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it('recovers corrupt JSONL lines and applies revision, candidate, edge, and audit rules', async () => {
@@ -384,5 +384,155 @@ describe('SQLite migration completion coverage', () => {
 
     await expect(state.migrateFromJsonl()).rejects.toThrow('write failed');
     expect(await value.getSage('rollback-memory')).toBeNull();
+  });
+
+  it('upgrades a v4 database and backfills owner_session_id from JSON data', async () => {
+    const root = path.join(directory, '.wrongstack', 'memories');
+    await fs.mkdir(root, { recursive: true });
+    const db = new DatabaseSync(path.join(root, 'sage.db'));
+    db.exec(`
+      CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
+      INSERT INTO schema_meta (key, value) VALUES ('version', 4);
+      CREATE TABLE memories (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        status TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        legacy_scope TEXT,
+        importance REAL NOT NULL,
+        confidence REAL NOT NULL,
+        freshness REAL NOT NULL,
+        updated_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        audience TEXT,
+        tags TEXT,
+        canonical_text TEXT NOT NULL DEFAULT ''
+      );
+      CREATE VIRTUAL TABLE memories_fts USING fts5(
+        text, tags, audience, content='memories', content_rowid='rowid'
+      );
+      CREATE TRIGGER memories_ai AFTER INSERT ON memories BEGIN
+        INSERT INTO memories_fts(rowid, text, tags, audience)
+        VALUES (new.rowid, json_extract(new.data, '$.text'), COALESCE(new.tags, ''), COALESCE(new.audience, ''));
+      END;
+      CREATE TRIGGER memories_ad AFTER DELETE ON memories BEGIN
+        INSERT INTO memories_fts(memories_fts, rowid, text, tags, audience)
+        VALUES('delete', old.rowid, json_extract(old.data, '$.text'), COALESCE(old.tags, ''), COALESCE(old.audience, ''));
+      END;
+      CREATE TRIGGER memories_au AFTER UPDATE ON memories BEGIN
+        INSERT INTO memories_fts(memories_fts, rowid, text, tags, audience)
+        VALUES('delete', old.rowid, json_extract(old.data, '$.text'), COALESCE(old.tags, ''), COALESCE(old.audience, ''));
+        INSERT INTO memories_fts(rowid, text, tags, audience)
+        VALUES (new.rowid, json_extract(new.data, '$.text'), COALESCE(new.tags, ''), COALESCE(new.audience, ''));
+      END;
+    `);
+
+    // Insert a session-scoped memory that carries ownerSessionId in JSON
+    const sessionOwned: Sage = {
+      id: 'v5-session-owned',
+      revision: 1,
+      scope: 'session',
+      kind: 'fact',
+      status: 'active',
+      text: 'Session-scoped memory with owner',
+      importance: 0.5,
+      confidence: 0.8,
+      freshness: 1,
+      tags: [],
+      anchors: [],
+      sources: [{ type: 'user' }],
+      ownerSessionId: 'session-xyz-789',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    };
+    db.prepare(
+      `INSERT INTO memories (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness, updated_at, created_at, audience, tags, canonical_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      sessionOwned.id,
+      JSON.stringify(sessionOwned),
+      sessionOwned.status,
+      sessionOwned.kind,
+      sessionOwned.scope,
+      null,
+      sessionOwned.importance,
+      sessionOwned.confidence,
+      sessionOwned.freshness,
+      sessionOwned.updatedAt,
+      sessionOwned.createdAt,
+      null,
+      '[]',
+      'session-scoped memory with owner',
+    );
+
+    // Insert a project-scoped memory (no ownerSessionId)
+    const projectMem: Sage = {
+      id: 'v5-project',
+      revision: 1,
+      scope: 'project',
+      kind: 'fact',
+      status: 'active',
+      text: 'Project memory without owner',
+      importance: 0.7,
+      confidence: 0.9,
+      freshness: 1,
+      tags: [],
+      anchors: [],
+      sources: [{ type: 'user' }],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    };
+    db.prepare(
+      `INSERT INTO memories (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness, updated_at, created_at, audience, tags, canonical_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      projectMem.id,
+      JSON.stringify(projectMem),
+      projectMem.status,
+      projectMem.kind,
+      projectMem.scope,
+      'project-memory',
+      projectMem.importance,
+      projectMem.confidence,
+      projectMem.freshness,
+      projectMem.updatedAt,
+      projectMem.createdAt,
+      null,
+      '[]',
+      'project memory without owner',
+    );
+
+    db.close();
+
+    const value = store();
+    await value.initialize();
+    const migrated = (value as unknown as { db: DatabaseSyncType }).db;
+
+    // owner_session_id column exists and was backfilled from JSON
+    const sessionRow = migrated
+      .prepare('SELECT owner_session_id FROM memories WHERE id = ?')
+      .get('v5-session-owned') as { owner_session_id: string | null };
+    expect(sessionRow.owner_session_id).toBe('session-xyz-789');
+
+    // Project memory has NULL owner_session_id (no owner in JSON)
+    const projectRow = migrated
+      .prepare('SELECT owner_session_id FROM memories WHERE id = ?')
+      .get('v5-project') as { owner_session_id: string | null };
+    expect(projectRow.owner_session_id).toBeNull();
+
+    // idx_owner_session index was created
+    const idx = migrated
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_owner_session'")
+      .get() as { name: string } | undefined;
+    expect(idx?.name).toBe('idx_owner_session');
+
+    // Schema version is 5
+    const version = migrated
+      .prepare("SELECT value FROM schema_meta WHERE key = 'version'")
+      .get() as { value: number };
+    expect(version.value).toBe(5);
+
+    migrated.close();
   });
 });

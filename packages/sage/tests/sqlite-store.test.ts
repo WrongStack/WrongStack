@@ -138,6 +138,82 @@ describe('SqliteSageStore', () => {
       expect(second.anchors.some((a) => a.symbol === 'verifySession')).toBe(true);
     });
 
+    it('keeps exact and near-duplicate session memories isolated by owner', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      const exactA = await store.rememberSage({
+        text: 'Session owner exact duplicate memory',
+        scope: 'session',
+        ownerSessionId: 'session-a',
+      });
+      const exactB = await store.rememberSage({
+        text: 'Session owner exact duplicate memory',
+        scope: 'session',
+        ownerSessionId: 'session-b',
+      });
+      const nearA = await store.rememberSage({
+        text: 'Session owner near duplicate memory retains its original owner and unique identifier.',
+        scope: 'session',
+        ownerSessionId: 'session-a',
+      });
+      const nearB = await store.rememberSage({
+        text: 'Session owner near duplicate memory retains its original owner and unique identifier during merging.',
+        scope: 'session',
+        ownerSessionId: 'session-b',
+      });
+
+      expect(exactB.id).not.toBe(exactA.id);
+      expect(exactA.ownerSessionId).toBe('session-a');
+      expect(exactB.ownerSessionId).toBe('session-b');
+      expect(nearB.id).not.toBe(nearA.id);
+      expect(nearA.ownerSessionId).toBe('session-a');
+      expect(nearB.ownerSessionId).toBe('session-b');
+    });
+
+    it('does not merge an owned session memory into a legacy ownerless row', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      const legacy = await store.rememberSage({
+        text: 'Legacy ownerless session memory retains its original unique identifier.',
+        scope: 'session',
+        ownerSessionId: 'legacy-owner',
+      });
+      const database = store as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      };
+      database.db
+        .prepare(
+          "UPDATE memories SET owner_session_id = NULL, data = json_remove(data, '$.ownerSessionId') WHERE id = ?",
+        )
+        .run(legacy.id);
+
+      const owned = await store.rememberSage({
+        text: 'Legacy ownerless session memory retains its original unique identifier during merging.',
+        scope: 'session',
+        ownerSessionId: 'session-b',
+      });
+
+      expect(owned.id).not.toBe(legacy.id);
+      expect(owned.ownerSessionId).toBe('session-b');
+    });
+
+    it('merges duplicate session memories owned by the same session', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      const first = await store.rememberSage({
+        text: 'Same session duplicate memory',
+        scope: 'session',
+        ownerSessionId: 'session-a',
+      });
+      const second = await store.rememberSage({
+        text: 'Same session duplicate memory',
+        scope: 'session',
+        ownerSessionId: 'session-a',
+        tags: ['merged'],
+      });
+
+      expect(second.id).toBe(first.id);
+      expect(second.ownerSessionId).toBe('session-a');
+      expect(second.tags).toContain('merged');
+    });
+
     it('rejects ephemeral progress chatter for project scope', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await expect(
@@ -347,6 +423,54 @@ describe('SqliteSageStore', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0]?.scope).toBe('project');
+    });
+
+    it('isolates empty and FTS searches by session unless admin access is requested', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      const sessionA = await store.rememberSage({
+        text: 'Session isolation searchable alpha record',
+        scope: 'session',
+        ownerSessionId: 'session-a',
+      });
+      const sessionB = await store.rememberSage({
+        text: 'Session isolation searchable beta record',
+        scope: 'session',
+        ownerSessionId: 'session-b',
+      });
+
+      const emptyForA = await store.searchSage('', { scope: 'session', sessionId: 'session-a' });
+      const ftsForA = await store.searchSage('Session isolation searchable', {
+        scope: 'session',
+        sessionId: 'session-a',
+      });
+      const unscoped = await store.searchSage('', { scope: 'session' });
+      const admin = await store.searchSage('', { scope: 'session', includeAllSessions: true });
+
+      expect(emptyForA.map((memory) => memory.id)).toEqual([sessionA.id]);
+      expect(ftsForA.map((memory) => memory.id)).toEqual([sessionA.id]);
+      expect(unscoped).toEqual([]);
+      expect(admin.map((memory) => memory.id)).toEqual(expect.arrayContaining([sessionA.id, sessionB.id]));
+    });
+
+    it('keeps session parameters ordered correctly in LIKE fallback searches', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      const sessionA = await store.rememberSage({
+        text: 'LIKE fallback session alpha memory',
+        scope: 'session',
+        ownerSessionId: 'session-a',
+      });
+      await store.rememberSage({
+        text: 'LIKE fallback session beta memory',
+        scope: 'session',
+        ownerSessionId: 'session-b',
+      });
+
+      const results = await store.searchSage('a', {
+        scope: 'session',
+        sessionId: 'session-a',
+      });
+
+      expect(results.map((memory) => memory.id)).toEqual([sessionA.id]);
     });
   });
 
@@ -593,6 +717,7 @@ describe('SqliteSageStore', () => {
       const sessionMem = await store.rememberSage({
         text: 'Temporary session scratch note about the current task',
         scope: 'session',
+        ownerSessionId: 'test-session-001',
         kind: 'fact',
         importance: 0.4,
       });

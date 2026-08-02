@@ -422,8 +422,8 @@ export class SqliteSageStore implements MemoryStore {
     // - One statement instead of two on the hot remember/update path.
     this.stmt(
       `INSERT INTO memories
-        (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness, updated_at, created_at, audience, tags, canonical_text)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness, updated_at, created_at, audience, tags, owner_session_id, canonical_text)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         data = excluded.data,
         status = excluded.status,
@@ -437,6 +437,7 @@ export class SqliteSageStore implements MemoryStore {
         created_at = excluded.created_at,
         audience = excluded.audience,
         tags = excluded.tags,
+        owner_session_id = excluded.owner_session_id,
         canonical_text = excluded.canonical_text`,
     ).run(
       m.id,
@@ -452,6 +453,7 @@ export class SqliteSageStore implements MemoryStore {
       m.createdAt,
       m.audience ? JSON.stringify(m.audience) : null,
       JSON.stringify(m.tags),
+      m.ownerSessionId ?? null,
       normalizeTextKey(m.text),
     );
   }

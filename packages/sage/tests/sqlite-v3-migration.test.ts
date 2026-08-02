@@ -77,7 +77,7 @@ describe('SqliteSageStore v3 migration', () => {
     expect(candidateIndexes.map((index) => index.name)).toContain(
       'idx_candidates_status_canonical',
     );
-    expect(version.value).toBe(4);
+    expect(version.value).toBe(5);
   });
 
   it('opens a v3 database containing a malformed active memory row', async () => {
@@ -135,7 +135,7 @@ describe('SqliteSageStore v3 migration', () => {
     migrated.close();
 
     expect(updateTrigger?.name).toBe('memories_au');
-    expect(version.value).toBe(4);
+    expect(version.value).toBe(5);
     expect(broken.legacy_scope).toBeNull();
   });
 

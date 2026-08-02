@@ -141,6 +141,12 @@ export interface Sage {
   injectionCount?: number | undefined;
   /** How often an injected memory was referenced by the assistant afterwards. */
   useCount?: number | undefined;
+  /**
+   * The session that owns a `scope: 'session'` memory. Required for
+   * session-scoped writes so retrieval and injection can filter by the
+   * requesting session. Undefined for project/user/file/symbol scopes.
+   */
+  ownerSessionId?: string | undefined;
 }
 
 export type MemoryGraphRelation =
@@ -585,6 +591,12 @@ export interface RememberSageInput {
   sources?: MemorySourceRef[] | undefined;
   supersedes?: string[] | undefined;
   contradicts?: string[] | undefined;
+  /**
+   * Session that owns this memory. Required when `scope` is `'session'` so
+   * retrieval and injection can filter by the requesting session. Ignored
+   * for non-session scopes.
+   */
+  ownerSessionId?: string | undefined;
 }
 
 /**
@@ -657,6 +669,18 @@ export interface SageSearchOptions {
    * query stays a zero-result query instead of becoming a corpus scan.
    */
   requireAllTerms?: boolean | undefined;
+  /**
+   * The requesting session's ID. When set, session-scoped memories
+   * (`scope = 'session'`) are filtered so only those owned by this session
+   * are returned. Non-session scopes are unaffected.
+   */
+  sessionId?: string | undefined;
+  /**
+   * When true, session-scoped memories from ALL sessions are returned
+   * regardless of `sessionId`. Intended for administrative surfaces
+   * (memory manager UI, hygiene). Default false.
+   */
+  includeAllSessions?: boolean | undefined;
 }
 
 export interface SageForAudienceOptions extends MemoryAudienceContext {
@@ -671,6 +695,16 @@ export interface SageForPathOptions {
   includeStatuses?: SageStatus[] | undefined;
   /** Default true for explicit reads; automatic tool-result injection sets false. */
   includeAudienceScoped?: boolean | undefined;
+  /**
+   * The requesting session's ID. When set, session-scoped memories
+   * are filtered to only those owned by this session.
+   */
+  sessionId?: string | undefined;
+  /**
+   * When true, session-scoped memories from ALL sessions are returned.
+   * Intended for administrative surfaces. Default false.
+   */
+  includeAllSessions?: boolean | undefined;
 }
 
 /**

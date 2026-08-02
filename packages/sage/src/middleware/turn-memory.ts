@@ -57,6 +57,7 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
           const memories = await opts.memory.searchSage(query, {
             limit: opts.maxMemories ?? 8,
             includeAudienceScoped: false,
+            sessionId: opts.getSessionId?.(),
           });
           const minScore = opts.minScore ?? 0.65;
           const metadataWeight = opts.metadataWeight ?? 0.3;

@@ -47,12 +47,14 @@ export async function initializeSqliteSageStore(input: {
   if (currentVersion < 2) migrateSchemaV2({ db, stmt });
   if (currentVersion < 3) migrateSchemaV3({ db, stmt, syncAnchorEdges });
   if (currentVersion < 4) migrateSchemaV4({ db, stmt });
+  if (currentVersion < 5) migrateSchemaV5({ db, stmt });
 
   db.exec('CREATE INDEX IF NOT EXISTS idx_canonical_text ON memories(canonical_text)');
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_status_scope_canonical ON memories(status, scope, canonical_text)',
   );
   db.exec('CREATE INDEX IF NOT EXISTS idx_legacy_scope ON memories(legacy_scope)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_owner_session ON memories(owner_session_id)');
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_candidates_status_canonical ON candidates(status, canonical_text)',
   );
@@ -194,6 +196,39 @@ function migrateSchemaV4({
       "UPDATE memories SET legacy_scope = CASE scope WHEN 'user' THEN 'user-memory' ELSE 'project-memory' END WHERE legacy_scope IS NULL AND status != 'deleted' AND json_valid(data)",
     );
     stmt('UPDATE schema_meta SET value = ? WHERE key = ?').run(4, 'version');
+    db.exec('COMMIT');
+  } catch (migrationErr) {
+    db.exec('ROLLBACK');
+    throw migrationErr;
+  }
+}
+
+function migrateSchemaV5({
+  db,
+  stmt,
+}: {
+  db: DatabaseSync;
+  stmt(sql: string): SqliteStatement;
+}): void {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const existingCol = stmt(
+      "SELECT name FROM pragma_table_info('memories') WHERE name = 'owner_session_id'",
+    ).get() as { name: string } | undefined;
+    if (!existingCol) {
+      db.exec('ALTER TABLE memories ADD COLUMN owner_session_id TEXT');
+    }
+    db.exec('CREATE INDEX IF NOT EXISTS idx_owner_session ON memories(owner_session_id)');
+    // Backfill owner_session_id from JSON data for existing session-scoped records.
+    // Records without an owner session remain NULL — P0-1b filtering treats
+    // NULL owner_session_id session-scope memories as unowned (excluded from
+    // session-filtered retrieval unless includeAllSessions is true).
+    // Guard on status != 'deleted' avoids firing the memories_au FTS trigger
+    // on tombstoned rows (matches V4 migration's guard).
+    db.exec(
+      "UPDATE memories SET owner_session_id = json_extract(data, '$.ownerSessionId') WHERE owner_session_id IS NULL AND status != 'deleted' AND json_valid(data) AND json_extract(data, '$.ownerSessionId') IS NOT NULL",
+    );
+    stmt('UPDATE schema_meta SET value = ? WHERE key = ?').run(5, 'version');
     db.exec('COMMIT');
   } catch (migrationErr) {
     db.exec('ROLLBACK');

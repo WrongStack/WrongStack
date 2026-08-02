@@ -65,6 +65,8 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
         includeAncestors: options.includeAncestors,
         includeStatuses: options.includeStatuses,
         includeAudienceScoped: options.includeAudienceScoped,
+        sessionId: options.sessionId,
+        includeAllSessions: options.includeAllSessions,
       }),
     searchSage: (query, options) => super.searchSage(query, options),
     findRelatedSage: (memoryIds, options) => super.findRelatedSage(memoryIds, options),

@@ -72,14 +72,21 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
   return ctx.runMutation(() => {
     const canonical = normalizeTextKey(normalizedText);
     const audienceKey = audience ? JSON.stringify(audience) : null;
+    // Session-scoped writes must only match memories owned by the same
+    // session — otherwise session B silently merges into session A's memory.
+    const sessionMatchClause =
+      scope === 'session' && input.ownerSessionId ? ' AND owner_session_id = ?' : '';
+    const sessionMatchParams =
+      scope === 'session' && input.ownerSessionId ? [input.ownerSessionId] as const : [] as const;
     const exactRow = ctx
       .stmt(
         `SELECT data FROM memories
            WHERE status IN ('active','stale') AND scope = ? AND canonical_text = ?
              AND audience IS ?
+             ${sessionMatchClause}
            LIMIT 1`,
       )
-      .get(scope, canonical, audienceKey) as { data: string } | undefined;
+      .get(scope, canonical, audienceKey, ...sessionMatchParams) as { data: string } | undefined;
 
     const existing =
       (exactRow ? sqliteRowToMemory(exactRow) : undefined) ??
@@ -89,6 +96,9 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         kind,
         text: normalizedText,
         anchors,
+        ...(scope === 'session' && input.ownerSessionId
+          ? { ownerSessionId: input.ownerSessionId }
+          : {}),
       });
 
     if (existing) {
@@ -124,6 +134,13 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         freshness: Math.max(existing.freshness, freshness),
         updatedAt: nowIso,
         revision: existing.revision + 1,
+        // Preserve ownerSessionId on merge: prefer the existing owner so
+        // a re-remember of the same fact in the same session does not
+        // change ownership. Fall back to incoming owner only when the
+        // existing row pre-dates session ownership (back-compat).
+        ...(scope === 'session' && (existing.ownerSessionId ?? input.ownerSessionId)
+          ? { ownerSessionId: existing.ownerSessionId ?? input.ownerSessionId }
+          : {}),
       };
       ctx.upsertMemory(merged);
       if (
@@ -163,6 +180,9 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
       supersededBy: undefined,
       createdAt: nowIso,
       updatedAt: nowIso,
+      ...(scope === 'session' && input.ownerSessionId
+        ? { ownerSessionId: input.ownerSessionId }
+        : {}),
     };
     ctx.upsertMemory(memory);
     ctx.syncAnchorEdges(memory);
@@ -186,18 +206,25 @@ function findNearDuplicate(
     kind: Sage['kind'];
     text: string;
     anchors: MemoryAnchor[];
+    ownerSessionId?: string | undefined;
   },
 ): Sage | undefined {
   // Bound the scan: near-dup is a quality feature, not a full-corpus join.
   // Order by importance so high-value keepers are preferred when several match.
+  // Session-scoped writes only match memories owned by the same session.
+  const sessionClause =
+    opts.scope === 'session' && opts.ownerSessionId ? ' AND owner_session_id = ?' : '';
+  const sessionParams =
+    opts.scope === 'session' && opts.ownerSessionId ? [opts.ownerSessionId] : [];
   const rows = ctx
     .stmt(
       `SELECT data FROM memories
          WHERE status IN ('active','stale') AND scope = ? AND audience IS ?
+         ${sessionClause}
          ORDER BY importance DESC, updated_at DESC
          LIMIT 64`,
     )
-    .all(opts.scope, opts.audienceKey) as Array<{ data: string }>;
+    .all(opts.scope, opts.audienceKey, ...sessionParams) as Array<{ data: string }>;
 
   let best: { memory: Sage; score: number } | undefined;
   for (const row of rows) {

@@ -69,6 +69,11 @@ interface RememberToolInput {
   persistence?: PersistenceClass | undefined;
   supersedes?: string[] | undefined;
   contradicts?: string[] | undefined;
+  /**
+   * Required when `scope` is `'session'`. The owning session ID so the
+   * memory can be isolated to its session during retrieval and injection.
+   */
+  ownerSessionId?: string | undefined;
   /** Legacy back-compat — mapped to `kind`/`importance` by rememberSage. */
   type?:
     | 'fact'
@@ -139,6 +144,11 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
           SCOPE_VALUES,
           'project (shared, default), user (personal), session, file, or symbol.',
         ),
+        ownerSessionId: {
+          type: 'string',
+          description:
+            "Required when scope is 'session'. The owning session ID so the memory can be isolated to its session during retrieval and injection. Ignored for non-session scopes.",
+        },
         tags: stringArraySchema('Hashtag-style tags for grouping and search (omit the #).'),
         anchors: anchorsSchema(),
         audience: audienceSchema(),
@@ -187,6 +197,7 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
         text: input.text,
         kind: input.kind,
         scope: input.scope,
+        ownerSessionId: input.ownerSessionId,
         tags: input.tags,
         anchors: input.anchors,
         audience: autoAudience,

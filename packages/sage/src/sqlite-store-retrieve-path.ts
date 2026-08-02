@@ -14,6 +14,28 @@ export interface SqliteRetrieveForPathContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 
+/**
+ * Build the SQL clause + params that enforce session isolation for path
+ * retrieval. Mirrors the logic in `buildSessionClause` from
+ * `sqlite-store-search-sage.ts` but operates on `SageForPathOptions`.
+ */
+function buildPathSessionClause(opts?: SageForPathOptions): {
+  clause: string;
+  params: string[];
+} {
+  if (opts?.includeAllSessions) return { clause: '', params: [] };
+  if (opts?.sessionId) {
+    return {
+      clause: " AND (scope != 'session' OR owner_session_id = ?)",
+      params: [opts.sessionId],
+    };
+  }
+  return {
+    clause: " AND (scope != 'session' OR owner_session_id IS NULL)",
+    params: [],
+  };
+}
+
 export function retrieveSqliteSageForPath(
   ctx: SqliteRetrieveForPathContext,
   paths: string[],
@@ -32,6 +54,7 @@ export function retrieveSqliteSageForPath(
 
   const includeAudienceScoped = opts?.includeAudienceScoped !== false;
   const audienceFilter = (memory: Sage): boolean => includeAudienceScoped || !memory.audience;
+  const session = buildPathSessionClause(opts);
   const targetPlaceholders = targetList.map(() => '?').join(',');
   const globClause = `OR ${symbolGlobs.map(() => 'e.to_node GLOB ?').join(' OR ')}`;
   const edgeRows = ctx
@@ -45,10 +68,11 @@ export function retrieveSqliteSageForPath(
              ${globClause}
        )
        AND m.status IN ('active', 'stale')
+       ${session.clause}
        ORDER BY m.importance DESC, m.updated_at DESC
        LIMIT ?`,
     )
-    .all(...targetList, ...symbolGlobs, limit) as Array<{ data: string }>;
+    .all(...targetList, ...symbolGlobs, ...session.params, limit) as Array<{ data: string }>;
 
   if (edgeRows.length > 0) {
     return edgeRows.map((r) => sqliteRowToMemory(r)).filter(audienceFilter);
@@ -61,9 +85,10 @@ export function retrieveSqliteSageForPath(
       `SELECT data FROM memories
        WHERE status IN (?, ?)
        AND (${fallback.conditions.join(' OR ')})
+       ${session.clause}
        ORDER BY importance DESC, updated_at DESC
        LIMIT ?`,
     )
-    .all(...params, limit) as Array<{ data: string }>;
+    .all(...params, ...session.params, limit) as Array<{ data: string }>;
   return sqliteRowsToMemories(rows).filter(audienceFilter);
 }

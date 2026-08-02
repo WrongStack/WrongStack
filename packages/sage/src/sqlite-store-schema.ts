@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SageCachePragmas } from '@wrongstack/core/utils';
 
-export const SQLITE_SCHEMA_VERSION = 4;
+export const SQLITE_SCHEMA_VERSION = 5;
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy_jsonl_migrated';
 // The audit log is a recent activity trail, not a compliance record.
 export const AUDIT_LOG_MAX_ROWS = 1000;
@@ -51,6 +51,7 @@ export function initSchema(db: DatabaseSync): void {
       created_at TEXT NOT NULL,
       audience TEXT,
       tags TEXT,
+      owner_session_id TEXT,
       canonical_text TEXT NOT NULL DEFAULT ''
     );
   `);

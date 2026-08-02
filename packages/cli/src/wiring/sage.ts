@@ -72,6 +72,7 @@ export function setupSage(deps: SageWiringDeps): () => Promise<void> {
         triggers: cfg?.inject?.triggers,
         tracker: injectionTracker,
         events: deps.events,
+        getSessionId: deps.getSessionId,
       }),
     );
   }

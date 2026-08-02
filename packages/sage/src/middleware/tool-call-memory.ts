@@ -15,6 +15,7 @@ export interface SageToolCallMiddlewareOptions {
   maxHintsPerTool?: number | undefined;
   maxCharsPerTool?: number | undefined;
   minScore?: number | undefined;
+  getSessionId?: (() => string | undefined) | undefined;
   /**
    * Hard importance gate. A memory below it is never auto-injected no matter
    * how exactly its anchor matches — importance used to be a purely additive
@@ -71,10 +72,18 @@ export interface SageRetrieverLike {
     includeAncestors?: boolean;
     includeStatuses?: Sage['status'][];
     includeAudienceScoped?: boolean;
+    sessionId?: string | undefined;
+    includeAllSessions?: boolean | undefined;
   }): Promise<Sage[]>;
   searchSage(
     query: string,
-    opts?: { limit?: number; includeAudienceScoped?: boolean; requireAllTerms?: boolean },
+    opts?: {
+      limit?: number;
+      includeAudienceScoped?: boolean;
+      requireAllTerms?: boolean;
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
+    },
   ): Promise<Sage[]>;
   findRelatedSage?(
     memoryIds: string[],
@@ -205,6 +214,7 @@ export function createSageToolCallMiddleware(
           maxHints,
           nextPayload.ctx.projectRoot,
           relationFloor,
+          opts.getSessionId?.(),
         );
         const alreadyVisible = visibleContextText(nextPayload);
         const deduped = dedupeRetrievedByText(memories);
@@ -535,6 +545,7 @@ async function retrieveTriggeredMemories(
   limit: number,
   projectRoot?: string | undefined,
   relationFloor?: number | undefined,
+  sessionId?: string | undefined,
 ): Promise<RetrievedMemory[]> {
   // Path lookups and the lexical query lookup are independent reads — run
   // them concurrently instead of serially awaiting each path in turn.
@@ -552,6 +563,7 @@ async function retrieveTriggeredMemories(
         // but deleted records are tombstones and never belong in model context.
         includeStatuses: isMutationTrigger(trigger.trigger) ? ['active', 'stale'] : ['active'],
         includeAudienceScoped: false,
+        sessionId,
       })
       .then((matches) =>
         // The store matches ancestors, so this answer also contains memories
@@ -585,6 +597,7 @@ async function retrieveTriggeredMemories(
           // turns a zero-result query into a corpus scan whose hits share one
           // incidental word with the tool path.
           requireAllTerms: true,
+          sessionId,
         })
         .then((matches) =>
           matches.map((item) => {
