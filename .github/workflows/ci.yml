@@ -130,6 +130,16 @@ jobs:
       - name: Write artifact lineage manifest
         run: pnpm write:build-manifest
 
+      # WS-070: the upload below sets `include-hidden-files: true` so the
+      # lineage manifest under `.reports/` is included — but that flag applies
+      # to every path in the upload, so a dotfile inside any `dist` would be
+      # published to an artifact readable by anyone with repo read access.
+      # Asserting none exist keeps the flag honest without adding `!` exclusion
+      # patterns, which would change how upload-artifact computes the artifact
+      # root and silently break the two jobs that download it into `.`.
+      - name: Assert no hidden files in build output
+        run: pnpm check:dist-hidden
+
       - name: Upload verified build lineage
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         with:

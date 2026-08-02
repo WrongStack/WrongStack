@@ -47,6 +47,7 @@
     "install:browser": "node scripts/check-browser-runtime.mjs --install",
     "check:node-pty": "node scripts/check-node-pty.mjs",
     "check:clean-dist": "node scripts/check-build-lineage.mjs --assert-clean",
+    "check:dist-hidden": "node scripts/check-dist-hidden-files.mjs",
     "check:build-manifest": "node scripts/check-build-lineage.mjs --verify .reports/build-artifact-manifest.json",
     "write:build-manifest": "node scripts/check-build-lineage.mjs --write .reports/build-artifact-manifest.json",
     "check:architecture": "node scripts/snapshot-core-public-api.mjs && node scripts/check-architecture-health.mjs",
