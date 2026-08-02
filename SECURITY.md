@@ -312,7 +312,8 @@ audits and explicitly accepted as non-blocking:
   - The old denylist checks remain as defense-in-depth but are no longer the primary control.
 
 - **Install-script allowlist maintenance**:
-  - `pnpm-workspace.yaml` currently allows lifecycle builds for `@biomejs/biome`, `better-sqlite3`, `electron`, `esbuild`, and `node-pty`. Any addition requires security review; the native/runtime download rationale is documented beside each entry.
+  - `pnpm-workspace.yaml` currently allows lifecycle builds for `@biomejs/biome`, `electron`, `esbuild`, and `node-pty`. Any addition requires security review; the native/runtime download rationale is documented beside each entry.
+  - Removal matters as much as addition. `better-sqlite3` was listed here and in both `pnpm-workspace.yaml` blocks while being absent from the lockfile entirely (the codebase uses `node:sqlite`), so its install scripts were pre-authorised to run the moment it reappeared through any transitive path — spending the review gate in advance. `packages/core/tests/architecture/build-allowlist-freshness.test.ts` now fails when any allowlist entry names a package that is not in the lockfile, and when this list drifts from `onlyBuiltDependencies`.
 
 Future scans should treat the above as **known and accepted** rather than new findings.
 

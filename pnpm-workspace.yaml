@@ -37,7 +37,6 @@ auditConfig:
     - GHSA-gv7w-rqvm-qjhr
 allowBuilds:
   '@biomejs/biome': true
-  better-sqlite3: true
   # Electron's install script fetches the platform runtime used by
   # apps/desktop. Keep this explicit so new installs can run the desktop app.
   electron: true
@@ -52,7 +51,6 @@ allowBuilds:
   node-pty: true
 onlyBuiltDependencies:
   - "@biomejs/biome"
-  - better-sqlite3
   - electron
   - esbuild
   - node-pty
