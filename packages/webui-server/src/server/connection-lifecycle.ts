@@ -222,6 +222,11 @@ export function createConnectionLifecycle<Client, Request, Message>(
 
     let messageCount = 0;
     let rateWindowResetAt = Date.now() + rateLimitWindowMs;
+    // When true, the connection is in cooldown: frames are still dropped but
+    // the user-facing error frame is suppressed so the SimpleUI toast does not
+    // re-render on every subsequent frame for the rest of the window. Cleared
+    // when the window resets, which is the next time we evaluate `now`.
+    let rateLimitNotified = false;
 
     /**
      * Charge one unit against the window. Returns false when the connection
@@ -233,15 +238,19 @@ export function createConnectionLifecycle<Client, Request, Message>(
       if (now > rateWindowResetAt) {
         messageCount = 0;
         rateWindowResetAt = now + rateLimitWindowMs;
+        rateLimitNotified = false;
       }
       if (++messageCount <= rateLimitMax) return true;
-      options.send(ws, {
-        type: 'error',
-        payload: options.sessionPayload({
-          phase: 'rate_limit',
-          message: options.rateLimitMessage ?? 'Too many messages. Please wait.',
-        }),
-      });
+      if (!rateLimitNotified) {
+        rateLimitNotified = true;
+        options.send(ws, {
+          type: 'error',
+          payload: options.sessionPayload({
+            phase: 'rate_limit',
+            message: options.rateLimitMessage ?? 'Too many messages. Please wait.',
+          }),
+        });
+      }
       return false;
     };
 

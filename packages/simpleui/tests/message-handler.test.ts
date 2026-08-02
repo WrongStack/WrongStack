@@ -799,6 +799,45 @@ describe('run lifecycle and queue drain', () => {
     expect(h.mutableRefs.queueRef.current.map((entry) => entry.id)).toEqual(['q1']);
   });
 
+  it('rate_limit error shows a warning notice and does NOT create a chat message or drain the queue', () => {
+    harness.mutableRefs.sessionIdRef.current = 'sess-1';
+    harness.mutableRefs.queueRef.current = [
+      { id: 'q1', text: 'should not be sent', mode: 'queue', addedAt: 1 },
+    ];
+
+    harness.handler({
+      type: 'error',
+      payload: { phase: 'rate_limit', message: 'Too many messages. Please wait.' },
+    });
+
+    // Shown as a transient warning notice, not a permanent system message.
+    expect(harness.state.notice).toMatchObject({
+      tone: 'warning',
+      text: 'Too many messages. Please wait.',
+    });
+    // No new chat message of any role created.
+    expect(harness.state.messages).toEqual([]);
+    // Queue is NOT drained — dispatching during cooldown would re-trigger
+    // the limiter.
+    expect(harness.dispatchUserMessage).not.toHaveBeenCalled();
+    expect(harness.mutableRefs.queueRef.current.map((e) => e.id)).toEqual(['q1']);
+  });
+
+  it('rate_limit error clears the running spinner (dropped frame leaves no run.result)', () => {
+    harness.handler({ type: 'iteration.started', payload: {} });
+    expect(harness.state.running).toBe(true);
+
+    harness.handler({
+      type: 'error',
+      payload: { phase: 'rate_limit', message: 'Too many messages. Please wait.' },
+    });
+
+    // The server dropped the frame, so no run.result will clear it — the
+    // rate_limit branch must clear the spinner itself.
+    expect(harness.state.running).toBe(false);
+    expect(harness.state.activity).toBe('');
+  });
+
   it('drains the same held item on the next run.result once dispatch succeeds again', () => {
     // First drain is dropped (session gone), item stays queued. When a later
     // run.result arrives with a live session, the SAME item finally sends.

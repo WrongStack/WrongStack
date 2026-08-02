@@ -751,6 +751,29 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         break;
       }
       case 'error': {
+        const phase = typeof payload['phase'] === 'string' ? payload['phase'] : '';
+        if (phase === 'rate_limit') {
+          // Rate-limit frames are transient throttles, not run failures.
+          // Show as a dismissible notice (not a permanent chat message) and
+          // do NOT drain the queue — dispatching now would just feed more
+          // messages into the throttled connection, re-triggering the
+          // limiter and flooding the chat with "SYSTEM Too many messages."
+          //
+          // Clear the running spinner: the server dropped the frame that
+          // triggered the limiter, so no run.result/error will ever arrive
+          // to clear it. Without this the UI stays stuck on "Thinking".
+          setRunning(false);
+          setActivity('');
+          setNotice({
+            id: messageId('rate-limit'),
+            text:
+              typeof payload['message'] === 'string'
+                ? payload['message']
+                : 'Too many messages. Please wait.',
+            tone: 'warning',
+          });
+          break;
+        }
         const text = typeof payload['message'] === 'string' ? payload['message'] : 'Run failed';
         setRunning(false);
         setActivity('');
