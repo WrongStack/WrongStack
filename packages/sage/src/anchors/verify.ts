@@ -46,6 +46,14 @@ interface ResolvedExecutable {
    * to 'unknown' instead of a possibly-wrong 'stale'.
    */
   flagArgument: boolean;
+  /**
+   * True when any flag or env-assignment token was skipped during wrapper
+   * resolution (`npx --registry https://x eslint` skips `--registry` but the
+   * next token is the flag's ARGUMENT, not the command). If the resolved
+   * executable is then NOT found, the verdict must be 'unknown' — a wrong
+   * 'stale' would demote the persisted memory.
+   */
+  skippedFlag: boolean;
 }
 
 /**
@@ -55,34 +63,41 @@ interface ResolvedExecutable {
  */
 function resolveCommandExecutable(command: string): ResolvedExecutable {
   const trimmed = command.trim();
-  if (!trimmed) return { executable: undefined, flagArgument: false };
+  if (!trimmed) return { executable: undefined, flagArgument: false, skippedFlag: false };
   const first = firstToken(trimmed);
-  if (!first) return { executable: undefined, flagArgument: false };
-  if (!COMMAND_WRAPPERS.has(first)) return { executable: first, flagArgument: false };
+  if (!first) return { executable: undefined, flagArgument: false, skippedFlag: false };
+  if (!COMMAND_WRAPPERS.has(first)) {
+    return { executable: first, flagArgument: false, skippedFlag: false };
+  }
   // Skip wrapper options and env assignments: `npx --yes eslint` -> eslint,
   // `time -v cmd` -> cmd, `env FOO=bar node` -> node. A token that directly
   // follows a SHORT flag is ambiguous (the flag's argument vs the command) —
   // `sudo -u www cmd` yields `www`, `npx -y node` yields `node`; callers must
   // treat that as 'unknown', never 'stale' (a stale verdict demotes the
-  // persisted memory).
+  // persisted memory). Any skipped flag makes the whole resolution
+  // 'skippedFlag' — a long flag's argument (`--registry https://x eslint`)
+  // is indistinguishable from a command without per-tool knowledge.
   const rest = trimmed.slice(trimmed.indexOf(first) + first.length).trim();
   let cursor = rest;
   let afterShortFlag = false;
+  let skippedFlag = false;
   for (let i = 0; i < 8; i++) {
     const token = firstToken(cursor);
-    if (!token) return { executable: undefined, flagArgument: false };
+    if (!token) return { executable: undefined, flagArgument: false, skippedFlag };
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
+      skippedFlag = true;
       cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
       continue;
     }
     if (token.startsWith('-')) {
+      skippedFlag = true;
       afterShortFlag = /^-[a-zA-Z]$/.test(token);
       cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
       continue;
     }
-    return { executable: token, flagArgument: afterShortFlag };
+    return { executable: token, flagArgument: afterShortFlag, skippedFlag };
   }
-  return { executable: undefined, flagArgument: false };
+  return { executable: undefined, flagArgument: false, skippedFlag };
 }
 
 function firstToken(input: string): string | undefined {
@@ -120,14 +135,65 @@ async function verifyCommandAnchor(
       reason: `Ambiguous command anchor: "${executable}" follows a short flag (likely a flag argument, not an executable).`,
     };
   }
+  // Shell builtins (echo/cd/dir/...) have no PATH entry — the shell provides
+  // them, so existence is satisfied without a filesystem hit.
+  if (SHELL_BUILTINS.has(executable)) {
+    return {
+      anchor,
+      status: 'verified',
+      reason: `Command "${executable}" is a shell builtin (provided by the shell).`,
+    };
+  }
   const found = await commandExists(projectRoot, executable, signal);
-  return found
-    ? { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` }
-    : { anchor, status: 'stale', reason: `Command executable "${executable}" was not found on PATH.` };
+  if (found) {
+    return { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` };
+  }
+  if (resolved.skippedFlag) {
+    // A flag was skipped during resolution, so `executable` may be that
+    // flag's ARGUMENT (`npx --registry https://x eslint`). A wrong 'stale'
+    // would demote the persisted memory — report 'unknown' instead.
+    return {
+      anchor,
+      status: 'unknown',
+      reason: `Ambiguous command anchor: "${executable}" follows a flag (likely a flag argument); not found on PATH.`,
+    };
+  }
+  return { anchor, status: 'stale', reason: `Command executable "${executable}" was not found on PATH.` };
+}
+
+/** Shell builtins with no PATH entry — their existence is provided by the shell itself. */
+const SHELL_BUILTINS = new Set([
+  'cd',
+  'echo',
+  'pwd',
+  'dir',
+  'type',
+  'alias',
+  'exit',
+  'export',
+  'set',
+  'unset',
+  'printf',
+  'test',
+  'true',
+  'false',
+  'read',
+  'shift',
+  'source',
+  '.',
+]);
+
+function isExecutableFile(
+  stat: { isFile(): boolean; mode: number },
+  isWin32: boolean,
+): boolean {
+  // Existence is not executability: on POSIX require the execute bit.
+  return stat.isFile() && (isWin32 || (stat.mode & 0o111) !== 0);
 }
 
 async function commandExists(projectRoot: string, executable: string, signal?: AbortSignal): Promise<boolean> {
   signal?.throwIfAborted();
+  const isWin32 = process.platform === 'win32';
   if (executable.includes('/') || executable.includes('\\')) {
     // Explicit path: absolute paths resolve as-is; relative paths (e.g.
     // `./scripts/build.sh`) resolve against the project root, not the probe's
@@ -135,12 +201,11 @@ async function commandExists(projectRoot: string, executable: string, signal?: A
     const target = path.isAbsolute(executable) ? executable : path.resolve(projectRoot, executable);
     try {
       const stat = await fs.stat(target);
-      return stat.isFile();
+      return isExecutableFile(stat, isWin32);
     } catch {
       return false;
     }
   }
-  const isWin32 = process.platform === 'win32';
   const extensions = isWin32 ? ['.exe', '.cmd', '.bat', '.com', ''] : [''];
   const pathVar = process.env['PATH'] ?? '';
   for (const dir of pathVar.split(path.delimiter)) {
@@ -150,8 +215,7 @@ async function commandExists(projectRoot: string, executable: string, signal?: A
       const candidate = path.join(dir, `${executable}${ext}`);
       try {
         const stat = await fs.stat(candidate);
-        // Existence is not executability: on POSIX require the execute bit.
-        if (stat.isFile() && (isWin32 || (stat.mode & 0o111) !== 0)) return true;
+        if (isExecutableFile(stat, isWin32)) return true;
       } catch {
         // Keep looking.
       }

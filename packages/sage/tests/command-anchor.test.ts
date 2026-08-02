@@ -1,6 +1,6 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { verifyMemoryAnchors } from '../src/anchors/verify.js';
 import type { MemoryAnchor, Sage } from '../src/types.js';
@@ -66,9 +66,17 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
     expect(result.anchors[0]?.reason).toContain('Ambiguous');
   });
 
+  it('treats shell builtins as verified (no PATH entry needed)', async () => {
+    const anchor: MemoryAnchor = { type: 'command', command: 'echo probe' };
+    const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
+    expect(result.anchors[0]?.status).toBe('verified');
+  });
+
   it('resolves a relative command path against the project root', async () => {
     await mkdir(path.join(tempDir, 'scripts'), { recursive: true });
     await writeFile(path.join(tempDir, 'scripts', 'probe.sh'), '#!/bin/sh\necho probe\n');
+    // POSIX: the exec-bit probe requires an executable file.
+    await chmod(path.join(tempDir, 'scripts', 'probe.sh'), 0o755);
     const anchor: MemoryAnchor = { type: 'command', command: './scripts/probe.sh' };
     const result = await verifyMemoryAnchors(tempDir, makeMemory([anchor]));
     expect(result.anchors[0]?.status).toBe('verified');
