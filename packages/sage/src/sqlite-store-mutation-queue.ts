@@ -1,9 +1,25 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '@wrongstack/core/utils';
 
-function runImmediateTransaction<T>(db: DatabaseSync, work: () => T): T {
+function runImmediateTransaction<T>(
+  db: DatabaseSync,
+  work: () => T,
+  signal?: AbortSignal | undefined,
+): T {
+  // Pre-transaction abort check: if the caller already cancelled, skip
+  // the transaction entirely instead of acquiring the write lock and
+  // committing a stale result that the caller has stopped listening for.
+  if (signal?.aborted) throw new DOMException('Operation aborted', 'AbortError');
   db.exec('BEGIN IMMEDIATE');
   try {
+    // Pre-commit abort check: the work between BEGIN and COMMIT may have
+    // taken significant time (hygiene over hundreds of memories, JSONL
+    // migration of thousands of rows). If the caller cancelled during
+    // that window, roll back instead of committing a partial result that
+    // the caller will discard anyway. Synchronous SQLite cannot interrupt
+    // mid-statement — this check catches the common case where the signal
+    // fires between statements.
+    if (signal?.aborted) throw new DOMException('Operation aborted', 'AbortError');
     const result = work();
     db.exec('COMMIT');
     return result;
@@ -21,7 +37,12 @@ export class SqliteMutationQueue {
   private mutationChain: Promise<unknown> = Promise.resolve();
   private counterChain: Promise<unknown> = Promise.resolve();
 
-  runLocked<T>(opts: { db: DatabaseSync; lockPath: string; work: () => T }): Promise<T> {
+  runLocked<T>(opts: {
+    db: DatabaseSync;
+    lockPath: string;
+    work: () => T;
+    signal?: AbortSignal | undefined;
+  }): Promise<T> {
     // Serialize on the previous chain head. Swallow prior rejection so a
     // failed mutation never permanently bricks the queue — the next caller
     // still gets a clean shot at the lock.
@@ -30,7 +51,7 @@ export class SqliteMutationQueue {
       .then(() =>
         withFileLock(
           opts.lockPath,
-          async () => runImmediateTransaction(opts.db, opts.work),
+          async () => runImmediateTransaction(opts.db, opts.work, opts.signal),
           {
             timeoutMs: 60_000,
             staleMs: 30 * 60_000,

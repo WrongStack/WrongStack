@@ -1380,6 +1380,35 @@ describe('SqliteSageStore', () => {
     });
   });
 
+  describe('abort checks (P1-10)', () => {
+    it('rejects mutations when signal is already aborted', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      await store.rememberSage({ text: 'Existing memory', kind: 'fact' });
+
+      const ac = new AbortController();
+      ac.abort();
+
+      // verify with an aborted signal should throw AbortError
+      await expect(store.verify(undefined, ac.signal)).rejects.toThrow();
+    });
+
+    it('completes mutations normally when signal is not aborted', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      await store.rememberSage({
+        text: 'Memory to verify',
+        kind: 'file_note',
+        anchors: [{ type: 'file', path: 'src/config.ts' }],
+      });
+
+      const ac = new AbortController();
+      // Signal not aborted — verify should complete normally.
+      const result = await store.verify(undefined, ac.signal);
+      expect(result).toBeDefined();
+    });
+  });
+
   describe('consolidateSession', () => {
     it('creates candidates for new facts and auto-accepts above threshold', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));

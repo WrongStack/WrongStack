@@ -257,11 +257,12 @@ export class SqliteSageStore implements MemoryStore {
    * Multi-statement paths (remember merge, cascade delete, counter batch) commit
    * once instead of once per prepared statement.
    */
-  private runMutation<T>(work: () => T): Promise<T> {
+  private runMutation<T>(work: () => T, signal?: AbortSignal): Promise<T> {
     return this.mutationQueue.runLocked({
       db: this.db,
       lockPath: path.join(this.paths.locksDir, 'store-mutation'),
       work,
+      signal,
     });
   }
 
