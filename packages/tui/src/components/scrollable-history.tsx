@@ -1,6 +1,5 @@
 import type React from 'react';
 import {
-  type MutableRefObject,
   memo,
   useCallback,
   useEffect,
@@ -12,7 +11,7 @@ import {
 import { writeClipboardText } from '../clipboard.js';
 import { EntryHeightCache } from '../height-cache.js';
 import { SCROLLBAR_HIT_WIDTH } from '../hit-test.js';
-import { Box, type DOMElement, measureElement, Text, useStdout } from '../ink.js';
+import { Box, type DOMElement, measureElement, useStdout } from '../ink.js';
 import { computeLayout } from '../layout-engine.js';
 import {
   anchorForTrackCell,
@@ -27,14 +26,9 @@ import {
   scrollAnchorBy,
   scrollAnchorToTop,
 } from '../scroll-anchor.js';
-import { theme } from '../theme.js';
 import { setTuiHistoryMemoryGauges } from '../tui-memory-counters.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
 import {
-  COPY_ICON,
-  COPY_ICON_WIDTH,
-  copyableTextForEntries,
-  copyableTextForEntry,
   isCopyableEntry,
 } from './history/copy-icon.js';
 import {
@@ -47,315 +41,66 @@ import {
 import {
   Entry,
   type HistoryEntry,
-  type HistoryProps,
   MAX_STREAM_DISPLAY_CHARS,
   ToolStreamBox,
   tailForDisplay,
   toolStreamBoxHeight,
 } from './history.js';
 
-/**
- * Imperative scroll surface owned by the ScrollableHistory component. The app
- * key/mouse handlers call these instead of dispatching reducer actions: all
- * scroll math needs the live height cache, which lives here, and routing it
- * through app state previously forced totals and offsets to travel through
- * separate commits — the root cause of an entire family of jump bugs.
- */
-export interface HistoryScrollController {
-  /** Scroll by `deltaUp` rows: positive = older content, negative = newer. */
-  scrollBy(deltaUp: number): void;
-  /** Scroll by one viewport page. */
-  scrollPage(dir: 'up' | 'down'): void;
-  /** Jump to the oldest retained entry. */
-  scrollToTop(): void;
-  /** Re-pin to the newest output. */
-  scrollToBottom(): void;
-  /** Jump to a 0-based cell clicked/dragged on the scrollbar track. */
-  scrollToTrackCell(cell: number): void;
-  /** True while the viewport is scrolled away from the newest output. */
-  isScrolled(): boolean;
-  /**
-   * True when the viewport cell lands on a copyable card's copy icon. Lets the
-   * mouse handler decide synchronously whether to consume the click before
-   * firing the async copy. See {@link copyAtViewportCell} for the `row`/`col`
-   * coordinate contract.
-   */
-  hasCopyTargetAt(row: number, col: number): boolean;
-  /**
-   * Handle a left-click inside the history viewport. `row` is 0-based from the
-   * viewport top; `col` is 0-based from the LEFT EDGE OF THE HISTORY BAND, not
-   * the raw terminal column. In the interactive mount the band renders flush at
-   * terminal column 0 (the scrollbar occupies the rightmost columns), so the
-   * caller passes the terminal column directly; a band that is inset from the
-   * left must subtract its left offset first. When the cell lands on a copyable
-   * card's copy icon, its content is written to the system clipboard and the
-   * entry id is returned; otherwise returns null.
-   */
-  copyAtViewportCell(row: number, col: number): Promise<number | null>;
-  /**
-   * Begin a drag-to-select gesture at `row`,`col` (history-band viewport cell).
-   * The cell must be inside a card's row range and inside the rendered band
-   * (`0 <= col < termWidth`); the mouse handler has already excluded the rail.
-   * Calls that don't satisfy that contract are silently ignored. Existing
-   * scrollbar/copy-icon/wheel paths remain intact because they call their own
-   * handlers; this only kicks in when the mouse layer explicitly routes a
-   * left-press into the card band.
-   */
-  beginSelection(row: number, col: number): void;
-  /**
-   * Extend an active selection to `row`,`col`. If no selection is in progress,
-   * the call is a no-op. Crossing into the gutter or below the viewport cancels
-   * the drag internally — leaving stale viewport-relative coords around after
-   * a mid-drag escape would let the next right-click paste from the wrong
-   * card, which is the worse failure mode than the selection disappearing.
-   */
-  extendSelection(row: number, col: number): void;
-  /**
-   * End an active drag (left-release). Does NOT write to the clipboard — the
-   * copy is performed by {@link commitSelection}, which is triggered by a
-   * separate right-click in the history band (per the drag-select-then-commit
-   * contract). If no selection is in progress, the call is a no-op.
-   */
-  endSelection(): void;
-  /** Drop any in-progress or committed selection without copying. */
-  clearSelection(): void;
-  /**
-   * Commit the active selection to the system clipboard. Returns true if a
-   * non-empty selection was resolved and the write succeeded. Returns false
-   * silently when there is no selection, the selection is empty (e.g. the drag
-   * never moved), or the write fails — the caller can show a transient notice
-   * on the truthy branch and stay silent on the falsy branch.
-   */
-  commitSelection(): Promise<boolean>;
-}
+// ── Re-exports from extracted modules ────────────────────────────────────
+export type {
+  HistoryScrollController,
+  ScrollableHistoryProps,
+} from './history/scroll-controller-types.js';
+export {
+  type CopyHit,
+  LIVE_TOOL_STREAM_COPY_ID,
+  SELECTION_COPY_ID,
+  findCopyHit,
+  resolveCopyPayload,
+  copyRegistryVisibleClip,
+  liveToolStreamCopyHit,
+} from './history/copy-geometry.js';
+export {
+  type SelectionRect,
+  type SelectionSlice,
+  normalizeSelection,
+  isOutOfBand,
+  selectionToSlices,
+  assembleSelectionText,
+} from './history/selection-helpers.js';
+export {
+  type MountedCardSpan,
+  scrollbarThumb,
+  scrollOffsetForTrackRow,
+  buildMountedCardSpans,
+  selectionHitAt,
+} from './history/scrollbar-geometry.js';
+export { Scrollbar } from './history/scrollbar-rail.js';
 
-/**
- * A clickable copy-icon target resolved in viewport coordinates during the
- * post-render measurement pass. `entryId` identifies a single card or the first
- * member of a compact tool group; `entryIds` contains every group member when
- * present. `startRow`/`endRow` bound the box's visible rows (0-based from the
- * viewport top, `endRow` exclusive); `iconCol` is the 0-based terminal column
- * the icon renders at on the box's first visible row.
- */
-export interface CopyHit {
-  entryId: number;
-  entryIds?: readonly number[] | undefined;
-  startRow: number;
-  endRow: number;
-  iconCol: number;
-}
+// ── Internal imports from extracted modules ──────────────────────────────
+import type { CopyHit } from './history/copy-geometry.js';
+import {
+  findCopyHit,
+  resolveCopyPayload,
+  copyRegistryVisibleClip,
+  liveToolStreamCopyHit,
+} from './history/copy-geometry.js';
+import {
+  normalizeSelection,
+  isOutOfBand,
+  selectionToSlices,
+  assembleSelectionText,
+} from './history/selection-helpers.js';
+import {
+  type MountedCardSpan,
+  buildMountedCardSpans,
+  selectionHitAt,
+} from './history/scrollbar-geometry.js';
+import { Scrollbar } from './history/scrollbar-rail.js';
+import type { HistoryScrollController, ScrollableHistoryProps } from './history/scroll-controller-types.js';
 
-/** Sentinel returned after copying the active, non-retained tool-stream box. */
-export const LIVE_TOOL_STREAM_COPY_ID = -1;
-
-/** Sentinel returned after copying a drag-select-then-right-click selection.
- *  Distinct from any retained entry id so the host can render a different
- *  status-line notice ("Selected range copied") without flashing a specific
- *  card's copy icon (which only makes sense when a single entry was copied). */
-export const SELECTION_COPY_ID = -2;
-
-/**
- * Resolve the copy target under a viewport cell, or null. A cell matches when
- * its `row` is within the card's visible rows and its `col` is within the
- * icon's cell span. Iterates newest-first so overlapping row estimates favor
- * the most recently rendered card. Exported-shape pure helper for unit tests.
- */
-export function findCopyHit(hits: readonly CopyHit[], row: number, col: number): CopyHit | null {
-  for (let i = hits.length - 1; i >= 0; i--) {
-    const hit = hits[i];
-    if (!hit) continue;
-    if (row < hit.startRow || row >= hit.endRow) continue;
-    if (col < hit.iconCol || col >= hit.iconCol + COPY_ICON_WIDTH) continue;
-    return hit;
-  }
-  return null;
-}
-
-/** Resolve a hit to the complete current clipboard payload without performing I/O. */
-export function resolveCopyPayload(
-  hit: CopyHit,
-  entriesById: ReadonlyMap<number, HistoryEntry>,
-  liveToolText?: string | undefined,
-): { entryId: number; text: string } | null {
-  if (hit.entryId === LIVE_TOOL_STREAM_COPY_ID) {
-    return liveToolText ? { entryId: LIVE_TOOL_STREAM_COPY_ID, text: liveToolText } : null;
-  }
-  const entryIds = hit.entryIds ?? [hit.entryId];
-  const entries = entryIds
-    .map((entryId) => entriesById.get(entryId))
-    .filter((entry): entry is HistoryEntry => entry !== undefined);
-  if (entries.length !== entryIds.length) return null;
-  const firstEntry = entries[0];
-  if (firstEntry === undefined) return null;
-  return {
-    entryId: hit.entryId,
-    text: entries.length === 1 ? copyableTextForEntry(firstEntry) : copyableTextForEntries(entries),
-  };
-}
-
-/**
- * Rows clipped from the top of the mounted history stack before it appears in
- * the viewport. Scrolled frames clip by the anchor's row offset; pinned frames
- * rely on Ink flex-end clipping, which hides top overflow from mounted groups
- * plus the live tool tail.
- */
-export function copyRegistryVisibleClip(opts: {
-  scrolled: boolean;
-  clip: number;
-  mountedRows: number;
-  tailRows: number;
-  viewportRows: number;
-}): number {
-  if (opts.scrolled) return opts.clip;
-  return Math.max(0, opts.mountedRows + opts.tailRows - opts.viewportRows);
-}
-
-/** Build the live tool-stream header hit, accounting for ToolStreamBox's top margin.
- *  The `pinnedSlack` offset must match {@link buildCopyRegistry}'s card-hit math so
- *  the live-stream icon stays visually aligned with its header row in underfilled
- *  pinned frames (flex-end parks the mounted stack at the bottom of the viewport). */
-export function liveToolStreamCopyHit(opts: {
-  visible: boolean;
-  mountedRows: number;
-  visibleClip: number;
-  viewportRows: number;
-  iconCol: number;
-  pinnedSlack?: number;
-}): CopyHit | null {
-  const slack = opts.pinnedSlack ?? 0;
-  const headerRow = opts.mountedRows - opts.visibleClip + 1 + slack;
-  if (!opts.visible || headerRow < 0 || headerRow >= opts.viewportRows) return null;
-  return {
-    entryId: LIVE_TOOL_STREAM_COPY_ID,
-    startRow: headerRow,
-    endRow: headerRow + 1,
-    iconCol: opts.iconCol,
-  };
-}
-
-/**
- * Selection rectangle in viewport cell coordinates, normalized so
- * `topLeft.row <= bottomRight.row` and the column pairs are likewise ordered.
- * Both endpoints are inclusive — the cell at `bottomRight` is selected.
- */
-export interface SelectionRect {
-  topLeft: { row: number; col: number };
-  bottomRight: { row: number; col: number };
-  /** True while the user is still dragging; false after left-release but
-   *  before either clearSelection or commitSelection runs. */
-  inProgress: boolean;
-}
-
-/** Canonicalize two viewport cells into a SelectionRect. Pure. */
-export function normalizeSelection(
-  a: { row: number; col: number },
-  b: { row: number; col: number },
-  inProgress: boolean,
-): SelectionRect {
-  const topLeft = { row: Math.min(a.row, b.row), col: Math.min(a.col, b.col) };
-  const bottomRight = { row: Math.max(a.row, b.row), col: Math.max(a.col, b.col) };
-  return { topLeft, bottomRight, inProgress };
-}
-
-/** True when the column lies outside the rendered card band. Inside the band
- *  the layout reserves `SCROLLBAR_HIT_WIDTH` columns for the rail AFTER the
- *  band, so `0..termWidth-1` is always in-band and nothing inside needs to be
- *  excluded. The mouse handler must already have excluded the rail before
- *  calling into the controller — we only check the band bounds here. */
-export function isOutOfBand(col: number, termWidth: number): boolean {
-  return col < 0 || col >= termWidth;
-}
-
-/**
- * One entry's contribution to a drag-selected range. Returned in document
- * (row-index-in-card) coordinates so the caller decides how to slice into
- * the entry's source text. `start` is the column inside the card (0-based
- * from the left edge of the card's visible rectangle, NOT the terminal
- * column — the gutter is excluded by the caller before reaching here).
- * `end` is inclusive. When `startRow === endRow`, the slice is one row; the
- * caller is responsible for translating text columns into source offsets.
- */
-export interface SelectionSlice {
-  entryId: number;
-  /** Inclusive row-in-card for the start of the slice. */
-  startRow: number;
-  /** Inclusive column, 0-based, inside the card's text area (gutter excluded). */
-  startCol: number;
-  /** Inclusive end row. */
-  endRow: number;
-  /** Inclusive end column, 0-based. */
-  endCol: number;
-}
-
-/**
- * Translate a viewport-cell selection into per-entry row/col slices, walking
- * the same mounted-group geometry the copy-hit registry uses so the two
- * systems share one row index. Entries wholly outside the selection return
- * nothing. Entries whose vertical span is wholly inside the selection are
- * returned as a single row-range; entries the selection clips at the top or
- * bottom are returned with row bounds matching the clip.
- *
- * `cardVisibleCols` is the number of columns inside the card the user can
- * see — the band width minus the right gutter (`viewportWidth - SCROLLBAR_HIT_WIDTH`).
- * Slices never include the gutter or any column to its right; the caller has
- * already validated that.
- *
- * Returned slices are in document (entry-local) coordinates: `startRow`/`endRow`
- * are rows inside the entry's own geometry, NOT viewport cells. This is what
- * the assembler needs to recover text — slicing into the raw entry text uses
- * per-row layout, which the caller resolves via the layout store.
- */
-export function selectionToSlices(opts: {
-  selection: SelectionRect;
-  cards: ReadonlyArray<{
-    entryId: number;
-    /** 0-based viewport row of the card's first visible row. */
-    viewportStartRow: number;
-    /** 0-based viewport row just past the card's last visible row. */
-    viewportEndRow: number;
-  }>;
-  cardVisibleCols: number;
-}): SelectionSlice[] {
-  const { selection, cards, cardVisibleCols } = opts;
-  const maxCol = Math.max(0, cardVisibleCols - 1);
-  const result: SelectionSlice[] = [];
-  for (const card of cards) {
-    // Compute the intersection in viewport coordinates.
-    const visTop = Math.max(selection.topLeft.row, card.viewportStartRow);
-    const visBot = Math.min(selection.bottomRight.row, card.viewportEndRow - 1);
-    if (visTop > visBot) continue;
-    // Translate to entry-local rows.
-    const entryStartRow = visTop - card.viewportStartRow;
-    const entryEndRow = visBot - card.viewportStartRow;
-    // Clip the column range to the card's visible area. When the slice's
-    // first row is the selection's first viewport row, the left edge is the
-    // user's drag start column; otherwise we begin at col 0 (the rendered
-    // text starts at the card's left edge). The right edge is symmetric —
-    // except the right edge is *always* capped to `maxCol` so a drag that
-    // overshoots the card width never includes cells that don't exist.
-    // `selectionToSlices` emits INCLUSIVE end columns, matching the
-    // `SelectionSlice.endCol` contract — so col=3 from the user's drag
-    // means "include char 3" rather than "exclude char 3". This is the
-    // intuitive convention a user reading "drag col 0..3 copies 4 chars"
-    // expects.
-    const startCol =
-      entryStartRow === selection.topLeft.row - card.viewportStartRow
-        ? Math.max(0, Math.min(maxCol, selection.topLeft.col))
-        : 0;
-    const endCol =
-      entryEndRow === selection.bottomRight.row - card.viewportStartRow
-        ? Math.max(startCol, Math.min(maxCol, selection.bottomRight.col))
-        : maxCol;
-    result.push({
-      entryId: card.entryId,
-      startRow: entryStartRow,
-      startCol,
-      endRow: entryEndRow,
-      endCol,
-    });
-  }
-  return result;
-}
+// ── Internal: copy-hit registry builder ──────────────────────────────────
 
 interface CopyRegistry {
   hits: CopyHit[];
@@ -438,325 +183,6 @@ function buildCopyRegistry(opts: {
   };
 }
 
-export interface ScrollableHistoryProps extends HistoryProps {
-  /** Height of the viewport in rows, computed by App from the bottom region. */
-  viewportRows: number;
-  /** Receives the imperative scroll controller. The component assigns on
-   *  mount and clears on unmount. Optional for isolated renderers. */
-  controllerRef?: MutableRefObject<HistoryScrollController | null> | undefined;
-  /** Reports scroll-state transitions (scrolled away from / re-pinned to the
-   *  newest output) so the host can adjust key hints. */
-  onScrollInfo?: ((info: { scrolled: boolean }) => void) | undefined;
-  /** Optional cap on the width used for entry wrapping (right panel mode). */
-  maxWidth?: number | undefined;
-  /** Layout store for persisting entry height data across renders and sessions.
-   *  When provided, the ScrollableHistory seeds its height cache from the
-   *  store's persisted measurements and marks entries as measured after render,
-   *  eliminating estimate-vs-actual scroll jumps on re-render. */
-  layoutStore?: import('../layout-store.js').LayoutStore | undefined;
-  /**
-   * Entry id of the card whose copy icon was just clicked. That card's icon
-   * renders in the success color for the brief window the host keeps this set,
-   * giving per-card visual feedback alongside the status-line "Copied" notice.
-   * `null` / undefined = no card highlighted.
-   */
-  copiedEntryId?: number | null | undefined;
-  /**
-   * Called when the user scrolls near the top of the currently loaded
-   * entries. The host should respond by loading older entries from the
-   * history archive and dispatching `archiveLoaded` to prepend them.
-   */
-  onRequestOlderEntries?: (() => void) | undefined;
-}
-
-/** Pure thumb geometry for the scrollbar: where the thumb starts and how many
- *  cells it spans, given the track height, scroll offset, and total content
- *  height. Exported for testing. */
-export function scrollbarThumb(
-  rows: number,
-  offset: number,
-  total: number,
-): { top: number; size: number; scrollable: boolean } {
-  const scrollable = total > rows;
-  if (!scrollable) return { top: 0, size: rows, scrollable: false };
-  // Visible window top in content-line space; 0 = oldest, total = newest.
-  const windowTop = Math.max(0, total - rows - offset);
-  const size = Math.max(1, Math.round((rows / total) * rows));
-  const maxWindowTop = total - rows;
-  const top = Math.max(
-    0,
-    Math.min(rows - size, Math.round((windowTop / maxWindowTop) * (rows - size))),
-  );
-  return { top, size, scrollable: true };
-}
-
-/** Inverse of {@link scrollbarThumb}: given a clicked/dragged 0-based cell on a
- *  track of `rows` height, return the scroll offset (rows up from the bottom)
- *  that lands the visible window there. Cell 0 (top) → oldest content (max
- *  offset); cell rows-1 (bottom) → newest (offset 0). Exported for testing. */
-export function scrollOffsetForTrackRow(rows: number, total: number, cell: number): number {
-  if (total <= rows) return 0;
-  const maxOffset = total - rows;
-  const clampedCell = Math.max(0, Math.min(rows - 1, cell));
-  const windowTop = Math.round((clampedCell / Math.max(1, rows - 1)) * maxOffset);
-  return Math.max(0, Math.min(maxOffset, maxOffset - windowTop));
-}
-
-/**
- * Per-card viewport span for the currently-mounted groups. Mirrors
- * {@link buildCopyRegistry}'s visibleClip math so the drag-select gesture asks
- * the same geometry question the copy-hit registry already answers.
- */
-export interface MountedCardSpan {
-  entryId: number;
-  /** 0-based viewport row of the first VISIBLE row of the card. */
-  viewportStartRow: number;
-  /** 0-based viewport row one past the last VISIBLE row of the card. */
-  viewportEndRow: number;
-  /** Card's geometry in rows; visibleClip + scrolled-clip aware. */
-  totalRows: number;
-  entryIds?: readonly number[];
-}
-
-/**
- * Build per-card viewport spans for every mounted render group. Pure — given
- * the same render-group list, height cache, scroll state, and viewport size,
- * the result is deterministic and matches the copy-hit registry. Exported so
- * tests can verify the span map without mounting the full component.
- */
-export function buildMountedCardSpans(opts: {
-  renderGroups: readonly RenderGroup[];
-  heightCache: EntryHeightCache;
-  scrolled: boolean;
-  clip: number;
-  tailRows: number;
-  viewportRows: number;
-  showModelReasoning?: boolean | undefined;
-}): MountedCardSpan[] {
-  const mountedGroupRows = opts.renderGroups.reduce(
-    (rows, group) => rows + (opts.heightCache.getHeight(renderGroupId(group)) ?? 0),
-    0,
-  );
-  const visibleClip = copyRegistryVisibleClip({
-    scrolled: opts.scrolled,
-    clip: opts.clip,
-    mountedRows: mountedGroupRows,
-    tailRows: opts.tailRows,
-    viewportRows: opts.viewportRows,
-  });
-  const spans: MountedCardSpan[] = [];
-  let offset = 0;
-  // Pinned frames whose mounted stack is shorter than the viewport are
-  // rendered with flex-end (parking the first card at row `vp - mountedRows`).
-  // `visibleClip` alone is 0 in underfill, which would claim rows [0, H) while
-  // Ink draws the same cards at [vp-H, vp) — drags over visible text never
-  // start a selection, and clicks on the blank top band "select" off-screen
-  // content. Add the same slack `buildCopyRegistry` uses so spans, copy
-  // icons, and the rendered frame all share one coordinate system.
-  const pinnedSlack = !opts.scrolled
-    ? Math.max(0, opts.viewportRows - mountedGroupRows - opts.tailRows)
-    : 0;
-  for (const group of opts.renderGroups) {
-    const gid = renderGroupId(group);
-    const groupHeight = opts.heightCache.getHeight(gid) ?? 0;
-    const viewportStartRow = offset - visibleClip + pinnedSlack;
-    offset += groupHeight;
-    const entryIds =
-      group.type === 'tool-group'
-        ? group.data.entries.map((entry) => entry.id)
-        : isCopyableEntry(group.entry) &&
-            !(group.entry.kind === 'thinking' && opts.showModelReasoning === false)
-          ? [group.entry.id]
-          : [];
-    const entryId = entryIds[0];
-    if (entryId === undefined) continue;
-    const viewportEndRow = viewportStartRow + groupHeight;
-    if (viewportEndRow <= 0 || viewportStartRow >= opts.viewportRows) continue;
-    spans.push({
-      entryId,
-      viewportStartRow,
-      viewportEndRow,
-      totalRows: groupHeight,
-      ...(entryIds.length > 1 ? { entryIds } : {}),
-    });
-  }
-  return spans;
-}
-
-/**
- * Find the card whose viewport row range contains `row`. Pure.
- * Returns null when the row is in a blank gap or outside the viewport.
- */
-export function selectionHitAt(
-  row: number,
-  spans: readonly MountedCardSpan[],
-): { entryId: number; entryIds?: readonly number[] } | null {
-  for (const span of spans) {
-    if (row >= span.viewportStartRow && row < span.viewportEndRow) {
-      return { entryId: span.entryId, ...(span.entryIds ? { entryIds: span.entryIds } : {}) };
-    }
-  }
-  return null;
-}
-
-/**
- * Build the clipboard payload for a selection by slicing into each affected
- * entry's full renderable text. The v1 contract is line-then-column on the
- * entry's source text: each slice exposes `startRow`/`endRow` and
- * `startCol`/`endCol` in card-local coordinates; we split the entry's
- * text on `\n`, keep only the rows inside the row range, and within those
- * rows apply the column range. The matrix matches what the source line
- * index would be when no wrapping occurs — i.e. one card row maps to one
- * source line. Wrap-geometry translation is intentionally absent in v1
- * because the layout store does not yet expose per-card-row wrap segments;
- * it returns when those segments exist and a v1.1 test demands it.
- *
- * `toolGroupsByHeadId` lets a multi-member tool-group expand: when the
- * head id appears with `entryIds.length > 1`, the assembler copies via
- * `copyableTextForEntries` (raw ordered JSON of every member, matching
- * the existing copy-icon contract). A single-entry head falls through
- * to `copyableTextForEntry`.
- *
- * Multi-entry selections are joined with `\n---\n` so the user can see
- * where one card ends and the next begins. Empty selections and
- * selections that resolve to no text return `""` so the caller can fall
- * through silently.
- */
-export function assembleSelectionText(opts: {
-  slices: readonly SelectionSlice[];
-  entriesById: ReadonlyMap<number, HistoryEntry>;
-  /**
-   * For each tool-group head id present in `slices`, the ordered member list.
-   * When a head has a multi-member group, the assembler slices into the
-   * group's combined text via `copyableTextForEntries`. A single-entry
-   * head falls through to `copyableTextForEntry`.
-   */
-  toolGroupsByHeadId?: ReadonlyMap<number, readonly number[]> | undefined;
-}): string {
-  const { slices, entriesById, toolGroupsByHeadId } = opts;
-  if (slices.length === 0) return '';
-  const byEntry = new Map<number, SelectionSlice[]>();
-  for (const slice of slices) {
-    const list = byEntry.get(slice.entryId);
-    if (list) list.push(slice);
-    else byEntry.set(slice.entryId, [slice]);
-  }
-  const segments: string[] = [];
-  let toolGroupCount = 0;
-  for (const [entryId, entrySlices] of byEntry) {
-    const head = entriesById.get(entryId);
-    if (!head) continue;
-    // Tool-group expansion: when the head id resolves to a multi-member
-    // group, slice the combined text from every member in order. A
-    // single-entry head falls through to the existing path.
-    const groupMembers = toolGroupsByHeadId?.get(entryId);
-    const entries =
-      groupMembers && groupMembers.length > 1
-        ? groupMembers
-            .map((id) => entriesById.get(id))
-            .filter((entry): entry is HistoryEntry => entry !== undefined)
-        : [head];
-    if (entries.length === 0) continue;
-    if (entries.length > 1) toolGroupCount += 1;
-    const fullText =
-      entries.length === 1
-        ? copyableTextForEntry(entries[0] as HistoryEntry)
-        : copyableTextForEntries(entries);
-    if (fullText.length === 0) continue;
-    // For a multi-member tool-group, the slice's row range is in the
-    // group's *header* coordinate system (a small fixed box, typically
-    // 1-3 rows), NOT in the combined JSON text's row space — slicing
-    // `fullText` by that range picks an arbitrary fragment of the JSON
-    // rather than the group's content. The drag intent for a tool-group
-    // head is "copy the whole group", so emit the full `fullText`
-    // regardless of the slice geometry. Single-entry heads still slice
-    // normally because their text and slice share the same coordinate
-    // space.
-    if (entries.length > 1) {
-      segments.push(fullText);
-      continue;
-    }
-    for (const slice of entrySlices) {
-      const rows = fullText.split('\n');
-      const collected: string[] = [];
-      for (let r = slice.startRow; r <= slice.endRow && r < rows.length; r++) {
-        const line = rows[r] ?? '';
-        if (slice.startRow === slice.endRow) {
-          const start = Math.max(0, Math.min(line.length, slice.startCol));
-          const end = Math.max(start, Math.min(line.length, slice.endCol + 1));
-          if (end > start) collected.push(line.slice(start, end));
-        } else if (r === slice.startRow) {
-          const start = Math.max(0, Math.min(line.length, slice.startCol));
-          if (start < line.length) collected.push(line.slice(start));
-        } else if (r === slice.endRow) {
-          const end = Math.max(0, Math.min(line.length, slice.endCol + 1));
-          if (end > 0) collected.push(line.slice(0, end));
-        } else {
-          collected.push(line);
-        }
-      }
-      const seg = collected.join('\n');
-      if (seg.length > 0) segments.push(seg);
-    }
-  }
-  if (segments.length === 0) return '';
-  // Distinct heads use `---`; identical heads (multi-row drag in one
-  // card) join with a plain newline so the user sees the natural row
-  // break. A tool-group expansion acts like one logical entry, so the
-  // plain-newline rule applies within a tool-group; distinct cards (heads
-  // or tool-groups) get the boundary.
-  const separator = byEntry.size > 1 || toolGroupCount > 0 ? '\n---\n' : '\n';
-  return segments.join(separator);
-}
-
-/**
- * Right-edge rail for the managed viewport. Its first column is the copy-icon
- * gap and its second column is the scrollbar track. Both columns are always
- * reserved, so copy affordances and scrollability never reflow chat content.
- */
-function Scrollbar({
-  rows,
-  offset,
-  total,
-  copyHits,
-  copiedEntryId,
-}: {
-  rows: number;
-  offset: number;
-  total: number;
-  copyHits: readonly CopyHit[];
-  copiedEntryId?: number | null | undefined;
-}): React.ReactElement {
-  const { top: thumbTop, size: thumbSize, scrollable } = scrollbarThumb(rows, offset, total);
-  const cells: string[] = [];
-  for (let i = 0; i < rows; i++) {
-    cells.push(i >= thumbTop && i < thumbTop + thumbSize ? '█' : '│');
-  }
-  const copyByRow = new Map<number, CopyHit>();
-  for (const hit of copyHits) copyByRow.set(hit.startRow, hit);
-  return (
-    <Box flexDirection="column" flexShrink={0}>
-      {cells.map((cell, row) => {
-        const copyHit = copyByRow.get(row);
-        return (
-          <Box key={row} flexDirection="row">
-            <Text
-              color={copyHit && copiedEntryId === copyHit.entryId ? theme.success : theme.textMuted}
-            >
-              {copyHit ? COPY_ICON : ' '}
-            </Text>
-            <Text
-              {...(scrollable ? { color: theme.accent } : {})}
-              dimColor={!scrollable || cell === '│'}
-            >
-              {cell}
-            </Text>
-          </Box>
-        );
-      })}
-    </Box>
-  );
-}
 
 /** Minimum extra rows mounted per underfill-correction step. The effective
  *  step is `max(UNDERFILL_BUMP_ROWS, viewportRows)`: the deficit the step must
