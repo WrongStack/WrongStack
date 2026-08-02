@@ -35,8 +35,29 @@ describe('Config.features defaults', () => {
       // from the model's context window (cache-safe, per session). Non-prompt
       // consumers treat 'auto' as 'off', so tools/lazy-load are unchanged.
       tokenSavingMode: 'auto',
-      allowOutsideProjectRoot: true,
+      // Zero-config must be CONFINED. This assertion previously pinned `true`,
+      // which locked in the insecure default rather than catching it (WS-075).
+      allowOutsideProjectRoot: false,
     });
+  });
+
+  it('zero-config filesystem confinement is on, and both halves agree', async () => {
+    // The two config keys are one switch. They lived in the same defaults object
+    // declaring opposite intents, and the `??` precedence in wiring/session.ts
+    // silently resolved it in favour of the permissive half. Pin the invariant
+    // itself so the halves cannot drift apart again.
+    const paths = resolveWstackPaths({
+      userHome: tmp,
+      projectRoot: tmp,
+      globalRoot: path.join(tmp, '.wrongstack'),
+    });
+    const loader = new DefaultConfigLoader({ paths });
+    const cfg = await loader.load({
+      cliFlags: { provider: 'anthropic', model: 'claude-test' },
+    });
+    expect(cfg.features.allowOutsideProjectRoot).toBe(false);
+    expect(cfg.tools.restrictToProjectRoot).toBe(true);
+    expect(cfg.features.allowOutsideProjectRoot).toBe(!cfg.tools.restrictToProjectRoot);
   });
 
   it('--no-features patch turns every subsystem off', async () => {

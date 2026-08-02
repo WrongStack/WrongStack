@@ -56,7 +56,13 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     // models still get cost savings without capability loss. Explicit tiers
     // are respected verbatim.
     tokenSavingMode: 'auto',
-    allowOutsideProjectRoot: true,
+    // Derived, never written by hand: this and `tools.restrictToProjectRoot`
+    // (line 41) are the two halves of one switch, and they used to be declared
+    // independently in this same object — one `true`, one `true` — with
+    // session.ts resolving the contradiction via `??` in favour of the
+    // permissive half. The confinement guard therefore shipped disabled on a
+    // fresh install even though the other half asked for it (WS-075).
+    allowOutsideProjectRoot: !DEFAULT_TOOLS_CONFIG.restrictToProjectRoot,
   },
   Sage: {
     enabled: true,
