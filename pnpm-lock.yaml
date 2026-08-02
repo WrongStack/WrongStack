@@ -838,6 +838,9 @@ importers:
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@types/qrcode':
+        specifier: ^1.5.6
+        version: 1.5.6
       '@wrongstack/core':
         specifier: workspace:*
         version: link:../core
@@ -853,6 +856,9 @@ importers:
       lucide-react:
         specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
+      qrcode:
+        specifier: ^1.5.4
+        version: 1.5.4
       react:
         specifier: ^19.2.8
         version: 19.2.8

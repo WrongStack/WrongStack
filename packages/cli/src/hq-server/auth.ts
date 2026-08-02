@@ -15,6 +15,9 @@ import type { HqRouterMutableAuth, HqSessionEntry } from './types.js';
 export const HQ_SESSION_COOKIE = 'hq.session';
 export const HQ_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Idle timeout: sessions unused for this long are rejected and evicted. */
+export const HQ_SESSION_IDLE_TIMEOUT_MS = 30 * 60_000; // 30 min
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface HqBrowserAuthContext {
@@ -416,7 +419,21 @@ export function authenticateBrowserRequest(
       // even if the periodic cleanup timer hasn't run yet.
       if (sessionId) {
         const session = sessions.get(sessionId);
-        if (session && Date.now() - session.createdAt < HQ_SESSION_MAX_AGE_MS) {
+        const now = Date.now();
+        if (session && now - session.createdAt < HQ_SESSION_MAX_AGE_MS) {
+          // Pending 2FA: the password was correct but the TOTP/recovery code
+          // has not been verified yet. Treat as NOT authenticated on all
+          // routes except /api/login/verify (which is exempted from the gate).
+          if (session.pending2fa) return undefined;
+          // Idle timeout: reject sessions idle for longer than the configured
+          // window. Evict so the stale cookie doesn't linger.
+          if (now - session.lastSeenAt > HQ_SESSION_IDLE_TIMEOUT_MS) {
+            sessions.delete(sessionId);
+            return undefined;
+          }
+          // Sliding refresh: bump lastSeenAt on every authenticated request so
+          // active sessions stay alive while idle ones expire.
+          session.lastSeenAt = now;
           // For token-origin sessions, resolve capabilities from the LIVE
           // token record (not the cached session entry) so that a capability
           // change in auth.json takes effect immediately rather than at

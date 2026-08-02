@@ -60,6 +60,17 @@ export {
 export { ReadOnlyPermissionPolicy } from './readonly-permission-policy.js';
 export { DefaultSecretScrubber } from './secret-scrubber.js';
 export {
+  base32Decode,
+  base32Encode,
+  buildOtpAuthUri,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  generateTotp,
+  hashRecoveryCode,
+  verifyRecoveryCode,
+  verifyTotp,
+} from './totp.js';
+export {
   DefaultSecretVault,
   migratePlaintextSecrets,
   rewriteConfigEncrypted,

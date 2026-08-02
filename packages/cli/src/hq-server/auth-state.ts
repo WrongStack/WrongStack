@@ -35,6 +35,9 @@ export function createHqAuthState(authFile: HqAuthFile, dataDir: string): HqAuth
     ),
     passwordHash: authFile.passwordHash,
     cookieSecret: authFile.cookieSecret,
+    totpSecret: authFile.totpSecret,
+    totpPendingSecret: authFile.totpPendingSecret,
+    totpRecoveryCodes: authFile.totpRecoveryCodes,
     alertRules: authFile.alertRules,
   };
 
@@ -75,6 +78,9 @@ export function createHqAuthState(authFile: HqAuthFile, dataDir: string): HqAuth
       );
       mutableAuth.passwordHash = next.passwordHash;
       mutableAuth.cookieSecret = next.cookieSecret;
+      mutableAuth.totpSecret = next.totpSecret;
+      mutableAuth.totpPendingSecret = next.totpPendingSecret;
+      mutableAuth.totpRecoveryCodes = next.totpRecoveryCodes;
       mutableAuth.alertRules = next.alertRules;
     },
   };

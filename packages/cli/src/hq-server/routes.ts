@@ -30,11 +30,17 @@ import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
 import {
   handleApiAuthStatus,
+  handleApiAuthSessions,
+  handleApiAuthSessionsRevoke,
   handleApiBootstrap,
   handleApiLogin,
+  handleApiLoginVerify,
   handleApiLogout,
   handleApiPassword,
   handleApiTokenUpgrade,
+  handleApiTotpDisable,
+  handleApiTotpEnable,
+  handleApiTotpSetup,
 } from './routes/auth-handlers.js';
 import {
   handleApiAlerts,
@@ -88,6 +94,7 @@ import type {
   ProjectDetail,
   TranscriptRing,
 } from './types.js';
+import type { LoginAttemptStore } from './login-attempt-store.js';
 
 export type {
   ConnectedClient,
@@ -112,7 +119,7 @@ export interface HqRouterDeps {
   allowFileOrigin?: boolean | undefined;
   mutableAuth: HqRouterMutableAuth;
   sessions: Map<string, HqSessionEntry>;
-  loginAttempts: Map<string, { count: number; blockedUntil: number; lastAttempt: number }>;
+  loginAttempts: LoginAttemptStore;
   clients: Map<WebSocket, ConnectedClient>;
   browsers: Set<WebSocket>;
   eventLog: HqEventEnvelope[];
@@ -200,6 +207,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         url.pathname.startsWith('/api/') &&
         url.pathname !== '/api/auth/status' &&
         url.pathname !== '/api/login' &&
+        url.pathname !== '/api/login/verify' &&
         url.pathname !== '/api/auth/bootstrap' &&
         hqAuthRequired(mutableAuth, requireBrowserAuth)
       ) {
@@ -244,6 +252,16 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         return;
       }
 
+      if (url.pathname === '/api/auth/sessions' && req.method === 'GET') {
+        handleApiAuthSessions(req, res, mutableAuth, sessions);
+        return;
+      }
+
+      if (url.pathname.startsWith('/api/auth/sessions') && req.method === 'DELETE') {
+        await handleApiAuthSessionsRevoke(req, res, url, sessions);
+        return;
+      }
+
       if (url.pathname === '/api/login' && req.method === 'POST') {
         await handleApiLogin(req, res, mutableAuth, sessions, loginAttempts, secureCookies);
         return;
@@ -275,6 +293,26 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
       if (url.pathname === '/api/logout' && req.method === 'POST') {
         await handleApiLogout(req, res, mutableAuth, sessions, secureCookies);
+        return;
+      }
+
+      if (url.pathname === '/api/login/verify' && req.method === 'POST') {
+        await handleApiLoginVerify(req, res, url, mutableAuth, sessions, loginAttempts, dataDir, secureCookies);
+        return;
+      }
+
+      if (url.pathname === '/api/auth/totp/setup' && req.method === 'POST') {
+        await handleApiTotpSetup(req, res, mutableAuth, sessions, dataDir);
+        return;
+      }
+
+      if (url.pathname === '/api/auth/totp/enable' && req.method === 'POST') {
+        await handleApiTotpEnable(req, res, mutableAuth, sessions, dataDir);
+        return;
+      }
+
+      if (url.pathname === '/api/auth/totp/disable' && req.method === 'POST') {
+        await handleApiTotpDisable(req, res, mutableAuth, sessions, loginAttempts, dataDir);
         return;
       }
 

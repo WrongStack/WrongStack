@@ -4,6 +4,19 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultSecretVault, decryptConfigSecrets, encryptConfigSecrets, migratePlaintextSecrets } from '../../src/security/secret-vault.js';
+import * as filePermissions from '../../src/security/file-permissions.js';
+
+// The EEXIST race test needs to control sync readFileSync/writeFileSync.
+// Default implementations are the real functions, so every other test in
+// this file behaves exactly as before.
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    readFileSync: vi.fn(actual.readFileSync),
+    writeFileSync: vi.fn(actual.writeFileSync),
+  };
+});
 
 let tmp: string;
 let keyFile: string;
@@ -36,6 +49,51 @@ describe('DefaultSecretVault key reuse', () => {
     const enc = v1.encrypt('secret-value'); // creates the key file
     const v2 = vault(); // fresh instance, same keyFile
     expect(v2.decrypt(enc)).toBe('secret-value'); // proves it loaded the same key
+  });
+
+  it('re-reads the winner key when a concurrent create wins the race (EEXIST)', () => {
+    // Seed a valid key file — this is what the racing "winner" wrote.
+    const winner = vault();
+    const winnerEnc = winner.encrypt('winner-secret');
+    const winnerBytes = fsSync.readFileSync(keyFile);
+
+    // Simulate the race in loadOrCreateKey: our first read sees ENOENT (the
+    // file is not there yet), our exclusive 'wx' write then loses to another
+    // process (EEXIST), and the re-read must adopt the winner's key instead of
+    // generating a fresh one (which would orphan every value encrypted so far).
+    const readMock = vi.mocked(fsSync.readFileSync);
+    readMock.mockClear(); // drop the seed vault's real reads from the count
+    const writeMock = vi.mocked(fsSync.writeFileSync);
+    writeMock.mockClear(); // drop the seed vault's real write from the count
+    readMock.mockImplementationOnce(() => {
+      const err = new Error('ENOENT') as NodeJS.ErrnoException;
+      err.code = 'ENOENT';
+      throw err;
+    });
+    readMock.mockImplementationOnce(() => winnerBytes);
+    writeMock.mockImplementationOnce(() => {
+      const err = new Error('EEXIST') as NodeJS.ErrnoException;
+      err.code = 'EEXIST';
+      throw err;
+    });
+
+    try {
+      const v = vault();
+      v.encrypt('race-value');
+      // The re-read must have surfaced the winner's key: a value the winner
+      // encrypted before the race still decrypts, which a fresh key would
+      // never allow (auth-tag mismatch).
+      expect(v.decrypt(winnerEnc)).toBe('winner-secret');
+      // Pin the mock call sequence: exactly read(ENOENT) → write(EEXIST) →
+      // read(winner). If a future refactor inserts an extra sync fs call in
+      // loadOrCreateKey, a once-mock would be consumed by the wrong call and
+      // the EEXIST branch would silently stop being exercised.
+      expect(readMock).toHaveBeenCalledTimes(2);
+      expect(writeMock).toHaveBeenCalledTimes(1);
+    } finally {
+      readMock.mockRestore();
+      writeMock.mockRestore();
+    }
   });
 });
 
@@ -155,7 +213,7 @@ describe('decryptConfigSecrets', () => {
 });
 
 describe('POSIX-platform branches (mocked)', () => {
-  it('checks key-file permissions and chmods on a non-win32 platform', async () => {
+  it('calls restrictFilePermissions for key-file and config hardening on a non-win32 platform', async () => {
     // Seed a valid key, then loosen its mode so checkKeyFilePermissions MUST
     // warn on every host. (On a real POSIX runner the vault creates the key
     // with a correct 0600, so without this the warning never fires; on a
@@ -163,6 +221,7 @@ describe('POSIX-platform branches (mocked)', () => {
     vault().encrypt('seed');
     await fs.chmod(keyFile, 0o644);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const restrictSpy = vi.spyOn(filePermissions, 'restrictFilePermissions');
     await withPlatform('linux', async () => {
       // loadOrCreateKey → checkKeyFilePermissions runs statSync and warns
       // because the key file's mode is not 0o600.
@@ -172,6 +231,10 @@ describe('POSIX-platform branches (mocked)', () => {
       await fs.writeFile(cfgPath, JSON.stringify({ apiKey: 'plain' }));
       await migratePlaintextSecrets(cfgPath, vault());
     });
+    // WS-088 regression guard: the key-file hardening call must actually
+    // happen. Pin the argument so the pre-existing config-file hardening in
+    // migratePlaintextSecrets can't satisfy the assertion alone.
+    expect(restrictSpy).toHaveBeenCalledWith(keyFile, expect.anything());
     expect(warn).toHaveBeenCalled(); // permission warning fired under the linux mock
   });
 });

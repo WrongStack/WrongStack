@@ -233,6 +233,27 @@ export interface HqAuthFile {
   /** Secret used to sign browser session cookies. */
   cookieSecret?: string;
   /**
+   * Base32-encoded TOTP secret (RFC 6238) for HQ 2FA — ACTIVE. Login checks
+   * this field, not `totpPendingSecret`, so an unconfirmed setup cannot lock
+   * the operator out. Only set after `/api/auth/totp/enable` confirms a
+   * valid code.
+   */
+  totpSecret?: string;
+  /**
+   * Base32-encoded TOTP secret written by `/api/auth/totp/setup` but NOT
+   * yet confirmed. Promoted to `totpSecret` (active) only after
+   * `/api/auth/totp/enable` verifies a code. If the operator abandons
+   * enrollment (restarts, logs out), the pending secret is inert — login
+   * never checks this field.
+   */
+  totpPendingSecret?: string;
+  /**
+   * SHA-256 hashes of single-use recovery codes. Like token verifiers
+   * (WS-044), only the hash is persisted so a leaked `auth.json` cannot
+   * reveal unused codes. Each code is consumed on first successful use.
+   */
+  totpRecoveryCodes?: string[];
+  /**
    * Operator-configured alert-rule thresholds. When present, these override
    * the built-in defaults for the alert engine (cost ceiling, stale-machine
    * window, concurrency limit). Live-reloaded with the rest of the file.
@@ -297,6 +318,11 @@ export function hqAuthContentHash(file: HqAuthFile): string | undefined {
         : {}),
       ...(file.passwordHash !== undefined ? { passwordHash: REDACTED } : {}),
       ...(file.cookieSecret !== undefined ? { cookieSecret: REDACTED } : {}),
+      ...(file.totpSecret !== undefined ? { totpSecret: REDACTED } : {}),
+      ...(file.totpPendingSecret !== undefined ? { totpPendingSecret: REDACTED } : {}),
+      ...(file.totpRecoveryCodes !== undefined
+        ? { totpRecoveryCodes: file.totpRecoveryCodes.map(() => REDACTED) }
+        : {}),
       ...(file.alertRules !== undefined ? { alertRules: file.alertRules } : {}),
     };
     // Stable key ordering — the projection above has a fixed key order, so

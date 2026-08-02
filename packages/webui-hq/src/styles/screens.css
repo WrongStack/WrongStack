@@ -331,6 +331,212 @@
   font-size: 13px;
 }
 
+/* ── Token-gate 2FA code entry ──────────────────────────────────────────── */
+.hq-token-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── 2FA enrollment & disable (Settings → Security) ─────────────────────── */
+.hq-security-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hq-security-panel-head > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.hq-security-panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--bright);
+}
+.hq-security-panel-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.hq-security-message {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+.hq-security-message[data-tone='ok'] {
+  color: var(--bright);
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.hq-security-message[data-tone='error'] {
+  color: var(--red);
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+.hq-security-hint {
+  margin: 8px 0;
+  color: var(--dim);
+  font-size: 13px;
+}
+.hq-security-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* QR code container */
+.hq-totp-qr {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: var(--bright);
+  border: 1px solid var(--border);
+  width: fit-content;
+  margin: 0 auto 8px;
+}
+.hq-totp-qr img {
+  display: block;
+  width: 200px;
+  height: 200px;
+}
+
+/* Secret manual entry */
+.hq-totp-secret {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.hq-totp-secret span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hq-totp-secret code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--bright);
+  word-break: break-all;
+}
+.hq-totp-uri-hint {
+  margin: 0 0 8px;
+}
+.hq-totp-uri-hint small {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+/* ── Session management ─────────────────────────────────────────────────── */
+.hq-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hq-session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.hq-session-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.hq-session-id {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--bright);
+  font-weight: 600;
+}
+.hq-session-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent2);
+  font-weight: 600;
+}
+.hq-session-age,
+.hq-session-idle {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* Small button variant for inline actions */
+.hq-btn.small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Password strength meter */
+.hq-password-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 4px;
+}
+.hq-password-strength-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.hq-password-strength-fill {
+  height: 100%;
+  transition: width 0.2s ease;
+}
+.hq-password-strength[data-level='weak'] .hq-password-strength-fill {
+  background: var(--red);
+}
+.hq-password-strength[data-level='fair'] .hq-password-strength-fill {
+  background: var(--accent2);
+}
+.hq-password-strength[data-level='good'] .hq-password-strength-fill {
+  background: var(--primary);
+}
+.hq-password-strength[data-level='strong'] .hq-password-strength-fill {
+  background: var(--bright);
+}
+.hq-password-strength-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 48px;
+  text-align: right;
+}
+.hq-password-strength[data-level='weak'] .hq-password-strength-label {
+  color: var(--red);
+}
+.hq-password-strength[data-level='fair'] .hq-password-strength-label {
+  color: var(--accent2);
+}
+.hq-password-strength[data-level='good'] .hq-password-strength-label {
+  color: var(--primary);
+}
+.hq-password-strength[data-level='strong'] .hq-password-strength-label {
+  color: var(--bright);
+}
+
 /* ── Severity + stat helpers (polish: replace inline styles) ─────────────── */
 
 /* Card whose left border + tint encode alert/issue severity. */

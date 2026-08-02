@@ -11,6 +11,7 @@ import type {
   HqClientRecord,
   HqEventEnvelope,
   HqFleetSnapshotPayload,
+  HqGovernanceSnapshotPayload,
   HqMailboxSnapshotPayload,
   HqMcpServerHealth,
   HqPersistence,
@@ -30,6 +31,7 @@ export type {
   HqClientRecord,
   HqEventEnvelope,
   HqFleetSnapshotPayload,
+  HqGovernanceSnapshotPayload,
   HqMailboxSnapshotPayload,
   HqMcpServerHealth,
   HqPersistence,
@@ -85,6 +87,8 @@ export interface ConnectedClient {
   fleets: Map<string, TrackedFleetSnapshot>;
   /** Per-session MCP health snapshots, keyed by sessionId. */
   mcpSnapshots: Map<string, { servers: HqMcpServerHealth[]; receivedAt: number }>;
+  /** Latest read-only governance advisory accepted from this project's leader. */
+  governanceSnapshot?: { payload: HqGovernanceSnapshotPayload; receivedAt: number };
   /** Pending outbound commands (Phase 3 — control plane). */
   commandQueue: HqQueuedCommand[];
   /**
@@ -106,6 +110,12 @@ export interface HqRouterMutableAuth {
   clientTokenObjs: Map<string, HqToken>;
   passwordHash?: string | undefined;
   cookieSecret?: string | undefined;
+  /** Base32-encoded TOTP secret for HQ 2FA (live-reloaded from auth.json). */
+  totpSecret?: string | undefined;
+  /** Pending TOTP secret (setup but not yet confirmed by enable). */
+  totpPendingSecret?: string | undefined;
+  /** SHA-256 hashes of single-use recovery codes (live-reloaded from auth.json). */
+  totpRecoveryCodes?: string[] | undefined;
   alertRules: HqAlertRuleConfig | undefined;
   /**
    * WS-010: set when the live bind would become unauthenticated and
@@ -133,6 +143,19 @@ export interface HqSessionEntry {
   readonly tokenId?: string | undefined;
   /** For token sessions: capabilities inherited from the source token. */
   readonly capabilities?: string[] | undefined;
+  /**
+   * Set when a password login passed but 2FA verification is still pending.
+   * The session is valid but must NOT be treated as fully authenticated —
+   * only `/api/login/verify` may consume it. Other routes should reject it.
+   * Short-lived: `PENDING_2FA_TTL_MS` bounds it (5 min).
+   */
+  readonly pending2fa?: boolean | undefined;
+  /**
+   * Last time this session was used (epoch ms). Bumped on every authenticated
+   * request to implement idle-timeout (sliding expiration). Sessions idle for
+   * longer than `HQ_SESSION_IDLE_TIMEOUT_MS` are rejected and evicted.
+   */
+  lastSeenAt: number;
 }
 
 // ── Transcript ring buffer ─────────────────────────────────────────────────

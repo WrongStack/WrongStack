@@ -49,6 +49,20 @@ const OAUTH_LABEL: Record<string, { title: string; detail: string }> = {
   copilot: { title: 'GitHub Copilot', detail: '→ github-copilot' },
 };
 
+function formatExpiry(expiresAt: string | undefined): { text: string; color: string } | null {
+  if (!expiresAt) return null;
+  const expiry = Date.parse(expiresAt);
+  if (!Number.isFinite(expiry)) return null;
+
+  const now = Date.now();
+  const msLeft = expiry - now;
+
+  if (msLeft <= 0) return { text: 'expired', color: UI_COLORS.error };
+  if (msLeft < 60 * 60_000) return { text: `${Math.round(msLeft / 60_000)}m left`, color: UI_COLORS.error };
+  if (msLeft < 24 * 60 * 60_000) return { text: `${Math.round(msLeft / (60 * 60_000))}h left`, color: UI_COLORS.warning };
+  return { text: `${Math.round(msLeft / (24 * 60 * 60_000))}d left`, color: UI_COLORS.inactive };
+}
+
 function keySummary(keyRow: AuthKeyRow): string {
   const method = keyRow.authMethod === 'oauth' ? ' oauth' : '';
   const created = keyRow.createdAt ? ` ${keyRow.createdAt.slice(0, 10)}` : '';
@@ -90,6 +104,7 @@ function renderRow(row: AuthPanelRow, focused: boolean, i: number): React.ReactE
     case 'key': {
       const k = row.keyRow;
       const badge = badgeForKind(k.authMethod);
+      const expiry = formatExpiry(k.expiresAt);
       return (
         <Text key={`k-${k.label}`} color={rowColor} wrap="truncate-end">
           {marker}{' '}
@@ -99,6 +114,7 @@ function renderRow(row: AuthPanelRow, focused: boolean, i: number): React.ReactE
           {k.label.padEnd(20)}{' '}
           {badge ? <Text color={badge.color}>{badge.label.padEnd(8)}</Text> : null}
           <Text dimColor>{keySummary(k)}</Text>
+          {expiry ? <Text color={expiry.color}> {expiry.text}</Text> : null}
         </Text>
       );
     }

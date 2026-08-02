@@ -144,6 +144,8 @@ function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
 
 function PasswordForm(): React.ReactElement {
   const [value, setValue] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [totpRequired, setTotpRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -172,14 +174,104 @@ function PasswordForm(): React.ReactElement {
         setBusy(false);
         return;
       }
-      // Ensure no stale Authorization header overrides the session cookie.
+      const body = (await res.json()) as { loggedIn?: boolean; totpRequired?: boolean };
+      if (body.totpRequired) {
+        setTotpRequired(true);
+        setBusy(false);
+        return;
+      }
+      // Login complete — clear any stale token, reload to pick up cookie.
       clearHqToken();
       window.location.reload();
     } catch {
-      setError('Network error. Is the HQ server running?');
+      setError('Network error.');
       setBusy(false);
     }
   };
+
+  const submitTotp = async (): Promise<void> => {
+    const rawCode = totpCode.trim();
+    if (rawCode.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // Recovery codes contain a hyphen; TOTP codes are pure digits.
+      const payload =
+        rawCode.includes('-')
+          ? { recoveryCode: rawCode }
+          : { code: rawCode.replace(/\D/g, '').slice(0, 6) };
+      const res = await fetch('/api/login/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let msg = 'Verification failed.';
+        try {
+          const body = (await res.json()) as { error?: { message?: string } | string };
+          const err = body.error;
+          if (typeof err === 'string') msg = err;
+          else if (typeof err?.message === 'string') msg = err.message;
+        } catch {
+          /* ignore */
+        }
+        setError(msg);
+        setBusy(false);
+        return;
+      }
+      clearHqToken();
+      window.location.reload();
+    } catch {
+      setError('Network error.');
+      setBusy(false);
+    }
+  };
+
+  if (totpRequired) {
+    return (
+      <>
+        {error ? <p className="hq-token-error">{error}</p> : null}
+        <label className="hq-token-label" htmlFor="hq-totp-code">
+          Authenticator code
+        </label>
+        <input
+          id="hq-totp-code"
+          className="hq-token-input"
+          type="text"
+          autoComplete="one-time-code"
+          autoFocus
+          placeholder="000000 or recovery code"
+          value={totpCode}
+          onChange={(ev) => setTotpCode(ev.target.value.slice(0, 32))}
+          onKeyDown={(ev) => {
+            if (ev.key === 'Enter') void submitTotp();
+          }}
+        />
+        <button
+          type="button"
+          className="hq-token-submit"
+          onClick={() => void submitTotp()}
+          disabled={totpCode.trim().length === 0 || busy}
+        >
+          {busy ? 'Verifying…' : 'Verify'}
+        </button>
+        <button
+          type="button"
+          className="hq-token-hint"
+          onClick={() => {
+            setTotpRequired(false);
+            setTotpCode('');
+            setError(null);
+          }}
+        >
+          ← Back to password
+        </button>
+        <p className="hq-token-hint">
+          Enter the 6-digit code from your authenticator app, or paste a recovery code.
+        </p>
+      </>
+    );
+  }
 
   return (
     <>

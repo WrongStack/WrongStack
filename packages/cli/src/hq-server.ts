@@ -42,10 +42,12 @@ import {
   watchHqAuthFile,
 } from '@wrongstack/core/hq';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
+import { isLoopbackHost } from '@wrongstack/core/hq';
 import { WebSocket, WebSocketServer } from 'ws';
 import { HQ_HTML } from './hq-recovery-html.js';
 import * as HqServerAuth from './hq-server/auth.js';
 import { createHqAuthState } from './hq-server/auth-state.js';
+import { LoginAttemptStore } from './hq-server/login-attempt-store.js';
 import { prepareHqServerStart } from './hq-server/preflight.js';
 import {
   agentMessageToEntry,
@@ -252,24 +254,44 @@ async function startHqServerWithAuth(
     );
     mailboxGatewayRateLimitCleanup.unref?.();
 
-    // ── Login rate limiting ────────────────────────────────────────────────
-    const loginAttempts = new Map<
-      string,
-      { count: number; blockedUntil: number; lastAttempt: number }
-    >();
-    const LOGIN_ATTEMPT_RETENTION_MS = 15 * 60_000;
+    // ── Login rate limiting (persistent across restarts) ──────────────────
+    const loginAttempts = new LoginAttemptStore(dataDir);
+    void loginAttempts.load();
 
     // ── Browser-session lifecycle ──────────────────────────────────────────
     const HQ_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const HQ_SESSION_IDLE_TIMEOUT_MS = 30 * 60_000; // 30 min idle → evict
     const SESSION_CLEANUP_INTERVAL_MS = 60_000;
+    // Pending-2FA sessions are short-lived (5 min TTL, same as the verify
+    // endpoint enforces). They must not linger until the 7-day max-age sweep,
+    // or a valid-password attacker can grow the sessions Map unboundedly.
+    const PENDING_2FA_TTL_MS = 5 * 60_000;
     const sessionCleanupTimer = setInterval(() => {
-      const cutoff = Date.now() - HQ_SESSION_MAX_AGE_MS;
-      for (const [id, session] of sessions) {
-        if (session.createdAt < cutoff) sessions.delete(id);
-      }
       const now = Date.now();
-      for (const [ip, entry] of loginAttempts) {
-        if (now - entry.lastAttempt > LOGIN_ATTEMPT_RETENTION_MS) loginAttempts.delete(ip);
+      const maxAgeCutoff = now - HQ_SESSION_MAX_AGE_MS;
+      const idleCutoff = now - HQ_SESSION_IDLE_TIMEOUT_MS;
+      const pending2faCutoff = now - PENDING_2FA_TTL_MS;
+      for (const [id, session] of sessions) {
+        // Absolute max age (7 days from creation)
+        if (session.createdAt < maxAgeCutoff) {
+          sessions.delete(id);
+          continue;
+        }
+        // Pending-2FA sessions: evict past their 5-minute TTL. The verify
+        // endpoint also checks this on access, but without a sweep they
+        // accumulate until the 7-day max-age.
+        if (session.pending2fa) {
+          if (session.createdAt < pending2faCutoff) sessions.delete(id);
+          continue;
+        }
+        // Idle timeout (30 min since last activity) for fully-authenticated
+        // sessions.
+        if (session.lastSeenAt < idleCutoff) {
+          sessions.delete(id);
+        }
+      }
+      for (const [ip, entry] of loginAttempts.entries()) {
+        if (now - entry.lastAttempt > 15 * 60_000) loginAttempts.delete(ip);
       }
     }, SESSION_CLEANUP_INTERVAL_MS);
     sessionCleanupTimer.unref?.();
@@ -629,7 +651,32 @@ async function startHqServerWithAuth(
           ? HqServerAuth.hqAuthRequired(mutableAuth, options.requireBrowserAuth)
           : HqServerAuth.hqClientAuthRequired(mutableAuth);
       if (needsAuth) {
-        const supplied = url.searchParams.get('token') ?? '';
+        let supplied = url.searchParams.get('token') ?? '';
+        // M5: reject query-string tokens on non-loopback browser WS upgrades.
+        // The token leaks through proxy logs, browser history, and Referer.
+        // Browsers on non-loopback should authenticate via the session cookie
+        // (checked below). /ws/client is programmatic-only and always uses
+        // tokens in the URL since cookies aren't a practical mechanism there.
+        if (supplied && pathname === '/ws/browser') {
+          const requestHost = (req.headers.host ?? '').trim();
+          let wsHostname = '';
+          try {
+            wsHostname = new URL(`http://${requestHost}`).hostname;
+          } catch {
+            /* unparseable Host → treat as non-loopback */
+          }
+          if (wsHostname && !isLoopbackHost(wsHostname)) {
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'hq.ws_token_from_query_rejected',
+                message: 'Browser token in WS query rejected on non-loopback — use session cookie instead.',
+                timestamp: new Date().toISOString(),
+              }),
+            );
+            supplied = '';
+          }
+        }
         const tokenValid = HqServerAuth.timingSafeTokenMatch(tokenSet, supplied) !== undefined;
         const cookieValid =
           pathname === '/ws/browser' &&
@@ -643,6 +690,17 @@ async function startHqServerWithAuth(
             const session = sessions.get(sessionId);
             if (!session || Date.now() - session.createdAt >= HqServerAuth.HQ_SESSION_MAX_AGE_MS)
               return false;
+            // Idle timeout on WS too — a stolen cookie shouldn't stay live
+            // indefinitely without activity.
+            const now2 = Date.now();
+            if (!session.pending2fa && now2 - session.lastSeenAt > HqServerAuth.HQ_SESSION_IDLE_TIMEOUT_MS)
+              return false;
+            // Bump lastSeenAt (sliding refresh).
+            session.lastSeenAt = now2;
+            // Pending 2FA: the password was correct but the TOTP code has not
+            // been verified yet. Reject the WebSocket upgrade so 2FA cannot
+            // be bypassed via /ws/browser.
+            if (session.pending2fa) return false;
             // For token-origin sessions, verify the source token is still live.
             if (session.kind === 'token' && session.tokenId !== undefined) {
               return [...mutableAuth.browserTokenObjs.values()].some(
@@ -872,6 +930,7 @@ async function startHqServerWithAuth(
               clearInterval(mailboxGatewayRateLimitCleanup);
               clearInterval(mailboxGatewaySweepTimer);
               clearInterval(sessionCleanupTimer);
+              void loginAttempts.flush();
               stopAlertEngine();
               authWatcher.close();
               snapshotBroadcaster.close();

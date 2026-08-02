@@ -329,18 +329,30 @@ describe('HQ server — optional browser password login', () => {
     expect(await verifyHqPassword('secret123', auth.passwordHash ?? '')).toBe(false);
   });
 
-  it('allows a browser token to remove password protection', async () => {
+  it('requires the current password when a browser token removes password protection (H2)', async () => {
     await seedAuthFile({ password: 'secret123' });
     handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
     const token = SEEDED_TOKEN;
 
-    const response = await fetch(httpUrl(handle, '/api/auth/password'), {
+    // Without currentPassword → rejected (H2: token-auth can no longer bypass)
+    const rejected = await fetch(httpUrl(handle, '/api/auth/password'), {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: '{}',
+    });
+    expect(rejected.status).toBe(403);
+
+    // With correct currentPassword → succeeds
+    const response = await fetch(httpUrl(handle, '/api/auth/password'), {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ currentPassword: 'secret123' }),
     });
     expect(response.status).toBe(200);
     const auth = await readHqAuthFile(dataDir);
@@ -378,5 +390,48 @@ describe('HQ server — optional browser password login', () => {
     const body = (await response.json()) as { error?: { code?: string } };
     expect(body.error?.code).toBe('BROWSER_AUTH_REQUIRED');
     expect((await readHqAuthFile(dataDir)).passwordHash).toMatch(/^scrypt\$/);
+  });
+
+  it('login lockout persists across server restart (M1)', async () => {
+    await seedAuthFile({ password: 'secret123' });
+
+    // First start: fail login once to trigger initial backoff (2s window).
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+    const fail1 = await login(handle, 'wrong');
+    expect(fail1.res.status).toBe(401);
+
+    // Second attempt immediately should be rate-limited (IP is in backoff).
+    const locked = await login(handle, 'wrong');
+    expect(locked.res.status).toBe(429);
+    expect(locked.res.headers.get('retry-after')).not.toBeNull();
+
+    // Close the server — the lockout state must survive in login-attempts.json.
+    await handle.close();
+    handle = null;
+
+    // The LoginAttemptStore has a 500ms debounced write; allow it to flush.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // Verify the persistence file exists and has a non-expired entry.
+    const lockoutFile = path.join(dataDir, 'login-attempts.json');
+    const raw = await fs.readFile(lockoutFile, 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, { blockedUntil: number }>;
+    const anyBlocked = Object.values(parsed).some((e) => e.blockedUntil > Date.now());
+    expect(anyBlocked).toBe(true);
+
+    // Restart with the same dataDir.
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+
+    // Give the store a moment to load from disk (fire-and-forget on startup).
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Same IP should still be locked out — the lockout survived the restart.
+    const stillLocked = await login(handle, 'wrong');
+    expect(stillLocked.res.status).toBe(429);
+
+    // Correct password should also be blocked (IP is locked, not just the
+    // wrong credential).
+    const correctButLocked = await login(handle, 'secret123');
+    expect(correctButLocked.res.status).toBe(429);
   });
 });
