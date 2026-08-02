@@ -439,6 +439,7 @@
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
         "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
         "export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';",
+        "export { capSageLines, SAGE_INJECTOR_HEADINGS, splitSageOutputBlock, type SageOutputSplit, } from './sage-output-block.js';",
         "export { checkConnectivity, resetConnectivityCache } from './connectivity.js';",
         "export { completePartialObject } from './json-repair.js';",
         "export { computeMessageTokens, estimateMessageTokens, estimateRequestTokens, estimateRequestTokensCalibrated, estimateTextTokens, estimateToolDefTokens, estimateToolInputTokens, estimateToolResultTokens, getCalibrationState, type RequestTokenBreakdown, recordActualUsage, resetCalibration, } from './token-estimate.js';",
@@ -477,6 +478,20 @@
       "source": "packages/core/src/utils/expect-defined.ts",
       "declarations": [
         "export function expectDefined"
+      ]
+    },
+    {
+      "subpath": "./utils/sage-output-block",
+      "target": {
+        "types": "./dist/utils/sage-output-block.d.ts",
+        "import": "./dist/utils/sage-output-block.js"
+      },
+      "source": "packages/core/src/utils/sage-output-block.ts",
+      "declarations": [
+        "export const SAGE_INJECTOR_HEADINGS",
+        "export function capSageLines",
+        "export function splitSageOutputBlock",
+        "export interface SageOutputSplit"
       ]
     },
     {
@@ -1223,8 +1238,8 @@
       "directory": "security",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
-      "sourceFiles": 16,
-      "sourceLines": 5694
+      "sourceFiles": 18,
+      "sourceLines": 5744
     },
     {
       "directory": "skills",
@@ -1266,7 +1281,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9870
+      "sourceLines": 9876
     },
     {
       "directory": "worktree",
