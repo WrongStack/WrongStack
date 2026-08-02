@@ -19,6 +19,8 @@ const SAGE_METHODS = [
   'backfillRecoverable',
   'findMemoriesForFile',
   'getSage',
+  'unifiedSearchService',
+  'listSagePage',
 ] as const satisfies readonly (keyof SageServiceLike)[];
 
 /** Canonical capability guard used before exposing the SAGE tool set. */
