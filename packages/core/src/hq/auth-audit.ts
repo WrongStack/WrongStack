@@ -22,7 +22,7 @@
  * @module hq/auth-audit
  */
 
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, readFileSync, mkdirSync } from 'node:fs';
 import * as path from 'node:path';
 
 /** Scope of the token the event is about. */
@@ -95,6 +95,36 @@ export interface HqAuthAuditEntry {
 /** Path to `auth-audit.jsonl` under the given data dir. */
 export function hqAuthAuditPath(dataDir: string): string {
   return path.join(dataDir, 'auth-audit.jsonl');
+}
+
+/**
+ * Read the last `maxEntries` entries from the audit log.
+ * Returns entries newest-first. If the file doesn't exist or is empty,
+ * returns an empty array.
+ */
+export function readHqAuthAuditTail(
+  dataDir: string,
+  maxEntries = 50,
+): HqAuthAuditEntry[] {
+  const filePath = hqAuthAuditPath(dataDir);
+  let content: string;
+  try {
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    return [];
+  }
+  const lines = content.trimEnd().split('\n');
+  const tail = lines.slice(-maxEntries);
+  const entries: HqAuthAuditEntry[] = [];
+  for (const line of tail) {
+    if (!line) continue;
+    try {
+      entries.push(JSON.parse(line) as HqAuthAuditEntry);
+    } catch {
+      /* skip malformed line */
+    }
+  }
+  return entries.reverse(); // newest first
 }
 
 /**

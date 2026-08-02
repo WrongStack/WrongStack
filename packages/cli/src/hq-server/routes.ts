@@ -29,6 +29,7 @@ import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
 import {
+  handleApiAuthAudit,
   handleApiAuthStatus,
   handleApiAuthSessions,
   handleApiAuthSessionsRevoke,
@@ -249,6 +250,11 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
       if (url.pathname === '/api/auth/status' && req.method === 'GET') {
         await handleApiAuthStatus(req, res, url, mutableAuth, sessions, requireBrowserAuth, trustedPublicOrigins, secureCookies);
+        return;
+      }
+
+      if (url.pathname === '/api/auth/audit' && req.method === 'GET') {
+        handleApiAuthAudit(req, res, dataDir);
         return;
       }
 

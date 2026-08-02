@@ -1111,3 +1111,18 @@ export async function handleApiAuthSessionsRevoke(
 
 // Lazy import to avoid circular dependency at module load time.
 import * as HqServerAuthRef from '../auth.js';
+import { readHqAuthAuditTail } from '@wrongstack/core/hq';
+
+/**
+ * GET `/api/auth/audit` — recent auth events for the audit panel.
+ * Returns the last 50 entries from auth-audit.jsonl, newest first.
+ */
+export function handleApiAuthAudit(
+  _req: http.IncomingMessage,
+  res: http.ServerResponse,
+  dataDir: string,
+): void {
+  const entries = readHqAuthAuditTail(dataDir, 50);
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ entries }));
+}

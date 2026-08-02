@@ -356,6 +356,18 @@ export function SettingsView(): React.ReactElement {
         <SessionsSection />
       </section>
 
+      <section className="hq-security-panel">
+        <div className="hq-security-panel-head">
+          <div>
+            <span>Security audit log</span>
+            <h2>Recent auth events</h2>
+            <p>Token lifecycle, password changes, and 2FA events from the audit trail.</p>
+          </div>
+          <ShieldCheck size={22} />
+        </div>
+        <AuthAuditSection />
+      </section>
+
       <section className="hq-security-panel danger-zone">
         <div className="hq-security-panel-head">
           <div>
@@ -784,6 +796,76 @@ function SessionsSection(): React.ReactElement {
           Sign out everywhere
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Auth audit log ─────────────────────────────────────────────────────────
+
+interface AuditEntry {
+  at: number;
+  kind: string;
+  scope: string;
+  tokenId: string;
+  label?: string;
+  actor?: string;
+}
+
+const AUDIT_KIND_LABEL: Record<string, string> = {
+  'create': 'Token created',
+  'revoke': 'Token revoked',
+  'first-run': 'First-run bootstrap',
+  'expired-prune': 'Expired tokens pruned',
+  'password-rotate': 'Password rotated',
+};
+
+function AuthAuditSection(): React.ReactElement {
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async (): Promise<void> => {
+      try {
+        const res = await authorizedFetch('/api/auth/audit');
+        if (!res.ok) throw new Error(await errorMessage(res));
+        const body = (await res.json()) as { entries: AuditEntry[] };
+        if (!cancelled) {
+          setEntries(body.entries ?? []);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) return <p className="hq-security-hint">Loading audit log…</p>;
+  if (error) return <p className="hq-security-message" data-tone="error">{error}</p>;
+  if (entries.length === 0) return <p className="hq-security-hint">No auth events recorded.</p>;
+
+  return (
+    <div className="hq-audit-list">
+      {entries.map((e, i) => {
+        const ago = Math.round((Date.now() - e.at) / 60_000);
+        const timeLabel = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
+        return (
+          <div key={`${e.at}-${i}`} className="hq-audit-row">
+            <span className="hq-audit-kind">{AUDIT_KIND_LABEL[e.kind] ?? e.kind}</span>
+            <span className="hq-audit-scope">{e.scope}</span>
+            <span className="hq-audit-token">{e.tokenId === '(password-rotation)' ? '—' : e.tokenId.slice(0, 8)}</span>
+            {e.actor ? <span className="hq-audit-actor">{e.actor}</span> : null}
+            <span className="hq-audit-time">{timeLabel}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -486,6 +486,50 @@
   font-size: 12px;
 }
 
+/* Auth audit log */
+.hq-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.hq-audit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+.hq-audit-kind {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bright);
+}
+.hq-audit-scope {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent2);
+}
+.hq-audit-token {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.hq-audit-actor {
+  font-size: 11px;
+  color: var(--dim);
+}
+.hq-audit-time {
+  font-size: 11px;
+  color: var(--dim);
+  margin-left: auto;
+}
+
 /* Password strength meter */
 .hq-password-strength {
   display: flex;
