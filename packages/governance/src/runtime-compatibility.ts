@@ -28,18 +28,17 @@ import {
 import type { GovernanceServiceResponse } from './project-service.js';
 import { sanitizeGovernanceMessage } from './sanitize.js';
 import {
+  GOVERNANCE_RUNTIME_MODEL_CAPABILITIES,
   GOVERNANCE_SERVICE_CAPABILITIES,
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+  type GovernanceRuntimeModelCapability,
   type GovernanceServiceCapability,
 } from './service-protocol.js';
 
 export const GOVERNANCE_COMPATIBILITY_ADMIN_TTL_MS = 60 * 60 * 1_000;
 export const GOVERNANCE_COMPATIBILITY_MODEL_TTL_MS = 30 * 60 * 1_000;
 
-export type GovernanceModelCapability = Exclude<
-  GovernanceServiceCapability,
-  'capability_admin' | 'daemon_control' | 'workspace_snapshot_record' | 'runtime_attach'
->;
+export type GovernanceModelCapability = GovernanceRuntimeModelCapability;
 
 export interface ExistingGovernanceAdminCredential {
   readonly grantId: string;
@@ -248,7 +247,13 @@ function legacy(
   message: string,
   cleanup: GovernanceCompatibilityCleanup = 'not_required',
 ): GovernanceCompatibilityFallback {
-  return Object.freeze({ mode: 'legacy', code, phase, message: sanitizeGovernanceMessage(message), cleanup });
+  return Object.freeze({
+    mode: 'legacy',
+    code,
+    phase,
+    message: sanitizeGovernanceMessage(message),
+    cleanup,
+  });
 }
 
 function validateOptions(options: PrepareGovernanceCompatibilityOptions): string | null {
@@ -282,10 +287,9 @@ function validateOptions(options: PrepareGovernanceCompatibilityOptions): string
   for (const capability of capabilities) {
     if (
       !GOVERNANCE_SERVICE_CAPABILITIES.includes(capability) ||
-      capability === 'capability_admin' ||
-      capability === 'daemon_control' ||
-      capability === 'workspace_snapshot_record' ||
-      capability === 'runtime_attach'
+      !GOVERNANCE_RUNTIME_MODEL_CAPABILITIES.includes(
+        capability as GovernanceRuntimeModelCapability,
+      )
     ) {
       return `Capability ${String(capability)} is not model-safe.`;
     }

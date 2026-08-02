@@ -12,7 +12,7 @@ const fixture = JSON.parse(
   readFileSync(fileURLToPath(new URL('./fixtures/introspection-v1.json', import.meta.url)), 'utf8'),
 ) as { request: { type: string }; response: WSServerMessage };
 
-function harness() {
+function harness(maxToolsCount?: number) {
   const sent: WSServerMessage[] = [];
   const entries = [
     { tool: { name: 'read', inputSchema: { properties: { path: {} } } }, owner: 'core' },
@@ -29,7 +29,7 @@ function harness() {
   const context = {
     agent: {
       ctx: {
-        provider: { id: 'anthropic' },
+        provider: { id: 'anthropic', ...(maxToolsCount !== undefined ? { maxToolsCount } : {}) },
         model: 'claude-opus-4-8',
         tokenCounter: {
           total: () => ({ input: 100, output: 50 }),
@@ -57,6 +57,20 @@ describe('canonical introspection handler family', () => {
     const { context, sent } = harness();
     expect(await handleIntrospectionRoute(context, {} as WebSocket, fixture.request)).toBe(true);
     expect(sent).toEqual([fixture.response]);
+  });
+
+  it('reports droppedTools as 0 when maxToolsCount is unset (no limit)', async () => {
+    const { context, sent } = harness();
+    await handleIntrospectionRoute(context, {} as WebSocket, { type: 'diag.get' });
+    expect((sent[0].payload as { maxTools: number }).maxTools).toBe(0);
+    expect((sent[0].payload as { droppedTools: number }).droppedTools).toBe(0);
+  });
+
+  it('reports droppedTools as the surplus when maxToolsCount is set below tool count', async () => {
+    const { context, sent } = harness(1);
+    await handleIntrospectionRoute(context, {} as WebSocket, { type: 'diag.get' });
+    expect((sent[0].payload as { maxTools: number }).maxTools).toBe(1);
+    expect((sent[0].payload as { droppedTools: number }).droppedTools).toBe(1);
   });
 
   it('claims every family member and rejects foreign messages', async () => {

@@ -269,6 +269,48 @@ describe('governance service protocol decoder', () => {
         expect.objectContaining({ code: 'unknown_field', path: '$.grantId' }),
       ]),
     });
+    const attachment = decodeGovernanceServiceRequest({
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'claim-runtime-attachment',
+      type: 'claim_runtime_attachment',
+      controlClientId: 'webui-control',
+      modelClientId: 'webui-model',
+      modelCapabilities: ['task_read', 'command_submit'],
+      ttlMs: 30_000,
+    });
+    expect(attachment).toMatchObject({
+      decoded: true,
+      request: {
+        type: 'claim_runtime_attachment',
+        controlClientId: 'webui-control',
+        modelClientId: 'webui-model',
+        modelCapabilities: ['task_read', 'command_submit'],
+      },
+    });
+    if (attachment.decoded && attachment.request.type === 'claim_runtime_attachment') {
+      expect(Object.isFrozen(attachment.request)).toBe(true);
+      expect(Object.isFrozen(attachment.request.modelCapabilities)).toBe(true);
+    }
+    expect(
+      decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'claim-runtime-attachment-forged',
+        type: 'claim_runtime_attachment',
+        controlClientId: 'shared-client',
+        modelClientId: 'shared-client',
+        modelCapabilities: ['task_read', 'runtime_attach', 'task_read'],
+        controlCapabilities: ['capability_admin'],
+        ttlMs: 30_000,
+      }),
+    ).toMatchObject({
+      decoded: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'unknown_field', path: '$.controlCapabilities' }),
+        expect.objectContaining({ code: 'invalid_value', path: '$.modelCapabilities[1]' }),
+        expect.objectContaining({ code: 'semantic_invalid', path: '$.modelCapabilities[2]' }),
+        expect.objectContaining({ code: 'semantic_invalid', path: '$.modelClientId' }),
+      ]),
+    });
     const decoded = decodeGovernanceServiceRequest({
       protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
       requestId: 'request-issue-grant',

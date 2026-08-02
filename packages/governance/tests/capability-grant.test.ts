@@ -522,6 +522,172 @@ describe('authenticated governance project service', () => {
     authenticated.close();
   });
 
+  it('claims one bounded runtime attachment without delegating control-plane authority', () => {
+    const service = openService();
+    const { registry, auditEvents, advance } = registryHarness();
+    const broker = registry.issue({
+      clientId: 'attachment-broker',
+      capabilities: ['runtime_attach'],
+      ttlMs: 10_000,
+    });
+    advance(2_000);
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+    const credential = {
+      token: broker.token,
+      projectId: 'project-1',
+      clientId: 'attachment-broker',
+    };
+    const request = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'claim-runtime-once',
+      type: 'claim_runtime_attachment',
+      controlClientId: 'webui-control',
+      modelClientId: 'webui-model',
+      modelCapabilities: ['task_read', 'command_submit'],
+      ttlMs: 60_000,
+    } as const;
+
+    const first = authenticated.handleUnknown(request, credential);
+    expect(authenticated.handleUnknown(request, credential)).toEqual(first);
+    expect(first).toMatchObject({
+      ok: true,
+      result: {
+        type: 'runtime_attachment_claimed',
+        control: {
+          grant: {
+            clientId: 'webui-control',
+            issuedBy: 'attachment-broker',
+            capabilities: ['workspace_snapshot_record'],
+            expiresAt: broker.grant.expiresAt,
+          },
+          credential: { projectId: 'project-1', clientId: 'webui-control' },
+        },
+        model: {
+          grant: {
+            clientId: 'webui-model',
+            issuedBy: 'attachment-broker',
+            capabilities: ['task_read', 'command_submit'],
+            expiresAt: broker.grant.expiresAt,
+          },
+          credential: { projectId: 'project-1', clientId: 'webui-model' },
+        },
+      },
+    });
+    expect(registry.listGrants()).toHaveLength(3);
+    expect(auditEvents.filter((event) => event.type === 'grant_issued')).toHaveLength(3);
+    if (!first.ok || first.result.type !== 'runtime_attachment_claimed') {
+      throw new Error('Expected runtime attachment credentials.');
+    }
+    expect(first.result.control.credential.token).not.toBe(first.result.model.credential.token);
+    expect(first.result.control.grant.capabilities).not.toContain('runtime_attach');
+    expect(first.result.control.grant.capabilities).not.toContain('capability_admin');
+    expect(first.result.control.grant.capabilities).not.toContain('daemon_control');
+    expect(first.result.model.grant.capabilities).not.toContain('runtime_attach');
+    authenticated.close();
+  });
+
+  it('denies attachment claims and runtime_attach delegation without the broker capability', () => {
+    const service = openService();
+    const { registry } = registryHarness();
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+    const credential = {
+      token: admin.token,
+      projectId: 'project-1',
+      clientId: 'admin-client',
+    };
+
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'admin-cannot-claim',
+          type: 'claim_runtime_attachment',
+          controlClientId: 'control-client',
+          modelClientId: 'model-client',
+          modelCapabilities: ['task_read'],
+          ttlMs: 10_000,
+        },
+        credential,
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    expect(
+      authenticated.handleUnknown(
+        {
+          protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+          requestId: 'admin-cannot-delegate-attach',
+          type: 'issue_capability_grant',
+          clientId: 'forged-broker',
+          capabilities: ['runtime_attach'],
+          ttlMs: 10_000,
+        },
+        credential,
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'permission_denied' } });
+    expect(registry.listGrants()).toHaveLength(1);
+    authenticated.close();
+  });
+
+  it('revokes the partial control grant when model attachment issuance fails', () => {
+    const service = openService();
+    let materialSequence = 0;
+    const registry = new GovernanceCapabilityGrantRegistry('project-1', {
+      now: () => START_TIME,
+      maxTtlMs: 60_000,
+      tokenMaterial: () => {
+        materialSequence += 1;
+        if (materialSequence === 3) throw new Error('model issuance failed');
+        return {
+          grantId: `attachment-grant-${materialSequence}`,
+          secret: `${SECRET}${materialSequence}`,
+        };
+      },
+    });
+    const broker = registry.issue({
+      clientId: 'attachment-broker',
+      capabilities: ['runtime_attach'],
+      ttlMs: 10_000,
+    });
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+    const credential = {
+      token: broker.token,
+      projectId: 'project-1',
+      clientId: 'attachment-broker',
+    };
+    const request = {
+      protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+      requestId: 'claim-with-failure',
+      type: 'claim_runtime_attachment',
+      controlClientId: 'control-client',
+      modelClientId: 'model-client',
+      modelCapabilities: ['task_read'],
+      ttlMs: 10_000,
+    } as const;
+
+    expect(authenticated.handleUnknown(request, credential)).toMatchObject({
+      ok: false,
+      error: { code: 'invalid_request' },
+    });
+    expect(registry.getGrant('attachment-grant-2')).toMatchObject({
+      status: 'revoked',
+      revocationReason: 'runtime attachment claim rolled back',
+    });
+    expect(
+      registry
+        .listGrants()
+        .filter((grant) => grant.status === 'active' && grant.clientId !== 'attachment-broker'),
+    ).toHaveLength(0);
+    expect(authenticated.handleUnknown(request, credential)).toMatchObject({
+      ok: true,
+      result: { type: 'runtime_attachment_claimed' },
+    });
+    authenticated.close();
+  });
+
   it('replays a self-rotation response to only the exact old request and credential', () => {
     const service = openService();
     const { registry, auditEvents } = registryHarness();
