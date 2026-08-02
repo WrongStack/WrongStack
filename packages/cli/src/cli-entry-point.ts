@@ -61,7 +61,7 @@ function installSqliteWarningFilter(): void {
 
 installSqliteWarningFilter();
 
-import { writeErr } from '@wrongstack/core/utils';
+import { installCrashShield, writeErr } from '@wrongstack/core/utils';
 
 const isMain =
   import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` ||
@@ -113,6 +113,12 @@ export function installBrokenPipeHandlers(options: BrokenPipeHandlerOptions = {}
 export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
   if (!isMain) return;
   installBrokenPipeHandlers();
+  // Last-resort shield: one escaped rejection in a timer, watcher, or socket
+  // callback otherwise kills the whole in-process host — TUI, WebUI, HQ, fleet.
+  // Must come after installBrokenPipeHandlers so EPIPE stays that handler's
+  // job; the shield deliberately ignores broken-consumer errors. This call was
+  // present, regressed to zero call sites, and is re-armed here (WS-076).
+  installCrashShield();
   mainFn(process.argv.slice(2)).then(
     (c) => {
       // Set exitCode and let Node drain async handles (undici TLS, log file

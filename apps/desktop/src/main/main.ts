@@ -11,7 +11,7 @@
  *   - state/      → Types and constants
  */
 import * as path from 'node:path';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { installCrashShield, resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   app,
   BaseWindow,
@@ -507,7 +507,19 @@ async function boot(): Promise<void> {
 // App Lifecycle
 // ============================================================================
 
-app.whenReady().then(boot);
+// Same last-resort shield as the CLI host: a background rejection in a watcher,
+// IPC handler, or the agent bridge must not take the desktop app down (WS-076).
+installCrashShield();
+
+// `boot` is async — an unhandled rejection here would leave the app running with
+// no window and no error shown, which reads to the user as a silent hang.
+app.whenReady().then(boot, (error: unknown) => {
+  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  // Not localised on purpose: boot failed before the renderer could push a
+  // locale over IPC, so tMain would resolve to the 'en' catalog regardless.
+  dialog.showErrorBox('WrongStack failed to start', detail);
+  app.exit(1);
+});
 
 app.on('window-all-closed', () => {
   // Standard macOS behavior: the app stays running when all windows
