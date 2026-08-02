@@ -8,7 +8,12 @@ import {
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import { getKanbanServerConnection, isKanbanServerAvailable } from '@wrongstack/kanban';
+import {
+  closeKanbanServerConnections,
+  getKanbanServerConnection,
+  isKanbanServerAvailable,
+} from '@wrongstack/kanban';
+import * as net from 'node:net';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
@@ -548,7 +553,10 @@ export async function handleConnectionsServiceAction(
         serviceId: 'webui',
         action: action as 'shutdown' | 'restart',
         success: false,
-        message: 'Cannot shut down the WebUI transport itself',
+        message:
+          action === 'restart'
+            ? 'Cannot restart the WebUI transport itself'
+            : 'Cannot shut down the WebUI transport itself',
       } satisfies ServiceActionResult,
     });
     return true;
@@ -658,6 +666,9 @@ async function killKanbanServer(
       };
     }
     if (action === 'restart') {
+      // Evict the stale cached connection so getKanbanServerConnection spawns
+      // a fresh daemon instead of reusing the dead socket
+      closeKanbanServerConnections();
       const restartResult = await restartKanbanServer(projectRoot);
       return restartResult;
     }
@@ -761,22 +772,13 @@ async function restartSageServer(projectRoot: string): Promise<ServiceActionResu
   });
   const verifyConn = new SageProjectServerConnection(projectRoot);
   try {
-    // connect() calls ensureConnected(true) which spawns the daemon if absent
-    await verifyConn.connect();
-    const status = await verifyConn.status();
-    if (status) {
-      return {
-        serviceId: 'sage',
-        action: 'restart',
-        success: true,
-        message: 'SAGE memory server restarted successfully',
-      };
-    }
+    // call() uses ensureConnected(true) which spawns + has auth retry loop
+    await verifyConn.call('ping', {}, { timeoutMs: 10_000, meta: { clientId: `sage-restart-${process.pid}` } });
     return {
       serviceId: 'sage',
       action: 'restart',
-      success: false,
-      message: 'SAGE memory server did not come back after restart (still offline)',
+      success: true,
+      message: 'SAGE memory server restarted successfully',
     };
   } catch (error) {
     return {
@@ -828,7 +830,12 @@ async function killChronicleServer(
 }
 
 async function restartChronicleServer(projectRoot: string): Promise<ServiceActionResult> {
-  await waitForShutdown();
+  // ChronicleProjectServerClient has no non-spawning probe (call() always
+  // passes ensureConnected(true)). Use a raw socket probe on the endpoint
+  // to detect when the daemon has exited without respawning it.
+  const options = resolveChronicleProjectServerOptions({ projectRoot });
+  const endpoint = new ChronicleProjectServerClient(options).endpoint;
+  await waitForShutdown(async () => isEndpointAlive(endpoint));
   // createChronicleProjectAccess triggers auto-start of the project server
   let access;
   try {
@@ -903,7 +910,17 @@ async function restartCodebaseIndexServer(
   projectRoot: string,
   indexDir: string | undefined,
 ): Promise<ServiceActionResult> {
-  await waitForShutdown();
+  // Poll until the codebase-index server is actually down before reconnecting
+  await waitForShutdown(async () => {
+    try {
+      await checkCodebaseIndexServerHealth(projectRoot, indexDir, {
+        timeoutMs: 1_000,
+      });
+      return true; // any successful response means the server is still alive
+    } catch {
+      return false;
+    }
+  });
   try {
     // ensureCodebaseIndexServer spawns the detached daemon if absent
     await ensureCodebaseIndexServer({ projectRoot, indexDir });
@@ -995,22 +1012,13 @@ async function restartMailboxServer(projectRoot: string): Promise<ServiceActionR
     resolveWstackPaths({ projectRoot }).projectDir,
   );
   try {
-    // connect() calls ensureConnected(true) which spawns the daemon if absent
-    await verifyConn.connect();
-    const status = await verifyConn.probeStatus();
-    if (status) {
-      return {
-        serviceId: 'mailbox',
-        action: 'restart',
-        success: true,
-        message: 'Mailbox IPC server restarted successfully',
-      };
-    }
+    // call() uses ensureConnected(true) which spawns + has auth retry loop
+    await verifyConn.call('ping', {}, { timeoutMs: 10_000 });
     return {
       serviceId: 'mailbox',
       action: 'restart',
-      success: false,
-      message: 'Mailbox IPC server did not come back after restart (still offline)',
+      success: true,
+      message: 'Mailbox IPC server restarted successfully',
     };
   } catch (error) {
     return {
@@ -1028,6 +1036,32 @@ async function restartMailboxServer(projectRoot: string): Promise<ServiceActionR
 
 const RESTART_POLL_INTERVAL_MS = 250;
 const RESTART_DEADLINE_MS = 3_000;
+
+/**
+ * Raw socket probe — checks if anything is listening on an IPC endpoint
+ * (Unix domain socket or Windows named pipe) without sending protocol frames.
+ * Used for services whose client API offers no non-spawning probe.
+ */
+function isEndpointAlive(endpoint: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const sock = net.createConnection(endpoint);
+    const timer = setTimeout(() => {
+      sock.destroy();
+      resolve(false);
+    }, 500);
+    timer.unref?.();
+    sock.once('connect', () => {
+      clearTimeout(timer);
+      sock.destroy();
+      resolve(true);
+    });
+    sock.once('error', () => {
+      clearTimeout(timer);
+      sock.destroy();
+      resolve(false);
+    });
+  });
+}
 
 /**
  * Give a shutdown signal time to take effect before re-establishing the

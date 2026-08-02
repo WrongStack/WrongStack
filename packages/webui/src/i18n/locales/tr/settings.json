@@ -61,7 +61,8 @@
       "mailbox": {
         "label": "Mailbox IPC"
       }
-    }
+    },
+    "serviceActionRestart": "Yeniden başlat {{label}}"
   },
   "provider": {
     "subscriptionHeading": "Abonelik girişi",

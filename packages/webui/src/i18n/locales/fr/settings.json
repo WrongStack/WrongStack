@@ -61,7 +61,8 @@
       "mailbox": {
         "label": "Mailbox IPC"
       }
-    }
+    },
+    "serviceActionRestart": "Redémarrer {{label}}"
   },
   "provider": {
     "savedProviderCount_one": "{{count}} fournisseur",

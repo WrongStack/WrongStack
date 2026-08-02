@@ -491,7 +491,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/connections-health-route.ts": {
-      "lines": 820,
+      "lines": 1109,
       "relativeImports": 1
     },
     "packages/webui-server/src/server/context-editor.ts": {

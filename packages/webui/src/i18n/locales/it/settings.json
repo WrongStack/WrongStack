@@ -61,7 +61,8 @@
       "mailbox": {
         "label": "Mailbox IPC"
       }
-    }
+    },
+    "serviceActionRestart": "Riavvia {{label}}"
   },
   "provider": {
     "savedProviderCount_one": "{{count}} provider",

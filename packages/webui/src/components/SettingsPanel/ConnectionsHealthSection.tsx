@@ -307,6 +307,7 @@ function ServiceCard({
               title={
                 t('settings:connection.serviceActionRestart', {
                   defaultValue: `Restart ${displayLabel}`,
+                  label: displayLabel,
                 }) as string
               }
             >
