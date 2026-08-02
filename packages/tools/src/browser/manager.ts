@@ -52,7 +52,10 @@ export class BrowserSessionManager {
     private readonly launcher: BrowserLauncher = defaultLauncher,
   ) {
     this.artifacts = new BrowserArtifactStore(options.artifactRoot);
-    this.allowPrivateHosts = options.allowPrivateHosts ?? true;
+    // Default closed: this flag short-circuits the navigation check, the subresource
+    // route check, and resolvePinnedBrowserTarget. The production wiring never passed
+    // it, so the documented private/loopback/link-local block was inert (WS-074).
+    this.allowPrivateHosts = options.allowPrivateHosts ?? false;
     this.allowedPrivateOrigins = options.allowedPrivateOrigins ?? [];
     this.networkProxy = new BrowserNetworkGuardProxy({
       allowPrivateHosts: this.allowPrivateHosts,
