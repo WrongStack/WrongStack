@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { HealthRegistry, MetricsSink, MetricsSnapshot } from '../types/observability.js';
 import { toErrorMessage } from '../utils/error.js';
 
@@ -120,6 +121,34 @@ export interface MetricsServerOptions {
   healthPath?: string | undefined;
   /** Enable HTTPS by providing TLS key/cert. Both required. */
   tls?: MetricsTlsOptions | undefined;
+  /**
+   * Bearer token required on `/metrics` and the health path.
+   *
+   * REQUIRED when binding to a non-loopback host — `startMetricsServer` refuses
+   * otherwise, matching `serveHttp` in @wrongstack/mcp. The default bind is
+   * loopback, so this only comes up for an operator who deliberately opted into
+   * network scraping; before, that opt-in produced an endpoint with no
+   * authentication of any kind, exposing the very labels the note below warns
+   * can carry prompt content (WS-094).
+   */
+  token?: string | undefined;
+}
+
+/** Loopback check for the bind guard. Mirrors the MCP server's helper. */
+function isLoopbackBindHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return h === '127.0.0.1' || h === 'localhost' || h === '::1' || h.startsWith('127.');
+}
+
+/** Constant-time bearer comparison, so the token cannot be recovered by timing. */
+function bearerMatches(header: string | undefined, token: string): boolean {
+  if (!header) return false;
+  const prefix = 'bearer ';
+  if (!header.toLowerCase().startsWith(prefix)) return false;
+  const supplied = Buffer.from(header.slice(prefix.length).trim(), 'utf8');
+  const expected = Buffer.from(token, 'utf8');
+  if (supplied.length !== expected.length) return false;
+  return timingSafeEqual(supplied, expected);
 }
 
 export interface MetricsServerHandle {
@@ -144,12 +173,29 @@ export async function startMetricsServer(opts: MetricsServerOptions): Promise<Me
   const path = opts.path ?? '/metrics';
   const healthPath = opts.healthPath ?? '/healthz';
   const healthRegistry = opts.healthRegistry;
+  const token = opts.token;
+
+  // Same refusal the MCP HTTP transport makes: a network-reachable telemetry
+  // endpoint with no credential is not something to start quietly (WS-094).
+  if (!isLoopbackBindHost(host) && !token) {
+    throw new Error(
+      `startMetricsServer: refusing to bind to non-loopback host "${host}" without a token — ` +
+        'pass a token to expose metrics to the network, or bind to 127.0.0.1.',
+    );
+  }
 
   type RequestListener = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void;
   const listener: RequestListener = (req, res) => {
     if (!req.url || req.method !== 'GET') {
       res.statusCode = req.url ? 405 : 400;
       res.end();
+      return;
+    }
+    if (token && !bearerMatches(req.headers.authorization, token)) {
+      res.statusCode = 401;
+      res.setHeader('www-authenticate', 'Bearer');
+      res.setHeader('content-type', 'text/plain; charset=utf-8');
+      res.end('Unauthorized');
       return;
     }
     // Strip query string for the route match.

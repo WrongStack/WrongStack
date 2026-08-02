@@ -186,4 +186,75 @@ describe('/healthz endpoint (V2-C)', () => {
       await handle.close();
     }
   });
+
+  // WS-094. The default bind is loopback and the module's own note explains
+  // why: metric labels (tool name, error message) can carry prompt content.
+  // But there was no token option at all, so an operator who took the
+  // documented opt-in to `host: '0.0.0.0'` got a network-reachable telemetry
+  // endpoint with no authentication. The MCP HTTP transport refuses that exact
+  // combination; this now matches it.
+  describe('network exposure', () => {
+    it('refuses a non-loopback bind with no token', async () => {
+      await expect(
+        startMetricsServer({ port: 0, host: '0.0.0.0', sink: new InMemoryMetricsSink() }),
+      ).rejects.toThrow(/refusing to bind to non-loopback host/);
+    });
+
+    it('allows a non-loopback bind once a token is supplied', async () => {
+      const handle = await startMetricsServer({
+        port: 0,
+        host: '0.0.0.0',
+        token: 'scrape-secret',
+        sink: new InMemoryMetricsSink(),
+      });
+      try {
+        const res = await fetch(`http://127.0.0.1:${handle.port}/metrics`, {
+          headers: { authorization: 'Bearer scrape-secret' },
+        });
+        expect(res.status).toBe(200);
+      } finally {
+        await handle.close();
+      }
+    });
+
+    it('401s a tokenless request when a token is configured', async () => {
+      const handle = await startMetricsServer({
+        port: 0,
+        token: 'scrape-secret',
+        sink: new InMemoryMetricsSink(),
+      });
+      try {
+        const res = await fetch(`http://127.0.0.1:${handle.port}/metrics`);
+        expect(res.status).toBe(401);
+        expect(res.headers.get('www-authenticate')).toBe('Bearer');
+      } finally {
+        await handle.close();
+      }
+    });
+
+    it('401s a wrong token', async () => {
+      const handle = await startMetricsServer({
+        port: 0,
+        token: 'scrape-secret',
+        sink: new InMemoryMetricsSink(),
+      });
+      try {
+        const res = await fetch(`http://127.0.0.1:${handle.port}/metrics`, {
+          headers: { authorization: 'Bearer wrong-secret' },
+        });
+        expect(res.status).toBe(401);
+      } finally {
+        await handle.close();
+      }
+    });
+
+    it('still serves loopback with no token, as before', async () => {
+      const handle = await startMetricsServer({ port: 0, sink: new InMemoryMetricsSink() });
+      try {
+        expect((await fetch(`http://127.0.0.1:${handle.port}/metrics`)).status).toBe(200);
+      } finally {
+        await handle.close();
+      }
+    });
+  });
 });

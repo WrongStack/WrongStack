@@ -391,12 +391,27 @@ async function boot(): Promise<void> {
       preload: preloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      // OS-level renderer sandbox. contextIsolation and nodeIntegration:false
+      // already bound what renderer JS can reach through the bridge; the
+      // sandbox is what contains the renderer PROCESS if it is compromised
+      // through the content it renders. This preload only imports electron's
+      // contextBridge/ipcRenderer plus a constants map, so it runs unchanged
+      // under the sandboxed preload subset (WS-093).
+      sandbox: true,
     },
   });
   shellView.webContents.setWindowOpenHandler(({ url }) => {
     safeOpenExternal(url);
     return { action: 'deny' };
+  });
+  // The WebUI view has had this since it was written; the shell view had only
+  // the window-open handler, so an in-page navigation (a link, a script
+  // setting location) could move the shell itself off its local renderer
+  // entry point instead of opening externally (WS-093).
+  shellView.webContents.on('will-navigate', (event, url) => {
+    if (url === shellUrl) return;
+    event.preventDefault();
+    safeOpenExternal(url);
   });
 
   // The shell preload can invoke desktop:* channels during renderer startup.

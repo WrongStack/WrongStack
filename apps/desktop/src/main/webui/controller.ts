@@ -91,7 +91,13 @@ export class DesktopWebuiController {
         preload: webuiPreloadPath(),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
+        // This is the view that renders agent output, tool results, file
+        // contents, and fetched pages — i.e. the most attacker-influenceable
+        // surface in the app, and the one that most needs process-level
+        // containment rather than only bridge-level. webui-preload.ts imports
+        // just electron's contextBridge/ipcRenderer and a constants map, so it
+        // is already within the sandboxed preload subset (WS-093).
+        sandbox: true,
       },
     });
     const entry: DesktopWebuiRuntimeView = {
