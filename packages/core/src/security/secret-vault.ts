@@ -157,8 +157,17 @@ function checkKeyFilePermissions(
     const stat = fs.statSync(keyFile);
     const actualMode = stat.mode & 0o777;
     if (actualMode !== KEY_FILE_MODE) {
+      // Self-heal: fire-and-forget restrictPermissions to fix the mode,
+      // not just warn about it. The existing load paths call
+      // restrictPermissions after write — but a key file created by an
+      // older build or an external tool (chmod, copy) may have loose
+      // perms that the warning alone won't fix. This closes the gap.
+      void restrictPermissions(keyFile, {
+        label: 'secret-vault',
+        warn,
+      }).catch(() => undefined);
       warn(
-        `Key file ${keyFile} has mode ${actualMode.toString(8)} — expected ${KEY_FILE_MODE.toString(8)}. Run: chmod ${KEY_FILE_MODE.toString(8)} ${keyFile}`,
+        `Key file ${keyFile} has mode ${actualMode.toString(8)} — expected ${KEY_FILE_MODE.toString(8)}. Hardening…`,
       );
     }
   } catch {
@@ -466,9 +475,24 @@ export class DefaultSecretVault implements RotatableSecretVault {
     // to create the key file, only one succeeds and the loser gets EEXIST.
     try {
       fs.writeFileSync(this.keyFile, initialBytes, { mode: 0o600, flag: 'wx' });
+      // WS-088: Harden file permissions after the write. On POSIX, `0o600`
+      // in the open flags already sets the correct mode. On Windows, those
+      // flags only flip the read-only bit — the file inherits the parent
+      // directory's ACEs and stays readable by other accounts.
+      // `restrictFilePermissions` closes that gap by shelling out to icacls.
+      void restrictPermissions(this.keyFile, {
+        label: 'secret-vault',
+        warn: (msg) => this.logWarn(msg),
+      }).catch(() => undefined);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       // Another process won the race — re-read what they wrote.
+      // Harden defensively: the winner may have been an older build
+      // that didn't call restrictPermissions (WS-088).
+      void restrictPermissions(this.keyFile, {
+        label: 'secret-vault',
+        warn: (msg) => this.logWarn(msg),
+      }).catch(() => undefined);
       const buf = fs.readFileSync(this.keyFile);
       if (isWrappedKeyFile(buf)) {
         const { key: winnerKey, version } = unwrapDataKey(buf, this.keyFile);
