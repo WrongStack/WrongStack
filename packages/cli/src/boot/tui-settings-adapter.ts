@@ -499,11 +499,38 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           decrypted as Record<string, unknown>,
           targetPath,
         );
+        // When the scope switch moved the target away from the file we
+        // read at the top (targetPath → actualTarget), the decrypted
+        // object is a mutation of the SOURCE config. Writing it verbatim
+        // to the DESTINATION clobbers any keys that exist only in the
+        // destination (e.g. a profile config with autonomy options the
+        // project config doesn't have). Deep-merge the destination's
+        // existing keys under our mutated values so nothing is lost.
+        let mergedToWrite: Record<string, unknown> = decrypted;
+        if (actualTarget !== targetPath) {
+          try {
+            const destRaw = await fs.readFile(actualTarget, 'utf8');
+            const destParsed = JSON.parse(destRaw) as Record<string, unknown>;
+            const destDecrypted = decryptConfigSecrets(destParsed, noOpVault) as Record<
+              string,
+              unknown
+            >;
+            mergedToWrite = { ...destDecrypted, ...decrypted };
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+              throw new Error(
+                `Failed to read destination config at ${actualTarget}: ${err instanceof Error ? err.message : String(err)}`,
+                { cause: err },
+              );
+            }
+            // Destination doesn't exist yet — write the mutated config as-is.
+          }
+        }
         // Only filter for project safety when writing to the in-project
         // config (.wrongstack/config.json). The active profile config stores
         // the full trusted user settings; the root bootstrap is never targeted.
         const isProjectTarget = actualTarget === wpaths.inProjectConfig;
-        const toWrite = isProjectTarget ? filterSafeForProject(decrypted) : decrypted;
+        const toWrite = isProjectTarget ? filterSafeForProject(mergedToWrite) : mergedToWrite;
         const encrypted = encryptConfigSecrets(toWrite, noOpVault);
         await fs.mkdir(path.dirname(actualTarget), { recursive: true });
         await atomicWrite(actualTarget, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
