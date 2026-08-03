@@ -835,10 +835,18 @@ export class ACPProtocolHandler {
     };
 
     let result: RunTurnResult;
+    // Collect pending notification promises so we can await them before
+    // sending the response. Without this, the response can land in
+    // transport.sent before the notification on fast hosts (Linux CI).
+    const pendingNotifications: Array<Promise<void>> = [];
+    const emit = (update: unknown): void => {
+      const p = this.sendNotification({ sessionId, update });
+      pendingNotifications.push(p.catch(() => {}));
+    };
     try {
       result = await this.runTurn(
         { sessionId, prompt: p.prompt as ContentBlock[], signal: turnSignal.signal },
-        (update) => this.sendNotification({ sessionId, update }),
+        emit,
         api,
       );
     } catch (err) {
@@ -847,6 +855,9 @@ export class ACPProtocolHandler {
       await this.sendError(id, code, message, data);
       return false;
     }
+    // Flush all pending notifications before sending the response so
+    // test assertions on transport.sent ordering are deterministic.
+    await Promise.all(pendingNotifications);
     session.abort.signal.removeEventListener('abort', onCancel);
     session.updatedAt = new Date().toISOString();
     await this.persist(session);
