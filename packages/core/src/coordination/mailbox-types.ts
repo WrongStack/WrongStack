@@ -99,7 +99,7 @@ export {
  * The mailbox system enforces these dispatch rules:
  *
  * 1. **Send-side**: `mail_send` auto-defaults the type: `broadcast` when
- *    `to` is `"*"` or `"@session::..."`, otherwise `note`.
+ *    `to` is `"*"` or `"@session:..."`, otherwise `note`.
  * 2. **Send-side validation**: `assign` always requires a specific `to`
  *    (not `"*"`). `control` is reserved for runtime use — agents passing it
  *    via the tool surface will be rejected.
@@ -109,8 +109,8 @@ export {
  * 4. **Control isolation**: `control`-type messages are filtered by
  *    `injectPendingMailboxMessages()` and NEVER enter the folded
  *    conversation block — they are out-of-band signals only.
- * 5. **Background routing**: in `background` delivery mode, only
- *    `ACTIONABLE_BACKGROUND_TYPES` (`steer`, `ask`, `assign`, `result`,
+ * 5. **Background routing**: in `background` delivery mode, only the
+ *    actionable message types (`steer`, `ask`, `assign`, `result`,
  *    `review`) are escalated; `note`, `btw`, `status`, and `broadcast`
  *    are suppressed to minimise disruption during tool work.
  * 6. **Awareness polling**: `btw` messages intercepted by background
@@ -158,6 +158,255 @@ export function isMailboxMessageVisibleTo(
   role?: string,
 ): boolean {
   return message.audience !== 'leaders' || isMailboxLeader(agentId, role);
+}
+
+/**
+ * True when the message carries any session-affinity token at all.
+ *
+ * Uses `!== undefined` — NOT `!= null` — because the SQLite read path
+ * (`sqlite-mailbox-rows.ts`) does an unvalidated `JSON.parse(row.data)
+ * as MailboxMessage` cast, which can surface a malformed persisted row
+ * carrying `sessionAffinity: null`. Treating `null` as "absent" (accept)
+ * would let malformed affinity-bearing messages bypass the filter.
+ * Instead, `null` falls through to the token-bearing code path where
+ * `affinity.sessionId` access on a `null` is caught by the caller's
+ * try/catch and fails closed.
+ *
+ * Callers that access `message.sessionAffinity!.sessionId` after this
+ * check must guard against non-object shapes (null, arrays, primitives).
+ */
+/**
+ * True when the message carries any session-affinity token at all.
+ *
+ * Strict `!== undefined`: a null token is deliberately treated as absent
+ * (no token at all) and the message is accepted by the rule-1 short
+ * circuit. This avoids a TypeError dereference at rule 3 on malformed
+ * SQLite-hydrated rows — `sqlite-mailbox-rows.ts` decodes the `data` JSON
+ * column via `JSON.parse(row.data) as MailboxMessage` without per-field
+ * validation, so a persisted `sessionAffinity: null` (or any other
+ * non-object shape) reaches the filter directly. A `!= null` guard
+ * would treat a `null` token as a presence signal and short-circuit the
+ * filter into the per-field access path; with no per-field validator
+ * present, that would throw. The strict `!== undefined` guard keeps the
+ * rule chain safe by routing any malformed token to "absent → accept",
+ * which is the documented fail-open for unrecognised sender-side
+ * payloads (the boundary codec rejects malformed tokens; the receiver
+ * filter accepts null/absent as "no token").
+ */
+function isAffectedBySessionAffinity(message: Pick<MailboxMessage, 'sessionAffinity'>): boolean {
+  return message.sessionAffinity !== undefined;
+}
+
+function isPromiseLike<T>(value: T | PromiseLike<T>): value is PromiseLike<T> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in value &&
+    typeof value.then === 'function'
+  );
+}
+
+function maybeSyncResolveChimeraReportSessionId(
+  result: string | undefined | PromiseLike<string | undefined>,
+): string | undefined {
+  if (!isPromiseLike(result)) return result;
+  try {
+    result.then(undefined, () => undefined);
+  } catch {
+    // Malformed thenables must not propagate out of the sync mailbox filter.
+  }
+  return undefined;
+}
+
+/**
+ * Shape of the optional secondary lookup the leader filter performs when a
+ * message arrives without an affinity token (legacy sender / older build).
+ *
+ * `resolveChimeraReportSessionId(reportId)` returns the persisted
+ * `ReviewReport.sessionId` for that report id, or `undefined` when the
+ * report is unknown. May be sync or async — the filter awaits the result.
+ */
+export interface MailboxSessionAffinityContext {
+  /**
+   * Look up the originating session id of a chimera report by its report id.
+   * Return `undefined` for unknown reports. Sync or async.
+   */
+  resolveChimeraReportSessionId?:
+    | ((reportId: string) => string | undefined | Promise<string | undefined>)
+    | undefined;
+  /**
+   * Legacy / one-shot opt-in. The flag has TWO consultation points inside
+   * {@link acceptMailboxMessageForSession}:
+   *
+   *   1. When the recipient does not pass a `currentSessionId` (rule 2),
+   *      a token-bearing message is accepted iff this is `true`.
+   *   2. When a token-bearing message lacks a resolvable `sessionId` AND
+   *      the persisted-report resolver returns no match (rule 5), the
+   *      message is accepted iff this is `true`.
+   *
+   * Token-LESS messages are NOT gated by this flag — they are accepted
+   * unconditionally by rule 1 as the discriminator for legitimate
+   * subagent `result` / `review` traffic that does not stamp an affinity
+   * token (task-auctioneer, cascade handlers, legacy senders).
+   *
+   * This flag does NOT override an explicit mismatch: a message that
+   * carries `sessionAffinity.sessionId !== currentSessionId` is dropped
+   * regardless of this flag, because the sender explicitly claimed a
+   * different session — honoring it would re-open the leak.
+   *
+   * Default `false`.
+   */
+  allowUnscoped?: boolean | undefined;
+}
+
+/**
+ * Decide whether a mailbox message belongs to the recipient's current session
+ * and should therefore be delivered to the leader's inbox.
+ *
+ * The actual code path is:
+ *
+ * 1. {@link isAffectedBySessionAffinity} check. If the message has no
+ *    affinity token, the filter does NOT apply and the message is accepted.
+ *    This is the **discriminator** that protects legitimate subagent
+ *    `result` / `review` traffic (task-auctioneer, cascade handlers) from
+ *    collateral drops — they do not stamp an affinity token, so they fall
+ *    through here. When a token is present, every token is enforced regardless
+ *    of its optional `kind`; malformed or unrecognized kinds must not bypass
+ *    a mismatched `sessionAffinity.sessionId`.
+ * 2. No-session-id branch. If the recipient did not pass a `currentSessionId`,
+ *    accept only when `ctx.allowUnscoped === true`. Default: **fail-closed**
+ *    (drop) — the safe behavior, not a silent fail-open.
+ * 3. Explicit `sessionAffinity.sessionId` match. If the sender stamped a
+ *    session id and it does not match the recipient's current session id,
+ *    drop immediately. The sender claimed a different session; honoring it
+ *    would re-open the cross-session leak. This drop happens even when
+ *    `allowUnscoped` is set — a wrong session is misconfiguration, not a
+ *    legacy case.
+ * 4. Persisted-report fallback. If the token lacks a `sessionId` but carries
+ *    a `reportId`, await `ctx.resolveChimeraReportSessionId(reportId)` and
+ *    accept if the persisted `ReviewReport.sessionId` matches. Accepts
+ *    sync or async resolvers.
+ * 5. `allowUnscoped` opt-in. If the previous steps did not accept and
+ *    `ctx.allowUnscoped === true`, accept (legacy / one-shot tool
+ *    compatibility).
+ * 6. Otherwise drop (`false`).
+ *
+ * Trust note: the filter accepts the sender-asserted `sessionAffinity.sessionId`
+ * without store cross-check (rule 3). The persisted-report fallback (rule 4)
+ * is the only server-side check. A sender that fabricates both an affinity
+ * token and a persisted report could impersonate another session — guard
+ * chimera's send path so only the actual originating session can stamp the
+ * token, and do not relax rule 3.
+ *
+ * The helper is side-effect-free except for awaiting the optional resolver.
+ * It lives next to {@link isMailboxMessageVisibleTo} so mailbox consumers
+ * can compose both filters without taking a dependency on the persistence
+ * layer.
+ */
+export async function acceptMailboxMessageForSession(
+  message: Pick<MailboxMessage, 'type' | 'sessionAffinity'>,
+  currentSessionId: string | undefined,
+  ctx?: MailboxSessionAffinityContext,
+): Promise<boolean> {
+  if (!isAffectedBySessionAffinity(message)) return true;
+  // After the affected-by check passes, an affinity token is guaranteed
+  // present. Narrow the type for the rest of the rule.
+  const affinity = message.sessionAffinity!;
+  // Guard against malformed persisted shapes (null, array, primitive)
+  // that bypass the codec on the SQLite read path. Fail closed.
+  if (affinity === null || typeof affinity !== 'object' || Array.isArray(affinity)) {
+    return ctx?.allowUnscoped === true ? true : false;
+  }
+  if (!currentSessionId) {
+    // No session id known — fall back to the legacy opt-in flag rather than
+    // a silent fail-open, so the safe behavior is the default.
+    return ctx?.allowUnscoped === true;
+  }
+  // An explicit mismatching sessionId ALWAYS drops — even if `allowUnscoped`
+  // is true. A sender that stamps the wrong session is misconfigured, not
+  // a legacy case.
+  if (typeof affinity.sessionId === 'string' && affinity.sessionId.length > 0) {
+    if (affinity.sessionId !== currentSessionId) return false;
+    return true;
+  }
+  // Token present (per step 1) but no explicit sessionId — fall back to the
+  // persisted review-report store.
+  //
+  // The resolver may be async and may reject (e.g. the JSONL store may be
+  // mid-compaction, locked, or the report id may belong to a different
+  // project). Rejection MUST NOT propagate out of the inbox poll — that
+  // would abort every leader iteration.
+  //
+  // If the resolver returns a non-matching sessionId, that is a
+  // NON-OVERRIDABLE mismatch — the report belongs to a different session.
+  // allowUnscoped must NOT override it (same contract as explicit
+  // affinity.sessionId mismatch above).
+  //
+  // If the resolver returns undefined (unknown report) or throws, the
+  // identity is genuinely unresolved. allowUnscoped MAY override that
+  // (legacy compatibility) because no mismatch was established.
+  if (affinity.reportId && ctx?.resolveChimeraReportSessionId) {
+    try {
+      const resolved = await ctx.resolveChimeraReportSessionId(affinity.reportId);
+      if (resolved === currentSessionId) return true;
+      if (resolved !== undefined) return false; // resolved-mismatch: non-overridable
+    } catch {
+      // Resolver failure: fall through to allowUnscoped (genuinely unresolved).
+    }
+  }
+  if (ctx?.allowUnscoped === true) return true;
+  return false;
+}
+
+/**
+ * Synchronous wrapper for callers that cannot await the resolver
+ * (e.g. legacy event handlers). If `ctx.resolveChimeraReportSessionId` is
+ * async, it is called without awaiting and the result is ignored — the
+ * rule degrades to "match affinity.sessionId, otherwise drop unless
+ * allowUnscoped".
+ *
+ * Prefer {@link acceptMailboxMessageForSession} whenever the caller can
+ * await.
+ */
+export function acceptMailboxMessageForSessionSync(
+  message: Pick<MailboxMessage, 'type' | 'sessionAffinity'>,
+  currentSessionId: string | undefined,
+  ctx?: MailboxSessionAffinityContext,
+): boolean {
+  if (!isAffectedBySessionAffinity(message)) return true;
+  const affinity = message.sessionAffinity!;
+  // Guard against malformed persisted shapes (null, array, primitive).
+  if (affinity === null || typeof affinity !== 'object' || Array.isArray(affinity)) {
+    return ctx?.allowUnscoped === true ? true : false;
+  }
+  if (!currentSessionId) {
+    return ctx?.allowUnscoped === true;
+  }
+  if (typeof affinity.sessionId === 'string' && affinity.sessionId.length > 0) {
+    if (affinity.sessionId !== currentSessionId) return false;
+    return true;
+  }
+  // Best-effort sync lookup: invoke without awaiting. If the resolver
+  // returns a Promise (async resolver), it cannot be awaited in a sync
+  // call site — but the rejection MUST be contained so an unhandled
+  // rejection does not crash the inbox poll. We attach a rejection handler
+  // and treat the result as `undefined` (the sync helper cannot use it).
+  // The async helper covers the full contract for callers that can await.
+  if (affinity.reportId && ctx?.resolveChimeraReportSessionId) {
+    try {
+      const rawResult = ctx.resolveChimeraReportSessionId(affinity.reportId) as
+        | string
+        | undefined
+        | Promise<string | undefined>;
+      const syncResult = maybeSyncResolveChimeraReportSessionId(rawResult);
+      if (syncResult === currentSessionId) return true;
+      if (syncResult !== undefined) return false; // resolved-mismatch: non-overridable
+    } catch {
+      // Synchronous resolver failures treated as unresolved — fall through to allowUnscoped.
+    }
+  }
+  if (ctx?.allowUnscoped === true) return true;
+  return false;
 }
 
 /** Category + expectsReply are provided by MAILBOX_TYPE_PROPERTIES directly. */
@@ -246,6 +495,13 @@ export interface MailboxMessage {
   taskContext?: MailboxTaskContext | undefined;
   /** Session id of the sender. Enables cross-session communication. */
   senderSessionId?: string | undefined;
+  /**
+   * Session-affinity token persisted on the message. When set, the
+   * recipient's leader filter uses it to drop the message if the
+   * recipient's current session id does not match. See
+   * {@link MailboxSessionAffinity} for the contract.
+   */
+  sessionAffinity?: MailboxSessionAffinity | undefined;
   /**
    * ISO8601 — when the message expires. Set at send time from `ttlMs`
    * (default: 24h via AUTO_COMPACT_DEFAULT_TTL_MS). The auto-compaction
@@ -433,11 +689,70 @@ export interface MailboxSendInput {
   /** Sender session id. Required when `to` is the `"@session"` alias. */
   senderSessionId?: string | undefined;
   /**
+   * Session-affinity token. When set, the recipient's mailbox filter uses it
+   * to drop the message if the recipient's current session id does not match.
+   *
+   * Why two fields instead of one: a chimera report is generated by a reviewer
+   * subagent that runs inside the originating session (so `senderSessionId`
+   * is correct), but a mailbox envelope may also be relayed by an outer
+   * pipeline (auto-review cascade, broadcast wrapper) where the recipient
+   * needs to know which session the report *belongs to*, not who *physically
+   * called send()*. `sessionId` carries the originating session;
+   * `reportId` carries the chimera report id so the leader's filter
+   * can also look the report up in the persisted review-report store.
+   *
+   * A session-affinity token is **required** for any `chimera.*` review
+   * delivery wrapper — this is the trust boundary that prevents a leader
+   * from acting on reports emitted by another session, even when those
+   * reports land in its mailbox.
+   */
+  sessionAffinity?: MailboxSessionAffinity | undefined;
+  /**
    * Time-to-live in milliseconds. When set, the message's `expiresAt` is
    * computed as `now + ttlMs` at send time. The auto-compaction sweep
    * removes expired messages. Default: none (use compaction sweep default).
    */
   ttlMs?: number | undefined;
+}
+
+/**
+ * Session-affinity token carried on a mailbox message.
+ *
+ * The token is the *only* signal a recipient's leader filter uses to decide
+ * whether a chimera report belongs to the recipient's own session. Without
+ * it, any leader that polls the project-wide mailbox would see — and feel
+ * compelled to act on — chimera reports emitted by every other session in
+ * the project.
+ */
+export type MailboxSessionAffinity =
+  | MailboxScopedSessionAffinity
+  | MailboxLegacyReportSessionAffinity;
+
+export interface MailboxScopedSessionAffinity {
+  /**
+   * The originating session id. The recipient's leader filter compares this
+   * against its own current session id and drops the message on mismatch.
+   */
+  sessionId: string;
+  /**
+   * Originating chimera report id (UUID). Used as a secondary lookup only
+   * when the message is a legacy report token without `sessionId`.
+   */
+  reportId?: string | undefined;
+  /** Free-form tag for filtering / metrics, e.g. `'chimera.review'`. */
+  kind?: string | undefined;
+}
+
+export interface MailboxLegacyReportSessionAffinity {
+  /**
+   * Legacy report-only tokens deliberately omit `sessionId`; any present
+   * session id is authoritative and must be checked before report lookup.
+   */
+  sessionId?: undefined;
+  /** Originating chimera report id (UUID) used for persisted-session lookup. */
+  reportId: string;
+  /** Free-form tag for filtering / metrics, e.g. `'chimera.review'`. */
+  kind?: string | undefined;
 }
 
 /**

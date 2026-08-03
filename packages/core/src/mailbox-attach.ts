@@ -28,9 +28,14 @@ import {
 } from './coordination/mailbox-constants.js';
 import { mailboxSessionTag, resolveMailboxIdentity } from './coordination/mailbox-tool.js';
 import type { Mailbox, MailboxMessage } from './coordination/mailbox-types.js';
-import { MAILBOX_TYPE_PROPERTIES } from './coordination/mailbox-types.js';
+import {
+  acceptMailboxMessageForSession,
+  MAILBOX_TYPE_PROPERTIES,
+  type MailboxSessionAffinityContext,
+} from './coordination/mailbox-types.js';
 import type { FleetConfig } from './types/config.js';
 import type { AgentInternals } from './core/agent-internals.js';
+import { JsonlReportStore } from './plugins/review-report-store.js';
 import { buildMailboxBtwAwarenessBlock, createMailboxChecker } from './core/mailbox-loop.js';
 import { setBtwNote } from './core/btw.js';
 import { buildFleetPulseBlock, fleetPulseSignature } from './core/fleet-pulse.js';
@@ -155,8 +160,85 @@ function attachMailboxCheckerInner(
     role: () => resolveMailboxIdentity(a.ctx).role,
     aliases: [baseIdOf()],
     sessionId: () => a.ctx.session.id,
+    // ACK is deferred to the session-affinity wrapper so messages dropped
+    // by the filter are NOT marked as read by this agent.
+    ack: false as const,
   };
   const checkMailbox = createMailboxChecker(mailboxCheckerOptions);
+
+  // Session-affinity filter: wrap the checker so cross-session chimera
+  // reports (those carrying a `sessionAffinity` token) are dropped at the
+  // receiver for any leader whose current session id does NOT match the
+  // message's `sessionAffinity.sessionId`. The wrapper composes with the
+  // existing audience filter (`isMailboxMessageVisibleTo`) — a message
+  // must pass BOTH filters to reach the agent-loop inbox.
+  //
+  // Re-derive `currentSessionId` on every call so that an in-process
+  // session swap (resume / session.new / project switch) is honored
+  // without recreating the checker.
+  //
+  // ACK ORDERING: the inner checker is created with `ack: false` so the
+  // session-affinity filter runs BEFORE any read receipts are stamped.
+  // Only messages that survive the filter are acked, by the wrapper,
+  // in a single batched call — preserving both the batching optimization
+  // and the invariant that a message is never marked "read by agent X"
+  // when agent X actually dropped it.
+  const reportStore = new JsonlReportStore(
+    resolveProjectDir(a.ctx.projectRoot, wstackGlobalRoot()),
+  );
+  const sessionAffinityCtx: MailboxSessionAffinityContext = {
+    resolveChimeraReportSessionId: async (reportId) =>
+      (await reportStore.get(reportId))?.sessionId,
+  };
+  /**
+   * Filter messages by session affinity. Shared by inline and awareness
+   * checkers. The `ack` parameter controls whether the wrapper batch-acks
+   * accepted messages:
+   *   - inline checker: ack=true (messages are delivered to the agent loop)
+   *   - awareness checker: ack=false (preview only; actionable messages
+   *     must stay unread so the inline checker can still deliver them)
+   */
+  const applySessionAffinityFilter = (
+    checker: () => Promise<MailboxMessage[]>,
+    ack: boolean,
+  ): (() => Promise<MailboxMessage[]>) => {
+    return async (): Promise<MailboxMessage[]> => {
+      const currentSessionId = a.ctx.session.id;
+      // Capture `agentId` BEFORE the filter loop so the ack call uses the
+      // same identity that read the messages. Under an in-process session
+      // swap, `ensureRegistered()` can return `null` (the swap left the
+      // mailbox identity in an unregistered intermediate state); a null
+      // `agentId` would crash the downstream `ackMany` call and abort the
+      // entire inbox poll. Guard with a null check — if registration
+      // failed, skip the ack and leave the messages unread so the next
+      // poll (after registration recovers) can surface them.
+      const agentId = ack ? ensureRegistered() : null;
+      const messages = await checker();
+      const filtered: MailboxMessage[] = [];
+      for (const m of messages) {
+        if (await acceptMailboxMessageForSession(m, currentSessionId, sessionAffinityCtx)) {
+          filtered.push(m);
+        }
+      }
+      // Batch-ack only when requested (inline delivery). Awareness must
+      // NOT ack — otherwise actionable messages are consumed before the
+      // inline checker can deliver them.
+      if (ack && filtered.length > 0 && agentId) {
+        void getMailbox()
+          .ackMany({
+            acks: filtered.map((m) => ({
+              messageId: m.id,
+              readerId: agentId,
+              read: true,
+            })),
+          })
+          .catch(() => {});
+      }
+      return filtered;
+    };
+  };
+  const sessionScopedCheckMailbox = applySessionAffinityFilter(checkMailbox, true);
+
   const checkMailboxAwareness = createMailboxChecker({
     ...mailboxCheckerOptions,
     // Exclude out-of-band types (control) from awareness polling.
@@ -166,6 +248,7 @@ function attachMailboxCheckerInner(
     include: (m) => !MAILBOX_TYPE_PROPERTIES[m.type]?.outOfBand,
     ack: false,
   });
+  const sessionScopedCheckMailboxAwareness = applySessionAffinityFilter(checkMailboxAwareness, false);
 
   // Background mailbox awareness: poll while tools or long provider calls are
   // in flight, but queue the result as a BTW note so the agent only consumes it
@@ -189,7 +272,7 @@ function attachMailboxCheckerInner(
     if (awarenessDisposed || pollInFlight) return;
     pollInFlight = true;
     try {
-      const messages = await checkMailboxAwareness();
+      const messages = await sessionScopedCheckMailboxAwareness();
       if (
         !awarenessDisposed &&
         messages.length > 0 &&
@@ -245,7 +328,7 @@ function attachMailboxCheckerInner(
   // (`mailbox-project-server.ts` → `startAutoCompactTimer`). Starting a
   // per-agent timer would have N sessions compacting the same store.
 
-  return checkMailbox;
+  return sessionScopedCheckMailbox;
 }
 
 /**

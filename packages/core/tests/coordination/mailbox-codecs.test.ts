@@ -183,6 +183,104 @@ describe('parseMailboxSendInput', () => {
       ),
     ).toThrow(MailboxValidationError);
   });
+
+  // ── sessionAffinity boundary rejection ──────────────────────────────
+  // sessionAffinity is intentionally NOT in SEND_ALLOWED_FIELDS — the
+  // strict allow-list rejects any payload containing it as an unknown key.
+  // Only trusted internal callers (chimera/auto-review pipelines) stamp
+  // the token via mailbox.send() directly.
+
+  it('rejects sessionAffinity at the untrusted boundary (forgery prevention)', () => {
+    expect(() =>
+      parseMailboxSendInput(
+        {
+          to: 'worker',
+          subject: 's',
+          body: 'b',
+          sessionAffinity: {
+            sessionId: 'sess-42',
+            reportId: 'rep-1',
+            kind: 'chimera.review',
+          },
+        },
+        actor(),
+      ),
+    ).toThrow(MailboxValidationError);
+  });
+
+  it('returns undefined sessionAffinity when omitted', () => {
+    const result = parseMailboxSendInput(
+      { to: 'worker', subject: 's', body: 'b' },
+      actor(),
+    );
+    expect(result.sessionAffinity).toBeUndefined();
+  });
+
+  it('rejects a legacy reportId-only sessionAffinity at the boundary', () => {
+    expect(() =>
+      parseMailboxSendInput(
+        {
+          to: 'worker',
+          subject: 's',
+          body: 'b',
+          sessionAffinity: { reportId: 'rep-9' },
+        },
+        actor(),
+      ),
+    ).toThrow(MailboxValidationError);
+  });
+
+  it('rejects a non-object sessionAffinity', () => {
+    expect(() =>
+      parseMailboxSendInput(
+        { to: 'worker', subject: 's', body: 'b', sessionAffinity: 'nope' },
+        actor(),
+      ),
+    ).toThrow(MailboxValidationError);
+  });
+
+  it('rejects sessionAffinity with neither sessionId nor reportId', () => {
+    expect(() =>
+      parseMailboxSendInput(
+        {
+          to: 'worker',
+          subject: 's',
+          body: 'b',
+          sessionAffinity: { kind: 'unknown' },
+        },
+        actor(),
+      ),
+    ).toThrow(MailboxValidationError);
+  });
+
+  it('rejects sessionAffinity.sessionId exceeding 64 chars', () => {
+    const longId = 'x'.repeat(65);
+    expect(() =>
+      parseMailboxSendInput(
+        {
+          to: 'worker',
+          subject: 's',
+          body: 'b',
+          sessionAffinity: { sessionId: longId },
+        },
+        actor(),
+      ),
+    ).toThrow(MailboxValidationError);
+  });
+
+  it('rejects sessionAffinity fields with disallowed characters', () => {
+    expect(() =>
+      parseMailboxSendInput(
+        {
+          to: 'worker',
+          subject: 's',
+          body: 'b',
+          sessionAffinity: { sessionId: 'has spaces' },
+        },
+        actor(),
+      ),
+    ).toThrow(MailboxValidationError);
+  });
 });
 
 // ── Query codec ──────────────────────────────────────────────────────

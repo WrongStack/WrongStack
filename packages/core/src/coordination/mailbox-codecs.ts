@@ -24,6 +24,7 @@ import {
   type MailboxAudience,
   type MailboxMessageType,
   type MailboxQuery,
+  type MailboxSessionAffinity,
 } from './mailbox-types.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import type { MailboxActorContext, MailboxCapability } from './mailbox-types.js';
@@ -51,6 +52,14 @@ export class MailboxValidationError extends Error {
 const SEND_ALLOWED_FIELDS = new Set<string>([
   'to', 'subject', 'body', 'type', 'priority', 'audience', 'replyTo',
   'senderSessionId', 'ttlMs', 'taskContext',
+  // 'sessionAffinity' is NOT in the allow-list. The trust-line contract:
+  // session-affinity tokens are stamped ONLY by trusted internal callers
+  // (chimera/auto-review pipelines) that call `mailbox.send()` directly
+  // and never go through this boundary codec. Allowing the field at the
+  // boundary would let any actor with `mail.send.informational` stamp
+  // another session's id and bypass the receiver-side filter. The
+  // receiver trusts the sender-asserted `sessionId`; the boundary must
+  // refuse the field entirely.
 ]);
 
 /** Fields allowed in an ack mutation payload. */
@@ -84,6 +93,14 @@ export interface ParsedSendInput {
   priority: 'low' | 'normal' | 'high';
   audience: MailboxAudience;
   replyTo: string | undefined;
+  /**
+   * Session-affinity token. When set, the recipient's leader filter
+   * (`acceptMailboxMessageForSession` in `mailbox-types.ts`) uses it to
+   * drop the message if the recipient's current session id does not match
+   * the originating session. A sender-asserted mismatch is rejected; a
+   * missing or malformed token is treated as no token.
+   */
+  sessionAffinity?: MailboxSessionAffinity;
 }
 
 /**
@@ -149,7 +166,93 @@ export function parseMailboxSendInput(
   // Validate replyTo.
   const replyTo = optionalString(payload, 'replyTo', 'send');
 
-  return { to, type: typeResult.type, subject, body, priority, audience, replyTo };
+  return {
+    to,
+    type: typeResult.type,
+    subject,
+    body,
+    priority,
+    audience,
+    replyTo,
+  };
+}
+
+/**
+ * Parse the optional `sessionAffinity` token on a send payload. A missing
+ * token returns `undefined`; a malformed token throws.
+ *
+ * Note: `sessionAffinity` is intentionally NOT in `SEND_ALLOWED_FIELDS`
+ * for untrusted boundary callers — the strict allow-list rejects it.
+ * Only trusted internal callers (chimera/auto-review pipelines) stamp the
+ * token by calling `mailbox.send()` directly. This parser exists for
+ * internal code paths that validate the token shape before stamping it.
+ */
+function optionalSessionAffinity(
+  value: unknown,
+  op: string,
+): MailboxSessionAffinity | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      'sessionAffinity',
+      `field "sessionAffinity" must be an object in ${op}`,
+    );
+  }
+  const obj = value as Record<string, unknown>;
+  const sessionId = obj['sessionId'];
+  const reportId = obj['reportId'];
+  const kind = obj['kind'];
+
+  const validateField = (field: string, raw: unknown): string | undefined => {
+    if (raw === undefined) return undefined;
+    if (typeof raw !== 'string' || raw.length === 0) {
+      throw new MailboxValidationError(
+        'VALIDATION_ERROR',
+        `sessionAffinity.${field}`,
+        `field "sessionAffinity.${field}" must be a non-empty string in ${op}`,
+      );
+    }
+    if (raw.length > SESSION_AFFINITY_MAX_FIELD_LENGTH) {
+      throw new MailboxValidationError(
+        'VALIDATION_ERROR',
+        `sessionAffinity.${field}`,
+        `field "sessionAffinity.${field}" exceeds ${SESSION_AFFINITY_MAX_FIELD_LENGTH} chars in ${op}`,
+      );
+    }
+    // Allowlist: printable ASCII (no control chars, no whitespace, no unicode tricks).
+    if (!/^[A-Za-z0-9._:@/\-]+$/.test(raw)) {
+      throw new MailboxValidationError(
+        'VALIDATION_ERROR',
+        `sessionAffinity.${field}`,
+        `field "sessionAffinity.${field}" contains disallowed characters in ${op}`,
+      );
+    }
+    return raw;
+  };
+
+  const vSessionId = validateField('sessionId', sessionId);
+  const vReportId = validateField('reportId', reportId);
+  const vKind = validateField('kind', kind);
+
+  if (vSessionId !== undefined) {
+    return {
+      sessionId: vSessionId,
+      ...(vReportId !== undefined ? { reportId: vReportId } : {}),
+      ...(vKind !== undefined ? { kind: vKind } : {}),
+    };
+  }
+  if (vReportId !== undefined) {
+    return {
+      reportId: vReportId,
+      ...(vKind !== undefined ? { kind: vKind } : {}),
+    };
+  }
+  throw new MailboxValidationError(
+    'VALIDATION_ERROR',
+    'sessionAffinity',
+    `field "sessionAffinity" must include either "sessionId" or "reportId" in ${op}`,
+  );
 }
 
 // ── Query codec ──────────────────────────────────────────────────────
@@ -160,7 +263,7 @@ export function parseMailboxSendInput(
  * Queries tolerate unknown fields (forward compatibility for read-only clients).
  * Actor-derived recipient forms are NOT overridden by body-supplied `readerRole`.
  *
- * @throws {MailboxValidationError} on validation failure.
+ * @throws {MailboxValidationError} on any validation failure.
  */
 export function parseMailboxQueryInput(
   payload: Record<string, unknown>,
@@ -208,8 +311,6 @@ export function parseMailboxQueryInput(
 
   return query;
 }
-
-// ── Ack codec ────────────────────────────────────────────────────────
 
 /**
  * Parse and validate an ack (mark-read / acknowledge / reopen) payload.

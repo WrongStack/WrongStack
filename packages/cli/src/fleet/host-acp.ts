@@ -1,5 +1,6 @@
 import {
   ACP_AGENT_COMMANDS,
+  defaultPermissionPolicy,
   findAgentDescriptor,
   makeACPSubagentRunner,
 } from '@wrongstack/acp';
@@ -28,5 +29,9 @@ export function buildAcpSubagentRunner(subagentId: string): Promise<SubagentRunn
       context: { requested: subagentId },
     });
   }
-  return makeACPSubagentRunner({ ...cmd });
+  // CLI /spawn and Director fan-out are trusted local agents (see
+  // host-acp-runner-cache.ts) — pass the auto-approve policy explicitly.
+  // Without it ACPSession falls back to readOnlyPermissionPolicy and
+  // denies every file write / command the subagent requests.
+  return makeACPSubagentRunner({ ...cmd, permissionPolicy: defaultPermissionPolicy });
 }
