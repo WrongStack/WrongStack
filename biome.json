@@ -62,7 +62,8 @@
         "useAriaPropsForRole": "warn",
         "useButtonType": "warn",
         "noSvgWithoutTitle": "warn",
-        "useValidAriaRole": "warn"
+        "useValidAriaRole": "warn",
+        "noAutofocus": "warn"
       }
     }
   },

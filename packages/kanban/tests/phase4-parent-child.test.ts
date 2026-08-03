@@ -133,7 +133,7 @@ async function fillChildDetailsAndAdvanceToTodo(boardId: string, childId: string
 
 describe('Phase 4: parent/child atomic gate', () => {
   it('blocks parent Done when children are not completed', async () => {
-    const { boardId, parentId, childIds } = await makeSplitParent();
+    const { boardId, parentId } = await makeSplitParent();
 
     // Advance parent to todo, then running → review.
     await transitionTask(tmpDir, boardId, parentId, { to: 'todo', actor: 'a', comment: 'c' });
@@ -157,7 +157,7 @@ describe('Phase 4: parent/child atomic gate', () => {
   });
 
   it('allows parent Done after all children are completed', async () => {
-    const { boardId, parentId, childIds } = await makeSplitParent();
+    const { boardId, parentId } = await makeSplitParent();
 
     // Fill children and complete them first.
     for (const childId of childIds) {

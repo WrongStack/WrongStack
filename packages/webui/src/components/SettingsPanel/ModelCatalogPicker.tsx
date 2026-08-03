@@ -8,7 +8,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import type { WrongStackWebSocketClient } from '../../lib/ws-client';
 import type { WSServerMessage } from '../../types';
-import { Button } from '../ui/button';
 
 export interface CatalogMatch {
   providerId: string;

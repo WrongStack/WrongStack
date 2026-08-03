@@ -347,7 +347,7 @@ export async function handleProviderRoute(
       if (!isRecord(customModelRaw)) return invalidPayload(ws, msg.type);
       // Reuse optionalCustomModels by wrapping in the expected shape.
       const cm = optionalCustomModels({ customModels: { [modelId]: customModelRaw } });
-      if (!cm || !cm[modelId]) return invalidPayload(ws, msg.type);
+      if (!cm?.[modelId]) return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleCustomModelSet(ws, providerId, modelId, cm[modelId]!);
       return true;
     }
