@@ -288,13 +288,17 @@ function validateProductCatalog() {
   // HOST_PLUGIN_AUDIT_ENTRIES and the plugins package owns
   // OFFICIAL_PLUGIN_AUDIT_ENTRIES; PLUGIN_AUDIT_ENTRIES is now just the frozen
   // concat of both, so parse the two source lists directly.
-  const pluginManagementSource = fs.readFileSync(
-    path.join(repoRoot, 'packages/cli/src/plugin-management.ts'),
+  // HOST_PLUGIN_AUDIT_ENTRIES lives in the plugin-audit-catalog package and
+  // OFFICIAL_PLUGIN_AUDIT_ENTRIES lives in the plugins audit index.
+  // PLUGIN_AUDIT_ENTRIES is the frozen concat of both, so parse the two
+  // source lists directly.
+  const pluginCatalogSource = fs.readFileSync(
+    path.join(repoRoot, 'packages/plugins/src/plugin-audit-catalog/index.ts'),
     'utf8',
   );
   const hostPluginBlock = sourceSection(
-    pluginManagementSource,
-    'const HOST_PLUGIN_AUDIT_ENTRIES',
+    pluginCatalogSource,
+    'export const HOST_PLUGIN_AUDIT_ENTRIES',
     '\n] as const;',
   );
   const officialAuditSource = fs.readFileSync(
