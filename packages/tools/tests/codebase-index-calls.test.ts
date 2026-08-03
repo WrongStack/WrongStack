@@ -26,21 +26,23 @@ process.env['WRONGSTACK_INDEX_INLINE'] = '1';
 function mkCtx(root: string): Context {
   const messages: Context['messages'] = [];
   const todos: Context['todos'] = [];
+  const readFiles = new Set<string>();
+  const fileMtimes = new Map<string, number>();
   return {
     cwd: root,
     projectRoot: root,
     meta: { codebaseIndexDir: path.join(root, '.codebase-index') },
-    readFiles: new Set<string>(),
-    fileMtimes: new Map<string, number>(),
+    readFiles,
+    fileMtimes,
     hasRead(p: string) {
-      return this.readFiles.has(p);
+      return readFiles.has(p);
     },
     lastReadMtime(p: string) {
-      return this.fileMtimes.get(p);
+      return fileMtimes.get(p);
     },
     recordRead(p: string, m: number) {
-      this.readFiles.add(p);
-      this.fileMtimes.set(p, m);
+      readFiles.add(p);
+      fileMtimes.set(p, m);
     },
     todos,
     session: {
@@ -88,7 +90,11 @@ describe('codebase-incoming-calls tool', () => {
     );
     await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
 
-    const result = await codebaseIncomingCallsTool.execute({ symbol: 'greet' }, ctx);
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'greet' },
+      ctx,
+      { signal: newSignal() },
+    );
 
     expect(result.total).toBeGreaterThanOrEqual(2);
     // Every call site should reference 'greet' in its metadata
@@ -106,7 +112,11 @@ describe('codebase-incoming-calls tool', () => {
     );
     await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
 
-    const result = await codebaseIncomingCallsTool.execute({ symbol: 'orphanFunc' }, ctx);
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'orphanFunc' },
+      ctx,
+      { signal: newSignal() },
+    );
 
     expect(result.total).toBe(0);
     expect(result.calls).toEqual([]);
@@ -119,6 +129,7 @@ describe('codebase-incoming-calls tool', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'doesNotExist' },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBe(0);
@@ -142,6 +153,7 @@ describe('codebase-incoming-calls tool', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'popularFunc', limit: 1 },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.calls.length).toBeLessThanOrEqual(1);
@@ -166,6 +178,7 @@ describe('codebase-incoming-calls tool', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'sharedName', file: path.join(tmpDir, 'a.ts') },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBeGreaterThanOrEqual(1);
@@ -193,6 +206,7 @@ describe('codebase-incoming-calls tool', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'sharedName', file: path.join(tmpDir, 'b.ts') },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBeGreaterThanOrEqual(1);
@@ -230,6 +244,7 @@ describe('codebase-outgoing-calls tool', () => {
     const result = await codebaseOutgoingCallsTool.execute(
       { symbol: 'orchestrator' },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBeGreaterThanOrEqual(2);
@@ -248,6 +263,7 @@ describe('codebase-outgoing-calls tool', () => {
     const result = await codebaseOutgoingCallsTool.execute(
       { symbol: 'leafFunc' },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBe(0);
@@ -261,6 +277,7 @@ describe('codebase-outgoing-calls tool', () => {
     const result = await codebaseOutgoingCallsTool.execute(
       { symbol: 'nonExistent' },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBe(0);
@@ -280,6 +297,7 @@ describe('codebase-outgoing-calls tool', () => {
     const result = await codebaseOutgoingCallsTool.execute(
       { symbol: 'source', limit: 2 },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.calls.length).toBeLessThanOrEqual(2);
@@ -307,7 +325,7 @@ describe('chunked query (900+ matching symbol IDs)', () => {
     // Create 950 files each defining `target()`, plus one file that calls it.
     // This produces 950 symbol IDs for `target`, which exceeds MAX_SQL_VARS=900
     // and forces chunkedIdQuery to split across two chunks.
-    const callers = Array.from({ length: 950 }, (_, i) =>
+    const callers = Array.from({ length: 950 }, () =>
       `export function target(): void { }`,
     );
     for (let i = 0; i < callers.length; i++) {
@@ -319,7 +337,11 @@ describe('chunked query (900+ matching symbol IDs)', () => {
     );
     await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
 
-    const result = await codebaseIncomingCallsTool.execute({ symbol: 'target' }, ctx);
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'target' },
+      ctx,
+      { signal: newSignal() },
+    );
 
     // Should find at least the one caller despite 950 symbol IDs
     expect(result.total).toBeGreaterThanOrEqual(1);
@@ -342,7 +364,11 @@ describe('chunked query (900+ matching symbol IDs)', () => {
     }
     await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
 
-    const result = await codebaseOutgoingCallsTool.execute({ symbol: 'hub' }, ctx);
+    const result = await codebaseOutgoingCallsTool.execute(
+      { symbol: 'hub' },
+      ctx,
+      { signal: newSignal() },
+    );
 
     // Should find the dep() callee despite 950 source IDs
     expect(result.total).toBeGreaterThanOrEqual(1);
@@ -385,6 +411,7 @@ describe('ambiguous flag', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'dupName', file: path.join(tmpDir, 'b.ts') },
       ctx,
+      { signal: newSignal() },
     );
 
     // Results should include callers (via name-level fallback)
@@ -408,6 +435,7 @@ describe('ambiguous flag', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'uniqName', file: path.join(tmpDir, 'uniq.ts') },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBeGreaterThanOrEqual(1);
@@ -433,6 +461,7 @@ describe('ambiguous flag', () => {
     const result = await codebaseIncomingCallsTool.execute(
       { symbol: 'multiName' },
       ctx,
+      { signal: newSignal() },
     );
 
     expect(result.total).toBeGreaterThanOrEqual(1);

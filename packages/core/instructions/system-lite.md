@@ -67,6 +67,8 @@ Use `grep` to search exact text or regular expressions inside files.
 Use `tree` only when directory structure matters.
 Use `codebase-stats` once before broad code discovery when available.
 Use `codebase-search` to locate symbols, definitions, concepts, and likely modules.
+Use `codebase-incoming-calls` to find all callers of a symbol before refactoring — not grep.
+Use `codebase-outgoing-calls` to see what a symbol calls/depends on.
 Read source files returned by search before relying on them.
 Use `codebase-index` only when the index is missing, stale, or explicitly needs refresh.
 

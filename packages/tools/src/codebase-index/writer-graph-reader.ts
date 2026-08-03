@@ -122,9 +122,9 @@ export function findIncomingCallsByName(
   symbolName: string,
   file: string | undefined,
   limit: number,
-): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean } {
+): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
   const targetIds = resolveSymbolIds(stmt, symbolName, file);
-  if (targetIds.length === 0) return { calls: [], symbolFound: false, ambiguous: false };
+  if (targetIds.length === 0) return { calls: [], symbolFound: false, ambiguous: false, totalMatches: 0 };
 
   // Ref resolution (writer.ts `resolveRefs`) assigns `to_id` name-globally via
   // `MIN(id)` — it is not file-aware. When `file` scopes the query but other
@@ -197,19 +197,12 @@ export function findIncomingCallsByName(
   }
 
   // Global sort after merge — each chunk sorts independently, so the merged
-  // array is not globally ordered. Dedup by (sym_id, ref_line, call_type)
-  // to remove potential overlaps from the fallback merge, then sort for determinism.
-  const seen = new Set<string>();
-  const deduped = rows.filter((r) => {
-    const key = `${r.sym_id}:${r.ref_line}:${r.call_type}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  deduped.sort((a, b) => a.ref_line - b.ref_line || a.sym_id - b.sym_id);
+  // array is not globally ordered. The main query (to_id IN) and fallback
+  // (to_id IS NULL) are mutually exclusive, so no dedup is needed.
+  rows.sort((a, b) => a.ref_line - b.ref_line || a.sym_id - b.sym_id);
 
-  const calls = deduped.map(mapCallSiteRow).slice(0, limit);
-  return { calls, symbolFound: true, ambiguous };
+  const allCalls = rows.map(mapCallSiteRow);
+  return { calls: allCalls.slice(0, limit), symbolFound: true, ambiguous, totalMatches: allCalls.length };
 }
 
 /**
@@ -222,9 +215,9 @@ export function findOutgoingCallsByName(
   symbolName: string,
   file: string | undefined,
   limit: number,
-): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number } {
+): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
   const sourceIds = resolveSymbolIds(stmt, symbolName, file);
-  if (sourceIds.length === 0) return { calls: [], symbolFound: false, unresolvedCount: 0 };
+  if (sourceIds.length === 0) return { calls: [], symbolFound: false, unresolvedCount: 0, totalMatches: 0 };
 
   // Count refs that could not be resolved (to_id IS NULL) so callers know
   // dependencies were silently dropped.
@@ -265,7 +258,7 @@ export function findOutgoingCallsByName(
   rows.sort((a, b) => a.ref_line - b.ref_line || a.sym_id - b.sym_id);
 
   const calls = rows.map(mapCallSiteRow).slice(0, limit);
-  return { calls, symbolFound: true, unresolvedCount };
+  return { calls, symbolFound: true, unresolvedCount, totalMatches: rows.length };
 }
 
 export function findRefsToWithStatement(stmt: PrepareStatement, symbolId: number): Ref[] {

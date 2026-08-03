@@ -16,6 +16,7 @@
 
 import type { Tool } from '@wrongstack/core/types';
 import {
+  codebaseIndexStats,
   getIndexState,
   outgoingCallsService,
 } from './background-indexer.js';
@@ -86,7 +87,7 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     }
 
     const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 50), 200));
-    const { calls, symbolFound, unresolvedCount } = await outgoingCallsService(
+    const { calls, symbolFound, unresolvedCount, totalMatches } = await outgoingCallsService(
       {
         projectRoot: ctx.projectRoot,
         indexDir: codebaseIndexDirOverride(ctx),
@@ -97,6 +98,31 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     );
 
     if (!symbolFound) {
+      // Process-local readiness resets on launch while the SQLite index may
+      // never have been built. Probe persisted stats before blaming the symbol
+      // name — otherwise a cold, never-indexed project gets a misleading
+      // "not found in the index" note (mirrors codebase-search-tool.ts).
+      let hasPersistedIndex = state.ready;
+      if (!hasPersistedIndex) {
+        try {
+          const stats = await codebaseIndexStats({
+            projectRoot: ctx.projectRoot,
+            indexDir: codebaseIndexDirOverride(ctx),
+          });
+          hasPersistedIndex = stats.totalFiles > 0 || stats.lastIndexed !== null;
+        } catch {
+          // Keep the conservative missing-index hint rather than failing the
+          // whole tool because the stats probe failed.
+        }
+      }
+      if (!hasPersistedIndex) {
+        return {
+          symbol: input.symbol,
+          calls: [],
+          total: 0,
+          indexStatus: 'No persisted index data found. Run codebase-index to build it.',
+        };
+      }
       return {
         symbol: input.symbol,
         calls: [],
@@ -105,13 +131,19 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
       };
     }
 
+    const notes: string[] = [];
+    if (totalMatches > limit) {
+      notes.push(`Results capped at ${limit} of ${totalMatches} call sites. Increase \`limit\` or use \`file\` to narrow.`);
+    }
+    if (unresolvedCount > 0) {
+      notes.push(`${unresolvedCount} unresolved reference(s) not shown — their targets could not be resolved during indexing.`);
+    }
+
     return {
       symbol: input.symbol,
       calls,
       total: calls.length,
-      ...(unresolvedCount > 0
-        ? { note: `${unresolvedCount} unresolved reference(s) not shown — their targets could not be resolved during indexing.` }
-        : {}),
+      ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
     };
   },
 };

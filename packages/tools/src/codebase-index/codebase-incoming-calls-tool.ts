@@ -16,6 +16,7 @@
 
 import type { Tool } from '@wrongstack/core/types';
 import {
+  codebaseIndexStats,
   getIndexState,
   incomingCallsService,
 } from './background-indexer.js';
@@ -87,7 +88,7 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
     }
 
     const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 50), 200));
-    const { calls, symbolFound, ambiguous } = await incomingCallsService(
+    const { calls, symbolFound, ambiguous, totalMatches } = await incomingCallsService(
       {
         projectRoot: ctx.projectRoot,
         indexDir: codebaseIndexDirOverride(ctx),
@@ -98,6 +99,31 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
     );
 
     if (!symbolFound) {
+      // Process-local readiness resets on launch while the SQLite index may
+      // never have been built. Probe persisted stats before blaming the symbol
+      // name — otherwise a cold, never-indexed project gets a misleading
+      // "not found in the index" note (mirrors codebase-search-tool.ts).
+      let hasPersistedIndex = state.ready;
+      if (!hasPersistedIndex) {
+        try {
+          const stats = await codebaseIndexStats({
+            projectRoot: ctx.projectRoot,
+            indexDir: codebaseIndexDirOverride(ctx),
+          });
+          hasPersistedIndex = stats.totalFiles > 0 || stats.lastIndexed !== null;
+        } catch {
+          // Keep the conservative missing-index hint rather than failing the
+          // whole tool because the stats probe failed.
+        }
+      }
+      if (!hasPersistedIndex) {
+        return {
+          symbol: input.symbol,
+          calls: [],
+          total: 0,
+          indexStatus: 'No persisted index data found. Run codebase-index to build it.',
+        };
+      }
       return {
         symbol: input.symbol,
         calls: [],
@@ -106,13 +132,19 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
       };
     }
 
+    const notes: string[] = [];
+    if (totalMatches > limit) {
+      notes.push(`Results capped at ${limit} of ${totalMatches} call sites. Increase \`limit\` or use \`file\` to narrow.`);
+    }
+    if (ambiguous) {
+      notes.push(`Symbol "${input.symbol}" exists in multiple files. Results include callers of all same-named symbols. Use codebase-search to find the exact file and pass it as \`file\`.`);
+    }
+
     return {
       symbol: input.symbol,
       calls,
       total: calls.length,
-      ...(ambiguous
-        ? { note: `Symbol "${input.symbol}" exists in multiple files. Results include callers of all same-named symbols. Use codebase-search to find the exact file and pass it as \`file\`.` }
-        : {}),
+      ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
     };
   },
 };

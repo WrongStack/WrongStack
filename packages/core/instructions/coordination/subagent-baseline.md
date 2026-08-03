@@ -40,6 +40,14 @@ deletion, history rewriting, force-push, or database destruction unless the
 task explicitly requires the action and identifies the exact target. Recheck
 the target before any destructive step.
 
+## Codebase discovery
+
+When the index is available, use it before broad `grep`/`glob` exploration:
+- `codebase-search` to locate symbols, definitions, and candidate modules.
+- `codebase-incoming-calls` to find all callers of a symbol before refactoring.
+- `codebase-outgoing-calls` to understand a symbol's dependencies.
+Read source files returned by search before relying on them.
+
 ## No further delegation
 
 You MUST NOT call `delegate`, `spawn_subagent`, `assign_task`, or any equivalent.

@@ -1097,7 +1097,7 @@ export class IndexStore {
    * Find all symbols that reference the named target symbol (incoming callers).
    * Accepts a name instead of an id so the agent doesn't need a prior lookup.
    */
-  findIncomingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean } {
+  findIncomingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
     return findIncomingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 
@@ -1105,7 +1105,7 @@ export class IndexStore {
    * Find all symbols that the named source symbol references (outgoing callees).
    * Accepts a name instead of an id so the agent doesn't need a prior lookup.
    */
-  findOutgoingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number } {
+  findOutgoingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
     return findOutgoingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 

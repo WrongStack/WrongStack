@@ -111,6 +111,8 @@ export interface IncomingCallsResult {
   symbolFound: boolean;
   /** True when `file` was scoped but the name is ambiguous (other files define it too). */
   ambiguous: boolean;
+  /** Total matching call sites before the limit was applied. */
+  totalMatches: number;
 }
 
 /** Result of an outgoing calls query. */
@@ -119,6 +121,8 @@ export interface OutgoingCallsResult {
   symbolFound: boolean;
   /** Number of refs whose target could not be resolved (to_id IS NULL). */
   unresolvedCount: number;
+  /** Total matching call sites before the limit was applied. */
+  totalMatches: number;
 }
 
 /** Incoming call sites for a named symbol (who calls/uses this symbol?). */
