@@ -170,6 +170,8 @@ describe('kanban project server frame buffer guard', () => {
   it('destroys the connection when a chunk without newline exceeds MAX_FRAME_CHARS', async () => {
     tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-bufguard-'));
     const endpoint = kanbanProjectServerEndpoint(tempRoot);
+    // Ensure the socket directory exists (CI runners may restrict /tmp subdir creation).
+    await fs.mkdir(path.dirname(endpoint), { recursive: true }).catch(() => {});
     // The endpoint resolves to a system-level path outside tempRoot
     // (e.g. /tmp/wrongstack-kanban-v4-<hash>.sock). Track it so afterEach
     // can clean it up — the temp directory removal alone won't delete it.

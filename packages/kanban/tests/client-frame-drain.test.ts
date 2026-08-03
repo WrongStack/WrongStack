@@ -10,6 +10,7 @@ import { KANBAN_PROJECT_SERVER_PROTOCOL_VERSION } from '../src/server/protocol.j
 const roots: string[] = [];
 const servers: net.Server[] = [];
 const sockets: net.Socket[] = [];
+const sockEndpoints: string[] = [];
 
 afterEach(async () => {
   for (const socket of sockets.splice(0)) socket.destroy();
@@ -19,6 +20,10 @@ afterEach(async () => {
   for (const root of roots.splice(0)) {
     await fs.rm(root, { recursive: true, force: true });
   }
+  // Clean up the socket directory created outside the test temp root.
+  for (const endpoint of sockEndpoints.splice(0)) {
+    await fs.rm(path.dirname(endpoint), { recursive: true, force: true }).catch(() => {});
+  }
 });
 
 describe('Kanban IPC client frame draining', () => {
@@ -26,6 +31,9 @@ describe('Kanban IPC client frame draining', () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-frame-drain-'));
     roots.push(root);
     const endpoint = kanbanProjectServerEndpoint(root);
+    sockEndpoints.push(endpoint);
+    // Ensure the socket directory exists (CI runners may restrict /tmp subdir creation).
+    await fs.mkdir(path.dirname(endpoint), { recursive: true }).catch(() => {});
     const server = net.createServer((socket) => {
       sockets.push(socket);
       socket.setEncoding('utf8');
