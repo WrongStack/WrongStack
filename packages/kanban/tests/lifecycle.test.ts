@@ -611,7 +611,7 @@ describe('finite managed decomposition', () => {
       ...leafDetails(),
       atomic: true,
       childTaskIds: [child!.task.id],
-      successCriteria: [{ id: 'c1', description: 'All green', type: 'manual', status: 'passed' }],
+      successCriteria: [{ id: 'c1', description: 'All green', type: 'manual' as const, status: 'passed' as const }],
     });
     // Parent can progress to Todo (has children).
     await transitionTask(tmpDir, board.id, cardId, { to: 'todo', actor: 'agent-1', comment: 'Planned.' });
