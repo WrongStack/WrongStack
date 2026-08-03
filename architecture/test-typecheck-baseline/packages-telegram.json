@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "project": "packages/telegram",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "cf4bc1c65fd0e809": 1,

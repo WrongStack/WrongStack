@@ -7,7 +7,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { PanelSuspense } from './PanelSuspense';
 import { SettingsPanel } from './SettingsPanel';
 import { WorkspaceDock } from './WorkspaceDock';
-import { useChatStore, useUIStore } from '@/stores';
+import { useUIStore } from '@/stores';
 
 // Lazy-loaded views
 const AnalyticsDashboard = lazy(() =>

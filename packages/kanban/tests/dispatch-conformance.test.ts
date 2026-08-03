@@ -2,12 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { KanbanBoard } from '../src/types.js';
 import {
   addTask,
-  assignTask,
   cancelKanbanDispatch,
-  claimReadyTask,
   completeKanbanDispatch,
   createBoard,
   failKanbanDispatch,
@@ -16,8 +13,6 @@ import {
   reserveKanbanDispatch,
   startKanbanDispatch,
   transitionTask,
-  updateTask,
-  updateTaskAssignment,
 } from '../src/manager.js';
 
 // ---------------------------------------------------------------------------
@@ -419,7 +414,7 @@ describe('cross-surface dispatch conformance', () => {
 
       const beforeBoard = await getBoard(tmpDir, boardId);
       const beforeTask = beforeBoard!.tasks.find((t) => t.id === taskId)!;
-      const beforeExpiry = beforeTask.assignment?.leaseExpiresAt;
+      const _beforeExpiry = beforeTask.assignment?.leaseExpiresAt;
 
       // Wait a moment so the heartbeat timestamp changes.
       await new Promise((r) => setTimeout(r, 10));

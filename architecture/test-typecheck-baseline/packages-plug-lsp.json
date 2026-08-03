@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "project": "packages/plug-lsp",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "9035a2c4601181bb": 1,

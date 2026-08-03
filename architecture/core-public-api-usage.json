@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 113,
+      "files": 114,
       "typeOnly": 19,
-      "runtimeOrMixed": 96
+      "runtimeOrMixed": 97
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -6695,6 +6695,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/providers/src/error-parse.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/providers/src/openai-codex.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

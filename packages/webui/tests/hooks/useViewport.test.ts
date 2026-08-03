@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, expect, it, vi, afterEach } from 'vitest';
+import { renderHook, } from '@testing-library/react';
 import { useViewport, isMobileViewport, MOBILE_BREAKPOINT } from '../../src/hooks/useViewport';
 
 // Mock matchMedia
@@ -39,7 +39,7 @@ describe('useViewport', () => {
   });
 
   it('detects small when viewport ≤ 640px', () => {
-    let mobile = true;
+    const mobile = true;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: query.includes('640') ? mobile : false,
       media: query,

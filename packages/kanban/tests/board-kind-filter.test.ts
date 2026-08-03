@@ -7,11 +7,9 @@ import {
   createBoard,
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
-  listReadyTasks,
 } from '../src/manager.js';
 import {
   boardPassesKindFilter,
-  DEFAULT_EXCLUDED_KINDS,
   resolveKindFilter,
 } from '../src/manager/board-kind-filter.js';
 import type { KanbanBoard } from '../src/types.js';

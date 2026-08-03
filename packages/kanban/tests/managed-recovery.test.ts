@@ -2,17 +2,15 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
+import type { KanbanBoard, } from '../src/types.js';
 import {
   addTask,
   assignTask,
-  claimReadyTask,
   createBoard,
   getBoard,
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   transitionTask,
-  updateTask,
   updateTaskAssignment,
 } from '../src/manager.js';
 

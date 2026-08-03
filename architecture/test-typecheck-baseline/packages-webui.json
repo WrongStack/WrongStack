@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "project": "packages/webui",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "ae5f38942d6a2af3": 1,

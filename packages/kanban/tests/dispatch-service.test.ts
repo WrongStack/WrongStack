@@ -2,14 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
   addTask,
-  assignTask,
   createBoard,
-  getBoard,
   updateTask,
-  updateTaskAssignment,
 } from '../src/manager.js';
 import {
   cancelKanbanDispatch,
@@ -51,7 +47,7 @@ function managedLifecycle() {
   };
 }
 
-function nowIso(): string {
+function _nowIso(): string {
   return '2026-08-01T00:00:00.000Z';
 }
 

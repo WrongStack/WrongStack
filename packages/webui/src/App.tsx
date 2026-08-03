@@ -1,5 +1,5 @@
-import { Bot, Command, Cpu, Moon, Search, Settings, Sparkles, Sun, Wifi, WifiOff } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect } from 'react';
+
+import { lazy, Suspense, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useDesktopBridge } from '@/hooks/useDesktopBridge';
 import { useF5Resilience } from '@/hooks/useF5Resilience';
@@ -18,12 +18,9 @@ import {
 } from '@/stores';
 import { ActivityBar } from './components/activity-bar';
 import { useViewport } from '@/hooks/useViewport';
-import { navigateToView, openMainView, showPanel } from './components/activity-bar/nav';
-import { ChatView } from './components/ChatView';
+import { navigateToView, openMainView, } from './components/activity-bar/nav';
 import {
   WorkbenchTopbar,
-  useServerProcessMetrics,
-  type ServerProcessMetrics,
 } from './components/WorkbenchTopbar';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -31,61 +28,57 @@ import { ConfirmModalHost, PromptModalHost } from './components/ConfirmModal';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
 import { ContextBreakdownModal } from './components/ContextBreakdownModal';
-import { ContextDashboard } from './components/ContextDashboard';
-import { CronTrigger } from './components/CronTrigger';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { InspectorPanel, InspectorTrigger } from './components/InspectorPanel';
+import { InspectorPanel, } from './components/InspectorPanel';
 import { PromptLibraryModal } from './components/PromptLibraryModal';
 import { QuickModelSwitcher } from './components/QuickModelSwitcher';
-import { SettingsPanel } from './components/SettingsPanel';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { SidePanel } from './components/SidePanel';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { Toaster } from './components/Toaster';
-import { WorkspaceDock, WorkspaceDockInspector } from './components/WorkspaceDock';
-import { PanelSuspense } from './components/PanelSuspense';
+import { WorkspaceDockInspector } from './components/WorkspaceDock';
 import { ViewRouter } from './components/ViewRouter';
 
 // ── Lazy-loaded views ──────────────────────────────────────────────────────
 // These pull heavy libraries (Monaco ~4MB, @xyflow, xterm) or are themselves
 // large, and are gated behind specific `currentView` values. Code-splitting
 // them keeps the initial bundle small; the chunk is fetched on first open.
-const AnalyticsDashboard = lazy(() =>
+const _AnalyticsDashboard = lazy(() =>
   import('./components/AnalyticsDashboard').then((m) => ({ default: m.AnalyticsDashboard })),
 );
-const CodeMap = lazy(() => import('./components/CodeMap').then((m) => ({ default: m.CodeMap })));
-const ChronicleDashboard = lazy(() =>
+const _CodeMap = lazy(() => import('./components/CodeMap').then((m) => ({ default: m.CodeMap })));
+const _ChronicleDashboard = lazy(() =>
   import('./components/ChronicleDashboard').then((m) => ({ default: m.ChronicleDashboard })),
 );
-const GoalView = lazy(() => import('./components/GoalView').then((m) => ({ default: m.GoalView })));
-const ChangesView = lazy(() =>
+const _GoalView = lazy(() => import('./components/GoalView').then((m) => ({ default: m.GoalView })));
+const _ChangesView = lazy(() =>
   import('./components/ChangesView').then((m) => ({ default: m.ChangesView })),
 );
 const CronJobsPanel = lazy(() =>
   import('./components/CronJobsPanel').then((m) => ({ default: m.CronJobsPanel })),
 );
-const CodeEditor = lazy(() =>
+const _CodeEditor = lazy(() =>
   import('./components/CodeEditor').then((m) => ({ default: m.CodeEditor })),
 );
-const DebugDashboard = lazy(() =>
+const _DebugDashboard = lazy(() =>
   import('./components/DebugDashboard').then((m) => ({ default: m.DebugDashboard })),
 );
-const DesignGalleryView = lazy(() =>
+const _DesignGalleryView = lazy(() =>
   import('./components/DesignGalleryView').then((m) => ({ default: m.DesignGalleryView })),
 );
-const MailboxDetailView = lazy(() =>
+const _MailboxDetailView = lazy(() =>
   import('./components/MailboxDetailView').then((m) => ({ default: m.MailboxDetailView })),
 );
-const SageTabs = lazy(() =>
+const _SageTabs = lazy(() =>
   import('./components/MemoryManager/SageTabs').then((m) => ({ default: m.SageTabs })),
 );
-const AgentRosterView = lazy(() =>
+const _AgentRosterView = lazy(() =>
   import('./components/AgentRosterView').then((m) => ({ default: m.AgentRosterView })),
 );
-const KanbanView = lazy(() =>
+const _KanbanView = lazy(() =>
   import('./components/KanbanView').then((m) => ({ default: m.KanbanView })),
 );
-const OfficeMapPanel = lazy(() =>
+const _OfficeMapPanel = lazy(() =>
   import('./components/OfficeMapPanel').then((m) => ({ default: m.OfficeMapPanel })),
 );
 const ProcessMonitor = lazy(() =>
@@ -94,26 +87,26 @@ const ProcessMonitor = lazy(() =>
 const QueuePanel = lazy(() =>
   import('./components/QueuePanel').then((m) => ({ default: m.QueuePanel })),
 );
-const RefreshDebugView = lazy(() =>
+const _RefreshDebugView = lazy(() =>
   import('./components/RefreshDebugView').then((m) => ({ default: m.RefreshDebugView })),
 );
-const SddHub = lazy(() => import('./components/SddHub').then((m) => ({ default: m.SddHub })));
-const SessionsDashboard = lazy(() =>
+const _SddHub = lazy(() => import('./components/SddHub').then((m) => ({ default: m.SddHub })));
+const _SessionsDashboard = lazy(() =>
   import('./components/SessionsDashboard').then((m) => ({ default: m.SessionsDashboard })),
 );
-const SetupScreen = lazy(() =>
+const _SetupScreen = lazy(() =>
   import('./components/SetupScreen').then((m) => ({ default: m.SetupScreen })),
 );
-const SkillDetailView = lazy(() =>
+const _SkillDetailView = lazy(() =>
   import('./components/SkillDetailView').then((m) => ({ default: m.SkillDetailView })),
 );
 const _SpecsView = lazy(() =>
   import('./components/SpecsView').then((m) => ({ default: m.SpecsView })),
 );
-const TechStackView = lazy(() =>
+const _TechStackView = lazy(() =>
   import('./components/TechStackView').then((m) => ({ default: m.TechStackView })),
 );
-const TerminalPanel = lazy(() =>
+const _TerminalPanel = lazy(() =>
   import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })),
 );
 
