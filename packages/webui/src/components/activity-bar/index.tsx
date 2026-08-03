@@ -4,6 +4,7 @@ import {
   BrainCircuit,
   Building2,
   ChartNoAxesCombined,
+  ClipboardList,
   Columns3,
   Command,
   FolderOpen,
@@ -90,6 +91,7 @@ const VIEWS: ViewDef[] = [
   { id: 'codemap', icon: <Network size={16} />, label: 'CodeMap' },
   { id: 'techstack', icon: <Boxes size={16} />, label: 'TechStack' },
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
+  { id: 'intake', icon: <ClipboardList size={16} />, label: 'Requirements' },
   { id: 'memory', icon: <BrainCircuit size={16} />, label: 'Memory' },
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
 ];
@@ -464,7 +466,9 @@ function UtilitiesMenu({
         <DropdownMenuItem onSelect={() => openMainView('settings')}>
           <SettingsIcon size={16} />
           <span>{t('activity:nav.settings', 'Settings')}</span>
-          <span className="ml-auto text-[10px] text-muted-foreground">{t('settings:tabs.general', 'overview')}</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            {t('settings:tabs.general', 'overview')}
+          </span>
         </DropdownMenuItem>
         {[
           { icon: <Palette size={14} />, label: 'General', tab: 'general' },

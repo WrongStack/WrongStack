@@ -48,6 +48,7 @@
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/mcp": "workspace:*",
     "@wrongstack/providers": "workspace:*",
+    "@wrongstack/requirement-intake": "workspace:*",
     "@wrongstack/runtime": "workspace:*",
     "@wrongstack/sdd": "workspace:*",
     "@wrongstack/sage": "workspace:*",

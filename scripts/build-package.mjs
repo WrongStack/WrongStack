@@ -266,6 +266,14 @@ const profiles = {
     workspaceExternal: true,
     postBuild: prependMcpCliShebang,
   },
+  '@wrongstack/requirement-intake-mcp': {
+    entries: {
+      index: 'src/index.ts',
+      cli: 'src/cli.ts',
+    },
+    workspaceExternal: true,
+    postBuild: prependMcpCliShebang,
+  },
   '@wrongstack/mailbox-mcp': {
     entries: {
       index: 'src/index.ts',
@@ -285,6 +293,7 @@ const profiles = {
   '@wrongstack/sdd': standard(['@wrongstack/core']),
   '@wrongstack/security-scanner': standard(['@wrongstack/core']),
   '@wrongstack/techstack': standard(['@wrongstack/core', '@wrongstack/tools']),
+  '@wrongstack/requirement-intake': standard(['@wrongstack/core']),
   '@wrongstack/simpleui': {
     entries: { index: 'src/index.ts' },
     target: 'es2022',

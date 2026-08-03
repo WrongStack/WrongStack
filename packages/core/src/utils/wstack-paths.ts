@@ -130,6 +130,8 @@ export interface WstackPaths {
   projectAutophase: string;
   /** ~/.wrongstack/projects/<hash>/sdd-boards — live SDD board snapshots + JSONL event logs */
   projectSddBoards: string;
+  /** ~/.wrongstack/projects/<hash>/requirement-intakes — requirement intake records */
+  projectRequirementIntakes: string;
   /** ~/.wrongstack/profiles/<activeProfile>/sync.json — CloudSync configuration */
   syncConfig: string;
   /** ~/.wrongstack/config-history — timestamped backups on every config write */
@@ -218,7 +220,10 @@ export interface WstackPathOptions {
 
 /** Make an untrusted profile name safe for use as one path segment. */
 export function safeProfileName(name: string | undefined): string {
-  const safe = (name ?? '').replace(/[/\\:]/g, '_').replace(/\.\./g, '_').trim();
+  const safe = (name ?? '')
+    .replace(/[/\\:]/g, '_')
+    .replace(/\.\./g, '_')
+    .trim();
   return safe || 'default';
 }
 
@@ -231,7 +236,9 @@ export function activeProfileName(globalRoot: string): string {
     const parsed = JSON.parse(fs.readFileSync(path.join(globalRoot, 'config.json'), 'utf8')) as {
       activeProfile?: unknown;
     };
-    return safeProfileName(typeof parsed.activeProfile === 'string' ? parsed.activeProfile : undefined);
+    return safeProfileName(
+      typeof parsed.activeProfile === 'string' ? parsed.activeProfile : undefined,
+    );
   } catch {
     return 'default';
   }
@@ -259,7 +266,8 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
   // Precedence: explicit globalRoot > explicit userHome (callers/tests that
   // pass one expect paths under it) > WRONGSTACK_HOME env > real home dir.
   const globalRoot =
-    opts.globalRoot ?? (opts.userHome ? path.join(opts.userHome, '.wrongstack') : wstackGlobalRoot());
+    opts.globalRoot ??
+    (opts.userHome ? path.join(opts.userHome, '.wrongstack') : wstackGlobalRoot());
   // Home dir for FOREIGN tool state (Claude Code's ~/.claude). Independent of
   // WRONGSTACK_HOME, which redirects only WrongStack state: a real user's
   // Claude skills live in their real home, but tests pass `userHome` to keep
@@ -332,8 +340,10 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
     projectPlan: path.join(projectDir, 'plan.json'),
     projectAutophase: path.join(projectDir, 'autophase'),
     projectSddBoards: path.join(projectDir, 'sdd-boards'),
+    projectRequirementIntakes: path.join(projectDir, 'requirement-intakes'),
     syncConfig: path.join(profileDir, 'sync.json'),
     configHistoryDir: path.join(globalRoot, 'config-history'),
-    projectStatus: (projectHash: string) => path.join(globalRoot, 'projects', projectHash, 'status.json'),
+    projectStatus: (projectHash: string) =>
+      path.join(globalRoot, 'projects', projectHash, 'status.json'),
   };
 }

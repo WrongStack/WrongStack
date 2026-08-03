@@ -18,9 +18,17 @@ export type MainView =
   | 'roster'
   | 'codemap'
   | 'techstack'
-  | 'chronicle';
+  | 'chronicle'
+  | 'intake';
 
-export type AppView = PanelMainView | MainView | 'sessions' | 'setup' | 'debug' | 'refresh-debug' | 'analytics';
+export type AppView =
+  | PanelMainView
+  | MainView
+  | 'sessions'
+  | 'setup'
+  | 'debug'
+  | 'refresh-debug'
+  | 'analytics';
 
 export const PANEL_VIEW_BY_ACTIVITY: Record<Activity, PanelMainView> = {
   chat: 'chat',

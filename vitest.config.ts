@@ -32,6 +32,10 @@ export default defineConfig({
       '@wrongstack/kanban': path.resolve(__dirname, './packages/kanban/src'),
       '@wrongstack/persistence': path.resolve(__dirname, './packages/persistence/src'),
       '@wrongstack/security-scanner': path.resolve(__dirname, './packages/security-scanner/src'),
+      '@wrongstack/requirement-intake': path.resolve(
+        __dirname,
+        './packages/requirement-intake/src',
+      ),
     },
   },
   // Exclude typescript from SSR transform to prevent "invalid JS syntax" errors

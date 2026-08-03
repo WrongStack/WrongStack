@@ -55,6 +55,7 @@
     "@wrongstack/plug-lsp": "workspace:*",
     "@wrongstack/plugins": "workspace:*",
     "@wrongstack/providers": "workspace:*",
+    "@wrongstack/requirement-intake": "workspace:*",
     "@wrongstack/runtime": "workspace:*",
     "@wrongstack/sdd": "workspace:*",
     "@wrongstack/security-scanner": "workspace:*",

@@ -76,6 +76,30 @@ one deterministic project owner. Both stdio and authenticated HTTP use the share
 See [`packages/codebase-index-mcp/README.md`](../packages/codebase-index-mcp/README.md) for client
 configuration and the complete tool inventory.
 
+### Project Requirements Intake server
+
+Use the dedicated Requirements Intake MCP server when an external coding agent should record
+unstructured software development requests as structured intake records — without receiving
+WrongStack's file, shell, or general tool surface:
+
+```bash
+wstack-requirement-intake-mcp --project-root /absolute/project/path            # list only (read tier)
+wstack-requirement-intake-mcp --project-root /absolute/project/path --writable # also file + submit
+```
+
+The read tier always exposes `requirement_intake_list` (newest-first, optional status filter);
+`--writable` adds `requirement_intake_submit`, which files a request verbatim (`originalRequest`
+is immutable) and submits it immediately. Records are shared with the CLI `/intake` command, the
+WebUI REST API (`/api/projects/:projectId/requirement-intakes`), and the SDD interview kickoff —
+one project intake store for every surface. The server is a direct adapter over the file-backed
+`@wrongstack/requirement-intake` store; it never touches other project state.
+
+The built-in preset (`wstack mcp add requirement-intake`) spawns
+`wstack-requirement-intake-mcp --project-root . --writable` from the current working directory;
+point `--project-root` at an absolute path when the client cwd is not the project root. See
+[`packages/requirement-intake-mcp/README.md`](../packages/requirement-intake-mcp/README.md) and
+[`docs/specs/requirement-intake-sdd.md`](./specs/requirement-intake-sdd.md) for details.
+
 ## Transports
 
 | Transport | Flag | Reachability |

@@ -36,8 +36,10 @@ beforeEach(async () => {
     globalPrompts: path.join(profileDir, 'prompts'),
     globalMemory: path.join(profileDir, 'memory'),
     historyFile: path.join(profileDir, 'history.jsonl'),
-    sessionDir: '', logsDir: '', pluginsDir: '',
-  } as WstackPaths;
+    sessionDir: '',
+    logsDir: '',
+    pluginsDir: '',
+  } as unknown as WstackPaths;
 });
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -45,8 +47,18 @@ afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-const cfg = (over: Partial<SyncConfig> = {}): SyncConfig => ({ enabled: true, repo: 'me/data', categories: ['settings', 'prompts'], ...over });
-const make = (config: SyncConfig | null = cfg()) => new CloudSync(paths, () => config, async () => {});
+const cfg = (over: Partial<SyncConfig> = {}): SyncConfig => ({
+  enabled: true,
+  repo: 'me/data',
+  categories: ['settings', 'prompts'],
+  ...over,
+});
+const make = (config: SyncConfig | null = cfg()) =>
+  new CloudSync(
+    paths,
+    () => config,
+    async () => {},
+  );
 
 function requestBody(call: unknown[] | undefined): unknown {
   expect(call).toBeDefined();
@@ -83,7 +95,8 @@ describe('CloudSync.push via real githubFetch', () => {
         }
         return response;
       }
-      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: headSha } });
+      if (u.includes('/git/refs/heads/main') && m === 'GET')
+        return json({ object: { sha: headSha } });
       if (u.includes(`/git/commits/${headSha}`) && m === 'GET') {
         return json({ tree: { sha: headTreeSha }, message: 'remote' });
       }
@@ -110,8 +123,10 @@ describe('CloudSync.push via real githubFetch', () => {
 
     const result = await make().push('tok');
     expect(result).toMatchObject({ ok: true, committedAt: 'commit-sha' });
-    const createRefCall = fetchMock.mock.calls.find(([url, init]) =>
-      String(url).endsWith('/git/refs') && (init as RequestInit | undefined)?.method === 'POST');
+    const createRefCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/git/refs') && (init as RequestInit | undefined)?.method === 'POST',
+    );
     expect(requestBody(createRefCall)).toEqual({
       ref: 'refs/heads/main',
       sha: 'commit-sha',
@@ -119,7 +134,10 @@ describe('CloudSync.push via real githubFetch', () => {
   });
 
   it('gives an actionable error for a truly empty repository', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => json('empty repository', 409)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json('empty repository', 409)),
+    );
     await expect(make().push('tok')).rejects.toThrow(/Initialize it with a README or first commit/);
   });
 
@@ -145,8 +163,10 @@ describe('CloudSync.push via real githubFetch', () => {
 
     await make(cfg({ categories: ['prompts'] })).push('tok');
 
-    const treeRequest = fetchMock.mock.calls.find(([url, init]) =>
-      String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST');
+    const treeRequest = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST',
+    );
     const body = requestBody(treeRequest) as {
       tree: Array<Record<string, unknown>>;
     };
@@ -156,7 +176,9 @@ describe('CloudSync.push via real githubFetch', () => {
       type: 'blob',
       sha: null,
     });
-    expect(body.tree.some((entry) => entry.path === 'data/settings' && entry.sha === null)).toBe(false);
+    expect(body.tree.some((entry) => entry.path === 'data/settings' && entry.sha === null)).toBe(
+      false,
+    );
     expect(body.tree.some((entry) => entry.path === 'README.md' && entry.sha === null)).toBe(false);
   });
 
@@ -167,14 +189,24 @@ describe('CloudSync.push via real githubFetch', () => {
     const res = await sync.push('tok');
     expect(res.ok).toBe(true);
 
-    const treeRequests = fetchMock.mock.calls.filter(([url, init]) =>
-      String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST');
-    const commitRequests = fetchMock.mock.calls.filter(([url, init]) =>
-      String(url).endsWith('/git/commits') && (init as RequestInit | undefined)?.method === 'POST');
+    const treeRequests = fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST',
+    );
+    const commitRequests = fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        String(url).endsWith('/git/commits') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    );
     expect(requestBody(treeRequests[1])).toMatchObject({ base_tree: 'tree-sha' });
     expect(requestBody(commitRequests[1])).toMatchObject({ parents: ['commit-sha'] });
-    expect(fetchMock.mock.calls.filter(([url, init]) =>
-      String(url).includes('/git/refs/heads/main') && (init as RequestInit | undefined)?.method === 'GET')).toHaveLength(2);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url, init]) =>
+          String(url).includes('/git/refs/heads/main') &&
+          (init as RequestInit | undefined)?.method === 'GET',
+      ),
+    ).toHaveLength(2);
   });
 
   it('rebuilds on the remote tree and records the rebased commit after a 422', async () => {
@@ -185,17 +217,21 @@ describe('CloudSync.push via real githubFetch', () => {
       const u = String(url);
       const m = init?.method;
       if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: `tree-${++treeCalls}` });
-      if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: `commit-${++commitCalls}` });
+      if (u.endsWith('/git/commits') && m === 'POST')
+        return json({ sha: `commit-${++commitCalls}` });
       if (u.includes('/git/refs/heads/main') && m === 'PATCH') {
         return ++patchCalls === 1 ? json('not a fast forward', 422) : json({});
       }
-      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-commit' } });
-      if (u.includes('/git/commits/remote-commit') && m === 'GET') return json({ tree: { sha: 'remote-tree' }, message: 'm' });
+      if (u.includes('/git/refs/heads/main') && m === 'GET')
+        return json({ object: { sha: 'remote-commit' } });
+      if (u.includes('/git/commits/remote-commit') && m === 'GET')
+        return json({ tree: { sha: 'remote-tree' }, message: 'm' });
       if (u.includes('/git/trees/remote-tree') && m === 'GET') {
         return json({
-          tree: patchCalls === 0
-            ? [{ path: 'data/prompts/stale.json', sha: 'stale', type: 'blob' }]
-            : [{ path: 'data/prompts/concurrent.json', sha: 'concurrent', type: 'blob' }],
+          tree:
+            patchCalls === 0
+              ? [{ path: 'data/prompts/stale.json', sha: 'stale', type: 'blob' }]
+              : [{ path: 'data/prompts/concurrent.json', sha: 'concurrent', type: 'blob' }],
           truncated: false,
         });
       }
@@ -205,11 +241,15 @@ describe('CloudSync.push via real githubFetch', () => {
 
     const res = await make().push('tok');
     expect(res).toMatchObject({ ok: true, committedAt: 'commit-2' });
-    const state = JSON.parse(await fs.readFile(path.join(paths.configDir, 'sync-state.json'), 'utf8'));
+    const state = JSON.parse(
+      await fs.readFile(path.join(paths.configDir, 'sync-state.json'), 'utf8'),
+    );
     expect(state).toMatchObject({ sha: 'commit-2', treeSha: 'tree-2' });
 
-    const treeRequests = fetchMock.mock.calls.filter(([url, init]) =>
-      String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST');
+    const treeRequests = fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST',
+    );
     const retryBody = requestBody(treeRequests[1]) as {
       base_tree: string;
       tree: Array<Record<string, unknown>>;
@@ -240,11 +280,15 @@ describe('CloudSync.pull via real githubFetch', () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url);
       const m = init?.method;
-      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'head-sha' } });
-      if (u.includes('/git/commits/') && m === 'GET') return json({ tree: { sha: 'tree-sha' }, message: 'm' });
+      if (u.includes('/git/refs/heads/main') && m === 'GET')
+        return json({ object: { sha: 'head-sha' } });
+      if (u.includes('/git/commits/') && m === 'GET')
+        return json({ tree: { sha: 'tree-sha' }, message: 'm' });
       // Real GitHub returns `{ sha, tree: [...], truncated }`, not a bare array.
-      if (u.includes('/git/trees/') && m === 'GET') return json({ tree: treeEntries, truncated: false });
-      if (u.includes('/git/blobs/') && m === 'GET') return json({ content: Buffer.from('{"pulled":true}').toString('base64') });
+      if (u.includes('/git/trees/') && m === 'GET')
+        return json({ tree: treeEntries, truncated: false });
+      if (u.includes('/git/blobs/') && m === 'GET')
+        return json({ content: Buffer.from('{"pulled":true}').toString('base64') });
       return json({}, 404);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -259,7 +303,9 @@ describe('CloudSync.pull via real githubFetch', () => {
     ]);
     const res = await make(cfg({ categories: ['prompts'] })).pull('tok');
     expect(res.ok).toBe(true);
-    expect(JSON.parse(await fs.readFile(path.join(paths.globalPrompts, 'p.json'), 'utf8'))).toEqual({ pulled: true });
+    expect(JSON.parse(await fs.readFile(path.join(paths.globalPrompts, 'p.json'), 'utf8'))).toEqual(
+      { pulled: true },
+    );
   });
 
   it('returns not-enabled when disabled', async () => {
@@ -284,7 +330,9 @@ describe('CloudSync.pull via real githubFetch', () => {
     await make(cfg({ categories: ['prompts'] })).pull('tok');
 
     expect(JSON.parse(await fs.readFile(settingsPath, 'utf8'))).toEqual({ local: true });
-    expect(JSON.parse(await fs.readFile(path.join(paths.globalPrompts, 'p.json'), 'utf8'))).toEqual({ pulled: true });
+    expect(JSON.parse(await fs.readFile(path.join(paths.globalPrompts, 'p.json'), 'utf8'))).toEqual(
+      { pulled: true },
+    );
   });
 
   it('skips unknown categories and empty category paths', async () => {
@@ -294,7 +342,11 @@ describe('CloudSync.pull via real githubFetch', () => {
       { path: 'data/prompts/p.json', sha: 'b2', type: 'blob' }, // written
     ]);
     const blanked = { ...paths, globalMemory: '' } as WstackPaths;
-    const sync = new CloudSync(blanked, () => cfg({ categories: ['prompts', 'memory'] }), async () => {});
+    const sync = new CloudSync(
+      blanked,
+      () => cfg({ categories: ['prompts', 'memory'] }),
+      async () => {},
+    );
     const res = await sync.pull('tok');
     expect(res.ok).toBe(true);
   });
@@ -303,9 +355,7 @@ describe('CloudSync.pull via real githubFetch', () => {
     stubPull([{ path: 'data/settings', sha: 'b1', type: 'blob' }]);
     await make(cfg({ categories: ['settings'] })).pull('tok');
     expect(
-      JSON.parse(
-        await fs.readFile(path.join(dir, 'profiles', 'default', 'config.json'), 'utf8'),
-      ),
+      JSON.parse(await fs.readFile(path.join(dir, 'profiles', 'default', 'config.json'), 'utf8')),
     ).toEqual({ pulled: true });
     expect(JSON.parse(await fs.readFile(path.join(dir, 'config.json'), 'utf8'))).toEqual({
       setting: true,
@@ -314,7 +364,9 @@ describe('CloudSync.pull via real githubFetch', () => {
 
   it('rejects a nested remote path for a file-backed category', async () => {
     stubPull([{ path: 'data/settings/nested.json', sha: 'b1', type: 'blob' }]);
-    await expect(make(cfg({ categories: ['settings'] })).pull('tok')).rejects.toThrow(/file category|nested/i);
+    await expect(make(cfg({ categories: ['settings'] })).pull('tok')).rejects.toThrow(
+      /file category|nested/i,
+    );
   });
 
   it('rejects a directory-escaping remote path', async () => {
@@ -334,9 +386,12 @@ describe('CloudSync.hasLocalChanges + buildLocalTree edges', () => {
   it('hashes local categories and compares against the stored rev', async () => {
     // push first to populate the state file (with a localRev)
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url); const m = init?.method;
-      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-commit' } });
-      if (u.includes('/git/commits/remote-commit') && m === 'GET') return json({ tree: { sha: 'remote-tree' }, message: 'm' });
+      const u = String(url);
+      const m = init?.method;
+      if (u.includes('/git/refs/heads/main') && m === 'GET')
+        return json({ object: { sha: 'remote-commit' } });
+      if (u.includes('/git/commits/remote-commit') && m === 'GET')
+        return json({ tree: { sha: 'remote-tree' }, message: 'm' });
       if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: 't' });
       if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: 'c' });
       return json({});
@@ -351,9 +406,12 @@ describe('CloudSync.hasLocalChanges + buildLocalTree edges', () => {
 
   it('skips empty and missing category paths when building the tree', async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url); const m = init?.method;
-      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-commit' } });
-      if (u.includes('/git/commits/remote-commit') && m === 'GET') return json({ tree: { sha: 'remote-tree' }, message: 'm' });
+      const u = String(url);
+      const m = init?.method;
+      if (u.includes('/git/refs/heads/main') && m === 'GET')
+        return json({ object: { sha: 'remote-commit' } });
+      if (u.includes('/git/commits/remote-commit') && m === 'GET')
+        return json({ tree: { sha: 'remote-tree' }, message: 'm' });
       if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: 't' });
       if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: 'c' });
       return json({});
@@ -361,7 +419,11 @@ describe('CloudSync.hasLocalChanges + buildLocalTree edges', () => {
     vi.stubGlobal('fetch', fetchMock);
     // skills path is '' (skip at 313); history file is missing (stat throws → catch at 342)
     const p = { ...paths, globalSkills: '' } as WstackPaths;
-    const sync = new CloudSync(p, () => cfg({ categories: ['prompts', 'skills', 'history'] }), async () => {});
+    const sync = new CloudSync(
+      p,
+      () => cfg({ categories: ['prompts', 'skills', 'history'] }),
+      async () => {},
+    );
     const res = await sync.push('tok');
     expect(res.ok).toBe(true);
   });

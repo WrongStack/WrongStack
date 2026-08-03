@@ -34,7 +34,11 @@ export {
 
 // Persistence
 export { SpecStore, type SpecStoreOptions, type SpecIndexEntry } from './spec-store.js';
-export { TaskGraphStore, type TaskGraphStoreOptions, type TaskGraphIndexEntry } from './task-graph-store.js';
+export {
+  TaskGraphStore,
+  type TaskGraphStoreOptions,
+  type TaskGraphIndexEntry,
+} from './task-graph-store.js';
 
 // Live board model + persistence
 export {
@@ -105,6 +109,13 @@ export { createKanbanSddSessionPersistence } from './kanban-sdd-session.js';
 // Project footprint for interview prompts (CLI + WebUI wizard share this)
 export { gatherProjectContext } from './project-context.js';
 
+// Requirements Intake → spec-builder interview kickoff
+export {
+  intakeToInterviewKickoff,
+  startInterviewFromIntake,
+  type IntakeInterviewKickoff,
+} from './intake-kickoff.js';
+
 // Templates
 export {
   SPEC_TEMPLATES,
@@ -122,7 +133,11 @@ export {
 } from './task-visualizer.js';
 
 // Critical Path
-export { analyzeCriticalPath, type CriticalPathAnalysis, type BottleneckTask } from './critical-path.js';
+export {
+  analyzeCriticalPath,
+  type CriticalPathAnalysis,
+  type BottleneckTask,
+} from './critical-path.js';
 
 // Spec Versioning
 export { SpecVersioning, type SpecVersion, type SpecDiff } from './spec-versioning.js';

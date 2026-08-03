@@ -221,6 +221,24 @@ export const sshManagerServer = (): MCPServerConfig => ({
   requestTimeoutMs: 180_000,
 });
 
+/**
+ * WrongStack Requirements Intake — list intake records and file + submit new
+ * ones against the project's intake store (`wstack-requirement-intake-mcp`).
+ * Project-scoped: resolves the project from the spawn cwd (`--project-root .`);
+ * customize the arg for absolute paths. Tools are structured domain tools
+ * (list/submit) with no file, shell, or network surface, so the permission
+ * defaults to `auto`.
+ */
+export const requirementIntakeServer = (): MCPServerConfig => ({
+  name: 'requirement-intake',
+  description:
+    'WrongStack Requirements Intake — list intake records and file new ones (project-scoped, --writable)',
+  transport: 'stdio',
+  command: 'wstack-requirement-intake-mcp',
+  args: ['--project-root', '.', '--writable'],
+  permission: 'auto',
+});
+
 /** Everything bundled — full set of built-in servers. Useful for `wstack mcp add --all`. */
 export const allServers = (): Record<string, MCPServerConfig> => ({
   filesystem: { ...filesystemServer(), enabled: false },
@@ -237,4 +255,5 @@ export const allServers = (): Record<string, MCPServerConfig> => ({
   'minimax-vision': { ...miniMaxVisionServer(), enabled: false },
   playwright: { ...playwrightServer(), enabled: false },
   ssh: { ...sshManagerServer(), enabled: false },
+  'requirement-intake': { ...requirementIntakeServer(), enabled: false },
 });

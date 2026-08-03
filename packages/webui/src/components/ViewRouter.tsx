@@ -16,9 +16,7 @@ const AnalyticsDashboard = lazy(() =>
 const AgentRosterView = lazy(() =>
   import('./AgentRosterView').then((m) => ({ default: m.AgentRosterView })),
 );
-const ChangesView = lazy(() =>
-  import('./ChangesView').then((m) => ({ default: m.ChangesView })),
-);
+const ChangesView = lazy(() => import('./ChangesView').then((m) => ({ default: m.ChangesView })));
 const ChronicleDashboard = lazy(() =>
   import('./ChronicleDashboard').then((m) => ({ default: m.ChronicleDashboard })),
 );
@@ -41,7 +39,12 @@ const OfficeMapPanel = lazy(() =>
 const RefreshDebugView = lazy(() =>
   import('./RefreshDebugView').then((m) => ({ default: m.RefreshDebugView })),
 );
-const SageTabs = lazy(() => import('./MemoryManager/SageTabs').then((m) => ({ default: m.SageTabs })));
+const SageTabs = lazy(() =>
+  import('./MemoryManager/SageTabs').then((m) => ({ default: m.SageTabs })),
+);
+const RequirementIntakeView = lazy(() =>
+  import('./RequirementIntakeView').then((m) => ({ default: m.RequirementIntakeView })),
+);
 const SddHub = lazy(() => import('./SddHub').then((m) => ({ default: m.SddHub })));
 const SessionsDashboard = lazy(() =>
   import('./SessionsDashboard').then((m) => ({ default: m.SessionsDashboard })),
@@ -63,7 +66,13 @@ const DeadCodeScanPanel = lazy(() =>
  * its component in an ErrorBoundary + Suspense. Lazy-loaded views get a
  * PanelSuspense fallback; eagerly-loaded views (chat, settings, context) do not.
  */
-export function ViewRouter({ sessionId, desktopShell }: { sessionId: string | null; desktopShell: boolean }): React.ReactElement {
+export function ViewRouter({
+  sessionId,
+  desktopShell,
+}: {
+  sessionId: string | null;
+  desktopShell: boolean;
+}): React.ReactElement {
   const { currentView, terminalOpen, setTerminalOpen } = useUIStore(
     useShallow((s) => ({
       currentView: s.currentView,
@@ -166,6 +175,15 @@ export function ViewRouter({ sessionId, desktopShell }: { sessionId: string | nu
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <ChronicleDashboard />
+            </div>
+          </Suspense>
+        </ErrorBoundary>
+      )}
+      {currentView === 'intake' && (
+        <ErrorBoundary level="panel" name="Requirements Intake">
+          <Suspense fallback={<PanelSuspense />}>
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <RequirementIntakeView />
             </div>
           </Suspense>
         </ErrorBoundary>
@@ -292,9 +310,7 @@ export function ViewRouter({ sessionId, desktopShell }: { sessionId: string | nu
 }
 
 // SetupScreen is imported eagerly (it's the first thing users see)
-const SetupScreen = lazy(() =>
-  import('./SetupScreen').then((m) => ({ default: m.SetupScreen })),
-);
+const SetupScreen = lazy(() => import('./SetupScreen').then((m) => ({ default: m.SetupScreen })));
 
 const TerminalPanelLazy = lazy(() =>
   import('./TerminalPanel').then((m) => ({ default: m.TerminalPanel })),

@@ -34,7 +34,8 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
-    "@wrongstack/kanban": "workspace:*"
+    "@wrongstack/kanban": "workspace:*",
+    "@wrongstack/requirement-intake": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

@@ -13,6 +13,12 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import {
+  AllowAllIntakeAuthorizer,
+  RequirementIntakeService,
+  RequirementIntakeStore,
+} from '@wrongstack/requirement-intake';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { Config, ModelsRegistry } from '@wrongstack/core/types';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { verifyClient as verifyWsClient } from './ws-auth.js';
@@ -54,13 +60,16 @@ export async function resolvePorts(opts: {
   requireToken?: boolean | undefined;
 }): Promise<ResolvedPorts> {
   const surface = opts.surface ?? 'webui';
-  const surfaceDefaults = surface === 'simpleui'
-    ? { http: 3466 }
-    : { http: 3456 };
+  const surfaceDefaults = surface === 'simpleui' ? { http: 3466 } : { http: 3456 };
   const wsHost = opts.wsHost ?? process.env['WEBUI_HOST'] ?? process.env['WS_HOST'] ?? '127.0.0.1';
   const requestedHttpPort =
-    opts.httpPort ?? opts.webuiPort ?? opts.port ??
-    Number.parseInt(process.env['WEBUI_PORT'] ?? process.env['PORT'] ?? String(surfaceDefaults.http), 10);
+    opts.httpPort ??
+    opts.webuiPort ??
+    opts.port ??
+    Number.parseInt(
+      process.env['WEBUI_PORT'] ?? process.env['PORT'] ?? String(surfaceDefaults.http),
+      10,
+    );
   const publicUrl = opts.publicUrl ?? process.env['WEBUI_PUBLIC_URL'];
   const publicWsUrl = opts.publicWsUrl ?? process.env['WEBUI_PUBLIC_WS_URL'];
   const requireToken = opts.requireToken ?? envFlag('WEBUI_REQUIRE_TOKEN');
@@ -71,7 +80,16 @@ export async function resolvePorts(opts: {
   if (!strictPort) {
     httpPort = await findFreePort(wsHost, requestedHttpPort);
     if (httpPort !== requestedHttpPort) {
-      console.warn(JSON.stringify({ level: 'warn', event: 'webui.port_reassigned', protocol: 'HTTP', requested: requestedHttpPort, assigned: httpPort, timestamp: new Date().toISOString() }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'webui.port_reassigned',
+          protocol: 'HTTP',
+          requested: requestedHttpPort,
+          assigned: httpPort,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     }
   }
   return { wsHost, httpPort, publicUrl, publicWsUrl, requireToken };
@@ -128,9 +146,15 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
       maxContext = m?.capabilities?.maxContext ?? 0;
       if (!maxContext) {
         try {
-          const provider = await (g.modelsRegistry as {
-            getProvider(id: string): Promise<{ models: Array<{ id: string; limit?: { context?: number } }> } | undefined>;
-          }).getProvider(config.provider);
+          const provider = await (
+            g.modelsRegistry as {
+              getProvider(
+                id: string,
+              ): Promise<
+                { models: Array<{ id: string; limit?: { context?: number } }> } | undefined
+              >;
+            }
+          ).getProvider(config.provider);
           const rawModel = provider?.models.find((mod) => mod.id === config.model);
           maxContext = rawModel?.limit?.context ?? 0;
         } catch {
@@ -146,10 +170,20 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
     }
     const projectRoot = g.getProjectRoot();
     const result: {
-      sessionId: string; model: string; provider: string; maxContext: number;
-      inputCost: number; outputCost: number; cacheReadCost: number;
-      projectName: string; projectRoot: string; cwd: string; mode: string; contextMode: string;
-      protocolVersion: number; protocolCapabilities: string[];
+      sessionId: string;
+      model: string;
+      provider: string;
+      maxContext: number;
+      inputCost: number;
+      outputCost: number;
+      cacheReadCost: number;
+      projectName: string;
+      projectRoot: string;
+      cwd: string;
+      mode: string;
+      contextMode: string;
+      protocolVersion: number;
+      protocolCapabilities: string[];
       needsSetup?: boolean | undefined;
     } = {
       sessionId: g.getSessionId(),
@@ -197,12 +231,18 @@ export function createWsServers(
   const publicHostnames = [ports.publicUrl, ports.publicWsUrl]
     .map((value) => {
       if (!value) return undefined;
-      try { return new URL(value).hostname; } catch { return undefined; }
+      try {
+        return new URL(value).hostname;
+      } catch {
+        return undefined;
+      }
     })
     .filter((value): value is string => Boolean(value));
 
   const verifyClient = (info: {
-    origin: string; secure: boolean; req: import('node:http').IncomingMessage;
+    origin: string;
+    secure: boolean;
+    req: import('node:http').IncomingMessage;
   }) =>
     verifyWsClient({
       origin: info.origin,
@@ -222,7 +262,9 @@ export function createWsServers(
   // maxPayload — both servers speak the same protocol.
   const WS_MAX_PAYLOAD = 20 * 1024 * 1024;
   const wssPrimary = new WebSocketServer({
-    server: httpServer, verifyClient, maxPayload: WS_MAX_PAYLOAD,
+    server: httpServer,
+    verifyClient,
+    maxPayload: WS_MAX_PAYLOAD,
     // Send a ping every 15s to keep idle connections alive. Without this,
     // network equipment (routers, proxies, NAT gateways) may drop idle TCP
     // connections, causing the browser to see a close event and show the
@@ -258,7 +300,11 @@ export function armEvents(
   httpPort: number,
   setupInput: Parameters<typeof setupEvents>[0],
   watcherMetrics: FileWatcherMetrics,
-): { arm: (label: string) => void; getDispose: () => (() => void) | null; getFleetBroadcast: () => (() => Promise<void>) | null } {
+): {
+  arm: (label: string) => void;
+  getDispose: () => (() => void) | null;
+  getFleetBroadcast: () => (() => Promise<void>) | null;
+} {
   let eventsArmed = false;
   let disposeEvents: (() => void) | null = null;
   let fleetBroadcast: (() => Promise<void>) | null = null;
@@ -267,20 +313,50 @@ export function armEvents(
     if (eventsArmed) return;
     eventsArmed = true;
     console.log(`[WebUI] Backend ready (${label})`);
-    disposeEvents = setupEvents({ ...setupInput, watcherMetrics, onFleetBroadcaster: (fn) => { fleetBroadcast = fn; } });
+    disposeEvents = setupEvents({
+      ...setupInput,
+      watcherMetrics,
+      onFleetBroadcaster: (fn) => {
+        fleetBroadcast = fn;
+      },
+    });
   };
 
   wssPrimary.on('listening', () => arm(`${wsHost}:${httpPort}`));
   wssPrimary.on('error', (err) => {
-    console.error(JSON.stringify({ level: 'error', event: 'webui.ws_server_error', host: wsHost, message: toErrorMessage(err), timestamp: new Date().toISOString() }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'webui.ws_server_error',
+        host: wsHost,
+        message: toErrorMessage(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
   });
   if (wssSecondary) {
     wssSecondary.on('listening', () => arm(`::1:${httpPort}`));
     wssSecondary.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') {
-        console.warn(JSON.stringify({ level: 'warn', event: 'webui.ipv6_unavailable', code: err.code, message: err.message, timestamp: new Date().toISOString() }));
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'webui.ipv6_unavailable',
+            code: err.code,
+            message: err.message,
+            timestamp: new Date().toISOString(),
+          }),
+        );
       } else {
-        console.error(JSON.stringify({ level: 'error', event: 'webui.ws_server_error', host: '::1', message: err.message, timestamp: new Date().toISOString() }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'webui.ws_server_error',
+            host: '::1',
+            message: err.message,
+            timestamp: new Date().toISOString(),
+          }),
+        );
       }
     });
   }
@@ -332,14 +408,30 @@ export function startHttpServer(opts: {
   openBrowser: boolean;
   watcherMetrics: FileWatcherMetrics;
   onFleetPing: () => void;
-  onTechStackEvent?: ((event: import('./techstack-handlers.js').TechStackEvent) => void) | undefined;
+  onTechStackEvent?:
+    | ((event: import('./techstack-handlers.js').TechStackEvent) => void)
+    | undefined;
   /** Live provider access for TechStack's LLM research stage. */
   getLlm?:
     | (() => { provider: import('@wrongstack/core/types').Provider; model: string } | undefined)
     | undefined;
   executePackageOperation?: import('./techstack-handlers.js').TechStackHandlerDeps['executePackageOperation'];
   distDir?: string | undefined;
+  /** Optional pre-built intake service (tests/embeds). Defaults to a fresh
+   *  per-project service backed by `projectRequirementIntakes`. */
+  intakeService?: import('@wrongstack/requirement-intake').RequirementIntakeService | undefined;
 }): import('node:http').Server {
+  const intakeService =
+    opts.intakeService ??
+    new RequirementIntakeService({
+      store: new RequirementIntakeStore({
+        baseDir: resolveWstackPaths({
+          projectRoot: opts.projectRoot,
+          globalRoot: opts.globalRoot,
+        }).projectRequirementIntakes,
+      }),
+      authorizer: new AllowAllIntakeAuthorizer(),
+    });
   const httpServer = createHttpServer({
     host: opts.wsHost,
     port: opts.httpPort,
@@ -354,6 +446,7 @@ export function startHttpServer(opts: {
     getLlm: opts.getLlm,
     executePackageOperation: opts.executePackageOperation,
     projectRoot: opts.projectRoot,
+    intakeService,
   });
   return httpServer;
 }

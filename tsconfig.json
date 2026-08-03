@@ -23,6 +23,7 @@
     { "path": "./packages/bench" },
     { "path": "./packages/techstack" },
     { "path": "./packages/governance" },
+    { "path": "./packages/requirement-intake" },
     { "path": "./website" }
   ]
 }

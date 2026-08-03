@@ -44,6 +44,7 @@ import { buildGoalCommand } from './goal.js';
 import { buildHealthCommand } from './health.js';
 import { buildHelpCommand } from './help.js';
 import { buildInitCommand } from './init.js';
+import { buildIntakeCommand } from './intake.js';
 import { buildInterruptCommand } from './interrupt.js';
 import { buildKanbanCommand } from './kanban.js';
 import { buildMailboxCommand } from './mailbox.js';
@@ -100,6 +101,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildDesktopCommand(),
     buildWebuiCommand(),
     buildInitCommand(opts),
+    buildIntakeCommand(opts),
     buildClearCommand(opts),
     buildInterruptCommand(opts),
     buildKanbanCommand(opts),

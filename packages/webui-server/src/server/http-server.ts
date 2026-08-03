@@ -49,6 +49,18 @@ import {
   handleApiSessionMessage,
   handleApiSessions,
 } from './http-server/api-handlers.js';
+import {
+  handleRequirementIntakeAnswers,
+  handleRequirementIntakeArchive,
+  handleRequirementIntakeCancel,
+  handleRequirementIntakeCreate,
+  handleRequirementIntakeGet,
+  handleRequirementIntakeList,
+  handleRequirementIntakeListForServer,
+  handleRequirementIntakeSubmit,
+  handleRequirementIntakeSuggestions,
+  handleRequirementIntakeUpdate,
+} from './requirement-intake-handlers.js';
 import { readRecentProcessMemoryDiagnostics } from './memory-diagnostics.js';
 import { generateProjectSlug } from './projects-manifest.js';
 import type { FileWatcherMetrics } from './setup-events.js';
@@ -145,6 +157,13 @@ export interface CreateHttpServerOptions {
     | undefined;
   /** Permission-governed language_package bridge for approved remediation. */
   executePackageOperation?: import('./techstack-handlers.js').TechStackHandlerDeps['executePackageOperation'];
+  /**
+   * Optional Requirements Intake service. When provided, the
+   * /api/projects/:projectId/requirement-intakes and
+   * /api/requirement-intakes/:intakeId endpoints are enabled; otherwise they
+   * respond 503.
+   */
+  intakeService?: import('@wrongstack/requirement-intake').RequirementIntakeService | undefined;
 }
 
 const MIME_TYPES: Record<string, string> = {
@@ -618,6 +637,97 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
         return;
       }
 
+      // ── Requirements Intake endpoints ──────────────────────────────────
+      // Project-scoped collection + per-record operations. Same token gate as
+      // every other /api route; the service instance is optional (503 when the
+      // host did not wire one). The bare GET /api/requirement-intakes lists the
+      // server's own project (identity resolved from projectRoot).
+      if (url.pathname === '/api/requirement-intakes' && req.method === 'GET') {
+        if (requireAccessToken && !accessTokenOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+        await handleRequirementIntakeListForServer(res, opts.intakeService, opts.projectRoot);
+        return;
+      }
+
+      const intakeProjectMatch = url.pathname.match(
+        /^\/api\/projects\/([^/]+)\/requirement-intakes$/,
+      );
+      if (intakeProjectMatch && req.method === 'POST') {
+        if (requireAccessToken && !accessTokenOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+        await handleRequirementIntakeCreate(
+          res,
+          req,
+          opts.intakeService,
+          decodeURIComponent(intakeProjectMatch[1]!),
+        );
+        return;
+      }
+      if (intakeProjectMatch && req.method === 'GET') {
+        if (requireAccessToken && !accessTokenOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+        await handleRequirementIntakeList(
+          res,
+          opts.intakeService,
+          decodeURIComponent(intakeProjectMatch[1]!),
+        );
+        return;
+      }
+
+      const intakeIdMatch = url.pathname.match(/^\/api\/requirement-intakes\/([^/]+)$/);
+      if (intakeIdMatch && req.method === 'GET') {
+        if (requireAccessToken && !accessTokenOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+        await handleRequirementIntakeGet(res, opts.intakeService, intakeIdMatch[1]!);
+        return;
+      }
+      if (intakeIdMatch && req.method === 'PATCH') {
+        if (requireAccessToken && !accessTokenOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+        await handleRequirementIntakeUpdate(res, req, opts.intakeService, intakeIdMatch[1]!);
+        return;
+      }
+
+      const intakeActionMatch = url.pathname.match(
+        /^\/api\/requirement-intakes\/([^/]+)\/(answers|suggestions|submit|cancel|archive)$/,
+      );
+      if (intakeActionMatch && req.method === 'POST') {
+        if (requireAccessToken && !accessTokenOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+        const intakeId = intakeActionMatch[1]!;
+        const action = intakeActionMatch[2]!;
+        if (action === 'answers') {
+          await handleRequirementIntakeAnswers(res, req, opts.intakeService, intakeId);
+        } else if (action === 'suggestions') {
+          await handleRequirementIntakeSuggestions(res, req, opts.intakeService, intakeId);
+        } else if (action === 'submit') {
+          await handleRequirementIntakeSubmit(res, opts.intakeService, intakeId);
+        } else if (action === 'cancel') {
+          await handleRequirementIntakeCancel(res, req, opts.intakeService, intakeId);
+        } else {
+          await handleRequirementIntakeArchive(res, opts.intakeService, intakeId);
+        }
+        return;
+      }
+
       // ── CodeMap endpoints ──────────────────────────────────────────────
       // Serve the dependency graph at three drill-down levels. All read-only
       // GET — the graph is derived from the SQLite codebase index, so these
@@ -835,19 +945,27 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           res.end(JSON.stringify({ error: 'Project root not configured' }));
           return;
         }
-        await handleDeadCodeScan(res, {
-          projectRoot: opts.projectRoot,
-          indexDir: opts.indexDir,
-        }, req);
+        await handleDeadCodeScan(
+          res,
+          {
+            projectRoot: opts.projectRoot,
+            indexDir: opts.indexDir,
+          },
+          req,
+        );
         return;
       }
 
       // /api/deadcode/action-plan
       if (url.pathname === '/api/deadcode/action-plan' && req.method === 'POST') {
-        await handleDeadCodeActionPlan(res, {
-          projectRoot: opts.projectRoot ?? '',
-          indexDir: opts.indexDir,
-        }, req);
+        await handleDeadCodeActionPlan(
+          res,
+          {
+            projectRoot: opts.projectRoot ?? '',
+            indexDir: opts.indexDir,
+          },
+          req,
+        );
         return;
       }
 

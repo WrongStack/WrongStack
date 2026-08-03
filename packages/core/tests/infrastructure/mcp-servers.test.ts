@@ -11,6 +11,7 @@ import {
   googleMapsServer,
   miniMaxVisionServer,
   playwrightServer,
+  requirementIntakeServer,
   sentinelServer,
   sshManagerServer,
   slackServer,
@@ -61,6 +62,7 @@ describe('built-in MCP server presets (V0-D)', () => {
     ['minimax-vision', miniMaxVisionServer],
     ['playwright', playwrightServer],
     ['ssh', sshManagerServer],
+    ['requirement-intake', requirementIntakeServer],
   ];
 
   for (const [label, factory] of presets) {
@@ -86,6 +88,7 @@ describe('built-in MCP server presets (V0-D)', () => {
     expect(names).toContain('minimax-vision');
     expect(names).toContain('playwright');
     expect(names).toContain('ssh');
+    expect(names).toContain('requirement-intake');
     // Each entry's key matches its config.name.
     for (const [key, cfg] of Object.entries(all)) {
       expect(key).toBe(cfg.name);

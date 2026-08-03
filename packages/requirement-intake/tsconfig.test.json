@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node", "vitest"]
+  },
+  "include": ["src/**/*", "tests/**/*", "vitest.config.ts", "../../vitest.workers.ts"],
+  "exclude": ["dist", "node_modules", "tests/fixtures/**/*"]
+}
