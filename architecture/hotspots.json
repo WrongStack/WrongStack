@@ -23,7 +23,7 @@
       "relativeImports": 1
     },
     "packages/cli/src/hq-server/routes/auth-handlers.ts": {
-      "lines": 1129,
+      "lines": 1128,
       "relativeImports": 5
     },
     "packages/cli/src/hq-server/routes.ts": {
@@ -519,7 +519,7 @@
       "relativeImports": 6
     },
     "packages/webui-server/src/server/setup-events.ts": {
-      "lines": 1007,
+      "lines": 1011,
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {

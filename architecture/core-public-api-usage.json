@@ -145,8 +145,8 @@
     },
     "@wrongstack/core/types": {
       "files": 832,
-      "typeOnly": 795,
-      "runtimeOrMixed": 208
+      "typeOnly": 794,
+      "runtimeOrMixed": 211
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -8286,7 +8286,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/session-event-wiring.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 5
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10541,8 +10541,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/openai-codex.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

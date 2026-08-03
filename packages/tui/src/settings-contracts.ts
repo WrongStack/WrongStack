@@ -13,6 +13,9 @@ export type FleetChatVerbosityTui = 'off' | 'full';
 export type ConfigScope = 'global' | 'project';
 export type AnimationStyleChoice = 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
 
+/** Where to render the agent swarm panel: lower region, sidebar, or hidden. */
+export type AgentSwarmPanelMode = 'bottom' | 'sidebar' | 'off';
+
 export type SettingsPickerPatch = Partial<{
   mode: SettingsMode;
   delayMs: number;
@@ -55,7 +58,7 @@ export type SettingsPickerPatch = Partial<{
   breakerEnabled: boolean;
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
-  showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
+  showAgentSwarmPanel: AgentSwarmPanelMode;
   /**
    * Per-panel position map (one entry per F-key panel id). Each value is
    * 'bottom' (F-key behavior) or 'sidebar' (right-sidebar twin). Callers

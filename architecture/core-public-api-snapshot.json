@@ -1107,7 +1107,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 38,
-      "sourceLines": 8783
+      "sourceLines": 8805
     },
     {
       "directory": "defaults",
@@ -1170,7 +1170,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3438
+      "sourceLines": 3444
     },
     {
       "directory": "middleware",
@@ -1275,7 +1275,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9512
+      "sourceLines": 9521
     },
     {
       "directory": "utils",

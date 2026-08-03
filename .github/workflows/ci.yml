@@ -186,7 +186,14 @@ jobs:
       # hq-dashboard needs jsdom which the root forks pool can't resolve.
       # Run it from its package context so its own vitest config applies.
       - name: Test (hq-dashboard)
-        run: pnpm --filter @wrongstack/cli exec vitest run tests/hq-dashboard.test.ts
+        run: pnpm --filter @wrongstack/cli test:hqdash
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      # The dedicated config supplies FORCE_COLOR=3 and COLORTERM=truecolor
+      # so status-bar-overflow can assert Chalk's truecolor output.
+      - name: Test (TUI status-bar overflow)
+        run: pnpm --filter @wrongstack/tui test:status-bar
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

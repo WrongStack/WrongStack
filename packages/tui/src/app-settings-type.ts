@@ -1,5 +1,6 @@
 import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
 import type {
+  AgentSwarmPanelMode,
   CacheTtl,
   ContextMode,
   ReasoningEffort,
@@ -14,8 +15,7 @@ export {
 } from './ui-contracts.js';
 import type { PanelPositionMap } from './ui-contracts.js';
 
-/** Where to render the agent swarm panel: lower region, sidebar, or hidden. */
-export type AgentSwarmPanelMode = 'bottom' | 'sidebar' | 'off';
+export type { AgentSwarmPanelMode } from './settings-contracts.js';
 
 /**
  * Coerce a persisted showAgentSwarmPanel value (which may be a legacy boolean

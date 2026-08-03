@@ -565,6 +565,78 @@ describe('end-to-end managed lifecycle validation paths', () => {
   });
 });
 
+// ── Finite decomposition: atomic leaves vs composite parents ────────
+
+describe('finite managed decomposition', () => {
+  async function managedBoardWithCard() {
+    const board = await createBoard(tmpDir, {
+      title: 'Managed',
+      lifecycle: {
+        mode: 'managed',
+        columns: { backlog: 'backlog', todo: 'todo', running: 'in-progress', review: 'review', done: 'done' },
+      },
+    });
+    const created = await addTask(tmpDir, board.id, { title: 'Leaf', description: 'Atomic leaf card.' });
+    return { board, cardId: created!.task.id };
+  }
+
+  const leafDetails = () => ({
+    description: 'A fully specified atomic leaf.',
+    dueDate: '2026-08-01T00:00:00.000Z',
+    assignee: 'agent-1',
+    labels: ['leaf'],
+    successCriteria: [{ id: 'c1', description: 'All green', type: 'manual' as const, status: 'pending' as const }],
+  });
+
+  it('allows a childless atomic leaf to progress from Backlog to Todo', async () => {
+    const { board, cardId } = await managedBoardWithCard();
+    await updateTask(tmpDir, board.id, cardId, leafDetails());
+    // Must not throw — no childTaskIds, but task.atomic is not true.
+    await transitionTask(tmpDir, board.id, cardId, { to: 'todo', actor: 'agent-1', comment: 'Planned.' });
+  });
+
+  it('rejects a composite parent (atomic=true) without children from progressing', async () => {
+    const { board, cardId } = await managedBoardWithCard();
+    await updateTask(tmpDir, board.id, cardId, { ...leafDetails(), atomic: true });
+    await expect(
+      transitionTask(tmpDir, board.id, cardId, { to: 'todo', actor: 'agent-1', comment: 'Planned.' }),
+    ).rejects.toThrow('Break the work into at least one persisted subtask');
+  });
+
+  it('composite parent with children still cannot reach Done without verification report', async () => {
+    const { board, cardId } = await managedBoardWithCard();
+    // Add a child task
+    const child = await addTask(tmpDir, board.id, { title: 'Child', description: 'Child task.' });
+    await updateTask(tmpDir, board.id, cardId, {
+      ...leafDetails(),
+      atomic: true,
+      childTaskIds: [child!.task.id],
+      successCriteria: [{ id: 'c1', description: 'All green', type: 'manual', status: 'passed' }],
+    });
+    // Parent can progress to Todo (has children).
+    await transitionTask(tmpDir, board.id, cardId, { to: 'todo', actor: 'agent-1', comment: 'Planned.' });
+    // But cannot reach Done because the atomic parent lacks a verification report.
+    // The parent-child completion gate is independently covered by phase4-parent-child.test.ts.
+    // First move to running, review, then try done.
+    await updateTask(tmpDir, board.id, cardId, {
+      assignment: {
+        status: 'running' as const,
+        agentId: 'agent-1',
+        leaseId: 'lease-1',
+        claimedAt: '2026-07-17T00:00:00.000Z',
+        heartbeatAt: '2026-07-17T00:00:00.000Z',
+        leaseExpiresAt: '2026-07-18T00:00:00.000Z',
+      },
+    });
+    await transitionTask(tmpDir, board.id, cardId, { to: 'running', actor: 'agent-1', comment: 'Working.' });
+    await updateTaskAssignment(tmpDir, board.id, cardId, { status: 'completed', lastResult: 'Done.' });
+    await transitionTask(tmpDir, board.id, cardId, { to: 'review', actor: 'agent-1', comment: 'Review.', attachment: { url: 'artifact://x', type: 'file' } });
+    await expect(
+      transitionTask(tmpDir, board.id, cardId, { to: 'done', actor: 'reviewer', comment: 'Approve', action: 'approved', attachment: { url: 'artifact://y', type: 'doc' } }),
+    ).rejects.toThrow('Atomic tasks require a completed verification report');
+  });
+});
+
 // ── KANBAN_AGENT_STAGES sanity ───────────────────────────────────────
 
 describe('KANBAN_AGENT_STAGES', () => {

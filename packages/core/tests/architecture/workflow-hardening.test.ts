@@ -158,4 +158,15 @@ describe('release scripts (WS-040)', () => {
   it('runs the full gate before a local publish', () => {
     expect(scripts()['release']).toContain('release:check');
   });
+
+  it('keeps architecture verification read-only in the release gate', () => {
+    const releaseCheck = scripts()['release:check'];
+    const architectureCheck = scripts()['check:architecture'];
+    expect(releaseCheck).toBeDefined();
+    expect(releaseCheck).toContain('pnpm check:architecture');
+    expect(releaseCheck).not.toContain('check:architecture:sync');
+    expect(architectureCheck).toBeDefined();
+    expect(architectureCheck).not.toContain('--write');
+    expect(architectureCheck).not.toContain('--report-only');
+  });
 });

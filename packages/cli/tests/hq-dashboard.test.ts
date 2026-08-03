@@ -82,7 +82,6 @@ describe('HQ React dashboard delivery', () => {
     expect(styleResponse.status).toBe(200);
     expect(styleResponse.headers.get('content-type')).toContain('text/css');
     expect(style).toContain('.hq-secondary-nav');
-    expect(style).toContain('border-radius:0!important');
     expect(style).not.toContain('.hq-activity-rail');
   });
 

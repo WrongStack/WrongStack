@@ -333,7 +333,6 @@ function buildOrderBy(
           : 'm.importance DESC, m.updated_at DESC',
         nonFts: 'importance DESC, updated_at DESC',
       };
-    case 'hybrid':
     default:
       // Same as relevance for FTS; importance-first for non-FTS
       return {

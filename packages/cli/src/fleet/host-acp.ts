@@ -8,7 +8,7 @@ import type { SubagentRunner } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 
 export function buildAcpSubagentRunner(subagentId: string): Promise<SubagentRunner> {
-  let cmd = Object.prototype.hasOwnProperty.call(ACP_AGENT_COMMANDS, subagentId)
+  let cmd = Object.hasOwn(ACP_AGENT_COMMANDS, subagentId)
     ? ACP_AGENT_COMMANDS[subagentId]
     : undefined;
   if (!cmd) {

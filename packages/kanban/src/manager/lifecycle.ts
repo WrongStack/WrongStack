@@ -536,12 +536,19 @@ function validateRequiredCardDetails(
     'Add a valid due date.',
   );
   requireDetail(issues, 'labels', Boolean(task.labels?.some(hasText)), 'Add at least one tag or label.');
-  requireDetail(
-    issues,
-    'childTaskIds',
-    Boolean(task.childTaskIds?.some(hasText)),
-    'Break the work into at least one persisted subtask.',
-  );
+  // Composite parents (truthy atomic) MUST have persisted children.
+  // Atomic leaves (falsy/undefined atomic) are executable directly and
+  // must not be forced into infinite recursive decomposition.
+  // Use truthy check to stay consistent with completion-protocol.ts:90
+  // and validateDefinitionOfDone (lifecycle.ts:617/624).
+  if (task.atomic) {
+    requireDetail(
+      issues,
+      'childTaskIds',
+      Boolean(task.childTaskIds?.some(hasText)),
+      'Break the work into at least one persisted subtask.',
+    );
+  }
   requireDetail(
     issues,
     'successCriteria',

@@ -283,8 +283,7 @@ export async function handleApiPassword(
   const hasAdminCapability =
     auth !== undefined &&
     'capabilities' in auth &&
-    auth.capabilities !== undefined &&
-    auth.capabilities.includes('auth.admin');
+    auth.capabilities?.includes('auth.admin');
 
   if (!localOpenBootstrap && mutableAuth.passwordHash !== undefined && !hasAdminCapability) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
@@ -686,7 +685,7 @@ export async function handleApiLoginVerify(
     return;
   }
   const session = sessions.get(sessionId);
-  if (!session || !session.pending2fa) {
+  if (!session?.pending2fa) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { code: 'NO_PENDING_SESSION', message: 'Session is not pending 2FA.' } }));
     return;

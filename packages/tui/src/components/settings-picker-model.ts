@@ -1,5 +1,5 @@
 import { MAX_TUI_THINKING_WORD_LENGTH } from '../thinking-word.js';
-import { SettingsPickerPatch } from '../settings-contracts.js';
+import type { SettingsPickerPatch } from '../settings-contracts.js';
 import {
   DEFAULT_PANEL_POSITIONS,
   PANEL_IDS,

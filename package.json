@@ -56,7 +56,7 @@
     "check:test-skips": "node scripts/check-test-skips.mjs",
     "check:test-types": "node scripts/check-test-typecheck.mjs",
     "report:architecture": "node scripts/check-architecture-health.mjs --write --report-only",
-    "release:check": "pnpm audit --audit-level=moderate && pnpm build && pnpm providers:catalog:check && pnpm plugins:manifest:check && node scripts/check-package-contracts.mjs && pnpm write:build-manifest && pnpm check:build-manifest && pnpm check:architecture:sync && pnpm check:test-inventory && pnpm check:test-skips && pnpm check:test-types && pnpm check:node-pty && pnpm lint:i18n && pnpm typecheck && pnpm test:coverage",
+    "release:check": "pnpm audit --audit-level=moderate && pnpm build && pnpm providers:catalog:check && pnpm plugins:manifest:check && node scripts/check-package-contracts.mjs && pnpm write:build-manifest && pnpm check:build-manifest && pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips && pnpm check:test-types && pnpm check:node-pty && pnpm lint:i18n && pnpm typecheck && pnpm test:coverage",
     "release:dry": "pnpm publish -r --dry-run --no-git-checks --force",
     "release": "pnpm release:check && pnpm publish -r --access public",
     "release:ci": "pnpm publish -r --access public --no-git-checks",
