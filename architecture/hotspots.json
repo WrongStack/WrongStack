@@ -250,6 +250,10 @@
       "lines": 861,
       "relativeImports": 1
     },
+    "packages/requirement-intake/src/service.ts": {
+      "lines": 1115,
+      "relativeImports": 12
+    },
     "packages/sage/src/middleware/tool-call-memory.ts": {
       "lines": 1271,
       "relativeImports": 7
@@ -287,7 +291,7 @@
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 849,
+      "lines": 868,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/dead-code-scan.ts": {
@@ -298,8 +302,12 @@
       "lines": 942,
       "relativeImports": 4
     },
+    "packages/tools/src/codebase-index/project-server.ts": {
+      "lines": 813,
+      "relativeImports": 9
+    },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1226,
+      "lines": 1245,
       "relativeImports": 15
     },
     "packages/tools/src/kanban.ts": {
@@ -507,8 +515,8 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 947,
-      "relativeImports": 10
+      "lines": 1065,
+      "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 967,

@@ -268,9 +268,10 @@ jobs:
 
       - name: Architecture and runtime-test inventory
         run: |
-          # Regenerate API snapshot on the CI platform (Linux) to eliminate
-          # Windows↔Linux serialization drift, then verify architecture.
+          # Regenerate API snapshot and hotspot baselines on the CI platform
+          # (Linux) to eliminate Windows↔Linux serialization drift, then verify.
           node scripts/snapshot-core-public-api.mjs --write
+          node scripts/check-architecture-health.mjs --write-hotspot-baseline --report-only
           pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips
 
       # Runs Node-package coverage first and WebUI's dedicated jsdom coverage
