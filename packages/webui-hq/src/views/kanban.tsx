@@ -4,6 +4,7 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson, useHqStore } from '../store.js';
 import { HqKanbanInspector } from './kanban-inspector.js';
+import { HqKanbanQueueHealth } from './kanban-queue-health.js';
 import {
   type HqKanbanBoardView,
   type HqKanbanTaskView,
@@ -169,6 +170,7 @@ export function KanbanView(): React.ReactElement {
       ) : board ? (
         <>
           <KanbanSummary project={project} board={board} boardCount={boards.length} />
+          <HqKanbanQueueHealth board={board} />
           <div className="hq-kanban-main">
             <Board board={board} onTaskClick={setSelectedTaskId} selectedTaskId={selectedTaskId} />
             {selectedTask ? (

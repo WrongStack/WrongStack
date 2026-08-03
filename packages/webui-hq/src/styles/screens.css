@@ -1734,5 +1734,48 @@
   border-top: 1px solid var(--border);
 }
 
+/* ── Queue health bar (Workstream C2) ─────────────────────────────────── */
+
+.hq-kanban-queue-health {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.hq-kanban-qh-label {
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.hq-kanban-qh-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.hq-kanban-qh-pill.ready {
+  color: hsl(150 64% 40%);
+}
+.hq-kanban-qh-pill.running {
+  color: hsl(200 80% 55%);
+}
+.hq-kanban-qh-pill.review {
+  color: hsl(280 60% 60%);
+}
+.hq-kanban-qh-pill.blocked {
+  color: hsl(45 90% 50%);
+}
+.hq-kanban-qh-pill.failed {
+  color: hsl(0 72% 55%);
+}
+.hq-kanban-qh-pill.healthy {
+  color: hsl(150 64% 40%);
+}
+
 
 
