@@ -1,5 +1,5 @@
 import type { State } from './app-reducer.js';
-import { computeSidebarWidth } from './components/sidebar.js';
+import { computeSidebarContentWidth, computeSidebarWidth } from './components/sidebar.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import { coercePanelPositionMap, type PanelId, type PanelPositionMap } from './ui-contracts.js';
 
@@ -47,6 +47,8 @@ export interface SidebarLayoutState {
   panelPositions: PanelPositionMap;
   overlayOpen: boolean;
   sidebarWidth: number;
+  /** Width AppView must pass to nested routed sidebar panel frames. */
+  sidebarContentWidth: number;
   mainColumnWidth: number;
 }
 
@@ -108,6 +110,7 @@ export function resolveSidebarLayout(
     panelPositions,
     overlayOpen,
     sidebarWidth,
+    sidebarContentWidth: computeSidebarContentWidth(sidebarWidth),
     mainColumnWidth: termCols - sidebarWidth,
   };
 }

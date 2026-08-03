@@ -33,7 +33,7 @@ import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
 import { resolveSidebarLayout } from './app-ui-state.js';
-import { computeSidebarContentWidth, RightSidebar } from './components/sidebar.js';
+import { RightSidebar } from './components/sidebar.js';
 import { SidebarContent } from './components/sidebar-content.js';
 import {
   AgentsPanelSidebar,
@@ -127,7 +127,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // its F-key is open AND its position is 'sidebar'. Mirrors
   // app-status-region.tsx's bottom-region suppression so the two surfaces
   // never double-render.
-  const { panelPositions, sidebarWidth, mainColumnWidth } = resolveSidebarLayout(
+  const { panelPositions, sidebarWidth, sidebarContentWidth, mainColumnWidth } = resolveSidebarLayout(
     state,
     termCols,
     // While the settings picker is open, use the reducer state for immediate
@@ -145,9 +145,6 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     mailbox.mailboxPanelOpen,
   );
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
-  // RightSidebar owns its border + horizontal padding. Nested panel frames
-  // must fit the remaining content box or they overflow into the main column.
-  const sidebarContentWidth = computeSidebarContentWidth(sidebarWidth);
 
   // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
   // more panels than the limit are open AND routed to 'sidebar', render the

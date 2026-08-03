@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { resolveSidebarLayout } from '../src/app-ui-state.js';
 import { FleetPanelSidebar } from '../src/components/sidebar-panels.js';
-import {
-  computeSidebarContentWidth,
-  computeSidebarWidth,
-  RightSidebar,
-} from '../src/components/sidebar.js';
+import { RightSidebar } from '../src/components/sidebar.js';
 import { Box, Text } from '../src/ink.js';
 import { displayWidth } from '../src/terminal-width.js';
+import { createTestState } from './helpers/create-test-state.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 describe('routed sidebar panel layout', () => {
@@ -16,9 +14,14 @@ describe('routed sidebar panel layout', () => {
     async () => {
       const columns = 80;
       const rows = 24;
-      const sidebarWidth = computeSidebarWidth(columns);
-      const mainColumnWidth = columns - sidebarWidth;
-      const sidebarContentWidth = computeSidebarContentWidth(sidebarWidth);
+      const state = createTestState({ monitorOpen: true });
+      const { sidebarWidth, sidebarContentWidth, mainColumnWidth, overlayOpen } =
+        resolveSidebarLayout(state, columns, { fleet: 'sidebar' }, false);
+
+      expect(overlayOpen).toBe(false);
+      expect(sidebarWidth).toBe(20);
+      expect(sidebarContentWidth).toBe(16);
+      expect(mainColumnWidth).toBe(60);
       const view = renderRealTty(
         <Box flexDirection="row" width={columns} height={rows} overflowX="hidden">
           <Box width={mainColumnWidth} height={rows} flexShrink={0}>
