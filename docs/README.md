@@ -45,6 +45,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 | [yolo-mode.md](yolo-mode.md) | YOLO mode: risk classifier, permission policy, audit log | Read when working on `/yolo` or the security layer |
 | [hooks.md](hooks.md) | Hooks runner: cross-cutting events, shell hooks, plugin integration | Read when adding a hook trigger or working on `/hooks` |
 | [skills.md](skills.md) | Skill system: SKILL.md format, skill loader, registry | Read when working on `packages/core/src/skills/` |
+| [codebase-index-calls.md](codebase-index-calls.md) | Incoming/outgoing calls tools: ref-graph caller/callee lookup, 7-layer dispatch, edit→index pipeline, impact analysis | Read when working on `codebase-incoming-calls`/`codebase-outgoing-calls` or the index dispatch stack |
 
 ---
 
