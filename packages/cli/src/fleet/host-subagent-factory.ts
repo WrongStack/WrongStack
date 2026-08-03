@@ -32,7 +32,6 @@ import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
-import type { TextBlock } from '@wrongstack/core/types';
 import type {
   Config,
   Provider,
@@ -40,21 +39,23 @@ import type {
   SessionWriter,
   SubagentConfig,
   TaskSpec,
+  TextBlock,
   Tool,
 } from '@wrongstack/core/types';
+import { resolveHostSubagentSkillContent, retrieveHostSubagentMemory } from './host-context.js';
 import { installSubagentEventBridge } from './host-event-bridge.js';
-import { isAgentAvailable, isInsideDirectory, resolveSubagentCapabilities } from './host-helpers.js';
-import { createParentSubagentSessionWriter } from './host-session-writer.js';
-import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 import {
-  resolveHostSubagentSkillContent,
-  retrieveHostSubagentMemory,
-} from './host-context.js';
+  isAgentAvailable,
+  isInsideDirectory,
+  resolveSubagentCapabilities,
+} from './host-helpers.js';
 import {
   buildHostSubagentProvider,
   resolveHostSubagentModelSelection,
   resolveHostSubagentReasoningConfig,
 } from './host-provider.js';
+import { createParentSubagentSessionWriter } from './host-session-writer.js';
+import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 
 export interface HostSubagentFactoryContext {
   deps: MultiAgentDeps;
@@ -85,7 +86,14 @@ export function createHostSubagentFactory(
       : subCfg;
     const matrixTarget = effectiveCfg.model
       ? undefined
-      : resolveSubagentModelTarget(liveConfig, effectiveCfg.role);
+      : resolveSubagentModelTarget(liveConfig, effectiveCfg.role, {
+          // Thread the shared tracker so the resolved matrix target skips
+          // (provider, model) pairs currently in the waiting room. Without
+          // this, the subagent factory would seed its own primary from a
+          // doomed model the leader just 429-stricken, and the fallback
+          // extension would have to spend a turn rotating away.
+          ...(host.opts.statusTracker ? { statusTracker: host.opts.statusTracker } : {}),
+        });
     const modelSelection = resolveHostSubagentModelSelection(
       liveConfig,
       effectiveCfg,
@@ -114,8 +122,7 @@ export function createHostSubagentFactory(
         providerError = err;
       }
     }
-    if (!provider)
-      throw providerError ?? new Error('No permitted provider/model could be built.');
+    if (!provider) throw providerError ?? new Error('No permitted provider/model could be built.');
     let subReasoningConfig = await resolveHostSubagentReasoningConfig(
       host.deps,
       effProvider,
@@ -214,8 +221,7 @@ export function createHostSubagentFactory(
       baseSystem.push({ type: 'text', text: rolePrompt });
     }
 
-    const subagentName =
-      effectiveCfg.id ?? effectiveCfg.name ?? `sub_${randomUUID().slice(0, 8)}`;
+    const subagentName = effectiveCfg.id ?? effectiveCfg.name ?? `sub_${randomUUID().slice(0, 8)}`;
     if (effectiveCfg.role) {
       host.recordLearningRole(subagentName, effectiveCfg.role);
     }

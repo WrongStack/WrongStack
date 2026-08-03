@@ -138,7 +138,7 @@ tree hit its <1,000-line gate. So decomposition works; the plan extends it.
 
 ### F5 — MEDIUM: open RAM-leak-audit follow-ups (all small, all verified open)
 
-From `docs/reports/ram-leak-audit-2026-07-31.md` "Recommended improvements":
+From `docs/archive/reports/dated-reports/ram-leak-audit-2026-07-31.md` "Recommended improvements":
 1. Surface the `InMemoryMetricsSink` dropped-observations counter in
    `packages/cli/src/wiring/metrics.ts` (`/metrics` scrape).
 2. Add default `maxSeriesPerMetric` (e.g. 1000) to the sink wiring.
@@ -283,7 +283,7 @@ corresponding exception — the report must show the cycle gone, not the excepti
 ## 8. References
 
 - Fresh health run: `node scripts/check-architecture-health.mjs --json --report-only` (2026-07-31T22:33Z)
-- `docs/reports/ram-leak-audit-2026-07-31.md`
+- `docs/archive/reports/dated-reports/ram-leak-audit-2026-07-31.md`
 - `docs/plans/adr-003-authority-first-refactor-program.md`, `docs/plans/architecture-refactor-task-graph-2026-07.md`
 - `docs/plans/hq-evolution-2026-08.md` (concurrent)
 - `architecture/exceptions.json`, `architecture/hotspots.json`, `architecture/registry.json`

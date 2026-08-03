@@ -3,6 +3,7 @@ import type {
   MailboxAudience,
   MailboxMessage,
   MailboxMessageType,
+  MailboxSessionAffinity,
   MailboxTaskContext,
   ReadReceipts,
 } from './mailbox-types.js';
@@ -194,6 +195,43 @@ function parseTaskContext(value: unknown): MailboxTaskContext | undefined {
   };
 }
 
+/**
+ * Parse and structurally validate a `MailboxSessionAffinity` token persisted
+ * on a mailbox message. The token is the trust boundary that lets the
+ * recipient's leader filter drop cross-session chimera reports — see
+ * `acceptMailboxMessageForSession` in `mailbox-types.ts`. The codec MUST
+ * reject malformed tokens here so a tampered JSONL line cannot smuggle a
+ * fake affinity through the receiver-side check.
+ */
+function parseSessionAffinity(value: unknown): MailboxSessionAffinity | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    throw new TypeError('mailbox message field "sessionAffinity" must be an object');
+  }
+  const sessionId = value['sessionId'];
+  const reportId = value['reportId'];
+  const kind = optionalString(value, 'kind');
+  if (sessionId !== undefined) {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) {
+      throw new TypeError('mailbox message sessionAffinity.sessionId must be a non-empty string');
+    }
+    return {
+      sessionId,
+      ...optionalString(value, 'reportId'),
+      ...kind,
+    };
+  }
+  if (typeof reportId !== 'string' || reportId.length === 0) {
+    throw new TypeError(
+      'mailbox message sessionAffinity.reportId must be a non-empty string when sessionId is absent',
+    );
+  }
+  return {
+    reportId,
+    ...kind,
+  };
+}
+
 /** Parse, migrate, and structurally validate one persisted mailbox message. */
 export function parseMailboxMessage(value: unknown): MailboxMessage {
   if (!isRecord(value)) throw new TypeError('mailbox message must be an object');
@@ -206,6 +244,7 @@ export function parseMailboxMessage(value: unknown): MailboxMessage {
 
   const taskContext = parseTaskContext(value['taskContext']);
   const audience = parseAudience(value['audience']);
+  const sessionAffinity = parseSessionAffinity(value['sessionAffinity']);
   return {
     id: requiredString(value, 'id'),
     from: requiredString(value, 'from'),
@@ -227,6 +266,7 @@ export function parseMailboxMessage(value: unknown): MailboxMessage {
     ...optionalString(value, 'senderSessionId'),
     ...optionalString(value, 'expiresAt'),
     ...(taskContext === undefined ? {} : { taskContext }),
+    ...(sessionAffinity === undefined ? {} : { sessionAffinity }),
   };
 }
 
@@ -351,5 +391,6 @@ export function serializeMailboxMessage(msg: MailboxMessage): string {
   if (msg.senderSessionId !== undefined) obj.senderSessionId = msg.senderSessionId;
   if (msg.expiresAt !== undefined) obj.expiresAt = msg.expiresAt;
   if (msg.taskContext !== undefined) obj.taskContext = msg.taskContext;
+  if (msg.sessionAffinity !== undefined) obj.sessionAffinity = msg.sessionAffinity;
   return JSON.stringify(obj) + '\n';
 }

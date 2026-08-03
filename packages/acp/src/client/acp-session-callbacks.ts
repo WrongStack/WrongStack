@@ -17,7 +17,16 @@ export interface ACPResponseSender {
 export interface ACPCallbackOptions {
   /** Abort when the owning ACP session/prompt is closed or cancelled. */
   signal?: AbortSignal | undefined;
-  /** Maximum time to wait for callback authorization before failing closed. */
+  /**
+   * Maximum time to wait for callback authorization before failing closed.
+   * Defaults to {@link DEFAULT_PERMISSION_TIMEOUT_MS}. Pass
+   * `Number.POSITIVE_INFINITY` to opt out of the wall-clock deadline (e.g.
+   * hosts whose permission policy waits for a human decision, where a short
+   * cap would auto-fail approvals the user is still considering); the
+   * host's `signal` still bounds the wait and fails closed on teardown.
+   * Non-positive or non-finite values (other than the opt-out) fall back to
+   * the fail-closed default.
+   */
   permissionTimeoutMs?: number | undefined;
 }
 
@@ -260,13 +269,12 @@ async function runPermissionWithDeadline(
   call: PermissionCall,
   callbackOptions: ACPCallbackOptions,
 ): Promise<RequestPermissionOutcome> {
-  const timeoutMs = finitePositiveTimeout(
-    callbackOptions.permissionTimeoutMs,
-    DEFAULT_PERMISSION_TIMEOUT_MS,
-  );
+  // `null` = explicit opt-out of the wall-clock deadline (the host's abort
+  // signal still bounds the wait); no timer is scheduled in that case.
+  const timeoutMs = resolvePermissionDeadline(callbackOptions.permissionTimeoutMs);
   const controller = new AbortController();
   const abort = (): void => controller.abort();
-  const timer = setTimeout(abort, timeoutMs);
+  const timer = timeoutMs === null ? null : setTimeout(abort, timeoutMs);
   let removeAbort: (() => void) | undefined;
 
   if (callbackOptions.signal) {
@@ -288,7 +296,7 @@ async function runPermissionWithDeadline(
       rejectOnAbort(controller.signal),
     ]);
   } finally {
-    clearTimeout(timer);
+    if (timer !== null) clearTimeout(timer);
     removeAbort?.();
   }
 }
@@ -308,6 +316,15 @@ function isAbortLikeError(err: unknown): boolean {
   return err instanceof Error && /cancelled|canceled|timed out|aborted/i.test(err.message);
 }
 
-function finitePositiveTimeout(value: number | undefined, fallback: number): number {
-  return value !== undefined && Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
+/**
+ * Resolve the permission deadline from the caller-supplied timeout.
+ * `undefined` and invalid (non-positive / non-finite) values fall back to
+ * the fail-closed default; `Number.POSITIVE_INFINITY` is the explicit
+ * opt-out and returns `null` (no wall-clock deadline — interactive hosts
+ * whose policy waits for a human decision must not auto-fail approvals).
+ */
+function resolvePermissionDeadline(value: number | undefined): number | null {
+  if (value === Number.POSITIVE_INFINITY) return null;
+  if (value !== undefined && Number.isFinite(value) && value > 0) return Math.trunc(value);
+  return DEFAULT_PERMISSION_TIMEOUT_MS;
 }

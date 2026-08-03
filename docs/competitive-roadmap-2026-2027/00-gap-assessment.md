@@ -1,7 +1,7 @@
 # Competitive Gap Assessment
 
 **Assessment date:** 2026-07-11  
-**Source:** `docs/reports/wrongstack-competitive-gap-analysis-2026-07-11.md`  
+**Source:** Historical competitive analysis, reconciled into this roadmap on 2026-07-11.
 **Purpose:** Validate and normalize the report before turning it into implementation work.
 
 ## Executive analysis
@@ -104,4 +104,3 @@ This leads to four planning conclusions:
 - **Near term:** roughly half of roadmap capacity should go to reliability, policy UX, MCP completion, and operational commands; these compound every later feature.
 - **Middle term:** focus on browser, semantic memory, Desktop, API/data/deployment workflows, and benchmark publication.
 - **Long term:** only fund distributed workers and live collaboration after identity, audit, security, and real usage data justify their operating complexity.
-

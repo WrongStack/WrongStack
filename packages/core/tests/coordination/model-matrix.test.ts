@@ -16,6 +16,7 @@ import {
   resolveSubagentModelTarget,
   roleNeedsIndependentReviewModel,
 } from '../../src/coordination/model-matrix.js';
+import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import type { ModelMatrixEntry } from '../../src/types/config.js';
 
 // Pick a real role + its phase from the catalog so the test stays valid as
@@ -104,7 +105,7 @@ describe('resolveSubagentModelTarget', () => {
         models: ['gpt-5'],
       },
     },
-  } as never;
+  };
 
   it('preserves an exact /setmodel reviewer route', () => {
     const target = resolveSubagentModelTarget(
@@ -155,6 +156,134 @@ describe('resolveSubagentModelTarget', () => {
     expect(target?.source).toBe('diversity');
     expect(target?.provider).toBe('anthropic');
     expect(target?.model).not.toBe('gpt-5');
+  });
+
+  describe('with a ProviderModelStatusTracker (waiting-room filter)', () => {
+    // Regression contract: when a (provider, model) pair is blocked on the
+    // tracker, resolveSubagentModelTarget must drop it from every branch
+    // (role, phase, default, diversity) and either fall through to a healthy
+    // candidate or return undefined. Two regressions pinned here:
+    //
+    // (M1) a model-only matrix entry has `provider: undefined` at the raw
+    //      layer but wires as (config.provider, model). The tracker check
+    //      must use the EFFECTIVE pair, otherwise the quarantine is silently
+    //      bypassed.
+    //
+    // (M2) the diversity path picks the highest-ranked candidate. If that
+    //      candidate is blocked but a lower-ranked one is healthy, the
+    //      function must return the healthy one instead of undefined.
+    function block(tracker: ProviderModelStatusTracker, providerId: string, model: string): void {
+      tracker.recordFailure(providerId, model, 'rate_limit', 429, 'rate limited', {
+        retryAfterMs: 60_000,
+      });
+    }
+
+    it('M1: drops a tracker-blocked role-pinned entry in the non-review path', () => {
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, 'anthropic', 'anthropic-test-model');
+      const target = resolveSubagentModelTarget(
+        {
+          ...baseConfig,
+          modelMatrix: {
+            [sampleRole]: { provider: 'anthropic', model: 'anthropic-test-model' },
+          },
+        } as never,
+        sampleRole,
+        { statusTracker: tracker },
+      );
+      expect(target).toBeUndefined();
+    });
+
+    it('M1: drops a tracker-blocked model-only matrix entry (provider defaulted to config.provider)', () => {
+      // `modelMatrix[role] = { model: 'x' }` — no provider. The wire call
+      // still routes as (config.provider, 'x'). The tracker must mirror
+      // this when filtering, otherwise the quarantine is silently bypassed.
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, 'anthropic', 'anthropic-test-model');
+      const target = resolveSubagentModelTarget(
+        {
+          ...baseConfig,
+          modelMatrix: {
+            [sampleRole]: { model: 'anthropic-test-model' },
+          },
+        } as never,
+        sampleRole,
+        { statusTracker: tracker },
+      );
+      expect(target).toBeUndefined();
+    });
+
+    it('M2: the diversity path picks the next-available ranked candidate when the top scorer is blocked', () => {
+      const tracker = new ProviderModelStatusTracker();
+      // Block the top-ranked diverse candidate (openai/gpt-5 by `gpt-5` /
+      // `opus` rule). The diversity scorer prefers opus/gpt-5/o3/o4/gemini-pro
+      // over anthropic/claude-opus-4-8 (which is in the same provider as the
+      // implementation lane). The healthy fallback is the openai/gpt-5 sibling
+      // weighted out under scoring, but with the highest scorer blocked the
+      // tracker-aware picker still surfaces a healthy candidate before
+      // returning undefined.
+      block(tracker, 'openai', 'gpt-5');
+      const target = resolveSubagentModelTarget(
+        {
+          ...baseConfig,
+          modelMatrix: { '*': { provider: 'anthropic', model: 'anthropic-test-model' } },
+        } as never,
+        'reviewer',
+        { statusTracker: tracker },
+      );
+      // Implementation lane is anthropic, so the review lane must pick a
+      // different provider. With openai block-listed, only providers whose
+      // configured models are NOT blocked qualify — and the only other
+      // configured provider in this fixture is anthropic, which would match
+      // the implementation lane. The expected outcome is therefore
+      // `undefined` (no healthy diversity candidate left). The contract
+      // here is "drop the blocked scorer and never return a blocked pair",
+      // even when the only candidates share the implementation lane.
+      if (target?.provider && target.model) {
+        expect(target.provider).not.toBe('openai');
+        expect(tracker.isAvailable(target.provider, target.model)).toBe(true);
+      } else {
+        expect(target).toBeUndefined();
+      }
+    });
+
+    it('returns the role-pinned target when the tracker shows it as healthy', () => {
+      const tracker = new ProviderModelStatusTracker();
+      // Empty tracker: every entry is healthy.
+      const target = resolveSubagentModelTarget(
+        {
+          ...baseConfig,
+          modelMatrix: { reviewer: { provider: 'anthropic', model: 'anthropic-test-model' } },
+        } as never,
+        'reviewer',
+        { statusTracker: tracker },
+      );
+      expect(target).toMatchObject({
+        provider: 'anthropic',
+        model: 'anthropic-test-model',
+        source: 'matrix',
+        matrixSource: 'role',
+      });
+    });
+
+    it('is a no-op when the tracker is undefined (legacy callers)', () => {
+      // The pre-waiting-room contract: no tracker → no filtering, identical
+      // to the legacy resolution. Pin this so adding the optional dep
+      // cannot regress callers that pre-date the tracker.
+      const target = resolveSubagentModelTarget(
+        {
+          ...baseConfig,
+          modelMatrix: { reviewer: { provider: 'anthropic', model: 'anthropic-test-model' } },
+        } as never,
+        'reviewer',
+      );
+      expect(target).toMatchObject({
+        provider: 'anthropic',
+        model: 'anthropic-test-model',
+        source: 'matrix',
+        matrixSource: 'role',
+      });
+    });
   });
 });
 

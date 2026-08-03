@@ -42,6 +42,7 @@ import {
   type ACPSessionScratch,
 } from './acp-session-updates.js';
 import {
+  type ACPCallbackOptions,
   type ACPResponseSender,
   handleAcpFsRequest,
   handleAcpPermissionRequest,
@@ -918,10 +919,18 @@ export class ACPSession {
     };
   }
 
-  private callbackOptions(): { signal: AbortSignal } {
+  private callbackOptions(): ACPCallbackOptions {
     const promptSignal = this.promptCallbackAbort?.signal;
-    if (!promptSignal) return { signal: this.callbackAbort.signal };
-    return { signal: AbortSignal.any([this.callbackAbort.signal, promptSignal]) };
+    const signal = promptSignal
+      ? AbortSignal.any([this.callbackAbort.signal, promptSignal])
+      : this.callbackAbort.signal;
+    // Opt out of the default wall-clock permission deadline: ACPSession
+    // hosts may inject a permissionPolicy that waits for a human decision,
+    // and the 60s default would auto-fail approvals the user is still
+    // considering. The wait remains fail-closed — close() aborts
+    // callbackAbort/promptCallbackAbort, which cancels any in-flight
+    // permission request (-32800) regardless of the missing deadline.
+    return { signal, permissionTimeoutMs: Number.POSITIVE_INFINITY };
   }
 
   private handleMessage(msg: ACPMessage): void {

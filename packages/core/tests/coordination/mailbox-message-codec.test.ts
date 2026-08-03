@@ -32,6 +32,7 @@ describe('mailbox message codec', () => {
         audience: 'leaders',
         replyTo: 'parent',
         taskContext: { agentRole: 'executor', status: 'running' },
+        sessionAffinity: { sessionId: 'session-1', reportId: 'report-1', kind: 'chimera.review' },
       }),
     );
 
@@ -40,6 +41,7 @@ describe('mailbox message codec', () => {
       replyTo: 'parent',
       audience: 'leaders',
       taskContext: { agentRole: 'executor', status: 'running' },
+      sessionAffinity: { sessionId: 'session-1', reportId: 'report-1', kind: 'chimera.review' },
     });
   });
 
@@ -82,6 +84,10 @@ describe('mailbox message codec', () => {
     { ...validMessage, completed: 'no' },
     { ...validMessage, taskContext: [] },
     { ...validMessage, taskContext: { status: 'mystery' } },
+    { ...validMessage, sessionAffinity: [] },
+    { ...validMessage, sessionAffinity: { sessionId: '' } },
+    { ...validMessage, sessionAffinity: { sessionId: 1 } },
+    { ...validMessage, sessionAffinity: { reportId: '' } },
   ])('rejects structurally invalid persisted values', (value) => {
     expect(() => parseMailboxMessage(value)).toThrow(TypeError);
   });

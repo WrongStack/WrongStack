@@ -24,7 +24,6 @@ import {
   type MailboxAudience,
   type MailboxMessageType,
   type MailboxQuery,
-  type MailboxSessionAffinity,
 } from './mailbox-types.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import type { MailboxActorContext, MailboxCapability } from './mailbox-types.js';
@@ -100,7 +99,6 @@ export interface ParsedSendInput {
    * the originating session. A sender-asserted mismatch is rejected; a
    * missing or malformed token is treated as no token.
    */
-  sessionAffinity?: MailboxSessionAffinity;
 }
 
 /**

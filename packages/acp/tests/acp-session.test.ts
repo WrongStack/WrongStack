@@ -187,6 +187,62 @@ describe('ACPSession', () => {
     }
   });
 
+  it('closes cleanly with a pending permission callback (no unhandled rejection)', async () => {
+    // Regression: close() aborts the pending callback; the handler's catch
+    // then tries sendErrorResponse on a transport whose send() rejects after
+    // teardown. That rejection must be swallowed, not crash the process.
+    const neverSettles = vi.fn().mockImplementation(
+      () => new Promise(() => undefined) as ReturnType<typeof defaultPermissionPolicy>,
+    );
+    const session = await startSession(undefined, { permissionPolicy: neverSettles });
+    const t = lastTransport();
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      t.send.mockImplementation(async (message: ACPMessage) => {
+        t.sent.push(message);
+        if ((message as { id?: unknown }).id === 'perm-close') {
+          throw new Error('ClientTransport not started');
+        }
+      });
+
+      t.emit({
+        jsonrpc: '2.0',
+        id: 'perm-close',
+        method: 'session/request_permission',
+        params: {
+          sessionId: 'sess_abc',
+          toolCall: {
+            toolCallId: 'tc-pending',
+            title: 'write a.ts',
+            kind: 'edit',
+            status: 'pending',
+          },
+          options: [{ optionId: 'allow', name: 'Allow', kind: 'allow_once' }],
+        },
+      } as never as ACPMessage);
+      // Let the handler reach the policy race before tearing down.
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(neverSettles).toHaveBeenCalledTimes(1);
+
+      await session.close();
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // The abort-driven cancellation must have attempted a -32800 reply.
+      const response = t.sent.find(
+        (message) =>
+          (message as { id?: unknown }).id === 'perm-close' &&
+          (message as { error?: unknown }).error !== undefined,
+      ) as { error?: { code?: number; message?: string } } | undefined;
+      expect(response?.error?.code).toBe(-32800);
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+      await session.close();
+    }
+  });
+
   it('runs a happy-path prompt turn and concatenates text', async () => {
     const session = await startSession();
     const t = lastTransport();

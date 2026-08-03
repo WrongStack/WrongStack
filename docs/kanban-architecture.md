@@ -102,8 +102,8 @@ Primary implementation files:
 | External-agent skill | `packages/core/skills/wrongstack-kanban/SKILL.md` | Portable inspect/claim/heartbeat/verify/reconcile workflow for MCP-capable coding agents |
 | Director tool | `packages/core/src/coordination/director-tools.ts` | `kanban_queue` fleet dispatch bridge; subagent prompt includes reassessment contract |
 | CLI | `packages/cli/src/slash-commands/kanban.ts` | Human slash-command surface |
-| Embedded WebUI WS | `packages/cli/src/webui-server/ws-handlers/kanban.ts` | CLI-hosted WebUI messages |
-| Standalone WebUI WS | `packages/webui/src/server/kanban-routes.ts` | Standalone WebUI messages |
+| Embedded WebUI WS | `packages/cli/src/webui-server/kanban-host-adapter.ts` | CLI-hosted WebUI messages |
+| Standalone WebUI WS | `packages/webui-server/src/server/kanban-routes.ts` | Standalone WebUI messages |
 | Frontend store | `packages/webui/src/stores/kanban-store.ts` | Client state/actions for boards and tasks |
 
 ---
@@ -585,8 +585,8 @@ Main CLI capabilities:
 Both WebUI servers route Kanban messages through the same IPC-backed public
 client:
 
-- embedded CLI WebUI: `packages/cli/src/webui-server/ws-handlers/kanban.ts`
-- standalone WebUI: `packages/webui/src/server/kanban-routes.ts`
+- embedded CLI WebUI: `packages/cli/src/webui-server/kanban-host-adapter.ts`
+- standalone WebUI: `packages/webui-server/src/server/kanban-routes.ts`
 
 The frontend store (`packages/webui/src/stores/kanban-store.ts`) mirrors the
 same operations for UI usage.
@@ -775,8 +775,8 @@ Current focused coverage lives primarily in:
 - `packages/kanban/tests/project-server-lifecycle.test.ts`
 - `packages/kanban/tests/kanban-supervisor-bridge.test.ts`
 - `packages/webui-server/tests/kanban-daemon-subscriber.test.ts`
-- `packages/cli/tests/kanban.test.ts`
-- `packages/cli/tests/webui-server/ws-handler-parity.test.ts`
+- `packages/cli/tests/kanban-slash-coverage.test.ts`
+- `packages/webui-server/tests/kanban-host-routes.test.ts`
 - `packages/webui/tests/stores/kanban-store.test.ts`
 
 Important covered behaviors:
@@ -805,7 +805,7 @@ pnpm --filter @wrongstack/tools typecheck
 pnpm --filter @wrongstack/webui typecheck
 pnpm --filter @wrongstack/cli typecheck
 pnpm --filter @wrongstack/tui typecheck
-pnpm vitest run packages/cli/tests/kanban.test.ts packages/cli/tests/webui-server/ws-handler-parity.test.ts
+pnpm vitest run packages/cli/tests/kanban-slash-coverage.test.ts packages/webui-server/tests/kanban-host-routes.test.ts
 pnpm --filter @wrongstack/webui test -- tests/stores/kanban-store.test.ts
 pnpm exec biome lint packages/kanban/src/types.ts packages/kanban/src/manager.ts packages/kanban/src/storage.ts packages/tools/src/kanban.ts
 ```

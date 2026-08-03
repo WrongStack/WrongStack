@@ -101,6 +101,6 @@ issued or revoked credential).
 
 ## Code Reference
 
-- `packages/cli/src/slash/mailbox-handler.ts` — dispatch
+- `packages/cli/src/slash-commands/mailbox.ts` — dispatch
 - `packages/core/src/coordination/mailbox-credential-store.ts` — credential store
-- `packages/core/src/coordination/global-mailbox.ts` — message + receipt operations
+- `packages/core/src/coordination/sqlite-mailbox.ts` — durable message and receipt operations

@@ -7,7 +7,7 @@
       "relativeImports": 2
     },
     "packages/acp/src/client/acp-session.ts": {
-      "lines": 1006,
+      "lines": 1046,
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
@@ -115,7 +115,7 @@
       "relativeImports": 9
     },
     "packages/core/src/coordination/mailbox-types.ts": {
-      "lines": 956,
+      "lines": 1272,
       "relativeImports": 3
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
@@ -179,8 +179,8 @@
       "relativeImports": 148
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
-      "lines": 1020,
-      "relativeImports": 10
+      "lines": 1051,
+      "relativeImports": 11
     },
     "packages/core/src/security/permission-policy.ts": {
       "lines": 970,
@@ -311,16 +311,20 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 882,
+      "lines": 889,
       "relativeImports": 17
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 819,
+      "lines": 829,
       "relativeImports": 12
     },
+    "packages/tui/src/app-view.tsx": {
+      "lines": 910,
+      "relativeImports": 48
+    },
     "packages/tui/src/app.tsx": {
-      "lines": 1049,
-      "relativeImports": 67
+      "lines": 1040,
+      "relativeImports": 66
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 997,
@@ -351,15 +355,19 @@
       "relativeImports": 22
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 919,
-      "relativeImports": 3
+      "lines": 987,
+      "relativeImports": 4
+    },
+    "packages/tui/src/components/sidebar-panels.tsx": {
+      "lines": 1177,
+      "relativeImports": 11
     },
     "packages/tui/src/components/status-bar.tsx": {
       "lines": 1152,
       "relativeImports": 16
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
-      "lines": 984,
+      "lines": 987,
       "relativeImports": 6
     },
     "packages/tui/src/input-validation.ts": {
@@ -463,8 +471,8 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1129,
-      "relativeImports": 8
+      "lines": 1145,
+      "relativeImports": 9
     },
     "packages/webui/src/stores/chat-store.ts": {
       "lines": 1090,
@@ -505,6 +513,10 @@
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 967,
       "relativeImports": 8
+    },
+    "packages/webui-server/src/server/provider-handlers.ts": {
+      "lines": 801,
+      "relativeImports": 6
     },
     "packages/webui-server/src/server/setup-events.ts": {
       "lines": 1007,

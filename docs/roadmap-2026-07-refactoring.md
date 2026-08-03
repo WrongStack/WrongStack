@@ -2,7 +2,7 @@
 
 **Generated:** 2026-07-12  
 **Source:** `wrongstack-report-2026-07-12.md` (deep code analysis across 18 packages)  
-**Existing backlog:** `docs/backlog/2026-07-architecture-review/` (18 items)  
+**Historical backlog:** `docs/archive/work-items/backlog/2026-07-architecture-review/` (18 items)
 **Architecture rules:** `docs/architecture-rules.md`  
 
 ---

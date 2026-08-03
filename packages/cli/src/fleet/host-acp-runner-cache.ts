@@ -16,7 +16,8 @@ export class HostAcpRunnerCache {
     }
 
     // CLI /spawn and Director fan-out are trusted local agents - grant write/execute access.
-    // The session default is read-only for untrusted agents (acp-session.ts:221).
+    // The session default is read-only for untrusted agents (acp-session.ts:133);
+    // buildAcpSubagentRunner passes defaultPermissionPolicy explicitly.
     const runner = buildAcpSubagentRunner(subagentId);
     setBoundedLruEntry(this.runners, this.accessOrder, subagentId, runner, this.maxEntries);
     return runner;

@@ -11,7 +11,7 @@ fallback.
 Push a tag matching the root manifest version:
 
 ```bash
-git tag v0.298.0 && git push origin v0.298.0
+git tag v<version> && git push origin v<version>
 ```
 
 That does **not** publish. It requests a publish: the workflow's `publish` job
@@ -188,5 +188,5 @@ For a real release, `pnpm release` encodes the required ordering.
 - [`packages/plugins/src/catalog.ts`](../packages/plugins/src/catalog.ts) — what the catalog test guards
 - [`docs/feature-matrix.md`](feature-matrix.md) — the 63 plugins the H1 teardown test covers
 - [`packages/plugins/README.md`](../packages/plugins/README.md) — the plugin contract
-- [`../RELEASE.md`](../RELEASE.md) — maintainer checklist, version bump, tagging, publication, and current automation status
+- [`release.md`](release.md) — maintainer checklist, version bump, tagging, publication, and current automation status
 - [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) — website deployment only; not an npm release workflow

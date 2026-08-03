@@ -8,7 +8,7 @@
 | **Supersedes** | Sequencing and ownership assumptions in `architecture-refactor-plan.md` and the 2026-07 architecture-review backlog; historical evidence remains valid |
 | **Superseded by** | — |
 | **Execution graph** | [`architecture-refactor-task-graph-2026-07.md`](architecture-refactor-task-graph-2026-07.md) |
-| **Historical backlog** | [`../backlog/2026-07-architecture-review/README.md`](../backlog/2026-07-architecture-review/README.md) |
+| **Historical backlog** | [`../archive/work-items/backlog/2026-07-architecture-review/README.md`](../archive/work-items/backlog/2026-07-architecture-review/README.md) |
 
 ## Context
 

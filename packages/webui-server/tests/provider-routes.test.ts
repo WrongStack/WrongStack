@@ -2,9 +2,11 @@ import type { ResolvedProvider } from '@wrongstack/core/types';
 import {
   handleProviderRoute,
   type ProviderRouteHandlers,
+} from '../src/server/provider-routes.js';
+import {
   resolveProviderCatalogForModels,
   resolveProviderModelMetadata,
-} from '@wrongstack/webui-server';
+} from '../src/server/model-catalog.js';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 
@@ -49,6 +51,8 @@ function routes(): ProviderRouteHandlers {
       handleProviderAdd: vi.fn(async () => undefined),
       handleProviderRemove: vi.fn(async () => undefined),
       handleProviderClearModels: vi.fn(async () => undefined),
+      handleCustomModelSet: vi.fn(async () => undefined),
+      handleCustomModelRemove: vi.fn(async () => undefined),
       handleProviderUndoClear: vi.fn(async () => undefined),
       handleProviderUpdate: vi.fn(async () => undefined),
       handleProviderProbe: vi.fn(async () => undefined),
@@ -103,6 +107,8 @@ describe('handleProviderRoute malformed payload characterization', () => {
       deps.providerHandlers.handleProviderAdd,
       deps.providerHandlers.handleProviderRemove,
       deps.providerHandlers.handleProviderClearModels,
+      deps.providerHandlers.handleCustomModelSet,
+      deps.providerHandlers.handleCustomModelRemove,
       deps.providerHandlers.handleProviderUndoClear,
       deps.providerHandlers.handleProviderUpdate,
       deps.providerHandlers.handleProviderProbe,
@@ -152,6 +158,123 @@ describe('handleProviderRoute malformed payload characterization', () => {
 
     capabilities.tools = false;
     expect(copiedCapabilities?.tools).toBe(true);
+  });
+
+  it('preserves validated modelsDev metadata before dispatching provider.add', async () => {
+    const ws = mockWs();
+    const deps = routes();
+    const modelsDev = { name: 'Custom Model', limit: { context: 131_072, output: 4096 } };
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        {
+          type: 'provider.add',
+          payload: {
+            id: 'custom',
+            family: 'openai-compatible',
+            customModels: {
+              'custom/model': { modelsDev },
+            },
+          },
+        },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    const dispatched = vi.mocked(deps.providerHandlers.handleProviderAdd).mock.calls.at(0)?.[1];
+    expect(dispatched?.customModels?.['custom/model']?.modelsDev).toEqual(modelsDev);
+  });
+
+  it.each([
+    [
+      'provider.add',
+      {
+        id: 'custom',
+        family: 'openai-compatible',
+        customModels: { 'custom/model': { modelsDev: { limit: { context: 131_072 } } } },
+      },
+      'handleProviderAdd',
+    ],
+    [
+      'provider.update',
+      {
+        id: 'custom',
+        customModels: { 'custom/model': { modelsDev: 'not-an-object' } },
+      },
+      'handleProviderUpdate',
+    ],
+    [
+      'provider.custom_models.set',
+      {
+        providerId: 'custom',
+        modelId: 'custom/model',
+        customModel: { modelsDev: { name: '' } },
+      },
+      'handleCustomModelSet',
+    ],
+    [
+      'provider.custom_models.set',
+      {
+        providerId: '__proto__',
+        modelId: 'custom/model',
+        customModel: { name: 'Prototype Pollution' },
+      },
+      'handleCustomModelSet',
+    ],
+    [
+      'provider.custom_models.remove',
+      { providerId: 'custom', modelId: '__proto__' },
+      'handleCustomModelRemove',
+    ],
+    [
+      'provider.custom_models.remove',
+      { providerId: '__proto__', modelId: 'custom/model' },
+      'handleCustomModelRemove',
+    ],
+  ])('rejects malformed %s payloads before dispatch', async (type, payload, handlerName) => {
+    const ws = mockWs();
+    const deps = routes();
+
+    await expect(handleProviderRoute(ws, { type, payload }, deps)).resolves.toBe(true);
+
+    expect(sentMessages(ws)).toEqual([
+      {
+        type: 'key.operation_result',
+        payload: { success: false, message: `${type} payload is invalid` },
+      },
+    ]);
+    expect(
+      deps.providerHandlers[handlerName as keyof typeof deps.providerHandlers],
+    ).not.toHaveBeenCalled();
+  });
+
+  it('dispatches validated custom model definitions to provider.custom_models.set', async () => {
+    const ws = mockWs();
+    const deps = routes();
+    const customModel = {
+      name: 'Custom Model',
+      modelsDev: { name: 'Custom Model', limit: { context: 131_072 } },
+    };
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        {
+          type: 'provider.custom_models.set',
+          payload: { providerId: 'custom', modelId: 'custom/model', customModel },
+        },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    expect(deps.providerHandlers.handleCustomModelSet).toHaveBeenCalledWith(
+      ws,
+      'custom',
+      'custom/model',
+      customModel,
+    );
+    expect(ws.send).not.toHaveBeenCalled();
   });
 
   it('dispatches valid provider model searches with the optional result limit', async () => {

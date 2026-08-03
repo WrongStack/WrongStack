@@ -115,6 +115,92 @@ describe('TUI settings adapter', () => {
     expect(configStore.get().autonomy?.autoProceedDelayMs).toBe(30_000);
   });
 
+  it('panelPositions survives a save→getSettings round-trip through the in-memory config store', async () => {
+    // Contract pin for the TUI Panels settings persistence path, NOT a
+    // regression against the user-reported "changes don't persist, all
+    // panels stay 'bottom' after exit" symptom — that bug was not
+    // reproducible in the adapter layer and was traced to upstream
+    // TUI state hydration, which is exercised by
+    // packages/tui/tests/panel-position.test.tsx (see the
+    // settingsValueChange runtime reducer describe block there).
+    //
+    // What this test pins: the adapter's save→read round-trip for
+    // `panelPositions` must (a) write the per-panel map to the
+    // in-memory configStore that getSettings() reads from on every
+    // render, (b) write it to the on-disk JSON profile, and (c) return
+    // a fully-coerced 13-entry map from getSettings() — even when the
+    // patch itself is a partial map (the realistic shape persisted
+    // from an older version that only tracked a subset of panels).
+    //
+    // Use a partial map here so the assertions below actually exercise
+    // the coerce-default path; if coercePanelPositionMap regressed and
+    // stopped filling missing entries, `routedToSidebar(id) === 'sidebar'`
+    // in app-view.tsx would silently fall through to 'bottom' for the
+    // omitted panels, which would visually look like "settings don't
+    // persist" to the user.
+    const { adapter, configStore, globalConfig } = makeAdapter();
+
+    const err = await adapter.saveSettings({
+      panelPositions: {
+        projectPicker: 'sidebar',
+        fleet: 'sidebar',
+        worktree: 'sidebar',
+        todos: 'sidebar',
+        processList: 'sidebar',
+        sessions: 'sidebar',
+        kanban: 'sidebar',
+        // agents, plan, queue, goal, coordinator, connections deliberately
+        // omitted to expose broken default coercion.
+      },
+    });
+
+    expect(err).toBeNull();
+
+    // 1. In-memory store must reflect the user's saved positions; this is
+    //    what `liveSettings` reads on every render.
+    const stored = configStore.get().autonomy as
+      | { panelPositions?: Record<string, 'bottom' | 'sidebar'> | undefined }
+      | undefined;
+    expect(stored?.panelPositions).toBeDefined();
+    expect(stored?.panelPositions?.projectPicker).toBe('sidebar');
+    expect(stored?.panelPositions?.fleet).toBe('sidebar');
+    expect(stored?.panelPositions?.worktree).toBe('sidebar');
+
+    // 2. getSettings() must return the coerced full map. All 13 F-key
+    //    panel ids must be present even when the saved payload was
+    //    partial — the missing entries MUST default to 'bottom', not be
+    //    undefined (which would cause `routedToSidebar(id) === 'sidebar'`
+    //    consumers in app-view.tsx to silently fall through to 'bottom'
+    //    for those panels, visually indistinguishable from "settings
+    //    did not persist").
+    const reloaded = adapter.getSettings().panelPositions as Readonly<
+      Record<string, 'bottom' | 'sidebar'>
+    >;
+    // Length guard: if a 14th panel is added to PANEL_IDS but the
+    // adapter's coerce path is missed, this assertion fails loud rather
+    // than letting a single missing entry slip through silently.
+    expect(Object.keys(reloaded)).toHaveLength(13);
+    expect(reloaded.projectPicker).toBe('sidebar');
+    expect(reloaded.fleet).toBe('sidebar');
+    expect(reloaded.worktree).toBe('sidebar');
+    expect(reloaded.todos).toBe('sidebar');
+    expect(reloaded.processList).toBe('sidebar');
+    expect(reloaded.sessions).toBe('sidebar');
+    expect(reloaded.kanban).toBe('sidebar');
+    // Coerce-default coverage: omitted entries must fall back to 'bottom'.
+    expect(reloaded.agents).toBe('bottom');
+    expect(reloaded.plan).toBe('bottom');
+    expect(reloaded.queue).toBe('bottom');
+    expect(reloaded.goal).toBe('bottom');
+    expect(reloaded.coordinator).toBe('bottom');
+    expect(reloaded.connections).toBe('bottom');
+
+    // 3. The on-disk JSON must persist the change across sessions.
+    const written = JSON.parse(readFileSync(globalConfig, 'utf8'));
+    expect(written.autonomy.panelPositions.projectPicker).toBe('sidebar');
+    expect(written.autonomy.panelPositions.fleet).toBe('sidebar');
+  });
+
   it('cacheTtl default removes cache TTL from disk and the live config store', async () => {
     const { adapter, configStore, globalConfig } = makeAdapter(
       baseConfig({

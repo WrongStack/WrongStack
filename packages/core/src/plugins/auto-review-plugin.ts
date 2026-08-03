@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
 import { FallbackProfileManager } from '../core/fallback-profile-manager.js';
 import { parseModelRef } from '../core/model-ref.js';
 import type { EventMap } from '../kernel/events.js';
@@ -108,11 +109,19 @@ export interface ReviewerModelAssignment {
  *
  * Order is stable: configured primary first, then the fallback chain.
  * Entries must be `provider/model` (or parseable refs); bare blanks are dropped.
+ *
+ * When a {@link ProviderModelStatusTracker} is supplied, every entry that is
+ * currently `state: 'blocked'` (waiting-room / token-reset-limit room) is
+ * filtered out before the pool is returned. Without this filter, concurrent
+ * Chimera reviewers would re-spawn on a 429-stricken model on every round-
+ * robin turn and burn the entire chain instead of leaving the doomed model
+ * quarantined until the tracker re-admits it.
  */
 export function buildReviewerModelPool(
   provider: string,
   model: string,
   fallbackModels: readonly string[] = [],
+  statusTracker?: ProviderModelStatusTracker | undefined,
 ): string[] {
   const primaryProvider = provider.trim();
   const primaryModel = model.trim();
@@ -132,6 +141,13 @@ export function buildReviewerModelPool(
     // `normalized` collapses equivalent refs whose parsed whitespace differs.
     seen.add(ref);
     seen.add(normalized);
+    // Skip 429/overload/quota-exhausted blocked pairs. The fallback
+    // extension inside the subagent will also re-check `isAvailable`
+    // before invoking the provider, but filtering here saves the full
+    // model-load + session-start cost on doomed rounds.
+    if (statusTracker && !statusTracker.isAvailable(parsed.provider!.trim(), parsed.model.trim())) {
+      continue;
+    }
     pool.push(normalized);
   }
   return pool;
@@ -144,6 +160,13 @@ export function buildReviewerModelPool(
  * rotated so the former primary lands last (still available after rate limits).
  * The pool must be pre-filtered by {@link buildReviewerModelPool} so every
  * non-empty entry contains both a provider and a model.
+ *
+ * When a {@link ProviderModelStatusTracker} is supplied, the cursor advances
+ * over blocked entries too — a doomed entry is never picked as the primary,
+ * but the cursor saturates against the live pool so the next-after-blocked
+ * round inherits the rest of the unwalked chain instead of looping back to
+ * the head. Without the tracker, the cursor advances mod `pool.length`,
+ * which is the pre-waiting-room behavior.
  * Pure: the caller owns the cursor (typically a process-local counter).
  */
 export function selectRoundRobinReviewerAssignment(
@@ -152,8 +175,16 @@ export function selectRoundRobinReviewerAssignment(
   /** Used only when the selected ref is somehow unparseable — defensive. */
   fallbackProvider = '',
   fallbackModel = '',
+  statusTracker?: ProviderModelStatusTracker | undefined,
 ): ReviewerModelAssignment {
-  if (pool.length === 0) {
+  const filteredPool = statusTracker
+    ? pool.filter((ref) => {
+        const parsed = parseModelRef(ref);
+        if (!parsed.provider?.trim() || !parsed.model.trim()) return false;
+        return statusTracker.isAvailable(parsed.provider.trim(), parsed.model.trim());
+      })
+    : pool;
+  if (filteredPool.length === 0) {
     return {
       provider: fallbackProvider,
       model: fallbackModel,
@@ -161,13 +192,13 @@ export function selectRoundRobinReviewerAssignment(
       nextCursor: cursor + 1,
     };
   }
-  const len = pool.length;
+  const len = filteredPool.length;
   const idx = ((cursor % len) + len) % len;
-  const primaryRef = pool[idx]!;
+  const primaryRef = filteredPool[idx]!;
   const parsed = parseModelRef(primaryRef);
   const provider = parsed.provider?.trim() || fallbackProvider;
   const model = parsed.model.trim() || fallbackModel;
-  const fallbackModels = [...pool.slice(idx + 1), ...pool.slice(0, idx)];
+  const fallbackModels = [...filteredPool.slice(idx + 1), ...filteredPool.slice(0, idx)];
   return {
     provider,
     model,

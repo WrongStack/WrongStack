@@ -41,7 +41,7 @@ export function ArchitecturePage() {
         }
         description="WrongStack is a monorepo, but not a mesh. The dependency graph points toward a small kernel; interfaces compose capabilities without leaking UI concerns back into core."
         aside={
-          <ExternalDoc path="docs/architecture-reference.md">
+          <ExternalDoc path="docs/architecture.md">
             Open architecture reference
           </ExternalDoc>
         }

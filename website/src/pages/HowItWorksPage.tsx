@@ -41,7 +41,7 @@ export function HowItWorksPage() {
         }
         description="WrongStack is easiest to trust when you can trace it. Here is the complete path a request takes through the kernel, including where policy, recovery and persistence enter."
         aside={
-          <ExternalDoc path="docs/architecture-reference.md">
+          <ExternalDoc path="docs/architecture.md">
             Open engineering reference
           </ExternalDoc>
         }

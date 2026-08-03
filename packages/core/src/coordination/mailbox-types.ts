@@ -301,6 +301,22 @@ export async function acceptMailboxMessageForSession(
   if (affinity === null || typeof affinity !== 'object' || Array.isArray(affinity)) {
     return false;
   }
+  // Also fail closed on wrong-typed fields. The `parseSessionAffinity`
+  // codec in `mailbox-message-codec.ts` rejects e.g. `{ sessionId: 42 }`
+  // and `{ reportId: 42 }` at the shape-validation layer — but the
+  // SQLite read path (`sqlite-mailbox-rows.ts:178`) does an unvalidated
+  // `JSON.parse(row.data) as MailboxMessage` cast, so a malformed
+  // persisted token can reach the filter directly. Without this guard,
+  // a `{ sessionId: 42 }` token would skip both the explicit-mismatch
+  // branch and the persisted-report fallback, and fall through to the
+  // `allowUnscoped === true` accept path — re-opening the exact
+  // cross-session leak the filter exists to close.
+  if (
+    (affinity.sessionId !== undefined && typeof affinity.sessionId !== 'string') ||
+    (affinity.reportId !== undefined && typeof affinity.reportId !== 'string')
+  ) {
+    return false;
+  }
   if (!currentSessionId) {
     // No session id known — fall back to the legacy opt-in flag rather than
     // a silent fail-open, so the safe behavior is the default.

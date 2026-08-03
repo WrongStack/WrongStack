@@ -6,6 +6,7 @@
  * explicit session-ref append requested by the spawn caller.
  */
 
+import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   __resetReviewerRoundRobinCursor,
@@ -34,10 +35,9 @@ describe('reviewer fallback-chain drift guard', () => {
     expect(resolveReviewerFallbackModels(undefined, 'session-provider/session-model')).toEqual([
       'session-provider/session-model',
     ]);
-    expect(resolveReviewerFallbackModels(['alt-provider/alt-model'], 'session-provider/session-model')).toEqual([
-      'alt-provider/alt-model',
-      'session-provider/session-model',
-    ]);
+    expect(
+      resolveReviewerFallbackModels(['alt-provider/alt-model'], 'session-provider/session-model'),
+    ).toEqual(['alt-provider/alt-model', 'session-provider/session-model']);
   });
 
   it('does not duplicate an explicit session fallback already present in the supplied chain', () => {
@@ -82,5 +82,67 @@ describe('assignReviewerModelsRoundRobin — concurrent chimera spawn', () => {
     const b = assignReviewerModelsRoundRobin('only', 'm', ['only/m']);
     expect(b.provider).toBe('only');
     expect(b.model).toBe('m');
+  });
+
+  describe('with a ProviderModelStatusTracker (waiting-room filter)', () => {
+    // The 429 → waiting-room contract: a single rate_limit failure on a
+    // (provider, model) pair must redirect every concurrent Chimera turn
+    // away from the doomed model. Without this, the round-robin cursor
+    // would re-pick the blocked primary on the next concurrent spawn and
+    // burn the whole chain in a loop.
+    function block(tracker: ProviderModelStatusTracker, providerId: string, model: string): void {
+      tracker.recordFailure(providerId, model, 'rate_limit', 429, 'rate limited', {
+        retryAfterMs: 60_000,
+      });
+    }
+
+    it('rotates the cursor past a tracker-blocked primary to the next healthy entry', () => {
+      __resetReviewerRoundRobinCursor(0);
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, 'base', 'm0');
+      const fallbacks = ['alt/m1', 'alt/m2'];
+
+      // Cursor 0 WITHOUT the tracker would pick base/m0. With the tracker
+      // filtering base/m0 out, the live pool is [alt/m1, alt/m2] and we
+      // expect alt/m1 to be the primary — proving the doomed model is
+      // never re-spawned on a concurrent reviewer turn.
+      const a = assignReviewerModelsRoundRobin('base', 'm0', fallbacks, tracker);
+      expect(a.provider).toBe('alt');
+      expect(a.model).toBe('m1');
+      expect(a.fallbackModels).toEqual(['alt/m2']);
+    });
+
+    it('returns the no-op single-entry shape when the tracker blocks every candidate', () => {
+      __resetReviewerRoundRobinCursor(0);
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, 'base', 'm0');
+      block(tracker, 'alt', 'm1');
+      const a = assignReviewerModelsRoundRobin('base', 'm0', ['alt/m1'], tracker);
+      // pool.length collapses to 0 after the filter; the no-op branch
+      // returns the original primary + fallbacks verbatim (matches the
+      // pre-existing "single-entry" shape).
+      expect(a.provider).toBe('base');
+      expect(a.model).toBe('m0');
+      expect(a.fallbackModels).toEqual(['alt/m1']);
+    });
+
+    it('without a tracker, behaves exactly like the legacy round-robin (no behavior drift)', () => {
+      // Pin the legacy contract: callers that do not yet supply a tracker
+      // keep the original cursor advancement and rotation. Important so
+      // adding the optional dep cannot regress any pre-tracker spawn path.
+      __resetReviewerRoundRobinCursor(0);
+      const fallbacks = ['alt/m1', 'alt/m2'];
+
+      const a = assignReviewerModelsRoundRobin('base', 'm0', fallbacks);
+      expect(a).toEqual({
+        provider: 'base',
+        model: 'm0',
+        fallbackModels: ['alt/m1', 'alt/m2'],
+      });
+
+      const b = assignReviewerModelsRoundRobin('base', 'm0', fallbacks);
+      expect(b.provider).toBe('alt');
+      expect(b.model).toBe('m1');
+    });
   });
 });

@@ -217,6 +217,7 @@ export class SqliteMailbox implements Mailbox {
       ...(input.replyTo !== undefined ? { replyTo: input.replyTo } : {}),
       ...(input.taskContext !== undefined ? { taskContext: input.taskContext } : {}),
       ...(input.senderSessionId !== undefined ? { senderSessionId: input.senderSessionId } : {}),
+      ...(input.sessionAffinity !== undefined ? { sessionAffinity: input.sessionAffinity } : {}),
       ...(input.ttlMs !== undefined
         ? { expiresAt: new Date(Date.now() + input.ttlMs).toISOString() }
         : {}),

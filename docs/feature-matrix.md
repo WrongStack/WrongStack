@@ -368,4 +368,4 @@ migration hints.
 - [`packages/core/skills/plugin-author/SKILL.md`](../packages/core/skills/plugin-author/SKILL.md) — bundled skill that walks through adding a new plugin
 - [`docs/hooks.md`](hooks.md) — how the hook runner works; what `PreToolUse` / `PostToolUse` / `Stop` mean in the core event bus
 - [`docs/configuration.md`](configuration.md) — `config.extensions[<name>]` per-plugin config surface
-- [`packages/core/src/coordination/global-mailbox.ts`](../packages/core/src/coordination/global-mailbox.ts) — what `api.mailbox` actually is, and how mailbox subscribers read it
+- [`packages/core/src/coordination/sqlite-mailbox.ts`](../packages/core/src/coordination/sqlite-mailbox.ts) — the durable mailbox store used by the project-scoped owner

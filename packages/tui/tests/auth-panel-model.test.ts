@@ -55,17 +55,18 @@ describe('authPanelRows — list view', () => {
 });
 
 describe('authPanelRows — provider view', () => {
-  it('renders keys then the five provider actions', () => {
+  it('renders keys then provider actions including model management', () => {
     const state = panel({
       view: 'provider',
       providerId: 'a',
       providers: [provider('a', ['default', 'backup'])],
     });
     const rows = authPanelRows(state);
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
     expect(rows[0]).toMatchObject({ kind: 'key', keyRow: { label: 'default', active: true } });
     expect(rows[2]).toMatchObject({ kind: 'provider-action', action: 'add-key' });
-    expect(rows[6]).toMatchObject({ kind: 'provider-action', action: 'remove' });
+    expect(rows[6]).toMatchObject({ kind: 'provider-action', action: 'add-model' });
+    expect(rows[7]).toMatchObject({ kind: 'provider-action', action: 'remove' });
   });
 
   it('returns no rows when the provider vanished from config', () => {

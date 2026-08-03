@@ -190,7 +190,7 @@ All in `packages/cli/src/slash-commands/`; each exports `buildXxxCommand(opts: S
 
 ## Issue tracking
 
-Multi-PR follow-ups live as `docs/issues/YYYY-MM-DD-<slug>.md` — the in-repo equivalent of a GitHub issue; the file stays as historical record.
+Completed multi-PR follow-up notes live under `docs/archive/work-items/issues/`. Track new follow-ups in the project issue tracker rather than adding them to the current documentation path.
 
 ## Skill system
 
@@ -204,7 +204,7 @@ Skills are `SKILL.md` files (agentskills.io: YAML frontmatter `name`/`descriptio
 
 ## Prompt library
 
-`DefaultPromptLoader` (`execution/prompt-loader.ts`, `TOKENS.PromptLoader`), three layers deduped by `slug` (higher shadows lower): `<project>/.wrongstack/prompts/` → active profile `~/.wrongstack/profiles/<name>/prompts/` → `packages/core/data/prompts/` (bundled read-only, built by `scripts/build-prompts.mjs`). `PromptEntry` is v2; v1 upgrades lazily on read (`migratePromptEntry`). Favoriting/editing a builtin **copies it down** to the profile layer (`forkedFrom:<slug>`) — bundled dataset never mutated. `renderPrompt(entry, values)` fills `{{variable}}` placeholders. Surfaced via the `wstack-prompts` plugin (`/prompt`, `/prompts`, `/prompt-gen`).
+`DefaultPromptLoader` (`execution/prompt-loader.ts`, `TOKENS.PromptLoader`), three layers deduped by `slug` (higher shadows lower): `<project>/.wrongstack/prompts/` → active profile `~/.wrongstack/profiles/<name>/prompts/` → `packages/core/data/prompts/` (bundled read-only, built by `packages/core/scripts/build-prompts.mjs`). `PromptEntry` is v2; v1 upgrades lazily on read (`migratePromptEntry`). Favoriting/editing a builtin **copies it down** to the profile layer (`forkedFrom:<slug>`) — bundled dataset never mutated. `renderPrompt(entry, values)` fills `{{variable}}` placeholders. Surfaced via the `wstack-prompts` plugin (`/prompt`, `/prompts`, `/prompt-gen`).
 
 ## Domain knowledge
 

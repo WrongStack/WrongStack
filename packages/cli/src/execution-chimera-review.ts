@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { effectiveFallbackChain } from '@wrongstack/core/agent';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import {
   CHIMERA_REVIEW_PROMPT,
   type ChimeraReviewCompletePayload,
@@ -63,6 +64,15 @@ export type InstallChimeraReviewHandlerOptions = {
   agent: Agent;
   config: Config;
   projectDir: string;
+  /**
+   * Shared provider/model status tracker. When supplied, the round-robin
+   * Chimera reviewer spawn skips (provider, model) pairs currently in the
+   * waiting room (`state: 'blocked'`) so a 429-stricken model is never
+   * re-spawned on a concurrent reviewer turn. The tracker is the same
+   * singleton the leader's `/provider-status` reads from; see
+   * `packages/core/src/coordination/provider-status-tracker.ts`.
+   */
+  statusTracker?: ProviderModelStatusTracker | undefined;
   persistReview?:
     | ((payload: ChimeraReviewCompletePayload, projectDir: string) => Promise<void>)
     | undefined;
@@ -77,6 +87,7 @@ export function installChimeraReviewHandler({
   agent,
   config,
   projectDir,
+  statusTracker,
   persistReview = persistChimeraReview,
   setPendingWork,
 }: InstallChimeraReviewHandlerOptions): void {
@@ -168,7 +179,12 @@ export function installChimeraReviewHandler({
           const baseFallbacks = p.reviewFallbackModels
             ? [...p.reviewFallbackModels]
             : resolveReviewerFallbackModels(undefined);
-          const assigned = assignReviewerModelsRoundRobin(baseProvider, baseModel, baseFallbacks);
+          const assigned = assignReviewerModelsRoundRobin(
+            baseProvider,
+            baseModel,
+            baseFallbacks,
+            statusTracker,
+          );
           // A dead model must never cost us the review. The first rung is the
           // assignment we would have spawned anyway; the rest are only reached
           // when a rung fails, ending at the session model as the last resort.
@@ -353,6 +369,19 @@ export function installChimeraReviewHandler({
                 subject,
                 body,
                 priority: 'normal',
+                // Session-affinity stamp: the recipient's leader filter
+                // uses this to drop the message for any leader whose current
+                // session id does NOT match the originating session of the
+                // review (`reviewSessionId` is captured above from the
+                // agent's active run / session id). Without this token the
+                // project-wide mailbox would deliver every chimera result to
+                // every leader, inviting them to act on reports that belong
+                // to a different session.
+                sessionAffinity: {
+                  sessionId: reviewSessionId,
+                  reportId,
+                  kind: 'chimera.review',
+                },
               });
               if (!mailMsg?.id) throw new Error('mailbox.send returned no message id');
               reviewMailMessageId = mailMsg.id;

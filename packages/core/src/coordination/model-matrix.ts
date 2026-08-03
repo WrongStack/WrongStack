@@ -20,6 +20,7 @@
 import { fallbackProfileChain, parseModelRef } from '../core/fallback-model.js';
 import type { Config, ModelMatrixEntry, ProviderConfig } from '../types/config.js';
 import { AGENT_CATALOG, AGENTS_BY_PHASE } from './agents/index.js';
+import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 
 /** Either a static matrix or a live getter (re-read on every spawn). */
 export type ModelMatrixSource =
@@ -163,19 +164,52 @@ export function roleNeedsIndependentReviewModel(role: string | undefined): boole
  *      implementation model.
  *   3. A different configured provider/model for review roles.
  *   4. The matrix/leader fallback.
+ *
+ * When a {@link ProviderModelStatusTracker} is supplied, resolved candidates
+ * currently in the waiting room (`state: 'blocked'`) are dropped so the
+ * subagent never spawns on a model the leader just 429-stricken. The
+ * fallback extension inside the subagent will also re-check `isAvailable`
+ * before invoking the provider, but filtering here saves the spawn
+ * round-trip on doomed picks.
+ *
+ * The tracker check uses the EFFECTIVE (provider, model) pair — i.e. the
+ * pair that {@link materializeTarget} would render — not the raw
+ * `matrixTarget.provider` field. A model-only matrix entry falls back to
+ * `config.provider` for the wire call, so the waiting-room entry sits on
+ * the same effective identity. Checking the raw field would silently
+ * bypass the quarantine and respawn on a 429-stricken model.
  */
 export function resolveSubagentModelTarget(
   config: Config,
   role: string | undefined,
-  opts: { implementationTarget?: ModelReference | undefined } = {},
+  opts: {
+    implementationTarget?: ModelReference | undefined;
+    statusTracker?: ProviderModelStatusTracker | undefined;
+  } = {},
 ): ResolvedSubagentModelTarget | undefined {
   const resolution = resolveModelMatrixResolution(config.modelMatrix, role);
   const matrixTarget = resolveModelTargetFromEntry(config, resolution?.entry);
   const implementationTarget =
     opts.implementationTarget ?? resolveImplementationModelTarget(config);
 
+  const isAvailable = (providerId: string | undefined, model: string | undefined): boolean => {
+    if (!opts.statusTracker) return true;
+    if (!providerId || !model) return true;
+    return opts.statusTracker.isAvailable(providerId, model);
+  };
+
+  // Tracker check on the EFFECTIVE (provider, model) pair, not the raw
+  // matrix entry. A model-only matrix entry has `provider` undefined at
+  // this layer but wires as `(config.provider, model)` (see
+  // materializeTarget). Checking the raw field would let a blocked
+  // model-only entry slip past the quarantine.
+  const matrixEffective = materializeTarget(config, matrixTarget);
+  const matrixIsAvailable =
+    !matrixEffective || isAvailable(matrixEffective.provider, matrixEffective.model);
+
   if (!roleNeedsIndependentReviewModel(role)) {
     if (!matrixTarget) return undefined;
+    if (!matrixIsAvailable) return undefined;
     return {
       ...matrixTarget,
       source: 'matrix',
@@ -186,12 +220,17 @@ export function resolveSubagentModelTarget(
   const matrixRef = materializeTarget(config, matrixTarget);
 
   if (resolution?.source === 'role' || resolution?.source === 'phase') {
-    return matrixTarget
-      ? { ...matrixTarget, source: 'matrix', matrixSource: resolution.source }
-      : undefined;
+    if (!matrixTarget) return undefined;
+    if (!matrixIsAvailable) return undefined;
+    return {
+      ...matrixTarget,
+      source: 'matrix',
+      matrixSource: resolution.source,
+    };
   }
 
   if (matrixRef && !sameModelReference(matrixRef, implementationTarget)) {
+    if (!matrixIsAvailable) return undefined;
     return {
       ...(matrixTarget ?? {}),
       source: 'matrix',
@@ -199,7 +238,16 @@ export function resolveSubagentModelTarget(
     };
   }
 
-  const diverse = chooseDiverseModelTarget(config, implementationTarget);
+  // Diversity path: filter the ranked candidate list through the tracker
+  // BEFORE picking the top scoring one. Choosing the highest-ranked candidate
+  // and then dropping it on a tracker block would defeat independent-review
+  // routing whenever the highest-ranked diverse model is in the waiting room,
+  // even when another ranked candidate is healthy.
+  const diverse = chooseDiverseModelTargetWithTracker(
+    config,
+    implementationTarget,
+    opts.statusTracker,
+  );
   if (diverse) {
     return {
       provider: diverse.provider,
@@ -214,6 +262,7 @@ export function resolveSubagentModelTarget(
   }
 
   if (!matrixTarget) return undefined;
+  if (!matrixIsAvailable) return undefined;
   return {
     ...matrixTarget,
     source: 'matrix',
@@ -269,6 +318,29 @@ function chooseDiverseModelTarget(
   );
   candidates.sort((a, b) => modelDiversityScore(b, avoid) - modelDiversityScore(a, avoid));
   return candidates[0];
+}
+
+/**
+ * Diversity-pick variant that filters tracker-blocked candidates out of the
+ * ranked list before picking the top scorer. Used by
+ * {@link resolveSubagentModelTarget} so a 429-stricken highest-ranked model
+ * cannot starve the diversity path when another ranked candidate is healthy.
+ * When the tracker is undefined, fall through to the rank-only picker to
+ * preserve the legacy contract.
+ */
+function chooseDiverseModelTargetWithTracker(
+  config: Config,
+  avoid: ModelReference,
+  tracker: ProviderModelStatusTracker | undefined,
+): ConcreteModelReference | undefined {
+  if (!tracker) return chooseDiverseModelTarget(config, avoid);
+  const ranked = collectConfiguredModelTargets(config)
+    .filter((candidate) => !sameModelReference(candidate, avoid))
+    .sort((a, b) => modelDiversityScore(b, avoid) - modelDiversityScore(a, avoid));
+  for (const candidate of ranked) {
+    if (tracker.isAvailable(candidate.provider, candidate.model)) return candidate;
+  }
+  return undefined;
 }
 
 function collectConfiguredModelTargets(config: Config): ConcreteModelReference[] {

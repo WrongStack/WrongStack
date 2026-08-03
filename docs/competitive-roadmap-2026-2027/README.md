@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This folder turns the findings in `docs/reports/wrongstack-competitive-gap-analysis-2026-07-11.md` into implementation-oriented plans. Each capability has its own file so it can be estimated, assigned, revised, and delivered independently.
+This folder turns the gap assessment in [00-gap-assessment.md](00-gap-assessment.md) into implementation-oriented plans. Each capability has its own file so it can be estimated, assigned, revised, and delivered independently.
 
 This is a planning baseline, not a release commitment. Every plan must be revalidated against the live codebase before implementation.
 
@@ -79,4 +79,3 @@ The source report is useful, but several statements no longer describe the repos
 ## Completion discipline
 
 When an initiative ships, update its status and acceptance criteria in place, add links to the implementation/tests, and move any remaining work into a smaller follow-up plan. Do not leave a shipped capability described as a current gap.
-

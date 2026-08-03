@@ -19,6 +19,7 @@ import {
   coercePanelPositionMap,
   DEFAULT_PANEL_POSITIONS,
   PANEL_IDS,
+  PANEL_POSITION_FIELD_START,
   SIDEBAR_PANEL_LIMIT,
 } from '../src/ui-contracts.js';
 import type { PanelId, PanelPositionMap } from '../src/ui-contracts.js';
@@ -26,6 +27,8 @@ import {
   resolveSettingsFieldValue,
   SETTINGS_FIELD_LABELS,
 } from '../src/components/settings-picker-model.js';
+import type { State } from '../src/app-state.js';
+import { reduceSettingsValues } from '../src/reducers/settings-values.js';
 
 describe('coercePanelPositionMap', () => {
   it('returns the full DEFAULT_PANEL_POSITIONS when input is undefined', () => {
@@ -114,6 +117,97 @@ describe('settingsValueSet reducer cycle for fields 45..57', () => {
   }
 });
 
+describe('settingsValueChange runtime reducer for fields PANEL_POSITION_FIELD_START..+13', () => {
+  // Regression coverage for the user-reported bug: "in /settings, changing
+  // values under the Panels section does not persist — after exit, every
+  // panel still routes to 'bottom'." The runtime cycle path differs from
+  // the resolver path: the reducer writes `{ ...sp.panelPositions,
+  // [panelId]: next }` directly into the picker state, then the
+  // useSettingsAutoSave hook fires and passes `sp.panelPositions` to
+  // saveSettings(). If the reducer silently dropped the change (e.g.
+  // wrong field-index range, wrong spread order, or returning `state`
+  // unchanged), the hook would never see the user's pick and the
+  // configStore round-trip would persist the default map every time.
+  function makePickerState(): State {
+    return {
+      settingsPicker: {
+        open: true,
+        field: PANEL_POSITION_FIELD_START,
+        panelPositions: coercePanelPositionMap(DEFAULT_PANEL_POSITIONS),
+        showAgentSwarmPanel: 'bottom',
+        // Other fields are unused by this reducer case but required by
+        // the State type — cast through unknown to keep this test
+        // focused on the panel-position path.
+      },
+    } as unknown as State;
+  }
+
+  it('field PANEL_POSITION_FIELD_START (projectPicker) cycles bottom → sidebar on +1', () => {
+    const before = makePickerState();
+    const after = reduceSettingsValues(before, {
+      type: 'settingsValueChange',
+      delta: 1,
+    });
+    expect(after.settingsPicker.panelPositions.projectPicker).toBe('sidebar');
+    // Sibling panels untouched.
+    for (const id of PANEL_IDS) {
+      if (id !== 'projectPicker') {
+        expect(after.settingsPicker.panelPositions[id]).toBe('bottom');
+      }
+    }
+  });
+
+  it('field PANEL_POSITION_FIELD_START (projectPicker) cycles sidebar → bottom on -1', () => {
+    const before = makePickerState();
+    const cycleOnce = reduceSettingsValues(before, {
+      type: 'settingsValueChange',
+      delta: 1,
+    });
+    const cycleBack = reduceSettingsValues(cycleOnce, {
+      type: 'settingsValueChange',
+      delta: -1,
+    });
+    expect(cycleBack.settingsPicker.panelPositions.projectPicker).toBe('bottom');
+  });
+
+  it('every panel field (45..57) cycles independently', () => {
+    for (let f = PANEL_POSITION_FIELD_START; f < PANEL_POSITION_FIELD_START + PANEL_IDS.length; f++) {
+      const before = makePickerState();
+      before.settingsPicker.field = f;
+      const panelId = PANEL_IDS[f - PANEL_POSITION_FIELD_START]!;
+      const after = reduceSettingsValues(before, {
+        type: 'settingsValueChange',
+        delta: 1,
+      });
+      expect(after.settingsPicker.panelPositions[panelId]).toBe('sidebar');
+      // Sibling panels must remain 'bottom' — a regression here would
+      // mean the reducer returns the wrong map and the auto-save hook
+      // would persist a broken state.
+      for (const id of PANEL_IDS) {
+        if (id !== panelId) {
+          expect(after.settingsPicker.panelPositions[id]).toBe('bottom');
+        }
+      }
+    }
+  });
+
+  it('keeps the full 13-entry map intact (the auto-save hook relies on it)', () => {
+    const after = reduceSettingsValues(makePickerState(), {
+      type: 'settingsValueChange',
+      delta: 1,
+    });
+    expect(Object.keys(after.settingsPicker.panelPositions)).toHaveLength(PANEL_IDS.length);
+    // Every entry must be a valid PanelPosition value (never undefined,
+    // never an unexpected string) — the liveSettings read path in
+    // app-view.tsx compares with === 'sidebar' and any non-'sidebar'
+    // value would silently route to bottom.
+    for (const id of PANEL_IDS) {
+      const v = after.settingsPicker.panelPositions[id];
+      expect(v === 'bottom' || v === 'sidebar').toBe(true);
+    }
+  });
+});
+
 describe('resolveSettingsFieldValue emits single-key partial patches for fields 45..57', () => {
   it("the 'bottom' patch is a single-key spread, not a full map", () => {
     const result = resolveSettingsFieldValue(46, 'sidebar'); // fleet
@@ -162,13 +256,13 @@ describe('SIDEBAR_PANEL_LIMIT enforcement', () => {
     expect(visibleSidebarPanelIds.length).toBe(SIDEBAR_PANEL_LIMIT);
 
     // The first SIDEBAR_PANEL_LIMIT panels in PANEL_IDS order are visible.
-    for (let i = 0; i < SIDEBAR_PANEL_LIMIT; i++) {
-      expect(sidebarSlotVisible(PANEL_IDS[i])).toBe(true);
+    for (const id of PANEL_IDS.slice(0, SIDEBAR_PANEL_LIMIT)) {
+      expect(sidebarSlotVisible(id)).toBe(true);
     }
 
     // The remaining panels are NOT visible (overflow).
-    for (let i = SIDEBAR_PANEL_LIMIT; i < PANEL_IDS.length; i++) {
-      expect(sidebarSlotVisible(PANEL_IDS[i])).toBe(false);
+    for (const id of PANEL_IDS.slice(SIDEBAR_PANEL_LIMIT)) {
+      expect(sidebarSlotVisible(id)).toBe(false);
     }
   });
 

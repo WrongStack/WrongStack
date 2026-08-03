@@ -438,11 +438,9 @@ compiled app and wires it to runtime events and session state.
 The shared server lives in `packages/webui-server/src/server/` (the
 `@wrongstack/webui-server` package, extracted in PR #018b) and was
 decomposed from a single ~2954-line god module (`index.ts`) into 11
-focused modules, each under 800 lines. `packages/webui/src/server/index.ts`
-remains a thin back-compat shim that re-exports `@wrongstack/webui-server`
-under the `@wrongstack/webui` package's `exports["./server"]` subpath, so
-the CLI's embedded `--webui` mode and every `opts.services?` injection
-point keep working unchanged until the shim is removed next minor.
+focused modules, each under 800 lines. `packages/webui-server/src/index.ts`
+is the package entry point for the extracted server; the CLI's embedded
+`--webui` mode consumes that package directly.
 
 ### Module map
 

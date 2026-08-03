@@ -1,4 +1,5 @@
 import { parseModelRef } from '@wrongstack/core/agent';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import {
   buildReviewerModelPool,
   selectRoundRobinReviewerAssignment,
@@ -19,9 +20,8 @@ export function resolveReviewerFallbackModels(
   /** Append session ref as a final fallback chain entry. */
   sessionRef?: string,
 ): string[] {
-  const base = reviewFallbackModels && reviewFallbackModels.length > 0
-    ? [...reviewFallbackModels]
-    : [];
+  const base =
+    reviewFallbackModels && reviewFallbackModels.length > 0 ? [...reviewFallbackModels] : [];
   if (sessionRef && !base.includes(sessionRef)) {
     base.push(sessionRef);
   }
@@ -46,13 +46,20 @@ export function __resetReviewerRoundRobinCursor(value = 0): void {
  * Builds the pool from the configured primary + fallback chain, then picks
  * the next entry via round-robin. When the pool has <=1 usable entry the
  * original primary/fallbacks are returned unchanged.
+ *
+ * When a {@link ProviderModelStatusTracker} is supplied, blocked entries
+ * (waiting-room / token-reset-limit room) are filtered from both the pool
+ * and the round-robin pick so a 429-stricken model is never re-spawned on
+ * a concurrent reviewer turn. Without the tracker, the legacy pre-waiting-
+ * room behavior is preserved.
  */
 export function assignReviewerModelsRoundRobin(
   provider: string,
   model: string,
   fallbackModels: readonly string[],
+  statusTracker?: ProviderModelStatusTracker | undefined,
 ): { provider: string; model: string; fallbackModels: string[] } {
-  const pool = buildReviewerModelPool(provider, model, fallbackModels);
+  const pool = buildReviewerModelPool(provider, model, fallbackModels, statusTracker);
   if (pool.length <= 1) {
     return {
       provider,
@@ -65,6 +72,7 @@ export function assignReviewerModelsRoundRobin(
     reviewerRoundRobinCursor,
     provider,
     model,
+    statusTracker,
   );
   reviewerRoundRobinCursor = assignment.nextCursor;
   return {

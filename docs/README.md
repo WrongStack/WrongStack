@@ -8,7 +8,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 
 | You want to… | Start here |
 |---|---|
-| Understand how the system is wired | [architecture.md](architecture.md) (overview) → [architecture-reference.md](architecture-reference.md) (deep) |
+| Understand how the system is wired | [architecture.md](architecture.md) — the maintained architecture overview |
 | Add a new tool, plugin, provider, or help module | [Author Guides](#author-guides) below |
 | Look up CLI flags, subcommands, and `wstack update` | [cli-reference.md](cli-reference.md) |
 | Scan tools, providers, slash commands, modes, and skills at a glance | [reference.md](reference.md) |
@@ -29,8 +29,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 
 | Document | What it covers | When to read |
 |---|---|---|
-| [architecture.md](architecture.md) | Package layout, layer model, dependency direction, IPC contracts | **Read first** — the canonical entry point |
-| [architecture-reference.md](architecture-reference.md) | Complete technical reference: kernel primitives, agent lifecycle, prompt architecture, compaction, events, security, persistence, multi-agent coordination, autonomy, MCP, TUI, WebUI | Read when you need the full picture of a specific subsystem |
+| [architecture.md](architecture.md) | Package layout, layer model, dependency direction, IPC contracts | **Read first** — the canonical architecture entry point |
 | [architecture-rules.md](architecture-rules.md) | Seven-layer internal runtime-import ordering with automated enforcement | Read when adding a new file to `packages/core/src/` |
 | [webui.md](webui.md) | WebUI architecture: Vite + React 19 + WebSocket + Monaco | Read when working on `packages/webui/` |
 | [plans/hq-command-center-2026-07.md](plans/hq-command-center-2026-07.md) | HQ command center enhancement plan — `packages/webui-hq/` React app (Phase 5) | Read when working on the cross-machine HQ dashboard |
@@ -141,37 +140,24 @@ ADRs capture significant architectural decisions, the alternatives considered, a
 
 ---
 
-## Plans, Notes & Analysis
+## Plans & Historical Material
 
-| Document | What it covers |
+| Location | What it covers |
 |---|---|
-| [plans_architecture.md](plans_architecture.md) | Architectural plans / roadmap notes |
-| [refactor-next.md](refactor-next.md) | Next refactor candidates (in-progress / planned) |
-| [codebase-analysis-2026-06-07.md](codebase-analysis-2026-06-07.md) | Codebase analysis (2026-06-07 snapshot) |
-| [wrongstack-architecture-analysis.md](wrongstack-architecture-analysis.md) | Earlier architecture analysis (pre-ADR-001) |
-| [tui-feature-inventory.md](tui-feature-inventory.md) | TUI feature inventory — what the Ink/React surface does and doesn't do |
-| [plans/security-hardening-2026-06.md](plans/security-hardening-2026-06.md) | Security hardening plan (2026-06) |
-| [plans/hq-command-center-2026-06.md](plans/hq-command-center-2026-06.md) | HQ command center plan for cross-project fleet/client monitoring |
-| [notes/refactor.md](notes/refactor.md) | Refactor notes (running log) |
-| [notes/refactor-2026-06-05.md](notes/refactor-2026-06-05.md) | Refactor notes (2026-06-05 snapshot) |
-| [notes/bugs.md](notes/bugs.md) | Bug notes (running log) |
-| [notes/EDITING.md](notes/EDITING.md) | Editing notes for docs/ |
-| [backlog/2026-07-architecture-review/README.md](backlog/2026-07-architecture-review/README.md) | 2026-07 architecture review backlog split into 17 issue files |
-| [issues/2026-06-13-cli-main-refactor.md](issues/2026-06-13-cli-main-refactor.md) | CLI main refactor issue notes |
-| [issues/2026-06-13-tui-app-refactor.md](issues/2026-06-13-tui-app-refactor.md) | TUI app refactor issue notes |
-| [issues/2026-06-13-tui-app-refactor-tasks.md](issues/2026-06-13-tui-app-refactor-tasks.md) | TUI app refactor task list |
-| [issues/2026-06-13-tui-app-refactor-update.md](issues/2026-06-13-tui-app-refactor-update.md) | TUI app refactor status update |
-| [issues/2026-06-13-webui-package-server-refactor.md](issues/2026-06-13-webui-package-server-refactor.md) | WebUI package server refactor issue notes |
-| [issues/2026-06-13-webui-server-refactor.md](issues/2026-06-13-webui-server-refactor.md) | WebUI server refactor issue notes |
+| [plans/](plans/) | Active, implementation-oriented plans. Keep status, owner, and last-verified date in every plan. |
+| [competitive-roadmap-2026-2027/](competitive-roadmap-2026-2027/) | Product strategy and roadmap proposals. |
+| [specs/](specs/) | Spec-driven-development contracts and acceptance criteria. |
+| [notes/](notes/) | Short-lived working notes; promote durable guidance to a maintained document. |
+| [archive/](archive/) | Superseded architecture documents, completed work items, dated reports, audits, and release snapshots. |
 
 ---
 
 ## Conventions
 
 - **Markdown formatting**: ATX-style headings (`#`, `##`), fenced code blocks with language tags, two-space indent, 100-char soft wrap. See [typescript-style-guide.md](typescript-style-guide.md) for code style.
-- **Cross-references**: use relative links (`[text](file.md)`) so docs render correctly on GitHub and in editors.
+- **Cross-references**: use relative links (for example, `[Architecture](architecture.md)`) so docs render correctly on GitHub and in editors.
 - **Code paths**: reference files with their full path from the repo root in backticks (e.g. `` `packages/cli/src/subcommands/handlers/per-subcommand-help.ts` ``).
-- **New docs**: drop them in the right category (or create a new category if needed). Add a row to the appropriate table in this README so the index stays current.
+- **New docs**: add maintained guidance to the appropriate category and index it here. Put dated snapshots and completed work in `archive/` instead of the current-docs path.
 
 ---
 
@@ -181,6 +167,6 @@ ADRs capture significant architectural decisions, the alternatives considered, a
 2. **Read the relevant Author Guide** for the surface you're adding (tool, plugin, provider, help module).
 3. **Read the [typescript-style-guide.md](typescript-style-guide.md)** before writing code.
 4. **Run `pnpm typecheck` and `pnpm test`** before opening a PR. Both are required to pass.
-5. **Update this README** when you add a new document to a category, or when you create a new category.
+5. **Update this README** when you add maintained documentation to a category. Do not add archival snapshots to the main navigation.
 
 For questions, the [`/help` slash command](slash/help.md) and the [`wstack <sub> --help`](subcommands/version-help.md) surfaces are the canonical in-product references. Anything not covered by the in-product help is either a bug or a missing doc.

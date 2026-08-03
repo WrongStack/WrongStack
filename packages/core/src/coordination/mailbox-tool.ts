@@ -21,6 +21,7 @@ import { resolveProjectDir } from './global-mailbox-paths.js';
 import { getSharedProjectMailbox } from './remote-mailbox.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import {
+  acceptMailboxMessageForSession,
   isMailboxMessageVisibleTo,
   normalizeRecipient,
   type Mailbox,
@@ -225,7 +226,7 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
         case 'ack':
           return executeAck(mb, callerId, i);
         case 'query':
-          return executeQuery(mb, callerId, identity.role, i);
+          return executeQuery(mb, callerId, callerSessionId, identity.role, i);
         case 'status':
           return executeStatus(mb);
         case 'online':
@@ -266,12 +267,24 @@ async function executeCheck(
     ),
   );
   const seen = new Set<string>();
-  const messages = batches.flat().filter((m) => {
+  const candidates = batches.flat().filter((m) => {
     if (seen.has(m.id)) return false;
     if (!isMailboxMessageVisibleTo(m, agentId, role)) return false;
     seen.add(m.id);
     return true;
   });
+  // Session-affinity filter: every read path that touches cross-session
+  // mail must wire the same filter. The agent-loop checker is not the only
+  // read surface — `check` and `unread` are the default tool actions a
+  // leader uses to read their mailbox, and they must reject messages whose
+  // `sessionAffinity.sessionId` does not match the caller's current
+  // session id. Mirrors the `query` action's pattern at line 400.
+  const messages: typeof candidates = [];
+  for (const m of candidates) {
+    if (await acceptMailboxMessageForSession(m, sessionId)) {
+      messages.push(m);
+    }
+  }
 
   // Auto-read: add read receipts for each message by default. Use the batch
   // path so catch-up checks perform one locked rewrite instead of N rewrites.
@@ -376,6 +389,7 @@ async function executeAck(mb: Mailbox, agentId: string, i: Record<string, unknow
 async function executeQuery(
   mb: Mailbox,
   agentId: string,
+  sessionId: string,
   role: string | undefined,
   i: Record<string, unknown>,
 ) {
@@ -391,7 +405,15 @@ async function executeQuery(
     sessionId: i.sessionId as string | undefined,
     limit,
   });
-  const visible = messages.filter((message) => isMailboxMessageVisibleTo(message, agentId, role));
+  const visible: MailboxMessage[] = [];
+  for (const message of messages) {
+    if (
+      isMailboxMessageVisibleTo(message, agentId, role) &&
+      (await acceptMailboxMessageForSession(message, sessionId))
+    ) {
+      visible.push(message);
+    }
+  }
   return { ok: true, count: visible.length, messages: visible, summary: `${visible.length} message(s).` };
 }
 

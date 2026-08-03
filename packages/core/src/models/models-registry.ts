@@ -20,7 +20,7 @@ import type { ReasoningConfig, ReasoningEffort } from '../types/provider.js';
 const DEFAULT_URL = 'https://models.dev/api.json';
 /** Env var to override the models.dev base URL (e.g. for self-hosted mirrors). */
 const ENV_URL_KEY = 'WRONGSTACK_MODELS_DEV_URL';
-const DEFAULT_TTL_SECONDS = 24 * 3600;
+const DEFAULT_TTL_SECONDS = 3 * 3600;
 const DEFAULT_REFRESH_TIMEOUT_MS = 15_000;
 
 interface CacheEnvelope {

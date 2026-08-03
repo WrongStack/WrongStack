@@ -214,6 +214,11 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     agent,
     config,
     projectDir: wpaths.projectDir,
+    // Thread the shared tracker so the round-robin Chimera reviewer picks
+    // skip (provider, model) pairs currently in the waiting room. Without
+    // this, a 429-stricken model is re-spawned on every concurrent reviewer
+    // turn and burns the whole chain instead of staying quarantined.
+    statusTracker,
     setPendingWork: (work) => {
       pendingChimeraWork = work;
     },

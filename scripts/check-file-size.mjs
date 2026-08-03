@@ -10,11 +10,8 @@
  * over the cap are now flagged for review at PR time. The 4 files
  * >2000 lines (tui/app.tsx, webui/server/index.ts, cli/webui-server.ts,
  * cli/cli-main.ts) are now all tracked, with sequenced plans under
- * `docs/issues/`. See:
- *   - docs/issues/2026-06-13-tui-app-refactor.md (8 PRs, in flight)
- *   - docs/issues/2026-06-13-cli-main-refactor.md (7 PRs, open)
- *   - docs/issues/2026-06-13-webui-server-refactor.md (8 PRs, open)
- *   - docs/issues/2026-06-13-webui-package-server-refactor.md (7 PRs, open)
+ * `docs/archive/work-items/issues/`. See the preserved historical notes for
+ * the original extraction plans; they are not active work tracking.
  *
  * This script **never fails CI** — it's a review nudge. New files over
  * the cap should be flagged in PRs but not block merging. Combine with

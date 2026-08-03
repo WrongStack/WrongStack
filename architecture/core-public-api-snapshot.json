@@ -1100,7 +1100,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 144,
-      "sourceLines": 42595
+      "sourceLines": 42600
     },
     {
       "directory": "core",
@@ -1212,7 +1212,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 17,
-      "sourceLines": 6457
+      "sourceLines": 6488
     },
     {
       "directory": "prompts",
@@ -1254,7 +1254,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 75,
-      "sourceLines": 16335
+      "sourceLines": 16367
     },
     {
       "directory": "tasking",
@@ -1275,7 +1275,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9495
+      "sourceLines": 9512
     },
     {
       "directory": "utils",

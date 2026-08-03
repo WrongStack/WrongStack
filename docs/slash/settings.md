@@ -28,7 +28,7 @@ command is argument-driven so it works in both the plain REPL and the Ink TUI.
 | `/settings semver-part patch\|minor\|major\|auto` | Default part used by `/semver` and the `semver_bump` tool when no explicit part is given |
 | `/settings plugins` | Open the interactive plugin picker (TUI overlay) or print the audit report (REPL) — same surface as `/plugin menu` |
 | `/settings plugin report` | Print the audit report: each built-in plugin row's name, state, risk tier, and current toggle policy |
-| `/settings plugin toggle <name>` | Toggle a single built-in audit-list plugin row; current bundled rows are all toggleable, including guard plugins such as [`secret-scanner`](../packages/plugins/src/secret-scanner) and [`branch-guard`](../packages/plugins/src/branch-guard) |
+| `/settings plugin toggle <name>` | Toggle a single built-in audit-list plugin row; current bundled rows are all toggleable, including guard plugins such as [`secret-scanner`](../../packages/plugins/src/secret-scanner) and [`branch-guard`](../../packages/plugins/src/branch-guard) |
 | `/settings defaults` | Show built-in defaults |
 
 Settings are persisted to the active config scope: global
@@ -40,7 +40,7 @@ Model Routing when a specific subagent role/phase needs its own reasoning
 budget.
 
 `semver-part` is stored under `extensions["semver-bump"].defaultPart` (the
-[`semver-bump`](../packages/plugins/src/semver-bump) plugin's config key) and
+[`semver-bump`](../../packages/plugins/src/semver-bump) plugin's config key) and
 always goes to the **global** config — `extensions` is not project-safe, so a
 project-scope write would drop it.
 

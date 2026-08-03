@@ -208,14 +208,6 @@ describe('parseMailboxSendInput', () => {
     ).toThrow(MailboxValidationError);
   });
 
-  it('returns undefined sessionAffinity when omitted', () => {
-    const result = parseMailboxSendInput(
-      { to: 'worker', subject: 's', body: 'b' },
-      actor(),
-    );
-    expect(result.sessionAffinity).toBeUndefined();
-  });
-
   it('rejects a legacy reportId-only sessionAffinity at the boundary', () => {
     expect(() =>
       parseMailboxSendInput(

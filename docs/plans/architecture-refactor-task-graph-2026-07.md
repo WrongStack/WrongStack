@@ -2,7 +2,7 @@
 
 **Status:** Complete — all 42 nodes across Waves 0-5 marked done (2026-08-01 verification)  
 **Decision record:** [`adr-003-authority-first-refactor-program.md`](adr-003-authority-first-refactor-program.md)  
-**Historical backlog:** [`../backlog/2026-07-architecture-review/`](../backlog/2026-07-architecture-review/)  
+**Historical backlog:** [`../archive/work-items/backlog/2026-07-architecture-review/`](../archive/work-items/backlog/2026-07-architecture-review/)
 **Point-in-time evidence date:** 2026-07-15  
 **Scope:** Verification, trust/lifecycle boundaries, cross-surface authority, metadata consolidation, hotspot decomposition, and Core/Runtime ownership
 
@@ -721,7 +721,7 @@ After Wave 0 gates are available, these lanes can run concurrently:
 
 ## Historical backlog disposition
 
-The table below maps every item in `docs/backlog/2026-07-architecture-review/` to the live-tree program. The status applies to the historical issue **as written**, not merely to whether related code exists.
+The table below maps every item in `docs/archive/work-items/backlog/2026-07-architecture-review/` to the live-tree program. The status applies to the historical issue **as written**, not merely to whether related code exists.
 
 | ID | Historical item | Status | Current evidence / rationale | Successor tasks |
 |---:|---|---|---|---|

@@ -85,6 +85,7 @@ vi.mock('../src/server/discover-mailbox-bridge.js', () => ({ discoverMailboxBrid
 vi.mock('../src/server/model-catalog.js', () => ({ resolveProviderModelMetadata: vi.fn(async () => null) }));
 
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
+import { TOKENS } from '@wrongstack/core/kernel';
 import { createAgentServices } from '../src/server/backend-services.js';
 
 function makeInput(): any {
@@ -182,6 +183,29 @@ describe('createAgentServices', () => {
     expect(installToolBoundary).toHaveBeenCalledWith(input.pipelines);
     expect(vi.mocked(makeLightSubagentFactory)).toHaveBeenCalledWith(
       expect.objectContaining({ installToolBoundary }),
+    );
+  });
+
+  it('forwards the shared ProviderModelStatusTracker from the DI container to the light subagent factory', async () => {
+    // Regression: a 429 from a subagent's first call must transition the
+    // (provider, model) pair to `state: 'blocked'` so the waiting-room
+    // view reflects it. The runtime factory accepts `statusTracker` as an
+    // optional dep; this test pins the webui-server wiring contract that
+    // the container-provided tracker is forwarded (resolved via
+    // `safeResolve(TOKENS.ProviderModelStatusTracker)`, mirroring the CLI
+    // factory thread at `host-subagent-factory.ts:337`).
+    const tracker = { recordFailure: vi.fn(), getBlocked: vi.fn(() => []) } as never;
+    const input = makeInput();
+    const safeResolve = vi.fn((token: unknown) =>
+      token === TOKENS.ProviderModelStatusTracker ? tracker : undefined,
+    );
+    input.container = { ...input.container, safeResolve };
+
+    await createAgentServices(input);
+
+    expect(safeResolve).toHaveBeenCalledWith(TOKENS.ProviderModelStatusTracker);
+    expect(vi.mocked(makeLightSubagentFactory)).toHaveBeenCalledWith(
+      expect.objectContaining({ statusTracker: tracker }),
     );
   });
 

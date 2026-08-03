@@ -406,6 +406,88 @@ describe('acp-session-callbacks', () => {
       expect(policy).toHaveBeenCalled();
       expect(sender.sendResult).toHaveBeenCalledWith(5, { outcome: { outcome: 'selected', optionId: 'allow' } });
     });
+
+    it('fails closed with -32800 when the policy exceeds permissionTimeoutMs', async () => {
+      const { handleAcpPermissionRequest } = await import(
+        '../src/client/acp-session-callbacks.js'
+      );
+      // Policy never settles — only the deadline can end the race.
+      const policy = vi.fn().mockImplementation(
+        () => new Promise(() => undefined) as ReturnType<PermissionPolicy>,
+      );
+      await handleAcpPermissionRequest(
+        {
+          jsonrpc: '2.0',
+          method: 'session/request_permission',
+          id: 6,
+          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc5', title: 'test', kind: 'edit' } },
+        } as never,
+        policy,
+        sender,
+        { permissionTimeoutMs: 1 },
+      );
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        6,
+        -32800,
+        'permission policy failed: permission request cancelled or timed out',
+      );
+      expect(sender.sendResult).not.toHaveBeenCalled();
+    });
+
+    it('rejects immediately when the outer signal is already aborted', async () => {
+      const { handleAcpPermissionRequest } = await import(
+        '../src/client/acp-session-callbacks.js'
+      );
+      const controller = new AbortController();
+      controller.abort();
+      const policy = vi.fn().mockImplementation(
+        () => new Promise(() => undefined) as ReturnType<PermissionPolicy>,
+      );
+      await handleAcpPermissionRequest(
+        {
+          jsonrpc: '2.0',
+          method: 'session/request_permission',
+          id: 7,
+          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc6', title: 'test', kind: 'edit' } },
+        } as never,
+        policy,
+        sender,
+        { signal: controller.signal },
+      );
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        7,
+        -32800,
+        'permission policy failed: permission request cancelled or timed out',
+      );
+      expect(sender.sendResult).not.toHaveBeenCalled();
+    });
+
+    it('clears the deadline timer when the policy settles first (no late abort)', async () => {
+      const { handleAcpPermissionRequest } = await import(
+        '../src/client/acp-session-callbacks.js'
+      );
+      let policySignal: AbortSignal | undefined;
+      const policy = vi.fn().mockImplementation(async (req) => {
+        policySignal = req.signal;
+        return { outcome: 'selected', optionId: 'allow' };
+      });
+      await handleAcpPermissionRequest(
+        {
+          jsonrpc: '2.0',
+          method: 'session/request_permission',
+          id: 8,
+          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc7', title: 'test', kind: 'read' } },
+        } as never,
+        policy,
+        sender,
+        { permissionTimeoutMs: 10 },
+      );
+      expect(sender.sendResult).toHaveBeenCalledWith(8, { outcome: { outcome: 'selected', optionId: 'allow' } });
+      // If the deadline timer had not been cleared it would fire ~10ms
+      // after dispatch and abort the signal handed to the policy.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(policySignal?.aborted).toBe(false);
+    });
   });
 });
 
@@ -521,6 +603,40 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       );
       expect(sender.sendErrorResponse).toHaveBeenCalledWith(40, -32800, 'filesystem write permission request cancelled or timed out');
       expect(fileServer.writeTextFile).not.toHaveBeenCalled();
+    });
+
+    it('waits past the default deadline when permissionTimeoutMs opts out (Infinity)', async () => {
+      const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
+      vi.useFakeTimers();
+      try {
+        let resolvePolicy!: (outcome: { outcome: 'selected'; optionId: string }) => void;
+        permissionPolicy.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              resolvePolicy = resolve;
+            }) as ReturnType<PermissionPolicy>,
+        );
+        const pending = handleAcpFsRequest(
+          {
+            jsonrpc: '2.0', method: 'fs/write_text_file', id: 42,
+            params: { path: '/tmp/test.txt', content: 'data' },
+          } as never,
+          fileServer as never,
+          permissionPolicy,
+          sender,
+          { permissionTimeoutMs: Number.POSITIVE_INFINITY },
+        );
+        // Far beyond DEFAULT_PERMISSION_TIMEOUT_MS (60s): with the default
+        // deadline this request would already have failed closed (-32800).
+        await vi.advanceTimersByTimeAsync(120_000);
+        expect(sender.sendErrorResponse).not.toHaveBeenCalled();
+        resolvePolicy({ outcome: 'selected', optionId: 'allow' });
+        await pending;
+        expect(fileServer.writeTextFile).toHaveBeenCalled();
+        expect(sender.sendResult).toHaveBeenCalledWith(42, {});
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('passes cancellation into write permission policy and fails closed', async () => {

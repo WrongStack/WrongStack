@@ -9,7 +9,7 @@ import { deriveRows, type ModelRowData } from '../../src/components/SettingsPane
  * maxOutput + modelsDev limit.output resolution chain.
  */
 
-type CustomModels = NonNullable<Parameters<typeof deriveRows>[1]>;
+type CustomModels = Parameters<typeof deriveRows>[1];
 
 function rows(
   models: string[],

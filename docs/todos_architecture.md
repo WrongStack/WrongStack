@@ -267,7 +267,7 @@ Both systems can coexist: a user might set up a high-level plan with `/plan`, th
 
 | # | Feature | Motivation | Files touched |
 |---|---------|------------|---------------|
-| 5 | **Todo -> Plan bridge** | Allow promoting a todo item into a plan item (and vice versa). | `packages/cli/src/slash-commands/todos.ts`, `packages/core/src/plugins/plan-plugin.ts` |
+| 5 | **Todo -> Plan bridge** | Allow promoting a todo item into a plan item (and vice versa). | `packages/cli/src/slash-commands/todos.ts`, `packages/core/src/storage/plan-store.ts` |
 | 6 | **Todo history / undo** | Keep a rolling log of todo mutations (last N states) so the user can undo an accidental `clear`. | `packages/core/src/storage/todos-checkpoint.ts`, `packages/core/src/core/conversation-state.ts` |
 | 7 | **Per-todo notes / subtasks** | Optional `notes?: string` and `subtasks?: TodoItem[]` fields. | `packages/core/src/core/context.ts`, `packages/core/src/utils/todos-format.ts` |
 | 8 | **Todo deadlines / reminders** | Optional `dueAt?: string` with reminder hook. | `packages/core/src/core/context.ts`, `packages/core/src/kernel/events.ts` |
@@ -321,7 +321,7 @@ Both systems can coexist: a user might set up a high-level plan with `/plan`, th
 | `packages/cli/tests/slash-diag-memory-todos.test.ts` | `/todos` slash command tests (16 cases) |
 | `packages/tui/src/app.tsx` | TUI auto-echo, F5 compact panel, F6 monitor overlay |
 | `packages/tui/src/app-reducer.ts` | `todosMonitorOpen` + `rightTodosPanelOpen` state |
-| `packages/tui/src/components/compact-todos-panel.tsx` | F5 right-side compact panel with overflow indicator |
+| `packages/tui/src/hooks/use-live-todos.ts` | TUI live-todo data hook used by todo views |
 | `packages/tui/src/components/todos-monitor.tsx` | F6 full-screen monitor overlay |
 | `packages/tui/src/components/status-bar.tsx` | Line 3 todos chip + `statusBarTodosSpan()` for mouse |
 | `packages/webui/src/components/TodosPanel.tsx` | Live todos panel with remove button |

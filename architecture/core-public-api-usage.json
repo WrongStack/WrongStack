@@ -19,9 +19,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 164,
-      "typeOnly": 69,
-      "runtimeOrMixed": 143
+      "files": 167,
+      "typeOnly": 71,
+      "runtimeOrMixed": 144
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 198,
+      "files": 199,
       "typeOnly": 105,
-      "runtimeOrMixed": 103
+      "runtimeOrMixed": 104
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 24,
+      "files": 26,
       "typeOnly": 8,
-      "runtimeOrMixed": 17
+      "runtimeOrMixed": 19
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 830,
-      "typeOnly": 794,
+      "files": 832,
+      "typeOnly": 795,
       "runtimeOrMixed": 208
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -1756,6 +1756,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/chimera-reviewer-policy.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/cli-eternal-flag.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -1777,6 +1783,12 @@
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 5
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/execution-chimera-review.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2227,6 +2239,12 @@
       "file": "packages/cli/tests/provider-status-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/review-fallback-drift.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -5236,6 +5254,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/tests/backend-services.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/tests/codebase-indexing.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5458,6 +5482,12 @@
     },
     {
       "specifier": "@wrongstack/core/models",
+      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
       "file": "packages/webui-server/src/server/routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -5467,6 +5497,12 @@
       "file": "packages/webui/src/components/AvailabilityCalendarEditor.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/webui/src/components/SettingsPanel/ModelSchemaEditor.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/models",
@@ -8087,7 +8123,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/fleet/host-subagent-factory.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -12509,6 +12545,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/prompts-handlers.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/provider-custom-models-allowlist.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/provider-custom-models-projection.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

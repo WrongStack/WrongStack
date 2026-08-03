@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import type { ChimeraReviewNeededPayload, SlashCommand } from '../../src/index.js';
 import { EventBus } from '../../src/kernel/events.js';
 import {
@@ -270,10 +271,7 @@ describe('resolveAutoReviewConfig — empty/unknown fallbackProfile', () => {
   });
 
   it('defaults cascade settings to off/2 when not specified', () => {
-    const resolved = resolveAutoReviewConfig(
-      { enabled: true },
-      sessionConfig(),
-    );
+    const resolved = resolveAutoReviewConfig({ enabled: true }, sessionConfig());
     expect(resolved.cascadeOn).toBe('off');
     expect(resolved.maxCascadeDepth).toBe(2);
   });
@@ -531,6 +529,91 @@ describe('reviewer model round-robin', () => {
       cursor = a.nextCursor;
     }
     expect(primaries.size).toBe(pool.length);
+  });
+
+  describe('with a ProviderModelStatusTracker (waiting-room filter)', () => {
+    // The 429 → waiting-room contract: a single rate_limit failure on a
+    // (provider, model) pair must transition that pair to `state: 'blocked'`
+    // (see `provider-status-tracker.ts` blockAfterRateLimitHits default = 1).
+    // These tests pin the downstream contract: once blocked, the pair must
+    // not be picked as a reviewer's primary nor included in the round-robin
+    // pool on subsequent rounds. Without it, concurrent Chimera reviewers
+    // re-spawn on a doomed model every turn and burn the entire chain.
+    type BlockedPair = { providerId: string; model: string; message?: string };
+
+    function block(tracker: ProviderModelStatusTracker, pair: BlockedPair): void {
+      tracker.recordFailure(
+        pair.providerId,
+        pair.model,
+        'rate_limit',
+        429,
+        pair.message ?? 'rate limited',
+        { retryAfterMs: 60_000 },
+      );
+    }
+
+    it('buildReviewerModelPool drops a tracker-blocked primary and subsequent blocked entries', () => {
+      const tracker = new ProviderModelStatusTracker();
+      // Block the primary and one fallback. The second fallback stays healthy.
+      block(tracker, { providerId: 'a', model: 'm1' });
+      block(tracker, { providerId: 'b', model: 'm2' });
+
+      const pool = buildReviewerModelPool('a', 'm1', ['b/m2', 'c/m3'], tracker);
+      expect(pool).toEqual(['c/m3']);
+    });
+
+    it('buildReviewerModelPool is a no-op when the tracker has no record for any entry', () => {
+      // No record → `isAvailable` returns true for every entry. Without a
+      // tracker the pool is identical; with one but no prior failures the
+      // filter is transparent.
+      const tracker = new ProviderModelStatusTracker();
+      const pool = buildReviewerModelPool('a', 'm1', ['b/m2', 'c/m3'], tracker);
+      expect(pool).toEqual(['a/m1', 'b/m2', 'c/m3']);
+    });
+
+    it('selectRoundRobinReviewerAssignment skips a tracker-blocked primary and keeps the cursor on the live pool', () => {
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, { providerId: 'p0', model: 'm0' });
+      const pool = ['p0/m0', 'p1/m1', 'p2/m2'];
+
+      // Cursor 0 would have picked p0/m0 without the tracker. With the
+      // tracker filtering p0/m0 out, the live pool is [p1/m1, p2/m2] and
+      // cursor 0 yields p1/m1 — proving the doomed model is never picked.
+      const a = selectRoundRobinReviewerAssignment(pool, 0, 'session-p', 'session-m', tracker);
+      expect(a.provider).toBe('p1');
+      expect(a.model).toBe('m1');
+      expect(a.fallbackModels).toEqual(['p2/m2']);
+      // The returned cursor advances mod the *filtered* pool length so the
+      // next round walks the rest of the chain instead of looping back to
+      // the blocked head.
+      expect(a.nextCursor).toBe(1);
+    });
+
+    it('selectRoundRobinReviewerAssignment returns the defensive fallback when every entry is blocked', () => {
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, { providerId: 'p0', model: 'm0' });
+      block(tracker, { providerId: 'p1', model: 'm1' });
+      const pool = ['p0/m0', 'p1/m1'];
+
+      const a = selectRoundRobinReviewerAssignment(pool, 0, 'session-p', 'session-m', tracker);
+      expect(a).toEqual({
+        provider: 'session-p',
+        model: 'session-m',
+        fallbackModels: [],
+        nextCursor: 1,
+      });
+    });
+
+    it('blocked pairs do not re-enter the pool once the tracker re-admits them', () => {
+      const tracker = new ProviderModelStatusTracker();
+      block(tracker, { providerId: 'a', model: 'm1' });
+      expect(buildReviewerModelPool('a', 'm1', ['b/m2'], tracker)).toEqual(['b/m2']);
+
+      // Force the waiting-room timeout to fire by clearing the pair's
+      // expiry directly — `retryNow` is the public half-open hook.
+      tracker.retryNow('a', 'm1');
+      expect(buildReviewerModelPool('a', 'm1', ['b/m2'], tracker)).toEqual(['a/m1', 'b/m2']);
+    });
   });
 });
 
