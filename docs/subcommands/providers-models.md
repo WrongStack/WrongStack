@@ -60,7 +60,7 @@ Custom model definitions now carry the complete models.dev schema, not just name
 
 **Delta storage:** when a model exists in the models.dev catalog, only the fields you override are stored; untouched fields resolve from the live catalog at runtime. **Custom (non-catalog) models** store the full object. **Reset** (`models reset`) drops the `customModels` entry so catalog defaults apply again.
 
-**Precedence** (highest wins): explicit `customModels` → inline `models[]` objects → models.dev catalog → wire-family defaults.
+**Precedence** (highest wins): top-level `config.models` → `providers.<id>.customModels` (incl. inline `models[]` objects, normalized at load) → models.dev catalog → wire-family defaults.
 
 ## Code reference
 

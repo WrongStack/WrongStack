@@ -93,8 +93,13 @@ Both layers deep-merge one level into `limit` / `cost` / `modalities` objects, a
 same precedence contract at resolution time:
 
 ```
-explicit customModels  >  inline models[] objects  >  overlay  >  models.dev catalog  >  wire-family defaults
+top-level config.models  >  providers.<id>.customModels (incl. inline models[] objects)  >  overlay  >  models.dev catalog  >  wire-family defaults
 ```
+
+The top-level `config.models` record overrides provider-local entries for the same model id
+(`mergeCustomModelDefs` in `packages/core/src/utils/merge-custom-models.ts`). Inline
+models.dev-style objects inside `providers.<id>.models` are normalized into `customModels` at
+config load — they are not a separate runtime layer.
 
 ## Catalog cache & boot refresh
 

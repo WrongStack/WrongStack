@@ -335,8 +335,8 @@ Catalog models can be overridden field-by-field using `customModels`. Only the f
 
 Metadata resolution order (highest wins):
 
-1. **Explicit `customModels`** — per-field overrides from config
-2. **Inline-derived** — full objects in `models[]` array
+1. **Top-level `config.models`** — per-model overrides from the config root (`mergeCustomModelDefs`; wins over provider-local entries for the same id)
+2. **`providers.<id>.customModels`** — per-field overrides from config (inline models.dev-style objects in `models[]` are normalized into this layer at load)
 3. **models.dev catalog** — live registry data (refreshed at boot)
 4. **Wire-family defaults** — hardcoded per provider family
 

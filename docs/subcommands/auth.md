@@ -99,7 +99,7 @@ The in-session TUI panel (`/auth` in the Ink TUI) adds model-level editing on to
 | Key | Action |
 |-----|--------|
 | `Enter` on a model | Edit model details (limits, cost, modalities, capabilities, dates) |
-| `a` | Add a model (from catalog search, with manual fallback) |
+| `a` | Add a model (manual entry with catalog reference values shown, catalog prefill when available) |
 | `x` on a model | Remove model (with confirmation) |
 | `r` on a model | Reset to catalog values (drops overrides, restores models.dev defaults) |
 
