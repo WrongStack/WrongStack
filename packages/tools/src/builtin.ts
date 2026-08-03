@@ -5,6 +5,8 @@ import { batchToolUseTool } from './batch-tool-use.js';
 import { browserTools } from './browser/tools.js';
 import {
   codebaseIndexTool,
+  codebaseIncomingCallsTool,
+  codebaseOutgoingCallsTool,
   codebaseSearchTool,
   codebaseStatsTool,
   deadCodeScanTool,
@@ -92,6 +94,8 @@ export const TIER1_TOOLS: Tool[] = [
   editTool,
   codebaseStatsTool,
   codebaseSearchTool,
+  codebaseIncomingCallsTool,
+  codebaseOutgoingCallsTool,
   codebaseIndexTool,
   bashTool,
   grepTool,
@@ -163,6 +167,8 @@ export const builtinTools: Tool[] = [
   editTool,
   codebaseStatsTool,
   codebaseSearchTool,
+  codebaseIncomingCallsTool,
+  codebaseOutgoingCallsTool,
   codebaseIndexTool,
   deadCodeScanTool,
   replaceTool,

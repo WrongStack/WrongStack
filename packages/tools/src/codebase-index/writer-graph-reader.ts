@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { CodeMapGraph, Ref, SymbolLang } from './schema.js';
+import type { CallSite, CodeMapGraph, Ref, SymbolKind, SymbolLang } from './schema.js';
 import {
   addWeightedEdge,
   buildFileGraphNodeState,
@@ -17,6 +17,215 @@ import { mapWriterRefRow, type WriterRefRow } from './writer-ref-mapper.js';
 
 type Statement = ReturnType<DatabaseSync['prepare']>;
 type PrepareStatement = (sql: string) => Statement;
+
+/** Stay under typical SQLite SQLITE_MAX_VARIABLE_NUMBER (often 999). */
+const MAX_SQL_VARS = 900;
+
+/**
+ * Run a query that takes a list of IDs, chunking the IDs so the total
+ * placeholder count never exceeds SQLite's variable limit.
+ */
+function chunkedIdQuery(
+  stmt: PrepareStatement,
+  ids: number[],
+  buildSql: (placeholders: string) => string,
+  extraArgs: readonly (string | number)[] = [],
+): unknown[] {
+  const results: unknown[] = [];
+  for (let start = 0; start < ids.length; start += MAX_SQL_VARS) {
+    const chunk = ids.slice(start, start + MAX_SQL_VARS);
+    const placeholders = chunk.map(() => '?').join(',');
+    const sql = buildSql(placeholders);
+    results.push(...(stmt(sql).all(...chunk, ...extraArgs) as unknown[]));
+  }
+  return results;
+}
+
+/** Like chunkedIdQuery but returns a single scalar (COUNT, SUM, …). */
+function chunkedIdScalar(
+  stmt: PrepareStatement,
+  ids: number[],
+  buildSql: (placeholders: string) => string,
+  extraArgs: readonly (string | number)[] = [],
+): number {
+  let total = 0;
+  for (let start = 0; start < ids.length; start += MAX_SQL_VARS) {
+    const chunk = ids.slice(start, start + MAX_SQL_VARS);
+    const placeholders = chunk.map(() => '?').join(',');
+    const sql = buildSql(placeholders);
+    const rows = stmt(sql).all(...chunk, ...extraArgs) as Array<{ n: number }>;
+    total += rows[0]?.n ?? 0;
+  }
+  return total;
+}
+
+// ─── Enriched call-site queries (by symbol name) ─────────────────────────────
+
+type CallSiteRow = {
+  sym_id: number;
+  sym_name: string;
+  sym_kind: string;
+  sym_lang: string;
+  sym_file: string;
+  sym_line: number;
+  sym_signature: string;
+  call_type: string;
+  ref_line: number;
+};
+
+function mapCallSiteRow(row: CallSiteRow): CallSite {
+  return {
+    symbol: {
+      id: row.sym_id,
+      name: row.sym_name,
+      kind: row.sym_kind as SymbolKind,
+      lang: row.sym_lang as SymbolLang,
+      file: row.sym_file,
+      line: row.sym_line,
+      signature: row.sym_signature,
+    },
+    callType: row.call_type as CallSite['callType'],
+    line: row.ref_line,
+  };
+}
+
+/**
+ * Resolve a symbol name (optionally scoped by file) to matching symbol IDs.
+ * When `file` is omitted, all symbols with that name across the project match.
+ */
+function resolveSymbolIds(
+  stmt: PrepareStatement,
+  symbolName: string,
+  file: string | undefined,
+): number[] {
+  const baseSql = file
+    ? `SELECT id FROM symbols WHERE name = ? AND file = ? ORDER BY id`
+    : `SELECT id FROM symbols WHERE name = ? ORDER BY id`;
+  const args = file ? [symbolName, file] : [symbolName];
+  const rows = stmt(baseSql).all(...args) as Array<{ id: number }>;
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Find all symbols that CALL/USE the named target symbol (incoming callers).
+ *
+ * Returns one `CallSite` per ref edge, with the caller's full metadata so the
+ * agent sees file, line, kind, and signature without a second lookup.
+ */
+export function findIncomingCallsByName(
+  stmt: PrepareStatement,
+  symbolName: string,
+  file: string | undefined,
+  limit: number,
+): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean } {
+  const targetIds = resolveSymbolIds(stmt, symbolName, file);
+  if (targetIds.length === 0) return { calls: [], symbolFound: false, ambiguous: false };
+
+  // Ref resolution (writer.ts `resolveRefs`) assigns `to_id` name-globally via
+  // `MIN(id)` — it is not file-aware. When `file` scopes the query but other
+  // files also define this name, id-only matching attributes every caller to
+  // whichever duplicate holds the lowest id and returns nothing for the rest.
+  // Stored refs cannot disambiguate same-named targets, so we must widen to
+  // all ids with this name under ambiguity. Flag it so the caller can inform
+  // the agent that results may include callers of a different same-named symbol.
+  let matchIds = targetIds;
+  let ambiguous = false;
+  if (file !== undefined) {
+    const allNamedIds = resolveSymbolIds(stmt, symbolName, undefined);
+    if (allNamedIds.length > targetIds.length) {
+      matchIds = allNamedIds;
+      ambiguous = true;
+    }
+  }
+
+  // Also match refs whose to_name resolves to this symbol even if to_id was
+  // not filled during index resolution (e.g. cross-language refs).
+  // When `file` is scoped, skip the fallback — an unresolved to_name can't be
+  // attributed to a specific file's symbol, so including it would leak callers
+  // of same-named symbols in other files.
+  const useFallback = !file;
+  const fallbackArgs = useFallback ? [symbolName] : [];
+
+  // Query without LIMIT — chunked execution would apply LIMIT per-chunk,
+  // leaking past the caller's ceiling. This fetches ALL matching refs then
+  // slices to `limit` after merge. Safe because callers cap at 200; a symbol
+  // with thousands of callers is rare and the limit protects memory.
+  const rows = chunkedIdQuery(
+    stmt,
+    matchIds,
+    (ph) =>
+      `SELECT
+         s.id   AS sym_id,
+         s.name AS sym_name,
+         s.kind AS sym_kind,
+         s.lang AS sym_lang,
+         s.file AS sym_file,
+         s.line AS sym_line,
+         s.signature AS sym_signature,
+         r.call_type,
+         r.line AS ref_line
+       FROM refs r
+       JOIN symbols s ON s.id = r.from_id
+       WHERE r.to_id IN (${ph})${useFallback ? ` OR (r.to_id IS NULL AND r.to_name = ?)` : ''}
+       ORDER BY r.line, r.id`,
+    fallbackArgs,
+  ) as CallSiteRow[];
+
+  const calls = rows.map(mapCallSiteRow).slice(0, limit);
+  return { calls, symbolFound: true, ambiguous };
+}
+
+/**
+ * Find all symbols that the named source symbol CALLS/USES (outgoing callees).
+ *
+ * Returns one `CallSite` per ref edge, with the callee's full metadata.
+ */
+export function findOutgoingCallsByName(
+  stmt: PrepareStatement,
+  symbolName: string,
+  file: string | undefined,
+  limit: number,
+): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number } {
+  const sourceIds = resolveSymbolIds(stmt, symbolName, file);
+  if (sourceIds.length === 0) return { calls: [], symbolFound: false, unresolvedCount: 0 };
+
+  // Count refs that could not be resolved (to_id IS NULL) so callers know
+  // dependencies were silently dropped.
+  const unresolvedCount = chunkedIdScalar(
+    stmt,
+    sourceIds,
+    (ph) => `SELECT COUNT(*) AS n FROM refs WHERE from_id IN (${ph}) AND to_id IS NULL`,
+  );
+
+  // Query without LIMIT — chunked execution would apply LIMIT per-chunk,
+  // leaking past the caller's ceiling. This fetches ALL matching refs then
+  // slices to `limit` after merge. Safe because callers cap at 200; a symbol
+  // with thousands of callers is rare and the limit protects memory.
+  const rows = chunkedIdQuery(
+    stmt,
+    sourceIds,
+    (ph) =>
+      `SELECT
+         s.id   AS sym_id,
+         s.name AS sym_name,
+         s.kind AS sym_kind,
+         s.lang AS sym_lang,
+         s.file AS sym_file,
+         s.line AS sym_line,
+         s.signature AS sym_signature,
+         r.call_type,
+         r.line AS ref_line
+       FROM refs r
+       JOIN symbols s ON s.id = r.to_id
+       WHERE r.from_id IN (${ph})
+         AND r.to_id IS NOT NULL  -- INNER JOIN already excludes NULL to_id; this is defensive belt-and-suspenders
+       ORDER BY r.line, r.id`,
+    [],
+  ) as CallSiteRow[];
+
+  const calls = rows.map(mapCallSiteRow).slice(0, limit);
+  return { calls, symbolFound: true, unresolvedCount };
+}
 
 export function findRefsToWithStatement(stmt: PrepareStatement, symbolId: number): Ref[] {
   return (

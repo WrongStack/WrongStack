@@ -13,8 +13,8 @@
  */
 
 import { runIndexerWithStore } from './indexer.js';
-import type { CodeMapGraph, IndexResult, IndexStats, SymbolKind, SymbolLang } from './schema.js';
-import type { IndexOpArgs, SearchOpArgs, SearchOpResult, StatsOpArgs } from './worker-protocol.js';
+import type { CallSite, CodeMapGraph, IndexResult, IndexStats, SymbolKind, SymbolLang } from './schema.js';
+import type { CallRefsOpArgs, IndexOpArgs, SearchOpArgs, SearchOpResult, StatsOpArgs } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
 
 export interface ServiceHooks {
@@ -100,6 +100,42 @@ export function symbolGraphService(args: StatsOpArgs & { fileFilter: string }): 
   const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
   try {
     return store.getSymbolGraph(args.fileFilter);
+  } finally {
+    indexStorePool.release(store);
+  }
+}
+
+/** Result of an incoming calls query. */
+export interface IncomingCallsResult {
+  calls: CallSite[];
+  symbolFound: boolean;
+  /** True when `file` was scoped but the name is ambiguous (other files define it too). */
+  ambiguous: boolean;
+}
+
+/** Result of an outgoing calls query. */
+export interface OutgoingCallsResult {
+  calls: CallSite[];
+  symbolFound: boolean;
+  /** Number of refs whose target could not be resolved (to_id IS NULL). */
+  unresolvedCount: number;
+}
+
+/** Incoming call sites for a named symbol (who calls/uses this symbol?). */
+export function incomingCallsService(args: CallRefsOpArgs): IncomingCallsResult {
+  const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
+  try {
+    return store.findIncomingCallsByName(args.symbol, args.file, args.limit ?? 100);
+  } finally {
+    indexStorePool.release(store);
+  }
+}
+
+/** Outgoing call sites for a named symbol (what does this symbol call/use?). */
+export function outgoingCallsService(args: CallRefsOpArgs): OutgoingCallsResult {
+  const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
+  try {
+    return store.findOutgoingCallsByName(args.symbol, args.file, args.limit ?? 100);
   } finally {
     indexStorePool.release(store);
   }

@@ -17,12 +17,15 @@ import { parentPort } from 'node:worker_threads';
 import {
   fileGraphService,
   indexService,
+  incomingCallsService,
+  outgoingCallsService,
   packageGraphService,
   searchService,
   statsService,
   symbolGraphService,
 } from './index-service.js';
 import type {
+  CallRefsOpArgs,
   FileGraphOpArgs,
   HostToWorker,
   IndexOpArgs,
@@ -66,6 +69,10 @@ async function dispatch(msg: Extract<HostToWorker, { type: 'request' }>): Promis
       return fileGraphService(msg.args as FileGraphOpArgs);
     case 'symbolGraph':
       return symbolGraphService(msg.args as SymbolGraphOpArgs);
+    case 'incomingCalls':
+      return incomingCallsService(msg.args as CallRefsOpArgs);
+    case 'outgoingCalls':
+      return outgoingCallsService(msg.args as CallRefsOpArgs);
     default:
       throw new Error(`unknown index op: ${(msg as { op: string }).op}`);
   }

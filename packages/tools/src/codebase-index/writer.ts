@@ -23,6 +23,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
 import { lspKindToInternalKind } from './lsp-kind.js';
 import type {
+  CallSite,
   CodeMapGraph,
   FileMeta,
   IndexStats,
@@ -49,6 +50,8 @@ import {
   bulkInsertSymbolsWithStatement,
 } from './writer-bulk-insert.js';
 import {
+  findIncomingCallsByName,
+  findOutgoingCallsByName,
   findRefsFromWithStatement,
   findRefsToWithStatement,
   getFileGraphWithStatement,
@@ -1088,6 +1091,22 @@ export class IndexStore {
       // Compaction is maintenance, never a reason to fail a valid index run.
       return false;
     }
+  }
+
+  /**
+   * Find all symbols that reference the named target symbol (incoming callers).
+   * Accepts a name instead of an id so the agent doesn't need a prior lookup.
+   */
+  findIncomingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean } {
+    return findIncomingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
+  }
+
+  /**
+   * Find all symbols that the named source symbol references (outgoing callees).
+   * Accepts a name instead of an id so the agent doesn't need a prior lookup.
+   */
+  findOutgoingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number } {
+    return findOutgoingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 
   /**

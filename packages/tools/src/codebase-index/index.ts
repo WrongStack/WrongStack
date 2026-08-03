@@ -53,6 +53,8 @@ export {
   resetIndexCircuitBreaker,
 } from './circuit-breaker.js';
 export { codebaseIndexTool } from './codebase-index-tool.js';
+export { codebaseIncomingCallsTool } from './codebase-incoming-calls-tool.js';
+export { codebaseOutgoingCallsTool } from './codebase-outgoing-calls-tool.js';
 export { codebaseSearchTool } from './codebase-search-tool.js';
 export { codebaseStatsTool } from './codebase-stats-tool.js';
 export { deadCodeScanTool, runDeadCodeScan } from './dead-code-scan.js';
@@ -83,6 +85,7 @@ export type {
 
 // Re-export shared types
 export type {
+  CallSite,
   CodeMapGraph,
   FileMeta,
   FileSymbols,

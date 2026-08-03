@@ -39,6 +39,10 @@ import {
 import {
   fileGraphService as fileGraphServiceInline,
   indexService,
+  incomingCallsService as incomingCallsServiceInline,
+  type IncomingCallsResult,
+  outgoingCallsService as outgoingCallsServiceInline,
+  type OutgoingCallsResult,
   packageGraphService as packageGraphServiceInline,
   searchService,
   statsService,
@@ -61,6 +65,7 @@ import {
 } from './project-server-client.js';
 import type { CodeMapGraph, IndexResult, IndexStats } from './schema.js';
 import type {
+  CallRefsOpArgs,
   FileGraphOpArgs,
   HostToWorker,
   IndexOpArgs,
@@ -461,6 +466,10 @@ async function callInline<O extends OpName>(
         return fileGraphServiceInline(args as FileGraphOpArgs) as OpShapes[O]['result'];
       case 'symbolGraph':
         return symbolGraphServiceInline(args as SymbolGraphOpArgs) as OpShapes[O]['result'];
+      case 'incomingCalls':
+        return incomingCallsServiceInline(args as CallRefsOpArgs) as OpShapes[O]['result'];
+      case 'outgoingCalls':
+        return outgoingCallsServiceInline(args as CallRefsOpArgs) as OpShapes[O]['result'];
       default:
         throw new Error(`unknown index op: ${String(op)}`);
     }
@@ -775,6 +784,16 @@ export async function fileGraphService(args: FileGraphOpArgs): Promise<CodeMapGr
 /** Symbol dependency graph, served by the same per-project index process. */
 export async function symbolGraphService(args: SymbolGraphOpArgs): Promise<CodeMapGraph> {
   return callIndexOp('symbolGraph', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
+}
+
+/** Incoming call sites for a named symbol (who calls/uses this symbol?). */
+export async function incomingCallsService(args: CallRefsOpArgs): Promise<IncomingCallsResult> {
+  return callIndexOp('incomingCalls', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
+}
+
+/** Outgoing call sites for a named symbol (what does this symbol call/use?). */
+export async function outgoingCallsService(args: CallRefsOpArgs): Promise<OutgoingCallsResult> {
+  return callIndexOp('outgoingCalls', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
 }
 
 /**

@@ -5,7 +5,16 @@
  * Errors cross the boundary as strings and are re-wrapped by the host.
  */
 
-import type { CodeMapGraph, IndexResult, IndexStats, SearchResult } from './schema.js';
+import type {
+  CodeMapGraph,
+  IndexResult,
+  IndexStats,
+  SearchResult,
+} from './schema.js';
+import type {
+  IncomingCallsResult,
+  OutgoingCallsResult,
+} from './index-service.js';
 
 // ─── Operation arguments ─────────────────────────────────────────────────────
 
@@ -42,6 +51,12 @@ export interface SymbolGraphOpArgs extends StatsOpArgs {
   fileFilter: string;
 }
 
+export interface CallRefsOpArgs extends StatsOpArgs {
+  symbol: string;
+  file?: string | undefined;
+  limit?: number | undefined;
+}
+
 export interface SearchOpResult {
   results: SearchResult[];
   total: number;
@@ -55,6 +70,8 @@ export interface OpShapes {
   packageGraph: { args: StatsOpArgs; result: CodeMapGraph };
   fileGraph: { args: FileGraphOpArgs; result: CodeMapGraph };
   symbolGraph: { args: SymbolGraphOpArgs; result: CodeMapGraph };
+  incomingCalls: { args: CallRefsOpArgs; result: IncomingCallsResult };
+  outgoingCalls: { args: CallRefsOpArgs; result: OutgoingCallsResult };
 }
 
 export type OpName = keyof OpShapes;

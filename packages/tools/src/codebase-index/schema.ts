@@ -163,6 +163,30 @@ export interface Ref {
   line: number; // source line where the reference occurs
 }
 
+/**
+ * A call site — the enriched result of an incoming/outgoing calls query.
+ *
+ * Unlike the raw `Ref` type, this carries the full caller/callee symbol
+ * metadata (name, kind, file, line, signature) so the agent gets a
+ * self-contained answer without a second lookup.
+ */
+export interface CallSite {
+  /** The symbol that makes or receives the call. */
+  symbol: {
+    id: number;
+    name: string;
+    kind: SymbolKind;
+    lang: SymbolLang;
+    file: string;
+    line: number;
+    signature: string;
+  };
+  /** Kind of reference: call, type_ref, inherit, implement, import. */
+  callType: CallType;
+  /** Source line where the reference occurs. */
+  line: number;
+}
+
 // ─── CodeMap graph types ──────────────────────────────────────────────────────
 
 /** A node in the code-map dependency graph. */

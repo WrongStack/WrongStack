@@ -22,6 +22,8 @@ import {
 import {
   fileGraphService,
   indexService,
+  incomingCallsService,
+  outgoingCallsService,
   packageGraphService,
   searchService,
   statsService,
@@ -47,7 +49,9 @@ import {
   type ProjectServerMessage,
 } from './project-server-protocol.js';
 import type { CodeMapGraph, IndexStats, SearchResult } from './schema.js';
+import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.js';
 import type {
+  CallRefsOpArgs,
   FileGraphOpArgs,
   IndexOpArgs,
   OpShapes,
@@ -163,6 +167,8 @@ const statsCache = new GenerationLruCache<IndexStats>(1);
 const packageGraphCache = new GenerationLruCache<CodeMapGraph>(1);
 const fileGraphCache = new GenerationLruCache<CodeMapGraph>(32);
 const symbolGraphCache = new GenerationLruCache<CodeMapGraph>(64);
+const incomingCallsCache = new GenerationLruCache<IncomingCallsResult>(128);
+const outgoingCallsCache = new GenerationLruCache<OutgoingCallsResult>(128);
 let indexActivity: ProjectIndexServerActivity = {
   indexing: false,
   currentFile: 0,
@@ -183,6 +189,8 @@ const stopMemoryWatchdog = startSharedHeapWatchdog({
     packageGraphCache: packageGraphCache.size,
     fileGraphCache: fileGraphCache.size,
     symbolGraphCache: symbolGraphCache.size,
+    incomingCallsCache: incomingCallsCache.size,
+    outgoingCallsCache: outgoingCallsCache.size,
   }),
 });
 let lastProgressBroadcastAt = 0;
@@ -199,6 +207,8 @@ function clearQueryCaches(): void {
   packageGraphCache.clear();
   fileGraphCache.clear();
   symbolGraphCache.clear();
+  incomingCallsCache.clear();
+  outgoingCallsCache.clear();
 }
 
 function cachedRead<T>(cache: GenerationLruCache<T>, key: string, load: () => T): T {
@@ -436,6 +446,16 @@ async function dispatchOperation(
       return cachedRead(symbolGraphCache, (message.args as SymbolGraphOpArgs).fileFilter, () =>
         symbolGraphService(fixedArgs(message.args as SymbolGraphOpArgs)),
       );
+    case 'incomingCalls': {
+      const callArgs = fixedArgs(message.args as CallRefsOpArgs);
+      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100]);
+      return cachedRead(incomingCallsCache, cacheKey, () => incomingCallsService(callArgs));
+    }
+    case 'outgoingCalls': {
+      const callArgs = fixedArgs(message.args as CallRefsOpArgs);
+      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100]);
+      return cachedRead(outgoingCallsCache, cacheKey, () => outgoingCallsService(callArgs));
+    }
     default:
       throw new Error(`unknown index operation: ${String(op satisfies never)}`);
   }
