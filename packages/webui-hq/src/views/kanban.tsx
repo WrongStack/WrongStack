@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, GitBranch, RefreshCw, UserRound } 
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson, useHqStore } from '../store.js';
+import { HqKanbanInspector } from './kanban-inspector.js';
 import {
   type HqKanbanBoardView,
   type HqKanbanTaskView,
@@ -100,6 +101,33 @@ export function KanbanView(): React.ReactElement {
   const board = boards.find((candidate) => candidate.id === boardId) ?? null;
   const project = projects.find((candidate) => candidate.projectId === projectId) ?? null;
 
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // Clear selection when board changes
+  useEffect(() => {
+    setSelectedTaskId(null);
+  }, [boardId]);
+
+  const selectedTask = useMemo<HqKanbanTaskView | null>(() => {
+    if (!board || !selectedTaskId) return null;
+    for (const column of board.columns) {
+      const task = column.tasks.find((t) => t.id === selectedTaskId);
+      if (task) return task;
+    }
+    return null;
+  }, [board, selectedTaskId]);
+
+  // Resolve dependency titles for the inspector
+  const dependencyTitles = useMemo<ReadonlyMap<string, string>>(() => {
+    if (!board) return new Map();
+    const map = new Map<string, string>();
+    for (const column of board.columns) {
+      for (const task of column.tasks) {
+        map.set(task.id, task.title);
+      }
+    }
+    return map;
+  }, [board]);
+
   if (projects.length === 0) {
     return (
       <div className="hq-empty">
@@ -141,7 +169,17 @@ export function KanbanView(): React.ReactElement {
       ) : board ? (
         <>
           <KanbanSummary project={project} board={board} boardCount={boards.length} />
-          <Board board={board} />
+          <div className="hq-kanban-main">
+            <Board board={board} onTaskClick={setSelectedTaskId} selectedTaskId={selectedTaskId} />
+            {selectedTask ? (
+              <HqKanbanInspector
+                task={selectedTask}
+                board={board}
+                dependencyTitles={dependencyTitles}
+                onClose={() => setSelectedTaskId(null)}
+              />
+            ) : null}
+          </div>
         </>
       ) : (
         <div className="hq-empty">
@@ -281,7 +319,15 @@ function KanbanStat({
   );
 }
 
-function Board({ board }: { board: HqKanbanBoardView }): React.ReactElement {
+function Board({
+  board,
+  onTaskClick,
+  selectedTaskId,
+}: {
+  board: HqKanbanBoardView;
+  onTaskClick: (taskId: string) => void;
+  selectedTaskId: string | null;
+}): React.ReactElement {
   if (board.columns.length === 0) {
     return <div className="hq-empty">This board does not have any columns yet.</div>;
   }
@@ -312,7 +358,14 @@ function Board({ board }: { board: HqKanbanBoardView }): React.ReactElement {
               {column.tasks.length === 0 ? (
                 <div className="hq-kanban-column-empty">No cards</div>
               ) : (
-                column.tasks.map((task) => <TaskCard key={task.id} task={task} />)
+              column.tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  isSelected={task.id === selectedTaskId}
+                  onClick={() => onTaskClick(task.id)}
+                />
+              ))
               )}
             </div>
           </div>
@@ -322,9 +375,30 @@ function Board({ board }: { board: HqKanbanBoardView }): React.ReactElement {
   );
 }
 
-function TaskCard({ task }: { task: HqKanbanTaskView }): React.ReactElement {
+function TaskCard({
+  task,
+  isSelected = false,
+  onClick,
+}: {
+  task: HqKanbanTaskView;
+  isSelected?: boolean;
+  onClick?: () => void;
+}): React.ReactElement {
   return (
-    <article className="hq-kanban-task" data-priority={task.priority}>
+    <article
+      className="hq-kanban-task"
+      data-priority={task.priority}
+      data-selected={isSelected}
+      onClick={onClick}
+      tabIndex={0}
+      role="button"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+    >
       <div className="hq-kanban-task-topline">
         <span className={`hq-pill ${task.status}`}>{task.status.replaceAll('_', ' ')}</span>
         <span className={`hq-kanban-priority ${task.priority}`}>{task.priority}</span>
