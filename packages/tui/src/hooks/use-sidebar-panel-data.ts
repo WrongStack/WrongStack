@@ -7,9 +7,13 @@
  * hardcoded empty arrays.
  *
  * Each hook is self-contained: it manages its own refresh interval and
- * cleanup. The hooks are designed to be called unconditionally (not gated
- * on whether the sidebar twin is visible) so the data is always fresh
- * when the twin mounts.
+ * cleanup. The hooks must be called unconditionally (rules of hooks), but
+ * polling is gated by the `enabled` flag — app-view passes whether the
+ * twin currently occupies a visible sidebar slot. While a panel is closed
+ * or routed to the bottom region no polling runs (the bottom panels run
+ * their own polling when open), so the session pays no IPC probes or disk
+ * reads for panels nobody is looking at. Each hook performs an immediate
+ * first read when enabled, so data is fresh the moment the twin mounts.
  */
 
 import { getProcessRegistry } from '@wrongstack/tools';
@@ -26,10 +30,11 @@ export interface SidebarProcess {
 }
 
 /**
- * Read the live process registry. Refreshes every 2 seconds so elapsed
- * times and newly spawned/killed processes are reflected.
+ * Read the live process registry. Refreshes every 2 seconds (only while
+ * `enabled`) so elapsed times and newly spawned/killed processes are
+ * reflected.
  */
-export function useSidebarProcessList(): {
+export function useSidebarProcessList(enabled = true): {
   activeCount: number;
   totalCount: number;
   processes: readonly SidebarProcess[];
@@ -41,6 +46,7 @@ export function useSidebarProcessList(): {
   }>({ activeCount: 0, totalCount: 0, processes: [] });
 
   useEffect(() => {
+    if (!enabled) return;
     const read = () => {
       const registry = getProcessRegistry();
       const all = registry.list();
@@ -55,7 +61,7 @@ export function useSidebarProcessList(): {
     read();
     const id = setInterval(read, 2000);
     return () => clearInterval(id);
-  }, []);
+  }, [enabled]);
 
   return data;
 }
@@ -71,15 +77,19 @@ export interface SidebarConnection {
 }
 
 /**
- * Poll connections health every 8 seconds. The collection function lives
- * in `connections-health.ts` and mirrors the WebUI server's shape.
- * We map the richer `ConnectionHealthService` status into the sidebar's
- * 4-state enum so the sidebar twin stays simple.
+ * Poll connections health every 8 seconds (only while `enabled`). The
+ * collection function lives in `connections-health.ts` and mirrors the
+ * WebUI server's shape. We map the richer `ConnectionHealthService` status
+ * into the sidebar's 4-state enum so the sidebar twin stays simple.
  */
-export function useSidebarConnections(projectRoot: string): readonly SidebarConnection[] {
+export function useSidebarConnections(
+  projectRoot: string,
+  enabled = true,
+): readonly SidebarConnection[] {
   const [connections, setConnections] = useState<readonly SidebarConnection[]>([]);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     const poll = async () => {
       try {
@@ -109,7 +119,7 @@ export function useSidebarConnections(projectRoot: string): readonly SidebarConn
       cancelled = true;
       clearInterval(id);
     };
-  }, [projectRoot]);
+  }, [projectRoot, enabled]);
 
   return connections;
 }
@@ -126,9 +136,12 @@ export interface SidebarKanbanColumn {
 /**
  * Load the kanban board summary for the sidebar. Uses `listBoards()` to
  * find the most recently used board, then fetches its column counts.
- * Refreshes every 10 seconds.
+ * Refreshes every 10 seconds (only while `enabled`).
  */
-export function useSidebarKanban(projectRoot: string): {
+export function useSidebarKanban(
+  projectRoot: string,
+  enabled = true,
+): {
   columns: readonly SidebarKanbanColumn[];
   totalActive: number;
   activeCardTitles: readonly string[];
@@ -140,6 +153,7 @@ export function useSidebarKanban(projectRoot: string): {
   }>({ columns: [], totalActive: 0, activeCardTitles: [] });
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     const poll = async () => {
       try {
@@ -182,7 +196,7 @@ export function useSidebarKanban(projectRoot: string): {
       cancelled = true;
       clearInterval(id);
     };
-  }, [projectRoot]);
+  }, [projectRoot, enabled]);
 
   return data;
 }

@@ -135,13 +135,6 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   );
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
 
-  // Sidebar panel data hooks — always active so data is fresh when a twin
-  // mounts. Each hook manages its own polling interval and cleanup.
-  const sidebarProcessData = useSidebarProcessList();
-  const sidebarConnectionsData = useSidebarConnections(agent.ctx.projectRoot);
-  const sidebarKanbanData = useSidebarKanban(agent.ctx.projectRoot);
-  const sidebarPlanData = usePlanPanelData(agent.ctx.projectRoot, agent.ctx.session?.id ?? null);
-
   // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
   // more panels than the limit are open AND routed to 'sidebar', render the
   // first N in PANEL_IDS order and surface a "+N more" hint rather than
@@ -151,7 +144,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // changes. The agents slot additionally honors the legacy
   // `showAgentSwarmPanel: 'off'` tri-state — users who explicitly hide the
   // swarm panel should not see it in the sidebar, and a hidden panel must
-  // not occupy a slot.
+  // not occupy a slot. Computed before the sidebar data hooks below so each
+  // hook can gate its polling on actual slot visibility.
   const sidebarPanelOpenFlags: Partial<Record<PanelId, boolean>> = {
     projectPicker: state.projectPicker.open,
     fleet: state.monitorOpen,
@@ -177,6 +171,25 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const visibleSidebarPanelIds = openSidebarPanelIds.slice(0, SIDEBAR_PANEL_LIMIT);
   const hiddenSidebarPanelCount = openSidebarPanelIds.length - visibleSidebarPanelIds.length;
   const sidebarSlotVisible = (id: PanelId): boolean => visibleSidebarPanelIds.includes(id);
+
+  // Sidebar panel data hooks — each hook manages its own polling interval
+  // and cleanup, gated on the twin actually occupying a visible sidebar
+  // slot. While a panel is closed or routed to the bottom region the
+  // sidebar copy stays idle (the bottom panels run their own polling when
+  // open), so no IPC probes, registry reads, or disk reads run for a panel
+  // nobody is looking at. Each hook performs an immediate first read when
+  // enabled, so the twin has data the moment it mounts.
+  const sidebarProcessData = useSidebarProcessList(sidebarSlotVisible('processList'));
+  const sidebarConnectionsData = useSidebarConnections(
+    agent.ctx.projectRoot,
+    sidebarSlotVisible('connections'),
+  );
+  const sidebarKanbanData = useSidebarKanban(agent.ctx.projectRoot, sidebarSlotVisible('kanban'));
+  const sidebarPlanData = usePlanPanelData(
+    agent.ctx.projectRoot,
+    agent.ctx.session?.id ?? null,
+    sidebarSlotVisible('plan'),
+  );
 
   return (
     /* Hard viewport cap. The managed layout aims for exactly termRows

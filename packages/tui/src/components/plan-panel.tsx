@@ -92,14 +92,18 @@ function planFilePath(
  * by status. Shows the current scope and a hint for switching scopes via
  * the /plan tool.
  *
- * Each consumer gets its own polling interval. This is intentional: the
- * bottom PlanPanel and the sidebar PlanPanelSidebar twin are mutually
- * exclusive (gated by routedToBottom/routedToSidebar), so they never
- * mount simultaneously in the normal case. If a brief overlap occurs
- * during the settings-picker transition, the extra interval is harmless
- * (3s cadence, file-read only).
+ * Each consumer gets its own polling interval, gated by `enabled` (default
+ * true). Consumers pass `enabled` reflecting whether their panel surface is
+ * actually mounted — e.g. app-view gates the sidebar twin on its slot
+ * visibility — so a closed or bottom-routed plan panel does not keep a
+ * second 3s file-read poll alive for the whole session (the bottom PlanPanel
+ * mounts its own instance of this hook while open).
  */
-export function usePlanPanelData(projectRoot: string, sessionId: string | null): PlanPanelData {
+export function usePlanPanelData(
+  projectRoot: string,
+  sessionId: string | null,
+  enabled = true,
+): PlanPanelData {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [scope, setScope] = useState<'session' | 'project'>('session');
@@ -140,10 +144,11 @@ export function usePlanPanelData(projectRoot: string, sessionId: string | null):
   );
 
   useEffect(() => {
+    if (!enabled) return;
     void load(scope);
     const timer = setInterval(() => void load(scope, true), 3000);
     return () => clearInterval(timer);
-  }, [load, scope]);
+  }, [load, scope, enabled]);
 
   return { items, title, scope, loading, error, updatedAt, setScope, load };
 }
