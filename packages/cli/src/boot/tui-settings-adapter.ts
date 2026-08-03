@@ -27,6 +27,48 @@ import {
 import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
 
 /**
+ * F-key panel ids in the canonical order. Mirrors `PANEL_IDS` in the TUI
+ * package (packages/tui/src/ui-contracts.ts). Keep in sync — adding a new
+ * panel id requires updating both lists. The CLI cannot import the TUI's
+ * internal `ui-contracts` module because the TUI package only exports
+ * from its root entry point.
+ */
+const PANEL_IDS_CLI = [
+  'projectPicker',
+  'fleet',
+  'agents',
+  'worktree',
+  'plan',
+  'todos',
+  'queue',
+  'processList',
+  'goal',
+  'sessions',
+  'coordinator',
+  'kanban',
+  'connections',
+] as const;
+
+type PanelPositionCli = 'bottom' | 'sidebar';
+
+/**
+ * Coerce a persisted per-panel position map (or partial) into a full
+ * map keyed by every F-key panel id. Unknown ids are dropped; missing
+ * panels default to 'bottom'; invalid position values default to
+ * 'bottom'. Mirrors coercePanelPositionMap in the TUI package.
+ */
+function coercePanelPositionMap(
+  v: Partial<Record<string, PanelPositionCli>> | undefined | unknown,
+): Readonly<Record<string, PanelPositionCli>> {
+  const out: Record<string, PanelPositionCli> = {};
+  for (const id of PANEL_IDS_CLI) {
+    const value = (v as Partial<Record<string, PanelPositionCli>> | undefined)?.[id];
+    out[id] = value === 'sidebar' ? 'sidebar' : 'bottom';
+  }
+  return out;
+}
+
+/**
  * Coerce a persisted showAgentSwarmPanel value (legacy boolean or tri-state
  * string) into a valid mode. Mirrors coerceAgentSwarmMode in the TUI package.
  */
@@ -195,6 +237,23 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
       showModelReasoning: autonomy?.showModelReasoning ?? true,
       showAgentSwarmPanel: coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel),
+      // Migrate the legacy `autonomy.showAgentSwarmPanel: 'sidebar'` into
+      // the new per-panel `panelPositions.fleet` map at the read boundary
+      // so users with old configs (no `panelPositions` key on disk) get
+      // their sidebar routing. Only migrate when the per-panel key is
+      // UNDEFINED — an explicit `panelPositions.fleet: 'bottom'` must
+      // NOT be reverted to `'sidebar'`.
+      panelPositions: coercePanelPositionMap({
+        ...(autonomy?.panelPositions as
+          | Partial<Record<string, 'bottom' | 'sidebar'>>
+          | undefined),
+        ...(coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel) === 'sidebar' &&
+        (autonomy?.panelPositions as
+          | Partial<Record<string, 'bottom' | 'sidebar'>>
+          | undefined)?.fleet === undefined
+          ? { fleet: 'sidebar' as const }
+          : {}),
+      }),
       showSageMemoryInject: autonomy?.showSageMemoryInject ?? false,
       readSymbols: autonomy?.readAdvancedMode ?? false,
       sageMemoryInjectThreshold: (cfg.Sage as Record<string, unknown> | undefined)?.inject
@@ -254,6 +313,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.breakerAutoKillResetMs !== undefined ||
         s.showModelReasoning !== undefined ||
         s.showAgentSwarmPanel !== undefined ||
+        s.panelPositions !== undefined ||
         s.showSageMemoryInject !== undefined ||
         s.sageMemoryInjectThreshold !== undefined ||
         s.readSymbols !== undefined
@@ -311,6 +371,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (s.showModelReasoning !== undefined) autonomy.showModelReasoning = s.showModelReasoning;
         if (s.showAgentSwarmPanel !== undefined)
           autonomy.showAgentSwarmPanel = s.showAgentSwarmPanel;
+        if (s.panelPositions !== undefined) autonomy.panelPositions = s.panelPositions;
         if (s.showSageMemoryInject !== undefined)
           autonomy.showSageMemoryInject = s.showSageMemoryInject;
         if (s.readSymbols !== undefined) autonomy.readAdvancedMode = s.readSymbols;

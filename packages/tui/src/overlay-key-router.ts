@@ -1,6 +1,6 @@
 import type { Director } from '@wrongstack/core/coordination';
 import type { Action, State } from './app-reducer.js';
-import { coerceAgentSwarmMode } from './app-settings-type.js';
+import { coerceAgentSwarmMode, coercePanelPositionMap } from './app-settings-type.js';
 import { clearConfirmationKeyResult } from './components/clear-confirm-panel.js';
 import { exitConfirmationDecision } from './components/exit-confirm-panel.js';
 import type { KeyEvent } from './components/input.js';
@@ -306,6 +306,23 @@ export function routeSettingsOverlayKey(
     breakerAutoKillResetMs: config.breakerAutoKillResetMs ?? 60_000,
     showModelReasoning: config.showModelReasoning ?? true,
     showAgentSwarmPanel: coerceAgentSwarmMode(config.showAgentSwarmPanel),
+    // Migrate the legacy `showAgentSwarmPanel: 'sidebar'` tri-state into
+    // the new per-panel `panelPositions.fleet` map so users with old
+    // configs don't lose their sidebar routing. The legacy field governed
+    // the FleetPanel swarm (F2), not the F3 agents monitor — mapping to
+    // `agents` would double-render both surfaces.
+    //
+    // Only migrate when the per-panel key is UNDEFINED — the new field
+    // is an independent toggle that persists verbatim, so an explicit
+    // `panelPositions.fleet: 'bottom'` must NOT be reverted to
+    // `'sidebar'` on every Ctrl+S open.
+    panelPositions: coercePanelPositionMap({
+      ...config.panelPositions,
+      ...(coerceAgentSwarmMode(config.showAgentSwarmPanel) === 'sidebar' &&
+      config.panelPositions?.fleet === undefined
+        ? { fleet: 'sidebar' as const }
+        : {}),
+    }),
     showSageMemoryInject: config.showSageMemoryInject ?? false,
     sageMemoryInjectThreshold: config.sageMemoryInjectThreshold ?? 0.85,
     readSymbols: config.readSymbols ?? false,

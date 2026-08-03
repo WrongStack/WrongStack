@@ -51,6 +51,21 @@ const baseValues: SettingsPickerValues = {
   showSageMemoryInject: false,
   sageMemoryInjectThreshold: 0.85,
   readSymbols: true,
+  panelPositions: {
+    projectPicker: 'bottom',
+    fleet: 'bottom',
+    agents: 'bottom',
+    worktree: 'bottom',
+    plan: 'bottom',
+    todos: 'bottom',
+    queue: 'bottom',
+    processList: 'bottom',
+    goal: 'bottom',
+    sessions: 'bottom',
+    coordinator: 'bottom',
+    kanban: 'bottom',
+    connections: 'bottom',
+  },
 };
 
 describe('/settings agent-swarm-panel slash command', () => {

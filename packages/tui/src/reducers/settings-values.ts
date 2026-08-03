@@ -31,6 +31,7 @@ import {
   TOKEN_SAVING_TIERS,
 } from '../components/settings-picker.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from '../thinking-word.js';
+import { PANEL_IDS, PANEL_POSITION_FIELD_START } from '../ui-contracts.js';
 
 const settingsValueActionTypes = [
   'settingsValueChange',
@@ -476,15 +477,28 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           settingsPicker: { ...sp, showModelReasoning: !sp.showModelReasoning, hint: undefined },
         };
       // Field 40: agent swarm panel placement (enum cycle: bottom → sidebar → off → bottom)
+      // Also syncs panelPositions.fleet so the per-panel map stays consistent
+      // with the legacy tri-state. Without this sync, the legacy field 40
+      // cycle would set showAgentSwarmPanel='sidebar' but panelPositions.fleet
+      // would remain 'bottom', causing a sticky-migration double-render.
       if (f === 40) {
         const SWARM_CYCLE = ['bottom', 'sidebar', 'off'] as const;
         const current = sp.showAgentSwarmPanel as string;
         const j = SWARM_CYCLE.indexOf(current as (typeof SWARM_CYCLE)[number]);
         const base = j < 0 ? 0 : j;
-        const next = SWARM_CYCLE[(base + action.delta + SWARM_CYCLE.length) % SWARM_CYCLE.length] ?? 'bottom';
+        const next =
+          SWARM_CYCLE[(base + action.delta + SWARM_CYCLE.length) % SWARM_CYCLE.length] ?? 'bottom';
         return {
           ...state,
-          settingsPicker: { ...sp, showAgentSwarmPanel: next, hint: undefined },
+          settingsPicker: {
+            ...sp,
+            showAgentSwarmPanel: next,
+            panelPositions: {
+              ...sp.panelPositions,
+              fleet: next === 'sidebar' ? 'sidebar' : 'bottom',
+            },
+            hint: undefined,
+          },
         };
       }
       // Field 41: pre-refine countdown (cycle presets [0, 2, 3, 5, 8, 10])
@@ -534,6 +548,36 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           },
         };
       }
+      // Fields PANEL_POSITION_FIELD_START..PANEL_POSITION_FIELD_START+PANEL_IDS.length:
+      // per-panel position (cycle 'bottom' → 'sidebar'). One field index
+      // per PanelId, in PANEL_IDS order. The first 45 indices (0–44) are
+      // preserved because jumps, persisted lastSettingsField, and several
+      // tests rely on stable indices. The bounds check guarantees
+      // PANEL_IDS[f - PANEL_POSITION_FIELD_START] is defined; the map is
+      // normalized to a full PanelPositionMap at boot (see
+      // coercePanelPositionMap in app-settings-type.ts) so the index
+      // access on `sp.panelPositions` is also total. Using
+      // PANEL_IDS.length (not a hardcoded 57) keeps the range in sync
+      // when a new panel is added to PANEL_IDS.
+      if (f >= PANEL_POSITION_FIELD_START && f - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+        const PANEL_POSITION_CYCLE = ['bottom', 'sidebar'] as const;
+        const panelId = PANEL_IDS[f - PANEL_POSITION_FIELD_START]!;
+        const current = sp.panelPositions[panelId];
+        const j = PANEL_POSITION_CYCLE.indexOf(current);
+        const base = j < 0 ? 0 : j;
+        const next =
+          PANEL_POSITION_CYCLE[
+            (base + action.delta + PANEL_POSITION_CYCLE.length) % PANEL_POSITION_CYCLE.length
+          ] ?? 'bottom';
+        return {
+          ...state,
+          settingsPicker: {
+            ...sp,
+            panelPositions: { ...sp.panelPositions, [panelId]: next },
+            hint: undefined,
+          },
+        };
+      }
       return state;
     }
     case 'settingsValueSet': {
@@ -541,9 +585,24 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       // command. The patch is already validated by
       // `resolveSettingsFieldValue` before dispatch, so the reducer just
       // spreads it and clears any stale hint.
+      //
+      // `panelPositions` is the one exception: callers (`resolveSettingsFieldValue`,
+      // `buildResetPatch`) emit partial maps (single-key spreads) so unrelated
+      // panels survive the slash command. The reducer deep-merges those
+      // partials here rather than overwriting the whole map.
+      const { panelPositions: panelPositionsPatch, ...restPatch } = action.patch;
+      const mergedPanelPositions =
+        panelPositionsPatch !== undefined
+          ? { ...state.settingsPicker.panelPositions, ...panelPositionsPatch }
+          : state.settingsPicker.panelPositions;
       return {
         ...state,
-        settingsPicker: { ...state.settingsPicker, ...action.patch, hint: undefined },
+        settingsPicker: {
+          ...state.settingsPicker,
+          ...restPatch,
+          ...(panelPositionsPatch !== undefined ? { panelPositions: mergedPanelPositions } : {}),
+          hint: undefined,
+        },
       };
     }
     case 'settingsHint':

@@ -63,7 +63,7 @@ import { useExitCommand } from './hooks/use-exit-command.js';
 import { useEnhanceRuntimeState } from './hooks/use-enhance-runtime-state.js';
 import { useApp, useStdout } from './ink.js';
 import { deriveAppViewState } from './app-view-state.js';
-import { isPickerOverlayOpen, mergeStatuslineHiddenItems } from './app-ui-state.js';
+import { mergeStatuslineHiddenItems, resolveSidebarLayout } from './app-ui-state.js';
 import { AppView } from './app-view.js';
 import { createRunBlocksController } from './run-blocks-controller.js';
 import { createSubmitController } from './submit-controller.js';
@@ -92,7 +92,6 @@ export { nextInputWordStart, previousInputWordStart } from './input-editing.js';
 // from '@wrongstack/tui' / '../src/app.js' keep working.
 import type { AppProps } from './app-props.js';
 import { createAppKeyHandler } from './app-key-handler.js';
-import { computeSidebarWidth } from './components/sidebar.js';
 
 export type { AppProps } from './app-props.js';
 
@@ -257,6 +256,16 @@ export function App(props: AppProps): React.ReactElement {
     confirmExitRef,
   } = useLiveSettingsState({ getSettings, titleController, chime, confirmExit });
 
+  const mailbox = useMailboxViewModel(events);
+  const { setMailboxPanelOpen } = mailbox;
+
+  const sidebarLayout = resolveSidebarLayout(
+    state,
+    stdout?.columns ?? 80,
+    liveSettings?.panelPositions,
+    mailbox.mailboxPanelOpen,
+  );
+
   // Push live model changes to the terminal title controller so the
   // window/tab title reflects the active model after /model or /setmodel.
   useEffect(() => {
@@ -341,11 +350,12 @@ export function App(props: AppProps): React.ReactElement {
   // Live mirror of the full-session pointer opt-in. The managed history always
   // owns wheel input because virtualized rows do not exist in native terminal
   // scrollback. Track clicks work in managed mode; full mode additionally
-  // enables pointer drag and clickable app chrome.
-  const pickerOverlayOpen = isPickerOverlayOpen(state);
+  // enables pointer drag and clickable app chrome. Use the same routing-aware
+  // overlay decision as AppView so sidebar-routed panels keep mouse hit-testing
+  // aligned with the visible main-column width.
   const { mouseMode, setMouseMode } = useMouseTracking({
     initialMouseMode: mouse,
-    overlayOpen: pickerOverlayOpen,
+    overlayOpen: sidebarLayout.overlayOpen,
     protocol: capability?.mouseProtocol,
     stdout,
   });
@@ -435,11 +445,6 @@ export function App(props: AppProps): React.ReactElement {
   ]);
 
   const gitInfo = useGitSessionStatus({ agent, getLiveSessions, setSessionCount });
-
-  const mailbox = useMailboxViewModel(events);
-  const {
-    setMailboxPanelOpen,
-  } = mailbox;
 
   const statusbar = useStatusbarViewModel({
     agent,
@@ -820,21 +825,7 @@ export function App(props: AppProps): React.ReactElement {
     termRows,
     terminalColumns: stdout?.columns ?? 80,
     terminalRows: stdout?.rows ?? 24,
-    mainColumnWidth: (() => {
-      const cols = stdout?.columns ?? 80;
-      const sw = computeSidebarWidth(cols);
-      // When any overlay is open the sidebar hides, so the main column
-      // gets the full terminal width and scrollbar hit-tests must too.
-      if (sw === 0 || isPickerOverlayOpen(state) || state.coordinator.monitorOpen ||
-          state.auditPanelOpen || state.connectionsPanelOpen || state.helpOpen ||
-          state.agentsMonitorOpen || state.monitorOpen || state.contextPanelOpen ||
-          state.processListOpen || state.todosMonitorOpen || state.worktreeMonitorOpen ||
-          state.planPanelOpen || state.kanbanPanelOpen || state.queuePanelOpen ||
-          state.goalPanelOpen || state.goalKanbanPanelOpen || state.cronMonitorOpen) {
-        return cols;
-      }
-      return cols - sw;
-    })(),
+    mainColumnWidth: sidebarLayout.mainColumnWidth,
     statusBarWrapRef,
     belowStatusBarRef,
     liveStatuslineMode,

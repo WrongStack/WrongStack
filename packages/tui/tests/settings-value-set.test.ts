@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PANEL_POSITIONS } from '../src/ui-contracts.js';
 import {
   getSettingsFieldValue,
   resolveSettingsFieldValue,
@@ -218,8 +219,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 45 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(45);
+    it('SETTINGS_FIELD_LABELS has 58 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(58);
     });
 
     it('trims whitespace from input', () => {
@@ -307,6 +308,7 @@ describe('getSettingsFieldValue', () => {
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     readSymbols: true,
+    panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
   describe('boolean fields', () => {
@@ -467,9 +469,10 @@ describe('formatAllSettingsSummary', () => {
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     readSymbols: false,
+    panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
-  it('contains all 11 section headings', () => {
+  it('contains all 12 section headings (incl. Panels for fields 45–57)', () => {
     const out = formatAllSettingsSummary(testValues);
     const sections = [
       'Autonomy',
@@ -483,16 +486,17 @@ describe('formatAllSettingsSummary', () => {
       'Debug',
       'Safety',
       'Display',
+      'Panels',
     ];
     for (const s of sections) {
       expect(out).toContain(`── ${s} ──`);
     }
   });
 
-  it('renders exactly 45 value lines (one per field)', () => {
+  it('renders exactly 58 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(45);
+    expect(fieldLines).toHaveLength(58);
   });
 
   it('includes the thinking word value', () => {
@@ -571,12 +575,12 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 45 keys', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(45);
+  it('SETTINGS_DEFAULTS has all 46 keys (45 legacy + panelPositions)', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(46);
   });
 
-  it('every field 0-44 can be reset', () => {
-    for (let f = 0; f < 45; f++) {
+  it('every field 0-57 can be reset', () => {
+    for (let f = 0; f < 58; f++) {
       const r = resetSettingsFieldValue(f);
       expect(r.ok).toBe(true);
     }

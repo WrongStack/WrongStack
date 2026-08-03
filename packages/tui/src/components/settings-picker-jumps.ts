@@ -35,6 +35,22 @@ export const SETTINGS_PICKER_JUMP_CHORDS: ReadonlyArray<SettingsPickerJumpChord>
   { mod: 'alt', letter: 'r', field: 41, label: 'Pre-refine countdown' },
   { mod: 'alt-shift', letter: 's', field: 43, label: 'Show SAGE Memory Inject' },
   { mod: 'alt-shift', letter: 't', field: 44, label: 'SAGE Memory Inject threshold' },
+  // Panel placement rows are addressed by name (for example,
+  // `/settings project-switcher-placement sidebar`). The chord metadata is
+  // also the canonical name registry for the slash-command lookup.
+  { mod: 'alt-shift', letter: '1', field: 45, label: 'Project switcher placement' },
+  { mod: 'alt-shift', letter: '2', field: 46, label: 'Fleet placement' },
+  { mod: 'alt-shift', letter: '3', field: 47, label: 'Agents placement' },
+  { mod: 'alt-shift', letter: '4', field: 48, label: 'Worktree placement' },
+  { mod: 'alt-shift', letter: '5', field: 49, label: 'Plan placement' },
+  { mod: 'alt-shift', letter: '6', field: 50, label: 'Todos placement' },
+  { mod: 'alt-shift', letter: '7', field: 51, label: 'Queue placement' },
+  { mod: 'alt-shift', letter: '8', field: 52, label: 'Process list placement' },
+  { mod: 'alt-shift', letter: '9', field: 53, label: 'Goal placement' },
+  { mod: 'alt-shift', letter: '0', field: 54, label: 'Sessions placement' },
+  { mod: 'alt-shift', letter: 'c', field: 55, label: 'Coordinator placement' },
+  { mod: 'alt-shift', letter: 'k', field: 56, label: 'Kanban placement' },
+  { mod: 'alt-shift', letter: 'n', field: 57, label: 'Connections placement' },
 ]);
 
 export function settingsPickerJumpField(

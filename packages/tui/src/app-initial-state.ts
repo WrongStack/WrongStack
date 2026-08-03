@@ -5,6 +5,7 @@ import type {
   TokenSavingTier,
 } from '@wrongstack/core/types';
 import type { State } from './app-state.js';
+import { DEFAULT_PANEL_POSITIONS } from './ui-contracts.js';
 import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
 import { retainCheckpoints } from './checkpoint-retention.js';
 import { replaySessionMessages } from './components/history/replay.js';
@@ -284,6 +285,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: true,
       showAgentSwarmPanel: 'bottom',
+      panelPositions: DEFAULT_PANEL_POSITIONS,
       showSageMemoryInject: false,
       sageMemoryInjectThreshold: 0.85,
       readSymbols: false,

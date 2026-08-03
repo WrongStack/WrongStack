@@ -40,6 +40,7 @@ export type SettingsPickerPatch = Partial<{
   maxIterations: number;
   autoProceedMaxIterations: number;
   enhanceDelayMs: number;
+  preRefineSeconds: number;
   enhanceEnabled: boolean;
   enhanceLanguage: EnhanceLanguage;
   debugStream: boolean;
@@ -55,6 +56,15 @@ export type SettingsPickerPatch = Partial<{
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
   showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
+  /**
+   * Per-panel position map (one entry per F-key panel id). Each value is
+   * 'bottom' (F-key behavior) or 'sidebar' (right-sidebar twin). Callers
+   * (resolveSettingsFieldValue, buildResetPatch) emit single-key partial
+   * spreads — the settingsValueSet reducer deep-merges them so unrelated
+   * panels survive. The type is `Partial<PanelPositionMap>` to reflect
+   * that callers are not required to provide every entry.
+   */
+  panelPositions?: Partial<import('./ui-contracts.js').PanelPositionMap>;
   /**
    * When true, the read tool includes codebase-index symbols alongside
    * file content. Toggle via `/settings read-symbols on|off`.

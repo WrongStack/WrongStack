@@ -1,5 +1,6 @@
 import type React from 'react';
 import { Box, Text, useStdout } from '../ink.js';
+import { PANEL_IDS } from '../ui-contracts.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
 import { SETTINGS_PICKER_JUMP_CHORDS } from './settings-picker-jumps.js';
 import type {
@@ -30,6 +31,7 @@ import {
   formatSageThreshold,
   formatSettingsDelay,
   MODE_DESC,
+  SETTINGS_FIELD_LABELS,
   STATUSLINE_MODE_DESCS,
   TOKEN_SAVING_TIER_DESCS,
 } from './settings-picker-model.js';
@@ -129,6 +131,11 @@ export interface SettingsPickerProps {
   // ── Tools ──
   /** When true, read tool includes codebase-index symbols alongside file content. */
   readSymbols: boolean;
+  /**
+   * Per-panel placement map (F-key bottom vs right sidebar). One picker row
+   * per PanelId in PANEL_IDS order; each row cycles 'bottom' ↔ 'sidebar'.
+   */
+  panelPositions: import('../ui-contracts.js').PanelPositionMap;
   // ── Debug ──
   /** Raw SSE stream debugging toggle — hex-dump every byte received from providers. */
   debugStream: boolean;
@@ -204,6 +211,7 @@ export function SettingsPicker({
   showSageMemoryInject,
   sageMemoryInjectThreshold,
   readSymbols,
+  panelPositions,
   hint,
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
@@ -456,6 +464,23 @@ export function SettingsPicker({
       value: formatSageThreshold(sageMemoryInjectThreshold),
       detail: 'Min relation strength for injection (0.72–0.95)',
     },
+    // ── Panels (fields 45–57) ─────────────────────────────────────────────
+    // One row per PanelId in PANEL_IDS order. SETTINGS_FIELD_LABELS indexes
+    // 45..57 must stay in lock-step with PANEL_IDS — the resolveSettingsFieldValue
+    // switch and the reducer's settingsValueChange arrow-key path both
+    // index `PANEL_IDS[field - 45]` for these rows. ←/→ cycles the value
+    // between 'bottom' (F-key) and 'sidebar' (right sidebar) — the
+    // renderer (sidebar.tsx + overlay-key-router) reads `panelPositions`
+    // at render time to decide where each panel surfaces.
+    { section: 'Panels' },
+    ...PANEL_IDS.map((panelId, i) => ({
+      label: SETTINGS_FIELD_LABELS[45 + i] ?? panelId,
+      value: panelPositions[panelId],
+      detail:
+        panelPositions[panelId] === 'sidebar'
+          ? 'Render in right sidebar'
+          : 'Render in lower F-key region',
+    })),
   ];
 
   // Build field → row index mapping. `rows` includes section headers

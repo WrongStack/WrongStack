@@ -21,6 +21,7 @@
  * already used across the codebase.
  */
 
+import { DEFAULT_PANEL_POSITIONS } from '../../src/ui-contracts.js';
 import type { State } from '../../src/app-state.js';
 
 /**
@@ -156,6 +157,7 @@ export function createTestState(
       showSageMemoryInject: false,
       sageMemoryInjectThreshold: 0.85,
       readSymbols: false,
+      panelPositions: DEFAULT_PANEL_POSITIONS,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },

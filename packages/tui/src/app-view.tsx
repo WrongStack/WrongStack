@@ -25,15 +25,36 @@ import { McpPicker } from './components/mcp-picker.js';
 import { ModePicker } from './components/mode-picker.js';
 import { ModelPicker } from './components/model-picker.js';
 import { PluginPicker } from './components/plugin-picker.js';
+import { usePlanPanelData } from './components/plan-panel.js';
 import { ProjectPicker } from './components/project-picker.js';
 import { filterPromptPicker, PromptPicker } from './components/prompt-picker.js';
 import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
-import { isPickerOverlayOpen } from './app-ui-state.js';
-import { computeSidebarWidth, RightSidebar } from './components/sidebar.js';
+import { resolveSidebarLayout } from './app-ui-state.js';
+import { RightSidebar } from './components/sidebar.js';
 import { SidebarContent } from './components/sidebar-content.js';
+import {
+  AgentsPanelSidebar,
+  ConnectionsPanelSidebar,
+  CoordinatorPanelSidebar,
+  FleetPanelSidebar,
+  GoalPanelSidebar,
+  KanbanPanelSidebar,
+  PlanPanelSidebar,
+  ProcessListPanelSidebar,
+  ProjectPickerSidebar,
+  QueuePanelSidebar,
+  SessionsPanelSidebar,
+  TodosPanelSidebar,
+  WorktreePanelSidebar,
+} from './components/sidebar-panels.js';
+import {
+  useSidebarConnections,
+  useSidebarKanban,
+  useSidebarProcessList,
+} from './hooks/use-sidebar-panel-data.js';
 import { SendModePicker } from './components/send-mode-picker.js';
 import { SettingsPicker } from './components/settings-picker.js';
 import { ShadowPanel } from './components/shadow-panel.js';
@@ -45,8 +66,9 @@ import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { SlashMenu } from './components/slash-menu.js';
 import { StatuslinePicker } from './components/statusline-picker.js';
 import { ToolsPicker } from './components/tools-picker.js';
-import { Box, useStdout } from './ink.js';
-import type { SendMode } from './ui-contracts.js';
+import { Box, Text, useStdout } from './ink.js';
+import { PANEL_IDS, SIDEBAR_PANEL_LIMIT, type PanelId, type SendMode } from './ui-contracts.js';
+import { theme } from './theme.js';
 
 const CONTINUE_CONFIRM_DELAY_MS = 4000;
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
@@ -101,46 +123,60 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // sidebar boundary.
   const { stdout } = useStdout();
   const termCols = stdout?.columns ?? 80;
-  // Hide the sidebar while any overlay/picker/monitor is open so they get
-  // the full terminal width. isPickerOverlayOpen covers pickers/panels/help;
-  // we supplement with the remaining interactive overlays that aren't in it.
-  const overlayOpen =
-    isPickerOverlayOpen(state) ||
-    state.coordinator.monitorOpen ||
-    state.auditPanelOpen ||
-    state.connectionsPanelOpen ||
-    state.helpOpen ||
-    state.agentsMonitorOpen ||
-    state.monitorOpen ||
-    state.contextPanelOpen ||
-    state.processListOpen ||
-    state.todosMonitorOpen ||
-    state.worktreeMonitorOpen ||
-    state.planPanelOpen ||
-    state.kanbanPanelOpen ||
-    state.queuePanelOpen ||
-    state.goalPanelOpen ||
-    state.goalKanbanPanelOpen ||
-    state.cronMonitorOpen ||
-    state.rewindOverlay != null ||
-    state.shellCommandWarning != null ||
-    state.confirmQueue.length > 0 ||
-    state.clearConfirm != null ||
-    state.exitConfirm != null ||
-    state.slashConfirm != null ||
-    state.escConfirm != null ||
-    state.sendModePicker != null ||
-    state.enhance != null ||
-    state.enhanceBusy ||
-    state.refineCountdown != null ||
-    state.refineFailure != null ||
-    state.continueConfirm != null ||
-    state.brainPrompt != null ||
-    mailbox.mailboxPanelOpen ||
-    (state.goalRun?.monitorOpen ?? false) ||
-    (state.sddBoard?.monitorOpen ?? false);
-  const sidebarWidth = overlayOpen ? 0 : computeSidebarWidth(termCols);
-  const mainColumnWidth = termCols - sidebarWidth;
+  // Per-panel position routing: a panel renders in the right sidebar when
+  // its F-key is open AND its position is 'sidebar'. Mirrors
+  // app-status-region.tsx's bottom-region suppression so the two surfaces
+  // never double-render.
+  const { panelPositions, sidebarWidth, mainColumnWidth } = resolveSidebarLayout(
+    state,
+    termCols,
+    liveSettings?.panelPositions,
+    mailbox.mailboxPanelOpen,
+  );
+  const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
+
+  // Sidebar panel data hooks — always active so data is fresh when a twin
+  // mounts. Each hook manages its own polling interval and cleanup.
+  const sidebarProcessData = useSidebarProcessList();
+  const sidebarConnectionsData = useSidebarConnections(agent.ctx.projectRoot);
+  const sidebarKanbanData = useSidebarKanban(agent.ctx.projectRoot);
+  const sidebarPlanData = usePlanPanelData(agent.ctx.projectRoot, agent.ctx.session?.id ?? null);
+
+  // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
+  // more panels than the limit are open AND routed to 'sidebar', render the
+  // first N in PANEL_IDS order and surface a "+N more" hint rather than
+  // overflowing the viewport. Panel toggles are mutually exclusive today
+  // (reducers call closePanels before opening), so at most one slot is
+  // occupied — the cap keeps the documented contract honest if that ever
+  // changes. The agents slot additionally honors the legacy
+  // `showAgentSwarmPanel: 'off'` tri-state — users who explicitly hide the
+  // swarm panel should not see it in the sidebar, and a hidden panel must
+  // not occupy a slot.
+  const sidebarPanelOpenFlags: Partial<Record<PanelId, boolean>> = {
+    projectPicker: state.projectPicker.open,
+    fleet: state.monitorOpen,
+    agents:
+      state.agentsMonitorOpen && (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off',
+    worktree: state.worktreeMonitorOpen,
+    plan: state.planPanelOpen,
+    todos: state.todosMonitorOpen,
+    queue: state.queuePanelOpen,
+    processList: state.processListOpen,
+    goal: state.goalPanelOpen,
+    sessions: state.sessionsPanelOpen,
+    // Ctrl+P (goalRunMonitorToggle) opens the phase monitor WITHOUT setting
+    // coordinator.monitorOpen — closePanels resets the latter. The sidebar
+    // surface must stay reachable from both entry points.
+    coordinator: state.coordinator.monitorOpen || (state.goalRun?.monitorOpen ?? false),
+    kanban: state.kanbanPanelOpen,
+    connections: state.connectionsPanelOpen,
+  };
+  const openSidebarPanelIds = PANEL_IDS.filter(
+    (id) => routedToSidebar(id) && (sidebarPanelOpenFlags[id] ?? false),
+  );
+  const visibleSidebarPanelIds = openSidebarPanelIds.slice(0, SIDEBAR_PANEL_LIMIT);
+  const hiddenSidebarPanelCount = openSidebarPanelIds.length - visibleSidebarPanelIds.length;
+  const sidebarSlotVisible = (id: PanelId): boolean => visibleSidebarPanelIds.includes(id);
 
   return (
     /* Hard viewport cap. The managed layout aims for exactly termRows
@@ -359,6 +395,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               showSageMemoryInject={state.settingsPicker.showSageMemoryInject}
               sageMemoryInjectThreshold={state.settingsPicker.sageMemoryInjectThreshold}
               readSymbols={state.settingsPicker.readSymbols}
+              panelPositions={state.settingsPicker.panelPositions}
               filter={state.settingsPicker.filter}
               hint={state.settingsPicker.hint}
             />
@@ -411,7 +448,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             <ShadowPanel shadow={state.shadowPanel.shadow} hint={state.shadowPanel.hint} />
           ) : null}
           {state.authPanel.open ? <AuthPanel panel={state.authPanel} /> : null}
-          {state.projectPicker.open ? (
+          {state.projectPicker.open && !routedToSidebar('projectPicker') ? (
             <ProjectPicker
               items={state.projectPicker.items}
               selected={state.projectPicker.selected}
@@ -420,7 +457,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             />
           ) : null}
           {state.fKeyPicker.open ? <FKeyPicker selected={state.fKeyPicker.selected} /> : null}
-          {state.coordinator.monitorOpen ? (
+          {state.coordinator.monitorOpen && !routedToSidebar('coordinator') ? (
             <CoordinatorPanel
               coordinator={state.coordinator}
               nowTick={nowTick}
@@ -433,7 +470,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               onClose={() => dispatch({ type: 'toggleAuditPanel' })}
             />
           ) : null}
-          {state.connectionsPanelOpen ? (
+          {state.connectionsPanelOpen && panelPositions.connections === 'bottom' ? (
             <ConnectionsPanel
               projectRoot={agent.ctx.projectRoot}
               onClose={() => dispatch({ type: 'toggleConnectionsPanel' })}
@@ -711,6 +748,118 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
       </Box>
       {sidebarWidth > 0 ? (
         <RightSidebar width={sidebarWidth} maxHeight={runtime.termRows} focused={state.sidebarFocused}>
+          {/* Per-panel sidebar variants: render only when the panel is
+              open AND routed to 'sidebar' AND wins a slot under
+              SIDEBAR_PANEL_LIMIT (allocated above). Render order mirrors
+              PANEL_IDS exactly so the sidebar reads top-to-bottom in the
+              same sequence the settings picker lists the panels. */}
+          {sidebarSlotVisible('projectPicker') ? (
+            <ProjectPickerSidebar
+              items={state.projectPicker.items}
+              selected={state.projectPicker.selected}
+              filter={state.projectPicker.filter}
+              hint={state.projectPicker.hint}
+              currentProject={agent.ctx.projectRoot}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('fleet') ? (
+            <FleetPanelSidebar
+              entries={statusbar.entriesWithLeader}
+              runningCount={Object.values(statusbar.entriesWithLeader).filter((e) => e.status === 'running').length}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('agents') ? (
+            <AgentsPanelSidebar
+              entries={statusbar.entriesWithLeader}
+              totalCost={state.fleetCost}
+              nowTick={activity.nowTick}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('worktree') ? (
+            <WorktreePanelSidebar
+              worktrees={state.worktrees}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('plan') ? (
+            <PlanPanelSidebar
+              openCount={sidebarPlanData.items.filter((item) => item.status === 'open').length}
+              inProgressCount={sidebarPlanData.items.filter((item) => item.status === 'in_progress').length}
+              doneCount={sidebarPlanData.items.filter((item) => item.status === 'done').length}
+              items={sidebarPlanData.items}
+              title={sidebarPlanData.title}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('todos') ? (
+            <TodosPanelSidebar
+              todos={liveTodos ?? []}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('queue') ? (
+            <QueuePanelSidebar
+              items={state.queue}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('processList') ? (
+            <ProcessListPanelSidebar
+              activeCount={sidebarProcessData.activeCount}
+              totalCount={sidebarProcessData.totalCount}
+              processes={sidebarProcessData.processes}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('goal') ? (
+            <GoalPanelSidebar
+              goal={state.goalSummary}
+              coordinatorRunning={state.goalRun?.monitorOpen ?? false}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('sessions') ? (
+            <SessionsPanelSidebar
+              liveSessions={state.sessionsPanel.sessions}
+              resumeSessions={state.resumePicker.sessions}
+              currentSessionId={agent.ctx.session?.id}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('coordinator') ? (
+            <CoordinatorPanelSidebar
+              running={state.coordinator.monitorOpen || (state.goalRun?.monitorOpen ?? false)}
+              activePhases={state.goalRun?.runningPhaseIds.length ?? 0}
+              completedPhases={state.goalRun
+                ? Object.values(state.goalRun.phases).filter((p) => p.status === 'completed').length
+                : 0}
+              phaseNames={state.goalRun
+                ? Object.values(state.goalRun.phases).map((p) => p.name)
+                : []}
+              elapsedMs={state.goalRun?.elapsedMs ?? 0}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('kanban') ? (
+            <KanbanPanelSidebar
+              columns={sidebarKanbanData.columns}
+              totalActive={sidebarKanbanData.totalActive}
+              activeCardTitles={sidebarKanbanData.activeCardTitles}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {sidebarSlotVisible('connections') ? (
+            <ConnectionsPanelSidebar
+              connections={sidebarConnectionsData}
+              width={sidebarWidth}
+            />
+          ) : null}
+          {hiddenSidebarPanelCount > 0 ? (
+            <Text color={theme.textMuted}>+{hiddenSidebarPanelCount} more</Text>
+          ) : null}
           <SidebarContent
             contextWindow={statusbar.contextWindow}
             entries={statusbar.entriesWithLeader}

@@ -2,7 +2,7 @@ import type { TokenSavingTier } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import React, { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
-import { coerceAgentSwarmMode } from '../app-settings-type.js';
+import { coerceAgentSwarmMode, coercePanelPositionMap } from '../app-settings-type.js';
 import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from '../components/settings-picker.js';
@@ -193,6 +193,25 @@ export function usePanelControllers({
       breakerAutoKillResetMs: s.breakerAutoKillResetMs ?? 60_000,
       showModelReasoning: s.showModelReasoning ?? true,
       showAgentSwarmPanel: coerceAgentSwarmMode(s.showAgentSwarmPanel),
+      // Migrate the legacy `showAgentSwarmPanel: 'sidebar'` tri-state into
+      // the new per-panel `panelPositions.fleet` map so users with old
+      // configs don't lose their sidebar routing. The legacy field
+      // governed the FleetPanel swarm (F2), not the F3 agents monitor —
+      // mapping to `agents` here would double-render both surfaces. The
+      // 'off' value is dropped from the binary per-panel map (a panel is
+      // either bottom or sidebar — no hidden state at the per-panel level).
+      //
+      // Only migrate when the per-panel key is UNDEFINED — the new field
+      // is an independent toggle that persists verbatim, so an explicit
+      // `panelPositions.fleet: 'bottom'` must NOT be reverted to
+      // `'sidebar'` on every save.
+      panelPositions: coercePanelPositionMap({
+        ...s.panelPositions,
+        ...(coerceAgentSwarmMode(s.showAgentSwarmPanel) === 'sidebar' &&
+        s.panelPositions?.fleet === undefined
+          ? { fleet: 'sidebar' as const }
+          : {}),
+      }),
       showSageMemoryInject: s.showSageMemoryInject ?? false,
       sageMemoryInjectThreshold: s.sageMemoryInjectThreshold ?? 0.85,
       readSymbols: s.readSymbols ?? false,

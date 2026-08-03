@@ -1,6 +1,7 @@
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import { SETTINGS_FIELD_COUNT } from '../components/settings-picker.js';
+import { coercePanelPositionMap } from '../app-settings-type.js';
 import { closePanels } from './helpers.js';
 
 const settingsPanelActionTypes = [
@@ -90,6 +91,7 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           breakerAutoKillResetMs: action.breakerAutoKillResetMs,
           showModelReasoning: action.showModelReasoning,
           showAgentSwarmPanel: action.showAgentSwarmPanel,
+          panelPositions: coercePanelPositionMap(action.panelPositions),
           showSageMemoryInject: action.showSageMemoryInject,
           sageMemoryInjectThreshold: action.sageMemoryInjectThreshold,
           readSymbols: action.readSymbols,

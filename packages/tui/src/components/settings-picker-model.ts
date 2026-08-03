@@ -1,4 +1,11 @@
 import { MAX_TUI_THINKING_WORD_LENGTH } from '../thinking-word.js';
+import { SettingsPickerPatch } from '../settings-contracts.js';
+import {
+  DEFAULT_PANEL_POSITIONS,
+  PANEL_IDS,
+  PANEL_POSITION_FIELD_START,
+  TOTAL_SETTINGS_FIELD_COUNT,
+} from '../ui-contracts.js';
 import { ANIMATION_STYLE_DESCS, ANIMATION_STYLES } from './animation-style.js';
 
 /** Selectable presets for the auto-proceed delay, so the field is fully
@@ -175,8 +182,13 @@ export const MODE_DESC: Record<SettingsMode, string> = {
   auto: 'Self-driving — agent continues automatically',
 };
 
-/** Total number of settings rows (used for wrap-around navigation). */
-export const SETTINGS_FIELD_COUNT = 45;
+/** Total number of settings rows (used for wrap-around navigation).
+ *  Indices 0–44 are the legacy auto-rebuilt Settings surface; 45..44+PANEL_IDS.length
+ *  are the per-panel position rows (one per PanelId in PANEL_IDS order)
+ *  added when the showAgentSwarmPanel tri-state was generalized into the
+ *  per-panel PanelPositionMap. Derived from PANEL_IDS.length so adding
+ *  a new panel id automatically extends the surface. */
+export const SETTINGS_FIELD_COUNT = TOTAL_SETTINGS_FIELD_COUNT;
 
 /**
  * Field index of the "Thinking word" row. The reducer's per-field switch and
@@ -255,57 +267,12 @@ export type ConfigScope = (typeof CONFIG_SCOPES)[number];
 // `settingsValueSet` with the returned patch and shows a confirmation.
 
 /**
- * Partial patch for the configurable keys of the settings-picker state.
- * Excludes non-configurable keys (open, field, lastSettingsField, filter,
- * hint, thinkingWordEditing, thinkingWordDraft).
+ * Re-export of the canonical `SettingsPickerPatch` from `settings-contracts.ts`.
+ * That module is the single source of truth so that `Action['patch']` (in
+ * app-action-type.ts) and the helpers below stay in lock-step. Adding a new
+ * key here requires adding it there too — keep them in sync.
  */
-export type SettingsPickerPatch = Partial<{
-  mode: SettingsMode;
-  delayMs: number;
-  titleAnimation: boolean;
-  yolo: boolean;
-  fleetChat: FleetChatVerbosityTui;
-  chime: boolean;
-  confirmExit: boolean;
-  nextPrediction: boolean;
-  featureMcp: boolean;
-  featurePlugins: boolean;
-  featureMemory: boolean;
-  featureSkills: boolean;
-  featureModelsRegistry: boolean;
-  tokenSavingTier: TokenSavingTierTui;
-  allowOutsideProjectRoot: boolean;
-  contextAutoCompact: boolean;
-  contextStrategy: CompactorStrategy;
-  contextMode: ContextMode;
-  maxConcurrent: number;
-  logLevel: LogLevel;
-  auditLevel: AuditLevel;
-  indexOnStart: boolean;
-  multiDiffSummaryThreshold: number;
-  maxIterations: number;
-  autoProceedMaxIterations: number;
-  enhanceDelayMs: number;
-  preRefineSeconds: number;
-  enhanceEnabled: boolean;
-  enhanceLanguage: EnhanceLanguage;
-  debugStream: boolean;
-  statuslineMode: StatuslineMode;
-  reasoningMode: ReasoningMode;
-  reasoningEffort: ReasoningEffort;
-  reasoningPreserve: boolean;
-  thinkingWord: string;
-  cacheTtl: CacheTtl;
-  configScope: ConfigScope;
-  animationStyle: AnimationStyleChoice;
-  breakerEnabled: boolean;
-  breakerAutoKillResetMs: number;
-  showModelReasoning: boolean;
-  showAgentSwarmPanel: import('../app-settings-type.js').AgentSwarmPanelMode;
-  readSymbols: boolean;
-  showSageMemoryInject: boolean;
-  sageMemoryInjectThreshold: number;
-}>;
+export type { SettingsPickerPatch };
 
 /**
  * Human-readable labels for all settings fields (0–SETTINGS_FIELD_COUNT-1),
@@ -358,6 +325,19 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Read symbols', // 42
   'Show SAGE Memory Inject', // 43
   'SAGE Memory Inject threshold', // 44
+  'Project switcher placement', // 45 (P panel id index 0)
+  'Fleet placement', // 46 (P panel id index 1)
+  'Agents placement', // 47 (P panel id index 2)
+  'Worktree placement', // 48 (P panel id index 3)
+  'Plan placement', // 49 (P panel id index 4)
+  'Todos placement', // 50 (P panel id index 5)
+  'Queue placement', // 51 (P panel id index 6)
+  'Process list placement', // 52 (P panel id index 7)
+  'Goal placement', // 53 (P panel id index 8)
+  'Sessions placement', // 54 (P panel id index 9)
+  'Coordinator placement', // 55 (P panel id index 10)
+  'Kanban placement', // 56 (P panel id index 11)
+  'Connections placement', // 57 (P panel id index 12)
 ];
 
 /**
@@ -475,6 +455,19 @@ export function resolveSettingsFieldValue(
     [35, 'configScope', CONFIG_SCOPES],
     [36, 'animationStyle', ANIMATION_STYLE_CHOICES],
     [40, 'showAgentSwarmPanel', ['bottom', 'sidebar', 'off']],
+    // Note: field 40 (`showAgentSwarmPanel`, tri-state including 'off') and
+    // field 47 (`Agents placement` from PANEL_IDS[2]='agents', 2-state
+    // 'bottom'|'sidebar') both target the same panel. `PanelPosition`
+    // cannot express 'off', so the legacy field carries the hidden state
+    // while the per-panel row carries the placement. Precedence (defined
+    // by app-view routing, a pending task) will be: when
+    // `showAgentSwarmPanel === 'off'`, the Agents panel is hidden
+    // regardless of `panelPositions.agents`. When `'bottom'` or
+    // `'sidebar'`, the per-panel row controls placement and the legacy
+    // field is a redundant alias. Setter surfaces currently emit each
+    // control independently; if a future write goes through a unified
+    // setter, fold `'off'` into `panelPositions.agents` removal and
+    // collapse field 40 to a derived view.
   ];
   for (const [f, key, values] of ENUM_FIELDS) {
     if (field !== f) continue;
@@ -584,6 +577,31 @@ export function resolveSettingsFieldValue(
     return { ok: true, patch: { thinkingWord: word }, label, displayValue: word };
   }
 
+  // Per-panel position rows (45–57). Accept 'bottom' or 'sidebar' as the
+  // value; produce a partial patch that updates ONLY the matching panel id.
+  // The reducer's `settingsValueSet` case deep-merges the partial
+  // `panelPositions` into the existing map (see settings-values.ts), so we
+  // emit a single-key spread rather than a full DEFAULT_PANEL_POSITIONS —
+  // otherwise unrelated panels would silently snap back to 'bottom'.
+  // The bounds check above guarantees PANEL_IDS[field - 45] is defined;
+  // using PANEL_IDS.length (not a hardcoded 57) keeps the range in sync
+  // when a new panel is added to PANEL_IDS.
+  if (field >= PANEL_POSITION_FIELD_START && field - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+    const panelId = PANEL_IDS[field - PANEL_POSITION_FIELD_START]!;
+    if (raw === 'bottom' || raw === 'sidebar') {
+      return {
+        ok: true,
+        patch: { panelPositions: { [panelId]: raw } } as SettingsPickerPatch,
+        label,
+        displayValue: raw,
+      };
+    }
+    return {
+      ok: false,
+      error: `Invalid value "${input}" for ${label}. Use bottom or sidebar.`,
+    };
+  }
+
   return { ok: false, error: `Unknown settings field ${field}.` };
 }
 
@@ -687,6 +705,26 @@ export function getSettingsFieldValue(
     return { ok: true, label, displayValue: values.thinkingWord };
   }
 
+  // Per-panel position rows (45–57). Each field maps onto one panel id in
+  // PANEL_IDS order; display the current placement for that panel. The map
+  // is always normalized to a full PanelPositionMap at boot (see
+  // coercePanelPositionMap), so the index access is total. The bounds
+  // check above guarantees PANEL_IDS[field - 45] is defined; using
+  // PANEL_IDS.length (not a hardcoded 57) keeps the range in sync when a
+  // new panel is added to PANEL_IDS.
+  if (field >= PANEL_POSITION_FIELD_START && field - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+    const panelId = PANEL_IDS[field - PANEL_POSITION_FIELD_START]!;
+    // The map is normalized to a full PanelPositionMap at boot (see
+    // coercePanelPositionMap), so panelPositions[panelId] is always
+    // defined. The `?? 'bottom'` fallback appeases noUncheckedIndexedAccess
+    // and matches the runtime invariant.
+    return {
+      ok: true,
+      label,
+      displayValue: values.panelPositions[panelId] ?? 'bottom',
+    };
+  }
+
   return { ok: false, error: `Unknown settings field ${field}.` };
 }
 
@@ -739,6 +777,10 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   {
     name: 'Display',
     fields: [39, 40, 41, 43, 44],
+  },
+  {
+    name: 'Panels',
+    fields: [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
   },
 ];
 
@@ -832,6 +874,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   breakerAutoKillResetMs: 60_000,
   showModelReasoning: true,
   showAgentSwarmPanel: 'bottom',
+  panelPositions: DEFAULT_PANEL_POSITIONS,
   readSymbols: false,
   showSageMemoryInject: false,
   sageMemoryInjectThreshold: 0.85,
@@ -913,6 +956,20 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     if (f === field) {
       return { [key]: SETTINGS_DEFAULTS[key] } as SettingsPickerPatch;
     }
+  }
+  // Fields 45..44+PANEL_IDS.length: per-panel position rows. Each maps
+  // onto the single panelPositions state key, but the patch must reset
+  // only the matching panel id (not the whole map). The factory default
+  // for every panel position is 'bottom', so each row resolves to a
+  // single-key partial. The reducer's `settingsValueSet` case deep-merges
+  // partial `panelPositions` patches (see settings-values.ts). Using
+  // PANEL_IDS.length (not a hardcoded 57) keeps the range in sync when a
+  // new panel is added to PANEL_IDS.
+  if (field >= PANEL_POSITION_FIELD_START && field - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+    const panelId = PANEL_IDS[field - PANEL_POSITION_FIELD_START]!;
+    return {
+      panelPositions: { [panelId]: 'bottom' as const },
+    } as SettingsPickerPatch;
   }
   return null;
 }

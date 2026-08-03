@@ -20,7 +20,6 @@ import type { AutonomyStage } from './hooks/use-statusline-state.js';
 import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
 import {
-  isLowerOverlayOpen,
   overlayPointerKey,
   routeBusyInterruptKey,
   routeModalOverlayKey,
@@ -472,11 +471,11 @@ export function createAppKeyHandler(
     }
     if (routePanelEscapeKey(state, key, dispatch)) return;
 
-    // overlayOpen tracks whether any monitor or panel overlay is active.
-    // Defined here (before the ?-handler and Enter submit) so both can
-    // check it. Also used below in the multi-line input navigation and
-    // scroll sections to prevent arrow-key conflicts with overlay internals.
-    const overlayOpen = isLowerOverlayOpen(state);
+    // overlayOpen tracks whether the renderer hides the right sidebar for a
+    // bottom-routed panel/overlay. Sidebar-routed panels must not suppress
+    // sidebar focus or history hit-testing, so this shares AppView's
+    // routing-aware layout decision via mainColumnWidth.
+    const overlayOpen = mainColumnWidth >= (stdout?.columns ?? 80);
 
     // ── Sidebar focus + scroll ───────────────────────────────────────
     // Shift+Tab on an empty draft toggles keyboard focus between the
@@ -492,12 +491,20 @@ export function createAppKeyHandler(
       return;
     }
     if (state.sidebarFocused && !overlayOpen) {
+      // The ↑↓ scroll applies to `SidebarContent` (context/model/fleet/
+      // sessions cards). Per-panel sidebar twins scroll internally and
+      // share the same RightSidebar region; their height does not affect
+      // the SidebarContent scroll clamp. `computeMaxSidebarScroll` in
+      // workspace-panels.ts already estimates SidebarContent's internal
+      // card height — pass the full terminal height so the clamp is
+      // accurate regardless of which twins are mounted above.
+      const sidebarViewportHeight = termRows - 2;
       if (key.upArrow) {
-        dispatch({ type: 'sidebarScroll', delta: -1, viewportHeight: termRows - 2 });
+        dispatch({ type: 'sidebarScroll', delta: -1, viewportHeight: sidebarViewportHeight });
         return;
       }
       if (key.downArrow) {
-        dispatch({ type: 'sidebarScroll', delta: 1, viewportHeight: termRows - 2 });
+        dispatch({ type: 'sidebarScroll', delta: 1, viewportHeight: sidebarViewportHeight });
         return;
       }
       if (key.escape) {

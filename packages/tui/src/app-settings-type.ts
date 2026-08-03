@@ -6,6 +6,14 @@ import type {
   StatuslineMode,
 } from './settings-contracts.js';
 
+export type { PanelId, PanelPosition, PanelPositionMap } from './ui-contracts.js';
+export {
+  coercePanelPositionMap,
+  DEFAULT_PANEL_POSITIONS,
+  PANEL_IDS,
+} from './ui-contracts.js';
+import type { PanelPositionMap } from './ui-contracts.js';
+
 /** Where to render the agent swarm panel: lower region, sidebar, or hidden. */
 export type AgentSwarmPanelMode = 'bottom' | 'sidebar' | 'off';
 
@@ -89,6 +97,15 @@ export type Settings = {
    *  sidebar, vertical), or 'off' (hidden). Default: 'bottom'.
    *  Backward-compat: old boolean configs are coerced — true→'bottom', false→'off'. */
   showAgentSwarmPanel: AgentSwarmPanelMode;
+  /**
+   * Per-panel position map. Each F-key panel can be set to 'bottom' (F-key
+   * behavior, the default) or 'sidebar' (rendered in the right sidebar).
+   * The map is always normalized to a full PanelPositionMap at boot via
+   * {@link coercePanelPositionMap}. Optional at the persisted-Settings
+   * boundary so older configs without the key don't typecheck-fail; the
+   * live-settings coercion always fills in a full map.
+   */
+  panelPositions?: Partial<PanelPositionMap>;
   /** Show SAGE Memory Inject blocks in tool results. Default: false (hidden). */
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */

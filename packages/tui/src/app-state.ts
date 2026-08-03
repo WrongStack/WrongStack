@@ -36,6 +36,7 @@ import type {
   LiveSessionEntry,
   McpPickerItem,
   ModeOption,
+  PanelPositionMap,
   PluginPickerItem,
   ProjectPickerItem,
   PromptPickEntry,
@@ -312,7 +313,16 @@ export type State = {
     showModelReasoning: boolean;
     /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off'. Default: 'bottom'. */
     showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
-    /** Show SAGE Memory Inject blocks in tool results. Default: false. */
+    /**
+     * Per-panel position map mirrored from the persisted Settings shape.
+     * Each F-key panel can be set to 'bottom' (F-key behavior, the default)
+     * or 'sidebar' (rendered in the right sidebar). When a panel is set to
+     * 'sidebar' AND its F-key toggle is on, the bottom view hides and the
+     * sidebar shows the panel twin instead. When the F-key is off, neither
+     * surface shows the panel.
+     */
+    panelPositions: PanelPositionMap;
+    /** Show SAGE Memory Inject blocks in tool results. Default: false (hidden). */
     showSageMemoryInject: boolean;
     /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
     sageMemoryInjectThreshold: number;

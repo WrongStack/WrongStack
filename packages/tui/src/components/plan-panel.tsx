@@ -16,7 +16,7 @@ import {
 } from './monitor-shell.js';
 import { renderProgress } from './status-bar.js';
 
-interface PlanItem {
+export interface PlanItem {
   id: string;
   title: string;
   details?: string;
@@ -31,6 +31,17 @@ interface PlanFile {
   title?: string;
   updatedAt: string;
   items: PlanItem[];
+}
+
+export interface PlanPanelData {
+  items: PlanItem[];
+  title?: string | undefined;
+  scope: 'session' | 'project';
+  loading: boolean;
+  error: string | null;
+  updatedAt?: string | undefined;
+  setScope: (scope: 'session' | 'project') => void;
+  load: (scope: 'session' | 'project', quiet?: boolean) => Promise<void>;
 }
 
 export interface PlanPanelProps {
@@ -75,24 +86,25 @@ function planFilePath(
 }
 
 /**
- * Full-screen plan panel (F5 in TUI).
+ * Plan panel data hook (F5 in TUI).
  *
- * Reads the active plan JSON file from disk and renders plan items grouped by status.
- * Shows the current scope and a hint for switching scopes via the /plan tool.
+ * Reads the active plan JSON file from disk and renders plan items grouped
+ * by status. Shows the current scope and a hint for switching scopes via
+ * the /plan tool.
+ *
+ * Each consumer gets its own polling interval. This is intentional: the
+ * bottom PlanPanel and the sidebar PlanPanelSidebar twin are mutually
+ * exclusive (gated by routedToBottom/routedToSidebar), so they never
+ * mount simultaneously in the normal case. If a brief overlap occurs
+ * during the settings-picker transition, the extra interval is harmless
+ * (3s cadence, file-read only).
  */
-export function PlanPanel({
-  projectRoot,
-  sessionId,
-  onClose: _onClose,
-}: PlanPanelProps): React.ReactElement {
-  void _onClose; // invoked by the app-level keyboard handler, not here
-  const size = useMonitorSize();
+export function usePlanPanelData(projectRoot: string, sessionId: string | null): PlanPanelData {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [scope, setScope] = useState<'session' | 'project'>('session');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState(0);
   const [updatedAt, setUpdatedAt] = useState<string | undefined>(undefined);
 
   const load = useCallback(
@@ -132,6 +144,22 @@ export function PlanPanel({
     const timer = setInterval(() => void load(scope, true), 3000);
     return () => clearInterval(timer);
   }, [load, scope]);
+
+  return { items, title, scope, loading, error, updatedAt, setScope, load };
+}
+
+export function PlanPanel({
+  projectRoot,
+  sessionId,
+  onClose: _onClose,
+}: PlanPanelProps): React.ReactElement {
+  void _onClose; // invoked by the app-level keyboard handler, not here
+  const size = useMonitorSize();
+  const { items, title, scope, loading, error, updatedAt, load } = usePlanPanelData(
+    projectRoot,
+    sessionId,
+  );
+  const [selected, setSelected] = useState(0);
 
   // Re-load when scope changes
   async function handleScopeSwitch(newScope: 'session' | 'project') {

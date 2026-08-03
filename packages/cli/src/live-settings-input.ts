@@ -67,6 +67,14 @@ export interface LiveSettingsInput {
   /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off' (hidden).
    * Backward-compat: legacy boolean values are coerced by the TUI settings adapter. Default: 'bottom'. */
   showAgentSwarmPanel?: 'bottom' | 'sidebar' | 'off' | boolean | undefined;
+  /**
+   * Per-panel position map (one entry per F-key panel id). Each value is
+   * 'bottom' (F-key behavior) or 'sidebar' (right-sidebar twin). Persisted
+   * as `autonomy.panelPositions` in the project/profile config. The TUI
+   * auto-save hook passes a full PanelPositionMap (13 entries); the adapter
+   * stores it as-is. Default: every panel 'bottom' when unset.
+   */
+  panelPositions?: Readonly<Record<string, 'bottom' | 'sidebar'>> | undefined;
   /** Show SAGE Memory Inject blocks in tool results. Default: false. */
   showSageMemoryInject?: boolean | undefined;
   /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
+import { DEFAULT_PANEL_POSITIONS } from '../src/ui-contracts.js';
 import {
   SettingsPicker,
   settingsPickerJumpByName,
@@ -55,6 +56,8 @@ function baseProps(over: Record<string, unknown> = {}) {
     showAgentSwarmPanel: 'bottom',
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
+    readSymbols: false,
+    panelPositions: DEFAULT_PANEL_POSITIONS,
     filter: '',
     ...over,
   } as never as React.ComponentProps<typeof SettingsPicker>;

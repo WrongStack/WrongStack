@@ -1,6 +1,7 @@
 import { getProcessRegistry } from '@wrongstack/tools';
 import type React from 'react';
 import type { AgentSwarmPanelMode } from './app-settings-type.js';
+import { coercePanelPositionMap, type PanelId, type PanelPositionMap } from './ui-contracts.js';
 import type { AppViewProps } from './app-view-contract.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
 import { ContextPanel } from './components/context-panel.js';
@@ -124,6 +125,12 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
   const { lowerFunctionPanelOpen } = viewState;
   const projectRoot = agent.ctx.projectRoot;
 
+  // Per-panel position routing. When a panel is set to 'sidebar', its
+  // bottom-region render is suppressed and the right sidebar renders the
+  // sidebar twin instead. See app-view.tsx for the sidebar twin dispatch.
+  const panelPositions: PanelPositionMap = coercePanelPositionMap(liveSettings?.panelPositions);
+  const routedToBottom = (id: PanelId): boolean => panelPositions[id] === 'bottom';
+
   return (
     <>
           <Box ref={statusBarWrapRef} flexDirection="column" flexShrink={0}>
@@ -219,7 +226,7 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
             {state.helpOpen ? <HelpOverlay /> : null}
             {/* Agents monitor overlay (Ctrl+G) and fleet monitor overlay (Ctrl+F)
           take up the lower region — hide FleetPanel while any overlay is open. */}
-            {state.agentsMonitorOpen ? (
+            {state.agentsMonitorOpen && routedToBottom('agents') ? (
               <AgentsMonitor
                 entries={entriesWithLeader}
                 totalCost={state.fleetCost}
@@ -230,7 +237,7 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 transcripts={agentTranscripts}
                 leaderTranscript={getLeaderTranscript}
               />
-            ) : state.goalRun?.monitorOpen ? (
+            ) : state.goalRun?.monitorOpen && routedToBottom('coordinator') ? (
               <PhaseMonitor
                 phases={state.goalRun.phases}
                 runningPhaseIds={state.goalRun.runningPhaseIds}
@@ -242,16 +249,16 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 snapshot={state.sddBoard.snapshot}
                 focusColumn={state.sddBoard.focusColumn ?? null}
               />
-            ) : state.worktreeMonitorOpen ? (
+            ) : state.worktreeMonitorOpen && routedToBottom('worktree') ? (
               <WorktreeMonitor
                 worktrees={state.worktrees}
                 baseBranch={state.worktreeBase}
                 nowTick={nowTick}
                 onClose={() => dispatch({ type: 'toggleWorktreeMonitor' })}
               />
-            ) : state.todosMonitorOpen ? (
+            ) : state.todosMonitorOpen && routedToBottom('todos') ? (
               <TodosMonitor todos={liveTodos} />
-            ) : state.monitorOpen ? (
+            ) : state.monitorOpen && routedToBottom('fleet') ? (
               <FleetMonitor
                 entries={state.fleet}
                 totalCost={state.fleetCost}
@@ -260,13 +267,13 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 nowTick={nowTick}
                 collabSession={state.collabSession}
               />
-            ) : state.planPanelOpen ? (
+            ) : state.planPanelOpen && routedToBottom('plan') ? (
               <PlanPanel
                 projectRoot={agent.ctx.projectRoot}
                 sessionId={agent.ctx.session?.id ?? null}
                 onClose={() => dispatch({ type: 'togglePlanPanel' })}
               />
-            ) : state.kanbanPanelOpen ? (
+            ) : state.kanbanPanelOpen && routedToBottom('kanban') ? (
               <KanbanPanel
                 projectRoot={agent.ctx.projectRoot}
                 sessionId={agent.ctx.session?.id ?? null}
@@ -274,7 +281,7 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 onClose={() => dispatch({ type: 'toggleKanbanPanel' })}
                 initialBoardId={focusedBoardId ?? undefined}
               />
-            ) : state.queuePanelOpen ? (
+            ) : state.queuePanelOpen && routedToBottom('queue') ? (
               <QueuePanel
                 items={state.queue}
                 onDelete={(pos) => dispatch({ type: 'queueDelete', positions: [pos + 1] })}
@@ -285,11 +292,11 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 }}
                 onToggleRefine={(pos) => dispatch({ type: 'queueToggleRefine', position: pos })}
               />
-            ) : state.processListOpen ? (
+            ) : state.processListOpen && routedToBottom('processList') ? (
               <ProcessListMonitor />
             ) : state.cronMonitorOpen ? (
               <CronJobsMonitor getCronJobs={getCronJobs} />
-            ) : state.goalPanelOpen ? (
+            ) : state.goalPanelOpen && routedToBottom('goal') ? (
               <GoalPanel
                 goal={state.goalSummary}
                 onCoordinatorStart={onCoordinatorStart ?? undefined}
@@ -334,7 +341,7 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 }}
                 onClose={() => dispatch({ type: 'toggleContextPanel' })}
               />
-            ) : state.sessionsPanelOpen ? (
+            ) : state.sessionsPanelOpen && routedToBottom('sessions') ? (
               <SessionsPanel
                 sessions={state.sessionsPanel.sessions}
                 busy={state.sessionsPanel.busy}
@@ -348,7 +355,7 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
               />
             ) : (director || hasVisibleFleetPanel || state.collabSession) &&
               (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off' &&
-              (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'sidebar' ? (
+              routedToBottom('fleet') ? (
               <FleetPanel
                 entries={entriesWithLeader}
                 totalCost={state.fleetCost}
@@ -359,27 +366,32 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 maxWidth={mainColumnWidth}
               />
             ) : null}
-            {state.goalRun && !lowerFunctionPanelOpen ? (
+            {state.goalRun && !lowerFunctionPanelOpen && routedToBottom('coordinator') ? (
               <PhasePanel
                 phases={state.goalRun.phases}
                 runningPhaseIds={state.goalRun.runningPhaseIds}
                 nowTick={nowTick}
               />
             ) : null}
-            {Object.keys(state.worktrees).length > 0 && !lowerFunctionPanelOpen ? (
+            {Object.keys(state.worktrees).length > 0 && !lowerFunctionPanelOpen && routedToBottom('worktree') ? (
               <WorktreePanel worktrees={state.worktrees} nowTick={nowTick} />
             ) : null}
             {/* Key hint bar — shows keyboard shortcuts and a discovery hint for the next panel. */}
             {(() => {
+              // anyMonitorOpen: a panel is only "open in the bottom region" if its
+              // F-key is on AND its position is 'bottom'. Panels routed to
+              // the sidebar twin shouldn't fire the key hint bar's
+              // "monitor open" mode — the hint expects the bottom to be
+              // the visible surface.
               const anyMonitorOpen =
-                state.agentsMonitorOpen ||
-                (state.goalRun?.monitorOpen ?? false) ||
-                state.worktreeMonitorOpen ||
-                state.todosMonitorOpen ||
-                state.monitorOpen ||
-                state.processListOpen ||
-                state.queuePanelOpen ||
-                state.goalPanelOpen ||
+                (state.agentsMonitorOpen && panelPositions.agents === 'bottom') ||
+                ((state.goalRun?.monitorOpen ?? false) && panelPositions.coordinator === 'bottom') ||
+                (state.worktreeMonitorOpen && panelPositions.worktree === 'bottom') ||
+                (state.todosMonitorOpen && panelPositions.todos === 'bottom') ||
+                (state.monitorOpen && panelPositions.fleet === 'bottom') ||
+                (state.processListOpen && panelPositions.processList === 'bottom') ||
+                (state.queuePanelOpen && panelPositions.queue === 'bottom') ||
+                (state.goalPanelOpen && panelPositions.goal === 'bottom') ||
                 state.contextPanelOpen;
               // Compute the next panel hint based on the currently open monitor.
               // Panels cycle in this order: agents(F3) → todos(F6) → goal(F9) → agents
