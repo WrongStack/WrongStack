@@ -318,6 +318,22 @@ Catalog models can be overridden field-by-field using `customModels`. Only the f
 }
 ```
 
+The same override shape works at the config **root** level, where it wins over provider-local entries for the same model id:
+
+```jsonc
+{
+  "models": {
+    "gpt-4o": {
+      "name": "My GPT-4o",
+      "modelsDev": { "limit": { "context": 128000 } }
+    }
+  },
+  "providers": {
+    "openai": { "models": ["gpt-4o"] }
+  }
+}
+```
+
 #### Resizable model fields (models.dev schema)
 
 | Section | Fields | Description |

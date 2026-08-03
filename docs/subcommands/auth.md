@@ -39,8 +39,8 @@ wstack auth login copilot
 
 Accepted login aliases are:
 
-- ChatGPT/Codex: omitted id, `openai`, `codex`, `chatgpt`, `codex-cli`, `openai-codex`.
-- Claude: `claude`, `anthropic`, `claude-pro`, `claude-max`, `anthropic-oauth`.
+- ChatGPT/Codex: `chatgpt`, `openai`, `codex`, `codex-cli`, `openai-codex`, `chatgpt-plus`, `plus`, `pro`.
+- Claude: `claude`, `anthropic`, `claude-pro`, `claude-max`, `anthropic-oauth`, `max`.
 - GitHub Copilot: `copilot`, `github`, `github-copilot`, `gh`.
 
 ### Direct (flag-based)
@@ -111,18 +111,27 @@ The in-session TUI panel (`/auth` in the Ink TUI) adds model-level editing on to
 
 Keys are encrypted at rest using AES-256-GCM. The vault intentionally does not defeat a determined local attacker who can read both the config file and the key file — that level of secrecy needs the OS keychain.
 
+Set `WRONGSTACK_VAULT_PASSPHRASE` to wrap the key file itself: the data key is then stored AES-256-GCM-encrypted under a key-encryption-key (KEK) derived from the passphrase with scrypt. Without the passphrase, the vault cannot decrypt any stored secret.
+
 ## Code structure
 
 ```
 packages/cli/src/auth-menu/         # Modular auth menu implementation
-  types.ts         — AuthMenuDeps interface
-  shared.ts        — Rendering helpers, key input, confirmations, validation
-  top-menu.ts      — Main menu loop
-  provider-menu.ts — Provider detail submenu
-  add-provider.ts  — Catalog + custom provider addition flows
-  direct.ts        — One-shot `wstack auth <provider>` flow
-  helpers.ts       — Config I/O wrappers
-  index.ts         — Public API re-exports
+  types.ts          — AuthMenuDeps interface
+  shared.ts         — Rendering helpers, key input, confirmations, validation
+  top-menu.ts       — Main menu loop
+  provider-menu.ts  — Provider detail submenu
+  add-provider.ts   — Catalog + custom provider addition flows
+  direct.ts         — One-shot `wstack auth <provider>` flow
+  panel-service.ts  — TUI /auth panel host implementation
+  oauth-menu.ts     — OAuth kind resolution (aliases, 1/2/3 picks)
+  local.ts          — Local-LLM presets (OmniRoute / Ollama / vLLM / LM Studio)
+  local-presets.ts  — Local preset table
+  loopback-server.ts — OAuth loopback listener
+  anthropic-oauth.ts / openai-codex-oauth.ts / github-copilot-oauth.ts — per-kind OAuth flows
+  auth-menu-audit.ts — Auth menu audit logging
+  helpers.ts        — Config I/O wrappers
+  index.ts          — Public API re-exports
 
 packages/cli/src/auth-menu.ts       # Backward-compatible re-export shim
 packages/cli/src/slash-commands/auth.ts  # /auth slash command
