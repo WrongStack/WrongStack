@@ -267,7 +267,11 @@ jobs:
         run: pnpm check:build-manifest
 
       - name: Architecture and runtime-test inventory
-        run: pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips
+        run: |
+          # Regenerate API snapshot on the CI platform (Linux) to eliminate
+          # Windows↔Linux serialization drift, then verify architecture.
+          node scripts/snapshot-core-public-api.mjs --write
+          pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips
 
       # Runs Node-package coverage first and WebUI's dedicated jsdom coverage
       # second. Both configs enforce 100% per production file.
