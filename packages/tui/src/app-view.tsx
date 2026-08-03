@@ -33,7 +33,7 @@ import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
 import { resolveSidebarLayout } from './app-ui-state.js';
-import { RightSidebar } from './components/sidebar.js';
+import { computeSidebarContentWidth, RightSidebar } from './components/sidebar.js';
 import { SidebarContent } from './components/sidebar-content.js';
 import {
   AgentsPanelSidebar,
@@ -145,6 +145,9 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     mailbox.mailboxPanelOpen,
   );
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
+  // RightSidebar owns its border + horizontal padding. Nested panel frames
+  // must fit the remaining content box or they overflow into the main column.
+  const sidebarContentWidth = computeSidebarContentWidth(sidebarWidth);
 
   // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
   // more panels than the limit are open AND routed to 'sidebar', render the
@@ -784,14 +787,14 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               filter={state.projectPicker.filter}
               hint={state.projectPicker.hint}
               currentProject={agent.ctx.projectRoot}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('fleet') ? (
             <FleetPanelSidebar
               entries={statusbar.entriesWithLeader}
               runningCount={Object.values(statusbar.entriesWithLeader).filter((e) => e.status === 'running').length}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('agents') ? (
@@ -799,13 +802,13 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               entries={statusbar.entriesWithLeader}
               totalCost={state.fleetCost}
               nowTick={activity.nowTick}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('worktree') ? (
             <WorktreePanelSidebar
               worktrees={state.worktrees}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('plan') ? (
@@ -815,19 +818,19 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               doneCount={sidebarPlanData.items.filter((item) => item.status === 'done').length}
               items={sidebarPlanData.items}
               title={sidebarPlanData.title}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('todos') ? (
             <TodosPanelSidebar
               todos={liveTodos ?? []}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('queue') ? (
             <QueuePanelSidebar
               items={state.queue}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('processList') ? (
@@ -835,14 +838,14 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               activeCount={sidebarProcessData.activeCount}
               totalCount={sidebarProcessData.totalCount}
               processes={sidebarProcessData.processes}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('goal') ? (
             <GoalPanelSidebar
               goal={state.goalSummary}
               coordinatorRunning={state.goalRun?.monitorOpen ?? false}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('sessions') ? (
@@ -850,7 +853,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               liveSessions={state.sessionsPanel.sessions}
               resumeSessions={state.resumePicker.sessions}
               currentSessionId={agent.ctx.session?.id}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('coordinator') ? (
@@ -864,7 +867,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                 ? Object.values(state.goalRun.phases).map((p) => p.name)
                 : []}
               elapsedMs={state.goalRun?.elapsedMs ?? 0}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('kanban') ? (
@@ -872,13 +875,13 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               columns={sidebarKanbanData.columns}
               totalActive={sidebarKanbanData.totalActive}
               activeCardTitles={sidebarKanbanData.activeCardTitles}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {sidebarSlotVisible('connections') ? (
             <ConnectionsPanelSidebar
               connections={sidebarConnectionsData}
-              width={sidebarWidth}
+              width={sidebarContentWidth}
             />
           ) : null}
           {hiddenSidebarPanelCount > 0 ? (

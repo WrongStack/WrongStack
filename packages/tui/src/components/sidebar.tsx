@@ -25,6 +25,18 @@ export const SIDEBAR_MIN_WIDTH = 20;
 export const SIDEBAR_MAX_WIDTH = 48;
 /** Fraction of terminal width to allocate to the sidebar. */
 export const SIDEBAR_FRACTION = 0.25;
+/** Border (2) plus horizontal padding (2) consumed by RightSidebar. */
+export const SIDEBAR_HORIZONTAL_CHROME = 4;
+
+/**
+ * Return the width available to children inside RightSidebar.
+ *
+ * Routed panel frames have their own border and padding, so they must receive
+ * this content width rather than claiming the outer sidebar width again.
+ */
+export function computeSidebarContentWidth(sidebarWidth: number): number {
+  return Math.max(0, sidebarWidth - SIDEBAR_HORIZONTAL_CHROME);
+}
 
 /**
  * Compute the sidebar width in columns for a given terminal width.

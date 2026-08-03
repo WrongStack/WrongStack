@@ -25,7 +25,11 @@ export interface SidebarPanelFrameProps {
   icon: string;
   /** Uppercase title (e.g. "FLEET", "PLAN", "AGENTS"). */
   title: string;
-  /** Width of the surrounding sidebar in columns (includes border+padding). */
+  /**
+   * Width allocated to this panel frame, including the frame's own border and
+   * padding. When nested in RightSidebar, pass that shell's content width —
+   * not the outer sidebar width — so both chrome layers remain in bounds.
+   */
   width: number;
   /** Optional quiet subtitle hidden on narrow terminals. */
   kicker?: string | undefined;
@@ -149,9 +153,12 @@ export function SidebarPanelFrame({
   // host knows it, otherwise fall back to a generous default that lets
   // panels render fully when they're the only one shown.
   const { stdout } = useStdout();
-  const sidebarHeight = stdout?.rows ?? 32;
+  // The frame is mounted inside RightSidebar, whose top/bottom border consumes
+  // two rows. Claiming the full terminal height here makes the nested frame
+  // overflow its parent and shifts/clips the terminal row layout.
+  const sidebarHeight = Math.max(1, (stdout?.rows ?? 32) - 2);
   // Header (1) + footer (1) + chrome (2) — leaves most of the viewport for the body.
-  const bodyHeight = Math.max(6, sidebarHeight - 4);
+  const bodyHeight = Math.max(1, sidebarHeight - 4);
 
   return (
     <Box

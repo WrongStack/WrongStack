@@ -1,13 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeSidebarContentWidth,
   computeSidebarWidth,
   SIDEBAR_MIN_TERMINAL,
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_FRACTION,
+  SIDEBAR_HORIZONTAL_CHROME,
 } from '../src/components/sidebar.js';
 
 describe('computeSidebarWidth', () => {
+  describe('nested content width', () => {
+    it('subtracts the outer sidebar border and padding before sizing routed panels', () => {
+      expect(SIDEBAR_HORIZONTAL_CHROME).toBe(4);
+      expect(computeSidebarContentWidth(20)).toBe(16);
+      expect(computeSidebarContentWidth(48)).toBe(44);
+      expect(computeSidebarContentWidth(0)).toBe(0);
+    });
+
+    it('keeps the main column plus outer sidebar exactly within the terminal width', () => {
+      for (const cols of [64, 80, 100, 120, 192]) {
+        const sidebar = computeSidebarWidth(cols);
+        const main = cols - sidebar;
+        expect(main + sidebar).toBe(cols);
+        expect(computeSidebarContentWidth(sidebar)).toBe(sidebar - SIDEBAR_HORIZONTAL_CHROME);
+      }
+    });
+  });
+
   describe('threshold (hidden on narrow terminals)', () => {
     it('returns 0 below SIDEBAR_MIN_TERMINAL', () => {
       expect(computeSidebarWidth(0)).toBe(0);
