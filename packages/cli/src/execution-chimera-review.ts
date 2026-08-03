@@ -50,8 +50,11 @@ type PendingChimeraWork = Promise<void> | undefined;
 export function normalizeFileKeyForCitation(raw: string, cwd: string): string {
   const forward = raw.replace(/\\/g, '/').replace(/^\.\//, '');
   const isAbsolute = forward.startsWith('/') || /^[a-zA-Z]:\//.test(forward);
+  // Use path.win32.relative when simulating win32 so Windows drive-letter
+  // and backslash semantics are correct on POSIX hosts (CI runners).
+  const pathMod = process.platform === 'win32' ? path.win32 : path;
   const relative = isAbsolute
-    ? path.relative(cwd, forward).replace(/\\/g, '/').replace(/^\.\//, '')
+    ? pathMod.relative(cwd, forward).replace(/\\/g, '/').replace(/^\.\//, '')
     : forward;
   return process.platform === 'win32' ? relative.toLowerCase() : relative;
 }

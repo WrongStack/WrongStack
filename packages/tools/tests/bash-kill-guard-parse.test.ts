@@ -13,12 +13,14 @@ describe('parseKillCommand', () => {
   // ── taskkill (Windows) ─────────────────────────────────────────────────
 
   it('parses taskkill /PID with /F', () => {
+    if (!isWin) return; // taskkill is Windows-only
     const result = parseKillCommand('taskkill /PID 1234 /F');
     expect(result).not.toBeNull();
     expect(result!.pid).toBe(1234);
   });
 
   it('parses taskkill /IM by image name', () => {
+    if (!isWin) return; // taskkill is Windows-only
     const result = parseKillCommand('taskkill /IM node.exe /F');
     expect(result).not.toBeNull();
     expect(result!.name).toBe('node.exe');
@@ -27,6 +29,7 @@ describe('parseKillCommand', () => {
   // ── tskill ─────────────────────────────────────────────────────────────
 
   it('parses tskill with PID', () => {
+    if (!isWin) return; // tskill is Windows-only
     const result = parseKillCommand('tskill 5678');
     expect(result).not.toBeNull();
     expect(result!.pid).toBe(5678);
@@ -35,12 +38,14 @@ describe('parseKillCommand', () => {
   // ── Stop-Process (PowerShell) ──────────────────────────────────────────
 
   it('parses Stop-Process -Id', () => {
+    if (!isWin) return; // Stop-Process is Windows-only
     const result = parseKillCommand('Stop-Process -Id 1234 -Force');
     expect(result).not.toBeNull();
     expect(result!.pid).toBe(1234);
   });
 
   it('parses Stop-Process -Name with process name', () => {
+    if (!isWin) return; // Stop-Process is Windows-only
     const result = parseKillCommand('Stop-Process -Name "chrome" -Force');
     expect(result).not.toBeNull();
     expect(result!.name).toBe('chrome');
@@ -86,6 +91,7 @@ describe('parseKillCommand', () => {
   // ── kill scripts ───────────────────────────────────────────────────────
 
   it('parses kill script (.ps1)', () => {
+    if (!isWin) return; // .ps1 scripts are Windows-only
     const result = parseKillCommand('kill-process.ps1 -pid 1234');
     expect(result).not.toBeNull();
   });
@@ -96,11 +102,13 @@ describe('parseKillCommand', () => {
   });
 
   it('parses kill script (.bat)', () => {
+    if (!isWin) return; // .bat scripts are Windows-only
     const result = parseKillCommand('terminate-all.bat');
     expect(result).not.toBeNull();
   });
 
   it('parses kill script (.cmd)', () => {
+    if (!isWin) return; // .cmd scripts are Windows-only
     const result = parseKillCommand('stop-services.cmd');
     expect(result).not.toBeNull();
   });

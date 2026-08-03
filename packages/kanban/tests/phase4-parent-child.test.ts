@@ -157,10 +157,10 @@ describe('Phase 4: parent/child atomic gate', () => {
   });
 
   it('allows parent Done after all children are completed', async () => {
-    const { boardId, parentId } = await makeSplitParent();
+    const { boardId, parentId, childIds } = await makeSplitParent();
 
     // Fill children and complete them first.
-    for (const childId of childIds) {
+    for (const childId of childIds!) {
       await fillChildDetailsAndAdvanceToTodo(boardId, childId);
       await advanceToDone(boardId, childId);
     }

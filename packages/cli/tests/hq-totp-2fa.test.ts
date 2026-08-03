@@ -24,7 +24,7 @@ afterEach(async () => {
     await handle.close();
     handle = null;
   }
-  await fs.rm(dataDir, { recursive: true, force: true });
+  await fs.rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
 });
 
 const PASSWORD = 'secret123';
