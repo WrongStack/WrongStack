@@ -954,6 +954,17 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {
+      // Field 40 (showAgentSwarmPanel) is derived from panelPositions.fleet.
+      // When resetting it, also reset the fleet position so the two fields
+      // stay in sync — the settingsValueSet reducer derives showAgentSwarmPanel
+      // from panelPositions.fleet, so an explicit swarm value alone would be
+      // overridden if fleet is still 'sidebar'.
+      if (f === 40) {
+        return {
+          showAgentSwarmPanel: SETTINGS_DEFAULTS['showAgentSwarmPanel'],
+          panelPositions: { fleet: 'bottom' as const },
+        } as SettingsPickerPatch;
+      }
       return { [key]: SETTINGS_DEFAULTS[key] } as SettingsPickerPatch;
     }
   }

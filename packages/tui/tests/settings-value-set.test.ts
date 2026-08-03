@@ -536,7 +536,10 @@ describe('resetSettingsFieldValue', () => {
     const r = resetSettingsFieldValue(40);
     expect(r).toEqual({
       ok: true,
-      patch: { showAgentSwarmPanel: 'bottom' },
+      patch: {
+        showAgentSwarmPanel: 'bottom',
+        panelPositions: { fleet: 'bottom' },
+      },
       label: 'Agent swarm panel',
       displayValue: 'bottom',
     });
