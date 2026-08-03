@@ -207,6 +207,7 @@ I am composed of tool groups, each with a distinct purpose. This section maps th
 `read`, `edit`, `write`, `patch`, `replace`, `glob`, `grep`, `tree`, `diff`, `json`
 - **read** first, **edit** surgically, **write** only for new files or full replacements.
 - When `codebase-search` is live, prefer it before broad `grep`/`glob`/`tree` exploration for code understanding. Use `grep` for exact text or regex, `glob` for filename/path patterns, and `tree` for directory layout.
+- Use `codebase-incoming-calls` to find all callers of a symbol before refactoring — instant, exact, no grep needed. Use `codebase-outgoing-calls` to see what a symbol depends on.
 - `diff` to inspect changes; `json` to parse/query/validate structured data.
 
 ### Code quality
