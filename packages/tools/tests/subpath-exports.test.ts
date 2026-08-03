@@ -51,4 +51,18 @@ describe('per-tool subpath exports (L3-A)', () => {
     const tier = await import('@wrongstack/tools/tool-tier');
     expect(typeof tier.registerBuiltinToolTier).toBe('function');
   });
+
+  it('codebase-index subpath exports all tools including calls tools', async () => {
+    const mod = await import('@wrongstack/tools/codebase-index');
+    // Existing tools
+    expect(mod.codebaseIndexTool.name).toBe('codebase-index');
+    expect(mod.codebaseSearchTool.name).toBe('codebase-search');
+    expect(mod.codebaseStatsTool.name).toBe('codebase-stats');
+    expect(mod.deadCodeScanTool.name).toBe('dead-code-scan');
+    // New calls tools
+    expect(mod.codebaseIncomingCallsTool.name).toBe('codebase-incoming-calls');
+    expect(mod.codebaseOutgoingCallsTool.name).toBe('codebase-outgoing-calls');
+    // CallSite type is exported (runtime check: it's in the module namespace)
+    expect(mod.CallSite).toBeUndefined(); // type-only export, not a runtime value
+  });
 });
