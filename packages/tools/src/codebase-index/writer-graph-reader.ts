@@ -24,6 +24,11 @@ const MAX_SQL_VARS = 900;
 /**
  * Run a query that takes a list of IDs, chunking the IDs so the total
  * placeholder count never exceeds SQLite's variable limit.
+ *
+ * IMPORTANT: the SQL built by `buildSql` MUST NOT include a `LIMIT` clause.
+ * Applying LIMIT per-chunk would silently cap results at the chunk boundary
+ * rather than the caller's ceiling. Callers must slice the returned array
+ * to enforce their own limit after merge.
  */
 function chunkedIdQuery(
   stmt: PrepareStatement,
@@ -143,13 +148,13 @@ export function findIncomingCallsByName(
   // When `file` is scoped, skip the fallback — an unresolved to_name can't be
   // attributed to a specific file's symbol, so including it would leak callers
   // of same-named symbols in other files.
+  //
+  // The fallback is queried SEPARATELY from the chunked id-query. If it were
+  // baked into the chunked WHERE clause, every chunk would repeat the
+  // `OR (r.to_id IS NULL AND r.to_name = ?)` predicate and return the same
+  // unresolved-ref rows multiple times. Splitting eliminates the duplicate.
   const useFallback = !file;
-  const fallbackArgs = useFallback ? [symbolName] : [];
 
-  // Query without LIMIT — chunked execution would apply LIMIT per-chunk,
-  // leaking past the caller's ceiling. This fetches ALL matching refs then
-  // slices to `limit` after merge. Safe because callers cap at 200; a symbol
-  // with thousands of callers is rare and the limit protects memory.
   const rows = chunkedIdQuery(
     stmt,
     matchIds,
@@ -166,12 +171,44 @@ export function findIncomingCallsByName(
          r.line AS ref_line
        FROM refs r
        JOIN symbols s ON s.id = r.from_id
-       WHERE r.to_id IN (${ph})${useFallback ? ` OR (r.to_id IS NULL AND r.to_name = ?)` : ''}
+       WHERE r.to_id IN (${ph})
        ORDER BY r.line, r.id`,
-    fallbackArgs,
+    [],
   ) as CallSiteRow[];
 
-  const calls = rows.map(mapCallSiteRow).slice(0, limit);
+  if (useFallback) {
+    const fallbackRows = stmt(
+      `SELECT
+         s.id   AS sym_id,
+         s.name AS sym_name,
+         s.kind AS sym_kind,
+         s.lang AS sym_lang,
+         s.file AS sym_file,
+         s.line AS sym_line,
+         s.signature AS sym_signature,
+         r.call_type,
+         r.line AS ref_line
+       FROM refs r
+       JOIN symbols s ON s.id = r.from_id
+       WHERE r.to_id IS NULL AND r.to_name = ?
+       ORDER BY r.line, r.id`,
+    ).all(symbolName) as CallSiteRow[];
+    rows.push(...fallbackRows);
+  }
+
+  // Global sort after merge — each chunk sorts independently, so the merged
+  // array is not globally ordered. Dedup by (sym_id, ref_line, call_type)
+  // to remove potential overlaps from the fallback merge, then sort for determinism.
+  const seen = new Set<string>();
+  const deduped = rows.filter((r) => {
+    const key = `${r.sym_id}:${r.ref_line}:${r.call_type}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  deduped.sort((a, b) => a.ref_line - b.ref_line || a.sym_id - b.sym_id);
+
+  const calls = deduped.map(mapCallSiteRow).slice(0, limit);
   return { calls, symbolFound: true, ambiguous };
 }
 
@@ -200,7 +237,7 @@ export function findOutgoingCallsByName(
   // Query without LIMIT — chunked execution would apply LIMIT per-chunk,
   // leaking past the caller's ceiling. This fetches ALL matching refs then
   // slices to `limit` after merge. Safe because callers cap at 200; a symbol
-  // with thousands of callers is rare and the limit protects memory.
+  // with thousands of callees is rare and the limit protects memory.
   const rows = chunkedIdQuery(
     stmt,
     sourceIds,
@@ -222,6 +259,10 @@ export function findOutgoingCallsByName(
        ORDER BY r.line, r.id`,
     [],
   ) as CallSiteRow[];
+
+  // Global sort after merge — each chunk sorts independently, so the merged
+  // array is not globally ordered. Sort by ref_line then sym_id for determinism.
+  rows.sort((a, b) => a.ref_line - b.ref_line || a.sym_id - b.sym_id);
 
   const calls = rows.map(mapCallSiteRow).slice(0, limit);
   return { calls, symbolFound: true, unresolvedCount };

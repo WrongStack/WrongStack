@@ -285,3 +285,158 @@ describe('codebase-outgoing-calls tool', () => {
     expect(result.calls.length).toBeLessThanOrEqual(2);
   });
 });
+
+// ─── Chunked query & ambiguity tests ──────────────────────────────────────────
+
+describe('chunked query (900+ matching symbol IDs)', () => {
+  let tmpDir: string;
+  let ctx: Context;
+
+  beforeEach(async () => {
+    resetIndexStateForTesting();
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-cbchunk-'));
+    ctx = mkCtx(tmpDir);
+  });
+
+  afterEach(async () => {
+    indexStorePool.evict(tmpDir, path.join(tmpDir, '.codebase-index'));
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('handles incoming calls with 950+ duplicate symbols (exceeds MAX_SQL_VARS)', async () => {
+    // Create 950 files each defining `target()`, plus one file that calls it.
+    // This produces 950 symbol IDs for `target`, which exceeds MAX_SQL_VARS=900
+    // and forces chunkedIdQuery to split across two chunks.
+    const callers = Array.from({ length: 950 }, (_, i) =>
+      `export function target(): void { }`,
+    );
+    for (let i = 0; i < callers.length; i++) {
+      await fs.writeFile(path.join(tmpDir, `t-${i}.ts`), callers[i]!);
+    }
+    await fs.writeFile(
+      path.join(tmpDir, 'caller.ts'),
+      `import { target } from './t-0.js';\nfunction doCall(): void { target(); }`,
+    );
+    await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
+
+    const result = await codebaseIncomingCallsTool.execute({ symbol: 'target' }, ctx);
+
+    // Should find at least the one caller despite 950 symbol IDs
+    expect(result.total).toBeGreaterThanOrEqual(1);
+    expect(result.calls.some((c) => c.symbol.name === 'doCall')).toBe(true);
+  });
+
+  it('handles outgoing calls with 950+ matching source IDs', async () => {
+    // Create one hub function that calls `dep()`, then create 950 files
+    // also named `hub` so resolveSymbolIds returns 950+ IDs.
+    await fs.writeFile(
+      path.join(tmpDir, 'dep.ts'),
+      'export function dep(): void { }',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'hub-0.ts'),
+      `import { dep } from './dep.js';\nexport function hub(): void { dep(); }`,
+    );
+    for (let i = 1; i < 950; i++) {
+      await fs.writeFile(path.join(tmpDir, `hub-${i}.ts`), 'export function hub(): void { }');
+    }
+    await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
+
+    const result = await codebaseOutgoingCallsTool.execute({ symbol: 'hub' }, ctx);
+
+    // Should find the dep() callee despite 950 source IDs
+    expect(result.total).toBeGreaterThanOrEqual(1);
+    expect(result.calls.some((c) => c.symbol.name === 'dep')).toBe(true);
+  });
+});
+
+describe('ambiguous flag', () => {
+  let tmpDir: string;
+  let ctx: Context;
+
+  beforeEach(async () => {
+    resetIndexStateForTesting();
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-cbamb-'));
+    ctx = mkCtx(tmpDir);
+  });
+
+  afterEach(async () => {
+    indexStorePool.evict(tmpDir, path.join(tmpDir, '.codebase-index'));
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns ambiguous note when file-scoped name exists in multiple files', async () => {
+    // `dupName` defined in two files; caller only calls the a.ts version.
+    // When file=b.ts is specified, the tool detects ambiguity and warns.
+    await fs.writeFile(
+      path.join(tmpDir, 'a.ts'),
+      'export function dupName(): void { }',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'b.ts'),
+      'export function dupName(): void { }',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'caller.ts'),
+      `import { dupName } from './a.js';\nfunction doCall(): void { dupName(); }`,
+    );
+    await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
+
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'dupName', file: path.join(tmpDir, 'b.ts') },
+      ctx,
+    );
+
+    // Results should include callers (via name-level fallback)
+    expect(result.total).toBeGreaterThanOrEqual(1);
+    // Should carry an ambiguity warning note
+    expect(result.note).toBeDefined();
+    expect(result.note).toContain('multiple files');
+  });
+
+  it('does not set ambiguous note when name is unique', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'uniq.ts'),
+      'export function uniqName(): void { }',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'caller.ts'),
+      `import { uniqName } from './uniq.js';\nfunction doCall(): void { uniqName(); }`,
+    );
+    await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
+
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'uniqName', file: path.join(tmpDir, 'uniq.ts') },
+      ctx,
+    );
+
+    expect(result.total).toBeGreaterThanOrEqual(1);
+    // No ambiguity note — name is unique
+    expect(result.note).toBeUndefined();
+  });
+
+  it('does not set ambiguous note when file is not specified', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'a.ts'),
+      'export function multiName(): void { }',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'b.ts'),
+      'export function multiName(): void { }',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'caller.ts'),
+      `import { multiName } from './a.js';\nfunction doCall(): void { multiName(); }`,
+    );
+    await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
+
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'multiName' },
+      ctx,
+    );
+
+    expect(result.total).toBeGreaterThanOrEqual(1);
+    // No ambiguity note — no file scope requested
+    expect(result.note).toBeUndefined();
+  });
+});
