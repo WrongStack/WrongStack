@@ -1,15 +1,17 @@
+import { randomBytes } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
-import { randomBytes } from 'node:crypto';
 import type { Provider } from '@wrongstack/core/types';
-import type { WebSocket } from 'ws';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 
 const searchCodebaseIndex = vi.fn();
 
 vi.mock('@wrongstack/tools/codebase-index/index', () => ({
   searchCodebaseIndex,
   codebaseIndexTool: undefined as never,
+  codebaseIncomingCallsTool: undefined as never,
+  codebaseOutgoingCallsTool: undefined as never,
   codebaseSearchTool: undefined as never,
   codebaseStatsTool: undefined as never,
   deadCodeScanTool: undefined as never,

@@ -2,11 +2,11 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { builtinToolsPack } from '@wrongstack/tools';
+import { builtinToolsPack, TIER1_TOOLS } from '@wrongstack/tools';
 import { selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setupTools } from '../src/wiring/tools.js';
@@ -212,25 +212,10 @@ describe('token-saving measurement (empirical)', () => {
     const allNames = allTools.map((t) => t.name).sort();
     // Sanity: this codebase has grown beyond the original 36 tools. Whatever
     // the current number, canonical selection must respect the TIER1/2/3 split.
-    const tier1 = allTools.filter((t) =>
-      [
-        'read',
-        'write',
-        'edit',
-        'codebase-stats',
-        'codebase-search',
-        'codebase-index',
-        'bash',
-        'grep',
-        'glob',
-        'diff',
-        'patch',
-        'json',
-        'search',
-      ].includes(t.name),
-    );
-    expect(selectBuiltinToolsForTier('minimal', allTools)).toHaveLength(tier1.length);
-    expect(selectBuiltinToolsForTier('light', allTools)).toHaveLength(tier1.length);
+    const tier1Names = new Set(TIER1_TOOLS.map((tool) => tool.name));
+    const tier1 = allTools.filter((tool) => tier1Names.has(tool.name));
+    expect(selectBuiltinToolsForTier('minimal', allTools)).toEqual(tier1);
+    expect(selectBuiltinToolsForTier('light', allTools)).toEqual(tier1);
     // The medium tier includes TIER1 + TIER2; we don't pin the absolute count
     // (it grows as new tools are added) but it must be >= tier1 and > off's count - 1
     // (off minus TIER3-only tools).
