@@ -3,7 +3,7 @@
   "thresholdLines": 800,
   "files": {
     "packages/acp/src/agent/protocol-handler.ts": {
-      "lines": 1064,
+      "lines": 1075,
       "relativeImports": 2
     },
     "packages/acp/src/client/acp-session.ts": {
@@ -167,7 +167,7 @@
       "relativeImports": 6
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 936,
+      "lines": 937,
       "relativeImports": 13
     },
     "packages/core/src/hq/publisher.ts": {

@@ -1149,14 +1149,14 @@
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
       "sourceFiles": 6,
-      "sourceLines": 1237
+      "sourceLines": 1251
     },
     {
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8600
+      "sourceLines": 8618
     },
     {
       "directory": "infrastructure",
