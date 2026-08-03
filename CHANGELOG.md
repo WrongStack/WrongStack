@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- **Codebase-incoming-calls and codebase-outgoing-calls tools.** Two new Tier 1 builtin tools that query the SQLite index ref graph to find all callers (incoming) or callees (outgoing) of a named symbol. Both return enriched `CallSite` metadata (name, kind, file, line, signature, callType) and are threaded through all 7 dispatch layers (worker-protocol, index-service, background-indexer, worker, project-server, writer, writer-graph-reader). The tools use chunked SQL queries to stay under SQLite's 900-variable limit, return `{ symbolFound, ambiguous }` / `{ symbolFound, unresolvedCount, totalMatches }` so the agent can distinguish "symbol not in index" from "no callers", and include truncation indicators when results are capped. `incomingCallsService` and `outgoingCallsService` are exported from the public API for programmatic use. (`e1ef4fc0b`, `dcc3bf946`, `dc8a82383`, `89b1c5b57`, `e61515f33`)
 
 ## [0.298.3] — 2026-08-03
 
