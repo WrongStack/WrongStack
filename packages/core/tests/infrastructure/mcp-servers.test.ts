@@ -125,6 +125,28 @@ describe('built-in MCP server presets (V0-D)', () => {
     }
   });
 
+  it('project-scoped presets satisfy their child CLI required flags', () => {
+    // The shape contract above cannot detect a dead-on-arrival preset: a
+    // preset whose args the spawned binary rejects at startup (e.g. the
+    // mailbox CLI exits 2 without --actor). Pin each project-scoped
+    // binary's mandatory flags here.
+    const REQUIRED_ARGS: Record<string, string[]> = {
+      'wstack-requirement-intake-mcp': ['--project-root'],
+      'wstack-kanban-mcp': ['--project-root'],
+      'wstack-mailbox-mcp': ['--project-root', '--actor'],
+      'wstack-codebase-index-mcp': ['--project-root'],
+    };
+    for (const [label, factory] of presets) {
+      const cfg = factory();
+      const required = cfg.command ? REQUIRED_ARGS[cfg.command] : undefined;
+      if (!required) continue;
+      const args = cfg.args ?? [];
+      for (const flag of required) {
+        expect(args, `${label}: preset args must include required flag ${flag}`).toContain(flag);
+      }
+    }
+  });
+
   it('no preset embeds process.env API keys — prevents plaintext leakage to config files', () => {
     // Presets must not read process.env at definition time. API keys
     // should be configured by the user (encrypted via vault) and passed

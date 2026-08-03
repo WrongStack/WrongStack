@@ -239,7 +239,7 @@
       "relativeImports": 10
     },
     "packages/mcp/src/registry.ts": {
-      "lines": 1000,
+      "lines": 1032,
       "relativeImports": 17
     },
     "packages/plugins/src/secret-scanner/index.ts": {

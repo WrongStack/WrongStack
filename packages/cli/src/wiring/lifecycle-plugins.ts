@@ -344,11 +344,9 @@ export async function setupLifecycleAndPlugins(
     for (const cfg of Object.values(config.mcpServers ?? {})) {
       const preset = presets[cfg.name];
       const merged = preset ? { ...preset, ...cfg } : cfg;
-      try {
-        await mcpRegistry.start(merged);
-      } catch (err) {
+      void mcpRegistry.start(merged).catch((err) => {
         logger.warn(`MCP server "${cfg.name}" failed to start`, err);
-      }
+      });
     }
   }
   registerMcpObservability(healthRegistry, metricsSink, mcpRegistry);

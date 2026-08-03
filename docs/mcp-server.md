@@ -64,8 +64,10 @@ The bundled external-agent workflow is
 and event reconciliation.
 
 The built-in preset (`wstack mcp add mailbox`) spawns
-`wstack-mailbox-mcp --project-root . --writable` from the current working directory — send,
-receipts, and self-presence without `--admin` credential operations.
+`wstack-mailbox-mcp --project-root . --actor external-agent --writable` from the current working
+directory — send, receipts, and self-presence without `--admin` credential operations. `--actor`
+is required by the server; change the default `external-agent` identity in the server's args to a
+per-agent id so sends, receipts, and registration are attributed correctly.
 
 ### Project Codebase Index server
 

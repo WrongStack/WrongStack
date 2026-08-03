@@ -179,7 +179,7 @@ export class MCPRegistry {
     if (lazy) {
       await this.startLazy(slot);
     } else {
-      await this.attemptConnect(slot);
+      await this.singleFlightConnect(slot);
     }
   }
 
@@ -221,7 +221,24 @@ export class MCPRegistry {
     }
     // No cache — must connect once to discover the tool list, then it stays
     // connected and becomes eligible for idle auto-sleep.
-    await this.attemptConnect(slot);
+    await this.singleFlightConnect(slot);
+  }
+
+  private singleFlightConnect(slot: ServerSlot): Promise<MCPClient | undefined> {
+    if (slot.client && slot.state === 'connected') return Promise.resolve(slot.client);
+    if (slot.connecting) return slot.connecting;
+
+    const promise = (async () => {
+      try {
+        await this.attemptConnect(slot);
+        return slot.client;
+      } finally {
+        slot.connecting = undefined;
+      }
+    })();
+    slot.connecting = promise;
+
+    return promise;
   }
 
   /**
@@ -233,29 +250,20 @@ export class MCPRegistry {
     if (!slot) throw new Error(`MCP server "${name}" not registered`);
     slot.lastUsed = Date.now();
     if (slot.client && slot.state === 'connected') return slot.client;
-    if (slot.connecting) return slot.connecting;
     const waking = slot.state === 'dormant';
     if (waking) {
       slot.operations.wakeCount++;
       this.recordOperation(slot, 'wake', 'lazy-demand');
+      slot.attempts = 0;
+      slot.reconnectCycles = 0;
     }
-    slot.connecting = (async () => {
-      try {
-        // start fresh budget — a deliberate wake is not a crash-reconnect.
-        slot.attempts = 0;
-        slot.reconnectCycles = 0;
-        await this.attemptConnect(slot);
-        if (!slot.client) {
-          throw new Error(`MCP server "${name}" failed to connect on demand`);
-        }
-        slot.lastUsed = Date.now();
-        this.ensureIdleSweep();
-        return slot.client;
-      } finally {
-        slot.connecting = undefined;
-      }
-    })();
-    return slot.connecting;
+    const client = await this.singleFlightConnect(slot);
+    if (!client) {
+      throw new Error(`MCP server "${name}" failed to connect on demand`);
+    }
+    slot.lastUsed = Date.now();
+    this.ensureIdleSweep();
+    return client;
   }
 
   /**
@@ -326,6 +334,7 @@ export class MCPRegistry {
       clearTimeout(slot.reconnectTimer);
       slot.reconnectTimer = undefined;
     }
+    slot.state = 'disconnected';
     if (slot.client) {
       slot.client.removeExitListener(this.onChildExit);
       if (slot.onDisconnect) slot.client.removeDisconnectListener(slot.onDisconnect);
@@ -345,7 +354,6 @@ export class MCPRegistry {
     slot.prompts = undefined;
     // Full teardown — a future start()/restart() re-registers lazy wrappers.
     slot.registeredLazy = false;
-    slot.state = 'disconnected';
     this.recordOperation(slot, 'stop', 'manual');
     this.events.emit('mcp.server.disconnected', { name, reason: 'stop' });
   }
@@ -358,7 +366,11 @@ export class MCPRegistry {
     await this.stop(name);
     slot.attempts = 0;
     slot.reconnectCycles = 0; // user intent: start fresh
-    await this.attemptConnect(slot);
+    if (slot.lazy) {
+      await this.startLazy(slot);
+    } else {
+      await this.singleFlightConnect(slot);
+    }
   }
 
   list(): { name: string; state: ConnectionState; toolCount: number; tools: string[] }[] {
@@ -875,6 +887,9 @@ export class MCPRegistry {
     const MAX_ATTEMPTS = MCP_CONSTANTS.RECONNECT.MAX_ATTEMPTS;
     let attempt = 0;
     while (attempt < MAX_ATTEMPTS) {
+      if (this.servers.has(slot.cfg.name) && this.servers.get(slot.cfg.name) !== slot) {
+        return;
+      }
       attempt++;
       const startedAt = Date.now();
       slot.state = attempt === 1 ? 'connecting' : 'reconnecting';
@@ -908,6 +923,17 @@ export class MCPRegistry {
         client.addToolsChangedListener(this.onToolsChanged);
         this.addCatalogListeners(client);
         await client.connect();
+        if (
+          (slot.state as ConnectionState) === 'disconnected' ||
+          (this.servers.has(slot.cfg.name) && this.servers.get(slot.cfg.name) !== slot)
+        ) {
+          client.removeExitListener(this.onChildExit);
+          if (boundDisconnect) client.removeDisconnectListener(boundDisconnect);
+          client.removeToolsChangedListener(this.onToolsChanged);
+          this.removeCatalogListeners(client);
+          await client.close().catch(() => {});
+          return;
+        }
         // Close any prior client before swapping refs so the old transport
         // can release its abort controller, child process, and listeners
         // instead of being held until GC.
@@ -993,6 +1019,12 @@ export class MCPRegistry {
         }
         const delay = 500 * 2 ** attempt;
         await new Promise((r) => setTimeout(r, delay));
+        if (
+          (slot.state as ConnectionState) === 'disconnected' ||
+          (this.servers.has(slot.cfg.name) && this.servers.get(slot.cfg.name) !== slot)
+        ) {
+          return;
+        }
       }
     }
   }

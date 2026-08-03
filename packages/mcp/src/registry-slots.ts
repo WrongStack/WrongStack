@@ -32,7 +32,7 @@ export interface ServerSlot {
   /** Epoch ms of the last tool call — drives idle auto-sleep. */
   lastUsed: number;
   /** Single-flight guard so concurrent first-calls trigger only one connect. */
-  connecting?: Promise<MCPClient> | undefined;
+  connecting?: Promise<MCPClient | undefined> | undefined;
   /** Whether this lazy server's resolver wrappers are registered (register once). */
   registeredLazy: boolean;
   /** Bounded, payload-free operational telemetry for this server. */
