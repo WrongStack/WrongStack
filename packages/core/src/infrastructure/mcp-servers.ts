@@ -261,6 +261,10 @@ export const kanbanServer = (): MCPServerConfig => ({
  * project-scoped mailbox IPC owner (`wstack-mailbox-mcp`). The preset exposes
  * the writable tier (send, receipts, self-presence) but never `--admin`
  * (maintenance + credential operations).
+ *
+ * `--actor` is mandatory: the child CLI exits with code 2 without it. The
+ * default `external-agent` identity should be customized per external agent
+ * (it is the authoritative identity for sends, receipts, and registration).
  */
 export const mailboxServer = (): MCPServerConfig => ({
   name: 'mailbox',
@@ -268,7 +272,7 @@ export const mailboxServer = (): MCPServerConfig => ({
     'WrongStack Mailbox — read and send project agent mail (project-scoped, no admin/credentials)',
   transport: 'stdio',
   command: 'wstack-mailbox-mcp',
-  args: ['--project-root', '.', '--writable'],
+  args: ['--project-root', '.', '--actor', 'external-agent', '--writable'],
   permission: 'auto',
 });
 
