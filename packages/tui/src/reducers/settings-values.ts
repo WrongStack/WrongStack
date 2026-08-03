@@ -476,15 +476,23 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state,
           settingsPicker: { ...sp, showModelReasoning: !sp.showModelReasoning, hint: undefined },
         };
-      // Field 40: agent swarm panel placement (enum cycle: bottom → sidebar → off → bottom)
-      // Also syncs panelPositions.fleet so the per-panel map stays consistent
-      // with the legacy tri-state. Without this sync, the legacy field 40
-      // cycle would set showAgentSwarmPanel='sidebar' but panelPositions.fleet
-      // would remain 'bottom', causing a sticky-migration double-render.
+      // Field 40: agent swarm panel placement.
+      // This field is now a DERIVED view of panelPositions.fleet — cycling
+      // it directly updates panelPositions.fleet, and showAgentSwarmPanel
+      // is computed from the fleet position. The 'off' semantic is
+      // preserved via a separate hidden state: when the user cycles past
+      // 'sidebar', the fleet position stays 'bottom' but showAgentSwarmPanel
+      // becomes 'off' (hiding the persistent FleetPanel fallback).
       if (f === 40) {
+        const fleetPos = sp.panelPositions.fleet;
+        // Cycle: bottom → sidebar → off → bottom
+        // bottom = fleet:'bottom', showAgentSwarmPanel:'bottom'
+        // sidebar = fleet:'sidebar', showAgentSwarmPanel:'sidebar'
+        // off = fleet:'bottom', showAgentSwarmPanel:'off'
+        const currentDerived: 'bottom' | 'sidebar' | 'off' =
+          fleetPos === 'sidebar' ? 'sidebar' : sp.showAgentSwarmPanel;
         const SWARM_CYCLE = ['bottom', 'sidebar', 'off'] as const;
-        const current = sp.showAgentSwarmPanel as string;
-        const j = SWARM_CYCLE.indexOf(current as (typeof SWARM_CYCLE)[number]);
+        const j = SWARM_CYCLE.indexOf(currentDerived);
         const base = j < 0 ? 0 : j;
         const next =
           SWARM_CYCLE[(base + action.delta + SWARM_CYCLE.length) % SWARM_CYCLE.length] ?? 'bottom';
@@ -569,11 +577,26 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           PANEL_POSITION_CYCLE[
             (base + action.delta + PANEL_POSITION_CYCLE.length) % PANEL_POSITION_CYCLE.length
           ] ?? 'bottom';
+        // When the fleet panel changes, derive showAgentSwarmPanel so the
+        // two fields can't diverge: sidebar → 'sidebar', bottom → 'bottom'
+        // (preserving 'off' if the user explicitly hid the swarm).
+        const swarmSync =
+          panelId === 'fleet'
+            ? {
+                showAgentSwarmPanel:
+                  next === 'sidebar'
+                    ? ('sidebar' as const)
+                    : sp.showAgentSwarmPanel === 'off'
+                      ? ('off' as const)
+                      : ('bottom' as const),
+              }
+            : {};
         return {
           ...state,
           settingsPicker: {
             ...sp,
             panelPositions: { ...sp.panelPositions, [panelId]: next },
+            ...swarmSync,
             hint: undefined,
           },
         };
@@ -590,17 +613,30 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       // `buildResetPatch`) emit partial maps (single-key spreads) so unrelated
       // panels survive the slash command. The reducer deep-merges those
       // partials here rather than overwriting the whole map.
+      //
+      // When the merged result changes panelPositions.fleet, derive
+      // showAgentSwarmPanel from it so the two fields can't diverge:
+      //   fleet:'sidebar' → showAgentSwarmPanel:'sidebar'
+      //   fleet:'bottom'  → showAgentSwarmPanel stays as-is (could be 'off')
       const { panelPositions: panelPositionsPatch, ...restPatch } = action.patch;
       const mergedPanelPositions =
         panelPositionsPatch !== undefined
           ? { ...state.settingsPicker.panelPositions, ...panelPositionsPatch }
           : state.settingsPicker.panelPositions;
+      // Derive showAgentSwarmPanel from the merged fleet position.
+      const derivedSwarmMode: import('../app-settings-type.js').AgentSwarmPanelMode =
+        mergedPanelPositions.fleet === 'sidebar'
+          ? 'sidebar'
+          : state.settingsPicker.showAgentSwarmPanel === 'off'
+            ? 'off'
+            : 'bottom';
       return {
         ...state,
         settingsPicker: {
           ...state.settingsPicker,
           ...restPatch,
           ...(panelPositionsPatch !== undefined ? { panelPositions: mergedPanelPositions } : {}),
+          showAgentSwarmPanel: derivedSwarmMode,
           hint: undefined,
         },
       };
