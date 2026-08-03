@@ -51,7 +51,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       undici-types:
-        specifier: ^8.9.0
+        specifier: ^8.4.0
         version: 8.9.0
       vitest:
         specifier: ^4.1.10
