@@ -10,7 +10,7 @@
  */
 import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, GitBranch, Layers, UserRound, X } from 'lucide-react';
 import type React from 'react';
-import { type HqKanbanBoardView, type HqKanbanTaskView } from './kanban-model.js';
+import type { HqKanbanBoardView, HqKanbanTaskView } from './kanban-model.js';
 
 export interface HqKanbanInspectorProps {
   task: HqKanbanTaskView;
@@ -35,7 +35,7 @@ export function HqKanbanInspector({
   });
 
   return (
-    <aside className="hq-kanban-inspector" role="complementary" aria-label="Task detail">
+    <aside className="hq-kanban-inspector" aria-label="Task detail">
       <header className="hq-kanban-inspector-header">
         <div>
           <span className={`hq-pill ${task.status}`}>{task.status.replaceAll('_', ' ')}</span>

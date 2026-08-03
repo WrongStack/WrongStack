@@ -387,7 +387,7 @@ function TaskCard({
   onClick?: () => void;
 }): React.ReactElement {
   return (
-    <article
+    <div
       className="hq-kanban-task"
       data-priority={task.priority}
       data-selected={isSelected}
@@ -435,7 +435,7 @@ function TaskCard({
         ) : null}
         {task.status === 'completed' ? <CheckCircle2 size={13} className="is-done" /> : null}
       </footer>
-    </article>
+    </div>
   );
 }
 
