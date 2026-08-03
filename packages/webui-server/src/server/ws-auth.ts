@@ -28,15 +28,16 @@
  */
 import { Buffer } from 'node:buffer';
 import { timingSafeEqual } from 'node:crypto';
+import { isLoopbackHost as isLoopbackHostCore } from '@wrongstack/core/hq';
 
 /** A hostname that refers to the local machine. */
 export function isLoopbackHostname(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === '[::1]'
-  );
+  const normalized = hostname.toLowerCase();
+  if (normalized === 'localhost') return true;
+  // Delegate to core's authoritative isLoopbackHost which uses net.isIP()
+  // to validate the address and checks the full 127.0.0.0/8 block for IPv4
+  // and ::1 for IPv6.
+  return isLoopbackHostCore(normalized);
 }
 
 /** Effective port of a URL, filling in the protocol default when implicit. */
@@ -77,7 +78,7 @@ function isTrustedLoopbackOrigin(origin: string, hostHeader: string | undefined)
 
 /** True when the server is bound to a loopback interface (vs. LAN/0.0.0.0). */
 export function isLoopbackBind(wsHost: string): boolean {
-  return wsHost === '127.0.0.1' || wsHost === '::1' || wsHost === 'localhost';
+  return isLoopbackHostCore(wsHost) || wsHost === 'localhost';
 }
 
 /**
