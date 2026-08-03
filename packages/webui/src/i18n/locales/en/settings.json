@@ -188,7 +188,10 @@
     "sectionPricing": "Pricing (per 1M tokens, USD)",
     "tabForm": "Form",
     "tabRawJson": "Raw JSON",
-    "typeToSearch": "Type to search the catalog…"
+    "typeToSearch": "Type to search the catalog…",
+    "useModel": "Use {{model}}",
+    "usingModel": "Using {{model}}",
+    "filterPlaceholder": "Filter models…"
   },
   "mcp": {
     "status": {

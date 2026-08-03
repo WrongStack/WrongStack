@@ -19,6 +19,17 @@ export default defineConfig({
         replacement: path.resolve(__dirname, '../core/src/coordination/agents/index.ts'),
       },
       {
+        find: /^@wrongstack\/core\/models$/,
+        // ME-4: ModelSchemaEditor runtime-imports MODELS_DEV_MODALITY_VALUES +
+        // modelsDevModelSchema from the `@wrongstack/core/models` barrel, whose
+        // bundled dist/models/index.js pulls node:fs/promises + node:path into
+        // the browser. The schema module itself is browser-safe (zod + the
+        // import-free deep-merge helper); type-only barrel imports are erased
+        // before Vite resolves, so aliasing the subpath to the schema source
+        // is safe (same pattern as @wrongstack/core/utils/error below).
+        replacement: path.resolve(__dirname, '../core/src/models/models-dev-schema.ts'),
+      },
+      {
         find: /^@wrongstack\/core\/utils\/expect-defined$/,
         replacement: path.resolve(__dirname, '../core/src/utils/expect-defined.ts'),
       },

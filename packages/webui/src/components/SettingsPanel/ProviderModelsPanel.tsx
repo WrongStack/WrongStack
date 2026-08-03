@@ -1,7 +1,8 @@
 /**
  * `<ProviderModelsPanel>` — provider-row expansion that surfaces the
- * picked model id and a "Refresh from server" button that re-runs
- * the health probe and re-renders the model list inline.
+ * picked model id, a "Refresh from server" button that re-runs the
+ * health probe, and the ME-4 row-based `<ModelListEditor>` (allowlist
+ * table with add-from-catalog / add-custom / edit / remove / pick).
  *
  * Reachable from `<ProviderSection>` when a saved provider is
  * selected. The panel owns its own refresh state — multiple panels
@@ -9,16 +10,13 @@
  * independently.
  *
  */
-import { Check, ListChecks, Loader2, RefreshCw, Search } from 'lucide-react';
+import { ListChecks, Loader2, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
-import { usePagination } from '@/hooks/usePagination';
-import { cn } from '@/lib/utils';
 import type { WrongStackWebSocketClient } from '../../lib/ws-client';
 import type { WSServerMessage } from '../../types';
 import { toast } from '../Toaster';
 import { Button } from '../ui/button';
-import { Pagination } from '../ui/pagination';
 import { ClearAllowlistDialog } from './ClearAllowlistDialog';
 import {
   type RefreshState,
@@ -26,11 +24,10 @@ import {
   formatProbeResult,
   initialRefreshState,
   projectProbe,
-  selectModelList,
-  selectPickedModelId,
   shouldFireUndoToast,
   shouldOfferClear,
 } from './ProviderModelsPanel.filter';
+import { ModelListEditor } from './ModelListEditor';
 import { resolveUndoSend } from './undo-send-decision';
 
 export interface ProviderModelsPanelProps {
@@ -135,12 +132,17 @@ export function ProviderModelsPanel({
     ws.probeProvider(providerId, PROBE_TIMEOUT_MS);
   }, [ws, providerId]);
 
-  const onUseModel = useCallback(
-    (modelId: string) => {
+  /**
+   * Pick/pin handler passed to the model editor. Optimistically marks
+   * the local probe's `picked` state (like the legacy chip did) then
+   * forwards to the parent's persistence callback.
+   */
+  const handlePickModel = useCallback(
+    (providerId: string, modelId: string) => {
       setState((prev) => ({ ...prev, picked: modelId }));
       onPickModel?.(providerId, modelId);
     },
-    [onPickModel, providerId],
+    [onPickModel],
   );
 
   /**
@@ -204,28 +206,19 @@ export function ProviderModelsPanel({
     );
   }, [onClearModels, onUndoClear, ws, providerId, savedModels]);
 
+  // Header "Using" selection: user click (state.picked) > saved picked >
+  // first saved model. Deliberately does NOT use selectPickedModelId's
+  // probe-promotion branch (rule 2) — the editor below only renders
+  // savedModels, so a probe-only id would be highlighted with no row.
   const pickedId = useMemo(
-    () => selectPickedModelId(state, savedPickedModelId, savedModels),
-    [state, savedPickedModelId, savedModels],
+    () => state.picked ?? savedPickedModelId ?? savedModels?.[0] ?? '',
+    [state.picked, savedPickedModelId, savedModels],
   );
-  const modelList = useMemo(
-    () => selectModelList(state, savedModels),
-    [state, savedModels],
-  );
-  const [modelSearch, setModelSearch] = useState('');
-  const filteredList = useMemo(
-    () => (modelSearch
-      ? modelList.filter((id) => id.toLowerCase().includes(modelSearch.toLowerCase()))
-      : modelList),
-    [modelList, modelSearch],
-  );
-  const modelPage = usePagination(filteredList, 12, providerId);
   const formatted = useMemo(() => formatProbeResult(state), [state]);
   const offerClear = useMemo(
     () => shouldOfferClear(savedModels),
     [savedModels],
   );
-  const hasDenseModelList = modelList.length > 8;
 
   return (
     <div
@@ -239,9 +232,9 @@ export function ProviderModelsPanel({
               <ListChecks className="h-3.5 w-3.5" />
               {t('activity:providerModels.allowlistTitle')}
             </span>
-            {modelList.length > 0 && (
+            {savedModels && savedModels.length > 0 && (
               <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                {t('activity:providerModels.modelCount', { count: modelList.length })}
+                {t('activity:providerModels.modelCount', { count: savedModels.length })}
               </span>
             )}
           </div>
@@ -291,88 +284,16 @@ export function ProviderModelsPanel({
 
       <ProbeResultLine formatted={formatted} />
 
-      {modelList.length > 0 && (
-        <div className="relative mt-3">
-          {/* Search/filter input for dense model lists */}
-          {hasDenseModelList && (
-            <div className="relative mb-2">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
-              <input
-                type="text"
-                value={modelSearch}
-                onChange={(e) => { setModelSearch(e.target.value); modelPage.setPage(1); }}
-                placeholder={t('activity:providerModels.searchPlaceholder')}
-                className="h-8 w-full rounded-md border border-border/70 bg-background/60 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-          )}
-          <ul
-            className={cn(
-              'flex flex-wrap gap-1.5 pr-1 [scrollbar-gutter:stable]',
-              hasDenseModelList && 'max-h-40 overflow-y-scroll pb-7',
-            )}
-            data-provider-models-list={providerId}
-          >
-            {modelPage.pageItems.map((id) => {
-              const selected = id === pickedId;
-              const meta = savedCustomModels?.[id];
-              const displayName = meta?.name && meta.name !== id ? meta.name : id;
-              const caps = meta?.capabilities;
-              const metaParts: string[] = [];
-              if (caps?.maxContext) metaParts.push(`${(caps.maxContext / 1000).toFixed(0)}K ctx`);
-              if (meta?.maxOutput) metaParts.push(`${meta.maxOutput.toLocaleString()} out`);
-              if (caps?.tools) metaParts.push('tools');
-              if (caps?.vision) metaParts.push('vision');
-              if (caps?.reasoning) metaParts.push('reasoning');
-              return (
-                <li key={id} className="max-w-full">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!selected) onUseModel(id);
-                    }}
-                    disabled={selected}
-                    className={
-                      selected
-                        ? 'inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/25 bg-primary/10 px-2 py-1 text-left font-mono text-xs text-primary shadow-sm'
-                        : 'inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/70 bg-muted/25 px-2 py-1 text-left font-mono text-xs text-foreground/85 transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-primary'
-                    }
-                    aria-label={selected
-                      ? undefined
-                      : t('activity:providerModels.useModelAria', { model: id, provider: providerId })}
-                    title={metaParts.length > 0 ? `${displayName}\n${metaParts.join(' · ')}` : undefined}
-                  >
-                    {selected && <Check className="h-3.5 w-3.5 shrink-0" />}
-                    <span className="min-w-0 truncate">{displayName}</span>
-                    {metaParts.length > 0 && (
-                      <span className="shrink-0 border-l border-border/70 pl-1.5 font-sans text-[10px] text-muted-foreground">
-                        {metaParts.join(' · ')}
-                      </span>
-                    )}
-                    {!selected && metaParts.length === 0 && (
-                      <span className="shrink-0 border-l border-border/70 pl-1.5 font-sans text-[10px] font-semibold uppercase tracking-wide text-primary">
-                        {t('activity:providerModels.use')}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {hasDenseModelList && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 rounded-b-md bg-gradient-to-t from-background via-background/90 to-transparent" />
-          )}
-          <Pagination
-            page={modelPage.page}
-            pageSize={modelPage.pageSize}
-            totalItems={modelPage.totalItems}
-            onPageChange={modelPage.setPage}
-            className="mt-2"
-            compact
-            itemLabel="models"
-          />
-        </div>
-      )}
+      <div className="mt-3">
+        <ModelListEditor
+          providerId={providerId}
+          models={savedModels ?? []}
+          customModels={savedCustomModels}
+          ws={ws}
+          pickedModelId={pickedId ?? undefined}
+          onPickModel={handlePickModel}
+        />
+      </div>
 
       <ClearAllowlistDialog
         open={confirmOpen}

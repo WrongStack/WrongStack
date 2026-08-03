@@ -10,6 +10,7 @@
  */
 import {
   Brain,
+  Check,
   Clock,
   DollarSign,
   Eye,
@@ -18,6 +19,7 @@ import {
   Mic,
   Pencil,
   Plus,
+  Search,
   Trash2,
   Video,
   Wrench,
@@ -61,6 +63,16 @@ export interface ModelListEditorProps {
     modelsDev?: Record<string, unknown> | undefined;
   }> | undefined;
   ws: WrongStackWebSocketClient;
+  /**
+   * The currently pinned/picked model id (derived from `models[0]`).
+   * When set, the matching row is marked as the active model.
+   */
+  pickedModelId?: string | undefined;
+  /**
+   * Optional pick/pin action — mirrors the legacy "Use" chip. When
+   * omitted, rows render without a pick affordance (edit/remove only).
+   */
+  onPickModel?: ((providerId: string, modelId: string) => void) | undefined;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -121,13 +133,30 @@ const MODALITY_ICONS: Record<string, typeof Eye> = {
 
 // ── Component ───────────────────────────────────────────────────────────
 
-export function ModelListEditor({ providerId, models, customModels, ws }: ModelListEditorProps) {
+export function ModelListEditor({
+  providerId,
+  models,
+  customModels,
+  ws,
+  pickedModelId,
+  onPickModel,
+}: ModelListEditorProps) {
   const { t } = useAppTranslation();
   const [editingModel, setEditingModel] = useState<string | null>(null);
   const [showCatalogPicker, setShowCatalogPicker] = useState(false);
   const [showCustomEditor, setShowCustomEditor] = useState(false);
+  const [filter, setFilter] = useState('');
 
   const rows = useMemo(() => deriveRows(models, customModels), [models, customModels]);
+  const visibleRows = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (row) =>
+        row.modelId.toLowerCase().includes(q) ||
+        (row.name?.toLowerCase().includes(q) ?? false),
+    );
+  }, [rows, filter]);
 
   const handleRemove = useCallback(
     (modelId: string) => {
@@ -180,23 +209,37 @@ export function ModelListEditor({ providerId, models, customModels, ws }: ModelL
       </div>
 
       {/* Model table */}
-      {rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border border-border/70">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/70 bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colModel')}</th>
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colContext')}</th>
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colOutput')}</th>
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colCost')}</th>
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colModalities')}</th>
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colCaps')}</th>
-                <th className="px-3 py-2 font-medium">{t('settings:providerModels.colSource')}</th>
-                <th className="px-3 py-2" aria-label={t('settings:providerModels.colActions')} />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
+      {rows.length > 0 && (
+        <div className="overflow-hidden rounded-lg border border-border/70">
+          {rows.length > 8 && (
+            <div className="relative border-b border-border/40 bg-muted/10">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t('settings:providerModels.filterPlaceholder')}
+                aria-label={t('settings:providerModels.filterPlaceholder')}
+                className="h-8 w-full bg-transparent pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          )}
+          <div className="max-h-80 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/70 bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colModel')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colContext')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colOutput')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colCost')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colModalities')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colCaps')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colSource')}</th>
+                  <th className="px-3 py-2" aria-label={t('settings:providerModels.colActions')} />
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => {
                 const ctx = formatContext(row.modelsDev);
                 const maxOutputValue =
                   (row.maxOutput ??
@@ -293,6 +336,27 @@ export function ModelListEditor({ providerId, models, customModels, ws }: ModelL
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex justify-end gap-1">
+                          {onPickModel && (
+                            row.modelId === pickedModelId ? (
+                              <span
+                                className="inline-flex items-center rounded p-1 text-primary"
+                                title={t('settings:providerModels.usingModel', { model: row.modelId })}
+                                aria-label={t('settings:providerModels.usingModel', { model: row.modelId })}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onPickModel(providerId, row.modelId)}
+                                className="rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                                aria-label={t('settings:providerModels.useModel', { model: row.modelId })}
+                                title={t('settings:providerModels.useModel', { model: row.modelId })}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            )
+                          )}
                           <button
                             type="button"
                             onClick={() => setEditingModel(isEditing ? null : row.modelId)}
@@ -330,8 +394,10 @@ export function ModelListEditor({ providerId, models, customModels, ws }: ModelL
               })}
             </tbody>
           </table>
+          </div>
         </div>
-      ) : (
+      )}
+      {rows.length === 0 && (
         <div className="rounded-lg border border-dashed border-border/50 p-8 text-center">
           <p className="text-sm text-muted-foreground">
             {t('settings:providerModels.emptyState')}
