@@ -23,7 +23,7 @@ export interface ModelSchemaEditorProps {
   onCancel: () => void;
 }
 
-interface FormState {
+export interface FormState {
   id: string;
   name: string;
   description: string;
@@ -74,35 +74,63 @@ function toFormState(modelId: string, md: Record<string, unknown>): FormState {
   };
 }
 
-function buildPayload(fs: FormState): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+export function buildPayload(
+  fs: FormState,
+  initial: Record<string, unknown>,
+): Record<string, unknown> {
+  // Start from the current modelsDev so fields the form does not edit
+  // (reasoning_options, interleaved, status, experimental, cost.cache_*,
+  // unknown upstream keys) are preserved instead of silently dropped.
+  const out: Record<string, unknown> = { ...initial };
+
+  // Identity — empty strings mean "leave as-is" (delta semantics).
   if (fs.name) out['name'] = fs.name;
   if (fs.description) out['description'] = fs.description;
   if (fs.family) out['family'] = fs.family;
   if (fs.knowledge) out['knowledge'] = fs.knowledge;
 
+  // Limits — deep-merge so untouched sub-fields survive.
   const limit: Record<string, number> = {};
   if (fs.limitContext) { const n = Number(fs.limitContext); if (Number.isFinite(n) && n >= 0) limit['context'] = n; }
   if (fs.limitOutput) { const n = Number(fs.limitOutput); if (Number.isFinite(n) && n >= 0) limit['output'] = n; }
   if (fs.limitInput) { const n = Number(fs.limitInput); if (Number.isFinite(n) && n >= 0) limit['input'] = n; }
-  if (Object.keys(limit).length > 0) out['limit'] = limit;
+  if (Object.keys(limit).length > 0) {
+    out['limit'] = { ...((initial['limit'] as Record<string, unknown> | undefined) ?? {}), ...limit };
+  }
 
+  // Pricing — deep-merge so cache_read/cache_write/tiers survive.
   const cost: Record<string, number> = {};
   if (fs.costInput) { const n = Number(fs.costInput); if (Number.isFinite(n) && n >= 0) cost['input'] = n; }
   if (fs.costOutput) { const n = Number(fs.costOutput); if (Number.isFinite(n) && n >= 0) cost['output'] = n; }
-  if (Object.keys(cost).length > 0) out['cost'] = cost;
+  if (Object.keys(cost).length > 0) {
+    out['cost'] = { ...((initial['cost'] as Record<string, unknown> | undefined) ?? {}), ...cost };
+  }
 
   const mods: Record<string, string[]> = {};
   if (fs.inputModalities.length > 0) mods['input'] = fs.inputModalities;
   if (fs.outputModalities.length > 0) mods['output'] = fs.outputModalities;
-  if (Object.keys(mods).length > 0) out['modalities'] = mods;
+  if (Object.keys(mods).length > 0) {
+    out['modalities'] = {
+      ...((initial['modalities'] as Record<string, unknown> | undefined) ?? {}),
+      ...mods,
+    };
+  }
 
-  if (fs.toolCall) out['tool_call'] = true;
-  if (fs.reasoning) out['reasoning'] = true;
-  if (fs.temperature) out['temperature'] = true;
-  if (fs.attachment) out['attachment'] = true;
-  if (fs.structuredOutput) out['structured_output'] = true;
-  if (fs.openWeights !== undefined) out['open_weights'] = fs.openWeights;
+  // Capability flags — emit BOTH true and false, but only when the user
+  // actually changed the value, so turning OFF a catalog capability persists
+  // while untouched flags don't get clobbered into a delta.
+  const boolFields: Array<[keyof FormState, string]> = [
+    ['toolCall', 'tool_call'],
+    ['reasoning', 'reasoning'],
+    ['temperature', 'temperature'],
+    ['attachment', 'attachment'],
+    ['structuredOutput', 'structured_output'],
+    ['openWeights', 'open_weights'],
+  ];
+  for (const [field, key] of boolFields) {
+    const initialValue = initial[key] === true;
+    if (fs[field] !== initialValue) out[key] = fs[field];
+  }
 
   if (fs.releaseDate) out['release_date'] = fs.releaseDate;
   if (fs.lastUpdated) out['last_updated'] = fs.lastUpdated;
@@ -158,7 +186,7 @@ export function ModelSchemaEditor({
   );
 
   const handleFormSave = useCallback(() => {
-    const payload = buildPayload(form);
+    const payload = buildPayload(form, initialModelsDev);
     const result = modelsDevModelSchema.safeParse({ ...payload, id: form.id || modelId });
     if (!result.success) {
       setErrors(result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`));
@@ -166,7 +194,7 @@ export function ModelSchemaEditor({
     }
     setErrors([]);
     onSave(form.id || modelId, payload);
-  }, [form, modelId, onSave]);
+  }, [form, initialModelsDev, modelId, onSave]);
 
   const handleRawSave = useCallback(() => {
     try {

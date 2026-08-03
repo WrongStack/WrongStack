@@ -37,12 +37,18 @@ export function ModelCatalogPicker({ providerId, ws, onSelect, onClose }: ModelC
   const [results, setResults] = useState<CatalogMatch[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest query actually sent to the server; stale replies are ignored.
+  const inflightQueryRef = useRef('');
 
   // Listen for search results
   useEffect(() => {
     const off = ws.on('provider.models.search_result', (msg: WSServerMessage) => {
       if (msg.type !== 'provider.models.search_result') return;
-      setResults((msg.payload as { matches: CatalogMatch[] }).matches ?? []);
+      const payload = msg.payload as { query?: string; matches?: CatalogMatch[] };
+      // Correlate with the in-flight query — a slow reply to a previous
+      // search must not overwrite results for the current one.
+      if (payload.query !== undefined && payload.query !== inflightQueryRef.current) return;
+      setResults(payload.matches ?? []);
       setLoading(false);
     });
     return off;
@@ -53,8 +59,10 @@ export function ModelCatalogPicker({ providerId, ws, onSelect, onClose }: ModelC
     (q: string) => {
       if (!q.trim()) {
         setResults([]);
+        inflightQueryRef.current = '';
         return;
       }
+      inflightQueryRef.current = q;
       setLoading(true);
       ws.searchProviderModels(q, 8);
     },

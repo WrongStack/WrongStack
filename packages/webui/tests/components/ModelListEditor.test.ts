@@ -1,65 +1,66 @@
 import { describe, expect, it } from 'vitest';
+import { deriveRows, type ModelRowData } from '../../src/components/SettingsPanel/ModelListEditor';
 
 /**
  * ME-4 ModelListEditor helper tests.
  *
- * The component itself requires a full React Testing Library + WS mock
- * harness (planned for ME-4 follow-up). These tests cover the pure
- * data-shaping helpers that the component delegates to.
+ * Tests the real `deriveRows` helper exported from the component (not a
+ * re-implementation) — source classification, name fallback, and the
+ * maxOutput + modelsDev limit.output resolution chain.
  */
 
-describe('ME-4: ModelListEditor helpers', () => {
-  it('builds a merged models+customModels view with source classification', () => {
-    const models = ['gpt-4o', 'custom-model', 'catalog-only'];
-    const customModels = {
-      'gpt-4o': { name: 'GPT-4o Override', modelsDev: { limit: { context: 200_000 } } },
-      'custom-model': { name: 'My Custom' },
-    };
+type CustomModels = NonNullable<Parameters<typeof deriveRows>[1]>;
 
-    // Simulate the row-building logic
-    const rows = models.map((id) => {
-      const cm = customModels[id];
-      const hasCatalogOverride = cm?.modelsDev !== undefined;
-      const isCustom = cm !== undefined && !hasCatalogOverride;
-      return {
-        id,
-        name: cm?.name ?? cm?.modelsDev?.['name'] ?? id,
-        source: hasCatalogOverride ? 'overridden' : isCustom ? 'custom' : 'catalog',
-      };
-    });
+function rows(
+  models: string[],
+  customModels: CustomModels = undefined,
+): ModelRowData[] {
+  return deriveRows(models, customModels);
+}
 
-    expect(rows).toEqual([
-      { id: 'gpt-4o', name: 'GPT-4o Override', source: 'overridden' },
-      { id: 'custom-model', name: 'My Custom', source: 'custom' },
-      { id: 'catalog-only', name: 'catalog-only', source: 'catalog' },
+describe('ME-4: deriveRows', () => {
+  it('classifies catalog models without overrides as "catalog"', () => {
+    const out = rows(['gpt-4o', 'gpt-4o-mini']);
+    expect(out).toEqual([
+      { modelId: 'gpt-4o', name: 'gpt-4o', source: 'catalog', maxOutput: undefined, capabilities: undefined, modelsDev: undefined },
+      { modelId: 'gpt-4o-mini', name: 'gpt-4o-mini', source: 'catalog', maxOutput: undefined, capabilities: undefined, modelsDev: undefined },
     ]);
   });
 
-  it('classifies source correctly for edge cases', () => {
-    // No customModels at all → all catalog
-    expect(
-      ['m1', 'm2'].map((id) => ({
-        id,
-        source: 'catalog',
-      })),
-    ).toHaveLength(2);
-
-    // customModels with only legacy fields (no modelsDev) → custom
-    const cm = { name: 'Legacy', maxOutput: 4096 };
-    expect(cm.modelsDev).toBeUndefined();
-    expect(cm.name).toBe('Legacy');
+  it('classifies models with a customModels entry as "overridden" and prefers its name', () => {
+    const out = rows(
+      ['gpt-4o'],
+      { 'gpt-4o': { name: 'My GPT-4o', maxOutput: 16_384 } } as CustomModels,
+    );
+    expect(out[0]?.source).toBe('overridden');
+    expect(out[0]?.name).toBe('My GPT-4o');
+    expect(out[0]?.maxOutput).toBe(16_384);
   });
 
-  it('modelsDev payload survives serialization round-trip', () => {
-    const payload = {
-      name: 'Test Model',
-      limit: { context: 128_000, output: 16_384 },
-      cost: { input: 3, output: 15 },
-      modalities: { input: ['text', 'image'], output: ['text'] },
-      tool_call: true,
-      reasoning: true,
-    };
-    const serialized = JSON.parse(JSON.stringify(payload));
-    expect(serialized).toEqual(payload);
+  it('resolves name and maxOutput from modelsDev when legacy fields are absent', () => {
+    const out = rows(
+      ['acme-pro'],
+      {
+        'acme-pro': {
+          modelsDev: {
+            name: 'Acme Pro',
+            limit: { context: 500_000, output: 64_000 },
+          },
+        },
+      } as CustomModels,
+    );
+    expect(out[0]?.name).toBe('Acme Pro');
+    expect(out[0]?.source).toBe('overridden');
+    expect(out[0]?.modelsDev?.['limit']).toMatchObject({ output: 64_000 });
+  });
+
+  it('prefers the legacy maxOutput over modelsDev.limit.output', () => {
+    const out = rows(
+      ['m1'],
+      {
+        m1: { maxOutput: 4096, modelsDev: { limit: { context: 128_000, output: 8192 } } },
+      } as CustomModels,
+    );
+    expect(out[0]?.maxOutput).toBe(4096);
   });
 });

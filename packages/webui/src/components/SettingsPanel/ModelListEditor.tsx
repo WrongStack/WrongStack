@@ -23,7 +23,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { WrongStackWebSocketClient } from '../../lib/ws-client';
@@ -65,7 +65,7 @@ export interface ModelListEditorProps {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-function deriveRows(
+export function deriveRows(
   models: string[],
   customModels: ModelListEditorProps['customModels'],
 ): ModelRowData[] {
@@ -79,7 +79,11 @@ function deriveRows(
       modelsDev: md,
       maxOutput: cm?.maxOutput ?? (md?.['limit'] as Record<string, unknown> | undefined)?.['output'] as number | undefined,
       capabilities: cm?.capabilities as ModelRowData['capabilities'],
-      source: hasOverrides ? 'overridden' : 'custom',
+      // A model with an override entry is "overridden"; without any entry it
+      // is a plain catalog model. (The editor does not distinguish user-created
+      // custom models from catalog models at this layer — the distinction
+      // lives in whether a customModels entry exists at all.)
+      source: hasOverrides ? 'overridden' : 'catalog',
     };
   });
 }
@@ -194,15 +198,19 @@ export function ModelListEditor({ providerId, models, customModels, ws }: ModelL
             <tbody>
               {rows.map((row) => {
                 const ctx = formatContext(row.modelsDev);
-                const out = row.maxOutput?.toLocaleString() ?? (row.modelsDev?.['limit'] as Record<string, unknown> | undefined)?.['output'] as number | undefined;
+                const maxOutputValue =
+                  (row.maxOutput ??
+                  ((row.modelsDev?.['limit'] as Record<string, unknown> | undefined)?.['output'] as
+                    | number
+                    | undefined));
+                const out = typeof maxOutputValue === 'number' ? maxOutputValue.toLocaleString() : undefined;
                 const cost = formatCost(row.modelsDev);
                 const mods = getModalities(row.modelsDev);
                 const caps = row.capabilities;
                 const isEditing = editingModel === row.modelId;
                 return (
-                  <>
+                  <Fragment key={row.modelId}>
                     <tr
-                      key={row.modelId}
                       className="border-b border-border/40 transition-colors hover:bg-muted/20"
                     >
                       <td className="px-3 py-2">
@@ -226,7 +234,7 @@ export function ModelListEditor({ providerId, models, customModels, ws }: ModelL
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
-                        {typeof out === 'number' ? out.toLocaleString() : <span className="text-muted-foreground/40">—</span>}
+                        {out ? <span>{out}</span> : <span className="text-muted-foreground/40">—</span>}
                       </td>
                       <td className="px-3 py-2 text-xs">
                         {cost.input || cost.output ? (
@@ -317,7 +325,7 @@ export function ModelListEditor({ providerId, models, customModels, ws }: ModelL
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
