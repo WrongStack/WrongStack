@@ -1,4 +1,4 @@
-import type { Request } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { OpenCodeGoProvider } from '../src/opencode-go.js';
 
@@ -18,6 +18,24 @@ async function drain(provider: OpenCodeGoProvider, req: Request): Promise<void> 
   })) {
     // Routing/body assertions inspect the captured fetch call.
   }
+}
+
+function sseBody(events: string): ReadableStream<Uint8Array> {
+  const enc = new TextEncoder();
+  return new ReadableStream({
+    pull(c) {
+      c.enqueue(enc.encode(events));
+      c.close();
+    },
+  });
+}
+
+function sseFetch(events: string): typeof fetch {
+  return (async () =>
+    new Response(sseBody(events), {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    })) as never as typeof fetch;
 }
 
 describe('OpenCodeGoProvider', () => {
@@ -74,5 +92,48 @@ describe('OpenCodeGoProvider', () => {
     const qwenThinking = bodies[1]?.['thinking'] as Record<string, unknown> | undefined;
     expect(qwenThinking?.['budget_tokens']).toBeGreaterThan(0);
     expect(bodies[2]).not.toHaveProperty('thinking');
+  });
+
+  it('synthesizes a terminal message_stop when Zen closes the chat stream without [DONE]/finish_reason', async () => {
+    // OpenCode Go's chat-completions surface ends successful streams with no
+    // terminal marker — previously this raised the retryable 599 truncation
+    // error on every response. The stream must complete cleanly instead.
+    const sse = [
+      'data: {"id":"x","model":"grok-4.5","choices":[{"index":0,"delta":{"content":"Hello"}}]}',
+      '',
+      'data: {"id":"x","choices":[{"index":0,"delta":{"content":" world"}}]}',
+      '',
+    ].join('\n');
+    const provider = new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl: sseFetch(sse) });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.stream(request('grok-4.5'), {
+      signal: new AbortController().signal,
+    })) {
+      events.push(event);
+    }
+
+    const text = events
+      .filter((e): e is Extract<StreamEvent, { type: 'text_delta' }> => e.type === 'text_delta')
+      .map((e) => e.text)
+      .join('');
+    expect(text).toBe('Hello world');
+    const stop = events.at(-1);
+    expect(stop?.type).toBe('message_stop');
+    expect(stop?.type === 'message_stop' ? stop.stopReason : undefined).toBe('end_turn');
+  });
+
+  it('complete() folds an unterminated chat stream into a clean Response', async () => {
+    const sse = [
+      'data: {"id":"x","model":"grok-4.5","choices":[{"index":0,"delta":{"content":"done"}}]}',
+      '',
+    ].join('\n');
+    const provider = new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl: sseFetch(sse) });
+
+    const res = await provider.complete(request('grok-4.5'), {
+      signal: new AbortController().signal,
+    });
+    expect(res.content).toEqual([{ type: 'text', text: 'done' }]);
+    expect(res.stopReason).toBe('end_turn');
   });
 });

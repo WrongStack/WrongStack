@@ -17,4 +17,14 @@ export interface CompatibilityQuirks {
    * tools than it can handle. See {@link filterToolsByMaxCount}.
    */
   maxTools?: number | undefined;
+  /**
+   * Some gateways (OpenCode Go Zen, terse local proxies) close a successful
+   * chat-completions SSE stream without a `[DONE]` marker or a final
+   * `finish_reason` chunk. When set, a started stream that ends without a
+   * terminal marker is treated as cleanly finished — `parseOpenAIStream`
+   * synthesizes the terminal `message_stop` instead of raising the retryable
+   * 599 `stream_hang` truncation error. Off by default so compliant
+   * endpoints still surface genuine mid-stream cuts.
+   */
+  tolerateMissingTerminalMarker?: boolean | undefined;
 }

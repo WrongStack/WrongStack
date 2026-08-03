@@ -188,6 +188,27 @@ describe('OpenAIProvider.stream', () => {
     expect((caught as { retryable?: boolean }).retryable).toBe(true);
   });
 
+  it('tolerates a missing terminal marker when the tolerateMissingTerminalMarker quirk is set', async () => {
+    // Opt-in escape hatch for gateways that close successful streams without
+    // [DONE]/finish_reason (OpenCode Go Zen). The same unterminated stream
+    // must synthesize a clean message_stop instead of throwing.
+    const sse = [
+      'data: {"id":"x","model":"gpt-test","choices":[{"index":0,"delta":{"content":"done"}}]}',
+      '',
+    ].join('\n');
+    const provider = new OpenAIProvider({
+      apiKey: 'k',
+      fetchImpl: mockFetch(sseBody(sse)),
+      quirks: { tolerateMissingTerminalMarker: true },
+    });
+    const res = await provider.complete(
+      { model: 'gpt-test', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100 },
+      { signal: new AbortController().signal },
+    );
+    expect(res.content).toEqual([{ type: 'text', text: 'done' }]);
+    expect(res.stopReason).toBe('end_turn');
+  });
+
   it('splits DeepSeek cache hit and miss tokens for pricing', async () => {
     const sse = [
       'data: {"id":"x","model":"deepseek-chat","choices":[{"index":0,"delta":{"content":"ok"}}]}',

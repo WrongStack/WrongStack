@@ -18,6 +18,7 @@ const VALID_QUIRK_KEYS = new Set<keyof CompatibilityQuirks>([
   'thinkingParam',
   'stripThinkTags',
   'maxTools',
+  'tolerateMissingTerminalMarker',
 ]);
 
 export function isCompatibilityQuirks(value: unknown): value is CompatibilityQuirks {

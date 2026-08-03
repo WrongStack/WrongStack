@@ -71,6 +71,11 @@ export class OpenCodeGoProvider implements Provider {
       baseUrl,
       headers: opts.headers,
       fetchImpl: opts.fetchImpl,
+      // OpenCode Go's Zen chat-completions surface closes successful streams
+      // without a `[DONE]` marker or a final `finish_reason` chunk. Tolerate
+      // the missing terminal marker so complete responses are not raised as
+      // retryable 599 truncation errors.
+      quirks: { tolerateMissingTerminalMarker: true },
     }, this.models);
     this.messages = new OpenCodeGoMessagesProvider({
       id: this.id,

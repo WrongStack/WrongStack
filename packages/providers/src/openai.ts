@@ -38,6 +38,7 @@ export interface OpenAIProviderOptions {
     thinkingParam?: 'zai-glm' | 'kimi-toggle' | 'always-on' | undefined;
     stripThinkTags?: boolean | undefined;
     maxTools?: number | undefined;
+    tolerateMissingTerminalMarker?: boolean | undefined;
   } | undefined;
   id?: string | undefined;
   capabilities?: Partial<Capabilities> | undefined;
@@ -150,6 +151,7 @@ export class OpenAIProvider extends WireAdapter {
     return parseOpenAIStream(body, fallbackModel, {
       stripThinkTags: this.opts.quirks?.stripThinkTags,
       providerId: this.id,
+      tolerateMissingTerminalMarker: this.opts.quirks?.tolerateMissingTerminalMarker,
     });
   }
 
@@ -309,7 +311,11 @@ type Response2Body = ReadableStream<Uint8Array> | NodeJS.ReadableStream | null;
 async function* parseOpenAIStream(
   body: Response2Body,
   fallbackModel: string,
-  opts?: { stripThinkTags?: boolean | undefined; providerId?: string | undefined },
+  opts?: {
+    stripThinkTags?: boolean | undefined;
+    providerId?: string | undefined;
+    tolerateMissingTerminalMarker?: boolean | undefined;
+  },
 ): AsyncIterable<StreamEvent> {
   let model = fallbackModel;
   let usage: Usage = { input: 0, output: 0 };
@@ -548,6 +554,14 @@ async function* parseOpenAIStream(
     // Content arrived, then the upstream closed with no `[DONE]` and no
     // `finish_reason` — a clean proxy/LB idle-timeout FIN. Surface a retryable
     // error rather than committing the truncated text as a finished turn.
+    if (opts?.tolerateMissingTerminalMarker) {
+      // Gateways such as OpenCode Go Zen close a *successful* chat-completions
+      // stream without a terminal marker. Synthesize the normal completion so
+      // the turn is committed instead of failing every response; tool calls
+      // were already emitted above.
+      yield { type: 'message_stop', stopReason, usage };
+      return;
+    }
     throw new ProviderError(
       'Provider stream ended without a terminal marker ([DONE]/finish_reason) — response truncated mid-stream',
       599,
