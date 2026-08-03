@@ -232,6 +232,7 @@ jobs:
 
   test:
     name: Test (Vitest + 100% coverage)
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -250,6 +251,20 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Download verified build artifacts so workspace dist/ folders exist
+      # before the coverage run. Without this, 257+ test files that import
+      # @wrongstack/webui-server, @wrongstack/mcp, etc. fail with
+      # "Failed to resolve entry for package" because those packages'
+      # dist/ directories don't exist in a clean checkout.
+      - name: Download verified build lineage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wrongstack-build-${{ github.sha }}
+          path: .
+
+      - name: Verify artifact lineage
+        run: pnpm check:build-manifest
 
       - name: Architecture and runtime-test inventory
         run: pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips
