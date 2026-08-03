@@ -447,6 +447,12 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       }
       if (!cfg.customModels) cfg.customModels = {};
       cfg.customModels[modelId] = definition;
+      // ME-3 follow-up: keep the models[] allowlist in sync so a newly
+      // added custom model is visible in pickers/providers.saved and an
+      // existing one stays listed. Add when absent; never remove here
+      // (set is upsert, not delete).
+      if (!cfg.models) cfg.models = [];
+      if (!cfg.models.includes(modelId)) cfg.models.push(modelId);
       await saveConfigProviders(providers);
       sendOperationResult(ws, true, `Saved model "${modelId}" for ${providerId}`);
       broadcastSaved(providers);
@@ -471,6 +477,12 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       if (cfg.customModels && Object.hasOwn(cfg.customModels, modelId)) {
         delete cfg.customModels[modelId];
         if (Object.keys(cfg.customModels).length === 0) delete cfg.customModels;
+        // ME-3 follow-up: keep the models[] allowlist in sync — a removed
+        // custom model should no longer appear in pickers/providers.saved.
+        if (cfg.models) {
+          cfg.models = cfg.models.filter((m) => m !== modelId);
+          if (cfg.models.length === 0) delete cfg.models;
+        }
         await saveConfigProviders(providers);
         sendOperationResult(ws, true, `Removed model "${modelId}" from ${providerId}`);
         broadcastSaved(providers);
