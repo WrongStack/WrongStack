@@ -614,22 +614,31 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       // panels survive the slash command. The reducer deep-merges those
       // partials here rather than overwriting the whole map.
       //
-      // When the merged result changes panelPositions.fleet, derive
+      // When the merged result changes panelPositions.fleet AND the patch
+      // does NOT explicitly set showAgentSwarmPanel, derive
       // showAgentSwarmPanel from it so the two fields can't diverge:
       //   fleet:'sidebar' → showAgentSwarmPanel:'sidebar'
       //   fleet:'bottom'  → showAgentSwarmPanel stays as-is (could be 'off')
-      const { panelPositions: panelPositionsPatch, ...restPatch } = action.patch;
+      // An explicit showAgentSwarmPanel in the patch (e.g. resetSettingsFieldValue
+      // for field 40) takes priority and is not overridden.
+      const { panelPositions: panelPositionsPatch, showAgentSwarmPanel: swarmPatch, ...restPatch } =
+        action.patch;
       const mergedPanelPositions =
         panelPositionsPatch !== undefined
           ? { ...state.settingsPicker.panelPositions, ...panelPositionsPatch }
           : state.settingsPicker.panelPositions;
-      // Derive showAgentSwarmPanel from the merged fleet position.
+      // Derive showAgentSwarmPanel from the merged fleet position ONLY
+      // when the patch doesn't explicitly set it. Guard against undefined
+      // fleet (merged map may not have it in edge cases like test fixtures).
+      const fleetPos = (mergedPanelPositions as Record<string, unknown>)?.fleet;
       const derivedSwarmMode: import('../app-settings-type.js').AgentSwarmPanelMode =
-        mergedPanelPositions.fleet === 'sidebar'
-          ? 'sidebar'
-          : state.settingsPicker.showAgentSwarmPanel === 'off'
-            ? 'off'
-            : 'bottom';
+        swarmPatch !== undefined
+          ? swarmPatch
+          : fleetPos === 'sidebar'
+            ? 'sidebar'
+            : state.settingsPicker.showAgentSwarmPanel === 'off'
+              ? 'off'
+              : 'bottom';
       return {
         ...state,
         settingsPicker: {

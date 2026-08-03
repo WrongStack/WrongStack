@@ -163,35 +163,17 @@ export function isMailboxMessageVisibleTo(
 /**
  * True when the message carries any session-affinity token at all.
  *
- * Uses `!== undefined` — NOT `!= null` — because the SQLite read path
+ * Uses `!== undefined` (NOT `!= null`) because the SQLite read path
  * (`sqlite-mailbox-rows.ts`) does an unvalidated `JSON.parse(row.data)
  * as MailboxMessage` cast, which can surface a malformed persisted row
  * carrying `sessionAffinity: null`. Treating `null` as "absent" (accept)
  * would let malformed affinity-bearing messages bypass the filter.
  * Instead, `null` falls through to the token-bearing code path where
- * `affinity.sessionId` access on a `null` is caught by the caller's
- * try/catch and fails closed.
+ * the shape guard (in each caller) catches non-object values and
+ * fails closed.
  *
- * Callers that access `message.sessionAffinity!.sessionId` after this
- * check must guard against non-object shapes (null, arrays, primitives).
- */
-/**
- * True when the message carries any session-affinity token at all.
- *
- * Strict `!== undefined`: a null token is deliberately treated as absent
- * (no token at all) and the message is accepted by the rule-1 short
- * circuit. This avoids a TypeError dereference at rule 3 on malformed
- * SQLite-hydrated rows — `sqlite-mailbox-rows.ts` decodes the `data` JSON
- * column via `JSON.parse(row.data) as MailboxMessage` without per-field
- * validation, so a persisted `sessionAffinity: null` (or any other
- * non-object shape) reaches the filter directly. A `!= null` guard
- * would treat a `null` token as a presence signal and short-circuit the
- * filter into the per-field access path; with no per-field validator
- * present, that would throw. The strict `!== undefined` guard keeps the
- * rule chain safe by routing any malformed token to "absent → accept",
- * which is the documented fail-open for unrecognised sender-side
- * payloads (the boundary codec rejects malformed tokens; the receiver
- * filter accepts null/absent as "no token").
+ * Callers that access `message.sessionAffinity!` after this check
+ * must guard against non-object shapes (null, arrays, primitives).
  */
 function isAffectedBySessionAffinity(message: Pick<MailboxMessage, 'sessionAffinity'>): boolean {
   return message.sessionAffinity !== undefined;
@@ -313,9 +295,11 @@ export async function acceptMailboxMessageForSession(
   // present. Narrow the type for the rest of the rule.
   const affinity = message.sessionAffinity!;
   // Guard against malformed persisted shapes (null, array, primitive)
-  // that bypass the codec on the SQLite read path. Fail closed.
+  // that bypass the codec on the SQLite read path. Always fail closed
+  // — even if allowUnscoped is true, a malformed token is evidence of
+  // data corruption, not a legacy unscoped message.
   if (affinity === null || typeof affinity !== 'object' || Array.isArray(affinity)) {
-    return ctx?.allowUnscoped === true ? true : false;
+    return false;
   }
   if (!currentSessionId) {
     // No session id known — fall back to the legacy opt-in flag rather than
@@ -376,8 +360,9 @@ export function acceptMailboxMessageForSessionSync(
   if (!isAffectedBySessionAffinity(message)) return true;
   const affinity = message.sessionAffinity!;
   // Guard against malformed persisted shapes (null, array, primitive).
+  // Always fail closed — see async helper for rationale.
   if (affinity === null || typeof affinity !== 'object' || Array.isArray(affinity)) {
-    return ctx?.allowUnscoped === true ? true : false;
+    return false;
   }
   if (!currentSessionId) {
     return ctx?.allowUnscoped === true;
