@@ -28,7 +28,7 @@ Brain-governed policy decisions, and collaborative debugging — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
 links every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **58 built-in tools**, **23 skills**, **73 managed first-party
+It ships with **59 built-in tools**, **29 bundled skills**, **73 managed first-party
 plugin rows**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
@@ -36,15 +36,15 @@ boots fully offline with `--no-features`.
 **Built from scratch, stands on its own.** WrongStack is not a plugin layer or an
 orchestration kit bolted onto another coding tool — it's a complete agent written
 top to bottom: its own compact kernel, its own provider transports (4 wire
-families, real SSE), its own 58-tool executor, permission policy, memory system,
+families, real SSE), its own 59-tool executor, permission policy, memory system,
 and multi-agent runtime. Nothing here wraps a third-party CLI; everything works
 standalone, and `--no-features` even runs it fully offline.
 
 ### The scale of it
 
 Not a thin wrapper — a real engine. To put it in perspective: the codebase spans
-**20 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
-thousands of tests** guarding it. You get **58 built-in tools**, a **47-role agent
+**27 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
+thousands of tests** guarding it. You get **59 built-in tools**, a **47-role agent
 roster**, **~140 providers**, and **six surfaces** — all sharing **one compact
 kernel** (~1,670 lines) that boots **fully offline** with `--no-features`.
 
@@ -52,21 +52,24 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.296.3
+### What's new in 0.298.3
 
-- **One owner per project service.** Mailbox, Kanban, Chronicle, Codebase Index,
-  and SAGE coordinate through deterministic local IPC endpoints instead of
-  letting every client open the underlying stores.
-- **SQLite-backed coordination.** The Mailbox owner is authoritative for
-  `_mailbox.sqlite`; Kanban uses `.wrongstack/kanbans/_kanban.sqlite`; Chronicle
-  keeps its hash-chained journal in SQLite with transactional legacy import.
-- **Better visibility and interaction.** `/connections` exposes service health
-  in the TUI, retained and streaming boxes are copyable, and prompt refinement
-  has a configurable grace countdown across TUI, WebUI, and SimpleUI.
-- **SAGE anywhere.** `wstack-sage-mcp` exposes the project memory service to MCP
-  clients with a read-only default and an explicit `--writable` mode.
+- **Model management that keeps full provider schemas intact.** Add catalog or
+  custom models, filter and select the active model, edit models.dev fields
+  inline, remove overrides, or reset to catalog from the WebUI and TUI. Model
+  deltas are schema-validated, and `config.models` remains the authoritative
+  override layer for matching ids.
+- **Arrange the TUI around your work.** Route any F-key panel or Connections
+  between the lower region and the right sidebar. The sidebar is a layered
+  mission-control rail and deterministically shows up to six routed open panels.
+- **Faster, clearer SAGE upkeep.** Git-backed memory anchors verify in batches,
+  while review candidates retain typed target, reason, and suggested-action
+  metadata instead of embedding control data in tags.
+- **Tighter state and permission boundaries.** ACP callback permissions fail
+  closed, mailbox session affinity cannot be supplied by untrusted sends, and a
+  configuration scope switch preserves settings already present at its target.
 
-See the complete [0.296.3 release notes](CHANGELOG.md).
+See the complete [0.298.3 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -75,7 +78,7 @@ See the complete [0.296.3 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.296.3](#whats-new-in-02963)
+- [What's new in 0.298.3](#whats-new-in-02983)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -251,10 +254,10 @@ required**. Deep reference lives in [`docs/reference.md`](docs/reference.md).
 
 ### Tools & code intelligence
 
-**58 built-in tools** span filesystem edits, code quality (`lint`/`format`/
+**59 built-in tools** span filesystem edits, code quality (`lint`/`format`/
 `typecheck`/`test`), execution, web search/fetch, a SQLite/FTS5 codebase index,
 git, packages, and browser/E2E controls. Full map:
-[reference → tools](docs/reference.md#built-in-tools-58).
+[reference → tools](docs/reference.md#built-in-tools-59).
 
 ### Autonomy & goals
 
@@ -451,7 +454,7 @@ Services  → deterministic local IPC → one owner each → SQLite-backed proje
 
 1. **Minimal kernel** — the four primitives + token table total ~1670 lines; the agent loop adds ~525.
 2. **Zero non-overridable behavior** — 16 services bound through `Container`, 6 pipelines as middleware, all extension points in registries.
-3. **Standalone sufficiency** — works with 58 built-in tools and no plugins.
+3. **Standalone sufficiency** — works with 59 built-in tools and no plugins.
 4. **Layered, not monolithic** — `--no-features` runs offline with zero startup network calls.
 
 Full walk-through: [`docs/architecture.md`](docs/architecture.md).
@@ -465,16 +468,18 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/core` | Kernel, agent, types, registries, plugin contract |
 | `@wrongstack/runtime` | Default runtime implementations + host composition |
 | `@wrongstack/providers` | Anthropic/OpenAI/OpenAI-compatible/Google adapters + SSE |
-| `@wrongstack/tools` | 58 built-in tools (incl. browser/E2E + SQLite codebase index) |
+| `@wrongstack/tools` | 59 built-in tools (incl. browser/E2E + SQLite codebase index) |
 | `@wrongstack/mcp` | MCP server registry + reconnection logic |
 | `@wrongstack/acp` | Agent Client Protocol client + agent support |
 | `@wrongstack/bench` | Benchmark harness (Aider polyglot + SWE-bench Verified) |
 | `@wrongstack/kanban` | Task-board primitives: queues, recovery, cost guardrails |
+| `@wrongstack/sage` · `@wrongstack/persistence` | Project-local memory/anchors and shared persistence primitives |
+| `@wrongstack/codebase-index-mcp` · `@wrongstack/kanban-mcp` · `@wrongstack/mailbox-mcp` · `@wrongstack/sage-mcp` | Project-service MCP servers with explicit capability tiers |
 | `@wrongstack/sdd` | Spec-Driven Development stores, trackers, workflow helpers |
-| `@wrongstack/security-scanner` | Security-scanning surface |
+| `@wrongstack/governance` · `@wrongstack/security-scanner` · `@wrongstack/techstack` | Workflow policy, security scanning, and dependency intelligence |
 | `@wrongstack/cli` | REPL, subcommands, slash commands, terminal renderer |
 | `@wrongstack/tui` | Ink-based TUI (lazy-loaded behind `--tui`) |
-| `@wrongstack/webui` · `@wrongstack/webui-server` · `@wrongstack/webui-hq` | Browser UI, shared backend, HQ dashboard |
+| `@wrongstack/webui` · `@wrongstack/webui-server` · `@wrongstack/webui-hq` · `@wrongstack/simpleui` | Browser UIs, shared backend, and HQ dashboard |
 | `@wrongstack/desktop` | Electron desktop shell |
 | `@wrongstack/plug-lsp` · `@wrongstack/telegram` | LSP and Telegram plugins |
 | `@wrongstack/plugins` | Official collection — 63 focused plugins via subpath exports |
@@ -486,7 +491,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 - **Tens of thousands of tests** passing in the release gate across ~1,900 test files
 - Coverage thresholds (root Vitest): ≥73% lines / ≥73% functions / ≥64% branches / ≥72% statements
-- All 20 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
+- All 27 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
 - Node 22.19+ only, ESM-only, no CommonJS bundles
 - Threat model: [`SECURITY.md`](SECURITY.md)
 

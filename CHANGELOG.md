@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.298.3] — 2026-08-03
+
+Consolidates the intermediate 0.298.2 package bump.
+
+### Added
+
+- **Models.dev model management across WebUI and TUI.** Providers can now add a catalog model or custom definition, edit its schema inline, select the active model, remove an override, or reset it to the catalog. The persisted `modelsDev` definition is schema-validated and retained as a delta, while top-level `config.models` takes precedence over provider-local custom definitions for the same model id. (`f71ae3cfe`, `8775d7312`, `98da3cf66`)
+- **TUI per-panel routing.** Every F-key panel plus Connections can be placed in the right sidebar or lower region from Settings. The sidebar presents a layered mission-control rail and accepts up to six open routed panels, with deterministic overflow visibility. (`1efb406b6`, `aef431c7d`)
+
+### Changed
+
+- **SAGE anchor verification batches Git blob checks** for a memory into one subprocess, preserving per-anchor results while avoiding one Git spawn per anchor. Review proposals now keep their target, reason, and suggested action in typed fields rather than overloaded tags. (`b08b2c34a`, `69d75ff19`)
+- **WebUI provider settings use the row-based model editor** rather than a chips-only list, including dense filtering, catalog selection, inline editing, and translated controls in all supported locales. (`8775d7312`, `c8a8f6d28`)
+
+### Fixed
+
+- **Model edits preserve complete definitions.** Updates deep-merge limits and costs, preserve untouched models.dev fields, reliably persist capability toggles, classify catalog rows correctly, and discard stale catalog-search responses. Custom-model add/remove now keeps the provider allowlist synchronized. (`2ccea36a5`, `1dd2dcb7e`)
+- **TUI panel routing updates and sizing are stable.** Persisted settings are used after the picker closes, fleet compatibility state remains synchronized, and nested routed panels respect the actual sidebar dimensions. (`f1f5c2d3a`, `1f54ac558`, `6199f1d53`, `a0a9f7b52`)
+- **Trust boundaries are stricter.** ACP client callbacks now use bounded, fail-closed permission handling; untrusted mailbox sends cannot forge `sessionAffinity`; and saving settings to a new scope merges the destination config before writing so destination-only values are not lost. (`85953d8f4`, `4c56a88dd`, `99a39c166`, `a321a4fd2`)
+
 ## [0.298.1] — 2026-08-02
 
 ### Added
