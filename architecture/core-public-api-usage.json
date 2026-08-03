@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 237,
-      "typeOnly": 192,
+      "files": 239,
+      "typeOnly": 194,
       "runtimeOrMixed": 65
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 199,
-      "typeOnly": 105,
+      "files": 200,
+      "typeOnly": 106,
       "runtimeOrMixed": 104
     },
     "@wrongstack/core/kernel/events.js": {
@@ -109,8 +109,8 @@
       "runtimeOrMixed": 14
     },
     "@wrongstack/core/registry": {
-      "files": 94,
-      "typeOnly": 48,
+      "files": 95,
+      "typeOnly": 49,
       "runtimeOrMixed": 47
     },
     "@wrongstack/core/replay": {
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 832,
-      "typeOnly": 794,
+      "files": 836,
+      "typeOnly": 798,
       "runtimeOrMixed": 211
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 459,
+      "files": 469,
       "typeOnly": 51,
-      "runtimeOrMixed": 464
+      "runtimeOrMixed": 475
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -658,6 +658,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/intake-slash-command.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -1103,6 +1109,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/codebase-index-calls.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4768,6 +4780,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/mcp/tests/registry-single-flight.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/mcp/tests/registry.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6073,6 +6091,12 @@
       "file": "packages/mcp/tests/registry-lazy.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/mcp/tests/registry-single-flight.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8518,6 +8542,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/intake.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/interrupt.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9641,6 +9671,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/mcp/tests/registry-lazy.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/mcp/tests/registry-single-flight.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11308,7 +11344,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-incoming-calls-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-index-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-outgoing-calls-tool.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13582,6 +13630,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/intake.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/interrupt.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14158,6 +14212,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/intake-slash-command.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/launch-banner.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14567,6 +14627,42 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/providers/src/wire-adapter.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/requirement-intake-mcp/src/adapter.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/requirement-intake-mcp/src/cli.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/requirement-intake/src/questions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/requirement-intake/src/service.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/requirement-intake/src/store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/requirement-intake/src/suggestions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15496,9 +15592,15 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/webui-server/src/server/server-runtime.ts",
+      "file": "packages/webui-server/src/server/requirement-intake-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/server-runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -15589,6 +15691,12 @@
       "file": "packages/webui-server/tests/http-server.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/requirement-intake-handlers.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

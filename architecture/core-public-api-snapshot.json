@@ -1163,7 +1163,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1482
+      "sourceLines": 1557
     },
     {
       "directory": "kernel",
@@ -1282,7 +1282,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9876
+      "sourceLines": 9886
     },
     {
       "directory": "worktree",
