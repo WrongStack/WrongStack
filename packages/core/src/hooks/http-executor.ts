@@ -1,5 +1,6 @@
 import type { AnyHookOutcome, HookInput } from '../types/hooks.js';
 import type { Logger } from '../types/logger.js';
+import { assertNotPrivateHost } from '../utils/ip-guard.js';
 import {
   type HookExecutionOptions,
   type HookExecutionResult,
@@ -15,15 +16,28 @@ export interface HttpHookSpec {
   timeoutMs?: number | undefined;
 }
 
-function isAllowedUrl(raw: string): boolean {
+/**
+ * Validate a hook URL: block private/internal IPs (SSRF), non-HTTP
+ * protocols, and non-loopback HTTP (hook executor is for local dev).
+ */
+async function isAllowedUrl(raw: string): Promise<boolean> {
+  let url: URL;
   try {
-    const url = new URL(raw);
-    if (url.protocol === 'https:') return true;
-    if (url.protocol !== 'http:') return false;
-    return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
+    url = new URL(raw);
   } catch {
     return false;
   }
+  if (url.protocol === 'https:') {
+    // SSRF guard: block private IPs even for HTTPS
+    try {
+      await assertNotPrivateHost(url.hostname);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (url.protocol !== 'http:') return false;
+  return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
 }
 
 /** POST HookInput JSON to a native HTTP hook with deadline and cancellation. */
@@ -33,7 +47,7 @@ export async function runHttpHookDetailed(
   logger?: Logger | undefined,
   options: HookExecutionOptions = {},
 ): Promise<HookExecutionResult> {
-  if (!isAllowedUrl(spec.url)) {
+  if (!(await isAllowedUrl(spec.url))) {
     return {
       outcome: null,
       failure: {
