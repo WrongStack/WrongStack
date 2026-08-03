@@ -20,9 +20,9 @@ overrides:
   undici-types: "^8.4.0"
   # jsdom@29.1.1 (vitest test env) needs undici's 7.x line (it requires the
   # internal lib/handler/wrap-handler.js, absent from undici 8.x). Pin it to the
-  # advisory-patched 7.28.0 — clears the undici GHSAs AND keeps jsdom working.
+  # advisory-patched 7.29.0 — clears the undici GHSAs AND keeps jsdom working.
   # Scoped so non-jsdom undici consumers still float to the patched 8.x line.
-  "jsdom>undici": "7.28.0"
+  "jsdom>undici": "7.29.0"
 peerDependencyRules:
   # TypeScript 7 was released before i18next/react-i18next widened their peer
   # ranges. WrongStack's WebUI passes its TS7 typecheck; allow this known lag.
