@@ -36,6 +36,11 @@ The bundled external-agent workflow is
 [`kanban-architecture.md`](./kanban-architecture.md#external-mcp-boundary) for its permission and
 event-reconciliation contract.
 
+The built-in preset (`wstack mcp add kanban`) spawns
+`wstack-kanban-mcp --project-root . --writable` from the current working directory — the manage
+tier without destructive ops. Add `--destructive` to the server's args only when agents genuinely
+need delete/merge/transfer.
+
 ### Project Mailbox server
 
 Use the dedicated Mailbox MCP server when an external coding agent needs to coordinate with
@@ -58,6 +63,10 @@ The bundled external-agent workflow is
 [`mailbox-architecture.md`](./mailbox-architecture.md#external-mcp-boundary) for capability tiers
 and event reconciliation.
 
+The built-in preset (`wstack mcp add mailbox`) spawns
+`wstack-mailbox-mcp --project-root . --writable` from the current working directory — send,
+receipts, and self-presence without `--admin` credential operations.
+
 ### Project Codebase Index server
 
 Use the dedicated Codebase Index MCP server when an external coding agent needs fast symbol search
@@ -75,6 +84,10 @@ service; it never opens the SQLite index directly, so CLI, TUI, WebUI, and exter
 one deterministic project owner. Both stdio and authenticated HTTP use the shared MCP transports.
 See [`packages/codebase-index-mcp/README.md`](../packages/codebase-index-mcp/README.md) for client
 configuration and the complete tool inventory.
+
+The built-in preset (`wstack mcp add codebase-index`) spawns
+`wstack-codebase-index-mcp --project-root . --writable` from the current working directory so
+both queries and rebuilds are available; drop `--writable` for a strictly read-only surface.
 
 ### Project Requirements Intake server
 

@@ -239,6 +239,55 @@ export const requirementIntakeServer = (): MCPServerConfig => ({
   permission: 'auto',
 });
 
+/**
+ * WrongStack Kanban — inspect and manage durable project work through the
+ * project-scoped Kanban IPC owner (`wstack-kanban-mcp`). The preset exposes
+ * the writable manage tier (create/update/transition tasks, splitting,
+ * assignment) but never `--destructive` (delete/merge/transfer). Mutations
+ * touch durable project board state, so the permission defaults to `confirm`.
+ */
+export const kanbanServer = (): MCPServerConfig => ({
+  name: 'kanban',
+  description:
+    'WrongStack Kanban — inspect and manage project work boards (project-scoped, manage tier, no destructive ops)',
+  transport: 'stdio',
+  command: 'wstack-kanban-mcp',
+  args: ['--project-root', '.', '--writable'],
+  permission: 'confirm',
+});
+
+/**
+ * WrongStack Mailbox — coordinate with project agents through the existing
+ * project-scoped mailbox IPC owner (`wstack-mailbox-mcp`). The preset exposes
+ * the writable tier (send, receipts, self-presence) but never `--admin`
+ * (maintenance + credential operations).
+ */
+export const mailboxServer = (): MCPServerConfig => ({
+  name: 'mailbox',
+  description:
+    'WrongStack Mailbox — read and send project agent mail (project-scoped, no admin/credentials)',
+  transport: 'stdio',
+  command: 'wstack-mailbox-mcp',
+  args: ['--project-root', '.', '--writable'],
+  permission: 'auto',
+});
+
+/**
+ * WrongStack Codebase Index — symbol search and dependency graphs over the
+ * project's codebase index (`wstack-codebase-index-mcp`). The preset exposes
+ * `--writable` so `codebase_index` (incremental/full rebuild) is available;
+ * index rebuilds are CPU/disk work with no semantic risk.
+ */
+export const codebaseIndexServer = (): MCPServerConfig => ({
+  name: 'codebase-index',
+  description:
+    'WrongStack Codebase Index — symbol search and dependency graphs (project-scoped, --writable)',
+  transport: 'stdio',
+  command: 'wstack-codebase-index-mcp',
+  args: ['--project-root', '.', '--writable'],
+  permission: 'auto',
+});
+
 /** Everything bundled — full set of built-in servers. Useful for `wstack mcp add --all`. */
 export const allServers = (): Record<string, MCPServerConfig> => ({
   filesystem: { ...filesystemServer(), enabled: false },
@@ -255,5 +304,8 @@ export const allServers = (): Record<string, MCPServerConfig> => ({
   'minimax-vision': { ...miniMaxVisionServer(), enabled: false },
   playwright: { ...playwrightServer(), enabled: false },
   ssh: { ...sshManagerServer(), enabled: false },
+  kanban: { ...kanbanServer(), enabled: false },
+  mailbox: { ...mailboxServer(), enabled: false },
+  'codebase-index': { ...codebaseIndexServer(), enabled: false },
   'requirement-intake': { ...requirementIntakeServer(), enabled: false },
 });

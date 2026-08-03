@@ -4,11 +4,14 @@ import {
   awsServer,
   blockServer,
   braveSearchServer,
+  codebaseIndexServer,
   context7Server,
   everArtServer,
   filesystemServer,
   githubServer,
   googleMapsServer,
+  kanbanServer,
+  mailboxServer,
   miniMaxVisionServer,
   playwrightServer,
   requirementIntakeServer,
@@ -63,6 +66,9 @@ describe('built-in MCP server presets (V0-D)', () => {
     ['playwright', playwrightServer],
     ['ssh', sshManagerServer],
     ['requirement-intake', requirementIntakeServer],
+    ['kanban', kanbanServer],
+    ['mailbox', mailboxServer],
+    ['codebase-index', codebaseIndexServer],
   ];
 
   for (const [label, factory] of presets) {
@@ -89,6 +95,9 @@ describe('built-in MCP server presets (V0-D)', () => {
     expect(names).toContain('playwright');
     expect(names).toContain('ssh');
     expect(names).toContain('requirement-intake');
+    expect(names).toContain('kanban');
+    expect(names).toContain('mailbox');
+    expect(names).toContain('codebase-index');
     // Each entry's key matches its config.name.
     for (const [key, cfg] of Object.entries(all)) {
       expect(key).toBe(cfg.name);
