@@ -141,7 +141,10 @@ export function usePickerKeys(
             return true;
           }
         }
-        if (ap.view === 'provider' && (input === 'u' || input === 'd')) {
+        if (
+          (ap.view === 'provider' || ap.view === 'models') &&
+          (input === 'u' || input === 'd' || input === 'x' || input === 'r' || input === 'a')
+        ) {
           host.onAuthShortcut?.(input);
           return true;
         }

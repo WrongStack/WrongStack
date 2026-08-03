@@ -2172,3 +2172,46 @@ describe('usePickerKeys — settings picker ctrl+meta jump with shift', () => {
     expect(host.dispatch).toHaveBeenCalled();
   });
 });
+
+describe('usePickerKeys — auth panel model shortcuts (x/r/a + models view)', () => {
+  it.each(['x', 'r', 'a'])('forwards %s in provider view to onAuthShortcut', (k) => {
+    const onAuthShortcut = vi.fn();
+    const host = makeHost(
+      baseState({
+        authPanel: { open: true, view: 'provider', providerId: 'openai' },
+      }),
+      { onAuthShortcut },
+    );
+
+    runPickerKey(host, k, key(), false);
+    expect(onAuthShortcut).toHaveBeenCalledWith(k);
+  });
+
+  it.each(['u', 'd', 'x', 'r', 'a'])('forwards %s in models view to onAuthShortcut', (k) => {
+    const onAuthShortcut = vi.fn();
+    const host = makeHost(
+      baseState({
+        authPanel: { open: true, view: 'models', providerId: 'openai' },
+      }),
+      { onAuthShortcut },
+    );
+
+    runPickerKey(host, k, key(), false);
+    expect(onAuthShortcut).toHaveBeenCalledWith(k);
+  });
+
+  it('does not forward non-shortcut letters in models view', () => {
+    const onAuthShortcut = vi.fn();
+    const host = makeHost(
+      baseState({
+        authPanel: { open: true, view: 'models', providerId: 'openai' },
+      }),
+      { onAuthShortcut },
+    );
+
+    runPickerKey(host, 'q', key(), false);
+    expect(onAuthShortcut).not.toHaveBeenCalled();
+    // And it swallows the key rather than leaking to other handlers
+    expect(host.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'authMove' }));
+  });
+});

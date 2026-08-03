@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
+import type { ModelsRegistry, ResolvedModel, ResolvedProvider } from '@wrongstack/core/types';
 import type { AuthFlowIo } from '@wrongstack/tui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -42,16 +42,28 @@ async function mkTempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'wstack-auth-panel-'));
 }
 
-function makeModelsRegistry(catalog: Partial<ResolvedProvider>[]): ModelsRegistry {
+function makeModelsRegistry(
+  catalog: Partial<ResolvedProvider>[],
+  models: Array<Partial<ResolvedModel> & { providerId: string; modelId: string }> = [],
+): ModelsRegistry {
   return {
     getProvider: vi.fn(async (id: string) => catalog.find((p) => p.id === id)),
     listProviders: vi.fn(async () => catalog as ResolvedProvider[]),
+    getModel: vi.fn(async (providerId: string, modelId: string) =>
+      models.find((m) => m.providerId === providerId && m.modelId === modelId),
+    ) as ModelsRegistry['getModel'],
     suggestModel: vi.fn(async () => undefined),
     refresh: vi.fn(async () => undefined),
   } as never as ModelsRegistry;
 }
 
-async function setup(opts: { catalog?: Partial<ResolvedProvider>[]; preExisting?: object } = {}) {
+async function setup(
+  opts: {
+    catalog?: Partial<ResolvedProvider>[];
+    models?: Array<Partial<ResolvedModel> & { providerId: string; modelId: string }>;
+    preExisting?: object;
+  } = {},
+) {
   const tmpDir = await mkTempDir();
   const rootConfigPath = path.join(tmpDir, 'config.json');
   const configPath = path.join(tmpDir, 'profiles', 'default', 'config.json');
@@ -67,7 +79,7 @@ async function setup(opts: { catalog?: Partial<ResolvedProvider>[]; preExisting?
   const vault = new DefaultSecretVault({ keyFile: path.join(tmpDir, '.key') });
   const host = createAuthPanelHost({
     vault,
-    modelsRegistry: makeModelsRegistry(opts.catalog ?? []),
+    modelsRegistry: makeModelsRegistry(opts.catalog ?? [], opts.models ?? []),
     profileConfigPath: configPath,
   });
   return { host, configPath, rootConfigPath };
@@ -357,5 +369,169 @@ describe('flow delegation', () => {
     const { io, log } = makeIo();
     expect((await host.addCatalogProvider('ghost', io)).ok).toBe(false);
     expect(log.some((l) => l.includes('not found'))).toBe(true);
+  });
+});
+
+describe('model ops — addModel / removeModel / resetModelToCatalog', () => {
+  const MODEL_CONFIG = {
+    providers: {
+      anthropic: {
+        type: 'anthropic',
+        family: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        apiKeys: [
+          { label: 'work', apiKey: 'sk-work-1234567890', createdAt: '2026-01-01T00:00:00.000Z' },
+        ],
+        activeKey: 'work',
+        models: ['claude-sonnet-4-6'],
+        customModels: {
+          'claude-sonnet-4-6': {
+            modelsDev: { limit: { context: 200_000 }, cost: { input: 3 } },
+          },
+        },
+      },
+    },
+  };
+
+  const CATALOG_MODEL = {
+    providerId: 'anthropic',
+    modelId: 'claude-sonnet-4-6',
+    capabilities: { maxContext: 200_000, maxOutput: 8_192 },
+  } as Partial<ResolvedModel> & { providerId: string; modelId: string };
+
+  it('addModel appends to the allowlist and logs a catalog prefill hit', async () => {
+    const { host: hostWithModel, configPath } = await setup({
+      preExisting: MODEL_CONFIG,
+      models: [
+        CATALOG_MODEL,
+        {
+          providerId: 'anthropic',
+          modelId: 'claude-haiku',
+          capabilities: { maxContext: 200_000, maxOutput: 8_192 },
+        } as Partial<ResolvedModel> & { providerId: string; modelId: string },
+      ],
+    });
+    const { io, log } = makeIo(['claude-haiku']);
+    expect((await hostWithModel.addModel('anthropic', io, { fromCatalog: true })).ok).toBe(true);
+    expect(log.some((l) => l.includes('Found in catalog: ctx=200000'))).toBe(true);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    expect(raw.providers.anthropic.models).toContain('claude-haiku');
+  });
+
+  it('addModel rejects an empty id', async () => {
+    const { host } = await setup({ preExisting: MODEL_CONFIG });
+    const { io, log } = makeIo(['   ']);
+    expect((await host.addModel('anthropic', io)).ok).toBe(false);
+    expect(log.some((l) => l.includes('Model id is required'))).toBe(true);
+  });
+
+  it('removeModel strips the id from models[] and customModels', async () => {
+    const { host, configPath } = await setup({ preExisting: MODEL_CONFIG });
+    expect(await host.removeModel('anthropic', 'claude-sonnet-4-6')).toBeNull();
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    // The emptied allowlist is deleted entirely (host contract), not kept as []
+    expect(raw.providers.anthropic.models).toBeUndefined();
+    expect(raw.providers.anthropic.customModels).toBeUndefined();
+  });
+
+  it('resetModelToCatalog drops only the customModels override (model stays in allowlist)', async () => {
+    const { host, configPath } = await setup({
+      preExisting: MODEL_CONFIG,
+      models: [CATALOG_MODEL],
+    });
+    expect(await host.resetModelToCatalog('anthropic', 'claude-sonnet-4-6')).toBeNull();
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    expect(raw.providers.anthropic.models).toEqual(['claude-sonnet-4-6']);
+    expect(raw.providers.anthropic.customModels).toBeUndefined();
+  });
+
+  it('resetModelToCatalog refuses models absent from the catalog', async () => {
+    const { host } = await setup({ preExisting: MODEL_CONFIG, models: [] });
+    const err = await host.resetModelToCatalog('anthropic', 'ghost-model');
+    expect(err).toMatch(/not found in catalog/);
+  });
+});
+
+describe('model ops — editModelDetails field-group prompts + catalog reference', () => {
+  const MODEL_CONFIG = {
+    providers: {
+      anthropic: {
+        type: 'anthropic',
+        family: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        apiKeys: [
+          { label: 'work', apiKey: 'sk-work-1234567890', createdAt: '2026-01-01T00:00:00.000Z' },
+        ],
+        activeKey: 'work',
+        models: ['claude-sonnet-4-6'],
+        customModels: {
+          'claude-sonnet-4-6': {
+            modelsDev: {
+              limit: { context: 200_000, output: 8_192 },
+              cost: { input: 3, output: 15 },
+            },
+          },
+        },
+      },
+    },
+  };
+
+  const CATALOG_MODEL = {
+    providerId: 'anthropic',
+    modelId: 'claude-sonnet-4-6',
+    capabilities: { maxContext: 200_000, maxOutput: 8_192 },
+    cost: { input: 3, output: 15 },
+  } as Partial<ResolvedModel> & { providerId: string; modelId: string };
+
+  it('prompts identity/limits/cost with catalog reference and stores a deep-merged delta', async () => {
+    const { host, configPath } = await setup({
+      preExisting: MODEL_CONFIG,
+      models: [CATALOG_MODEL],
+    });
+    const { io, log, prompts } = makeIo([
+      'Sonnet 4.6',
+      '250000', // ctx override
+      '', // output untouched
+      '', // cost input untouched
+      '22', // cost output override
+    ]);
+    const result = await host.editModelDetails('anthropic', 'claude-sonnet-4-6', io);
+    expect(result.ok).toBe(true);
+    expect(log.some((l) => l.includes('Catalog reference: ctx=200000, out=8192'))).toBe(true);
+    expect(prompts[0]?.secret).toBe(false); // identity
+    expect(prompts.map((p) => p.question)).toEqual([
+      expect.stringContaining('Name'),
+      expect.stringContaining('Context window'),
+      expect.stringContaining('Max output'),
+      expect.stringContaining('Cost input'),
+      expect.stringContaining('Cost output'),
+    ]);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    const md = raw.providers.anthropic.customModels['claude-sonnet-4-6'].modelsDev;
+    expect(md.name).toBe('Sonnet 4.6');
+    // Deep merge: untouched output + existing context preserved, context overridden
+    expect(md.limit).toEqual({ context: 250_000, output: 8_192 });
+    // Deep merge: untouched cost input preserved, output overridden
+    expect(md.cost).toEqual({ input: 3, output: 22 });
+  });
+
+  it('no entries → "no changes" without mutating', async () => {
+    const { host, configPath } = await setup({
+      preExisting: MODEL_CONFIG,
+      models: [CATALOG_MODEL],
+    });
+    const before = await fs.readFile(configPath, 'utf8');
+    const { io, log } = makeIo(['', '', '', '', '']);
+    const result = await host.editModelDetails('anthropic', 'claude-sonnet-4-6', io);
+    expect(result.ok).toBe(true);
+    expect(log.some((l) => l.includes('no changes'))).toBe(true);
+    expect(await fs.readFile(configPath, 'utf8')).toBe(before);
+  });
+
+  it('shows a no-catalog notice when the model is absent from the registry', async () => {
+    const { host } = await setup({ preExisting: MODEL_CONFIG, models: [] });
+    const { io, log } = makeIo(['', '', '', '', '']);
+    await host.editModelDetails('anthropic', 'claude-sonnet-4-6', io);
+    expect(log.some((l) => l.includes('no catalog entry'))).toBe(true);
   });
 });
