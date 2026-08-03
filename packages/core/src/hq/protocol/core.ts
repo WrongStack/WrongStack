@@ -140,6 +140,7 @@ const KNOWN_HQ_CLIENT_FRAME_TYPES = new Set<HqClientMessage['type']>([
   'client.command_poll',
   'client.command_ack',
   'client.resume',
+  'client.event_poll',
 ]);
 
 const HQ_CLIENT_KINDS = new Set<HqClientKind>([

@@ -87,6 +87,8 @@ export interface HqFleetSummary {
 
 export interface HqQueuedCommand {
   commandId: string;
+  /** Idempotency key deduplicates commands across leader handoffs (§2.2). */
+  idempotencyKey?: string;
   type: string;
   createdAt: string;
   payload: unknown;

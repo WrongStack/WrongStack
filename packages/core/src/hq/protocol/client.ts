@@ -105,4 +105,19 @@ export type HqClientMessage =
   | HqClientEventMessage
   | HqClientCommandPollMessage
   | HqClientCommandAckMessage
-  | HqClientResumeMessage;
+  | HqClientResumeMessage
+  | HqClientEventPollMessage;
+
+/**
+ * Proactive gap-fill: a client can request missed envelopes by `clientId`
+ * and `afterSeq` without waiting for the push path. The server replies with
+ * `hq.resume_gap` (bounded list) or `hq.snapshot` when the gap is too large.
+ * See `docs/plans/hq-evolution-2026-08.md` §2.2.
+ */
+export interface HqClientEventPollMessage {
+  type: 'client.event_poll';
+  clientId: string;
+  projectId: string;
+  afterSeq: number;
+  limit?: number;
+}
