@@ -56,6 +56,7 @@ import { installDesignStudio } from '../src/wiring/design-studio.js';
 
 afterEach(() => {
   vi.clearAllMocks();
+  Object.setPrototypeOf(mocks.acpCommands, Object.prototype);
   for (const key of Object.keys(mocks.acpCommands)) {
     delete mocks.acpCommands[key];
   }
@@ -148,6 +149,26 @@ describe('small non-WebUI CLI modules', () => {
 
     mocks.findAgentDescriptor.mockReturnValueOnce(undefined);
     expect(() => buildAcpSubagentRunner('missing')).toThrow(ToolValidationError);
+  });
+
+  it('does not resolve ACP agent ids from the command catalog prototype chain', () => {
+    const runner = { run: vi.fn() };
+    Object.setPrototypeOf(mocks.acpCommands, {
+      inherited: { command: 'prototype-agent', role: 'inherited' },
+    });
+    mocks.findAgentDescriptor.mockReturnValueOnce({
+      acp: { command: 'descriptor-agent', args: ['--stdio'] },
+    });
+    mocks.makeACPSubagentRunner.mockReturnValueOnce(runner);
+
+    expect(buildAcpSubagentRunner('inherited')).toBe(runner);
+    expect(mocks.findAgentDescriptor).toHaveBeenCalledWith('inherited');
+    expect(mocks.makeACPSubagentRunner).toHaveBeenCalledWith({
+      command: 'descriptor-agent',
+      args: ['--stdio'],
+      role: 'inherited',
+    });
+    Object.setPrototypeOf(mocks.acpCommands, Object.prototype);
   });
 
   it('suppresses routine storage telemetry and surfaces failures with inherited and payload trace IDs', () => {
