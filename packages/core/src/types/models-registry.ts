@@ -33,23 +33,34 @@ export interface ModelsDevModel {
   release_date?: string | undefined;
   last_updated?: string | undefined;
   open_weights?: boolean | undefined;
-  modalities?: {
-    input?: string[] | undefined;
-    output?: string[] | undefined;
-  };
-  cost?: {
-    input?: number | undefined;
-    output?: number | undefined;
-    cache_read?: number | undefined;
-    cache_write?: number | undefined;
-    cache_write_5m?: number | undefined;
-    cache_write_1h?: number | undefined;
-    [k: string]: number | undefined;
-  };
-  limit?: {
-    context?: number | undefined;
-    output?: number | undefined;
-  };
+  modalities?:
+    | {
+        input?: string[] | undefined;
+        output?: string[] | undefined;
+      }
+    | undefined;
+  cost?:
+    | {
+        input?: number | undefined;
+        output?: number | undefined;
+        cache_read?: number | undefined;
+        cache_write?: number | undefined;
+        cache_write_5m?: number | undefined;
+        cache_write_1h?: number | undefined;
+        /**
+         * Unknown cost keys: upstream is NOT number-only (e.g. `tiers` is an
+         * array of tier objects on ~300 models, census 2026-08-03). Keep this
+         * index `unknown` — named keys above stay typed for consumers.
+         */
+        [k: string]: unknown;
+      }
+    | undefined;
+  limit?:
+    | {
+        context?: number | undefined;
+        output?: number | undefined;
+      }
+    | undefined;
   [k: string]: unknown;
 }
 

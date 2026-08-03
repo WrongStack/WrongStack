@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "0.298.1",
+  "version": "0.298.2",
   "license": "MIT",
   "description": "WrongStack core: kernel, types, defaults, and shared utilities for the WrongStack CLI agent.",
   "repository": {
@@ -179,7 +179,8 @@
   },
   "dependencies": {
     "@wrongstack/kanban": "workspace:*",
-    "@wrongstack/persistence": "workspace:*"
+    "@wrongstack/persistence": "workspace:*",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

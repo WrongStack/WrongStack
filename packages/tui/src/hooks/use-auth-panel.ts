@@ -224,6 +224,20 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
       case 'provider':
         dispatch({ type: 'authView', view: 'provider', providerId: row.provider.id });
         return;
+      case 'model-row': {
+        const providerId = row.providerId;
+        // From the provider view, Enter navigates into the dedicated models
+        // view (which lists all models + add/reset/back actions). Inside the
+        // models view, Enter edits the selected model's details.
+        if (panel.view === 'provider') {
+          dispatch({ type: 'authView', view: 'models', providerId });
+          return;
+        }
+        runFlow(`Edit model — ${row.modelId}`, (io) =>
+          authHost.editModelDetails(providerId, row.modelId, io),
+        );
+        return;
+      }
       case 'list-action':
         if (row.action === 'catalog') openCatalog();
         else if (row.action === 'local') dispatch({ type: 'authView', view: 'local' });
@@ -245,27 +259,44 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
       case 'provider-action': {
         const providerId = panel.providerId;
         if (!providerId) return;
-        if (row.action === 'add-key') {
-          runFlow(`Add key — ${providerId}`, (io) => authHost.addKey(providerId, io));
-        } else if (row.action === 'edit-family') {
-          runFlow(`Edit family — ${providerId}`, (io) =>
-            authHost.editField(providerId, 'family', io),
-          );
-        } else if (row.action === 'edit-base-url') {
-          runFlow(`Edit base URL — ${providerId}`, (io) =>
-            authHost.editField(providerId, 'baseUrl', io),
-          );
-        } else if (row.action === 'edit-models') {
-          runFlow(`Edit models — ${providerId}`, (io) =>
-            authHost.editField(providerId, 'models', io),
-          );
-        } else {
-          const provider = panel.providers.find((p) => p.id === providerId);
-          dispatch({
-            type: 'authConfirmStart',
-            question: `Remove provider "${providerId}" and ${provider?.keys.length ?? 0} key(s)?`,
-            action: { kind: 'remove-provider', providerId },
-          });
+        switch (row.action) {
+          case 'add-key':
+            runFlow(`Add key — ${providerId}`, (io) => authHost.addKey(providerId, io));
+            break;
+          case 'edit-family':
+            runFlow(`Edit family — ${providerId}`, (io) =>
+              authHost.editField(providerId, 'family', io),
+            );
+            break;
+          case 'edit-base-url':
+            runFlow(`Edit base URL — ${providerId}`, (io) =>
+              authHost.editField(providerId, 'baseUrl', io),
+            );
+            break;
+          case 'edit-models':
+            runFlow(`Edit models — ${providerId}`, (io) =>
+              authHost.editField(providerId, 'models', io),
+            );
+            break;
+          case 'add-model':
+            runFlow(`Add model — ${providerId}`, (io) => authHost.addModel(providerId, io));
+            break;
+          case 'back-to-list':
+            dispatch({ type: 'authView', view: 'list' });
+            break;
+          case 'remove': {
+            const provider = panel.providers.find((p) => p.id === providerId);
+            dispatch({
+              type: 'authConfirmStart',
+              question: `Remove provider "${providerId}" and ${provider?.keys.length ?? 0} key(s)?`,
+              action: { kind: 'remove-provider', providerId },
+            });
+            break;
+          }
+          case 'edit-model-details':
+          case 'reset-model-to-catalog':
+            dispatch({ type: 'authHint', text: 'Select a model row first.' });
+            break;
         }
         return;
       }
@@ -300,24 +331,60 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
     (input: string) => {
       if (!authHost) return;
       const panel = stateRef.current.authPanel;
-      if (panel.view !== 'provider' || !panel.providerId) return;
-      const row = authPanelRows(panel)[panel.selected];
-      if (row?.kind !== 'key') return;
+      if (panel.view !== 'provider' && panel.view !== 'models') return;
+      if (!panel.providerId) return;
       const providerId = panel.providerId;
-      const label = row.keyRow.label;
-      if (input === 'u') {
-        runFlow(`Update key — ${providerId}/${label}`, (io) =>
-          authHost.updateKey(providerId, label, io),
+      const row = authPanelRows(panel)[panel.selected];
+
+      // Key shortcuts (provider view)
+      if (row?.kind === 'key') {
+        const label = row.keyRow.label;
+        if (input === 'u') {
+          runFlow(`Update key — ${providerId}/${label}`, (io) =>
+            authHost.updateKey(providerId, label, io),
+          );
+        } else if (input === 'd') {
+          dispatch({
+            type: 'authConfirmStart',
+            question: `Delete key "${label}" (${row.keyRow.masked})?`,
+            action: { kind: 'delete-key', providerId, label },
+          });
+        }
+        return;
+      }
+
+      // ME-5: Model shortcuts (provider + models view)
+      if (row?.kind === 'model-row') {
+        const modelId = row.modelId;
+        if (input === 'x') {
+          dispatch({
+            type: 'authConfirmStart',
+            question: `Remove model "${modelId}"?`,
+            action: { kind: 'remove-model', providerId, modelId },
+          });
+        } else if (input === 'r') {
+          void (async () => {
+            const err = await authHost.resetModelToCatalog(providerId, modelId);
+            if (!mountedRef.current) return;
+            dispatch({
+              type: 'authHint',
+              text: err ? `✗ ${err}` : `✓ Reset "${modelId}" to catalog values`,
+            });
+            await reloadProviders();
+          })();
+        }
+        return;
+      }
+
+      // ME-5: 'a' shortcut on model actions to add from catalog
+      if (row?.kind === 'provider-action' && row.action === 'add-model' && input === 'a') {
+        runFlow(`Add model (catalog) — ${providerId}`, (io) =>
+          authHost.addModel(providerId, io, { fromCatalog: true }),
         );
-      } else if (input === 'd') {
-        dispatch({
-          type: 'authConfirmStart',
-          question: `Delete key "${label}" (${row.keyRow.masked})?`,
-          action: { kind: 'delete-key', providerId, label },
-        });
+        return;
       }
     },
-    [authHost, stateRef, dispatch, runFlow],
+    [authHost, stateRef, dispatch, runFlow, reloadProviders],
   );
 
   const onAuthPromptSubmit = useCallback(() => {
@@ -375,6 +442,14 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
           dispatch({
             type: 'authHint',
             text: err ? `✗ ${err}` : `✓ Deleted ${providerId}/${label}.`,
+          });
+        } else if (confirm.action.kind === 'remove-model') {
+          const { providerId, modelId } = confirm.action;
+          const err = await authHost.removeModel(providerId, modelId);
+          if (!mountedRef.current) return;
+          dispatch({
+            type: 'authHint',
+            text: err ? `✗ ${err}` : `✓ Removed model ${modelId}.`,
           });
         } else {
           const { providerId } = confirm.action;

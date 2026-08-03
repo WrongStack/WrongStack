@@ -38,6 +38,8 @@ export const CLIENT_CONFIGURATION_MESSAGE_TYPES = [
   'prefs.update',
   'provider.add',
   'provider.clear_models',
+  'provider.custom_models.remove',
+  'provider.custom_models.set',
   'provider.models',
   'provider.models.search',
   'provider.probe',

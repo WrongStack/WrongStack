@@ -52,10 +52,16 @@ describe('watchProviderConfig', () => {
     const snapshot = await readProviderSnapshot(configPath, vault);
     expect(snapshot?.fallbackBridge).toBe('acme/acme-large');
     expect(snapshot?.providers.acme?.models).toEqual(['acme-large']);
-    expect(snapshot?.providers.acme?.customModels?.['acme-large']).toEqual({
+    expect(snapshot?.providers.acme?.customModels?.['acme-large']).toMatchObject({
       name: 'Acme Large',
       maxOutput: 32_768,
       capabilities: { maxContext: 262_144, tools: true },
+      // ME-2: full inline object now round-trips via modelsDev.
+      modelsDev: {
+        name: 'Acme Large',
+        limit: { context: 262_144, output: 32_768 },
+        tool_call: true,
+      },
     });
   });
 

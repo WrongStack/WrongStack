@@ -1,4 +1,4 @@
-import type { WireFamily } from '../models-registry.js';
+import type { ModelsDevModel, WireFamily } from '../models-registry.js';
 import type { Capabilities } from '../provider.js';
 import type { ModelRuntimeConfig } from './runtime.js';
 
@@ -149,6 +149,18 @@ export interface CustomModelDefinition {
    * or catalog entry is used.
    */
   maxOutput?: number | undefined;
+  /**
+   * Full models.dev model payload (ME-2, Model Editor). Stores all schema
+   * fields for catalog overrides (delta — only changed fields are set) and
+   * custom (non-catalog) models (full object). Validated by
+   * `modelsDevModelSchema` from `@wrongstack/core/models`.
+   *
+   * Legacy derived fields above (`name`, `capabilities`, `maxOutput`) stay
+   * functional for existing configs and are kept in sync by
+   * `normalizeInlineProviderModels` — prefer setting `modelsDev` for new
+   * code so the full schema round-trips.
+   */
+  modelsDev?: Omit<ModelsDevModel, 'id'> | undefined;
 }
 
 /**

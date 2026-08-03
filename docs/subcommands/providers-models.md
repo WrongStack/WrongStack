@@ -43,8 +43,24 @@ Listing resolves configured provider aliases, applies the user's visibility list
 | `wstack models remove <modelId>` | Remove a custom definition. |
 | `wstack models list` | List custom definitions. |
 | `wstack models caps [provider] [model]` | Show resolved capabilities; `capabilities` is an alias for `caps`. |
+| `wstack models reset <provider> <model>` | Reset a model's overrides back to the models.dev catalog values (drops the `customModels` entry). |
 
 `models add` accepts provider/name, context/output limits, pricing, and capability flags including `--tools`/`--no-tools`, vision, reasoning, attachment, and temperature controls. Run `wstack models add --help` for the exact current flags.
+
+#### Full models.dev schema support (ME-2/ME-5)
+
+Custom model definitions now carry the complete models.dev schema, not just name + capabilities. Each definition is stored under `customModels[modelId]` and can include:
+
+- `limit.context` / `limit.output` / `limit.input` — token limits
+- `cost.input` / `cost.output` / `cost.cache_read` / `cost.cache_write` — pricing per 1M tokens
+- `modalities.input[]` / `modalities.output[]` — plain string arrays (`"text"`, `"image"`, `"audio"`, `"video"`, `"pdf"`)
+- `tool_call`, `reasoning`, `temperature`, `attachment`, `structured_output`, `open_weights` — capability flags
+- `knowledge`, `release_date`, `last_updated` — metadata dates
+- `description`, `family` — identity
+
+**Delta storage:** when a model exists in the models.dev catalog, only the fields you override are stored; untouched fields resolve from the live catalog at runtime. **Custom (non-catalog) models** store the full object. **Reset** (`models reset`) drops the `customModels` entry so catalog defaults apply again.
+
+**Precedence** (highest wins): explicit `customModels` → inline `models[]` objects → models.dev catalog → wire-family defaults.
 
 ## Code reference
 

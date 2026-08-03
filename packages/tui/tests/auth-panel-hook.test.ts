@@ -187,6 +187,10 @@ describe('useAuthPanel standalone secret prompts', () => {
       addKey: vi.fn(async () => ({ ok: true })),
       updateKey: vi.fn(async () => ({ ok: true })),
       editField: vi.fn(async () => ({ ok: true })),
+      editModelDetails: vi.fn(async () => ({ ok: true })),
+      addModel: vi.fn(async () => ({ ok: true })),
+      removeModel: vi.fn(async () => null),
+      resetModelToCatalog: vi.fn(async () => null),
       addCatalogProvider: vi.fn(async () => ({ ok: true })),
       addCustomProvider: vi.fn(
         (io: AuthFlowIo) =>

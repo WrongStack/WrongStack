@@ -24,6 +24,21 @@ export {
   type AlibabaTokenPlanModelMeta,
 } from './alibaba-token-plan-catalog.js';
 
+// models.dev schema (ME-1): runtime-validated mirror of models.dev/api.json
+export {
+  MODELS_DEV_MODALITY_VALUES,
+  modelsDevCostSchema,
+  modelsDevLimitSchema,
+  modelsDevModalitiesSchema,
+  modelsDevModelSchema,
+  modelsDevPayloadSchema,
+  modelsDevProviderSchema,
+  type ModelsDevModelParsed,
+  type ModelsDevPayloadParsed,
+  type ModelsDevProviderParsed,
+  type ModelsDevSchemaSyncProof,
+} from './models-dev-schema.js';
+
 // Model intelligence: capability profiles and auto-routing
 export {
   MODEL_PROFILES,

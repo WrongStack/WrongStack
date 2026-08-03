@@ -75,3 +75,49 @@ pnpm run sync:models -- --diff                               # what we override 
 Then edit `providers.json` and commit. Keep it **small and curated** — it is an override layer,
 not a mirror of models.dev. Once models.dev catches up, drop the now-redundant override (`--diff`
 flags those).
+
+## Overlay vs. per-user `customModels` — when to use which
+
+There are **two** override layers in WrongStack, for two different audiences:
+
+| Layer | Location | Audience | Purpose |
+|---|---|---|---|
+| **Curated overlay** | `packages/cli/data/providers.json` (this file) | **All users, repo-wide** | Fix upstream errors, add models/providers models.dev doesn't list, remove bad entries (`_removeProviders` / `_removeModels` magic keys). Ships with every release. |
+| **`customModels` config** | `~/.wrongstack/profiles/<name>/config.json` → `providers.<id>.customModels` | **One user, one profile** | Per-user model visibility + per-model metadata overrides (limits, cost, modalities, capability flags) via the WebUI ModelListEditor or TUI `/auth` panel. |
+
+**Decision rule:** if the fix benefits every user of the product (an upstream data error, a brand-new
+model id), it belongs in the **overlay** — commit it here. If it's personal tuning (my context limit,
+my custom endpoint's pricing), it belongs in the user's **`customModels`** config — never here.
+
+Both layers deep-merge one level into `limit` / `cost` / `modalities` objects, and both follow the
+same precedence contract at resolution time:
+
+```
+explicit customModels  >  inline models[] objects  >  overlay  >  models.dev catalog  >  wire-family defaults
+```
+
+## Catalog cache & boot refresh
+
+The live models.dev catalog is fetched at boot and cached:
+
+- **Cache:** `~/.wrongstack/cache/models.dev.json` (fetched at startup; `--no-models-refresh`
+  skips the network fetch and uses the stale cache).
+- **Overlay cache:** `~/.wrongstack/cache/models-overlay.json` (fetched from GitHub raw; the
+  bundled `providers.json` is the offline floor).
+- Resolution: `merged = mergeModelsPayload(cachedModelsDev, overlay)` — the overlay always wins.
+
+If models.dev is unreachable and no cache exists, a non-empty overlay still drives the catalog
+on its own. Users never edit the cache files — they are regenerated on boot.
+
+## Modalities format (important)
+
+`modalities.input` and `modalities.output` are **plain string arrays**, not objects:
+
+```jsonc
+"modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+```
+
+So `modalities.input[0] === "text"` (a string). The known values are `"text" | "image" | "audio" |
+"video" | "pdf"` (see `MODELS_DEV_MODALITY_VALUES` in `packages/core/src/models/models-dev-schema.ts`).
+New upstream values are tolerated at parse time — the schema validates "array of non-empty strings",
+not a closed enum.

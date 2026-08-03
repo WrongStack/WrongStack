@@ -241,11 +241,108 @@ A map of provider id → provider config. Each entry can declare its own API key
 | `model` | `string` | — | Default model for this provider. |
 | `family` | `string` | auto-detected | Wire family override (`anthropic`, `openai`, `openai-compatible`, `google`). Required for offline/custom endpoints. |
 | `envVars` | `string[]` | provider default | Custom env var names to probe for API keys. |
-| `models` | `string[]` | — | Restrict visible models for this provider. |
+| `models` | `string[]` or inline model objects | — | Restrict visible models for this provider. Accepts plain model id strings (`["gpt-4o", "claude-sonnet-4"]`) or full models.dev-style objects with all schema fields (limits, cost, modalities, capabilities). See [Model configuration](#model-configuration-models--custommodels) below. |
+| `customModels` | `Record<string, CustomModelDefinition>` | — | Per-model metadata overrides. Keys are model ids. Each entry can carry `name`, `maxOutput`, `capabilities`, and `modelsDev` (full models.dev schema payload). See [Model configuration](#model-configuration-models--custommodels) below. |
 | `quirks` | `Record<string, unknown>` | — | Provider-specific behavior flags. See [CompatibilityQuirks](#compatibility-quirks) below. |
 | `capabilities` | `Record<string, unknown>` | — | Override reported capabilities (e.g. `maxContext`, `vision`). |
 
-### CompatibilityQuirks
+### Model configuration (`models` + `customModels`)
+
+Provider model entries support two shapes — plain strings (legacy) and full models.dev objects (new):
+
+#### Plain string allowlist (zero-migration)
+
+```jsonc
+{
+  "providers": {
+    "openai": {
+      "type": "openai",
+      "apiKey": "sk-...",
+      "models": ["gpt-4o", "gpt-4o-mini", "o3"]
+    }
+  }
+}
+```
+
+Models not in this list are hidden from pickers and fallback derivation. The catalog metadata (context window, pricing, capabilities) comes from the live models.dev registry automatically.
+
+#### Inline model objects (full schema)
+
+Each entry in `models` can be a full models.dev-style object with all schema fields:
+
+```jsonc
+{
+  "providers": {
+    "acme": {
+      "type": "acme",
+      "family": "openai-compatible",
+      "apiKey": "sk-...",
+      "models": [
+        {
+          "id": "acme-pro",
+          "name": "Acme Pro",
+          "description": "Full-featured model",
+          "limit": { "context": 500000, "output": 64000 },
+          "cost": { "input": 5, "output": 20, "cache_read": 0.5 },
+          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
+          "tool_call": true,
+          "reasoning": true,
+          "temperature": true,
+          "knowledge": "2025-06-01",
+          "release_date": "2026-01-15"
+        }
+      ]
+    }
+  }
+}
+```
+
+#### `customModels` overrides
+
+Catalog models can be overridden field-by-field using `customModels`. Only the fields you set are overridden; untouched fields resolve from the live models.dev catalog at runtime (delta storage):
+
+```jsonc
+{
+  "providers": {
+    "openai": {
+      "models": ["gpt-4o"],
+      "customModels": {
+        "gpt-4o": {
+          "modelsDev": {
+            "limit": { "context": 200000 }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+#### Resizable model fields (models.dev schema)
+
+| Section | Fields | Description |
+|---|---|---|
+| **Identity** | `id`, `name`, `description`, `family` | Model identification |
+| **Limits** | `limit.context`, `limit.output`, `limit.input` | Token limits (0 is valid) |
+| **Pricing** | `cost.input`, `cost.output`, `cost.cache_read`, `cost.cache_write` | USD per 1M tokens |
+| **Modalities** | `modalities.input[]`, `modalities.output[]` | String arrays: `"text"`, `"image"`, `"audio"`, `"video"`, `"pdf"` |
+| **Capabilities** | `tool_call`, `reasoning`, `temperature`, `attachment`, `structured_output`, `open_weights` | Boolean flags |
+| **Dates** | `release_date`, `last_updated`, `knowledge` | ISO date strings |
+
+> **Note:** `modalities.input` and `modalities.output` are plain string arrays — `modalities.input[0]` is `"text"` (a string), not an object.
+
+#### Precedence
+
+Metadata resolution order (highest wins):
+
+1. **Explicit `customModels`** — per-field overrides from config
+2. **Inline-derived** — full objects in `models[]` array
+3. **models.dev catalog** — live registry data (refreshed at boot)
+4. **Wire-family defaults** — hardcoded per provider family
+
+#### Reset to catalog values
+
+Both the WebUI ModelListEditor and TUI `/auth` panel support resetting a model's overrides back to the live models.dev catalog values. This drops the `customModels` entry for that model id so the runtime falls back to fresh catalog data.
 
 Wire-level behavior flags for OpenAI-compatible and family-overridden providers. Set them under the `quirks` key on any provider config entry. All quirks are optional.
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.298.1",
+  "packageVersion": "0.298.2",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -823,6 +823,7 @@
         "export { DefaultModeStore, loadProjectModes, loadUserModes, type ModeLoaderOptions, } from './mode-store.js';",
         "export { DefaultModelsRegistry, classifyFamily, type DefaultModelsRegistryOptions, } from './models-registry.js';",
         "export { LLMSelector, type LLMSelectorOptions } from './llm-selector.js';",
+        "export { MODELS_DEV_MODALITY_VALUES, modelsDevCostSchema, modelsDevLimitSchema, modelsDevModalitiesSchema, modelsDevModelSchema, modelsDevPayloadSchema, modelsDevProviderSchema, type ModelsDevModelParsed, type ModelsDevPayloadParsed, type ModelsDevProviderParsed, type ModelsDevSchemaSyncProof, } from './models-dev-schema.js';",
         "export { MODEL_PROFILES, TASK_TO_ROLE, inferTaskType, findModelProfile, scoreModelForTask, type ModelProfile, type TaskType, } from './model-intelligence.js';",
         "export { ModelRouter, type RouterConfig, type ModelPick, type RouterCosts, type ModelIntelligenceEntry, } from './model-router.js';",
         "export { resolveProviderModelList, describeCatalogModel, type ProviderModelDescriptor, } from './provider-model-resolve.js';"
@@ -1099,7 +1100,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 144,
-      "sourceLines": 42127
+      "sourceLines": 42595
     },
     {
       "directory": "core",
@@ -1182,8 +1183,8 @@
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
-      "sourceFiles": 9,
-      "sourceLines": 2151
+      "sourceFiles": 10,
+      "sourceLines": 2327
     },
     {
       "directory": "notifications",
@@ -1274,7 +1275,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9489
+      "sourceLines": 9495
     },
     {
       "directory": "utils",

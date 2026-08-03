@@ -30,6 +30,12 @@ export interface ProviderCustomModelWire {
         jsonMode?: boolean | undefined;
       }
     | undefined;
+  /**
+   * Full models.dev model payload (ME-2/ME-3). Stores all schema fields for
+   * catalog overrides (delta) and custom (non-catalog) models. Validated
+   * server-side by the ME-1 zod schema before persistence.
+   */
+  modelsDev?: Record<string, unknown> | undefined;
 }
 
 export type WSClientMessageCore =
@@ -267,6 +273,18 @@ export type WSClientMessageCore =
     }
   | { type: 'provider.remove'; payload: { providerId: string } }
   | { type: 'provider.clear_models'; payload: { providerId: string } }
+  | {
+      type: 'provider.custom_models.set';
+      payload: {
+        providerId: string;
+        modelId: string;
+        customModel: ProviderCustomModelWire;
+      };
+    }
+  | {
+      type: 'provider.custom_models.remove';
+      payload: { providerId: string; modelId: string };
+    }
   | { type: 'provider.undo_clear'; payload: { providerId: string; previousModels: string[] } }
   | {
       type: 'provider.update';

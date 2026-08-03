@@ -45,7 +45,7 @@ export interface ProviderModelsPanelProps {
    * The full saved allowlist (the same data the model picker uses).
    */
   savedModels?: string[] | undefined;
-  /** Per-model metadata from customModels (display name, context, output, capabilities). */
+  /** Per-model metadata from customModels (display name, context, output, capabilities, modelsDev). */
   savedCustomModels?: Record<string, {
     name?: string | undefined;
     maxOutput?: number | undefined;
@@ -57,6 +57,7 @@ export interface ProviderModelsPanelProps {
       streaming?: boolean | undefined;
       jsonMode?: boolean | undefined;
     } | undefined;
+    modelsDev?: Record<string, unknown> | undefined;
   }> | undefined;
   /** WebSocket client used to send `provider.probe` and listen for the reply. */
   ws: WrongStackWebSocketClient;

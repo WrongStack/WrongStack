@@ -1,4 +1,5 @@
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { modelsDevModelSchema } from '@wrongstack/core/models';
 import type { ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
@@ -28,6 +29,13 @@ export interface ProviderMutationHandlers {
   ) => Promise<void>;
   handleProviderRemove: (ws: WebSocket, providerId: string) => Promise<void>;
   handleProviderClearModels: (ws: WebSocket, providerId: string) => Promise<void>;
+  handleCustomModelSet: (
+    ws: WebSocket,
+    providerId: string,
+    modelId: string,
+    definition: NonNullable<ProviderConfig['customModels']>[string],
+  ) => Promise<void>;
+  handleCustomModelRemove: (ws: WebSocket, providerId: string, modelId: string) => Promise<void>;
   handleProviderUndoClear: (
     ws: WebSocket,
     providerId: string,
@@ -80,6 +88,10 @@ function asPayloadRecord(msg: WSClientMessage): Record<string, unknown> | null {
     : null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function requiredString(payload: Record<string, unknown>, key: string): string | null {
   const value = payload[key];
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
@@ -108,7 +120,7 @@ const CUSTOM_MODEL_BOOLEAN_CAPS = new Set([
   'streaming',
   'jsonMode',
 ]);
-const INLINE_DEFINITION_KEYS = new Set(['name', 'maxOutput', 'capabilities', 'provider']);
+const INLINE_DEFINITION_KEYS = new Set(['name', 'maxOutput', 'capabilities', 'provider', 'modelsDev']);
 
 function optionalCustomModels(
   payload: Record<string, unknown>,
@@ -171,6 +183,18 @@ function optionalCustomModels(
       }
       capabilities = built;
     }
+    // ME-3: validate modelsDev BEFORE building the result object so that
+    // an invalid value rejects the whole entry (returning null), not
+    // silently drops. Spreading null into an object literal is a JS no-op.
+    const rawMd = definition['modelsDev'];
+    let validatedModelsDev: Record<string, unknown> | undefined;
+    if (rawMd !== undefined) {
+      if (!isRecord(rawMd)) return null;
+      const parsed = modelsDevModelSchema.safeParse({ ...rawMd, id: modelId });
+      if (!parsed.success) return null;
+      const { id: _parsedId, ...validMd } = parsed.data;
+      validatedModelsDev = validMd as Record<string, unknown>;
+    }
     out[modelId] = {
       ...(typeof definition['name'] === 'string' ? { name: definition['name'] } : {}),
       ...(typeof definition['provider'] === 'string' ? { provider: definition['provider'] } : {}),
@@ -178,6 +202,7 @@ function optionalCustomModels(
         ? { maxOutput: definition['maxOutput'] }
         : {}),
       ...(capabilities ? { capabilities } : {}),
+      ...(validatedModelsDev ? { modelsDev: validatedModelsDev } : {}),
     };
   }
   return out;
@@ -302,6 +327,45 @@ export async function handleProviderRoute(
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       if (!providerId) return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderClearModels(ws, providerId);
+      return true;
+    }
+
+    case 'provider.custom_models.set': {
+      const payload = asPayloadRecord(msg);
+      const providerId = payload ? requiredString(payload, 'providerId') : null;
+      const modelId = payload ? requiredString(payload, 'modelId') : null;
+      if (
+        !payload ||
+        !providerId ||
+        !SAFE_CONFIG_KEY.test(providerId) ||
+        !modelId ||
+        !SAFE_CONFIG_KEY.test(modelId)
+      ) {
+        return invalidPayload(ws, msg.type);
+      }
+      const customModelRaw = payload['customModel'];
+      if (!isRecord(customModelRaw)) return invalidPayload(ws, msg.type);
+      // Reuse optionalCustomModels by wrapping in the expected shape.
+      const cm = optionalCustomModels({ customModels: { [modelId]: customModelRaw } });
+      if (!cm || !cm[modelId]) return invalidPayload(ws, msg.type);
+      await routes.providerHandlers.handleCustomModelSet(ws, providerId, modelId, cm[modelId]!);
+      return true;
+    }
+
+    case 'provider.custom_models.remove': {
+      const payload = asPayloadRecord(msg);
+      const providerId = payload ? requiredString(payload, 'providerId') : null;
+      const modelId = payload ? requiredString(payload, 'modelId') : null;
+      if (
+        !payload ||
+        !providerId ||
+        !SAFE_CONFIG_KEY.test(providerId) ||
+        !modelId ||
+        !SAFE_CONFIG_KEY.test(modelId)
+      ) {
+        return invalidPayload(ws, msg.type);
+      }
+      await routes.providerHandlers.handleCustomModelRemove(ws, providerId, modelId);
       return true;
     }
 

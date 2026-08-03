@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 236,
-      "typeOnly": 191,
+      "files": 237,
+      "typeOnly": 192,
       "runtimeOrMixed": 65
     },
     "@wrongstack/core/agent-catalog": {
@@ -1241,6 +1241,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/src/components/sidebar-content.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/src/components/sidebar-panels.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

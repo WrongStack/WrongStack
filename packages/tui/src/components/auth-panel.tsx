@@ -40,7 +40,11 @@ const PROVIDER_ACTION_LABEL: Record<string, string> = {
   'edit-family': '✎ Edit family',
   'edit-base-url': '✎ Edit base URL',
   'edit-models': '✎ Edit visible model list',
+  'edit-model-details': '✎ Edit model details',
+  'add-model': '＋ Add model',
+  'reset-model-to-catalog': '↺ Reset model to catalog',
   remove: '✕ Remove this provider',
+  'back-to-list': '← Back to providers',
 };
 
 const OAUTH_LABEL: Record<string, { title: string; detail: string }> = {
@@ -122,6 +126,12 @@ function renderRow(row: AuthPanelRow, focused: boolean, i: number): React.ReactE
       return (
         <Text key={`pa-${row.action}`} color={rowColor} wrap="truncate-end">
           {marker} {PROVIDER_ACTION_LABEL[row.action]}
+        </Text>
+      );
+    case 'model-row':
+      return (
+        <Text key={`m-${row.providerId}-${row.modelId}`} color={rowColor} wrap="truncate-end">
+          {marker} {row.name}
         </Text>
       );
     case 'catalog-entry': {
@@ -214,6 +224,8 @@ function viewTitle(panel: AuthPanelState): string {
       return 'API keys & sign-in';
     case 'provider':
       return `Provider — ${panel.providerId ?? ''}`;
+    case 'models':
+      return `Models — ${panel.providerId ?? ''}`;
     case 'catalog':
       return 'Add provider — models.dev catalog';
     case 'local':
@@ -233,6 +245,8 @@ function viewLegend(panel: AuthPanelState): string {
       return '↑/↓ select · Enter open · Esc close';
     case 'provider':
       return '↑/↓ select · Enter activate/run · u update key · d delete key · Esc back';
+    case 'models':
+      return '↑/↓ select · Enter edit model · Esc back';
     case 'catalog':
       return 'type to filter · ↑/↓ select · Enter add key · Esc back';
     case 'local':

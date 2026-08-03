@@ -241,7 +241,8 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
         providerId,
         config,
       );
-      const siblingId = SIBLING_CATALOG[providerId];
+      const siblingCatalogKey = config?.family ?? providerId;
+      const siblingId = SIBLING_CATALOG[siblingCatalogKey];
       const sibling =
         siblingId && siblingId !== providerId
           ? await deps.modelsRegistry.getProvider(siblingId).catch(() => undefined)
@@ -430,6 +431,57 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     }
   }
 
+  /** Set/update a single custom model definition for a provider (ME-3). */
+  async function handleCustomModelSet(
+    ws: WebSocket,
+    providerId: string,
+    modelId: string,
+    definition: NonNullable<ProviderConfig['customModels']>[string],
+  ): Promise<void> {
+    try {
+      const providers = await loadConfigProviders();
+      const cfg = Object.hasOwn(providers, providerId) ? providers[providerId] : undefined;
+      if (!cfg) {
+        sendOperationResult(ws, false, `Unknown provider "${providerId}"`);
+        return;
+      }
+      if (!cfg.customModels) cfg.customModels = {};
+      cfg.customModels[modelId] = definition;
+      await saveConfigProviders(providers);
+      sendOperationResult(ws, true, `Saved model "${modelId}" for ${providerId}`);
+      broadcastSaved(providers);
+    } catch (err) {
+      sendOperationResult(ws, false, errMessage(err));
+    }
+  }
+
+  /** Remove a single custom model entry for a provider (ME-3). */
+  async function handleCustomModelRemove(
+    ws: WebSocket,
+    providerId: string,
+    modelId: string,
+  ): Promise<void> {
+    try {
+      const providers = await loadConfigProviders();
+      const cfg = Object.hasOwn(providers, providerId) ? providers[providerId] : undefined;
+      if (!cfg) {
+        sendOperationResult(ws, false, `Unknown provider "${providerId}"`);
+        return;
+      }
+      if (cfg.customModels && Object.hasOwn(cfg.customModels, modelId)) {
+        delete cfg.customModels[modelId];
+        if (Object.keys(cfg.customModels).length === 0) delete cfg.customModels;
+        await saveConfigProviders(providers);
+        sendOperationResult(ws, true, `Removed model "${modelId}" from ${providerId}`);
+        broadcastSaved(providers);
+      } else {
+        sendOperationResult(ws, false, `Model "${modelId}" not found in ${providerId}`);
+      }
+    } catch (err) {
+      sendOperationResult(ws, false, errMessage(err));
+    }
+  }
+
   /** Restore a previously-cleared model allowlist (pairs with clear). */
   async function handleProviderUndoClear(
     ws: WebSocket,
@@ -557,7 +609,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
     p.family = outcome.family as ProviderConfig['family'];
     if (!p.baseUrl) p.baseUrl = outcome.baseUrl;
-    p.models = [...outcome.models];
+    if (outcome.models.length > 0) p.models = [...outcome.models];
     const keys = normalizeKeys(p).filter((k) => k.label !== outcome.apiKey.label);
     keys.push(outcome.apiKey);
     writeKeysBack(p, keys);
@@ -685,6 +737,8 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     handleProviderAdd,
     handleProviderRemove,
     handleProviderClearModels,
+    handleCustomModelSet,
+    handleCustomModelRemove,
     handleProviderUndoClear,
     handleProviderUpdate,
     handleProviderProbe,

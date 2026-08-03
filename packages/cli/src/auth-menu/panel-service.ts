@@ -381,6 +381,232 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
       });
     },
 
+    editModelDetails(
+      providerId: string,
+      modelId: string,
+      io: AuthFlowIo,
+    ): Promise<AuthFlowResult> {
+      return runFlow(async () => {
+        const providers = await loadProviders();
+        const cfg = providers[providerId];
+        if (!cfg) {
+          io.onLog(`✗ Provider "${providerId}" no longer in config.`);
+          return false;
+        }
+
+        // Fetch catalog reference values so the user can see defaults
+        const catalogModel = await deps.modelsRegistry
+          .getModel(
+            cfg.type && cfg.type !== providerId ? cfg.type : providerId,
+            modelId,
+          )
+          .catch(() => undefined);
+
+        const existing = cfg.customModels?.[modelId];
+        const currentMd = existing?.modelsDev ?? {};
+
+        io.onLog(
+          catalogModel
+            ? `Catalog reference: ctx=${catalogModel.capabilities.maxContext ?? '?'}, out=${catalogModel.capabilities.maxOutput ?? '?'}`
+            : `(no catalog entry for ${modelId})`,
+        );
+
+        // Identity
+        const name = (
+          await io.prompt(
+            `Name (current: ${(currentMd['name'] as string) ?? modelId})`,
+            { secret: false },
+          )
+        ).trim();
+
+        // Limits
+        const ctxRaw = (
+          await io.prompt(
+            `Context window (current: ${(currentMd.limit as Record<string, unknown>)?.['context'] ?? '?'}, catalog: ${catalogModel?.capabilities.maxContext ?? '?'})`,
+            { secret: false },
+          )
+        ).trim();
+        const outRaw = (
+          await io.prompt(
+            `Max output (current: ${existing?.maxOutput ?? (currentMd.limit as Record<string, unknown>)?.['output'] ?? '?'}, catalog: ${catalogModel?.capabilities.maxOutput ?? '?'})`,
+            { secret: false },
+          )
+        ).trim();
+
+        // Cost
+        const costInRaw = (
+          await io.prompt(
+            `Cost input $/1M (current: ${(currentMd.cost as Record<string, unknown>)?.['input'] ?? '?'}, catalog: ${catalogModel?.cost?.input ?? '?'})`,
+            { secret: false },
+          )
+        ).trim();
+        const costOutRaw = (
+          await io.prompt(
+            `Cost output $/1M (current: ${(currentMd.cost as Record<string, unknown>)?.['output'] ?? '?'}, catalog: ${catalogModel?.cost?.output ?? '?'})`,
+            { secret: false },
+          )
+        ).trim();
+
+        // Build the modelsDev delta
+        const modelsDev: Record<string, unknown> = {};
+        if (name) modelsDev['name'] = name;
+        const limit: Record<string, number> = {};
+        if (ctxRaw) { const n = Number(ctxRaw); if (!Number.isNaN(n) && n >= 0) limit['context'] = n; }
+        if (outRaw) { const n = Number(outRaw); if (!Number.isNaN(n) && n >= 0) limit['output'] = n; }
+        if (Object.keys(limit).length > 0) modelsDev['limit'] = limit;
+        const cost: Record<string, number> = {};
+        if (costInRaw) { const n = Number(costInRaw); if (!Number.isNaN(n) && n >= 0) cost['input'] = n; }
+        if (costOutRaw) { const n = Number(costOutRaw); if (!Number.isNaN(n) && n >= 0) cost['output'] = n; }
+        if (Object.keys(cost).length > 0) modelsDev['cost'] = cost;
+
+        if (Object.keys(modelsDev).length === 0) {
+          io.onLog('(no changes — nothing entered)');
+          return true;
+        }
+
+        const err = await mutate((all) => {
+          const p = all[providerId];
+          if (!p) return `Provider "${providerId}" no longer in config.`;
+          if (!p.customModels) p.customModels = {};
+          const existingEntry = p.customModels[modelId] ?? {};
+          p.customModels[modelId] = {
+            ...existingEntry,
+            modelsDev: {
+              ...(existingEntry.modelsDev ?? {}),
+              ...modelsDev,
+              // Deep-merge limit/cost so partial overrides don't wipe sub-fields
+              ...(limit || existingEntry.modelsDev
+                ? {
+                    limit: {
+                      ...(existingEntry.modelsDev?.['limit'] as Record<string, unknown> ?? {}),
+                      ...limit,
+                    },
+                  }
+                : {}),
+              ...(cost || (existingEntry.modelsDev?.['cost'] as Record<string, unknown>)
+                ? {
+                    cost: {
+                      ...((existingEntry.modelsDev?.['cost'] as Record<string, unknown>) ?? {}),
+                      ...cost,
+                    },
+                  }
+                : {}),
+            },
+          };
+          return null;
+        });
+        if (err) {
+          io.onLog(`✗ ${err}`);
+          return false;
+        }
+        io.onLog(`✓ ${modelId} updated`);
+        return true;
+      });
+    },
+
+    addModel(
+      providerId: string,
+      io: AuthFlowIo,
+      opts?: { fromCatalog?: boolean | undefined },
+    ): Promise<AuthFlowResult> {
+      return runFlow(async () => {
+        const providers = await loadProviders();
+        const cfg = providers[providerId];
+        if (!cfg) {
+          io.onLog(`✓ Provider "${providerId}" no longer in config.`);
+          return false;
+        }
+
+        const modelId = (
+          await io.prompt('Model id', { secret: false })
+        ).trim();
+        if (!modelId) {
+          io.onLog('✗ Model id is required.');
+          return false;
+        }
+
+        // If from catalog, try to prefill
+        if (opts?.fromCatalog) {
+          const catalogModel = await deps.modelsRegistry
+            .getModel(
+              cfg.type && cfg.type !== providerId ? cfg.type : providerId,
+              modelId,
+            )
+            .catch(() => undefined);
+          if (catalogModel) {
+            io.onLog(
+              `Found in catalog: ctx=${catalogModel.capabilities.maxContext}, out=${catalogModel.capabilities.maxOutput}`,
+            );
+          } else {
+            io.onLog(`(not found in catalog — entering as custom)`);
+          }
+        }
+
+        const err = await mutate((all) => {
+          const p = all[providerId];
+          if (!p) return `Provider "${providerId}" no longer in config.`;
+          if (!p.models) p.models = [];
+          if (!p.models.includes(modelId)) p.models.push(modelId);
+          return null;
+        });
+        if (err) {
+          io.onLog(`✗ ${err}`);
+          return false;
+        }
+        io.onLog(`✓ Added model "${modelId}" to ${providerId}`);
+        return true;
+      });
+    },
+
+    removeModel(providerId: string, modelId: string): Promise<string | null> {
+      return (async () => {
+        const err = await mutate((all) => {
+          const p = all[providerId];
+          if (!p) return `Provider "${providerId}" no longer in config.`;
+          if (p.models) {
+            p.models = p.models.filter((m) => m !== modelId);
+            if (p.models.length === 0) delete p.models;
+          }
+          if (p.customModels && modelId in p.customModels) {
+            delete p.customModels[modelId];
+            if (Object.keys(p.customModels).length === 0) delete p.customModels;
+          }
+          return null;
+        });
+        return err;
+      })();
+    },
+
+    resetModelToCatalog(providerId: string, modelId: string): Promise<string | null> {
+      return (async () => {
+        // Verify the model exists in the catalog before resetting
+        const providers = await loadProviders();
+        const cfg = providers[providerId];
+        if (!cfg) return `Provider "${providerId}" no longer in config.`;
+
+        const catalogModel = await deps.modelsRegistry
+          .getModel(
+            cfg.type && cfg.type !== providerId ? cfg.type : providerId,
+            modelId,
+          )
+          .catch(() => undefined);
+        if (!catalogModel) {
+          return `Model "${modelId}" not found in catalog — cannot reset.`;
+        }
+
+        const err = await mutate((all) => {
+          const p = all[providerId];
+          if (!p) return `Provider "${providerId}" no longer in config.`;
+          if (p.customModels && modelId in p.customModels) {
+            delete p.customModels[modelId];
+            if (Object.keys(p.customModels).length === 0) delete p.customModels;
+          }
+          return null;
+        });
+        return err;
+      })();
+    },
+
     addCatalogProvider(catalogId: string, io: AuthFlowIo): Promise<AuthFlowResult> {
       return runFlow(async () => {
         const catalog = await deps.modelsRegistry.listProviders();

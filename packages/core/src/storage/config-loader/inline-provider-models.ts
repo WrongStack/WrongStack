@@ -1,5 +1,6 @@
 import type { CustomModelDefinition } from '../../types/config.js';
 import type { Capabilities } from '../../types/provider.js';
+import type { ModelsDevModel } from '../../types/models-registry.js';
 import { FORBIDDEN_PROTO_KEYS } from '../../utils/deep-merge.js';
 
 export type InlineProviderModelWarning = (
@@ -97,6 +98,16 @@ function inlineDefinition(model: Record<string, unknown>): CustomModelDefinition
 
   const capabilities = readCapabilities(model);
   if (capabilities) definition.capabilities = capabilities;
+
+  // ME-2: store the full model object (minus id) so all models.dev schema
+  // fields round-trip — cost, modalities.output, knowledge, dates, etc.
+  // For catalog-model overrides this is a delta (only fields the user set);
+  // for custom (non-catalog) models it's the full object.
+  const { id: _id, ...rest } = model;
+  if (Object.keys(rest).length > 0) {
+    definition.modelsDev = rest as Omit<ModelsDevModel, 'id'>;
+  }
+
   return definition;
 }
 
@@ -104,12 +115,33 @@ function mergeDefinitions(
   base: CustomModelDefinition | undefined,
   patch: CustomModelDefinition,
 ): CustomModelDefinition {
+  // ME-2: deep-merge modelsDev payloads so inline objects + explicit
+  // customModels entries compose field-by-field (same overlay philosophy
+  // as mergeModelsPayload). Explicit customModels still wins per-field.
+  // One level deeper for nested objects (limit/cost/modalities) so a
+  // partial override doesn't blow away the base's other sub-fields.
+  const mergedModelsDev = (() => {
+    if (!base?.modelsDev && !patch.modelsDev) return undefined;
+    const baseMd = base?.modelsDev ?? {};
+    const patchMd = patch.modelsDev ?? {};
+    const result: Record<string, unknown> = { ...baseMd, ...patchMd };
+    for (const nestedKey of ['limit', 'cost', 'modalities']) {
+      const bn = (baseMd as Record<string, unknown>)?.[nestedKey];
+      const pn = (patchMd as Record<string, unknown>)?.[nestedKey];
+      if (bn || pn) {
+        result[nestedKey] = { ...(bn as Record<string, unknown> ?? {}), ...(pn as Record<string, unknown> ?? {}) };
+      }
+    }
+    return result as Omit<ModelsDevModel, 'id'>;
+  })();
+
   return {
     ...base,
     ...patch,
     ...(base?.capabilities || patch.capabilities
       ? { capabilities: { ...base?.capabilities, ...patch.capabilities } }
       : {}),
+    ...(mergedModelsDev ? { modelsDev: mergedModelsDev } : {}),
   };
 }
 

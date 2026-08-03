@@ -776,11 +776,11 @@ async function resolveModelSelection(
     id: string;
     name: string;
     release_date?: string | undefined;
-    limit?: { context?: number | undefined };
-    cost?: { input?: number | undefined; output?: number | undefined };
+    limit?: { context?: number | undefined } | undefined;
+    cost?: { input?: number | undefined; output?: number | undefined } | undefined;
     tool_call?: boolean | undefined;
     reasoning?: boolean | undefined;
-    modalities?: { input?: string[] | undefined };
+    modalities?: { input?: string[] | undefined } | undefined;
   }[],
   provider: ResolvedProvider,
   _registry: ModelsRegistry,

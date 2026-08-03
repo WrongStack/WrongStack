@@ -267,17 +267,26 @@ describe('DefaultConfigLoader', () => {
       const cfg = await l.load();
       const provider = cfg.providers?.['acme'];
       expect(provider?.models).toEqual(['legacy-model', 'acme-large']);
-      expect(provider?.customModels?.['acme-large']).toEqual({
-        name: 'Explicit Acme Large',
-        maxOutput: 4_096,
-        capabilities: {
-          maxContext: 131_072,
-          tools: false,
-          reasoning: true,
-          vision: true,
-          streaming: true,
-          jsonMode: true,
-        },
+      const acmeLarge = provider?.customModels?.['acme-large'];
+      // Legacy derived fields are unchanged.
+      expect(acmeLarge?.name).toBe('Explicit Acme Large');
+      expect(acmeLarge?.maxOutput).toBe(4_096);
+      expect(acmeLarge?.capabilities).toEqual({
+        maxContext: 131_072,
+        tools: false,
+        reasoning: true,
+        vision: true,
+        streaming: true,
+        jsonMode: true,
+      });
+      // ME-2: full inline model object round-trips via modelsDev, merged
+      // field-by-field (inline-derived + explicit customModels compose).
+      expect(acmeLarge?.modelsDev).toMatchObject({
+        name: 'Inline Acme Large',
+        limit: { context: 262_144, output: 32_768 },
+        tool_call: true,
+        reasoning: true,
+        modalities: { input: ['text', 'image'], output: ['text'] },
       });
       const firstWarning = warn.mock.calls.at(0)?.[0];
       expect(firstWarning).toEqual(
@@ -289,6 +298,124 @@ describe('DefaultConfigLoader', () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  // ── ME-2: full models.dev schema round-trip ────────────────────────────
+
+  it('ME-2: round-trips full models.dev inline model objects (cost, modalities.output, knowledge, dates)', async () => {
+    const { loader: l, profileCfgPath } = loader();
+    await fs.mkdir(path.dirname(profileCfgPath), { recursive: true });
+    await fs.writeFile(
+      profileCfgPath,
+      JSON.stringify({
+        providers: {
+          acme: {
+            type: 'acme',
+            family: 'openai-compatible',
+            models: [
+              {
+                id: 'acme-pro',
+                name: 'Acme Pro',
+                description: 'Full-featured model',
+                family: 'acme-pro',
+                attachment: true,
+                reasoning: true,
+                reasoning_options: [{ type: 'effort', values: ['low', 'high'] }],
+                tool_call: true,
+                structured_output: true,
+                temperature: true,
+                knowledge: '2025-06-01',
+                release_date: '2026-01-15',
+                last_updated: '2026-02-01',
+                open_weights: false,
+                modalities: { input: ['text', 'image', 'pdf'], output: ['text'] },
+                cost: { input: 5, output: 20, cache_read: 0.5, cache_write: 6.25 },
+                limit: { context: 500_000, output: 64_000 },
+              },
+            ],
+          },
+        },
+      }),
+    );
+    const cfg = await l.load();
+    const acmePro = cfg.providers?.['acme']?.customModels?.['acme-pro'];
+    expect(acmePro?.modelsDev).toMatchObject({
+      name: 'Acme Pro',
+      description: 'Full-featured model',
+      knowledge: '2025-06-01',
+      release_date: '2026-01-15',
+      cost: { input: 5, output: 20, cache_read: 0.5, cache_write: 6.25 },
+      limit: { context: 500_000, output: 64_000 },
+      modalities: { input: ['text', 'image', 'pdf'], output: ['text'] },
+      reasoning_options: [{ type: 'effort', values: ['low', 'high'] }],
+    });
+    // Legacy derived fields still populated from the same object.
+    expect(acmePro?.capabilities?.maxContext).toBe(500_000);
+    expect(acmePro?.maxOutput).toBe(64_000);
+    expect(acmePro?.capabilities?.tools).toBe(true);
+    expect(acmePro?.capabilities?.reasoning).toBe(true);
+    expect(acmePro?.capabilities?.vision).toBe(true);
+  });
+
+  it('ME-2: customModels.modelsDev merges field-by-field with inline modelsDev', async () => {
+    const { loader: l, profileCfgPath } = loader();
+    await fs.mkdir(path.dirname(profileCfgPath), { recursive: true });
+    await fs.writeFile(
+      profileCfgPath,
+      JSON.stringify({
+        providers: {
+          acme: {
+            type: 'acme',
+            family: 'openai-compatible',
+            models: [
+              {
+                id: 'acme-merge',
+                name: 'Inline Name',
+                limit: { context: 100_000 },
+                cost: { input: 3 },
+              },
+            ],
+            customModels: {
+              'acme-merge': {
+                modelsDev: {
+                  name: 'Explicit Name',
+                  limit: { output: 8_192 },
+                  cost: { output: 12 },
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+    const cfg = await l.load();
+    const merged = cfg.providers?.['acme']?.customModels?.['acme-merge']?.modelsDev;
+    // Explicit customModels.modelsDev wins per-field over inline-derived;
+    // untouched fields survive from the inline object.
+    expect(merged?.name).toBe('Explicit Name');
+    expect(merged?.limit).toEqual({ context: 100_000, output: 8_192 });
+    expect(merged?.cost).toEqual({ input: 3, output: 12 });
+  });
+
+  it('ME-2: plain-string models[] configs load and re-serialize byte-identical (zero-migration)', async () => {
+    const { loader: l, profileCfgPath } = loader();
+    const rawConfig = {
+      providers: {
+        acme: {
+          type: 'acme',
+          family: 'openai-compatible',
+          apiKey: 'sk-test',
+          models: ['model-a', 'model-b', 'model-c'],
+        },
+      },
+    };
+    await fs.mkdir(path.dirname(profileCfgPath), { recursive: true });
+    await fs.writeFile(profileCfgPath, JSON.stringify(rawConfig, null, 2));
+    const cfg = await l.load();
+    const provider = cfg.providers?.['acme'];
+    // String allowlist preserved exactly, no customModels generated.
+    expect(provider?.models).toEqual(['model-a', 'model-b', 'model-c']);
+    expect(provider?.customModels).toBeUndefined();
   });
 
   it('never loads settings from the root bootstrap once a profile exists', async () => {

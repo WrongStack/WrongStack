@@ -90,6 +90,37 @@ export interface AuthPanelHost {
     field: 'family' | 'baseUrl' | 'models',
     io: AuthFlowIo,
   ): Promise<AuthFlowResult>;
+  /**
+   * Edit a single model's detailed schema fields (ME-5). Opens a field-group
+   * prompt flow covering identity, limits, pricing, modalities, capability
+   * flags, and dates. Validates via the ME-1 zod schema.
+   *
+   * Shows the models.dev catalog reference values alongside the current
+   * values so the user can see what the upstream defaults are and reset
+   * individual fields back to them.
+   */
+  editModelDetails(
+    providerId: string,
+    modelId: string,
+    io: AuthFlowIo,
+  ): Promise<AuthFlowResult>;
+  /**
+   * Add a model to the provider's allowlist with optional full schema details
+   * (ME-5). When `fromCatalog` is true, prefills from the models.dev registry.
+   */
+  addModel(
+    providerId: string,
+    io: AuthFlowIo,
+    opts?: { fromCatalog?: boolean | undefined },
+  ): Promise<AuthFlowResult>;
+  /** Remove a single model from the provider's allowlist + customModels (ME-5). */
+  removeModel(providerId: string, modelId: string): Promise<string | null>;
+  /**
+   * Reset a model's customModels override back to the models.dev catalog
+   * values (ME-5). Drops the customModels entry for this modelId so the
+   * runtime falls back to the live catalog data.
+   */
+  resetModelToCatalog(providerId: string, modelId: string): Promise<string | null>;
   addCatalogProvider(catalogId: string, io: AuthFlowIo): Promise<AuthFlowResult>;
   addCustomProvider(io: AuthFlowIo): Promise<AuthFlowResult>;
   addLocal(presetId: string, io: AuthFlowIo): Promise<AuthFlowResult>;
@@ -98,11 +129,12 @@ export interface AuthPanelHost {
 
 // ── Panel state slice ──────────────────────────────────────────────────────
 
-export type AuthPanelView = 'list' | 'provider' | 'catalog' | 'local' | 'oauth' | 'flow';
+export type AuthPanelView = 'list' | 'provider' | 'models' | 'catalog' | 'local' | 'oauth' | 'flow';
 
 export type AuthConfirmAction =
   | { kind: 'delete-key'; providerId: string; label: string }
-  | { kind: 'remove-provider'; providerId: string };
+  | { kind: 'remove-provider'; providerId: string }
+  | { kind: 'remove-model'; providerId: string; modelId: string };
 
 export interface AuthPanelState {
   open: boolean;
@@ -151,8 +183,18 @@ export type AuthPanelRow =
   | { kind: 'key'; keyRow: AuthKeyRow }
   | {
       kind: 'provider-action';
-      action: 'add-key' | 'edit-family' | 'edit-base-url' | 'edit-models' | 'remove';
+      action:
+        | 'add-key'
+        | 'edit-family'
+        | 'edit-base-url'
+        | 'edit-models'
+        | 'edit-model-details'
+        | 'add-model'
+        | 'reset-model-to-catalog'
+        | 'remove'
+        | 'back-to-list';
     }
+  | { kind: 'model-row'; providerId: string; modelId: string; name: string }
   | { kind: 'catalog-entry'; entry: AuthCatalogRow }
   | { kind: 'local-preset'; preset: AuthLocalPresetRow }
   | { kind: 'oauth-option'; oauth: AuthOAuthKind };
@@ -200,12 +242,39 @@ export function authPanelRows(state: AuthPanelState): AuthPanelRow[] {
         kind: 'key' as const,
         keyRow,
       }));
+      // ME-5: show each model as a navigable row
+      for (const modelId of provider.models) {
+        rows.push({
+          kind: 'model-row' as const,
+          providerId: provider.id,
+          modelId,
+          name: modelId,
+        });
+      }
       rows.push(
         { kind: 'provider-action', action: 'add-key' },
         { kind: 'provider-action', action: 'edit-family' },
         { kind: 'provider-action', action: 'edit-base-url' },
         { kind: 'provider-action', action: 'edit-models' },
+        { kind: 'provider-action', action: 'add-model' },
         { kind: 'provider-action', action: 'remove' },
+      );
+      return rows;
+    }
+    case 'models': {
+      // ME-5: dedicated model editing view (entered from a model-row)
+      const provider = authSelectedProvider(state);
+      if (!provider) return [];
+      const rows: AuthPanelRow[] = provider.models.map((modelId) => ({
+        kind: 'model-row' as const,
+        providerId: provider.id,
+        modelId,
+        name: modelId,
+      }));
+      rows.push(
+        { kind: 'provider-action', action: 'add-model' },
+        { kind: 'provider-action', action: 'edit-models' },
+        { kind: 'provider-action', action: 'back-to-list' },
       );
       return rows;
     }

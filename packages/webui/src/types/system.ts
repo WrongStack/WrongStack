@@ -146,8 +146,30 @@ export interface WSSavedProviders {
       baseUrl?: string | undefined;
       /** Saved model allowlist, in the order the user pinned them. */
       models?: string[] | undefined;
-      /** Per-model metadata (display name, output limits, capability overrides). Mirrors CustomModelDefinition. */
-      customModels?: Record<string, { name?: string | undefined; maxOutput?: number | undefined; capabilities?: Partial<{ tools: boolean; parallelTools: boolean; vision: boolean; streaming: boolean; promptCache: boolean; systemPrompt: boolean; jsonMode: boolean; reasoning: boolean; maxContext: number; maxOutput: number; cacheControl: string }> | undefined } | undefined> | undefined;
+      /** Per-model metadata. Mirrors CustomModelDefinition + ME-2 modelsDev. */
+      customModels?:
+        | Record<
+            string,
+            {
+              name?: string | undefined;
+              maxOutput?: number | undefined;
+              capabilities?: Partial<{
+                tools: boolean;
+                parallelTools: boolean;
+                vision: boolean;
+                streaming: boolean;
+                promptCache: boolean;
+                systemPrompt: boolean;
+                jsonMode: boolean;
+                reasoning: boolean;
+                maxContext: number;
+                maxOutput: number;
+                cacheControl: string;
+              }> | undefined;
+              modelsDev?: Record<string, unknown> | undefined;
+            }
+          >
+        | undefined;
       /** First entry of `models`, surfaced for the panel's "Using" line. */
       pickedModelId?: string | undefined;
       apiKeys: Array<{

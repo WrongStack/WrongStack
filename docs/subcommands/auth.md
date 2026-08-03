@@ -78,6 +78,7 @@ Non-blocking — works under both the plain REPL and the Ink TUI.
 | `q` | Quit |
 
 ### Provider submenu
+
 | Key | Action |
 |-----|--------|
 | `a` | Add another key |
@@ -86,10 +87,21 @@ Non-blocking — works under both the plain REPL and the Ink TUI.
 | `s <n>` | Set key `<n>` as active |
 | `f` | Edit wire family |
 | `B` | Edit base URL |
-| `m` | Edit visible model list |
+| `m` | Edit visible model list (comma-separated bulk edit) |
 | `x` | Remove this provider entirely (with confirmation) |
 | `b` | Back to top menu |
 | `q` | Quit |
+
+### TUI `/auth` panel — model editing
+
+The in-session TUI panel (`/auth` in the Ink TUI) adds model-level editing on top of the CLI menu. These actions exist only in the TUI panel, not in the `wstack auth` CLI menu:
+
+| Key | Action |
+|-----|--------|
+| `Enter` on a model | Edit model details (limits, cost, modalities, capabilities, dates) |
+| `a` | Add a model (from catalog search, with manual fallback) |
+| `x` on a model | Remove model (with confirmation) |
+| `r` on a model | Reset to catalog values (drops overrides, restores models.dev defaults) |
 
 ## How credentials are stored
 

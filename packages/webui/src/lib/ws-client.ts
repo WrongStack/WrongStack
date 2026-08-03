@@ -14,12 +14,12 @@ import {
 } from '@wrongstack/webui-server/protocol';
 import { safeId } from '@/lib/utils';
 import type {
-  ProviderCustomModelWire,
   WSClientMessage,
   WSModelSwitchResult,
   WSServerMessage,
   WSUserMessageImage,
 } from '../types';
+import type { ProviderCustomModelWire } from '../types/client-message';
 import type { ContextEditorMessage } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
@@ -954,6 +954,22 @@ class WrongStackWebSocketClientBase {
   /** Restore a previously-cleared model allowlist (pairs with clear). */
   undoProviderClear(providerId: string, previousModels: string[]) {
     this.send(buildUndoClearMessage(providerId, previousModels));
+  }
+
+  /** Set/update a single custom model definition (ME-3). */
+  setCustomModel(providerId: string, modelId: string, customModel: ProviderCustomModelWire) {
+    this.send({
+      type: 'provider.custom_models.set',
+      payload: { providerId, modelId, customModel },
+    });
+  }
+
+  /** Remove a single custom model entry (ME-3). */
+  removeCustomModel(providerId: string, modelId: string) {
+    this.send({
+      type: 'provider.custom_models.remove',
+      payload: { providerId, modelId },
+    });
   }
 
   /** Update a saved provider's wire config (family / baseUrl / envVars / models / customModels). */
