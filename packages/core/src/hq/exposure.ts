@@ -28,6 +28,8 @@
  * the two apart: collapsing them is what turns "HQ is reachable from my
  * phone" into "every embedder silently binds 0.0.0.0".
  */
+import { isIP } from 'node:net';
+
 export const HQ_CLI_DEFAULT_HOST = '0.0.0.0';
 
 /**
@@ -63,9 +65,23 @@ export type HqExposureVerdict =
 /** Hosts that cannot receive traffic from another machine. */
 export function isLoopbackHost(host: string): boolean {
   const normalized = host.trim().toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
-  if (normalized === 'localhost' || normalized === '::1') return true;
-  // The whole 127.0.0.0/8 block is loopback, not just 127.0.0.1.
-  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
+  if (normalized === 'localhost') return true;
+  // Use Node's authoritative IP parser instead of a regex. A regex can
+  // accept syntactically-valid-but-semantically-wrong strings (e.g.
+  // leading zeros, shorthand IPv6) that net.isIP() rejects, and can
+  // miss valid forms (IPv4-mapped IPv6 loopback ::ffff:127.0.0.1).
+  const family = isIP(normalized);
+  if (family === 4) {
+    // The entire 127.0.0.0/8 block is loopback, not just 127.0.0.1.
+    return normalized.startsWith('127.');
+  }
+  if (family === 6) {
+    // ::1 is the IPv6 loopback address. Also accept the IPv4-mapped
+    // form ::ffff:127.x.x.x which resolves to loopback on dual-stack.
+    return normalized === '::1'
+      || /^::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
+  }
+  return false;
 }
 
 /** True when HQ would serve every request unauthenticated. Mirrors the
