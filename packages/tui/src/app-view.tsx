@@ -130,13 +130,18 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const { panelPositions, sidebarWidth, mainColumnWidth } = resolveSidebarLayout(
     state,
     termCols,
-    // Use the reducer state (state.settingsPicker.panelPositions) as the
-    // primary source so the routing updates IMMEDIATELY when the user
-    // changes a panel position in the picker — not after the async
-    // auto-save hook writes to configStore. Fall back to liveSettings
-    // (the persisted configStore snapshot) for the initial boot render
-    // before the reducer has hydrated.
-    state.settingsPicker.panelPositions ?? liveSettings?.panelPositions,
+    // While the settings picker is open, use the reducer state for immediate
+    // visual feedback (the reducer updates on every ←/→ press). When the
+    // picker is closed, use the persisted configStore snapshot via
+    // liveSettings — the reducer's panelPositions is initialized to
+    // DEFAULT_PANEL_POSITIONS on boot and is never hydrated from disk, so
+    // only liveSettings carries the user's saved routing outside the
+    // picker session. The auto-save hook writes to configStore on every
+    // picker change, so by the time the picker closes, liveSettings
+    // already reflects the user's choices.
+    state.settingsPicker.open
+      ? state.settingsPicker.panelPositions
+      : liveSettings?.panelPositions,
     mailbox.mailboxPanelOpen,
   );
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
