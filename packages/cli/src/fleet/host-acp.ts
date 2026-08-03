@@ -1,6 +1,5 @@
 import {
   ACP_AGENT_COMMANDS,
-  defaultPermissionPolicy,
   findAgentDescriptor,
   makeACPSubagentRunner,
 } from '@wrongstack/acp';
@@ -27,5 +26,5 @@ export function buildAcpSubagentRunner(subagentId: string): Promise<SubagentRunn
       context: { requested: subagentId },
     });
   }
-  return makeACPSubagentRunner({ ...cmd, permissionPolicy: defaultPermissionPolicy });
+  return makeACPSubagentRunner({ ...cmd });
 }

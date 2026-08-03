@@ -79,6 +79,8 @@ export class ACPSession {
   private readonly timeoutMs: number;
   private readonly opts: ACPSessionOptions;
   private transportOff: (() => void) | null = null;
+  private readonly callbackAbort = new AbortController();
+  private promptCallbackAbort: AbortController | null = null;
 
   private state: State = 'init';
   private sessionId: SessionId | null = null;
@@ -691,8 +693,10 @@ export class ACPSession {
     );
 
     let cancelled = false;
+    this.promptCallbackAbort = new AbortController();
     const onAbort = (): void => {
       cancelled = true;
+      this.promptCallbackAbort?.abort();
       this.transport
         .send({
           jsonrpc: '2.0',
@@ -719,6 +723,8 @@ export class ACPSession {
       throw new ACPSessionError('prompt_failed', `session/prompt failed: ${msg}`, err);
     } finally {
       signal.removeEventListener('abort', onAbort);
+      this.promptCallbackAbort?.abort();
+      this.promptCallbackAbort = null;
       this.progressHandler = null;
     }
 
@@ -792,6 +798,9 @@ export class ACPSession {
     if (this.closed) return;
     this.closed = true;
     this.state = 'closed';
+    this.callbackAbort.abort();
+    this.promptCallbackAbort?.abort();
+    this.promptCallbackAbort = null;
     this.terminalServer.releaseAll();
 
     // Graceful session close (if session is active and agent supports it)
@@ -909,6 +918,12 @@ export class ACPSession {
     };
   }
 
+  private callbackOptions(): { signal: AbortSignal } {
+    const promptSignal = this.promptCallbackAbort?.signal;
+    if (!promptSignal) return { signal: this.callbackAbort.signal };
+    return { signal: AbortSignal.any([this.callbackAbort.signal, promptSignal]) };
+  }
+
   private handleMessage(msg: ACPMessage): void {
     // Response to an outbound request (has id and either result or error)
     if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
@@ -932,29 +947,45 @@ export class ACPSession {
 
     // session/request_permission (has id, expected response: outcome)
     if (msg.method === 'session/request_permission') {
-      void handleAcpPermissionRequest(msg, this.permissionPolicy, this.responseSender());
+      handleAcpPermissionRequest(
+        msg,
+        this.permissionPolicy,
+        this.responseSender(),
+        this.callbackOptions(),
+      ).catch(() => {
+        // The session may close while a fire-and-forget callback is replying.
+        // Transport send failures during teardown must not become unhandled rejections.
+      });
       return;
     }
 
     // fs/* requests
     if (msg.method === 'fs/read_text_file' || msg.method === 'fs/write_text_file') {
-      void handleAcpFsRequest(
+      handleAcpFsRequest(
         msg,
         this.fileServer,
         this.permissionPolicy,
         this.responseSender(),
-      );
+        this.callbackOptions(),
+      ).catch(() => {
+        // The session may close while a fire-and-forget callback is replying.
+        // Transport send failures during teardown must not become unhandled rejections.
+      });
       return;
     }
 
     // terminal/* requests
     if (msg.method?.startsWith('terminal/')) {
-      void handleAcpTerminalRequest(
+      handleAcpTerminalRequest(
         msg,
         this.terminalServer,
         this.permissionPolicy,
         this.responseSender(),
-      );
+        this.callbackOptions(),
+      ).catch(() => {
+        // The session may close while a fire-and-forget callback is replying.
+        // Transport send failures during teardown must not become unhandled rejections.
+      });
       return;
     }
 

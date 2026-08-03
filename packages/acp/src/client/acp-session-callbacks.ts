@@ -1,5 +1,10 @@
 import type { ACPMessage } from '../types/acp-messages.js';
-import type { ToolCallId, ToolCallUpdateNotification } from '../types/acp-v1.js';
+import type {
+  PermissionOption,
+  RequestPermissionOutcome,
+  ToolCallId,
+  ToolCallUpdateNotification,
+} from '../types/acp-v1.js';
 import { type FileServer, FsError } from './file-server.js';
 import type { PermissionPolicy } from './permission.js';
 import type { TerminalServer } from './terminal-server.js';
@@ -9,33 +14,46 @@ export interface ACPResponseSender {
   sendErrorResponse(id: string | number, code: number, message: string): Promise<void>;
 }
 
+export interface ACPCallbackOptions {
+  /** Abort when the owning ACP session/prompt is closed or cancelled. */
+  signal?: AbortSignal | undefined;
+  /** Maximum time to wait for callback authorization before failing closed. */
+  permissionTimeoutMs?: number | undefined;
+}
+
+const DEFAULT_PERMISSION_TIMEOUT_MS = 60_000;
+
 export async function handleAcpPermissionRequest(
   msg: ACPMessage,
   permissionPolicy: PermissionPolicy,
   sender: ACPResponseSender,
+  callbackOptions: ACPCallbackOptions = {},
 ): Promise<void> {
   const id = msg.id;
   if (id === undefined) return;
   const params = (msg as { params?: { toolCall?: unknown; options?: unknown } }).params;
   const toolCall = params?.toolCall as ToolCallUpdateNotification | undefined;
-  const options = Array.isArray(params?.options)
+  const permissionOptions = Array.isArray(params?.options)
     ? (params.options as never as Parameters<PermissionPolicy>[0]['options'])
     : [];
   if (!toolCall) {
     await sender.sendErrorResponse(id, -32602, 'toolCall is required');
     return;
   }
-  const policyAbort = new AbortController();
   try {
-    const outcome = await permissionPolicy({
-      toolCall,
-      options,
-      signal: policyAbort.signal,
-    });
+    const outcome = await runPermissionWithDeadline(
+      permissionPolicy,
+      {
+        toolCall,
+        options: permissionOptions,
+      },
+      callbackOptions,
+    );
     await sender.sendResult(id, { outcome });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await sender.sendErrorResponse(id, -32603, `permission policy failed: ${message}`);
+    const code = isAbortLikeError(err) ? -32800 : -32603;
+    await sender.sendErrorResponse(id, code, `permission policy failed: ${message}`);
   }
 }
 
@@ -44,6 +62,7 @@ export async function handleAcpFsRequest(
   fileServer: FileServer,
   permissionPolicy: PermissionPolicy,
   sender: ACPResponseSender,
+  callbackOptions: ACPCallbackOptions = {},
 ): Promise<void> {
   const id = msg.id;
   if (id === undefined) return;
@@ -54,14 +73,25 @@ export async function handleAcpFsRequest(
     return;
   }
   if (msg.method === 'fs/write_text_file') {
-    const allowed = await authorizeAcpCallback(permissionPolicy, {
-      toolCallId: `acp-fs-write-${id}`,
-      title: `Write file: ${params.path}`,
-      kind: 'edit',
-      rawInput: { path: params.path, sessionId: params.sessionId },
-    });
-    if (!allowed) {
-      await sender.sendErrorResponse(id, -32602, 'filesystem write denied by permission policy');
+    const authorization = await authorizeAcpCallback(
+      permissionPolicy,
+      {
+        toolCallId: `acp-fs-write-${id}`,
+        title: `Write file: ${params.path}`,
+        kind: 'edit',
+        rawInput: { path: params.path, sessionId: params.sessionId },
+      },
+      callbackOptions,
+    );
+    if (authorization !== 'allowed') {
+      const isCancelled = authorization === 'cancelled';
+      await sender.sendErrorResponse(
+        id,
+        isCancelled ? -32800 : -32602,
+        isCancelled
+          ? 'filesystem write permission request cancelled or timed out'
+          : 'filesystem write denied by permission policy',
+      );
       return;
     }
   }
@@ -92,6 +122,7 @@ export async function handleAcpTerminalRequest(
   terminalServer: TerminalServer,
   permissionPolicy: PermissionPolicy,
   sender: ACPResponseSender,
+  callbackOptions: ACPCallbackOptions = {},
 ): Promise<void> {
   const id = msg.id;
   if (id === undefined) return;
@@ -99,20 +130,31 @@ export async function handleAcpTerminalRequest(
   try {
     switch (msg.method) {
       case 'terminal/create': {
-        const allowed = await authorizeAcpCallback(permissionPolicy, {
-          toolCallId: `acp-terminal-create-${id}`,
-          title:
-            `Run command: ${String(params.command ?? '')} ${(Array.isArray(params.args) ? params.args : []).join(' ')}`.trim(),
-          kind: 'execute',
-          rawInput: {
-            command: params.command,
-            args: params.args,
-            cwd: params.cwd,
-            sessionId: params.sessionId,
+        const authorization = await authorizeAcpCallback(
+          permissionPolicy,
+          {
+            toolCallId: `acp-terminal-create-${id}`,
+            title:
+              `Run command: ${String(params.command ?? '')} ${(Array.isArray(params.args) ? params.args : []).join(' ')}`.trim(),
+            kind: 'execute',
+            rawInput: {
+              command: params.command,
+              args: params.args,
+              cwd: params.cwd,
+              sessionId: params.sessionId,
+            },
           },
-        });
-        if (!allowed) {
-          await sender.sendErrorResponse(id, -32602, 'terminal create denied by permission policy');
+          callbackOptions,
+        );
+        if (authorization !== 'allowed') {
+          const isCancelled = authorization === 'cancelled';
+          await sender.sendErrorResponse(
+            id,
+            isCancelled ? -32800 : -32602,
+            isCancelled
+              ? 'terminal create permission request cancelled or timed out'
+              : 'terminal create denied by permission policy',
+          );
           return;
         }
         const createOpts: Parameters<TerminalServer['create']>[0] = {
@@ -166,6 +208,8 @@ export async function handleAcpTerminalRequest(
   }
 }
 
+type CallbackAuthorization = 'allowed' | 'denied' | 'cancelled';
+
 async function authorizeAcpCallback(
   permissionPolicy: PermissionPolicy,
   partial: {
@@ -174,30 +218,96 @@ async function authorizeAcpCallback(
     kind: import('../types/acp-v1.js').ToolKind;
     rawInput?: Record<string, unknown>;
   },
-): Promise<boolean> {
+  callbackOptions: ACPCallbackOptions,
+): Promise<CallbackAuthorization> {
   try {
-    const outcome = await permissionPolicy({
-      toolCall: {
-        sessionUpdate: 'tool_call_update',
-        toolCallId: partial.toolCallId as ToolCallId,
-        title: partial.title,
-        kind: partial.kind,
-        status: 'pending',
-        ...(partial.rawInput ? { rawInput: partial.rawInput } : {}),
+    const outcome = await runPermissionWithDeadline(
+      permissionPolicy,
+      {
+        toolCall: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: partial.toolCallId as ToolCallId,
+          title: partial.title,
+          kind: partial.kind,
+          status: 'pending',
+          ...(partial.rawInput ? { rawInput: partial.rawInput } : {}),
+        },
+        options: [
+          { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
+          { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
+        ],
       },
-      options: [
-        { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
-        { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
-      ],
-      signal: new AbortController().signal,
-    });
-    return (
-      outcome.outcome === 'selected' &&
+      callbackOptions,
+    );
+    return outcome.outcome === 'selected' &&
       outcome.optionId !== 'reject' &&
       outcome.optionId !== 'reject_once' &&
       outcome.optionId !== 'reject_always'
-    );
-  } catch {
-    return false;
+      ? 'allowed'
+      : 'denied';
+  } catch (err) {
+    return isAbortLikeError(err) ? 'cancelled' : 'denied';
   }
+}
+
+type PermissionCall = {
+  toolCall: ToolCallUpdateNotification;
+  options: readonly PermissionOption[];
+};
+
+async function runPermissionWithDeadline(
+  permissionPolicy: PermissionPolicy,
+  call: PermissionCall,
+  callbackOptions: ACPCallbackOptions,
+): Promise<RequestPermissionOutcome> {
+  const timeoutMs = finitePositiveTimeout(
+    callbackOptions.permissionTimeoutMs,
+    DEFAULT_PERMISSION_TIMEOUT_MS,
+  );
+  const controller = new AbortController();
+  const abort = (): void => controller.abort();
+  const timer = setTimeout(abort, timeoutMs);
+  let removeAbort: (() => void) | undefined;
+
+  if (callbackOptions.signal) {
+    if (callbackOptions.signal.aborted) {
+      abort();
+    } else {
+      callbackOptions.signal.addEventListener('abort', abort, { once: true });
+      removeAbort = () => callbackOptions.signal?.removeEventListener('abort', abort);
+    }
+  }
+
+  try {
+    return await Promise.race([
+      permissionPolicy({
+        toolCall: call.toolCall,
+        options: call.options,
+        signal: controller.signal,
+      }),
+      rejectOnAbort(controller.signal),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    removeAbort?.();
+  }
+}
+
+function rejectOnAbort(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => {
+    const rejectAbort = (): void => reject(new Error('permission request cancelled or timed out'));
+    if (signal.aborted) {
+      rejectAbort();
+      return;
+    }
+    signal.addEventListener('abort', rejectAbort, { once: true });
+  });
+}
+
+function isAbortLikeError(err: unknown): boolean {
+  return err instanceof Error && /cancelled|canceled|timed out|aborted/i.test(err.message);
+}
+
+function finitePositiveTimeout(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
 }

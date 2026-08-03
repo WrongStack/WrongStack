@@ -155,6 +155,38 @@ describe('ACPSession', () => {
     await session.close();
   });
 
+  it('swallows rejected fire-and-forget callback responses during teardown', async () => {
+    const session = await startSession();
+    const t = lastTransport();
+    const filePath = path.join(PROJECT_ROOT, 'callback-read.txt');
+    await fsp.writeFile(filePath, 'callback content', 'utf8');
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      t.send.mockImplementation(async (message: ACPMessage) => {
+        if (message.id === 'fs-close') {
+          throw new Error('transport closed');
+        }
+        t.sent.push(message);
+      });
+
+      t.emit({
+        jsonrpc: '2.0',
+        id: 'fs-close',
+        method: 'fs/read_text_file',
+        params: { sessionId: 'sess_abc', path: filePath },
+      } as never as ACPMessage);
+      await session.close();
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+      await session.close();
+    }
+  });
+
   it('runs a happy-path prompt turn and concatenates text', async () => {
     const session = await startSession();
     const t = lastTransport();

@@ -504,6 +504,49 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       expect(fileServer.writeTextFile).not.toHaveBeenCalled();
     });
 
+    it('fails closed when write permission policy times out', async () => {
+      const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
+      permissionPolicy.mockImplementation(
+        () => new Promise(() => undefined) as ReturnType<PermissionPolicy>,
+      );
+      await handleAcpFsRequest(
+        {
+          jsonrpc: '2.0', method: 'fs/write_text_file', id: 40,
+          params: { path: '/tmp/test.txt', content: 'data' },
+        } as never,
+        fileServer as never,
+        permissionPolicy,
+        sender,
+        { permissionTimeoutMs: 1 },
+      );
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(40, -32800, 'filesystem write permission request cancelled or timed out');
+      expect(fileServer.writeTextFile).not.toHaveBeenCalled();
+    });
+
+    it('passes cancellation into write permission policy and fails closed', async () => {
+      const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
+      const controller = new AbortController();
+      permissionPolicy.mockImplementation(async (req) => {
+        expect(req.signal.aborted).toBe(false);
+        controller.abort();
+        await new Promise((resolve) => setImmediate(resolve));
+        expect(req.signal.aborted).toBe(true);
+        return { outcome: 'selected', optionId: 'allow' };
+      });
+      await handleAcpFsRequest(
+        {
+          jsonrpc: '2.0', method: 'fs/write_text_file', id: 41,
+          params: { path: '/tmp/test.txt', content: 'data' },
+        } as never,
+        fileServer as never,
+        permissionPolicy,
+        sender,
+        { signal: controller.signal, permissionTimeoutMs: 1000 },
+      );
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(41, -32800, 'filesystem write permission request cancelled or timed out');
+      expect(fileServer.writeTextFile).not.toHaveBeenCalled();
+    });
+
     it('handles fs error on read', async () => {
       const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
       const actualFsError = (await import('../src/client/file-server.js')).FsError;
@@ -585,6 +628,25 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         sender,
       );
       expect(sender.sendErrorResponse).toHaveBeenCalledWith(3, -32602, 'terminal create denied by permission policy');
+      expect(terminalServer.create).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when terminal/create permission policy times out', async () => {
+      const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
+      permissionPolicy.mockImplementation(
+        () => new Promise(() => undefined) as ReturnType<PermissionPolicy>,
+      );
+      await handleAcpTerminalRequest(
+        {
+          jsonrpc: '2.0', method: 'terminal/create', id: 30,
+          params: { command: 'rm', sessionId: 's1' },
+        } as never,
+        terminalServer as never,
+        permissionPolicy,
+        sender,
+        { permissionTimeoutMs: 1 },
+      );
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(30, -32800, 'terminal create permission request cancelled or timed out');
       expect(terminalServer.create).not.toHaveBeenCalled();
     });
 

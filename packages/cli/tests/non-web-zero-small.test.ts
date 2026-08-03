@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   acpCommands: {} as Record<string, unknown>,
   findAgentDescriptor: vi.fn(),
   makeACPSubagentRunner: vi.fn(),
-  defaultPermissionPolicy: { mode: 'default' },
   fallbackProfileChain: vi.fn(),
   parseModelRef: vi.fn(),
   predictNextTasks: vi.fn(),
@@ -21,7 +20,6 @@ vi.mock('@wrongstack/core/design', () => ({
 
 vi.mock('@wrongstack/acp', () => ({
   ACP_AGENT_COMMANDS: mocks.acpCommands,
-  defaultPermissionPolicy: mocks.defaultPermissionPolicy,
   findAgentDescriptor: mocks.findAgentDescriptor,
   makeACPSubagentRunner: mocks.makeACPSubagentRunner,
 }));
@@ -118,7 +116,6 @@ describe('small non-WebUI CLI modules', () => {
       command: 'builtin-agent',
       args: ['--stdio'],
       role: 'builtin',
-      permissionPolicy: mocks.defaultPermissionPolicy,
     });
 
     const discoveredRunner = { run: vi.fn() };
@@ -133,7 +130,6 @@ describe('small non-WebUI CLI modules', () => {
       args: ['run'],
       role: 'custom',
       env: { TOKEN: 'test' },
-      permissionPolicy: mocks.defaultPermissionPolicy,
     });
   });
 
@@ -148,7 +144,6 @@ describe('small non-WebUI CLI modules', () => {
       command: 'minimal-agent',
       args: [],
       role: 'minimal',
-      permissionPolicy: mocks.defaultPermissionPolicy,
     });
 
     mocks.findAgentDescriptor.mockReturnValueOnce(undefined);
