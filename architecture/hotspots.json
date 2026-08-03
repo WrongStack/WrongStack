@@ -359,8 +359,8 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-panels.tsx": {
-      "lines": 1177,
-      "relativeImports": 11
+      "lines": 1192,
+      "relativeImports": 12
     },
     "packages/tui/src/components/status-bar.tsx": {
       "lines": 1152,

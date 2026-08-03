@@ -5,11 +5,12 @@
 // Visual language is identical (same colors, icons, heading structure,
 // separators) so users can recognize the panel regardless of placement.
 //
-// Width contract: every section box is exactly `innerWidth` columns wide so
-// the dotted-leader fills and block meters line up. Each panel scrolls on
-// its own — the sidebar's overall ↑↓ scroll is handled by `SidebarContent`.
+// Width contract: `width` is the content width already inside RightSidebar's
+// border and padding. Every section uses that full width so dotted leaders,
+// block meters, and metrics line up. RightSidebar owns clipping for the routed
+// panels plus the persistent SidebarContent stack.
 //
-// All 12 sidebar variants in this single file:
+// All 13 sidebar variants in this single file:
 //
 //   F-key │ bottom panel             │ sidebar variant
 //   ─────┼───────────────────────────┼──────────────────────────────
@@ -44,6 +45,7 @@ import type { ProjectPickerItem } from './project-picker.js';
 import type { ResumeSessionEntry } from '../app-state.js';
 import type { WorktreeRow } from '../ui-contracts.js';
 import { theme } from '../theme.js';
+import { displayWidth } from '../terminal-width.js';
 import { glyphs } from '../ui-glyphs.js';
 import { SidebarPanelCard, SidebarPanelFrame, SidebarSectionHeader, trunc } from './sidebar-panel-frame.js';
 
@@ -140,7 +142,7 @@ export function ProjectPickerSidebar({
   currentProject,
   width,
 }: ProjectPickerSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const projectCount = items.filter((item) => item.kind === 'project').length;
   const selectableCount = items.filter((item) => item.key !== '__divider__').length;
   const start = Math.max(0, Math.min(selected - 2, Math.max(0, items.length - 5)));
@@ -228,7 +230,7 @@ export function FleetPanelSidebar({
   runningCount,
   width,
 }: FleetPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const all = Object.values(entries);
   const leader = all.find((e) => e.id === 'leader');
   const subagents = all.filter((e) => e !== leader && e.status === 'running');
@@ -286,7 +288,7 @@ export function AgentsPanelSidebar({
   nowTick,
   width,
 }: AgentsPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const all = Object.values(entries);
   const running = all.filter((e) => e.status === 'running');
   const done = all.filter((e) => e.status === 'success');
@@ -328,9 +330,11 @@ export function AgentsPanelSidebar({
             <Text color={theme.textPrimary} wrap="truncate" bold>
               {trunc(hotAgent.name || hotAgent.id, inner - 4)}
             </Text>
-            <Text color={theme.textMuted}>
-              ctx {Math.round((hotAgent.ctxPct ?? 0) * 100)}% ·{' '}
-              {hotAgent.currentTool?.name ?? 'idle'}
+            <Text color={theme.textMuted} wrap="truncate">
+              {trunc(
+                `ctx ${Math.round((hotAgent.ctxPct ?? 0) * 100)}% · ${hotAgent.currentTool?.name ?? 'idle'}`,
+                inner,
+              )}
             </Text>
           </>
         ) : (
@@ -378,7 +382,7 @@ export interface WorktreePanelSidebarProps {
 function worktreeStatusVisual(status: string): { glyph: string; color: string } {
   switch (status) {
     case 'active':
-      return { glyph: '●', color: theme.warn };
+      return { glyph: '•', color: theme.warn };
     case 'committing':
       return { glyph: '◐', color: theme.accent };
     case 'merging':
@@ -398,7 +402,7 @@ export function WorktreePanelSidebar({
   worktrees,
   width,
 }: WorktreePanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const list = Object.values(worktrees);
   const active = list.filter(
     (w) => w.status === 'active' || w.status === 'committing' || w.status === 'merging',
@@ -414,13 +418,13 @@ export function WorktreePanelSidebar({
       kicker="isolation"
       right={
         <Text>
-          <Text color={theme.warn}>▶{active}</Text>
+          <Text color={theme.warn}>A{active}</Text>
           <Text color={theme.textMuted}> </Text>
-          <Text color={theme.success}>{glyphs.success}{merged}</Text>
+          <Text color={theme.success}>D{merged}</Text>
           {failed > 0 ? (
             <>
               <Text color={theme.textMuted}> </Text>
-              <Text color={theme.error}>✗{failed}</Text>
+              <Text color={theme.error}>!{failed}</Text>
             </>
           ) : null}
         </Text>
@@ -433,14 +437,25 @@ export function WorktreePanelSidebar({
         ) : (
           list.slice(0, 10).map((w) => {
             const v = worktreeStatusVisual(w.status);
-            const branch = trunc(w.branch.replace(/^wstack\/ap\//, ''), inner - 16);
+            const diff = `+${w.insertions}/-${w.deletions}`;
+            const showDiff = inner >= 24;
+            const rowChrome = displayWidth(v.glyph) + 1;
+            const diffWidth = showDiff ? displayWidth(diff) + 1 : 0;
+            const branch = trunc(
+              w.branch.replace(/^wstack\/ap\//, ''),
+              Math.max(4, inner - rowChrome - diffWidth),
+            );
             return (
               <Box key={w.branch} flexDirection="row">
                 <Text color={v.color}>{v.glyph}</Text>
                 <Text color={theme.textPrimary}> </Text>
                 <Text wrap="truncate">{branch}</Text>
-                <Box flexGrow={1} />
-                <Text color={theme.textMuted}>+{w.insertions}/-{w.deletions}</Text>
+                {showDiff ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={theme.textMuted}>{diff}</Text>
+                  </>
+                ) : null}
               </Box>
             );
           })
@@ -474,7 +489,7 @@ export function PlanPanelSidebar({
   title,
   width,
 }: PlanPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const total = openCount + inProgressCount + doneCount;
   const ratio = total > 0 ? doneCount / total : 0;
   const ordered = [
@@ -510,10 +525,10 @@ export function PlanPanelSidebar({
         />
         <Box>
           <Text color={ratio === 1 && total > 0 ? theme.success : theme.accent}>
-            {'█'.repeat(Math.round(ratio * (inner - 4)))}
+            {'█'.repeat(Math.round(ratio * inner))}
           </Text>
           <Text color={theme.borderSubtle}>
-            {'░'.repeat(Math.max(0, inner - 4 - Math.round(ratio * (inner - 4))))}
+            {'░'.repeat(Math.max(0, inner - Math.round(ratio * inner)))}
           </Text>
         </Box>
       </SidebarPanelCard>
@@ -566,7 +581,7 @@ export interface TodosPanelSidebarProps {
 }
 
 export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const ordered = [...todos]
     .sort((a, b) => {
       const rank = (t: TodoItem) =>
@@ -634,7 +649,7 @@ export interface QueuePanelSidebarProps {
 }
 
 export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   return (
     <SidebarPanelFrame
       accent={theme.accent}
@@ -691,7 +706,7 @@ export function ProcessListPanelSidebar({
   processes,
   width,
 }: ProcessListPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   return (
     <SidebarPanelFrame
       accent={theme.monitor.fleet}
@@ -741,7 +756,7 @@ export function GoalPanelSidebar({
   coordinatorRunning,
   width,
 }: GoalPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const displayGoal = goal ? goal.refinedGoal || goal.goal : '';
   const stateIcon =
     goal?.goalState === 'active'
@@ -797,10 +812,10 @@ export function GoalPanelSidebar({
             />
             <Box>
               <Text color={theme.success}>
-                {'█'.repeat(Math.round((progress / 100) * (inner - 4)))}
+                {'█'.repeat(Math.round((progress / 100) * inner))}
               </Text>
               <Text color={theme.borderSubtle}>
-                {'░'.repeat(Math.max(0, inner - 4 - Math.round((progress / 100) * (inner - 4))))}
+                {'░'.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
               </Text>
             </Box>
           </SidebarPanelCard>
@@ -853,7 +868,7 @@ export function SessionsPanelSidebar({
   currentSessionId,
   width,
 }: SessionsPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const live = liveSessions?.slice(0, 3) ?? [];
   const resume = resumeSessions?.slice(0, 3) ?? [];
   const total = (liveSessions?.length ?? 0) + (resumeSessions?.length ?? 0);
@@ -976,7 +991,7 @@ export function CoordinatorPanelSidebar({
   elapsedMs,
   width,
 }: CoordinatorPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   return (
     <SidebarPanelFrame
       accent={theme.brand}
@@ -1040,7 +1055,7 @@ export function KanbanPanelSidebar({
   activeCardTitles,
   width,
 }: KanbanPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   return (
     <SidebarPanelFrame
       accent={theme.accent}
@@ -1112,7 +1127,7 @@ export function ConnectionsPanelSidebar({
   connections,
   width,
 }: ConnectionsPanelSidebarProps): React.ReactElement {
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width);
   const okCount = connections.filter((c) => c.status === 'ok').length;
   const warnCount = connections.filter((c) => c.status === 'warn').length;
   const downCount = connections.filter((c) => c.status === 'down').length;
