@@ -552,16 +552,18 @@ describe('Director with an injected FleetManager', () => {
     // The legacy Director writer used to fire after FleetManager's canonical
     // write and replace this file with { children: [] }.
     await new Promise((resolve) => setTimeout(resolve, 20));
-    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as {
-      version?: number;
-      directorRunId?: string;
-      children?: Array<{ id: string; taskIds: string[] }>;
-    };
-    expect(manifest.version).toBe(1);
-    expect(manifest.directorRunId).toBe('fleet-manager-run');
-    expect(manifest.children).toEqual([
-      expect.objectContaining({ id, taskIds: ['visible-task'] }),
-    ]);
+    await vi.waitFor(async () => {
+      const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as {
+        version?: number;
+        directorRunId?: string;
+        children?: Array<{ id: string; taskIds: string[] }>;
+      };
+      expect(manifest.version).toBe(1);
+      expect(manifest.directorRunId).toBe('fleet-manager-run');
+      expect(manifest.children).toEqual([
+        expect.objectContaining({ id, taskIds: ['visible-task'] }),
+      ]);
+    });
   });
 
   it('surfaces a FleetManager spawn rejection as a budget error', async () => {

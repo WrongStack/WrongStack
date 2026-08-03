@@ -64,9 +64,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/hq": {
-      "files": 106,
+      "files": 107,
       "typeOnly": 74,
-      "runtimeOrMixed": 60
+      "runtimeOrMixed": 61
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -3907,6 +3907,12 @@
       "file": "packages/webui-server/src/server/standalone-session-identity.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-server/src/server/ws-auth.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq/protocol",

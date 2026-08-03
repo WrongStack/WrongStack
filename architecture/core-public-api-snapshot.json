@@ -1156,7 +1156,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8584
+      "sourceLines": 8600
     },
     {
       "directory": "infrastructure",
