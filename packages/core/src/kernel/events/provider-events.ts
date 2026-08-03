@@ -1,7 +1,7 @@
 import type { ChroniclePromptManifest } from '../../chronicle/prompt-manifest.js';
 import type { Context } from '../../core/context.js';
 import type { ContentBlock } from '../../types/blocks.js';
-import type { Usage } from '../../types/provider.js';
+import type { ProviderErrorBody, Usage } from '../../types/provider.js';
 
 export interface ProviderEventMap {
   /** Fired before every physical provider/model attempt, including attempt zero. */
@@ -64,6 +64,8 @@ export interface ProviderEventMap {
     retryScheduled: boolean;
     retryDelayMs?: number | undefined;
     providerRequestId?: string | undefined;
+    /** Scrubbed provider failure envelope/body retained for diagnostics. */
+    errorBody?: ProviderErrorBody | undefined;
     /** Kanban task this provider call belongs to, when known. */
     taskId?: string | undefined;
     /** Kanban board this provider call belongs to, when known. */
@@ -116,6 +118,8 @@ export interface ProviderEventMap {
     delayMs: number;
     status: number;
     description: string;
+    /** Scrubbed provider failure envelope/body retained for diagnostics. */
+    errorBody?: ProviderErrorBody | undefined;
   };
   /**
    * Fired once when a provider call ultimately fails (retries exhausted, or
@@ -127,6 +131,8 @@ export interface ProviderEventMap {
     status: number;
     description: string;
     retryable: boolean;
+    /** Scrubbed provider failure envelope/body retained for diagnostics. */
+    errorBody?: ProviderErrorBody | undefined;
   };
   /**
    * Fired by the fallback-model extension when the primary model is overloaded

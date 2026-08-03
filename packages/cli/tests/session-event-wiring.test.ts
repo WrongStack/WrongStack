@@ -163,6 +163,42 @@ describe('wireSessionEvents', () => {
     });
   });
 
+  it('persists scrubbed provider error bodies for post-run diagnosis', () => {
+    const { deps, emit, bridge } = makeDeps();
+    wireSessionEvents(deps);
+    const errorBody = {
+      type: 'context_length_exceeded',
+      message: 'input too long',
+      raw: '{"type":"response.failed"}',
+      requestId: 'resp_123',
+    };
+
+    emit('provider.retry', {
+      sessionId: 'sess-ctx',
+      providerId: 'openai-codex',
+      attempt: 1,
+      delayMs: 100,
+      status: 413,
+      description: 'context overflow',
+      errorBody,
+    });
+    emit('provider.error', {
+      sessionId: 'sess-ctx',
+      providerId: 'openai-codex',
+      status: 413,
+      description: 'context overflow',
+      retryable: false,
+      errorBody,
+    });
+
+    expect(bridge.append).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'provider_retry', errorBody }),
+    );
+    expect(bridge.append).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'provider_error', errorBody }),
+    );
+  });
+
   // ── file-author tracking ────────────────────────────────────────────────
 
   it.each(['write', 'edit', 'replace', 'patch'])(

@@ -1,6 +1,6 @@
 import type { ContentBlock } from './blocks.js';
 import type { Message } from './messages.js';
-import type { Usage } from './provider.js';
+import type { ProviderErrorBody, Usage } from './provider.js';
 
 export interface SessionMetadata {
   id: string;
@@ -220,6 +220,8 @@ export type SessionEvent =
       delayMs: number;
       status?: number | undefined;
       description: string;
+      /** Scrubbed raw provider error envelope/body for post-run diagnosis. */
+      errorBody?: ProviderErrorBody | undefined;
     }
   | {
       type: 'provider_error';
@@ -228,6 +230,8 @@ export type SessionEvent =
       status?: number | undefined;
       description: string;
       retryable: boolean;
+      /** Scrubbed raw provider error envelope/body for post-run diagnosis. */
+      errorBody?: ProviderErrorBody | undefined;
     }
   | {
       type: 'checkpoint';

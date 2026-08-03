@@ -444,6 +444,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       delayMs: number;
       status: number;
       description: string;
+      errorBody?: import('@wrongstack/core/types').ProviderErrorBody | undefined;
     }) => {
       appendSessionEvent(e.sessionId, {
         type: 'provider_retry',
@@ -453,6 +454,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
         delayMs: e.delayMs,
         status: e.status,
         description: e.description,
+        ...(e.errorBody ? { errorBody: e.errorBody } : {}),
       });
     },
   );
@@ -465,6 +467,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       status: number;
       description: string;
       retryable?: boolean;
+      errorBody?: import('@wrongstack/core/types').ProviderErrorBody | undefined;
     }) => {
       appendSessionEvent(e.sessionId, {
         type: 'provider_error',
@@ -473,6 +476,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
         status: e.status,
         description: e.description,
         retryable: e.retryable ?? false,
+        ...(e.errorBody ? { errorBody: e.errorBody } : {}),
       });
     },
   );

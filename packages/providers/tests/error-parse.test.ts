@@ -51,6 +51,24 @@ describe('parseProviderHttpError', () => {
     expect(err.describe()).toBe('openai rate limited (429): Rate limit reached for gpt-4o');
   });
 
+  it('treats explicit rate_limit_exceeded code as transient when type is absent', () => {
+    const body = JSON.stringify({
+      error: { message: 'Rate limit exceeded', code: 'rate_limit_exceeded' },
+    });
+    const err = parseProviderHttpError('openai', 429, body);
+    expect(err.body?.type).toBe('rate_limit_exceeded');
+    expect(err.kind).toBe('rate_limit');
+    expect(err.retryable).toBe(true);
+  });
+
+  it('keeps message-only rate limit exhaustion classified as quota exhaustion', () => {
+    const body = JSON.stringify({ error: { message: 'Rate limit exceeded' } });
+    const err = parseProviderHttpError('gateway', 429, body);
+    expect(err.body?.type).toBeUndefined();
+    expect(err.kind).toBe('quota_exhausted');
+    expect(err.retryable).toBe(false);
+  });
+
   it('classifies exhausted OpenAI credits separately from a burst rate limit', () => {
     const body = JSON.stringify({
       error: {

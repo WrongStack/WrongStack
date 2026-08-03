@@ -20,7 +20,9 @@
 
 import {
   type Capabilities,
+  classifyProviderError,
   FetchError,
+  isRetryableKind,
   ParseError,
   ProviderError,
   type ReasoningEffort,
@@ -29,9 +31,15 @@ import {
   type StreamEvent,
   type Usage,
 } from '@wrongstack/core/types';
+import { scrubErrorText } from '@wrongstack/core/security';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
-import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
+import {
+  type HeadersLike,
+  parseProviderErrorBody,
+  parseProviderHttpError,
+  scrubProviderErrorBody,
+} from './error-parse.js';
 import { extractAccountId } from './openai-codex-account.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
@@ -592,13 +600,23 @@ export async function* parseOpenAIResponsesStream(
 
       case 'error':
       case 'response.failed': {
-        const message =
-          (evt['message'] as string | undefined) ??
-          (evt['response'] as { error?: { message?: string } } | undefined)?.error?.message ??
-          'OpenAI Responses request failed';
-        throw new ProviderError(message, 502, true, providerId, {
-          body: { message },
-        });
+        // These are application-level failures delivered over an HTTP 200 SSE
+        // stream, not HTTP 502 responses. Parse the entire envelope so the
+        // provider's code/message can drive canonical classification (notably
+        // context_overflow) and remain available in persisted diagnostics.
+        // Serialize once to reuse the shared tolerant parser and preserve its
+        // bounded raw-envelope diagnostics instead of duplicating extraction.
+        const raw = JSON.stringify(evt);
+        const errorBody = parseProviderErrorBody(raw);
+        const response = evt['response'] as Record<string, unknown> | undefined;
+        const statusCode =
+          typeof response?.['status_code'] === 'number' ? response['status_code'] : undefined;
+        const status = responseFailureStatus(errorBody.type, errorBody.message, statusCode);
+        const rawMessage = errorBody.message ?? 'OpenAI Responses request failed';
+        const kind = classifyProviderError(status, errorBody, rawMessage);
+        const body = scrubProviderErrorBody(errorBody);
+        const message = scrubErrorText(rawMessage);
+        throw new ProviderError(message, status, isRetryableKind(kind), providerId, { body, kind });
       }
 
       default:
@@ -619,6 +637,33 @@ export async function* parseOpenAIResponsesStream(
   }
   if (started) {
     yield { type: 'message_stop', stopReason, usage };
+  }
+}
+
+function responseFailureStatus(
+  type: string | undefined,
+  message: string | undefined,
+  statusCode?: number,
+): number {
+  if (statusCode !== undefined) return statusCode;
+  const text = `${type ?? ''}\n${message ?? ''}`;
+  if (/rate.?limit/i.test(text)) return 429;
+  if (/insufficient.quota|quota.exhausted/i.test(text)) return 402;
+  if (/overload|server_error|internal_error/i.test(text)) return 529;
+
+  const kind = classifyProviderError(400, { type, message }, message);
+  switch (kind) {
+    case 'context_overflow':
+      return 413;
+    case 'quota_exhausted':
+      return 402;
+    case 'auth':
+      return 401;
+    case 'content_filter':
+    case 'invalid_request':
+      return 400;
+    default:
+      return 502;
   }
 }
 

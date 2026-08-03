@@ -1,4 +1,4 @@
-import type { Request } from '@wrongstack/core/types';
+import { ProviderError, type Request } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CodexOAuthTokens,
@@ -204,6 +204,157 @@ describe('OpenAICodexProvider stream parsing', () => {
     expect(res.stopReason).toBe('tool_use');
     expect(res.usage).toMatchObject({ input: 8, output: 5, cacheRead: 2 });
   });
+
+  it('classifies nested response.failed context errors without synthetic 502 retries and preserves the scrubbed envelope', async () => {
+    const reflectedCredential = ['sk', '1234567890abcdefghijklmnop'].join('-');
+    const sse = [
+      `data: {"type":"response.failed","response":{"id":"resp_ctx","status":"failed","error":{"code":"context_length_exceeded","message":"Your input exceeds the context window; api_key=${reflectedCredential}"}}}`,
+      '',
+    ].join('\n');
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: (async () =>
+        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+    });
+
+    let caught: unknown;
+    try {
+      await p.complete(baseReq, { signal: new AbortController().signal });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ProviderError);
+    const providerError = caught as ProviderError;
+    expect(providerError.status).toBe(413);
+    expect(providerError.kind).toBe('context_overflow');
+    expect(providerError.retryable).toBe(false);
+    expect(providerError.body).toMatchObject({
+      type: 'context_length_exceeded',
+      requestId: 'resp_ctx',
+    });
+    expect(providerError.message).not.toContain(reflectedCredential);
+    expect(providerError.message).toContain('[REDACTED:openai_key]');
+    expect(providerError.stack).not.toContain(reflectedCredential);
+    expect(providerError.stack).toContain('[REDACTED:openai_key]');
+    expect(providerError.body?.message).toContain('[REDACTED:openai_key]');
+    expect(providerError.body?.raw).toContain('response.failed');
+    expect(providerError.body?.raw).toContain('[REDACTED:openai_key]');
+    expect(providerError.body?.raw).not.toContain(reflectedCredential);
+  });
+
+  it('parses response.failed errors nested under status_details', async () => {
+    const sse = [
+      'data: {"type":"response.failed","response":{"id":"resp_status_details","status":"failed","status_details":{"error":{"code":"context_length_exceeded","message":"Maximum context length exceeded"}}}}',
+      '',
+    ].join('\n');
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: (async () =>
+        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+    });
+
+    await expect(
+      p.complete(baseReq, { signal: new AbortController().signal }),
+    ).rejects.toMatchObject({
+      status: 413,
+      kind: 'context_overflow',
+      retryable: false,
+      body: expect.objectContaining({
+        type: 'context_length_exceeded',
+        message: 'Maximum context length exceeded',
+        requestId: 'resp_status_details',
+        raw: expect.stringContaining('status_details'),
+      }),
+    });
+  });
+
+  it('honors response.status_code for generic failed envelopes', async () => {
+    const sse = [
+      'data: {"type":"response.failed","response":{"id":"resp_500","status":"failed","status_code":500,"error":{"message":"Upstream service failed"}}}',
+      '',
+    ].join('\n');
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: (async () =>
+        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+    });
+
+    await expect(
+      p.complete(baseReq, { signal: new AbortController().signal }),
+    ).rejects.toMatchObject({
+      status: 500,
+      kind: 'server',
+      retryable: true,
+      body: expect.objectContaining({ requestId: 'resp_500', message: 'Upstream service failed' }),
+    });
+  });
+
+  it('classifies top-level SSE error codes instead of treating every failure as HTTP 502', async () => {
+    const sse = [
+      'data: {"type":"error","code":"rate_limit_exceeded","message":"Rate limit exceeded"}',
+      '',
+    ].join('\n');
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: (async () =>
+        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+    });
+
+    await expect(
+      p.complete(baseReq, { signal: new AbortController().signal }),
+    ).rejects.toMatchObject({
+      status: 429,
+      kind: 'rate_limit',
+      retryable: true,
+      body: expect.objectContaining({
+        type: 'rate_limit_exceeded',
+        message: 'Rate limit exceeded',
+        raw: expect.stringContaining('"type":"error"'),
+      }),
+    });
+  });
+
+  it.each([
+    ['authentication_error', 'Invalid access token', 401, 'auth', false],
+    ['content_filter', 'Content policy blocked this request', 400, 'content_filter', false],
+    ['error', 'Usage limit reached for this plan', 402, 'quota_exhausted', false],
+  ] as const)(
+    'maps SSE %s failures to canonical status/kind',
+    async (code, message, status, kind, retryable) => {
+      const sse = [`data: ${JSON.stringify({ type: 'error', code, message })}`, ''].join('\n');
+      const p = new OpenAICodexProvider({
+        credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+        fetchImpl: (async () =>
+          new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      });
+
+      await expect(
+        p.complete(baseReq, { signal: new AbortController().signal }),
+      ).rejects.toMatchObject({ status, kind, retryable });
+    },
+  );
+
+  it.each(['Maximum tokens exceeded', 'The request is too long', 'Input too large'])(
+    'classifies terse SSE overflow message %j without retrying as a server failure',
+    async (message) => {
+      const sse = [`data: ${JSON.stringify({ type: 'error', message })}`, ''].join('\n');
+      const p = new OpenAICodexProvider({
+        credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+        fetchImpl: (async () =>
+          new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      });
+
+      await expect(
+        p.complete(baseReq, { signal: new AbortController().signal }),
+      ).rejects.toMatchObject({
+        status: 413,
+        kind: 'context_overflow',
+        retryable: false,
+        body: expect.objectContaining({ message }),
+      });
+    },
+  );
 
   it('throws a retryable error when the stream ends with no response.completed and no [DONE] (mid-stream cut)', async () => {
     const sse = [

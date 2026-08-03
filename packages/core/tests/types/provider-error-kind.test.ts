@@ -21,8 +21,21 @@ describe('ProviderError.isProviderError', () => {
       retryable: true,
       kind: 'server',
       message: 'upstream gateway error',
+      describe: () => 'provider server error',
     };
     expect(ProviderError.isProviderError(err)).toBe(true);
+  });
+
+  it('returns false for a lookalike missing the describe method used by the runner', () => {
+    expect(
+      ProviderError.isProviderError({
+        name: 'ProviderError',
+        status: 502,
+        retryable: true,
+        kind: 'server',
+        message: 'upstream gateway error',
+      }),
+    ).toBe(false);
   });
 
   it('returns false for a plain Error', () => {
@@ -75,6 +88,15 @@ describe('classifyProviderError', () => {
     expect(classifyProviderError(400, { type: 'permission_error' })).toBe('auth');
   });
 
+  it('prefers an explicit transient rate-limit code over ambiguous message prose', () => {
+    expect(
+      classifyProviderError(429, {
+        type: 'rate_limit_exceeded',
+        message: 'Rate limit exceeded',
+      }),
+    ).toBe('rate_limit');
+  });
+
   it('detects more overflow phrasings on 4xx', () => {
     expect(classifyProviderError(400, undefined, 'too many tokens in the request')).toBe(
       'context_overflow',
@@ -88,6 +110,11 @@ describe('classifyProviderError', () => {
     expect(
       classifyProviderError(400, undefined, 'your messages resulted in 130000 tokens'),
     ).toBe('context_overflow');
+  });
+
+  it('does not classify unrelated generic too-long validation errors as context overflow', () => {
+    expect(classifyProviderError(400, undefined, 'tool name is too long')).toBe('invalid_request');
+    expect(classifyProviderError(400, undefined, 'metadata field too long')).toBe('invalid_request');
   });
 
   it('detects context overflow from message shapes on 4xx', () => {

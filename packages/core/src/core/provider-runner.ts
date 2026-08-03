@@ -9,8 +9,20 @@ import { type Context, resolveEventSessionId } from './context.js';
 import { streamProviderToResponse } from './streaming-response-builder.js';
 import { createChroniclePromptManifest } from '../chronicle/prompt-manifest.js';
 import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
+import { scrubErrorText } from '../security/error-sanitize.js';
 
 /** Fields worth including in every provider-run log for cross-correlation. */
+function scrubProviderBody(body: ProviderError['body']): ProviderError['body'] {
+  if (!body) return undefined;
+  return {
+    ...body,
+    ...(body.type !== undefined ? { type: scrubErrorText(body.type) } : {}),
+    ...(body.message !== undefined ? { message: scrubErrorText(body.message) } : {}),
+    ...(body.raw !== undefined ? { raw: scrubErrorText(body.raw) } : {}),
+    ...(body.requestId !== undefined ? { requestId: scrubErrorText(body.requestId) } : {}),
+  };
+}
+
 function providerLogCtx(p: Provider, r: Request): Record<string, unknown> {
   return {
     providerId: p.id,
@@ -110,7 +122,10 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
       const errAsErr = err instanceof Error ? err : new Error(String(err));
       const canRetry = retry.shouldRetry(isProviderErr ? err : errAsErr, attempt);
-      const description = isProviderErr ? (err as ProviderError).describe() : errAsErr.message;
+      const providerErrorBody = isProviderErr ? scrubProviderBody((err as ProviderError).body) : undefined;
+      const description = scrubErrorText(
+        isProviderErr ? (err as ProviderError).describe() : errAsErr.message,
+      );
       const delay = canRetry
         ? Math.round(retry.delayMs(attempt, isProviderErr ? (err as ProviderError) : errAsErr))
         : undefined;
@@ -125,7 +140,10 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
         retryable: canRetry,
         retryScheduled: canRetry,
         ...(delay !== undefined ? { retryDelayMs: delay } : {}),
-        ...(isProviderErr && err.body?.requestId ? { providerRequestId: err.body.requestId } : {}),
+        ...(providerErrorBody?.requestId
+          ? { providerRequestId: providerErrorBody.requestId }
+          : {}),
+        ...(providerErrorBody ? { errorBody: providerErrorBody } : {}),
       });
       if (!canRetry) {
         events.emit('provider.error', {
@@ -134,12 +152,14 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
           status: isProviderErr ? err.status : 0,
           description,
           retryable: false,
+          ...(providerErrorBody ? { errorBody: providerErrorBody } : {}),
         });
         logger.error(`Provider call failed after ${attempt + 1} attempt(s) — ${description}`, {
           ...providerLogCtx(provider, request),
           attempts: attempt + 1,
           errorDescription: description,
           status: isProviderErr ? (err as ProviderError).status : undefined,
+          errorBody: providerErrorBody,
           errorName: err instanceof Error ? err.name : undefined,
           errorStack:
             err instanceof Error ? err.stack?.split('\n').slice(0, 3).join('\n') : undefined,
@@ -158,6 +178,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
         delayMs: delay,
         errorDescription: description,
         status: isProviderErr ? (err as ProviderError).status : undefined,
+        errorBody: providerErrorBody,
       });
       events.emit('provider.retry', {
         sessionId: resolveEventSessionId(ctx),
@@ -166,6 +187,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
         delayMs: delay!,
         status: isProviderErr ? err.status : 0,
         description,
+        ...(providerErrorBody ? { errorBody: providerErrorBody } : {}),
       });
       await new Promise<void>((resolve, reject) => {
         let settled = false;

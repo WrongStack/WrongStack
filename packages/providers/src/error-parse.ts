@@ -19,7 +19,7 @@ export function parseProviderHttpError(
   rawText: string,
   headers?: HeadersLike,
 ): ProviderError {
-  const body = parseBody(rawText);
+  const body = parseProviderErrorBody(rawText);
   // Prefer an explicit Retry-After HTTP header (the authoritative wire signal).
   const headerHint = retryAfterMsFromHeaders(headers);
   if (headerHint !== undefined) body.retryAfterMs = headerHint;
@@ -52,7 +52,7 @@ export function parseProviderHttpError(
  * is a vendor category, but it is provider-controlled text like the rest, so
  * it goes through the scrubber too.
  */
-function scrubProviderErrorBody(body: ProviderErrorBody): ProviderErrorBody {
+export function scrubProviderErrorBody(body: ProviderErrorBody): ProviderErrorBody {
   const out: ProviderErrorBody = { ...body };
   if (out.raw !== undefined) out.raw = scrubErrorText(out.raw);
   if (out.message !== undefined) out.message = scrubErrorText(out.message);
@@ -97,7 +97,7 @@ export function retryAfterMsFromHeaders(headers?: HeadersLike): number | undefin
 
 const RAW_TRUNCATE_AT = 2000;
 
-function parseBody(rawText: string): ProviderErrorBody {
+export function parseProviderErrorBody(rawText: string): ProviderErrorBody {
   const raw = rawText.slice(0, RAW_TRUNCATE_AT);
   // Surface truncation so downstream renderers (CLI error formatter, log
   // exporter) can show a "(truncated, N more bytes)" suffix instead of
@@ -119,9 +119,14 @@ function parseBody(rawText: string): ProviderErrorBody {
   // Anthropic / MiniMax / Kimi: { type: "error", error: { type, message }, request_id }
   // OpenAI / OpenAI-compatible: { error: { message, type, code, param } }
   // Google: { error: { code, message, status } }
-  const errField = parsed['error'];
+  const responseField = parsed['response'];
+  const responseError = isPlainObject(responseField) ? responseField['error'] : undefined;
+  const statusDetails = isPlainObject(responseField) ? responseField['status_details'] : undefined;
+  const statusDetailsError = isPlainObject(statusDetails) ? statusDetails['error'] : undefined;
+  const errField = parsed['error'] ?? responseError ?? statusDetailsError;
   if (isPlainObject(errField)) {
-    const t = stringOf(errField['type']) ?? stringOf(errField['status']);
+    const t =
+      stringOf(errField['type']) ?? stringOf(errField['status']) ?? stringOf(errField['code']);
     const m = stringOf(errField['message']);
     if (t) body.type = t;
     if (m) body.message = m;
@@ -131,7 +136,9 @@ function parseBody(rawText: string): ProviderErrorBody {
   // Top-level fields some providers use directly
   if (!body.type) {
     const t = stringOf(parsed['type']);
+    const code = stringOf(parsed['code']);
     if (t && t !== 'error') body.type = t;
+    else if (code) body.type = code;
   }
   if (!body.message) {
     const m = stringOf(parsed['message']);
@@ -140,7 +147,10 @@ function parseBody(rawText: string): ProviderErrorBody {
 
   // request_id (Anthropic), id (some compatible providers)
   const reqId =
-    stringOf(parsed['request_id']) ?? stringOf(parsed['requestId']) ?? stringOf(parsed['id']);
+    stringOf(parsed['request_id']) ??
+    stringOf(parsed['requestId']) ??
+    stringOf(parsed['id']) ??
+    (isPlainObject(responseField) ? stringOf(responseField['id']) : undefined);
   if (reqId) body.requestId = reqId;
 
   return body;

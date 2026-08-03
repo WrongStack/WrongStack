@@ -70,12 +70,22 @@ describe('setupEvents session scoping', () => {
       delayMs: 200,
       status: 429,
       description: 'rate limited again',
+      errorBody: {
+        type: 'rate_limit_exceeded',
+        message: 'rate limited again',
+        raw: '{"type":"error"}',
+      },
     });
 
     expect(append).toHaveBeenCalledTimes(1);
     expect(append.mock.calls[0]?.[0]).toMatchObject({
       type: 'provider_retry',
       attempt: 2,
+      errorBody: {
+        type: 'rate_limit_exceeded',
+        message: 'rate limited again',
+        raw: '{"type":"error"}',
+      },
     });
     dispose();
   });

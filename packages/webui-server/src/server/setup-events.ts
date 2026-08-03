@@ -522,6 +522,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         delayMs: e.delayMs,
         status: e.status,
         description: e.description,
+        ...(e.errorBody ? { errorBody: e.errorBody } : {}),
       }),
     });
     appendForCurrentSession(e.sessionId, {
@@ -532,6 +533,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       delayMs: e.delayMs,
       status: e.status,
       description: e.description,
+      ...(e.errorBody ? { errorBody: e.errorBody } : {}),
     });
   });
 
@@ -575,6 +577,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         status: e.status,
         description: e.description,
         retryable: e.retryable,
+        ...(e.errorBody ? { errorBody: e.errorBody } : {}),
       }),
     });
     appendForCurrentSession(e.sessionId, {
@@ -584,6 +587,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       status: e.status,
       description: e.description,
       retryable: e.retryable,
+      ...(e.errorBody ? { errorBody: e.errorBody } : {}),
     });
   });
 

@@ -337,7 +337,7 @@ export type ProviderErrorKind =
  * (which had drifted apart) — keep additions here, nowhere else.
  */
 const CONTEXT_OVERFLOW_RE =
-  /context.length|context.window|maximum context|max.*tokens?.*exceeded|prompt is too long|too long|exceeds the context|\btokens\b.*exceed|too many tokens|reduce the length|resulted in \d+ tokens|input.{0,12}too (?:large|long)|context_length_exceeded/i;
+  /context.length|context.window|maximum context|max.*tokens?.*exceeded|(?:prompt|request|input|messages?).{0,12}too (?:large|long)|exceeds the context|\btokens\b.*exceed|too many tokens|reduce the length|resulted in \d+ tokens|context_length_exceeded/i;
 
 /** Content-policy refusals surfaced as HTTP errors (Azure/OpenAI `content_filter`, etc.). */
 const CONTENT_FILTER_RE = /content.(filter|policy|moderation)|safety (system|filter)/i;
@@ -367,7 +367,12 @@ export function classifyProviderError(
   // should NOT match against body.raw because OpenAI's error response
   // includes `"code":"rate_limit_exceeded"` in the JSON, which would be a
   // false positive (it's a transient burst, not a hard limit).
-  if (status === 429 && body?.message && RATE_LIMIT_EXCEEDED_RE.test(body.message)) {
+  if (
+    status === 429 &&
+    body?.message &&
+    body.type !== 'rate_limit_exceeded' &&
+    RATE_LIMIT_EXCEEDED_RE.test(body.message)
+  ) {
     return 'quota_exhausted';
   }
   if (type === 'rate_limit_error' || status === 429) return 'rate_limit';
@@ -599,7 +604,8 @@ export class ProviderError extends WrongStackError {
     return (
       typeof e.status === 'number' &&
       typeof e.retryable === 'boolean' &&
-      typeof e.kind === 'string'
+      typeof e.kind === 'string' &&
+      typeof e.describe === 'function'
     );
   }
 
