@@ -620,8 +620,7 @@
     "probing": "Sorgulanıyor…",
     "searchPlaceholder": "Modelleri ara…",
     "use": "Kullan",
-    "useModelAria": "{{provider}} için {{model}} modelini kullan",
-    "differsHint": "Sorgulanan liste kayıtlı izin listesinden farklı — kalıcı yapmak için {{command}} komutunu yeniden çalıştırın."
+    "useModelAria": "{{provider}} için {{model}} modelini kullan"
   },
   "dock": {
     "expandChip": "{{label}} öğesini genişlet",

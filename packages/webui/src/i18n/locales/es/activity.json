@@ -620,8 +620,7 @@
     "probing": "Comprobando…",
     "searchPlaceholder": "Buscar modelos…",
     "use": "Usar",
-    "useModelAria": "Usar el modelo {{model}} para {{provider}}",
-    "differsHint": "La lista comprobada difiere de la lista guardada — vuelve a ejecutar {{command}} para persistir."
+    "useModelAria": "Usar el modelo {{model}} para {{provider}}"
   },
   "dock": {
     "expandChip": "Expandir {{label}}",

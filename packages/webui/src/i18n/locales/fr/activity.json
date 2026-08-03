@@ -620,8 +620,7 @@
     "probing": "Vérification…",
     "searchPlaceholder": "Rechercher des modèles…",
     "use": "Utiliser",
-    "useModelAria": "Utiliser le modèle {{model}} pour {{provider}}",
-    "differsHint": "La liste vérifiée diffère de la liste enregistrée — relancez {{command}} pour persister."
+    "useModelAria": "Utiliser le modèle {{model}} pour {{provider}}"
   },
   "dock": {
     "expandChip": "Déplier {{label}}",

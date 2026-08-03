@@ -620,8 +620,7 @@
     "probing": "Verificando…",
     "searchPlaceholder": "Pesquisar modelos…",
     "use": "Usar",
-    "useModelAria": "Usar o modelo {{model}} para {{provider}}",
-    "differsHint": "A lista verificada difere da lista salva — execute {{command}} novamente para persistir."
+    "useModelAria": "Usar o modelo {{model}} para {{provider}}"
   },
   "dock": {
     "expandChip": "Expandir {{label}}",

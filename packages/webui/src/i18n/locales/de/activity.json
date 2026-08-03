@@ -620,8 +620,7 @@
     "probing": "Prüfe…",
     "searchPlaceholder": "Modelle suchen…",
     "use": "Verwenden",
-    "useModelAria": "Modell {{model}} für {{provider}} verwenden",
-    "differsHint": "Die geprüfte Liste weicht von der gespeicherten Allowlist ab — führe {{command}} erneut aus, um zu speichern."
+    "useModelAria": "Modell {{model}} für {{provider}} verwenden"
   },
   "dock": {
     "expandChip": "{{label}} ausklappen",
