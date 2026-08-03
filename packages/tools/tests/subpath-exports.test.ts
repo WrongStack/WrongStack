@@ -62,7 +62,8 @@ describe('per-tool subpath exports (L3-A)', () => {
     // New calls tools
     expect(mod.codebaseIncomingCallsTool.name).toBe('codebase-incoming-calls');
     expect(mod.codebaseOutgoingCallsTool.name).toBe('codebase-outgoing-calls');
-    // CallSite type is exported (runtime check: it's in the module namespace)
-    expect(mod.CallSite).toBeUndefined(); // type-only export, not a runtime value
+    // Service functions are exported for programmatic use
+    expect(typeof mod.incomingCallsService).toBe('function');
+    expect(typeof mod.outgoingCallsService).toBe('function');
   });
 });
