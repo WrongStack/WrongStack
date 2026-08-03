@@ -309,6 +309,20 @@
       "reviewBy": "2026-09-15",
       "removeWhen": "Kanban storage and lifecycle modules have one-way runtime and type dependencies.",
       "canonicalTask": "K1"
+    },
+    {
+      "id": "ARCH-CYCLE-TYPE-28",
+      "kind": "type-module-cycle",
+      "members": [
+        "packages/tools/src/codebase-index/index-service.ts",
+        "packages/tools/src/codebase-index/worker-protocol.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Type-level cycle introduced when the codebase-index barrel chain was restructured. index-service.ts imports worker-protocol.ts for IPC message types, and worker-protocol.ts imports index-service.ts for service type re-exports.",
+      "introduced": "2026-08-03",
+      "reviewBy": "2026-10-01",
+      "removeWhen": "Codebase-index IPC types move to a dependency-leaf module consumed by both index-service and worker-protocol.",
+      "canonicalTask": "T1"
     }
   ]
 }
