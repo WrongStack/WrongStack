@@ -4,7 +4,7 @@
 
 ## Project brief
 
-WrongStack is a terminal AI coding agent in TypeScript: an LLM that reads code, edits files, runs shell commands, and reasons through bugs. Per-call approval and project-root containment form the non-YOLO policy: tool calls that mutate or touch the network prompt the user unless YOLO is on; filesystem tools refuse to read or write outside the active project root unless `features.allowOutsideProjectRoot` is set; explicit deny rules in the trust file and `permission: 'deny'` tools still win over YOLO. Interactive first launch currently selects and persists YOLO on; use `--no-yolo` or `/yolo off` to restore approval prompts. Monorepo: 19 packages + 2 apps + website. Runtime surfaces: CLI (REPL), optional TUI (React/Ink), WebUI (Vite/React), SimpleUI (lightweight browser chat), Desktop (Electron), and HQ. Published entry: `apps/wrongstack/src/index.js` → `@wrongstack/cli` → `packages/cli/src/index.ts` / `cli-main.ts`.
+WrongStack is a terminal AI coding agent in TypeScript: an LLM that reads code, edits files, runs shell commands, and reasons through bugs. Per-call approval and project-root containment form the non-YOLO policy: tool calls that mutate or touch the network prompt the user unless YOLO is on; filesystem tools refuse to read or write outside the active project root unless `features.allowOutsideProjectRoot` is set; explicit deny rules in the trust file and `permission: 'deny'` tools still win over YOLO. Interactive first launch currently selects and persists YOLO on; use `--no-yolo` or `/yolo off` to restore approval prompts. Monorepo: 29 packages + 2 apps + website. Runtime surfaces: CLI (REPL), optional TUI (React/Ink), WebUI (Vite/React), SimpleUI (lightweight browser chat), Desktop (Electron), and HQ. Published entry: `apps/wrongstack/src/index.js` → `@wrongstack/cli` → `packages/cli/src/index.ts` / `cli-main.ts`.
 
 ## Package map
 
@@ -27,7 +27,7 @@ webui/             — Vite+React web UI frontend and client state (docs/webui.m
 simpleui/          — Lightweight browser chat (conversation, tool progress, agent tabs)
 webui-server/      — Shared Node WebUI backend that powers `wstack --webui`
 webui-hq/          — React HQ Command Center dashboard
-plugins/           — 63-entry first-party plugin catalog and subpath exports
+plugins/           — 64-entry first-party plugin catalog and subpath exports
 bench/             — Benchmark harness (Aider polyglot + SWE-bench); docs/subcommands/bench.md
 apps/wrongstack/   — bin entry (wrongstack / wstack)
 apps/desktop/      — Electron desktop shell

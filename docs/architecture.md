@@ -47,8 +47,8 @@ handle.
 
 ## Workspace and dependency direction
 
-The pnpm workspace contains 26 packages, two applications, and the marketing
-site. All current workspace packages use the shared 0.298.4 version.
+The pnpm workspace contains 29 packages, two applications, and the marketing
+site. All current workspace packages use the shared 0.299.0 version.
 
 | Area | Packages / application | Responsibility |
 | --- | --- | --- |

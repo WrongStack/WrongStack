@@ -3,7 +3,7 @@
 A bird's-eye view of every first-party plugin in
 [`@wrongstack/plugins`](../packages/plugins/README.md). The catalog
 below groups plugins by what they do, so you can spot overlaps and
-pick the right one for a job without scrolling through 63 entries.
+pick the right one for a job without scrolling through 64 entries.
 
 > **Living document** — last updated 2026-07-06. When you add a plugin, update this
 > file in the same commit so it never drifts from
@@ -36,46 +36,47 @@ pick the right one for a job without scrolling through 63 entries.
 | 21 | [`spec-linker`](../packages/plugins/src/spec-linker)     | quality | `PostToolUse` (`write\|edit`) | `spec_linker_status` |
 | 22 | [`loop-breaker`](../packages/plugins/src/loop-breaker)   | safety | `PreToolUse` (`*`) | `loop_breaker_status` |
 | 23 | [`path-guard`](../packages/plugins/src/path-guard)     | safety | `PreToolUse` (`write\|edit\|bash`) | `path_guard_status` |
-| 24 | [`context-pins`](../packages/plugins/src/context-pins)  | utilities | — | `pin_add`, `pin_remove`, `pin_list` |
-| 25 | [`checkpoint`](../packages/plugins/src/checkpoint)     | utilities | — | `checkpoint_create`, `checkpoint_restore`, `checkpoint_list` |
-| 26 | [`error-lens`](../packages/plugins/src/error-lens)      | observability | `PostToolUse` (`bash\|exec`) | `error_lens_status` |
-| 27 | [`dep-guard`](../packages/plugins/src/dep-guard)        | safety | `PreToolUse` (`install`) | `dep_guard_status` |
-| 28 | [`config-validator`](../packages/plugins/src/config-validator) | quality | `PostToolUse` (`write\|edit`) | `config_validator_status` |
-| 29 | [`notify-hub`](../packages/plugins/src/notify-hub)      | observability | `Stop` + `PostToolUse` (`*`) | `notify_hub_status`, `notify_send` |
-| 30 | [`changelog-writer`](../packages/plugins/src/changelog-writer) | developer workflow | — | `changelog_add`, `changelog_preview`, `changelog_write` |
-| 31 | [`injection-shield`](../packages/plugins/src/injection-shield) | safety | `PostToolUse` (`*`) | `injection_shield_status` |
-| 32 | [`llm-cache`](../packages/plugins/src/llm-cache) | performance | — | `llm_cache_status`, `llm_cache_clear` |
-| 33 | [`model-router`](../packages/plugins/src/model-router) | performance | — | `model_router_status` |
-| 34 | [`prompt-firewall`](../packages/plugins/src/prompt-firewall) | safety | — | `prompt_firewall_status` |
-| 35 | [`auto-escalate`](../packages/plugins/src/auto-escalate) | reliability | — | `auto_escalate_status` |
-| 36 | [`token-throttle`](../packages/plugins/src/token-throttle) | performance | — | `token_throttle_status` |
-| 37 | [`plugin-stack-observer`](../packages/plugins/src/plugin-stack-observer) | observability | — | `plugin_stack_observer_status` |
-| 38 | [`knowledge-graph`](../packages/plugins/src/knowledge-graph) | utilities | — | `kg_add_fact`, `kg_query`, `kg_remove_fact`, `kg_status` |
-| 39 | [`pr-drafter`](../packages/plugins/src/pr-drafter) | developer workflow | — | `pr_draft`, `pr_draft_preview` |
-| 40 | [`test-coverage-gate`](../packages/plugins/src/test-coverage-gate) | quality | — | `test_coverage_status` |
-| 41 | [`type-gate`](../packages/plugins/src/type-gate) | quality | — | `type_gate_status` |
-| 42 | [`agent-handoff`](../packages/plugins/src/agent-handoff) | cross-agent | — | `handoff_note`, `handoff_status` |
-| 43 | [`accessibility-auditor`](../packages/plugins/src/accessibility-auditor) | quality | — | `accessibility_audit` |
-| 44 | [`api-compatibility-gate`](../packages/plugins/src/api-compatibility-gate) | quality | — | `api_compat_check` |
-| 45 | [`auto-i18n-extractor`](../packages/plugins/src/auto-i18n-extractor) | developer workflow | — | `i18n_extract`, `i18n_sync` |
-| 46 | [`code-metrics`](../packages/plugins/src/code-metrics) | observability | — | `code_metrics_report` |
-| 47 | [`dead-code-detector`](../packages/plugins/src/dead-code-detector) | quality | — | `dead_code_scan` |
-| 48 | [`dependency-vulnerability-gate`](../packages/plugins/src/dependency-vulnerability-gate) | safety | — | `dependency_audit_status` |
-| 49 | [`doc-sync-guard`](../packages/plugins/src/doc-sync-guard) | quality | — | `doc_sync_guard_status` |
-| 50 | [`duplicate-code-detector`](../packages/plugins/src/duplicate-code-detector) | quality | — | `detect_duplicate_code`, `duplicate_code_status` |
-| 51 | [`feature-flag-tracker`](../packages/plugins/src/feature-flag-tracker) | developer workflow | — | `feature_flag_list`, `feature_flag_status` |
-| 52 | [`interface-contract-guard`](../packages/plugins/src/interface-contract-guard) | quality | — | `interface_contract_check` |
-| 53 | [`license-audit-gate`](../packages/plugins/src/license-audit-gate) | safety | — | `license_audit_gate_status` |
-| 54 | [`migration-planner`](../packages/plugins/src/migration-planner) | developer workflow | — | `migration_plan`, `migration_apply` |
-| 55 | [`performance-regression-gate`](../packages/plugins/src/performance-regression-gate) | quality | — | `perf_regression_gate_status` |
-| 56 | [`refactor-suggester`](../packages/plugins/src/refactor-suggester) | developer workflow | — | `refactor_suggest` |
-| 57 | [`release-notes-generator`](../packages/plugins/src/release-notes-generator) | developer workflow | — | `release_notes_generate` |
-| 58 | [`schema-evolution-guard`](../packages/plugins/src/schema-evolution-guard) | safety | — | `schema_evolution_guard_status` |
-| 59 | [`security-hotspot-scanner`](../packages/plugins/src/security-hotspot-scanner) | safety | — | `security_hotspot_scan` |
-| 60 | [`semantic-search-indexer`](../packages/plugins/src/semantic-search-indexer) | utilities | — | `semantic_search_index`, `semantic_search_query` |
-| 61 | [`smart-rename`](../packages/plugins/src/smart-rename) | developer workflow | — | `smart_rename` |
-| 62 | [`test-flake-detector`](../packages/plugins/src/test-flake-detector) | quality | — | `test_flake_detector_status` |
-| 63 | [`test-generator`](../packages/plugins/src/test-generator) | quality | — | `test_generate` |
+| 24 | [`process-guard`](../packages/plugins/src/process-guard) | safety | `PreToolUse` (`bash\|exec`) | `process_guard_status` |
+| 25 | [`context-pins`](../packages/plugins/src/context-pins)  | utilities | — | `pin_add`, `pin_remove`, `pin_list` |
+| 26 | [`checkpoint`](../packages/plugins/src/checkpoint)     | utilities | — | `checkpoint_create`, `checkpoint_restore`, `checkpoint_list` |
+| 27 | [`error-lens`](../packages/plugins/src/error-lens)      | observability | `PostToolUse` (`bash\|exec`) | `error_lens_status` |
+| 28 | [`dep-guard`](../packages/plugins/src/dep-guard)        | safety | `PreToolUse` (`install`) | `dep_guard_status` |
+| 29 | [`config-validator`](../packages/plugins/src/config-validator) | quality | `PostToolUse` (`write\|edit`) | `config_validator_status` |
+| 30 | [`notify-hub`](../packages/plugins/src/notify-hub)      | observability | `Stop` + `PostToolUse` (`*`) | `notify_hub_status`, `notify_send` |
+| 31 | [`changelog-writer`](../packages/plugins/src/changelog-writer) | developer workflow | — | `changelog_add`, `changelog_preview`, `changelog_write` |
+| 32 | [`injection-shield`](../packages/plugins/src/injection-shield) | safety | `PostToolUse` (`*`) | `injection_shield_status` |
+| 33 | [`llm-cache`](../packages/plugins/src/llm-cache) | performance | — | `llm_cache_status`, `llm_cache_clear` |
+| 34 | [`model-router`](../packages/plugins/src/model-router) | performance | — | `model_router_status` |
+| 35 | [`prompt-firewall`](../packages/plugins/src/prompt-firewall) | safety | — | `prompt_firewall_status` |
+| 36 | [`auto-escalate`](../packages/plugins/src/auto-escalate) | reliability | — | `auto_escalate_status` |
+| 37 | [`token-throttle`](../packages/plugins/src/token-throttle) | performance | — | `token_throttle_status` |
+| 38 | [`plugin-stack-observer`](../packages/plugins/src/plugin-stack-observer) | observability | — | `plugin_stack_observer_status` |
+| 39 | [`knowledge-graph`](../packages/plugins/src/knowledge-graph) | utilities | — | `kg_add_fact`, `kg_query`, `kg_remove_fact`, `kg_status` |
+| 40 | [`pr-drafter`](../packages/plugins/src/pr-drafter) | developer workflow | — | `pr_draft`, `pr_draft_preview` |
+| 41 | [`test-coverage-gate`](../packages/plugins/src/test-coverage-gate) | quality | — | `test_coverage_status` |
+| 42 | [`type-gate`](../packages/plugins/src/type-gate) | quality | — | `type_gate_status` |
+| 43 | [`agent-handoff`](../packages/plugins/src/agent-handoff) | cross-agent | — | `handoff_note`, `handoff_status` |
+| 44 | [`accessibility-auditor`](../packages/plugins/src/accessibility-auditor) | quality | — | `accessibility_audit` |
+| 45 | [`api-compatibility-gate`](../packages/plugins/src/api-compatibility-gate) | quality | — | `api_compat_check` |
+| 46 | [`auto-i18n-extractor`](../packages/plugins/src/auto-i18n-extractor) | developer workflow | — | `i18n_extract`, `i18n_sync` |
+| 47 | [`code-metrics`](../packages/plugins/src/code-metrics) | observability | — | `code_metrics_report` |
+| 48 | [`dead-code-detector`](../packages/plugins/src/dead-code-detector) | quality | — | `dead_code_scan` |
+| 49 | [`dependency-vulnerability-gate`](../packages/plugins/src/dependency-vulnerability-gate) | safety | — | `dependency_audit_status` |
+| 50 | [`doc-sync-guard`](../packages/plugins/src/doc-sync-guard) | quality | — | `doc_sync_guard_status` |
+| 51 | [`duplicate-code-detector`](../packages/plugins/src/duplicate-code-detector) | quality | — | `detect_duplicate_code`, `duplicate_code_status` |
+| 52 | [`feature-flag-tracker`](../packages/plugins/src/feature-flag-tracker) | developer workflow | — | `feature_flag_list`, `feature_flag_status` |
+| 53 | [`interface-contract-guard`](../packages/plugins/src/interface-contract-guard) | quality | — | `interface_contract_check` |
+| 54 | [`license-audit-gate`](../packages/plugins/src/license-audit-gate) | safety | — | `license_audit_gate_status` |
+| 55 | [`migration-planner`](../packages/plugins/src/migration-planner) | developer workflow | — | `migration_plan`, `migration_apply` |
+| 56 | [`performance-regression-gate`](../packages/plugins/src/performance-regression-gate) | quality | — | `perf_regression_gate_status` |
+| 57 | [`refactor-suggester`](../packages/plugins/src/refactor-suggester) | developer workflow | — | `refactor_suggest` |
+| 58 | [`release-notes-generator`](../packages/plugins/src/release-notes-generator) | developer workflow | — | `release_notes_generate` |
+| 59 | [`schema-evolution-guard`](../packages/plugins/src/schema-evolution-guard) | safety | — | `schema_evolution_guard_status` |
+| 60 | [`security-hotspot-scanner`](../packages/plugins/src/security-hotspot-scanner) | safety | — | `security_hotspot_scan` |
+| 61 | [`semantic-search-indexer`](../packages/plugins/src/semantic-search-indexer) | utilities | — | `semantic_search_index`, `semantic_search_query` |
+| 62 | [`smart-rename`](../packages/plugins/src/smart-rename) | developer workflow | — | `smart_rename` |
+| 63 | [`test-flake-detector`](../packages/plugins/src/test-flake-detector) | quality | — | `test_flake_detector_status` |
+| 64 | [`test-generator`](../packages/plugins/src/test-generator) | quality | — | `test_generate` |
 
 ---
 
@@ -145,6 +146,7 @@ Plugins that stop destructive operations from happening by accident.
 | `secret-scanner` | Plaintext credentials in `bash` / `write` / `edit` input, and credentials leaking in tool *output* | `block` (input) / `warn` (output) |
 | `branch-guard` | Commits, pushes, and merges on protected branches (default: `main`, `master`) | `block` |
 | `path-guard` | Writes/edits/destructive shell on protected paths (lockfiles, `.env`, `.git`, migrations) | `block` |
+| `process-guard` | `kill`/`taskkill`/`Stop-Process`/`pkill`/`killall` targeting active WrongStack PIDs or host terminals (cross-instance registry) | `block` |
 | `loop-breaker` | Runaway tool-call loops — identical repeats *and* A-B-A-B oscillation; warns then blocks | `warn` → `block` after threshold |
 | `dep-guard` | Risky `install` calls: deny list, typosquat lookalike warnings, unpinned version warnings | `warn` |
 | `injection-shield` | Prompt-injection patterns in tool *output* (warns the model that content is data, not instructions) | `warn` |
@@ -226,6 +228,7 @@ noticeable per-tool overhead.
 | `bash\|git\|git_autocommit` | `branch-guard` | Blocks commits/pushes/merges to protected branches |
 | `bash\|git_autocommit` | `commit-validator` | Blocks on invalid conventional-commit format |
 | `write\|edit\|bash` | `path-guard` | Blocks touches on protected paths (lockfiles, `.env`, `.git`, migrations) |
+| `bash\|exec` | `process-guard` | Blocks `kill`/`taskkill`/`Stop-Process`/`pkill`/`killall` against active WrongStack PIDs or host terminals (cross-instance persistent registry) |
 | `install` | `dep-guard` | Warns on deny list / typosquat / unpinned install calls |
 | `*` | `loop-breaker` | Detects identical-repeat and A-B-A-B oscillation loops; warns then blocks after threshold |
 | `*` | `prompt-firewall` | Scans provider request wire for credential leaks before sending |
@@ -299,6 +302,7 @@ consistency.
 | `spec-linker` | yes | invocations, unlinked, clean, skipped (non-md) |
 | `loop-breaker` | yes | repeat streak, oscillation, last warning/block |
 | `path-guard` | yes | block count, last block path/reason |
+| `process-guard` | yes | invocations, detections, warns, last detection |
 | `context-pins` | yes | pin count, last pin id/timestamp |
 | `checkpoint` | yes | snapshot count, last restore id |
 | `error-lens` | yes | invocations, digests produced, repeated-failure flags |
@@ -340,7 +344,7 @@ consistency.
 | `test-flake-detector` | yes | test runs analyzed, flakes flagged |
 | `test-generator` | yes | tests generated, last generation |
 
-**All 63 plugins follow the H1 pattern** — every `setup()` re-zeros
+**All 64 plugins follow the H1 pattern** — every `setup()` re-zeros
 state, every `teardown()` releases it, and every `health()` reports
 it. `/diag plugins` therefore gives a uniform view.
 

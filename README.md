@@ -28,7 +28,7 @@ Brain-governed policy decisions, and collaborative debugging — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
 links every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **59 built-in tools**, **29 bundled skills**, **73 managed first-party
+It ships with **61 built-in tools**, **29 bundled skills**, **73 managed first-party
 plugin rows**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
@@ -36,15 +36,15 @@ boots fully offline with `--no-features`.
 **Built from scratch, stands on its own.** WrongStack is not a plugin layer or an
 orchestration kit bolted onto another coding tool — it's a complete agent written
 top to bottom: its own compact kernel, its own provider transports (4 wire
-families, real SSE), its own 59-tool executor, permission policy, memory system,
+families, real SSE), its own 61-tool executor, permission policy, memory system,
 and multi-agent runtime. Nothing here wraps a third-party CLI; everything works
 standalone, and `--no-features` even runs it fully offline.
 
 ### The scale of it
 
 Not a thin wrapper — a real engine. To put it in perspective: the codebase spans
-**27 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
-thousands of tests** guarding it. You get **59 built-in tools**, a **47-role agent
+**29 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
+thousands of tests** guarding it. You get **61 built-in tools**, a **77-role agent
 roster**, **~140 providers**, and **six surfaces** — all sharing **one compact
 kernel** (~1,670 lines) that boots **fully offline** with `--no-features`.
 
@@ -99,7 +99,7 @@ See the complete [0.298.3 release notes](CHANGELOG.md).
 ## Why WrongStack
 
 - 🧠 **Six surfaces, one brain** — a plain readline REPL, an Ink/React **TUI** (`--tui`), the full **WebUI** (`--webui`), lightweight **SimpleUI**, **WrongStack Desktop** (`--desktop`), and the cross-machine **HQ Command Center** (`--hq`). Plain `wstack` opens a launch menu on a TTY (bypass with `--no-menu`).
-- 🤖 **A fleet, not a lone agent** — a 47-role roster + smart dispatcher fan out under a Director, each subagent isolated with its own budget and JSONL transcript.
+- 🤖 **A fleet, not a lone agent** — a 77-role roster + smart dispatcher fan out under a Director, each subagent isolated with its own budget and JSONL transcript.
 - 🛰️ **HQ for the whole room** — aggregate live sessions, agents, fleets, mailbox state, cost, tools, Brain decisions, and worktrees across machines — then steer, note, queue, or stop connected clients through their own guardrails.
 - 🧠 **Brain as an authority seam** — risky Goal and Director choices can be auto-decided by policy, denied, or escalated to a human in the TUI.
 - ♾️ **Set a goal, walk away** — `/goal` locks a contract and the eternal / parallel engines grind until it's _verifiably_ done.
@@ -128,10 +128,10 @@ agent written from scratch, so the whole stack is first-party and consistent.
 |---|---|---|
 | **Core** | Coordinates an external agent CLI (Claude Code, etc.) | **Own compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines) |
 | **Providers** | Inherits whatever the wrapped tool supports | **Own transports** — 4 wire families + real SSE, ~140 providers from models.dev |
-| **Tools** | Whatever the underlying CLI exposes | **58 first-party built-in tools** — edit, exec, search, browser/E2E, SQLite codebase index |
+| **Tools** | Whatever the underlying CLI exposes | **61 first-party built-in tools** — edit, exec, search, browser/E2E, SQLite codebase index |
 | **Offline** | Needs the upstream tool + network | **`--no-features` runs fully offline** — no MCP, plugins, memory, or network at startup |
 | **Memory** | Usually none, or bolted-on files | **SAGE** — SQLite/FTS5, code-anchored, auto-injected long-term memory |
-| **Multi-agent** | Orchestrates external processes | **Native fleet + Director** — 47-role roster, isolated budgets, one mailbox |
+| **Multi-agent** | Orchestrates external processes | **Native fleet + Director** — 77-role roster, isolated budgets, one mailbox |
 | **Surfaces** | One (a terminal) | **Six** — REPL, TUI, WebUI, SimpleUI, Desktop, HQ |
 | **Review** | Manual | **Chimera** auto-review + fixer agents on your diffs |
 | **Permissions** | Depends on the wrapped tool | **Per-tool policy on every call**, project-root containment YOLO can't override |
@@ -254,10 +254,10 @@ required**. Deep reference lives in [`docs/reference.md`](docs/reference.md).
 
 ### Tools & code intelligence
 
-**59 built-in tools** span filesystem edits, code quality (`lint`/`format`/
+**61 built-in tools** span filesystem edits, code quality (`lint`/`format`/
 `typecheck`/`test`), execution, web search/fetch, a SQLite/FTS5 codebase index,
 git, packages, and browser/E2E controls. Full map:
-[reference → tools](docs/reference.md#built-in-tools-59).
+[reference → tools](docs/reference.md#built-in-tools-61).
 
 ### Autonomy & goals
 
@@ -268,7 +268,7 @@ quality gates, and circuit breaking.
 
 ### Multi-agent fleet + Director
 
-A 47-role roster and smart dispatcher fan out under a Director. Each subagent is
+A 77-role roster and smart dispatcher fan out under a Director. Each subagent is
 isolated with its own budget and JSONL transcript, coordinated over a
 project-wide mailbox. See [Director architecture](docs/director-architecture.md)
 and [agents](docs/agents.md).
@@ -341,8 +341,8 @@ implement one at a time, and validate against the spec before closing.
 
 ### Plugin ecosystem
 
-**73 managed first-party plugin rows** (8 core + 63 in `@wrongstack/plugins` +
-2 bridges) extend the agent with focused, single-purpose capabilities. See
+**73 managed first-party plugin rows** (9 host-owned + 64 in `@wrongstack/plugins`)
+extend the agent with focused, single-purpose capabilities. See
 [plugin management](docs/plugin-management.md) and the
 [plugin author guide](docs/plugin-author-guide.md).
 
@@ -454,7 +454,7 @@ Services  → deterministic local IPC → one owner each → SQLite-backed proje
 
 1. **Minimal kernel** — the four primitives + token table total ~1670 lines; the agent loop adds ~525.
 2. **Zero non-overridable behavior** — 16 services bound through `Container`, 6 pipelines as middleware, all extension points in registries.
-3. **Standalone sufficiency** — works with 59 built-in tools and no plugins.
+3. **Standalone sufficiency** — works with 61 built-in tools and no plugins.
 4. **Layered, not monolithic** — `--no-features` runs offline with zero startup network calls.
 
 Full walk-through: [`docs/architecture.md`](docs/architecture.md).
@@ -468,7 +468,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/core` | Kernel, agent, types, registries, plugin contract |
 | `@wrongstack/runtime` | Default runtime implementations + host composition |
 | `@wrongstack/providers` | Anthropic/OpenAI/OpenAI-compatible/Google adapters + SSE |
-| `@wrongstack/tools` | 59 built-in tools (incl. browser/E2E + SQLite codebase index) |
+| `@wrongstack/tools` | 61 built-in tools (incl. browser/E2E + SQLite codebase index) |
 | `@wrongstack/mcp` | MCP server registry + reconnection logic |
 | `@wrongstack/acp` | Agent Client Protocol client + agent support |
 | `@wrongstack/bench` | Benchmark harness (Aider polyglot + SWE-bench Verified) |
@@ -482,7 +482,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/webui` · `@wrongstack/webui-server` · `@wrongstack/webui-hq` · `@wrongstack/simpleui` | Browser UIs, shared backend, and HQ dashboard |
 | `@wrongstack/desktop` | Electron desktop shell |
 | `@wrongstack/plug-lsp` · `@wrongstack/telegram` | LSP and Telegram plugins |
-| `@wrongstack/plugins` | Official collection — 63 focused plugins via subpath exports |
+| `@wrongstack/plugins` | Official collection — 64 focused plugins via subpath exports |
 | `wrongstack` | Published CLI app entry (`wrongstack` / `wstack`) |
 
 ---
@@ -491,7 +491,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 - **Tens of thousands of tests** passing in the release gate across ~1,900 test files
 - Coverage thresholds (root Vitest): ≥73% lines / ≥73% functions / ≥64% branches / ≥72% statements
-- All 27 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
+- All 29 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
 - Node 22.19+ only, ESM-only, no CommonJS bundles
 - Threat model: [`SECURITY.md`](SECURITY.md)
 

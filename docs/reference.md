@@ -14,9 +14,9 @@ Use this as a map; the deep docs it links to are authoritative.
 
 ---
 
-## Built-in tools (59)
+## Built-in tools (61)
 
-WrongStack ships **59 built-in tools** — no plugins required. They fall into
+WrongStack ships **61 built-in tools** — no plugins required. They fall into
 these families:
 
 | Family | Examples |
@@ -66,11 +66,14 @@ See [`docs/slash/`](slash/) for the complete reference for every command.
 
 ---
 
-## Modes (8 personas)
+## Modes (19 personas)
 
-WrongStack ships eight interaction modes (personas) that reshape tone, verbosity,
-and defaults — e.g. Teach, Brief, Code Reviewer. Switch modes at runtime; an
-active mode prompt overrides conflicting baseline defaults.
+WrongStack ships nineteen interaction modes (personas) that reshape tone,
+verbosity, and defaults — e.g. Teach, Brief, Code Reviewer, plus token-saving
+"*-lite" variants of review, audit, plan, debug, test, refactor, and research,
+and "*-Deep" variants of review, audit, architecture, debug, test, devops,
+refactor, ui-design, teach, and research. Switch modes at runtime; an active
+mode prompt overrides conflicting baseline defaults.
 
 ---
 
