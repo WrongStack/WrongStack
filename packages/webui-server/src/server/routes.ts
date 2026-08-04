@@ -589,8 +589,12 @@ export function buildRoutes(
   // sibling in the chain.
   const mcpRoutes: McpRouteHandlers = {
     list: (ws, msg) => handleMcpList(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
-    add: (ws, msg) => handleMcpAdd(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
-    update: (ws, msg) => handleMcpUpdate(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
+    // add/update are the spawn-capable pair — they take a `command`/`args`
+    // from the wire and start it. They go past the trust boundary (M1).
+    add: (ws, msg) =>
+      handleMcpAdd(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
+    update: (ws, msg) =>
+      handleMcpUpdate(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
     remove: (ws, msg) => handleMcpRemove(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
     enable: (ws, msg) => handleMcpEnable(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
     disable: (ws, msg) => handleMcpDisable(ws, msg, deps.profileConfigPath, deps.mcpRegistry),

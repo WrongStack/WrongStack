@@ -143,13 +143,86 @@ describe('ws-auth', () => {
       })).toBe(false);
     });
 
-    it('still admits a cross-port origin when it presents a valid cookie', () => {
+    // Security scan 2026-08-04, finding H1. WS-003 landed the port check but
+    // let a valid cookie short-circuit it. That escape hatch gave back exactly
+    // what the port check took away: cookies are keyed by host, not port, and
+    // SameSite computes *site* without the port, so the browser attaches
+    // `ws_token` to a socket opened from ANY other localhost origin without the
+    // attacker page ever seeing the value (it is HttpOnly — and it doesn't need
+    // to read it). "Presents a valid cookie" therefore demonstrates no
+    // capability a hostile local page lacks.
+    //
+    // The Vite dev loop genuinely needs cross-port (vite.config.ts asks for
+    // 3456 and auto-advances when the WS server holds it), so it survives as an
+    // explicit opt-in rather than a default.
+    it('rejects a cross-port origin WITH a valid cookie by default (H1)', () => {
       expect(verifyClient({
         origin: 'http://localhost:9999',
         url: '/',
         hostHeader: 'localhost:3456',
         cookieHeader: `ws_token=${TOKEN}`,
         wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+      })).toBe(false);
+    });
+
+    it('admits a cross-port origin with a valid cookie when the dev opt-in is set', () => {
+      expect(verifyClient({
+        origin: 'http://localhost:9999',
+        url: '/',
+        hostHeader: 'localhost:3456',
+        cookieHeader: `ws_token=${TOKEN}`,
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+        allowCrossPortLoopbackCookie: true,
+      })).toBe(true);
+    });
+
+    it('the dev opt-in still requires a valid cookie — it is not a blanket bypass', () => {
+      expect(verifyClient({
+        origin: 'http://localhost:9999',
+        url: '/',
+        hostHeader: 'localhost:3456',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+        allowCrossPortLoopbackCookie: true,
+      })).toBe(false);
+      expect(verifyClient({
+        origin: 'http://localhost:9999',
+        url: '/',
+        hostHeader: 'localhost:3456',
+        cookieHeader: 'ws_token=wrong-token',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+        allowCrossPortLoopbackCookie: true,
+      })).toBe(false);
+    });
+
+    it('forging Origin to match Host does not satisfy requireToken (H1)', () => {
+      // A non-browser local process controls both headers, so a matching pair
+      // proves nothing. WS-005 required a token on the no-Origin branch for
+      // this reason; adding an Origin header must not route around it.
+      expect(verifyClient({
+        origin: 'http://127.0.0.1:3456',
+        url: '/',
+        hostHeader: '127.0.0.1:3456',
+        remoteAddress: '127.0.0.1',
+        wsHost: '127.0.0.1',
+        expectedToken: TOKEN,
+        requireToken: true,
+      })).toBe(false);
+    });
+
+    it('the tunnel path is unaffected: cookie still authenticates on a public bind', () => {
+      // The port comparison is scoped to the tokenless loopback-bind branch.
+      // On a wildcard bind the app is legitimately served from another origin
+      // and the cookie is the intended credential.
+      expect(verifyClient({
+        origin: 'http://localhost:3000',
+        url: '/',
+        hostHeader: 'localhost:8080',
+        cookieHeader: `ws_token=${TOKEN}`,
+        wsHost: '0.0.0.0',
         expectedToken: TOKEN,
       })).toBe(true);
     });

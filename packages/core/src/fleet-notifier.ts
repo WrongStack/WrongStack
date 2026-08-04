@@ -37,6 +37,21 @@ interface InstanceRecordLike {
   httpPort: number;
   host: string;
   projectRoot: string;
+  /**
+   * The target instance's API token, recorded in the registry so this
+   * non-browser caller can authenticate (H3). Optional: an older record, or an
+   * instance that never wrote one, simply gets an unauthenticated POST — which
+   * the target will reject. That is the correct failure mode for a
+   * best-effort latency optimisation; the registry watch/poll still carries
+   * everything.
+   */
+  authToken?: string;
+}
+
+/** A ping target: where to POST, and the token that authenticates it. */
+interface PingTarget {
+  url: string;
+  token?: string | undefined;
 }
 
 /** Shared probe — see utils/pid.ts. */
@@ -55,17 +70,22 @@ export interface FleetNotifierOptions {
   projectRoot: string;
   /** This process's pid, so a WebUI never pings itself. */
   selfPid?: number | undefined;
-  /** Injectable POST for tests. Defaults to a timed `fetch`. */
-  post?: ((url: string) => Promise<void>) | undefined;
+  /**
+   * Injectable POST for tests. Defaults to a timed `fetch`.
+   *
+   * The second parameter carries the target's API token (H3). It is optional
+   * so an existing `(url) => …` stub stays assignable.
+   */
+  post?: ((url: string, token?: string | undefined) => Promise<void>) | undefined;
 }
 
 export class FleetNotifier {
   private readonly baseDir: string;
   private projectRoot: string;
   private readonly selfPid: number;
-  private readonly doPost: (url: string) => Promise<void>;
+  private readonly doPost: (url: string, token?: string | undefined) => Promise<void>;
 
-  private cache: { at: number; urls: string[] } | null = null;
+  private cache: { at: number; targets: PingTarget[] } | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
 
@@ -89,11 +109,16 @@ export class FleetNotifier {
 
   /** Resolve same-project WebUI ping URLs (cached briefly). Exposed for tests. */
   async endpoints(): Promise<string[]> {
+    return (await this.targets()).map((t) => t.url);
+  }
+
+  /** Ping targets with their tokens (cached briefly). */
+  private async targets(): Promise<PingTarget[]> {
     const now = Date.now();
-    if (this.cache && now - this.cache.at < DISCOVERY_TTL_MS) return this.cache.urls;
-    const urls = await this.discover();
-    this.cache = { at: now, urls };
-    return urls;
+    if (this.cache && now - this.cache.at < DISCOVERY_TTL_MS) return this.cache.targets;
+    const targets = await this.discover();
+    this.cache = { at: now, targets };
+    return targets;
   }
 
   dispose(): void {
@@ -111,11 +136,11 @@ export class FleetNotifier {
   }
 
   private async flush(): Promise<void> {
-    const urls = await this.endpoints();
-    await Promise.all(urls.map((u) => this.doPost(u).catch(() => undefined)));
+    const targets = await this.targets();
+    await Promise.all(targets.map((t) => this.doPost(t.url, t.token).catch(() => undefined)));
   }
 
-  private async discover(): Promise<string[]> {
+  private async discover(): Promise<PingTarget[]> {
     try {
       const raw = await fs.readFile(path.join(this.baseDir, INSTANCES_FILE), 'utf8');
       const data = JSON.parse(raw) as { instances?: InstanceRecordLike[] };
@@ -127,7 +152,10 @@ export class FleetNotifier {
         .filter((i) => pidAlive(i.pid))
         .map((i) => {
           const host = i.host === '0.0.0.0' || i.host === '::' || !i.host ? '127.0.0.1' : i.host;
-          return `http://${host}:${i.httpPort}/api/fleet/ping`;
+          return {
+            url: `http://${host}:${i.httpPort}/api/fleet/ping`,
+            token: typeof i.authToken === 'string' ? i.authToken : undefined,
+          };
         });
     } catch {
       // Missing/corrupt instances file → no WebUIs to notify.
@@ -136,9 +164,12 @@ export class FleetNotifier {
   }
 }
 
-async function defaultPost(url: string): Promise<void> {
+async function defaultPost(url: string, token?: string | undefined): Promise<void> {
   await fetch(url, {
     method: 'POST',
+    // The API requires a token on every bind (H3). Sent as a header rather
+    // than a query param so it never lands in an access log or the URL.
+    ...(token ? { headers: { 'x-ws-token': token } } : {}),
     signal: AbortSignal.timeout(POST_TIMEOUT_MS),
   });
 }

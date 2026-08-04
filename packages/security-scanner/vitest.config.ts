@@ -30,5 +30,22 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     pool: 'forks',
     setupFiles: ['../../vitest.setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'json-summary'],
+      reportOnFailure: true,
+      include: ['src/**/*.ts'],
+      exclude: [
+        // Barrel re-export and type-only module — no runnable code
+        'src/index.ts',
+        'src/types.ts',
+      ],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        statements: 100,
+        branches: 100,
+      },
+    },
   },
 });

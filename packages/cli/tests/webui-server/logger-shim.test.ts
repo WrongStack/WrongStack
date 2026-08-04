@@ -4,13 +4,13 @@ import { describe, expect, it, vi, afterAll, beforeEach } from 'vitest';
  * PR 1 of Issue #30 (webui-server 8-PR refactor):
  * characterize the console-backed `Logger` shim.
  *
- * The shim's `consoleLogger` object captures the
- * `console.*` methods at module evaluation time (e.g.
- * `info(msg) { console.log(...) }`). To make the shim's
- * `console.*` calls observable, the spies must be in
- * place BEFORE the module is imported. We do that by
- * spying on `console.*` first, then dynamically importing
- * the module under test.
+ * The shim calls the `console.*` methods at call time (e.g.
+ * `info(msg) { console.log(...) }`), so the spies are installed
+ * in `beforeEach`. This package's vitest config sets
+ * `restoreMocks: true`, which restores all mocks after each
+ * test — spies installed at module scope would be restored to
+ * the real `console.*` after the first test and observe
+ * nothing.
  *
  * What the tests pin:
  *   1. JSON shape: each level produces a single-line
@@ -25,27 +25,26 @@ import { describe, expect, it, vi, afterAll, beforeEach } from 'vitest';
  *   4. `level` is `'debug'`.
  */
 
-// Spy FIRST (before importing the module under test).
-const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+import { consoleLogger } from '../../src/webui-server/logger-shim.js';
 
-const { consoleLogger } = await import('../../src/webui-server/logger-shim.js');
+let errorSpy: ReturnType<typeof vi.spyOn>;
+let warnSpy: ReturnType<typeof vi.spyOn>;
+let logSpy: ReturnType<typeof vi.spyOn>;
+let debugSpy: ReturnType<typeof vi.spyOn>;
 
 describe('consoleLogger (PR 1 of #30)', () => {
   beforeEach(() => {
-    errorSpy.mockClear();
-    warnSpy.mockClear();
-    logSpy.mockClear();
-    debugSpy.mockClear();
+    // Install fresh spies per test — `restoreMocks: true` in the package
+    // vitest config restores them after each test, so module-scope spies
+    // would silently observe nothing from the second test onward.
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
   afterAll(() => {
-    errorSpy.mockRestore();
-    warnSpy.mockRestore();
-    logSpy.mockRestore();
-    debugSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it('exposes level: "debug"', () => {

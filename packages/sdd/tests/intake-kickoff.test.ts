@@ -58,6 +58,18 @@ describe('intakeToInterviewKickoff', () => {
     expect(kickoff.title.endsWith('…')).toBe(true);
   });
 
+  it('falls back to a default title when the record title is blank', () => {
+    const kickoff = intakeToInterviewKickoff(fixtureRecord({ title: '   \n  ' }));
+    expect(kickoff.title).toBe('New SDD Project');
+  });
+
+  it('includes scope notes in the project context when present', () => {
+    const kickoff = intakeToInterviewKickoff(
+      fixtureRecord({ scopeNotes: 'Scope covers web + API clients.' }),
+    );
+    expect(kickoff.projectContext).toContain('Scope notes: Scope covers web + API clients.');
+  });
+
   it('folds collected facts into the project context', () => {
     const kickoff = intakeToInterviewKickoff(fixtureRecord());
     expect(kickoff.projectContext).toContain(

@@ -55,4 +55,61 @@ describe('gatherProjectContext', () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('falls back to cwd for a blank root and tolerates missing package fields', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-ctx-blank-'));
+    try {
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ dependencies: { express: '1' } }), // no name/description
+      );
+      const ctx = await gatherProjectContext('   ');
+      // Blank root falls back to cwd — which here resolves to a real project
+      // with a package.json, so the call still returns text.
+      expect(typeof ctx).toBe('string');
+      // The fallbacks for missing name/description are exercised when the
+      // blank root resolves to a package.json lacking those fields.
+      const ctx2 = await gatherProjectContext(dir);
+      expect(ctx2).toContain('Project: unknown');
+      expect(ctx2).toContain('Description: none');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('ellipsizes dependency lists past the cap', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-ctx-caps-'));
+    try {
+      const deps: Record<string, string> = {};
+      const devDeps: Record<string, string> = {};
+      for (let i = 0; i < 30; i++) deps[`dep-${i}`] = '1';
+      for (let i = 0; i < 20; i++) devDeps[`dev-${i}`] = '1';
+      await fs.writeFile(path.join(dir, 'package.json'), JSON.stringify({ deps, devDeps }));
+      // Wrong key names are ignored — build a valid one instead.
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ name: 'x', dependencies: deps, devDependencies: devDeps }),
+      );
+      const ctx = await gatherProjectContext(dir);
+      expect(ctx).toContain('Dependencies:');
+      expect(ctx).toContain('...');
+      expect(ctx).toContain('Dev Dependencies:');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('ellipsizes the packages/ listing past the cap', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-ctx-pkgs-'));
+    try {
+      for (let i = 0; i < 30; i++) {
+        await fs.mkdir(path.join(dir, 'packages', `pkg-${i}`), { recursive: true });
+      }
+      const ctx = await gatherProjectContext(dir);
+      expect(ctx).toContain('Packages:');
+      expect(ctx).toContain('...');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

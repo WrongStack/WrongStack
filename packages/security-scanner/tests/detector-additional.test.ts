@@ -271,6 +271,36 @@ describe('TechStackDetector - additional coverage', () => {
     expect(await bounded.detect(projects[1]!)).not.toBe(firstB);
   });
 
+  it('cache eviction tolerates a broken map iterator (defensive guard at detector.ts:198)', async () => {
+    const root = await createProject({});
+    const projects = ['a', 'b', 'c'].map((name) => path.join(root, name));
+    await Promise.all(projects.map((project) => fs.mkdir(project)));
+    // maxCacheEntries=1 forces the eviction loop on every additional detect.
+    const bounded = new TechStackDetector(30_000, 1);
+    await bounded.detect(projects[0]!);
+    await bounded.detect(projects[1]!);
+
+    // Break the iterator: keys().next().value is undefined, so the eviction
+    // loop must exit via the `oldest === undefined` guard (detector.ts:198)
+    // instead of deleting an entry.
+    const internal = bounded as unknown as {
+      cachedResults: Map<string, unknown>;
+    };
+    const originalKeys = internal.cachedResults.keys;
+    internal.cachedResults.keys = (() => ({
+      next: () => ({ value: undefined, done: false }),
+    })) as unknown as typeof originalKeys;
+    try {
+      await bounded.detect(projects[2]!);
+      // Nothing was evicted — the guard stopped the loop without deleting.
+      expect(internal.cachedResults.size).toBe(2);
+      expect(internal.cachedResults.has(projects[1]!)).toBe(true);
+      expect(internal.cachedResults.has(projects[2]!)).toBe(true);
+    } finally {
+      internal.cachedResults.keys = originalKeys;
+    }
+  });
+
   // ============================================================================
   // Default exported instance
   // ============================================================================

@@ -107,6 +107,15 @@ export {
   writeBoard,
   writeKanbanMetadata,
 } from './storage.js';
+// Exported so `packages/tools/tests/regex-guard-parity.test.ts` can hold this
+// copy to the same verdicts as the canonical guard in `tools/src/_regex.ts`.
+// Kanban sits below tools in the layer DAG and cannot import it directly.
+export {
+  capSubject as capRegexSubject,
+  compileSafeRegex,
+  MAX_SUBJECT_LEN,
+  type SafeRegexResult,
+} from './verification/safe-regex.js';
 export * from './types.js';
 export {
   drainKanbanWorkflowCommands,

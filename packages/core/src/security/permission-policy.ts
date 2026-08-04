@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import type { Context } from '../core/context.js';
 import type { InputReader } from '../types/input-reader.js';
 import type {
@@ -41,8 +42,45 @@ import {
   shellCommandLineFromInput,
   inputPathLooksSensitive,
   shellCommandReadsSensitivePath,
+  isInsideAgentStateRoot,
 } from './permission-helpers.js';
 
+
+/**
+ * Path strings an FS_WRITE tool's input may write to. The tools disagree on
+ * the key — write/edit use `path`, replace/format/git use `files` (string or
+ * array), patch uses `directory`, design uses `out`, scaffold writes under
+ * `cwd`/`template` — so callers that need "every path this call can touch"
+ * (e.g. the YOLO state-root carve-out) must inspect all of them.
+ */
+function fsWriteTargetPaths(input: unknown): string[] {
+  const out: string[] = [];
+  if (!input || typeof input !== 'object') return out;
+  const obj = input as Record<string, unknown>;
+  for (const key of [
+    'path',
+    'file_path',
+    'file',
+    'filePath',
+    'files',
+    'target',
+    'targetPath',
+    'out',
+    'directory',
+    'cwd',
+    'template',
+  ]) {
+    const value = obj[key];
+    if (typeof value === 'string') {
+      if (value.length > 0) out.push(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && item.length > 0) out.push(item);
+      }
+    }
+  }
+  return out;
+}
 
 export interface PermissionPolicyOptions {
   trustFile: string;
@@ -152,12 +190,49 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   }
 
   /**
+   * True when this call is an FS_WRITE whose target lands inside WrongStack's
+   * own state root.
+   *
+   * FS_WRITE tools disagree on where the target path lives: write/edit use
+   * `path`, replace/format/git `files` (string OR array), patch `directory`,
+   * design `out`, scaffold writes under `cwd`/`template`. Checking only
+   * `path`/`file_path` let a state-root write merely switch tools, so every
+   * path-bearing key is inspected.
+   *
+   * Shared by the YOLO carve-out and the eval-cache guard so the two cannot
+   * drift: the carve-out scans all path keys while the cache key fingerprints
+   * only the subject key, so the cache must consult the same predicate or a
+   * secondary state-root key can be replayed a cached `auto`.
+   */
+  private hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx: Context): boolean {
+    if (!hasCapability(tool, ToolCapabilities.FS_WRITE)) return false;
+    for (const targetPath of fsWriteTargetPaths(input)) {
+      // `cwd`/`workingDir` are absent on the minimal contexts some callers
+      // build, and `path.resolve(undefined, …)` throws — a throw here would
+      // take down every permission evaluation, so fall back rather than
+      // assume the field is populated.
+      const base = ctx.workingDir ?? ctx.cwd;
+      const resolved = base ? path.resolve(base, targetPath) : path.resolve(targetPath);
+      if (isInsideAgentStateRoot(resolved)) return true;
+    }
+    return false;
+  }
+
+  /**
    * True when YOLO is on but this specific call is a destructive shell command
    * the user has not opted to auto-approve. Shared by `evaluate()` and the
    * explain/trace path so the two cannot drift.
    */
   private yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean {
     if (!this.yolo || this.yoloDestructive) return false;
+
+    // A write into WrongStack's own state is destructive regardless of which
+    // tool performs it. Classifying only shell surfaces let YOLO auto-approve
+    // the one write that grants persistent execution — `hooks` in the trusted
+    // config layer, or an allow-glob in `trust.json` — so "destructive actions
+    // still ask" was bypassable by never issuing a shell command at all.
+    if (this.hasAgentStateWriteTarget(tool, input, ctx)) return true;
+
     // `bash` and `exec` are the shell surfaces; a tool that declares
     // shell.arbitrary reaches the same place under another name.
     const isShellSurface =
@@ -306,7 +381,16 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     // changed tool definition simply misses the cache instead of inheriting a
     // stale verdict.
     const evalKey = `${cacheKey}::${permissionFingerprint(tool)}`;
-    if (tool.name !== 'write') {
+    // The YOLO carve-out (step 7) inspects EVERY path-bearing key via
+    // `fsWriteTargetPaths`, but `cacheKey` fingerprints only the single
+    // subject key. Two calls can therefore share a cache key while differing
+    // in a secondary path key: `{files:'src/app.ts'}` caches `auto`, and a
+    // replay of `{files:'src/app.ts', out:'<state-root>/trust.json'}` would be
+    // served that cached `auto` before `yoloBlockedAsDestructive` ever runs.
+    // Serving the cache is only safe when no target path escapes into the
+    // agent state root, so re-check that here rather than widening the key
+    // (`cacheKey` shape is load-bearing for denyOnce/allowOnce and fails OPEN).
+    if (tool.name !== 'write' && !this.hasAgentStateWriteTarget(tool, input, ctx)) {
       const cached = this._evalCache.get(evalKey);
       if (cached !== undefined) return cached;
     }
@@ -444,10 +528,19 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     }
 
     // 7. Smart bypass: write tool — if the file was already read in this
-    // session, the user has already seen the content. No confirm needed.
+    // session, the model has surfaced the content. No confirm needed.
     // NOTE: deliberately NOT cached because ctx.hasRead() changes dynamically.
+    //
+    // The bypass does NOT extend to the wstack global root. `readFiles` means
+    // "the read tool touched this", not "the user approved it" — `read` is
+    // `permission: 'auto'`, so a prompt-injected `read` followed by a `write`
+    // would otherwise rewrite WrongStack's own trusted state with no prompt at
+    // all. That state is executable: `config.local.json` merges as a fully
+    // trusted layer whose `hooks` run at next boot, `trust.json` can disable
+    // every future prompt, and `skills/`/`instructions/` re-enter the prompt.
+    // Project content keeps the bypass; the agent's own state always confirms.
     if (tool.name === 'write' && subject) {
-      if (ctx.hasRead(subject)) {
+      if (ctx.hasRead(subject) && !isInsideAgentStateRoot(subject)) {
         return {
           permission: 'auto',
           source: 'context',
@@ -865,15 +958,18 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
 
     // 10. Write-tool smart bypass
     if (tool.name === 'write' && subject) {
-      const hasRead = ctx.hasRead(subject);
+      const isAgentState = isInsideAgentStateRoot(subject);
+      const hasRead = ctx.hasRead(subject) && !isAgentState;
       add(
         'write smart bypass',
         hasRead,
         'auto',
         'context',
-        hasRead
-          ? `file "${subject}" was already read in this session — auto-approving write`
-          : `file "${subject}" was not read in this session — bypass does not apply`,
+        isAgentState
+          ? `file "${subject}" is WrongStack's own state — bypass never applies, write always confirms`
+          : hasRead
+            ? `file "${subject}" was already read in this session — auto-approving write`
+            : `file "${subject}" was not read in this session — bypass does not apply`,
       );
       if (hasRead) {
         winnerIndex = steps.length - 1;

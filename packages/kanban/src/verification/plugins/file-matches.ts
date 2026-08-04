@@ -3,6 +3,7 @@
  * The pattern is stored in check.notes as a JSON object { file, pattern, flags }.
  * Produces evidence: { path, pattern, matched, lineNumbers[] }.
  */
+import { capSubject, compileSafeRegex } from '../safe-regex.js';
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
 import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
@@ -49,16 +50,36 @@ export class FileMatchesPlugin implements VerifierPlugin {
       };
     }
 
+    // The pattern arrives from check config, which the agent may author from
+    // repo content — untrusted. Compile it through the ReDoS guard rather than
+    // `new RegExp` directly, and report a bad pattern as a check error instead
+    // of throwing out of the plugin.
+    const compiled = compileSafeRegex(config.pattern, config.flags ?? '');
+    if (!compiled.ok) {
+      return {
+        checkId: check.id,
+        description: check.description,
+        type: check.type,
+        status: 'error',
+        evidence: { path: config.file, pattern: config.pattern },
+        error: `Invalid file_matches pattern: ${compiled.reason}`,
+      };
+    }
+
     try {
       const content = await context.readFile(config.file);
-      const flags = config.flags ?? '';
-      const regex = new RegExp(config.pattern, flags);
-      const match = content.match(regex);
+      const regex = compiled.regex;
+      // Bound the subject too: guarding the pattern still leaves a linear-time
+      // regex scanning an arbitrarily large file.
+      const match = capSubject(content).match(regex);
       const lineNumbers: number[] = [];
       if (match) {
         // Find line numbers for all matches
-        const lines = content.split('\n');
+        const lines = capSubject(content).split('\n');
         for (let i = 0; i < lines.length; i++) {
+          // `test` advances `lastIndex` on a /g/ regex, so consecutive calls
+          // would resume mid-line and skip matches. Reset per line.
+          regex.lastIndex = 0;
           if (regex.test(lines[i]!)) {
             lineNumbers.push(i + 1);
           }

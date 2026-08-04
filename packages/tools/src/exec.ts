@@ -162,6 +162,49 @@ const BLOCKED_ARG_PATTERNS: Record<string, RegExp[]> = {
   npx: [],
 };
 
+/**
+ * Options blocked by NAME, independent of how the value is attached.
+ *
+ * `BLOCKED_ARG_PATTERNS` above is prefix-anchored on `--opt=`, but every
+ * option parser this tool fronts also accepts `--opt value` as two argv
+ * entries. `["push", "--exec", "./evil.sh"]` therefore walked straight past a
+ * table whose whole purpose was to stop `--exec`. Matching the option NAME —
+ * after splitting off any `=value` — closes both spellings with one entry.
+ *
+ * The git set is deliberately wider than the `=`-anchored table it supplements:
+ *
+ * - `--exec` / `--upload-pack` / `--receive-pack` run an arbitrary command via
+ *   the transport layer. `_danger-detect.ts` (`git-exec`) already enumerated
+ *   the bare forms, so the *advisory* layer warned about invocations the
+ *   *blocking* layer let through. One table, both spellings, no drift.
+ * - `--exec-path` makes git resolve non-builtin subcommands from a caller-named
+ *   directory, so `git --exec-path=/tmp/x status` runs `/tmp/x/git-status`.
+ * - `--git-dir` / `--work-tree` relocate the repository and working tree, which
+ *   is the same cwd-sandbox escape `-C` is blocked for.
+ */
+const BLOCKED_OPTION_NAMES: Record<string, ReadonlySet<string>> = {
+  git: new Set([
+    '--exec',
+    '--upload-pack',
+    '--receive-pack',
+    '--exec-path',
+    '--git-dir',
+    '--work-tree',
+    '--namespace',
+    '-c',
+    '--config',
+    '--config-env',
+    '-C',
+  ]),
+  find: new Set(['-exec', '-ok', '-execdir']),
+};
+
+/** `--opt=value` → `--opt`; everything else unchanged. */
+function optionName(arg: string): string {
+  const eq = arg.indexOf('=');
+  return eq > 0 ? arg.slice(0, eq) : arg;
+}
+
 // Subcommand verbs only make sense in subcommand position. Keep externally
 // destructive actions blocked there without rejecting harmless downstream args
 // named "run", "publish", etc. passed to test runners or build tools.
@@ -206,6 +249,18 @@ function validateArgs(cmd: string, args: string[]): string | null {
     const actual = subcommandArgs(args);
     const blocked = blockedSequences.find((seq) => seq.every((part, idx) => actual[idx] === part));
     if (blocked) return `Blocked subcommand "${blocked.join(' ')}" for command "${cmd}"`;
+  }
+
+  // Name-based check first: it covers `--opt=value` and `--opt value` alike,
+  // and reports the option rather than the spelling that happened to be used.
+  const blockedOptions = BLOCKED_OPTION_NAMES[cmd];
+  if (blockedOptions) {
+    for (const arg of args) {
+      if (arg === '--') break; // everything after `--` is a positional operand
+      if (blockedOptions.has(optionName(arg))) {
+        return `Blocked option "${optionName(arg)}" for command "${cmd}"`;
+      }
+    }
   }
 
   const blocked = BLOCKED_ARG_PATTERNS[cmd];

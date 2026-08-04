@@ -296,4 +296,76 @@ describe('persistence primitive edge branches', () => {
       cause: 'cause',
     });
   });
+
+  it('atomicReplaceWithWriter streams through the handle and returns the result', async () => {
+    usePlatform('linux');
+    const primitives = createPersistencePrimitives();
+    const handle = {
+      write: vi.fn(async () => 7),
+      close: vi.fn(async () => undefined),
+    };
+    doubles.fs.open.mockResolvedValue(handle);
+    const written = await primitives.atomicReplaceWithWriter(
+      '/tmp/rotated.log',
+      async (h) => {
+        await h.write(Buffer.from('new tail'));
+        return 'result-1';
+      },
+    );
+    expect(written).toBe('result-1');
+    expect(handle.write).toHaveBeenCalledWith(Buffer.from('new tail'));
+    expect(handle.close).toHaveBeenCalled();
+    // The temp file is renamed into place, not the target written directly.
+    expect(doubles.fs.rename).toHaveBeenCalled();
+  });
+
+  it('atomicReplaceWithWriter cleans up the temp file when the writer throws', async () => {
+    usePlatform('linux');
+    const primitives = createPersistencePrimitives();
+    const handle = { write: vi.fn(), close: vi.fn(async () => undefined) };
+    doubles.fs.open.mockResolvedValue(handle);
+    const boom = new Error('writer exploded');
+    await expect(
+      primitives.atomicReplaceWithWriter('/tmp/rotated.log', async () => {
+        throw boom;
+      }),
+    ).rejects.toBe(boom);
+    expect(doubles.fs.unlink).toHaveBeenCalledWith(expect.stringContaining('.tmp'));
+    expect(doubles.fs.rename).not.toHaveBeenCalled();
+  });
+
+  it('atomicReplaceWithWriter tolerates a failing cleanup unlink (catch arrow)', async () => {
+    usePlatform('linux');
+    const primitives = createPersistencePrimitives();
+    const handle = { write: vi.fn(), close: vi.fn(async () => undefined) };
+    doubles.fs.open.mockResolvedValue(handle);
+    // The writer throws, and the best-effort temp cleanup also fails — the
+    // `.catch(() => undefined)` at atomic-write.ts:188 must swallow it so the
+    // original writer error still propagates.
+    doubles.fs.unlink.mockRejectedValueOnce(errorWithCode('EPERM'));
+    const boom = new Error('writer exploded');
+    await expect(
+      primitives.atomicReplaceWithWriter('/tmp/rotated.log', async () => {
+        throw boom;
+      }),
+    ).rejects.toBe(boom);
+  });
+
+  it('atomicReplaceWithWriter tolerates a failing handle close in the finally', async () => {
+    usePlatform('linux');
+    const primitives = createPersistencePrimitives();
+    const handle = {
+      write: vi.fn(async () => undefined),
+      close: vi.fn(async () => {
+        throw new Error('close failed');
+      }),
+    };
+    doubles.fs.open.mockResolvedValue(handle);
+    await expect(
+      primitives.atomicReplaceWithWriter('/tmp/rotated.log', async (h) => {
+        await h.write(Buffer.from('x'));
+        return 42;
+      }),
+    ).resolves.toBe(42);
+  });
 });

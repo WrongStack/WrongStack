@@ -221,6 +221,27 @@ describe('MCPRegistry', () => {
       expect(disconnected[0]?.reason).toContain('reconnect-exhausted');
     });
 
+    it('scheduleReconnect is a no-op while a reconnect is already pending', () => {
+      const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
+      const slot = {
+        cfg: stdioCfg('already-pending'),
+        state: 'disconnected' as const,
+        toolNames: [] as string[],
+        attempts: 0,
+        reconnectPending: true, // a prior cycle is still in flight
+        reconnectCycles: 0,
+      };
+      (reg as never as { servers: Map<string, typeof slot> }).servers.set('already-pending', slot);
+      const disconnected: { name: string; reason: string }[] = [];
+      events.on('mcp.server.disconnected', (e) => disconnected.push(e));
+      (reg as never as { scheduleReconnect: (s: typeof slot) => void }).scheduleReconnect(slot);
+      // The guard at registry-reconnect.ts:27 returns immediately: no state
+      // change, no exhaustion, no event.
+      expect(slot.state).toBe('disconnected');
+      expect(slot.reconnectCycles).toBe(0);
+      expect(disconnected).toHaveLength(0);
+    });
+
     it('scheduleReconnect picks a bounded delay with jitter', () => {
       const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
       // Cycle 4 → base = 1000 * 2^4 = 16000ms, then ±20% jitter capped at 30s.

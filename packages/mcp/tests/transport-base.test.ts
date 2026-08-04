@@ -26,7 +26,7 @@ class TestTransport extends BaseHTTPTransport {
     return 1;
   }
 
-  fetchAuthorized(input: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
+  fetchAuthorized(input: string | URL, init: RequestInit, signal?: AbortSignal): Promise<Response> {
     return this.fetchWithAuthorization(input, init, signal);
   }
 
@@ -240,5 +240,150 @@ describe('BaseHTTPTransport helpers', () => {
     });
     expect(cancel).toHaveBeenCalledOnce();
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns the redirect response when the Location header is missing', async () => {
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+    });
+    globalThis.fetch = vi.fn(async () => {
+      return new Response('moved', { status: 302 }); // no Location header
+    });
+
+    await expect(transport.fetchAuthorized('https://example.test', {})).resolves.toMatchObject({
+      status: 302,
+    });
+    // A redirect with no target is returned as-is rather than followed.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts a URL object as the request target', async () => {
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+    });
+    const seen: string[] = [];
+    globalThis.fetch = vi.fn(async (input) => {
+      seen.push(String(input));
+      return new Response('ok');
+    });
+
+    await expect(
+      transport.fetchAuthorized(new URL('https://example.test/tools'), {}),
+    ).resolves.toMatchObject({ status: 200 });
+    // The non-string input branch normalizes the URL object (transport-base.ts:171).
+    expect(seen[0]).toBe('https://example.test/tools');
+  });
+
+  it('follows same-origin redirects and keeps the Authorization header', async () => {
+    const token = ['Bearer', 'fixture-token'].join(' ');
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+      authorizationProvider: {
+        getAccessToken: vi.fn(async () => ({
+          accessToken: 'fixture-token',
+          tokenType: 'Bearer',
+          resource: 'https://example.test/',
+        })),
+      },
+    });
+    const seen: Headers[] = [];
+    globalThis.fetch = vi.fn(async (_input, init) => {
+      seen.push(new Headers(init?.headers));
+      if (seen.length === 1) {
+        return new Response('moved', {
+          status: 307,
+          headers: { location: 'https://example.test/next' },
+        });
+      }
+      return new Response('ok');
+    });
+
+    await expect(transport.fetchAuthorized('https://example.test', {})).resolves.toMatchObject({
+      status: 200,
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(seen[1]!.get('Authorization')).toBe(token);
+  });
+
+  it('drops the Authorization header when a redirect crosses origins', async () => {
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+      authorizationProvider: {
+        getAccessToken: vi.fn(async () => ({
+          accessToken: 'fixture-token',
+          tokenType: 'Bearer',
+          resource: 'https://example.test/',
+        })),
+      },
+    });
+    const seen: Headers[] = [];
+    globalThis.fetch = vi.fn(async (_input, init) => {
+      seen.push(new Headers(init?.headers));
+      if (seen.length === 1) {
+        return new Response('moved', {
+          status: 308,
+          headers: { location: 'https://other.test/landing' },
+        });
+      }
+      return new Response('ok');
+    });
+
+    await expect(transport.fetchAuthorized('https://example.test', {})).resolves.toMatchObject({
+      status: 200,
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(seen[0]!.get('Authorization')).toBe(
+      ['Bearer', 'fixture-token'].join(' '),
+    );
+    expect(seen[1]!.get('Authorization')).toBeNull();
+  });
+
+  it('tolerates body cancellation failure while following a redirect', async () => {
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+    });
+    const cancel = vi.fn(async () => {
+      throw new Error('stream already closed');
+    });
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 301,
+        headers: new Headers({ location: 'https://example.test/next' }),
+        body: { cancel },
+      } as unknown as Response)
+      .mockResolvedValueOnce(new Response('ok'));
+
+    await expect(transport.fetchAuthorized('https://example.test', {})).resolves.toMatchObject({
+      status: 200,
+    });
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws a ConfigError once the redirect limit is exceeded', async () => {
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+    });
+    globalThis.fetch = vi.fn(async () => {
+      return new Response('moved', {
+        status: 302,
+        headers: { location: 'https://example.test/hop' },
+      });
+    });
+
+    await expect(transport.fetchAuthorized('https://example.test', {})).rejects.toMatchObject({
+      name: 'ConfigError',
+      code: 'CONFIG_INVALID',
+      message: expect.stringContaining('exceeded 5 redirects'),
+    });
+    // The loop performs exactly MAX_TRANSPORT_REDIRECTS hops before throwing.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(5);
   });
 });

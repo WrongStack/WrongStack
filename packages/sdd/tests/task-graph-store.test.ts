@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { TaskTracker } from '@wrongstack/core/tasking';
@@ -76,6 +77,14 @@ describe('TaskGraphStore', () => {
     expect(loaded).toBeNull();
   });
 
+  it('deleteGraph removes a saved graph', async () => {
+    const store = new TaskGraphStore({ baseDir: dir });
+    const graph = makeGraph();
+    await store.save(graph);
+    await store.deleteGraph(graph.id);
+    expect(await store.load(graph.id)).toBeNull();
+  });
+
   it('returns null for non-existent graph', async () => {
     const store = new TaskGraphStore({ baseDir: dir });
     const loaded = await store.load('nonexistent');
@@ -133,6 +142,22 @@ describe('TaskGraphStore', () => {
     const list = await store.list();
     expect(list[0]!.nodeCount).toBe(1);
     expect(list[0]!.completedCount).toBe(0);
+  });
+
+  it('keeps the write chain consistent when a save fails', async () => {
+    // Point baseDir at a regular file so ensureDir/atomicWrite throws; the
+    // write-chain `.catch(() => undefined)` at task-graph-store.ts:68 must
+    // swallow the failure without wedging later saves.
+    await fs.mkdir(dir, { recursive: true });
+    const blocker = path.join(dir, 'blocker');
+    await fs.writeFile(blocker, 'i am a file');
+    const store = new TaskGraphStore({ baseDir: blocker });
+    const graph = makeGraph();
+    await expect(store.save(graph)).rejects.toBeDefined();
+    // A subsequent save with a valid baseDir still works.
+    const healthy = new TaskGraphStore({ baseDir: dir });
+    await expect(healthy.save(graph)).resolves.toBeUndefined();
+    expect((await healthy.list()).length).toBe(1);
   });
 
   it('implements TaskStore and persists tracker transitions for process recovery', async () => {

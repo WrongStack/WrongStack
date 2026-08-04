@@ -80,6 +80,7 @@ function internals(registry: MCPRegistry) {
     onChildExit: (name: string, code: number | null, signal: string | null) => void;
     onTransportDisconnect: (name: string) => void;
     scheduleReconnect: (slot: Record<string, unknown>) => void;
+    startLazy: (slot: Record<string, unknown>) => Promise<void>;
     sweepIdle: () => Promise<void>;
     sleepIdle: (slot: Record<string, unknown>) => Promise<void>;
     ensureIdleSweep: () => void;
@@ -454,11 +455,16 @@ describe('MCPRegistry coverage', () => {
     const failed = fixture().registry;
     vi.spyOn(MCPClient.prototype, 'connect').mockRejectedValue(new Error('connect failed'));
     vi.spyOn(MCPClient.prototype, 'close').mockRejectedValue(new Error('close failed'));
-    const failedSlot = makeSlot('failed');
+    // A stale reconnect timer left by a prior scheduleReconnect cycle must be
+    // cleared when the connect attempts exhaust (registry.ts:1009-1012).
+    const failedSlot = makeSlot('failed', {
+      reconnectTimer: setTimeout(() => {}, 10_000),
+    });
     const failedRun = internals(failed).attemptConnect(failedSlot);
     await vi.runAllTimersAsync();
     await failedRun;
     expect(failedSlot['state']).toBe('failed');
+    expect(failedSlot['reconnectTimer']).toBeUndefined();
     vi.restoreAllMocks();
 
     const thrown = fixture({
@@ -484,6 +490,64 @@ describe('MCPRegistry coverage', () => {
     internals(registry).scheduleReconnect(slot);
     expect(slot['reconnectTimer']).toBeDefined();
     internals(registry).recordOperation(slot, 'connect');
+  });
+
+  it('restart of a lazy slot goes through startLazy', async () => {
+    const { registry } = fixture();
+    const lazy = makeSlot('lazy-restart', { lazy: true });
+    internals(registry).servers.set('lazy-restart', lazy);
+    const startLazy = vi.spyOn(internals(registry), 'startLazy').mockResolvedValue();
+    await registry.restart('lazy-restart');
+    expect(startLazy).toHaveBeenCalledWith(lazy);
+  });
+
+  it('attemptConnect bails when the slot was replaced mid-flight', async () => {
+    vi.useFakeTimers();
+    const { registry } = fixture();
+    const original = makeSlot('replaced', {
+      state: 'connecting',
+      client: { close: vi.fn() },
+    });
+    // The servers map now points at a *different* slot object for the same name.
+    internals(registry).servers.set('replaced', makeSlot('replaced'));
+    await internals(registry).attemptConnect(original);
+    // The loop guard at registry.ts:890-892 sees the replacement and returns
+    // before creating any client or mutating state.
+    expect(original['state']).toBe('connecting');
+  });
+
+  it('attemptConnect cleans up when the slot disconnects during connect', async () => {
+    vi.useFakeTimers();
+    for (const transport of ['sse', 'stdio'] as const) {
+      const { registry } = fixture();
+      // The transport flips the slot to disconnected while connect() is in
+      // flight — the post-connect guard (registry.ts:926-935) must notice and
+      // clean up instead of installing the client.
+      vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async function (
+        this: { name: string },
+      ) {
+        const slot = internals(registry).servers.get('race');
+        if (slot) slot['state'] = 'disconnected';
+        return Promise.resolve();
+      });
+      vi.spyOn(MCPClient.prototype, 'close').mockRejectedValue(new Error('close failed'));
+      const slot = makeSlot('race', {
+        cfg:
+          transport === 'sse'
+            ? { name: 'race', transport: 'sse', url: 'https://example.test' }
+            : { name: 'race', transport: 'stdio', command: 'noop' },
+      });
+      internals(registry).servers.set('race', slot);
+      await internals(registry).attemptConnect(slot);
+      // The cleanup branch (registry.ts:930-935) ran: the slot stayed
+      // disconnected and no new client was installed.
+      expect(slot['state']).toBe('disconnected');
+      expect(slot['client']).toBeUndefined();
+      // sse sets boundDisconnect (true side of registry.ts:931); stdio leaves
+      // it undefined (false side). The rejecting close() also exercises the
+      // `.catch(() => {})` arrow at registry.ts:934.
+      vi.restoreAllMocks();
+    }
   });
 
   it('persists a lazy manifest without a live client', async () => {

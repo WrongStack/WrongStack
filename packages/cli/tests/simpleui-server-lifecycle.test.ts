@@ -64,7 +64,9 @@ describe('SimpleUI embedded server lifecycle', () => {
     expect(listeningInfo!.httpPort).toBe(listeningInfo!.wsPort);
     expect(listeningInfo!.url).toContain(`:${listeningInfo!.httpPort}`);
 
-    const response = await fetch(`http://127.0.0.1:${listeningInfo!.httpPort}/`);
+    // Announced (tokenized) URL rather than a bare origin: since H3 the HTTP
+    // surface requires a token on every bind, including loopback.
+    const response = await fetch(listeningInfo!.url);
     expect(response.status).toBe(200);
     const csp = response.headers.get('content-security-policy') ?? '';
     expect(csp).toContain(`ws://127.0.0.1:${listeningInfo!.httpPort}`);

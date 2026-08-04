@@ -80,7 +80,6 @@ import {
 import {
   extractTokenFromCookie,
   httpRequestOriginOk,
-  isLoopbackBind,
   isLoopbackHostname,
   tokenMatches,
 } from './ws-auth.js';
@@ -391,9 +390,29 @@ function strictDecodeParam(segment: string, res: http.ServerResponse): string | 
 export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
   const port = opts.port ?? Number.parseInt(process.env['PORT'] ?? '3456', 10);
   const distDir = path.resolve(opts.distDir);
-  // Loopback bind: no HTTP token required (mirrors WS loopback-bootstrap).
-  // LAN bind: caller MUST supply a token; fail closed if it is absent.
-  const requireAccessToken = Boolean(opts.requireToken) || !isLoopbackBind(opts.host);
+  // Security scan 2026-08-04, finding H3. This used to read
+  // `Boolean(opts.requireToken) || !isLoopbackBind(opts.host)`, so on the
+  // DEFAULT loopback bind it was false and every downstream
+  // `requireAccessToken && !accessTokenOk` gate below became a no-op. Any
+  // process on the machine could enumerate and read every session transcript
+  // and `POST /api/sessions/:id/message` into a running agent.
+  //
+  // The comment justifying it said "mirrors WS loopback-bootstrap" — but
+  // WS-005 had already concluded that reaching loopback is not authentication
+  // and required a token there. The two surfaces sit on the same port and had
+  // opposite answers; this is the HTTP side catching up.
+  //
+  // Costs a legitimate client nothing: a token always exists
+  // (`resolveAuthToken` generates one), the browser exchanges it for the
+  // `ws_token` cookie at `/ws-auth` and `requestToken` accepts that cookie, and
+  // the one non-browser caller (`FleetNotifier` → `POST /api/fleet/ping`) now
+  // reads the token from the instance registry and sends `x-ws-token`.
+  //
+  // Scope note: this authenticates the *channel*. A process running as the same
+  // user can still read the token from `~/.wrongstack` — and could read the
+  // session files directly without the API at all. What it stops is an
+  // unprivileged or differently-scoped local process reaching the control plane.
+  const requireAccessToken = true;
   // Hostnames the CSRF/DNS-rebinding guard accepts beyond loopback: whatever the
   // operator registered, plus the tunnel hostname implied by `publicWsUrl`.
   const trustedHostnames: readonly string[] = (() => {

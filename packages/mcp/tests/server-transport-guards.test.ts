@@ -64,8 +64,8 @@ function makeServer(): MCPServer {
   });
 }
 
-async function start(token?: string): Promise<ServeHttpHandle> {
-  handle = await serveHttp(makeServer(), { port: 0, ...(token ? { token } : {}) });
+async function start(token?: string, host?: string): Promise<ServeHttpHandle> {
+  handle = await serveHttp(makeServer(), { port: 0, host, ...(token ? { token } : {}) });
   return handle;
 }
 
@@ -82,17 +82,26 @@ const VALID = { mode: 'read', path: 'a.txt' };
 
 /** POST with an explicit Host header, which `fetch` will not let us set. */
 function rawPost(h: ServeHttpHandle, hostHeader: string, body: string): Promise<number> {
+  return rawPostWithHeaders(h, { host: hostHeader }, body);
+}
+
+/** POST with raw headers (Host, Origin, …) that `fetch` refuses to set. */
+function rawPostWithHeaders(
+  h: ServeHttpHandle,
+  headers: Record<string, string>,
+  body: string,
+): Promise<number> {
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
-        host: '127.0.0.1',
+        host: h.host,
         port: h.port,
         path: '/',
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          host: hostHeader,
           'content-length': Buffer.byteLength(body),
+          ...headers,
         },
       },
       (res) => {
@@ -119,6 +128,104 @@ describe('MCP HTTP transport guards (WS-024)', () => {
       body: callBody(VALID),
     });
     expect(res.status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses an Origin header that fails URL parsing', async () => {
+    // `new URL(origin)` throws for a malformed origin, and the guard must
+    // fail closed (server.ts:732-733) rather than treat it as absent.
+    const h = await start();
+    const res = await fetch(h.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'not a url' },
+      body: callBody(VALID),
+    });
+    expect(res.status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses a non-http(s) Origin scheme', async () => {
+    // `ftp://` parses but is not a scheme this server can be addressed by, so
+    // the guard rejects it (server.ts:735).
+    const h = await start();
+    const res = await fetch(h.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'ftp://evil.example' },
+      body: callBody(VALID),
+    });
+    expect(res.status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses an Origin-bearing request that smuggles structure through the Host header', async () => {
+    // A Host header with userinfo, a path, or a query is structure smuggling
+    // (server.ts:768): the Origin passes, but the Host cannot name a bare
+    // authority, so the host guard rejects it.
+    const h = await start();
+    const status = await rawPostWithHeaders(
+      h,
+      { host: `127.0.0.1:${h.port}/smuggle`, origin: `http://127.0.0.1:${h.port}` },
+      callBody(VALID),
+    );
+    expect(status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('accepts a +json content type with parameters', async () => {
+    // `application/problem+json` satisfies the JSON content-type gate via the
+    // `endsWith('+json')` branch (server.ts:778-779).
+    const h = await start();
+    const res = await fetch(h.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/problem+json; charset=utf-8' },
+      body: callBody(VALID),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses a request with a blank Host header', async () => {
+    // A blank Host header trims to empty, failing the host guard's `!rawHost`
+    // check (server.ts:759). With no Origin sent, originIsAcceptable returns
+    // true at server.ts:728, so the Host guard is the one that rejects.
+    const h = await start();
+    const status = await rawPostWithHeaders(h, { host: ' ' }, callBody(VALID));
+    expect(status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses an Origin-bearing request with a blank Host header', async () => {
+    // With an Origin present AND a blank Host, the origin guard's own
+    // `!rawHost` check fires (server.ts:737) before the Host guard runs.
+    const h = await start();
+    const status = await rawPostWithHeaders(
+      h,
+      { host: ' ', origin: `http://127.0.0.1:${h.port}` },
+      callBody(VALID),
+    );
+    expect(status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses a POST with an empty content-type header', async () => {
+    // isJsonContentType('') fails closed (server.ts:777) — an empty content
+    // type is treated exactly like a non-JSON one.
+    const h = await start();
+    const status = await rawPostWithHeaders(h, { 'content-type': '' }, callBody(VALID));
+    expect(status).toBe(415);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses a non-loopback origin hostname on a loopback bind', async () => {
+    // The Origin and Host agree with each other, but the hostname is not
+    // loopback while the bind is — isLoopbackHostname() fails
+    // (server.ts:748), so the origin is refused.
+    const h = await start();
+    const status = await rawPostWithHeaders(
+      h,
+      { host: 'evil.example', origin: 'http://evil.example' },
+      callBody(VALID),
+    );
+    expect(status).toBe(403);
     expect(received).toHaveLength(0);
   });
 
@@ -157,6 +264,56 @@ describe('MCP HTTP transport guards (WS-024)', () => {
     const h = await start();
     const status = await rawPost(h, `127.0.0.1:${h.port}`, callBody(VALID));
     expect(status).toBe(200);
+  });
+
+  it('refuses a Host header that fails URL parsing (hostHeaderIsAcceptable catch)', async () => {
+    // `127.0.0.1:abc` has a non-numeric port, so `new URL('http://…')` throws
+    // and the guard returns false instead of trusting the header.
+    const h = await start();
+    const status = await rawPost(h, '127.0.0.1:abc', callBody(VALID));
+    expect(status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('refuses a malformed Host header when an Origin is present (originIsAcceptable catch)', async () => {
+    // The Origin parses, but the Host header fails URL construction, so the
+    // same-origin comparison aborts via the catch (server.ts:744-745).
+    const h = await start();
+    const status = await rawPostWithHeaders(
+      h,
+      { host: '127.0.0.1:abc', origin: `http://127.0.0.1:${h.port}` },
+      callBody(VALID),
+    );
+    expect(status).toBe(403);
+    expect(received).toHaveLength(0);
+  });
+
+  it('accepts the Host header on a non-loopback bind (operator-chosen hostname)', async () => {
+    // 127.0.0.2 is loopback traffic but not in isLoopbackHost's allowlist, so
+    // serveHttp treats it as a non-loopback bind that requires a token — which
+    // exercises the operator-decision branch (server.ts:772). The request
+    // sends no authorization header, so the host check must pass (no 403) and
+    // the token check rejects (401).
+    const h = await start('tok', '127.0.0.2');
+    const status = await rawPostWithHeaders(h, { host: `127.0.0.2:${h.port}` }, callBody(VALID));
+    expect(status).toBe(401);
+  });
+
+  it('accepts a same-origin Origin on a non-loopback bind (server.ts:748)', async () => {
+    // The Origin and Host agree with each other and with the non-loopback
+    // bind, so originIsAcceptable takes the `: true` branch at server.ts:748
+    // instead of the loopback-hostname check. The missing token still
+    // produces 401, proving both guards passed.
+    const h = await start('tok', '127.0.0.2');
+    const status = await rawPostWithHeaders(
+      h,
+      {
+        host: `127.0.0.2:${h.port}`,
+        origin: `http://127.0.0.2:${h.port}`,
+      },
+      callBody(VALID),
+    );
+    expect(status).toBe(401);
   });
 
   it('refuses a simple-request POST that carries no JSON content type', async () => {
@@ -274,5 +431,49 @@ describe('MCP tools/call schema enforcement (WS-026)', () => {
     const { body } = await call({ mode: 'nope', path: 'a.txt' });
     expect(body.error?.code).toBe(-32602);
     expect(body.error?.code).not.toBe(-32603);
+  });
+
+  it('caps the echoed schema errors at MAX_REPORTED_SCHEMA_ERRORS', async () => {
+    // A tool with more failing constraints than the echo cap must report the
+    // first five and a "+N more" suffix (server.ts:290-298).
+    const wideTool: MCPServerTool = {
+      name: 'wide',
+      description: 'many required fields',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          a: { type: 'string' },
+          b: { type: 'string' },
+          c: { type: 'string' },
+          d: { type: 'string' },
+          e: { type: 'string' },
+          f: { type: 'string' },
+          g: { type: 'string' },
+        },
+        required: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+      },
+    };
+    handle = await serveHttp(
+      new MCPServer({
+        host: {
+          listTools: () => [wideTool],
+          callTool: () => Promise.resolve({ content: 'ok', isError: false }),
+        },
+      }),
+      { port: 0 },
+    );
+    const res = await fetch(handle.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'wide', arguments: {} },
+      }),
+    });
+    const body = (await res.json()) as { error?: { code: number; message: string } };
+    expect(body.error?.code).toBe(-32602);
+    expect(body.error?.message).toMatch(/\(\+2 more\)$/);
   });
 });

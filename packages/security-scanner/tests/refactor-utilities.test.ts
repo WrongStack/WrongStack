@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { gatherFiles, shouldExcludeDir } from '../src/file-gathering.js';
 import { extractJsonBlock } from '../src/json-extractor.js';
 import { parseNodeDependencies } from '../src/manifest-parser.js';
-import { runRedactionDiagnostic } from '../src/redaction-diagnostic.js';
+import { REDACTION_DIAGNOSTIC_RAW, runRedactionDiagnostic } from '../src/redaction-diagnostic.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -129,6 +129,24 @@ describe('redaction diagnostic', () => {
     expect(result.redactedFields).toContain('$.apiKey');
     expect(result.redactedFields).toContain('$.githubToken');
     expect(result.unchangedFields).toContain('$.normal');
-    expect(JSON.stringify(result)).not.toContain('sk-1234567890');
+    // Drift-proof leak guard: no raw sample value may cross the diagnostic
+    // boundary — the result carries field paths only. Referencing the exported
+    // fixture keeps this guard in sync if the fixture ever changes.
+    for (const raw of Object.values(REDACTION_DIAGNOSTIC_RAW)) {
+      expect(JSON.stringify(result)).not.toContain(raw);
+    }
+  });
+
+  it('skips non-string primitives and nested containers without recursion errors', () => {
+    const result = runRedactionDiagnostic();
+    // Numbers, booleans, and undefined values are neither strings nor objects:
+    // the walker's non-object guard (redaction-diagnostic.ts:58) skips them.
+    expect(result.redactedFields).not.toContain('$.retries');
+    expect(result.redactedFields).not.toContain('$.enabled');
+    expect(result.redactedFields).not.toContain('$.missing');
+    expect(result.unchangedFields).not.toContain('$.retries');
+    // Nested containers recurse into their primitive leaves without crashing.
+    expect(result.redactedFields).not.toContain('$.nested.port');
+    expect(result.redactedFields).not.toContain('$.nested.flags.0');
   });
 });

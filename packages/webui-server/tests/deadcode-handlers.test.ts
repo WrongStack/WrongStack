@@ -5,6 +5,18 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { createHttpServer } from '../src/index.js';
 
+// Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
+// every bind, including loopback. These suites previously exercised the
+// unauthenticated configuration that finding was about.
+const TEST_API_TOKEN = 'test-api-token';
+const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, {
+    ...init,
+    headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
+  });
+
+
+
 const mockRunDeadCodeScan = vi.fn();
 
 interface ErrorResponse {
@@ -41,6 +53,7 @@ describe('Dead-Code Scan Endpoints', () => {
       host: '127.0.0.1',
       distDir,
       projectRoot,
+      apiToken: TEST_API_TOKEN,
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const addr = server.address();
@@ -70,7 +83,7 @@ describe('Dead-Code Scan Endpoints', () => {
     };
     mockRunDeadCodeScan.mockReturnValue(dummyResult);
 
-    const res = await fetch(`${baseUrl}/api/deadcode/scan`, {
+    const res = await authFetch(`${baseUrl}/api/deadcode/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -89,7 +102,7 @@ describe('Dead-Code Scan Endpoints', () => {
   });
 
   it('POST /api/deadcode/scan rejects path traversal indexDir', async () => {
-    const res = await fetch(`${baseUrl}/api/deadcode/scan`, {
+    const res = await authFetch(`${baseUrl}/api/deadcode/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -116,7 +129,7 @@ describe('Dead-Code Scan Endpoints', () => {
       stats: { totalSymbols: 20, alive: 13, dead: 7, durationMs: 12 }
     };
 
-    const res = await fetch(`${baseUrl}/api/deadcode/action-plan`, {
+    const res = await authFetch(`${baseUrl}/api/deadcode/action-plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(scanOutput),

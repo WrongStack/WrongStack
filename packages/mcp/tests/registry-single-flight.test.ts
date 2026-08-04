@@ -80,4 +80,35 @@ describe('MCPRegistry single-flight & cancellation', () => {
 
     expect(attemptCount).toBeLessThanOrEqual(1);
   });
+
+  it('returns the cached client without a new attempt when already connected', async () => {
+    const registry = new MCPRegistry({
+      toolRegistry: dummyToolRegistry,
+      events: dummyEvents,
+      log: dummyLogger,
+    });
+
+    const client = { name: 'cached-client' };
+    const attemptConnect = vi.spyOn(registry as any, 'attemptConnect');
+
+    // Seed the servers map with an already-connected slot, then call the
+    // private singleFlightConnect directly — ensureConnected has its own
+    // fast path at registry.ts:252, so this exercises the single-flight
+    // cache hit at registry.ts:228.
+    const slot = {
+      cfg: { name: 'already-connected', transport: 'stdio' as const, command: 'node' },
+      state: 'connected' as const,
+      client,
+      toolNames: [],
+      lazyTools: [],
+      attempts: 0,
+      reconnectPending: false,
+      reconnectCycles: 0,
+    };
+    (registry as any).servers.set('already-connected', slot);
+
+    const result = await (registry as any).singleFlightConnect(slot);
+    expect(result).toBe(client);
+    expect(attemptConnect).not.toHaveBeenCalled();
+  });
 });

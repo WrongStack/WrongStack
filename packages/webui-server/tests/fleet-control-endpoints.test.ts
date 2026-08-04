@@ -15,6 +15,18 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { createHttpServer } from '@wrongstack/webui-server';
 
+// Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
+// every bind, including loopback. These suites previously exercised the
+// unauthenticated configuration that finding was about.
+const TEST_API_TOKEN = 'test-api-token';
+const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, {
+    ...init,
+    headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
+  });
+
+
+
 const SESSION_ID = '2026-06-19/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
 const ENC = encodeURIComponent(SESSION_ID);
 
@@ -66,7 +78,7 @@ beforeAll(async () => {
     JSON.stringify({ [SESSION_ID]: entry }),
   );
 
-  server = createHttpServer({ host: '127.0.0.1', distDir, globalRoot });
+  server = createHttpServer({ host: '127.0.0.1', distDir, globalRoot, apiToken: TEST_API_TOKEN });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const addr = server.address();
   if (!addr || typeof addr === 'string') throw new Error('bad listen address');
@@ -91,7 +103,7 @@ afterAll(async () => {
 
 describe('Fleet HQ control endpoints', () => {
   it('delivers a typed/prioritized message and reflects it in the thread', async () => {
-    const post = await fetch(`${baseUrl}/api/sessions/${ENC}/message`, {
+    const post = await authFetch(`${baseUrl}/api/sessions/${ENC}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'please switch to plan B', type: 'ask', priority: 'normal' }),
@@ -102,7 +114,7 @@ describe('Fleet HQ control endpoints', () => {
     expect(sent.type).toBe('ask');
     expect(sent.id).toBeTruthy();
 
-    const thr = await fetch(`${baseUrl}/api/sessions/${ENC}/mailbox`);
+    const thr = await authFetch(`${baseUrl}/api/sessions/${ENC}/mailbox`);
     expect(thr.status).toBe(200);
     const body = (await thr.json()) as {
       thread: Array<{ id: string; type: string; body: string; fromLeader: boolean; readByLeader: string | null }>;
@@ -116,7 +128,7 @@ describe('Fleet HQ control endpoints', () => {
   });
 
   it('falls back to a default type for an unknown type value', async () => {
-    const post = await fetch(`${baseUrl}/api/sessions/${ENC}/message`, {
+    const post = await authFetch(`${baseUrl}/api/sessions/${ENC}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'hi', type: 'bogus' }),
@@ -126,7 +138,7 @@ describe('Fleet HQ control endpoints', () => {
   });
 
   it('rejects an empty message', async () => {
-    const post = await fetch(`${baseUrl}/api/sessions/${ENC}/message`, {
+    const post = await authFetch(`${baseUrl}/api/sessions/${ENC}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: '   ' }),
@@ -135,14 +147,14 @@ describe('Fleet HQ control endpoints', () => {
   });
 
   it('sends a control message on interrupt', async () => {
-    const post = await fetch(`${baseUrl}/api/sessions/${ENC}/interrupt`, {
+    const post = await authFetch(`${baseUrl}/api/sessions/${ENC}/interrupt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: 'stop please' }),
     });
     expect(post.status).toBe(200);
 
-    const thr = await fetch(`${baseUrl}/api/sessions/${ENC}/mailbox`);
+    const thr = await authFetch(`${baseUrl}/api/sessions/${ENC}/mailbox`);
     const body = (await thr.json()) as { thread: Array<{ type: string; body: string }> };
     const control = body.thread.find((m) => m.type === 'control');
     expect(control).toBeDefined();
@@ -150,7 +162,7 @@ describe('Fleet HQ control endpoints', () => {
   });
 
   it('broadcasts to every live session', async () => {
-    const post = await fetch(`${baseUrl}/api/fleet/broadcast`, {
+    const post = await authFetch(`${baseUrl}/api/fleet/broadcast`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'all hands' }),
@@ -163,7 +175,7 @@ describe('Fleet HQ control endpoints', () => {
   });
 
   it('404s for an unknown session', async () => {
-    const post = await fetch(`${baseUrl}/api/sessions/nope-not-real/message`, {
+    const post = await authFetch(`${baseUrl}/api/sessions/nope-not-real/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'x' }),

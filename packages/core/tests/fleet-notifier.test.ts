@@ -139,7 +139,27 @@ describe('FleetNotifier.notify / flush / dispose', () => {
     expect(post).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(50); // COALESCE_MS
     expect(post).toHaveBeenCalledTimes(1);
-    expect(post).toHaveBeenCalledWith('http://127.0.0.1:7001/api/fleet/ping');
+    // Second arg is the target's API token (H3) — undefined for a record that
+    // predates it, which the target will then reject. Best-effort by design.
+    expect(post).toHaveBeenCalledWith('http://127.0.0.1:7001/api/fleet/ping', undefined);
+  });
+
+  it('forwards the target instance token recorded in the registry (H3)', async () => {
+    await writeInstances([
+      {
+        pid: process.pid,
+        httpPort: 7001,
+        host: '127.0.0.1',
+        projectRoot: tmp,
+        authToken: 'tok-abc',
+      },
+    ]);
+    const post = vi.fn(async () => undefined);
+    const n = new FleetNotifier({ baseDir: tmp, projectRoot: tmp, selfPid: 999, post });
+    await n.endpoints();
+    n.notify();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(post).toHaveBeenCalledWith('http://127.0.0.1:7001/api/fleet/ping', 'tok-abc');
   });
 
   it('swallows a rejecting POST (best-effort)', async () => {

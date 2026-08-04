@@ -205,6 +205,30 @@ describe('LSP server completion coverage', () => {
     ).toBe(true);
   });
 
+  it('eviction loop tolerates a broken map iterator (defensive guard at lsp-server.ts:332)', () => {
+    const value = server();
+    const withSet = value as unknown as {
+      setDiagnostics(uri: string, diagnostics: unknown[]): void;
+    };
+    // Fill past the cap so the eviction loop is entered.
+    for (let i = 0; i < LSPServer.MAX_DIAGNOSTICS_ENTRIES + 2; i += 1) {
+      withSet.setDiagnostics(`file:///doc-${i}.ts`, []);
+    }
+    // Break the iterator: keys().next().value is undefined, so the loop must
+    // stop via the `oldest === undefined` guard instead of deleting an entry.
+    const brokenKeys = () => ({ next: () => ({ value: undefined, done: false }) });
+    const originalKeys = value.diagnostics.keys;
+    value.diagnostics.keys = brokenKeys as unknown as typeof originalKeys;
+    try {
+      withSet.setDiagnostics('file:///broken-iterator.ts', []);
+      // Nothing was evicted — the guard exited the loop without deleting.
+      expect(value.diagnostics.size).toBeGreaterThan(LSPServer.MAX_DIAGNOSTICS_ENTRIES);
+      expect(value.diagnostics.has('file:///broken-iterator.ts')).toBe(true);
+    } finally {
+      value.diagnostics.keys = originalKeys;
+    }
+  });
+
   it('notifyDidClose drops the diagnostics entry for the closed document', () => {
     const value = server();
     (

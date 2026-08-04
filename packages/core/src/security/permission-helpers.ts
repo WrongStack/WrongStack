@@ -2,11 +2,16 @@
  * Pure helpers for permission policy evaluation — trust-pattern matching,
  * tool fingerprinting, and sensitive-read detection.
  *
- * Extracted from permission-policy.ts. No class state, no I/O.
+ * Extracted from permission-policy.ts. No class state. The only I/O is the
+ * sync realpath probe in {@link isInsideAgentStateRoot} (symlinked-root
+ * containment); everything else is pure string work.
  */
+import { realpathSync } from 'node:fs';
+import * as path from 'node:path';
 import type { Tool } from '../types/tool.js';
 import { matchAny, matchAnyCommand } from '../utils/glob-match.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
+import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 import { hasCapability, ToolCapabilities } from './capabilities.js';
 import { getInputString } from './yolo-risk.js';
 
@@ -182,9 +187,114 @@ function stripShellQuotes(value: string): string {
   return value.replace(/^['"]|['"]$/g, '');
 }
 
+/**
+ * Files under the wstack global root that constitute WrongStack's own trusted
+ * state. Reading or writing one of these is qualitatively different from
+ * touching the memory/session/skill files that share the directory:
+ *
+ * - `config.json` / `config.local.json` — merged as a **fully trusted** config
+ *   layer (unlike in-project config, which is stripped). `hooks`, `mcpServers`
+ *   and `plugins` survive here and become code execution at next boot.
+ * - `trust.json` — the persisted permission allow/deny globs. A write here can
+ *   disable every future confirmation prompt.
+ * - `auth.json` — HQ browser/client tokens.
+ * - `.key` — the AES-256-GCM secret-vault key.
+ *
+ * Deliberately basename-scoped rather than directory-scoped: `~/.wrongstack`
+ * also holds `memory.md`, `sessions/`, and `skills/`, which the agent reads
+ * constantly. Treating the whole tree as sensitive would make the prompt
+ * meaningless through sheer volume.
+ */
+const AGENT_STATE_SENSITIVE_BASENAMES =
+  /^(?:config\.json|config\.local\.json|trust\.json|auth\.json|\.key)$/i;
+
+/** Undo `escapeGlobSubject`'s backslash escapes so a subject compares as a path. */
+function unescapeGlobSubject(value: string): string {
+  return value.replace(/\\([*?[\]])/g, '$1');
+}
+
+/** Normalize a path for prefix comparison: forward slashes, case-folded on Windows. */
+function normalizeForCompare(value: string): string {
+  const forward = unescapeGlobSubject(value).replace(/\\/g, '/').replace(/\/+$/, '');
+  return process.platform === 'win32' ? forward.toLowerCase() : forward;
+}
+
+/**
+ * Realpath of `p`'s deepest existing ancestor with the not-yet-created tail
+ * re-joined (a write target may not exist yet), or `p` itself when nothing
+ * resolves (e.g. the root does not exist yet on first boot).
+ */
+function realpathOfNearestExisting(p: string): string {
+  let probe = p;
+  const tail: string[] = [];
+  for (;;) {
+    try {
+      return tail.length === 0 ? realpathSync(probe) : path.join(realpathSync(probe), ...tail);
+    } catch {
+      const parent = path.dirname(probe);
+      if (parent === probe) return p;
+      tail.unshift(path.basename(probe));
+      probe = parent;
+    }
+  }
+}
+
+/**
+ * Realpaths of the agent-state root, keyed by the root's lexical form. The
+ * root is stable for a given `WRONGSTACK_HOME`/home value, so the sync
+ * realpath probe runs once per distinct root rather than per evaluation.
+ */
+const agentStateRootRealCache = new Map<string, string>();
+
+/**
+ * True when `absPath` is the wstack global root (`~/.wrongstack`, or
+ * `WRONGSTACK_HOME`) or lives inside it.
+ *
+ * Callers use this to refuse *silent* access to WrongStack's own state. It is
+ * not a containment check — the file tools deliberately allow this root so the
+ * agent can manage its memory and sessions. What it gates is whether that
+ * access may happen without the user seeing it.
+ *
+ * The comparison is realpath-aware on both sides: `~/.wrongstack` may itself
+ * be a symlink, and the file tools canonicalize subjects to realpaths
+ * (`safeResolveReal`, WS-048), so a purely lexical check misses every state
+ * file under a symlinked root. The lexical pass stays first — it is free and
+ * correct for the default layout — and the realpath pass only runs when it
+ * fails, comparing the root (cached) against the subject's nearest existing
+ * ancestor.
+ */
+export function isInsideAgentStateRoot(absPath: string): boolean {
+  const lexicalRoot = normalizeForCompare(path.resolve(wstackGlobalRoot()));
+  if (!lexicalRoot) return false;
+  const target = normalizeForCompare(absPath);
+  if (target === lexicalRoot || target.startsWith(`${lexicalRoot}/`)) return true;
+
+  let realRoot = agentStateRootRealCache.get(lexicalRoot);
+  if (realRoot === undefined) {
+    realRoot = normalizeForCompare(realpathOfNearestExisting(path.resolve(wstackGlobalRoot())));
+    agentStateRootRealCache.set(lexicalRoot, realRoot);
+  }
+  if (!realRoot || realRoot === lexicalRoot) return false;
+  const realTarget = normalizeForCompare(realpathOfNearestExisting(absPath));
+  return realTarget === realRoot || realTarget.startsWith(`${realRoot}/`);
+}
+
+/**
+ * True when writing `absPath` must not be silently auto-approved, because the
+ * file is part of WrongStack's own trusted state rather than project content.
+ */
+export function isProtectedAgentStatePath(absPath: string): boolean {
+  if (!isInsideAgentStateRoot(absPath)) return false;
+  return AGENT_STATE_SENSITIVE_BASENAMES.test(path.basename(normalizeForCompare(absPath)));
+}
+
 function pathLooksSensitive(rawPath: string): boolean {
   const normalized = stripShellQuotes(rawPath).replace(/\\/g, '/');
-  return SENSITIVE_READ_PATHS.some((pattern) => pattern.test(normalized));
+  if (SENSITIVE_READ_PATHS.some((pattern) => pattern.test(normalized))) return true;
+  // `config.json` alone is far too common to put in SENSITIVE_READ_PATHS — it
+  // would fire on nearly every project. Anchoring it to the global root keeps
+  // the match precise.
+  return isProtectedAgentStatePath(normalized);
 }
 
 export function inputPathLooksSensitive(input: unknown): boolean {

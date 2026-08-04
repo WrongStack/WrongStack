@@ -221,6 +221,60 @@ describe('jsonTool action: validate', () => {
     const result = await jsonTool.execute({ action: 'validate', data: '{}' });
     expect(result.error).toContain('schema is required');
   });
+
+  // Security scan 2026-08-04, finding M4. `schema.pattern` reached a bare
+  // `new RegExp` — an LLM-supplied pattern evaluated against file content on an
+  // engine the executor's timeout cannot interrupt. Every other user-regex site
+  // in this package already routed through `compileUserRegex`; this one didn't.
+  describe('schema.pattern is compiled through the ReDoS guard (M4)', () => {
+    it('still validates an ordinary pattern', async () => {
+      const ok = await jsonTool.execute({
+        action: 'validate',
+        data: '"abc-123"',
+        schema: { type: 'string', pattern: '^[a-z]+-\\d+$' },
+      });
+      expect(ok.valid).toBe(true);
+
+      const bad = await jsonTool.execute({
+        action: 'validate',
+        data: '"nope"',
+        schema: { type: 'string', pattern: '^[a-z]+-\\d+$' },
+      });
+      expect(bad.valid).toBe(false);
+      expect(bad.errors?.some((e) => e.includes('does not match pattern'))).toBe(true);
+    });
+
+    it('refuses a catastrophic-backtracking pattern instead of running it', async () => {
+      const result = await jsonTool.execute({
+        action: 'validate',
+        data: `"${'a'.repeat(200)}"`,
+        schema: { type: 'string', pattern: '(a+)+$' },
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors?.some((e) => e.includes('invalid schema pattern'))).toBe(true);
+    });
+
+    it('refuses an over-long pattern', async () => {
+      const result = await jsonTool.execute({
+        action: 'validate',
+        data: '"x"',
+        schema: { type: 'string', pattern: `^${'a'.repeat(300)}$` },
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors?.some((e) => e.includes('invalid schema pattern'))).toBe(true);
+    });
+
+    it('reports a malformed pattern as an error rather than throwing', async () => {
+      // Previously `new RegExp('(unclosed')` threw straight out of validate.
+      const result = await jsonTool.execute({
+        action: 'validate',
+        data: '"x"',
+        schema: { type: 'string', pattern: '(unclosed' },
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors?.some((e) => e.includes('invalid schema pattern'))).toBe(true);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

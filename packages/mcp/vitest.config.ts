@@ -14,6 +14,9 @@ export default defineConfig({
         // Barrel re-export — no runnable code
         'src/index.ts',
         'src/transport.ts',
+        // Type-only modules — interfaces only, no runnable code
+        'src/registry-slots.ts',
+        'src/registry-types.ts',
         // Test helpers — only exist to support tests, not production code
         'src/test-helpers/**',
       ],

@@ -243,6 +243,24 @@ export interface VerifyClientInput {
   allowedHostnames?: readonly string[] | undefined;
   /** Allow browser WS URL tokens for explicit public WS URLs where cookies cannot cross hostnames. */
   allowBrowserUrlToken?: boolean | undefined;
+  /**
+   * Let a valid `ws_token` cookie authenticate a loopback origin whose **port**
+   * differs from this server's (WS-003 opt-out). **Development only.**
+   *
+   * The Vite dev server and the WS server necessarily occupy different ports
+   * (`packages/webui/vite.config.ts` asks for 3456 and auto-advances when the
+   * WS server already holds it), so the dev loop cannot satisfy the port check.
+   *
+   * It must stay opt-in because the cookie proves nothing across ports: cookies
+   * are keyed by host, not port, and SameSite computes *site* without the port,
+   * so the browser attaches `ws_token` to a socket opened from **any** other
+   * localhost origin automatically. Enabling this in a shipped build re-opens
+   * exactly the hole WS-003 closed — a second dev server, a local app's UI, or
+   * an XSS in either can drive the agent.
+   *
+   * Wired from `WRONGSTACK_WEBUI_DEV_CROSS_PORT_WS=1`; never defaulted on.
+   */
+  allowCrossPortLoopbackCookie?: boolean | undefined;
 }
 
 /**
@@ -271,6 +289,7 @@ export function verifyClient(input: VerifyClientInput): boolean {
     requireToken,
     allowedHostnames,
     allowBrowserUrlToken,
+    allowCrossPortLoopbackCookie,
   } = input;
   const urlTokenOk = tokenMatches(extractToken(url ?? ''), expectedToken);
   const cookieTokenOk = tokenMatches(extractTokenFromCookie(cookieHeader), expectedToken);
@@ -305,11 +324,44 @@ export function verifyClient(input: VerifyClientInput): boolean {
     // explicitly http://localhost or http://127.0.0.1 (defense-in-depth).
     // Reject file://, data://, and other schemes even on loopback.
     if (isLoopbackHostname(originHostname)) {
+      // The origin must be this exact server (scheme + loopback host + port),
+      // not merely "some loopback origin" (WS-003). The matching pair IS the
+      // tokenless bootstrap (module doc, layer 3); the port comparison is what
+      // keeps that bootstrap scoped to THIS server rather than to every
+      // localhost process. The pair check is a PRECONDITION, not an
+      // alternative to the cookie, because neither half alone is sufficient:
+      //
+      //  - Origin alone: a non-browser client controls both `Origin` and
+      //    `Host`, so a forged matching pair must not WIDEN the bootstrap
+      //    beyond same-origin. WS-005 required a token on the no-Origin branch
+      //    for exactly this reason; the cross-port branch below therefore
+      //    still demands the cookie, and only behind an explicit opt-in.
+      //  - Cookie alone: cookies are keyed by host, not port, and SameSite
+      //    computes *site* without the port — so a page on any other localhost
+      //    port carries `ws_token` here automatically. Letting the cookie
+      //    short-circuit the port comparison reopened the exact cross-origin
+      //    hole the port comparison exists to close.
+      //
+      // The tokenless same-origin accept is the documented local-process trust
+      // assumption (module doc, layer 3): a browser's Origin reflects the page
+      // that loaded, the Host-header guard blocks cross-site pages, and any
+      // local process could forge both headers anyway — the same peer the
+      // URL-token fallback already trusts on the no-Origin branch.
+      //
+      // The one exception is the Vite dev loop, where the app and the WS server
+      // cannot share a port. That is an explicit opt-in, never a default —
+      // see `allowCrossPortLoopbackCookie`.
+      //
+      // Scope: this governs the *tokenless loopback-bind* branch only. When a
+      // token is genuinely required (`requireToken`, or a public/wildcard bind
+      // reached through a tunnel) the cookie is the intended credential and the
+      // app is legitimately served from another origin, so the port comparison
+      // does not apply there.
       if (requireToken || !isLoopbackBind(wsHost)) return cookieTokenOk;
-      // A valid cookie authenticates regardless of port; otherwise the origin
-      // must be this exact server (scheme + loopback host + port), not merely
-      // "some loopback origin" (WS-003).
-      return cookieTokenOk || isTrustedLoopbackOrigin(origin, hostHeader);
+      if (!isTrustedLoopbackOrigin(origin, hostHeader)) {
+        return Boolean(allowCrossPortLoopbackCookie) && cookieTokenOk;
+      }
+      return true;
     }
     // Non-loopback browser origins normally authenticate via the HttpOnly cookie
     // set by `/ws-auth`. When an operator supplies a separate public WS URL, the

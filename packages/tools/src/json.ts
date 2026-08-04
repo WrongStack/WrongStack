@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import { deepMerge as deepMergeCore } from '@wrongstack/core/utils';
 import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
+import { capSubject, compileUserRegex } from './_regex.js';
 import { safeResolveReal } from './_util.js';
 
 /**
@@ -585,8 +586,21 @@ function validateJsonSchema(data: unknown, schema: Record<string, unknown>): { v
     }
 
     if (typeof value === 'string' && s['pattern']) {
-      const re = new RegExp(s['pattern'] as string);
-      if (!re.test(value)) errors.push(`${path}: does not match pattern ${s['pattern']}`);
+      // The schema is a tool argument — i.e. LLM-controlled and, per this
+      // project's own adversary model, untrusted — and the subject is file
+      // content. A bare `new RegExp` here would evaluate an attacker-chosen
+      // pattern against attacker-chosen input, synchronously, on a regex engine
+      // the executor's timeout cannot interrupt. Every other user-regex site in
+      // this package already routes through `compileUserRegex` (length cap +
+      // catastrophic-backtracking heuristics) and `capSubject`; this one was
+      // missed. A malformed pattern also threw here, taking down `validate`
+      // instead of reporting an invalid schema.
+      const compiled = compileUserRegex(s['pattern'] as string, '');
+      if (!compiled.ok) {
+        errors.push(`${path}: invalid schema pattern — ${compiled.reason}`);
+      } else if (!compiled.regex.test(capSubject(value))) {
+        errors.push(`${path}: does not match pattern ${s['pattern']}`);
+      }
     }
 
     if (typeof value === 'string' && s['minLength'] !== undefined && value.length < (s['minLength'] as number)) {

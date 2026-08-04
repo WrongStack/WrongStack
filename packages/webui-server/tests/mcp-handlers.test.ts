@@ -71,6 +71,100 @@ async function seed(servers: Record<string, unknown>) {
 
 // ── mcp.add ───────────────────────────────────────────────────────────────────
 
+/**
+ * Security scan 2026-08-04, finding M1. `mcp.add`/`mcp.update` take a
+ * `command` + `args` off the wire, persist them, and spawn — the only
+ * WS-reachable spawn path that never consulted the trust boundary its siblings
+ * all go through.
+ *
+ * Note what these tests pin and what they don't: the DEFAULT compatibility
+ * boundary allows everything except `critical` + `remote-client`, and these
+ * actions are `elevated` (so the WebUI's MCP panel keeps working). So the
+ * value under the default policy is the audit record, not a denial. What is
+ * pinned here is that a boundary which DOES deny is actually honoured — i.e.
+ * the call site exists and its verdict is respected.
+ */
+describe('mcp.add / mcp.update consult the trust boundary (M1)', () => {
+  const denyAll = {
+    evaluate: async () => ({
+      kind: 'deny' as const,
+      reason: 'test policy denies MCP configuration',
+      policyId: 'test-deny',
+    }),
+  };
+
+  it('mcp.add does not spawn or persist when the boundary denies', async () => {
+    const ws = fakeWs();
+    const registry = makeRegistry();
+    await handleMcpAdd(
+      ws as never,
+      msg('mcp.add', {
+        name: 'evil',
+        transport: 'stdio',
+        command: 'node',
+        args: ['-e', 'require("child_process").exec("id")'],
+        enabled: true,
+      }),
+      configPath,
+      registry,
+      denyAll,
+    );
+    expect((await readServers()).evil).toBeUndefined();
+    expect((registry as { start: ReturnType<typeof vi.fn> }).start).not.toHaveBeenCalled();
+    const result = ws.sent.find((m) => m.type === 'mcp.operation_result');
+    expect((result?.payload as { success: boolean }).success).toBe(false);
+    expect((result?.payload as { message: string }).message).toContain('denied');
+  });
+
+  it('mcp.update does not re-persist when the boundary denies', async () => {
+    const ws = fakeWs();
+    const registry = makeRegistry();
+    await handleMcpUpdate(
+      ws as never,
+      msg('mcp.update', {
+        name: 'whatever',
+        transport: 'stdio',
+        command: 'node',
+        args: ['-e', '1'],
+        enabled: true,
+      }),
+      configPath,
+      registry,
+      denyAll,
+    );
+    const result = ws.sent.find((m) => m.type === 'mcp.operation_result');
+    expect((result?.payload as { success: boolean }).success).toBe(false);
+    expect((result?.payload as { message: string }).message).toContain('denied');
+  });
+
+  it('an allowing boundary leaves behavior unchanged', async () => {
+    const allowAll = {
+      evaluate: async () => ({
+        kind: 'allow' as const,
+        reason: 'test policy allows',
+        policyId: 'test-allow',
+      }),
+    };
+    const ws = fakeWs();
+    const registry = makeRegistry();
+    await handleMcpAdd(
+      ws as never,
+      msg('mcp.add', {
+        name: 'fs',
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-filesystem', '.'],
+        enabled: true,
+      }),
+      configPath,
+      registry,
+      allowAll,
+    );
+    expect((await readServers()).fs?.command).toBe('npx');
+    expect((registry as { start: ReturnType<typeof vi.fn> }).start).toHaveBeenCalled();
+  });
+});
+
 describe('mcp.add (WebUI "Add Custom" / "Add" official)', () => {
   it('adds a custom stdio server (enabled) → added + connected + ok, config persisted', async () => {
     const ws = fakeWs();

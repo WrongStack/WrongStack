@@ -315,6 +315,32 @@ audits and explicitly accepted as non-blocking:
   - `pnpm-workspace.yaml` currently allows lifecycle builds for `@biomejs/biome`, `electron`, `esbuild`, and `node-pty`. Any addition requires security review; the native/runtime download rationale is documented beside each entry.
   - Removal matters as much as addition. `better-sqlite3` was listed here and in both `pnpm-workspace.yaml` blocks while being absent from the lockfile entirely (the codebase uses `node:sqlite`), so its install scripts were pre-authorised to run the moment it reappeared through any transitive path — spending the review gate in advance. `packages/core/tests/architecture/build-allowlist-freshness.test.ts` now fails when any allowlist entry names a package that is not in the lockfile, and when this list drifts from `onlyBuiltDependencies`.
 
+Added by the **August 2026** `security-check` audit:
+
+- **`release.yml` builds in the job that holds `id-token: write`** (M13):
+  - The `publish` job runs `pnpm install --frozen-lockfile` and `pnpm build` in the same job that
+    mints the npm OIDC token, so a compromised build-time dependency could in principle publish
+    backdoored versions of all 29 packages *with valid provenance*. `pages.yml` rejects this exact
+    pattern (WS-014) and splits build from deploy; `release.yml` does not.
+  - **Accepted** because the compensating controls are strong and specific: the `npm-publish`
+    environment requires reviewer approval, the checkout is pinned to the SHA `verify` validated
+    (WS-089), `persist-credentials: false`, all actions are SHA-pinned, and only four packages may
+    run install lifecycle scripts.
+  - The split is viable when someone wants it: `pnpm pack` resolves `workspace:*` to concrete
+    versions (verified 2026-08-04), so a `build` job can emit tarballs for a minimal `publish` job
+    that never runs third-party code. Deferred rather than done because a release pipeline cannot be
+    dry-run, and a mistake here breaks shipping rather than security.
+
+- **Loopback is authenticated, not trusted — but the token is readable by same-user processes** (H3):
+  - The WebUI/SimpleUI HTTP API now requires a token on every bind (previously loopback required
+    none). The token lives in `~/.wrongstack/webui-instances.json` (`0o600`) so the one legitimate
+    non-browser caller, `FleetNotifier`'s `POST /api/fleet/ping`, can authenticate.
+  - This raises the bar against a differently-scoped or sandboxed local process. It does **not**
+    defend against a process running as the same user: that process can read the token file, and
+    could read `~/.wrongstack/projects/*` — the transcripts the API exposes — without the API at
+    all. Same reasoning as HQ's `auth.json`. Do not treat channel auth as isolation from the user's
+    own account.
+
 Future scans should treat the above as **known and accepted** rather than new findings.
 
 ## When in doubt

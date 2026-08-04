@@ -302,6 +302,17 @@ describe('AISpecBuilder', () => {
       },
     });
     await expect(unavailable.loadSession()).rejects.toThrow('project daemon unavailable');
+
+    // A persistence that returns a truthy but invalid shape must report
+    // loadSession() === false (spec-builder.ts:320), not treat it as loaded.
+    const corrupt = new AISpecBuilder({
+      store: mockStore(),
+      sessionPersistence: {
+        ...persistence,
+        load: async () => ({ title: '', phase: 'nope' }) as never,
+      },
+    });
+    expect(await corrupt.loadSession()).toBe(false);
   });
 
   it('treats missing paths, invalid sessions, and persistence failures as best effort', async () => {

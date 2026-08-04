@@ -250,6 +250,9 @@ export function createWsServers(
       requireToken: ports.requireToken,
       allowedHostnames: publicHostnames,
       allowBrowserUrlToken: Boolean(ports.publicWsUrl),
+      // WS-003 opt-out for the Vite dev loop only (app and WS server cannot
+      // share a port). Off unless explicitly requested — see ws-auth.ts.
+      allowCrossPortLoopbackCookie: process.env['WRONGSTACK_WEBUI_DEV_CROSS_PORT_WS'] === '1',
     });
 
   // 20 MiB to leave headroom for image attachments (base64-inflated) in

@@ -42,6 +42,27 @@ export interface WebUIInstanceRecord {
   startedAt: string;
   /** Convenience open-in-browser URL. */
   url: string;
+  /**
+   * Access token for this instance's HTTP API, so a same-project sibling
+   * process (TUI/REPL) can authenticate the `POST /api/fleet/ping`
+   * push-on-write nudge.
+   *
+   * Security scan 2026-08-04, finding H3: the API used to require no
+   * credential at all on a loopback bind. Closing that meant the one
+   * legitimate non-browser caller needed a way to obtain the token, and this
+   * registry — already `0o600`, already read by exactly those siblings — is
+   * where it belongs.
+   *
+   * Be precise about what this is worth. Storing the token here raises the bar
+   * against a *different-user* or sandboxed local process, which cannot read
+   * the file. It does nothing against a process running as the same user: that
+   * process can read this file, and could read `~/.wrongstack/projects/*` —
+   * the very transcripts the API exposes — without going near the API at all.
+   * The same reasoning already applies to HQ's `auth.json`.
+   *
+   * Optional so an older record (or a surface that has no token) still parses.
+   */
+  authToken?: string | undefined;
 }
 
 interface RegistryFile {

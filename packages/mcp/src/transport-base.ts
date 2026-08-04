@@ -139,7 +139,7 @@ export abstract class BaseHTTPTransport {
   }
 
   protected async fetchWithAuthorization(
-    input: string,
+    input: string | URL,
     init: RequestInit,
     signal?: AbortSignal | undefined,
   ): Promise<Response> {

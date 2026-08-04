@@ -69,6 +69,31 @@ describe('MCPServer.handleMessage', () => {
     expect(result.content[0]).toEqual({ type: 'text', text: 'echo:{"x":1}' });
   });
 
+  it('passes the call through when the host cannot enumerate tools', async () => {
+    // assertArgumentsMatchSchema: a host whose listTools() rejects must not
+    // block the call — the real failure surfaces from callTool itself
+    // (server.ts:278-281).
+    const server = new MCPServer({
+      host: makeHost({
+        listTools: async () => {
+          throw new Error('tool store unavailable');
+        },
+      }),
+    });
+    const res = await call(server, {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'echo', arguments: { x: 1 } },
+    });
+    const result = res?.result as {
+      content: Array<{ type: string; text: string }>;
+      isError: boolean;
+    };
+    expect(result.isError).toBe(false);
+    expect(result.content[0]).toEqual({ type: 'text', text: 'echo:{"x":1}' });
+  });
+
   it('reports tool errors as isError without throwing the connection', async () => {
     const host = makeHost({
       callTool: async () => ({ content: 'boom', isError: true }),

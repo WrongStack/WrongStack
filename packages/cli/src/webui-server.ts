@@ -483,6 +483,9 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       projectRoot: opts.projectRoot,
       startedAt: new Date().toISOString(),
       registryBaseDir,
+      // Lets a same-project TUI/REPL authenticate `POST /api/fleet/ping` now
+      // that the API requires a token on every bind (H3).
+      authToken: wsToken,
     });
   }
   // Auth token is delivered through the printed first-load URL and then

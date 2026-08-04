@@ -47,6 +47,15 @@ describe('tokenizeCommand', () => {
     expect(tokenizeCommand('echo a\\ b')).toEqual(['echo', 'a b']);
   });
 
+  it('handles backslash escapes inside double quotes', () => {
+    // Escaped double quote inside a double-quoted token.
+    expect(tokenizeCommand('echo "say \\"hi\\""')).toEqual(['echo', 'say "hi"']);
+    // Escaped dollar sign — not interpreted as a variable.
+    expect(tokenizeCommand('echo "cost \\$5"')).toEqual(['echo', 'cost $5']);
+    // Backslash before a non-special character is kept literally.
+    expect(tokenizeCommand('echo "a\\b"')).toEqual(['echo', 'a\\b']);
+  });
+
   it('returns undefined for empty/whitespace input', () => {
     expect(tokenizeCommand('')).toBeUndefined();
     expect(tokenizeCommand('   ')).toBeUndefined();
@@ -60,6 +69,13 @@ describe('tokenizeCommand', () => {
   it('handles empty quotes as an empty-string argument', () => {
     expect(tokenizeCommand('echo ""')).toEqual(['echo', '']);
     expect(tokenizeCommand("echo ''")).toEqual(['echo', '']);
+  });
+
+  it('treats empty quoted tokens as an empty-string argument', () => {
+    // `""` is a real token (empty string), not an absent one — it stays in
+    // the argv rather than being dropped.
+    expect(tokenizeCommand('""')).toEqual(['']);
+    expect(tokenizeCommand('echo ""')).toEqual(['echo', '']);
   });
 
   it('handles mixed quoting', () => {
@@ -279,6 +295,19 @@ describe('makeAcceptanceCriteriaVerifier', () => {
     });
     expect(await flaky({ task: criteriaTask(), result: withResult, cwd })).toEqual({ ok: true });
     expect(calls).toBe(2);
+  });
+
+  it('reports a non-Error judge failure string', async () => {
+    // A judge that rejects with a plain value (not an Error) must still be
+    // reported — via String(lastError) — rather than crashing the verifier.
+    const throwing = makeAcceptanceCriteriaVerifier({
+      run: async () => {
+        throw 'judge exploded'; // not an Error instance
+      },
+    });
+    const errored = await throwing({ task: criteriaTask(), result: withResult, cwd });
+    expect(errored.ok).toBe(false);
+    expect(errored.reason).toContain('judge exploded');
   });
 
   it('serializes non-string results and supplies fallback prompt and rejection reason', async () => {

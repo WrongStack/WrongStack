@@ -15,6 +15,18 @@ import {
 } from '@wrongstack/requirement-intake';
 import { createHttpServer } from '../src/index.js';
 
+// Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
+// every bind, including loopback. These suites previously exercised the
+// unauthenticated configuration that finding was about.
+const TEST_API_TOKEN = 'test-api-token';
+const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, {
+    ...init,
+    headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
+  });
+
+
+
 let distDir: string;
 let storeDir: string;
 let projectRoot: string;
@@ -51,6 +63,7 @@ beforeAll(async () => {
     distDir,
     projectRoot,
     intakeService: service,
+    apiToken: TEST_API_TOKEN,
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const addr = server.address();
@@ -70,7 +83,7 @@ beforeAll(async () => {
   lockedBaseUrl = `http://127.0.0.1:${lockedAddr.port}`;
 
   // A third server with neither a service nor a token gate — 503 (not 401).
-  noServiceServer = createHttpServer({ host: '127.0.0.1', distDir });
+  noServiceServer = createHttpServer({ host: '127.0.0.1', distDir, apiToken: TEST_API_TOKEN });
   await new Promise<void>((resolve) => noServiceServer.listen(0, '127.0.0.1', resolve));
   const noServiceAddr = noServiceServer.address();
   if (!noServiceAddr || typeof noServiceAddr === 'string') throw new Error('bad listen address');
@@ -87,7 +100,7 @@ afterAll(async () => {
 });
 
 async function postJson(url: string, body: unknown): Promise<{ status: number; json: unknown }> {
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -124,7 +137,7 @@ describe('requirement-intake REST API', () => {
 
   it('lists intake records for a project', async () => {
     await postJson(`${baseUrl}/api/projects/proj_alpha/requirement-intakes`, REQUEST);
-    const res = await fetch(`${baseUrl}/api/projects/proj_alpha/requirement-intakes`);
+    const res = await authFetch(`${baseUrl}/api/projects/proj_alpha/requirement-intakes`);
     expect(res.status).toBe(200);
     const records = (await res.json()) as Array<{ id: string; projectId: string }>;
     expect(records.length).toBeGreaterThan(0);
@@ -139,13 +152,13 @@ describe('requirement-intake REST API', () => {
     const intakeId = (created.json as { record: { id: string } }).record.id;
 
     // GET
-    const getRes = await fetch(`${baseUrl}/api/requirement-intakes/${intakeId}`);
+    const getRes = await authFetch(`${baseUrl}/api/requirement-intakes/${intakeId}`);
     expect(getRes.status).toBe(200);
     const fetched = (await getRes.json()) as { title: string; originalRequest: string };
     expect(fetched.originalRequest).toBe(REQUEST.originalRequest);
 
     // PATCH
-    const patchRes = await fetch(`${baseUrl}/api/requirement-intakes/${intakeId}`, {
+    const patchRes = await authFetch(`${baseUrl}/api/requirement-intakes/${intakeId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Password reset', priority: 'high' }),
@@ -192,7 +205,7 @@ describe('requirement-intake REST API', () => {
   });
 
   it('returns 404 for an unknown intake id', async () => {
-    const res = await fetch(`${baseUrl}/api/requirement-intakes/reqi_nope`);
+    const res = await authFetch(`${baseUrl}/api/requirement-intakes/reqi_nope`);
     expect(res.status).toBe(404);
   });
 
@@ -208,7 +221,7 @@ describe('requirement-intake REST API', () => {
   });
 
   it('responds 503 when no intake service is wired', async () => {
-    const res = await fetch(`${noServiceBaseUrl}/api/projects/proj_alpha/requirement-intakes`, {
+    const res = await authFetch(`${noServiceBaseUrl}/api/projects/proj_alpha/requirement-intakes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(REQUEST),
@@ -218,7 +231,7 @@ describe('requirement-intake REST API', () => {
 
   it('lists the server project with its resolved id (frontend entry point)', async () => {
     // Create one record through the project-scoped endpoint first.
-    const create = await fetch(`${baseUrl}/api/projects/${expectedProjectId}/requirement-intakes`, {
+    const create = await authFetch(`${baseUrl}/api/projects/${expectedProjectId}/requirement-intakes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -229,7 +242,7 @@ describe('requirement-intake REST API', () => {
     });
     expect(create.status).toBe(201);
 
-    const res = await fetch(`${baseUrl}/api/requirement-intakes`);
+    const res = await authFetch(`${baseUrl}/api/requirement-intakes`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       projectId: string;
@@ -254,13 +267,14 @@ describe('requirement-intake REST API', () => {
         distDir,
         projectRoot: bare,
         intakeService: service,
+        apiToken: TEST_API_TOKEN,
       });
       await new Promise<void>((resolve) => bareServer.listen(0, '127.0.0.1', resolve));
       const addr = bareServer.address();
       if (!addr || typeof addr === 'string') throw new Error('bad listen address');
       const bareBaseUrl = `http://127.0.0.1:${addr.port}`;
       try {
-        const res = await fetch(`${bareBaseUrl}/api/requirement-intakes`);
+        const res = await authFetch(`${bareBaseUrl}/api/requirement-intakes`);
         expect(res.status).toBe(404);
       } finally {
         await new Promise<void>((resolve) => bareServer.close(() => resolve()));

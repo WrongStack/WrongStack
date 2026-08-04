@@ -45,6 +45,11 @@ export interface RegisterWebuiInstanceParams {
   startedAt: string;
   /** Registry base dir (dirname of globalConfigPath); undefined ⇒ registry default. */
   registryBaseDir: string | undefined;
+  /**
+   * This instance's API access token, recorded so a same-project TUI/REPL can
+   * authenticate `POST /api/fleet/ping` (H3). See `WebUIInstanceRecord`.
+   */
+  authToken?: string | undefined;
 }
 
 export interface RegisterWebuiInstanceDeps {
@@ -76,6 +81,7 @@ export function registerWebuiInstance(
         port: p.httpPort,
         publicUrl: p.publicUrl,
       }),
+      ...(p.authToken ? { authToken: p.authToken } : {}),
     },
     p.registryBaseDir,
   ).catch(() => {});

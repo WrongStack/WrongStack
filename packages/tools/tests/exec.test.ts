@@ -143,6 +143,61 @@ describe('execTool', () => {
     expect(result.allowed).toBe(false);
     expect(result.stderr).toContain('Blocked argument');
   });
+
+  // Security scan 2026-08-04, finding M3. The git table was prefix-anchored on
+  // `--opt=`, but git's parse-options accepts `--opt value` just as happily, so
+  // the space-separated spelling of every blocked option walked through. The
+  // advisory layer (`_danger-detect.ts`, rule `git-exec`) already listed the
+  // bare forms — only the *blocking* layer had drifted.
+  describe('git option blocking covers both spellings (M3)', () => {
+    const blocked: readonly (readonly string[])[] = [
+      // space-separated forms — previously unblocked
+      ['push', '--exec', './evil.sh'],
+      ['fetch', '--upload-pack', './evil.sh'],
+      ['push', '--receive-pack', './evil.sh'],
+      ['--exec-path', '/tmp/evil', 'status'],
+      ['--git-dir', '/tmp/elsewhere/.git', 'log'],
+      ['--work-tree', '/tmp/elsewhere', 'checkout'],
+      // `=` forms — must keep working
+      ['push', '--exec=./evil.sh'],
+      ['fetch', '--upload-pack=./evil.sh'],
+      ['--exec-path=/tmp/evil', 'status'],
+      ['--git-dir=/tmp/elsewhere/.git', 'log'],
+      ['--work-tree=/tmp/elsewhere', 'checkout'],
+      ['-c', 'core.pager=./evil.sh', 'log'],
+      ['--config-env=core.pager=EVIL', 'log'],
+      ['-C', '/tmp/elsewhere', 'status'],
+    ];
+
+    for (const args of blocked) {
+      it(`blocks git ${args.join(' ')}`, async () => {
+        const ctx = makeCtx();
+        const result = await execTool.execute({ command: 'git', args: [...args] }, ctx, makeOpts());
+        expect(result.allowed).toBe(false);
+        expect(result.stderr).toMatch(/Blocked (option|argument)/);
+      });
+    }
+
+    it('does not block ordinary git invocations', async () => {
+      const ctx = makeCtx();
+      for (const args of [['status'], ['log', '--oneline', '-n', '5'], ['diff', '--stat']]) {
+        const result = await execTool.execute({ command: 'git', args }, ctx, makeOpts());
+        expect(result.stderr ?? '').not.toMatch(/Blocked (option|argument)/);
+      }
+    });
+
+    it('does not block a positional operand that merely looks like an option', async () => {
+      // After `--`, git treats everything as a pathspec. A file literally named
+      // `--exec` is not an option, and blocking it would be a false positive.
+      const ctx = makeCtx();
+      const result = await execTool.execute(
+        { command: 'git', args: ['log', '--', '--exec'] },
+        ctx,
+        makeOpts(),
+      );
+      expect(result.stderr ?? '').not.toMatch(/Blocked option/);
+    });
+  });
 });
 
 // ─── Coverage: runCommand timer callback and buffer write paths ───────────────

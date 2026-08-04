@@ -50,7 +50,11 @@ describe('runWebUI frontend serving', () => {
     // can lag well past a tick under full-suite + coverage-instrumentation load,
     // so poll with vi.waitFor (retries on ECONNREFUSED) rather than a fixed
     // attempt budget that flakes when the machine is saturated.
-    const url = `http://${info!.host}:${info!.httpPort}/`;
+    // Use the announced access URL, not a bare origin: since H3 the HTTP
+    // surface requires a token on every bind, and `accessUrl` is exactly the
+    // tokenized first-load URL the CLI prints and a browser opens. Fetching a
+    // bare `/` here would assert the pre-H3 behavior.
+    const url = info!.url;
     let res: Response | undefined;
     await vi.waitFor(
       async () => {

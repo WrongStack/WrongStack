@@ -15,12 +15,24 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+
   buildCspHeader,
   createHttpServer,
   decodeSessionId,
   injectWsConfig,
   isInsideDist,
 } from '../src/index.js';
+
+// Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
+// every bind, including loopback. These suites previously exercised the
+// unauthenticated configuration that finding was about.
+const TEST_API_TOKEN = 'test-api-token';
+const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, {
+    ...init,
+    headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
+  });
+
 
 let distDir: string;
 let server: import('node:http').Server;
@@ -35,7 +47,7 @@ beforeAll(async () => {
   await fs.writeFile(path.join(distDir, 'assets', 'app-deadbeef.js'), 'console.log(2);');
   await fs.writeFile(path.join(distDir, 'manifest.json'), '{"name":"test"}');
 
-  server = createHttpServer({ host: '127.0.0.1', distDir });
+  server = createHttpServer({ host: '127.0.0.1', distDir, apiToken: TEST_API_TOKEN });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const addr = server.address();
   if (!addr || typeof addr === 'string') throw new Error('bad listen address');
@@ -209,7 +221,7 @@ describe('injectWsConfig', () => {
 
 describe('createHttpServer', () => {
   it('reports the current WebUI server process memory', async () => {
-    const res = await fetch(`${baseUrl}/debug/system`);
+    const res = await authFetch(`${baseUrl}/debug/system`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/json');
     expect(res.headers.get('cache-control')).toBe('no-store');
@@ -235,7 +247,7 @@ describe('createHttpServer', () => {
   });
 
   it('serves index.html for / with the live WS port stamped in', async () => {
-    const res = await fetch(`${baseUrl}/`);
+    const res = await authFetch(`${baseUrl}/`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('text/html');
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
@@ -244,7 +256,7 @@ describe('createHttpServer', () => {
   });
 
   it('serves .js with the right MIME type', async () => {
-    const res = await fetch(`${baseUrl}/app.js`);
+    const res = await authFetch(`${baseUrl}/app.js`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/javascript');
     expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
@@ -252,14 +264,14 @@ describe('createHttpServer', () => {
   });
 
   it('serves Vite assets with immutable caching', async () => {
-    const res = await fetch(`${baseUrl}/assets/app-deadbeef.js`);
+    const res = await authFetch(`${baseUrl}/assets/app-deadbeef.js`);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
     expect(await res.text()).toBe('console.log(2);');
   });
 
   it('serves .json with application/json', async () => {
-    const res = await fetch(`${baseUrl}/manifest.json`);
+    const res = await authFetch(`${baseUrl}/manifest.json`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/json');
   });
@@ -281,12 +293,94 @@ describe('createHttpServer', () => {
   });
 
   it('falls back to index.html for SPA routes (unknown path)', async () => {
-    const res = await fetch(`${baseUrl}/some/deep/route`);
+    const res = await authFetch(`${baseUrl}/some/deep/route`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('text/html');
     // SPA fallback must also include the CSP — the audit found an
     // unprotected deep-link window otherwise.
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
+  });
+
+  // Security scan 2026-08-04, finding H3. `requireAccessToken` used to be
+  // `Boolean(opts.requireToken) || !isLoopbackBind(opts.host)`, so on the
+  // DEFAULT loopback bind every downstream auth gate was a no-op: any local
+  // process could read every session transcript and POST into a live agent.
+  // WS-005 had already ruled that reaching loopback is not authentication —
+  // the HTTP surface on the same port simply never got the same treatment.
+  describe('the token floor applies on a loopback bind too (H3)', () => {
+    it('401s an /api request with no token on a plain loopback bind', async () => {
+      const server = createHttpServer({
+        host: '127.0.0.1',
+        distDir,
+        apiToken: 'loopback-floor-token',
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        expect((await fetch(`${base}/api/sessions`)).status).toBe(401);
+        // …and the same request with the token is not rejected by the floor.
+        const ok = await fetch(`${base}/api/sessions`, {
+          headers: { 'x-ws-token': 'loopback-floor-token' },
+        });
+        expect(ok.status).not.toBe(401);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+
+    it('accepts the ws_token cookie the browser already holds', async () => {
+      const token = 'cookie-floor-token';
+      const server = createHttpServer({ host: '127.0.0.1', distDir, apiToken: token });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        // First load carries ?token= and mints the cookie…
+        const first = await fetch(`${base}/?token=${encodeURIComponent(token)}`);
+        expect(first.status).toBe(200);
+        const cookie = first.headers.get('set-cookie') ?? '';
+        expect(cookie).toContain('ws_token=');
+        // …which then authenticates ordinary API calls, so the browser needs
+        // no change to keep working.
+        const api = await fetch(`${base}/api/sessions`, { headers: { cookie } });
+        expect(api.status).not.toBe(401);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+
+    it('401s the fleet ping without a token and accepts it with one', async () => {
+      let pinged = 0;
+      const server = createHttpServer({
+        host: '127.0.0.1',
+        distDir,
+        apiToken: 'ping-token',
+        onFleetPing: () => {
+          pinged += 1;
+        },
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        expect((await fetch(`${base}/api/fleet/ping`, { method: 'POST' })).status).toBe(401);
+        expect(pinged).toBe(0);
+        // FleetNotifier reads the token from the instance registry and sends
+        // it as `x-ws-token` — this is that request.
+        const ok = await fetch(`${base}/api/fleet/ping`, {
+          method: 'POST',
+          headers: { 'x-ws-token': 'ping-token' },
+        });
+        expect(ok.status).toBe(204);
+        expect(pinged).toBe(1);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
   });
 
   it('requires token access on non-loopback binds and sets the auth cookie from ?token=', async () => {
@@ -344,7 +438,7 @@ describe('createHttpServer', () => {
   });
 
   it('always sets X-Content-Type-Options=nosniff and X-Frame-Options=DENY', async () => {
-    const res = await fetch(`${baseUrl}/app.js`);
+    const res = await authFetch(`${baseUrl}/app.js`);
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('x-frame-options')).toBe('DENY');
     expect(res.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
@@ -410,7 +504,12 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
         .join('\n') + '\n';
     await fs.writeFile(path.join(paths.projectSessions, `${sessionId}.jsonl`), lines);
 
-    evServer = createHttpServer({ host: '127.0.0.1', distDir, globalRoot: gRoot });
+    evServer = createHttpServer({
+      host: '127.0.0.1',
+      distDir,
+      globalRoot: gRoot,
+      apiToken: TEST_API_TOKEN,
+    });
     await new Promise<void>((resolve) => evServer.listen(0, '127.0.0.1', resolve));
     const addr = evServer.address();
     if (!addr || typeof addr === 'string') throw new Error('bad listen address');
@@ -430,7 +529,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('replays a session into compact watch entries (user / tool / assistant)', async () => {
-    const res = await fetch(`${evBase}/api/sessions/${sessionId}/events`);
+    const res = await authFetch(`${evBase}/api/sessions/${sessionId}/events`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       sessionId: string;
@@ -449,7 +548,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('404s an unknown session', async () => {
-    const res = await fetch(`${evBase}/api/sessions/does-not-exist/events`);
+    const res = await authFetch(`${evBase}/api/sessions/does-not-exist/events`);
     expect(res.status).toBe(404);
   });
 
@@ -458,7 +557,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
       '@wrongstack/core/coordination'
     );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+    const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'please run the tests' }),
@@ -479,7 +578,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('POST .../message 400s on empty text', async () => {
-    const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+    const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: '   ' }),
@@ -488,7 +587,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('POST .../message 404s an unknown session', async () => {
-    const res = await fetch(`${evBase}/api/sessions/nope/message`, {
+    const res = await authFetch(`${evBase}/api/sessions/nope/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'hi' }),
@@ -502,7 +601,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   // user was browsing reached /api/* as a CORS simple request.
   describe('cross-origin request guard', () => {
     it('rejects a POST carrying a foreign Origin', async () => {
-      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+      const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
         body: JSON.stringify({ text: 'attacker steer' }),
@@ -511,7 +610,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     });
 
     it('rejects a POST from another loopback port', async () => {
-      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+      const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:9999' },
         body: JSON.stringify({ text: 'attacker steer' }),
@@ -520,7 +619,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     });
 
     it('rejects the opaque "null" Origin', async () => {
-      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+      const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Origin: 'null' },
         body: JSON.stringify({ text: 'attacker steer' }),
@@ -529,14 +628,14 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     });
 
     it('rejects a GET carrying a foreign Origin', async () => {
-      const res = await fetch(`${evBase}/api/sessions`, {
+      const res = await authFetch(`${evBase}/api/sessions`, {
         headers: { Origin: 'https://evil.example' },
       });
       expect(res.status).toBe(403);
     });
 
     it('accepts a same-origin POST', async () => {
-      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+      const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Origin: evBase },
         body: JSON.stringify({ text: 'legitimate steer' }),
@@ -545,7 +644,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     });
 
     it('rejects a text/plain body — the CORS simple-request content type', async () => {
-      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+      const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ text: 'simple request' }),
@@ -554,7 +653,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     });
 
     it('rejects a form-encoded body', async () => {
-      const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+      const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'text=simple',

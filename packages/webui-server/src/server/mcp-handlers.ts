@@ -27,10 +27,52 @@ import {
   restartMcp,
   updateMcp,
 } from '@wrongstack/mcp';
+import type { TrustBoundary } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
+import { authorizeWebUIAction } from './privileged-actions.js';
 import type { WSClientMessage } from './types.js';
 import { validateMcpServerPayload } from './ws-payload-validation.js';
 import { send } from './ws-utils.js';
+
+/**
+ * Run an MCP mutation that ends in a process spawn past the trust boundary.
+ *
+ * Security scan 2026-08-04, finding M1. `mcp.add`/`mcp.update` accept an
+ * arbitrary `command` + `args` from the wire, persist them to the profile
+ * config, and start the server — the only WS-reachable spawn path that never
+ * consulted the boundary its siblings (`terminal.create`, `process.kill`,
+ * `host.shutdown`, codebase-index control) all go through.
+ *
+ * Risk is `'elevated'`, not `'critical'`, for the reason spelled out at the
+ * `host.shutdown` call site: the default compatibility policy denies
+ * `'critical'` outright for `remote-client` actors, which would break MCP
+ * management in the WebUI for everyone. **Be clear about what this buys.**
+ * Under the default policy it does not block anything — it produces an audit
+ * record for every spawn-capable config mutation and gives a deployment that
+ * installs a stricter boundary a place to say no. That is defense in depth,
+ * not a gate.
+ */
+async function authorizeMcpMutation(
+  ws: WebSocket,
+  operation: 'mcp.add' | 'mcp.update',
+  serverName: string,
+  trustBoundary: TrustBoundary | undefined,
+): Promise<boolean> {
+  if (!trustBoundary) return true;
+  const authorization = await authorizeWebUIAction(trustBoundary, {
+    capability: 'mcp.server.configure',
+    subject: { kind: 'process', id: serverName },
+    risk: 'elevated',
+    metadata: { transport: 'websocket', operation },
+  });
+  if (!authorization.allowed) {
+    send(ws, {
+      type: 'mcp.operation_result',
+      payload: { success: false, message: `${operation} denied: ${authorization.reason}` },
+    });
+  }
+  return authorization.allowed;
+}
 
 /** Wire view of a server as the browser MCP panel consumes it. */
 export interface MCPServerView {
@@ -190,6 +232,7 @@ export async function handleMcpAdd(
   msg: WSClientMessage,
   globalConfigPath: string,
   mcpRegistry?: MCPRegistry,
+  trustBoundary?: TrustBoundary,
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
@@ -201,6 +244,7 @@ export async function handleMcpAdd(
     });
     return;
   }
+  if (!(await authorizeMcpMutation(ws, 'mcp.add', name(msg), trustBoundary))) return;
   const result = await addMcp(validated.value as unknown as McpServerInput, d);
   if (result.ok && result.server) {
     send(ws, { type: 'mcp.server.added', payload: { server: toView(result.server) } });
@@ -225,6 +269,7 @@ export async function handleMcpUpdate(
   msg: WSClientMessage,
   globalConfigPath: string,
   mcpRegistry?: MCPRegistry,
+  trustBoundary?: TrustBoundary,
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
@@ -236,6 +281,7 @@ export async function handleMcpUpdate(
     });
     return;
   }
+  if (!(await authorizeMcpMutation(ws, 'mcp.update', name(msg), trustBoundary))) return;
   const result = await updateMcp(validated.value as unknown as McpServerInput, d);
   if (result.ok && result.server) {
     send(ws, { type: 'mcp.server.updated', payload: { server: toView(result.server) } });

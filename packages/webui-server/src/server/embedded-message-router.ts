@@ -210,8 +210,12 @@ export function createEmbeddedMessageRouter(
 
   const mcp: McpRouteHandlers = {
     list: (ws, msg) => handleMcpList(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
-    add: (ws, msg) => handleMcpAdd(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
-    update: (ws, msg) => handleMcpUpdate(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
+    // add/update are the spawn-capable pair — they take a `command`/`args`
+    // from the wire and start it. They go past the trust boundary (M1).
+    add: (ws, msg) =>
+      handleMcpAdd(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
+    update: (ws, msg) =>
+      handleMcpUpdate(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
     remove: (ws, msg) => handleMcpRemove(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
     enable: (ws, msg) => handleMcpEnable(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
     disable: (ws, msg) => handleMcpDisable(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
