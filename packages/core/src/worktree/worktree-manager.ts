@@ -519,37 +519,47 @@ export class WorktreeManager {
   /**
    * True when staged content still carries conflict markers.
    *
-   * Primary probe: `git grep --cached` scans the STAGED blobs directly for a
-   * full marker line (`<<<<<<< `, `=======`, `>>>>>>> `, `||||||| `) — exit 0
-   * means found. This is byte-level and independent of git version, locale,
-   * and human-output phrasing. When the caller knows which files conflicted,
-   * the scan is restricted to them so an unrelated `=======` underline in
-   * some document can't false-positive.
+   * Reads the working-tree files directly and matches a full marker line
+   * (`<<<<<<< `, `=======`, `>>>>>>> `, `||||||| `) with a lenient regex
+   * (`{7,}`) that stays platform- and config-independent — unlike the old
+   * `git diff --check` (only fires when `core.whitespace` opts in) and
+   * `git grep` (assumes the default 7-char markers).
    *
-   * Fallback probe: `git diff --cached --check` prints a "leftover conflict
-   * marker" line per survivor. Kept as belt-and-braces — it was the original
-   * sole probe, but CI runners were observed to miss markers through it
-   * (output parsing), which let a half-resolved merge commit.
+   * Scan set: when the caller supplies the conflicted paths (the normal
+   * path from {@link tryResolveConflict}), ONLY those files are scanned so
+   * an unrelated `=======` setext-heading underline in a staged document
+   * can't false-positive and discard valid resolution work. The staged-file
+   * listing (`git diff --cached --name-only`) is used only as a fallback
+   * when no paths are given.
+   *
+   * CRLF caveat: conflicted files checked out with CRLF (`core.autocrlf=true`,
+   * `.gitattributes eol=crlf`) carry bare markers as `=======\r\n`. Because
+   * `$` in multiline mode matches only before `\n`, carriage returns are
+   * stripped before matching so `\r` never defeats the end-of-line anchor.
    */
   private async hasConflictMarkers(files?: string[]): Promise<boolean> {
-    // Scan staged content directly instead of relying on git config:
-    // `git diff --check` only treats conflict markers as whitespace errors
-    // when core.whitespace opts in (not a git default), and `git grep`
-    // assumes the default 7-character markers (merge.conflictMarkerSize
-    // can differ across runners). Reading the files and matching marker
-    // lines here is platform- and config-independent — a half-resolved
-    // merge must never be committed.
+    // When the caller knows which files conflicted, scan only those — the
+    // union with all staged files would false-positive on legitimate
+    // `=======` underlines in staged documents (e.g. markdown setext
+    // headings) and discard valid resolution work. The staged listing is a
+    // fallback for callers that don't supply paths.
     const listed = files ?? [];
-    const staged = (
-      await this.runGit(['diff', '--cached', '--name-only', '-z'], this.projectRoot)
-    ).stdout
-      .split('\0')
-      .filter(Boolean);
-    const paths = [...new Set([...listed, ...staged])];
+    const paths =
+      listed.length > 0
+        ? listed
+        : (
+            await this.runGit(['diff', '--cached', '--name-only', '-z'], this.projectRoot)
+          ).stdout
+            .split('\0')
+            .filter(Boolean);
+    // {7,} covers merge.conflictMarkerSize > 7; `\r` is stripped so the `$`
+    // anchor (matches only before `\n` in /m) is not defeated by CRLF.
     const marker = /^(?:<{7,}(?: |$)|={7,}$|>{7,}(?: |$)|\|{7,}(?: |$))/m;
     for (const rel of paths) {
       try {
-        const content = await readFile(join(this.projectRoot, rel), 'utf8');
+        const content = (
+          await readFile(join(this.projectRoot, rel), 'utf8')
+        ).replace(/\r/g, '');
         if (marker.test(content)) return true;
       } catch {
         // Deleted or unreadable — nothing to scan.
