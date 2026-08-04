@@ -292,12 +292,13 @@
     "languageHeading": "Dil",
     "languageLabel": "Arayüz dili",
     "languageHint": "Yalnızca arayüz metnini değiştirir. Promptlar, beceriler ve model çıktısı etkilenmez.",
-    "accentCyan": "Camgöbeği",
-    "accentBlue": "Mavi",
-    "accentEmerald": "Zümrüt",
-    "accentViolet": "Mor",
-    "accentRose": "Gül",
-    "accentAmber": "Kehribar"
+    "paletteHeading": "Renk paleti",
+    "paletteSwitcherTitle": "Renk paleti",
+    "paletteHint": "Ana rengi (ve türevlerini) seçin. Nötr yüzeyler aynı kalır.",
+    "paletteSignal": "Sinyal",
+    "paletteEmeraldGold": "Zümrüt & Altın",
+    "paletteBlueNavy": "Lacivert",
+    "palettePurplePink": "Mor & Pembe"
   },
   "agent": {
     "autonomyHeading": "Otonomi ve Davranış",

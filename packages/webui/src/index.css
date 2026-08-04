@@ -128,6 +128,77 @@
     --surface-3: 70 5.3% 22.4%;
     --shadow-color: 60 5.9% 6.7%;
   }
+
+  /* ── Color palettes ──────────────────────────────────────────────────────
+     Users can pick a palette on top of light/dark. Each palette swaps the
+     brand-signal tokens — the main color (--primary) plus its derivatives
+     (--ring focus, --running indicator, --accent hover tint, --brand-orange
+     secondary signal). The neutral surfaces (background/card/border/muted)
+     stay shared so the whole UI never re-paints per palette.
+
+     The current palette is carried on <html> as `data-palette="…"`, set by
+     ThemeProvider. The default "signal" palette needs no block — it IS the
+     base token set above. Everything downstream resolves through
+     `hsl(var(--token))`, so no component changes are required when a palette
+     is added: just add a CSS block + a `lib/palettes.ts` entry + an i18n key.
+  */
+
+  :root[data-palette='emerald-gold'] {
+    --primary: 151 68% 30%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 151 68% 30%;
+    --running: 151 68% 30%;
+    --accent: 45 60% 88%;
+    --accent-foreground: 38 80% 24%;
+    --brand-orange: 40 92% 42%;
+  }
+  .dark[data-palette='emerald-gold'] {
+    --primary: 152 66% 48%;
+    --primary-foreground: 155 40% 7%;
+    --ring: 152 66% 48%;
+    --running: 152 66% 48%;
+    --accent: 42 38% 18%;
+    --accent-foreground: 42 92% 62%;
+    --brand-orange: 42 96% 54%;
+  }
+
+  :root[data-palette='blue-navy'] {
+    --primary: 217 89% 42%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 217 89% 42%;
+    --running: 217 89% 42%;
+    --accent: 216 62% 90%;
+    --accent-foreground: 222 72% 30%;
+    --brand-orange: 32 94% 42%;
+  }
+  .dark[data-palette='blue-navy'] {
+    --primary: 213 90% 60%;
+    --primary-foreground: 222 47% 9%;
+    --ring: 213 90% 60%;
+    --running: 213 90% 60%;
+    --accent: 218 44% 19%;
+    --accent-foreground: 213 92% 76%;
+    --brand-orange: 36 96% 54%;
+  }
+
+  :root[data-palette='purple-pink'] {
+    --primary: 262 75% 50%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 262 75% 50%;
+    --running: 262 75% 50%;
+    --accent: 330 72% 92%;
+    --accent-foreground: 335 72% 34%;
+    --brand-orange: 332 85% 45%;
+  }
+  .dark[data-palette='purple-pink'] {
+    --primary: 263 82% 66%;
+    --primary-foreground: 262 42% 8%;
+    --ring: 263 82% 66%;
+    --running: 263 82% 66%;
+    --accent: 330 44% 20%;
+    --accent-foreground: 332 92% 74%;
+    --brand-orange: 332 94% 62%;
+  }
 }
 
 @layer base {

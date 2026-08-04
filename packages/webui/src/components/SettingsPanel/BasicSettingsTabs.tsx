@@ -3,6 +3,8 @@ import { useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, LANGUAGES, useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { PALETTES } from '@/lib/palettes';
 import { useConfigStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useTheme } from '../ThemeProvider';
@@ -49,7 +51,7 @@ export function ConnectionSettingsTab() {
 
 export function AppearanceSettingsTab() {
   const { t } = useAppTranslation();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, palette, setPalette } = useTheme();
   const { updatePrefs } = useWebSocket();
   const localPrefs = useLocalPrefs();
   const syncPref = useCallback(
@@ -101,6 +103,36 @@ export function AppearanceSettingsTab() {
         <p className="text-xs text-muted-foreground mt-2">
           {t('settings:general.themeSystemHint')}
         </p>
+      </div>
+
+      <div className="pt-2 border-t">
+        <h3 className="text-sm font-semibold mb-3 mt-3">{t('settings:general.paletteHeading')}</h3>
+        <div className="grid grid-cols-2 gap-2 max-w-md sm:grid-cols-4">
+          {PALETTES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setPalette(option.id)}
+              aria-pressed={palette === option.id}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-md border px-2 py-2 text-xs transition-colors',
+                palette === option.id
+                  ? 'border-primary/50 bg-primary/10 text-foreground'
+                  : 'border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              )}
+            >
+              <span
+                aria-hidden
+                className="h-5 w-full max-w-14 rounded-[3px] border border-border/60"
+                style={{
+                  background: `linear-gradient(90deg, ${option.swatch} 0 50%, ${option.swatchSecondary} 50% 100%)`,
+                }}
+              />
+              {t(option.labelKey)}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">{t('settings:general.paletteHint')}</p>
       </div>
 
       <div className="pt-2 border-t">

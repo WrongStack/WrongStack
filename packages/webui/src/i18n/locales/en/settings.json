@@ -53,12 +53,13 @@
     "animationStyleCycle": "Cycle",
     "thinkingWordLabel": "Thinking word (CLI/TUI)",
     "thinkingWordHint": "Word shown in the TUI status chip. Single short word.",
-    "accentCyan": "Cyan",
-    "accentBlue": "Blue",
-    "accentEmerald": "Emerald",
-    "accentViolet": "Violet",
-    "accentRose": "Rose",
-    "accentAmber": "Amber"
+    "paletteHeading": "Color palette",
+    "paletteSwitcherTitle": "Color palette",
+    "paletteHint": "Pick the main color (and its derivatives). Neutral surfaces stay the same.",
+    "paletteSignal": "Signal",
+    "paletteEmeraldGold": "Emerald & Gold",
+    "paletteBlueNavy": "Blue Navy",
+    "palettePurplePink": "Purple & Pink"
   },
   "model": {
     "heading": "Model",

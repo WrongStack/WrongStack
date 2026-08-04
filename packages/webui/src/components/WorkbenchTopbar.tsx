@@ -1,10 +1,19 @@
-import { Bot, Command, Cpu, Moon, Search, Settings, Sparkles, Sun, Wifi, WifiOff } from 'lucide-react';
+import { Bot, Check, Command, Cpu, Moon, Palette, Search, Settings, Sparkles, Sun, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useConfigStore, useSessionStore } from '@/stores';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { getPalette, PALETTES } from '@/lib/palettes';
 import { useTheme } from './ThemeProvider';
 import { CronTrigger } from './CronTrigger';
 import { InspectorTrigger } from './InspectorPanel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -112,7 +121,8 @@ export function WorkbenchTopbar({
   onModel: () => void;
   onSettings: () => void;
 }) {
-  const { theme, setTheme } = useTheme();
+  const { t } = useAppTranslation();
+  const { theme, setTheme, palette, setPalette } = useTheme();
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const appVersion = useSessionStore((s) => s.appVersion);
   const latestVersion = useSessionStore((s) => s.latestVersion);
@@ -275,6 +285,40 @@ export function WorkbenchTopbar({
           >
             {effectiveTheme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                title={`${t('settings:general.paletteSwitcherTitle')}: ${t(getPalette(palette).labelKey)}`}
+                aria-label={`${t('settings:general.paletteSwitcherTitle')}: ${t(getPalette(palette).labelKey)}`}
+              >
+                <Palette className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{t('settings:general.paletteHeading')}</DropdownMenuLabel>
+              {PALETTES.map((option) => (
+                <DropdownMenuItem
+                  key={option.id}
+                  onSelect={() => setPalette(option.id)}
+                  className="gap-2"
+                >
+                  <span
+                    aria-hidden
+                    className="h-4 w-4 shrink-0 rounded-[3px] border border-border/70"
+                    style={{
+                      background: `linear-gradient(90deg, ${option.swatch} 0 50%, ${option.swatchSecondary} 50% 100%)`,
+                    }}
+                  />
+                  <span className="flex-1">{t(option.labelKey)}</span>
+                  {palette === option.id ? (
+                    <Check className="h-3.5 w-3.5 text-primary" aria-hidden />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <InspectorTrigger />
           <CronTrigger />
           <span

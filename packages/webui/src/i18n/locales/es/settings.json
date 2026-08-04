@@ -292,12 +292,13 @@
     "languageHeading": "Idioma",
     "languageLabel": "Idioma de la interfaz",
     "languageHint": "Cambia solo el texto de la interfaz. Los prompts, las habilidades y la salida del modelo no se ven afectados.",
-    "accentCyan": "Cian",
-    "accentBlue": "Azul",
-    "accentEmerald": "Esmeralda",
-    "accentViolet": "Violeta",
-    "accentRose": "Rosa",
-    "accentAmber": "Ámbar"
+    "paletteHeading": "Paleta de colores",
+    "paletteSwitcherTitle": "Paleta de colores",
+    "paletteHint": "Elige el color principal (y sus derivados). Las superficies neutras permanecen igual.",
+    "paletteSignal": "Señal",
+    "paletteEmeraldGold": "Esmeralda y dorado",
+    "paletteBlueNavy": "Azul marino",
+    "palettePurplePink": "Violeta y rosa"
   },
   "agent": {
     "autonomyHeading": "Autonomía y Comportamiento",

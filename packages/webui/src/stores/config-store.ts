@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isPaletteId, type PaletteId } from '@/lib/palettes';
 import { defaultWsUrl } from '@/lib/ws-client-utils';
 
 // ============================================
@@ -21,6 +22,10 @@ export interface ConfigState {
     | { state: 'closed'; error?: string | undefined }
     | { state: 'reconnecting'; attempt: number; nextRetryAt: number; lastError?: string | undefined };
   theme: 'light' | 'dark' | 'system';
+  /** Selected color palette id — see `lib/palettes.ts` + `index.css` token
+   *  blocks. Mirrors the ThemeProvider's `wrongstack-palette` localStorage
+   *  entry so the choice survives reloads and cross-surface config reads. */
+  palette: PaletteId;
   autoConnect: boolean;
   /** Play a soft synthesized chime when run.result lands with status=done.
    *  Off by default — opt-in via the Command Palette. Persisted so the
@@ -31,9 +36,12 @@ export interface ConfigState {
   setProvider: (provider: string) => void;
   setModel: (model: string) => void;
   setConfig: (
-    config: Partial<Omit<ConfigState, 'setProvider' | 'setModel' | 'setConfig' | 'setTheme'>>,
+    config: Partial<
+      Omit<ConfigState, 'setProvider' | 'setModel' | 'setConfig' | 'setTheme' | 'setPalette'>
+    >,
   ) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setPalette: (palette: PaletteId) => void;
   setWsConnected: (connected: boolean) => void;
   setWsStatus: (s: ConfigState['wsStatus']) => void;
   setSoundOnComplete: (on: boolean) => void;
@@ -48,12 +56,14 @@ export const useConfigStore = create<ConfigState>()(
       wsConnected: false,
       wsStatus: { state: 'connecting' },
       theme: 'system',
+      palette: 'signal',
       autoConnect: true,
       soundOnComplete: false,
       setProvider: (provider) => set({ provider }),
       setModel: (model) => set({ model }),
       setConfig: (config) => set(config),
       setTheme: (theme) => set({ theme }),
+      setPalette: (palette) => set({ palette }),
       setWsConnected: (connected) => set({ wsConnected: connected }),
       setWsStatus: (wsStatus) => set({ wsStatus, wsConnected: wsStatus.state === 'open' }),
       setSoundOnComplete: (on) => set({ soundOnComplete: on }),
@@ -72,6 +82,7 @@ export const useConfigStore = create<ConfigState>()(
         model: state.model,
         baseUrl: state.baseUrl,
         theme: state.theme,
+        palette: state.palette,
         autoConnect: state.autoConnect,
         soundOnComplete: state.soundOnComplete,
       }),
@@ -88,6 +99,9 @@ export const useConfigStore = create<ConfigState>()(
           wsUrl: defaultWsUrl(),
           wsConnected: false,
           wsStatus: { state: 'connecting' },
+          // A corrupted/legacy persisted palette id must not land in store
+          // state — fall back to the current (validated) value instead.
+          palette: isPaletteId(rest.palette) ? rest.palette : current.palette,
         };
       },
     },

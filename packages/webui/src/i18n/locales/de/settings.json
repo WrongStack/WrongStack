@@ -292,12 +292,13 @@
     "languageHeading": "Sprache",
     "languageLabel": "Oberflächensprache",
     "languageHint": "Ändert nur den Oberflächentext. Prompts, Skills und Modellausgaben bleiben unberührt.",
-    "accentCyan": "Cyan",
-    "accentBlue": "Blau",
-    "accentEmerald": "Smaragd",
-    "accentViolet": "Violett",
-    "accentRose": "Rose",
-    "accentAmber": "Bernstein"
+    "paletteHeading": "Farbpalette",
+    "paletteSwitcherTitle": "Farbpalette",
+    "paletteHint": "Wähle die Hauptfarbe (und ihre Ableitungen). Neutrale Flächen bleiben gleich.",
+    "paletteSignal": "Signal",
+    "paletteEmeraldGold": "Smaragd & Gold",
+    "paletteBlueNavy": "Marineblau",
+    "palettePurplePink": "Violett & Pink"
   },
   "agent": {
     "autonomyHeading": "Autonomie & Verhalten",
