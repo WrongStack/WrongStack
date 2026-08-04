@@ -271,7 +271,7 @@
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
-      "lines": 980,
+      "lines": 1018,
       "relativeImports": 5
     },
     "packages/security-scanner/src/orchestrator.ts": {
@@ -319,7 +319,7 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 889,
+      "lines": 933,
       "relativeImports": 17
     },
     "packages/tui/src/app-state.ts": {
@@ -331,7 +331,7 @@
       "relativeImports": 48
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1040,
+      "lines": 1073,
       "relativeImports": 66
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -359,7 +359,7 @@
       "relativeImports": 3
     },
     "packages/tui/src/components/scrollable-history.tsx": {
-      "lines": 1023,
+      "lines": 1030,
       "relativeImports": 22
     },
     "packages/tui/src/components/settings-picker-model.ts": {
@@ -367,8 +367,8 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-panels.tsx": {
-      "lines": 1192,
-      "relativeImports": 12
+      "lines": 1200,
+      "relativeImports": 13
     },
     "packages/tui/src/components/status-bar.tsx": {
       "lines": 1152,

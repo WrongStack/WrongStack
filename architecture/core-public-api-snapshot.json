@@ -1289,7 +1289,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused worktree implementation",
       "sourceFiles": 5,
-      "sourceLines": 1178
+      "sourceLines": 1199
     }
   ]
 }

@@ -129,9 +129,14 @@ describe('coverage lock script', () => {
 
     await expect(result).resolves.toBe(0);
     expect(harness.options.writeFile).toHaveBeenCalledWith(7, '42\n');
-    expect(harness.options.writeFile.mock.invocationCallOrder[0]).toBeLessThan(
-      harness.options.closeFile.mock.invocationCallOrder[0],
-    );
+    const writeCallOrder = harness.options.writeFile.mock.invocationCallOrder[0];
+    const closeCallOrder = harness.options.closeFile.mock.invocationCallOrder[0];
+    expect(writeCallOrder).toBeDefined();
+    expect(closeCallOrder).toBeDefined();
+    if (writeCallOrder === undefined || closeCallOrder === undefined) {
+      throw new Error('expected coverage lock writes and closes to be called');
+    }
+    expect(writeCallOrder).toBeLessThan(closeCallOrder);
     expect(harness.options.closeFile).toHaveBeenCalledWith(7);
     expect(harness.options.unlinkFile).toHaveBeenCalledWith('test.coverage.lock');
   });
