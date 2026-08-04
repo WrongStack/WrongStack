@@ -256,6 +256,23 @@ export class WorktreeManager {
    * Safe because SDD merges are serialized — no other commit lands in between.
    */
   async revertBaseTo(handle: WorktreeHandle, sha: string): Promise<boolean> {
+    // Never hard-reset tracked/index dirt: `checkout baseBranch` no-ops when
+    // already on base (succeeding even with uncommitted changes), and the
+    // reset would silently destroy tracked working-tree/index edits. Same
+    // guard as merge/mergeBranch/revertCommits — the caller (SDD rollback)
+    // already handles the `false` return.
+    //
+    // Untracked files (`??`) are exempt: `reset --hard` and a same-branch
+    // checkout leave untracked files untouched, so verification artifacts
+    // written before a post-merge verification failure do NOT block restoring
+    // the captured base SHA — the invalid merge is reverted while the output
+    // stays on disk for inspection.
+    const status = await this.runGit(['status', '--porcelain'], this.projectRoot);
+    if (status.code !== 0) return false;
+    const hasTrackedDirt = status.stdout
+      .split('\n')
+      .some((line) => line.trim().length > 0 && !line.startsWith('??'));
+    if (hasTrackedDirt) return false;
     const co = await this.runGit(['checkout', handle.baseBranch], this.projectRoot);
     if (co.code !== 0) return false;
     const reset = await this.runGit(['reset', '--hard', sha], this.projectRoot);

@@ -193,5 +193,11 @@ export interface RunResult {
   totalDurationMs: number;
   deadlocked: boolean;
   stopRequested: boolean;
+  /**
+   * Fatal, non-recoverable run error — set when the run hard-stopped
+   * (`stopRequested: true`) because no retry could fix the base state
+   * (e.g. a known-invalid merge that could not be rolled back).
+   */
+  fatalError?: string | undefined;
   finalProgress: TaskProgress;
 }

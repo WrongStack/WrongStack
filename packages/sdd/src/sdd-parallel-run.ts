@@ -105,6 +105,12 @@ export class SddParallelRun {
    * snapshot so a post-run rollback can read them off disk.
    */
   private mergedCommits: Array<{ taskId: string; sha: string; title: string }> = [];
+  /**
+   * Fatal, non-recoverable run error — set together with `stopRequested` when
+   * the run hard-stops (e.g. a known-invalid merge that could not be rolled
+   * back). Surfaced on `run()`'s result so the caller can see WHY it stopped.
+   */
+  private fatalError: string | undefined;
   /** Monotonic dispatch counter (unique subagent ids) + dispatch-round counter. */
   private dispatchSeq = 0;
   private round = 0;
@@ -487,6 +493,7 @@ export class SddParallelRun {
       completed: finalProgress.completed,
       failed: finalProgress.failed,
       stopped: this.stopRequested,
+      ...(this.fatalError ? { fatalError: this.fatalError } : {}),
     });
 
     return {
@@ -496,6 +503,7 @@ export class SddParallelRun {
       totalDurationMs: Date.now() - startTime,
       deadlocked,
       stopRequested: this.stopRequested,
+      ...(this.fatalError ? { fatalError: this.fatalError } : {}),
       finalProgress,
     };
   }
@@ -612,6 +620,18 @@ export class SddParallelRun {
         this.forgetWorktree(taskId);
       }
     }
+  }
+
+  /**
+   * Hard-stop the run after an unrecoverable error: the base branch is in a
+   * state no retry can fix (e.g. a known-invalid merge that could not be rolled
+   * back), so continuing would contaminate every task forked after this point.
+   * The reason is surfaced on `run()`'s result and the `sdd.run.finished` event.
+   */
+  private abortRun(reason: string): void {
+    this.fatalError = reason;
+    this.stopRequested = true;
+    this.coordinator?.stopAll();
   }
 
   // -------------------------------------------------------------------
@@ -807,7 +827,7 @@ export class SddParallelRun {
   private async integrateWorktree(
     task: TaskNode,
     result?: TaskResult,
-  ): Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string }> {
+  ): Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string; fatal?: boolean }> {
     const wt = this.opts.worktrees;
     if (!wt) return { ok: true };
     const handle = this.taskWorktrees.get(task.id);
@@ -852,7 +872,21 @@ export class SddParallelRun {
             regressed = `verification error after conflict resolution: ${String(err)}`;
           }
           if (regressed) {
-            await wt.revertBaseTo(handle, baseSha).catch(() => {});
+            const rolledBack = await wt.revertBaseTo(handle, baseSha).catch(() => false);
+            if (!rolledBack) {
+              // Rollback refused (tracked/index edits block the hard reset) —
+              // the known-invalid merge is still on the base branch. Continuing
+              // would fork every subsequent task off the contaminated base, so
+              // hard-stop the run and keep the worktree + verification output
+              // on disk for inspection. Terminal-fail the task so nothing
+              // re-dispatches against the bad base without human intervention.
+              this.abortRun(
+                `cannot roll back invalid merge of "${task.title}" (${task.id}): ${regressed}`,
+              );
+              await wt.release(handle, { keep: true }).catch(() => {});
+              this.forgetWorktree(task.id, { keepBranchLabel: true });
+              return { ok: false, conflictFiles: [], reason: regressed, fatal: true };
+            }
             await wt.release(handle, { keep: false }).catch(() => {});
             this.forgetWorktree(task.id, { keepBranchLabel: true });
             return { ok: false, conflictFiles: [], reason: regressed };

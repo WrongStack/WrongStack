@@ -624,6 +624,104 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
     }
   }, 120_000);
 
+  it('revertBaseTo restores the captured tip when only untracked files dirty the tree', async () => {
+    // Post-merge verification writes an untracked artifact and then fails.
+    // Untracked files survive `reset --hard`, so the rollback must still
+    // restore the captured base SHA — and leave the artifact on disk for
+    // inspection (the regression scenario the dirty-tree guard regressed on).
+    const base = await makeRepo();
+    try {
+      const wm = new WorktreeManager({ projectRoot: base });
+      const h = await wm.allocate('p', { slugHint: 'revert-untracked' });
+
+      await fs.writeFile(path.join(h.dir, 'seed.txt'), 'line1\nWORKTREE\nline3\n');
+      await wm.commitAll(h, 'edit on branch');
+      await fs.writeFile(path.join(base, 'seed.txt'), 'line1\nBASE\nline3\n');
+      spawnSync('git', ['-C', base, 'commit', '-aqm', 'edit on base'], {
+        stdio: 'ignore',
+        env: GIT_ENV,
+      });
+
+      const preSha = await wm.baseHead(h);
+      expect(preSha).toBeTruthy();
+
+      const m = await wm.merge(h, {
+        squash: true,
+        resolve: async ({ cwd }) => {
+          await fs.writeFile(path.join(cwd, 'seed.txt'), 'line1\nBASE+WORKTREE\nline3\n');
+          return true;
+        },
+      });
+      expect(m.ok).toBe(true);
+      expect(m.resolved).toBe(true);
+
+      // Verification dirties the tree with an untracked artifact before failing.
+      await fs.writeFile(path.join(base, 'verify-artifact.log'), 'regression evidence\n');
+      expect(await wm.revertBaseTo(h, preSha!)).toBe(true);
+
+      // Base tip is back at the captured pre-merge commit…
+      const reverted = spawnSync('git', ['-C', base, 'log', '-1', '--pretty=%H'], {
+        encoding: 'utf8',
+        env: GIT_ENV,
+      });
+      expect(reverted.stdout.trim()).toBe(preSha);
+      const onBase = await fs.readFile(path.join(base, 'seed.txt'), 'utf8');
+      expect(onBase.replace(/\r/g, '')).toBe('line1\nBASE\nline3\n');
+      // …while the untracked verification output is preserved.
+      const artifact = await fs.readFile(path.join(base, 'verify-artifact.log'), 'utf8');
+      expect(artifact).toContain('regression evidence');
+    } finally {
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it('revertBaseTo refuses on tracked edits so verification output is never destroyed', async () => {
+    // When verification MODIFIES a tracked file before failing, the hard reset
+    // would silently destroy those edits — the guard must refuse (false), which
+    // the SDD caller treats as a hard-stop, leaving the base tip untouched.
+    const base = await makeRepo();
+    try {
+      const wm = new WorktreeManager({ projectRoot: base });
+      const h = await wm.allocate('p', { slugHint: 'revert-tracked' });
+
+      await fs.writeFile(path.join(h.dir, 'seed.txt'), 'line1\nWORKTREE\nline3\n');
+      await wm.commitAll(h, 'edit on branch');
+      await fs.writeFile(path.join(base, 'seed.txt'), 'line1\nBASE\nline3\n');
+      spawnSync('git', ['-C', base, 'commit', '-aqm', 'edit on base'], {
+        stdio: 'ignore',
+        env: GIT_ENV,
+      });
+
+      const preSha = await wm.baseHead(h);
+      expect(preSha).toBeTruthy();
+
+      const m = await wm.merge(h, {
+        squash: true,
+        resolve: async ({ cwd }) => {
+          await fs.writeFile(path.join(cwd, 'seed.txt'), 'line1\nBASE+WORKTREE\nline3\n');
+          return true;
+        },
+      });
+      expect(m.ok).toBe(true);
+
+      // Verification edits a TRACKED file before failing — rollback must refuse.
+      await fs.writeFile(path.join(base, 'seed.txt'), 'line1\nEDITED BY VERIFICATION\nline3\n');
+      expect(await wm.revertBaseTo(h, preSha!)).toBe(false);
+
+      // The base tip is NOT rolled back (the merge commit is still in place)
+      // and the tracked edit survives untouched.
+      const tip = spawnSync('git', ['-C', base, 'log', '-1', '--pretty=%H'], {
+        encoding: 'utf8',
+        env: GIT_ENV,
+      });
+      expect(tip.stdout.trim()).not.toBe(preSha);
+      const onBase = await fs.readFile(path.join(base, 'seed.txt'), 'utf8');
+      expect(onBase).toContain('EDITED BY VERIFICATION');
+    } finally {
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  }, 120_000);
+
   // #249: git merge on Windows CI can behave differently with auto-crlf and
   // other git-config defaults, causing the merge to succeed (no conflict)
   // instead of leaving markers. Skip on Windows until the root cause is found.

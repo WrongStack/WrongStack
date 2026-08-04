@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 239,
-      "typeOnly": 194,
+      "files": 240,
+      "typeOnly": 195,
       "runtimeOrMixed": 65
     },
     "@wrongstack/core/agent-catalog": {
@@ -1391,6 +1391,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/tests/sidebar-mission-queue.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/tests/sidebar-worklist-wrap.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

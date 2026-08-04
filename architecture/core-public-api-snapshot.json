@@ -1170,7 +1170,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3444
+      "sourceLines": 3446
     },
     {
       "directory": "middleware",
@@ -1289,7 +1289,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused worktree implementation",
       "sourceFiles": 5,
-      "sourceLines": 1137
+      "sourceLines": 1178
     }
   ]
 }

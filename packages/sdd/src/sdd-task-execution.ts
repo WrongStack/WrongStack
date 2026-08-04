@@ -25,7 +25,7 @@ export async function executeSddTask(params: {
   integrateWorktree: (
     task: TaskNode,
     result?: TaskResult,
-  ) => Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string }>;
+  ) => Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string; fatal?: boolean }>;
   applyTaskFailure: (taskId: string, subagentId: string, errMsg: string) => Promise<void>;
 }): Promise<TaskOutcome> {
   const { task, opts } = params;
@@ -140,7 +140,20 @@ export async function executeSddTask(params: {
         taskId,
         reason: merged.reason,
       });
-      await params.applyTaskFailure(taskId, subagentId, merged.reason);
+      if (merged.fatal) {
+        // Unrecoverable: the base branch could not be restored (the invalid
+        // merge is still on it). A retry would fork from the contaminated
+        // base, so fail terminally — a human must fix the base first.
+        opts.tracker.updateNodeStatus(taskId, 'failed', merged.reason);
+        params.emit('sdd.task.failed', {
+          runId: params.runId,
+          taskId,
+          subagentId,
+          error: merged.reason,
+        });
+      } else {
+        await params.applyTaskFailure(taskId, subagentId, merged.reason);
+      }
     } else {
       const conflictFiles = merged.conflictFiles ?? [];
       params.emit('sdd.task.conflict', { runId: params.runId, taskId, conflictFiles });

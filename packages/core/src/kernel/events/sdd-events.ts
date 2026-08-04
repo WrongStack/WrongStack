@@ -21,6 +21,8 @@ export interface SddEventMap {
     completed: number;
     failed: number;
     stopped: boolean;
+    /** Fatal, non-recoverable error that hard-stopped the run (implies `stopped: true`). */
+    fatalError?: string | undefined;
   };
   /** A task began executing on a worker (carries who + which worktree). */
   'sdd.task.started': {

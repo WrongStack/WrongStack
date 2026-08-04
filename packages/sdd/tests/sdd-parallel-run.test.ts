@@ -206,6 +206,55 @@ describe('SddParallelRun.executeWave', () => {
     expect(tracker.getAllNodes({ status: ['failed'] })).toHaveLength(1);
   });
 
+  it('hard-stops the run when the invalid merge cannot be rolled back after verification dirties the tree', async () => {
+    // Post-merge verification edits a TRACKED file and then fails; the rollback
+    // guard refuses (false). The run must hard-stop (never fork subsequent
+    // tasks off the contaminated base), keep the worktree for inspection, and
+    // terminal-fail the task — no retry against the bad base.
+    const releases: Array<{ keep?: boolean }> = [];
+    const fakeWorktrees = {
+      allocate: vi.fn(async (ownerId: string) => ({
+        id: ownerId,
+        ownerId,
+        status: 'active',
+        dir: `/wt/${ownerId}`,
+        branch: `b-${ownerId}`,
+        baseBranch: 'main',
+      })),
+      commitAll: vi.fn(async () => {}),
+      baseHead: vi.fn(async () => 'SHA0'),
+      merge: vi.fn(async () => ({ ok: true, resolved: true })),
+      revertBaseTo: vi.fn(async () => false), // refuses: tracked dirt blocks the reset
+      release: vi.fn(async (_h: unknown, o: { keep?: boolean }) => {
+        releases.push(o);
+      }),
+    };
+    const verifyTask = vi.fn(async ({ cwd }: { cwd: string }) =>
+      cwd === '/proj' ? { ok: false, reason: 'integration regressed' } : { ok: true },
+    );
+
+    const { run, tracker, t1 } = await makeHarness({
+      maxRetries: 2,
+      worktrees: fakeWorktrees,
+      conflictResolver: async () => true,
+      verifyTask,
+    });
+    (run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
+
+    await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
+
+    // Hard-stop: stop flag + surfaced reason, worktree kept (not released),
+    // and the task is terminal-failed (no pending retry against the bad base).
+    expect((run as never as { stopRequested: boolean }).stopRequested).toBe(true);
+    expect((run as never as { fatalError: string | undefined }).fatalError).toContain(
+      'cannot roll back invalid merge',
+    );
+    expect(releases).toEqual([{ keep: true }]);
+    // The task is terminal-failed — never requeued (pending) against the bad base.
+    expect(tracker.getNode(t1.id)?.status).toBe('failed');
+    expect(tracker.getAllNodes({ status: ['failed'] })).toHaveLength(1);
+  });
+
   it('marks a task failed once retries are exhausted, formatting the error', async () => {
     const { run, tracker, t1 } = await makeHarness({ maxRetries: 0 });
     const coord = fakeCoordinator({
