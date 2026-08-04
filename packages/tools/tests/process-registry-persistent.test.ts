@@ -123,21 +123,23 @@ describe('PersistentProcessRegistry', () => {
   });
 
   describe('registerMainProcess', () => {
-    it('registers the main process in the persistent store', () => {
+    it('registers the main process in the persistent store', async () => {
       registry.registerMainProcess();
-      expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
+      // register* persists fire-and-forget through acquireLock, which now
+      // awaits an fs.mkdir first — assert asynchronously.
+      await vi.waitFor(() => expect(vi.mocked(fs.writeFile)).toHaveBeenCalled());
     });
   });
 
   describe('registerChildProcess', () => {
-    it('registers a child process and stores it', () => {
+    it('registers a child process and stores it', async () => {
       registry.registerChildProcess(9999, 'test-child', 'node test.js', 'sess-1', 'spawn');
-      expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
+      await vi.waitFor(() => expect(vi.mocked(fs.writeFile)).toHaveBeenCalled());
     });
 
-    it('accepts fork mode', () => {
+    it('accepts fork mode', async () => {
       registry.registerChildProcess(8888, 'fork-child', 'node worker.js', undefined, 'fork');
-      expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
+      await vi.waitFor(() => expect(vi.mocked(fs.writeFile)).toHaveBeenCalled());
     });
   });
 
@@ -198,7 +200,7 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
     mockStore.clear();
   });
 
-  it('recovers from EEXIST lock contention (stale lock by age)', () => {
+  it('recovers from EEXIST lock contention (stale lock by age)', async () => {
     let attempt = 0;
     vi.mocked(fs.writeFile).mockImplementation(
       async (filePath: Parameters<typeof fs.writeFile>[0]) => {
@@ -222,7 +224,7 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
 
     const r = new PersistentProcessRegistry();
     r.registerChildProcess(111, 'test', 'cmd');
-    expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
+    await vi.waitFor(() => expect(vi.mocked(fs.writeFile)).toHaveBeenCalled());
   });
 
   it('steals unreadable lock file (stolen via catch path)', async () => {

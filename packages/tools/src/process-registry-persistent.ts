@@ -98,6 +98,17 @@ async function acquireLock(lockfilePath: string, timeoutMs = 5000): Promise<() =
   const pidStr = String(process.pid);
   const hostStr = os.hostname();
 
+  // Ensure the parent directory exists. The registry creates it
+  // fire-and-forget at construction, so on fast runners the first
+  // acquireLock can race ahead of that mkdir and hit ENOENT (seen on
+  // Linux CI in bash-kill-guard-paths). The writeFile below produces
+  // the authoritative error if creation genuinely fails.
+  try {
+    await fs.mkdir(path.dirname(lockfilePath), { recursive: true });
+  } catch {
+    // fall through — the loop's writeFile will surface real failures
+  }
+
   while (Date.now() - start < timeoutMs) {
     try {
       // Try to create the lock file exclusively
