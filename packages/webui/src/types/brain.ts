@@ -149,6 +149,15 @@ export interface BrainCouncilSeatWire {
   veto?: boolean | undefined;
 }
 
+/** One selectable Council decision lens, published from the server's registry. */
+export interface BrainCouncilPersonaWire {
+  id: string;
+  name: string;
+  description: string;
+  /** Seats using this lens get veto power unless the seat overrides it. */
+  defaultVeto?: boolean | undefined;
+}
+
 /** Headless escalation variant. */
 export type BrainTerminalPolicyWire = 'conservative' | 'deny-all' | 'continue-on-recommended';
 
@@ -175,6 +184,13 @@ export interface BrainConfigWire {
     judgeMaxTokens?: number | undefined;
     seats: BrainCouncilSeatWire[];
   };
+  /**
+   * Decision lenses the server's Council persona registry offers. Optional so
+   * an older server still renders: the section then falls back to the three
+   * lenses it used to hard-code, which is what hid `security`, `maintainer`
+   * and `user-advocate` from every surface.
+   */
+  personaCatalog?: BrainCouncilPersonaWire[] | undefined;
   ledger: {
     enabled: boolean;
     autoDenyAfterFailures?: number | undefined;

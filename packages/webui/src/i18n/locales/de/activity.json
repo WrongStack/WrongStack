@@ -139,6 +139,12 @@
     "tabFleet": "Fleet",
     "tabAgents": "Agents",
     "tabAudit": "Audit",
+    "tabCouncil": "Council",
+    "councilCount": "{{count}} Panel",
+    "councilCount_other": "{{count}} Panels",
+    "councilClear": "Leeren",
+    "councilEmpty": "In dieser Sitzung wurde noch kein Council einberufen.",
+    "councilEmptyHint": "Das Brain beruft für Fragen ab seiner Council-Risikoschwelle ein Multi-Modell-Panel ein. Konfigurierbar unter Einstellungen › Brain › Council.",
     "collapseAria": "Inspektor-Panel einklappen",
     "collapseTitle": "Einklappen (Esc)",
     "noAgentsActive": "Keine Agents aktiv",
@@ -938,7 +944,10 @@
   "modelSwitcher": {
     "heading": "Modell wechseln",
     "filterPlaceholder": "Anbieter und Modelle filtern…",
+    "providerFilter": "Anbieter",
+    "providerFilterAll": "Alle Anbieter",
     "noSavedProviders": "Keine gespeicherten Anbieter — zuerst einen Schlüssel in den Einstellungen registrieren.",
+    "noMatch": "Keine passenden Modelle",
     "active": "aktiv"
   },
   "work": {

@@ -140,13 +140,19 @@
     "tooLarge": "File too large to diff."
   },
   "inspector": {
-    "showPanel": "Show inspector panel (Fleet / Agents / Audit)",
+    "showPanel": "Show inspector panel (Fleet / Agents / Audit / Council)",
     "hidePanel": "Hide inspector panel",
     "label": "Inspector",
     "openAudit": "Open Audit tab",
     "tabFleet": "Fleet",
     "tabAgents": "Agents",
     "tabAudit": "Audit",
+    "tabCouncil": "Council",
+    "councilCount": "{{count}} panel",
+    "councilCount_other": "{{count}} panels",
+    "councilClear": "Clear",
+    "councilEmpty": "No council has convened yet in this session.",
+    "councilEmptyHint": "The Brain convenes a multi-model panel for questions at or above its council risk floor. Configure it under Settings › Brain › Council.",
     "collapseAria": "Collapse inspector panel",
     "collapseTitle": "Collapse (Esc)",
     "noAgentsActive": "No agents active",
@@ -943,7 +949,10 @@
   "modelSwitcher": {
     "heading": "Switch model",
     "filterPlaceholder": "Filter providers and models…",
+    "providerFilter": "Provider",
+    "providerFilterAll": "All providers",
     "noSavedProviders": "No saved providers — register a key in Settings first.",
+    "noMatch": "No matching models",
     "active": "active"
   },
   "work": {

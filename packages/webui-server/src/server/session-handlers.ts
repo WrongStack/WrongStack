@@ -26,7 +26,7 @@ import {
   validateContextEditorProposal,
 } from './context-editor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
-import { toSessionHistoryEntries } from './session-history.js';
+import { buildInspectPayload, toSessionHistoryEntries } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import { estimateContextBreakdown } from './token-estimator.js';
@@ -667,6 +667,49 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     saveSession: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'session.save')) return;
       result(ws, true, `Session ${ctx.getSession().id} is auto-saved`);
+    },
+    inspectSession: async (ws, msg) => {
+      const { id } = (msg as { payload: { id: string } }).payload;
+      if (!id) {
+        sendTo(ws, {
+          type: 'session.inspect',
+          payload: { id: '', error: 'Session id is required' },
+        });
+        return;
+      }
+      try {
+        const store = ctx.getSessionStore();
+        const data = await store.load(id);
+        // Best-effort summary lookup — fall back to deriving from events when
+        // the session is not in the capped list (older sessions).
+        let summary: import('@wrongstack/core/types').SessionSummary | undefined;
+        try {
+          const summaries = await store.list(200);
+          summary = summaries.find((s) => s.id === id);
+        } catch {
+          summary = undefined;
+        }
+        const payload = buildInspectPayload(summary, data.events, {
+          id: data.metadata.id,
+          title: data.metadata.title ?? '',
+          model: data.metadata.model ?? '',
+          provider: data.metadata.provider ?? '',
+          startedAt: data.metadata.startedAt,
+          endedAt: data.metadata.endedAt,
+        });
+        sendTo(ws, {
+          type: 'session.inspect',
+          payload,
+        });
+      } catch (err) {
+        sendTo(ws, {
+          type: 'session.inspect',
+          payload: {
+            id,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        });
+      }
     },
     listCheckpoints: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'session.checkpoints')) return;

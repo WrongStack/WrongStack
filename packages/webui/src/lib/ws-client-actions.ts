@@ -116,6 +116,7 @@ export interface WsClientActionMethods {
   listSessions(limit?: number): void;
   deleteSession(id: string): void;
   renameSession(id: string, name: string): void;
+  inspectSession(id: string): void;
   setWorkingDir(path: string): void;
   resumeSession(sessionId: string): void;
   ping(): void;
@@ -418,6 +419,10 @@ const actionMethods = {
 
   renameSession(this: WsClientActionHost, id: string, name: string) {
     this.send({ type: 'session.rename', payload: { id, name } });
+  },
+
+  inspectSession(this: WsClientActionHost, id: string) {
+    this.send({ type: 'session.inspect', payload: { id } });
   },
 
   setWorkingDir(this: WsClientActionHost, path: string) {

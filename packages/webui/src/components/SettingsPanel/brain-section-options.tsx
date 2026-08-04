@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import type { BrainConfigWire } from '@/types/brain';
 
 export const RISK_LEVELS = ['off', 'low', 'medium', 'high', 'all'] as const;
 export type RiskLevel = (typeof RISK_LEVELS)[number];
@@ -19,7 +20,35 @@ export const RISK_COPY: Record<RiskLevel, string> = {
   all: 'Auto-decide everything',
 };
 
+/**
+ * Fallback lens list for servers that publish no `personaCatalog`.
+ *
+ * Prefer {@link councilPersonaOptions}, which reads the server's registry —
+ * this list is only three of the six built-in lenses, and hard-coding it here
+ * is what made `security`, `maintainer` and `user-advocate` unselectable.
+ */
 export const PERSONAS = ['executor', 'skeptic', 'auditor'] as const;
+
+/** One entry of the lens picker. */
+export interface CouncilPersonaOption {
+  id: string;
+  name: string;
+  description?: string | undefined;
+}
+
+/** Lens options for a config snapshot: server catalog first, fallback second. */
+export function councilPersonaOptions(
+  catalog: BrainConfigWire['personaCatalog'],
+): CouncilPersonaOption[] {
+  if (catalog && catalog.length > 0) {
+    return catalog.map((persona) => ({
+      id: persona.id,
+      name: persona.name,
+      description: persona.description,
+    }));
+  }
+  return PERSONAS.map((id) => ({ id, name: id }));
+}
 
 export const DECISION_TIMEOUTS: Array<{ value: string; label: string }> = [
   { value: 'default', label: 'Default (15s)' },

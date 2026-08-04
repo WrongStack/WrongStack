@@ -189,6 +189,7 @@ export function useWebSocket() {
     [client],
   );
   const resumeSession = useCallback((id: string) => client.resumeSessionById(id), [client]);
+  const inspectSession = useCallback((id: string) => client.inspectSession(id), [client]);
   const saveSession = useCallback(() => client.saveSession(), [client]);
   const listTools = useCallback((options?: WSSendOptions) => client.listTools(options), [client]);
   const listMemory = useCallback((options?: WSSendOptions) => client.listMemory(options), [client]);
@@ -358,6 +359,7 @@ export function useWebSocket() {
     deleteSession,
     renameSession,
     resumeSession,
+    inspectSession,
     saveSession,
     listTools,
     listMemory,

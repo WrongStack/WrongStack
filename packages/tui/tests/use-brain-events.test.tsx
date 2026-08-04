@@ -179,3 +179,114 @@ describe('useBrainEvents', () => {
     unmount();
   });
 });
+
+describe('useBrainEvents — council tier', () => {
+  const request = {
+    id: 'req-council',
+    source: 'director' as const,
+    question: 'Merge the risky change?',
+    risk: 'high' as const,
+    fallback: 'ask_human' as const,
+  };
+  const councilVote = (over: Record<string, unknown>) => ({
+    requestId: request.id,
+    seatId: 'voter-0',
+    persona: 'executor',
+    status: 'valid' as const,
+    optionId: 'merge',
+    at: Date.now(),
+    ...over,
+  });
+
+  it('attaches the panel trace to the decision entry the council produced', () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const { unmount } = renderHook(() => useBrainEvents(events, dispatch));
+
+    act(() => {
+      // Ordering is guaranteed: both council events are emitted from inside
+      // council.decide(), which resolves before the decision_* event.
+      events.emit('brain.council_vote', councilVote({}));
+      events.emit(
+        'brain.council_vote',
+        councilVote({ seatId: 'voter-1', persona: 'skeptic', veto: true, model: 'gpt-5' }),
+      );
+      events.emit('brain.council_resolved', {
+        requestId: request.id,
+        status: 'decided',
+        resolution: 'majority',
+        optionId: 'merge',
+        configuredSeatCount: 2,
+        validVoteCount: 2,
+        distinctTargetCount: 1,
+        judgeUsed: false,
+        usage: { calls: 2, inputTokens: 10, outputTokens: 5, totalTokens: 15, durationMs: 1200 },
+        warnings: ['Council distinctness policy "model" was not met.'],
+        at: Date.now(),
+      });
+      events.emit('brain.decision_answered', {
+        request,
+        decision: { type: 'answer' as const, optionId: 'merge', text: 'Merge it' },
+        at: Date.now(),
+      });
+    });
+
+    const entry = dispatch.mock.calls
+      .map(([action]) => action)
+      .find((action) => action.type === 'addEntry')?.entry;
+    expect(entry.council).toMatchObject({
+      resolution: 'majority',
+      configuredSeatCount: 2,
+      validVoteCount: 2,
+      distinctTargetCount: 1,
+      judgeUsed: false,
+      totalTokens: 15,
+      durationMs: 1200,
+    });
+    expect(entry.council.seats).toHaveLength(2);
+    expect(entry.council.seats[1]).toMatchObject({ persona: 'skeptic', veto: true, model: 'gpt-5' });
+    expect(entry.council.warnings).toHaveLength(1);
+    unmount();
+  });
+
+  it('reports seat progress while the panel is still voting', () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const { unmount } = renderHook(() => useBrainEvents(events, dispatch));
+
+    act(() => {
+      events.emit('brain.council_vote', councilVote({}));
+      events.emit('brain.council_vote', councilVote({ seatId: 'voter-1', persona: 'skeptic' }));
+    });
+
+    const statuses = dispatch.mock.calls
+      .map(([action]) => action)
+      .filter((action) => action.type === 'brainStatus');
+    expect(statuses.at(-1)).toMatchObject({
+      state: 'deciding',
+      source: 'council',
+      summary: 'council · 2 seats voted',
+    });
+    unmount();
+  });
+
+  it('leaves non-council decisions without a council trace', () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const { unmount } = renderHook(() => useBrainEvents(events, dispatch));
+
+    act(() => {
+      events.emit('brain.decision_denied', {
+        request,
+        decision: { type: 'deny' as const, reason: 'policy' },
+        at: Date.now(),
+      });
+    });
+
+    const entry = dispatch.mock.calls
+      .map(([action]) => action)
+      .find((action) => action.type === 'addEntry')?.entry;
+    expect(entry.council).toBeUndefined();
+    unmount();
+  });
+});

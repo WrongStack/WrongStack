@@ -47,7 +47,7 @@
       "relativeImports": 13
     },
     "packages/cli/src/slash-commands/brain.ts": {
-      "lines": 957,
+      "lines": 1024,
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/kanban.ts": {
@@ -55,8 +55,8 @@
       "relativeImports": 5
     },
     "packages/cli/src/slash-commands/memory.ts": {
-      "lines": 1111,
-      "relativeImports": 5
+      "lines": 1117,
+      "relativeImports": 6
     },
     "packages/cli/src/slash-commands/sdd.ts": {
       "lines": 1015,
@@ -175,7 +175,7 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 989,
+      "lines": 990,
       "relativeImports": 148
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
@@ -347,7 +347,7 @@
       "relativeImports": 5
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 1087,
+      "lines": 1134,
       "relativeImports": 11
     },
     "packages/tui/src/components/history/utils.tsx": {
@@ -443,7 +443,7 @@
       "relativeImports": 9
     },
     "packages/webui/src/components/SettingsPanel/BrainSection.tsx": {
-      "lines": 923,
+      "lines": 935,
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
@@ -459,7 +459,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
-      "lines": 862,
+      "lines": 876,
       "relativeImports": 0
     },
     "packages/webui/src/components/SkillDetailView.tsx": {
@@ -487,11 +487,11 @@
       "relativeImports": 1
     },
     "packages/webui/src/stores/viz-store.ts": {
-      "lines": 878,
+      "lines": 879,
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 850,
+      "lines": 852,
       "relativeImports": 10
     },
     "packages/webui-hq/src/views/settings.tsx": {

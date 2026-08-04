@@ -9,6 +9,15 @@
 
 import type { BrainRiskLevel } from './brain-contracts.js';
 
+/** One selectable Council decision lens, as published by the host. */
+export interface BrainPanelPersona {
+  id: string;
+  name: string;
+  description: string;
+  /** Seats using this lens get veto power unless the seat overrides it. */
+  defaultVeto?: boolean | undefined;
+}
+
 /** One configured pool entry / council voter, display-mapped. */
 export interface BrainPanelVoter {
   label: string;
@@ -49,8 +58,26 @@ export interface BrainPanelSettings {
   usingSessionModel: boolean;
   councilEnabled: boolean;
   councilMinRisk: 'medium' | 'high' | 'critical';
+  /** Fraction of seats that must return a valid vote (undefined = default 0.5). */
+  councilQuorum?: number | undefined;
+  /** Fraction of cast weight the winner must exceed (undefined = default 0.5). */
+  councilApproval?: number | undefined;
+  /** Panel-diversity warning policy. A same-model panel agrees with itself. */
+  councilDistinctness: 'none' | 'model' | 'provider';
+  /** Per-seat completion timeout (undefined = inherit the decision timeout). */
+  councilPerCallTimeoutMs?: number | undefined;
+  /** Seats polled concurrently, 1..8 (undefined = default 3). */
+  councilMaxConcurrency?: number | undefined;
+  /** Output budget for the judge call (undefined = follows the seat budget). */
+  councilJudgeMaxTokens?: number | undefined;
   /** Explicitly configured voters (empty = seats derive from the pool). */
   voters: BrainPanelVoter[];
+  /**
+   * Selectable decision lenses, published by the host from the Council persona
+   * registry. Absent on hosts that predate the catalog — `personaCycle()` then
+   * falls back to the three lenses the panel used to hard-code.
+   */
+  personaCatalog?: BrainPanelPersona[] | undefined;
   /** Effective council seat labels (empty = council disabled). */
   councilSeats: string[];
   /**
@@ -117,6 +144,17 @@ export interface BrainPanelHost {
   toggleVoterVeto(index: number): Promise<string | null>;
   setJudge(providerId: string, model: string): Promise<string | null>;
   clearJudge(): Promise<string | null>;
+  setCouncilQuorum(fraction: number): Promise<string | null>;
+  setCouncilApproval(fraction: number): Promise<string | null>;
+  setCouncilDistinctness(mode: 'none' | 'model' | 'provider'): Promise<string | null>;
+  /**
+   * The three positive-integer council knobs. `undefined` clears back to the
+   * default — unlike the LLM/cache ladders, `BrainCouncilPatch` accepts `null`
+   * for these, so a "default" rung is reachable here.
+   */
+  setCouncilPerCallTimeout(ms: number | undefined): Promise<string | null>;
+  setCouncilMaxConcurrency(count: number | undefined): Promise<string | null>;
+  setCouncilJudgeMaxTokens(tokens: number | undefined): Promise<string | null>;
   setLedgerEnabled(on: boolean): Promise<string | null>;
   setAutoDeny(count: number | undefined): Promise<string | null>;
   setTerminalPolicy(policy: BrainTerminalPolicyValue): Promise<string | null>;
@@ -152,6 +190,12 @@ export type BrainPanelRow =
   | { kind: 'voter'; index: number }
   | { kind: 'voterAdd' }
   | { kind: 'judge' }
+  | { kind: 'councilQuorum' }
+  | { kind: 'councilApproval' }
+  | { kind: 'councilDistinctness' }
+  | { kind: 'councilTimeout' }
+  | { kind: 'councilConcurrency' }
+  | { kind: 'councilJudgeMaxTokens' }
   | { kind: 'ledgerToggle' }
   | { kind: 'autoDeny' }
   | { kind: 'terminalPolicy' }
@@ -215,6 +259,16 @@ export function brainPanelRows(settings: BrainPanelSettings): BrainPanelRow[] {
     rows.push({ kind: 'councilMinRisk' });
     for (let i = 0; i < voters.length; i += 1) rows.push({ kind: 'voter', index: i });
     rows.push({ kind: 'voterAdd' }, { kind: 'judge' });
+    // Resolution + budget knobs. These were WebUI-only, so the panel could
+    // seat a council but not say how it resolves or what it may spend.
+    rows.push(
+      { kind: 'councilQuorum' },
+      { kind: 'councilApproval' },
+      { kind: 'councilDistinctness' },
+      { kind: 'councilTimeout' },
+      { kind: 'councilConcurrency' },
+      { kind: 'councilJudgeMaxTokens' },
+    );
   }
   rows.push({ kind: 'ledgerToggle' });
   if (settings.ledgerEnabled) rows.push({ kind: 'autoDeny' });
@@ -271,7 +325,57 @@ export const CACHE_TTL_PRESETS: readonly number[] = [
   3_600_000,
 ];
 export const CACHE_MAX_ENTRIES_PRESETS: readonly number[] = [50, 100, 200, 500, 1_000];
+/**
+ * Council ladders. `undefined` is the "default" rung — `BrainCouncilPatch`
+ * accepts `null` for these three, unlike the LLM/cache knobs.
+ */
+export const COUNCIL_FRACTION_PRESETS: readonly number[] = [0.25, 0.5, 0.6, 0.67, 0.75, 1];
+export const COUNCIL_DISTINCTNESS_PRESETS: ReadonlyArray<'none' | 'model' | 'provider'> = [
+  'none',
+  'model',
+  'provider',
+];
+export const COUNCIL_TIMEOUT_PRESETS: ReadonlyArray<number | undefined> = [
+  undefined,
+  10_000,
+  15_000,
+  30_000,
+  60_000,
+];
+export const COUNCIL_CONCURRENCY_PRESETS: ReadonlyArray<number | undefined> = [
+  undefined,
+  1,
+  2,
+  3,
+  4,
+  6,
+  8,
+];
+export const COUNCIL_JUDGE_MAX_TOKENS_PRESETS: ReadonlyArray<number | undefined> = [
+  undefined,
+  300,
+  500,
+  700,
+  1_200,
+];
+/**
+ * Fallback lens cycle for hosts that publish no `personaCatalog`. Prefer
+ * {@link personaCycle}, which uses the host's catalog when it is available —
+ * the registry ships six lenses, not these three.
+ */
 export const PERSONA_CYCLE = ['executor', 'skeptic', 'auditor'] as const;
+
+/** Lens ids the panel may cycle through for the given settings snapshot. */
+export function personaCycle(settings: BrainPanelSettings): readonly string[] {
+  const catalog = settings.personaCatalog ?? [];
+  return catalog.length > 0 ? catalog.map((persona) => persona.id) : PERSONA_CYCLE;
+}
+
+/** Human-readable lens name for a persona id, falling back to the id itself. */
+export function personaLabel(settings: BrainPanelSettings, id: string | undefined): string {
+  if (!id) return 'voter';
+  return settings.personaCatalog?.find((persona) => persona.id === id)?.name ?? id;
+}
 
 /** Cycle helper: step through a preset ladder from the current value. */
 export function cyclePreset<T>(presets: ReadonlyArray<T>, current: T, delta: number): T {

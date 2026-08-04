@@ -354,3 +354,77 @@ describe('council trace emission', () => {
     expect(decision.type).toBe('answer');
   });
 });
+
+describe('createCouncilBrainArbiter — custom personas', () => {
+  it('registers an unrecognized persona string as an ad-hoc lens instead of failing', async () => {
+    const events = new EventBus();
+    const votes: Array<{ persona?: string; status?: string }> = [];
+    events.on('brain.council_vote', (e) =>
+      votes.push({ persona: e.persona as string, status: e.status as string }),
+    );
+    const council = createCouncilBrainArbiter({
+      voters: [
+        voter(vote('merge'), { persona: 'weigh latency above all else' }),
+        voter(vote('merge'), { persona: 'skeptic' }),
+      ],
+      events,
+    });
+
+    const decision = await council.decide(req());
+
+    // Before this was fixed the orchestrator threw "unknown persona", which the
+    // tiered arbiter swallowed — the council silently never ran.
+    expect(decision.type).toBe('answer');
+    expect(votes).toHaveLength(2);
+    expect(votes.every((v) => v.status === 'valid')).toBe(true);
+    expect(votes[0]?.persona).toBe('custom-weigh-latency-above-all-else');
+    expect(votes[1]?.persona).toBe('skeptic');
+  });
+
+  it('sends the raw persona text to the voter as its decision lens', async () => {
+    const provider = fakeProvider(vote('merge'));
+    const council = createCouncilBrainArbiter({
+      voters: [
+        { provider, model: 'm', persona: 'optimize for reversibility' },
+        voter(vote('merge'), { persona: 'auditor' }),
+      ],
+    });
+
+    await council.decide(req());
+
+    const call = (provider.complete as unknown as { mock: { calls: unknown[][] } }).mock.calls[0];
+    const request = call?.[0] as { system?: Array<{ text: string }> };
+    const system = (request.system ?? []).map((b) => b.text).join('\n');
+    expect(system).toContain('optimize for reversibility');
+  });
+
+  it('reuses one lens id when several seats share the same custom persona', async () => {
+    const events = new EventBus();
+    const personas: string[] = [];
+    events.on('brain.council_vote', (e) => personas.push(e.persona as string));
+    const council = createCouncilBrainArbiter({
+      voters: [
+        voter(vote('merge'), { persona: 'favour rollback safety' }),
+        voter(vote('merge'), { persona: 'favour rollback safety' }),
+      ],
+      events,
+    });
+
+    await council.decide(req());
+
+    expect(new Set(personas).size).toBe(1);
+  });
+
+  it('accepts every built-in persona, including the three no surface offers', async () => {
+    const council = createCouncilBrainArbiter({
+      voters: [
+        voter(vote('merge'), { persona: 'security' }),
+        voter(vote('merge'), { persona: 'maintainer' }),
+        voter(vote('merge'), { persona: 'user-advocate' }),
+      ],
+    });
+
+    const decision = await council.decide(req());
+    expect(decision.type).toBe('answer');
+  });
+});

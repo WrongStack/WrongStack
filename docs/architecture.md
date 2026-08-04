@@ -1,526 +1,386 @@
 # Architecture
 
-How WrongStack is wired together, from the bottom up.
+This is the maintained map of the running WrongStack system. It describes the
+current source tree, not a proposed target architecture. For narrower contracts,
+use the linked documents at the end.
+
+WrongStack is a local-first TypeScript/Node.js AI coding-agent platform. The
+published wstack command composes a shared runtime for terminal, browser,
+desktop, protocol, plugin, and dashboard surfaces. A project can have several
+such clients at once; shared project state is owned by local services rather
+than by each client process.
 
 ---
 
-## Package layout
+## System at a glance
 
-```
-packages/
-  core/              kernel, agent runtime, shared types, storage, security, coordination
-  kanban/            task-board and queue primitives; the one WrongStack dependency below core
-  providers/         Anthropic / OpenAI / Google / OpenAI-compatible adapters
-  tools/             built-in filesystem, shell, browser, quality, and meta-tools
-  mcp/               MCP client + registry + stdio/SSE/streamable-http transports
-  runtime/           default runtime implementations and host composition
-  sdd/               Spec-Driven Development stores and workflow helpers
-  security-scanner/  standalone security scanning surface
-  sage/      project memory, graph, retrieval, and hygiene
-  acp/               ACP server/client integration for external agent protocols
-  plug-lsp/          LSP bridge + language tooling + slash commands
-  plugins/           bundled plugin library
-  telegram/          Telegram bridge plugin
-  tui/               React/Ink terminal UI
-  webui/             Vite/React browser frontend
-  simpleui/          lightweight browser chat frontend
-  webui-server/      shared Node HTTP/WebSocket backend that powers `wstack --webui`
-  webui-hq/          React HQ command-center dashboard
-  cli/               boot assembly, REPL, subcommands, slash commands, surface launchers
-  bench/             benchmark harness and reporters
-apps/
-  wrongstack/        published `wrongstack` / `wstack` entry shim
-  desktop/           Electron shell
-```
+\`\`\`text
+                              +--------------------------------------+
+                              |         @wrongstack/cli              |
+                              | boot, composition, commands, launch  |
+                              +-------+--------------+---------------+
+                                      |              |
+                    +-----------------+              +------------------+
+                    v                                                     v
+          REPL / @wrongstack-tui                                HTTP + WebSocket hosts
+                                                     @wrongstack/webui-server / HQ server
+                    |                                                     |
+                    +----------------------+------------------------------+
+                                           v
+                         @wrongstack/core Agent and runtime contracts
+          config · permissions · providers · tools · sessions · coordination
+                                           |
+             +-----------------------------+-----------------------------+
+             v                             v                             v
+     domain packages                 external protocols             local project services
+  kanban · sage · sdd · tools        MCP · ACP · plugins       IPC owner -> SQLite authority
+                                                               mailbox · Chronicle · SAGE
+                                                               Kanban · Codebase Index
+\`\`\`
 
-The workspace dependency graph is a DAG enforced by `packages/core/tests/architecture/package-boundaries.test.ts` and by the topological build runner. `@wrongstack/kanban` has no WrongStack dependency and sits below `core`; `core` declares `@wrongstack/kanban`. Product-facing packages compose core and the extracted domain packages without introducing a dependency from core back into a product surface.
-
----
-
-## The kernel
-
-`packages/core/src/kernel/` holds six modules (Container, Pipeline, EventBus,
-RunController, Tokens, plus the full event type catalog). Nothing else in the
-codebase is allowed to expand it without a strong reason.
-
-### `Container`
-
-A typed DI container indexed by `Token<T>` (a branded `symbol`). Bindings
-support `factory`, `value`, and `decorator` forms; resolution is lazy and
-memoized. The well-known tokens are in [`tokens.ts`](../packages/core/src/kernel/tokens.ts):
-
-```
-TOKENS.Logger          TOKENS.TokenCounter      TOKENS.SessionStore
-TOKENS.MemoryStore     TOKENS.PermissionPolicy  TOKENS.Compactor
-TOKENS.PathResolver    TOKENS.ConfigLoader      TOKENS.ConfigStore
-TOKENS.Renderer        TOKENS.InputReader       TOKENS.ErrorHandler
-TOKENS.RetryPolicy     TOKENS.SkillLoader       TOKENS.SystemPromptBuilder
-TOKENS.SecretScrubber  TOKENS.ModelsRegistry    TOKENS.ModeStore
-TOKENS.ProviderRunner  TOKENS.WorktreeManager   TOKENS.BrainArbiter
-TOKENS.HookRegistry
-```
-
-The CLI binds defaults at boot; plugins can rebind any token before
-`Agent.run`. There is no service-locator pattern — every dependency arrives
-through the container explicitly.
-
-### `Pipeline<T>`
-
-Linear middleware over a value of type `T`. Six pipelines run per agent step:
-
-| Pipeline | Value | Fires |
-|---|---|---|
-| `userInput` | `{ content, text, ctx }` | every user turn |
-| `request` | `Request` | before each provider call |
-| `response` | `Response` | after each provider call |
-| `assistantOutput` | `TextBlock` | per assistant text block |
-| `toolCall` | `{ toolUse, result, ctx, tool }` | after every tool call |
-| `contextWindow` | `Context` | before sending if context might be too large |
-
-Middleware shape:
-
-```ts
-const mw: Middleware<Request> = {
-  name: 'my-mw',
-  owner: 'my-plugin',
-  handler: async (req, next) => {
-    const before = perf.now();
-    const out = await next(req);
-    log('took', perf.now() - before);
-    return out;
-  },
-};
-```
-
-`Pipeline` has a `setErrorHandler(fn)` so the host can decide
-rethrow-vs-swallow when a plugin handler crashes. Default is rethrow.
-`insertBefore`/`insertAfter`/`replace`/`remove` support position-aware
-mutation of the chain; `asReadonly()` exposes a frozen view for plugins.
-
-### `EventBus`
-
-Typed pub/sub. Every meaningful runtime moment fires an event:
-`iteration.started`, `iteration.completed`, `provider.text_delta`,
-`provider.response`, `provider.retry`, `provider.error`,
-`tool.started`, `tool.progress`, `tool.executed`, `tool.confirm_needed`,
-`permission.evaluated`, `compaction.fired`, `compaction.failed`, `mcp.server.connected`,
-`mcp.server.reconnected`, `mcp.server.disconnected`, and ~30 more.
-See [`events.ts`](../packages/core/src/kernel/events.ts).
-
-The CLI subscribes for spinner / live-tail / session-log; the TUI subscribes
-the same events into React state; observability sinks subscribe via
-`wireMetricsToEvents`. V2-D added `listenerCount()` for leak-detection.
-
-### `RunController`
-
-One per `Agent.run`. Owns the `AbortController`, chains the parent signal,
-drains abort hooks when the run ends (LIFO order), and enforces cleanup
-even on normal exit via `dispose()`. Hooks are snapshot before firing so
-hooks added during cleanup don't re-trigger.
+The important boundary is not a UI versus a backend: every UI is a client of
+the same runtime and, where data must be shared across processes, a client of
+the same project-scoped owner. Browser clients never receive a direct SQLite
+handle.
 
 ---
 
-## `Context` and the L1-A reactive split
+## Workspace and dependency direction
 
-`Context` is the live agent-run object: messages, todos, system prompt,
-session writer, tools, provider, signal, cwd, model, meta. It's the
-parameter passed to every Tool's `execute(input, ctx, opts)`.
+The pnpm workspace contains 26 packages, two applications, and the marketing
+site. All current workspace packages use the shared 0.298.4 version.
 
-After L1-A:
+| Area | Packages / application | Responsibility |
+| --- | --- | --- |
+| Foundation | @wrongstack/persistence, @wrongstack/kanban, @wrongstack/core | SQLite/file primitives, task-board domain, agent kernel and contracts |
+| Runtime composition | @wrongstack/runtime, @wrongstack/providers, @wrongstack/tools | Default host wiring, provider implementations, built-in tools and Codebase Index |
+| Agent domains | @wrongstack/sage, @wrongstack/sdd, @wrongstack/requirement-intake, @wrongstack/techstack, @wrongstack/governance | Memory, spec workflow, intake, project analysis, and governance contracts |
+| External integration | @wrongstack/mcp, @wrongstack/acp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/telegram | MCP, Agent Client Protocol, LSP, bundled extensions, and Telegram bridge |
+| MCP products | codebase-index-mcp, kanban-mcp, mailbox-mcp, requirement-intake-mcp, sage-mcp | Capability-limited MCP facades over local domains |
+| User surfaces | cli, tui, webui, webui-server, simpleui, webui-hq, desktop | Terminal, full browser UI, small browser UI, HQ dashboard, and Electron shell |
+| Support | bench, security-scanner, wrongstack | Benchmarks, standalone scan surface, and published command shim |
 
-- `Context implements RunEnv` — the read-only env interface (provider,
-  session, signal, tokenCounter, cwd, projectRoot, model, systemPrompt,
-  tools). Subsystems that only read declare `RunEnv` and accept any
-  `Context` for free.
-- `ctx.state: ConversationState` — observable wrapper over the mutable
-  fields. `ctx.state.appendMessage(m)` and `ctx.state.replaceMessages(ms)`
-  fire `onChange` events that the UI can subscribe to.
-- The public `Tool.execute(input, ctx, opts)` API is **unchanged.** Tools
-  that mutate `ctx.messages` directly still work; subscribers just don't
-  see those mutations until the next state-routed write.
+The package graph is a directed acyclic graph checked by
+packages/core/tests/architecture/package-boundaries.test.ts and by the
+topological build runner. persistence has no WrongStack workspace dependency.
+kanban depends on persistence. core depends on both; it is therefore the agent
+foundation, not a dependency-free kernel. Product surfaces depend toward these
+lower layers and must not create a reverse dependency from core into a surface
+package.
 
-`Agent.run` and every compactor now route through `ctx.state`. Direct
-mutation is reserved for legacy and external tool code.
-
-```ts
-const unsubscribe = ctx.state.onChange((change, state) => {
-  if (change.kind === 'message_appended') updateUI(change.message);
-});
-```
-
----
-
-## Agent lifecycle
-
-```text
-                   ┌───────────┐
-   user input ────►│ Agent.run │
-                   └─────┬─────┘
-                         │   normalizeAndEmitUserInput
-                         │     → userInput pipeline
-                         │     → ctx.state.appendMessage
-                         ▼
-                   ┌──────────────────────────┐
-                   │ for each iteration       │
-                   │   checkIterationLimit    │
-                   │   build request          │ ← request pipeline
-                   │   runProviderWithRetry   │ ← provider.complete span
-                   │   processResponse        │ ← provider.text_delta / response pipeline
-                   │   if assistant text only → done
-                   │   else: tool_use blocks  │
-                   │     ToolExecutor.executeBatch
-                   │       permission check   │
-                   │       tool.execute(eS)  │ ← tool.<name> span
-                   │       toolCall pipeline  │
-                   │       ctx.state.append   │
-                   │   compactContextIfNeeded │ ← contextWindow pipeline
-                   │   loop                   │
-                   └──────────────────────────┘
-                         │
-                         ▼
-                   ┌─────────────┐
-                   │ RunResult   │
-                   └─────────────┘
-```
-
-Iteration cap is a soft limit: when reached, the agent fires
-`iteration.limit_reached` and either auto-extends by 100 (default) or
-waits for a listener to grant/deny. `autoExtendLimit` is configurable.
-
-Errors at any layer are surfaced as `WrongStackError` (extends `Error`
-with `code`, `severity`, `recoverable`). `RunResult.error` is typed
-`WrongStackError | undefined`.
+Within packages/core/src, the seven-layer runtime-import rules in
+[architecture-rules.md](architecture-rules.md) are enforced: primitives and
+types, infrastructure, domain, execution, storage, coordination, then
+high-level extension/observability/plugin/skill modules. Type-only edges are
+allowed where the runtime graph would not be.
 
 ---
 
-## Providers — declarative wire formats
+## Core runtime
 
-A `Provider` adapts a model's HTTP API to the unified `complete` /
-`stream` interface. Declarative providers use `WireFormatConfig`
-presets, while the native Anthropic/OpenAI/Google classes keep custom
-constructor options and share the same canonical stream events:
+@wrongstack/core supplies contracts and implementations shared by every host.
+Its key namespaces are kernel, core, execution, storage, security,
+coordination, chronicle, models, registry, skills, plugin, and observability.
 
-```ts
-const config: WireFormatConfig<MyStreamState> = {
-  id: 'my-llm',
-  family: 'openai-compatible',
-  capabilities,
-  defaultBaseUrl: 'https://api.my-llm.com/v1',
-  buildUrl: (baseUrl, req) => `${baseUrl}/chat/completions`,
-  buildHeaders: (apiKey, req) => ({ authorization: `Bearer ${apiKey}` }),
-  buildBody: (req) => ({ model: req.model, messages: req.messages, stream: true }),
-  createStreamState: () => ({ ... }),
-  parseStreamEvent: (event, state) => streamEvents,
-  finalizeStream: (state) => [{ type: 'message_stop', stopReason, usage }],
-};
-```
+### Kernel and composition
 
-`WireFormatProvider` consumes the config and gives you a fully-wired
-`Provider`. The package also exports hand-written `AnthropicProvider`,
-`OpenAIProvider`, `GoogleProvider`, and `OpenAICompatibleProvider`
-classes for the common built-in transports.
+packages/core/src/kernel contains the typed Container, Pipeline, EventBus,
+RunController, and token catalogue. The CLI and WebUI server are composition
+roots: they bind concrete services into the container and pass explicit
+dependencies to the agent. Extensions receive scoped APIs rather than an
+unrestricted global service locator.
 
-See [`provider-author-guide.md`](provider-author-guide.md) for writing
-a new one.
+EventBus is the in-process live-event spine. Provider streaming, tool state,
+permissions, compaction, subagent activity, Brain decisions, and project
+service health are published as typed events. It is deliberately separate from
+durable state: an event may be dropped by a disconnected UI, which must then
+refresh its authoritative store.
 
----
+RunController owns an agent run's abort signal and cleanup hooks. It chains a
+parent abort signal and disposes hooks on normal completion as well as failure.
 
-## Tools — the streaming contract
+### Agent turn
 
-A `Tool` is the runtime-callable interface that the model invokes:
+Agent in packages/core/src/core/agent.ts owns a single conversational run. At
+boot, a host provides a provider, model, system prompt, session writer, tool
+registry, pipelines, permission policy, token counter, and optional
+coordination services. A turn follows this shape:
 
-```ts
-interface Tool<I, O> {
-  name: string;
-  description: string;
-  usageHint?: string;
-  category?: string;
-  inputSchema: JSONSchema;
-  permission: 'auto' | 'confirm' | 'deny';
-  mutating: boolean;
-  riskTier?: 'safe' | 'standard' | 'destructive';
-  subjectKey?: string;
-  capabilities?: readonly string[];
-  execute(input, ctx, opts): Promise<O>;
-  executeStream?(input, ctx, opts): AsyncIterable<ToolStreamEvent<O>>;
-  cleanup?(input, ctx): Promise<void>;
-}
-```
+\`\`\`text
+input -> normalize and persist user message -> user-input middleware
+  -> build provider request -> request middleware -> provider stream/response
+  -> append assistant content and emit deltas
+  -> execute requested tools (permission decision first)
+  -> append tool results -> compact/repair context when needed -> next iteration
+  -> final RunResult and guaranteed controller cleanup
+\`\`\`
 
-`riskTier` feeds UI/audit metadata and non-YOLO prompts. YOLO auto-approves non-denied calls regardless of risk tier.
+Context is the per-run object passed to tools. Its observable conversation state
+lets UI hosts react to routed mutations; legacy direct mutation still exists for
+compatibility and must not be treated as a new extension pattern. The executor
+and context manager repair provider tool-use/tool-result adjacency before a
+request where edits, summaries, or replay could have broken it.
 
-When defined, `executeStream` is preferred: yields `log`, `partial_output`,
-`metric`, `file_changed`, or `warning` events, then a terminal
-`{ type: 'final', output }`. The executor publishes each event as
-`tool.progress` on the EventBus; the TUI live-tails.
+### Tools, providers, and permissioning
 
-`ToolExecutor` runs tools with three strategies: `parallel` (all at once),
-`sequential` (one after another), or `smart` (auto, defaults to parallel
-when tools are independent). Output per iteration is capped and truncated
-in `tool.executed` events to avoid flooding the session log.
+Tools implement the common Tool contract: JSON-schema input, a declared
+permission/risk/mutation profile, execute, and optionally streamed progress and
+cleanup. ToolExecutor evaluates permission before execution, supports
+sequential, parallel, and smart scheduling, emits progress/results, and bounds
+retained output so a long command does not unboundedly grow a session or UI.
 
-See [`tool-author-guide.md`](tool-author-guide.md).
+@wrongstack/providers turns provider catalog/configuration records into the
+core Provider contract. It contains native Anthropic, OpenAI, Google,
+OpenAI-compatible, OAuth, and compatibility adapters; declarative wire-format
+providers cover catalog-defined OpenAI-compatible APIs. Provider selection,
+fallback profiles, retries, and model/mode state remain host-visible core
+concerns, so all frontends see the same decisions.
 
----
+DefaultPermissionPolicy combines a tool's declaration with trusted patterns,
+capabilities, and input-specific risk. Interactive REPL prompts can resolve a
+confirmation inline; TUI and WebUI receive a confirmation event. YOLO is not a
+universal bypass: absolute denies remain enforced and destructive shell actions
+remain confirmable unless destructive YOLO has been explicitly enabled.
 
-## Compactors
+Configuration is loaded by DefaultConfigLoader in this order: bootstrap
+metadata, active user profile, project-local state, restricted in-project
+configuration, additional sources, environment overrides, then CLI flags. The
+root user config is bootstrap-only (version and activeProfile); settings live in
+the active profile. Untrusted in-project configuration is stripped of unsafe
+fields before it can affect a runtime. Secret-bearing configuration is handled
+through the vault/config-secret path rather than exposed to browser clients.
 
-Three compaction strategies compose in `HybridCompactor`:
+### Context, sessions, and durable artifacts
 
-| Compactor | Strategy |
-|---|---|
-| `SelectiveCompactor` | preserves task-critical messages, elides the rest |
-| `IntelligentCompactor` | LLM-assisted summarization of ancient turns |
-| `LLMSelector` | picks the best model for context reduction decisions |
+HybridCompactor and the context-window policy keep provider payloads within the
+selected model's usable window. The built-in context modes control when
+compaction begins and how much recent content/tool output stays verbatim.
 
-`AutoCompactionMiddleware` wraps the contextWindow pipeline and fires
-compaction automatically when token threshold fractions are crossed
-(`warnThreshold`, `softThreshold`, `hardThreshold`). Compaction is
-best-effort — a failure fires `compaction.failed` but never aborts the
-run.
-
-Context-window behavior is policy-driven. `context.mode` selects one of
-the built-in presets:
-
-| Mode | Behavior |
-|---|---|
-| `balanced` | Default rolling compaction; preserves the recent tail and trims old heavy tool output. |
-| `frugal` | Token-saver mode; compacts early and keeps a tighter verbatim tail. |
-| `deep` | Long-reasoning mode; delays compaction and keeps more recent turns intact. |
-| `archival` | Decision-preserving mode; compacts steadily while keeping summaries prominent. |
-
-The active policy is copied into `ctx.meta.contextWindowPolicy` at boot
-and can change during a session. `AutoCompactionMiddleware` reads that
-policy before every provider turn, while `HybridCompactor` reads the same
-policy to choose preservation depth and tool-result elision thresholds.
-CLI users switch with `/context mode <id>`; WebUI clients can call
-`context.modes.list` and `context.mode.switch`.
-
-Manual context surgery is guarded by a provider-protocol repair pass.
-`repairToolUseAdjacency` removes orphan `tool_use` / `tool_result` blocks
-that can appear when summaries or prunes cut through a tool exchange. The
-repair runs after context-manager mutations, after WebUI compact/repair
-actions, when damaged sessions are replayed, and immediately before every
-provider request as the final safety net. CLI users can force it with
-`/context repair`; WebUI clients can send `context.repair`.
+Conversation history is deliberately file-based, not part of the shared SQLite
+service family: DefaultSessionStore persists scrubbed session events in sharded
+JSONL files under the resolved WrongStack state directory. It maintains an
+index, per-session summaries, manifests, replay/search helpers, checkpoint CAS,
+and bounded in-memory load caches. Session JSONL is an append/replay format; it
+is not the source of truth for mailbox, Kanban, SAGE, Chronicle, or index state.
 
 ---
 
-## Multi-agent
+## Project-scoped state ownership
 
-`DefaultMultiAgentCoordinator` manages a fleet of subagents with:
+Several processes can attach to one project (a CLI, TUI, WebUI, MCP process, or
+HQ bridge). For a shared mutable domain, one detached local service owns the
+SQLite handle. Clients use a deterministic endpoint — a Windows named pipe or
+Unix-domain socket — and a newline-delimited authenticated protocol.
 
-- Task queue with `maxConcurrent` (default 4) in-flight limit
-- Per-subagent `SubagentBudget` (maxIterations, maxToolCalls, maxTokens,
-  maxCostUsd, timeoutMs) with precedence: task > subagent > coordinator
-- `AgentBridge` for bidirectional parent↔subagent messaging
-- `BudgetExceededError` surfaced as `timeout` or `stopped` result status
-- Subagent signal lifecycle (AbortController recycled between tasks so
-  aborted subagents can take new work)
+\`\`\`text
+client process -- local IPC -- elected detached owner -- SQLite / watcher
+       |                         |
+       +-- reconnect + query ----+-- notifications accelerate, never authorize
+\`\`\`
 
-`makeAgentSubagentRunner()` wraps a regular `Agent` instance as a
-`SubagentRunner`. The coordinator emits events such as `subagent.spawned`,
-`subagent.task_started`, `subagent.task_completed`, `subagent.done`,
-`subagent.budget_warning`, and `subagent.ctx_pct`.
+The endpoint bind elects the owner. Owner-only metadata carries the per-process
+authentication token; protocol version/hello, health ping, client lease, idle
+shutdown, bounded frame size, and bounded per-client write queues protect the
+lifecycle. A slow client may be disconnected rather than allowed to grow the
+owner's memory indefinitely. It reconnects and reads authoritative state.
+Production clients fail closed if their required owner cannot be reached; test
+or explicitly requested inline modes are named escape hatches, not automatic
+fallbacks.
 
-For the **director-driven** evolution of this — where every subagent
-runs with its own provider, model, context, session, and budget under
-an LLM-driven Director agent — see
-[director-architecture.md](director-architecture.md). The current
-implementation exposes director/fleet orchestration tools and persists
-fleet state under the project session directory.
+| Domain | Owner and authority | Clients and responsibility |
+| --- | --- | --- |
+| Mailbox | mailbox-project-server.ts is the only production opener of the project SqliteMailbox database. | RemoteMailbox is used by CLI, TUI, WebUI, HQ, and bridges. It sends/query/acks through IPC and republishes events locally. There is no production JSONL fallback. |
+| Chronicle | chronicle/project-server.ts owns SQLite journals, ordering/hash chains, retention, metrics, journal queries, and the project watcher. | Originating clients map/scrub events then append/query over the Chronicle project-server client. Legacy journal import is handled by the owner. |
+| SAGE memory | packages/sage/src/project-server.ts owns the SQLite memory graph/search store. | RemoteMemoryPort implements the memory-port contract for all hosts. Retrieval/memory injection and tools use the port, not direct store construction. |
+| Kanban | packages/kanban/src/server/project-server.ts owns SqliteKanbanStorage at .wrongstack/kanbans/_kanban.sqlite. | Domain calls, board events, workflow state, and supervisor integration go through the Kanban client/store facade. Legacy board data is migrated transactionally by storage. |
+| Codebase Index | packages/tools/src/codebase-index/project-server.ts owns the SQLite index, write queue, index job, and external file watcher. | Search/index/call-graph tools and Code Atlas use the shared client. Read work can overlap; writes and full-index coalescing stay with the owner. |
 
----
-
-## MCP integration
-
-`MCPClient` speaks JSON-RPC 2.0 over three transports: `stdio` (child
-process), `sse` (server-sent events), `streamable-http` (session-based
-NDJSON). `MCPRegistry` manages a fleet of clients with:
-
-- Exponential backoff + jitter on reconnect (capped at 5 cycles, then
-  transitions to `failed` and surfaces in `/diag`)
-- Tool-list cache that invalidates on `notifications/tools/list_changed`
-- Tool namespace prefix: `mcp__<serverName>__`
-
-Built-in presets in [`mcp-servers.ts`](../packages/core/src/infrastructure/mcp-servers.ts):
-filesystem, github, context7, brave-search, block, everart, slack, aws,
-google-maps, sentinel, zai-vision, and minimax-vision. All disabled by default.
+connections.health in the WebUI server exposes a common operational view of
+these services: owner identity, endpoint/storage state, clients, queue/watcher
+status, and latency. It is a diagnostic projection, not a second authority.
 
 ---
 
-## Plugins
+## Coordination, governance, and autonomous work
 
-Plugins declare `capabilities` (`tools`, `providers`, `slashCommands`,
-`mcp`, `pipelines`) and receive a scoped `api`:
+DefaultMultiAgentCoordinator provides bounded concurrent subagent execution,
+per-task budgets, abort propagation, parent/child messaging, and lifecycle
+events. FleetManager, FleetBus, Director, task registry, worktree support, and
+Kanban bridges build the higher-level fleet model. The Director can dispatch
+agents, await/terminate work, roll up results, and persist fleet state without
+turning an individual subagent's local transcript into global truth.
 
-```ts
-export default {
-  name: 'my-plugin',
-  apiVersion: '^0.1.0',
-  capabilities: { tools: true },
-  async setup(api) {
-    api.tools.register(myTool);
-  },
-  async teardown() {
-    // close handles, kill subprocesses, etc.
-  },
-};
-```
+The mailbox is the durable inter-agent communications domain; Kanban is the
+durable work-board domain. Their event streams make work visible, but clients
+must reconcile from SQLite after restarts or disconnects.
 
-The loader runs `teardown()` on SIGINT and natural exit. When a plugin
-calls `api.tools.register` but `capabilities.tools !== true`, the loader
-logs a warning.
+### Brain and Council
 
-See [`plugin-author-guide.md`](plugin-author-guide.md).
+The Brain is an authority layer above a leader/director and below the human.
+Callers submit a typed decision request with source, risk, alternatives, and a
+safe fallback. BrainArbiter can answer deterministically, deny, or escalate to
+BrainDecisionQueue; the latter waits for a correlated human answer from a
+surface and applies a terminal policy when a headless timeout is configured.
+Decision events feed Chronicle and UI timelines.
 
----
+Brain implementations can be composed with rule, cache, ledger, monitor,
+circuit-breaker, and escalation decorators. The optional Council adapter runs a
+policy-configured set of LLM seats, each with its own provider/model and
+persona. It supports quorum, weighted approval, vetoes, judge synthesis,
+bounded concurrency/timeouts, and explicit distinctness warnings. It is a
+decision aid, not a path around permission policy or human escalation.
 
-## Observability (opt-in, noop by default)
+### SAGE
 
-Three pillars, all behind interfaces with noop default impls:
+SAGE is the project memory subsystem: structured memory, graph edges, retrieval,
+audience filtering, anchors, usage/injection accounting, hygiene, and optional
+embedding support are stored in SQLite. Its middleware injects relevant memory
+into a run under explicit token/context controls; its tools expose controlled
+memory operations. The current triage pipeline pre-filters candidates, scores
+value, detects likely merges, can ask an LLM evaluator, and dispatches approved
+actions through the same service contract.
 
-| Pillar | Interface | Default | Opt-in via |
-|---|---|---|---|
-| Metrics | `MetricsSink` | `NoopMetricsSink` | `--metrics` CLI flag |
-| Traces | `Tracer` | `NoopTracer` | bind a real `OTelTracer` |
-| Health | `HealthRegistry` | `DefaultHealthRegistry` | enabled with `--metrics` |
+### SDD and requirements
 
-Prometheus pull endpoint: `--metrics-port 9090` starts an HTTP server on
-`127.0.0.1` exposing `/metrics` in v0.0.4 text format. Set
-`METRICS_HOST=0.0.0.0` to bind publicly. OTLP exporters are also
-available via `startOtlpMetricsExporter` / `startOtlpTraceExporter`.
-
-`Agent.run` opens an `agent.run` span; per-iteration `agent.iteration`
-spans and `provider.complete` spans nest inside. Tool spans are opened
-by the ToolExecutor. Everything is noop unless you wire a real tracer.
-
----
-
-## Session storage
-
-JSONL files under `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.jsonl`.
-Each line is one `SessionEvent`: `user_input`, `llm_request`, `llm_response`,
-`tool_use`, `tool_result`, `compaction`, `error`, plus mode/task/agent/
-skill events.
-
-`DefaultSessionStore.list()` reads a session-scoped `.summary.json` sidecar
-for fast listing; only damaged or pre-manifest sessions force a full parse.
-
-`DefaultSessionReader` provides query/replay/search/export over the
-store. Export formats: markdown, json, text.
+@wrongstack/requirement-intake captures requirements. @wrongstack/sdd parses
+specifications, generates and tracks tasks, stores spec/task graphs, projects
+work into boards, runs interviews, decomposes tasks, checks atomicity/critical
+paths, and can drive bounded auto/parallel execution. Its Kanban integration
+uses the Kanban service boundary rather than a private board file.
 
 ---
 
-## CLI entry shape
+## External extension and protocol boundaries
 
-`packages/cli/src/index.ts` does:
+### Plugins and skills
 
-1. Parse argv → flags + positional
-2. `bootConfig(flags)` — resolve paths, create vault, migrate secrets, load config
-3. Subcommand dispatch if `positional[0]` matches (`init`, `auth`, `mcp`, …)
-4. Otherwise: pre-launch prompts (project check, mode, yolo) on interactive TTY
-5. Wire container, registries, pipelines, system prompt builder, mcp registry,
-   plugins, multi-agent coordinator
-6. `runRepl(...)` or `runTui(...)` based on mode
+@wrongstack/plugins is the first-party plugin suite. Its public exports are
+generated from the typed plugin manifest; update the manifest and run the
+projection generator rather than hand-maintaining a second catalogue. The core
+plugin loader gives a plugin only the APIs/capabilities it declares (tools,
+providers, commands, pipelines, MCP, and related extension points) and invokes
+teardown on process shutdown.
 
-The CLI knows nothing the plugins / providers / tools couldn't also do —
-it's just the assembly of defaults + the interactive shell.
+Skills are discovered by the core skill loader and included in the system-prompt
+construction flow. Project-local sources take precedence over user, foreign,
+extra-directory, and bundled sources; deterministic ordering prevents prompt
+selection from depending on filesystem enumeration order.
+
+### MCP
+
+@wrongstack/mcp implements JSON-RPC MCP client and server roles. Clients use
+stdio child processes, SSE, or streamable HTTP; MCPRegistry owns connection
+state, lazy/eager connection, tool/resource/prompt capability changes, and
+tool-name namespacing. The server side wraps a tool backend and can serve the
+same protocol over stdio or HTTP. The specialized *-mcp packages are thin
+capability boundaries over project services, not alternative stores.
+
+### ACP
+
+@wrongstack/acp implements both directions of the Agent Client Protocol.
+WrongStackACPServer exposes a core-agent turn to external ACP clients over
+stdio JSON-RPC by default (with a port/bridge option). ACP client transports can
+drive external agents through local stdio or remote WebSocket sessions. The
+registry and ensemble runner supply catalogued external-agent execution; ACP
+tool translation still passes through the local permission/trust boundary.
+
+### Other integration packages
+
+@wrongstack/plug-lsp attaches language tooling to the tool/runtime contract.
+@wrongstack/telegram provides the message bridge as a plugin-facing domain.
+@wrongstack/security-scanner is a separate scanning surface built on shared
+contracts, and @wrongstack/bench measures system behavior without becoming a
+runtime dependency of the agent loop.
 
 ---
 
-## WebUI
+## Hosts and user interfaces
 
-The `@wrongstack/webui` Vite/React frontend is launched with
-`wstack --webui`. The shared `@wrongstack/webui-server` backend mounts the
-compiled app and wires it to runtime events and session state.
+### CLI and TUI
 
-The shared server lives in `packages/webui-server/src/server/` (the
-`@wrongstack/webui-server` package, extracted in PR #018b) and was
-decomposed from a single ~2954-line god module (`index.ts`) into 11
-focused modules, each under 800 lines. `packages/webui-server/src/index.ts`
-is the package entry point for the extracted server; the CLI's embedded
-`--webui` mode consumes that package directly.
+The published wrongstack application is a small bin shim around
+@wrongstack/cli. The CLI parses arguments, resolves boot configuration, handles
+short-circuit subcommands/surfaces, wires services and registries, and then
+dispatches an REPL, Ink TUI, WebUI host, SimpleUI host, desktop launch, or HQ
+server as requested. Slash commands are a CLI interaction layer over the same
+domain services; they should not open project databases directly.
 
-### Module map
+@wrongstack/tui is React/Ink. It renders agent streaming, tools, prompts,
+sessions, fleet state, project-service health, Kanban, SAGE/Brain interactions,
+and terminal-specific controls from runtime events and service snapshots.
 
-```
-packages/webui-server/src/server/
-  index.ts                 (164)  Pure re-export barrel — the public API entry
-  start-webui.ts           (777)  Server lifecycle orchestration
-  pre-context-services.ts  (359)  Pre-context registries/stores factory
-  backend-services.ts      (491)  Post-context agent services factory
-  routes.ts                (771)  Route-table construction (13 route records)
-  message-dispatcher.ts    (604)  WS message dispatch (switch(msg.type))
-  server-runtime.ts        (334)  WS/HTTP/shutdown + port resolution
-  pref-helpers.ts          (339)  Pref persistence (config.json read/write)
-  connection-handler.ts    (249)  WS connection lifecycle + F5 replay
-  setup-screen.ts          (117)  Provider resolution ladder
-  context-meta.ts          (100)  Config→context.meta projection
-```
+### Full WebUI and SimpleUI
 
-### `startWebUI` orchestration flow
+@wrongstack/webui is the full React 19/Vite browser client. It owns browser
+components, stores, hooks, protocol helpers, and localization. It does not own
+a second Node backend: src/server/index.ts is a compatibility re-export of
+@wrongstack/webui-server.
 
-`startWebUI` (in `start-webui.ts`) reads as connect-the-dots — boot,
-build services in two layers, wire routes/dispatcher/connection, serve:
+startWebUI is the WebUI server composition root. It creates pre-context services
+(configuration, paths, registries, session, provider, prompt, and context),
+creates agent services (pipelines, agent, feature handlers), then builds route
+families, WebSocket dispatch, connection lifecycle, HTTP/static serving,
+authentication, and shutdown handling. Some bindings are intentionally live and
+mutable for session, model, project, and mode switching; route/dispatcher
+modules read them through the shared mutable-state interface rather than stale
+closure copies.
 
-```text
-bootConfig()
-  │
-  ├─ createPreContextServices()        ← registries, stores, session,
-  │   (pre-context-services.ts)          system prompt, provider, context
-  │
-  ├─ createAgentServices()             ← pipelines, compaction, agent,
-  │   (backend-services.ts)              Brain, per-feature WS handlers
-  │
-  ├─ buildRoutes(state, deps, cb)      ← 13 route records
-  │   (routes.ts)
-  │
-  ├─ createMessageDispatcher()         ← switch(msg.type) + runLock
-  │   (message-dispatcher.ts)
-  │
-  ├─ createConnectionHandler()         ← rate-limit, F5 replay, lifecycle
-  │   (connection-handler.ts)
-  │
-  ├─ resolvePorts() + createWsServers() ← host/port/auth, WS servers
-  │   (server-runtime.ts)
-  │
-  ├─ armEvents()                       ← once-only setupEvents bridge
-  │   (server-runtime.ts)
-  │
-  └─ startHttpServer() + registerShutdown()
-      (server-runtime.ts)
-```
+@wrongstack/simpleui is a deliberately smaller browser client served by the
+same backend protocol. It sends ordinary user_message frames, keeps a compact
+per-session composer/file-reference state, and avoids the full WebUI's optional
+prompt-refinement route. It remains a client of the same mailbox and project
+services.
 
-### Mutable state threading
+### HQ and desktop
 
-Several bindings are `let` in `startWebUI` because the route layer swaps
-them at runtime: `config` (model switch), `session` / `sessionStore` /
-`sessionStartedAt` (`/new`, `/resume`), `projectRoot` / `workingDir`
-(`projects.select`), `modeId` (mode switch). These are wrapped into a
-`WebuiMutableState` object (getters + setters) that `buildRoutes` reads
-live — preserving the original closure-capture semantics without the
-inline construction. The `configWriteLock` uses a `ConfigWriteLockHolder`
-object (mutated in place by `pref-helpers.ts`) because TypeScript
-flattens `Promise<Promise<void>>`.
+The CLI HQ server (packages/cli/src/hq-server.ts) is the cross-machine operator
+surface. @wrongstack/webui-hq is its offline-capable Vite/React dashboard; it
+consumes snapshot/event/alert/command-status frames over /ws/browser plus
+authenticated HTTP routes. HQ aggregates health, fleet, mailbox, Kanban, cost,
+Brain, worktree, and alert views. It does not become the writer for a project's
+local SQLite stores.
 
-### Shared handler parity
+@wrongstack/desktop is an Electron application that packages the WebUI and
+WebUI-server dependencies for managing local runtimes. The website project is
+separate marketing/documentation output and is not part of the agent host.
 
-The shared backend and the CLI's `--webui` launcher use the same WS protocol.
-`ws-handler-parity.test.ts` scans both servers' message dispatchers for identical
-`case` labels and asserts every
-`WSClientMessage` union member is handled — so a handler added to one
-but not the other fails CI loudly.
+---
+
+## Observability, safety, and verification
+
+Metrics, tracing, and health are interface-based with no-op defaults. Hosts can
+wire Prometheus/OTLP exporters and runtime health collection without making the
+agent loop depend on a specific telemetry vendor. Chronicle converts important
+runtime events into durable, queryable project history; secret scrubbing occurs
+before persistence-oriented adapters receive event content.
+
+The workspace release path validates more than compilation. pnpm release:check
+runs dependency audit, build, provider/plugin catalogue checks, package
+contracts, build lineage, architecture snapshot/health checks, test inventory,
+skip/type baselines, native terminal checks, i18n, typecheck, and coverage.
+Architecture artifacts are generated: use snapshot-core-public-api.mjs --write
+and the architecture-health writer, then rerun their no-write checks; do not
+hand-edit their measured JSON output.
+
+When changing an architectural boundary, test the production call chain as well
+as the local implementation. In particular, a focused mock or an inline test
+mode is not evidence that a CLI/TUI/WebUI/MCP production client uses the
+project-service owner.
 
 ---
 
 ## Where to look next
 
-- **Building a plugin** → [plugin-author-guide.md](plugin-author-guide.md)
-- **Adding a new provider** → [provider-author-guide.md](provider-author-guide.md)
-- **Writing a tool** → [tool-author-guide.md](tool-author-guide.md)
-- **Writing a skill** → [skills.md](skills.md)
-- **YOLO mode** → [yolo-mode.md](yolo-mode.md)
-- **Configuration reference** → [configuration.md](configuration.md)
-- **Troubleshooting** → [troubleshooting.md](troubleshooting.md)
-- **Recent changes** → [`../CHANGELOG.md`](../CHANGELOG.md)
+- [Core runtime import rules](architecture-rules.md)
+- [WebUI architecture](webui.md)
+- [MCP server architecture](mcp-server.md)
+- [Director and fleet architecture](director-architecture.md)
+- [Kanban architecture](kanban-architecture.md)
+- [Kanban orchestration contract](kanban-orchestration-contract.md)
+- [Todo/plan storage](todos_architecture.md)
+- [Skills](skills.md)
+- [Configuration reference](configuration.md)
+- [Plugin author guide](plugin-author-guide.md)
+- [Provider author guide](provider-author-guide.md)
+- [Tool author guide](tool-author-guide.md)
+- [Security model](../SECURITY.md)

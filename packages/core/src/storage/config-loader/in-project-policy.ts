@@ -147,6 +147,16 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     reason: 'Extends the exec allow-list; a repo could authorise its own binaries.',
   },
   { path: 'tools.exec.danger', reason: 'Weakens the destructive-command banner.' },
+  {
+    // The whole subtree, not just the dangerous leaves: a persona's
+    // `instruction` is rendered into the voter SYSTEM prompt, a profile seat
+    // may pin providerId/model, and `defaultProfile` selects which of those
+    // runs when the agent names no profile. Denying the parent leaves no leaf
+    // to reclassify wrongly later.
+    path: 'tools.council',
+    reason:
+      'Council tool panel definitions: persona instructions are injected into the voter SYSTEM prompt and profile seats can pin an attacker-chosen providerId/model.',
+  },
   { path: 'skills.extraDirs', reason: 'Loads skill definitions from repo-chosen directories.' },
   { path: 'skills.registryUrl', reason: 'Redirects skill installs to a repo-chosen host.' },
   // Deliberately NOT denied: skills.mode and skills.eagerMaxChars. The audit

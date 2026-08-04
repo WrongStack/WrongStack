@@ -75,6 +75,38 @@ function brainStatusStyle(status: Extract<HistoryEntry, { kind: 'brain' }>['stat
   }
 }
 
+/**
+ * One-line summary of how a council resolved.
+ *
+ * `distinctTargetCount` is on the headline on purpose: a panel where several
+ * seats resolved to the SAME model produces a perfectly normal-looking verdict
+ * while adding cost without adding independence, and that is invisible unless
+ * the count is shown next to the seat count.
+ */
+export function councilHeadline(
+  council: NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>,
+): string {
+  const parts = [
+    `↳ Council: ${council.resolution}`,
+    `${council.validVoteCount}/${council.configuredSeatCount} seats`,
+    `${council.distinctTargetCount} distinct target${council.distinctTargetCount === 1 ? '' : 's'}`,
+  ];
+  if (council.judgeUsed) parts.push('judge used');
+  if (council.durationMs !== undefined) parts.push(`${Math.round(council.durationMs / 100) / 10}s`);
+  if (council.totalTokens) parts.push(`${council.totalTokens} tok`);
+  return parts.join(' · ');
+}
+
+/** One seat's line under the council headline. */
+export function councilSeatLine(
+  seat: NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>['seats'][number],
+): string {
+  const verdict =
+    seat.status === 'valid' ? (seat.optionId ?? 'stance') : (seat.error ?? seat.status);
+  const suffix = [seat.model, seat.veto ? 'veto' : undefined].filter(Boolean).join(', ');
+  return `   ${seat.status === 'valid' ? '•' : '×'} ${seat.persona} → ${verdict}${suffix ? ` (${suffix})` : ''}`;
+}
+
 function memoryLifecycleStyle(
   action: Extract<HistoryEntry, { kind: 'memory-lifecycle' }>['action'],
 ): {
@@ -916,6 +948,21 @@ export const Entry = React.memo(function Entry({
                 </Text>
                 <Text color={theme.textPrimary}>{entry.outcome}</Text>
               </Text>
+            </Box>
+          ) : null}
+          {entry.council ? (
+            <Box flexDirection="column" paddingLeft={indentWidth} marginTop={1}>
+              <Text dimColor>{councilHeadline(entry.council)}</Text>
+              {entry.council.seats.map((seat) => (
+                <Text key={seat.seatId} dimColor>
+                  {councilSeatLine(seat)}
+                </Text>
+              ))}
+              {(entry.council.warnings ?? []).map((warning) => (
+                <Text key={warning} color={theme.warn}>
+                  {`   ⚠ ${warning}`}
+                </Text>
+              ))}
             </Box>
           ) : null}
         </Box>

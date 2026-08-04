@@ -113,6 +113,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     hygiene: (options) =>
       this.call('hygiene', { options }, { timeoutMs: 5 * 60_000 }),
     listCandidates: (includeResolved) => this.call('listCandidates', { includeResolved }),
+    createCandidate: (input) => this.call('createCandidate', { input }),
     graphFor: (query, maxDepth, limit) => this.call('graphFor', { query, maxDepth, limit }),
     verify: (memoryId, signal) =>
       this.call('verify', { memoryId }, { signal, timeoutMs: 2 * 60_000 }),

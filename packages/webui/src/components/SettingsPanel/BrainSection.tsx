@@ -28,11 +28,11 @@ import {
   LEDGER_MEMORY_ENTRIES,
   LLM_MAX_TOKENS,
   MIN_CONFIDENCE,
-  PERSONAS,
   PICK_TITLES,
   RISK_COPY,
   RISK_LEVELS,
   RiskDot,
+  councilPersonaOptions,
   entryLabel,
   optionalValue,
   withCurrent,
@@ -116,6 +116,14 @@ export function BrainSection(): ReactElement {
     [sendPatch],
   );
 
+  // Lens picker options come from the SERVER's persona registry, so a lens
+  // added in core shows up here without touching this file. Older servers send
+  // no catalog and fall back to the three lenses this section used to inline.
+  const personaOptions = useMemo(
+    () => councilPersonaOptions(config?.personaCatalog),
+    [config?.personaCatalog],
+  );
+
   const riskLevel: RiskLevel = (RISK_LEVELS as readonly string[]).includes(
     config?.maxAutoRisk ?? '',
   )
@@ -141,12 +149,12 @@ export function BrainSection(): ReactElement {
         {
           provider: candidate.provider,
           model: candidate.model,
-          persona: PERSONAS[voters.length % PERSONAS.length],
+          persona: personaOptions[voters.length % personaOptions.length]?.id ?? 'executor',
         },
       ]);
       return true;
     },
-    [config, pickTarget, sendPatch, setVoters, voters],
+    [config, personaOptions, pickTarget, sendPatch, setVoters, voters],
   );
 
   return (
@@ -635,21 +643,25 @@ export function BrainSection(): ReactElement {
                   >
                     <span className="flex-1 truncate font-mono">{entryLabel(voter)}</span>
                     <select
-                      value={voter.persona ?? PERSONAS[i % PERSONAS.length]}
+                      value={voter.persona ?? personaOptions[i % personaOptions.length]?.id ?? ''}
                       onChange={(e) =>
                         setVoters(
                           voters.map((v, j) => (j === i ? { ...v, persona: e.target.value } : v)),
                         )
                       }
                       className="h-6 rounded border bg-background px-1 text-[10px]"
+                      title={
+                        personaOptions.find((p) => p.id === voter.persona)?.description ??
+                        'Custom decision lens — sent to the seat verbatim.'
+                      }
                     >
-                      {PERSONAS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
+                      {personaOptions.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
                         </option>
                       ))}
-                      {voter.persona && !(PERSONAS as readonly string[]).includes(voter.persona) && (
-                        <option value={voter.persona}>{voter.persona}</option>
+                      {voter.persona && !personaOptions.some((p) => p.id === voter.persona) && (
+                        <option value={voter.persona}>{voter.persona} (custom)</option>
                       )}
                     </select>
                     <Button

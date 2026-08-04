@@ -20,6 +20,7 @@ export interface SessionRouteHandlers {
   deleteSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   resumeSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   saveSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  inspectSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listCheckpoints: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   rewindSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
 }
@@ -83,6 +84,9 @@ export async function handleSessionRoute(
       return true;
     case 'session.save':
       await handlers.saveSession(ws, msg);
+      return true;
+    case 'session.inspect':
+      await handlers.inspectSession(ws, msg);
       return true;
     case 'session.checkpoints':
       await handlers.listCheckpoints(ws, msg);

@@ -1180,6 +1180,65 @@ weighted majority are pure deterministic maths; only ties reach a judge model.
 
 A same-model "council" agrees with itself; `distinctness` surfaces that.
 
+**Decision lenses.** Six ship built in: `executor` (progress), `skeptic`
+(risk, veto by default), `auditor` (cost/evidence), `security` (trust
+boundaries, veto by default), `maintainer` (complexity/compatibility) and
+`user-advocate` (usability/recovery). List them with `/brain council personas`.
+Any *other* string is registered as an ad-hoc lens whose instruction is the
+string itself — `{ "persona": "weigh tail latency above all else" }` is a valid
+seat.
+
+Every knob above is editable live from all three surfaces: `/brain council …`,
+the TUI `/brain` panel, and the WebUI Brain settings section.
+
+### `tools.council` — the agent-callable `council` tool
+
+Distinct from `brain.council`: that panel is convened *by the Brain* on
+high-risk questions, this one is invoked *by the agent* through the `council`
+tool. It ships three profiles — `balanced`, `fast`, `risk-review` — and this
+block extends them.
+
+```jsonc
+{
+  "tools": {
+    "council": {
+      "defaultProfile": "balanced", // used when a call names no profile
+      "maxConcurrency": 3,          // 1..8
+      "personas": [
+        {
+          "id": "latency-hawk",
+          "name": "Latency Hawk",
+          "description": "Weighs tail latency above all else.",
+          "instruction": "Judge every option by its effect on p99 latency.",
+          "defaultVeto": false
+        }
+      ],
+      "profiles": [
+        {
+          "id": "latency-panel",
+          "seats": [{ "persona": "latency-hawk" }, { "persona": "skeptic" }],
+          "judge": false,
+          "distinctness": "provider"
+        }
+      ]
+    }
+  }
+}
+```
+
+Seats route by **role** (`{ "target": { "role": "critic" } }`), resolved through
+`modelMatrix`. Without a matrix entry the router falls back to capability
+heuristics over your configured providers, and finally to the session model — so
+a single-provider setup produces a single-model panel, which `distinctness`
+reports.
+
+> **Security.** `tools.council` is on the in-project deny list. A persona's
+> `instruction` is rendered into the voter *system* prompt and a profile seat can
+> pin a `providerId`/`model`, so a repo-committed `.wrongstack/config.json`
+> could otherwise inject system instructions into every seat and reroute the
+> calls. Only the active-profile config is honoured. A malformed block is
+> reported and falls back to the built-ins rather than failing tool registration.
+
 ### `brain.cache` — replay repeated verdicts
 
 ```jsonc

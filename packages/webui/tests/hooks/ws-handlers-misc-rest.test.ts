@@ -18,6 +18,7 @@ vi.mock('@/lib/ws-client', () => ({
 
 const {
   useChatStore,
+  useCouncilLogStore,
   useCronStore,
   useFileStore,
   useGitChangesStore,
@@ -339,6 +340,80 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
       handleBrainEvent(msg('brain.event', { event: 'brain.something_else' }));
       expect(lastChat()).toBeUndefined();
       expect(toast.warn).not.toHaveBeenCalled();
+    });
+
+    // ── council log ──────────────────────────────────────────────────────
+    describe('council', () => {
+      beforeEach(() => {
+        useCouncilLogStore.getState().clear();
+      });
+
+      it('assembles a panel from seat votes and its resolution', () => {
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_vote',
+            requestId: 'req-9',
+            seatId: 'voter-0',
+            persona: 'executor',
+            status: 'valid',
+            optionId: 'merge',
+            model: 'gpt-5',
+          }),
+        );
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_resolved',
+            requestId: 'req-9',
+            status: 'decided',
+            resolution: 'majority',
+            configuredSeatCount: 1,
+            validVoteCount: 1,
+            distinctTargetCount: 1,
+            judgeUsed: false,
+          }),
+        );
+
+        const [entry] = useCouncilLogStore.getState().panels;
+        expect(entry).toMatchObject({
+          requestId: 'req-9',
+          phase: 'resolved',
+          resolution: 'majority',
+        });
+        expect(entry?.seats).toHaveLength(1);
+      });
+
+      it('folds in the question from the nested request.id of a decision event', () => {
+        // The two event families spell the id differently: council events carry
+        // a top-level `requestId`, decision events nest it as `request.id`.
+        // Reading only the former matched nothing and left every row titled by
+        // a bare request id.
+        handleBrainEvent(
+          msg('brain.event', { event: 'brain.council_vote', requestId: 'req-10', seatId: 's0' }),
+        );
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.decision_answered',
+            request: { id: 'req-10', question: 'Merge the risky auth change?' },
+            decision: { type: 'answer' },
+          }),
+        );
+
+        expect(useCouncilLogStore.getState().panels[0]?.question).toBe(
+          'Merge the risky auth change?',
+        );
+      });
+
+      it('does not open a panel for a decision that never convened a council', () => {
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.decision_answered',
+            request: { id: 'req-policy', question: 'Retry the tool?' },
+            decision: { type: 'answer' },
+          }),
+        );
+
+        expect(useCouncilLogStore.getState().panels).toHaveLength(0);
+      });
     });
   });
 

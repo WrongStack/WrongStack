@@ -101,6 +101,39 @@ Every knob below is live-editable and persists to the active profile config.
 /brain monitor policy observe         # record signals, never steer (no model call)
 ```
 
+## Steering the council
+
+The council is the most expensive tier — one provider call *per seat* — so
+every knob is reachable from the command line, the TUI `/brain` panel and the
+WebUI settings section alike.
+
+```
+/brain council                        # is one convened, with which seats and judge?
+/brain council personas               # the six built-in decision lenses
+/brain council voters a/x:security:veto b/y:maintainer c/z:auditor
+/brain council judge anthropic/claude-opus-5
+/brain council distinctness provider  # report a panel that is not actually diverse
+/brain council quorum 0.75            # how many seats must return a valid vote
+/brain council approval 0.6           # winner must exceed this share, else the judge decides
+/brain council timeout 20000          # per-seat budget
+/brain council concurrency 6          # seats polled at once, 1..8
+/brain council judgetokens 700        # output budget for the tie-breaker
+```
+
+Two things worth setting deliberately:
+
+- **`distinctness`** — default `none`, which means a panel whose seats all
+  resolve to the same model produces a perfectly normal-looking unanimous
+  verdict while adding cost without adding independence. `provider` reports it.
+- **`judge`** — left on `auto` the judge is derived from the pool, and when the
+  pool has no model left over after seating it becomes one of the voters. Both
+  the TUI panel and the WebUI flag that case (`⚠ also a voter`), but pinning the
+  judge avoids it.
+
+Council votes now surface live: the TUI shows seat progress while the panel
+votes and attaches the full ballot to the decision card, and the WebUI posts the
+panel summary with any distinctness warning.
+
 The highest-leverage change is usually a `brain.rules` entry, not a model
 swap: a rule resolves the question before any tier that costs tokens. See
 [configuration.md](../configuration.md#brain--decision-layer-autonomy-rules-council-trace).

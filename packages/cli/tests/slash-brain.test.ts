@@ -409,6 +409,76 @@ describe('/brain slash command', () => {
       ]);
     });
 
+    it('/brain council voters accepts every built-in persona as a bare token', async () => {
+      // The shorthand set used to be a local ['executor','skeptic','auditor'],
+      // so `a/x:security` parsed "security" as part of the model ref and the
+      // seat silently kept the default lens.
+      const { runtime, patches } = makeFakeRuntime();
+      const cmd = buildBrainCommand(makeCtx({ brainRuntime: runtime }));
+
+      await cmd.run!('council voters a/x:security:veto b/y:maintainer c/z:user-advocate');
+
+      expect(patches).toEqual([
+        {
+          council: {
+            voters: [
+              { provider: 'a', model: 'x', persona: 'security', veto: true },
+              { provider: 'b', model: 'y', persona: 'maintainer' },
+              { provider: 'c', model: 'z', persona: 'user-advocate' },
+            ],
+          },
+        },
+      ]);
+    });
+
+    it('/brain council exposes the knobs that used to be WebUI-only', async () => {
+      const { runtime, patches } = makeFakeRuntime();
+      const cmd = buildBrainCommand(makeCtx({ brainRuntime: runtime }));
+
+      await cmd.run!('council distinctness provider');
+      await cmd.run!('council timeout 20000');
+      await cmd.run!('council concurrency 6');
+      await cmd.run!('council judgetokens 700');
+      await cmd.run!('council judgetokens default');
+
+      expect(patches).toEqual([
+        { council: { distinctness: 'provider' } },
+        { council: { perCallTimeoutMs: 20_000 } },
+        { council: { maxConcurrency: 6 } },
+        { council: { judgeMaxTokens: 700 } },
+        { council: { judgeMaxTokens: null } },
+      ]);
+    });
+
+    it('/brain council rejects an invalid distinctness without patching', async () => {
+      const { runtime, patches } = makeFakeRuntime();
+      const cmd = buildBrainCommand(makeCtx({ brainRuntime: runtime }));
+
+      const message = stripAnsi((await cmd.run!('council distinctness sometimes'))!.message!);
+
+      expect(message).toContain('none|model|provider');
+      expect(patches).toEqual([]);
+    });
+
+    it('/brain council personas lists every built-in lens without patching', async () => {
+      const { runtime, patches } = makeFakeRuntime();
+      const cmd = buildBrainCommand(makeCtx({ brainRuntime: runtime }));
+
+      const message = stripAnsi((await cmd.run!('council personas'))!.message!);
+
+      for (const id of [
+        'executor',
+        'skeptic',
+        'auditor',
+        'security',
+        'maintainer',
+        'user-advocate',
+      ]) {
+        expect(message).toContain(id);
+      }
+      expect(patches).toEqual([]);
+    });
+
     it('/brain ledger on|off and autodeny are setters; bare numeric stays a view', async () => {
       const { runtime, patches } = makeFakeRuntime();
       const ctx = makeCtx({

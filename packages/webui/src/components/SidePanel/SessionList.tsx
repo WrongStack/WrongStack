@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   Star,
+  SearchCheck,
   Trash2,
   Wrench,
   X,
@@ -358,6 +359,7 @@ export function SessionList({
   const toggleFavoriteSession = useUIStore((state) => state.toggleFavoriteSession);
   const sessionNicknames = useUIStore((state) => state.sessionNicknames);
   const setSessionNickname = useUIStore((state) => state.setSessionNickname);
+  const setInspectSession = useUIStore((state) => state.setInspectSession);
   const [filter, setFilter] = useState<HistoryFilter>('all');
   const [sort, setSort] = useState<HistorySort>('recent');
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -787,6 +789,18 @@ export function SessionList({
                               >
                                 <Play className="h-3 w-3" />
                                 {t('activity:sessions.resumeShort', { defaultValue: 'Resume' })}
+                              </button>
+                            ) : null}
+                            {!isRenaming ? (
+                              <button
+                                type="button"
+                                onClick={() => setInspectSession(entry.id)}
+                                className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                                title={t('activity:sessions.inspect', {
+                                  defaultValue: 'Inspect session',
+                                })}
+                              >
+                                <SearchCheck className="h-3.5 w-3.5" />
                               </button>
                             ) : null}
                             <button

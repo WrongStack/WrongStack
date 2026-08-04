@@ -8,7 +8,7 @@
  * task, node and message detail surfaces can join the same shell next.
  */
 
-import { Activity, Bot, PanelRightOpen, Users, X } from 'lucide-react';
+import { Activity, Bot, PanelRightOpen, Scale, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   EventTimeline,
@@ -20,10 +20,11 @@ import {
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { openPanel } from '@/components/activity-bar/nav';
-import type { FleetTimelineEvent, SubagentView } from '@/stores';
-import { useFleetStore, useSideEffectStore, useUIStore } from '@/stores';
+import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
+import { useCouncilLogStore, useFleetStore, useSideEffectStore, useUIStore } from '@/stores';
 import { AgentCard } from './AgentsMonitor';
 import { FleetAgentRow } from '@/components/ui/fleet-agent-row';
+import { CouncilLogTimeline } from './CouncilLogTimeline';
 import { SideEffectTimeline } from './SideEffectTimeline';
 import {
   Sheet,
@@ -133,6 +134,13 @@ export function InspectorPanel() {
   }, [selectedAgentId, fleetList, fleetAgents]);
 
   const sideEffectCount = useSideEffectStore((s) => s.sideEffects.length);
+  // Subscribed as two scalars rather than the panel array: the array changes
+  // identity on every seat vote, and the tab bar must not re-render the whole
+  // inspector for each one.
+  const councilCount = useCouncilLogStore((s) => s.panels.length);
+  const councilVotingCount = useCouncilLogStore(
+    (s) => s.panels.filter((panel) => panel.phase === 'voting').length,
+  );
 
   // Clicking a row in the fleet list jumps to that agent's detail card.
   const handleSelectAgent = (agent: SubagentView) => {
@@ -208,7 +216,7 @@ export function InspectorPanel() {
 
         <Tabs
           value={inspectorTab}
-          onValueChange={(value) => setInspectorTab(value as 'fleet' | 'agents' | 'sideEffects')}
+          onValueChange={(value) => setInspectorTab(value as InspectorTab)}
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList
@@ -234,6 +242,13 @@ export function InspectorPanel() {
               label={t('activity:inspector.tabAudit')}
               count={sideEffectCount}
             />
+            <TabButton
+              value="council"
+              icon={<Scale className="h-3.5 w-3.5" />}
+              label={t('activity:inspector.tabCouncil', { defaultValue: 'Council' })}
+              count={councilCount}
+              running={councilVotingCount}
+            />
           </TabsList>
 
           <TabsContent value="fleet" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
@@ -257,6 +272,9 @@ export function InspectorPanel() {
           <TabsContent value="sideEffects" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
             <SideEffectTimeline />
           </TabsContent>
+          <TabsContent value="council" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+            <CouncilLogTimeline />
+          </TabsContent>
         </Tabs>
       </SheetContent>
     </Sheet>
@@ -272,7 +290,7 @@ function TabButton({
   count,
   running,
 }: {
-  value: 'fleet' | 'agents' | 'sideEffects';
+  value: InspectorTab;
   icon: ReactNode;
   label: string;
   count: number;

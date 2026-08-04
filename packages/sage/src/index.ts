@@ -91,6 +91,43 @@ export type {
 } from './service-contract.js';
 export { isSageService } from './service-guard.js';
 export { isSqliteAvailable, SqliteSageStore } from './sqlite-store.js';
+export {
+  runTriage,
+  formatTriageReport,
+  type TriageReport,
+  type RunTriageOptions,
+} from './triage/orchestrator.js';
+export type { LlmCallFn } from './triage/llm-evaluator.js';
+export {
+  preFilter,
+  preFilterBatch,
+  computeValueScore,
+  computeValueScores,
+  evaluateMemory,
+  evaluateBatch,
+  detectMerges,
+  dispatchAction,
+  dispatchBatch,
+  type PreFilterResult,
+  type PreFilterVerdict,
+  type ValueScoreBreakdown,
+  type ValueBand,
+  type LlmEvaluation,
+  type LlmTriageResult,
+  type LlmEvaluatorOptions,
+  type TriageAction,
+  type MemoryFieldUpdate,
+  type AutoApplyAction,
+  type TriageProposal,
+  type DispatchResult,
+  type MemoryCluster,
+  type MergeCandidate,
+  type MergeVerdict,
+  type MergePairResult,
+  type MergeAction,
+  type OverlapProposal,
+  type MergeDetectionResult,
+} from './triage/index.js';
 export { normalizeTextKey, tokenize } from './store-helpers.js';
 export { createSageTools } from './tools/memory-tools.js';
 export type { UpdateSageInput } from './types.js';

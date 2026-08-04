@@ -139,6 +139,12 @@
     "tabFleet": "Frota",
     "tabAgents": "Agentes",
     "tabAudit": "Auditoria",
+    "tabCouncil": "Council",
+    "councilCount": "{{count}} painel",
+    "councilCount_other": "{{count}} painéis",
+    "councilClear": "Limpar",
+    "councilEmpty": "Nenhum council foi convocado ainda nesta sessão.",
+    "councilEmptyHint": "O Brain convoca um painel multimodelo para perguntas que atingem ou superam seu limiar de risco de council. Configure em Configurações › Brain › Council.",
     "collapseAria": "Recolher painel Inspetor",
     "collapseTitle": "Recolher (Esc)",
     "noAgentsActive": "Nenhum agente ativo",
@@ -938,7 +944,10 @@
   "modelSwitcher": {
     "heading": "Trocar modelo",
     "filterPlaceholder": "Filtrar provedores e modelos…",
+    "providerFilter": "Provedor",
+    "providerFilterAll": "Todos os provedores",
     "noSavedProviders": "Sem provedores salvos — registre uma chave nas Configurações primeiro.",
+    "noMatch": "Nenhum modelo correspondente",
     "active": "ativo"
   },
   "work": {

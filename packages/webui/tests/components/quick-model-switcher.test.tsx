@@ -224,10 +224,10 @@ describe('list rendering', () => {
     expect(screen.getByText('GPT-5')).toBeTruthy();
   });
 
-  it('shows the empty state when the filter matches nothing', async () => {
+  it('shows a no-match message when the filter yields nothing', async () => {
     await openWithCatalogue();
     fireEvent.change(input(), { target: { value: 'zzzzz' } });
-    await waitFor(() => expect(screen.getByText(/loading/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/no matching/i)).toBeTruthy());
   });
 
   it('resets the query each time it opens', async () => {
@@ -383,5 +383,67 @@ describe('committing a switch', () => {
 
     fireEvent.keyDown(input(), { key: 'Enter' });
     expect(switchModel).not.toHaveBeenCalled();
+  });
+});
+
+describe('provider filter', () => {
+  it('does not show when only one provider is saved', async () => {
+    render(<QuickModelSwitcher />);
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+    emit('providers.saved', { providers: [provider('openai')] });
+    emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
+
+    await waitFor(() => expect(screen.getByText('GPT-5')).toBeTruthy());
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('shows a filter dropdown when multiple providers exist', async () => {
+    render(<QuickModelSwitcher />);
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+    emit('providers.saved', { providers: [provider('openai'), provider('anthropic')] });
+    emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
+    emit('provider.models', { provider: 'anthropic', models: [model('claude-opus')] });
+
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeTruthy());
+  });
+
+  it('filters the list when a provider is selected', async () => {
+    render(<QuickModelSwitcher />);
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+    emit('providers.saved', { providers: [provider('openai'), provider('anthropic')] });
+    emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
+    emit('provider.models', { provider: 'anthropic', models: [model('claude-opus')] });
+
+    await waitFor(() => expect(screen.getByText('GPT-5')).toBeTruthy());
+
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'openai' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('GPT-5')).toBeTruthy();
+      expect(screen.queryByText('CLAUDE-OPUS')).toBeNull();
+    });
+  });
+
+  it('resets the provider filter when the modal reopens', async () => {
+    render(<QuickModelSwitcher />);
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+    emit('providers.saved', { providers: [provider('openai'), provider('anthropic')] });
+    emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
+    emit('provider.models', { provider: 'anthropic', models: [model('claude-opus')] });
+
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeTruthy());
+
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'anthropic' } });
+    await waitFor(() => expect(screen.queryByText('GPT-5')).toBeNull());
+
+    act(() => useUIStore.getState().setModelSwitcherOpen(false));
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+
+    await waitFor(() => {
+      const reset = screen.getByRole('combobox') as HTMLSelectElement;
+      expect(reset.value).toBe('');
+    });
   });
 });

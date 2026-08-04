@@ -192,10 +192,33 @@ describe('handleBrainConfigGet/Set', () => {
     const { runtime } = makeRuntime();
     const { ctx, cap } = makeCtx({ brainRuntime: runtime });
     handleBrainConfigGet(ctx, FAKE_WS);
-    expect(lastOfType(cap, 'brain.config')?.payload).toEqual({
+    expect(lastOfType(cap, 'brain.config')?.payload).toMatchObject({
       config: SNAPSHOT,
       persisted: true,
     });
+  });
+
+  it('config.get decorates the snapshot with the Council persona catalog', () => {
+    // The settings section used to hard-code ['executor','skeptic','auditor'],
+    // which is why the registry's security / maintainer / user-advocate lenses
+    // were unselectable in the browser. The catalog is served, not inlined, so
+    // a lens added in core needs no WebUI change.
+    const { runtime } = makeRuntime();
+    const { ctx, cap } = makeCtx({ brainRuntime: runtime });
+
+    handleBrainConfigGet(ctx, FAKE_WS);
+
+    const payload = lastOfType(cap, 'brain.config')?.payload as {
+      config: { personaCatalog?: Array<{ id: string; name: string; description: string }> };
+    };
+    const ids = (payload.config.personaCatalog ?? []).map((persona) => persona.id);
+    expect(ids).toEqual(
+      expect.arrayContaining(['executor', 'skeptic', 'auditor', 'security', 'maintainer', 'user-advocate']),
+    );
+    for (const persona of payload.config.personaCatalog ?? []) {
+      expect(persona.name).toBeTruthy();
+      expect(persona.description).toBeTruthy();
+    }
   });
 
   it('config.get errors when no runtime is wired', () => {

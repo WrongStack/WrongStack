@@ -9,7 +9,10 @@ import type {
 } from '../types/council.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import type { CouncilPersonaRegistry } from '../execution/council-personas.js';
-import type { CouncilProfileRegistry } from '../execution/council-profiles.js';
+import {
+  type CouncilProfileRegistry,
+  DEFAULT_COUNCIL_PROFILE_REGISTRY,
+} from '../execution/council-profiles.js';
 
 export const COUNCIL_TOOL_NAME = 'council';
 export const MAX_COUNCIL_TOOL_OPTIONS = 12;
@@ -64,7 +67,8 @@ const INPUT_SCHEMA: JSONSchema = {
     },
     profile: {
       type: 'string',
-      description: 'Registered Council profile id. Defaults to the host-configured profile.',
+      description:
+        'Registered Council profile id (e.g. "balanced", "fast", "risk-review"). Defaults to the host-configured profile.',
     },
   },
   required: ['question'],
@@ -79,6 +83,8 @@ export function createCouncilTool(
     ...opts,
     fallbackProfileManager: opts.fallbackProfileManager,
   });
+  const profiles = opts.profiles ?? DEFAULT_COUNCIL_PROFILE_REGISTRY;
+  const profileIds = profiles.list().map((profile) => profile.id);
   return {
     name: COUNCIL_TOOL_NAME,
     description:
@@ -87,7 +93,8 @@ export function createCouncilTool(
     usageHint:
       'Use for consequential or disputed decisions that benefit from independent lenses. ' +
       'Provide `options` for a vote or omit them for an open answer. ' +
-      'Keep context evidence-focused; the Council treats it as untrusted data.',
+      'Keep context evidence-focused; the Council treats it as untrusted data. ' +
+      `Available profiles: ${profileIds.join(', ')}.`,
     category: 'meta',
     inputSchema: INPUT_SCHEMA,
     permission: 'auto',
@@ -105,12 +112,21 @@ export function createCouncilTool(
       };
       return orchestrator.ask(question);
     },
-    validate: validateCouncilToolInput,
+    validate: (input) => validateCouncilToolInput(input, profileIds),
   };
 }
 
-function validateCouncilToolInput(input: CouncilToolInput): string[] {
+function validateCouncilToolInput(input: CouncilToolInput, profileIds: string[]): string[] {
   const errors: string[] = [];
+  // An unknown profile id used to reach `registry.require()` inside `ask()`
+  // and surface as a thrown tool failure. Naming the valid ids here turns a
+  // typo into something the caller can correct on the next attempt.
+  if (typeof input.profile === 'string' && input.profile.trim()) {
+    const id = input.profile.trim();
+    if (!profileIds.includes(id)) {
+      errors.push(`Unknown \`profile\` "${id}". Available: ${profileIds.join(', ')}.`);
+    }
+  }
   const question = input.question?.trim() ?? '';
   if (!question) errors.push('`question` must not be empty.');
   if (question.length > MAX_COUNCIL_QUESTION_CHARS) {

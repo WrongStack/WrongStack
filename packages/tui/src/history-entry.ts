@@ -6,6 +6,43 @@ import {
   MIN_RELATION_STRENGTH,
 } from '@wrongstack/sage';
 
+// ── Brain council trace — how a multi-LLM panel reached a verdict ─────────
+
+/** One seat's observable vote. No hidden chain-of-thought is retained. */
+export interface BrainCouncilSeatTrace {
+  seatId: string;
+  persona: string;
+  status: 'valid' | 'invalid' | 'failed' | 'cancelled';
+  /** The option the seat voted for, when the question was option-bearing. */
+  optionId?: string | undefined;
+  model?: string | undefined;
+  veto?: boolean | undefined;
+  durationMs?: number | undefined;
+  error?: string | undefined;
+}
+
+/**
+ * Panel summary attached to a council-tier Brain entry.
+ *
+ * The council is by far the most expensive tier — N provider calls per
+ * decision — and used to be entirely invisible: the votes were emitted onto
+ * the bus but no surface consumed them, so a slow, costly decision looked
+ * identical to a free policy one.
+ */
+export interface BrainCouncilTrace {
+  resolution: string;
+  configuredSeatCount: number;
+  validVoteCount: number;
+  /** Distinct provider/model targets that served the valid votes. */
+  distinctTargetCount: number;
+  judgeUsed: boolean;
+  totalTokens?: number | undefined;
+  durationMs?: number | undefined;
+  /** Structural warnings — most importantly a CORRELATED (non-diverse) panel. */
+  warnings?: string[] | undefined;
+  seats: BrainCouncilSeatTrace[];
+}
+
 // ── Autonomy agent status — used by the banner ────────────────────────────
 
 export interface AutonomyAgentStatus {
@@ -203,6 +240,12 @@ export type HistoryEntry =
       rationale?: string | undefined;
       outcome?: string | undefined;
       interventionKind?: string | undefined;
+      /**
+       * How the multi-LLM council reached this verdict, when a council decided
+       * it. Present only for council-tier decisions; the single-LLM and policy
+       * tiers leave it undefined.
+       */
+      council?: BrainCouncilTrace | undefined;
     }
   | {
       id: number;

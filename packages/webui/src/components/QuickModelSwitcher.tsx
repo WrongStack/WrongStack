@@ -5,7 +5,7 @@ import { useAppTranslation } from '@/i18n';
 import { toast } from '@/components/Toaster';
 import { useConfigStore, useUIStore } from '@/stores';
 import type { WSServerMessage } from '@/types';
-import { ArrowRight, Cpu, Search } from 'lucide-react';
+import { ArrowRight, Cpu, Filter, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { buildModelCandidates } from './QuickModelSwitcher.filter';
@@ -34,6 +34,7 @@ export function QuickModelSwitcher() {
   const open = useUIStore((s) => s.modelSwitcherOpen);
   const setOpen = useUIStore((s) => s.setModelSwitcherOpen);
   const [query, setQuery] = useState('');
+  const [providerFilter, setProviderFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
   const [saved, setSaved] = useState<SavedProvider[]>([]);
   const [modelsByProvider, setModelsByProvider] = useState<Record<string, CatalogModel[]>>({});
@@ -99,6 +100,7 @@ export function QuickModelSwitcher() {
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setProviderFilter(null);
     setSelected(0);
     listSavedProviders();
     // Auto-focus the search input after the dialog paints. requestAnimationFrame
@@ -116,12 +118,27 @@ export function QuickModelSwitcher() {
     }
   }, [open, saved, modelsByProvider, listProviderModels]);
 
+  /** Derive unique provider IDs (sorted) from the saved list for the
+   *  filter dropdown. */
+  const providerList = useMemo(
+    () => [...new Set(saved.map((sp) => sp.id))].sort((a, b) => a.localeCompare(b)),
+    [saved],
+  );
+
   /** Flatten into a single list of {provider, model} candidates, then apply
-   *  the search filter. The active row floats to the top so the user can
-   *  see what they're currently on. */
+   *  the search filter and optional provider filter. The active row floats
+   *  to the top so the user can see what they're currently on. */
   const candidates = useMemo(
-    () => buildModelCandidates(saved, modelsByProvider, query, currentProvider, currentModel),
-    [saved, modelsByProvider, query, currentProvider, currentModel],
+    () =>
+      buildModelCandidates(
+        saved,
+        modelsByProvider,
+        query,
+        currentProvider,
+        currentModel,
+        providerFilter,
+      ),
+    [saved, modelsByProvider, query, currentProvider, currentModel, providerFilter],
   );
 
   useEffect(() => {
@@ -205,6 +222,27 @@ export function QuickModelSwitcher() {
             aria-label={t('activity:modelSwitcher.filterPlaceholder')}
             className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
           />
+          {providerList.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <select
+                value={providerFilter ?? ''}
+                onChange={(e) => {
+                  setProviderFilter(e.target.value || null);
+                  setSelected(0);
+                }}
+                aria-label={t('activity:modelSwitcher.providerFilter')}
+                className="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer border-0 max-w-[100px] truncate"
+              >
+                <option value="">{t('activity:modelSwitcher.providerFilterAll')}</option>
+                {providerList.map((pid) => (
+                  <option key={pid} value={pid}>
+                    {pid}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <span className="text-[10px] text-muted-foreground font-mono">
             {switchingTarget
               ? t('settings:toast.switchingToTarget', { target: switchingTarget })
@@ -216,7 +254,9 @@ export function QuickModelSwitcher() {
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               {saved.length === 0
                 ? t('activity:modelSwitcher.noSavedProviders')
-                : t('activity:model.loading')}
+                : Object.keys(modelsByProvider).length === 0
+                  ? t('activity:model.loading')
+                  : t('activity:modelSwitcher.noMatch')}
             </div>
           ) : (
             candidates.map((c, idx) => (

@@ -13,6 +13,9 @@
  *   - maintainer   — evaluates complexity, compatibility, long-term ownership.
  *   - user-advocate — evaluates from the affected user's perspective.
  *
+ * Any other persona string is registered as an ad-hoc lens instead of being
+ * rejected — see `resolvePersonaRegistry`.
+ *
  * @module council-brain
  */
 
@@ -27,7 +30,16 @@ import {
 } from './autonomy-brain.js';
 import type { EventBus } from '../kernel/events.js';
 import { CouncilOrchestrator } from './council-orchestrator.js';
-import type { CouncilLLMCaller, CouncilModelTarget, CouncilProfileConfig, CouncilSeatConfig } from '../types/council.js';
+import {
+  type CouncilPersonaRegistry,
+  DEFAULT_COUNCIL_PERSONA_REGISTRY,
+} from './council-personas.js';
+import type {
+  CouncilLLMCaller,
+  CouncilModelTarget,
+  CouncilProfileConfig,
+  CouncilSeatConfig,
+} from '../types/council.js';
 import type { OneShotLLMInput, OneShotLLMResult } from '../types/one-shot-llm.js';
 import type { Provider } from '../types/provider.js';
 
@@ -46,8 +58,9 @@ export interface CouncilVoter {
   /** Model id this voter uses. */
   model: string;
   /**
-   * Decision lens. Built-ins: 'executor', 'skeptic', 'auditor'. Any other
-   * string is injected verbatim as the persona description.
+   * Decision lens. Built-ins: 'executor', 'skeptic', 'auditor', 'security',
+   * 'maintainer', 'user-advocate'. Any other string is registered as an ad-hoc
+   * lens whose instruction is the string itself (see `resolvePersonaRegistry`).
    */
   persona?: string | undefined;
   /** Vote weight. Default 1. */
@@ -87,6 +100,82 @@ export interface CouncilBrainOptions {
    * Off by default — this is production decision content.
    */
   traceContent?: boolean | undefined;
+}
+
+// ── Custom personas ────────────────────────────────────────────────────────
+
+/** Longest synthetic persona id derived from a free-text lens description. */
+const MAX_CUSTOM_PERSONA_ID_CHARS = 48;
+
+/**
+ * Turn a free-text lens into a registry-legal persona id.
+ *
+ * Persona ids are constrained to `^[a-z0-9]+(-[a-z0-9]+)*$`, so a verbatim
+ * description ("weigh latency above all else") cannot be its own id. The slug
+ * is only an internal handle — the raw text is what reaches the voter prompt.
+ */
+function customPersonaId(raw: string, index: number): string {
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MAX_CUSTOM_PERSONA_ID_CHARS)
+    .replace(/-+$/g, '');
+  return slug ? `custom-${slug}` : `custom-${index + 1}`;
+}
+
+/**
+ * Resolve every voter's persona against the built-in registry, registering
+ * unrecognized strings as ad-hoc decision lenses.
+ *
+ * `BrainCouncilVoterConfig.persona` is documented as "any other string is
+ * injected verbatim as the persona description". After the CouncilOrchestrator
+ * refactor that stopped being true: `normalizeCouncilProfile` calls
+ * `personas.require()`, which throws — and the throw is swallowed by the
+ * tiered arbiter, so a single typo silently disabled the whole council for the
+ * rest of the session while every surface still reported it as "convened".
+ * Registering the lens instead keeps the documented behaviour and removes that
+ * failure mode entirely.
+ */
+function resolvePersonaRegistry(voters: readonly CouncilVoter[]): {
+  registry: CouncilPersonaRegistry;
+  /** Voter index → persona id to use in the generated profile. */
+  personaIds: string[];
+} {
+  let registry = DEFAULT_COUNCIL_PERSONA_REGISTRY;
+  const personaIds: string[] = [];
+  const byRawText = new Map<string, string>();
+
+  voters.forEach((voter, index) => {
+    const raw = voter.persona?.trim();
+    if (!raw) {
+      personaIds.push('executor');
+      return;
+    }
+    if (registry.has(raw)) {
+      personaIds.push(raw);
+      return;
+    }
+    const existing = byRawText.get(raw);
+    if (existing) {
+      personaIds.push(existing);
+      return;
+    }
+    let id = customPersonaId(raw, index);
+    // A slug can still collide (two lenses differing only in punctuation).
+    let suffix = 2;
+    while (registry.has(id)) id = `${customPersonaId(raw, index)}-${suffix++}`;
+    registry = registry.with({
+      id,
+      name: raw.length <= 40 ? raw : `${raw.slice(0, 39)}…`,
+      description: 'Custom decision lens supplied by the host configuration.',
+      instruction: raw,
+    });
+    byRawText.set(raw, id);
+    personaIds.push(id);
+  });
+
+  return { registry, personaIds };
 }
 
 // ── Factory ────────────────────────────────────────────────────────────────
@@ -174,14 +263,16 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
   };
 
   // ── Build a dynamic profile from voters ──────────────────────────────
+  // Unrecognized persona strings become ad-hoc lenses rather than throwing.
+  const { registry: personas, personaIds } = resolvePersonaRegistry(opts.voters);
   const seats: CouncilSeatConfig[] = opts.voters.map((voter, i) => ({
     id: `voter-${i}`,
     label: voter.label ?? voter.model,
-    persona: voter.persona ?? 'executor',
+    persona: personaIds[i] ?? 'executor',
     target: {
       providerId: voter.provider.id,
       model: voter.model,
-      role: voter.persona ?? 'executor',
+      role: personaIds[i] ?? 'executor',
     } satisfies CouncilModelTarget,
     weight: voter.weight,
     veto: voter.veto,
@@ -209,6 +300,9 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
   // ── Orchestrator with per-seat callers ───────────────────────────────
   const orchestrator = new CouncilOrchestrator({
     defaultProfile: 'brain-council-adapter',
+    // Carries the ad-hoc lenses registered above; without it the orchestrator
+    // falls back to the built-in registry and rejects every custom persona.
+    personas,
     // Previously never passed, so the panel was pinned at the orchestrator's
     // default of 3 concurrent seats no matter how many voters were configured.
     ...(opts.maxConcurrency !== undefined ? { maxConcurrency: opts.maxConcurrency } : {}),

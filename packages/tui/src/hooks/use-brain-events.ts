@@ -38,6 +38,30 @@ export function useBrainEvents(
       }
     };
 
+    // ── Council trace ─────────────────────────────────────────────────
+    // Seat votes and the resolution are emitted from inside `council.decide()`,
+    // so they always land BEFORE the decision_* event for the same request.
+    // Buffer them here and attach the panel summary to the entry that decision
+    // produces — a council verdict then shows WHO voted and whether the panel
+    // was actually diverse, instead of looking like any other one-line answer.
+    const councilTraces = new Map<string, NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>>();
+    const councilVotes = new Map<
+      string,
+      NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>['seats']
+    >();
+    // The maps are keyed by request id and only drained when that request
+    // reaches a decision. A council that fails before resolving, or a request
+    // whose decision event never arrives, would otherwise leak one entry per
+    // decision for the lifetime of the session.
+    const COUNCIL_TRACE_MAX = 100;
+    const capCouncilMap = (map: Map<string, unknown>): void => {
+      while (map.size > COUNCIL_TRACE_MAX) {
+        const oldest = map.keys().next().value;
+        if (oldest === undefined) break;
+        map.delete(oldest);
+      }
+    };
+
     const addBrainEntry = (
       status: Exclude<Extract<HistoryEntry, { kind: 'brain' }>['status'], 'thinking'>,
       payload: unknown,
@@ -46,6 +70,9 @@ export function useBrainEvents(
         request: { id: string; source: string; risk: Extract<HistoryEntry, { kind: 'brain' }>['risk']; question: string; context?: string | undefined; options?: NonNullable<State['brainPrompt']>['options'] | undefined };
         decision: BrainDecision;
       };
+      const council = councilTraces.get(p.request.id);
+      councilTraces.delete(p.request.id);
+      councilVotes.delete(p.request.id);
       const decision = decisionSummary(p.decision);
       dispatch({ type: 'brainStatus', state: status, source: p.request.source, risk: p.request.risk, summary: decision });
       if (status === 'ask_human') {
@@ -62,7 +89,7 @@ export function useBrainEvents(
         dispatch({ type: 'brainPromptClear' });
       }
       const rationale = p.decision.type === 'deny' ? undefined : p.decision.rationale;
-      dispatch({ type: 'addEntry', entry: { kind: 'brain', status, source: p.request.source, risk: p.request.risk, question: p.request.question, decision, rationale } });
+      dispatch({ type: 'addEntry', entry: { kind: 'brain', status, source: p.request.source, risk: p.request.risk, question: p.request.question, decision, rationale, ...(council ? { council } : {}) } });
     };
 
     const pendingMonitorAnswers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -108,6 +135,50 @@ export function useBrainEvents(
     const offDenied = events.on('brain.decision_denied', (payload) => {
       if (isCurrentSession(payload.sessionId)) addBrainEntry('denied', payload);
     });
+    // ── Council tier ─────────────────────────────────────────────────
+    // A council decision costs one provider call PER SEAT and can run for
+    // ~90s. Reporting seats as they land is what makes that wait legible
+    // rather than a silent stall behind a generic "deciding" status.
+    const offCouncilVote = events.on('brain.council_vote', (payload) => {
+      if (!isCurrentSession(payload.sessionId)) return;
+      const seats = councilVotes.get(payload.requestId) ?? [];
+      seats.push({
+        seatId: payload.seatId,
+        persona: payload.persona,
+        status: payload.status,
+        optionId: payload.optionId,
+        model: payload.model,
+        veto: payload.veto,
+        durationMs: payload.durationMs,
+        error: payload.error,
+      });
+      councilVotes.set(payload.requestId, seats);
+      capCouncilMap(councilVotes);
+      dispatch({
+        type: 'brainStatus',
+        state: 'deciding',
+        source: 'council',
+        risk: 'high',
+        summary: `council · ${seats.length} seat${seats.length === 1 ? '' : 's'} voted`,
+      });
+    });
+    const offCouncilResolved = events.on('brain.council_resolved', (payload) => {
+      if (!isCurrentSession(payload.sessionId)) return;
+      councilTraces.set(payload.requestId, {
+        resolution: payload.resolution,
+        configuredSeatCount: payload.configuredSeatCount,
+        validVoteCount: payload.validVoteCount,
+        distinctTargetCount: payload.distinctTargetCount,
+        judgeUsed: payload.judgeUsed,
+        totalTokens: payload.usage?.totalTokens,
+        durationMs: payload.usage?.durationMs,
+        ...(payload.warnings?.length ? { warnings: [...payload.warnings] } : {}),
+        seats: councilVotes.get(payload.requestId) ?? [],
+      });
+      capCouncilMap(councilTraces);
+      councilVotes.delete(payload.requestId);
+    });
+
     // Self-activation: the BrainMonitor engaged on a distress signal
     // (tool-failure streak / error storm). Show whether it steered the
     // agent or just observed — the steer itself arrives as mailbox mail.
@@ -146,9 +217,13 @@ export function useBrainEvents(
       offAnswered();
       offAskHuman();
       offDenied();
+      offCouncilVote();
+      offCouncilResolved();
       offIntervention();
       for (const timer of pendingMonitorAnswers.values()) clearTimeout(timer);
       pendingMonitorAnswers.clear();
+      councilTraces.clear();
+      councilVotes.clear();
     };
   }, [events, dispatch, getSessionId]);
 }

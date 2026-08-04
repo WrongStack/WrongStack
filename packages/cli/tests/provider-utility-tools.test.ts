@@ -18,7 +18,11 @@ vi.mock('@wrongstack/core/infrastructure', () => ({
   createContextManagerTool: mocks.createContextManagerTool,
 }));
 
-vi.mock('@wrongstack/core/execution', () => ({
+// Only OneShotOrchestrator is faked. The Council persona/profile registries
+// come through untouched: their validation IS the behaviour under test, and a
+// stub would just assert that a stub was called.
+vi.mock('@wrongstack/core/execution', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/core/execution')>()),
   OneShotOrchestrator: class {
     constructor(options: unknown) {
       mocks.orchestratorOptions.push(options);
@@ -164,6 +168,142 @@ describe('registerProviderUtilityTools', () => {
       maxTokens: 1024,
       timeoutMs: 30_000,
     });
+  });
+
+  it('gives the council orchestrator a live role router', () => {
+    // Council profiles route seats by ROLE. Without a router those hints were
+    // inert and every seat collapsed onto the session provider/model, so a
+    // three-seat panel asked one model three times.
+    const registry = { register: vi.fn(), override: vi.fn() };
+    const deps = input(registry);
+    deps.getConfig = () =>
+      ({
+        provider: 'session-provider',
+        model: 'session-model',
+        modelMatrix: { critic: { provider: 'anthropic', model: 'matrix-critic' } },
+      }) as never;
+
+    registerProviderUtilityTools(deps as never);
+
+    const councilOptions = mocks.orchestratorOptions[0] as {
+      modelRouter?: { pickForTask(role: string, description: string): unknown };
+    };
+    expect(councilOptions.modelRouter).toBeDefined();
+    expect(councilOptions.modelRouter?.pickForTask('critic', '')).toEqual(
+      expect.objectContaining({ provider: 'anthropic', model: 'matrix-critic', fromMatrix: true }),
+    );
+  });
+
+  it('reads the router matrix at pick time, not at wiring time', () => {
+    // `/setmodel` edits the matrix mid-session; a router snapshotted at boot
+    // would keep routing seats to the models configured at startup.
+    const registry = { register: vi.fn(), override: vi.fn() };
+    const deps = input(registry);
+    let matrix: Record<string, { provider: string; model: string }> = {};
+    deps.getConfig = () =>
+      ({ provider: 'session-provider', model: 'session-model', modelMatrix: matrix }) as never;
+
+    registerProviderUtilityTools(deps as never);
+    const router = (
+      mocks.orchestratorOptions[0] as {
+        modelRouter: { pickForTask(role: string, description: string): { model: string } };
+      }
+    ).modelRouter;
+
+    expect(router.pickForTask('critic', '').model).toBe('session-model');
+    matrix = { critic: { provider: 'anthropic', model: 'late-critic' } };
+    expect(router.pickForTask('critic', '').model).toBe('late-critic');
+  });
+
+  it('builds council registries from tools.council', () => {
+    // createCouncilPersonaRegistry/createCouncilProfileRegistry shipped from
+    // day one but no host ever called them, so the tool was pinned to the
+    // built-in lenses and panels with no way to add either.
+    const registry = { register: vi.fn(), override: vi.fn() };
+    const deps = input(registry);
+    deps.getConfig = () =>
+      ({
+        provider: 'p',
+        model: 'm',
+        tools: {
+          council: {
+            defaultProfile: 'latency-panel',
+            maxConcurrency: 5,
+            personas: [
+              {
+                id: 'latency-hawk',
+                name: 'Latency Hawk',
+                description: 'Weighs tail latency above all else.',
+                instruction: 'Judge every option by its effect on p99 latency.',
+              },
+            ],
+            profiles: [
+              {
+                id: 'latency-panel',
+                seats: [{ persona: 'latency-hawk' }, { persona: 'skeptic' }],
+                judge: false,
+              },
+            ],
+          },
+        },
+      }) as never;
+
+    registerProviderUtilityTools(deps as never);
+
+    const councilOpts = mocks.createCouncilTool.mock.calls[0]?.[0] as {
+      defaultProfile?: string;
+      maxConcurrency?: number;
+      personas?: { has(id: string): boolean };
+      profiles?: { has(id: string): boolean };
+    };
+    expect(councilOpts.defaultProfile).toBe('latency-panel');
+    expect(councilOpts.maxConcurrency).toBe(5);
+    expect(councilOpts.personas?.has('latency-hawk')).toBe(true);
+    // Built-ins survive alongside the custom lens.
+    expect(councilOpts.personas?.has('security')).toBe(true);
+    expect(councilOpts.profiles?.has('latency-panel')).toBe(true);
+    expect(councilOpts.profiles?.has('balanced')).toBe(true);
+  });
+
+  it('falls back to the built-in council registries when tools.council is malformed', () => {
+    // A bad panel definition must not take the whole tool registration down —
+    // same posture as an unresolvable Brain pool entry.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const registry = { register: vi.fn(), override: vi.fn() };
+    const deps = input(registry);
+    deps.getConfig = () =>
+      ({
+        provider: 'p',
+        model: 'm',
+        tools: {
+          council: {
+            profiles: [{ id: 'broken', seats: [{ persona: 'no-such-lens' }] }],
+          },
+        },
+      }) as never;
+
+    expect(() => registerProviderUtilityTools(deps as never)).not.toThrow();
+
+    const councilOpts = mocks.createCouncilTool.mock.calls[0]?.[0] as {
+      personas?: unknown;
+      profiles?: unknown;
+    };
+    expect(councilOpts.personas).toBeUndefined();
+    expect(councilOpts.profiles).toBeUndefined();
+    expect(registry.register).toHaveBeenCalledWith({ name: 'council' });
+    expect(warn.mock.calls.map((c) => String(c[0])).join('\n')).toContain('no-such-lens');
+    warn.mockRestore();
+  });
+
+  it('leaves the council registries untouched when tools.council is absent', () => {
+    const registry = { register: vi.fn(), override: vi.fn() };
+
+    registerProviderUtilityTools(input(registry) as never);
+
+    const councilOpts = mocks.createCouncilTool.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(councilOpts.personas).toBeUndefined();
+    expect(councilOpts.profiles).toBeUndefined();
+    expect(councilOpts.defaultProfile).toBeUndefined();
   });
 
   it('overrides pre-registered utility tools', () => {

@@ -81,6 +81,32 @@ export interface WSSessionsList {
   };
 }
 
+export interface WSSessionInspect {
+  type: 'session.inspect';
+  payload: {
+    id: string;
+    title?: string | undefined;
+    name?: string | undefined;
+    model?: string | undefined;
+    provider?: string | undefined;
+    startedAt?: string | undefined;
+    endedAt?: string | undefined;
+    tokenTotal?: number | undefined;
+    outcome?: 'completed' | 'error' | 'timeout' | 'aborted' | undefined;
+    messageCount?: number | undefined;
+    iterationCount?: number | undefined;
+    toolCallCount?: number | undefined;
+    toolErrorCount?: number | undefined;
+    fileChangeCount?: number | undefined;
+    compactionCount?: number | undefined;
+    toolBreakdown?: Record<string, number> | undefined;
+    events?: Array<{ ts: string; type: string; label: string; detail: string }> | undefined;
+    fileEvents?: Array<{ operation: string; filePath: string; toolName: string; ts: string }> | undefined;
+    lastUserMessage?: string | undefined;
+    error?: string | undefined;
+  };
+}
+
 // --- Provider/Model/Key management (mirrors TUI/CLI auth-menu experience) ---
 
 export interface WSProviderCatalog {

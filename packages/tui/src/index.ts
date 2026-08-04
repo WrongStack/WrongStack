@@ -15,6 +15,7 @@ export type {
   BrainHeuristicKey,
   BrainPanelHeuristics,
   BrainPanelHost,
+  BrainPanelPersona,
   BrainPanelSettings,
   BrainPanelVoter,
   BrainTerminalPolicyValue,

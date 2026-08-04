@@ -139,6 +139,12 @@
     "tabFleet": "Flota",
     "tabAgents": "Agentes",
     "tabAudit": "Auditoría",
+    "tabCouncil": "Council",
+    "councilCount": "{{count}} panel",
+    "councilCount_other": "{{count}} paneles",
+    "councilClear": "Vaciar",
+    "councilEmpty": "Todavía no se ha convocado ningún council en esta sesión.",
+    "councilEmptyHint": "El Brain convoca un panel multimodelo para las preguntas que alcanzan o superan su umbral de riesgo de council. Configúralo en Ajustes › Brain › Council.",
     "collapseAria": "Contraer panel Inspector",
     "collapseTitle": "Contraer (Esc)",
     "noAgentsActive": "Ningún agente activo",
@@ -938,7 +944,10 @@
   "modelSwitcher": {
     "heading": "Cambiar modelo",
     "filterPlaceholder": "Filtrar proveedores y modelos…",
+    "providerFilter": "Proveedor",
+    "providerFilterAll": "Todos los proveedores",
     "noSavedProviders": "Sin proveedores guardados — registra primero una clave en Ajustes.",
+    "noMatch": "Ningún modelo coincide",
     "active": "activo"
   },
   "work": {

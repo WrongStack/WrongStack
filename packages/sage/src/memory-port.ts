@@ -114,6 +114,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
       super.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
     hygiene: (options) => super.hygiene(options),
     listCandidates: (includeResolved) => super.listCandidates(includeResolved),
+    createCandidate: (input) => super.createCandidate(input),
     graphFor: (query, maxDepth, limit) => super.graphFor(query, maxDepth, limit),
     verify: (memoryId, signal) => super.verify(memoryId, signal),
     recoverSage: (id, reason) => super.recoverSage(id, reason),

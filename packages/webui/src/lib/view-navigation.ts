@@ -25,6 +25,7 @@ export type AppView =
   | PanelMainView
   | MainView
   | 'sessions'
+  | 'session-inspect'
   | 'setup'
   | 'debug'
   | 'refresh-debug'

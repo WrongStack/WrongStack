@@ -130,6 +130,7 @@ import type {
   WSProviderProbe,
   WSSavedProviders,
   WSSessionsList,
+  WSSessionInspect,
   WSSideEffects,
   WSStatsGet,
   WSTodosCleared,
@@ -233,6 +234,7 @@ export type WSServerMessage =
   | { type: 'chronicle.metrics_result'; payload: ChronicleMetricsResultPayload }
   | { type: 'chronicle.error'; payload: { message: string } }
   | WSSessionsList
+  | WSSessionInspect
   | WSProviderCatalog
   | WSCatalogModelSearchResult
   | WSProviderModels

@@ -5,6 +5,7 @@ import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
 import {
   useChatStore,
+  useCouncilLogStore,
   useCronStore,
   useFileStore,
   useGitChangesStore,
@@ -218,12 +219,59 @@ export function handleBrainAnswer(msg: WSServerMessage) {
   useChatStore.getState().addMessage({ role: 'assistant', content });
 }
 
+/**
+ * Council seat votes buffered per request until the panel resolves.
+ *
+ * `brain.council_vote` fires once per seat and `brain.council_resolved` once
+ * per panel, both from inside `council.decide()`. Both reached the browser and
+ * were dropped on the floor, so the most expensive Brain tier — one provider
+ * call per seat — was completely invisible in the UI.
+ */
+const councilSeatVotes = new Map<string, CouncilSeatVote[]>();
+/** Bound on the buffer: a council that never resolves must not leak forever. */
+const COUNCIL_VOTE_BUFFER_MAX = 50;
+
+interface CouncilSeatVote {
+  seatId: string;
+  persona: string;
+  status: string;
+  optionId?: string | undefined;
+  model?: string | undefined;
+  veto?: boolean | undefined;
+}
+
+function rememberCouncilVote(requestId: string, vote: CouncilSeatVote): CouncilSeatVote[] {
+  const seats = councilSeatVotes.get(requestId) ?? [];
+  seats.push(vote);
+  councilSeatVotes.set(requestId, seats);
+  while (councilSeatVotes.size > COUNCIL_VOTE_BUFFER_MAX) {
+    const oldest = councilSeatVotes.keys().next().value;
+    if (oldest === undefined) break;
+    councilSeatVotes.delete(oldest);
+  }
+  return seats;
+}
+
 export function handleBrainEvent(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
     event: string;
     intervened?: boolean;
-    request?: { question?: string; source?: string; risk?: string };
+    requestId?: string;
+    seatId?: string;
+    persona?: string;
+    status?: string;
+    optionId?: string;
+    model?: string;
+    veto?: boolean;
+    resolution?: string;
+    configuredSeatCount?: number;
+    validVoteCount?: number;
+    distinctTargetCount?: number;
+    judgeUsed?: boolean;
+    warnings?: string[];
+    usage?: { totalTokens?: number; durationMs?: number };
+    request?: { id?: string; question?: string; source?: string; risk?: string };
     decision?: {
       type?: string;
       optionId?: string;
@@ -232,6 +280,72 @@ export function handleBrainEvent(msg: WSServerMessage) {
       rationale?: string;
     };
   };
+  // The question text lives on the decision_* events, not the council ones.
+  // Fold it into an already-open panel so the log row reads as a question
+  // rather than a bare request id.
+  //
+  // NOTE the two id shapes: the council events carry a top-level `requestId`,
+  // while every `brain.decision_*` event nests it as `request.id`. Reading only
+  // the former silently never matched, which is the whole reason this lookup
+  // is spelled out rather than inlined.
+  const questionRequestId = p.requestId ?? p.request?.id;
+  if (questionRequestId && p.request?.question) {
+    useCouncilLogStore.getState().noteQuestion(questionRequestId, p.request.question);
+  }
+  if (p.event === 'brain.council_vote') {
+    useCouncilLogStore.getState().recordVote(p as Record<string, unknown>);
+    const requestId = p.requestId ?? 'unknown';
+    const seats = rememberCouncilVote(requestId, {
+      seatId: p.seatId ?? 'seat',
+      persona: p.persona ?? 'voter',
+      status: p.status ?? 'valid',
+      optionId: p.optionId,
+      model: p.model,
+      veto: p.veto,
+    });
+    useVizStore.getState().pushEvent({
+      id: `council_${requestId}_${p.seatId ?? seats.length}`,
+      kind: 'brain:council_vote',
+      timestamp: Date.now(),
+      source: p.model ?? p.persona ?? 'seat',
+      target: 'brain',
+      label: `${p.persona ?? 'voter'} → ${p.status === 'valid' ? (p.optionId ?? 'stance') : (p.status ?? 'failed')}`,
+      data: p,
+      color: '#38bdf8',
+      flowGroup: 'brain',
+    });
+    return;
+  }
+  if (p.event === 'brain.council_resolved') {
+    useCouncilLogStore.getState().recordResolution(p as Record<string, unknown>);
+    const requestId = p.requestId ?? 'unknown';
+    const seats = councilSeatVotes.get(requestId) ?? [];
+    councilSeatVotes.delete(requestId);
+    const seatLines = seats.map(
+      (seat) =>
+        `- **${seat.persona}**${seat.veto ? ' (veto)' : ''} → ${seat.status === 'valid' ? (seat.optionId ?? 'stance') : seat.status}${seat.model ? ` · \`${seat.model}\`` : ''}`,
+    );
+    // `distinctTargetCount` is reported next to the seat count on purpose: a
+    // panel whose seats resolved to the SAME model looks like a normal
+    // unanimous verdict while adding cost without adding independence.
+    const headline = [
+      `⚖️ **Council ${p.resolution ?? 'resolved'}**`,
+      `${p.validVoteCount ?? seats.length}/${p.configuredSeatCount ?? seats.length} seats`,
+      `${p.distinctTargetCount ?? 0} distinct target${p.distinctTargetCount === 1 ? '' : 's'}`,
+      p.judgeUsed ? 'judge used' : undefined,
+      p.usage?.totalTokens ? `${p.usage.totalTokens} tok` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    useChatStore.getState().addMessage({
+      role: 'assistant',
+      content: [headline, ...seatLines, ...(p.warnings ?? []).map((w) => `> ⚠ ${w}`)]
+        .filter(Boolean)
+        .join('\n'),
+    });
+    for (const warning of p.warnings ?? []) toast.warn(warning);
+    return;
+  }
   if (p.event === 'brain.intervention') {
     const guidance = p.decision?.rationale ?? p.decision?.text ?? '';
     const headline = p.intervened

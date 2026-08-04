@@ -103,7 +103,7 @@ export type {
   SubagentView,
   ToolExecution,
 } from './types.js';
-export type { Activity, DockSection, WorkDashboardTab } from './ui-store.js';
+export type { Activity, DockSection, InspectorTab, WorkDashboardTab } from './ui-store.js';
 export {
   coerceActivity,
   resetUiNavigationToHome,
@@ -112,6 +112,14 @@ export {
   SIDEBAR_MIN_WIDTH,
   useUIStore,
 } from './ui-store.js';
+export type { CouncilPanelEntry, CouncilSeatVote } from './council-log-store.js';
+export {
+  isCouncilPanelAdverse,
+  MAX_COUNCIL_PANELS,
+  summarizeCouncilPanel,
+  toCouncilSeatVote,
+  useCouncilLogStore,
+} from './council-log-store.js';
 export type { VizEdge, VizEvent, VizNode } from './viz-store.js';
 export { useVizStore } from './viz-store.js';
 export { useWorktreeStore } from './worktree-store.js';

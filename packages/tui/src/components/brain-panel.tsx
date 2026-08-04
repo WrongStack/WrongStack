@@ -11,6 +11,7 @@ import {
   type BrainTerminalPolicyValue,
   type BrainTraceContent,
   brainPanelRows,
+  personaLabel,
 } from './brain-panel-model.js';
 
 export interface BrainPanelProps {
@@ -124,10 +125,14 @@ function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; va
       return { label: '  risk floor', value: s.councilMinRisk, dim: 'council convenes at/above this risk' };
     case 'voter': {
       const v = s.voters[row.index];
+      // Show the lens NAME, not the raw id: with six built-ins plus ad-hoc
+      // lenses, "user-advocate" alone says less than "User Advocate", and a
+      // custom lens is a whole sentence that only the catalog can shorten.
+      const lens = personaLabel(s, v?.persona);
       return {
         label: `  ${row.index + 1}.`,
         value: v?.label ?? '',
-        dim: `${v?.persona ?? 'voter'}${v?.veto ? ' · VETO' : ''}${v?.weight ? ` · w=${v.weight}` : ''}  (p persona · v veto · d remove)`,
+        dim: `${lens}${v?.veto ? ' · VETO' : ''}${v?.weight ? ` · w=${v.weight}` : ''}  (p persona · v veto · d remove)`,
       };
     }
     case 'voterAdd':
@@ -147,6 +152,45 @@ function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; va
         dim: 'Enter = pick · d = auto',
       };
     }
+    case 'councilQuorum':
+      return {
+        label: '  quorum',
+        value: String(s.councilQuorum ?? 0.5),
+        dim: 'fraction of seats that must return a valid vote',
+      };
+    case 'councilApproval':
+      return {
+        label: '  approval',
+        value: String(s.councilApproval ?? 0.5),
+        dim: 'winning weight must exceed this fraction, else the judge decides',
+      };
+    case 'councilDistinctness':
+      return {
+        label: '  distinctness',
+        value: s.councilDistinctness,
+        dim:
+          s.councilDistinctness === 'none'
+            ? 'off — a same-model panel agrees with itself and is never reported'
+            : `warn when seats do not use distinct ${s.councilDistinctness}s`,
+      };
+    case 'councilTimeout':
+      return {
+        label: '  seat timeout',
+        value: s.councilPerCallTimeoutMs === undefined ? 'default' : `${s.councilPerCallTimeoutMs}ms`,
+        dim: 'per-seat completion budget (default = the decision timeout)',
+      };
+    case 'councilConcurrency':
+      return {
+        label: '  concurrency',
+        value: s.councilMaxConcurrency === undefined ? 'default (3)' : String(s.councilMaxConcurrency),
+        dim: 'seats polled at once, 1..8 — higher is faster and burstier',
+      };
+    case 'councilJudgeMaxTokens':
+      return {
+        label: '  judge tokens',
+        value: s.councilJudgeMaxTokens === undefined ? 'default' : String(s.councilJudgeMaxTokens),
+        dim: 'output budget for the tie-breaker call',
+      };
     case 'ledgerToggle':
       return {
         label: 'Ledger',

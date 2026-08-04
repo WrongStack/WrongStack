@@ -536,3 +536,76 @@ describe('OneShotOrchestrator', () => {
     expect(result.error).toBe('Timed out');
   });
 });
+
+describe('OneShotOrchestrator — role routing priority', () => {
+  it('lets a MATRIX pick override an explicit providerId+model', async () => {
+    const provider = fakeProvider('matrix-provider', { model: 'matrix-model' });
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(makeConfig(), async () => provider),
+      modelRouter: {
+        pickForTask: () => ({
+          provider: 'matrix-provider',
+          model: 'matrix-model',
+          reason: 'matrix override',
+          fromMatrix: true,
+        }),
+      } as never,
+    });
+
+    const result = await orch.call({
+      userPrompt: 'x',
+      role: 'critic',
+      providerId: 'explicit-provider',
+      model: 'explicit-model',
+    });
+
+    expect(result.model).toBe('matrix-model');
+  });
+
+  it('does NOT let a heuristic pick override an explicit providerId+model', async () => {
+    // Council seats carry both a persona role and a resolved seat target. A
+    // capability guess silently replacing the caller's explicit target would
+    // make providerId/model unreliable for every role-carrying caller.
+    const provider = fakeProvider('explicit-provider', { model: 'explicit-model' });
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(makeConfig(), async () => provider),
+      modelRouter: {
+        pickForTask: () => ({
+          provider: 'guessed-provider',
+          model: 'guessed-model',
+          reason: 'best-for review (auto-detected)',
+          fromMatrix: false,
+        }),
+      } as never,
+    });
+
+    const result = await orch.call({
+      userPrompt: 'x',
+      role: 'critic',
+      providerId: 'explicit-provider',
+      model: 'explicit-model',
+    });
+
+    expect(result.model).toBe('explicit-model');
+    expect(result.provider).toBe('explicit-provider');
+  });
+
+  it('applies a heuristic pick when the caller supplied no target', async () => {
+    const provider = fakeProvider('guessed-provider', { model: 'guessed-model' });
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(makeConfig(), async () => provider),
+      modelRouter: {
+        pickForTask: () => ({
+          provider: 'guessed-provider',
+          model: 'guessed-model',
+          reason: 'best-for review (auto-detected)',
+          fromMatrix: false,
+        }),
+      } as never,
+    });
+
+    const result = await orch.call({ userPrompt: 'x', role: 'critic' });
+
+    expect(result.model).toBe('guessed-model');
+  });
+});

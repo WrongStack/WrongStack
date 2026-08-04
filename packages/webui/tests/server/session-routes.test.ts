@@ -29,6 +29,7 @@ function handlers(): SessionRouteHandlers {
     deleteSession: vi.fn(async () => undefined),
     resumeSession: vi.fn(async () => undefined),
     saveSession: vi.fn(async () => undefined),
+    inspectSession: vi.fn(async () => undefined),
     listCheckpoints: vi.fn(async () => undefined),
     rewindSession: vi.fn(async () => undefined),
   };
@@ -65,6 +66,7 @@ describe('handleSessionRoute dispatcher characterization', () => {
     'session.delete',
     'session.resume',
     'session.save',
+    'session.inspect',
     'session.checkpoints',
     'session.rewind',
   ])('dispatches %s to the correct handler and returns true', async (type) => {
@@ -89,6 +91,7 @@ describe('handleSessionRoute dispatcher characterization', () => {
       'session.delete': h.deleteSession as ReturnType<typeof vi.fn>,
       'session.resume': h.resumeSession as ReturnType<typeof vi.fn>,
       'session.save': h.saveSession as ReturnType<typeof vi.fn>,
+      'session.inspect': h.inspectSession as ReturnType<typeof vi.fn>,
       'session.checkpoints': h.listCheckpoints as ReturnType<typeof vi.fn>,
       'session.rewind': h.rewindSession as ReturnType<typeof vi.fn>,
     };

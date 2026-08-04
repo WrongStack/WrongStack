@@ -9,6 +9,7 @@ import { getSageSurface } from '@wrongstack/sage';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import { runCompact } from './memory-compact.js';
+import { runTriageCommand } from './memory-triage.js';
 import {
   formatAudit,
   formatCandidates,
@@ -30,7 +31,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
     name: 'memory',
     category: 'Inspect',
     description:
-      'Inspect or edit persistent memory: /memory [show|search|file|path|for-file|graph|gather|remember|update|delete|forget|hygiene|verify|candidates|audit|import-legacy|clear|compact|compact-log|stats|audience]',
+      'Inspect or edit persistent memory: /memory [show|search|file|path|for-file|graph|gather|remember|update|delete|forget|hygiene|verify|candidates|triage|audit|import-legacy|clear|compact|compact-log|stats|audience]',
     async run(args) {
       const store = opts.memoryStore;
       if (!store) return { message: 'No memory store configured.' };
@@ -432,6 +433,10 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             message: formatCandidates(await Sage.listCandidates(action === 'all')),
           };
         }
+        case 'triage': {
+          if (!Sage) return requiresSage('triage');
+          return runTriageCommand(opts, rest);
+        }
         case 'audit': {
           if (!Sage?.readAudit) return requiresSage('audit');
           return { message: formatAudit(await Sage.readAudit(50)) };
@@ -558,6 +563,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
                 'hygiene',
                 'verify',
                 'candidates',
+                'triage',
                 'audit',
                 'import-legacy',
                 'clear',

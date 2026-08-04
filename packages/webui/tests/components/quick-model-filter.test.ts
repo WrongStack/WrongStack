@@ -174,3 +174,66 @@ describe('buildModelCandidates — current-model flag + sort', () => {
     expect(out[1]?.model).toBe('anthropic-test-model');
   });
 });
+
+describe('buildModelCandidates — provider filter', () => {
+  it('returns all candidates when providerFilter is null', () => {
+    const out = buildModelCandidates(saved, models, '', undefined, undefined, null);
+    expect(out).toHaveLength(5);
+  });
+
+  it('returns all candidates when providerFilter is undefined', () => {
+    const out = buildModelCandidates(saved, models, '', undefined, undefined);
+    expect(out).toHaveLength(5);
+  });
+
+  it('filters to only the selected provider', () => {
+    const out = buildModelCandidates(saved, models, '', undefined, undefined, 'openai');
+    expect(out).toHaveLength(2);
+    expect(out.every((c) => c.provider === 'openai')).toBe(true);
+  });
+
+  it('returns empty when the selected provider has no loaded models', () => {
+    const out = buildModelCandidates(
+      [...saved, { id: 'mystery' }],
+      models,
+      '',
+      undefined,
+      undefined,
+      'mystery',
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('returns empty when providerFilter does not match any saved provider', () => {
+    const out = buildModelCandidates(saved, models, '', undefined, undefined, 'azure');
+    expect(out).toEqual([]);
+  });
+
+  it('combines with search filter (AND semantics)', () => {
+    // openai has gpt-5 and o3; filter to openai + search 'gpt'
+    const out = buildModelCandidates(saved, models, 'gpt', undefined, undefined, 'openai');
+    expect(out).toHaveLength(1);
+    expect(out[0]?.model).toBe('gpt-5');
+  });
+
+  it('combines provider filter + active-flag sort', () => {
+    const out = buildModelCandidates(
+      saved,
+      models,
+      '',
+      'openai',
+      'o3',
+      'openai',
+    );
+    expect(out).toHaveLength(2);
+    expect(out[0]?.isCurrent).toBe(true);
+    expect(out[0]?.model).toBe('o3');
+    expect(out[1]?.model).toBe('gpt-5');
+  });
+
+  it('search on provider id still works with a different provider filter set', () => {
+    // When providerFilter is 'openai', searching 'anthropic' matches nothing
+    const out = buildModelCandidates(saved, models, 'anthropic', undefined, undefined, 'openai');
+    expect(out).toEqual([]);
+  });
+});

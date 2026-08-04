@@ -28,10 +28,15 @@ export interface ModelCandidate {
 /**
  * Build the full list of (provider, model) candidates from saved
  * providers and the cached model catalog, apply the search filter
- * (case-insensitive substring on provider / model id / model name), and
- * sort so the currently-active model floats to the top.
+ * (case-insensitive substring on provider / model id / model name)
+ * and optional provider filter, and sort so the currently-active model
+ * floats to the top.
  *
- * An empty / whitespace-only `query` returns the unfiltered list.
+ * The two filters combine with AND semantics: when both are active,
+ * candidates must match the query AND belong to the selected provider.
+ *
+ * An empty / whitespace-only `query` returns the unfiltered list
+ * (unless `providerFilter` is set).
  */
 export function buildModelCandidates(
   saved: SavedProviderLite[],
@@ -39,9 +44,11 @@ export function buildModelCandidates(
   query: string,
   currentProvider: string | undefined,
   currentModel: string | undefined,
+  providerFilter?: string | null,
 ): ModelCandidate[] {
   const list: ModelCandidate[] = [];
   for (const sp of saved) {
+    if (providerFilter && sp.id !== providerFilter) continue;
     const models = modelsByProvider[sp.id] ?? [];
     for (const m of models) {
       list.push({

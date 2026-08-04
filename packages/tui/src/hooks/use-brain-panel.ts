@@ -17,6 +17,11 @@ import {
   type BrainTraceContent,
   CACHE_MAX_ENTRIES_PRESETS,
   CACHE_TTL_PRESETS,
+  COUNCIL_CONCURRENCY_PRESETS,
+  COUNCIL_DISTINCTNESS_PRESETS,
+  COUNCIL_FRACTION_PRESETS,
+  COUNCIL_JUDGE_MAX_TOKENS_PRESETS,
+  COUNCIL_TIMEOUT_PRESETS,
   cyclePreset,
   DECISION_TIMEOUT_PRESETS,
   HUMAN_TIMEOUT_PRESETS,
@@ -194,6 +199,50 @@ export function useBrainPanel(opts: UseBrainPanelOptions): BrainPanelController 
           runBrainMutation(() => host.setCouncilMinRisk(next));
           return;
         }
+        case 'councilQuorum':
+          runBrainMutation(() =>
+            host.setCouncilQuorum(
+              cyclePreset(COUNCIL_FRACTION_PRESETS, settings.councilQuorum ?? 0.5, delta),
+            ),
+          );
+          return;
+        case 'councilApproval':
+          runBrainMutation(() =>
+            host.setCouncilApproval(
+              cyclePreset(COUNCIL_FRACTION_PRESETS, settings.councilApproval ?? 0.5, delta),
+            ),
+          );
+          return;
+        case 'councilDistinctness': {
+          const next = cycleEnum(
+            COUNCIL_DISTINCTNESS_PRESETS,
+            settings.councilDistinctness,
+            delta,
+          );
+          runBrainMutation(() => host.setCouncilDistinctness(next));
+          return;
+        }
+        case 'councilTimeout':
+          runBrainMutation(() =>
+            host.setCouncilPerCallTimeout(
+              cyclePreset(COUNCIL_TIMEOUT_PRESETS, settings.councilPerCallTimeoutMs, delta),
+            ),
+          );
+          return;
+        case 'councilConcurrency':
+          runBrainMutation(() =>
+            host.setCouncilMaxConcurrency(
+              cyclePreset(COUNCIL_CONCURRENCY_PRESETS, settings.councilMaxConcurrency, delta),
+            ),
+          );
+          return;
+        case 'councilJudgeMaxTokens':
+          runBrainMutation(() =>
+            host.setCouncilJudgeMaxTokens(
+              cyclePreset(COUNCIL_JUDGE_MAX_TOKENS_PRESETS, settings.councilJudgeMaxTokens, delta),
+            ),
+          );
+          return;
         case 'ledgerToggle':
           runBrainMutation(() => host.setLedgerEnabled(!settings.ledgerEnabled));
           return;

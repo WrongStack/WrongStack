@@ -144,6 +144,7 @@ export interface SageSurface {
   ): Promise<Sage[]>;
   hygiene(options?: SageHygieneOptions): Promise<SageHygieneReport>;
   listCandidates(includeResolved?: boolean): Promise<MemoryCandidate[]>;
+  createCandidate(input: CreateCandidateInput): Promise<MemoryCandidate>;
   graphFor?(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]>;
   verify?(memoryId?: string, signal?: AbortSignal): Promise<MemoryVerificationResult[]>;
   recoverSage?(id: string, reason?: string): Promise<Sage>;

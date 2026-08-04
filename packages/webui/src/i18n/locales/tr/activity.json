@@ -139,6 +139,12 @@
     "tabFleet": "Filo",
     "tabAgents": "Vekiller",
     "tabAudit": "Denetim",
+    "tabCouncil": "Council",
+    "councilCount": "{{count}} panel",
+    "councilCount_other": "{{count}} panel",
+    "councilClear": "Temizle",
+    "councilEmpty": "Bu oturumda henüz bir council toplanmadı.",
+    "councilEmptyHint": "Brain, council risk eşiğine ulaşan veya onu aşan sorular için çok modelli bir panel toplar. Ayarlar › Brain › Council altından yapılandırın.",
     "collapseAria": "Denetçi panelini daralt",
     "collapseTitle": "Daralt (Esc)",
     "noAgentsActive": "Etkin vekil yok",
@@ -938,7 +944,10 @@
   "modelSwitcher": {
     "heading": "Modeli değiştir",
     "filterPlaceholder": "Sağlayıcıları ve modelleri filtrele…",
+    "providerFilter": "Sağlayıcı",
+    "providerFilterAll": "Tüm sağlayıcılar",
     "noSavedProviders": "Kayıtlı sağlayıcı yok — önce Ayarlar'da bir anahtar kaydedin.",
+    "noMatch": "Eşleşen model yok",
     "active": "etkin"
   },
   "work": {

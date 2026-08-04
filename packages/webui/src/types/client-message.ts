@@ -199,6 +199,7 @@ export type WSClientMessageCore =
     }
   | { type: 'abort'; payload: SessionScopedPayload }
   | { type: 'session.resume'; payload: { id: string } & SessionScopedPayload }
+  | { type: 'session.inspect'; payload: { id: string } }
   | { type: 'session.new'; payload?: SessionScopedPayload }
   | { type: 'session.checkpoints'; payload?: SessionScopedPayload }
   | { type: 'session.rewind'; payload: { checkpointIndex: number } & SessionScopedPayload }

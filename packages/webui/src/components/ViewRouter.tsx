@@ -49,6 +49,9 @@ const SddHub = lazy(() => import('./SddHub').then((m) => ({ default: m.SddHub })
 const SessionsDashboard = lazy(() =>
   import('./SessionsDashboard').then((m) => ({ default: m.SessionsDashboard })),
 );
+const SessionInspectView = lazy(() =>
+  import('./SessionInspectView').then((m) => ({ default: m.SessionInspectView })),
+);
 const SkillDetailView = lazy(() =>
   import('./SkillDetailView').then((m) => ({ default: m.SkillDetailView })),
 );
@@ -166,6 +169,15 @@ export function ViewRouter({
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SessionsDashboard />
+            </div>
+          </Suspense>
+        </ErrorBoundary>
+      )}
+      {currentView === 'session-inspect' && (
+        <ErrorBoundary level="panel" name="Session Inspect">
+          <Suspense fallback={<PanelSuspense label="Loading inspection…" />}>
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <SessionInspectView />
             </div>
           </Suspense>
         </ErrorBoundary>

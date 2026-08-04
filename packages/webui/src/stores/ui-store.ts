@@ -57,6 +57,7 @@ const VIEWS = [
   'files',
   'changes',
   'sessions',
+  'session-inspect',
   'setup',
   'skill',
   'officemap',
@@ -119,6 +120,14 @@ export const SIDEBAR_DEFAULT_WIDTH = 304;
 /** Sections of the WorkspaceDock strip above the chat transcript. */
 export type DockSection = 'goal' | 'goal-state' | 'fleet' | 'work' | 'worktrees' | 'collab';
 export type WorkDashboardTab = 'todos' | 'tasks' | 'plan';
+/**
+ * Tabs of the global right inspector drawer.
+ *
+ * `council` is the live Brain council panel log — the most expensive Brain
+ * tier (one provider call per seat) and, until it got a tab, the only one with
+ * no observable surface at all.
+ */
+export type InspectorTab = 'fleet' | 'agents' | 'sideEffects' | 'council';
 
 interface UIState {
   sidebarOpen: boolean;
@@ -174,7 +183,7 @@ interface UIState {
   /** Global right inspector drawer open (non-modal overlay on desktop). */
   inspectorOpen: boolean;
   /** Active tab inside the global right inspector drawer. */
-  inspectorTab: 'fleet' | 'agents' | 'sideEffects';
+  inspectorTab: InspectorTab;
   /** Agent ID to focus when opening the inspector on the agents tab. Cleared on read. */
   inspectorFocusedAgentId: string | null;
   /** Process Monitor overlay — triggered by /kill slash command. */
@@ -183,6 +192,8 @@ interface UIState {
   queuePanelOpen: boolean;
   /** Cron Jobs overlay — triggered by /cron slash command. */
   cronJobsOpen: boolean;
+  /** Session ID currently being inspected (session-inspect view). */
+  inspectSessionId: string | null;
   /** Integrated terminal bottom-dock — toggled by Ctrl+` or /terminal. */
   terminalOpen: boolean;
   /** Monotonic signal consumed by TerminalPanel to create another PTY tab. */
@@ -198,6 +209,8 @@ interface UIState {
   setProcessMonitorOpen: (open: boolean) => void;
   setQueuePanelOpen: (open: boolean) => void;
   setCronJobsOpen: (open: boolean) => void;
+  setInspectSession: (id: string) => void;
+  clearInspectSession: () => void;
   setTerminalOpen: (open: boolean) => void;
   toggleTerminal: () => void;
   requestTerminalCreate: () => void;
@@ -330,7 +343,7 @@ interface UIState {
   setFleetMonitorOpen: (open: boolean) => void;
   setAgentsMonitorOpen: (open: boolean) => void;
   setInspectorOpen: (open: boolean) => void;
-  setInspectorTab: (tab: 'fleet' | 'agents' | 'sideEffects') => void;
+  setInspectorTab: (tab: InspectorTab) => void;
   setInspectorFocusedAgentId: (id: string | null) => void;
   toggleInspector: () => void;
 }
@@ -417,6 +430,7 @@ export const useUIStore = create<UIState>()(
       processMonitorOpen: false,
       queuePanelOpen: false,
       cronJobsOpen: false,
+      inspectSessionId: null,
       terminalOpen: false,
       terminalCreateNonce: 0,
       settingsActiveTab: 'general',
@@ -535,7 +549,7 @@ export const useUIStore = create<UIState>()(
         })),
       setInspectorOpen: (open: boolean) =>
         set({ inspectorOpen: open, ...(open ? { dockSection: null } : {}) }),
-      setInspectorTab: (tab: 'fleet' | 'agents' | 'sideEffects') => set({ inspectorTab: tab }),
+      setInspectorTab: (tab: InspectorTab) => set({ inspectorTab: tab }),
       setInspectorFocusedAgentId: (id: string | null) => set({ inspectorFocusedAgentId: id }),
       toggleInspector: () =>
         set((s) => ({
@@ -545,6 +559,8 @@ export const useUIStore = create<UIState>()(
       setProcessMonitorOpen: (open: boolean) => set({ processMonitorOpen: open }),
       setQueuePanelOpen: (open: boolean) => set({ queuePanelOpen: open }),
       setCronJobsOpen: (open: boolean) => set({ cronJobsOpen: open }),
+      setInspectSession: (id: string) => set({ inspectSessionId: id, currentView: 'session-inspect' as View }),
+      clearInspectSession: () => set({ inspectSessionId: null, currentView: 'chat' }),
       setTerminalOpen: (open: boolean) => set({ terminalOpen: open }),
       toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
       requestTerminalCreate: () => set((s) => ({ terminalCreateNonce: s.terminalCreateNonce + 1 })),
