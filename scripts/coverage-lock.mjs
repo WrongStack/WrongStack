@@ -38,11 +38,12 @@ function defaultCheckProcessAlive(pid) {
     try {
       // Parse the CSV output for the actual PID row rather than relying on
       // exit codes — tasklist can return a non-empty stdout even for misses.
-      const stdout = execFileSync(
-        'tasklist',
-        ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'],
-        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true, timeout: 5000 },
-      );
+      const stdout = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+        timeout: 5000,
+      });
       return stdout.includes(`"${pid}"`);
     } catch (error) {
       // tasklist exited non-zero — we may still have parseable output.
@@ -135,8 +136,15 @@ export function createCoverageLock(options = {}) {
     for (;;) {
       try {
         const fd = openFile(lockPath, 'wx');
-        closeFile(fd);
-        writeFile(lockPath, `${pid}\n`);
+        // Keep the descriptor open until the owner has been written. Creating
+        // an empty lock and filling it in afterwards lets a concurrent waiter
+        // mistake the transient empty file for a stale lock, delete it, and
+        // start a second coverage run.
+        try {
+          writeFile(fd, `${pid}\n`);
+        } finally {
+          closeFile(fd);
+        }
         onProcess('exit', release);
         return;
       } catch (error) {

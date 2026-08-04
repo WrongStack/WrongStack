@@ -128,9 +128,22 @@ describe('coverage lock script', () => {
     harness.child.emit('exit', 0);
 
     await expect(result).resolves.toBe(0);
+    expect(harness.options.writeFile).toHaveBeenCalledWith(7, '42\n');
+    expect(harness.options.writeFile.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.options.closeFile.mock.invocationCallOrder[0],
+    );
     expect(harness.options.closeFile).toHaveBeenCalledWith(7);
-    expect(harness.options.writeFile).toHaveBeenCalledWith('test.coverage.lock', '42\n');
     expect(harness.options.unlinkFile).toHaveBeenCalledWith('test.coverage.lock');
+  });
+
+  it('closes a newly-created lock when writing its owner fails', async () => {
+    const harness = createLockHarness();
+    harness.options.writeFile.mockImplementation(() => {
+      throw new Error('write failed');
+    });
+
+    await expect(createCoverageLock(harness.options).acquire()).rejects.toThrow('write failed');
+    expect(harness.options.closeFile).toHaveBeenCalledWith(7);
   });
 
   it('releases the lock when the protected runner throws', async () => {
