@@ -571,13 +571,34 @@ export class WorktreeManager {
             .filter(Boolean);
     // {7,} covers merge.conflictMarkerSize > 7; `\r` is stripped so the `$`
     // anchor (matches only before `\n` in /m) is not defeated by CRLF.
+    // See the line-by-line scan below for why we can't just use a
+    // single regex here: a bare `=======` line (e.g. a markdown setext
+    // heading underline) is not a conflict marker. We require the
+    // `=======` middle-divider to be preceded by a `<<<<<<<` or
+    // `|||||||` start-marker within the same file.
     const marker = /^(?:<{7,}(?: |$)|={7,}$|>{7,}(?: |$)|\|{7,}(?: |$))/m;
+    const startMarker = /^(?:<{7,}(?: |$)|\|{7,}(?: |$))/m;
     for (const rel of paths) {
       try {
         const content = (
           await readFile(join(this.projectRoot, rel), 'utf8')
         ).replace(/\r/g, '');
-        if (marker.test(content)) return true;
+        const lines = content.split('\n');
+        let seenStart = false;
+        for (const line of lines) {
+          if (!marker.test(line)) continue;
+          // `=======` is the middle divider of a conflict block; only
+          // count it if a start-marker appeared on a prior line in
+          // the same file. The `<<<<<<<` / `|||||||` arms also flip
+          // the start-marker latch on (a half-written conflict still
+          // indicates a dirty worktree).
+          if (line.startsWith('=====')) {
+            if (!seenStart) continue;
+          } else if (startMarker.test(line)) {
+            seenStart = true;
+          }
+          return true;
+        }
       } catch {
         // Deleted or unreadable — nothing to scan.
       }

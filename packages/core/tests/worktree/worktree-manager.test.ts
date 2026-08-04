@@ -758,6 +758,42 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
       await fs.rm(base, { recursive: true, force: true });
     }
   }, 120_000);
+
+  // Regression: `hasConflictMarkers` used a regex that matched any line
+  // consisting of 7+ `=` characters. Markdown setext-heading underlines
+  // (`Heading\n=======\n`) satisfy that pattern, so a legitimately-
+  // resolved worktree that staged a markdown file with a setext heading
+  // would be flagged as having conflict markers and discarded. The
+  // tighter predicate requires the `=======` line to be preceded by a
+  // `<<<<<<<` or `|||||||` line within the same file — i.e. only the
+  // middle divider of an actual conflict block counts.
+  it('hasConflictMarkers returns false for a file with a markdown setext heading (======= underline, no <<<<<<< or ||||||| above)', async () => {
+    const base = await makeRepo();
+    try {
+      const wm = new WorktreeManager({ projectRoot: base });
+      const h = await wm.allocate('p', { slugHint: 'setext-fp' });
+
+      // Stage a markdown file with a setext heading whose underline is
+      // 7+ `=` chars. The first character above the underline is
+      // ordinary text (the heading), NOT a `<<<<<<<` or `|||||||` marker.
+      await fs.writeFile(
+        path.join(h.dir, 'doc.md'),
+        '# Overview\nSection\n========\n\nBody text.\n',
+      );
+      await wm.commitAll(h, 'add doc with setext heading');
+
+      // Drive the post-merge path: a successful squash merge of a
+      // clean worktree must land on base. If `hasConflictMarkers` were
+      // false-positive on the setext underline, it would treat the
+      // resolution as still conflicted and abort to needs-review.
+      const m = await wm.merge(h, { squash: true });
+      expect(m.ok).toBe(true);
+      expect(m.conflict).toBeFalsy();
+      expect(h.status).toBe('merged');
+    } finally {
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
 
 describe('parseConflictPaths', () => {
