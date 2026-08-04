@@ -123,8 +123,13 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
     const frame = view.lastFrame();
     const flat = flatten(frame);
 
-    expect(flat).toContain(items[0].title);
-    expect(flat).toContain(items[1].title);
+    // `noUncheckedIndexedAccess` makes items[i] `T | undefined`; destructure so
+    // the asserts read cleanly and the test typechecks under strict mode.
+    const [active, open] = items;
+    expect(active).toBeDefined();
+    expect(open).toBeDefined();
+    expect(flat).toContain(active!.title);
+    expect(flat).toContain(open!.title);
     expect(frame).not.toContain('…');
     view.unmount();
   });
@@ -161,6 +166,7 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
     const goal = {
       goal: 'Ship the Worktree Hygiene refactor',
       goalState: 'active' as const,
+      iterations: 0,
       progress: 0,
       deliverables: [
         '[ ] Inventory every worktree helper across the workspace modules',
@@ -194,9 +200,10 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
   }, async () => {
     const items = [
       {
-        id: 'q1',
+        id: 1,
         displayText:
           'Refactor the worktree helpers to use the canonical git utilities module',
+        blocks: [],
       },
     ];
     const view = renderRealTty(
@@ -208,7 +215,10 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
     const frame = view.lastFrame();
     const flat = flatten(frame);
 
-    expect(flat).toContain(items[0].displayText);
+    // `noUncheckedIndexedAccess` makes items[0] `T | undefined`; assert the
+    // presence explicitly so the test typechecks under strict mode.
+    expect(items[0]).toBeDefined();
+    expect(flat).toContain(items[0]!.displayText);
     expect(frame).not.toContain('…');
     view.unmount();
   });

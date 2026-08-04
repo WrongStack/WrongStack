@@ -5,22 +5,28 @@ import { SIDEBAR_MISSION_ROWS, type WorktreeRow } from '../ui-contracts.js';
 import { closePanels } from './helpers.js';
 
 /**
- * Upper bound on how many terminal rows a single mission-row label can
- * occupy after Ink wraps it at narrow sidebar widths. The mission queue
- * renders up to {@link SIDEBAR_MISSION_ROWS} rows in `SidebarContent`;
- * mission labels are full todo content (not pre-truncated) so each row may
- * span multiple lines when the rail is narrow.
+ * Worst-case terminal rows a single mission-row label can occupy after Ink
+ * wraps it, used as the wrap multiplier for `computeMaxSidebarScroll()`'s
+ * mission-queue reservation. The mission queue renders up to
+ * {@link SIDEBAR_MISSION_ROWS} rows in `SidebarContent`; mission labels are
+ * full todo content (not pre-truncated) so each row may span multiple
+ * lines when the rail is narrow.
  *
- * 10 lines is the empirical ceiling observed in
- * `tests/sidebar-worklist-wrap.test.tsx`: a 140-char leader-authored todo
- * wraps to 10 lines at the minimum 16-column sidebar (the icon and leading
- * space take ~3 columns, leaving ~13 columns for label text; 140 / 13 ≈
- * 10.8, which Ink rounds to 10). Anything beyond 10 lines is exceptional
- * (a 150+ char free-form label). Over-estimating is safe — it simply leaves
- * a little blank space at the bottom of the scroll range. If you change
- * this constant, update the pinned assertion in
- * `tests/sidebar-worklist-wrap.test.tsx` (the scroll-clamp regression test)
- * to match.
+ * 10 is the empirical ceiling observed in `tests/sidebar-worklist-wrap.test.tsx`:
+ * a 90-char leader-authored todo (e.g. "Diagnose the scrollback regression
+ * under narrow terminal widths") wraps to ~10 lines at the minimum 16-column
+ * sidebar (the icon + leading space take ~3 columns, leaving ~13 columns
+ * for label text). Anything beyond 10 lines is exceptional (a 150+ char
+ * free-form label). Over-estimating is safe — it simply leaves a little
+ * blank space at the bottom of the scroll range.
+ *
+ * Known follow-up: the multiplier is width-blind, so at wide terminals
+ * (≥ 100 cols, 26+ content cols) the user can scroll a few dozen rows past
+ * the actual content end. A future revision could thread `sidebarContentWidth`
+ * through the `sidebarScroll` action and scale this constant by an
+ * approximate line count for the widest labels. If you change this constant,
+ * update the pinned assertion in `tests/sidebar-worklist-wrap.test.tsx`
+ * (the scroll-clamp regression test) to match.
  */
 const SIDEBAR_MISSION_MAX_WRAP_LINES = 10;
 
