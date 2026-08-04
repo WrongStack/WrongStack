@@ -36,6 +36,7 @@
 
 import type React from 'react';
 import { Box, Text } from '../ink.js';
+import { isCurrentSession } from './sidebar-content.js';
 import type { FleetEntry } from '../app-state.js';
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { GoalSummary } from '../app-state.js';
@@ -893,7 +894,10 @@ export function SessionsPanelSidebar({
             innerWidth={inner}
           />
           {live.map((s) => {
-            const isCurrent = s.sessionId === currentSessionId;
+            const isCurrent = isCurrentSession(
+              s.sessionId,
+              currentSessionId,
+            );
             const icon = isCurrent ? '●' : liveSessionGlyph(s.status);
             const color = liveSessionColor(s.status);
             return (
@@ -938,12 +942,17 @@ export function SessionsPanelSidebar({
                   : rs.outcome === 'timeout'
                     ? theme.warn
                     : theme.textMuted;
+            const isCurrent = isCurrentSession(
+              rs.id,
+              currentSessionId,
+              rs.isCurrent,
+            );
             return (
               <Box key={rs.id} flexDirection="row">
                 <Text color={outcomeColor}>{outcomeGlyph}</Text>
                 <Text
-                  color={rs.isCurrent ? theme.accent : theme.textSecondary}
-                  bold={rs.isCurrent === true}
+                  color={isCurrent ? theme.accent : theme.textSecondary}
+                  bold={isCurrent}
                   wrap="truncate"
                 >
                   {' '}

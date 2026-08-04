@@ -90,6 +90,39 @@ describe('<ScrollableHistory /> content navigation', () => {
     view.unmount();
   });
 
+  it('keeps the scrollbar rail at the viewport edge for compact exec output', async () => {
+    // `exec` previews contain both an argument summary and a stdout preview;
+    // even in a narrow terminal neither may displace the managed rail.
+    const execEntries: HistoryEntry[] = [1, 2, 3].flatMap((id) => [
+      {
+        id: id * 2 - 1,
+        kind: 'tool' as const,
+        name: 'exec',
+        durationMs: id,
+        ok: true,
+        input: {
+          command: 'gh',
+          args: ['pr', 'view', String(id), '--json', 'title,body,author,createdAt,labels'],
+        },
+        output: JSON.stringify({ exitCode: 0, stdout: `result-${'x'.repeat(120)}` }),
+      },
+      { id: id * 2, kind: 'info' as const, text: `after exec ${id}` },
+    ]);
+    const tty = renderRealTty(
+      <ScrollableHistory entries={execEntries} toolStream={null} viewportRows={18} />,
+      { columns: 50, rows: 20 },
+    );
+    await settle(120);
+
+    const rows = tty.lines().slice(0, 18);
+    expect(rows).toHaveLength(18);
+    expect(rows.every((row) => row.length <= 50)).toBe(true);
+    // The final column belongs to the managed rail on every viewport row;
+    // no exec preview may push it off the right edge.
+    expect(rows.every((row) => row.endsWith('│') || row.endsWith('█'))).toBe(true);
+    tty.unmount();
+  });
+
   it('keeps structured diff tools ungrouped so each entry honors the summary threshold', () => {
     const replaceEntries: HistoryEntry[] = Array.from({ length: 2 }, (_, entryIndex) => ({
       id: entryIndex + 1,

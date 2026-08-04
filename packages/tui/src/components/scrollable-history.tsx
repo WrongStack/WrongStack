@@ -932,8 +932,15 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     <Box flexDirection="row" width={viewportWidth}>
       <Box
         flexDirection="column"
-        flexGrow={1}
+        // Do not let a long tool preview participate in the row's intrinsic
+        // width calculation. The rail owns the final three cells of the
+        // viewport; without a concrete content width Yoga can place it after
+        // an oversized `exec` card, where it looks like disconnected marks in
+        // the transcript instead of one continuous scrollbar.
+        width={termWidth}
+        flexShrink={0}
         height={vp}
+        overflowX="hidden"
         overflowY="hidden"
         justifyContent={scrolled ? 'flex-start' : 'flex-end'}
       >

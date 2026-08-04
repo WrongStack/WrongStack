@@ -361,6 +361,7 @@ export class SddParallelRun {
    */
   async run(): Promise<RunResult> {
     this.stopRequested = false;
+    this.fatalError = undefined;
     this.restoreRetryMap();
     const startTime = Date.now();
     this.round = 0;
@@ -483,7 +484,10 @@ export class SddParallelRun {
     }
 
     // Clean teardown on stop: interrupted tasks reset, worktrees released.
-    if (this.stopRequested) await this.teardown();
+    if (this.stopRequested) {
+      await Promise.allSettled(running.values());
+      await this.teardown();
+    }
 
     const finalProgress = this.opts.tracker.getProgress();
 

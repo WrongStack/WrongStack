@@ -71,6 +71,36 @@ function trunc(s: string, max: number): string {
   return `${s.slice(0, Math.max(1, max - 1))}…`;
 }
 
+/**
+ * Normalized "is this session row the current session?" predicate used by
+ * both the `SidebarContent` SESSIONS card (live + resume rows) and the
+ * `SessionsPanelSidebar` (sidebar twin). The runtime `currentSessionId`
+ * is the authoritative source — when defined, the row whose id matches
+ * is the current row. When undefined (e.g. before the host registers a
+ * session), the per-row `isCurrent` flag is the fallback (carried over
+ * from the resume-picker domain for the case where the picker marks
+ * the current session as non-resumable but the host hasn't published
+ * the runtime id yet). A row without an id can never be the current
+ * row, regardless of what its fallback flag says. The two SESSIONS
+ * rows used to disagree on which key to read (live used strict id
+ * compare, resume used `rs.isCurrent` first); this helper is the
+ * single source of truth.
+ */
+export function isCurrentSession(
+  rowId: string | undefined,
+  currentSessionId: string | undefined,
+  fallbackIsCurrent?: boolean | undefined,
+): boolean {
+  // A row without an id can never be the current row, regardless of
+  // what its fallback flag says. This guards the (rowId=undefined,
+  // fallbackIsCurrent=true) edge case from highlighting a no-id row.
+  if (rowId === undefined) return false;
+  if (currentSessionId !== undefined) {
+    return rowId === currentSessionId;
+  }
+  return fallbackIsCurrent === true;
+}
+
 /** Format a fleet entry's status as a compact colored glyph. */
 function statusGlyph(entry: FleetEntry): { icon: string; color: string } {
   switch (entry.status) {
@@ -498,7 +528,10 @@ export function SidebarContent({
           {liveSessions && liveSessions.length > 0 ? (
             <Box flexDirection="column">
               {liveSessions.slice(0, 3).map((s) => {
-                const isCurrent = s.sessionId === currentSessionId;
+                const isCurrent = isCurrentSession(
+                  s.sessionId,
+                  currentSessionId,
+                );
                 const icon = isCurrent ? '●' : liveSessionIcon(s.status);
                 const color = liveSessionColor(s.status);
                 const name = trunc(s.projectName, innerWidth - 6);
@@ -527,10 +560,11 @@ export function SidebarContent({
               marginTop={liveSessions && liveSessions.length > 0 ? 1 : 0}
             >
               {resumeSessions.slice(0, 3).map((rs) => {
-                const isCurrent =
-                  currentSessionId !== undefined
-                    ? rs.id === currentSessionId
-                    : rs.isCurrent === true;
+                const isCurrent = isCurrentSession(
+                  rs.id,
+                  currentSessionId,
+                  rs.isCurrent,
+                );
                 const badge = outcomeBadge(rs.outcome);
                 const title = trunc(
                   rs.title || rs.lastUserMessage || rs.id,

@@ -97,13 +97,17 @@ export function resolveSidebarLayout(
   sidebarOpenFlags?: Partial<Record<PanelId, boolean>> | undefined,
   /**
    * Legacy `showAgentSwarmPanel === 'sidebar'` flag from the persisted
-   * `liveSettings` config. The renderer at `app-view.tsx:897-899` reads
-   * BOTH this field and `panelPositions.fleet === 'sidebar'` as the
-   * source of truth for whether the swarm panel renders on the sidebar;
-   * the scroll-clamp reservation must match the renderer's effective
-   * source or the bottom mission rows will be unreachable behind
-   * `RightSidebar`'s `overflowY="hidden"` viewport. Defaults to `false`
-   * when omitted so existing call sites stay correct.
+   * `liveSettings` config — the same field the renderer at
+   * `app-view.tsx:897-899` reads (picker draft when open, persisted
+   * `liveSettings.showAgentSwarmPanel` when closed) to decide whether
+   * the mission card renders on the sidebar. The scroll-clamp
+   * reservation must match this source or a config-only 'sidebar'
+   * swarm mode (no recent picker open) renders the mission card but
+   * the clamp under-reserves, hiding the bottom mission rows behind
+   * `RightSidebar`'s `overflowY="hidden"` viewport. OR'd with
+   * `panelPositions.fleet === 'sidebar'` for safety (over-reservation
+   * is harmless). Defaults to `false` when omitted so existing call
+   * sites stay correct.
    */
   legacySwarmOnSidebar?: boolean | undefined,
 ): SidebarLayoutState {
@@ -151,16 +155,18 @@ export function resolveSidebarLayout(
   const sidebarWidth = overlayOpen ? 0 : computeSidebarWidth(termCols);
   // The swarm panel is on the sidebar iff EITHER:
   //   - `panelPositions.fleet === 'sidebar'` (new per-panel position map,
-  //     fed by both the picker draft and persisted config), OR
+  //     fed by both the picker draft and persisted config). This field
+  //     gates whether the swarm twin is mounted, NOT whether the
+  //     mission card renders.
   //   - the legacy `showAgentSwarmPanel === 'sidebar'` field from
   //     `liveSettings` (tri-state AgentSwarmPanelMode carried over from
-  //     the pre-panel-position system; still honored by the renderer at
-  //     `app-view.tsx:897-899`).
-  // The scroll-clamp reservation must match the renderer's effective
-  // source — a config-only legacy 'sidebar' swarm mode (no recent picker
-  // open) renders the mission card but would otherwise under-reserve
-  // the scroll budget, hiding the bottom mission rows behind
-  // `RightSidebar`'s `overflowY="hidden"` viewport.
+  //     the pre-panel-position system). THIS field is the one the
+  //     renderer at `app-view.tsx:897-899` reads to decide whether to
+  //     show the mission card.
+  // The OR is directionally safe (over-reservation is harmless) and
+  // matches the renderer's source so a config-only legacy 'sidebar'
+  // swarm mode (no recent picker open) gets the full mission-queue
+  // scroll budget.
   const effectiveSwarmOnSidebar =
     panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false);
 
