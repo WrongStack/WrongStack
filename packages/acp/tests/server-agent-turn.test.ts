@@ -24,6 +24,13 @@ import {
 } from '../src/agent/server-agent-turn.js';
 import { ACPSessionStore } from '../src/agent/session-store.js';
 
+// The v1 handler validates `params.cwd` on session/new|load|fork (WS-015):
+// it must be an absolute path to an existing directory. The old literal
+// '/test' only passed on machines where that path happened to exist (e.g.
+// D:\test on some Windows hosts) and failed on Linux CI. process.cwd() is
+// the workspace root — absolute and always present on every platform.
+const ACP_TEST_CWD = process.cwd();
+
 interface FakeAgent {
   run: ReturnType<typeof vi.fn>;
   teardown: ReturnType<typeof vi.fn>;
@@ -120,7 +127,7 @@ describe('makeACPServerAgentTurn', () => {
   it('runs a turn, emits agent_message_chunk with the agent text, and resolves end_turn', async () => {
     const { handler, transport } = makeHandlerWithFactory(() => makeFakeAgent('hello world'));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const newResp = transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } };
     const sessionId = newResp.result?.sessionId!;
     transport.sent.length = 0;
@@ -151,7 +158,7 @@ describe('makeACPServerAgentTurn', () => {
       teardown: vi.fn(async () => {}),
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -187,7 +194,7 @@ describe('makeACPServerAgentTurn', () => {
       teardown: vi.fn(async () => {}),
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -224,7 +231,7 @@ describe('makeACPServerAgentTurn', () => {
       teardown: vi.fn(async () => {}),
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -264,7 +271,7 @@ describe('makeACPServerAgentTurn', () => {
       teardown: vi.fn(async () => {}),
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -304,7 +311,7 @@ describe('makeACPServerAgentTurn', () => {
       runTurn: turn,
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -338,7 +345,7 @@ describe('makeACPServerAgentTurn', () => {
       runTurn: turn,
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -366,7 +373,7 @@ describe('makeACPServerAgentTurn', () => {
       runTurn: turn,
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -386,7 +393,7 @@ describe('makeACPServerAgentTurn', () => {
       teardown: vi.fn(async () => {}),
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -401,7 +408,7 @@ describe('makeACPServerAgentTurn', () => {
   it('returns cancelled stopReason when the parent signal aborts', async () => {
     const { handler, transport } = makeHandlerWithFactory(() => makeFakeAgent('hello'));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -447,7 +454,7 @@ describe('makeACPServerAgentTurn', () => {
       runTurn: turn,
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
@@ -478,7 +485,7 @@ describe('makeACPServerAgentTurn', () => {
       replayFor: turn.replay,
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
 
     await handler.handleMessage({
@@ -487,7 +494,7 @@ describe('makeACPServerAgentTurn', () => {
     });
     transport.sent.length = 0;
 
-    await handler.handleMessage({ id: 4, method: 'session/load', params: { sessionId, cwd: '/test' } });
+    await handler.handleMessage({ id: 4, method: 'session/load', params: { sessionId, cwd: ACP_TEST_CWD } });
 
     const replayed = transport.sent
       .map((m) => (m as { method?: string; params?: { update?: { sessionUpdate?: string; content?: { text?: string } } } }))
@@ -553,7 +560,7 @@ describe('makeACPServerAgentTurn', () => {
         store,
       });
       await h1.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-      await h1.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+      await h1.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
       const sessionId = (t1.sent[t1.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
       await h1.handleMessage({
         id: 3, method: 'session/prompt',
@@ -577,7 +584,7 @@ describe('makeACPServerAgentTurn', () => {
       await h2.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       // Before load, the fresh turn engine knows nothing about the session.
       expect(turn2.replay(sessionId)).toHaveLength(0);
-      await h2.handleMessage({ id: 2, method: 'session/load', params: { sessionId, cwd: '/test' } });
+      await h2.handleMessage({ id: 2, method: 'session/load', params: { sessionId, cwd: ACP_TEST_CWD } });
       // After load, the handler seeded the turn engine from the durable store.
       expect(turn2.replay(sessionId)).toHaveLength(2);
 
@@ -615,7 +622,7 @@ describe('makeACPServerAgentTurn', () => {
       runTurn: turn,
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
     const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
     transport.sent.length = 0;
 
