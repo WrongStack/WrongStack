@@ -64,6 +64,19 @@ export function getPalette(value: unknown): PaletteDefinition {
   return PALETTES.find((palette) => palette.id === value) ?? PALETTES[0];
 }
 
+/** Guarded read of a persisted palette id; invalid/missing/blocked storage
+ *  falls back to `fallback`. Shared by ThemeProvider (initial state) and the
+ *  config store's `merge` so the two persistence layers agree. */
+export function readStoredPalette(storageKey: string, fallback: PaletteId): PaletteId {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    return isPaletteId(stored) ? stored : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /** Apply a palette to <html> by setting `data-palette`; removes it for the default. */
 export function applyPalette(root: HTMLElement, palette: PaletteId): void {
   if (palette === DEFAULT_PALETTE) {

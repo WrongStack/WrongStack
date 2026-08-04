@@ -9,6 +9,7 @@ function resetStore() {
     wsConnected: false,
     wsStatus: { state: 'connecting' },
     theme: 'system',
+    palette: 'signal',
     autoConnect: true,
     soundOnComplete: false,
   });
@@ -157,6 +158,60 @@ describe('setSoundOnComplete', () => {
   it('disables sound', () => {
     useConfigStore.getState().setSoundOnComplete(false);
     expect(useConfigStore.getState().soundOnComplete).toBe(false);
+  });
+});
+
+// ── palette persistence merge ──────────────────────────────────────
+//
+// The store's `merge` must never let a corrupted/legacy persisted palette id
+// land in state, and it must converge with the ThemeProvider's authoritative
+// localStorage entry (`wrongstack-palette`) even on the upgrade path where
+// `wrongstack-config` predates the `palette` field.
+
+describe('palette merge fallback', () => {
+  beforeEach(() => {
+    // Full isolation: reset the store (so `current` in merge is pristine and
+    // wsUrl keeps its hardcoded test value) AND clear both persistence keys.
+    resetStore();
+    localStorage.removeItem('wrongstack-config');
+    localStorage.removeItem('wrongstack-palette');
+  });
+
+  afterEach(() => {
+    // rehydrate's merge recomputes wsUrl from window.location (jsdom port
+    // 3000); restore the store so later suites see their expected values.
+    resetStore();
+    localStorage.removeItem('wrongstack-config');
+    localStorage.removeItem('wrongstack-palette');
+  });
+
+  it('adopts the ThemeProvider localStorage palette when the persisted config palette is invalid', async () => {
+    localStorage.setItem('wrongstack-palette', 'blue-navy');
+    localStorage.setItem(
+      'wrongstack-config',
+      JSON.stringify({ state: { palette: 'bogus-palette' }, version: 0 }),
+    );
+    await useConfigStore.persist.rehydrate();
+    expect(useConfigStore.getState().palette).toBe('blue-navy');
+  });
+
+  it('falls back to the default when neither source has a valid palette', async () => {
+    localStorage.setItem(
+      'wrongstack-config',
+      JSON.stringify({ state: { palette: 'bogus-palette' }, version: 0 }),
+    );
+    await useConfigStore.persist.rehydrate();
+    expect(useConfigStore.getState().palette).toBe('signal');
+  });
+
+  it('prefers a valid persisted config palette over the localStorage entry', async () => {
+    localStorage.setItem('wrongstack-palette', 'blue-navy');
+    localStorage.setItem(
+      'wrongstack-config',
+      JSON.stringify({ state: { palette: 'emerald-gold' }, version: 0 }),
+    );
+    await useConfigStore.persist.rehydrate();
+    expect(useConfigStore.getState().palette).toBe('emerald-gold');
   });
 });
 

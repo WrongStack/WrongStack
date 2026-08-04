@@ -1,23 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { isPaletteId, PALETTE_STORAGE_KEY, type PaletteId } from '@/lib/palettes';
+import { PALETTE_STORAGE_KEY, isPaletteId, readStoredPalette, type PaletteId } from '@/lib/palettes';
 import { defaultWsUrl } from '@/lib/ws-client-utils';
 
 // ============================================
 // Config Store
 // ============================================
-
-/** Guarded read of the ThemeProvider's persisted palette (authoritative user
- *  choice) used by `merge` when `wrongstack-config` has no valid `palette`. */
-function readStoredPalette(storageKey: string, fallback: PaletteId): PaletteId {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    return isPaletteId(stored) ? stored : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 export interface ConfigState {
   provider: string;

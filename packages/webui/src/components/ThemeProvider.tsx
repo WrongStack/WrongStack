@@ -3,6 +3,7 @@ import {
   PALETTE_STORAGE_KEY,
   applyPalette,
   isPaletteId,
+  readStoredPalette,
   type PaletteId,
 } from '@/lib/palettes';
 import { useConfigStore } from '@/stores';
@@ -27,16 +28,6 @@ interface ThemeProviderState {
 }
 
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
-
-function readStoredPalette(storageKey: string, fallback: PaletteId): PaletteId {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    return isPaletteId(stored) ? stored : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 export function ThemeProvider({
   children,
