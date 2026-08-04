@@ -392,6 +392,18 @@ export function ChatView() {
     prevAutoCollapse.current = autoCollapseInput;
   }, [messages.length, autoCollapseInput, sessionId, isLoading, setInputCollapsed]);
 
+  // Shared Auto-collapse toggle handler (used from both the expanded
+  // display-toggles bar and the collapsed input bar). Turning the feature
+  // OFF always reveals the input: from the collapsed bar that is the only
+  // way to dismiss the collapse without expanding first; from the expanded
+  // bar it is a no-op. Turning it ON does NOT collapse immediately — the
+  // transition effects above handle that when a fresh session/history loads.
+  const handleToggleAutoCollapse = useCallback(() => {
+    const next = !useLocalPrefs.getState().autoCollapseInput;
+    useLocalPrefs.getState().set({ autoCollapseInput: next });
+    if (!next) setInputCollapsed(false);
+  }, [setInputCollapsed]);
+
   // Context window usage: cap display at 100%; raw token counts still show overflow.
   const ctxPct =
     maxContext > 0 && lastInputTokens > 0
@@ -958,20 +970,30 @@ export function ChatView() {
       {/* Input — collapsible when there's an active session */}
       <div className="shrink-0 bg-[hsl(var(--surface-2)/0.45)] px-2 pb-2 pt-2 sm:px-3 lg:px-4 lg:pb-3">
         {inputCollapsed && messages.length > 0 ? (
-          /* ── Collapsed bar — click to expand ── */
-          <button
-            type="button"
-            onClick={() => setInputCollapsed(false)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground/60 hover:text-foreground/80 hover:border-border/80 hover:bg-card/70 transition-colors"
-          >
-            <ChevronUp className="h-3.5 w-3.5 shrink-0" />
-            <span>{t('chat:input.expandInput', 'Expand input')}</span>
-            {rows.length > 0 && (
-              <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/40">
-                {rows.length} msgs · {fmtTok(totalTokens.input + totalTokens.output)}
-              </span>
-            )}
-          </button>
+          /* ── Collapsed bar — click to expand; Auto-collapse toggle
+             stays reachable so the user can disable the feature without
+             expanding first (Low finding: the toggle was previously only
+             in the expanded branch, hiding itself once collapsed). ── */
+          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 hover:bg-card/70 hover:border-border/80 transition-colors">
+            <button
+              type="button"
+              onClick={() => setInputCollapsed(false)}
+              className="flex flex-1 items-center gap-2 text-xs text-muted-foreground/60 hover:text-foreground/80 transition-colors"
+            >
+              <ChevronUp className="h-3.5 w-3.5 shrink-0" />
+              <span>{t('chat:input.expandInput', 'Expand input')}</span>
+              {rows.length > 0 && (
+                <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/40">
+                  {rows.length} msgs · {fmtTok(totalTokens.input + totalTokens.output)}
+                </span>
+              )}
+            </button>
+            <ToggleSwitch
+              label="↕️ Auto-collapse"
+              value={autoCollapseInput}
+              onChange={handleToggleAutoCollapse}
+            />
+          </div>
         ) : (
           /* ── Full input area ── */
           <>
@@ -1019,11 +1041,7 @@ export function ChatView() {
                 <ToggleSwitch
                   label="↕️ Auto-collapse"
                   value={autoCollapseInput}
-                  onChange={() => {
-                    useLocalPrefs
-                      .getState()
-                      .set({ autoCollapseInput: !useLocalPrefs.getState().autoCollapseInput });
-                  }}
+                  onChange={handleToggleAutoCollapse}
                 />
               </div>
               {hasStatusContent && (
