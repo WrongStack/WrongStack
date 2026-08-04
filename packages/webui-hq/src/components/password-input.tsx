@@ -5,11 +5,11 @@ interface PasswordInputProps {
   value: string;
   onChange: (value: string) => void;
   onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  inputRef?: React.Ref<HTMLInputElement>;
   placeholder?: string;
   autoComplete?: string;
   minLength?: number;
   maxLength?: number;
-  autoFocus?: boolean;
   className?: string;
   id?: string;
 }
@@ -22,11 +22,11 @@ export function PasswordInput({
   value,
   onChange,
   onKeyDown,
+  inputRef,
   placeholder,
   autoComplete,
   minLength,
   maxLength,
-  autoFocus,
   className,
   id,
 }: PasswordInputProps): React.ReactElement {
@@ -35,6 +35,7 @@ export function PasswordInput({
   return (
     <div className="hq-password-input-wrapper">
       <input
+        ref={inputRef}
         id={id}
         type={visible ? 'text' : 'password'}
         className={className ?? 'hq-token-input'}
@@ -42,7 +43,6 @@ export function PasswordInput({
         autoComplete={autoComplete}
         minLength={minLength}
         maxLength={maxLength}
-        autoFocus={autoFocus}
         value={value}
         onChange={(ev) => onChange(ev.target.value)}
         onKeyDown={onKeyDown}
@@ -50,9 +50,10 @@ export function PasswordInput({
       <button
         type="button"
         className="hq-password-toggle"
+        onMouseDown={(ev) => ev.preventDefault()}
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? 'Hide password' : 'Show password'}
-        tabIndex={-1}
+        aria-pressed={visible}
       >
         {visible ? <EyeOff size={14} /> : <Eye size={14} />}
       </button>

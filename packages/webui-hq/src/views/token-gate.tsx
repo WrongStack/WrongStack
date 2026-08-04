@@ -12,7 +12,7 @@
  * login sets an HttpOnly session cookie on the server; the reload sends it
  * automatically for both HTTP and WebSocket requests.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { clearHqToken, setHqToken } from '../lib/auth.js';
 import { PasswordInput } from '../components/password-input.js';
 
@@ -38,14 +38,10 @@ export function TokenGate({ hadToken }: { hadToken: boolean }): React.ReactEleme
 
   const showToken = status?.tokenMode ?? true;
   const showPassword = status?.passwordMode ?? false;
-  const [tab, setTab] = useState<'token' | 'password'>('token');
-
-  useEffect(() => {
-    if (!status) return;
-    // When both methods exist, prefer the human-friendly password flow.
-    // Tokens remain available for operators and automation through the tab.
-    setTab(status.passwordMode ? 'password' : 'token');
-  }, [status]);
+  const [selectedTab, setSelectedTab] = useState<'token' | 'password' | null>(null);
+  // When both methods exist, prefer the human-friendly password flow on first render.
+  // Tokens remain available for operators and automation through the tab.
+  const activeTab = selectedTab ?? (showPassword ? 'password' : 'token');
 
   if (statusError) {
     return (
@@ -78,21 +74,21 @@ export function TokenGate({ hadToken }: { hadToken: boolean }): React.ReactEleme
           <div className="hq-token-tabs">
             <button
               type="button"
-              className={'hq-token-tab' + (tab === 'token' ? ' active' : '')}
-              onClick={() => setTab('token')}
+              className={'hq-token-tab' + (activeTab === 'token' ? ' active' : '')}
+              onClick={() => setSelectedTab('token')}
             >
               Browser token
             </button>
             <button
               type="button"
-              className={'hq-token-tab' + (tab === 'password' ? ' active' : '')}
-              onClick={() => setTab('password')}
+              className={'hq-token-tab' + (activeTab === 'password' ? ' active' : '')}
+              onClick={() => setSelectedTab('password')}
             >
               Password
             </button>
           </div>
         ) : null}
-        {tab === 'token' || !showPassword ? <TokenForm hadToken={hadToken} /> : <PasswordForm />}
+        {activeTab === 'token' || !showPassword ? <TokenForm hadToken={hadToken} /> : <PasswordForm />}
       </div>
     </div>
   );
@@ -100,6 +96,11 @@ export function TokenGate({ hadToken }: { hadToken: boolean }): React.ReactEleme
 
 function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
   const [value, setValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const submit = (): void => {
     const token = value.trim();
@@ -117,6 +118,7 @@ function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
           : 'This HQ server runs in token mode. Paste the browser token printed at startup (the ?token= value in the URL wstack --hq shows).'}
       </p>
       <PasswordInput
+        inputRef={inputRef}
         value={value}
         onChange={setValue}
         onKeyDown={(ev) => {
@@ -124,7 +126,6 @@ function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
         }}
         placeholder="browser token"
         autoComplete="off"
-        autoFocus
       />
       <button
         type="button"
@@ -148,10 +149,24 @@ function PasswordForm(): React.ReactElement {
   const [totpRequired, setTotpRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const totpInputRef = useRef<HTMLInputElement>(null);
+  const loginInFlightRef = useRef(false);
+  const totpInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (totpRequired) {
+      totpInputRef.current?.focus();
+      return;
+    }
+    passwordInputRef.current?.focus();
+  }, [totpRequired]);
 
   const submit = async (): Promise<void> => {
+    if (busy || loginInFlightRef.current) return;
     const password = value;
     if (password.length === 0) return;
+    loginInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -171,12 +186,14 @@ function PasswordForm(): React.ReactElement {
           /* ignore */
         }
         setError(msg);
+        loginInFlightRef.current = false;
         setBusy(false);
         return;
       }
       const body = (await res.json()) as { loggedIn?: boolean; totpRequired?: boolean };
       if (body.totpRequired) {
         setTotpRequired(true);
+        loginInFlightRef.current = false;
         setBusy(false);
         return;
       }
@@ -185,13 +202,16 @@ function PasswordForm(): React.ReactElement {
       window.location.reload();
     } catch {
       setError('Network error.');
+      loginInFlightRef.current = false;
       setBusy(false);
     }
   };
 
   const submitTotp = async (): Promise<void> => {
+    if (busy || totpInFlightRef.current) return;
     const rawCode = totpCode.trim();
     if (rawCode.length === 0) return;
+    totpInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -216,6 +236,7 @@ function PasswordForm(): React.ReactElement {
           /* ignore */
         }
         setError(msg);
+        totpInFlightRef.current = false;
         setBusy(false);
         return;
       }
@@ -223,6 +244,7 @@ function PasswordForm(): React.ReactElement {
       window.location.reload();
     } catch {
       setError('Network error.');
+      totpInFlightRef.current = false;
       setBusy(false);
     }
   };
@@ -235,11 +257,11 @@ function PasswordForm(): React.ReactElement {
           Authenticator code
         </label>
         <input
+          ref={totpInputRef}
           id="hq-totp-code"
           className="hq-token-input"
           type="text"
           autoComplete="one-time-code"
-          autoFocus
           placeholder="000000 or recovery code"
           value={totpCode}
           onChange={(ev) => setTotpCode(ev.target.value.slice(0, 32))}
@@ -281,6 +303,7 @@ function PasswordForm(): React.ReactElement {
       </p>
       {error ? <p className="hq-token-error">{error}</p> : null}
       <PasswordInput
+        inputRef={passwordInputRef}
         value={value}
         onChange={setValue}
         onKeyDown={(ev) => {
@@ -288,7 +311,6 @@ function PasswordForm(): React.ReactElement {
         }}
         placeholder="password"
         autoComplete="current-password"
-        autoFocus
       />
       <button
         type="button"
