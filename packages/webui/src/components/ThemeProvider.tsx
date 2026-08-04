@@ -1,4 +1,10 @@
-import { DEFAULT_PALETTE, applyPalette, isPaletteId, type PaletteId } from '@/lib/palettes';
+import {
+  DEFAULT_PALETTE,
+  PALETTE_STORAGE_KEY,
+  applyPalette,
+  isPaletteId,
+  type PaletteId,
+} from '@/lib/palettes';
 import { useConfigStore } from '@/stores';
 import type React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -37,7 +43,7 @@ export function ThemeProvider({
   defaultTheme = 'system',
   storageKey = 'wrongstack-theme',
   defaultPalette = DEFAULT_PALETTE,
-  paletteStorageKey = 'wrongstack-palette',
+  paletteStorageKey = PALETTE_STORAGE_KEY,
 }: ThemeProviderProps) {
   const setStoreTheme = useConfigStore((s) => s.setTheme);
   const setStorePalette = useConfigStore((s) => s.setPalette);
@@ -72,16 +78,19 @@ export function ThemeProvider({
     applyPalette(window.document.documentElement, palette);
   }, [palette]);
 
-  // Keep open tabs in sync: when another tab writes `wrongstack-palette`,
-  // adopt it so the DOM attribute and config store don't drift apart.
+  // Keep open tabs in sync: when another tab writes the palette key, adopt it
+  // so the DOM attribute and config store don't drift apart.
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== paletteStorageKey) return;
-      if (isPaletteId(event.newValue)) setPalette(event.newValue);
+      if (isPaletteId(event.newValue)) {
+        setPalette(event.newValue);
+        setStorePalette(event.newValue);
+      }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [paletteStorageKey]);
+  }, [paletteStorageKey, setStorePalette]);
 
   const value = {
     theme,

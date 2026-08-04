@@ -26,6 +26,9 @@ export interface PaletteDefinition {
 
 export const DEFAULT_PALETTE: PaletteId = 'signal';
 
+/** localStorage key for the persisted palette — shared by ThemeProvider and the config store's merge. */
+export const PALETTE_STORAGE_KEY = 'wrongstack-palette';
+
 export const PALETTES: readonly PaletteDefinition[] = [
   {
     id: 'signal',
