@@ -227,6 +227,40 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
     await vi.waitFor(() => expect(vi.mocked(fs.writeFile)).toHaveBeenCalled());
   });
 
+  it('creates the lock directory before writing the lock file (CI ENOENT race)', async () => {
+    // Regression for the Linux-CI bash-kill-guard-paths failure: the
+    // registry constructor creates its root fire-and-forget, so the first
+    // acquireLock can race ahead of that mkdir and hit ENOENT. acquireLock
+    // must mkdir the lock parent itself. Simulate a slow mkdir (as if the
+    // constructor's async ensureDirectory has not completed) and make the
+    // lock write throw ENOENT until the directory exists.
+    let lockMkdirDone = false;
+    let lockWriteSucceeded = false;
+    vi.mocked(fs.mkdir).mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      lockMkdirDone = true;
+      return undefined;
+    });
+    vi.mocked(fs.writeFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.writeFile>[0], content: string) => {
+        const p = String(filePath);
+        if (p.endsWith('.process-registry.lock')) {
+          if (!lockMkdirDone) {
+            throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+          }
+          lockWriteSucceeded = true;
+        }
+        mockStore.set(p, content);
+      },
+    );
+
+    const r = new PersistentProcessRegistry();
+    r.registerChildProcess(4321, 'race-child', 'node race.js', 'sess-1', 'spawn');
+    // The lock file itself is transient (unlinked on release), so assert on
+    // the successful lock write rather than its persistence.
+    await vi.waitFor(() => expect(lockWriteSucceeded).toBe(true));
+  });
+
   it('steals unreadable lock file (stolen via catch path)', async () => {
     // First write to lock fails with EEXIST; then the catch path calls unlink,
     // and the retry write should succeed.
