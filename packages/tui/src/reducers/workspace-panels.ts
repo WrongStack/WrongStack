@@ -12,15 +12,15 @@ import { closePanels } from './helpers.js';
  * full todo content (not pre-truncated) so each row may span multiple
  * lines when the rail is narrow.
  *
- * 10 is an over-estimate chosen for safety, not an observed measurement.
- * The longest label actually exercised in `tests/sidebar-worklist-wrap.test.tsx`
- * is the 71-char `PlanPanelSidebar` title "Polish the narrow-rail wrap behavior
- * so plan steps stay legible", which wraps to ~6 lines at the minimum 16-col
- * sidebar. Real leader-authored todos can run longer (the test fixture's
- * "Resync the keyboard shortcuts document with the v0.42 release notes" is
- * 71 chars and wraps to ~6 lines too), but anything beyond 10 lines would
- * require a 140+ char free-form label. Over-estimating is safe — it simply
- * leaves a little blank space at the bottom of the scroll range.
+ * 10 is the row budget per mission label that derives the scroll-clamp
+ * assertion in `tests/sidebar-worklist-wrap.test.tsx` (1 header + 8 × 10
+ * + 1 overflow + 1 margin = 83 mission-card rows). Mathematically: at
+ * the minimum 16-column sidebar the icon (`▶`/`○`/`✓` = 1 col) and
+ * trailing space (1 col) consume 2 columns, leaving 14 columns for
+ * label text; a 140-char label fits exactly into 10 × 14 = 140 cols,
+ * which is why 10 is the right ceiling for the worst plausible free-
+ * form label. Over-estimating is safe — it simply leaves a little
+ * blank space at the bottom of the scroll range.
  *
  * Known follow-up: the multiplier is width-blind, so at wide terminals
  * (≥ 100 cols → rail 25 → content 21 cols) the user can scroll a few dozen
