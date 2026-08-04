@@ -107,6 +107,10 @@ export interface LocalPrefs {
   showThinkingLogs: boolean;
   /** Group consecutive tool calls into collapsible chips */
   groupToolCalls: boolean;
+  /** Auto-collapse the chat input under the history when a session with
+   *  messages loads (opt-in; off by default). When off, the input always
+   *  starts expanded. Independent of the manual collapse/expand buttons. */
+  autoCollapseInput: boolean;
   /** Show model reasoning/thinking blocks inline in the chat */
   showModelReasoning: boolean;
   /** Agent swarm panel placement: bottom, sidebar, or off */
@@ -258,6 +262,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   animationStyle: 'rainbow',
   showThinkingLogs: true,
   groupToolCalls: true,
+  autoCollapseInput: false,
   showModelReasoning: true,
   showAgentSwarmPanel: 'bottom',
   allowOutsideProjectRoot: true,
@@ -317,7 +322,13 @@ export const useLocalPrefs = create<LocalPrefs>()(
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 14,
+      version: 15,
+      // v15 (2026-08-04): added autoCollapseInput (display toggle). Default
+      // false — the chat input no longer auto-collapses under the history.
+      // Older stores are backfilled via DEFAULTS spread + the explicit
+      // migration guard at the bottom; no remap is needed because the field
+      // has no historical alias in localStorage.
+      //
       // v14 (2026-08-02): showAgentSwarmPanel changed from boolean to
       // tri-state string ('bottom' | 'sidebar' | 'off'). Migration guard
       // validates and coerces legacy boolean values.
@@ -487,6 +498,9 @@ export const useLocalPrefs = create<LocalPrefs>()(
         }
         // v11: new boolean flags — backfill with defaults
         if (typeof p.showModelReasoning !== 'boolean') p.showModelReasoning = true;
+        // v15: autoCollapseInput — boolean display toggle, default false
+        // (input starts expanded; auto-collapse is opt-in).
+        if (typeof p.autoCollapseInput !== 'boolean') p.autoCollapseInput = false;
         // v14: showAgentSwarmPanel changed from boolean to tri-state string.
         // Legacy booleans: true → 'bottom', false → 'off'.
         // Invalid values (non-string, non-boolean) → 'bottom' (default).

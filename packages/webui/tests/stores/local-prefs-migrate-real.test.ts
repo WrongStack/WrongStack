@@ -23,7 +23,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('is wired into the persist middleware at the current version', () => {
     const opts = useLocalPrefs.persist.getOptions();
     expect(opts.name).toBe('wrongstack-local-prefs');
-    expect(opts.version).toBe(14);
+    expect(opts.version).toBe(15);
     expect(typeof opts.migrate).toBe('function');
   });
 
@@ -334,6 +334,24 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
     expect(p.showModelReasoning).toBe(true);
     expect(p.showAgentSwarmPanel).toBe('bottom');
     expect(p.allowOutsideProjectRoot).toBe(true);
+  });
+
+  // ── v15: auto-collapse input display toggle ───────────────────────────
+
+  it('backfills autoCollapseInput to false (opt-in, default off)', () => {
+    expect(migrate({}).autoCollapseInput).toBe(false);
+    expect(migrate(null).autoCollapseInput).toBe(false);
+  });
+
+  it('coerces non-boolean autoCollapseInput back to false', () => {
+    for (const v of ['true', 1, null, undefined, {}]) {
+      expect(migrate({ autoCollapseInput: v }).autoCollapseInput).toBe(false);
+    }
+  });
+
+  it('preserves an explicitly persisted autoCollapseInput boolean', () => {
+    expect(migrate({ autoCollapseInput: true }).autoCollapseInput).toBe(true);
+    expect(migrate({ autoCollapseInput: false }).autoCollapseInput).toBe(false);
   });
 
   // ── unknown keys ─────────────────────────────────────────────────────────

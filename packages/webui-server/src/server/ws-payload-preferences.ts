@@ -59,6 +59,10 @@ const BOOLEAN_PREF_KEYS = new Set([
   // Display-only toggles (purely visual, persisted in localStorage via Zustand).
   'groupToolCalls',
   'showThinkingLogs',
+  // v15: auto-collapse of the chat input under the history (opt-in display
+  // toggle, default off). Whitelisted so the key survives `prefs.update`
+  // round-trips without tripping the "unknown preference key" rejection.
+  'autoCollapseInput',
   // v11 Display parity: inverse fsAccess flag.
   'allowOutsideProjectRoot',
   // v13 Display parity (TUI SettingsPicker fields 42 & 43): the read tool

@@ -103,6 +103,8 @@ export const PREF_KEYS = [
   // Display-only toggles (purely visual WebUI prefs, not persisted to config).
   'groupToolCalls',
   'showThinkingLogs',
+  // v15: chat-input auto-collapse (opt-in display toggle, default off).
+  'autoCollapseInput',
   // Per-plugin enable/disable map (parity with the embedded server).
   'pluginsEnabled',
   // Fleet chat verbosity: off | full (migrated from streamFleet boolean).
@@ -236,6 +238,8 @@ export async function updateGlobalConfig(
 const DISPLAY_ONLY_KEYS = new Set([
   'groupToolCalls',
   'showThinkingLogs',
+  // v15: chat-input auto-collapse (opt-in display toggle, default off).
+  'autoCollapseInput',
   'autoReviewFallbackModels',
   // v11 Display parity: agent-swarm panel + inverse fsAccess flag.
   // The TUI settings picker mirrors these so the browser can keep the

@@ -46,6 +46,7 @@ import { ToolGroup } from '../ToolGroup';
 import { Button } from '../ui/button';
 import { WelcomeScreen } from '../WelcomeScreen';
 import { ThinkingBubble } from './ThinkingBubble.js';
+import { shouldAutoCollapse } from './auto-collapse.js';
 import { buildChatRows, type ChatRow, fmtTok } from './utils.js';
 
 /**
@@ -262,6 +263,9 @@ export function ChatView() {
   const autonomy = useLocalPrefs((s) => s.autonomy);
   const showThinkingLogs = useLocalPrefs((s) => s.showThinkingLogs);
   const groupToolCallsPref = useLocalPrefs((s) => s.groupToolCalls);
+  // Auto-collapse of the chat input under the history. Opt-in via the
+  // display-toggles bar; when off (default) the input always starts expanded.
+  const autoCollapseInput = useLocalPrefs((s) => s.autoCollapseInput);
 
   const handleAutonomyChange = useCallback(
     (mode: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel') => {
@@ -276,11 +280,23 @@ export function ChatView() {
   const [processOpen, setProcessOpen] = useState(false);
   const [checkpointOpen, setCheckpointOpen] = useState(false);
   const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
-  // Collapsed input: when there's an active session, the input area shrinks
-  // to a thin bar. Click to expand. Initialised true when messages exist.
-  const [inputCollapsed, setInputCollapsed] = useState(messages.length > 0);
+  // Collapsed input: when auto-collapse is enabled (opt-in toggle) and there's
+  // an active session, the input area shrinks to a thin bar. Click to expand.
+  // Auto-collapse applies on load, when history first arrives (WS replay), and
+  // when the toggle is switched on — the session-end / next-steps /
+  // run-completion effects below always re-expand so the user can keep typing.
+  const [inputCollapsed, setInputCollapsed] = useState(
+    messages.length > 0 && autoCollapseInput,
+  );
   // Track previous loading state so we can detect the true→false transition.
   const prevLoading = useRef(isLoading);
+  // Track transcript presence, the active session id, and the pref across
+  // renders so the auto-collapse effect below fires only on the 0→N
+  // arrival / session-switch / toggle-on transitions, never on plain
+  // message growth (a manual expand stays sticky).
+  const prevHadMessages = useRef(messages.length > 0);
+  const prevSessionId = useRef(sessionId);
+  const prevAutoCollapse = useRef(autoCollapseInput);
 
   // Context breakdown modal
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -337,6 +353,44 @@ export function ChatView() {
     }
     prevLoading.current = isLoading;
   }, [isLoading, setInputCollapsed]);
+
+  // Auto-collapse on transition, decided by the pure state machine in
+  // auto-collapse.ts:
+  //  - 0→N transcript arrival while the pref is on (fresh-connect WS replay
+  //    lands history AFTER mount, so the mount-time initializer saw an empty
+  //    transcript).
+  //  - A session switch to a new session while the pref is on and the new
+  //    transcript has messages (session resume replaces the transcript
+  //    wholesale — N→M in one commit, never through 0).
+  //  - The pref flips false→true while history is already present (instant
+  //    feedback for the opt-in toggle, mirrors the manual Collapse button).
+  // Plain message growth never re-collapses a manually expanded input, and
+  // a run in flight (`isLoading`) never collapses either: the user's FIRST
+  // send in a fresh session is itself a 0→N arrival, and collapsing the
+  // input under them mid-run would be hostile. The gate uses the same commit
+  // that adds the user message (submitWith batches addMessage + setLoading),
+  // so first-send arrivals always see isLoading=true and stay expanded.
+  useEffect(() => {
+    const hasMessages = messages.length > 0;
+    // Only forward transitions count as a "session switch" — the id→null
+    // teardown at session end must NOT collapse (the expand listeners win).
+    const sessionChanged = sessionId != null && sessionId !== prevSessionId.current;
+    if (
+      !isLoading &&
+      shouldAutoCollapse({
+        hasMessages,
+        autoCollapseInput,
+        sessionChanged,
+        prevHadMessages: prevHadMessages.current,
+        prevAutoCollapse: prevAutoCollapse.current,
+      })
+    ) {
+      setInputCollapsed(true);
+    }
+    prevSessionId.current = sessionId;
+    prevHadMessages.current = hasMessages;
+    prevAutoCollapse.current = autoCollapseInput;
+  }, [messages.length, autoCollapseInput, sessionId, isLoading, setInputCollapsed]);
 
   // Context window usage: cap display at 100%; raw token counts still show overflow.
   const ctxPct =
@@ -960,6 +1014,16 @@ export function ChatView() {
                   label="📦 Compact"
                   value={compactMode}
                   onChange={() => useUIStore.getState().toggleCompactMode()}
+                />
+                <span className="opacity-30">|</span>
+                <ToggleSwitch
+                  label="↕️ Auto-collapse"
+                  value={autoCollapseInput}
+                  onChange={() => {
+                    useLocalPrefs
+                      .getState()
+                      .set({ autoCollapseInput: !useLocalPrefs.getState().autoCollapseInput });
+                  }}
                 />
               </div>
               {hasStatusContent && (
