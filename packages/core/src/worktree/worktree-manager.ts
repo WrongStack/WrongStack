@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import type { EventBus } from '../kernel/events.js';
 import { toErrorMessage } from '../utils/error.js';
@@ -532,16 +532,30 @@ export class WorktreeManager {
    * (output parsing), which let a half-resolved merge commit.
    */
   private async hasConflictMarkers(files?: string[]): Promise<boolean> {
-    const pathspec = files && files.length > 0 ? ['--', ...files] : [];
-    const grep = await this.runGit(
-      ['grep', '--cached', '-q', '-E', '^(<{7} |={7}$|>{7} |\\|{7} )', ...pathspec],
-      this.projectRoot,
-    );
-    if (grep.code === 0) return true;
-
-    const check = await this.runGit(['diff', '--cached', '--check'], this.projectRoot);
-    if (check.code === 0) return false;
-    return /conflict marker/i.test(`${check.stdout}\n${check.stderr}`);
+    // Scan staged content directly instead of relying on git config:
+    // `git diff --check` only treats conflict markers as whitespace errors
+    // when core.whitespace opts in (not a git default), and `git grep`
+    // assumes the default 7-character markers (merge.conflictMarkerSize
+    // can differ across runners). Reading the files and matching marker
+    // lines here is platform- and config-independent — a half-resolved
+    // merge must never be committed.
+    const listed = files ?? [];
+    const staged = (
+      await this.runGit(['diff', '--cached', '--name-only', '-z'], this.projectRoot)
+    ).stdout
+      .split('\0')
+      .filter(Boolean);
+    const paths = [...new Set([...listed, ...staged])];
+    const marker = /^(?:<{7,}(?: |$)|={7,}$|>{7,}(?: |$)|\|{7,}(?: |$))/m;
+    for (const rel of paths) {
+      try {
+        const content = await readFile(join(this.projectRoot, rel), 'utf8');
+        if (marker.test(content)) return true;
+      } catch {
+        // Deleted or unreadable — nothing to scan.
+      }
+    }
+    return false;
   }
 
   /**
