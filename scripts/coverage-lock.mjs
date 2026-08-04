@@ -6,7 +6,7 @@
 // second run can clean that directory while the first run is still reading it,
 // so every repository coverage command is routed through this lock.
 
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { closeSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,53 @@ const LOCK_PATH = path.join(REPO_ROOT, '.coverage.lock');
 const HELD_ENV = 'WRONGSTACK_COVERAGE_LOCK_HELD';
 const POLL_MS = 1000;
 const DEFAULT_MAX_WAIT_MS = 60 * 60 * 1000;
+
+/**
+ * Check whether a process with the given PID is alive.
+ *
+ * On Windows, `process.kill(pid, 0)` does NOT throw for dead PIDs — it returns
+ * true for any PID, including ones that have long exited. This caused stale
+ * coverage locks to never be detected, blocking every subsequent coverage run
+ * for the full 1h timeout on this host. Instead, we shell out to `tasklist`
+ * and parse the CSV output for the PID row. When the probe tool itself fails
+ * (ENOENT, timeout), we conservatively assume the process is alive to avoid
+ * breaking a valid lock — the age-based timeout in `isStale()` is the backstop.
+ *
+ * On POSIX, `process.kill(pid, 0)` works correctly (throws ESRCH for dead PIDs).
+ *
+ * @param pid Process ID to check.
+ * @returns `true` if the process is running (or probe failed), `false` if dead.
+ */
+function defaultCheckProcessAlive(pid) {
+  if (process.platform === 'win32') {
+    try {
+      // Parse the CSV output for the actual PID row rather than relying on
+      // exit codes — tasklist can return a non-empty stdout even for misses.
+      const stdout = execFileSync(
+        'tasklist',
+        ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true, timeout: 5000 },
+      );
+      return stdout.includes(`"${pid}"`);
+    } catch (error) {
+      // tasklist exited non-zero — we may still have parseable output.
+      if (error && typeof error.stdout === 'string' && error.stdout.length > 0) {
+        return error.stdout.includes(`"${pid}"`);
+      }
+      // Probe tool failure (binary missing, timeout, permission denied, FD
+      // exhaustion): conservatively assume alive. Breaking a valid lock
+      // re-opens the coverage/.tmp race this file exists to prevent. The
+      // age-based timeout in isStale() is the backstop for stale locks.
+      return true;
+    }
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function isDirectRun(metaUrl = import.meta.url, argvEntry = process.argv[1]) {
   return typeof argvEntry === 'string' && path.resolve(argvEntry) === fileURLToPath(metaUrl);
@@ -37,7 +84,7 @@ export function createCoverageLock(options = {}) {
   const statFile = options.statFile ?? statSync;
   const unlinkFile = options.unlinkFile ?? unlinkSync;
   const writeFile = options.writeFile ?? writeFileSync;
-  const signalProcess = options.signalProcess ?? process.kill.bind(process);
+  const checkProcessAlive = options.checkProcessAlive ?? defaultCheckProcessAlive;
   const onProcess = options.onProcess ?? process.on.bind(process);
   const stderr = options.stderr ?? console.error;
   const lockPath = options.lockPath ?? LOCK_PATH;
@@ -75,8 +122,7 @@ export function createCoverageLock(options = {}) {
     if (!Number.isFinite(owner) || owner <= 0) return true;
 
     try {
-      signalProcess(owner, 0);
-      return false;
+      return !checkProcessAlive(owner);
     } catch {
       return true;
     }
@@ -184,6 +230,8 @@ export function createCoverageLock(options = {}) {
     withLock,
   };
 }
+
+export { defaultCheckProcessAlive };
 
 export function executeCoverageLock(options) {
   return createCoverageLock(options).execute();

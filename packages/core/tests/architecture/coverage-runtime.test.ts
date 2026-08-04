@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createCoverageLock,
+  defaultCheckProcessAlive,
   executeCoverageLock,
   isDirectRun as isCoverageLockDirectRun,
   sleep,
@@ -61,7 +62,7 @@ function createLockHarness() {
     statFile: vi.fn(() => ({ mtimeMs: 99 })),
     unlinkFile: vi.fn((_file: string) => undefined),
     writeFile: vi.fn((_file: string, _value: string) => undefined),
-    signalProcess: vi.fn((_pid: number, _signal: number) => true),
+    checkProcessAlive: vi.fn((_pid: number) => true),
     onProcess: vi.fn((signal: string, listener: () => void) => {
       listeners.set(signal, listener);
       return process;
@@ -181,9 +182,7 @@ describe('coverage lock script', () => {
     expect(createCoverageLock(invalidHarness.options).isStale()).toBe(true);
 
     const deadHarness = createLockHarness();
-    deadHarness.options.signalProcess.mockImplementation(() => {
-      throw new Error('missing process');
-    });
+    deadHarness.options.checkProcessAlive.mockReturnValue(false);
     expect(createCoverageLock(deadHarness.options).isStale()).toBe(true);
 
     const liveHarness = createLockHarness();
@@ -309,6 +308,17 @@ describe('coverage lock script', () => {
         process.env.WRONGSTACK_COVERAGE_LOCK_HELD = originalHeld;
       }
     }
+  });
+});
+
+describe('defaultCheckProcessAlive', () => {
+  it('detects the current process as alive', () => {
+    expect(defaultCheckProcessAlive(process.pid)).toBe(true);
+  });
+
+  it('detects a non-existent PID as dead', () => {
+    // PID 999999 is vanishingly unlikely to exist
+    expect(defaultCheckProcessAlive(999999)).toBe(false);
   });
 });
 
