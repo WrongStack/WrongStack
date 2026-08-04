@@ -39,6 +39,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'session.checkpoints',
   'session.damaged',
   'session.end',
+  'session.inspect',
   'session.rewound',
   'session.start',
   'session.stats',
