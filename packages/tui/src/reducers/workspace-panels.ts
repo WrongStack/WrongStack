@@ -12,21 +12,24 @@ import { closePanels } from './helpers.js';
  * full todo content (not pre-truncated) so each row may span multiple
  * lines when the rail is narrow.
  *
- * 10 is the empirical ceiling observed in `tests/sidebar-worklist-wrap.test.tsx`:
- * a 90-char leader-authored todo (e.g. "Diagnose the scrollback regression
- * under narrow terminal widths") wraps to ~10 lines at the minimum 16-column
- * sidebar (the icon + leading space take ~3 columns, leaving ~13 columns
- * for label text). Anything beyond 10 lines is exceptional (a 150+ char
- * free-form label). Over-estimating is safe — it simply leaves a little
- * blank space at the bottom of the scroll range.
+ * 10 is an over-estimate chosen for safety, not an observed measurement.
+ * The longest label actually exercised in `tests/sidebar-worklist-wrap.test.tsx`
+ * is the 71-char `PlanPanelSidebar` title "Polish the narrow-rail wrap behavior
+ * so plan steps stay legible", which wraps to ~6 lines at the minimum 16-col
+ * sidebar. Real leader-authored todos can run longer (the test fixture's
+ * "Resync the keyboard shortcuts document with the v0.42 release notes" is
+ * 71 chars and wraps to ~6 lines too), but anything beyond 10 lines would
+ * require a 140+ char free-form label. Over-estimating is safe — it simply
+ * leaves a little blank space at the bottom of the scroll range.
  *
  * Known follow-up: the multiplier is width-blind, so at wide terminals
- * (≥ 100 cols, 26+ content cols) the user can scroll a few dozen rows past
- * the actual content end. A future revision could thread `sidebarContentWidth`
- * through the `sidebarScroll` action and scale this constant by an
- * approximate line count for the widest labels. If you change this constant,
- * update the pinned assertion in `tests/sidebar-worklist-wrap.test.tsx`
- * (the scroll-clamp regression test) to match.
+ * (≥ 100 cols → rail 25 → content 21 cols) the user can scroll a few dozen
+ * rows past the actual content end. A future revision could thread
+ * `sidebarContentWidth` through the `sidebarScroll` action and scale this
+ * constant by an approximate line count for the widest labels. If you
+ * change this constant, update the pinned assertion in
+ * `tests/sidebar-worklist-wrap.test.tsx` (the scroll-clamp regression test)
+ * to match.
  */
 const SIDEBAR_MISSION_MAX_WRAP_LINES = 10;
 
