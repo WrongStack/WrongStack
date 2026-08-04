@@ -15,6 +15,12 @@ export function useBrainEvents(
   getSessionId?: (() => string | undefined) | undefined,
 ): void {
   useEffect(() => {
+    // Permissive predicate: events without a sessionId OR with no
+    // current session always apply. Distinct from
+    // `sidebar-content.tsx`'s exported `isCurrentSession`, which is
+    // strict on the rowId argument (returns false when rowId is
+    // undefined; falls back to fallbackIsCurrent only when rowId is
+    // defined). See commit 295bd53fa.
     const isCurrentSession = (sessionId?: string | undefined): boolean => {
       const current = getSessionId?.();
       return !sessionId || !current || sessionId === current;
