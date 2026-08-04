@@ -52,24 +52,29 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.298.3
+### What's new in 0.299.0
 
-- **Model management that keeps full provider schemas intact.** Add catalog or
-  custom models, filter and select the active model, edit models.dev fields
-  inline, remove overrides, or reset to catalog from the WebUI and TUI. Model
-  deltas are schema-validated, and `config.models` remains the authoritative
-  override layer for matching ids.
-- **Arrange the TUI around your work.** Route any F-key panel or Connections
-  between the lower region and the right sidebar. The sidebar is a layered
-  mission-control rail and deterministically shows up to six routed open panels.
-- **Faster, clearer SAGE upkeep.** Git-backed memory anchors verify in batches,
-  while review candidates retain typed target, reason, and suggested-action
-  metadata instead of embedding control data in tags.
-- **Tighter state and permission boundaries.** ACP callback permissions fail
-  closed, mailbox session affinity cannot be supplied by untrusted sends, and a
-  configuration scope switch preserves settings already present at its target.
+- **Capture requirements before implementation begins.** Requirements Intake
+  preserves the original request, keeps normalized or LLM-derived content
+  source-annotated, and requires an explicit acceptance before a suggestion
+  changes a record. Use it from REST, `/intake`, SDD, WebUI, or the
+  read-only-by-default MCP server.
+- **Let a Council evaluate consequential evidence.** The built-in Council has
+  typed decision personas and a bounded one-shot orchestration seam. Kanban
+  verification can submit a criterion and the concrete worktree diff to a
+  multi-perspective panel without replacing deterministic evidence with opinion.
+- **Navigate a codebase by call graph.** `codebase-incoming-calls` and
+  `codebase-outgoing-calls` find callers and callees through the SQLite index,
+  including symbol metadata, ambiguity, unresolved references, and capped-result
+  context.
+- **Project services and recovery fail safely.** Kanban daemons use bounded
+  shutdown paths, worktree rollback refuses to overwrite tracked edits, and
+  SDD hard-stops if a safe rollback is impossible.
+- **HQ and TUI stay legible under load.** HQ adds a task inspector and queue
+  health, while the TUI sidebar correctly budgets routed panels, wrapped rows,
+  and legacy swarm settings.
 
-See the complete [0.298.3 release notes](CHANGELOG.md).
+See the complete [0.299.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -78,7 +83,7 @@ See the complete [0.298.3 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.298.3](#whats-new-in-02983)
+- [What's new in 0.299.0](#whats-new-in-02990)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -475,6 +480,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/kanban` | Task-board primitives: queues, recovery, cost guardrails |
 | `@wrongstack/sage` · `@wrongstack/persistence` | Project-local memory/anchors and shared persistence primitives |
 | `@wrongstack/codebase-index-mcp` · `@wrongstack/kanban-mcp` · `@wrongstack/mailbox-mcp` · `@wrongstack/sage-mcp` | Project-service MCP servers with explicit capability tiers |
+| `@wrongstack/requirement-intake` · `@wrongstack/requirement-intake-mcp` | Source-annotated requirement records and their project-scoped MCP surface |
 | `@wrongstack/sdd` | Spec-Driven Development stores, trackers, workflow helpers |
 | `@wrongstack/governance` · `@wrongstack/security-scanner` · `@wrongstack/techstack` | Workflow policy, security scanning, and dependency intelligence |
 | `@wrongstack/cli` | REPL, subcommands, slash commands, terminal renderer |

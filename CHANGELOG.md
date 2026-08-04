@@ -7,9 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.299.0] — 2026-08-04
+
 ### Added
 
-- **Codebase-incoming-calls and codebase-outgoing-calls tools.** Two new Tier 1 builtin tools that query the SQLite index ref graph to find all callers (incoming) or callees (outgoing) of a named symbol. Both return enriched `CallSite` metadata (name, kind, file, line, signature, callType) and are threaded through all 7 dispatch layers (worker-protocol, index-service, background-indexer, worker, project-server, writer, writer-graph-reader). The tools use chunked SQL queries to stay under SQLite's 900-variable limit, return `{ symbolFound, ambiguous }` / `{ symbolFound, unresolvedCount, totalMatches }` so the agent can distinguish "symbol not in index" from "no callers", and include truncation indicators when results are capped. `incomingCallsService` and `outgoingCallsService` are exported from the public API for programmatic use. (`e1ef4fc0b`, `dcc3bf946`, `dc8a82383`, `89b1c5b57`, `e61515f33`)
+- **Requirements Intake, from request to submitted record.** The new `@wrongstack/requirement-intake` domain package preserves an immutable original request, tracks source-annotated normalized fields, validates LLM suggestions as proposals requiring explicit acceptance, and applies fail-closed authorization, optimistic concurrency, locking, and idempotent submission. It is available through REST, `/intake`, SDD, WebUI, and the read-only-by-default `wstack-requirement-intake-mcp` server. (`81a052383`, `e546fc402`)
+- **Council-backed decisions and Kanban verification.** Core Council receives typed persona ids and a one-shot LLM orchestration seam; Kanban can now send acceptance criteria with concrete diff evidence to a multi-perspective Council verifier. A verdict never substitutes for evidence, and unresolved dispatches remain visible instead of being treated as a pass. (`8136fac09`, `f8f9e6718`)
+- **Codebase call-graph tools.** Tier-1 `codebase-incoming-calls` and `codebase-outgoing-calls` traverse the SQLite reference graph to return enriched callers or callees for a symbol. They distinguish missing symbols from empty results, report ambiguity/unresolved references, preserve global ordering across chunked SQL queries, and are available through project-index dispatch paths and the public API. (`e1ef4fc0b`, `dcc3bf946`, `dc8a82383`, `89b1c5b57`, `e61515f33`)
+- **First-party project-service MCP presets.** Kanban, Mailbox, and Codebase Index MCP servers can be enabled from the built-in registry with their explicit capability boundaries. (`4e976523e`, `be0b874a3`)
+- **HQ Kanban visibility.** The HQ board now includes a read-only task inspector and queue-health bar. (`61c3bef46`, `f14854f81`)
+
+### Changed
+
+- **The CLI-hosted WebUI uses the same project-scoped Requirements Intake service as the standalone server.** Intake records are no longer unavailable merely because the browser surface was started from the CLI; hosts without a project root continue to return an explicit unavailable response. (`e546fc402`)
+- **Workspace inventory now contains 29 packages and 2 apps**, with 61 built-in tools, 29 bundled skills, a 77-role roster, and 64 focused plugin exports. (`9f0ef4694`)
+
+### Fixed
+
+- **Kanban project daemons exit reliably.** Idle shutdown now waits for readiness where needed and routes every exit path through a bounded stop-and-exit path, preventing cleanup failures from leaving a zombie process or stale endpoint. (`2ff9a1355`, `b8864e6a1`, `eb5b41318`)
+- **Worktree and SDD recovery protect evidence.** Conflict-marker detection handles CRLF and Markdown setext headings without false positives; a dirty tracked worktree is never hard-reset during rollback, and an unsafe rollback refusal hard-stops the SDD run. (`de7bb9be8`, `51a4ca708`, `022224ec9`, `6ce3b8a2`)
+- **Network and UI boundaries are hardened.** HTTP execution and loopback checks use the shared IP-aware guard for SSRF-resistant validation, while HQ authentication prevents duplicate submissions and restores accessible, deliberate focus behavior. (`9c197bf18`, `18b99104f`, `c3ab1c7bd`, `c297b23c5`)
+- **TUI sidebar scrolling accounts for routed panels and legacy swarm settings**, preserving visible worklist rows in narrow rails and mixed persisted configurations. (`dfe7362c7`, `7fa7bbdc6`, `f37f7e8ea`, `f1432619d`)
 
 ## [0.298.3] — 2026-08-03
 

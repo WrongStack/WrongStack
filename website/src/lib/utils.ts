@@ -265,7 +265,7 @@ export const slashCommands = [
   '/yolo',
 ] as const;
 
-/** Published package/app workspaces. */
+/** Published workspace inventory: 29 packages and 2 apps. */
 export const packages = [
   'wrongstack',
   '@wrongstack/core',
@@ -276,9 +276,19 @@ export const packages = [
   '@wrongstack/plug-lsp',
   '@wrongstack/runtime',
   '@wrongstack/kanban',
+  '@wrongstack/kanban-mcp',
+  '@wrongstack/mailbox-mcp',
+  '@wrongstack/codebase-index-mcp',
   '@wrongstack/sdd',
   '@wrongstack/security-scanner',
   '@wrongstack/sage',
+  '@wrongstack/sage-mcp',
+  '@wrongstack/persistence',
+  '@wrongstack/governance',
+  '@wrongstack/requirement-intake',
+  '@wrongstack/requirement-intake-mcp',
+  '@wrongstack/simpleui',
+  '@wrongstack/techstack',
   '@wrongstack/tui',
   '@wrongstack/webui',
   '@wrongstack/webui-server',
@@ -311,9 +321,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.299.0',
+    date: '2026-08-04',
+    latest: true,
+    tagline: 'Requirements Intake, Council evidence review, and call-graph navigation',
+    highlights: [
+      'Requirements Intake adds source-annotated, concurrency-safe request records across REST, CLI, SDD, WebUI, and a read-only-by-default MCP server',
+      'Core Council adds typed persona ids and a one-shot LLM seam; Kanban can verify acceptance criteria with a multi-perspective Council over concrete diff evidence',
+      'New codebase-incoming-calls and codebase-outgoing-calls tools navigate the SQLite reference graph with ambiguity, unresolved-reference, and truncation context',
+      'Built-in MCP presets add Kanban, Mailbox, and Codebase Index project-service servers; HQ gains a read-only task inspector and queue-health bar',
+      'Kanban daemon shutdown, worktree/SDD rollback, SSRF validation, HQ authentication, and TUI sidebar scrolling receive focused reliability and safety hardening',
+      'All 29 packages, 2 apps, README highlights, website metadata, and changelog content align to 0.299.0',
+    ],
+  },
+  {
     version: '0.298.1',
     date: '2026-08-02',
-    latest: true,
     tagline: 'Kanban architecture program, security hardening, and WebUI shell decomposition',
     highlights: [
       'Kanban architecture Phases 0–4: canonical task classifier (15 queue buckets), board kind system with retention policies, shared dispatch service with lease fencing, parent/child atomic gate, and session-board prune',
@@ -994,7 +1017,7 @@ export const releaseProcess: ReleaseStep[] = [
     phase: 'Version bump',
     steps: [
       'node scripts/bump-version.mjs <patch|minor|major>',
-      'Version bumped in root + all 21 package manifests + both apps + website/',
+      'Version bumped in root + all 29 package manifests + both apps + website/',
       'CHANGELOG.md updated with release date and highlights',
     ],
   },
