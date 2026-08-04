@@ -13,6 +13,7 @@ function brainSettings(riskLevel: BrainPanelSettings['riskLevel']): BrainPanelSe
     usingSessionModel: false,
     councilEnabled: false,
     councilMinRisk: 'medium',
+    councilDistinctness: 'none',
     voters: [],
     councilSeats: [],
     ledgerEnabled: false,
