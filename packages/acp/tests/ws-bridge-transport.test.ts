@@ -85,7 +85,7 @@ describe('WsBridgeTransport', () => {
     };
 
     await feed({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
-    await feed({ id: 2, method: 'session/new', params: { cwd: '/test' } });
+    await feed({ id: 2, method: 'session/new', params: { cwd: process.cwd() } });
     const sessionId = (sink[sink.length - 1] as { result?: { sessionId?: string } }).result
       ?.sessionId!;
     sink.length = 0;

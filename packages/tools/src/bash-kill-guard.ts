@@ -394,6 +394,21 @@ export function parseKillCommand(command: string): KillCommand | null {
     return null;
   }
 
+  // Scripts named kill*.sh / terminate*.sh / stop*.sh — same conservative
+  // sentinel as the Windows branch. isKillProtected always blocks the
+  // "kill-script" sentinel, and isKillProtected's POSIX path already flags
+  // these via SCRIPT_KILL_RE_POSIX, so the parser must recognize them too.
+  const posixScriptMatch = normalized.match(SCRIPT_KILL_RE_POSIX);
+  if (posixScriptMatch) {
+    return {
+      name: 'kill-script',
+      signal: 'FORCE',
+      isGroupKill: false,
+      isAllKill: false,
+      originalCommand: command,
+    };
+  }
+
   return null;
 }
 

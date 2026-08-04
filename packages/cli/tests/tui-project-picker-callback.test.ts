@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as path from 'node:path';
 import { getProjectPickerItems, onProjectSelect } from '../src/boot/tui-project-picker-callback.js';
 import type { ProjectEntry } from '../src/services/project-manifest.js';
 
@@ -75,7 +76,7 @@ describe('TUI project picker callbacks', () => {
   });
 
   it('warns about active work, updates lastSeen, saves, and switches projects', async () => {
-    const project: ProjectEntry = { slug: 'next', root: 'D:/next', name: 'Next' };
+    const project: ProjectEntry = { slug: 'next', root: path.join(process.cwd(), 'next'), name: 'Next' };
     mocks.loadManifest.mockResolvedValueOnce({ projects: [project] });
     const ctx = context({
       director: {
@@ -95,7 +96,7 @@ describe('TUI project picker callbacks', () => {
     expect(ctx.renderer.write.mock.calls.flat().join(' ')).toContain('1 subagent');
     expect(project.lastSeen).toMatch(/T/);
     expect(mocks.saveManifest).toHaveBeenCalledWith({ projects: [project] }, 'D:/home/config.json');
-    expect(ctx.switchProjectInPlace).toHaveBeenCalledWith('D:\\next', 'Next');
+    expect(ctx.switchProjectInPlace).toHaveBeenCalledWith(path.join(process.cwd(), 'next'), 'Next');
   });
 
   it('reports thrown and returned project-switch failures', async () => {

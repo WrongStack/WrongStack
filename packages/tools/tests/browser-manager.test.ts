@@ -1,9 +1,22 @@
 import * as fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { chromium } from '@playwright/test';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BrowserSessionManager } from '../src/browser/manager.js';
+
+// The CI coverage job does not install Playwright browsers (only the E2E
+// job does), so these fixture-integration tests must skip when Chromium is
+// absent instead of failing on launch.
+const playwrightAvailable = (() => {
+  try {
+    return existsSync(chromium.executablePath());
+  } catch {
+    return false;
+  }
+})();
 
 let tmp: string;
 let server: http.Server;
@@ -34,7 +47,7 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
-describe('BrowserSessionManager Playwright fixture integration', () => {
+describe.skipIf(!playwrightAvailable)('BrowserSessionManager Playwright fixture integration', () => {
   it('navigates, observes, interacts, captures evidence, and reclaims the browser', async () => {
     const manager = new BrowserSessionManager({
       artifactRoot: path.join(tmp, 'artifacts'),

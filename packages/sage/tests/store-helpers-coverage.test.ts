@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as path from 'node:path';
 import {
   normalizeAnchors,
   normalizeAudience,
@@ -53,9 +54,12 @@ describe('store helper completion coverage', () => {
   });
 
   it('normalizes and deduplicates anchors and sources', () => {
-    const anchors = normalizeAnchors('C:\\project', [
-      { type: 'file', path: 'C:\\project\\src\\a.ts', symbol: '  ', command: '  ', role: '  ' },
-      { type: 'file', path: 'C:\\project\\src\\a.ts', symbol: '  ', command: '  ', role: '  ' },
+    // Use a cwd-derived root so path.relative works identically on every
+    // platform (a literal 'C:\\project' root only resolves on Windows).
+    const projectRoot = path.join(process.cwd(), 'project');
+    const anchors = normalizeAnchors(projectRoot, [
+      { type: 'file', path: path.join(projectRoot, 'src', 'a.ts'), symbol: '  ', command: '  ', role: '  ' },
+      { type: 'file', path: path.join(projectRoot, 'src', 'a.ts'), symbol: '  ', command: '  ', role: '  ' },
       { type: 'command', command: ' pnpm   test ' },
       { type: 'agent', role: ' Reviewer ' },
     ]);
