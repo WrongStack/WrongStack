@@ -78,7 +78,7 @@ describe('codebase-incoming-calls tool', () => {
     // Target: greet() is called from multiple files.
     await fs.writeFile(
       path.join(tmpDir, 'target.ts'),
-      'export function greet(name: string): string { return `Hello, ${name}`; }',
+      'export function greet(name: string): string { return `Hello, \u0024{name}`; }',
     );
     await fs.writeFile(
       path.join(tmpDir, 'caller-a.ts'),

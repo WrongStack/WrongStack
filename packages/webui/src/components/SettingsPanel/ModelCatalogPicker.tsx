@@ -24,13 +24,12 @@ export interface CatalogMatch {
 }
 
 export interface ModelCatalogPickerProps {
-  providerId: string;
   ws: WrongStackWebSocketClient;
   onSelect: (modelId: string, modelsDev: Record<string, unknown>) => void;
   onClose: () => void;
 }
 
-export function ModelCatalogPicker({ providerId, ws, onSelect, onClose }: ModelCatalogPickerProps) {
+export function ModelCatalogPicker({ ws, onSelect, onClose }: ModelCatalogPickerProps) {
   const { t } = useAppTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogMatch[]>([]);
@@ -115,11 +114,14 @@ export function ModelCatalogPicker({ providerId, ws, onSelect, onClose }: ModelC
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div
-        className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+        aria-label={t('common:close')}
+      />
+      <div className="relative max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">
             {t('settings:providerModels.catalogSearchTitle')}
@@ -135,7 +137,6 @@ export function ModelCatalogPicker({ providerId, ws, onSelect, onClose }: ModelC
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('settings:providerModels.catalogSearchPlaceholder')}
-            autoFocus
             className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>

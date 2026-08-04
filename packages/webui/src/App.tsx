@@ -140,7 +140,6 @@ function AppInner() {
     setQueuePanelOpen,
     cronJobsOpen,
     setCronJobsOpen,
-    terminalOpen,
     setTerminalOpen,
   } = useUIStore(
     useShallow((s) => ({
@@ -163,7 +162,6 @@ function AppInner() {
       setQueuePanelOpen: s.setQueuePanelOpen,
       cronJobsOpen: s.cronJobsOpen,
       setCronJobsOpen: s.setCronJobsOpen,
-      terminalOpen: s.terminalOpen,
       setTerminalOpen: s.setTerminalOpen,
     })),
   );

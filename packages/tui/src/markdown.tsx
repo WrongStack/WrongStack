@@ -157,7 +157,8 @@ export function parseInline(text: string): InlineToken[] {
       let urlEnd = i + 8;
       while (urlEnd < text.length) {
         const c = text[urlEnd];
-        if (c !== undefined && c.match(/[a-zA-Z0-9._~:/?#@!$&+,;=%\-\[\]()'*]/)) {
+        const urlChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._~:/?#@!" + String.fromCharCode(36) + String.fromCharCode(38) + "+,;=-%[]()'*";
+        if (c !== undefined && urlChars.includes(c)) {
           urlEnd++;
         } else {
           break;

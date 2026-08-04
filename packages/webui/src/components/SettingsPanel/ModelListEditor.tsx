@@ -341,6 +341,7 @@ export function ModelListEditor({
                               <span
                                 className="inline-flex items-center rounded p-1 text-primary"
                                 title={t('settings:providerModels.usingModel', { model: row.modelId })}
+                                role="img"
                                 aria-label={t('settings:providerModels.usingModel', { model: row.modelId })}
                               >
                                 <Check className="h-3.5 w-3.5" />
@@ -408,7 +409,6 @@ export function ModelListEditor({
       {/* Catalog picker modal */}
       {showCatalogPicker && (
         <ModelCatalogPicker
-          providerId={providerId}
           ws={ws}
           onSelect={handleCatalogSelect}
           onClose={() => setShowCatalogPicker(false)}
@@ -417,8 +417,14 @@ export function ModelListEditor({
 
       {/* Custom model editor modal */}
       {showCustomEditor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCustomEditor(false)}>
-          <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowCustomEditor(false)}
+            aria-label={t('common:close')}
+          />
+          <div className="relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold">
                 {t('settings:providerModels.addCustomTitle')}
