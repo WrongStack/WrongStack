@@ -198,14 +198,21 @@ function scheduleIdleStop(): void {
   const idleInput = Number(process.env['WRONGSTACK_KANBAN_SERVER_IDLE_MS']);
   const idleMs = Number.isFinite(idleInput) && idleInput >= 100 ? idleInput : DEFAULT_IDLE_MS;
   idleTimer = setTimeout(() => {
-    // Exit even if stop() rejects (e.g. a watcher/cleanup failure): a ref'd
-    // handle from a failed cleanup must never resurrect the zombie daemon
-    // this module was written to eliminate. stop() is bounded internally
-    // (server.close has a 500ms hard fallback), so this cannot mask a
-    // genuinely hung shutdown.
+    // Exit even if stop() rejects or HANGS: a ref'd handle from a failed
+    // or wedged cleanup must never keep the zombie daemon alive (the
+    // module exists to eliminate it). stop() is internally bounded
+    // (server.close has a 500ms hard fallback), so the 2s cap below only
+    // fires if cleanup truly wedges; if the loop drains first, the process
+    // exits naturally with the same result.
+    const exit = () => process.exit(0);
+    const hangGuard = setTimeout(exit, 2_000);
+    hangGuard.unref?.();
     void stop('idle-timeout')
       .catch(() => {})
-      .finally(() => process.exit(0));
+      .finally(() => {
+        clearTimeout(hangGuard);
+        exit();
+      });
   }, idleMs);
   idleTimer.unref?.();
 }

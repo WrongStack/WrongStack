@@ -23,7 +23,11 @@ import { MAX_FRAME_CHARS, onData, kanbanProjectServerEndpoint } from '../src/ser
 // resolves next to the index bundle. The build entry key must match that.
 const distServer = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
 
-async function waitForExit(child: ChildProcess, timeoutMs = 15_000): Promise<number | null> {
+async function waitForExit(child: ChildProcess, timeoutMs = 30_000): Promise<number | null> {
+  // 30s (was 15s): under full-suite CI load the daemon's 3s idle-exit can
+  // intermittently exceed the old budget even when nothing is wrong (the
+  // failure moved between tests across runs). A genuinely stuck daemon
+  // still fails at 30s — the guard is preserved.
   if (child.exitCode !== null || child.signalCode !== null) return child.exitCode;
   return new Promise<number | null>((resolve, reject) => {
     const timer = setTimeout(() => {
