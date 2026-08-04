@@ -162,6 +162,11 @@
       "fingerprint": "c0819fc3befcf009"
     },
     {
+      "file": "packages/tools/tests/browser-manager.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "0d6135124fec37cd"
+    },
+    {
       "file": "packages/tools/tests/codebase-index-worker.test.ts",
       "kind": "skipIf",
       "fingerprint": "73f47856be4c7a02"
