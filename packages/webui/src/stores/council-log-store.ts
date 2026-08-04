@@ -169,18 +169,34 @@ export const useCouncilLogStore = create<CouncilLogState>((set) => ({
     if (!requestId) return;
     const now = Date.now();
     set((state) => ({
-      panels: upsertPanel(state.panels, requestId, now, (entry) => ({
-        ...entry,
-        // A re-delivered vote (reconnect replay) must not double-count the
-        // seat — the seat id is the identity, not arrival order. Panels are
-        // keyed by requestId and request ids are unique per decision run
-        // (fresh uuid per decideAuto), so a panel never spans two runs and a
-        // post-resolution replay must not reset the run.
-        seats: [
-          ...entry.seats.filter((seat) => seat.seatId !== str(payload.seatId)),
-          toCouncilSeatVote(payload, now),
-        ],
-      })),
+      panels: upsertPanel(state.panels, requestId, now, (entry) => {
+        const seatId = str(payload.seatId) ?? 'seat';
+        const vote = toCouncilSeatVote(payload, now);
+        // A re-delivered vote for a seat the panel already has is a reconnect
+        // replay of the SAME run — update the seat in place and keep the
+        // resolution fields untouched.
+        if (entry.seats.some((seat) => seat.seatId === seatId)) {
+          return {
+            ...entry,
+            seats: entry.seats.map((seat) => (seat.seatId === seatId ? vote : seat)),
+          };
+        }
+        // A vote for a NEW seat on an already-resolved panel means a FRESH run
+        // started under the same request id (a retried decision reusing the
+        // id): clear the stale verdict and the previous run's seats so the
+        // summary panel cannot keep showing the old verdict while the new run
+        // votes. The question survives — it is the same decision re-run.
+        if (entry.phase === 'resolved') {
+          return {
+            requestId: entry.requestId,
+            phase: 'voting',
+            startedAt: now,
+            seats: [vote],
+            question: entry.question,
+          };
+        }
+        return { ...entry, seats: [...entry.seats, vote] };
+      }),
     }));
   },
 

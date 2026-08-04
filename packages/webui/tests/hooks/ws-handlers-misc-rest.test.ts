@@ -382,6 +382,97 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
         expect(entry?.seats).toHaveLength(1);
       });
 
+      it('clears the stale verdict when a new-seat vote starts a fresh run on a resolved panel', () => {
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_vote',
+            requestId: 'req-fresh',
+            seatId: 'voter-0',
+            persona: 'executor',
+            status: 'valid',
+            optionId: 'merge',
+            model: 'gpt-5',
+          }),
+        );
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_resolved',
+            requestId: 'req-fresh',
+            status: 'decided',
+            resolution: 'majority',
+            configuredSeatCount: 1,
+            validVoteCount: 1,
+          }),
+        );
+        expect(useCouncilLogStore.getState().panels[0]?.phase).toBe('resolved');
+        expect(useCouncilLogStore.getState().panels[0]?.resolution).toBe('majority');
+
+        // A retry reuses the request id with a different seat: the stale
+        // verdict (and the previous run's seats) must be cleared while the
+        // new run votes — the summary panel must not keep showing the old
+        // verdict.
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_vote',
+            requestId: 'req-fresh',
+            seatId: 'voter-1',
+            persona: 'auditor',
+            status: 'valid',
+            optionId: 'hold',
+            model: 'claude',
+          }),
+        );
+        const panel = useCouncilLogStore.getState().panels[0]!;
+        expect(panel.phase).toBe('voting');
+        expect(panel.resolution).toBeUndefined();
+        expect(panel.status).toBeUndefined();
+        expect(panel.validVoteCount).toBeUndefined();
+        expect(panel.configuredSeatCount).toBeUndefined();
+        expect(panel.seats.map((seat) => seat.seatId)).toEqual(['voter-1']);
+      });
+
+      it('keeps the verdict when a re-delivered vote replays an existing seat', () => {
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_vote',
+            requestId: 'req-replay',
+            seatId: 'voter-0',
+            persona: 'executor',
+            status: 'valid',
+            optionId: 'merge',
+            model: 'gpt-5',
+          }),
+        );
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_resolved',
+            requestId: 'req-replay',
+            status: 'decided',
+            resolution: 'majority',
+            configuredSeatCount: 1,
+            validVoteCount: 1,
+          }),
+        );
+        // A reconnect replay re-delivers the SAME seat's vote after
+        // resolution — must NOT clear the verdict or flip the panel back to
+        // voting.
+        handleBrainEvent(
+          msg('brain.event', {
+            event: 'brain.council_vote',
+            requestId: 'req-replay',
+            seatId: 'voter-0',
+            persona: 'executor',
+            status: 'valid',
+            optionId: 'merge',
+            model: 'gpt-5',
+          }),
+        );
+        const panel = useCouncilLogStore.getState().panels[0]!;
+        expect(panel.phase).toBe('resolved');
+        expect(panel.resolution).toBe('majority');
+        expect(panel.seats).toHaveLength(1);
+      });
+
       it('folds in the question from the nested request.id of a decision event', () => {
         // The two event families spell the id differently: council events carry
         // a top-level `requestId`, decision events nest it as `request.id`.
