@@ -73,12 +73,16 @@ interface AppKeyHandlerOptions {
    *  track is correctly positioned to the left of the sidebar. */
   mainColumnWidth: number;
   /**
-   * Effective swarm-on-sidebar read (picker draft when the settings picker
-   * is open, persisted `liveSettings.panelPositions.fleet` otherwise). See
-   * {@link SidebarLayoutState.effectiveSwarmOnSidebar}. Threaded into
-   * `sidebarScroll` dispatches so the reducer's mission-queue reservation
-   * fires even when a config-only 'sidebar' swarm mode is persisted but the
-   * picker has never been opened.
+   * Effective swarm-on-sidebar read: `panelPositions.fleet === 'sidebar'`
+   * OR the legacy `showAgentSwarmPanel === 'sidebar'` flag from
+   * `liveSettings`. The renderer at `app-view.tsx:897-899` uses both
+   * fields as the source of truth for whether the mission card
+   * renders on the sidebar; the scroll-clamp reservation must match
+   * the renderer's effective source or the bottom mission rows will
+   * be unreachable behind `RightSidebar`'s `overflowY="hidden"`
+   * viewport. See {@link SidebarLayoutState.effectiveSwarmOnSidebar}.
+   * Threaded into `sidebarScroll` dispatches so the reducer's
+   * mission-queue reservation matches the actual render.
    */
   effectiveSwarmOnSidebar: boolean;
   /**

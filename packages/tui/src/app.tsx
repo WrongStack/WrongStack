@@ -289,6 +289,12 @@ export function App(props: AppProps): React.ReactElement {
     liveSettings?.panelPositions,
     mailbox.mailboxPanelOpen,
     sidebarOpenFlags,
+    // Legacy `showAgentSwarmPanel === 'sidebar'` source from the
+    // persisted config. Mirrors the renderer's read at
+    // `app-view.tsx:897-899` so the scroll-clamp reservation matches
+    // the actual source the renderer uses to decide whether to
+    // render the mission card on the sidebar.
+    (liveSettings?.showAgentSwarmPanel ?? 'bottom') === 'sidebar',
   );
 
   // Push live model changes to the terminal title controller so the

@@ -95,6 +95,17 @@ export function resolveSidebarLayout(
    * dispatcher and the renderer agree on which twins are mounted.
    */
   sidebarOpenFlags?: Partial<Record<PanelId, boolean>> | undefined,
+  /**
+   * Legacy `showAgentSwarmPanel === 'sidebar'` flag from the persisted
+   * `liveSettings` config. The renderer at `app-view.tsx:897-899` reads
+   * BOTH this field and `panelPositions.fleet === 'sidebar'` as the
+   * source of truth for whether the swarm panel renders on the sidebar;
+   * the scroll-clamp reservation must match the renderer's effective
+   * source or the bottom mission rows will be unreachable behind
+   * `RightSidebar`'s `overflowY="hidden"` viewport. Defaults to `false`
+   * when omitted so existing call sites stay correct.
+   */
+  legacySwarmOnSidebar?: boolean | undefined,
 ): SidebarLayoutState {
   const panelPositions: PanelPositionMap = coercePanelPositionMap(panelPositionsInput);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
@@ -138,12 +149,20 @@ export function resolveSidebarLayout(
     (state.sddBoard?.monitorOpen ?? false);
 
   const sidebarWidth = overlayOpen ? 0 : computeSidebarWidth(termCols);
-  // The swarm panel is on the sidebar iff `panelPositions.fleet === 'sidebar'`.
-  // Both the picker draft (`state.settingsPicker.panelPositions.fleet`) and
-  // the persisted config (`liveSettings.panelPositions.fleet`) feed into
-  // the same `panelPositions` field at the call site, so this boolean is
-  // already the dual-source read for the swarm panel.
-  const effectiveSwarmOnSidebar = panelPositions.fleet === 'sidebar';
+  // The swarm panel is on the sidebar iff EITHER:
+  //   - `panelPositions.fleet === 'sidebar'` (new per-panel position map,
+  //     fed by both the picker draft and persisted config), OR
+  //   - the legacy `showAgentSwarmPanel === 'sidebar'` field from
+  //     `liveSettings` (tri-state AgentSwarmPanelMode carried over from
+  //     the pre-panel-position system; still honored by the renderer at
+  //     `app-view.tsx:897-899`).
+  // The scroll-clamp reservation must match the renderer's effective
+  // source — a config-only legacy 'sidebar' swarm mode (no recent picker
+  // open) renders the mission card but would otherwise under-reserve
+  // the scroll budget, hiding the bottom mission rows behind
+  // `RightSidebar`'s `overflowY="hidden"` viewport.
+  const effectiveSwarmOnSidebar =
+    panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false);
 
   // Sum the natural-height row estimate for each routed twin currently
   // mounted above `SidebarContent`. Over-estimating is safe (existing

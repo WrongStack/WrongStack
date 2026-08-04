@@ -24,6 +24,7 @@ import {
   TodosPanelSidebar,
 } from '../src/components/sidebar-panels.js';
 import { reducer } from '../src/app-reducer.js';
+import { resolveSidebarLayout } from '../src/app-ui-state.js';
 import { displayWidth } from '../src/terminal-width.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 import { createTestState } from './helpers/create-test-state.js';
@@ -337,11 +338,14 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
   // past the rendered content end into blank space. With one twin (8
   // rows reserved), the effective viewport is 20 − 8 = 12 and the max
   // scroll is 95 − 12 = 83.
+  //
+  // Note: the `effectiveSwarmOnSidebar: true` field on every scroll
+  // already drives the 95-row height (1 header + 8 × 10 + 1 overflow
+  // + 1 margin = 83 mission rows + 12 chrome), so we don't need to
+  // pre-set `panelPositions.fleet: 'sidebar'` in a `settingsValueSet`
+  // patch — the effective boolean carries the same information.
   it('subtracts sidebarTwinRowCount from the viewport when computing the scroll clamp', () => {
-    let s = reducer(createTestState(), {
-      type: 'settingsValueSet',
-      patch: { panelPositions: { fleet: 'sidebar' } },
-    });
+    let s = createTestState();
     s = reducer(s, { type: 'toggleSidebarFocus' });
     for (let i = 0; i < 200; i++) {
       s = reducer(s, {
@@ -372,5 +376,29 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
     }
     // contentHeight 12 (no mission card) − viewport 20 = 0.
     expect(s.sidebarScrollOffset).toBe(0);
+  });
+
+  // End-to-end regression for the dual-source `effectiveSwarmOnSidebar`
+  // contract: `resolveSidebarLayout` must OR both
+  // `panelPositions.fleet === 'sidebar'` AND the legacy
+  // `showAgentSwarmPanel === 'sidebar'` flag from `liveSettings`,
+  // matching the renderer's source-of-truth at `app-view.tsx:897-899`.
+  // Without the legacy field, a config-only swarm mode (no recent
+  // picker open) would render the mission card but the scroll-clamp
+  // would under-reserve, hiding the bottom mission rows.
+  it('resolveSidebarLayout returns effectiveSwarmOnSidebar=true when only the legacy showAgentSwarmPanel field is "sidebar"', () => {
+    const state = createTestState();
+    // No panelPositions override (default = 'bottom' for fleet).
+    // Pass `legacySwarmOnSidebar: true` to simulate a legacy
+    // `liveSettings.showAgentSwarmPanel === 'sidebar'` config.
+    const layout = resolveSidebarLayout(
+      state,
+      80,
+      undefined, // panelPositionsInput: use default
+      false, // mailboxPanelOpen
+      undefined, // sidebarOpenFlags
+      true, // legacySwarmOnSidebar
+    );
+    expect(layout.effectiveSwarmOnSidebar).toBe(true);
   });
 });
