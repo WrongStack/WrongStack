@@ -36,6 +36,10 @@ export default defineConfig({
         __dirname,
         './packages/requirement-intake/src',
       ),
+      // CLI tests re-export and exercise the extracted WebUI server. Resolve
+      // it from source so a concurrent/stale package build cannot make the
+      // root suite test an older dist bundle.
+      '@wrongstack/webui-server': path.resolve(__dirname, './packages/webui-server/src'),
     },
   },
   // Exclude typescript from SSR transform to prevent "invalid JS syntax" errors

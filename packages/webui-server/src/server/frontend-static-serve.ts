@@ -4,6 +4,7 @@ import { findPackageJSON } from 'node:module';
 import * as path from 'node:path';
 import type { Server } from 'node:http';
 import { type CreateHttpServerOptions, createHttpServer } from './http-server.js';
+import { createProjectIntakeService } from './intake-service.js';
 
 /**
  * PR 6 of Issue #30 (webui-server 8-PR refactor):
@@ -83,6 +84,15 @@ export interface StaticServeOptions {
   deferListen?: boolean | undefined;
   /** Package-resolution/build seams supplied by the owning host. */
   ensureDistDeps?: EnsureDistDeps | undefined;
+  /**
+   * Requirements Intake service backing `/api/requirement-intakes*`. Omitted by
+   * every real host — a per-project service is constructed from `projectRoot` +
+   * `globalRoot` below, so the CLI-hosted WebUI serves the same intake records
+   * as the standalone server. Pass one only to override (tests/embeds); when
+   * `projectRoot` is absent there is no project to scope a store to and the
+   * routes correctly answer 503.
+   */
+  intakeService?: CreateHttpServerOptions['intakeService'];
 }
 
 /**
@@ -274,6 +284,15 @@ export async function startStaticServe(
     : await ensureDist(opts.distDir);
   if (distDir === null) return null;
 
+  const intakeService =
+    opts.intakeService ??
+    (opts.projectRoot
+      ? createProjectIntakeService({
+          projectRoot: opts.projectRoot,
+          globalRoot: opts.globalRoot,
+        })
+      : undefined);
+
   const server = create({
     host: opts.host,
     port: opts.httpPort,
@@ -287,6 +306,7 @@ export async function startStaticServe(
     apiToken: opts.apiToken,
     requireToken: opts.requireToken,
     allowedHostnames: opts.allowedHostnames,
+    intakeService,
   });
 
   if (!opts.deferListen) {

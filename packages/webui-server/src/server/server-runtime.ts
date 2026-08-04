@@ -13,12 +13,7 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import {
-  AllowAllIntakeAuthorizer,
-  RequirementIntakeService,
-  RequirementIntakeStore,
-} from '@wrongstack/requirement-intake';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { createProjectIntakeService } from './intake-service.js';
 import type { Config, ModelsRegistry } from '@wrongstack/core/types';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { verifyClient as verifyWsClient } from './ws-auth.js';
@@ -423,15 +418,7 @@ export function startHttpServer(opts: {
 }): import('node:http').Server {
   const intakeService =
     opts.intakeService ??
-    new RequirementIntakeService({
-      store: new RequirementIntakeStore({
-        baseDir: resolveWstackPaths({
-          projectRoot: opts.projectRoot,
-          globalRoot: opts.globalRoot,
-        }).projectRequirementIntakes,
-      }),
-      authorizer: new AllowAllIntakeAuthorizer(),
-    });
+    createProjectIntakeService({ projectRoot: opts.projectRoot, globalRoot: opts.globalRoot });
   const httpServer = createHttpServer({
     host: opts.wsHost,
     port: opts.httpPort,

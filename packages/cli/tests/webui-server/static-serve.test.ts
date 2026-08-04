@@ -35,6 +35,12 @@ class FakeServer extends EventEmitter {
   }
 }
 
+/** The createServer mocks are declared parameterless; read their args untyped. */
+function firstServerOptions(mock: { mock: { calls: unknown[] } }): Record<string, unknown> {
+  const call = mock.mock.calls[0] as unknown[] | undefined;
+  return (call?.[0] ?? {}) as Record<string, unknown>;
+}
+
 describe('resolveDistDir', () => {
   it('uses an explicit frontend directory without resolving the webui package', () => {
     expect(resolveDistDir('./custom-simpleui')).toBe(path.resolve('./custom-simpleui'));
@@ -167,6 +173,29 @@ describe('startStaticServe', () => {
         requireToken: true,
       }),
     );
+  });
+
+  it('builds a per-project intake service so the hosted WebUI does not 503', async () => {
+    const fake = new FakeServer();
+    const createServer = vi.fn(() => fake as never as Server);
+
+    await startStaticServe(
+      { ...baseOpts, projectRoot: '/repo/app' },
+      { resolveDist: () => '/resolved/dist', createServer },
+    );
+
+    const passed = firstServerOptions(createServer);
+    expect(passed['intakeService']).toBeDefined();
+  });
+
+  it('leaves the intake service unset when there is no project to scope it to', async () => {
+    const fake = new FakeServer();
+    const createServer = vi.fn(() => fake as never as Server);
+
+    await startStaticServe(baseOpts, { resolveDist: () => '/resolved/dist', createServer });
+
+    const passed = firstServerOptions(createServer);
+    expect(passed['intakeService']).toBeUndefined();
   });
 
   it('does not swallow a real createServer failure', async () => {
