@@ -77,7 +77,7 @@ export const skills = [
   },
 ] as const;
 
-/** The 59 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 61 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',
@@ -122,6 +122,8 @@ export const toolGroups = [
       'tool_help',
       'codebase-index',
       'codebase-search',
+      'codebase-incoming-calls',
+      'codebase-outgoing-calls',
       'codebase-stats',
       'dead-code-scan',
     ],

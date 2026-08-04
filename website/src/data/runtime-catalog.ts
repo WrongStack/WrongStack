@@ -419,6 +419,22 @@ export const toolCatalog = [
     category: 'Discovery & index',
   },
   {
+    name: 'codebase-incoming-calls',
+    summary:
+      'Find all callers of a function, method, or symbol — who invokes or references it.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-outgoing-calls',
+    summary:
+      'Find all functions/methods/symbols that a given symbol calls or depends on — its callees.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
     name: 'codebase-stats',
     summary:
       'Return health and statistics about the current symbol index (total symbols, files, language/kind breakdown, size, last update).',
