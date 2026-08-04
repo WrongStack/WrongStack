@@ -80,7 +80,16 @@ describe('routed sidebar panel layout', () => {
     expect(frame).toContain('PLAN');
     expect(frame).toContain('◐1');
     expect(frame).toContain('PROGRESS');
-    expect(frame).toContain('Polish hier');
+    // The step text used to be hard-truncated to ~12 chars at this width.
+    // After the wrap-vs-truncate fix, titles soft-wrap onto multiple rows
+    // inside `RightSidebar`'s frame, so the un-broken literal "Polish hierarchy"
+    // is no longer present in the joined frame — `│` glyphs sit between the
+    // wrapped words. Assert the start of the title (which always lands on the
+    // first wrapped row) and confirm the second word is reachable by stripping
+    // box-glyph characters as well as whitespace before substring matching.
+    expect(frame).toContain('Polish');
+    const stripped = frame.replace(/[│╭╮╰╯─]/g, '');
+    expect(stripped.replace(/\s+/g, ' ')).toContain('Polish hierarchy');
     for (const line of view.lines()) {
       expect(displayWidth(line)).toBeLessThanOrEqual(columns);
     }

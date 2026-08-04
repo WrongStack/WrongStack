@@ -110,8 +110,10 @@ function liveSessionColor(status: string): string {
   if (status === 'active' || status === 'running') return theme.success;
   if (status === 'idle') return theme.accent;
   if (status === 'error' || status === 'stale') return theme.error;
-  if (status === 'closing') return theme.warn;
-  return theme.textMuted;
+  // 'closing' and any unknown status fall through to theme.warn so a new
+  // server-side status (e.g. 'paused', 'waking') never renders silently as
+  // textMuted; it gets an attention-grabbing color instead.
+  return theme.warn;
 }
 
 /** Outcome badge for a resume session entry. */
@@ -219,7 +221,6 @@ interface MissionRow {
 function buildMissionRows(
   todos: readonly TodoItem[] | undefined,
   maxRows: number,
-  textWidth: number,
 ): { rows: MissionRow[]; overflow: number; done: number; total: number } {
   const list = todos ?? [];
   const total = list.length;
@@ -229,13 +230,14 @@ function buildMissionRows(
     t.status === 'in_progress' ? 0 : t.status === 'pending' ? 1 : 2;
   const ordered = [...list].sort((a, b) => rank(a) - rank(b));
   const shown = ordered.slice(0, maxRows);
+  // Labels pass through unmodified — Ink wraps them onto multiple lines within
+  // the row's column width when the sidebar is narrow, so the full todo
+  // content stays visible. Vertical overflow is owned by RightSidebar's
+  // overflowY="hidden" viewport (and the scroll-controlled SidebarContent).
   const rows = shown.map<MissionRow>((t) => ({
     id: t.id,
     status: t.status,
-    label: trunc(
-      t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content,
-      textWidth,
-    ),
+    label: t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content,
   }));
   return { rows, overflow: ordered.length - shown.length, done, total };
 }
@@ -289,7 +291,7 @@ export function SidebarContent({
   // status priority (in_progress → pending → completed), capped at
   // SIDEBAR_MISSION_ROWS. Only populated when the swarm section is enabled.
   const mission = showSwarmSection
-    ? buildMissionRows(todos, SIDEBAR_MISSION_ROWS, innerWidth - 3)
+    ? buildMissionRows(todos, SIDEBAR_MISSION_ROWS)
     : { rows: [] as MissionRow[], overflow: 0, done: 0, total: 0 };
 
   return (
@@ -447,9 +449,9 @@ export function SidebarContent({
           {mission.rows.map((m) => {
             if (m.status === 'completed') {
               return (
-                <Box key={m.id}>
+                <Box key={m.id} width={innerWidth} flexDirection="row">
                   <Text color={theme.success}>{glyphs.success} </Text>
-                  <Text color={theme.textMuted} dimColor strikethrough wrap="truncate">
+                  <Text color={theme.textMuted} dimColor strikethrough>
                     {m.label}
                   </Text>
                 </Box>
@@ -457,20 +459,18 @@ export function SidebarContent({
             }
             if (m.status === 'in_progress') {
               return (
-                <Box key={m.id}>
+                <Box key={m.id} width={innerWidth} flexDirection="row">
                   <Text color={theme.accent}>{glyphs.running} </Text>
-                  <Text color={theme.textPrimary} bold wrap="truncate">
+                  <Text color={theme.textPrimary} bold>
                     {m.label}
                   </Text>
                 </Box>
               );
             }
             return (
-              <Box key={m.id}>
+              <Box key={m.id} width={innerWidth} flexDirection="row">
                 <Text color={theme.textMuted}>{glyphs.pending} </Text>
-                <Text color={theme.textSecondary} wrap="truncate">
-                  {m.label}
-                </Text>
+                <Text color={theme.textSecondary}>{m.label}</Text>
               </Box>
             );
           })}
@@ -527,6 +527,10 @@ export function SidebarContent({
               marginTop={liveSessions && liveSessions.length > 0 ? 1 : 0}
             >
               {resumeSessions.slice(0, 3).map((rs) => {
+                const isCurrent =
+                  currentSessionId !== undefined
+                    ? rs.id === currentSessionId
+                    : rs.isCurrent === true;
                 const badge = outcomeBadge(rs.outcome);
                 const title = trunc(
                   rs.title || rs.lastUserMessage || rs.id,
@@ -539,9 +543,9 @@ export function SidebarContent({
                       {badge ? badge.label : '·'}{' '}
                     </Text>
                     <Text
-                      color={rs.isCurrent ? theme.accent : theme.textSecondary}
+                      color={isCurrent ? theme.accent : theme.textSecondary}
                       wrap="truncate"
-                      {...(rs.isCurrent ? { bold: true } : {})}
+                      bold={isCurrent}
                     >
                       {title}
                     </Text>

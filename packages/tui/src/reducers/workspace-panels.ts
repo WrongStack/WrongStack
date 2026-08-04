@@ -5,6 +5,26 @@ import { SIDEBAR_MISSION_ROWS, type WorktreeRow } from '../ui-contracts.js';
 import { closePanels } from './helpers.js';
 
 /**
+ * Upper bound on how many terminal rows a single mission-row label can
+ * occupy after Ink wraps it at narrow sidebar widths. The mission queue
+ * renders up to {@link SIDEBAR_MISSION_ROWS} rows in `SidebarContent`;
+ * mission labels are full todo content (not pre-truncated) so each row may
+ * span multiple lines when the rail is narrow.
+ *
+ * 10 lines is the empirical ceiling observed in
+ * `tests/sidebar-worklist-wrap.test.tsx`: a 140-char leader-authored todo
+ * wraps to 10 lines at the minimum 16-column sidebar (the icon and leading
+ * space take ~3 columns, leaving ~13 columns for label text; 140 / 13 ≈
+ * 10.8, which Ink rounds to 10). Anything beyond 10 lines is exceptional
+ * (a 150+ char free-form label). Over-estimating is safe — it simply leaves
+ * a little blank space at the bottom of the scroll range. If you change
+ * this constant, update the pinned assertion in
+ * `tests/sidebar-worklist-wrap.test.tsx` (the scroll-clamp regression test)
+ * to match.
+ */
+const SIDEBAR_MISSION_MAX_WRAP_LINES = 10;
+
+/**
  * Estimate the maximum useful sidebar scroll offset — i.e. how many rows of
  * content exist beyond what the sidebar can display at once. This prevents
  * scrolling past the end into blank space.
@@ -18,7 +38,9 @@ import { closePanels } from './helpers.js';
  *   - Fleet card: 2 rows (header + summary); margin 0 if agent rows follow
  *   - Agent rows: 2 rows each (name+ctx% / status+tool), capped at 12 agents,
  *     + 1 "+N more" overflow row + 1 margin
- *   - Mission Queue card: 1 header + up to 8 todo rows + 1 overflow + 1 margin
+ *   - Mission Queue card: 1 header + up to SIDEBAR_MISSION_ROWS todo rows
+ *     (each row may wrap to up to SIDEBAR_MISSION_MAX_WRAP_LINES lines at
+ *     narrow widths) + 1 overflow + 1 margin
  *   - Sessions card: 1 header + up to 3 live + up to 3 resume, + 1 gap when
  *     both subsections are present (no bottom margin)
  *   - Focus indicator: 1 row + 1 margin, if focused
@@ -60,8 +82,10 @@ function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
 
   // Mission Queue card (only when the swarm panel mode is 'sidebar').
   // Note: todos are a runtime prop (liveTodos), not in state, so we reserve the
-  // worst case: header + SIDEBAR_MISSION_ROWS + overflow row + marginBottom
-  // (SIDEBAR_MISSION_ROWS is the shared constant in ui-contracts.ts).
+  // worst case: header + (SIDEBAR_MISSION_ROWS rows × MAX_WRAP_LINES per row)
+  // + overflow row + marginBottom. Each rendered mission label can soft-wrap
+  // onto multiple rows at narrow widths (see sidebar-content.tsx — labels pass
+  // through unmodified), so the scroll budget must account for that expansion.
   // The gate reads the settings-picker draft, which matches the renderer while
   // the picker is open. When the picker is closed the renderer falls back to
   // live settings (app-view.tsx) which the reducer cannot read, so this reserve
@@ -69,7 +93,7 @@ function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
   // 'sidebar' config may under-reserve these rows.
   const swarmMode = state.settingsPicker.showAgentSwarmPanel;
   if (swarmMode === 'sidebar') {
-    contentHeight += 1 + SIDEBAR_MISSION_ROWS + 1 + 1;
+    contentHeight += 1 + SIDEBAR_MISSION_ROWS * SIDEBAR_MISSION_MAX_WRAP_LINES + 1 + 1;
   }
 
   // Sessions card: header + up to 3 live + up to 3 resume (marginBottom 0),

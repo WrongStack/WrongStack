@@ -553,14 +553,14 @@ export function PlanPanelSidebar({
                   ? theme.warn
                   : theme.textMuted;
             return (
-              <Box key={item.id} flexDirection="row">
+              <Box key={item.id} width={inner} flexDirection="row">
                 <Text color={color}>{icon}</Text>
                 <Text
                   color={item.status === 'done' ? theme.textMuted : theme.textPrimary}
                   {...(item.status === 'done' ? { dimColor: true, strikethrough: true } : {})}
                 >
                   {' '}
-                  {trunc(item.title, inner - 4)}
+                  {item.title}
                 </Text>
               </Box>
             );
@@ -621,14 +621,14 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
             const label =
               t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
             return (
-              <Box key={t.id} flexDirection="row">
+              <Box key={t.id} width={inner} flexDirection="row">
                 <Text color={color}>{icon}</Text>
                 <Text
                   color={t.status === 'completed' ? theme.textMuted : theme.textPrimary}
                   {...(t.status === 'completed' ? { dimColor: true, strikethrough: true } : {})}
                 >
                   {' '}
-                  {trunc(label, inner - 4)}
+                  {label}
                 </Text>
               </Box>
             );
@@ -669,14 +669,13 @@ export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): Rea
           <Text color={theme.textMuted}>queue is empty</Text>
         ) : (
           items.slice(0, 10).map((item, i) => (
-            <Box key={item.id ?? i} flexDirection="row">
+            <Box key={item.id ?? i} width={inner} flexDirection="row">
               <Text color={theme.textMuted}>{i + 1}.</Text>
               <Text
                 color={theme.textPrimary}
-                wrap="truncate"
               >
                 {' '}
-                {trunc(item.displayText, inner - 6)}
+                {item.displayText}
               </Text>
             </Box>
           ))
@@ -830,7 +829,7 @@ export function GoalPanelSidebar({
             {deliverables.slice(0, 6).map((d, i) => {
               const done = /^\[[x✓]\]|✅|\(done\)/i.test(d);
               return (
-                <Box key={i} flexDirection="row">
+                <Box key={i} width={inner} flexDirection="row">
                   <Text color={done ? theme.success : theme.textMuted}>
                     {done ? glyphs.success : glyphs.pending}
                   </Text>
@@ -839,7 +838,7 @@ export function GoalPanelSidebar({
                     {...(done ? { dimColor: true, strikethrough: true } : {})}
                   >
                     {' '}
-                    {trunc(d.replace(/^\[[ x✓]\]\s*/, ''), inner - 4)}
+                    {d.replace(/^\[[ x✓]\]\s*/, '')}
                   </Text>
                 </Box>
               );
@@ -1099,11 +1098,11 @@ export function KanbanPanelSidebar({
           <Text color={theme.textMuted}>no active cards</Text>
         ) : (
           activeCardTitles.slice(0, 6).map((title, i) => (
-            <Box key={i} flexDirection="row">
+            <Box key={i} width={inner} flexDirection="row">
               <Text color={theme.warn}>●</Text>
-              <Text color={theme.textPrimary} wrap="truncate">
+              <Text color={theme.textPrimary}>
                 {' '}
-                {trunc(title, inner - 4)}
+                {title}
               </Text>
             </Box>
           ))
