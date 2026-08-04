@@ -47,7 +47,12 @@ function isAlive(pid: number): boolean {
 async function stopDaemon(pid: number): Promise<void> {
   if (isAlive(pid)) {
     try {
-      process.kill(pid, 'SIGTERM');
+      // SIGKILL: the stale-metadata tests need the daemon to die WITHOUT
+      // running its graceful shutdown cleanup (which removes the metadata
+      // file, producing 'missing'). On POSIX, SIGTERM would let the daemon
+      // clean up after itself; on Windows, any signal is a forceful kill,
+      // which is why this only failed deterministically on Linux CI.
+      process.kill(pid, 'SIGKILL');
     } catch {
       // It exited between the liveness check and signal delivery.
     }
