@@ -104,7 +104,7 @@ describe('kanban-format — pure formatting coverage', () => {
     const out = formatBoardDetail(baseBoard());
     expect(out).toContain('Sprint');
     expect(out).toContain('In Progress');
-    expect(out).toContain('[1/2]'); // WIP
+    expect(out).toContain('[3/2]'); // WIP — all three fixture tasks sit in col-1
     expect(out).toContain('sprint');
     expect(out).toContain('🔄 Write tests');
     expect(out).toContain('🚫 Blocked task');
@@ -151,7 +151,7 @@ describe('kanban-format — pure formatting coverage', () => {
     h.areDependenciesMet.mockReturnValue(false);
     const out = formatTaskDetail(baseBoard(), task);
     expect(out).toContain('Write tests');
-    expect(out).toContain('IN_PROGRESS');
+    expect(out).toContain('in progress'); // fmtStatus replaces '_' with a space
     expect(out).toContain('Depends on');
     expect(out).toContain('No');
     expect(out).toContain('✅ tests pass');
@@ -175,19 +175,50 @@ describe('kanban-format — pure formatting coverage', () => {
     expect(out).toContain('dep-task');
   });
 
+  it('formatBoardDetail renders pending/failed markers and the plain fallthrough', () => {
+    const out = formatBoardDetail(
+      baseBoard({
+        columns: [{ id: 'col-1', title: 'Queue', wipLimit: 0 }],
+        tasks: [
+          baseTask({ id: 'p1', title: 'Pending task', status: 'pending' }),
+          baseTask({ id: 'f1', title: 'Failed task', status: 'failed' }),
+          baseTask({ id: 'u1', title: 'Unknown status task', status: 'weird' }),
+        ],
+      }),
+    );
+    expect(out).toContain('○ Pending task');
+    expect(out).toContain('○ Failed task'); // unknown/fallthrough status → plain ○
+    expect(out).toContain('○ Unknown status task');
+  });
+
+  it('formatTaskDetail renders chain previousTaskId when present', () => {
+    const task = baseTask({
+      chain: {
+        chainId: 'ch-1',
+        order: 1,
+        previousTaskId: 'prev-1',
+        nextTaskId: undefined,
+      },
+      successCriteria: [],
+    });
+    const out = formatTaskDetail(baseBoard(), task);
+    expect(out).toContain('Prev');
+    expect(out).toContain('prev-1');
+  });
+
   it('formatDependencyChain renders missing tasks, icons, and nested deps', () => {
     expect(formatDependencyChain(baseBoard(), 'nope')).toContain('Task not found');
     const out = formatDependencyChain(
       baseBoard({
         tasks: [
-          baseTask({ id: 'root', status: 'completed' }),
+          baseTask({ id: 'root', title: 'Root task', status: 'completed', dependsOn: ['dep-a'] }),
           baseTask({ id: 'dep-a', title: 'Dep A', dependsOn: ['dep-b'], status: 'blocked' }),
           baseTask({ id: 'dep-b', title: 'Dep B', status: 'in_progress' }),
         ],
       }),
       'root',
     );
-    expect(out).toContain('✅ root');
+    expect(out).toContain('✅ Root task');
     expect(out).toContain('🚫 Dep A');
     expect(out).toContain('🔄 Dep B');
   });
@@ -237,5 +268,40 @@ describe('kanban-format — pure formatting coverage', () => {
     expect(out).toContain('Task Chain (ch-1)');
     expect(out).toContain('1. Write tests');
     expect(out).toContain('dep');
+  });
+
+  it('formatTaskChain renders pending and failed status badges via fmtStatus', () => {
+    const out = formatTaskChain([
+      baseTask({ id: 'c1', title: 'Pending task', status: 'pending', chain: { chainId: 'ch-2', order: 0 } }),
+      baseTask({ id: 'c2', title: 'Failed task', status: 'failed', chain: { chainId: 'ch-2', order: 1 } }),
+    ]);
+    // STATUS_BADGE: pending → dim, failed → bold red (lines 20, 24) — both
+    // route through fmtStatus and render the underscore-replaced status.
+    expect(out).toContain('pending');
+    expect(out).toContain('failed');
+  });
+
+  it('renders link-URL fallback, in_progress chain icon, and unknown chainId', () => {
+    // Link without a title falls back to the URL (line 210).
+    const task = baseTask({
+      links: [{ url: 'https://example.test/issue', type: 'issue' }],
+      successCriteria: [],
+    });
+    expect(formatTaskDetail(baseBoard(), task)).toContain('https://example.test/issue');
+
+    // in_progress icon in the dependency chain (line 240).
+    const chain = formatDependencyChain(
+      baseBoard({
+        tasks: [
+          baseTask({ id: 'ip', title: 'Active', status: 'in_progress', dependsOn: [] }),
+        ],
+      }),
+      'ip',
+    );
+    expect(chain).toContain('🔄 Active');
+
+    // A chain whose first task has no chainId → 'unknown' (line 299).
+    const chainOut = formatTaskChain([baseTask({ id: 'no-chain', chain: undefined })]);
+    expect(chainOut).toContain('Task Chain (unknown)');
   });
 });
