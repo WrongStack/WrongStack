@@ -57,9 +57,19 @@ const SIDEBAR_MISSION_MAX_WRAP_LINES = 10;
  * @param state Current app state
  * @param viewportHeight Visible sidebar height in rows (terminal height minus
  *   border 2 + padding). Falls back to 20 when not provided.
+ * @param effectiveSwarmOnSidebar Optional override for whether the swarm
+ *   panel is on the sidebar using the effective source (picker draft when
+ *   open, persisted liveSettings otherwise). When `undefined`, falls back
+ *   to the picker draft — which is exact while the picker is open, but
+ *   under-reserves the mission queue for a config-only 'sidebar' swarm
+ *   mode that has never been opened in the picker.
  * @returns Maximum scroll offset (always >= 0)
  */
-function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
+function computeMaxSidebarScroll(
+  state: State,
+  viewportHeight = 20,
+  effectiveSwarmOnSidebar?: boolean | undefined,
+): number {
   let contentHeight = 0;
 
   // Context card: header + meter + tokens (3) + marginBottom (1)
@@ -89,19 +99,27 @@ function computeMaxSidebarScroll(state: State, viewportHeight = 20): number {
     contentHeight += 1;
   }
 
-  // Mission Queue card (only when the swarm panel mode is 'sidebar').
+  // Mission Queue card (only when the swarm panel is on the sidebar).
   // Note: todos are a runtime prop (liveTodos), not in state, so we reserve the
   // worst case: header + (SIDEBAR_MISSION_ROWS rows × MAX_WRAP_LINES per row)
   // + overflow row + marginBottom. Each rendered mission label can soft-wrap
   // onto multiple rows at narrow widths (see sidebar-content.tsx — labels pass
   // through unmodified), so the scroll budget must account for that expansion.
-  // The gate reads the settings-picker draft, which matches the renderer while
-  // the picker is open. When the picker is closed the renderer falls back to
-  // live settings (app-view.tsx) which the reducer cannot read, so this reserve
-  // is exact once the draft reflects the live mode; until then a never-opened
-  // 'sidebar' config may under-reserve these rows.
-  const swarmMode = state.settingsPicker.showAgentSwarmPanel;
-  if (swarmMode === 'sidebar') {
+  //
+  // The effective source for swarm-panel-on-sidebar is dual:
+  //   - while the picker is open, the renderer reads
+  //     `state.settingsPicker.showAgentSwarmPanel` (the picker draft);
+  //   - while the picker is closed, the renderer reads
+  //     `liveSettings?.panelPositions.fleet === 'sidebar'` (the persisted
+  //     config, which the reducer cannot see).
+  // The caller of computeMaxSidebarScroll threads the resolved boolean
+  // through the `effectiveSwarmOnSidebar` action field; when it's omitted
+  // we fall back to the picker draft, which is exact while the picker is
+  // open and under-reserves the mission queue when a config-only 'sidebar'
+  // swarm mode is persisted but the picker has never been opened.
+  const swarmOnSidebar =
+    effectiveSwarmOnSidebar ?? (state.settingsPicker.showAgentSwarmPanel === 'sidebar');
+  if (swarmOnSidebar) {
     contentHeight += 1 + SIDEBAR_MISSION_ROWS * SIDEBAR_MISSION_MAX_WRAP_LINES + 1 + 1;
   }
 
@@ -238,9 +256,25 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
       // current state so the user can't scroll past the end into blank space.
       // The caller passes viewportHeight (terminal height minus sidebar
       // border+padding) when available; falls back to 20.
+      //
+      // The caller may also pass:
+      //   - sidebarTwinRowCount: rows occupied by routed twin panels mounted
+      //     above SidebarContent (Todos/Plan/Kanban/etc.). Subtracted from
+      //     viewportHeight so the clamp matches the actual viewport the user
+      //     can scroll through. Defaults to 0 when omitted (no twins mounted)
+      //     so existing call sites stay correct.
+      //   - effectiveSwarmOnSidebar: whether the swarm panel is on the
+      //     sidebar using the effective source (picker draft when open,
+      //     persisted liveSettings otherwise — see app-view.tsx). When
+      //     provided, overrides the picker-draft-only swarmMode read inside
+      //     computeMaxSidebarScroll so a config-only 'sidebar' swarm mode
+      //     (no recent picker open) gets the mission-queue reservation.
+      const adjustedViewportHeight =
+        (action.viewportHeight ?? 20) - (action.sidebarTwinRowCount ?? 0);
       const maxScroll = computeMaxSidebarScroll(
         state,
-        action.viewportHeight,
+        Math.max(1, adjustedViewportHeight),
+        action.effectiveSwarmOnSidebar,
       );
       return {
         ...state,

@@ -72,6 +72,22 @@ interface AppKeyHandlerOptions {
    *  scrollbar hit-tests use this instead of terminalColumns so the scrollbar
    *  track is correctly positioned to the left of the sidebar. */
   mainColumnWidth: number;
+  /**
+   * Effective swarm-on-sidebar read (picker draft when the settings picker
+   * is open, persisted `liveSettings.panelPositions.fleet` otherwise). See
+   * {@link SidebarLayoutState.effectiveSwarmOnSidebar}. Threaded into
+   * `sidebarScroll` dispatches so the reducer's mission-queue reservation
+   * fires even when a config-only 'sidebar' swarm mode is persisted but the
+   * picker has never been opened.
+   */
+  effectiveSwarmOnSidebar: boolean;
+  /**
+   * Approximate row count for routed sidebar twin panels mounted above
+   * `SidebarContent`. Subtracted from `viewportHeight` by the reducer's
+   * scroll clamp so the user can't scroll past the end into blank space.
+   * See {@link SidebarLayoutState.sidebarTwinRowCount}.
+   */
+  sidebarTwinRowCount: number;
   statusBarWrapRef: MutableRefObject<DOMElement | null>;
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
   liveStatuslineMode: string;
@@ -143,6 +159,8 @@ export function createAppKeyHandler(
     terminalColumns,
     terminalRows,
     mainColumnWidth,
+    effectiveSwarmOnSidebar,
+    sidebarTwinRowCount,
     statusBarWrapRef,
     belowStatusBarRef,
     liveStatuslineMode,
@@ -493,18 +511,33 @@ export function createAppKeyHandler(
     if (state.sidebarFocused && !overlayOpen) {
       // The ↑↓ scroll applies to `SidebarContent` (context/model/fleet/
       // sessions cards). Per-panel sidebar twins scroll internally and
-      // share the same RightSidebar region; their height does not affect
-      // the SidebarContent scroll clamp. `computeMaxSidebarScroll` in
-      // workspace-panels.ts already estimates SidebarContent's internal
-      // card height — pass the full terminal height so the clamp is
-      // accurate regardless of which twins are mounted above.
+      // share the same RightSidebar region; they DO shrink the
+      // SidebarContent viewport when mounted, so we pass
+      // `sidebarTwinRowCount` (computed at the call site from the open
+      // twin flags) and the reducer subtracts it from the viewport before
+      // clamping. The mission-queue reservation also depends on the
+      // effective swarm-panel source (picker draft vs persisted config)
+      // — `effectiveSwarmOnSidebar` is the dual-source boolean from
+      // `resolveSidebarLayout`.
       const sidebarViewportHeight = termRows - 2;
       if (key.upArrow) {
-        dispatch({ type: 'sidebarScroll', delta: -1, viewportHeight: sidebarViewportHeight });
+        dispatch({
+          type: 'sidebarScroll',
+          delta: -1,
+          viewportHeight: sidebarViewportHeight,
+          sidebarTwinRowCount,
+          effectiveSwarmOnSidebar,
+        });
         return;
       }
       if (key.downArrow) {
-        dispatch({ type: 'sidebarScroll', delta: 1, viewportHeight: sidebarViewportHeight });
+        dispatch({
+          type: 'sidebarScroll',
+          delta: 1,
+          viewportHeight: sidebarViewportHeight,
+          sidebarTwinRowCount,
+          effectiveSwarmOnSidebar,
+        });
         return;
       }
       if (key.escape) {
@@ -614,6 +647,8 @@ export function createAppKeyHandler(
             type: 'sidebarScroll',
             delta: key.mouse.wheel > 0 ? -1 : 1,
             viewportHeight: termRows - 2,
+            sidebarTwinRowCount,
+            effectiveSwarmOnSidebar,
           });
           return;
         }

@@ -309,4 +309,68 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
     }
     expect(s.sidebarScrollOffset).toBe(75);
   });
+
+  // Regression for Medium #2 (effectiveSwarmOnSidebar dual source): when
+  // the caller threads the effective swarm-panel boolean (picker draft
+  // when open, persisted liveSettings otherwise), the reducer's
+  // mission-queue reservation fires even if the picker draft says
+  // 'bottom' (e.g. the config was set without opening the picker).
+  it('reserves mission-queue rows when effectiveSwarmOnSidebar=true even if the picker draft is "bottom"', () => {
+    let s = createTestState();
+    // Picker draft stays at default 'bottom' (createTestState default).
+    s = reducer(s, { type: 'toggleSidebarFocus' });
+    for (let i = 0; i < 200; i++) {
+      s = reducer(s, {
+        type: 'sidebarScroll',
+        delta: 1,
+        effectiveSwarmOnSidebar: true,
+      });
+    }
+    // Same 75-row max as the picker-draft case (the effective boolean
+    // produces the same content height when both report 'sidebar').
+    expect(s.sidebarScrollOffset).toBe(75);
+  });
+
+  // Regression for Medium #1 (twin-row viewport subtraction): when one
+  // routed twin is mounted above SidebarContent, the reducer subtracts
+  // `sidebarTwinRowCount` from `viewportHeight` so the user can't scroll
+  // past the rendered content end into blank space. With one twin (8
+  // rows reserved), the effective viewport is 20 − 8 = 12 and the max
+  // scroll is 95 − 12 = 83.
+  it('subtracts sidebarTwinRowCount from the viewport when computing the scroll clamp', () => {
+    let s = reducer(createTestState(), {
+      type: 'settingsValueSet',
+      patch: { panelPositions: { fleet: 'sidebar' } },
+    });
+    s = reducer(s, { type: 'toggleSidebarFocus' });
+    for (let i = 0; i < 200; i++) {
+      s = reducer(s, {
+        type: 'sidebarScroll',
+        delta: 1,
+        viewportHeight: 20,
+        sidebarTwinRowCount: 8,
+        effectiveSwarmOnSidebar: true,
+      });
+    }
+    expect(s.sidebarScrollOffset).toBe(83);
+  });
+
+  // Mirror test for the `??` fallback in `computeMaxSidebarScroll`:
+  // when `effectiveSwarmOnSidebar` is NOT provided, the reducer must
+  // read the picker draft (`state.settingsPicker.showAgentSwarmPanel`).
+  // With the default state (picker draft = 'bottom'), the mission
+  // queue reservation is absent, so the content height is the
+  // context + model + fleet + focus = 12 rows, viewport 20 → max
+  // scroll = 0 (no content to scroll past). A future flip of the
+  // `??` to a hardcoded `true` (or default `false`) would be caught
+  // by this assertion diverging from 0.
+  it('falls back to the picker draft when effectiveSwarmOnSidebar is omitted', () => {
+    let s = createTestState();
+    s = reducer(s, { type: 'toggleSidebarFocus' });
+    for (let i = 0; i < 200; i++) {
+      s = reducer(s, { type: 'sidebarScroll', delta: 1 });
+    }
+    // contentHeight 12 (no mission card) − viewport 20 = 0.
+    expect(s.sidebarScrollOffset).toBe(0);
+  });
 });

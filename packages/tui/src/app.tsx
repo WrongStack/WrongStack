@@ -259,11 +259,36 @@ export function App(props: AppProps): React.ReactElement {
   const mailbox = useMailboxViewModel(events);
   const { setMailboxPanelOpen } = mailbox;
 
+  // Mirrors `sidebarPanelOpenFlags` in `app-view.tsx` so the scroll-clamp
+  // reservation in `resolveSidebarLayout` reflects which routed twins are
+  // actually mounted. `liveSettings?.showAgentSwarmPanel === 'off'` is the
+  // legacy tri-state that suppresses the agents slot even when open.
+  const sidebarOpenFlags = {
+    projectPicker: state.projectPicker.open,
+    fleet: state.monitorOpen,
+    agents:
+      state.agentsMonitorOpen &&
+      (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off',
+    worktree: state.worktreeMonitorOpen,
+    plan: state.planPanelOpen,
+    todos: state.todosMonitorOpen,
+    queue: state.queuePanelOpen,
+    processList: state.processListOpen,
+    goal: state.goalPanelOpen,
+    sessions: state.sessionsPanelOpen,
+    coordinator:
+      state.coordinator.monitorOpen ||
+      (state.goalRun?.monitorOpen ?? false),
+    kanban: state.kanbanPanelOpen,
+    connections: state.connectionsPanelOpen,
+  };
+
   const sidebarLayout = resolveSidebarLayout(
     state,
     stdout?.columns ?? 80,
     liveSettings?.panelPositions,
     mailbox.mailboxPanelOpen,
+    sidebarOpenFlags,
   );
 
   // Push live model changes to the terminal title controller so the
@@ -826,6 +851,8 @@ export function App(props: AppProps): React.ReactElement {
     terminalColumns: stdout?.columns ?? 80,
     terminalRows: stdout?.rows ?? 24,
     mainColumnWidth: sidebarLayout.mainColumnWidth,
+    effectiveSwarmOnSidebar: sidebarLayout.effectiveSwarmOnSidebar,
+    sidebarTwinRowCount: sidebarLayout.sidebarTwinRowCount,
     statusBarWrapRef,
     belowStatusBarRef,
     liveStatuslineMode,

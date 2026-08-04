@@ -575,7 +575,29 @@ export type Action =
   /** Toggle keyboard focus between input and the right sidebar. */
   | { type: 'toggleSidebarFocus' }
   /** Scroll the sidebar content by delta rows (clamped to >=0). */
-  | { type: 'sidebarScroll'; delta: number; viewportHeight?: number | undefined }
+  | {
+      type: 'sidebarScroll';
+      delta: number;
+      viewportHeight?: number | undefined;
+      /**
+       * Rows occupied by routed twin panels (Todos / Plan / Kanban / …)
+       * mounted above `SidebarContent` inside `RightSidebar`. Subtracted
+       * from `viewportHeight` so the scroll clamp matches the actual
+       * viewport the user can scroll through. Defaults to 0 (no twins
+       * mounted) when omitted so existing call sites stay correct.
+       */
+      sidebarTwinRowCount?: number | undefined;
+      /**
+       * Whether the swarm panel is on the sidebar using the effective
+       * source (picker draft when the picker is open, persisted
+       * `liveSettings` otherwise — see `app-view.tsx`). Drives the
+       * mission-queue reservation in `computeMaxSidebarScroll`; without
+       * this field the reducer only sees the picker draft and under-
+       * reserves the mission card when a config-only 'sidebar' swarm
+       * mode is persisted but the picker has never been opened.
+       */
+      effectiveSwarmOnSidebar?: boolean | undefined;
+    }
   /** Reset sidebar scroll offset to 0. */
   | { type: 'sidebarScrollReset' }
   | { type: 'toggleKanbanPanel' }
