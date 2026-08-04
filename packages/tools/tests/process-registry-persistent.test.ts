@@ -242,7 +242,10 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
       return undefined;
     });
     vi.mocked(fs.writeFile).mockImplementation(
-      async (filePath: Parameters<typeof fs.writeFile>[0], content: string) => {
+      // Loose parameter types: the mocked fs.promises.writeFile accepts
+      // (PathLike | FileHandle, data | iterable, options?) — a narrow
+      // `content: string` signature is not assignable to the mock's type.
+      async (filePath: Parameters<typeof fs.writeFile>[0], content: unknown) => {
         const p = String(filePath);
         if (p.endsWith('.process-registry.lock')) {
           if (!lockMkdirDone) {
@@ -250,7 +253,7 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
           }
           lockWriteSucceeded = true;
         }
-        mockStore.set(p, content);
+        mockStore.set(p, String(content));
       },
     );
 
