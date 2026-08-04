@@ -120,7 +120,13 @@ export function createCoverageLock(options = {}) {
     if (now() - stat.mtimeMs > maxWaitMs) return true;
 
     const owner = Number(readOwner());
-    if (!Number.isFinite(owner) || owner <= 0) return true;
+    if (!Number.isFinite(owner) || owner <= 0) {
+      // The owner PID hasn't been written yet — another process just created
+      // the lock file and is in the middle of writing. Give it a grace period
+      // (two poll cycles) before declaring it stale, otherwise we might delete
+      // a brand-new lock and start a concurrent coverage run.
+      return now() - stat.mtimeMs > pollMs * 2;
+    }
 
     try {
       return !checkProcessAlive(owner);

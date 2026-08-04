@@ -192,6 +192,8 @@ describe('coverage lock script', () => {
 
     const invalidHarness = createLockHarness();
     invalidHarness.options.readFile.mockReturnValue('not-a-pid');
+    // Age beyond the grace period (pollMs * 2 = 2ms): now()=100, mtimeMs=97 → 3ms old
+    invalidHarness.options.statFile.mockReturnValue({ mtimeMs: 97 });
     expect(createCoverageLock(invalidHarness.options).isStale()).toBe(true);
 
     const deadHarness = createLockHarness();
@@ -200,6 +202,20 @@ describe('coverage lock script', () => {
 
     const liveHarness = createLockHarness();
     expect(createCoverageLock(liveHarness.options).isStale()).toBe(false);
+  });
+
+  it('treats a freshly-created lock with empty owner as not-yet-stale (grace period)', () => {
+    // now()=100, mtimeMs=99 → 1ms old, within pollMs*2=2ms grace period
+    const freshHarness = createLockHarness();
+    freshHarness.options.readFile.mockReturnValue('');
+    freshHarness.options.statFile.mockReturnValue({ mtimeMs: 99 });
+    expect(createCoverageLock(freshHarness.options).isStale()).toBe(false);
+
+    // now()=100, mtimeMs=97 → 3ms old, beyond grace period
+    const expiredHarness = createLockHarness();
+    expiredHarness.options.readFile.mockReturnValue('');
+    expiredHarness.options.statFile.mockReturnValue({ mtimeMs: 97 });
+    expect(createCoverageLock(expiredHarness.options).isStale()).toBe(true);
   });
 
   it('waits once, warns once, and then acquires a live lock', async () => {
