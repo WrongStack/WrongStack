@@ -62,6 +62,21 @@
       "fingerprint": "f455407a634ea1dd"
     },
     {
+      "file": "packages/core/tests/security/permission-write-bypass.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "2159d553dd3ca0b1"
+    },
+    {
+      "file": "packages/core/tests/security/permission-write-bypass.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "794eb1c5b323437a"
+    },
+    {
+      "file": "packages/core/tests/security/permission-write-bypass.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "a75af38dbbc13e19"
+    },
+    {
       "file": "packages/core/tests/worktree/worktree-manager.test.ts",
       "kind": "skipIf",
       "fingerprint": "5fa25ae1a877547c"

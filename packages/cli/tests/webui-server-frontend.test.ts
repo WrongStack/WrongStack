@@ -19,7 +19,11 @@ afterEach(async () => {
 describe('runWebUI frontend serving', () => {
   it('serves the React frontend over HTTP with the live WS port injected', async () => {
     const events = new EventBus();
-    let info: { httpPort: number; wsPort: number; host: string } | undefined;
+    // `url` is the tokenized access URL `runWebUI` announces (see
+    // `WebUIServerOptions.onListening`). Needed since H3 — the HTTP surface
+    // requires a token on every bind, so the test fetches the announced URL
+    // rather than a bare origin.
+    let info: { httpPort: number; wsPort: number; host: string; url: string } | undefined;
     let signalReady: (() => void) | undefined;
     const listening = new Promise<void>((r) => {
       signalReady = r;

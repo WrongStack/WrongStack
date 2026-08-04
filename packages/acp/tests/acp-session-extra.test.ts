@@ -11,7 +11,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { ACPMessage } from '../src/types/acp-messages.js';
-import { ACPSession, ACPSessionError, textContent } from '../src/client/acp-session.js';
+import { ACPSession, textContent } from '../src/client/acp-session.js';
 
 const hoisted = vi.hoisted(() => ({ instances: [] as FakeTransport[] }));
 
@@ -175,7 +175,11 @@ describe('ACPSession — focused coverage', () => {
       { type: 'http', name: 'http-server', url: 'http://localhost:9000' },
       { type: 'sse', name: 'sse-server', url: 'http://localhost:9001/sse' },
     ] as never as Parameters<typeof session.loadSession>[1];
-    const loadP = session.loadSession('s_1', mcpServers);
+    // `SessionId` is a branded string, so a literal needs the cast. Same
+    // shape as the `mcpServers` cast above — derive it from the parameter
+    // type rather than importing the brand.
+    const sessionId = 's_1' as Parameters<typeof session.loadSession>[0];
+    const loadP = session.loadSession(sessionId, mcpServers);
     await new Promise((r) => setImmediate(r));
     const load = t.sent.find((m) => m.method === 'session/load');
     expect(load).toBeDefined();

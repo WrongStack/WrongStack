@@ -34,9 +34,11 @@ let debugSpy: ReturnType<typeof vi.spyOn>;
 
 describe('consoleLogger (PR 1 of #30)', () => {
   beforeEach(() => {
-    // Install fresh spies per test — `restoreMocks: true` in the package
-    // vitest config restores them after each test, so module-scope spies
-    // would silently observe nothing from the second test onward.
+    // Root config does not set restoreMocks: true, so spies persist across
+    // tests within the worker. Restore first, then install fresh spies —
+    // otherwise re-spying console.debug wraps the previous spy and call
+    // counts accumulate across tests.
+    vi.restoreAllMocks();
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});

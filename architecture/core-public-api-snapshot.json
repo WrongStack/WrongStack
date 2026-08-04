@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.299.0",
+  "packageVersion": "0.300.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1241,7 +1241,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 5744
+      "sourceLines": 5950
     },
     {
       "directory": "skills",

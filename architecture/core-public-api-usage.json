@@ -120,7 +120,7 @@
     },
     "@wrongstack/core/security": {
       "files": 114,
-      "typeOnly": 19,
+      "typeOnly": 20,
       "runtimeOrMixed": 97
     },
     "@wrongstack/core/skills": {
@@ -6875,7 +6875,7 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/mcp-handlers.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {

@@ -71,7 +71,7 @@
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1046,
+      "lines": 1049,
       "relativeImports": 19
     },
     "packages/core/src/chronicle/metrics-store.ts": {
@@ -183,7 +183,7 @@
       "relativeImports": 11
     },
     "packages/core/src/security/permission-policy.ts": {
-      "lines": 970,
+      "lines": 1066,
       "relativeImports": 15
     },
     "packages/core/src/security/secret-vault.ts": {
@@ -407,8 +407,8 @@
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
-      "lines": 1038,
-      "relativeImports": 18
+      "lines": 1120,
+      "relativeImports": 19
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
       "lines": 961,
@@ -419,7 +419,7 @@
       "relativeImports": 12
     },
     "packages/webui/src/components/ContextDashboard.tsx": {
-      "lines": 889,
+      "lines": 888,
       "relativeImports": 2
     },
     "packages/webui/src/components/FileActivityDrawer.tsx": {
@@ -515,7 +515,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 1065,
+      "lines": 1084,
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {

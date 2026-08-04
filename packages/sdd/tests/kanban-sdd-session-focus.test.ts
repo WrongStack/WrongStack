@@ -20,13 +20,20 @@ vi.mock('@wrongstack/kanban', () => ({
   readKanbanWorkflowState: (...args: unknown[]) => h.readState(...args),
   writeKanbanWorkflowState: (...args: unknown[]) => h.writeState(...args),
   deleteKanbanWorkflowState: (...args: unknown[]) => h.deleteState(...args),
-  kanbanWorkflowId: (...args: unknown[]) => h.kanbanWorkflowId(...args),
+  // Spread into a typed mock needs a tuple, not `unknown[]` — the other three
+  // mocks take `unknown[]` themselves so they pass through fine, but
+  // `kanbanWorkflowId` declares `(kind: string, name: string)`.
+  kanbanWorkflowId: (...args: Parameters<typeof h.kanbanWorkflowId>) =>
+    h.kanbanWorkflowId(...args),
 }));
 
 import { createKanbanSddSessionPersistence } from '../src/kanban-sdd-session.js';
-import { isAISpecSession } from '../src/sdd-session-types.js';
+import { type AISpecSession, isAISpecSession } from '../src/sdd-session-types.js';
 
-const session = {
+// Annotated rather than inferred: `phase` widens to `string` (not the
+// `AISpecPhase` union) and `answers: []` infers `never[]`, so an unannotated
+// literal is not assignable to `AISpecSession`.
+const session: AISpecSession = {
   id: 's1',
   phase: 'questioning',
   title: 'T',

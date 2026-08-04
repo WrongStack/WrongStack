@@ -74,14 +74,28 @@ describe('MCPServer defensive branches', () => {
     // other splits (including undici's internal ones) behave normally. This
     // drives `[0]` to undefined so the `?? ''` fallback at server.ts:778 fires.
     h.breakSplit = true;
+    // `String.prototype.split` is an overloaded built-in (string|RegExp, or a
+    // `[Symbol.split]` splitter), and a single-signature stub is not assignable
+    // to it. Cast the assignment to the built-in's own type, and widen the
+    // pass-through arg: calling `split(undefined)` is valid at runtime (it
+    // yields the whole string) but no overload declares it.
     String.prototype.split = function split(
       this: string,
       separator?: string | RegExp,
       limit?: number,
     ): string[] {
       if (h.breakSplit && separator === ';') return [];
-      return ORIGINAL_SPLIT.call(this, separator, limit);
-    };
+      // `.call` on the overloaded original resolves to the `[Symbol.split]`
+      // signature, so narrow it to the plain separator form for the
+      // pass-through. `ORIGINAL_SPLIT` itself keeps its real type — it is
+      // assigned back to the prototype during cleanup.
+      const passthrough = ORIGINAL_SPLIT as (
+        this: string,
+        separator?: string | RegExp,
+        limit?: number,
+      ) => string[];
+      return passthrough.call(this, separator, limit);
+    } as typeof String.prototype.split;
     const handle = await serveHttp(new MCPServer({ host: makeHost() }), { port: 0 });
     try {
       const res = await fetch(handle.url, {
