@@ -192,28 +192,34 @@ function broadcastEvent(ev: KanbanServerEvent): void {
 
 // ─── Server lifecycle ────────────────────────────────────────────────────────
 
+/**
+ * Ensures the daemon exits (code 0) after stop(), regardless of whether stop()
+ * resolves, rejects, or hangs. Every exit path MUST go through this — relying
+ * on natural process exit leaves a zombie when a ref'd handle (half-closed
+ * socket, lingering SQLite descriptor) survives cleanup.
+ *
+ * The 2s hangGuard is intentionally NOT unref'd: if stop() wedges and removes
+ * every other handle, the ref'd guard keeps the loop alive so it can still
+ * fire and force exit. stop() is internally bounded (server.close has a 500ms
+ * fallback), so the 2s cap only fires on a genuine wedge.
+ */
+function stopAndExit(reason: string, gracefulSocket?: net.Socket): void {
+  const exit = () => process.exit(0);
+  const hangGuard = setTimeout(exit, 2_000);
+  void stop(reason, gracefulSocket)
+    .catch(() => {})
+    .finally(() => {
+      clearTimeout(hangGuard);
+      exit();
+    });
+}
+
 function scheduleIdleStop(): void {
   if (stopping || clients.size > 0) return;
   if (idleTimer) clearTimeout(idleTimer);
   const idleInput = Number(process.env['WRONGSTACK_KANBAN_SERVER_IDLE_MS']);
   const idleMs = Number.isFinite(idleInput) && idleInput >= 100 ? idleInput : DEFAULT_IDLE_MS;
-  idleTimer = setTimeout(() => {
-    // Exit even if stop() rejects or HANGS: a ref'd handle from a failed
-    // or wedged cleanup must never keep the zombie daemon alive (the
-    // module exists to eliminate it). stop() is internally bounded
-    // (server.close has a 500ms hard fallback), so the 2s cap below only
-    // fires if cleanup truly wedges; if the loop drains first, the process
-    // exits naturally with the same result.
-    const exit = () => process.exit(0);
-    const hangGuard = setTimeout(exit, 2_000);
-    hangGuard.unref?.();
-    void stop('idle-timeout')
-      .catch(() => {})
-      .finally(() => {
-        clearTimeout(hangGuard);
-        exit();
-      });
-  }, idleMs);
+  idleTimer = setTimeout(() => stopAndExit('idle-timeout'), idleMs);
   idleTimer.unref?.();
 }
 
@@ -557,7 +563,7 @@ function processRequest(state: ClientState, req: KanbanRequest): void {
         // socket with the response and let server.close() wait for the
         // graceful stream to finish.
         state.socket.end(JSON.stringify(frame) + '\n');
-        setImmediate(() => void stop('client-request', state.socket));
+        setImmediate(() => stopAndExit('client-request', state.socket));
       } else {
         sendFrame(state.socket, frame);
       }
@@ -721,7 +727,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   // A vanished project root is unambiguous — nothing can ever be served again.
   livenessTimer = setInterval(() => {
     void fsPromises.stat(projectRoot).catch(() => {
-      void stop('project-root-removed').then(() => process.exit(0));
+      stopAndExit('project-root-removed');
     });
   }, ROOT_LIVENESS_CHECK_MS);
   livenessTimer.unref?.();
@@ -736,8 +742,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }, CLIENT_LEASE_SWEEP_MS);
   leaseTimer.unref?.();
 
-  process.on('SIGTERM', () => void stop('SIGTERM').then(() => process.exit(0)));
-  process.on('SIGINT', () => void stop('SIGINT').then(() => process.exit(0)));
+  process.on('SIGTERM', () => stopAndExit('SIGTERM'));
+  process.on('SIGINT', () => stopAndExit('SIGINT'));
 }
 
 function acceptClient(socket: net.Socket): void {
