@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { resolveChronicleRuntimeLocation } from '../../src/chronicle/index.js';
 
@@ -22,6 +23,12 @@ describe('resolveChronicleRuntimeLocation', () => {
     // used to make every consumer assume partitions.
     expect(first.chronicleDirectory).toBe(path.join(input.projectDir, 'chronicle'));
     expect(first.day).toBe('2026-07-18');
-    expect(JSON.stringify(first)).not.toContain(input.globalRoot);
+    // Privacy contract: the envelope exposes the UTC day and opaque hashed
+    // IDs, never a raw storage filename or the host name. (The old
+    // `not.toContain(globalRoot)` assertion was impossible — the
+    // chronicleDirectory above legitimately lives under globalRoot — and
+    // only passed on Windows because JSON.stringify escapes backslashes.)
+    expect(JSON.stringify(first)).not.toContain('.jsonl');
+    expect(JSON.stringify(first)).not.toContain(os.hostname());
   });
 });
