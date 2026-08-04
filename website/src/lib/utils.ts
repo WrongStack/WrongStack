@@ -321,9 +321,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.300.0',
+    date: '2026-08-05',
+    latest: true,
+    tagline: 'WebUI palettes, intentional input collapse, and hardened Council decisions',
+    highlights: [
+      'WebUI now offers persistent emerald-gold, blue-navy, and purple-pink palettes over light/dark mode, with semantic color tokens throughout runtime surfaces',
+      'Chat-input Auto-collapse is an opt-in persisted setting that remains reachable while the input is collapsed and re-expands on completion',
+      'Council timeouts, cancellation, diversity warnings, usage accounting, option validation, and stale-verdict recovery are hardened for retries and fallbacks',
+      'WebUI and SimpleUI HTTP APIs authenticate every bind; FleetNotifier receives the instance token for its legitimate fleet-ping call',
+      'Protected configuration, trust, and authentication paths cannot be silently written',
+      'All 29 packages, 2 apps, README highlights, website metadata, and changelog content align to 0.300.0',
+    ],
+  },
+  {
     version: '0.299.0',
     date: '2026-08-04',
-    latest: true,
     tagline: 'Requirements Intake, Council evidence review, and call-graph navigation',
     highlights: [
       'Requirements Intake adds source-annotated, concurrency-safe request records across REST, CLI, SDD, WebUI, and a read-only-by-default MCP server',

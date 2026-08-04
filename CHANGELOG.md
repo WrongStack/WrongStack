@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.300.0] — 2026-08-05
+
+### Added
+
+- **WebUI palette system.** Appearance settings now offer emerald-gold, blue-navy, and purple-pink palettes over the light/dark theme. The selected palette persists locally, synchronizes across tabs, and applies consistently to the top bar and settings surfaces. (`bcb946c89`, `9378ba482`, `b306ff3e6`)
+- **Opt-in chat-input auto-collapse.** The WebUI input remains expanded by default; users can enable a persisted Auto-collapse preference that responds to transcript updates and session transitions, then expands again at completion. The control remains reachable even while the input is collapsed. (`83142e8f8`, `efd2f6f8e`)
+
+### Changed
+
+- **WebUI runtime colors now use semantic theme tokens** rather than hard-coded palette values, keeping light and dark variants consistent and testable. (`67e70bf3c`)
+- **Loopback WebUI and SimpleUI HTTP APIs require a token on every bind.** The instance registry supplies that token to the legitimate FleetNotifier `POST /api/fleet/ping` caller, rather than treating loopback as an authentication boundary. (`5a26cd0f2`)
+
+### Fixed
+
+- **Council decisions preserve reliable timeout, cancellation, diversity, and usage semantics.** Overall and per-seat budgets compose correctly; only caller cancellation produces a cancelled result; unresolved open-question disagreement remains visible; and correlation warnings use only attributable valid votes. (`4779a00bf`)
+- **Fresh Council runs no longer display a previous verdict.** Reconnect replays are deduplicated, while a new seat clears stale resolution state before the next vote. (`44f846b1c`)
+- **Sensitive agent-state files are protected from silent writes.** Permission helpers now recognize configuration, trust, and authentication state as protected paths. (`5a26cd0f2`)
+
 ## [0.299.0] — 2026-08-04
 
 ### Added

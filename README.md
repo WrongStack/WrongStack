@@ -52,29 +52,26 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.299.0
+### What's new in 0.300.0
 
-- **Capture requirements before implementation begins.** Requirements Intake
-  preserves the original request, keeps normalized or LLM-derived content
-  source-annotated, and requires an explicit acceptance before a suggestion
-  changes a record. Use it from REST, `/intake`, SDD, WebUI, or the
-  read-only-by-default MCP server.
-- **Let a Council evaluate consequential evidence.** The built-in Council has
-  typed decision personas and a bounded one-shot orchestration seam. Kanban
-  verification can submit a criterion and the concrete worktree diff to a
-  multi-perspective panel without replacing deterministic evidence with opinion.
-- **Navigate a codebase by call graph.** `codebase-incoming-calls` and
-  `codebase-outgoing-calls` find callers and callees through the SQLite index,
-  including symbol metadata, ambiguity, unresolved references, and capped-result
-  context.
-- **Project services and recovery fail safely.** Kanban daemons use bounded
-  shutdown paths, worktree rollback refuses to overwrite tracked edits, and
-  SDD hard-stops if a safe rollback is impossible.
-- **HQ and TUI stay legible under load.** HQ adds a task inspector and queue
-  health, while the TUI sidebar correctly budgets routed panels, wrapped rows,
-  and legacy swarm settings.
+- **Make the WebUI yours.** Choose emerald-gold, blue-navy, or purple-pink
+  palettes on top of light or dark mode. Palette choices persist locally,
+  synchronize between tabs, and runtime UI colors now resolve through semantic
+  theme tokens.
+- **Control a compact chat input.** Auto-collapse is an explicit, persisted
+  preference that starts off. When enabled, the input responds to transcript
+  and session transitions, re-expands at completion, and keeps its toggle
+  available even in the collapsed state.
+- **Trust Council outcomes under pressure.** Council timing, cancellation,
+  diversity checks, usage accounting, and open-question resolution now retain
+  their meaning across retries, fallbacks, and interrupted runs. A fresh vote
+  cannot show the previous run's verdict.
+- **Local API and agent state are more deliberately protected.** WebUI and
+  SimpleUI HTTP endpoints authenticate every bind, including the legitimate
+  FleetNotifier path; configuration, trust, and authentication state cannot be
+  silently overwritten through ordinary write paths.
 
-See the complete [0.299.0 release notes](CHANGELOG.md).
+See the complete [0.300.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -83,7 +80,7 @@ See the complete [0.299.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.299.0](#whats-new-in-02990)
+- [What's new in 0.300.0](#whats-new-in-03000)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
