@@ -387,19 +387,12 @@ function TaskCard({
   onClick?: () => void;
 }): React.ReactElement {
   return (
-    <div
+    <button
+      type="button"
       className="hq-kanban-task"
       data-priority={task.priority}
       data-selected={isSelected}
       onClick={onClick}
-      tabIndex={0}
-      role="button"
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
     >
       <div className="hq-kanban-task-topline">
         <span className={`hq-pill ${task.status}`}>{task.status.replaceAll('_', ' ')}</span>
@@ -435,7 +428,7 @@ function TaskCard({
         ) : null}
         {task.status === 'completed' ? <CheckCircle2 size={13} className="is-done" /> : null}
       </footer>
-    </div>
+    </button>
   );
 }
 

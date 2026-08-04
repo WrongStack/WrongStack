@@ -1310,6 +1310,7 @@
   border-left: 3px solid var(--border2);
   padding: 9px 10px;
   background: var(--inset);
+  cursor: pointer;
 }
 .hq-kanban-task[data-priority="critical"],
 .hq-kanban-task[data-priority="high"] {

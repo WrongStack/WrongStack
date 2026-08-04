@@ -261,22 +261,22 @@ export function SettingsView(): React.ReactElement {
 
         <div className="hq-security-form">
           {requiresCurrentPassword ? (
-            <label>
+            <label htmlFor="hq-current-password">
               <span>Current password</span>
               <PasswordInput
+                id="hq-current-password"
                 value={currentPassword}
                 onChange={setCurrentPassword}
-                autoFocus={requiresCurrentPassword}
                 autoComplete="current-password"
               />
             </label>
           ) : null}
-          <label>
+          <label htmlFor="hq-new-password">
             <span>New password</span>
             <PasswordInput
+              id="hq-new-password"
               value={newPassword}
               onChange={setNewPassword}
-              autoFocus={!requiresCurrentPassword}
               autoComplete="new-password"
               minLength={8}
               maxLength={1024}
@@ -284,9 +284,10 @@ export function SettingsView(): React.ReactElement {
             <small>Minimum 8 characters.</small>
           </label>
           <PasswordStrengthMeter password={newPassword} />
-          <label>
+          <label htmlFor="hq-confirm-password">
             <span>Confirm new password</span>
             <PasswordInput
+              id="hq-confirm-password"
               value={confirmPassword}
               onChange={setConfirmPassword}
               autoComplete="new-password"
@@ -700,7 +701,6 @@ function TotpDisableSection({
             maxLength={6}
             placeholder="000000"
             autoComplete="one-time-code"
-            autoFocus
             value={totpCode}
             onChange={(ev) => setTotpCode(ev.target.value.replace(/\D/g, '').slice(0, 6))}
             onKeyDown={(ev) => {
