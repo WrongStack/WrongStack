@@ -84,9 +84,9 @@ describe('package-outdated-watcher', () => {
       await vi.advanceTimersByTimeAsync(100);
 
       // Since we don't have the author recorded, it broadcasts to '*'
-      expect(notifications.some((n) => n.to === '*')).toBe(true);
+      await vi.waitFor(() => expect(notifications.some((n) => n.to === '*')).toBe(true));
       // And it should mention the package name in the subject
-      expect(notifications.some((n) => n.subject.includes('vitest'))).toBe(true);
+      await vi.waitFor(() => expect(notifications.some((n) => n.subject.includes('vitest'))).toBe(true));
 
       dispose();
     });
@@ -130,7 +130,7 @@ describe('package-outdated-watcher', () => {
       // ecosystem label change — assertions here pin both that the watcher
       // does NOT crash on Pipfile and that the resulting notification body
       // surfaces the package name to the broadcast recipient.
-      expect(notifications.some((n) => n.subject.includes('requests'))).toBe(true);
+      await vi.waitFor(() => expect(notifications.some((n) => n.subject.includes('requests'))).toBe(true));
       dispose();
     });
   });
