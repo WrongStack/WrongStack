@@ -51,6 +51,21 @@ export interface ToolsConfig {
    */
   exec?: ExecToolConfig | undefined;
   /**
+   * Agent-callable `council` tool: which panel profile it runs by default and
+   * which extra lenses/profiles are available to it.
+   *
+   * Distinct from `brain.council`, which is the Brain's own decision tier —
+   * that one is convened by the Brain on high-risk questions, this one is
+   * invoked by the agent.
+   *
+   * SECURITY: in the in-project DENY list. A persona's `instruction` is
+   * rendered into the voter SYSTEM prompt, and a profile seat may pin a
+   * `providerId`/`model` — so a repo-committed config could otherwise inject
+   * system-level instructions into every seat and reroute the calls to an
+   * attacker-chosen provider. Only honoured from the active-profile config.
+   */
+  council?: CouncilToolConfig | undefined;
+  /**
    * Agent-loop repetition detector tuning. The detector watches two signals:
    * consecutive effectively-identical iterations (same tool-name set + inputs
    * + text) and per-call repeats (the same tool invoked with identical
@@ -86,6 +101,98 @@ export interface LoopDetectionConfig {
    * trigger a steer note (default 4, min 2).
    */
   callRepeatThreshold?: number | undefined;
+}
+
+/**
+ * Configuration for the agent-callable `council` tool.
+ *
+ * The Council orchestrator has always accepted custom persona and profile
+ * registries, but no host ever built one — the tool was pinned to the three
+ * built-in profiles with no way to add a lens, change the default panel, or
+ * tune concurrency. This is that surface.
+ */
+export interface CouncilToolConfig {
+  /**
+   * Profile the tool runs when a call names none. Must be a built-in id
+   * (`balanced`, `fast`, `risk-review`) or one defined in `profiles`.
+   * Default `balanced`.
+   */
+  defaultProfile?: string | undefined;
+  /** Seats polled concurrently, 1..8. Default 3. */
+  maxConcurrency?: number | undefined;
+  /**
+   * Extra decision lenses, registered alongside the six built-ins. Each needs
+   * a kebab-case `id`, a `name`, a `description` and the `instruction` that
+   * becomes the seat's system prompt.
+   */
+  personas?: CouncilPersonaDefinition[] | undefined;
+  /**
+   * Extra panel profiles, registered alongside the built-ins. A profile whose
+   * id matches a built-in replaces it.
+   */
+  profiles?: CouncilToolProfileDefinition[] | undefined;
+}
+
+/** A custom Council decision lens declared in configuration. */
+export interface CouncilPersonaDefinition {
+  /** Kebab-case identifier, e.g. "latency-hawk". */
+  id: string;
+  name: string;
+  description: string;
+  /** Trusted system-level instruction for this lens. */
+  instruction: string;
+  defaultWeight?: number | undefined;
+  defaultVeto?: boolean | undefined;
+  tags?: string[] | undefined;
+}
+
+/**
+ * A custom Council panel declared in configuration.
+ *
+ * Structurally the config-facing half of `CouncilProfileConfig`; kept as its
+ * own type so the config surface stays JSON-shaped (no readonly arrays) and
+ * documents itself where users read it.
+ */
+export interface CouncilToolProfileDefinition {
+  id: string;
+  name?: string | undefined;
+  description?: string | undefined;
+  seats: Array<{
+    id?: string | undefined;
+    label?: string | undefined;
+    /** Persona id — a built-in or one declared in `personas`. */
+    persona: string;
+    target?:
+      | {
+          providerId?: string | undefined;
+          model?: string | undefined;
+          /** Model-matrix role, resolved before the explicit target. */
+          role?: string | undefined;
+          fallbackProfile?: string | undefined;
+          fallbackModels?: string[] | undefined;
+        }
+      | undefined;
+    weight?: number | undefined;
+    veto?: boolean | undefined;
+  }>;
+  /** `false` disables judging; omitted also means no judge. */
+  judge?:
+    | false
+    | {
+        providerId?: string | undefined;
+        model?: string | undefined;
+        role?: string | undefined;
+        fallbackProfile?: string | undefined;
+        fallbackModels?: string[] | undefined;
+      }
+    | undefined;
+  quorumFraction?: number | undefined;
+  approvalFraction?: number | undefined;
+  distinctness?: 'none' | 'model' | 'provider' | undefined;
+  voterMaxTokens?: number | undefined;
+  judgeMaxTokens?: number | undefined;
+  perCallTimeoutMs?: number | undefined;
+  overallTimeoutMs?: number | undefined;
 }
 
 /** Allow/deny extension of the `exec` tool's built-in command allowlist. */

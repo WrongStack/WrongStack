@@ -129,6 +129,23 @@ export interface OneShotLLMResult {
   error?: string | undefined;
 }
 
+/** One role→model resolution. Mirrors `ModelPick` from the ModelRouter. */
+export interface OneShotModelPick {
+  provider: string;
+  model: string;
+  /**
+   * True when the pick came from the user's `/setmodel` matrix (explicit
+   * intent) rather than from capability heuristics. Only a matrix pick may
+   * override a caller's explicit `providerId`/`model`.
+   */
+  fromMatrix?: boolean | undefined;
+}
+
+/** Minimal router contract consumed by role-based routing. */
+export interface OneShotModelRouter {
+  pickForTask(role: string, description: string): OneShotModelPick | undefined;
+}
+
 /**
  * Dependencies for OneShotOrchestrator.
  */
@@ -151,10 +168,14 @@ export interface OneShotOrchestratorOptions {
   fallbackProfileManager: import('../core/fallback-profile-manager.js').FallbackProfileManager;
 
   /**
-   * Optional ModelRouter for role-based model selection.
-   * When absent, role-based routing is skipped.
+   * Optional role→model router. When absent, role-based routing is skipped
+   * and `role` on an input is inert.
+   *
+   * Structurally typed rather than pinned to the concrete `ModelRouter` class
+   * so a host can supply a router rebuilt from the LIVE config on every call
+   * (the `/setmodel` matrix changes mid-session). `ModelRouter` satisfies it.
    */
-  modelRouter?: import('../models/model-router.js').ModelRouter | undefined;
+  modelRouter?: OneShotModelRouter | undefined;
 
   /**
    * Optional logger for fallback warnings.

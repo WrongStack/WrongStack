@@ -238,10 +238,17 @@ export class OneShotOrchestrator {
     input: OneShotLLMInput,
     config: import('../types/config.js').Config,
   ): { providerId: string; model: string } | undefined {
-    // Role-based routing via ModelRouter (highest priority)
+    // Role-based routing via the ModelRouter.
+    //
+    // A MATRIX pick is explicit user intent (`/setmodel`) and outranks a
+    // caller-supplied target. A HEURISTIC pick does not: it is a capability
+    // guess, and letting it silently replace an explicit providerId/model
+    // would make those fields unreliable for every caller that also passes a
+    // role — Council seats carry both (persona role + resolved seat target).
     if (input.role && this.opts.modelRouter) {
       const pick = this.opts.modelRouter.pickForTask(input.role, '');
-      if (pick) {
+      const hasExplicitTarget = Boolean(input.providerId || input.model);
+      if (pick && (pick.fromMatrix === true || !hasExplicitTarget)) {
         return { providerId: pick.provider, model: pick.model };
       }
     }

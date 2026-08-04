@@ -56,6 +56,19 @@ export const BUILTIN_COUNCIL_PERSONAS: readonly CouncilPersona[] = Object.freeze
   }),
 ]);
 
+/**
+ * Built-in persona ids in display order.
+ *
+ * The single source every surface cycles through. The TUI panel, the WebUI
+ * settings section and `/brain council` each used to hard-code
+ * `['executor','skeptic','auditor']`, which is why `security`, `maintainer`
+ * and `user-advocate` shipped in the registry but were unreachable from any
+ * UI — exactly the lenses `risk-review` is built around.
+ */
+export const BUILTIN_COUNCIL_PERSONA_IDS: readonly string[] = Object.freeze(
+  BUILTIN_COUNCIL_PERSONAS.map((persona) => persona.id),
+);
+
 /** Immutable registry of trusted Council persona definitions. */
 export class CouncilPersonaRegistry {
   private readonly byId: ReadonlyMap<string, CouncilPersona>;

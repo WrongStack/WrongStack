@@ -185,8 +185,10 @@ export interface BrainModelEntry {
 export interface BrainCouncilVoterConfig extends BrainModelEntry {
   /**
    * Decision lens for this seat. Built-ins: 'executor' (progress-biased),
-   * 'skeptic' (risk-hunting), 'auditor' (cost/waste-focused). Any other
-   * string is injected verbatim as the persona description.
+   * 'skeptic' (risk-hunting), 'auditor' (cost/waste-focused), 'security'
+   * (trust boundaries, abuse cases), 'maintainer' (complexity, compatibility)
+   * and 'user-advocate' (usability, recovery). Any other string is registered
+   * as an ad-hoc lens whose instruction is the string itself.
    */
   persona?: string | undefined;
   /** Vote weight in the tally. Default 1. */

@@ -15,7 +15,9 @@
  *   /brain strategy <s>     pool strategy: fallback | round-robin
  *   /brain timeout <ms>     per-LLM-call decision timeout
  *   /brain human-timeout    interactive escalation timeout (ms | off)
- *   /brain council ...      multi-LLM council (on/off/minrisk/voters/judge/…)
+ *   /brain council ...      multi-LLM council (on/off/minrisk/voters/personas/
+ *                           judge/quorum/approval/distinctness/timeout/
+ *                           concurrency/judgetokens)
  *   /brain ledger ...       view rows | on|off | autodeny <n>
  *   /brain ask <question>   consult the Brain directly for a decision
  *   /brain save             re-persist the current settings
@@ -27,6 +29,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { BrainAutoRisk, BrainConfigPatch } from '@wrongstack/core/execution';
 import type { BrainConfigSnapshot } from '@wrongstack/core/execution';
+import { BUILTIN_COUNCIL_PERSONA_IDS, BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
 import type { BrainCouncilVoterConfig, SlashCommand } from '@wrongstack/core/types';
 import type { BrainLedgerEntry } from '@wrongstack/core/coordination';
 import { color } from '@wrongstack/core/utils';
@@ -35,7 +38,22 @@ import type { SlashCommandContext } from './command-context.js';
 
 const RISK_LEVELS: ReadonlySet<string> = new Set(['off', 'low', 'medium', 'high', 'all']);
 const COUNCIL_RISKS: ReadonlySet<string> = new Set(['medium', 'high', 'critical']);
-const PERSONA_SHORTHANDS: ReadonlySet<string> = new Set(['executor', 'skeptic', 'auditor']);
+const COUNCIL_DISTINCTNESS: ReadonlySet<string> = new Set(['none', 'model', 'provider']);
+/** Subcommand → `BrainCouncilPatch` field for the positive-integer knobs. */
+const COUNCIL_NUMERIC_OPS: Record<string, string | undefined> = {
+  timeout: 'perCallTimeoutMs',
+  concurrency: 'maxConcurrency',
+  judgetokens: 'judgeMaxTokens',
+};
+/**
+ * Bare-token personas accepted in the seat grammar (`ref:skeptic`).
+ *
+ * Sourced from the Council persona registry rather than a local tuple — the
+ * previous hard-coded `['executor','skeptic','auditor']` meant `ref:security`
+ * parsed as part of the model ref instead of as a lens, so half the shipped
+ * lenses were unreachable from the command line.
+ */
+const PERSONA_SHORTHANDS: ReadonlySet<string> = new Set(BUILTIN_COUNCIL_PERSONA_IDS);
 const HEURISTIC_FIELDS: Record<string, string> = {
   lowrisk: 'lowRiskAutoAnswer',
   blocked: 'blockedResolved',
@@ -84,7 +102,7 @@ function judgeSummary(s: {
 }
 
 /**
- * Council seat grammar: `<ref>[:executor|:skeptic|:auditor][:persona=NAME][:veto][:w=N]`.
+ * Council seat grammar: `<ref>[:<built-in persona>][:persona=NAME][:veto][:w=N]`.
  * Modifiers are stripped from the RIGHT so model ids containing `:`
  * (e.g. ollama tags) survive as part of the ref.
  */
@@ -145,8 +163,11 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       '  /brain human-timeout <ms|off>     Interactive escalation wait before terminal policy',
       '  /brain council on|off             Enable/disable the multi-LLM council',
       '  /brain council minrisk <medium|high|critical>',
-      '  /brain council voters <seat> [<seat> ...]   seat = <ref>[:executor|:skeptic|:auditor][:veto][:w=N]',
+      '  /brain council voters <seat> [<seat> ...]   seat = <ref>[:<persona>][:veto][:w=N]',
+      '  /brain council personas           List the built-in decision lenses',
       '  /brain council judge <ref|auto> | quorum <0..1> | approval <0..1>',
+      '  /brain council distinctness <none|model|provider>   warn on a non-diverse panel',
+      '  /brain council timeout|concurrency|judgetokens <n|default>',
       '  /brain ledger [n]      Show the last n rows (default 15) of the persistent decision ledger',
       '  /brain ledger on|off | autodeny <n>',
       '  /brain stats           Per-tier decision counts: how often the Brain actually calls a model',
@@ -403,11 +424,27 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         if (op === 'voters') {
           const seats = rest.slice(1).map(parseSeat);
           if (seats.length === 0 || seats.some((s) => s === null)) {
-            const msg = 'Usage: /brain council voters <ref[:executor|:skeptic|:auditor][:veto][:w=N]> [...]';
+            const msg = `Usage: /brain council voters <ref[:<persona>][:veto][:w=N]> [...] — personas: ${BUILTIN_COUNCIL_PERSONA_IDS.join(', ')} (see /brain council personas)`;
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
           return applyPatch({ council: { voters: seats as BrainCouncilVoterConfig[] } }, councilSummary);
+        }
+        if (op === 'personas') {
+          // The seat grammar accepts any string, so the only way to know which
+          // lenses are built in (and which are being treated as ad-hoc text)
+          // is to be able to list them.
+          const lines = [
+            'Council decision lenses (built-in):',
+            ...BUILTIN_COUNCIL_PERSONAS.map(
+              (p) =>
+                `  ${color.cyan(p.id.padEnd(15))} ${p.description}${p.defaultVeto ? color.dim(' [veto by default]') : ''}`,
+            ),
+            color.dim('Any other string is used verbatim as a custom lens instruction.'),
+          ];
+          const msg = lines.join('\n');
+          opts.renderer.write(msg);
+          return { message: msg };
         }
         if (op === 'judge') {
           const ref = rest[1];
@@ -425,7 +462,37 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             (s) => `Brain council ${op} set to ${color.cyan(String(op === 'quorum' ? (s.council.quorum ?? 0.5) : (s.council.approval ?? 0.5)))}`,
           );
         }
-        const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, judge, quorum, or approval.`;
+        if (op === 'distinctness') {
+          // A same-model panel agrees with itself and adds cost without adding
+          // independence. This knob is what makes that visible, and it was
+          // reachable only from the WebUI settings section.
+          const mode = (rest[1] ?? '').toLowerCase();
+          if (!COUNCIL_DISTINCTNESS.has(mode)) {
+            const msg = 'Usage: /brain council distinctness <none|model|provider>';
+            opts.renderer.writeWarning(msg);
+            return { message: msg };
+          }
+          return applyPatch(
+            { council: { distinctness: mode as 'none' | 'model' | 'provider' } },
+            (s) =>
+              `Brain council distinctness set to ${color.cyan(s.council.distinctness)}${mode === 'none' ? color.dim(' — a non-diverse panel will no longer be reported') : ''}`,
+          );
+        }
+        if (COUNCIL_NUMERIC_OPS[op]) {
+          const field = COUNCIL_NUMERIC_OPS[op] as 'perCallTimeoutMs' | 'maxConcurrency' | 'judgeMaxTokens';
+          const raw = rest[1];
+          if (!raw) {
+            const msg = `Usage: /brain council ${op} <positive integer | default>`;
+            opts.renderer.writeWarning(msg);
+            return { message: msg };
+          }
+          const value = raw.toLowerCase() === 'default' ? null : Number(raw);
+          return applyPatch({ council: { [field]: value } }, (s) => {
+            const applied = s.council[field];
+            return `Brain council ${op} set to ${color.cyan(applied === undefined ? 'default' : String(applied))}`;
+          });
+        }
+        const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, personas, judge, quorum, approval, distinctness, timeout, concurrency, or judgetokens.`;
         opts.renderer.writeWarning(msg);
         return { message: msg };
       }

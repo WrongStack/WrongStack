@@ -8,14 +8,28 @@
  */
 
 import type { BrainConfigPatch, BrainRuntime } from '@wrongstack/core/execution';
+import { BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
 import type { BrainCouncilVoterConfig, BrainModelEntry } from '@wrongstack/core/types';
-import type { BrainPanelHost, BrainPanelSettings } from '@wrongstack/tui';
+import type { BrainPanelHost, BrainPanelPersona, BrainPanelSettings } from '@wrongstack/tui';
 
 export interface BrainPanelServiceDeps {
   brainRuntime: BrainRuntime;
 }
 
-const PERSONA_CYCLE = ['executor', 'skeptic', 'auditor'] as const;
+/**
+ * Lens cycle + catalog, both derived from the Council persona registry.
+ *
+ * This used to be a local `['executor','skeptic','auditor']` tuple, which is
+ * why `security`, `maintainer` and `user-advocate` could not be selected from
+ * the panel even though the registry has always shipped them.
+ */
+const PERSONA_CATALOG: BrainPanelPersona[] = BUILTIN_COUNCIL_PERSONAS.map((persona) => ({
+  id: persona.id,
+  name: persona.name,
+  description: persona.description,
+  defaultVeto: persona.defaultVeto,
+}));
+const PERSONA_CYCLE: readonly string[] = PERSONA_CATALOG.map((persona) => persona.id);
 
 function compactEntry(entry: BrainModelEntry): string {
   return entry.provider ? `${entry.provider}/${entry.model}` : entry.model;
@@ -61,6 +75,13 @@ export function createBrainPanelHost(deps: BrainPanelServiceDeps): BrainPanelHos
           weight: v.weight,
         })),
         councilSeats: snap.councilLabels,
+        personaCatalog: PERSONA_CATALOG.map((persona) => ({ ...persona })),
+        councilQuorum: snap.council.quorum,
+        councilApproval: snap.council.approval,
+        councilDistinctness: snap.council.distinctness,
+        councilPerCallTimeoutMs: snap.council.perCallTimeoutMs,
+        councilMaxConcurrency: snap.council.maxConcurrency,
+        councilJudgeMaxTokens: snap.council.judgeMaxTokens,
         // The EFFECTIVE judge, not `council.judge`. The configured one is
         // usually absent, so the panel used to read "auto" and say nothing
         // about who actually breaks the panel's ties — including when that is
@@ -122,7 +143,9 @@ export function createBrainPanelHost(deps: BrainPanelServiceDeps): BrainPanelHos
       const voters = currentVoters();
       const voter = voters[index];
       if (!voter) return Promise.resolve('No such voter.');
-      const at = PERSONA_CYCLE.indexOf(voter.persona as (typeof PERSONA_CYCLE)[number]);
+      // A custom lens (any string outside the registry) yields -1 and so lands
+      // on the first built-in — cycling is how you get back to a known lens.
+      const at = PERSONA_CYCLE.indexOf(voter.persona ?? '');
       voter.persona = PERSONA_CYCLE[(at + 1) % PERSONA_CYCLE.length] as string;
       return applyVoters(voters);
     },
@@ -135,6 +158,14 @@ export function createBrainPanelHost(deps: BrainPanelServiceDeps): BrainPanelHos
     },
     setJudge: (providerId, model) => apply({ council: { judge: `${providerId}/${model}` } }),
     clearJudge: () => apply({ council: { judge: null } }),
+    // Resolution + budget knobs. `BrainCouncilPatch` accepts null for the
+    // three integer fields, so `undefined` here really does clear to default.
+    setCouncilQuorum: (fraction) => apply({ council: { quorum: fraction } }),
+    setCouncilApproval: (fraction) => apply({ council: { approval: fraction } }),
+    setCouncilDistinctness: (mode) => apply({ council: { distinctness: mode } }),
+    setCouncilPerCallTimeout: (ms) => apply({ council: { perCallTimeoutMs: ms ?? null } }),
+    setCouncilMaxConcurrency: (count) => apply({ council: { maxConcurrency: count ?? null } }),
+    setCouncilJudgeMaxTokens: (tokens) => apply({ council: { judgeMaxTokens: tokens ?? null } }),
     setLedgerEnabled: (on) => apply({ ledger: { enabled: on } }),
     setAutoDeny: (count) => apply({ ledger: { autoDenyAfterFailures: count ?? null } }),
     setTerminalPolicy: (policy) => apply({ terminalPolicy: policy }),

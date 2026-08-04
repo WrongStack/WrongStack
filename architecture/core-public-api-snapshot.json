@@ -46,7 +46,7 @@
         "export { AutoCompactionMiddleware, type CompactorOptions, type CompactorStrategy, createStrategyCompactor, HybridCompactor, installSubagentAutoCompaction, IntelligentCompactor, type IntelligentCompactorOptions, SelectiveCompactor, type SelectiveCompactorOptions, type StrategyCompactorOptions, } from './defaults/index.js';",
         "export { BLOCKED_RESOLVED_MARKERS, type BrainHeuristicsConfig, compileResolutionMarkers, DEFAULT_BRAIN_HEURISTICS, isBlockedResolved, type ResolvedBrainHeuristics, resolveBrainHeuristics, } from './coordination/brain-heuristics.js';",
         "export { BRAIN_EVALUATION_CASE_VERSION, type BrainEvaluationCaseResult, type BrainEvaluationCaseV1, type BrainEvaluationCaseValidation, type BrainEvaluationExpectations, type BrainEvaluationFailure, type BrainEvaluationFailureCode, type BrainEvaluationMetrics, type BrainEvaluationReport, type BrainTraceCaptureOptions, brainTraceToEvaluationCase, runBrainEvaluation, validateBrainEvaluationCase, } from './execution/brain-evaluation.js';",
-        "export { BUILTIN_COUNCIL_PERSONAS, CouncilPersonaRegistry, createCouncilPersonaRegistry, DEFAULT_COUNCIL_PERSONA_REGISTRY, } from './execution/council-personas.js';",
+        "export { BUILTIN_COUNCIL_PERSONA_IDS, BUILTIN_COUNCIL_PERSONAS, CouncilPersonaRegistry, createCouncilPersonaRegistry, DEFAULT_COUNCIL_PERSONA_REGISTRY, } from './execution/council-personas.js';",
         "export { BUILTIN_COUNCIL_PROFILES, CouncilProfileRegistry, createCouncilProfileRegistry, DEFAULT_COUNCIL_APPROVAL_FRACTION, DEFAULT_COUNCIL_JUDGE_MAX_TOKENS, DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS, DEFAULT_COUNCIL_PER_CALL_TIMEOUT_MS, DEFAULT_COUNCIL_PROFILE_REGISTRY, DEFAULT_COUNCIL_QUORUM_FRACTION, DEFAULT_COUNCIL_VOTER_MAX_TOKENS, normalizeCouncilProfile, resolveCouncilProfile, } from './execution/council-profiles.js';",
         "export { BrainCircuitBreaker, type BrainCircuitOptions, type BrainCircuitSnapshot, type BrainCircuitState, } from './execution/brain-circuit.js';",
         "export { BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, brainDecisionKey, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from './coordination/brain-ledger.js';",
@@ -230,7 +230,7 @@
       },
       "source": "packages/core/src/types/index.ts",
       "declarations": [
-        "export type { AdaptiveConcurrencyConfig, AutonomyConfig, BrainConfig, BrainCouncilConfig, BrainCouncilVoterConfig, BrainModelEntry, CircuitBreakerRuntimeConfig, ConcreteTokenSavingTier, Config, ConfigLoader, ConfigStore, ContextConfig, CustomModelDefinition, ExecDangerConfig, ExecToolConfig, FeaturesConfig, FleetChatVerbosity, FleetConfig, FleetSupervisorConfig, GitBehaviorConfig, HqClientConfig, IndexingConfig, InputHistoryConfig, LaunchConfig, LaunchMenuChoice, LogConfig, LoopDetectionConfig, MCPHealthConfig, MCPHealthThresholds, MCPServerConfig, ModelMatrixEntry, ModelRuntimeCacheConfig, ModelRuntimeConfig, ModelRuntimeParametersConfig, ModelRuntimeReasoningConfig, PluginConfig, PluginManagerConfig, ProviderApiKey, ProviderConfig, SageConfig, SessionLoggingConfig, SkillsConfig, SyncCategory, SyncConfig, TokenSavingTier, ToolDescriptionMode, ToolDescriptionModeConfig, ToolResultRenderMode, ToolResultRenderModeConfig, ToolsConfig } from './config.js';",
+        "export type { AdaptiveConcurrencyConfig, AutonomyConfig, BrainConfig, BrainCouncilConfig, BrainCouncilVoterConfig, BrainModelEntry, CircuitBreakerRuntimeConfig, ConcreteTokenSavingTier, Config, ConfigLoader, ConfigStore, ContextConfig, CouncilPersonaDefinition, CouncilToolConfig, CouncilToolProfileDefinition, CustomModelDefinition, ExecDangerConfig, ExecToolConfig, FeaturesConfig, FleetChatVerbosity, FleetConfig, FleetSupervisorConfig, GitBehaviorConfig, HqClientConfig, IndexingConfig, InputHistoryConfig, LaunchConfig, LaunchMenuChoice, LogConfig, LoopDetectionConfig, MCPHealthConfig, MCPHealthThresholds, MCPServerConfig, ModelMatrixEntry, ModelRuntimeCacheConfig, ModelRuntimeConfig, ModelRuntimeParametersConfig, ModelRuntimeReasoningConfig, PluginConfig, PluginManagerConfig, ProviderApiKey, ProviderConfig, SageConfig, SessionLoggingConfig, SkillsConfig, SyncCategory, SyncConfig, TokenSavingTier, ToolDescriptionMode, ToolDescriptionModeConfig, ToolResultRenderMode, ToolResultRenderModeConfig, ToolsConfig } from './config.js';",
         "export type { AddAttachmentInput, Attachment, AttachmentKind, AttachmentMeta, AttachmentRef, AttachmentStore } from './attachment.js';",
         "export type { AggregateHealth, HealthCheck, HealthCheckResult, HealthRegistry, HealthStatus, MetricLabels, MetricSeries, MetricsRuntimeStatus, MetricsSink, MetricsSnapshot, Span, Tracer } from './observability.js';",
         "export type { AnyHookOutcome, ConfiguredHook, HookEntry, HookEvent, HookFailurePolicy, HookInput, HookInvocationContext, HookMatcher, HookOutcome, HookRegistrationOptions, HttpHook, InProcessHook, PreToolUseOutcome, PreToolUseStage, ShellHook } from './hooks.js';",
@@ -264,6 +264,7 @@
         "export type { Message, MessageRole } from './messages.js';",
         "export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';",
         "export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsDevReasoningOption, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily } from './models-registry.js';",
+        "export type { OneShotLLMInput, OneShotLLMResult, OneShotModelPick, OneShotModelRouter, OneShotOrchestratorOptions } from './one-shot-llm.js';",
         "export type { ProviderRunner, RunProviderOptions } from './provider-runner.js';",
         "export type { Renderer } from './renderer.js';",
         "export type { RotatableSecretVault, SecretVault } from './secret-vault.js';",
@@ -529,7 +530,7 @@
         "export { AutoCompactionMiddleware, type ContextWindowBudgetSnapshot, } from './auto-compaction-middleware.js';",
         "export { AutonomousRunner, type AutonomousRunnerOptions, type DoneCheckResult, DoneConditionChecker, } from './autonomous-runner.js';",
         "export { BRAIN_EVALUATION_CASE_VERSION, type BrainEvaluationCaseResult, type BrainEvaluationCaseV1, type BrainEvaluationCaseValidation, type BrainEvaluationExpectations, type BrainEvaluationFailure, type BrainEvaluationFailureCode, type BrainEvaluationMetrics, type BrainEvaluationReport, runBrainEvaluation, validateBrainEvaluationCase, } from './brain-evaluation.js';",
-        "export { BUILTIN_COUNCIL_PERSONAS, CouncilPersonaRegistry, createCouncilPersonaRegistry, DEFAULT_COUNCIL_PERSONA_REGISTRY, } from './council-personas.js';",
+        "export { BUILTIN_COUNCIL_PERSONA_IDS, BUILTIN_COUNCIL_PERSONAS, CouncilPersonaRegistry, createCouncilPersonaRegistry, DEFAULT_COUNCIL_PERSONA_REGISTRY, } from './council-personas.js';",
         "export { BUILTIN_COUNCIL_PROFILES, CouncilProfileRegistry, createCouncilProfileRegistry, DEFAULT_COUNCIL_APPROVAL_FRACTION, DEFAULT_COUNCIL_JUDGE_MAX_TOKENS, DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS, DEFAULT_COUNCIL_PER_CALL_TIMEOUT_MS, DEFAULT_COUNCIL_PROFILE_REGISTRY, DEFAULT_COUNCIL_QUORUM_FRACTION, DEFAULT_COUNCIL_VOTER_MAX_TOKENS, normalizeCouncilProfile, resolveCouncilProfile, } from './council-profiles.js';",
         "export { COUNCIL_REFUSAL_OPTION_ID, CouncilOrchestrator, type CouncilOrchestratorOptions, DEFAULT_COUNCIL_MAX_CONCURRENCY, MAX_COUNCIL_CONCURRENCY, } from './council-orchestrator.js';",
         "export { COUNCIL_REFUSE_OPTION_ID, type CouncilBrainOptions, type CouncilVoter, createCouncilBrainArbiter, } from './council-brain.js';",
@@ -1128,7 +1129,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 51,
-      "sourceLines": 16746
+      "sourceLines": 16861
     },
     {
       "directory": "extension",
@@ -1254,7 +1255,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 75,
-      "sourceLines": 16367
+      "sourceLines": 16377
     },
     {
       "directory": "tasking",
@@ -1268,14 +1269,14 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 3034
+      "sourceLines": 3050
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9522
+      "sourceLines": 9654
     },
     {
       "directory": "utils",

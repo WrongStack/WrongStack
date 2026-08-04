@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 50,
-      "typeOnly": 19,
-      "runtimeOrMixed": 49
+      "files": 51,
+      "typeOnly": 20,
+      "runtimeOrMixed": 52
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 26,
+      "files": 27,
       "typeOnly": 8,
-      "runtimeOrMixed": 19
+      "runtimeOrMixed": 20
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 836,
-      "typeOnly": 798,
-      "runtimeOrMixed": 211
+      "files": 837,
+      "typeOnly": 799,
+      "runtimeOrMixed": 212
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 469,
+      "files": 470,
       "typeOnly": 51,
-      "runtimeOrMixed": 475
+      "runtimeOrMixed": 476
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -2820,7 +2820,7 @@
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/brain-menu/panel-service.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -2862,7 +2862,7 @@
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/slash-commands/brain.ts",
       "typeOnly": 2,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -2941,6 +2941,12 @@
       "file": "packages/cli/tests/multi-agent.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/provider-utility-tools.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -3072,7 +3078,7 @@
       "specifier": "@wrongstack/core/execution",
       "file": "packages/webui-server/src/server/brain-handlers.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -5419,6 +5425,12 @@
       "file": "packages/cli/src/webui-server/prefs-seeding.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/src/wiring/provider-utility-tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/models",
@@ -12516,7 +12528,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/session-handlers.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12659,6 +12671,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/replay-payload.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/session-event-taxonomy.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13685,6 +13703,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/memory-compact.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/memory-triage.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

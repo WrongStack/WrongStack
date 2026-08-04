@@ -531,6 +531,7 @@ export {
   MAX_COUNCIL_CONCURRENCY,
 } from './execution/council-orchestrator.js';
 export {
+  BUILTIN_COUNCIL_PERSONA_IDS,
   BUILTIN_COUNCIL_PERSONAS,
   CouncilPersonaRegistry,
   createCouncilPersonaRegistry,

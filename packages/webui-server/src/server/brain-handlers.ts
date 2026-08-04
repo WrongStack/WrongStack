@@ -1,8 +1,33 @@
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { BrainAutoRisk, BrainConfigPatch, BrainRuntime } from '@wrongstack/core/execution';
+import { BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
 import type { WebSocket } from 'ws';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WSServerMessage } from './types.js';
+
+/**
+ * Council decision lenses published to the browser.
+ *
+ * The settings section used to hard-code `['executor','skeptic','auditor']`,
+ * so the registry's `security`, `maintainer` and `user-advocate` lenses were
+ * unselectable. Sending the registry keeps the picker honest as lenses are
+ * added, instead of leaving three copies of the list to drift.
+ */
+const COUNCIL_PERSONA_CATALOG = Object.freeze(
+  BUILTIN_COUNCIL_PERSONAS.map((persona) =>
+    Object.freeze({
+      id: persona.id,
+      name: persona.name,
+      description: persona.description,
+      ...(persona.defaultVeto !== undefined ? { defaultVeto: persona.defaultVeto } : {}),
+    }),
+  ),
+);
+
+/** Snapshot decorated with the static persona catalog the browser renders. */
+function brainConfigPayload(runtime: BrainRuntime): Record<string, unknown> {
+  return { ...runtime.getSnapshot(), personaCatalog: COUNCIL_PERSONA_CATALOG };
+}
 
 /**
  * PR 5b of Issue #30: Brain WebSocket handlers (`brain.status` /
@@ -91,7 +116,7 @@ export function handleBrainConfigGet(ctx: BrainHandlerContext, ws: WebSocket): v
   }
   ctx.send(ws, {
     type: 'brain.config',
-    payload: { config: ctx.brainRuntime.getSnapshot(), persisted: true },
+    payload: { config: brainConfigPayload(ctx.brainRuntime), persisted: true },
   });
 }
 
@@ -122,7 +147,7 @@ export async function handleBrainConfigSet(
     ctx.send(ws, {
       type: 'brain.config',
       payload: {
-        config: ctx.brainRuntime.getSnapshot(),
+        config: brainConfigPayload(ctx.brainRuntime),
         persisted: result.ok,
         ...(result.ok ? {} : { error: result.error ?? 'Persist failed.' }),
       },
@@ -133,7 +158,7 @@ export async function handleBrainConfigSet(
     ctx.send(ws, {
       type: 'brain.config',
       payload: {
-        config: ctx.brainRuntime.getSnapshot(),
+        config: brainConfigPayload(ctx.brainRuntime),
         persisted: false,
         error: `Invalid Brain setting: ${toErrorMessage(err)}`,
       },

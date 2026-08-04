@@ -69,6 +69,7 @@ export {
   resolveCouncilVotes,
 } from './council-resolution.js';
 export {
+  BUILTIN_COUNCIL_PERSONA_IDS,
   BUILTIN_COUNCIL_PERSONAS,
   CouncilPersonaRegistry,
   createCouncilPersonaRegistry,
