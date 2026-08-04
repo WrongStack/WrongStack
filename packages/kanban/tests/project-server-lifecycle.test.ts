@@ -71,19 +71,48 @@ async function connectWithin(
  */
 /** Captured stderr per child, so a failure reports WHY the daemon died. */
 const daemonErr = new WeakMap<ChildProcess, { text: string }>();
+/** Captured stdout per child, so tests can wait for the "listening on…" line
+ *  before connecting. SQLite init can block the event loop under CI load;
+ *  the socket is already listening, but acceptClient is gated on the `ready`
+ *  promise that only resolves after SQLite opens. Connecting before that line
+ *  burns the test's exit-timeout budget on the SQLite stall. */
+const daemonOut = new WeakMap<ChildProcess, { text: string }>();
 
 function startDaemon(projectRoot: string, idleMs = 200): ChildProcess {
   const child = spawn(process.execPath, [distServer, '--project-root', projectRoot], {
     env: { ...process.env, WRONGSTACK_KANBAN_SERVER_IDLE_MS: String(idleMs) },
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
-  const sink = { text: '' };
-  daemonErr.set(child, sink);
+  const errSink = { text: '' };
+  daemonErr.set(child, errSink);
   child.stderr?.on('data', (chunk: Buffer) => {
-    sink.text += chunk.toString();
+    errSink.text += chunk.toString();
+  });
+  const outSink = { text: '' };
+  daemonOut.set(child, outSink);
+  child.stdout?.on('data', (chunk: Buffer) => {
+    outSink.text += chunk.toString();
   });
   return child;
+}
+
+/**
+ * Wait for the daemon to emit its "listening on…" line on stdout. This
+ * guarantees SQLite init has finished and `scheduleIdleStop()` has been
+ * called, so the idle timer's budget is fully available for the test rather
+ * than silently consumed by a slow `SqliteKanbanStorage.open()`.
+ */
+async function waitForDaemonReady(child: ChildProcess, timeoutMs = 10_000): Promise<void> {
+  const sink = daemonOut.get(child);
+  if (!sink) throw new Error('daemon stdout sink missing');
+  const deadline = Date.now() + timeoutMs;
+  while (!sink.text.includes('kanban project server listening on')) {
+    if (Date.now() >= deadline) {
+      throw new Error(`Daemon never emitted listening line within ${timeoutMs}ms${why(child)}`);
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
 }
 
 function why(child: ChildProcess): string {
@@ -112,6 +141,7 @@ describe('kanban project server lifecycle', { retry: 1 }, () => {
     const endpoint = kanbanProjectServerEndpoint(projectRoot);
     const child = startDaemon(projectRoot, 3_000);
     try {
+      await waitForDaemonReady(child);
       const socket = await connectWithin(endpoint, 8_000, () => why(child));
       socket.destroy();
       const code = await waitForExit(child);
@@ -127,6 +157,7 @@ describe('kanban project server lifecycle', { retry: 1 }, () => {
     const endpoint = kanbanProjectServerEndpoint(projectRoot);
     const child = startDaemon(projectRoot, 3_000);
     try {
+      await waitForDaemonReady(child);
       const socket = await connectWithin(endpoint, 8_000, () => why(child));
       socket.destroy();
       await waitForExit(child);
