@@ -13,6 +13,7 @@ import {
   type CouncilProfileRegistry,
   DEFAULT_COUNCIL_PROFILE_REGISTRY,
 } from '../execution/council-profiles.js';
+import { validateCouncilOptions } from '../execution/council-prompts.js';
 
 export const COUNCIL_TOOL_NAME = 'council';
 export const MAX_COUNCIL_TOOL_OPTIONS = 12;
@@ -138,13 +139,8 @@ function validateCouncilToolInput(input: CouncilToolInput, profileIds: string[])
   if ((input.options?.length ?? 0) > MAX_COUNCIL_TOOL_OPTIONS) {
     errors.push(`\`options\` must not contain more than ${MAX_COUNCIL_TOOL_OPTIONS} items.`);
   }
-  const ids = new Set<string>();
-  for (const option of input.options ?? []) {
-    const id = option.id.trim();
-    if (!id) errors.push('Every option must have a non-empty `id`.');
-    if (!option.label.trim()) errors.push(`Option "${id || '<empty>'}" must have a label.`);
-    if (ids.has(id)) errors.push(`Duplicate option id "${id}".`);
-    ids.add(id);
-  }
+  // Shared rule set with the prompt builder (normalizeOptions) — one place
+  // owns the id/label/duplicate checks.
+  errors.push(...validateCouncilOptions(input.options));
   return errors;
 }

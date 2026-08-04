@@ -220,38 +220,18 @@ export function handleBrainAnswer(msg: WSServerMessage) {
 }
 
 /**
- * Council seat votes buffered per request until the panel resolves.
- *
- * `brain.council_vote` fires once per seat and `brain.council_resolved` once
- * per panel, both from inside `council.decide()`. Both reached the browser and
- * were dropped on the floor, so the most expensive Brain tier — one provider
- * call per seat — was completely invisible in the UI.
+ * Council seat votes are NOT buffered here: the council log store already
+ * tracks each panel's seats per request id (deduped by seat id, retained as
+ * whole panels in its ring buffer). `brain.council_vote` fires once per seat
+ * and `brain.council_resolved` once per panel, both from inside
+ * `council.decide()`. Both reached the browser and were dropped on the
+ * floor, so the most expensive Brain tier — one provider call per seat — was
+ * completely invisible in the UI. The resolved handler reads the panel's
+ * seats back from the store, so vote eviction is per-panel (per-request): a
+ * live panel's seats can never be dropped by other requests' vote traffic
+ * (the old global 50-vote buffer could). Whole panels still age out of the
+ * store's ring buffer, which is the intended log retention.
  */
-const councilSeatVotes = new Map<string, CouncilSeatVote[]>();
-/** Bound on the buffer: a council that never resolves must not leak forever. */
-const COUNCIL_VOTE_BUFFER_MAX = 50;
-
-interface CouncilSeatVote {
-  seatId: string;
-  persona: string;
-  status: string;
-  optionId?: string | undefined;
-  model?: string | undefined;
-  veto?: boolean | undefined;
-}
-
-function rememberCouncilVote(requestId: string, vote: CouncilSeatVote): CouncilSeatVote[] {
-  const seats = councilSeatVotes.get(requestId) ?? [];
-  seats.push(vote);
-  councilSeatVotes.set(requestId, seats);
-  while (councilSeatVotes.size > COUNCIL_VOTE_BUFFER_MAX) {
-    const oldest = councilSeatVotes.keys().next().value;
-    if (oldest === undefined) break;
-    councilSeatVotes.delete(oldest);
-  }
-  return seats;
-}
-
 export function handleBrainEvent(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
@@ -295,16 +275,11 @@ export function handleBrainEvent(msg: WSServerMessage) {
   if (p.event === 'brain.council_vote') {
     useCouncilLogStore.getState().recordVote(p as Record<string, unknown>);
     const requestId = p.requestId ?? 'unknown';
-    const seats = rememberCouncilVote(requestId, {
-      seatId: p.seatId ?? 'seat',
-      persona: p.persona ?? 'voter',
-      status: p.status ?? 'valid',
-      optionId: p.optionId,
-      model: p.model,
-      veto: p.veto,
-    });
     useVizStore.getState().pushEvent({
-      id: `council_${requestId}_${p.seatId ?? seats.length}`,
+      // seatId is always emitted by the server; the timestamp-suffixed
+      // fallback only guards a malformed payload from producing duplicate
+      // React keys in the live feed.
+      id: `council_${requestId}_${p.seatId ?? `seat-${Date.now()}`}`,
       kind: 'brain:council_vote',
       timestamp: Date.now(),
       source: p.model ?? p.persona ?? 'seat',
@@ -319,8 +294,14 @@ export function handleBrainEvent(msg: WSServerMessage) {
   if (p.event === 'brain.council_resolved') {
     useCouncilLogStore.getState().recordResolution(p as Record<string, unknown>);
     const requestId = p.requestId ?? 'unknown';
-    const seats = councilSeatVotes.get(requestId) ?? [];
-    councilSeatVotes.delete(requestId);
+    // Read the panel's seats back from the log store — recordResolution above
+    // upserts the panel, so it is always present. No parallel buffer: eviction
+    // is per-panel, so a live panel's votes can never be dropped by other
+    // requests' traffic.
+    const panel = useCouncilLogStore
+      .getState()
+      .panels.find((entry) => entry.requestId === requestId);
+    const seats = panel?.seats ?? [];
     const seatLines = seats.map(
       (seat) =>
         `- **${seat.persona}**${seat.veto ? ' (veto)' : ''} → ${seat.status === 'valid' ? (seat.optionId ?? 'stance') : seat.status}${seat.model ? ` · \`${seat.model}\`` : ''}`,

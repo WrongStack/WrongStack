@@ -171,4 +171,37 @@ describe('assembleBrainTiers', () => {
       expect(tiers.judgeIsVoter).toBe(false);
     });
   });
+
+  it('convenes the council when brain.decisionTimeoutMs exceeds 90000', async () => {
+    // Regression for the council config bomb: the Brain adapter never set
+    // overallTimeoutMs on its dynamic profile, so `brain.decisionTimeoutMs`
+    // above the 90_000ms default overall budget made profile normalization
+    // throw on every council ask. The tiered arbiter swallowed the throw and
+    // the council silently degraded to the single-LLM tier.
+    const session = fakeProvider('x');
+    const tiers = assembleBrainTiers({
+      ...baseOpts(
+        {
+          decisionTimeoutMs: 120_000,
+          models: ['prov-a/model-a', 'prov-b/model-b'],
+        },
+        session,
+      ),
+      resolveProvider: () => fakeProvider('{"optionId":"merge","rationale":"ok"}'),
+    });
+
+    expect(tiers.council).toBeDefined();
+    const d = await tiers.council!.decide(
+      req({
+        risk: 'high',
+        // Option-bearing request: the `optionId`-shaped voter fixture is only
+        // valid on the option path (optionless questions require `stance`).
+        options: [
+          { id: 'merge', label: 'Merge it' },
+          { id: 'hold', label: 'Hold for review' },
+        ],
+      }),
+    );
+    expect(d).toMatchObject({ type: 'answer', optionId: 'merge' });
+  });
 });

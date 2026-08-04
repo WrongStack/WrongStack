@@ -29,7 +29,11 @@ import {
   type BrainLlmTarget,
 } from './autonomy-brain.js';
 import type { EventBus } from '../kernel/events.js';
-import { CouncilOrchestrator } from './council-orchestrator.js';
+import {
+  CouncilOrchestrator,
+  DEFAULT_COUNCIL_MAX_CONCURRENCY,
+} from './council-orchestrator.js';
+import { DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS } from './council-profiles.js';
 import {
   type CouncilPersonaRegistry,
   DEFAULT_COUNCIL_PERSONA_REGISTRY,
@@ -181,6 +185,70 @@ function resolvePersonaRegistry(voters: readonly CouncilVoter[]): {
 // ── Factory ────────────────────────────────────────────────────────────────
 
 /**
+ * Build the per-seat LLM caller that wraps `completeBrainLlmDetailed` for
+ * one BrainLlmTarget. Exported so tests can drive the exact production
+ * wiring: it forwards the orchestrator's `input.signal` (overall budget +
+ * caller cancellation) into the provider call so an in-flight seat is
+ * interrupted on timeout/cancel instead of running out its per-call
+ * timeout.
+ */
+export function makeSeatCallerForVoter(target: BrainLlmTarget): CouncilLLMCaller {
+  return {
+    async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
+      const startedAt = Date.now();
+      try {
+        const result = await completeBrainLlmDetailed(
+          { provider: target.provider, model: input.model ?? target.model },
+          {
+            system: typeof input.system === 'string'
+              ? input.system
+              : Array.isArray(input.system)
+                ? input.system.map((b) => b.text).join('\n')
+                : '',
+            user: input.userPrompt ?? '',
+            timeoutMs: input.timeoutMs ?? 15_000,
+            maxTokens: input.maxTokens,
+            // Forward the orchestrator's signal (overall budget + caller
+            // cancellation) so an in-flight seat call is interrupted when
+            // the council times out or is cancelled instead of running to
+            // its per-call timeout. Previously this was dropped and a
+            // cancelled council waited for every seat to finish.
+            signal: input.signal,
+          },
+        );
+        // Real usage and timing — these used to be hardcoded zeros, which
+        // made `CouncilResult.usage` (and therefore the cost of every
+        // council decision) permanently report 0 tokens.
+        const inputTokens = result.usage?.input ?? 0;
+        const outputTokens = result.usage?.output ?? 0;
+        return {
+          text: result.text,
+          model: target.model,
+          provider: target.provider.id,
+          tokens: {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens,
+          },
+          durationMs: Date.now() - startedAt,
+          fromFallback: false,
+        };
+      } catch (error) {
+        return {
+          text: '',
+          model: target.model,
+          provider: target.provider.id,
+          tokens: { input: 0, output: 0, total: 0 },
+          durationMs: 0,
+          fromFallback: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+  };
+}
+
+/**
  * Create a council-of-LLMs Brain arbiter backed by CouncilOrchestrator
  * with per-seat LLM callers — each voter's own Provider is used for its
  * seat, avoiding the single-provider collapsing bug.
@@ -188,58 +256,6 @@ function resolvePersonaRegistry(voters: readonly CouncilVoter[]): {
 export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbiter {
   if (opts.voters.length === 0) {
     throw new Error('createCouncilBrainArbiter: at least one voter is required.');
-  }
-
-  // ── Per-seat caller factory ──────────────────────────────────────────
-  // Each seat i gets a caller wrapping completeBrainLlm(voter[i], ...).
-  function makeSeatCallerForVoter(target: BrainLlmTarget): CouncilLLMCaller {
-    return {
-      async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
-        const startedAt = Date.now();
-        try {
-          const result = await completeBrainLlmDetailed(
-            { provider: target.provider, model: input.model ?? target.model },
-            {
-              system: typeof input.system === 'string'
-                ? input.system
-                : Array.isArray(input.system)
-                  ? input.system.map((b) => b.text).join('\n')
-                  : '',
-              user: input.userPrompt ?? '',
-              timeoutMs: input.timeoutMs ?? 15_000,
-              maxTokens: input.maxTokens,
-            },
-          );
-          // Real usage and timing — these used to be hardcoded zeros, which
-          // made `CouncilResult.usage` (and therefore the cost of every
-          // council decision) permanently report 0 tokens.
-          const inputTokens = result.usage?.input ?? 0;
-          const outputTokens = result.usage?.output ?? 0;
-          return {
-            text: result.text,
-            model: target.model,
-            provider: target.provider.id,
-            tokens: {
-              input: inputTokens,
-              output: outputTokens,
-              total: inputTokens + outputTokens,
-            },
-            durationMs: Date.now() - startedAt,
-            fromFallback: false,
-          };
-        } catch (error) {
-          return {
-            text: '',
-            model: target.model,
-            provider: target.provider.id,
-            tokens: { input: 0, output: 0, total: 0 },
-            durationMs: 0,
-            fromFallback: false,
-            error: error instanceof Error ? error.message : String(error),
-          };
-        }
-      },
-    };
   }
 
   const seatCaller = (seatIndex: number): CouncilLLMCaller => {
@@ -286,13 +302,33 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       } satisfies CouncilModelTarget)
     : false;
 
+  const perCallTimeoutMs = opts.decisionTimeoutMs ?? 15_000;
+  // The overall budget must cover the whole panel: the seat calls run in
+  // waves of `maxConcurrency` (worst case ceil(seats / concurrency) waves)
+  // plus one final judge call, each budgeted at perCallTimeoutMs. Before
+  // this was set, overallTimeoutMs fell back to the 90_000ms default in
+  // normalizeCouncilProfile, so any `brain.council.perCallTimeoutMs` or
+  // `brain.decisionTimeoutMs` above 90s made profile normalization throw on
+  // every ask() — and the tiered arbiter swallowed the throw, silently
+  // degrading the council to the single-LLM tier. `Math.max` with the
+  // default keeps the old 90s budget for ordinary configs.
+  const effectiveConcurrency = Math.max(
+    1,
+    Math.min(opts.maxConcurrency ?? DEFAULT_COUNCIL_MAX_CONCURRENCY, seats.length),
+  );
+  const overallTimeoutMs = Math.max(
+    DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS,
+    perCallTimeoutMs * (Math.ceil(seats.length / effectiveConcurrency) + 1),
+  );
+
   const profile: CouncilProfileConfig = {
     id: 'brain-council-adapter',
     seats,
     judge: judgeTarget,
     quorumFraction: opts.quorumFraction ?? 0.5,
     approvalFraction: opts.approvalFraction ?? 0.5,
-    perCallTimeoutMs: opts.decisionTimeoutMs ?? 15_000,
+    perCallTimeoutMs,
+    overallTimeoutMs,
     ...(opts.judgeMaxTokens !== undefined ? { judgeMaxTokens: opts.judgeMaxTokens } : {}),
     distinctness: opts.distinctness ?? 'none',
   };

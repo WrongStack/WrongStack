@@ -77,6 +77,7 @@ export class OneShotOrchestrator {
         tokens: { input: 0, output: 0, total: 0 },
         durationMs: Math.round(performance.now() - startedAt),
         fromFallback: false,
+        attempts: 0,
         error: 'No provider or model could be resolved. Check your config.',
       };
     }
@@ -92,6 +93,7 @@ export class OneShotOrchestrator {
         tokens: { input: 0, output: 0, total: 0 },
         durationMs: Math.round(performance.now() - startedAt),
         fromFallback: false,
+        attempts: 0,
         error: `Cannot build provider "${target.providerId}": ${err instanceof Error ? err.message : String(err)}`,
       };
     }
@@ -110,6 +112,9 @@ export class OneShotOrchestrator {
     let fromFallback = false;
     let lastError: unknown;
     let fallbackEligible = false;
+    // Provider invocations actually made (primary + fallbacks) — reported on
+    // the result so consumers can account for the true cost of a call.
+    let attempts = 0;
 
     // Check if the primary target is blocked
     if (
@@ -122,6 +127,7 @@ export class OneShotOrchestrator {
       );
       // Fall through to the fallback chain
     } else {
+      attempts += 1;
       const primaryAttempt = await this.tryCall(
         provider,
         request,
@@ -137,11 +143,18 @@ export class OneShotOrchestrator {
         tracker?.recordSuccess(target.providerId, target.model);
         servingProviderId = provider.id;
         servingModel = target.model;
-        return this.buildResult(result, servingProviderId, servingModel, false, startedAt);
+        return this.buildResult(result, servingProviderId, servingModel, false, startedAt, attempts);
       }
 
       if (!fallbackEligible || chain.length === 0) {
-        return this.buildErrorResult(lastError, target.providerId, target.model, false, startedAt);
+        return this.buildErrorResult(
+          lastError,
+          target.providerId,
+          target.model,
+          false,
+          startedAt,
+          attempts,
+        );
       }
     }
 
@@ -197,6 +210,7 @@ export class OneShotOrchestrator {
 
       servingProviderId = fbProvider.id;
       servingModel = entry.model;
+      attempts += 1;
       const attempt = await this.tryCall(
         fbProvider,
         this.buildRequest(input, entry.model),
@@ -207,7 +221,14 @@ export class OneShotOrchestrator {
       if (attempt.response) {
         tracker?.recordSuccess(entry.providerId, entry.model);
         fromFallback = true;
-        return this.buildResult(attempt.response, servingProviderId, servingModel, true, startedAt);
+        return this.buildResult(
+          attempt.response,
+          servingProviderId,
+          servingModel,
+          true,
+          startedAt,
+          attempts,
+        );
       }
 
       lastError = attempt.error;
@@ -225,6 +246,7 @@ export class OneShotOrchestrator {
       servingModel,
       fromFallback,
       startedAt,
+      attempts,
     );
   }
 
@@ -402,6 +424,7 @@ export class OneShotOrchestrator {
     servingModel: string,
     fromFallback: boolean,
     startedAt: number,
+    attempts: number,
   ): OneShotLLMResult {
     const textBlocks = response.content.filter(isTextBlock);
     const text = textBlocks
@@ -419,6 +442,7 @@ export class OneShotOrchestrator {
       },
       durationMs: Math.round(performance.now() - startedAt),
       fromFallback,
+      attempts,
       stopReason: response.stopReason,
     };
   }
@@ -430,6 +454,7 @@ export class OneShotOrchestrator {
     servingModel: string,
     fromFallback: boolean,
     startedAt: number,
+    attempts: number,
   ): OneShotLLMResult {
     return {
       text: '',
@@ -438,6 +463,7 @@ export class OneShotOrchestrator {
       tokens: { input: 0, output: 0, total: 0 },
       durationMs: Math.round(performance.now() - startedAt),
       fromFallback,
+      attempts,
       error: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
     };
   }

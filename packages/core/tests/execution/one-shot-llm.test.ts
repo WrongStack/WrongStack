@@ -299,6 +299,115 @@ describe('OneShotOrchestrator', () => {
     expect(result.model).toBe('fallback-b');
   });
 
+  it('reports the number of provider attempts behind a fallback success', async () => {
+    const primary = fakeProviderThatThrows('primary', 'overloaded');
+    const fallback = fakeProvider('fallback-provider', { model: 'fallback-model' });
+    const orch = new OneShotOrchestrator(
+      makeOneShotOpts(makeConfig(), async (pid) => (pid === 'primary' ? primary : fallback)),
+    );
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'primary',
+      model: 'primary-model',
+      fallbackModels: ['fallback-provider/fallback-model'],
+    });
+
+    expect(result.text).toContain('fallback-model');
+    expect(result.fromFallback).toBe(true);
+    // Primary + one fallback entry actually tried
+    expect(result.attempts).toBe(2);
+  });
+
+  it('counts every exhausted fallback attempt in the failure result', async () => {
+    const orch = new OneShotOrchestrator(
+      makeOneShotOpts(
+        makeConfig({ fallbackAuto: false }),
+        async () => fakeProviderThatThrows('p', 'overloaded'),
+      ),
+    );
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'primary',
+      model: 'primary-model',
+      fallbackModels: ['fallback-provider/fallback-a', 'fallback-provider/fallback-b'],
+    });
+
+    expect(result.error).toBeTruthy();
+    expect(result.fromFallback).toBe(false);
+    // Primary + both fallback entries were tried
+    expect(result.attempts).toBe(3);
+  });
+
+  it('reports a single attempt for a direct success', async () => {
+    const provider = fakeProvider('test-provider');
+    const orch = new OneShotOrchestrator(makeOneShotOpts(makeConfig(), async () => provider));
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'test-provider',
+      model: 'test-model',
+    });
+
+    expect(result.text).toBeTruthy();
+    expect(result.fromFallback).toBe(false);
+    expect(result.attempts).toBe(1);
+  });
+
+  it('counts only the fallback entries tried when the primary is blocked', async () => {
+    const primary = fakeProvider('primary');
+    const fallback = fakeProvider('fallback-provider', { model: 'fallback-model' });
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(makeConfig(), async (pid) => (pid === 'primary' ? primary : fallback)),
+      statusTracker: {
+        isAvailable: (pid: string) => pid !== 'primary',
+        recordSuccess: () => {},
+        recordFailure: () => {},
+      } as unknown as NonNullable<ConstructorParameters<typeof OneShotOrchestrator>[0]['statusTracker']>,
+    });
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'primary',
+      model: 'primary-model',
+      fallbackModels: ['fallback-provider/fallback-model'],
+    });
+
+    expect(result.text).toContain('fallback-model');
+    expect(result.fromFallback).toBe(true);
+    // The blocked primary was never invoked — only the fallback entry ran.
+    expect(result.attempts).toBe(1);
+    expect(primary.complete).not.toHaveBeenCalled();
+  });
+
+  it('reports zero attempts when the primary is blocked and no chain exists', async () => {
+    const provider = fakeProvider('test-provider');
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(makeConfig({ fallbackAuto: false }), async () => provider),
+      statusTracker: {
+        isAvailable: () => false,
+        recordSuccess: () => {},
+        recordFailure: () => {},
+      } as unknown as NonNullable<ConstructorParameters<typeof OneShotOrchestrator>[0]['statusTracker']>,
+    });
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'test-provider',
+      model: 'test-model',
+    });
+
+    expect(result.error).toBeTruthy();
+    expect(result.attempts).toBe(0);
+    expect(provider.complete).not.toHaveBeenCalled();
+  });
+
   // ── Stale-entry regression ────────────────────────────────────────────
   //
   // The per-entry break was removed so that one non-fallback-eligible

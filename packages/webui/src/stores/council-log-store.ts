@@ -172,7 +172,10 @@ export const useCouncilLogStore = create<CouncilLogState>((set) => ({
       panels: upsertPanel(state.panels, requestId, now, (entry) => ({
         ...entry,
         // A re-delivered vote (reconnect replay) must not double-count the
-        // seat — the seat id is the identity, not arrival order.
+        // seat — the seat id is the identity, not arrival order. Panels are
+        // keyed by requestId and request ids are unique per decision run
+        // (fresh uuid per decideAuto), so a panel never spans two runs and a
+        // post-resolution replay must not reset the run.
         seats: [
           ...entry.seats.filter((seat) => seat.seatId !== str(payload.seatId)),
           toCouncilSeatVote(payload, now),

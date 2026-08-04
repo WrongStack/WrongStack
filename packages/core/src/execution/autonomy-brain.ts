@@ -574,7 +574,14 @@ export function withDecisionDigest(user: string, digest: string | undefined): st
  */
 export async function completeBrainLlm(
   target: BrainLlmTarget,
-  input: { system: string; user: string; timeoutMs: number; maxTokens?: number | undefined },
+  input: {
+    system: string;
+    user: string;
+    timeoutMs: number;
+    maxTokens?: number | undefined;
+    /** External cancellation (e.g. a council's overall budget or user abort). */
+    signal?: AbortSignal | undefined;
+  },
 ): Promise<string> {
   return (await completeBrainLlmDetailed(target, input)).text;
 }
@@ -598,12 +605,33 @@ interface BrainLlmCallResult {
  * Usage was previously thrown away at this boundary, which is why the council
  * adapter reported hardcoded zero tokens for every seat and why "what do
  * Brain decisions cost" had no answer.
+ *
+ * The per-call timeout is composed with any caller-supplied `signal` so an
+ * external abort (the council's overall budget, a user cancel) interrupts an
+ * in-flight provider call instead of waiting out the per-call timeout.
  */
 export async function completeBrainLlmDetailed(
   target: BrainLlmTarget,
-  input: { system: string; user: string; timeoutMs: number; maxTokens?: number | undefined },
+  input: {
+    system: string;
+    user: string;
+    timeoutMs: number;
+    maxTokens?: number | undefined;
+    signal?: AbortSignal | undefined;
+  },
 ): Promise<BrainLlmCallResult> {
-  const signal = AbortSignal.timeout(input.timeoutMs);
+  // Fail fast on an already-aborted external signal. `AbortSignal.any`
+  // below would produce an already-aborted signal — fine for consumers that
+  // check `.aborted`, but a consumer that only listens for the abort EVENT
+  // would wait out the full per-call timeout. Avoid the provider round-trip.
+  // DOMException/AbortError matches a default `AbortController.abort()`, so
+  // pre-start and mid-call aborts surface the same error name for callers
+  // that classify by `name` (custom abort reasons still differ).
+  if (input.signal?.aborted) {
+    throw new DOMException('Brain call aborted before it started.', 'AbortError');
+  }
+  const timeoutSignal = AbortSignal.timeout(input.timeoutMs);
+  const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
   const response = await target.provider.complete(
     {
       model: target.model,

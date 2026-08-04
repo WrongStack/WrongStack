@@ -119,6 +119,16 @@ export interface OneShotLLMResult {
   /** Whether the response came from a fallback model. */
   fromFallback: boolean;
 
+  /**
+   * Number of provider invocations behind this result (primary attempt +
+   * every fallback entry actually tried). Absent for callers without
+   * fallback machinery (Brain seats, test doubles) — consumers treat
+   * absence as one call. Producers report explicit 0 only for pre-call
+   * failures where no provider was invoked (e.g. unresolved target), so
+   * consumers should clamp to at least 1 when a seat ran at all.
+   */
+  attempts?: number | undefined;
+
   /** Provider-level stop reason, if available. */
   stopReason?: string | undefined;
 

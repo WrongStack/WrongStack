@@ -96,22 +96,42 @@ export function buildCouncilJudgeUserPrompt(
     .join('\n\n');
 }
 
+/**
+ * Validate a Council option list; returns human-readable problems (empty
+ * array = valid). Single source of the id/label/duplicate rules shared by the
+ * `council` tool validator (fixable errors returned to the caller) and the
+ * prompt builder (which throws with every problem joined).
+ *
+ * Note: empty ids are added to the `seen` set, so two empty-id options also
+ * report `Duplicate option id ""` next to the empty-id error — harmless noise
+ * that preserves the historical tool-validator behavior exactly.
+ */
+export function validateCouncilOptions(
+  options: readonly CouncilOption[] | undefined,
+): string[] {
+  const errors: string[] = [];
+  const seen = new Set<string>();
+  for (const option of options ?? []) {
+    const id = option.id.trim();
+    if (!id) errors.push('Every option must have a non-empty `id`.');
+    if (!option.label.trim()) errors.push(`Option "${id || '<empty>'}" must have a label.`);
+    if (seen.has(id)) errors.push(`Duplicate option id "${id}".`);
+    seen.add(id);
+  }
+  return errors;
+}
+
 function normalizeOptions(options: readonly CouncilOption[] | undefined): CouncilOption[] {
   if (!options) return [];
-  const seen = new Set<string>();
-  return options.map((option) => {
-    const id = option.id.trim();
-    const label = option.label.trim();
-    if (!id) throw new Error('buildCouncilQuestionPrompt: option id must not be empty.');
-    if (!label) throw new Error(`buildCouncilQuestionPrompt: option "${id}" needs a label.`);
-    if (seen.has(id)) throw new Error(`buildCouncilQuestionPrompt: duplicate option id "${id}".`);
-    seen.add(id);
-    return {
-      id,
-      label,
-      ...(option.consequence?.trim() ? { consequence: option.consequence.trim() } : {}),
-    };
-  });
+  const errors = validateCouncilOptions(options);
+  if (errors.length > 0) {
+    throw new Error(`buildCouncilQuestionPrompt: ${errors.join('; ')}`);
+  }
+  return options.map((option) => ({
+    id: option.id.trim(),
+    label: option.label.trim(),
+    ...(option.consequence?.trim() ? { consequence: option.consequence.trim() } : {}),
+  }));
 }
 
 function requiredInstruction(path: string): string {

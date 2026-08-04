@@ -4,8 +4,13 @@ import {
   COUNCIL_REFUSE_OPTION_ID,
   type CouncilVoter,
   createCouncilBrainArbiter,
+  makeSeatCallerForVoter,
 } from '../../src/execution/council-brain.js';
-import type { BrainLlmTarget } from '../../src/execution/autonomy-brain.js';
+import {
+  completeBrainLlm,
+  completeBrainLlmDetailed,
+  type BrainLlmTarget,
+} from '../../src/execution/autonomy-brain.js';
 import type { Provider } from '../../src/types/provider.js';
 import { EventBus } from '../../src/kernel/events.js';
 
@@ -39,6 +44,29 @@ function throwingProvider(): Provider {
     stream: vi.fn(),
     complete: vi.fn(async () => {
       throw new Error('LLM down');
+    }),
+  } as never as Provider;
+}
+
+/**
+ * A provider whose complete() hangs until its signal aborts, then rejects.
+ * Mirrors how real providers observe the abort signal; used to prove an
+ * abort actually reaches an in-flight call (a dropped signal would hang the
+ * test until its per-test timeout).
+ */
+function abortSensitiveProvider(): Provider {
+  return {
+    id: 'fake',
+    capabilities: {},
+    stream: vi.fn(),
+    complete: vi.fn(async (_request: unknown, opts?: { signal?: AbortSignal }) => {
+      await new Promise<void>((_resolve, reject) => {
+        if (opts?.signal?.aborted) return reject(new Error('aborted'));
+        opts?.signal?.addEventListener('abort', () => reject(new Error('aborted')), {
+          once: true,
+        });
+      });
+      return { content: [{ type: 'text', text: 'done' }] };
     }),
   } as never as Provider;
 }
@@ -177,9 +205,20 @@ describe('createCouncilBrainArbiter — optionless synthesis', () => {
     if (d.type === 'answer') expect(d.text).toContain('complete');
   });
 
-  it('falls back to the first stance without a judge', async () => {
+  it('abstains when optionless stances diverge and no judge is configured', async () => {
     const council = createCouncilBrainArbiter({
       voters: [voter('Continue, progress is real.'), voter('Stop now.')],
+    });
+    const d = await council.decide(req({ options: undefined }));
+    // Divergence is surfaced (ask_human) instead of first-stance-wins: with
+    // no judge to reconcile free-text stances, the panel escalates rather
+    // than silently letting the first seat's stance win.
+    expect(d.type).toBe('ask_human');
+  });
+
+  it('decides on a single stance without a judge', async () => {
+    const council = createCouncilBrainArbiter({
+      voters: [voter('Continue, progress is real.')],
     });
     const d = await council.decide(req({ options: undefined }));
     expect(d).toMatchObject({ type: 'answer', text: 'Continue, progress is real.' });
@@ -427,4 +466,114 @@ describe('createCouncilBrainArbiter — custom personas', () => {
     const decision = await council.decide(req());
     expect(decision.type).toBe('answer');
   });
+});
+
+describe('createCouncilBrainArbiter — timeout budget', () => {
+  it('convenes when the per-seat timeout exceeds the 90s default overall budget', async () => {
+    // Regression for the council config bomb: the dynamic profile never set
+    // overallTimeoutMs, so a `brain.council.perCallTimeoutMs` or
+    // `brain.decisionTimeoutMs` above the 90_000ms default made
+    // normalizeCouncilProfile throw on every ask(). The tiered arbiter
+    // swallowed the throw, so the council silently degraded to the
+    // single-LLM tier while every surface still reported it as convened.
+    const council = createCouncilBrainArbiter({
+      voters: [
+        voter(vote('merge'), { persona: 'executor' }),
+        voter(vote('merge'), { persona: 'auditor' }),
+        voter(vote('hold'), { persona: 'skeptic' }),
+      ],
+      decisionTimeoutMs: 120_000,
+    });
+    const d = await council.decide(req());
+    expect(d).toMatchObject({ type: 'answer', optionId: 'merge' });
+  });
+
+  it('forwards the orchestrator signal to a seat call so an abort interrupts it', async () => {
+    // Direct test of the exact production caller factory: if makeSeatCallerForVoter
+    // ever drops `input.signal` again, the provider receives no external signal,
+    // hangs until its 30s per-call timeout, and this test fails on its 3s timeout.
+    const controller = new AbortController();
+    const provider = abortSensitiveProvider();
+    const caller = makeSeatCallerForVoter({ provider, model: 'm' });
+
+    const pending = caller.call({
+      system: 's',
+      userPrompt: 'u',
+      timeoutMs: 30_000,
+      maxTokens: 200,
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(provider.complete).toHaveBeenCalled());
+    controller.abort();
+    const result = await pending;
+    // The seat caller captures the abort as an error result instead of throwing.
+    expect(result.error).toContain('aborted');
+  }, 3_000);
+});
+
+describe('completeBrainLlmDetailed — abort signal composition', () => {
+  it('fails fast when the external signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const provider = abortSensitiveProvider();
+
+    await expect(
+      completeBrainLlmDetailed(
+        { provider, model: 'm' },
+        { system: 's', user: 'u', timeoutMs: 30_000, signal: controller.signal },
+      ),
+    ).rejects.toThrow('aborted');
+    // The provider is never reached — no waiting out the per-call timeout.
+    expect(provider.complete).not.toHaveBeenCalled();
+  }, 3_000);
+
+  it('interrupts an in-flight call when the external signal aborts mid-call', async () => {
+    const controller = new AbortController();
+    const provider = abortSensitiveProvider();
+
+    const pending = completeBrainLlmDetailed(
+      { provider, model: 'm' },
+      { system: 's', user: 'u', timeoutMs: 30_000, signal: controller.signal },
+    );
+    // Wait for the call to be in flight, then abort. Before the fix the
+    // external signal was ignored and the call would have hung until its
+    // 30s per-call timeout (failing this test on its own timeout).
+    await vi.waitFor(() => expect(provider.complete).toHaveBeenCalled());
+    controller.abort();
+    await expect(pending).rejects.toThrow('aborted');
+  }, 3_000);
+
+  it('aborts the provider call when the per-call timeout expires', async () => {
+    const provider = abortSensitiveProvider();
+    await expect(
+      completeBrainLlmDetailed(
+        { provider, model: 'm' },
+        { system: 's', user: 'u', timeoutMs: 20 },
+      ),
+    ).rejects.toThrow('aborted');
+  }, 2_000);
+
+  it('completes normally when no external signal aborts', async () => {
+    const provider = fakeProvider('done');
+    const result = await completeBrainLlmDetailed(
+      { provider, model: 'm' },
+      { system: 's', user: 'u', timeoutMs: 30_000 },
+    );
+    expect(result.text).toBe('done');
+  });
+});
+
+describe('completeBrainLlm — signal forwarding', () => {
+  it('forwards the external signal to the underlying detailed call', async () => {
+    const controller = new AbortController();
+    const provider = abortSensitiveProvider();
+
+    const pending = completeBrainLlm(
+      { provider, model: 'm' },
+      { system: 's', user: 'u', timeoutMs: 30_000, signal: controller.signal },
+    );
+    await vi.waitFor(() => expect(provider.complete).toHaveBeenCalled());
+    controller.abort();
+    await expect(pending).rejects.toThrow('aborted');
+  }, 3_000);
 });

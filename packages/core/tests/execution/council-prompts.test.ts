@@ -5,6 +5,7 @@ import {
   buildCouncilQuestionPrompt,
   buildCouncilVoterSystemPrompt,
   buildCouncilVoterUserPrompt,
+  validateCouncilOptions,
 } from '../../src/execution/council-prompts.js';
 import { DEFAULT_COUNCIL_PERSONA_REGISTRY } from '../../src/execution/council-personas.js';
 import { DEFAULT_COUNCIL_PROFILE_REGISTRY } from '../../src/execution/council-profiles.js';
@@ -95,11 +96,11 @@ describe('Council prompt builders', () => {
     [{ question: ' ' }, /question must not be empty/],
     [
       { question: 'Choose', options: [{ id: '', label: 'Empty' }] },
-      /option id must not be empty/,
+      /non-empty `id`/,
     ],
     [
       { question: 'Choose', options: [{ id: 'a', label: '' }] },
-      /needs a label/,
+      /must have a label/,
     ],
     [
       {
@@ -109,9 +110,29 @@ describe('Council prompt builders', () => {
           { id: 'a', label: 'Again' },
         ],
       },
-      /duplicate option id/,
+      /[Dd]uplicate option id/,
     ],
   ] as const)('rejects malformed question data', (question, expected) => {
     expect(() => buildCouncilQuestionPrompt(question)).toThrow(expected);
+  });
+});
+
+describe('validateCouncilOptions', () => {
+  it('reports empty ids, missing labels, and duplicates', () => {
+    const errors = validateCouncilOptions([
+      { id: '', label: 'Empty' },
+      { id: 'a', label: '' },
+      { id: 'a', label: 'A' },
+    ]);
+    expect(errors).toEqual([
+      'Every option must have a non-empty `id`.',
+      'Option "a" must have a label.',
+      'Duplicate option id "a".',
+    ]);
+  });
+
+  it('returns no errors for a valid list or no list', () => {
+    expect(validateCouncilOptions([{ id: 'a', label: 'A' }])).toEqual([]);
+    expect(validateCouncilOptions(undefined)).toEqual([]);
   });
 });

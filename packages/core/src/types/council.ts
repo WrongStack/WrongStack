@@ -30,6 +30,10 @@ export interface CouncilSeatConfig {
   label?: string | undefined;
   persona: string;
   target?: CouncilModelTarget | undefined;
+  /**
+   * Vote weight in the tally. Ignored for optionless questions — open
+   * stances are not tallied, so every valid stance counts once.
+   */
   weight?: number | undefined;
   veto?: boolean | undefined;
 }
@@ -40,6 +44,7 @@ export interface ResolvedCouncilSeat {
   label: string;
   persona: string;
   target?: CouncilModelTarget | undefined;
+  /** Vote weight in the tally. No-op for optionless questions (see above). */
   weight: number;
   veto: boolean;
 }
@@ -62,6 +67,11 @@ export interface CouncilProfileConfig {
   /** False disables judging. Omitted profiles also default to no judge. */
   judge?: CouncilModelTarget | false | undefined;
   quorumFraction?: number | undefined;
+  /**
+   * Winning option must exceed this fraction of cast vote weight. No-op for
+   * optionless questions — open stances are not tallied; divergence is
+   * escalated instead (see `resolveOpenQuestion`).
+   */
   approvalFraction?: number | undefined;
   distinctness?: CouncilDistinctness | undefined;
   voterMaxTokens?: number | undefined;
@@ -78,6 +88,7 @@ export interface ResolvedCouncilProfile {
   seats: readonly ResolvedCouncilSeat[];
   judge: CouncilModelTarget | false;
   quorumFraction: number;
+  /** No-op for optionless questions (see the config-level doc above). */
   approvalFraction: number;
   distinctness: CouncilDistinctness;
   voterMaxTokens: number;
