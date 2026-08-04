@@ -218,6 +218,11 @@ describe('palette merge fallback', () => {
 // ── wsUrl initialization ─────────────────────────────────────────
 
 describe('wsUrl initialization', () => {
+  // Self-contained: reset the store so this suite never depends on another
+  // suite's afterEach having run first (rehydrate's merge recomputes wsUrl
+  // from window.location, which is jsdom port 3000 here).
+  beforeEach(() => resetStore());
+
   it('uses localhost address for localhost hostname', () => {
     // In jsdom, window.location.hostname is 'localhost'
     const state = useConfigStore.getState();
