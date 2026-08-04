@@ -237,7 +237,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
               : t('activity:brand.returnToChatDefault')
           }
           className={cn(
-            'relative flex items-center justify-center overflow-hidden bg-[#121210] transition-shadow hover:shadow-[0_3px_12px_-2px_hsl(var(--primary)/0.5)]',
+            'relative flex items-center justify-center overflow-hidden bg-foreground transition-shadow hover:shadow-[0_3px_12px_-2px_hsl(var(--primary)/0.5)]',
             desktopShell ? 'w-full h-8' : 'w-full h-11',
           )}
         >

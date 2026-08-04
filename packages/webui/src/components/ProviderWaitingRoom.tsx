@@ -83,14 +83,14 @@ export function ProviderWaitingRoom() {
   const _selected = selectedKey ? entriesByKey[selectedKey] : null;
 
   return (
-    <div className="mx-auto mb-2 max-w-6xl rounded-lg border border-amber-500/25 bg-amber-500/5 text-xs">
+    <div className="mx-auto mb-2 max-w-6xl rounded-lg border border-warning/25 bg-warning/5 text-xs">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-amber-500/5"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-warning/5"
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
       >
-        <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+        <AlertTriangle className="h-3.5 w-3.5 text-warning" />
         <span className="font-medium text-foreground">Provider/model availability</span>
         <span className="text-muted-foreground">
           {blocked} blocked · {degraded} degraded · {activeRules.length} scheduled
@@ -109,7 +109,7 @@ export function ProviderWaitingRoom() {
         <span className="text-muted-foreground">{expanded ? 'Hide' : 'Details'}</span>
       </button>
       {expanded && (
-        <div className="border-t border-amber-500/15 px-3 py-2">
+        <div className="border-t border-warning/15 px-3 py-2">
           {entries.map((entry) => {
             const key = `${entry.providerId}\u0000${entry.model}`;
             const isSelected = selectedKey === key;
@@ -117,18 +117,18 @@ export function ProviderWaitingRoom() {
               <div key={key}>
                 <button
                   type="button"
-                  className="flex flex-wrap cursor-pointer items-center gap-x-2 gap-y-1 py-1.5 hover:bg-amber-500/5"
+                  className="flex flex-wrap cursor-pointer items-center gap-x-2 gap-y-1 py-1.5 hover:bg-warning/5"
                   onClick={() => setSelectedKey(isSelected ? null : key)}
                 >
                   {entry.state === 'blocked' ? (
-                    <Clock3 className="h-3.5 w-3.5 text-amber-400" />
+                    <Clock3 className="h-3.5 w-3.5 text-warning" />
                   ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-yellow-300" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-warning" />
                   )}
                   <code className="text-foreground">
                     {entry.providerId}/{entry.model}
                   </code>
-                  <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
+                  <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
                     {entry.state}
                   </span>
                   <span className="text-muted-foreground">{entry.reason.replaceAll('_', ' ')}</span>
@@ -141,7 +141,7 @@ export function ProviderWaitingRoom() {
                 {isSelected && (
                   <div className="ml-6 mb-2 rounded border border-border/50 bg-background/50 p-2">
                     {entry.lastErrorMessage && (
-                      <div className="mb-1.5 text-red-300">
+                      <div className="mb-1.5 text-destructive">
                         <span className="text-muted-foreground">Last error: </span>
                         {entry.lastErrorMessage.slice(0, 300)}
                       </div>
@@ -179,7 +179,7 @@ export function ProviderWaitingRoom() {
                         <div className="mt-1 max-h-32 overflow-y-auto text-[11px] text-muted-foreground">
                           {entry.recentErrors.map((err, idx) => (
                             <div key={idx} className="flex gap-2 border-b border-border/20 py-0.5">
-                              <span className="shrink-0 tabular-nums text-amber-300/70">
+                              <span className="shrink-0 tabular-nums text-warning/70">
                                 {err.kind}
                               </span>
                               <span className="shrink-0 tabular-nums">HTTP {err.status}</span>
@@ -219,9 +219,9 @@ export function ProviderWaitingRoom() {
           })}
           {activeRules.map((rule) => (
             <div key={rule.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
-              <Clock3 className="h-3.5 w-3.5 text-sky-400" />
+              <Clock3 className="h-3.5 w-3.5 text-info" />
               <code className="text-foreground">{ruleTarget(rule)}</code>
-              <span className="rounded bg-sky-500/10 px-1.5 py-0.5 text-sky-300">scheduled</span>
+              <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">scheduled</span>
               <span className="text-muted-foreground">{rule.label ?? 'calendar blackout'}</span>
               <span className="ml-auto tabular-nums text-muted-foreground">
                 {rule.start}–{rule.end} · {rule.timezone ?? 'local time'}

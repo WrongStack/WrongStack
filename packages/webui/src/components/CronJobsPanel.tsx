@@ -61,7 +61,7 @@ function fmtTime(iso: string | null): string {
 function StatusBadge({ enabled, overdue }: { enabled: boolean; overdue: boolean }) {
   if (!enabled) return <Badge variant="secondary" className="gap-1"><PauseCircle className="h-3 w-3" />Disabled</Badge>;
   if (overdue) return <Badge variant="destructive" className="gap-1"><Clock className="h-3 w-3" />Overdue</Badge>;
-  return <Badge variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-600"><PlayCircle className="h-3 w-3" />Active</Badge>;
+  return <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success"><PlayCircle className="h-3 w-3" />Active</Badge>;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
         {count > 0 && (
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground border-b border-border/70 pb-3">
             <span className="font-medium text-foreground">{count} job{count !== 1 ? 's' : ''}</span>
-            <span className="text-emerald-500">{enabledCount} enabled</span>
+            <span className="text-success">{enabledCount} enabled</span>
             {overdueCount > 0 && <span className="text-destructive">{overdueCount} overdue</span>}
             <span>{totalRuns} total runs</span>
             <span className="text-muted-foreground/60">max {maxConcurrent} concurrent</span>
@@ -152,7 +152,7 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
                     <td className="py-2.5 pr-3 text-right font-mono text-xs tabular-nums">
                       {job.runCount}
                       {lastFiredAt[job.name] && (
-                        <span className="ml-1 text-emerald-500" title={`Last fired at ${lastFiredAt[job.name]}`}>●</span>
+                        <span className="ml-1 text-success" title={`Last fired at ${lastFiredAt[job.name]}`}>●</span>
                       )}
                     </td>
                     <td className="py-2.5 pr-3 font-mono text-xs tabular-nums">

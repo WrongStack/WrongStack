@@ -12,11 +12,11 @@ export function ContextMemoryMonitor() {
 
   return (
     <section
-      className="rounded-md border border-violet-400/20 bg-violet-500/[0.025]"
+      className="rounded-md border border-primary/20 bg-primary/[0.025]"
       aria-label="Context Memory Monitor"
     >
       <header className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
-        <BrainCircuit className="size-4 text-violet-300" />
+        <BrainCircuit className="size-4 text-primary" />
         <h2 className="text-xs font-semibold">Context Memory Monitor</h2>
         <span className="text-[10px] text-muted-foreground">exact provider-bound presence</span>
         <div className="ml-auto flex gap-2 font-mono text-[10px]">
@@ -43,7 +43,7 @@ export function ContextMemoryMonitor() {
                   'border px-3 py-2 text-[10px]',
                   memory.state === 'exited'
                     ? 'border-border/50 bg-muted/20 opacity-65'
-                    : 'border-violet-400/25 bg-background/55',
+                    : 'border-primary/25 bg-background/55',
                 )}
               >
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -59,7 +59,7 @@ export function ContextMemoryMonitor() {
                   >
                     {memory.state}
                   </span>
-                  <span className="font-mono font-bold text-violet-200">{memory.id}</span>
+                  <span className="font-mono font-bold text-primary">{memory.id}</span>
                   <span className="font-mono text-muted-foreground">
                     {memory.kind} · {memory.persistence}
                   </span>

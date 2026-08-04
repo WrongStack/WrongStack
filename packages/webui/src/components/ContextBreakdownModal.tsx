@@ -143,9 +143,9 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
   const categories = useMemo(() => {
     if (!data) return null;
     return [
-      { label: 'System Prompt', key: 'systemPrompt', value: data.systemPrompt, color: '#3b82f6' },
-      { label: 'Tools', key: 'tools', value: data.tools.total, color: '#eab308' },
-      { label: 'Messages', key: 'messages', value: data.messages.total, color: '#22c55e' },
+      { label: 'System Prompt', key: 'systemPrompt', value: data.systemPrompt, color: 'hsl(var(--info))' },
+      { label: 'Tools', key: 'tools', value: data.tools.total, color: 'hsl(var(--warning))' },
+      { label: 'Messages', key: 'messages', value: data.messages.total, color: 'hsl(var(--success))' },
     ];
   }, [data]);
 
@@ -317,21 +317,17 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                       <div className="h-3 w-full overflow-hidden rounded-full bg-muted/50 flex ring-1 ring-inset ring-border/20">
                         {data.total > 0 && categories && (
                           <>
-                            <span
-                              className="h-full transition-all duration-700"
-                              style={{ width: `${(data.systemPrompt / data.total) * 100}%`, backgroundColor: '#3b82f6' }}
-                              title={`System Prompt: ${fmtTok(data.systemPrompt)}`}
-                            />
-                            <span
-                              className="h-full transition-all duration-700"
-                              style={{ width: `${(data.tools.total / data.total) * 100}%`, backgroundColor: '#eab308' }}
-                              title={`Tools: ${fmtTok(data.tools.total)}`}
-                            />
-                            <span
-                              className="h-full transition-all duration-700 rounded-r-full"
-                              style={{ width: `${(data.messages.total / data.total) * 100}%`, backgroundColor: '#22c55e' }}
-                              title={`Messages: ${fmtTok(data.messages.total)}`}
-                            />
+                            {categories.map((category) => (
+                              <span
+                                key={category.key}
+                                className="h-full transition-all duration-700 last:rounded-r-full"
+                                style={{
+                                  width: `${(category.value / data.total) * 100}%`,
+                                  backgroundColor: category.color,
+                                }}
+                                title={`${category.label}: ${fmtTok(category.value)}`}
+                              />
+                            ))}
                           </>
                         )}
                       </div>
@@ -377,7 +373,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                             )}
                           >
                             <span className="font-mono truncate flex-1 text-foreground/80">{t.name}</span>
-                            <MiniTokenBar value={t.tokens} total={data.tools.total} color="#eab308" />
+                            <MiniTokenBar value={t.tokens} total={data.tools.total} color="hsl(var(--warning))" />
                             <span className={cn('tabular-nums w-16 text-right font-mono', tokenColor(t.tokens, data.tools.total))}>
                               {t.tokens.toLocaleString()}
                             </span>
@@ -430,7 +426,11 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                             {m.role}
                           </span>
                           <MiniTokenBar value={m.tokens} total={data.messages.total} color={
-                            m.role === 'assistant' ? '#a78bfa' : m.role === 'user' ? '#60a5fa' : '#facc15'
+                            m.role === 'assistant'
+                              ? 'hsl(var(--accent-foreground))'
+                              : m.role === 'user'
+                                ? 'hsl(var(--primary))'
+                                : 'hsl(var(--warning))'
                           } />
                           <span className={cn('tabular-nums w-14 text-right font-mono shrink-0', tokenColor(m.tokens, data.messages.total))}>
                             {m.tokens.toLocaleString()}

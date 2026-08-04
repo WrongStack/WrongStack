@@ -63,19 +63,18 @@ interface ZoneConfig {
   emoji: string;
   color: string;
   bg: string;
-  border: string;
   text: string;
-  hex: string; // CSS color value
+  cssColor: string;
   from: number;
   to: number;
   desc: string;
 }
 
 const ZONES: ZoneConfig[] = [
-  { label: 'Safe', emoji: '🟢', color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400', hex: '#22c55e', from: 0, to: 60, desc: 'normal operation' },
-  { label: 'Warning', emoji: '🟡', color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', hex: '#eab308', from: 60, to: 85, desc: 'compaction advised' },
-  { label: 'Critical', emoji: '🔴', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', hex: '#ef4444', from: 85, to: 95, desc: 'compact now' },
-  { label: 'Danger', emoji: '⚫', color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', hex: '#f97316', from: 95, to: 100, desc: 'context nearly full' },
+  { label: 'Safe', emoji: '🟢', color: 'text-success', bg: 'bg-success/10', text: 'text-success', cssColor: 'hsl(var(--success))', from: 0, to: 60, desc: 'normal operation' },
+  { label: 'Warning', emoji: '🟡', color: 'text-warning', bg: 'bg-warning/10', text: 'text-warning', cssColor: 'hsl(var(--warning))', from: 60, to: 85, desc: 'compaction advised' },
+  { label: 'Critical', emoji: '🔴', color: 'text-destructive', bg: 'bg-destructive/10', text: 'text-destructive', cssColor: 'hsl(var(--destructive))', from: 85, to: 95, desc: 'compact now' },
+  { label: 'Danger', emoji: '⚫', color: 'text-brand-orange', bg: 'bg-brand-orange/15', text: 'text-brand-orange', cssColor: 'hsl(var(--brand-orange))', from: 95, to: 100, desc: 'context nearly full' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -176,7 +175,7 @@ function AnimatedDonutGauge({
   const circ = 2 * Math.PI * r;
   const fillLen = (clamped / 100) * circ;
   const zone = zoneFor(clamped);
-  const color = zone.hex;
+  const color = zone.cssColor;
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="drop-shadow-lg">
@@ -285,7 +284,7 @@ function PressureSection({
         {/* Donut gauge */}
         <div className={cn(
           'shrink-0 transition-all duration-500',
-          pct > 85 && 'animate-[pulse_2s_ease-in-out_infinite] drop-shadow-[0_0_12px_-2px_rgba(239,68,68,0.35)]',
+          pct > 85 && 'animate-[pulse_2s_ease-in-out_infinite] drop-shadow-[0_0_12px_hsl(var(--destructive)/0.35)]',
         )}>
           <AnimatedDonutGauge pct={pct} size={96} strokeWidth={10} />
         </div>
@@ -332,7 +331,7 @@ function PressureSection({
               <div
                 key={z.label}
                 className="h-full first:rounded-l-full last:rounded-r-full opacity-60"
-                style={{ width: `${width}%`, backgroundColor: z.hex }}
+                style={{ width: `${width}%`, backgroundColor: z.cssColor }}
               />
             );
           })}
@@ -388,9 +387,9 @@ function CompositionSection({ data, loading }: { data: ContextDebugPayload | nul
   }
 
   const items = [
-    { icon: FileText, label: 'System Prompt', value: data.systemPrompt, className: 'bg-blue-500' },
-    { icon: Wrench, label: 'Tools', value: data.tools.total, className: 'bg-yellow-500' },
-    { icon: MessageSquare, label: 'Messages', value: data.messages.total, className: 'bg-green-500' },
+    { icon: FileText, label: 'System Prompt', value: data.systemPrompt, className: 'bg-info' },
+    { icon: Wrench, label: 'Tools', value: data.tools.total, className: 'bg-warning' },
+    { icon: MessageSquare, label: 'Messages', value: data.messages.total, className: 'bg-success' },
   ];
 
   return (
@@ -455,7 +454,7 @@ function ThresholdSection({ pct }: { pct: number }) {
             className="h-full first:rounded-l-full last:rounded-r-full opacity-80"
             style={{
               width: `${((z.to - z.from) / 100) * 100}%`,
-              backgroundColor: z.hex,
+              backgroundColor: z.cssColor,
             }}
           />
         ))}
@@ -508,7 +507,7 @@ function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number 
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Strategy</span>
           <span className="font-semibold text-foreground/90">hybrid</span>
-          <span className="text-green-500 bg-green-500/10 px-1.5 rounded text-[9px] font-semibold">auto ✓</span>
+          <span className="text-success bg-success/10 px-1.5 rounded text-[9px] font-semibold">auto ✓</span>
         </div>
 
         {/* Visual trigger meter */}
@@ -550,7 +549,7 @@ function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number 
         <MetricRow
           label="Recommendation"
           value={needsCompact ? '⚠️ Compact now' : '✅ No compaction needed'}
-          color={needsCompact ? 'text-yellow-500' : 'text-green-500'}
+          color={needsCompact ? 'text-warning' : 'text-success'}
         />
         {needsCompact && (
           <div className="bg-warning/5 border border-warning/20 rounded p-2 text-[10px] text-warning/90 mt-1">

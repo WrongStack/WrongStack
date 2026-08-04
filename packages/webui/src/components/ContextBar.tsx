@@ -66,8 +66,9 @@ function getTextColor(pct: number): string {
 }
 
 function getGlow(pct: number): string {
-  if (pct >= 85) return 'shadow-[0_0_8px_-1px_rgba(239,68,68,0.5)] ring-1 ring-destructive/30';
-  if (pct >= 60) return 'shadow-[0_0_6px_-2px_rgba(234,179,8,0.4)]';
+  if (pct >= 85)
+    return 'shadow-[0_0_8px_-1px_hsl(var(--destructive)/0.5)] ring-1 ring-destructive/30';
+  if (pct >= 60) return 'shadow-[0_0_6px_-2px_hsl(var(--warning)/0.4)]';
   return '';
 }
 
@@ -291,10 +292,10 @@ export function ContextFillBar({
           style={{
             width: `${Math.max(3, clamped)}%`,
             background: isCritical
-              ? 'linear-gradient(90deg, hsl(var(--destructive)) 0%, hsl(0, 80%, 60%) 100%)'
+              ? 'linear-gradient(90deg, hsl(var(--destructive)) 0%, hsl(var(--destructive) / 0.72) 100%)'
               : isWarning
-                ? 'linear-gradient(90deg, hsl(var(--warning)) 0%, hsl(45, 90%, 55%) 100%)'
-                : 'linear-gradient(90deg, hsl(var(--success)) 0%, hsl(140, 70%, 45%) 100%)',
+                ? 'linear-gradient(90deg, hsl(var(--warning)) 0%, hsl(var(--warning) / 0.72) 100%)'
+                : 'linear-gradient(90deg, hsl(var(--success)) 0%, hsl(var(--success) / 0.72) 100%)',
           }}
         >
           {/* Shimmer overlay for visual life */}

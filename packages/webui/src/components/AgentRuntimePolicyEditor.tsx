@@ -136,8 +136,8 @@ export function AgentRuntimePolicyEditor({
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card/40 p-4">
       {systemProtected && (
-        <div className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-muted-foreground">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+        <div className="flex gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
           <span>
             Protected system agent: required tools and capabilities are retained, minimum budgets
             are enforced, working hours remain advisory, and emergency model recovery stays enabled

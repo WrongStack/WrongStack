@@ -819,7 +819,7 @@ export function wsToVizEvent(
         label: `Compacted: ${(payload.saved as number ?? 0).toLocaleString('en-US')} tokens`,
         magnitude: payload.saved as number ?? 0,
         data: payload as Record<string, unknown>,
-        color: 'hsl(220, 60%, 50%)',
+        color: 'hsl(var(--info))',
         flowGroup: 'context',
       };
     case 'compaction.failed': {
@@ -841,7 +841,7 @@ export function wsToVizEvent(
         label: `Repaired: ${payload.removedMessages as number ?? 0} msgs`,
         magnitude: payload.removedMessages as number ?? 0,
         data: payload as Record<string, unknown>,
-        color: 'hsl(220, 60%, 50%)',
+        color: 'hsl(var(--info))',
         flowGroup: 'context',
       };
     case 'session.start': {

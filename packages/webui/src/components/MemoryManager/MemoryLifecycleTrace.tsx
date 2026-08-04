@@ -12,12 +12,12 @@ export function MemoryLifecycleTrace() {
 
   return (
     <section
-      className="shrink-0 border-b border-border/60 bg-sky-500/[0.025]"
+      className="shrink-0 border-b border-border/60 bg-info/[0.025]"
       aria-label="Memory lifecycle live ledger"
     >
       <div className="flex h-8 items-center gap-2 px-4">
-        <Activity className="size-3.5 text-sky-400" />
-        <span className="text-[10px] font-bold uppercase tracking-wide text-sky-300">
+        <Activity className="size-3.5 text-info" />
+        <span className="text-[10px] font-bold uppercase tracking-wide text-info">
           Memory lifecycle
         </span>
         <span className="text-[10px] text-muted-foreground">
@@ -73,6 +73,6 @@ function LifecycleIcon({ action }: { action: MemoryLifecycleAction }) {
 function actionColor(action: MemoryLifecycleAction): string {
   if (action === 'entered' || action === 'recovered') return 'text-success';
   if (action === 'exited') return 'text-destructive';
-  if (action === 'related') return 'text-violet-300';
-  return 'text-sky-300';
+  if (action === 'related') return 'text-primary';
+  return 'text-info';
 }

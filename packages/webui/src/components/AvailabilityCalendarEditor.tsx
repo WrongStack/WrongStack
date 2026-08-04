@@ -100,7 +100,7 @@ export function AvailabilityCalendarEditor({
                 !isCalendarRuleValid(rule)
                   ? 'text-destructive'
                   : isCalendarRuleActive(rule)
-                    ? 'text-sky-400'
+                    ? 'text-info'
                     : 'text-muted-foreground'
               }
             >

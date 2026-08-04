@@ -9,118 +9,118 @@ import * as Lucide from 'lucide-react';
 
 describe('fileIconColor', () => {
   describe('directories', () => {
-    it('returns orange for .git', () => {
-      expect(fileIconColor('.git', true)).toContain('orange');
+    it('returns primary for .git', () => {
+      expect(fileIconColor('.git', true)).toContain('primary');
     });
 
-    it('returns red for node_modules', () => {
-      expect(fileIconColor('node_modules', true)).toContain('red');
+    it('returns destructive for node_modules', () => {
+      expect(fileIconColor('node_modules', true)).toContain('destructive');
     });
 
-    it('returns amber for src', () => {
-      expect(fileIconColor('src', true)).toContain('amber');
+    it('returns warning for src', () => {
+      expect(fileIconColor('src', true)).toContain('warning');
     });
 
-    it('returns amber for lib', () => {
-      expect(fileIconColor('lib', true)).toContain('amber');
+    it('returns warning for lib', () => {
+      expect(fileIconColor('lib', true)).toContain('warning');
     });
 
-    it('returns amber for packages', () => {
-      expect(fileIconColor('packages', true)).toContain('amber');
+    it('returns warning for packages', () => {
+      expect(fileIconColor('packages', true)).toContain('warning');
     });
 
-    it('returns emerald for tests', () => {
-      expect(fileIconColor('tests', true)).toContain('emerald');
+    it('returns success for tests', () => {
+      expect(fileIconColor('tests', true)).toContain('success');
     });
 
-    it('returns emerald for __tests__', () => {
-      expect(fileIconColor('__tests__', true)).toContain('emerald');
+    it('returns success for __tests__', () => {
+      expect(fileIconColor('__tests__', true)).toContain('success');
     });
 
     it('returns muted for dist', () => {
       expect(fileIconColor('dist', true)).toContain('muted');
     });
 
-    it('returns amber for an unknown directory', () => {
-      expect(fileIconColor('random_dir', true)).toContain('amber');
+    it('returns warning for an unknown directory', () => {
+      expect(fileIconColor('random_dir', true)).toContain('warning');
     });
   });
 
   describe('file extensions', () => {
-    it('returns blue for .ts and .tsx', () => {
-      expect(fileIconColor('file.ts', false)).toContain('blue');
-      expect(fileIconColor('file.tsx', false)).toContain('blue');
+    it('returns info for .ts and .tsx', () => {
+      expect(fileIconColor('file.ts', false)).toContain('info');
+      expect(fileIconColor('file.tsx', false)).toContain('info');
     });
 
-    it('returns blue for .js and .jsx', () => {
-      expect(fileIconColor('file.js', false)).toContain('blue');
-      expect(fileIconColor('file.jsx', false)).toContain('blue');
+    it('returns info for .js and .jsx', () => {
+      expect(fileIconColor('file.js', false)).toContain('info');
+      expect(fileIconColor('file.jsx', false)).toContain('info');
     });
 
-    it('returns blue for .mjs and .cjs', () => {
-      expect(fileIconColor('file.mjs', false)).toContain('blue');
-      expect(fileIconColor('file.cjs', false)).toContain('blue');
+    it('returns info for .mjs and .cjs', () => {
+      expect(fileIconColor('file.mjs', false)).toContain('info');
+      expect(fileIconColor('file.cjs', false)).toContain('info');
     });
 
-    it('returns amber for .json and .lock', () => {
-      expect(fileIconColor('package.json', false)).toContain('amber');
-      expect(fileIconColor('package-lock.json', false)).toContain('amber');
+    it('returns warning for .json and .lock', () => {
+      expect(fileIconColor('package.json', false)).toContain('warning');
+      expect(fileIconColor('pnpm.lock', false)).toContain('warning');
     });
 
-    it('returns teal for .css and .scss', () => {
-      expect(fileIconColor('style.css', false)).toContain('teal');
-      expect(fileIconColor('style.scss', false)).toContain('teal');
+    it('returns accent-foreground for .css and .scss', () => {
+      expect(fileIconColor('style.css', false)).toContain('accent-foreground');
+      expect(fileIconColor('style.scss', false)).toContain('accent-foreground');
     });
 
-    it('returns rose for .html and .xml', () => {
-      expect(fileIconColor('index.html', false)).toContain('rose');
-      expect(fileIconColor('data.xml', false)).toContain('rose');
+    it('returns destructive for .html and .xml', () => {
+      expect(fileIconColor('index.html', false)).toContain('destructive');
+      expect(fileIconColor('data.xml', false)).toContain('destructive');
     });
 
-    it('returns violet for .md and .mdx', () => {
-      expect(fileIconColor('readme.md', false)).toContain('violet');
-      expect(fileIconColor('doc.mdx', false)).toContain('violet');
+    it('returns primary for .md and .mdx', () => {
+      expect(fileIconColor('readme.md', false)).toContain('primary');
+      expect(fileIconColor('doc.mdx', false)).toContain('primary');
     });
 
-    it('returns emerald for .yml, .yaml, .toml, .env', () => {
-      expect(fileIconColor('config.yml', false)).toContain('emerald');
-      expect(fileIconColor('config.yaml', false)).toContain('emerald');
-      expect(fileIconColor('config.toml', false)).toContain('emerald');
-      expect(fileIconColor('.env', false)).toContain('emerald');
+    it('returns success for .yml, .yaml, .toml, .env', () => {
+      expect(fileIconColor('config.yml', false)).toContain('success');
+      expect(fileIconColor('config.yaml', false)).toContain('success');
+      expect(fileIconColor('config.toml', false)).toContain('success');
+      expect(fileIconColor('.env', false)).toContain('success');
     });
 
-    it('returns orange for shell scripts', () => {
-      expect(fileIconColor('script.sh', false)).toContain('orange');
-      expect(fileIconColor('script.bash', false)).toContain('orange');
-      expect(fileIconColor('script.ps1', false)).toContain('orange');
+    it('returns brand-orange for shell scripts', () => {
+      expect(fileIconColor('script.sh', false)).toContain('brand-orange');
+      expect(fileIconColor('script.bash', false)).toContain('brand-orange');
+      expect(fileIconColor('script.ps1', false)).toContain('brand-orange');
     });
 
-    it('returns cyan for Python files', () => {
-      expect(fileIconColor('main.py', false)).toContain('cyan');
-      expect(fileIconColor('types.pyi', false)).toContain('cyan');
+    it('returns info for Python files', () => {
+      expect(fileIconColor('main.py', false)).toContain('info');
+      expect(fileIconColor('types.pyi', false)).toContain('info');
     });
 
-    it('returns orange for Rust', () => {
-      expect(fileIconColor('main.rs', false)).toContain('orange');
+    it('returns brand-orange for Rust', () => {
+      expect(fileIconColor('main.rs', false)).toContain('brand-orange');
     });
 
-    it('returns sky for Go', () => {
-      expect(fileIconColor('main.go', false)).toContain('sky');
+    it('returns info for Go', () => {
+      expect(fileIconColor('main.go', false)).toContain('info');
     });
 
-    it('returns red for Ruby', () => {
-      expect(fileIconColor('main.rb', false)).toContain('red');
+    it('returns destructive for Ruby', () => {
+      expect(fileIconColor('main.rb', false)).toContain('destructive');
     });
 
-    it('returns slate for C/C++', () => {
-      expect(fileIconColor('main.c', false)).toContain('slate');
-      expect(fileIconColor('main.hpp', false)).toContain('slate');
+    it('returns muted for C/C++', () => {
+      expect(fileIconColor('main.c', false)).toContain('muted');
+      expect(fileIconColor('main.hpp', false)).toContain('muted');
     });
 
-    it('returns purple for images', () => {
-      expect(fileIconColor('image.png', false)).toContain('purple');
-      expect(fileIconColor('image.jpg', false)).toContain('purple');
-      expect(fileIconColor('image.gif', false)).toContain('purple');
+    it('returns primary for images', () => {
+      expect(fileIconColor('image.png', false)).toContain('primary');
+      expect(fileIconColor('image.jpg', false)).toContain('primary');
+      expect(fileIconColor('image.gif', false)).toContain('primary');
     });
 
     it('returns muted for config files', () => {

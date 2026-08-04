@@ -15,8 +15,8 @@ describe('fileIconColor — branch coverage (line 101)', () => {
 
   it('handles file starting with a dot but having an extension', () => {
     // ".env" → split('.') → ["", "env"] → pop() → "env"
-    // This hits emerald for env extension
-    expect(fileIconColor('.env', false)).toContain('emerald');
+    // This hits the semantic success token for env extensions.
+    expect(fileIconColor('.env', false)).toContain('success');
   });
 
   it('handles file with just a dot and no name part', () => {

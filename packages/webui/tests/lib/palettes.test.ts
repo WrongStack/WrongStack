@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_PALETTE,
@@ -7,6 +10,31 @@ import {
   getPalette,
   isPaletteId,
 } from '@/lib/palettes';
+
+const testDirectory = dirname(fileURLToPath(import.meta.url));
+const paletteCssPath = resolve(testDirectory, '../../src/index.css');
+const paletteTokens = [
+  '--primary',
+  '--primary-foreground',
+  '--ring',
+  '--running',
+  '--accent',
+  '--accent-foreground',
+  '--brand-orange',
+] as const;
+
+function paletteBlock(css: string, selector: string): string {
+  const lines = css.split(/\r?\n/);
+  const selectorLine = lines.findIndex((line) => line.trim() === `${selector} {`);
+  if (selectorLine === -1) return '';
+
+  const declarations: string[] = [];
+  for (const line of lines.slice(selectorLine + 1)) {
+    if (line.trim() === '}') return declarations.join('\n');
+    declarations.push(line);
+  }
+  return '';
+}
 
 describe('palettes', () => {
   afterEach(() => {
@@ -47,6 +75,26 @@ describe('palettes', () => {
     it('exports at least two alternative palettes besides the default', () => {
       const alternatives = PALETTES.filter((palette) => palette.id !== DEFAULT_PALETTE);
       expect(alternatives.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('defines every semantic palette token for both light and dark mode', () => {
+      const paletteCss = readFileSync(paletteCssPath, 'utf8');
+
+      for (const palette of PALETTES) {
+        const lightSelector =
+          palette.id === DEFAULT_PALETTE ? ':root' : `:root[data-palette='${palette.id}']`;
+        const darkSelector =
+          palette.id === DEFAULT_PALETTE ? '.dark' : `.dark[data-palette='${palette.id}']`;
+        const lightBlock = paletteBlock(paletteCss, lightSelector);
+        const darkBlock = paletteBlock(paletteCss, darkSelector);
+        expect(lightBlock, `${palette.id} light palette block`).not.toBe('');
+        expect(darkBlock, `${palette.id} dark palette block`).not.toBe('');
+
+        for (const token of paletteTokens) {
+          expect(lightBlock, `${palette.id} light ${token}`).toContain(`${token}:`);
+          expect(darkBlock, `${palette.id} dark ${token}`).toContain(`${token}:`);
+        }
+      }
     });
   });
 

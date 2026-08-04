@@ -726,7 +726,7 @@ export function BrainSection(): ReactElement {
                   <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                     resolved: {config.judgeLabel}
                     {config.judgeIsVoter && (
-                      <span className="ml-1 font-sans text-amber-500">⚠ also a voter</span>
+                      <span className="ml-1 font-sans text-warning">⚠ also a voter</span>
                     )}
                   </div>
                 )}

@@ -65,7 +65,7 @@ export function FallbackEditor({
                   'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
                   state.active
                     ? 'border-border bg-muted'
-                    : 'border-amber-500/60 bg-amber-50 dark:bg-amber-950/30',
+                    : 'border-warning/60 bg-warning/10',
                 )}
                 title={inactiveTitle ?? undefined}
                 data-testid={`fallback-row-${i}`}
@@ -73,17 +73,12 @@ export function FallbackEditor({
                 data-inactive-reason={state.active ? undefined : state.reason}
               >
                 <span className="font-mono text-[10px] text-muted-foreground">{i + 1}</span>
-                <span
-                  className={cn(
-                    'min-w-0 flex-1 truncate font-mono',
-                    state.active ? 'text-foreground' : 'text-amber-700 dark:text-amber-300',
-                  )}
-                >
+                <span className="min-w-0 flex-1 truncate font-mono text-foreground">
                   {ref}
                 </span>
                 {!state.active && (
                   <span
-                    className="flex items-center gap-1 rounded-sm bg-amber-500/15 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+                    className="flex items-center gap-1 rounded-sm bg-warning/15 px-1 py-0.5 text-[10px] font-medium text-foreground"
                     data-testid={`fallback-row-${i}-inactive-badge`}
                   >
                     <AlertTriangle className="h-2.5 w-2.5" />

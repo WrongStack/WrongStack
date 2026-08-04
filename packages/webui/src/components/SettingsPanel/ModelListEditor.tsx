@@ -326,9 +326,9 @@ export function ModelListEditor({
                         <span
                           className={cn(
                             'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-                            row.source === 'custom' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                            row.source === 'catalog' && 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-                            row.source === 'overridden' && 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+                            row.source === 'custom' && 'bg-warning/10 text-warning',
+                            row.source === 'catalog' && 'bg-info/10 text-info',
+                            row.source === 'overridden' && 'bg-primary/10 text-primary',
                           )}
                         >
                           {row.source}

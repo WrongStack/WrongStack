@@ -48,8 +48,8 @@ const PRIORITIES = ['unspecified', 'low', 'medium', 'high', 'critical'] as const
 
 const STATUS_STYLE: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
-  collecting_information: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  submitted: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  collecting_information: 'bg-warning/15 text-warning',
+  submitted: 'bg-success/15 text-success',
   cancelled: 'bg-destructive/15 text-destructive',
   archived: 'bg-muted text-muted-foreground',
 };
@@ -281,7 +281,7 @@ export function RequirementIntakeView(): React.ReactElement {
             {formNotice ? (
               <div
                 role="status"
-                className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300"
+                className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
               >
                 {formNotice}
               </div>
