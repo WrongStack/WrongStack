@@ -1129,7 +1129,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 51,
-      "sourceLines": 16861
+      "sourceLines": 17257
     },
     {
       "directory": "extension",
@@ -1269,14 +1269,14 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 3050
+      "sourceLines": 3046
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9654
+      "sourceLines": 9675
     },
     {
       "directory": "utils",

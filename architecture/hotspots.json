@@ -135,7 +135,7 @@
       "relativeImports": 13
     },
     "packages/core/src/execution/autonomy-brain.ts": {
-      "lines": 962,
+      "lines": 990,
       "relativeImports": 8
     },
     "packages/core/src/execution/brain-runtime.ts": {
@@ -147,7 +147,7 @@
       "relativeImports": 7
     },
     "packages/core/src/execution/council-orchestrator.ts": {
-      "lines": 838,
+      "lines": 1124,
       "relativeImports": 8
     },
     "packages/core/src/execution/eternal-autonomy.ts": {
