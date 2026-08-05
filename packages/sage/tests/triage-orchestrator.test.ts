@@ -217,11 +217,9 @@ describe('orchestrator — merge output', () => {
       }),
     ];
 
-    let callIdx = 0;
     const mockLlm: LlmCallFn = async () => {
       // First call is Phase 3 (no gray zone → no calls)
       // Phase 4 starts immediately. First pair → YES
-      callIdx++;
       return 'YES';
     };
 

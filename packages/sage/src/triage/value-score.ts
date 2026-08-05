@@ -294,7 +294,6 @@ function computePersistenceScore(memory: Sage, reasons: string[]): number {
     case 'short_lived':
       reasons.push(`persistence: short_lived → ${3}/${MAX_PERSISTENCE}`);
       return 3;
-    case 'long_lived':
     default:
       reasons.push(`persistence: long_lived (default) → ${10}/${MAX_PERSISTENCE}`);
       return 10;

@@ -110,7 +110,7 @@ describe('WebUI theme color boundaries', () => {
       "const rgb = 'rgba(59, 130, 246, 0.5)';",
       "const hsl = 'hsl(217, 91%, 60%)';",
       "const url = 'https://example.test/#fff';",
-      "const escaped = 'quote\\\' // #abc';",
+      "const escaped = 'quote\\' // #abc';",
       "// const ignored = '#fff';",
       "const semantic = 'bg-primary text-success hsl(var(--warning))'; /* #000 */",
     ].join('\n');

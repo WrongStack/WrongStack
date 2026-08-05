@@ -112,8 +112,8 @@ describe('mcp.add / mcp.update consult the trust boundary (M1)', () => {
     expect((await readServers()).evil).toBeUndefined();
     expect((registry as { start: ReturnType<typeof vi.fn> }).start).not.toHaveBeenCalled();
     const result = ws.sent.find((m) => m.type === 'mcp.operation_result');
-    expect((result?.payload as { success: boolean }).success).toBe(false);
-    expect((result?.payload as { message: string }).message).toContain('denied');
+    expect((result!.payload as { success: boolean }).success).toBe(false);
+    expect((result!.payload as { message: string }).message).toContain('denied');
   });
 
   it('mcp.update does not re-persist when the boundary denies', async () => {
@@ -133,8 +133,8 @@ describe('mcp.add / mcp.update consult the trust boundary (M1)', () => {
       denyAll,
     );
     const result = ws.sent.find((m) => m.type === 'mcp.operation_result');
-    expect((result?.payload as { success: boolean }).success).toBe(false);
-    expect((result?.payload as { message: string }).message).toContain('denied');
+    expect((result!.payload as { success: boolean }).success).toBe(false);
+    expect((result!.payload as { message: string }).message).toContain('denied');
   });
 
   it('an allowing boundary leaves behavior unchanged', async () => {

@@ -315,21 +315,18 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                     <div className="flex-1 min-w-0 space-y-2 w-full">
                       {/* Segmented fill bar */}
                       <div className="h-3 w-full overflow-hidden rounded-full bg-muted/50 flex ring-1 ring-inset ring-border/20">
-                        {data.total > 0 && categories && (
-                          <>
-                            {categories.map((category) => (
-                              <span
-                                key={category.key}
-                                className="h-full transition-all duration-700 last:rounded-r-full"
-                                style={{
-                                  width: `${(category.value / data.total) * 100}%`,
-                                  backgroundColor: category.color,
-                                }}
-                                title={`${category.label}: ${fmtTok(category.value)}`}
-                              />
-                            ))}
-                          </>
-                        )}
+                        {data.total > 0 && categories &&
+                          categories.map((category) => (
+                            <span
+                              key={category.key}
+                              className="h-full transition-all duration-700 last:rounded-r-full"
+                              style={{
+                                width: `${(category.value / data.total) * 100}%`,
+                                backgroundColor: category.color,
+                              }}
+                              title={`${category.label}: ${fmtTok(category.value)}`}
+                            />
+                          ))}
                       </div>
 
                       {/* Legend */}
