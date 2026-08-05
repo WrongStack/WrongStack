@@ -2,7 +2,7 @@
 // @vitest-environment-options { "url": "http://localhost:3466/chat" }
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultWsUrl, exchangeAuthCookie, scrubPageToken } from '../src/lib/ws.js';
+import { __test__ as wsTestHooks, defaultWsUrl, exchangeAuthCookie, scrubPageToken } from '../src/lib/ws.js';
 
 const TOKEN_STORAGE_KEY = 'wrongstack.simpleui.token.v1';
 
@@ -11,6 +11,7 @@ afterEach(() => {
   window.localStorage.clear();
   window.history.replaceState(null, '', '/chat');
   vi.unstubAllGlobals(); // removes stubGlobal('fetch', ...) — restoreAllMocks alone does not
+  wsTestHooks.resetCookieExchangeState();
 });
 
 function stubWsAuth(status: number): void {
@@ -82,37 +83,50 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('scrub-me');
   });
 
-  it('clears a stored token the server explicitly rejects', async () => {
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'stale-token');
-    window.history.replaceState(null, '', '/chat');
+  it('clears a stored token only after the cookie path has proven to work', async () => {
+    // Mid-session revocation: once /ws-auth has succeeded, a later 401 is a
+    // genuine rejection — stop replaying the dead credential.
+    window.history.replaceState(null, '', '/chat?token=revoked-mid-session');
+    stubWsAuth(200);
+    await exchangeAuthCookie(defaultWsUrl());
+    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('revoked-mid-session');
 
     stubWsAuth(401);
     await exchangeAuthCookie(defaultWsUrl());
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
   });
 
-  it('strips a rejected token from URL and storage so reconnects stop replaying it', async () => {
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'dead-token');
-    window.history.replaceState(null, '', '/chat?token=dead-token');
+  it('preserves a stored token when /ws-auth fails before any success', async () => {
+    // enableWsCookie:false / URL-token deployments 401 a VALID token at the
+    // generic gate (the /ws-auth route does not exist). The stored credential
+    // must survive — destroying it would lock out a valid user.
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'valid-token');
+    window.history.replaceState(null, '', '/chat');
 
     stubWsAuth(401);
     const exchanged = await exchangeAuthCookie(defaultWsUrl());
-    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
-    expect(exchanged.searchParams.has('token')).toBe(false);
-    expect(window.location.search).toBe(''); // dead token scrubbed from address bar
+    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('valid-token');
+    expect(exchanged.searchParams.get('token')).toBe('valid-token'); // URL fallback intact
   });
 
-  it('falls back to a valid stored token when the URL token is rejected', async () => {
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'valid-stored');
-    window.history.replaceState(null, '', '/chat?token=stale-url');
+  it('preserves a URL-only token on an unproven 401 (URL-token flow credential)', async () => {
+    window.history.replaceState(null, '', '/chat?token=url-credential');
 
     stubWsAuth(401);
     const exchanged = await exchangeAuthCookie(defaultWsUrl());
-    // The rejected URL token is dropped and the stored credential takes over
-    // instead of looping on the stale one forever.
-    expect(exchanged.searchParams.get('token')).toBe('valid-stored');
-    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('valid-stored');
-    expect(window.location.search).toBe(''); // stale URL token scrubbed
+    expect(exchanged.searchParams.get('token')).toBe('url-credential');
+    expect(window.location.search).toBe('?token=url-credential');
+    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
+  it('does not treat 403 as a revocation (origin/CSRF guard, not token validity)', async () => {
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'good-token');
+    window.history.replaceState(null, '', '/chat');
+
+    stubWsAuth(403);
+    const exchanged = await exchangeAuthCookie(defaultWsUrl());
+    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('good-token');
+    expect(exchanged.searchParams.get('token')).toBe('good-token');
   });
 
   it('keeps a stored token on transient /ws-auth failure (blip, not revocation)', async () => {
@@ -150,14 +164,5 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     // stored token is untouched — no cross-server fallback swap.
     expect(exchanged.searchParams.get('token')).toBe('tunnel-token');
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('page-token');
-  });
-
-  it('strips a rejected URL-only token when nothing is stored (no replay loop)', async () => {
-    window.history.replaceState(null, '', '/chat?token=dead-url-token');
-
-    stubWsAuth(401);
-    const exchanged = await exchangeAuthCookie(defaultWsUrl());
-    expect(exchanged.searchParams.has('token')).toBe(false);
-    expect(window.location.search).toBe('');
   });
 });

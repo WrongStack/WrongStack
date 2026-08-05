@@ -46,6 +46,21 @@ function clearStoredToken(): void {
   }
 }
 
+// Set once a /ws-auth exchange has EVER succeeded in this page session. It
+// proves the cookie route exists on this deployment, so a later 401 is a
+// genuine token rejection. Before the first success a 401 is ambiguous: the
+// route may not exist at all (enableWsCookie:false deployments run the
+// URL-token flow and 401 a valid token at the generic gate), so the token
+// must be preserved, not destroyed.
+let cookieExchangeEverSucceeded = false;
+
+/** Test seam — reset the module-level exchange-proven flag between tests. */
+export const __test__ = {
+  resetCookieExchangeState: (): void => {
+    cookieExchangeEverSucceeded = false;
+  },
+};
+
 function pageToken(): string | null {
   try {
     const urlToken = new URLSearchParams(window.location.search).get('token');
@@ -130,39 +145,22 @@ export async function exchangeAuthCookie(url: URL): Promise<URL> {
       cache: 'no-store',
     });
     if (!response.ok) {
-      // Explicit auth rejection (bad/revoked token) must not replay from
-      // localStorage forever. Transient failures (404 on older servers, 5xx,
-      // network) keep the token — a blip is not a revocation.
-      if (response.status === 401 || response.status === 403) {
-        const urlToken = url.searchParams.get('token');
-        const stored = storedToken();
-        if (stored === token) {
-          // The rejected token IS the stored one — stop replaying it. Also
-          // strip it from the page URL and the WS URL, or every reconnect
-          // would re-attach the dead credential (the browser URL-token path
-          // is rejected anyway; loopback recovers tokenless).
-          clearStoredToken();
-          if (sameHost) {
-            url.searchParams.delete('token');
-            scrubUrlTokenFromPage(token);
-          }
-        } else if (sameHost && urlToken !== null && stored !== null) {
-          // A rejected URL token while a different (valid) stored token
-          // exists: drop the stale URL token and switch to the stored
-          // credential instead of looping on the rejected one forever.
-          url.searchParams.delete('token');
-          url.searchParams.set('token', stored);
-          scrubUrlTokenFromPage(urlToken);
-        } else if (sameHost && urlToken !== null) {
-          // Rejected URL token with no stored fallback — replaying it can
-          // only loop; strip it and let the tokenless loopback path (or a
-          // fresh startup URL) take over.
-          url.searchParams.delete('token');
-          scrubUrlTokenFromPage(urlToken);
-        }
+      // Preservation-first failure handling. A token is only destroyed on a
+      // PROVEN revocation:
+      //  - 403 comes from the origin/CSRF guard, never from token validity.
+      //  - a 401 before any successful exchange is ambiguous — the route may
+      //    not exist (enableWsCookie:false / URL-token deployments 401 a valid
+      //    token at the generic gate). Destroying the credential there would
+      //    lock out a valid user.
+      // Every other outcome preserves the token and the URL; a genuinely dead
+      // token surfaces as 401s on the real data plane, where the user
+      // re-authenticates instead of being silently logged out.
+      if (response.status === 401 && cookieExchangeEverSucceeded) {
+        if (storedToken() === token) clearStoredToken();
       }
       return url;
     }
+    cookieExchangeEverSucceeded = true;
     if (sameHost) {
       // Only persist a token the server actually accepted — a stale `?token=`
       // from an old link must not outlive its page load.
