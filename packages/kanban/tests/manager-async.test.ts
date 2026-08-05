@@ -676,10 +676,13 @@ describe('getKanbanQueueHealth', () => {
     });
 
     const health = await getKanbanQueueHealth(tmpDir, { boardId: b.id });
+    const { classifications } = health;
+    expect(classifications).toBeDefined();
+    if (!classifications) throw new Error('Expected queue classifications to be present.');
 
-    expect(health.classifications.counts.claimable).toBe(1);
-    expect(health.classifications.counts.detail_incomplete).toBe(0);
-    expect(health.classifications.diagnostics).not.toEqual(
+    expect(classifications.counts.claimable).toBe(1);
+    expect(classifications.counts.detail_incomplete).toBe(0);
+    expect(classifications.diagnostics).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ taskId: created!.task.id, bucket: 'detail_incomplete' }),
       ]),
