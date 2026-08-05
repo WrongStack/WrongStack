@@ -132,6 +132,25 @@ export interface SlashCommandContext {
    */
   onFleetStatus?: (() => import('@wrongstack/core/types').CoordinatorStatus | null) | undefined;
   /**
+   * Read-only concurrency + lifetime spawn budget for `/fleet status`.
+   * Returns null when no fleet host is available.
+   */
+  onFleetBudget?: (() => {
+    maxConcurrent: number;
+    activeAgents: number;
+    maxSpawns: number;
+    usedSpawns: number;
+    remainingSpawns: number;
+    maxTokens?: number | undefined;
+    usedTokens?: number | undefined;
+    remainingTokens?: number | undefined;
+    maxCostUsd?: number | undefined;
+    usedCostUsd?: number | undefined;
+    remainingCostUsd?: number | undefined;
+    checkpointMaxSpawns?: number | undefined;
+    ceilingMismatch?: boolean | undefined;
+  } | null) | undefined;
+  /**
    * Get fleet usage summary for /fleet usage.
    */
   onFleetUsage?: (() => import('@wrongstack/core/coordination').FleetUsage | null) | undefined;

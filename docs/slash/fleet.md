@@ -9,7 +9,7 @@
 | Usage | Effect |
 |---|---|
 | `/fleet` | Show fleet status (alias for `/fleet status`) |
-| `/fleet status` | Pending + completed task table per subagent |
+| `/fleet status` | Pending + completed task table **and** read-only budget block (concurrency + lifetime spawns) |
 | `/fleet list` | List the agent roster grouped by phase (role → capability) |
 | `/fleet dispatch <task>` | Route a task to the best agent (heuristic + LLM) and spawn it |
 | `/fleet usage` | Per-subagent iterations, tool calls, duration, cost rollup |
@@ -108,6 +108,41 @@ often never-die kept an agent alive:
 - `/fleet status` — `⚡×N` column (from `Director.extensionsFor(id)` /
   the enriched `CoordinatorStatus`)
 - chat history — `AGENT#k ⚡ extended <kind> → <newLimit> (×N)`
+
+## Budget block (issue #323)
+
+`/fleet status` always prints a read-only **Budget** section so you never need
+a probe spawn to learn the live ceilings:
+
+```text
+Budget
+  maxConcurrent: 8  ·  activeAgents: 3
+  maxSpawns: 256  ·  usedSpawns: 103  ·  remainingSpawns: 153  (source: maxConcurrent=profile, maxSpawns=env)
+  ⚠ checkpoint maxSpawns was 96; live ceiling is 256
+```
+
+| Field | Meaning |
+|---|---|
+| `maxConcurrent` / `activeAgents` | Parallel subagent ceiling vs currently running/idle agents |
+| `maxSpawns` | **Lifetime** spawn cap for this director run (not concurrency) |
+| `usedSpawns` | Cumulative spawns already consumed (preserved across resume) |
+| `remainingSpawns` | `maxSpawns − usedSpawns` |
+| `source` | Winning config source: `cli-flag` \| `env` \| `profile` \| `default` |
+
+### How ceilings are resolved
+
+| Setting | Priority (highest first) |
+|---|---|
+| Concurrent agents | `--max-concurrent` → `WRONGSTACK_MAX_CONCURRENT` → `maxConcurrent` in profile → default `4` |
+| Lifetime spawns | `--max-spawns` → `WRONGSTACK_MAX_SPAWNS` → `fleet.budget.maxSpawns` → default `64` |
+
+On **resume**, `usedSpawns` is restored from `director-state.json` while the
+**live** `maxSpawns` ceiling comes from the current profile/flag/env (not the
+historical checkpoint value). A mismatch warning is shown when they differ.
+
+The same snapshot is published to the WebUI Agents bar and HQ `fleet.snapshot`
+telemetry. Static configured ceilings (not live used counts) also appear in
+`system_config_view({ section: "fleet" })`.
 
 ## Code reference
 

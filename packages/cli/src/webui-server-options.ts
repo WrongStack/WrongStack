@@ -45,6 +45,24 @@ export interface CliWebUIOptions {
   surface?: 'webui' | 'simpleui' | undefined;
   /** Fixed access token/password. Defaults to WEBUI_TOKEN or random per process. */
   accessToken?: string | undefined;
+  /**
+   * Live fleet concurrency + lifetime spawn budget for WebUI (issue #323).
+   * Merged into `fleet.concurrency_update` broadcasts.
+   */
+  getFleetBudget?:
+    | (() => {
+        maxSpawns?: number | undefined;
+        usedSpawns?: number | undefined;
+        remainingSpawns?: number | undefined;
+        maxConcurrent?: number | undefined;
+        activeAgents?: number | undefined;
+        maxSpawnsSource?: string | undefined;
+        maxConcurrentSource?: string | undefined;
+        effectiveSource?: string | undefined;
+        checkpointMaxSpawns?: number | undefined;
+        ceilingMismatch?: boolean | undefined;
+      } | null)
+    | undefined;
   /** Browser-facing HTTP URL, used when WebUI is exposed behind a tunnel/proxy. */
   publicUrl?: string | undefined;
   /** Browser-facing WebSocket URL injected into the frontend. */

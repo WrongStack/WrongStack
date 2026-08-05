@@ -17,6 +17,11 @@ import type { SlashCommandContext } from '../src/slash-commands/command-context.
 let dir: string;
 let profilePath: string;
 
+/** Narrow slash-command run() result to its printable message (tests always expect one). */
+function msg(result: unknown): string {
+  return (result as { message?: string } | undefined)?.message ?? '';
+}
+
 function ctx(overrides: Partial<SlashCommandContext> = {}): SlashCommandContext {
   let config: Record<string, unknown> = { models: {}, activeProfile: 'default' };
   return {
@@ -47,9 +52,9 @@ describe('buildModelsCommand — list', () => {
   it('lists an empty custom-models set with the add hint', async () => {
     const cmd = buildModelsCommand(ctx());
     const out = await cmd.run('');
-    expect(out.message).toContain('Custom Models');
-    expect(out.message).toContain('none defined');
-    expect(out.message).toContain('/models add');
+    expect(msg(out)).toContain('Custom Models');
+    expect(msg(out)).toContain('none defined');
+    expect(msg(out)).toContain('/models add');
   });
 
   it('lists defined models with caps, provider, and maxOutput formatting', async () => {
@@ -65,27 +70,27 @@ describe('buildModelsCommand — list', () => {
     };
     const cmd = buildModelsCommand(c);
     const out = await cmd.run('');
-    expect(out.message).toContain('Custom Models');
-    expect(out.message).toContain('(2)');
-    expect(out.message).toContain('my-model');
-    expect(out.message).toContain('provider: openai');
-    expect(out.message).toContain('name: My Model');
-    expect(out.message).toContain('maxContext: 128000');
-    expect(out.message).toContain('caps: tools, vision');
-    expect(out.message).toContain('maxOutput: 4096');
-    expect(out.message).toContain('bare');
+    expect(msg(out)).toContain('Custom Models');
+    expect(msg(out)).toContain('(2)');
+    expect(msg(out)).toContain('my-model');
+    expect(msg(out)).toContain('provider: openai');
+    expect(msg(out)).toContain('name: My Model');
+    expect(msg(out)).toContain('maxContext: 128000');
+    expect(msg(out)).toContain('caps: tools, vision');
+    expect(msg(out)).toContain('maxOutput: 4096');
+    expect(msg(out)).toContain('bare');
   });
 
   it('returns the help text for the help/--help subcommand', async () => {
     const cmd = buildModelsCommand(ctx());
-    expect((await cmd.run('help')).message).toContain('/models add');
-    expect((await cmd.run('--help')).message).toContain('/models add');
+    expect(msg(await cmd.run('help'))).toContain('/models add');
+    expect(msg(await cmd.run('--help'))).toContain('/models add');
   });
 
   it('reports when the config store is unavailable', async () => {
     const cmd = buildModelsCommand(ctx({ configStore: undefined as never }));
     const out = await cmd.run('');
-    expect(out.message).toContain('config store not available');
+    expect(msg(out)).toContain('config store not available');
   });
 });
 
@@ -96,7 +101,7 @@ describe('buildModelsCommand — add', () => {
     const out = await cmd.run(
       'add my-model --provider openai --name "My Model" --max-context 128000 --max-output 4096 --tools --vision --reasoning --streaming --json-mode',
     );
-    expect(out.message).toContain('added');
+    expect(msg(out)).toContain('added');
     const onDisk = JSON.parse(await fs.readFile(profilePath, 'utf8')) as Record<string, unknown>;
     const models = onDisk.models as Record<string, { provider?: string; capabilities?: Record<string, unknown> }>;
     expect(models['my-model']!.provider).toBe('openai');
@@ -126,7 +131,7 @@ describe('buildModelsCommand — add', () => {
     );
     const cmd = buildModelsCommand(c);
     const out = await cmd.run('add my-model --vision');
-    expect(out.message).toContain('updated');
+    expect(msg(out)).toContain('updated');
     const onDisk = JSON.parse(await fs.readFile(profilePath, 'utf8')) as Record<string, unknown>;
     const m = (onDisk.models as Record<string, { capabilities?: Record<string, unknown> }>)['my-model'];
     expect(m!.capabilities).toMatchObject({ maxContext: 64000, tools: true, vision: true });
@@ -134,36 +139,36 @@ describe('buildModelsCommand — add', () => {
 
   it('rejects unknown flags and a missing model id', async () => {
     const cmd = buildModelsCommand(ctx());
-    expect((await cmd.run('add x --bogus')).message).toContain('Unknown flag');
-    expect((await cmd.run('add')).message).toContain('missing model id');
+    expect(msg(await cmd.run('add x --bogus'))).toContain('Unknown flag');
+    expect(msg(await cmd.run('add'))).toContain('missing model id');
   });
 
   it('rejects a flag whose value is missing', async () => {
     const cmd = buildModelsCommand(ctx());
     const out = await cmd.run('add m --provider');
-    expect(out.message).toContain('Missing value at position');
+    expect(msg(out)).toContain('Missing value at position');
   });
 
   it('shows the usage line when an id is given without flags', async () => {
     const cmd = buildModelsCommand(ctx());
     const out = await cmd.run('add my-model');
-    expect(out.message).toContain('Usage:');
-    expect(out.message).toContain('/models add <id>');
+    expect(msg(out)).toContain('Usage:');
+    expect(msg(out)).toContain('/models add <id>');
   });
 
   it('reports a ConfigError when the profile config is invalid JSON', async () => {
     await fs.writeFile(profilePath, '{ not json', 'utf8');
     const cmd = buildModelsCommand(ctx());
     const out = await cmd.run('add m --tools');
-    expect(out.message).toContain('models error');
-    expect(out.message).toContain('not valid JSON');
+    expect(msg(out)).toContain('models error');
+    expect(msg(out)).toContain('not valid JSON');
   });
 
   it('creates the config file when it is missing', async () => {
     await fs.rm(profilePath, { force: true });
     const cmd = buildModelsCommand(ctx());
     const out = await cmd.run('add fresh --tools');
-    expect(out.message).toContain('added');
+    expect(msg(out)).toContain('added');
     await expect(fs.stat(profilePath)).resolves.toBeDefined();
   });
 });
@@ -174,22 +179,22 @@ describe('buildModelsCommand — remove', () => {
     (c.configStore.get() as Record<string, unknown>).models = { 'my-model': {} };
     const cmd = buildModelsCommand(c);
     const out = await cmd.run('remove my-model');
-    expect(out.message).toContain('removed');
+    expect(msg(out)).toContain('removed');
     const onDisk = JSON.parse(await fs.readFile(profilePath, 'utf8')) as Record<string, unknown>;
     expect((onDisk.models as Record<string, unknown>)['my-model']).toBeUndefined();
   });
 
   it('reports a missing id and a not-found model', async () => {
     const cmd = buildModelsCommand(ctx());
-    expect((await cmd.run('remove')).message).toContain('Usage:');
-    expect((await cmd.run('remove nope')).message).toContain('Not found');
+    expect(msg(await cmd.run('remove'))).toContain('Usage:');
+    expect(msg(await cmd.run('remove nope'))).toContain('Not found');
   });
 
   it('supports the rm alias', async () => {
     const c = ctx();
     (c.configStore.get() as Record<string, unknown>).models = { 'my-model': {} };
     const cmd = buildModelsCommand(c);
-    expect((await cmd.run('rm my-model')).message).toContain('removed');
+    expect(msg(await cmd.run('rm my-model'))).toContain('removed');
   });
 });
 
@@ -197,7 +202,7 @@ describe('buildModelsCommand — unknown subcommand', () => {
   it('reports an unknown subcommand with suggestions', async () => {
     const cmd = buildModelsCommand(ctx());
     const out = await cmd.run('frobnicate');
-    expect(out.message).toContain('Unknown subcommand');
-    expect(out.message).toContain('frobnicate');
+    expect(msg(out)).toContain('Unknown subcommand');
+    expect(msg(out)).toContain('frobnicate');
   });
 });

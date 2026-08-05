@@ -87,7 +87,7 @@ Failure results preserve progress: `TaskResult.partial` carries the latest `Suba
 
 Model routing via `config.modelMatrix`: exact role → role phase → `*` → leader model; entries can set `provider`/`model`, `fallbackProfile`, `modelRuntime` overrides (runtime-only entries valid). `/setmodel` and WebUI Settings → Model Routing persist the same shape.
 
-Recursion: hard depth ceiling 2 (`HARD_MAX_SPAWN_DEPTH`, config may narrow, never widen); CLI default 64 lifetime spawns (`fleet.budget.maxSpawns`); `Director.spawn` overwrites caller lineage with authoritative `spawnLineage`; fleet-wide `fleet.budget.maxTokens`/`maxCostUsd` refuse new spawns at ceiling (in-flight tasks undisturbed). See `docs/director-architecture.md`.
+Recursion: hard depth ceiling 2 (`HARD_MAX_SPAWN_DEPTH`, config may narrow, never widen); CLI default 64 lifetime spawns (`fleet.budget.maxSpawns`, overridable via `--max-spawns` / `WRONGSTACK_MAX_SPAWNS`); `Director.spawn` overwrites caller lineage with authoritative `spawnLineage`; fleet-wide `fleet.budget.maxTokens`/`maxCostUsd` refuse new spawns at ceiling (in-flight tasks undisturbed). Live used/remaining spawns and winning source labels surface on `/fleet status` Budget block (also WebUI + HQ). See `docs/director-architecture.md` and `docs/slash/fleet.md`.
 
 ### Fleet supervision + peer awareness
 
@@ -129,7 +129,7 @@ All surfaces on one project share `~/.wrongstack/projects/<slug>/`:
 
 Hub-and-spoke, two WS channels: `/ws/client` — surfaces publish versioned `HqEventEnvelope`s (`HQ_PROTOCOL_VERSION = 1`) via an `HqPublisher` + EventBus bridges (session/agent/fleet/brain/worktree/tool[redacted]/cost; wiring in `cli-main.ts` ~L1370, `webui/src/server/pre-context-services.ts`, `tui/src/run-tui.ts`); `/ws/browser` — dashboard subscribes to `hq.snapshot` (debounced 250ms) + `hq.event` + `hq.alert`. Persists `events.jsonl`/`snapshot.json`/`timeseries.jsonl` under `<dataDir>`; HTTP `/api/events`, `/api/trends/cost`, `/api/alerts`. Control plane: browser `POST /api/command` → per-client queue → `client.command_poll`/`hq.command_batch`/`client.command_ack`; token scopes via `HqToken.capabilities`; commands `steer`/`abort`/`spawn`/`broadcast`/`run-command` (RCE-gated: `--hq-allow-exec` + `control.execute`; even then routed as a steer — the agent's own permission policy applies). `HqAlertEngine` evaluates the snapshot every 15s; only state transitions emit `hq.alert`. Separate browser/client token sets in `<dataDir>/auth.json`. Code: `core/src/hq/`; `cli/src/hq-server.ts`, `hq-dashboard-html.ts` (→ React `packages/webui-hq/`, Phase 5), `hq-command-controller.ts`, `hq-publisher.ts`, `boot/short-circuit-hq.ts`.
 
-TUI fleet surfaces: `Ctrl+F` fleet monitor · `Ctrl+G` agents monitor · `/fleet status|dispatch|log|usage|spawn|stream`.
+TUI fleet surfaces: `Ctrl+F` fleet monitor · `Ctrl+G` agents monitor · `/fleet status|dispatch|log|usage|spawn|stream` (`/fleet status` includes concurrency + lifetime spawn budget).
 
 ## MCP integration
 

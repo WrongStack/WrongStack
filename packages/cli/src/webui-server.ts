@@ -539,6 +539,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     onFleetBroadcaster: (fn) => {
       fleetBroadcastCli = fn;
     },
+    ...(opts.getFleetBudget ? { getFleetBudget: opts.getFleetBudget } : {}),
   });
 
   // Shared state for the extracted ws-handler groups (PR 5 of #30).
@@ -989,6 +990,30 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       unsubscribeEvents: () => {
         flushAllStreamBuffers();
         for (const unsub of eventUnsubscribers) unsub();
+      },
+      // Issue #322: kill session-owned children (MCP, bash/exec, tool-spawned
+      // dev servers) before closing the listen socket so Windows process trees
+      // do not outlive the parent and strand the event loop on open stdio.
+      stopOwnedChildren: async () => {
+        try {
+          const { getProcessRegistry } = await import('@wrongstack/tools');
+          // force: true → SIGKILL / taskkill /T /F so cmd.exe shims cannot
+          // orphan grandchildren (npx→node, vite, playwright MCP, …).
+          getProcessRegistry().killAll({ force: true, includeProtected: true });
+        } catch (err) {
+          console.debug(
+            `[webui-server] process-registry killAll failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        if (opts.mcpRegistry) {
+          try {
+            await opts.mcpRegistry.stopAll();
+          } catch (err) {
+            console.debug(
+              `[webui-server] mcpRegistry.stopAll failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
       },
       disposeResources: () => {
         credentialWatcherClose?.();

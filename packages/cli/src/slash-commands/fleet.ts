@@ -3,6 +3,7 @@ import type { SlashCommand } from '@wrongstack/core/types';
 import { AGENTS_BY_PHASE } from '@wrongstack/core/agent-catalog';
 import { color } from '@wrongstack/core/utils';
 import { dispatchAgent } from '@wrongstack/core/coordination';
+import { formatFleetBudgetLines } from '../fleet/host-status.js';
 import type { SlashCommandContext } from './command-context.js';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
@@ -183,6 +184,17 @@ async function handleStatus(opts: SlashCommandContext, cmd: string): Promise<{ m
         const task = sa.currentTask ?? color.dim('—');
         lines.push(`  ${id} ${name} ${statusColor} ${ext}${task}`);
       }
+    }
+    const budget = opts.onFleetBudget?.();
+    if (budget) {
+      lines.push(
+        '',
+        ...formatFleetBudgetLines(budget, {
+          bold: color.bold,
+          dim: color.dim,
+          amber: color.amber,
+        }),
+      );
     }
     const msg = lines.join('\n');
     opts.renderer.write(msg);

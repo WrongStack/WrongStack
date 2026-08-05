@@ -6,6 +6,7 @@ import {
   DefaultSystemPromptBuilder,
   LAYER_1_IDENTITY,
   loadInstructionBundle,
+  renderInstructionLayer,
 } from '../../src/index.js';
 import type { MemoryStore, SkillLoader, Tool } from '../../src/index.js';
 
@@ -38,13 +39,6 @@ describe('DefaultSystemPromptBuilder', () => {
     // layer1 identity + tools + env + leader after-task (host-only, appended last)
     expect(blocks).toHaveLength(4);
     expect(blocks[0]?.text).toContain(LAYER_1_IDENTITY.slice(0, 40));
-    expect(blocks[0]?.text).toContain('## Kanban Agent hard conditions');
-    expect(blocks[0]?.text).toContain('Never abandon or misrepresent work');
-    expect(blocks[0]?.text).toContain('Backlog → Todo → Running → Review → Done');
-    expect(blocks[0]?.text).toContain('Worker completion means the card enters Review');
-    expect(blocks[0]?.text).toContain('### Codebase-first discovery');
-    expect(blocks[0]?.text).toContain('codebase-stats/codebase-search');
-    expect(blocks[0]?.text).toContain('call live `codebase-index`');
     expect(blocks[1]?.text).toContain('No tools registered');
     expect(blocks[2]?.text).toContain('2026-05-13');
     expect(blocks[2]?.text).toContain(tmp);
@@ -53,6 +47,40 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(blocks[3]?.text).toContain('active TUI or WebUI prompt input');
     expect(blocks[3]?.text).toContain('does not need to be a shell command');
     expect(blocks[3]?.text).toContain('Never write loose endings');
+  });
+
+  /**
+   * The identity layer is conditional on the live tool set. Guidance for a tool
+   * the request never registered is not shipped at all — previously the whole
+   * ~8k-token catalogue went out regardless.
+   */
+  it('gates identity sections on the tools registered for the request', async () => {
+    const b = new DefaultSystemPromptBuilder({ todayIso: '2026-05-13' });
+    const withTools = await b.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools: [mkTool('kanban'), mkTool('codebase-search'), mkTool('codebase-index')],
+    });
+    expect(withTools[0]?.text).toContain('## Kanban Agent hard conditions');
+    expect(withTools[0]?.text).toContain('Never abandon or misrepresent work');
+    expect(withTools[0]?.text).toContain('Backlog → Todo → Running → Review → Done');
+    expect(withTools[0]?.text).toContain('Worker completion means the card enters Review');
+    expect(withTools[0]?.text).toContain('### Codebase-first discovery');
+    expect(withTools[0]?.text).toContain('codebase-stats/codebase-search');
+    expect(withTools[0]?.text).toContain('call live `codebase-index`');
+
+    // A fresh builder: the rendered identity is cached per tool set.
+    const bare = new DefaultSystemPromptBuilder({ todayIso: '2026-05-13' });
+    const withoutTools = await bare.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+    expect(withoutTools[0]?.text).not.toContain('## Kanban Agent hard conditions');
+    expect(withoutTools[0]?.text).not.toContain('### Codebase-first discovery');
+    expect(withoutTools[0]?.text).not.toContain('call live `codebase-index`');
+    // …and the fallback wording takes its place.
+    expect(withoutTools[0]?.text).toContain('No task-tracking tool is registered');
+    // Unconditional guidance survives either way.
+    expect(withoutTools[0]?.text).toContain('You are WrongStack');
+    expect(withoutTools[0]?.text).toContain('Tool output trust boundary');
+    expect(withoutTools[0]?.text?.length ?? 0).toBeLessThan(withTools[0]?.text?.length ?? 0);
   });
 
   it('loads system instructions from override files with project taking precedence', async () => {
@@ -78,10 +106,17 @@ describe('DefaultSystemPromptBuilder', () => {
     // identity — it is appended under a delimiter that names its origin, so the
     // real identity always leads. Non-identity layers (leader-after-task) keep
     // full override; only the identity prompt carries this risk.
-    expect(blocks[0]?.text).toContain(LAYER_1_IDENTITY);
+    // Compared against the *rendered* identity: the raw constant still carries
+    // the conditional-block markers, which never reach the prompt.
+    const bundled = renderInstructionLayer(LAYER_1_IDENTITY, {
+      toolNames: new Set(),
+      tier: 'off',
+      subagent: false,
+    });
+    expect(blocks[0]?.text).toContain(bundled);
     expect(blocks[0]?.text).toContain('PROJECT IDENTITY');
     expect(blocks[0]?.text).toContain('<project-supplied-instructions');
-    expect(blocks[0]?.text?.indexOf(LAYER_1_IDENTITY)).toBeLessThan(
+    expect(blocks[0]?.text?.indexOf(bundled)).toBeLessThan(
       blocks[0]!.text!.indexOf('PROJECT IDENTITY'),
     );
     expect(blocks.at(-1)?.text).toBe('PROJECT LEADER');

@@ -83,6 +83,14 @@ export class FleetManager implements IFleetManager {
   readonly spawnDepth: number;
   /** Live spawn counter. */
   private spawnCount = 0;
+  /**
+   * Historical `maxSpawns` from the last restored checkpoint (set for any
+   * finite checkpoint ceiling, matching or not). Surfaced in
+   * `budgetSnapshot()` so operators can see resume reconciliation without
+   * reading the JSON file; `ceilingMismatch` carries the actual mismatch signal.
+   */
+  private checkpointMaxSpawnsAtResume: number | undefined;
+  private ceilingMismatchAtResume = false;
   private readonly stateCheckpoint: DirectorStateCheckpoint | null;
   private readonly sessionWriter: SessionWriter | null;
   private manifestTimer: NodeJS.Timeout | null = null;
@@ -280,6 +288,10 @@ export class FleetManager implements IFleetManager {
     maxCostUsd: number;
     usedCostUsd: number;
     remainingCostUsd: number;
+    /** Historical ceiling from the last restored checkpoint, when it differs. */
+    checkpointMaxSpawns?: number | undefined;
+    /** True when checkpoint metadata and the live ceiling disagree. */
+    ceilingMismatch?: boolean | undefined;
   } {
     const total = this.usage.snapshot().total;
     const usedTokens = (total?.input ?? 0) + (total?.output ?? 0);
@@ -294,6 +306,76 @@ export class FleetManager implements IFleetManager {
       maxCostUsd: this.maxFleetCostUsd,
       usedCostUsd,
       remainingCostUsd: Math.max(0, this.maxFleetCostUsd - usedCostUsd),
+      ...(this.checkpointMaxSpawnsAtResume !== undefined
+        ? { checkpointMaxSpawns: this.checkpointMaxSpawnsAtResume }
+        : {}),
+      ...(this.ceilingMismatchAtResume ? { ceilingMismatch: true } : {}),
+    };
+  }
+
+  /**
+   * Re-attach the on-disk checkpoint after a resume while keeping the live
+   * `maxSpawns` ceiling from construction (profile / flag / env). The
+   * historical `spawnCount` is deliberately NOT restored: the lifetime
+   * budget is scoped to this director run, so a restarted session gets a
+   * fresh budget instead of inheriting a (possibly exhausted) counter from
+   * before the restart. The checkpoint ceiling is rewritten to the live
+   * value so subsequent writes do not reintroduce a stale limit.
+   */
+  restoreFromCheckpoint(snapshot: {
+    spawnCount: number;
+    maxSpawns?: number | undefined;
+    version?: 1 | undefined;
+    directorRunId?: string | undefined;
+    updatedAt?: string | undefined;
+    spawnDepth?: number | undefined;
+    maxSpawnDepth?: number | undefined;
+    directorBudget?:
+      | {
+          maxCostUsd?: number | undefined;
+          maxTokens?: number | undefined;
+        }
+      | undefined;
+    subagents?: unknown[] | undefined;
+    tasks?: unknown[] | undefined;
+    usage?: unknown | undefined;
+  }): {
+    usedSpawns: number;
+    maxSpawns: number;
+    remainingSpawns: number;
+    checkpointMaxSpawns?: number | undefined;
+    ceilingMismatch: boolean;
+  } {
+    // NOTE: snapshot.spawnCount is intentionally ignored — see the docblock.
+    // The lifetime budget restarts with this director run.
+    const checkpointMax =
+      typeof snapshot.maxSpawns === 'number' && Number.isFinite(snapshot.maxSpawns)
+        ? snapshot.maxSpawns
+        : undefined;
+    // A stored finite cap resumed under a live Infinity ceiling IS a
+    // mismatch — the isFinite conjunct previously hid exactly the
+    // reconciliation case this flag exists to surface.
+    const ceilingMismatch = checkpointMax !== undefined && checkpointMax !== this.maxSpawns;
+
+    this.checkpointMaxSpawnsAtResume = checkpointMax;
+    this.ceilingMismatchAtResume = ceilingMismatch;
+
+    if (this.stateCheckpoint) {
+      // Full snapshot re-attach when possible; otherwise only counters matter.
+      if (snapshot.version === 1 && snapshot.directorRunId && snapshot.updatedAt) {
+        this.stateCheckpoint.resume(snapshot as import('../storage/director-state.js').DirectorStateSnapshot);
+      }
+      this.stateCheckpoint.applyLiveMaxSpawns(
+        Number.isFinite(this.maxSpawns) ? this.maxSpawns : undefined,
+      );
+    }
+
+    return {
+      usedSpawns: this.spawnCount,
+      maxSpawns: this.maxSpawns,
+      remainingSpawns: Math.max(0, this.maxSpawns - this.spawnCount),
+      ...(checkpointMax !== undefined ? { checkpointMaxSpawns: checkpointMax } : {}),
+      ceilingMismatch,
     };
   }
 

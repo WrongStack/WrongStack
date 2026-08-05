@@ -29,6 +29,8 @@ export default defineConfig({
     hookTimeout: 30_000,
     coverage: {
       provider: 'v8',
+      // Package-local dir — never share root monorepo coverage/.tmp.
+      reportsDirectory: './coverage',
       reporter: ['text', 'json', 'json-summary', 'html'],
       reportOnFailure: true,
       // Enforce coverage across the whole WebUI source, not just src/lib.

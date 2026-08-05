@@ -141,4 +141,28 @@ describe('startFleetTelemetryBridge', () => {
     events.emit('coordinator.stats', baseStats);
     expect(spy.mock.calls[0]![0].totalCostUsd).toBeUndefined();
   });
+
+  it('forwards lifetime spawn budget fields when present', () => {
+    const events = new EventBus();
+    const spy = vi.fn();
+    const publisher = fakePublisher(spy);
+    startFleetTelemetryBridge({ events, publisher, runId: 'run-1' });
+    events.emit('coordinator.stats', {
+      ...baseStats,
+      maxSpawns: 256,
+      usedSpawns: 103,
+      remainingSpawns: 153,
+      checkpointMaxSpawns: 96,
+      ceilingMismatch: true,
+      effectiveSource: 'maxSpawns=profile',
+    });
+    expect(spy.mock.calls[0]![0]).toMatchObject({
+      maxSpawns: 256,
+      usedSpawns: 103,
+      remainingSpawns: 153,
+      checkpointMaxSpawns: 96,
+      ceilingMismatch: true,
+      effectiveSource: 'maxSpawns=profile',
+    });
+  });
 });

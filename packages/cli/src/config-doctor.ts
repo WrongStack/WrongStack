@@ -243,7 +243,62 @@ export function diagnoseConfig(
     }
   }
 
-  // ── 6. provider / model must be strings (no safe auto-fix) ───────────
+  // ── 6. fleet.budget numeric ceilings ──────────────────────────────────
+  if ('fleet' in fixed) {
+    if (!isPlainObject(fixed['fleet'])) {
+      findings.push({
+        path: 'fleet',
+        problem: `expected object, got ${JSON.stringify(fixed['fleet'])}`,
+        severity: 'error',
+        fix: 'removed (built-in defaults apply)',
+      });
+      delete fixed['fleet'];
+    } else {
+      const fleet = fixed['fleet'] as Record<string, unknown>;
+      if ('budget' in fleet) {
+        if (!isPlainObject(fleet['budget'])) {
+          findings.push({
+            path: 'fleet.budget',
+            problem: `expected object, got ${JSON.stringify(fleet['budget'])}`,
+            severity: 'error',
+            fix: 'removed (built-in defaults apply)',
+          });
+          delete fleet['budget'];
+        } else {
+          const budget = fleet['budget'] as Record<string, unknown>;
+          for (const key of ['maxSpawns', 'maxTokens', 'maxCostUsd'] as const) {
+            if (!(key in budget)) continue;
+            const v = budget[key];
+            const n = coerceNumber(v);
+            if (n === undefined) {
+              delete budget[key];
+              findings.push({
+                path: `fleet.budget.${key}`,
+                problem: `expected a non-negative number, got ${JSON.stringify(v)}`,
+                severity: 'error',
+                fix: 'removed (built-in default applies)',
+              });
+            } else {
+              const clamped = Math.max(0, n);
+              // maxSpawns / maxTokens should be integers; maxCostUsd may be fractional.
+              const next = key === 'maxCostUsd' ? clamped : Math.floor(clamped);
+              if (next !== v) {
+                budget[key] = next;
+                findings.push({
+                  path: `fleet.budget.${key}`,
+                  problem: `expected a non-negative ${key === 'maxCostUsd' ? 'number' : 'integer'}, got ${JSON.stringify(v)}`,
+                  severity: 'error',
+                  fix: `set to ${next}`,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ── 7. provider / model must be strings (no safe auto-fix) ───────────
   for (const key of ['provider', 'model'] as const) {
     if (key in fixed && typeof fixed[key] !== 'string') {
       findings.push({
@@ -254,7 +309,7 @@ export function diagnoseConfig(
     }
   }
 
-  // ── 7. autonomy block ─────────────────────────────────────────────────
+  // ── 8. autonomy block ─────────────────────────────────────────────────
   if ('autonomy' in fixed) {
     if (!isPlainObject(fixed['autonomy'])) {
       findings.push({

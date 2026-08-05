@@ -21,6 +21,7 @@ const executableScripts = [
   'scripts/check-test-skips.mjs',
   'scripts/check-test-typecheck.mjs',
   'scripts/coverage-lock.mjs',
+  'scripts/coverage-tmp-guard.mjs',
   'scripts/generate-plugin-projections.mjs',
   'scripts/generate-provider-catalog.mjs',
   'scripts/guard-against-corruption.mjs',
@@ -37,7 +38,9 @@ const executableScripts = [
   'scripts/purge-stale-mailbox-entries.mjs',
   'scripts/sage-maintenance.mjs',
   'scripts/snapshot-core-public-api.mjs',
+  'scripts/sync-core-public-api-snapshot.mjs',
   'scripts/sync-models.mjs',
+  'scripts/run-vitest-coverage.mjs',
   'scripts/test-coverage.mjs',
   'scripts/tui-heap-soak.mjs',
 ] as const;
@@ -63,6 +66,8 @@ describe('executable script inventory', () => {
     ['scripts/check-test-typecheck.mjs', ['--invalid'], 2, 'Unknown argument'],
     ['scripts/check-architecture-health.mjs', ['--invalid'], 2, 'Unknown argument'],
     ['scripts/check-test-skips.mjs', ['--invalid'], 2, 'Usage:'],
+    ['scripts/sync-core-public-api-snapshot.mjs', ['--invalid'], 1, 'does not accept arguments'],
+    ['scripts/sync-core-public-api-snapshot.mjs', ['--help'], 0, 'Usage:'],
   ] as const)(
     '%s exposes a deterministic safe CLI contract',
     (relativePath, args, expectedStatus, expectedText) => {

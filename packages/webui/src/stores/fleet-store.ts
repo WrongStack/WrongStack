@@ -22,6 +22,13 @@ interface FleetState {
   /** Current / max concurrency from server. */
   fleetConcurrency: number;
   fleetConcurrencyMax: number;
+  /** Lifetime spawn budget from server (issue #323). Undefined until first budget frame. */
+  fleetMaxSpawns: number | undefined;
+  fleetUsedSpawns: number | undefined;
+  fleetRemainingSpawns: number | undefined;
+  fleetBudgetSource: string | undefined;
+  fleetCheckpointMaxSpawns: number | undefined;
+  fleetCeilingMismatch: boolean;
   /** Last 20 fleet events for the Fleet Monitor timeline. */
   eventTimeline: FleetTimelineEvent[];
   /** Agent conversation timeline entries (agent.timeline.message + agent.status_changed). */
@@ -127,6 +134,12 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
   fleetTokensOut: 0,
   fleetConcurrency: 0,
   fleetConcurrencyMax: 4,
+  fleetMaxSpawns: undefined,
+  fleetUsedSpawns: undefined,
+  fleetRemainingSpawns: undefined,
+  fleetBudgetSource: undefined,
+  fleetCheckpointMaxSpawns: undefined,
+  fleetCeilingMismatch: false,
   eventTimeline: [],
   agentTimeline: [],
   agentTranscripts: new Map(),
@@ -154,6 +167,13 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
       fleetTokensIn: 0,
       fleetTokensOut: 0,
       fleetConcurrency: 0,
+      fleetConcurrencyMax: 4,
+      fleetMaxSpawns: undefined,
+      fleetUsedSpawns: undefined,
+      fleetRemainingSpawns: undefined,
+      fleetBudgetSource: undefined,
+      fleetCheckpointMaxSpawns: undefined,
+      fleetCeilingMismatch: false,
       eventTimeline: [],
       agentTimeline: [],
       agentTranscripts: new Map(),
@@ -459,6 +479,12 @@ export interface FleetSummary {
   tokensOut: number;
   concurrency: number;
   concurrencyMax: number;
+  maxSpawns?: number | undefined;
+  usedSpawns?: number | undefined;
+  remainingSpawns?: number | undefined;
+  budgetSource?: string | undefined;
+  ceilingMismatch?: boolean | undefined;
+  checkpointMaxSpawns?: number | undefined;
 }
 
 /** Shallow comparison for zustand selector equality checks.
@@ -503,6 +529,12 @@ export const selectFleetSummary = (state: FleetState): FleetSummary => {
     tokensOut: state.fleetTokensOut,
     concurrency: state.fleetConcurrency,
     concurrencyMax: state.fleetConcurrencyMax,
+    maxSpawns: state.fleetMaxSpawns,
+    usedSpawns: state.fleetUsedSpawns,
+    remainingSpawns: state.fleetRemainingSpawns,
+    budgetSource: state.fleetBudgetSource,
+    ceilingMismatch: state.fleetCeilingMismatch || undefined,
+    checkpointMaxSpawns: state.fleetCheckpointMaxSpawns,
   };
 };
 

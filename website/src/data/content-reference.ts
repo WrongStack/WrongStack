@@ -145,8 +145,9 @@ export const settingGroups: SettingGroup[] = [
       },
       {
         key: 'fleet.budget',
-        defaultValue: '{}',
-        explanation: 'Spawn, token and cost ceilings across the fleet.',
+        defaultValue: '{ maxSpawns: 64 }',
+        explanation:
+          'Lifetime spawn (maxSpawns), token and cost ceilings. Overrides: --max-spawns / WRONGSTACK_MAX_SPAWNS. Live used/remaining: /fleet status.',
       },
       {
         key: 'fleet.supervisor',

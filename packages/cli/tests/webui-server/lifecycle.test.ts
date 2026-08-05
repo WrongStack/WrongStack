@@ -190,16 +190,23 @@ describe('createWebuiShutdown', () => {
   function makeRes(overrides: Partial<Parameters<typeof createWebuiShutdown>[0]> = {}) {
     const order: string[] = [];
     let wssCloseCb: (() => void) | undefined;
-    const res = {
+    let resolveWssClose: (() => void) | undefined;
+    const wssCloseStarted = new Promise<void>((resolve) => {
+      resolveWssClose = resolve;
+    });
+    const res: Parameters<typeof createWebuiShutdown>[0] = {
       abortInFlight: () => order.push('abort'),
       unsubscribeEvents: () => order.push('unsub'),
-      disposeResources: () => order.push('dispose'),
+      disposeResources: () => {
+        order.push('dispose');
+      },
       closeClients: () => order.push('closeClients'),
       closeHttpServer: () => order.push('closeHttp'),
       wss: {
         close: (cb?: () => void) => {
           order.push('wssClose');
           wssCloseCb = cb;
+          resolveWssClose?.();
         },
       },
       pid: 99,
@@ -212,21 +219,27 @@ describe('createWebuiShutdown', () => {
       },
       ...overrides,
     };
-    return { res, order, fireWssClose: () => wssCloseCb?.() };
+    return {
+      res,
+      order,
+      fireWssClose: () => wssCloseCb?.(),
+      waitForWssClose: () => wssCloseStarted,
+    };
   }
 
   it('runs teardown in order and resolves only after unregister settles', async () => {
-    const { res, order, fireWssClose } = makeRes();
+    const { res, order, fireWssClose, waitForWssClose } = makeRes();
     const shutdown = createWebuiShutdown(res);
     shutdown();
-    // synchronous portion: abort → unsub → dispose → closeClients → unregister → closeHttp → wssClose
+    await waitForWssClose();
+    // Teardown awaits resource disposal before closing the HTTP and WS servers.
     expect(order).toEqual([
       'abort',
       'unsub',
       'dispose',
       'closeClients',
-      'unregister',
       'closeHttp',
+      'unregister',
       'wssClose',
     ]);
     // onStopped only after wss close callback + the unregister promise settles
@@ -245,11 +258,12 @@ describe('createWebuiShutdown', () => {
   });
 
   it('still resolves when unregister rejects', async () => {
-    const { res, fireWssClose, order } = makeRes({
+    const { res, fireWssClose, order, waitForWssClose } = makeRes({
       unregisterFn: async () => Promise.reject(new Error('registry gone')),
     });
     const shutdown = createWebuiShutdown(res);
     shutdown();
+    await waitForWssClose();
     fireWssClose();
     await new Promise((r) => setTimeout(r, 0));
     expect(order).toContain('stopped');

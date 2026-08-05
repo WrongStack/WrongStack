@@ -209,6 +209,27 @@ export function CockpitView(): React.ReactElement {
     }
   }
 
+  const fleets = snapshot?.fleets ?? [];
+  const spawnBudget = useMemo(() => {
+    let used = 0;
+    let max = 0;
+    let remaining = 0;
+    let known = 0;
+    let mismatch = 0;
+    for (const f of fleets) {
+      if (typeof f.usedSpawns === 'number' && typeof f.maxSpawns === 'number') {
+        known += 1;
+        used += f.usedSpawns;
+        if (Number.isFinite(f.maxSpawns)) max += f.maxSpawns;
+        if (typeof f.remainingSpawns === 'number' && Number.isFinite(f.remainingSpawns)) {
+          remaining += f.remainingSpawns;
+        }
+        if (f.ceilingMismatch) mismatch += 1;
+      }
+    }
+    return known > 0 ? { used, max, remaining, known, mismatch } : null;
+  }, [fleets]);
+
   const fleetSections: CockpitSection[] = [
     {
       title: 'Fleet',
@@ -240,6 +261,20 @@ export function CockpitView(): React.ReactElement {
             accent={agentRollup.errored > 0 ? 'error' : undefined}
           />
           <Stat label="cost $" value={(totals?.totalCostUsd ?? 0).toFixed(2)} accent="green" />
+          {spawnBudget && (
+            <Stat
+              label="spawns"
+              value={`${spawnBudget.used}/${Number.isFinite(spawnBudget.max) ? spawnBudget.max : '∞'}`}
+              accent={spawnBudget.mismatch > 0 ? 'warn' : undefined}
+            />
+          )}
+          {spawnBudget && (
+            <Stat
+              label="spawns left"
+              value={Number.isFinite(spawnBudget.remaining) ? spawnBudget.remaining : '∞'}
+              accent={spawnBudget.remaining === 0 ? 'error' : undefined}
+            />
+          )}
         </div>
       ),
     },

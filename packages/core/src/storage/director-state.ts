@@ -239,6 +239,22 @@ export class DirectorStateCheckpoint {
     this.snapshot = snapshot;
   }
 
+  /**
+   * After resume, pin the live spawn ceiling from the current profile/flag
+   * while preserving `spawnCount` (cumulative used budget). Checkpoint
+   * metadata previously stored a historical `maxSpawns` that can diverge
+   * from the live runtime ceiling — operators need the live value to win.
+   */
+  applyLiveMaxSpawns(maxSpawns: number | undefined): void {
+    if (this.snapshot.maxSpawns === maxSpawns) return;
+    this.snapshot = {
+      ...this.snapshot,
+      maxSpawns,
+    };
+    this.bumpUpdatedAt();
+    this.schedule();
+  }
+
   current(): DirectorStateSnapshot {
     return this.snapshot;
   }

@@ -616,7 +616,18 @@ export type WSServerMessage =
     }
   | {
       type: 'fleet.concurrency_update';
-      payload: SessionScopedPayload & { fleetConcurrency: number; fleetConcurrencyMax: number };
+      payload: SessionScopedPayload & {
+        fleetConcurrency: number;
+        fleetConcurrencyMax: number;
+        maxSpawns?: number;
+        usedSpawns?: number;
+        remainingSpawns?: number;
+        maxSpawnsSource?: string;
+        maxConcurrentSource?: string;
+        effectiveSource?: string;
+        checkpointMaxSpawns?: number;
+        ceilingMismatch?: boolean;
+      };
     }
   | {
       type: 'budget.threshold_reached';

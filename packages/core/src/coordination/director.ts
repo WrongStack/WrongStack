@@ -762,6 +762,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
 
   setCheckpointState(snapshot: DirectorStateSnapshot): void {
     setDirectorCheckpointState(this.checkpointHost(), snapshot);
+    this.applyResumeBudget(snapshot);
   }
 
   async readSession(
@@ -829,5 +830,24 @@ export class Director implements DirectorFleetHost, ICoordinator {
 
   resumeFromCheckpoint(snapshot: DirectorStateSnapshot): void {
     resumeDirectorFromCheckpoint(this.checkpointHost(), snapshot);
+    this.applyResumeBudget(snapshot);
+  }
+
+  /**
+   * After re-attaching checkpoint metadata, pin the live maxSpawns ceiling
+   * (profile/flag/env wins over historical checkpoint metadata). The
+   * historical cumulative spawn counter is deliberately NOT restored — the
+   * lifetime budget is scoped to this director run, so a restarted session
+   * resumes with a fresh budget rather than a possibly-exhausted counter.
+   */
+  private applyResumeBudget(snapshot: DirectorStateSnapshot): void {
+    if (this.fleetManager) {
+      this.fleetManager.restoreFromCheckpoint(snapshot);
+    }
+    // Director owns a parallel checkpoint writer for task events — keep its
+    // ceiling metadata aligned with the live construction-time maxSpawns.
+    this.stateCheckpoint?.applyLiveMaxSpawns(
+      Number.isFinite(this.maxSpawns) ? this.maxSpawns : undefined,
+    );
   }
 }

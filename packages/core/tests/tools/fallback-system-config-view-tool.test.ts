@@ -154,6 +154,39 @@ describe('system_config_view — agents section', () => {
   });
 });
 
+describe('system_config_view — fleet section', () => {
+  it('shows configured budget ceilings and override hints', async () => {
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        maxConcurrent: 8,
+        fleet: { budget: { maxSpawns: 256, maxTokens: 1_000_000, maxCostUsd: 12.5 } },
+      }),
+    );
+    const result = await tool.execute({ section: 'fleet' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    expect(result.message).toContain('Fleet Budgets');
+    expect(result.message).toContain('maxConcurrent: 8');
+    expect(result.message).toContain('maxSpawns: 256');
+    expect(result.message).toContain('maxTokens: 1000000');
+    expect(result.message).toContain('maxCostUsd: 12.5');
+    expect(result.message).toContain('WRONGSTACK_MAX_SPAWNS');
+    expect(result.message).toContain('/fleet status');
+  });
+
+  it('doctor validates fleet.budget numeric fields', async () => {
+    const tool = createSystemConfigViewTool(
+      makeOpts({
+        fleet: { budget: { maxSpawns: -1 } },
+      }),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    expect(result.message).toContain('fleet.budget.maxSpawns');
+  });
+});
+
 describe('system_config_view — refiner section', () => {
   it('shows refiner config defaults', async () => {
     const tool = createSystemConfigViewTool(makeOpts());

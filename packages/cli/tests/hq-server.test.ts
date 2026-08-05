@@ -1843,6 +1843,11 @@ describe('HQ server fleet telemetry', () => {
             queuedTasks: 1,
             completedTasks: 4,
             failedTasks: 0,
+            maxSpawns: 256,
+            usedSpawns: 103,
+            remainingSpawns: 153,
+            ceilingMismatch: true,
+            checkpointMaxSpawns: 96,
             subagents: [
               { subagentId: 'sub-1', status: 'running' },
               { subagentId: 'sub-2', status: 'idle' },
@@ -1855,7 +1860,18 @@ describe('HQ server fleet telemetry', () => {
 
     const fleet = (await (await fetch(`http://127.0.0.1:${handle.port}/api/fleet`)).json()) as {
       sessions: { sessionId: string; projectId: string; status: string }[];
-      fleets: { runId: string; projectId: string; activeSubagents: number; queuedTasks: number; completedTasks: number }[];
+      fleets: {
+        runId: string;
+        projectId: string;
+        activeSubagents: number;
+        queuedTasks: number;
+        completedTasks: number;
+        maxSpawns?: number;
+        usedSpawns?: number;
+        remainingSpawns?: number;
+        ceilingMismatch?: boolean;
+        checkpointMaxSpawns?: number;
+      }[];
     };
 
     // fleets[] rollup reflects the coordinator snapshot
@@ -1866,6 +1882,11 @@ describe('HQ server fleet telemetry', () => {
     expect(f.activeSubagents).toBe(2);
     expect(f.queuedTasks).toBe(1);
     expect(f.completedTasks).toBe(4);
+    expect(f.maxSpawns).toBe(256);
+    expect(f.usedSpawns).toBe(103);
+    expect(f.remainingSpawns).toBe(153);
+    expect(f.ceilingMismatch).toBe(true);
+    expect(f.checkpointMaxSpawns).toBe(96);
 
     // sessions[] is now derived from liveSessions (was empty before Phase 1)
     expect(fleet.sessions).toHaveLength(1);

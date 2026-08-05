@@ -11,6 +11,8 @@ export default defineConfig({
     hookTimeout: 60_000,
     coverage: {
       provider: 'v8',
+      // Package-local dir — never share root monorepo coverage/.tmp.
+      reportsDirectory: './coverage',
       reporter: ['text', 'json', 'json-summary'],
       reportOnFailure: true,
       include: ['src/**/*.ts'],

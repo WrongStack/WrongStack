@@ -700,6 +700,10 @@ function isHqSubagentSummary(x: unknown): x is HqSubagentSummary {
   );
 }
 
+function isOptionalFiniteNumber(x: unknown): boolean {
+  return x === undefined || (typeof x === 'number' && Number.isFinite(x));
+}
+
 function isHqFleetSnapshotPayload(x: unknown): x is HqFleetSnapshotPayload {
   if (typeof x !== 'object' || x === null) return false;
   const v = x as Record<string, unknown>;
@@ -716,6 +720,14 @@ function isHqFleetSnapshotPayload(x: unknown): x is HqFleetSnapshotPayload {
   for (const s of v.subagents) {
     if (!isHqSubagentSummary(s)) return false;
   }
+  // Optional lifetime-spawn / concurrency budget fields (issue #323).
+  if (!isOptionalFiniteNumber(v.maxConcurrent)) return false;
+  if (!isOptionalFiniteNumber(v.maxSpawns)) return false;
+  if (!isOptionalFiniteNumber(v.usedSpawns)) return false;
+  if (!isOptionalFiniteNumber(v.remainingSpawns)) return false;
+  if (!isOptionalFiniteNumber(v.checkpointMaxSpawns)) return false;
+  if (v.effectiveSource !== undefined && typeof v.effectiveSource !== 'string') return false;
+  if (v.ceilingMismatch !== undefined && typeof v.ceilingMismatch !== 'boolean') return false;
   return true;
 }
 

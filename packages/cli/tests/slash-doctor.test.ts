@@ -69,6 +69,31 @@ describe('diagnoseConfig', () => {
     expect('maxConcurrent' in diagnoseConfig({ maxConcurrent: 'lots' }).fixed).toBe(false);
   });
 
+  it('repairs fleet.budget numeric ceilings', () => {
+    const report = diagnoseConfig({
+      fleet: {
+        budget: {
+          maxSpawns: '256',
+          maxTokens: -10,
+          maxCostUsd: '1.5',
+          junk: true,
+        },
+      },
+    });
+    const fleet = report.fixed['fleet'] as { budget: Record<string, unknown> };
+    expect(fleet.budget['maxSpawns']).toBe(256);
+    expect(fleet.budget['maxTokens']).toBe(0);
+    expect(fleet.budget['maxCostUsd']).toBe(1.5);
+    expect(report.findings.some((f) => f.path.startsWith('fleet.budget.'))).toBe(true);
+  });
+
+  it('removes non-object fleet.budget', () => {
+    const report = diagnoseConfig({ fleet: { budget: 'nope' } });
+    const fleet = report.fixed['fleet'] as Record<string, unknown>;
+    expect(fleet['budget']).toBeUndefined();
+    expect(report.findings.some((f) => f.path === 'fleet.budget')).toBe(true);
+  });
+
   it('drops invalid autonomy enums and negative delays', () => {
     const report = diagnoseConfig({
       autonomy: {

@@ -42,16 +42,23 @@ export async function collectScopedDistFiles(repoRoot, workspaceRoots = ['packag
 }
 
 async function fingerprint(repoRoot, file) {
-  const bytes = await readFile(path.join(repoRoot, file));
-  return {
-    bytes: bytes.byteLength,
-    sha256: createHash('sha256').update(bytes).digest('hex'),
-  };
+  try {
+    const bytes = await readFile(path.join(repoRoot, file));
+    return {
+      bytes: bytes.byteLength,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function createBuildManifest(repoRoot, files, metadata = {}) {
   const entries = {};
-  for (const file of [...files].sort()) entries[file] = await fingerprint(repoRoot, file);
+  for (const file of [...files].sort()) {
+    const fp = await fingerprint(repoRoot, file);
+    if (fp) entries[file] = fp;
+  }
   return {
     schemaVersion: 1,
     scope: ['packages', 'apps'],
@@ -74,6 +81,10 @@ export async function validateBuildManifest(repoRoot, manifest, actualFiles) {
       continue;
     }
     const current = await fingerprint(repoRoot, file);
+    if (!current) {
+      errors.push(`${file}: missing build artifact`);
+      continue;
+    }
     const recorded = manifest.files[file];
     if (current.bytes !== recorded.bytes || current.sha256 !== recorded.sha256) {
       errors.push(`${file}: build artifact differs from the lineage manifest`);

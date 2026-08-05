@@ -12,11 +12,22 @@ const SYSTEM_CONFIG_VIEW_SCHEMA: JSONSchema = {
   properties: {
     section: {
       type: 'string',
-      enum: ['all', 'providers', 'models', 'fallbacks', 'matrix', 'agents', 'refiner', 'doctor'],
+      enum: [
+        'all',
+        'providers',
+        'models',
+        'fallbacks',
+        'matrix',
+        'agents',
+        'fleet',
+        'refiner',
+        'doctor',
+      ],
       description:
         'Which section to show: all (everything), providers (configured providers + keys), ' +
         'models (favorites + leader), fallbacks (chain + profiles + toggles), ' +
         'matrix (per-role assignments), agents (every catalog agent with resolved model), ' +
+        'fleet (concurrency + lifetime spawn/token/cost budgets), ' +
         'refiner (goal refinement config), doctor (validate config and show issues/warnings). ' +
         'Default: all.',
     },
@@ -32,6 +43,7 @@ interface SystemConfigViewInput {
     | 'fallbacks'
     | 'matrix'
     | 'agents'
+    | 'fleet'
     | 'refiner'
     | 'doctor'
     | undefined;
@@ -189,6 +201,9 @@ export function createSystemConfigViewTool(
         const profiles = (config.fallbackProfiles ?? {}) as Record<string, string[]>;
         const chain = config.fallbackModels ?? [];
         const matrix = (config.modelMatrix ?? {}) as Record<string, Record<string, unknown>>;
+        const fleetBudget = (
+          config.fleet as { budget?: Record<string, unknown> } | undefined
+        )?.budget;
 
         const bridge = config.fallbackBridge?.trim();
         if (bridge) {
@@ -266,7 +281,29 @@ export function createSystemConfigViewTool(
           }
         }
 
-        // 4. Check matrix assignments
+        // 4. Fleet budget numeric ceilings
+        if (typeof config.maxConcurrent === 'number') {
+          if (!Number.isFinite(config.maxConcurrent) || config.maxConcurrent < 0) {
+            issues.push(`maxConcurrent must be a non-negative number (got ${config.maxConcurrent})`);
+          } else if (config.maxConcurrent === 0) {
+            warnings.push('maxConcurrent is 0 — subagent concurrency effectively disabled');
+          } else {
+            ok.push(`maxConcurrent ${config.maxConcurrent}`);
+          }
+        }
+        if (fleetBudget && typeof fleetBudget === 'object') {
+          for (const key of ['maxSpawns', 'maxTokens', 'maxCostUsd'] as const) {
+            const v = fleetBudget[key];
+            if (v === undefined) continue;
+            if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+              issues.push(`fleet.budget.${key} must be a non-negative number (got ${JSON.stringify(v)})`);
+            } else {
+              ok.push(`fleet.budget.${key} ${v}`);
+            }
+          }
+        }
+
+        // 5. Check matrix assignments
         for (const [key, entry] of Object.entries(matrix)) {
           const eProvider = (entry.provider as string) ?? config.provider;
           const eModel = entry.model as string | undefined;
@@ -312,6 +349,41 @@ export function createSystemConfigViewTool(
           lines.push('  All checks passed — configuration is healthy.');
         }
         addSection('Configuration Doctor', lines.join('\n'));
+      }
+
+      if (section === 'all' || section === 'fleet') {
+        const fleet = config.fleet as
+          | {
+              budget?: {
+                maxSpawns?: number | undefined;
+                maxTokens?: number | undefined;
+                maxCostUsd?: number | undefined;
+              };
+              lifecycle?: {
+                idleTimeoutMs?: number | undefined;
+                retireOnTaskComplete?: boolean | undefined;
+              };
+            }
+          | undefined;
+        const budget = fleet?.budget;
+        const lifecycle = fleet?.lifecycle;
+        const fmt = (n: number | undefined, unit = ''): string =>
+          typeof n === 'number' && Number.isFinite(n) ? `${n}${unit}` : '(default)';
+        addSection(
+          'Fleet Budgets (configured ceilings)',
+          [
+            `  maxConcurrent: ${typeof config.maxConcurrent === 'number' ? config.maxConcurrent : '(default 4)'}`,
+            `  fleet.budget.maxSpawns: ${fmt(budget?.maxSpawns)}  ${typeof budget?.maxSpawns !== 'number' ? '→ default 64' : ''}`,
+            `  fleet.budget.maxTokens: ${fmt(budget?.maxTokens)}`,
+            `  fleet.budget.maxCostUsd: ${fmt(budget?.maxCostUsd)}`,
+            `  fleet.lifecycle.idleTimeoutMs: ${fmt(lifecycle?.idleTimeoutMs, 'ms')}`,
+            `  fleet.lifecycle.retireOnTaskComplete: ${lifecycle?.retireOnTaskComplete === undefined ? '(default true)' : String(lifecycle.retireOnTaskComplete)}`,
+            '',
+            '  Live used/remaining spawns are on /fleet status (not static config).',
+            '  Override ceilings: --max-concurrent / WRONGSTACK_MAX_CONCURRENT,',
+            '  --max-spawns / WRONGSTACK_MAX_SPAWNS, or fleet.budget.maxSpawns in profile.',
+          ].join('\n'),
+        );
       }
 
       if (section === 'all' || section === 'refiner') {

@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 240,
+      "files": 241,
       "typeOnly": 195,
-      "runtimeOrMixed": 65
+      "runtimeOrMixed": 66
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/coordination": {
-      "files": 167,
+      "files": 168,
       "typeOnly": 71,
-      "runtimeOrMixed": 144
+      "runtimeOrMixed": 145
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 27,
-      "typeOnly": 8,
-      "runtimeOrMixed": 20
+      "files": 29,
+      "typeOnly": 9,
+      "runtimeOrMixed": 21
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -109,8 +109,8 @@
       "runtimeOrMixed": 14
     },
     "@wrongstack/core/registry": {
-      "files": 95,
-      "typeOnly": 49,
+      "files": 96,
+      "typeOnly": 50,
       "runtimeOrMixed": 47
     },
     "@wrongstack/core/replay": {
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 114,
+      "files": 118,
       "typeOnly": 20,
-      "runtimeOrMixed": 97
+      "runtimeOrMixed": 101
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 837,
-      "typeOnly": 799,
-      "runtimeOrMixed": 212
+      "files": 849,
+      "typeOnly": 809,
+      "runtimeOrMixed": 216
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -823,6 +823,12 @@
       "file": "packages/cli/tests/slash-worktree.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/system-prompt-phantom-tools.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1825,6 +1831,12 @@
       "file": "packages/cli/src/execution.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/fleet/budget-source.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -5422,6 +5434,12 @@
     },
     {
       "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/src/subcommands/handlers/providers-models.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/models",
       "file": "packages/cli/src/webui-server/prefs-seeding.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5483,6 +5501,12 @@
     {
       "specifier": "@wrongstack/core/models",
       "file": "packages/providers/tests/model-output-limits.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/providers/tests/overlay-invalidation.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6136,6 +6160,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/providers/src/ai-gateway.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/providers/src/index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6616,6 +6646,18 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/auth-menu-catalog.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/auth-menu-flows.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/auth-menu-local-audit.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6635,6 +6677,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/auth-menu-local.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/auth-menu-oauth.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6683,6 +6731,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/multi-agent.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/providers-models-discovery.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8080,6 +8134,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/fleet/budget-source.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/fleet/host-acp-runner-cache.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8724,7 +8784,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/setmodel.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -9124,6 +9184,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/auth-menu-catalog.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/auth-menu-flows.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/auth-menu-local-audit.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9143,6 +9215,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/auth-menu-local.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/auth-menu-oauth.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/auth-menu-pure.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9322,6 +9406,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/mcp-management.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/mcp-serve.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9388,7 +9478,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/project-manifest.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/provider-config-utils.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/providers-models-discovery.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9517,6 +9619,12 @@
       "file": "packages/cli/tests/subcommands/permissions.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/system-prompt-phantom-tools.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10270,6 +10378,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/ai-gateway.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/anthropic-oauth.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10528,6 +10642,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/ai-gateway.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/anthropic-oauth.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10637,6 +10757,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/opencode.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/overlay-invalidation.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

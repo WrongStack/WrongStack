@@ -168,10 +168,31 @@ export function projectToolMessage(message: ProtocolEnvelope): ToolProjection | 
 }
 
 export type FleetProjection =
-  | { kind: 'concurrency'; active: number; maximum: number }
+  | {
+      kind: 'concurrency';
+      active: number;
+      maximum: number;
+      maxSpawns?: number | undefined;
+      usedSpawns?: number | undefined;
+      remainingSpawns?: number | undefined;
+      maxSpawnsSource?: string | undefined;
+      maxConcurrentSource?: string | undefined;
+      effectiveSource?: string | undefined;
+      checkpointMaxSpawns?: number | undefined;
+      ceilingMismatch?: boolean | undefined;
+    }
   | { kind: 'client-status'; status: Record<string, unknown> }
   | { kind: 'sessions'; sessions: unknown[] }
   | { kind: 'coordinator'; agents: Array<Record<string, unknown>> };
+
+function optionalFinite(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return value;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
 
 export function projectFleetMessage(message: ProtocolEnvelope): FleetProjection | null {
   const payload = record(message.payload);
@@ -182,6 +203,14 @@ export function projectFleetMessage(message: ProtocolEnvelope): FleetProjection 
         kind: 'concurrency',
         active: finite(payload['fleetConcurrency']),
         maximum: finite(payload['fleetConcurrencyMax']),
+        maxSpawns: optionalFinite(payload['maxSpawns']),
+        usedSpawns: optionalFinite(payload['usedSpawns']),
+        remainingSpawns: optionalFinite(payload['remainingSpawns']),
+        maxSpawnsSource: optionalString(payload['maxSpawnsSource']),
+        maxConcurrentSource: optionalString(payload['maxConcurrentSource']),
+        effectiveSource: optionalString(payload['effectiveSource']),
+        checkpointMaxSpawns: optionalFinite(payload['checkpointMaxSpawns']),
+        ceilingMismatch: payload['ceilingMismatch'] === true ? true : undefined,
       };
     case 'client.status_update':
       return { kind: 'client-status', status: payload };

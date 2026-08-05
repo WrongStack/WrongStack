@@ -22,6 +22,16 @@ import {
 } from '@wrongstack/webui-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+// Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
+// every bind, including loopback. These suites previously exercised the
+// unauthenticated configuration that finding was about.
+const TEST_API_TOKEN = 'test-api-token';
+const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, {
+    ...init,
+    headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
+  });
+
 let distDir: string;
 let server: import('node:http').Server;
 let baseUrl: string;
@@ -33,7 +43,7 @@ beforeAll(async () => {
   await fs.writeFile(path.join(distDir, 'app.js'), 'console.log(1);');
   await fs.writeFile(path.join(distDir, 'manifest.json'), '{"name":"test"}');
 
-  server = createHttpServer({ host: '127.0.0.1', distDir });
+  server = createHttpServer({ host: '127.0.0.1', distDir, apiToken: TEST_API_TOKEN });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const addr = server.address();
   if (!addr || typeof addr === 'string') throw new Error('bad listen address');
@@ -162,7 +172,7 @@ describe('injectWsConfig', () => {
 
 describe('createHttpServer', () => {
   it('serves index.html for / with same-origin WS allowed', async () => {
-    const res = await fetch(`${baseUrl}/`);
+    const res = await authFetch(`${baseUrl}/`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('text/html');
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
@@ -173,14 +183,14 @@ describe('createHttpServer', () => {
   });
 
   it('serves .js with the right MIME type', async () => {
-    const res = await fetch(`${baseUrl}/app.js`);
+    const res = await authFetch(`${baseUrl}/app.js`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/javascript');
     expect(await res.text()).toBe('console.log(1);');
   });
 
   it('serves .json with application/json', async () => {
-    const res = await fetch(`${baseUrl}/manifest.json`);
+    const res = await authFetch(`${baseUrl}/manifest.json`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/json');
   });
@@ -202,7 +212,7 @@ describe('createHttpServer', () => {
   });
 
   it('falls back to index.html for SPA routes (unknown path)', async () => {
-    const res = await fetch(`${baseUrl}/some/deep/route`);
+    const res = await authFetch(`${baseUrl}/some/deep/route`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('text/html');
     // SPA fallback must also include the CSP — the audit found an
@@ -264,7 +274,7 @@ describe('createHttpServer', () => {
   });
 
   it('always sets X-Content-Type-Options=nosniff and X-Frame-Options=DENY', async () => {
-    const res = await fetch(`${baseUrl}/app.js`);
+    const res = await authFetch(`${baseUrl}/app.js`);
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('x-frame-options')).toBe('DENY');
     expect(res.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
@@ -330,7 +340,12 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
         .join('\n') + '\n';
     await fs.writeFile(path.join(paths.projectSessions, `${sessionId}.jsonl`), lines);
 
-    evServer = createHttpServer({ host: '127.0.0.1', distDir, globalRoot: gRoot });
+    evServer = createHttpServer({
+      host: '127.0.0.1',
+      distDir,
+      globalRoot: gRoot,
+      apiToken: TEST_API_TOKEN,
+    });
     await new Promise<void>((resolve) => evServer.listen(0, '127.0.0.1', resolve));
     const addr = evServer.address();
     if (!addr || typeof addr === 'string') throw new Error('bad listen address');
@@ -350,7 +365,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('replays a session into compact watch entries (user / tool / assistant)', async () => {
-    const res = await fetch(`${evBase}/api/sessions/${sessionId}/events`);
+    const res = await authFetch(`${evBase}/api/sessions/${sessionId}/events`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       sessionId: string;
@@ -369,7 +384,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('404s an unknown session', async () => {
-    const res = await fetch(`${evBase}/api/sessions/does-not-exist/events`);
+    const res = await authFetch(`${evBase}/api/sessions/does-not-exist/events`);
     expect(res.status).toBe(404);
   });
 
@@ -378,7 +393,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
       '@wrongstack/core/coordination'
     );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+    const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'please run the tests' }),
@@ -399,7 +414,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('POST .../message 400s on empty text', async () => {
-    const res = await fetch(`${evBase}/api/sessions/${sessionId}/message`, {
+    const res = await authFetch(`${evBase}/api/sessions/${sessionId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: '   ' }),
@@ -408,7 +423,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   });
 
   it('POST .../message 404s an unknown session', async () => {
-    const res = await fetch(`${evBase}/api/sessions/nope/message`, {
+    const res = await authFetch(`${evBase}/api/sessions/nope/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'hi' }),

@@ -54,6 +54,22 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
     /* best-effort */
   }
   await Promise.resolve(detachTodosCheckpoint?.()).catch(() => undefined);
+  // Issue #322: tear down tool-spawned process trees (bash/exec → vite, etc.)
+  // before MCP stop so grandchildren cannot keep stdio open on Windows.
+  // Best-effort — a missing tools package must not block session_end durability.
+  try {
+    const { getProcessRegistry } = await import('@wrongstack/tools');
+    getProcessRegistry().killAll({ force: true, includeProtected: true });
+  } catch (err) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'shutdown.process_kill_all_failed',
+        message: `Process registry killAll failed: ${err instanceof Error ? err.message : String(err)}`,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
   // Each cleanup step is independently guarded so a single failure
   // (e.g. MCP registry stop rejecting) cannot skip subsequent
   // durability steps (session_end, lock clear, reader close).

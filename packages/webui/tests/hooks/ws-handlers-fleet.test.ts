@@ -240,6 +240,31 @@ describe('fleet ws-handler map', () => {
       });
     });
 
+    it('stores lifetime spawn budget fields when present', () => {
+      handleFleetConcurrency(
+        msg('fleet.concurrency_update', {
+          fleetConcurrency: 2,
+          fleetConcurrencyMax: 8,
+          maxSpawns: 256,
+          usedSpawns: 103,
+          remainingSpawns: 153,
+          effectiveSource: 'maxConcurrent=profile, maxSpawns=profile',
+          checkpointMaxSpawns: 96,
+          ceilingMismatch: true,
+        }),
+      );
+      expect(useFleetStore.getState()).toMatchObject({
+        fleetConcurrency: 2,
+        fleetConcurrencyMax: 8,
+        fleetMaxSpawns: 256,
+        fleetUsedSpawns: 103,
+        fleetRemainingSpawns: 153,
+        fleetBudgetSource: 'maxConcurrent=profile, maxSpawns=profile',
+        fleetCheckpointMaxSpawns: 96,
+        fleetCeilingMismatch: true,
+      });
+    });
+
     it('ignores a frame the projection rejects', () => {
       useFleetStore.setState({ fleetConcurrency: 1, fleetConcurrencyMax: 2 } as never);
       handleFleetConcurrency(msg('fleet.concurrency_update', null));

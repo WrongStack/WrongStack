@@ -120,6 +120,9 @@ export default defineConfig({
       // coordinator retained ~3.9 GB RSS across the 1,947-file root suite and
       // ran into the same 4 GB ceiling this gate is supposed to catch.
       provider: 'v8',
+      // Isolated from package-level and scripts coverage dirs so a nested or
+      // concurrent package run cannot wipe this suite's coverage/.tmp mid-run.
+      reportsDirectory: 'coverage/root',
       reporter: ['text', 'json', 'json-summary', 'html'],
       reportOnFailure: true,
       include: ['packages/*/src/**/*.{ts,tsx}'],

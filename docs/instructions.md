@@ -82,6 +82,71 @@ The same layering rules apply: profile and project `system-pro.md` files overrid
 the bundled `packages/core/instructions/system-pro.md` only when the selected
 variant is `pro`; default launches continue to read `system.md`.
 
+## Conditional Blocks
+
+The system identity files (`system.md`, `system-lite.md`, `system-pro.md`), the
+`leader-after-task.md` layer, and every file under `sections/` are rendered
+against the live request before they reach the prompt. Text about a tool the
+request has not registered is dropped rather than shipped — at `minimal` tier
+that removes roughly 40 % of the default identity prompt, and it stops the model
+being told about tools it cannot call.
+
+Blocks are delimited by HTML comments, so a markdown preview stays clean:
+
+```markdown
+<!--ws:if tool=kanban-->
+## Work planning with Kanban
+Track multi-step work on the board.
+<!--ws:else-->
+Track multi-step work with `todo`.
+<!--ws:end-->
+```
+
+A condition is a set of space-separated attributes. Attributes are ANDed;
+comma-separated values within one attribute are ORed; a leading `!` negates.
+
+| Attribute | True when |
+|---|---|
+| `tool=a,b,c` | at least one of those tools is registered for this request |
+| `!tool=a,b` | none of those tools is registered |
+| `tier=off,medium` | the active `features.tokenSavingMode` tier is one of these |
+| `role=leader` / `role=subagent` | the prompt is being built for that role |
+
+`<!--ws:if tool=kanban tier=off-->` therefore means "kanban is registered **and**
+no token saving is active". Blocks nest, which is also how you AND two `tool`
+sets: put one `ws:if` inside the other.
+
+For tool inventory lines, `{{tools:...}}` renders only the registered names,
+backticked and comma-joined — and renders as nothing when none of them are
+present:
+
+```markdown
+{{tools:read,edit,write,patch,replace}}
+```
+
+Plain `{{name}}` placeholders keep their existing meaning; unknown names are
+left verbatim.
+
+### Fail-open
+
+A malformed override must never blank the identity prompt, so every error path
+keeps the text and drops only the marker:
+
+- an unknown attribute or malformed condition is treated as **true**
+- a stray `ws:else` / `ws:end` drops the marker; the surrounding text stays
+- an unclosed `ws:if` emits every branch's content in source order
+- rendering with no request context keeps **all** gated sections — this is the
+  view an embedder reading `LAYER_1_IDENTITY` directly gets
+
+The bundled identity and a repo-committed `.wrongstack/instructions/system.md`
+are rendered *separately* before being joined, so an unclosed block in project
+text can never swallow the real identity above it.
+
+`packages/cli/tests/system-prompt-phantom-tools.test.ts` renders all three
+variants against the full builtin tool set and against TIER1-only, and fails if
+any tool named in a `ws:if tool=` condition is still described when it is
+absent. Adding a new tool section without gating it will trip that test.
+
 ## Builtin Sections
 
 The initial file-backed sections cover the durable tool guidance previously

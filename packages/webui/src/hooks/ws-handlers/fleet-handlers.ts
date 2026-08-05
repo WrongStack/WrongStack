@@ -57,6 +57,14 @@ export function handleFleetConcurrency(msg: WSServerMessage) {
   useFleetStore.setState({
     fleetConcurrency: p.active,
     fleetConcurrencyMax: p.maximum,
+    ...(p.maxSpawns !== undefined ? { fleetMaxSpawns: p.maxSpawns } : {}),
+    ...(p.usedSpawns !== undefined ? { fleetUsedSpawns: p.usedSpawns } : {}),
+    ...(p.remainingSpawns !== undefined ? { fleetRemainingSpawns: p.remainingSpawns } : {}),
+    ...(p.effectiveSource !== undefined ? { fleetBudgetSource: p.effectiveSource } : {}),
+    ...(p.checkpointMaxSpawns !== undefined
+      ? { fleetCheckpointMaxSpawns: p.checkpointMaxSpawns }
+      : {}),
+    ...(p.ceilingMismatch !== undefined ? { fleetCeilingMismatch: p.ceilingMismatch } : {}),
   });
 }
 

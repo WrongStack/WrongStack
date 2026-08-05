@@ -31,6 +31,7 @@ import { color } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { TerminalRenderer } from '../renderer.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
+import type { CliWebUIOptions } from '../webui-server-options.js';
 
 export interface WebUIDispatchContext {
   agent: Agent;
@@ -123,6 +124,8 @@ export interface WebUIDispatchContext {
         },
       ) => Promise<string>)
     | undefined;
+  /** Live fleet budget for WebUI concurrency/spawn gauges (issue #323). */
+  getFleetBudget?: CliWebUIOptions['getFleetBudget'];
 }
 
 /**
@@ -164,6 +167,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     agentTranscripts,
     sddSubagentFactory,
     onKanbanDispatch,
+    getFleetBudget,
   } = ctx;
   const isSimpleUi = flags['simpleui'] === true;
 
@@ -281,6 +285,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     mcpRegistry,
     subscribeEternalIteration,
     sessionStore,
+    ...(getFleetBudget ? { getFleetBudget } : {}),
     sessionsDir: projectSessionsDir,
     claimSession: activateSessionIdentity
       ? async (sessionId: string) => {

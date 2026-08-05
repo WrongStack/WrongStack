@@ -11,12 +11,12 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1110,
+      "lines": 1130,
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 938,
-      "relativeImports": 19
+      "lines": 985,
+      "relativeImports": 20
     },
     "packages/cli/src/goal-host.ts": {
       "lines": 917,
@@ -71,7 +71,7 @@
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1049,
+      "lines": 1080,
       "relativeImports": 19
     },
     "packages/core/src/chronicle/metrics-store.ts": {
@@ -103,7 +103,7 @@
       "relativeImports": 13
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 834,
+      "lines": 856,
       "relativeImports": 38
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
@@ -167,7 +167,7 @@
       "relativeImports": 6
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 937,
+      "lines": 949,
       "relativeImports": 13
     },
     "packages/core/src/hq/publisher.ts": {
@@ -491,7 +491,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 852,
+      "lines": 863,
       "relativeImports": 10
     },
     "packages/webui-hq/src/views/settings.tsx": {

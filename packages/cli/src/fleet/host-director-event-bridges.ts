@@ -155,6 +155,14 @@ export function registerDirectorStatsBridge(input: {
         ...(u.toolCalls !== undefined ? { toolCalls: u.toolCalls } : {}),
       };
     });
+    // Lifetime spawn budget for HQ + WebUI (issue #323).
+    const budgetSnap = director.fleetManager?.budgetSnapshot?.();
+    const maxSpawns = budgetSnap?.maxSpawns ?? director.maxSpawns;
+    const usedSpawns = budgetSnap?.usedSpawns ?? director.spawnCount;
+    const remainingSpawns =
+      budgetSnap?.remainingSpawns ??
+      Math.max(0, (Number.isFinite(maxSpawns) ? maxSpawns : Number.POSITIVE_INFINITY) - usedSpawns);
+
     events.emit('coordinator.stats', {
       sessionId,
       total: payload.total,
@@ -165,6 +173,13 @@ export function registerDirectorStatsBridge(input: {
       pending: payload.pending,
       completed: payload.completed,
       ...(usage?.total?.cost !== undefined ? { totalCostUsd: usage.total.cost } : {}),
+      maxSpawns,
+      usedSpawns,
+      remainingSpawns,
+      ...(budgetSnap?.checkpointMaxSpawns !== undefined
+        ? { checkpointMaxSpawns: budgetSnap.checkpointMaxSpawns }
+        : {}),
+      ...(budgetSnap?.ceilingMismatch ? { ceilingMismatch: true } : {}),
       subagentStatuses,
     });
   });

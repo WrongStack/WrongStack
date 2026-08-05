@@ -614,9 +614,20 @@ describe('parseHqEventPayload', () => {
       subagents: [{ subagentId: 's1', status: 'running' }],
     };
     expect(parseHqEventPayload('fleet.snapshot', valid).ok).toBe(true);
+    expect(
+      parseHqEventPayload('fleet.snapshot', {
+        ...valid,
+        maxSpawns: 256,
+        usedSpawns: 103,
+        remainingSpawns: 153,
+        ceilingMismatch: true,
+        effectiveSource: 'maxSpawns=profile',
+      }).ok,
+    ).toBe(true);
     expect(parseHqEventPayload('fleet.snapshot', { ...valid, runId: 123 }).ok).toBe(false);
     expect(parseHqEventPayload('fleet.snapshot', { ...valid, subagents: [{ subagentId: 'x' }] }).ok).toBe(false);
     expect(parseHqEventPayload('fleet.snapshot', { ...valid, activeSubagents: 'x' }).ok).toBe(false);
+    expect(parseHqEventPayload('fleet.snapshot', { ...valid, maxSpawns: 'x' }).ok).toBe(false);
   });
 
   it('validates fleet.event payloads', () => {

@@ -103,14 +103,38 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
         )}
       </div>
 
-      {/* Line 2: Concurrency + tokens */}
-      {hasActivity && (
+      {/* Line 2: Concurrency + tokens + lifetime spawn budget */}
+      {(hasActivity || summary.maxSpawns !== undefined) && (
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <ConcurrencyGauge
             current={summary.concurrency}
             max={summary.concurrencyMax}
             showLabel
           />
+
+          {summary.maxSpawns !== undefined && summary.usedSpawns !== undefined && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <span
+                className={cn(
+                  'tabular-nums font-mono count-transition',
+                  summary.ceilingMismatch ? 'text-warning' : 'text-muted-foreground',
+                )}
+                title={
+                  summary.ceilingMismatch && summary.checkpointMaxSpawns !== undefined
+                    ? `Checkpoint maxSpawns was ${summary.checkpointMaxSpawns}; live ceiling is ${summary.maxSpawns}${summary.budgetSource ? ` (${summary.budgetSource})` : ''}`
+                    : summary.budgetSource
+                      ? `Lifetime spawns · ${summary.budgetSource}`
+                      : 'Lifetime spawn budget'
+                }
+              >
+                spawns {summary.usedSpawns}/{Number.isFinite(summary.maxSpawns) ? summary.maxSpawns : '∞'}
+                {summary.remainingSpawns !== undefined
+                  ? ` (${Number.isFinite(summary.remainingSpawns) ? summary.remainingSpawns : '∞'} left)`
+                  : ''}
+              </span>
+            </>
+          )}
 
           {summary.tokensIn + summary.tokensOut > 0 && (
             <>

@@ -43,6 +43,13 @@ export function startFleetTelemetryBridge(opts: FleetTelemetryBridgeOptions): ()
     pending: number;
     completed: number;
     totalCostUsd?: number | undefined;
+    maxConcurrent?: number | undefined;
+    maxSpawns?: number | undefined;
+    usedSpawns?: number | undefined;
+    remainingSpawns?: number | undefined;
+    effectiveSource?: string | undefined;
+    checkpointMaxSpawns?: number | undefined;
+    ceilingMismatch?: boolean | undefined;
     subagentStatuses: {
       subagentId: string;
       taskId: string;
@@ -73,6 +80,15 @@ export function startFleetTelemetryBridge(opts: FleetTelemetryBridgeOptions): ()
       failedTasks: stats.stopped,
       ...(stats.totalCostUsd !== undefined ? { totalCostUsd: stats.totalCostUsd } : {}),
       subagents,
+      ...(stats.maxConcurrent !== undefined ? { maxConcurrent: stats.maxConcurrent } : {}),
+      ...(stats.maxSpawns !== undefined ? { maxSpawns: stats.maxSpawns } : {}),
+      ...(stats.usedSpawns !== undefined ? { usedSpawns: stats.usedSpawns } : {}),
+      ...(stats.remainingSpawns !== undefined ? { remainingSpawns: stats.remainingSpawns } : {}),
+      ...(stats.effectiveSource !== undefined ? { effectiveSource: stats.effectiveSource } : {}),
+      ...(stats.checkpointMaxSpawns !== undefined
+        ? { checkpointMaxSpawns: stats.checkpointMaxSpawns }
+        : {}),
+      ...(stats.ceilingMismatch ? { ceilingMismatch: true } : {}),
     };
   }
 

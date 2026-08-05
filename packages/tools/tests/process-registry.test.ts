@@ -181,6 +181,19 @@ describe('ProcessRegistry', () => {
     expect((child.kill as ReturnType<typeof vi.fn>).mock.calls.length).toBeLessThanOrEqual(1);
   });
 
+  it('killAll skips protected processes unless includeProtected is set', () => {
+    const r = getProcessRegistry();
+    r.register({ ...makeProc({ pid: 9101 }), protected: false });
+    r.register({ ...makeProc({ pid: 9102 }), protected: true });
+    expect(r.killAll({ force: true })).toEqual([9101]);
+    expect(r.get(9102)?.killed).toBe(false);
+    // Second pass only reaps the protected entry (9101 already killed → still
+    // reported as killAll target when includeProtected re-walks the map, so
+    // assert the protected one is now killed rather than exact PID list).
+    r.killAll({ force: true, includeProtected: true });
+    expect(r.get(9102)?.killed).toBe(true);
+  });
+
   it('killAll kills every tracked process and returns their PIDs', () => {
     const r = getProcessRegistry();
     r.register(makeProc({ pid: 10051 }));

@@ -310,8 +310,12 @@ export async function setupSession(params: {
         const summary = Object.entries(tCounts)
           .map(([k, v]) => `${v} ${k}`)
           .join(', ');
+        const spawnPart =
+          typeof dirState.maxSpawns === 'number' && Number.isFinite(dirState.maxSpawns)
+            ? `, spawns ${dirState.spawnCount}/${dirState.maxSpawns} (checkpoint ceiling; live profile may differ)`
+            : `, spawns used ${dirState.spawnCount}`;
         renderer.writeInfo(
-          `Prior fleet state: ${dirState.subagents.length} subagent${dirState.subagents.length === 1 ? '' : 's'}, tasks ${summary || '(none)'}.`,
+          `Prior fleet state: ${dirState.subagents.length} subagent${dirState.subagents.length === 1 ? '' : 's'}, tasks ${summary || '(none)'}${spawnPart}.`,
         );
       }
     } catch {

@@ -7,6 +7,7 @@ import { expectDefined } from '@wrongstack/core/utils';
 import { type AgentMonitorService, createAgentMonitorService } from '@wrongstack/core/coordination';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import { resolveFleetBudgetSources } from '../fleet/budget-source.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +34,10 @@ export interface DirectorAutonomyResult {
   director: Director | null;
   directorMode: boolean;
   maxConcurrent: number | undefined;
+  /** Lifetime spawn ceiling resolved from flag/env/profile/default. */
+  maxSpawns: number;
+  maxConcurrentSource: import('../fleet/budget-source.js').FleetBudgetSource;
+  maxSpawnsSource: import('../fleet/budget-source.js').FleetBudgetSource;
   autonomyMode: import('../services/autonomy-mode.js').AutonomyMode;
   nextPredictEnabled: boolean;
   currentSuggestions: string[];
@@ -71,27 +76,20 @@ export function setupDirectorAndAutonomy(deps: DirectorAutonomyDeps): DirectorAu
   // ── Director mode (permanently on) ────────────────────────────────────
   const directorMode = true;
 
-  // Concurrent subagent ceiling. Priority: CLI flag → env var → config → default (4).
-  const maxConcurrentFromFlag =
-    typeof flags['max-concurrent'] === 'string'
-      ? Number.parseInt(flags['max-concurrent'], 10)
-      : undefined;
-  const maxConcurrentFromEnv =
-    typeof process.env['WRONGSTACK_MAX_CONCURRENT'] === 'string'
-      ? Number.parseInt(process.env['WRONGSTACK_MAX_CONCURRENT'], 10)
-      : undefined;
-  const maxConcurrentFromConfig =
-    typeof config.maxConcurrent === 'number' && config.maxConcurrent > 0
-      ? config.maxConcurrent
-      : undefined;
+  // Concurrent + lifetime spawn ceilings. Priority: CLI flag → env → config → default.
+  // Returns source labels for `/fleet status` and WebUI (issue #323).
+  const {
+    maxConcurrent: resolvedMaxConcurrent,
+    maxConcurrentSource,
+    maxSpawns,
+    maxSpawnsSource,
+  } = resolveFleetBudgetSources({ flags, config });
+  // Preserve prior "undefined when nothing set" semantics for maxConcurrent so
+  // MultiAgentHost can still fall back to coordinator default (4) when callers
+  // pass through undefined. Only flag/env/profile produce a concrete value;
+  // pure default leaves it undefined.
   const maxConcurrent =
-    Number.isFinite(maxConcurrentFromFlag) && (maxConcurrentFromFlag as number) > 0
-      ? (maxConcurrentFromFlag as number)
-      : Number.isFinite(maxConcurrentFromEnv) && (maxConcurrentFromEnv as number) > 0
-        ? (maxConcurrentFromEnv as number)
-        : Number.isFinite(maxConcurrentFromConfig) && (maxConcurrentFromConfig as number) > 0
-          ? (maxConcurrentFromConfig as number)
-          : undefined;
+    maxConcurrentSource === 'default' ? undefined : resolvedMaxConcurrent;
 
   // ── Autonomy mode ──────────────────────────────────────────────────────
   const autonomyMode: import('../services/autonomy-mode.js').AutonomyMode = (() => {
@@ -162,6 +160,9 @@ export function setupDirectorAndAutonomy(deps: DirectorAutonomyDeps): DirectorAu
     director: null,
     directorMode,
     maxConcurrent,
+    maxSpawns,
+    maxConcurrentSource,
+    maxSpawnsSource,
     autonomyMode,
     nextPredictEnabled,
     currentSuggestions,

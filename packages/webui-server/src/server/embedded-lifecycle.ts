@@ -149,7 +149,19 @@ export interface WebuiShutdownResources {
   /** Run and drop every event-bus unsubscriber. */
   unsubscribeEvents: () => void;
   /** Dispose long-lived handlers, timers, watchers, and project services owned by the host. */
-  disposeResources?: (() => void) | undefined;
+  disposeResources?: (() => void | Promise<void>) | undefined;
+  /**
+   * Stop session-owned child processes (MCP, bash/exec tools, mailbox helpers,
+   * dev servers). Runs **before** the HTTP/WS close so children cannot keep
+   * stdio handles open and strand the parent event loop (issue #322).
+   * Bounded by {@link childCleanupTimeoutMs}; failures are best-effort.
+   */
+  stopOwnedChildren?: (() => void | Promise<void>) | undefined;
+  /**
+   * Upper bound for {@link stopOwnedChildren} + async dispose before servers
+   * close. Default 10_000 ms.
+   */
+  childCleanupTimeoutMs?: number | undefined;
   /** Close every connected socket and clear the client map. */
   closeClients: () => void;
   /** Close the static HTTP server (no-op when WS-only). */
@@ -168,21 +180,52 @@ export interface WebuiShutdownResources {
   unregisterFn?: (pid: number, baseDir?: string) => Promise<void>;
 }
 
+const DEFAULT_CHILD_CLEANUP_TIMEOUT_MS = 10_000;
+
+async function runBounded(
+  work: () => void | Promise<void>,
+  timeoutMs: number,
+  label: string,
+  debug: (msg: string) => void,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve()
+        .then(() => work())
+        .catch((err: unknown) => {
+          debug(`[webui-server] ${label} failed: ${err}`);
+        }),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+          debug(`[webui-server] ${label} timed out after ${timeoutMs}ms`);
+          resolve();
+        }, timeoutMs);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Build the SIGINT/SIGTERM teardown handler. The returned function is
  * idempotent: the first call runs the teardown, later calls (e.g. a
  * second Ctrl+C, or a signal after another server in the same process
  * already stopped) return immediately.
  *
- * Order matches the original inline handler: abort runs → unsubscribe
- * events → close clients → unregister from the instance registry (async,
- * awaited inside the wss.close callback) → close HTTP → close WS → on
- * close, once the unregister settles, `onStopped()`.
+ * Order (issue #322): abort runs → unsubscribe events → stop owned children
+ * (bounded) → dispose resources (bounded) → close clients → close HTTP/WS →
+ * unregister from the instance registry → onStopped once unregister settles.
+ * Registry removal is deferred until after child cleanup so operators do not
+ * see a "stopped" registry entry while the process tree is still alive.
  */
 export function createWebuiShutdown(res: WebuiShutdownResources): () => void {
   const log = res.log ?? ((m: string) => console.log(m));
   const debug = res.debug ?? ((m: string) => console.debug(m));
   const unregister = res.unregisterFn ?? unregisterInstance;
+  const childTimeout = Math.max(1, res.childCleanupTimeoutMs ?? DEFAULT_CHILD_CLEANUP_TIMEOUT_MS);
   let started = false;
 
   return () => {
@@ -191,20 +234,35 @@ export function createWebuiShutdown(res: WebuiShutdownResources): () => void {
     log('[WebUI] Shutting down...');
     res.abortInFlight();
     res.unsubscribeEvents();
-    res.disposeResources?.();
-    res.closeClients();
-    // Drop ourselves from the running-instance registry; the run promise
-    // resolves only after the write settles so callers can safely remove
-    // the registry directory once runWebUI's promise resolves.
-    const unregistered = unregister(res.pid, res.registryBaseDir).catch((err: unknown) =>
-      debug(`[webui-server] unregister failed: ${err}`),
-    );
-    res.closeHttpServer();
-    res.wss.close(() => {
-      void unregistered.then(() => {
-        log('[WebUI] Server stopped');
-        res.onStopped();
+
+    void (async () => {
+      if (res.stopOwnedChildren) {
+        await runBounded(res.stopOwnedChildren, childTimeout, 'stopOwnedChildren', debug);
+      }
+      if (res.disposeResources) {
+        // Dispose is usually fast; still bound so a stuck dispose cannot block exit.
+        await runBounded(res.disposeResources, Math.min(childTimeout, 5_000), 'disposeResources', debug);
+      }
+      res.closeClients();
+      res.closeHttpServer();
+      // Unregister after children are stopped so the running-instance registry
+      // does not report this host as gone while descendants still hold ports.
+      const unregistered = unregister(res.pid, res.registryBaseDir).catch((err: unknown) =>
+        debug(`[webui-server] unregister failed: ${err}`),
+      );
+      await new Promise<void>((resolve) => {
+        res.wss.close(() => resolve());
       });
+      await unregistered;
+      log('[WebUI] Server stopped');
+      res.onStopped();
+    })().catch((err: unknown) => {
+      debug(`[webui-server] shutdown sequence failed: ${err}`);
+      try {
+        res.onStopped();
+      } catch {
+        /* best-effort */
+      }
     });
   };
 }

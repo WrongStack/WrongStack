@@ -25,7 +25,15 @@ afterEach(async () => {
     await handle.close();
     handle = null;
   }
-  await fs.rm(dataDir, { recursive: true, force: true });
+  // Windows: HQ may still hold auth/login-attempt files for a beat after
+  // close(), so bare rmdir flakes with ENOTEMPTY under full-suite load.
+  // Node's recursive rm retries EBUSY/ENOTEMPTY when maxRetries is set.
+  await fs.rm(dataDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 50,
+  });
 });
 
 /**

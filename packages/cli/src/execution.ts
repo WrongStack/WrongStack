@@ -607,6 +607,32 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         sddSubagentFactory,
         statusTracker,
         updateInfo: bootUpdateInfo,
+        getFleetBudget: () => {
+          const d = getDirector?.() ?? null;
+          if (!d) return null;
+          const snap = d.fleetManager?.budgetSnapshot?.();
+          const maxSpawns = snap?.maxSpawns ?? d.maxSpawns;
+          const usedSpawns = snap?.usedSpawns ?? d.spawnCount;
+          const remainingSpawns =
+            snap?.remainingSpawns ??
+            Math.max(
+              0,
+              (Number.isFinite(maxSpawns) ? maxSpawns : Number.POSITIVE_INFINITY) - usedSpawns,
+            );
+          const activeAgents = d
+            .status()
+            .subagents.filter((s) => s.status === 'running' || s.status === 'idle').length;
+          return {
+            maxSpawns,
+            usedSpawns,
+            remainingSpawns,
+            activeAgents,
+            ...(snap?.checkpointMaxSpawns !== undefined
+              ? { checkpointMaxSpawns: snap.checkpointMaxSpawns }
+              : {}),
+            ...(snap?.ceilingMismatch ? { ceilingMismatch: true } : {}),
+          };
+        },
         ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
       });
     } else {

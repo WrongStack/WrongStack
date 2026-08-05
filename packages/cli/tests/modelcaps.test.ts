@@ -14,6 +14,11 @@ import type { SlashCommandContext } from '../src/slash-commands/command-context.
 let dir: string;
 let cachePath: string;
 
+/** Narrow slash-command run() result to its printable message (tests always expect one). */
+function msg(result: unknown): string {
+  return (result as { message?: string } | undefined)?.message ?? '';
+}
+
 function ctx(overrides: Partial<SlashCommandContext> = {}): SlashCommandContext {
   return {
     configStore: {
@@ -54,10 +59,10 @@ describe('buildModelCapsCommand — summary', () => {
   it('shows leader fallback with no matrix overrides', async () => {
     const cmd = buildModelCapsCommand(ctx());
     const out = await cmd.run('summary');
-    expect(out.message).toContain('Agent-Type → Model Mapping');
-    expect(out.message).toContain('leader');
-    expect(out.message).toContain('openai/gpt-4o');
-    expect(out.message).toContain('No matrix overrides');
+    expect(msg(out)).toContain('Agent-Type → Model Mapping');
+    expect(msg(out)).toContain('leader');
+    expect(msg(out)).toContain('openai/gpt-4o');
+    expect(msg(out)).toContain('No matrix overrides');
   });
 
   it('lists matrix overrides including the * default', async () => {
@@ -77,11 +82,11 @@ describe('buildModelCapsCommand — summary', () => {
       }),
     );
     const out = await cmd.run('summary');
-    expect(out.message).toContain('bug');
-    expect(out.message).toContain('anthropic/claude');
-    expect(out.message).toContain('* (default)');
-    expect(out.message).toContain('gpt-4o-mini');
-    expect(out.message).toContain('Resolution order');
+    expect(msg(out)).toContain('bug');
+    expect(msg(out)).toContain('anthropic/claude');
+    expect(msg(out)).toContain('* (default)');
+    expect(msg(out)).toContain('gpt-4o-mini');
+    expect(msg(out)).toContain('Resolution order');
   });
 });
 
@@ -89,14 +94,14 @@ describe('buildModelCapsCommand — cache loading', () => {
   it('returns an error when no cache path is available', async () => {
     const cmd = buildModelCapsCommand(ctx({ paths: undefined as never }));
     const out = await cmd.run('');
-    expect(out.message).toContain('Models cache path not available');
+    expect(msg(out)).toContain('Models cache path not available');
   });
 
   it('reports a missing cache file gracefully', async () => {
     const cmd = buildModelCapsCommand(ctx());
     const out = await cmd.run('');
-    expect(out.message).toContain('Models cache not available');
-    expect(out.message).toContain('Expected at:');
+    expect(msg(out)).toContain('Models cache not available');
+    expect(msg(out)).toContain('Expected at:');
   });
 
   it('lists enveloped cache providers with key markers and prices', async () => {
@@ -135,13 +140,13 @@ describe('buildModelCapsCommand — cache loading', () => {
       }),
     );
     const out = await cmd.run('');
-    expect(out.message).toContain('Available Models');
-    expect(out.message).toContain('● openai');
-    expect(out.message).toContain('🔴 128.0k'); // exactly 128k → red (strict >)
-    expect(out.message).toContain('🟡 200.0k'); // 200k → yellow
-    expect(out.message).toContain('out 16.4k');
-    expect(out.message).toContain('$2.50/M tok');
-    expect(out.message).toContain('2 model(s)');
+    expect(msg(out)).toContain('Available Models');
+    expect(msg(out)).toContain('● openai');
+    expect(msg(out)).toContain('🔴 128.0k'); // exactly 128k → red (strict >)
+    expect(msg(out)).toContain('🟡 200.0k'); // 200k → yellow
+    expect(msg(out)).toContain('out 16.4k');
+    expect(msg(out)).toContain('$2.50/M tok');
+    expect(msg(out)).toContain('2 model(s)');
   });
 
   it('filters by provider fragment and per-model fragment after a slash', async () => {
@@ -151,11 +156,11 @@ describe('buildModelCapsCommand — cache loading', () => {
     });
     const cmd = buildModelCapsCommand(ctx());
     const providerOut = await cmd.run('anthropic');
-    expect(providerOut.message).toContain('anthropic');
-    expect(providerOut.message).not.toContain('openai');
+    expect(msg(providerOut)).toContain('anthropic');
+    expect(msg(providerOut)).not.toContain('openai');
     const modelOut = await cmd.run('openai/bet');
-    expect(modelOut.message).toContain('beta');
-    expect(modelOut.message).not.toContain('alpha');
+    expect(msg(modelOut)).toContain('beta');
+    expect(msg(modelOut)).not.toContain('alpha');
   });
 
   it('shows the no-models and no-key markers', async () => {
@@ -165,10 +170,10 @@ describe('buildModelCapsCommand — cache loading', () => {
     });
     const cmd = buildModelCapsCommand(ctx());
     const out = await cmd.run('nope');
-    expect(out.message).toContain('No models matched');
+    expect(msg(out)).toContain('No models matched');
     const allOut = await cmd.run('');
-    expect(allOut.message).toContain('○ openai');
-    expect(allOut.message).toContain('no models listed');
+    expect(msg(allOut)).toContain('○ openai');
+    expect(msg(allOut)).toContain('no models listed');
   });
 
   it('marks a provider keyed via the apiKeys array', async () => {
@@ -186,7 +191,7 @@ describe('buildModelCapsCommand — cache loading', () => {
       }),
     );
     const out = await cmd.run('');
-    expect(out.message).toContain('● openai');
+    expect(msg(out)).toContain('● openai');
   });
 
   it('marks a provider without any usable key as unkeyed', async () => {
@@ -206,6 +211,6 @@ describe('buildModelCapsCommand — cache loading', () => {
       }),
     );
     const out = await cmd.run('');
-    expect(out.message).toContain('○ openai');
+    expect(msg(out)).toContain('○ openai');
   });
 });

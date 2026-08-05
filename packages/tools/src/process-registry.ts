@@ -57,6 +57,12 @@ interface KillOpts {
   graceMs?: number | undefined;
   /** Leave explicitly backgrounded jobs alive. Default false. */
   preserveBackground?: boolean | undefined;
+  /**
+   * Also kill processes marked `protected` (browser open, etc.).
+   * Default false. Host-process shutdown should pass true so protected
+   * children cannot strand the parent event loop (issue #322).
+   */
+  includeProtected?: boolean | undefined;
 }
 
 /**
@@ -433,7 +439,8 @@ export class ProcessRegistryImpl {
     const p = this.processes.get(pid);
     if (!p) return false;
     if (p.killed) return true; // already kill()ed, don't double-send
-    if (p.protected) return false; // protected processes are never kill()ed
+    // Protected processes refuse kill unless the caller opts in (host shutdown).
+    if (p.protected && opts.includeProtected !== true) return false;
     if (opts.preserveBackground && p.background) return false;
 
     const { force = false, graceMs = DEFAULT_GRACE_MS } = opts;
@@ -512,9 +519,13 @@ export class ProcessRegistryImpl {
   killAll(opts: KillOpts = {}): number[] {
     const pids = Array.from(this.processes.keys());
     const killed: number[] = [];
+    const includeProtected = opts.includeProtected === true;
     for (const pid of pids) {
       const p = this.processes.get(pid);
-      if (p && !p.protected && this.kill(pid, opts)) killed.push(pid);
+      if (!p) continue;
+      if (p.protected && !includeProtected) continue;
+      if (opts.preserveBackground && p.background) continue;
+      if (this.kill(pid, opts)) killed.push(pid);
     }
     return killed;
   }

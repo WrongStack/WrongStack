@@ -497,6 +497,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   let {
     director,
     maxConcurrent,
+    maxSpawns,
+    maxConcurrentSource,
+    maxSpawnsSource,
     autonomyMode,
     nextPredictEnabled,
     currentSuggestions,
@@ -555,6 +558,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       stateCheckpointPath,
       fleetRootForPromotion,
       maxConcurrent,
+      maxSpawns,
+      maxConcurrentSource,
+      maxSpawnsSource,
       effectiveMaxContextRef,
       mcpRegistry,
       sessResult,
@@ -605,7 +611,10 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   director = await multiAgentHost.ensureDirector();
   if (director) {
     // If we resumed a prior run, inject the checkpoint snapshot so the
-    // director's in-memory state mirrors the pre-crash fleet.
+    // director's in-memory state mirrors the pre-crash fleet. This re-attaches
+    // the checkpoint and pins the live maxSpawns ceiling from the current
+    // profile; the historical usedSpawns counter is intentionally NOT
+    // restored — the lifetime budget restarts with this director run.
     if (priorFleetState) director.setCheckpointState(priorFleetState);
     for (const tool of director.tools(FLEET_ROSTER)) {
       toolRegistry.register(tool);
@@ -615,6 +624,19 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     renderer.writeInfo(`  manifest   → ${manifestPath}`);
     renderer.writeInfo(`  scratchpad → ${sharedScratchpadPath}`);
     renderer.writeInfo(`  subagents  → ${subagentSessionsRoot}`);
+    if (priorFleetState) {
+      const budget = multiAgentHost.budgetView();
+      const fmt = (n: number) => (Number.isFinite(n) ? String(n) : '∞');
+      renderer.writeInfo(
+        `  fleet budget → ${budget.usedSpawns}/${fmt(budget.maxSpawns)} spawns used` +
+          ` (${fmt(budget.remainingSpawns)} remaining; maxConcurrent ${budget.maxConcurrent})`,
+      );
+      if (budget.ceilingMismatch && budget.checkpointMaxSpawns !== undefined) {
+        renderer.writeInfo(
+          `  ⚠ checkpoint maxSpawns was ${budget.checkpointMaxSpawns}; live ceiling is ${fmt(budget.maxSpawns)}`,
+        );
+      }
+    }
   } else {
     renderer.writeInfo(`Running without Director — fleet orchestration tools disabled.`);
   }

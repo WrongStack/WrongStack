@@ -62,6 +62,8 @@ export interface IFleetManager {
     maxCostUsd: number;
     usedCostUsd: number;
     remainingCostUsd: number;
+    checkpointMaxSpawns?: number | undefined;
+    ceilingMismatch?: boolean | undefined;
   }) | undefined;
 
   /**

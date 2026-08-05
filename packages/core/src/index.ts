@@ -417,6 +417,10 @@ export {
   type SystemInstructionVariant,
 } from './core/instruction-bundle.js';
 export {
+  type InstructionTemplateContext,
+  renderInstructionLayer,
+} from './core/instruction-template.js';
+export {
   buildMailboxBlock,
   buildMailboxBtwAwarenessBlock,
   createMailboxChecker,

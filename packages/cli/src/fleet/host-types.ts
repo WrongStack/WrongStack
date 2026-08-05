@@ -69,6 +69,16 @@ export interface MultiAgentHostOptions {
   };
   /** Lifetime spawn cap for this Director. CLI default: 64. */
   maxSpawns?: number | undefined;
+  /**
+   * Winning configuration sources for concurrency / lifetime spawn ceilings
+   * (issue #323). Surfaced in `/fleet status` and WebUI budget views.
+   */
+  budgetSources?:
+    | {
+        maxConcurrent?: import('./budget-source.js').FleetBudgetSource | undefined;
+        maxSpawns?: import('./budget-source.js').FleetBudgetSource | undefined;
+      }
+    | undefined;
   /** Maximum auto-extensions per subagent per budget kind. */
   maxBudgetExtensions?: number | undefined;
   /** Optional global Brain arbiter for director-level policy decisions. */

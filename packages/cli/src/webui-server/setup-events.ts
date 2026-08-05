@@ -27,6 +27,25 @@ export interface SetupEventsDeps {
   eventUnsubscribers: Array<() => void>;
   globalConfigPath?: string | undefined;
   onFleetBroadcaster?: ((fn: () => Promise<void>) => void) | undefined;
+  /**
+   * Live fleet budget snapshot (issue #323). Merged into
+   * `fleet.concurrency_update` so the WebUI can show used/remaining spawns
+   * without a probe spawn.
+   */
+  getFleetBudget?:
+    | (() => {
+        maxSpawns?: number | undefined;
+        usedSpawns?: number | undefined;
+        remainingSpawns?: number | undefined;
+        maxConcurrent?: number | undefined;
+        activeAgents?: number | undefined;
+        maxSpawnsSource?: string | undefined;
+        maxConcurrentSource?: string | undefined;
+        effectiveSource?: string | undefined;
+        checkpointMaxSpawns?: number | undefined;
+        ceilingMismatch?: boolean | undefined;
+      } | null)
+    | undefined;
 }
 
 /** CLI adapter around the canonical EventBus→WebSocket subscription graph. */
@@ -34,9 +53,25 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
   let fleetConcurrency = 0;
   let fleetConcurrencyMax = 4;
   const emitConcurrency = (): void => {
+    const budget = deps.getFleetBudget?.() ?? null;
     deps.broadcast({
       type: 'fleet.concurrency_update',
-      payload: deps.sessionPayload({ fleetConcurrency, fleetConcurrencyMax }),
+      payload: deps.sessionPayload({
+        fleetConcurrency: budget?.activeAgents ?? fleetConcurrency,
+        fleetConcurrencyMax: budget?.maxConcurrent ?? fleetConcurrencyMax,
+        ...(budget
+          ? {
+              maxSpawns: budget.maxSpawns,
+              usedSpawns: budget.usedSpawns,
+              remainingSpawns: budget.remainingSpawns,
+              maxSpawnsSource: budget.maxSpawnsSource,
+              maxConcurrentSource: budget.maxConcurrentSource,
+              effectiveSource: budget.effectiveSource,
+              checkpointMaxSpawns: budget.checkpointMaxSpawns,
+              ceilingMismatch: budget.ceilingMismatch,
+            }
+          : {}),
+      }),
     });
   };
 

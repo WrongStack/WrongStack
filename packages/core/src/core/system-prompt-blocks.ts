@@ -12,6 +12,10 @@ import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
 import type { TextBlock } from '../types/blocks.js';
 import type { Tool } from '../types/tool.js';
 import type { InstructionBundle } from './instruction-bundle.js';
+import {
+  type InstructionTemplateContext,
+  renderInstructionLayer,
+} from './instruction-template.js';
 
 /**
  * The section of the system prompt a given TextBlock originated from. Used by
@@ -51,14 +55,26 @@ export function shortSessionId(sessionId: string): string {
   return leaf.length > 12 ? `${leaf.slice(0, 12)}…` : leaf;
 }
 
+/**
+ * Render one `sections/*.md` entry.
+ *
+ * `tplCtx` opts the section into the same conditional-block syntax the identity
+ * layers use (see `instruction-template.ts`); without it the section is
+ * rendered with every condition true, which matches the pre-templating
+ * behaviour for callers that don't have a live tool set to hand.
+ */
 export function instructionSection(
   bundle: InstructionBundle,
   key: string,
   vars: Record<string, string | number> = {},
+  tplCtx?: InstructionTemplateContext | undefined,
 ): string {
   const template = bundle.sections?.[key];
   if (!template) return '';
-  return template.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (match, name: string) => {
+  return renderInstructionLayer(
+    template,
+    tplCtx ? { ...tplCtx, vars: { ...tplCtx.vars, ...vars } } : undefined,
+  ).replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (match, name: string) => {
     const value = vars[name];
     return value === undefined ? match : String(value);
   });

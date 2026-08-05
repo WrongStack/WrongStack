@@ -405,6 +405,19 @@ export function buildSnapshot(
     failedTasks: f.payload.failedTasks,
     ...(f.payload.totalCostUsd !== undefined ? { totalCostUsd: f.payload.totalCostUsd } : {}),
     lastActivityAt: f.lastActivityAt,
+    ...(f.payload.maxConcurrent !== undefined ? { maxConcurrent: f.payload.maxConcurrent } : {}),
+    ...(f.payload.maxSpawns !== undefined ? { maxSpawns: f.payload.maxSpawns } : {}),
+    ...(f.payload.usedSpawns !== undefined ? { usedSpawns: f.payload.usedSpawns } : {}),
+    ...(f.payload.remainingSpawns !== undefined
+      ? { remainingSpawns: f.payload.remainingSpawns }
+      : {}),
+    ...(f.payload.effectiveSource !== undefined
+      ? { effectiveSource: f.payload.effectiveSource }
+      : {}),
+    ...(f.payload.checkpointMaxSpawns !== undefined
+      ? { checkpointMaxSpawns: f.payload.checkpointMaxSpawns }
+      : {}),
+    ...(f.payload.ceilingMismatch ? { ceilingMismatch: true } : {}),
   }));
 
   // Collect MCP server health — latest per (client, sessionId, serverName).

@@ -100,4 +100,22 @@ describe('build lineage', () => {
       validateBuildManifest(root, { files: undefined } as never, []),
     ).resolves.toEqual([]);
   });
+
+  it('handles unreadable or deleted files gracefully during validation', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'wrongstack-lineage-unreadable-'));
+    temporaryRoots.push(root);
+    const dist = path.join(root, 'packages/core/dist');
+    await mkdir(dist, { recursive: true });
+    const targetFile = path.join(dist, 'temp.js');
+    await writeFile(targetFile, 'content');
+    const relativePath = 'packages/core/dist/temp.js';
+    const manifest = await createBuildManifest(root, [relativePath]);
+
+    // Simulate file deletion right before fingerprinting during validation
+    await rm(targetFile);
+
+    await expect(
+      validateBuildManifest(root, manifest, [relativePath]),
+    ).resolves.toEqual(['packages/core/dist/temp.js: missing build artifact']);
+  });
 });

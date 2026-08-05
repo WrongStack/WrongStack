@@ -258,6 +258,15 @@ export interface BrainEventMap {
     completed: number;
     /** Optional fleet-wide cost total (USD) — set by the host bridge when known. */
     totalCostUsd?: number | undefined;
+    /** Concurrent-subagent ceiling (issue #323). */
+    maxConcurrent?: number | undefined;
+    /** Lifetime spawn budget snapshot (issue #323). */
+    maxSpawns?: number | undefined;
+    usedSpawns?: number | undefined;
+    remainingSpawns?: number | undefined;
+    effectiveSource?: string | undefined;
+    checkpointMaxSpawns?: number | undefined;
+    ceilingMismatch?: boolean | undefined;
     subagentStatuses: {
       subagentId: string;
       taskId: string;

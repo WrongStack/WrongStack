@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import { atomicWrite, color, expectDefined } from '@wrongstack/core/utils';
 import type { Capabilities } from '@wrongstack/core/types';
+import type { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import { ConfigError, type CustomModelDefinition, type ProviderConfig, type WireFamily } from '@wrongstack/core/types';
 import { mutateConfigProviders } from '../../provider-config-utils.js';
@@ -133,7 +134,7 @@ export const modelsCmd: SubcommandHandler = async (args, deps) => {
     }
   }
 
-  const flags = parseFlags(args);
+  const flags = subcommandFlags(args, deps);
   const search = typeof flags['search'] === 'string' ? flags['search'].toLowerCase() : '';
   const perPage = Number(flags['per-page']) > 0 ? Number(flags['per-page']) : DEFAULT_PER_PAGE;
   const page = Math.max(1, Number(flags['page']) || 1);
@@ -148,10 +149,10 @@ export const modelsCmd: SubcommandHandler = async (args, deps) => {
     return 1;
   }
 
-  let lookupId = providerId;
-  const savedAlias = deps.config.providers?.[providerId];
-  if (savedAlias?.type && savedAlias.type !== providerId) lookupId = savedAlias.type;
-  const provider = await deps.modelsRegistry.getProvider(lookupId);
+  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(
+    providerId,
+    deps,
+  );
   if (!provider) {
     deps.renderer.writeError(
       lookupId !== providerId
@@ -253,6 +254,36 @@ function aliasProviderId(configProviderId: string, cfg: ProviderConfig | undefin
   return cfg?.type && cfg.type !== configProviderId ? cfg.type : configProviderId;
 }
 
+/**
+ * One-shot `/v1/models` auto-discovery, merged into the registry overlay.
+ *
+ * The REPL learns a gateway's models because boot runs this; subcommands have
+ * no boot, so without it `wstack models ai-gateway` reported "not in catalog"
+ * for a provider serving 200+ models. Best-effort and silent, exactly as at
+ * boot — a down server must not turn a listing into a hard error.
+ */
+async function discoverProviderModels(
+  deps: Parameters<SubcommandHandler>[1],
+  ids: string[],
+): Promise<Awaited<ReturnType<typeof deps.modelsRegistry.getProvider>>> {
+  if (!('mergeOverlay' in deps.modelsRegistry)) return undefined;
+  try {
+    const { discoverAndMergeProviders } = await import('../../boot/auto-discover-providers.js');
+    await discoverAndMergeProviders({
+      config: deps.config,
+      registry: deps.modelsRegistry as DefaultModelsRegistry,
+      cacheDir: deps.paths.cacheDir,
+    });
+  } catch {
+    return undefined;
+  }
+  for (const id of ids) {
+    const found = await deps.modelsRegistry.getProvider(id);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 async function getCatalogProviderForConfigProvider(
   providerId: string,
   deps: Parameters<SubcommandHandler>[1],
@@ -260,7 +291,15 @@ async function getCatalogProviderForConfigProvider(
   const cfg = deps.config.providers?.[providerId];
   const lookupId = aliasProviderId(providerId, cfg);
   const provider = await deps.modelsRegistry.getProvider(lookupId);
-  return { providerId: lookupId, provider };
+  if (provider) return { providerId: lookupId, provider };
+  // A catalog miss is not proof the provider has no models — see
+  // `discoverProviderModels`. Deferred until after the miss so the offline
+  // path stays offline. Discovery keys its overlay on the CONFIG id, which for
+  // an alias (`gateway-work` → type `ai-gateway`) differs from `lookupId`.
+  return {
+    providerId: lookupId,
+    provider: await discoverProviderModels(deps, [lookupId, providerId]),
+  };
 }
 
 function uniqueStrings(values: string[]): string[] {
@@ -524,6 +563,23 @@ function parseSizeFlag(raw: string | undefined): number | undefined {
   return Math.round(num);
 }
 
+/**
+ * Flags visible to this subcommand.
+ *
+ * `parseArgs` pulls every `--flag` out of argv and hands the handler only the
+ * positional remainder, so a handler parsing just its own `args` sees none of
+ * them — `models <provider> --search x` and `models add <id> --tools` both lost
+ * theirs silently. `deps.flags` is what that top-level parse captured. The
+ * local parse still wins, so a directly-invoked handler (and anything after
+ * `--`) keeps overriding it.
+ */
+function subcommandFlags(
+  args: string[],
+  deps: Parameters<SubcommandHandler>[1],
+): Record<string, string | boolean> {
+  return { ...(deps.flags ?? {}), ...parseFlags(args) };
+}
+
 /** Parse a boolean flag like "--tools" / "--no-tools". */
 function parseBoolFlag(flags: Record<string, string | boolean>, key: string): boolean | undefined {
   if (flags[key] === true || flags[key] === 'true') return true;
@@ -532,7 +588,7 @@ function parseBoolFlag(flags: Record<string, string | boolean>, key: string): bo
 }
 
 async function modelsAdd(args: string[], deps: Parameters<SubcommandHandler>[1]): Promise<number> {
-  const flags = parseFlags(args);
+  const flags = subcommandFlags(args, deps);
   const pos = positionals(args);
   const modelId = pos[0];
 

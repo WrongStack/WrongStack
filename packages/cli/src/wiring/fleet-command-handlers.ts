@@ -10,6 +10,7 @@ import { loadDirectorState } from '@wrongstack/core/storage';
 import { AgentError } from '@wrongstack/core/types';
 import { color, expectDefined } from '@wrongstack/core/utils';
 import type { MultiAgentHost } from '../multi-agent.js';
+import { formatFleetBudgetLines } from '../fleet/host-status.js';
 import { fmtTaskResultLine } from '../utils.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
@@ -21,6 +22,7 @@ export type FleetCommandHandlers = Pick<
   | 'onAgents'
   | 'onFleet'
   | 'onFleetStatus'
+  | 'onFleetBudget'
   | 'onFleetUsage'
   | 'onFleetKill'
   | 'onFleetTerminate'
@@ -82,6 +84,7 @@ export function createFleetCommandHandlers(
     onAgents: (subagentId) => formatAgents(input, subagentId),
     onFleet: (action, target) => handleFleetAction(input, action, target),
     onFleetStatus: () => input.getDirector()?.status() ?? null,
+    onFleetBudget: () => input.multiAgentHost.budgetView(),
     onFleetUsage: () => input.getDirector()?.snapshot() ?? null,
     onFleetKill: () => killFleet(input.getDirector()),
     onFleetTerminate: async (subagentId) => {
@@ -211,6 +214,15 @@ async function handleFleetAction(
 function formatFleetStatus(host: MultiAgentHost): string {
   const status = host.status();
   const lines = [color.bold('Fleet status'), `  ${status.summary}`];
+  const budget = status.budget ?? host.budgetView();
+  lines.push(
+    '',
+    ...formatFleetBudgetLines(budget, {
+      bold: color.bold,
+      dim: color.dim,
+      amber: color.amber,
+    }),
+  );
   const icons: Record<string, string> = { running: '●', idle: '○', stopped: '⊘' };
   const active = status.live.filter((agent) => agent.status === 'running' || agent.status === 'idle');
   if (active.length > 0) {

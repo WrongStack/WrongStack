@@ -22,7 +22,12 @@ import { plainMaskedKey } from '../src/auth-menu/panel-service.js';
 import type { ProviderConfig } from '@wrongstack/core/types';
 
 function renderer() {
-  return { write: vi.fn(), writeError: vi.fn(), writeWarning: vi.fn() } as never;
+  return {
+    write: vi.fn(),
+    writeInfo: vi.fn(),
+    writeError: vi.fn(),
+    writeWarning: vi.fn(),
+  };
 }
 
 function cfg(over: Partial<ProviderConfig> = {}): ProviderConfig {
@@ -47,8 +52,8 @@ describe('shared.ts — render helpers', () => {
       openai: cfg({
         family: 'openai',
         apiKeys: [
-          { label: 'work', apiKey: 'sk-aaaa1111bbbb2222' },
-          { label: 'home', apiKey: 'sk-cccc3333dddd4444' },
+          { label: 'work', apiKey: 'sk-aaaa1111bbbb2222', createdAt: '2020-01-01T00:00:00.000Z' },
+          { label: 'home', apiKey: 'sk-cccc3333dddd4444', createdAt: '2020-01-01T00:00:00.000Z' },
         ],
       }),
     });
@@ -70,8 +75,8 @@ describe('shared.ts — render helpers', () => {
   it('renderProviderHeader handles a provider with multiple keys and no baseUrl', () => {
     const r = renderer();
     renderProviderHeader(r, 'multi', cfg({ family: 'openai', apiKeys: [
-      { label: 'work', apiKey: 'sk-aaaa1111bbbb2222' },
-      { label: 'home', apiKey: 'sk-cccc3333dddd4444' },
+      { label: 'work', apiKey: 'sk-aaaa1111bbbb2222', createdAt: '2020-01-01T00:00:00.000Z' },
+      { label: 'home', apiKey: 'sk-cccc3333dddd4444', createdAt: '2020-01-01T00:00:00.000Z' },
     ] }));
     expect(r.write).toHaveBeenCalledWith(expect.stringContaining('multi'));
 
@@ -221,8 +226,8 @@ describe('panel-service.ts — host', () => {
         family: 'openai',
         activeKey: 'work',
         apiKeys: [
-          { label: 'work', apiKey: 'sk-aaaa1111bbbb2222' },
-          { label: 'home', apiKey: 'sk-cccc3333dddd4444' },
+          { label: 'work', apiKey: 'sk-aaaa1111bbbb2222', createdAt: '2020-01-01T00:00:00.000Z' },
+          { label: 'home', apiKey: 'sk-cccc3333dddd4444', createdAt: '2020-01-01T00:00:00.000Z' },
         ],
       },
     });
@@ -251,7 +256,7 @@ describe('panel-service.ts — host', () => {
   it('setActiveKey and deleteKey mutate through the config utils', async () => {
     configMock.mutateConfigProviders.mockImplementation(async (_p, _v, mutator) => {
       const providers: Record<string, ProviderConfig> = {
-        openai: { type: 'openai', apiKeys: [{ label: 'work', apiKey: 'k1' }] },
+        openai: { type: 'openai', apiKeys: [{ label: 'work', apiKey: 'k1', createdAt: '2020-01-01T00:00:00.000Z' }] },
       };
       mutator(providers);
     });

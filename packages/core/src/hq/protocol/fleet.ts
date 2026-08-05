@@ -8,6 +8,19 @@ export interface HqFleetSnapshotPayload {
   failedTasks: number;
   totalCostUsd?: number;
   subagents: readonly HqSubagentSummary[];
+  /** Concurrent-subagent ceiling (maxConcurrent). */
+  maxConcurrent?: number | undefined;
+  /** Lifetime spawn ceiling (maxSpawns). */
+  maxSpawns?: number | undefined;
+  /** Cumulative spawns consumed this director run. */
+  usedSpawns?: number | undefined;
+  /** maxSpawns − usedSpawns (clamped ≥ 0). */
+  remainingSpawns?: number | undefined;
+  /** Winning config source labels, e.g. "maxConcurrent=profile, maxSpawns=env". */
+  effectiveSource?: string | undefined;
+  /** Historical checkpoint maxSpawns when it disagreed with the live ceiling. */
+  checkpointMaxSpawns?: number | undefined;
+  ceilingMismatch?: boolean | undefined;
 }
 
 export interface HqFleetEventPayload {
@@ -83,6 +96,13 @@ export interface HqFleetSummary {
   failedTasks: number;
   totalCostUsd?: number;
   lastActivityAt: string;
+  maxConcurrent?: number | undefined;
+  maxSpawns?: number | undefined;
+  usedSpawns?: number | undefined;
+  remainingSpawns?: number | undefined;
+  effectiveSource?: string | undefined;
+  checkpointMaxSpawns?: number | undefined;
+  ceilingMismatch?: boolean | undefined;
 }
 
 export interface HqQueuedCommand {

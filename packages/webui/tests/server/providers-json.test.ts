@@ -7,6 +7,10 @@ import * as fs from 'node:fs/promises';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../../dist');
 
+// Security scan 2026-08-04, finding H3: the HTTP surface requires a token on
+// every bind, including loopback — static assets included.
+const TEST_API_TOKEN = 'test-api-token';
+
 describe('providers.json static file serving', () => {
   it('should have providers.json in dist folder', async () => {
     const providersPath = path.join(distDir, 'providers.json');
@@ -23,13 +27,16 @@ describe('providers.json static file serving', () => {
     const server = createHttpServer({
       host: '127.0.0.1',
       distDir,
+      apiToken: TEST_API_TOKEN,
     });
 
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const port = (server.address() as { port: number }).port;
 
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/providers.json`);
+      const res = await fetch(`http://127.0.0.1:${port}/providers.json`, {
+        headers: { 'x-ws-token': TEST_API_TOKEN },
+      });
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toBe('application/json');
       

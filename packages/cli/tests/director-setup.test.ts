@@ -13,12 +13,15 @@ vi.mock('@wrongstack/core/coordination', async (importOriginal) => {
 
 const priorConcurrent = process.env['WRONGSTACK_MAX_CONCURRENT'];
 const priorManifest = process.env['WRONGSTACK_FLEET_MANIFEST'];
+const priorMaxSpawns = process.env['WRONGSTACK_MAX_SPAWNS'];
 
 afterEach(() => {
   if (priorConcurrent === undefined) delete process.env['WRONGSTACK_MAX_CONCURRENT'];
   else process.env['WRONGSTACK_MAX_CONCURRENT'] = priorConcurrent;
   if (priorManifest === undefined) delete process.env['WRONGSTACK_FLEET_MANIFEST'];
   else process.env['WRONGSTACK_FLEET_MANIFEST'] = priorManifest;
+  if (priorMaxSpawns === undefined) delete process.env['WRONGSTACK_MAX_SPAWNS'];
+  else process.env['WRONGSTACK_MAX_SPAWNS'] = priorMaxSpawns;
   vi.clearAllMocks();
 });
 
@@ -46,6 +49,9 @@ describe('setupDirectorAndAutonomy', () => {
 
     expect(result.directorMode).toBe(true);
     expect(result.maxConcurrent).toBe(6);
+    expect(result.maxConcurrentSource).toBe('cli-flag');
+    expect(result.maxSpawns).toBe(64);
+    expect(result.maxSpawnsSource).toBe('default');
     expect(result.autonomyMode).toBe('eternal-parallel');
     expect(autonomyModeRef.current).toBe('eternal-parallel');
     expect(result.nextPredictEnabled).toBe(true);
@@ -70,6 +76,18 @@ describe('setupDirectorAndAutonomy', () => {
     expect(setup({}, { autonomy: { defaultMode: 'suggest' } } as Config).result.autonomyMode).toBe(
       'suggest',
     );
+  });
+
+  it('resolves maxSpawns from env/profile with source labels', () => {
+    process.env['WRONGSTACK_MAX_SPAWNS'] = '256';
+    const fromEnv = setup({}, { fleet: { budget: { maxSpawns: 96 } } } as Config).result;
+    expect(fromEnv.maxSpawns).toBe(256);
+    expect(fromEnv.maxSpawnsSource).toBe('env');
+    delete process.env['WRONGSTACK_MAX_SPAWNS'];
+
+    const fromProfile = setup({}, { fleet: { budget: { maxSpawns: 96 } } } as Config).result;
+    expect(fromProfile.maxSpawns).toBe(96);
+    expect(fromProfile.maxSpawnsSource).toBe('profile');
   });
 
   it('broadcasts to healthy listeners even when another listener throws', () => {

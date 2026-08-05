@@ -15,6 +15,12 @@ node scripts/lint-console-logging.mjs --verbose
 # resolve" — this exact class broke every CI run after 9290b3b14.
 node scripts/guard-unresolved-imports.mjs --verbose
 
+# Core API snapshots are committed architecture evidence. Refresh and stage
+# them whenever a staged source change can affect them. The helper refuses to
+# run if the shared worktree has unstaged/untracked snapshot inputs, avoiding a
+# generated file that accidentally includes a teammate's WIP.
+node scripts/sync-core-public-api-snapshot.mjs
+
 # ── Mailbox-bridge integrity ─────────────────────────────────────
 # If any mailbox-bridge source file is staged, run the route-table +
 # source-union guard. Cheap to skip when nothing relevant is staged.

@@ -169,4 +169,9 @@ describe('release scripts (WS-040)', () => {
     expect(architectureCheck).not.toContain('--write');
     expect(architectureCheck).not.toContain('--report-only');
   });
+
+  it('refreshes Core API evidence before committing staged source changes', () => {
+    const hook = readFileSync(join(repoRoot, '.githooks', 'pre-commit'), 'utf8');
+    expect(hook).toContain('node scripts/sync-core-public-api-snapshot.mjs');
+  });
 });

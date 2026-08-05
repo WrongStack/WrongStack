@@ -85,6 +85,9 @@ export interface BrainOrchestrationDeps {
   stateCheckpointPath: string | undefined;
   fleetRootForPromotion: string;
   maxConcurrent: number | undefined;
+  maxSpawns?: number | undefined;
+  maxConcurrentSource?: import('../fleet/budget-source.js').FleetBudgetSource | undefined;
+  maxSpawnsSource?: import('../fleet/budget-source.js').FleetBudgetSource | undefined;
   effectiveMaxContextRef: { current: number };
   mcpRegistry: AnyObj;
   sessResult: AnyObj;
@@ -413,8 +416,12 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
             },
           }
         : {}),
-      maxSpawns: config.fleet?.budget?.maxSpawns,
+      maxSpawns: deps.maxSpawns ?? config.fleet?.budget?.maxSpawns,
       maxConcurrent,
+      budgetSources: {
+        maxConcurrent: deps.maxConcurrentSource ?? 'default',
+        maxSpawns: deps.maxSpawnsSource ?? 'default',
+      },
       getLeaderMaxContext: () => effectiveMaxContextRef.current,
       brain,
       agentMonitor,
