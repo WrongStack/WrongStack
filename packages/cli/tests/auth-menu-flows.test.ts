@@ -19,6 +19,7 @@ import type { AuthMenuDeps } from '../src/auth-menu/types.js';
 import { createAuthPanelHost } from '../src/auth-menu/panel-service.js';
 import { runTopMenu } from '../src/auth-menu/top-menu.js';
 import { manageProvider } from '../src/auth-menu/provider-menu.js';
+import { addKeyForProvider } from '../src/auth-menu/add-provider.js';
 
 // ── Hermetic probe ─────────────────────────────────────────────────────────
 const probeMock = vi.hoisted(() => vi.fn());
@@ -219,6 +220,33 @@ describe('panel host — addCustomProvider flow', () => {
     expect(log.some((l) => l.includes('already exists'))).toBe(true);
     expect(Object.keys(await readProviders(configPath))).toEqual(['anthropic']);
   });
+
+  it('auto-assigns a generated custom-N id on a blank id', async () => {
+    const { host, configPath } = await setup();
+    // '', family, baseUrl, models, envVars, label, key
+    const { io, log } = makeIo(['', 'openai', '', '', '', 'default', 'sk-g-1234567890']);
+    const result = await host.addCustomProvider(io);
+    expect(result.ok).toBe(true);
+    expect(log.some((l) => l.includes('Using generated id:'))).toBe(true);
+    const providers = await readProviders(configPath);
+    const ids = Object.keys(providers);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toMatch(/^custom-/);
+  });
+
+  it('aborts on q at the family prompt', async () => {
+    const { host, configPath } = await setup();
+    const { io } = makeIo(['my-proxy', 'q']);
+    expect((await host.addCustomProvider(io)).ok).toBe(false);
+    expect(await readProviders(configPath)).toEqual({});
+  });
+
+  it('rejects an invalid family', async () => {
+    const { host } = await setup();
+    const { io, log } = makeIo(['my-proxy', 'mystery']);
+    expect((await host.addCustomProvider(io)).ok).toBe(false);
+    expect(log.some((l) => l.includes('Invalid family: "mystery"'))).toBe(true);
+  });
 });
 
 // ── Panel host: addCatalogProvider (addKeyForCatalogProvider real flow) ────
@@ -279,6 +307,64 @@ describe('panel host — addCatalogProvider flow', () => {
     const result = await host.addCatalogProvider('anthropic', io);
     expect(result.ok).toBe(false);
     expect(log.some((l) => l.includes('already exists with different family/baseUrl'))).toBe(true);
+  });
+
+  it('rejects an invalid family override', async () => {
+    const { host } = await setup({ catalog: ANTHROPIC_CATALOG });
+    const { io, log } = makeIo(['mystery']);
+    const result = await host.addCatalogProvider('anthropic', io);
+    expect(result.ok).toBe(false);
+    expect(log.some((l) => l.includes('Invalid family: "mystery"'))).toBe(true);
+  });
+
+  it('aborts on q at the base URL prompt', async () => {
+    const { host, configPath } = await setup({ catalog: ANTHROPIC_CATALOG });
+    const { io } = makeIo(['google', 'q']);
+    expect((await host.addCatalogProvider('anthropic', io)).ok).toBe(false);
+    expect(await readProviders(configPath)).toEqual({});
+  });
+
+  it('bumps the suggested alias when the family-specific alias is taken', async () => {
+    const { host, configPath } = await setup({
+      catalog: ANTHROPIC_CATALOG,
+      preExisting: {
+        providers: {
+          'anthropic-google': { type: 'anthropic', family: 'google' },
+        },
+      },
+    });
+    // family 'google' → suggested 'anthropic-google' (taken) → 'anthropic-google-2'
+    const { io } = makeIo(['google', '', '', 'default', 'sk-g-1234567890']);
+    const result = await host.addCatalogProvider('anthropic', io);
+    expect(result.ok).toBe(true);
+    const providers = await readProviders(configPath);
+    expect(providers['anthropic-google-2']).toMatchObject({
+      type: 'anthropic',
+      family: 'google',
+    });
+    expect(providers['anthropic-google']).toBeDefined();
+  });
+
+  it('proceeds when an existing alias matches family and baseUrl', async () => {
+    const { host, configPath } = await setup({
+      catalog: ANTHROPIC_CATALOG,
+      preExisting: {
+        providers: {
+          anthropic: {
+            type: 'anthropic',
+            family: 'anthropic',
+            baseUrl: 'https://api.anthropic.com',
+          },
+        },
+      },
+    });
+    // Same family + baseUrl → no conflict → adds the key to the existing entry.
+    const { io } = makeIo(['', '', 'anthropic', 'work', 'sk-w-1234567890']);
+    const result = await host.addCatalogProvider('anthropic', io);
+    expect(result.ok).toBe(true);
+    const providers = await readProviders(configPath);
+    expect((providers['anthropic'] as { apiKeys?: unknown[] }).apiKeys).toHaveLength(1);
+    expect((providers['anthropic'] as { activeKey?: string }).activeKey).toBe('work');
   });
 });
 
@@ -545,5 +631,75 @@ describe('manageProvider — provider submenu', () => {
     const { deps, logs } = menuCtx(configPath, vault, registry, []);
     await manageProvider('ghost', deps);
     expect(logs.some((l) => l.includes('Provider "ghost" no longer in config.'))).toBe(true);
+  });
+});
+
+// ── add-provider.ts: addKeyForProvider template merge + adoption edges ──────
+describe('add-provider.ts — addKeyForProvider merge + adoption edges', () => {
+  it('fills missing family/baseUrl/envVars/activeKey from the template', async () => {
+    const { configPath, vault, registry } = await setup({
+      preExisting: {
+        providers: { legacy: { type: 'legacy' } }, // no family/baseUrl/envVars/keys
+      },
+    });
+    const { deps } = menuCtx(configPath, vault, registry, ['work', 'sk-x-1234567890']);
+    const ok = await addKeyForProvider('legacy', deps, {
+      type: 'legacy',
+      family: 'openai',
+      baseUrl: 'http://legacy.local/v1',
+      envVars: ['LEGACY_KEY'],
+    });
+    expect(ok).toBe(true);
+    const providers = await readProviders(configPath);
+    expect(providers['legacy']).toMatchObject({
+      type: 'legacy',
+      family: 'openai',
+      baseUrl: 'http://legacy.local/v1',
+      envVars: ['LEGACY_KEY'],
+      activeKey: 'work',
+    });
+  });
+
+  it('backfills the type on a legacy entry that lacks it', async () => {
+    const { configPath, vault, registry } = await setup({
+      preExisting: { providers: { ghost: { family: 'openai' } } }, // no type
+    });
+    const { deps } = menuCtx(configPath, vault, registry, ['k1', 'sk-y-1234567890']);
+    const ok = await addKeyForProvider('ghost', deps, { type: 'ghost' });
+    expect(ok).toBe(true);
+    const providers = await readProviders(configPath);
+    expect(providers['ghost']).toMatchObject({ type: 'ghost', family: 'openai' });
+  });
+
+  it('skips adoption when a default provider/model is already set', async () => {
+    const { host, configPath } = await setup({
+      preExisting: {
+        provider: 'openai',
+        model: 'gpt-4o',
+        providers: { openai: { type: 'openai', family: 'openai' } },
+      },
+    });
+    const { io } = makeIo(['work', 'sk-z-1234567890']);
+    expect((await host.addKey('openai', io)).ok).toBe(true);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(raw.provider).toBe('openai'); // untouched — a default already existed
+    expect(raw.model).toBe('gpt-4o');
+  });
+
+  it('skips adoption when the catalog lookup fails', async () => {
+    const { configPath, vault, registry } = await setup();
+    // Registry whose getProvider rejects — resolveDefaultModelId catches it.
+    const failing = {
+      getProvider: vi.fn(async () => {
+        throw new Error('registry down');
+      }),
+      listProviders: vi.fn(async () => []),
+    } as never as ModelsRegistry;
+    const { deps } = menuCtx(configPath, vault, failing, ['k1', 'sk-w-1234567890']);
+    const ok = await addKeyForProvider('brand-new', deps, { type: 'brand-new' });
+    expect(ok).toBe(true);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(raw.provider).toBeUndefined(); // no adoption, no default write
+    expect(registry).toBeDefined();
   });
 });

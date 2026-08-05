@@ -20,6 +20,19 @@ import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthMenuDeps } from '../src/auth-menu/types.js';
+
+// `openBrowser` shells out to `cmd /c start` (or `open`/`xdg-open`). Left real,
+// every run of this suite pops a real browser window on the developer's
+// desktop — and the device-code flow below opens a second one. Stub the spawn
+// so the best-effort contract is still exercised without hijacking the machine.
+const spawnedBrowserArgs: string[][] = [];
+vi.mock('node:child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:child_process')>()),
+  spawn: vi.fn((command: string, args: string[]) => {
+    spawnedBrowserArgs.push([command, ...args]);
+    return { on: () => {}, unref: () => {} };
+  }),
+}));
 import {
   buildAuthorizeUrl as buildCodexAuthorizeUrl,
   exchangeAuthorizationCode as exchangeCodex,
@@ -203,7 +216,10 @@ describe('loopback-server.ts — real loopback callback server', () => {
   });
 
   it('openBrowser is best-effort and never throws', () => {
+    spawnedBrowserArgs.length = 0;
     expect(() => openBrowser('https://example.com/auth')).not.toThrow();
+    // Assert the handoff instead of letting a real browser window open.
+    expect(spawnedBrowserArgs.at(-1)).toContain('https://example.com/auth');
   });
 
   it('resolves waitForCode with code+state on a valid callback', async () => {
@@ -594,6 +610,10 @@ describe('anthropic-oauth.ts — pure helpers', () => {
     routes = [];
     route('platform.claude.com/v1/oauth/token', () => jsonResponse({ error: 1 }, 401));
     await expect(exchangeClaude('c', 's', 'v')).rejects.toThrow(/Claude token exchange failed \(401\)/);
+
+    routes = [];
+    route('platform.claude.com/v1/oauth/token', () => jsonResponse({ foo: 1 }));
+    await expect(exchangeClaude('c', 's', 'v')).rejects.toThrow(/response missing fields/);
   });
 });
 
@@ -662,6 +682,156 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     await fireCallback(port, '/callback', 'code=x&state=WRONG');
     expect(await flow).toBe(1);
     expect(logs.some((l) => l.includes('State mismatch'))).toBe(true);
+  });
+
+  it('completes via a pasted raw code (no loopback state check)', async () => {
+    claudeRoutes();
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry, ['raw-code-123']);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+    const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', 'code=x&state=WRONG'); // unblock wait → paste
+    expect(await flow).toBe(0);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(
+      (raw.providers as Record<string, Record<string, unknown>>)['anthropic-oauth'].family,
+    ).toBe('anthropic-oauth');
+  });
+
+  it('reports when the pasted input carries no code', async () => {
+    claudeRoutes();
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry, ['code=']);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+    const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', 'code=x&state=WRONG');
+    expect(await flow).toBe(1);
+    expect(logs.some((l) => l.includes('No authorization code received.'))).toBe(true);
+  });
+
+  it('cancels cleanly when the external signal is already aborted', async () => {
+    claudeRoutes();
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    ac.abort();
+    expect(await runClaudeOAuthLogin(deps, { signal: ac.signal })).toBe(1);
+    expect(logs.some((l) => l.includes('Cancelled.'))).toBe(true);
+  });
+
+  it('runs without an external signal (SIGINT wiring is installed and removed)', async () => {
+    claudeRoutes();
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const flow = runClaudeOAuthLogin(deps); // no signal → own SIGINT handler
+    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', `code=cb&state=${state}`);
+    expect(await flow).toBe(0);
+  });
+
+  it('falls back to manual paste when the callback port is busy', async () => {
+    claudeRoutes();
+    const dummy = await startLoopbackServer('dummy-53692', [53692]);
+    try {
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry, ['cb-paste']);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+      const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      expect(port).toBe(53692);
+      expect(logs.some((l) => l.includes('Could not start the local callback listener'))).toBe(true);
+      expect(await flow).toBe(0);
+    } finally {
+      dummy.close();
+    }
+  });
+
+  it('replaces an existing oauth-default key on re-login', async () => {
+    claudeRoutes();
+    const { configPath, vault, registry } = await setup({
+      preExisting: {
+        providers: {
+          'claude-oauth-test': {
+            type: 'anthropic-oauth',
+            apiKeys: [{ label: 'oauth-default', apiKey: 'sk-old' }],
+            activeKey: 'oauth-default',
+          },
+        },
+      },
+    });
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { providerId: 'claude-oauth-test', signal: ac.signal });
+    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', `code=cb&state=${state}`);
+    expect(await flow).toBe(0);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    const p = (raw.providers as Record<string, Record<string, unknown>>)['claude-oauth-test']!;
+    expect(p.family).toBe('anthropic-oauth');
+    expect((p.apiKeys as unknown[]).length).toBe(1); // old oauth-default replaced, not duplicated
+  });
+
+  it('reports a token-save failure', async () => {
+    claudeRoutes();
+    const { tmpDir, vault, registry } = await setup();
+    const configPath = path.join(tmpDir, 'not-a-file');
+    await fs.mkdir(configPath, { recursive: true });
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', `code=cb&state=${state}`);
+    expect(await flow).toBe(1);
+    expect(logs.some((l) => l.includes('Failed to save tokens'))).toBe(true);
+  });
+
+  it('maps an AbortError during exchange to "Login cancelled."', async () => {
+    route('platform.claude.com/v1/oauth/token', () => {
+      throw new DOMException('aborted', 'AbortError');
+    });
+    route('/v1/models', () => jsonResponse({ data: [] }));
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', `code=cb&state=${state}`);
+    expect(await flow).toBe(1);
+    expect(logs.some((l) => l.includes('Login cancelled.'))).toBe(true);
+  });
+
+  it('surfaces a generic exchange failure', async () => {
+    route('platform.claude.com/v1/oauth/token', () => {
+      throw new Error('token endpoint down');
+    });
+    route('/v1/models', () => jsonResponse({ data: [] }));
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', `code=cb&state=${state}`);
+    expect(await flow).toBe(1);
+    expect(logs.some((l) => l.includes('Login failed: token endpoint down'))).toBe(true);
+  });
+
+  it('tolerates the models fetch throwing (falls back to an empty list)', async () => {
+    route('platform.claude.com/v1/oauth/token', () =>
+      jsonResponse({ access_token: 'ac', refresh_token: 'rf', expires_in: 3600 }),
+    );
+    route('/v1/models', () => {
+      throw new Error('net down');
+    });
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+    await fireCallback(port, '/callback', `code=cb&state=${state}`);
+    expect(await flow).toBe(0);
+    expect(logs.some((l) => l.includes('No model list was discovered'))).toBe(true);
   });
 });
 
