@@ -163,6 +163,36 @@ describe('HookRunner.postToolUse', () => {
     expect(hook).toHaveBeenCalledTimes(2);
     releases.shift()?.();
   });
+
+  it('gives background hooks a wider default deadline than foreground ones', async () => {
+    // Nothing awaits a background hook, so the 5s foreground budget bought no
+    // responsiveness — it only killed whole-repo scans mid-flight and logged a
+    // timeout every write. An explicit timeoutMs still wins.
+    const reg = new HookRegistry();
+    const deadlines: Record<string, number> = {};
+    const capture =
+      (label: string) =>
+      (_input: unknown, ctx?: { deadlineAt: number }): undefined => {
+        if (ctx) deadlines[label] = ctx.deadlineAt - Date.now();
+        return undefined;
+      };
+    reg.registerInProcess('PostToolUse', '*', capture('foreground'), 'fg');
+    reg.registerInProcess('PostToolUse', '*', capture('background'), 'bg', { background: true });
+    reg.registerInProcess('PostToolUse', '*', capture('explicit'), 'ex', {
+      background: true,
+      timeoutMs: 2_000,
+    });
+
+    const runner = new HookRunner({ registry: reg });
+    await runner.postToolUse('write', {}, { content: 'ok', isError: false }, env);
+    await vi.waitFor(() =>
+      expect(Object.keys(deadlines).sort()).toEqual(['background', 'explicit', 'foreground']),
+    );
+
+    expect(deadlines['foreground']).toBeLessThanOrEqual(5_000);
+    expect(deadlines['background']).toBeGreaterThan(5_000);
+    expect(deadlines['explicit']).toBeLessThanOrEqual(2_000);
+  });
 });
 
 describe('HookRunner.userPromptSubmit', () => {

@@ -1,3 +1,4 @@
+import { type PluginEnablementSource, resolvePluginEnablement } from '../plugin/config.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import type { Config, PluginConfig } from '../types/config.js';
@@ -5,6 +6,14 @@ import type { JSONSchema, Tool } from '../types/tool.js';
 import { validateAgainstSchema } from '../utils/json-schema-validate.js';
 
 export const PLUGIN_MANAGER_TOOL_NAME = 'plugin_manager';
+
+/** Maps the shared resolver's source onto this tool's public wire values. */
+const PLUGIN_VIEW_STATE_SOURCE: Record<PluginEnablementSource, PluginView['stateSource']> = {
+  'feature-flag': 'feature_flag',
+  'plugin-entry': 'config',
+  extension: 'extension',
+  default: 'default',
+};
 
 export interface PluginManagerCatalogEntry {
   name: string;
@@ -55,7 +64,7 @@ interface PluginView {
   description: string;
   risk: 'low' | 'medium' | 'high' | 'custom';
   enabled: boolean;
-  stateSource: 'config' | 'default' | 'feature_flag';
+  stateSource: 'config' | 'extension' | 'default' | 'feature_flag';
   canDisable: boolean;
   managerControl: 'allowed' | 'locked';
   aliases: string[];
@@ -328,18 +337,18 @@ function buildPluginViews(opts: CreatePluginManagerToolOptions): PluginView[] {
     .map((entry): PluginView => {
       const aliases = [...(entry.aliases ?? [])];
       const names = new Set([entry.name, ...aliases]);
-      const configuredEntry = configured.find((item) => names.has(pluginConfigName(item)));
-      const globallyDisabled = config.features?.plugins === false;
-      const enabled = globallyDisabled
-        ? false
-        : configuredEntry === undefined
-          ? entry.defaultState === 'active'
-          : typeof configuredEntry === 'string' || configuredEntry.enabled !== false;
-      const stateSource = globallyDisabled
-        ? 'feature_flag'
-        : configuredEntry === undefined
-          ? 'default'
-          : 'config';
+      // Shares one precedence with the loader (cli/wiring/plugins.ts) and
+      // `wstack plugin report` — see resolvePluginEnablement. Reading only
+      // `config.plugins` here reported a plugin enabled through
+      // `extensions.<name>.enabled` as disabled while it was in fact running.
+      const { enabled, source } = resolvePluginEnablement({
+        name: entry.name,
+        aliases,
+        defaultState: entry.defaultState,
+        config,
+        matches: (spec) => names.has(spec),
+      });
+      const stateSource = PLUGIN_VIEW_STATE_SOURCE[source];
       const tools = pluginTools(opts.toolRegistry, entry.name, aliases);
       const managerControl = isManagerLocked(config, entry.name, aliases) ? 'locked' : 'allowed';
       return {

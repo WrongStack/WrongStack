@@ -160,15 +160,15 @@ describe('plugin management', () => {
   it('toggles a default-active core plugin off by writing a disabled override', async () => {
     await fs.writeFile(configPath, JSON.stringify({ plugins: [] }));
 
-    const result = await runPluginManagementCommand(['toggle', 'wstack-git'], {
+    const result = await runPluginManagementCommand(['toggle', 'wstack-prompts'], {
       config: config(),
       configPath,
     });
 
     expect(result.code).toBe(0);
-    expect(result.patch?.plugins).toEqual([{ name: 'wstack-git', enabled: false }]);
+    expect(result.patch?.plugins).toEqual([{ name: 'wstack-prompts', enabled: false }]);
     await expect(readConfig()).resolves.toMatchObject({
-      plugins: [{ name: 'wstack-git', enabled: false }],
+      plugins: [{ name: 'wstack-prompts', enabled: false }],
       features: { plugins: true },
     });
   });
@@ -427,5 +427,55 @@ describe('plugin management', () => {
     await expect(readConfig()).resolves.toMatchObject({
       plugins: [],
     });
+  });
+});
+
+// The exact shape that hid a running plugin: `extensions.<name>.enabled`
+// switched duplicate-code-detector on (the loader honours it), but the audit
+// report read `config.plugins` alone and printed "disabled" — so the plugin's
+// PostToolUse hook kept firing on a machine whose report said it was off.
+describe('audit report agrees with the loader about extensions-enabled plugins', () => {
+  const auditReport = async (config: Config): Promise<string> =>
+    (await runPluginManagementCommand(['report'], { config, configPath: '/unused.json' })).message;
+
+  const rowFor = (report: string, name: string): string =>
+    report.split('\n').find((line) => line.trim().startsWith(`${name} `)) ?? '';
+
+  it('reports a default-inactive plugin enabled through extensions as enabled/ext', async () => {
+    const row = rowFor(
+      await auditReport({
+        plugins: [],
+        extensions: { 'duplicate-code-detector': { enabled: true } },
+      } as never as Config),
+      'duplicate-code-detector',
+    );
+    expect(row).toContain('enabled');
+    expect(row).toContain('ext');
+  });
+
+  it('reports a default-active plugin switched off through extensions as disabled', async () => {
+    // diff-summary is defaultState: 'active', so this row read "enabled
+    // default" before extensions could turn anything off.
+    const row = rowFor(
+      await auditReport({
+        plugins: [],
+        extensions: { 'diff-summary': { enabled: false } },
+      } as never as Config),
+      'diff-summary',
+    );
+    expect(row).toContain('disabled');
+    expect(row).toContain('ext');
+  });
+
+  it('still lets a plugins[] entry win over an opposing extensions switch', async () => {
+    const row = rowFor(
+      await auditReport({
+        plugins: [{ name: 'duplicate-code-detector', enabled: false }],
+        extensions: { 'duplicate-code-detector': { enabled: true } },
+      } as never as Config),
+      'duplicate-code-detector',
+    );
+    expect(row).toContain('disabled');
+    expect(row).toContain('config');
   });
 });

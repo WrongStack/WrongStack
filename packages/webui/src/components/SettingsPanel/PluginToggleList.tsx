@@ -53,9 +53,17 @@ const SORTED_PLUGINS = [...PLUGIN_AUDIT_ENTRIES].sort((a, b) =>
  * The list is driven by the shared audit catalog (`@wrongstack/plugins/
  * plugin-audit-catalog`) — the same single source of truth the CLI plugin
  * manager uses — so EVERY plugin the host knows about appears here, whether
- * it is currently active or inactive. Enablement resolves from the per-browser
- * override (`localPrefs.pluginsEnabled`, which the server persists to
- * `extensions.<name>.enabled`) and falls back to the catalog `defaultState`.
+ * it is currently active or inactive.
+ *
+ * `localPrefs.pluginsEnabled` is NOT just this browser's memory: on connect the
+ * server seeds it (context-meta.ts) with the EFFECTIVE state resolved through
+ * core's shared precedence, and the snapshot wins over localStorage. So a
+ * plugin the config decides shows what is actually running; only plugins the
+ * config says nothing about fall back to the catalog `defaultState` here.
+ *
+ * On write the server projects the toggle onto `extensions.<name>.enabled` AND
+ * any matching `config.plugins` entry (pref-helpers.ts) — the entry outranks
+ * the extension, so writing only the latter made this switch decorative.
  * Plugins flagged `canDisable: false` render a locked, non-interactive switch.
  */
 export function PluginToggleList() {

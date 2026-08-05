@@ -1,19 +1,25 @@
 // ---------------------------------------------------------------------------
 // P2.1 — Unified plugin enablement view.
 //
-// The CLI owns the canonical plugin state in `Config.plugins`
-// (configured via `wstack plugin add | enable | disable | toggle`).
-// The WebUI stores a per-browser override in `localPrefs.pluginsEnabled`
-// so the toggle UI can show useful state when the WS bridge is offline.
+// NOT WIRED TO THE PANEL, and deliberately so. `PluginToggleList` renders
+// `localPrefs.pluginsEnabled`, which the server seeds (context-meta.ts) with
+// the EFFECTIVE state it computes via core's `resolvePluginEnablement` — the
+// one precedence every surface shares: features.plugins → config.plugins →
+// extensions.<name>.enabled → catalog defaultState. Resolving again in the
+// browser would mean a second, drifting copy, which is exactly the bug that
+// let a plugin run while every report called it disabled.
 //
-// This module is the single read-side join: given the canonical config
-// (server-driven) and the local override map, produce the resolved
-// "is this plugin enabled right now" boolean the Settings UI renders.
+// What survives here is the P2 gate's contract evidence for the local-override
+// join, kept because the browser can hold an override the server has not seen
+// yet. Two rules if this is ever wired into the UI: it must not import
+// `@wrongstack/core/plugin` (Node-only — see the browser-safe subpath rule),
+// and its precedence must be re-derived from core rather than restated. As
+// written it consults `config.plugins` alone and would report an
+// extensions-enabled plugin as absent.
 //
-// Write-side stays where it already lives — `localPrefs.set` for the
-// local override and `wstack plugin toggle <name>` (via
-// `runPluginManagementCommand`) for the canonical state. We do not
-// silently mutate either from this view layer; the toggle UI calls both.
+// Write-side is `localPrefs.set`, which the server projects onto BOTH
+// `extensions.<name>.enabled` and any matching `config.plugins` entry
+// (pref-helpers.ts) so the toggle lands on whichever layer wins.
 // ---------------------------------------------------------------------------
 
 import type { PluginConfig } from '@wrongstack/core/types';

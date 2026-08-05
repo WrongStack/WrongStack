@@ -6,7 +6,7 @@ import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
 import type { ConfigStore, SessionWriter } from '@wrongstack/core/types';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { ProviderRegistry, SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { loadPlugins, resolvePluginConfig } from '@wrongstack/core/plugin';
+import { loadPlugins, resolvePluginConfig, resolvePluginEnablement } from '@wrongstack/core/plugin';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { OFFICIAL_PLUGIN_FACTORIES } from '@wrongstack/plugins/factories';
 import createApi from '../plugin-api-factory.js';
@@ -245,33 +245,30 @@ export async function setupPlugins(
   // adding `{ name: 'wstack-git', enabled: false }` to `config.plugins`
   // (or disable all plugins with `config.features.plugins === false`).
   const builtinPlugins: Plugin[] = [];
-  const disabledBuiltins = new Set(
-    (config.plugins ?? [])
-      .filter(
-        (p): p is { name: string; enabled?: boolean | undefined } =>
-          typeof p === 'object' && p.enabled === false,
-      )
-      .flatMap((p) => {
-        const builtinName = builtinPluginNameFromSpec(p.name);
-        return builtinName && builtinName !== p.name ? [p.name, builtinName] : [p.name];
-      }),
-  );
   if (paths && config.features?.plugins !== false) {
     for (const factory of BUILTIN_PLUGIN_FACTORIES) {
       try {
         const plugin = await factory();
         if (!plugin) continue;
         const auditEntry = PLUGIN_AUDIT_ENTRIES.find((entry) => entry.name === plugin.name);
-        const explicitlyEnabled = (config.plugins ?? []).some((entry) => {
-          const spec = typeof entry === 'string' ? entry : entry.name;
-          if (typeof entry === 'object' && entry.enabled === false) return false;
-          return (builtinPluginNameFromSpec(spec) ?? spec) === plugin.name;
-        }) || config.extensions?.[plugin.name]?.['enabled'] === true;
-        if (auditEntry?.defaultState === 'inactive' && !explicitlyEnabled) {
-          continue;
-        }
-        if (disabledBuiltins.has(plugin.name)) {
-          log.info(`[setupPlugins] built-in plugin "${plugin.name}" disabled by config`);
+        // Enablement precedence lives in ONE place (core/plugin/config.ts) so
+        // the loader, `wstack plugin list`, and the plugin_manager tool cannot
+        // disagree about what is running. Only the matcher is local: config
+        // entries may spell a built-in as `@wrongstack/plugins/<name>` or via
+        // an alias (`lsp`, `@wrongstack/telegram`).
+        const { enabled, source } = resolvePluginEnablement({
+          name: plugin.name,
+          aliases: plugin.configAliases,
+          // Built-ins outside the audit catalog (prompts, sync, skills, …)
+          // are infrastructure — they run unless explicitly turned off.
+          defaultState: auditEntry?.defaultState ?? 'active',
+          config,
+          matches: (spec) => (builtinPluginNameFromSpec(spec) ?? spec) === plugin.name,
+        });
+        if (!enabled) {
+          if (source !== 'default') {
+            log.info(`[setupPlugins] built-in plugin "${plugin.name}" disabled by ${source}`);
+          }
           continue;
         }
         // Defensive: if a future PR leaves a deprecated factory in

@@ -421,3 +421,59 @@ describe('seedContextMeta', () => {
     expect(context.meta['tgConfigured']).toBe(false);
   });
 });
+
+// The settings panel used to render each switch from the browser's own
+// localStorage guess, so a plugin the config had already decided (especially
+// via a plugins[] entry, which outranks extensions.<name>.enabled) showed the
+// wrong state on connect.
+describe('seedContextMeta — per-plugin effective state', () => {
+  const seed = (config: Record<string, unknown>): Record<string, unknown> | undefined => {
+    const context = { meta: {} as Record<string, unknown> };
+    seedContextMeta(makeConfig(config), context);
+    return context.meta['pluginsEnabled'] as Record<string, unknown> | undefined;
+  };
+
+  it('reports a plugins[] entry as the winner over an opposing extension', () => {
+    expect(
+      seed({
+        plugins: [{ name: 'type-gate', enabled: false }],
+        extensions: { 'type-gate': { enabled: true } },
+      }),
+    ).toEqual({ 'type-gate': false });
+  });
+
+  it('reports an extensions-only plugin', () => {
+    expect(
+      seed({ plugins: [], extensions: { 'duplicate-code-detector': { enabled: true } } }),
+    ).toEqual({ 'duplicate-code-detector': true });
+  });
+
+  it('reports a bare string entry as enabled', () => {
+    expect(seed({ plugins: ['todo-listener'], extensions: {} })).toEqual({
+      'todo-listener': true,
+    });
+  });
+
+  it('reports everything disabled when features.plugins is false', () => {
+    expect(seed({ plugins: ['todo-listener'], features: { plugins: false } })).toEqual({
+      'todo-listener': false,
+    });
+  });
+
+  it('skips extensions that carry no boolean enabled flag', () => {
+    expect(seed({ plugins: [], extensions: { telegram: { token: 'x' } } })).toBeUndefined();
+  });
+
+  it('omits the key entirely when the config decides no plugin', () => {
+    expect(seed({ plugins: [], extensions: {} })).toBeUndefined();
+  });
+
+  it('does not let a __proto__ plugin name reach the meta object', () => {
+    const config = JSON.parse('{"plugins":["__proto__"],"extensions":{}}') as Record<
+      string,
+      unknown
+    >;
+    expect(seed(config)).toBeUndefined();
+    expect(({} as Record<string, unknown>)['enabled']).toBeUndefined();
+  });
+});

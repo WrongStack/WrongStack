@@ -1,5 +1,9 @@
 import * as fs from 'node:fs/promises';
 import { atomicWrite } from '@wrongstack/core/utils';
+import {
+  type PluginEnablementSource,
+  resolvePluginEnablement,
+} from '@wrongstack/core/plugin';
 import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
 import {
   PLUGIN_AUDIT_ENTRIES,
@@ -431,6 +435,7 @@ export function renderPluginAuditReport(config: Config): string {
   const lines = [
     'Plugin audit report:',
     '  State shows the effective boot state. Default-active plugins run unless disabled in config.',
+    '  Source: config = plugins[] entry, ext = extensions.<name>.enabled, feature = features.plugins.',
     '  Built-in audit rows are toggleable unless a future row explicitly marks itself locked.',
     '',
     '  Built-in audit entries:',
@@ -487,23 +492,31 @@ function pluginMatchesToggleSpec(p: string | PluginConfig, spec: string): boolea
   return name === spec;
 }
 
+/** Column label for the audit report's `source` field. */
+const AUDIT_STATE_SOURCE_LABEL: Record<PluginEnablementSource, string> = {
+  'feature-flag': 'feature',
+  'plugin-entry': 'config',
+  extension: 'ext',
+  default: 'default',
+};
+
 function effectiveAuditState(
   config: Config,
   entry: PluginAuditEntry,
-): { state: 'enabled' | 'disabled'; source: 'config' | 'default' } {
-  const configured = (config.plugins ?? []).find((plugin) =>
-    pluginMatchesToggleSpec(plugin, entry.name),
-  );
-  if (configured) {
-    return {
-      state:
-        typeof configured === 'object' && configured.enabled === false ? 'disabled' : 'enabled',
-      source: 'config',
-    };
-  }
+): { state: 'enabled' | 'disabled'; source: string } {
+  // Shares one precedence with the loader (cli/wiring/plugins.ts) and the
+  // plugin_manager tool — see resolvePluginEnablement. Reading only
+  // `config.plugins` here is what let a plugin enabled through
+  // `extensions.<name>.enabled` run while this report called it disabled.
+  const { enabled, source } = resolvePluginEnablement({
+    name: entry.name,
+    defaultState: entry.defaultState,
+    config,
+    matches: (spec) => pluginMatchesToggleSpec(spec, entry.name),
+  });
   return {
-    state: entry.defaultState === 'active' ? 'enabled' : 'disabled',
-    source: 'default',
+    state: enabled ? 'enabled' : 'disabled',
+    source: AUDIT_STATE_SOURCE_LABEL[source],
   };
 }
 

@@ -297,4 +297,58 @@ describe('WebUI preference persistence helpers', () => {
     await persistPrefsToConfig(deps, holder, {});
     expect(await readConfig()).toEqual({ keep: true });
   });
+
+  // `config.plugins` outranks `extensions.<name>.enabled` (resolvePluginEnablement),
+  // so writing only the extension left the panel's switch decorative for every
+  // plugin that also had a plugins[] entry.
+  describe('pluginsEnabled lands on the winning config layer', () => {
+    it('flips a matching plugins[] entry alongside the extension', async () => {
+      await fs.writeFile(
+        configPath,
+        JSON.stringify({ plugins: ['type-gate', 'unrelated'] }),
+        'utf8',
+      );
+      await persistPrefsToConfig(deps, holder, { pluginsEnabled: { 'type-gate': false } });
+      const config = await readConfig();
+      expect(config.plugins).toEqual([{ name: 'type-gate', enabled: false }, 'unrelated']);
+      expect(config.extensions).toEqual({ 'type-gate': { enabled: false } });
+    });
+
+    it('re-enables an object-form entry and keeps its other options', async () => {
+      await fs.writeFile(
+        configPath,
+        JSON.stringify({
+          plugins: [{ name: 'type-gate', enabled: false, options: { strict: 1 } }],
+        }),
+        'utf8',
+      );
+      await persistPrefsToConfig(deps, holder, { pluginsEnabled: { 'type-gate': true } });
+      const config = await readConfig();
+      expect(config.plugins).toEqual([
+        { name: 'type-gate', enabled: true, options: { strict: 1 } },
+      ]);
+    });
+
+    it('matches the @wrongstack/plugins/<name> spelling of an entry', async () => {
+      await fs.writeFile(
+        configPath,
+        JSON.stringify({ plugins: ['@wrongstack/plugins/type-gate'] }),
+        'utf8',
+      );
+      await persistPrefsToConfig(deps, holder, { pluginsEnabled: { 'type-gate': false } });
+      expect((await readConfig()).plugins).toEqual([
+        { name: '@wrongstack/plugins/type-gate', enabled: false },
+      ]);
+    });
+
+    it('leaves plugins[] alone when nothing matches — the extension decides', async () => {
+      await fs.writeFile(configPath, JSON.stringify({ plugins: ['other'] }), 'utf8');
+      await persistPrefsToConfig(deps, holder, {
+        pluginsEnabled: { 'duplicate-code-detector': true },
+      });
+      const config = await readConfig();
+      expect(config.plugins).toEqual(['other']);
+      expect(config.extensions).toEqual({ 'duplicate-code-detector': { enabled: true } });
+    });
+  });
 });

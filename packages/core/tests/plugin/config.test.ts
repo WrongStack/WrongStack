@@ -3,6 +3,7 @@ import {
   diffPluginConfig,
   redactPluginConfig,
   resolvePluginConfig,
+  resolvePluginEnablement,
   validatePluginConfigMetadata,
 } from '../../src/plugin/config.js';
 
@@ -83,5 +84,111 @@ describe('canonical plugin configuration', () => {
       'missing configFields metadata for "interval"',
       'missing configFields metadata for "extra"',
     ]);
+  });
+});
+
+// ── Enablement precedence ──────────────────────────────────────────────
+//
+// One resolver backs the loader (cli/wiring/plugins.ts), `wstack plugin
+// report`, and the plugin_manager tool. The regression these tests pin:
+// `extensions.<name>.enabled` was read ONLY by the loader, and only in its
+// `=== true` direction — so a plugin switched on there ran while every
+// report called it disabled, and `false` there turned nothing off.
+describe('plugin enablement precedence', () => {
+  const entry = { name: 'duplicate-code-detector', defaultState: 'inactive' as const };
+
+  it('falls back to defaultState when nothing configures the plugin', () => {
+    expect(resolvePluginEnablement({ ...entry, config: {} })).toEqual({
+      enabled: false,
+      source: 'default',
+    });
+    expect(
+      resolvePluginEnablement({ name: 'wstack-prompts', defaultState: 'active', config: {} }),
+    ).toEqual({ enabled: true, source: 'default' });
+  });
+
+  it('treats extensions.<name>.enabled as an explicit switch in BOTH directions', () => {
+    expect(
+      resolvePluginEnablement({
+        ...entry,
+        config: { extensions: { 'duplicate-code-detector': { enabled: true } } },
+      }),
+    ).toEqual({ enabled: true, source: 'extension' });
+
+    // The half that used to be ignored: a default-active plugin switched
+    // off through `extensions` kept running.
+    expect(
+      resolvePluginEnablement({
+        name: 'type-gate',
+        defaultState: 'active',
+        config: { extensions: { 'type-gate': { enabled: false } } },
+      }),
+    ).toEqual({ enabled: false, source: 'extension' });
+  });
+
+  it('ignores a non-boolean extensions.enabled and keeps falling through', () => {
+    expect(
+      resolvePluginEnablement({
+        ...entry,
+        config: { extensions: { 'duplicate-code-detector': { enabled: 'yes', other: 1 } } },
+      }),
+    ).toEqual({ enabled: false, source: 'default' });
+  });
+
+  it('lets a plugins[] entry outrank extensions in both directions', () => {
+    expect(
+      resolvePluginEnablement({
+        ...entry,
+        config: {
+          plugins: [{ name: 'duplicate-code-detector', enabled: false }],
+          extensions: { 'duplicate-code-detector': { enabled: true } },
+        },
+      }),
+    ).toEqual({ enabled: false, source: 'plugin-entry' });
+
+    expect(
+      resolvePluginEnablement({
+        ...entry,
+        config: {
+          plugins: ['duplicate-code-detector'],
+          extensions: { 'duplicate-code-detector': { enabled: false } },
+        },
+      }),
+    ).toEqual({ enabled: true, source: 'plugin-entry' });
+  });
+
+  it('resolves an alias-spelled extensions namespace', () => {
+    expect(
+      resolvePluginEnablement({
+        name: 'telegram',
+        aliases: ['@wrongstack/telegram'],
+        defaultState: 'inactive',
+        config: { extensions: { '@wrongstack/telegram': { enabled: true } } },
+      }),
+    ).toEqual({ enabled: true, source: 'extension' });
+  });
+
+  it('honours a caller-supplied matcher for normalized plugin specs', () => {
+    expect(
+      resolvePluginEnablement({
+        name: 'type-gate',
+        defaultState: 'active',
+        config: { plugins: [{ name: '@wrongstack/plugins/type-gate', enabled: false }] },
+        matches: (spec) => spec.split('/').pop() === 'type-gate',
+      }),
+    ).toEqual({ enabled: false, source: 'plugin-entry' });
+  });
+
+  it('lets features.plugins=false outrank every per-plugin switch', () => {
+    expect(
+      resolvePluginEnablement({
+        ...entry,
+        config: {
+          features: { plugins: false },
+          plugins: ['duplicate-code-detector'],
+          extensions: { 'duplicate-code-detector': { enabled: true } },
+        },
+      }),
+    ).toEqual({ enabled: false, source: 'feature-flag' });
   });
 });

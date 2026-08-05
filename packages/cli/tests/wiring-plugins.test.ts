@@ -455,6 +455,33 @@ describe('setupPlugins', () => {
     expect(names).toContain('wstack-auto-review');
   });
 
+  it('opts a default-active built-in out through extensions.<name>.enabled=false', async () => {
+    // Regression: `extensions.<name>.enabled` was honoured only in its
+    // `=== true` direction, so switching a plugin off there did nothing.
+    const deps = {
+      ...baseDeps({ extensions: { 'wstack-prompts': { enabled: false } } as never }),
+      paths: fakePaths(),
+    };
+    await setupPlugins(deps as never);
+    const [plugins] = loadPluginsMock.mock.calls[0]!;
+    const names = (plugins as Array<{ name: string }>).map((plugin) => plugin.name);
+    expect(names).not.toContain('wstack-prompts');
+  });
+
+  it('lets a plugins[] entry outrank an opposing extensions switch', async () => {
+    const deps = {
+      ...baseDeps({
+        plugins: [{ name: 'wstack-auto-review', enabled: false }],
+        extensions: { 'wstack-auto-review': { enabled: true } } as never,
+      }),
+      paths: fakePaths(),
+    };
+    await setupPlugins(deps as never);
+    const [plugins] = loadPluginsMock.mock.calls[0]!;
+    const names = (plugins as Array<{ name: string }>).map((plugin) => plugin.name);
+    expect(names).not.toContain('wstack-auto-review');
+  });
+
   it('injects the host vault into built-in plugin config', async () => {
     const vault = { encrypt: vi.fn((value: string) => `enc:${value}`) };
     const deps = { ...baseDeps(), paths: fakePaths(), vault };

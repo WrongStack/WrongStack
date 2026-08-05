@@ -69,6 +69,105 @@ export function resolvePluginConfig(input: ResolvePluginConfigInput): ResolvedPl
   return { options, configured, sources };
 }
 
+/**
+ * Default `config.plugins` name matcher: the canonical name, a declared
+ * alias, or the `@wrongstack/plugins/<name>` subpath spelling of either.
+ *
+ * Surfaces that know more pass their own `matches` — the loader has an alias
+ * table (`lsp` → `@wrongstack/plug-lsp`), the CLI folds `telegram` and
+ * `@wrongstack/telegram` into one row. This is the floor, not the ceiling.
+ */
+export function pluginEntryMatchesName(
+  configuredName: string,
+  name: string,
+  aliases: readonly string[] = [],
+): boolean {
+  for (const candidate of [name, ...aliases]) {
+    if (configuredName === candidate) return true;
+    if (configuredName === `@wrongstack/plugins/${candidate}`) return true;
+  }
+  return false;
+}
+
+export type PluginEnablementSource = 'feature-flag' | 'plugin-entry' | 'extension' | 'default';
+
+export interface ResolvedPluginEnablement {
+  enabled: boolean;
+  source: PluginEnablementSource;
+}
+
+export interface ResolvePluginEnablementInput {
+  name: string;
+  aliases?: readonly string[] | undefined;
+  /**
+   * `'active'` — runs unless something turns it off.
+   * `'inactive'` — runs only when something explicitly turns it on.
+   * Omitted behaves like `'inactive'`.
+   */
+  defaultState?: 'active' | 'inactive' | undefined;
+  config?: Partial<Pick<Config, 'plugins' | 'extensions' | 'features'>> | undefined;
+  /**
+   * Overrides how a `config.plugins` entry name is matched against this
+   * plugin. Surfaces normalize specs differently (the loader maps
+   * `@wrongstack/plugins/foo` → `foo`, the CLI treats `telegram` and
+   * `@wrongstack/telegram` as one row), so matching is per-surface —
+   * only the PRECEDENCE below is shared. Defaults to name/alias equality.
+   */
+  matches?: ((configuredName: string) => boolean) | undefined;
+}
+
+/**
+ * Resolve whether a plugin boots, under ONE precedence shared by every
+ * surface that reports or acts on plugin state:
+ *
+ *   1. `features.plugins === false` — kills every plugin.
+ *   2. a matching `config.plugins` entry — `{ enabled: false }` is off,
+ *      anything else is on. This is what `wstack plugin enable|disable`
+ *      writes, so it stays the highest per-plugin authority.
+ *   3. `config.extensions[name].enabled`, when it is a boolean — the
+ *      plugin's own master switch.
+ *   4. the catalog `defaultState`.
+ *
+ * Rule 3 used to be read only by the loader, and only in its `=== true`
+ * direction: a plugin switched on via `extensions` ran while every
+ * reporting surface — which looked at `config.plugins` alone — called it
+ * disabled, and `extensions[name].enabled = false` turned nothing off.
+ * Both directions now resolve here, so "what runs" and "what the report
+ * says" cannot drift apart again.
+ */
+export function resolvePluginEnablement(
+  input: ResolvePluginEnablementInput,
+): ResolvedPluginEnablement {
+  if (input.config?.features?.plugins === false) {
+    return { enabled: false, source: 'feature-flag' };
+  }
+
+  const names = [...new Set([input.name, ...(input.aliases ?? [])])];
+  const matches =
+    input.matches ??
+    ((configuredName: string) =>
+      pluginEntryMatchesName(configuredName, input.name, input.aliases ?? []));
+
+  const plugins = input.config?.plugins;
+  if (Array.isArray(plugins)) {
+    for (const candidate of plugins) {
+      if (typeof candidate === 'string') {
+        if (matches(candidate)) return { enabled: true, source: 'plugin-entry' };
+        continue;
+      }
+      if (!isPluginEntry(candidate) || !matches(candidate.name)) continue;
+      return { enabled: candidate.enabled !== false, source: 'plugin-entry' };
+    }
+  }
+
+  for (const name of names) {
+    const enabled = input.config?.extensions?.[name]?.['enabled'];
+    if (typeof enabled === 'boolean') return { enabled, source: 'extension' };
+  }
+
+  return { enabled: input.defaultState === 'active', source: 'default' };
+}
+
 export function resolvePluginManifestConfig(
   plugin: Pick<Plugin, 'name' | 'configAliases' | 'defaultConfig'>,
   config?: ResolvePluginConfigInput['config'],

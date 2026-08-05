@@ -13,7 +13,9 @@
  */
 
 import { FallbackProfileManager } from '@wrongstack/core/agent';
+import { resolvePluginEnablement } from '@wrongstack/core/plugin';
 import type { Config } from '@wrongstack/core/types';
+import { FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 
 /**
  * Seed `context.meta` from the loaded config. Mirrors the CLI's
@@ -126,6 +128,28 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['tgDelegate'] = tgExt?.['notifyOnDelegate'] !== false; // default true
   const tgMs = tgExt?.['longToolThresholdMs'];
   meta['tgLongToolMs'] = typeof tgMs === 'number' ? tgMs : 30_000;
+
+  // Per-plugin toggles — seed the EFFECTIVE state for every plugin the config
+  // actually decides, so the panel shows what is running rather than the
+  // browser's last guess. Names reachable here always resolve from
+  // `plugins[]` or a boolean `extensions.<name>.enabled`, so the catalog
+  // `defaultState` is never consulted and the catalog itself is not needed;
+  // plugins absent from both keep falling back to defaultState client-side.
+  {
+    const pluginsEnabled: Record<string, boolean> = {};
+    const record = (name: string): void => {
+      if (FORBIDDEN_PROTO_KEYS.has(name) || name in pluginsEnabled) return;
+      pluginsEnabled[name] = resolvePluginEnablement({ name, config }).enabled;
+    };
+    for (const entry of config.plugins ?? []) {
+      const name = typeof entry === 'string' ? entry : entry?.name;
+      if (typeof name === 'string') record(name);
+    }
+    for (const [name, options] of Object.entries(config.extensions ?? {})) {
+      if (typeof options?.['enabled'] === 'boolean') record(name);
+    }
+    if (Object.keys(pluginsEnabled).length > 0) meta['pluginsEnabled'] = pluginsEnabled;
+  }
 
   // Chimera (post-session review) — seed from extensions['wstack-chimera']
   // so the dedicated panel reflects the persisted config on first connect,

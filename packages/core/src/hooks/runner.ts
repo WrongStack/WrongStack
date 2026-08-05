@@ -16,7 +16,20 @@ import {
 } from './shell-executor.js';
 
 const DEFAULT_TIMEOUT_MS = 5_000;
+/**
+ * Background hooks are fire-and-forget: nothing waits on them, so the 5s
+ * foreground budget buys no responsiveness — it only kills the scan. The
+ * work they do is exactly the expensive kind (whole-repo duplicate/dead-code
+ * fingerprinting), so they get a wider default. An explicit `timeoutMs` on
+ * the entry still wins.
+ */
+const DEFAULT_BACKGROUND_TIMEOUT_MS = 60_000;
 const MAX_TIMEOUT_MS = 10 * 60_000;
+
+/** Effective timeout for one hook entry, before clamping. */
+function hookTimeoutMs(entry: HookEntry): number {
+  return entry.timeoutMs ?? (entry.background ? DEFAULT_BACKGROUND_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
+}
 
 /** Minimal run-state the runner reads. `Context` structurally satisfies it. */
 export interface HookRunEnv {
@@ -298,13 +311,13 @@ export class HookRunner {
       result =
         entry.kind === 'shell'
           ? await runShellHookDetailed(
-              { command: entry.command, timeoutMs: entry.timeoutMs },
+              { command: entry.command, timeoutMs: hookTimeoutMs(entry) },
               payload,
               this.opts.logger,
               { signal: env.signal },
             )
           : await runHttpHookDetailed(
-              { url: entry.url, headers: entry.headers, timeoutMs: entry.timeoutMs },
+              { url: entry.url, headers: entry.headers, timeoutMs: hookTimeoutMs(entry) },
               payload,
               this.opts.logger,
               { signal: env.signal },
@@ -321,8 +334,11 @@ export class HookRunner {
       }
     }
     if (!result.failure) return result.outcome;
+    // Background failures are fail-open by contract (scheduleBackground swallows
+    // them) — say so, otherwise the warn reads like the turn lost something.
     this.opts.logger?.warn?.(
-      `${payload.event} hook "${entry.name}" failed (${result.failure.kind}): ${result.failure.message}`,
+      `${payload.event} ${entry.background ? 'background ' : ''}hook "${entry.name}" ` +
+        `failed (${result.failure.kind}): ${result.failure.message}`,
     );
     return this.failureOutcome(entry, payload, result.failure);
   }
@@ -332,7 +348,7 @@ export class HookRunner {
     payload: HookInput,
     env: HookRunEnv,
   ): Promise<HookExecutionResult> {
-    const timeoutMs = Math.max(1, Math.min(entry.timeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS));
+    const timeoutMs = Math.max(1, Math.min(hookTimeoutMs(entry), MAX_TIMEOUT_MS));
     const controller = new AbortController();
     let timedOut = false;
     const onParentAbort = () => controller.abort(env.signal?.reason);

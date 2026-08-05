@@ -19,6 +19,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SecretVault } from '@wrongstack/core/types';
+import { pluginEntryMatchesName } from '@wrongstack/core/plugin';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import { atomicWrite, backupConfigFile, FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 
@@ -522,6 +523,7 @@ export async function persistPrefsToConfig(
       // the standalone server persists instead of erroring.
       if (typeof payload['pluginsEnabled'] === 'object' && payload['pluginsEnabled'] !== null) {
         const ext = (decrypted.extensions as Record<string, Record<string, unknown>>) ?? {};
+        const toggled: Array<[string, boolean]> = [];
         for (const [pluginName, enabled] of Object.entries(
           payload['pluginsEnabled'] as Record<string, boolean>,
         )) {
@@ -534,11 +536,33 @@ export async function persistPrefsToConfig(
           // `?? true`-style plugin gates. JSON.parse yields `__proto__` as an
           // own enumerable key, so Object.entries hands it to us.
           if (FORBIDDEN_PROTO_KEYS.has(pluginName)) continue;
+          if (typeof enabled !== 'boolean') continue;
           const pExt = ext[pluginName] ?? {};
           pExt['enabled'] = enabled;
           ext[pluginName] = pExt;
+          toggled.push([pluginName, enabled]);
         }
         decrypted.extensions = ext;
+
+        // `config.plugins` OUTRANKS `extensions.<name>.enabled` (see
+        // resolvePluginEnablement). Writing only the extension left the switch
+        // decorative for every plugin that also has a plugins[] entry — the
+        // toggle moved, the config changed, and the plugin kept its old state.
+        // Keep the winning layer in sync; plugins with no entry are still
+        // decided by the extension alone.
+        if (Array.isArray(decrypted.plugins) && toggled.length > 0) {
+          decrypted.plugins = (
+            decrypted.plugins as Array<string | { name?: unknown; enabled?: boolean }>
+          ).map((entry) => {
+            const entryName = typeof entry === 'string' ? entry : entry?.name;
+            if (typeof entryName !== 'string') return entry;
+            const hit = toggled.find(([name]) => pluginEntryMatchesName(entryName, name));
+            if (!hit) return entry;
+            const [, enabled] = hit;
+            if (typeof entry === 'string') return enabled ? entry : { name: entry, enabled: false };
+            return { ...entry, enabled };
+          });
+        }
       }
 
       // Chimera (post-session review) → extensions['wstack-chimera']
