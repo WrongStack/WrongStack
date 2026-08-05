@@ -1,4 +1,5 @@
 import { getWSClient } from '@/lib/ws-client';
+import type { ContextEditorContentBlock } from '@/types/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useContextEditorStore } from '@/stores/context-editor-store';
 import { useChatStore } from '@/stores';
@@ -27,21 +28,105 @@ interface MessageRowProps {
   index: number;
   role: string;
   tokens: number;
-  preview: string;
+  content: ReturnType<typeof useContextEditorStore.getState>['messages'][number]['content'];
   blockCount: number | null;
   warnings: { code: string; severity: string; message: string }[];
   markedForRemoval: boolean;
+  markedRanges: Array<{ blockIndex?: number | undefined; start?: number | undefined; end?: number | undefined }>;
+  disabled: boolean;
   onToggle: () => void;
+  onMarkRange: (blockIndex: number | undefined, start: number, end: number) => void;
+}
+
+function selectedOffsets(element: HTMLElement): { start: number; end: number } | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  if (!element.contains(range.commonAncestorContainer)) return null;
+  const before = range.cloneRange();
+  before.selectNodeContents(element);
+  before.setEnd(range.startContainer, range.startOffset);
+  const start = before.toString().length;
+  const end = start + range.toString().length;
+  return end > start ? { start, end } : null;
+}
+
+function blockSummary(block: ContextEditorContentBlock): string {
+  if (block.type === 'image') {
+    return block.source?.type === 'base64'
+      ? `${block.source.media_type ?? 'image'} · ${block.source.data?.length ?? 0} base64 chars`
+      : 'URL image source';
+  }
+  if (block.type === 'tool_use') return `${block.name ?? 'tool'} · ${block.id ?? 'unknown id'}`;
+  if (block.type === 'tool_result') return `tool result · ${block.tool_use_id ?? 'unknown id'}`;
+  if (block.type === 'thinking') return `thinking · ${block.thinking?.length ?? 0} chars`;
+  return block.type;
+}
+
+function SelectableContent({
+  text,
+  blockIndex,
+  marked,
+  disabled,
+  onMarkRange,
+}: {
+  text: string;
+  blockIndex?: number | undefined;
+  marked: boolean;
+  disabled: boolean;
+  onMarkRange: (blockIndex: number | undefined, start: number, end: number) => void;
+}): React.ReactElement {
+  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
+  const contentRef = useRef<HTMLParagraphElement>(null);
+
+  const captureSelection = useCallback(() => {
+    if (disabled) return;
+    const element = contentRef.current;
+    if (element) setSelection(selectedOffsets(element));
+  }, [disabled]);
+
+  return (
+    <div className={cn('rounded-md border bg-background p-3', marked && 'border-destructive/40 bg-destructive/5')}>
+      <p
+        ref={contentRef}
+        className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground select-text"
+        onMouseUp={captureSelection}
+        onKeyUp={captureSelection}
+        tabIndex={disabled ? -1 : 0}
+      >
+        {text || '(empty)'}
+      </p>
+      {selection && (
+        <button
+          type="button"
+          disabled={disabled}
+          className="mt-2 rounded-md border border-destructive/30 px-2 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-40"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            onMarkRange(blockIndex, selection.start, selection.end);
+            window.getSelection()?.removeAllRanges();
+            setSelection(null);
+          }}
+        >
+          Mark for removal
+        </button>
+      )}
+    </div>
+  );
 }
 
 function MessageRow({
+  index,
   role,
   tokens,
-  preview,
+  content,
   blockCount,
   warnings,
   markedForRemoval,
+  markedRanges,
+  disabled,
   onToggle,
+  onMarkRange,
 }: MessageRowProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   const roleColor =
@@ -55,15 +140,16 @@ function MessageRow({
   return (
     <div
       className={cn(
-        'group flex items-start gap-2 px-3 py-2 border-b border-border/40 transition-colors',
-        markedForRemoval && 'bg-destructive/5 opacity-60',
-        !markedForRemoval && 'hover:bg-accent/40',
+        'group flex items-start gap-3 rounded-lg border bg-card p-3 transition-colors',
+        markedForRemoval && 'border-destructive/40 bg-destructive/5 opacity-70',
+        !markedForRemoval && 'hover:border-primary/30',
       )}
     >
       <button
         type="button"
         onClick={onToggle}
-        className="mt-0.5 shrink-0"
+        disabled={disabled}
+        className="mt-0.5 shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
         aria-label={markedForRemoval ? 'Undo removal' : 'Mark for removal'}
       >
         {markedForRemoval ? (
@@ -92,11 +178,42 @@ function MessageRow({
             <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
           )}
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground/80 truncate font-mono">
-          {preview || '(empty)'}
-        </p>
+        <div className="mt-3 space-y-2">
+          {typeof content === 'string' ? (
+            <SelectableContent
+              text={content}
+              marked={markedRanges.some((range) => range.blockIndex === undefined)}
+              disabled={disabled}
+              onMarkRange={onMarkRange}
+            />
+          ) : (
+            content.map((block, blockIndex) => (
+              <div key={`${index}-${blockIndex}`} className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span className="font-mono">{block.type}</span>
+                  {typeof block.text === 'string' && (
+                    <span>{fmtTok(Math.ceil(block.text.length / 4))} tok</span>
+                  )}
+                </div>
+                {block.type === 'text' && typeof block.text === 'string' ? (
+                  <SelectableContent
+                    text={block.text}
+                    blockIndex={blockIndex}
+                    marked={markedRanges.some((range) => range.blockIndex === blockIndex)}
+                    disabled={disabled}
+                    onMarkRange={onMarkRange}
+                  />
+                ) : (
+                  <div className="rounded-md border bg-muted/20 p-3 font-mono text-[11px] text-muted-foreground">
+                    {blockSummary(block)}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
         {expanded && hasWarnings && (
-          <div className="mt-1 space-y-1">
+          <div className="mt-2 space-y-1">
             {warnings.map((w, i) => (
               <div
                 key={i}
@@ -133,7 +250,9 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
   const revision = useContextEditorStore((s) => s.revision);
   const messageBreakdown = useContextEditorStore((s) => s.messageBreakdown);
   const readonlyContext = useContextEditorStore((s) => s.readonlyContext);
+  const messages = useContextEditorStore((s) => s.messages);
   const removeMessages = useContextEditorStore((s) => s.removeMessages);
+  const removeRanges = useContextEditorStore((s) => s.removeRanges);
   const validation = useContextEditorStore((s) => s.validation);
   const appliedResult = useContextEditorStore((s) => s.appliedResult);
   const errorMessage = useContextEditorStore((s) => s.errorMessage);
@@ -173,6 +292,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
       if (msg.type !== 'context.editor.applied') return;
       const p = msg.payload as Parameters<ReturnType<typeof store.getState>['setApplied']>[0];
       store.getState().setApplied(p);
+      ws.openContextEditor();
     };
 
     ws.on('context.editor.snapshot', onSnapshot);
@@ -190,58 +310,55 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && phase !== 'applying') {
-        if (removeMessages.size > 0 && phase === 'dirty') return;
+      if (e.key === 'Escape' && phase !== 'applying' && phase !== 'validating') {
+        if ((removeMessages.size > 0 || removeRanges.length > 0) && phase === 'dirty') return;
         onClose();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose, phase, removeMessages.size]);
+  }, [open, onClose, phase, removeMessages.size, removeRanges.length]);
 
   const handleValidate = useCallback(() => {
     const ws = getWSClient();
     if (!ws?.send || !revision) return;
-    store.getState().setValidation({
-      ok: false,
-      before: { messages: 0, blocks: 0, messageTokens: 0, fullRequestTokens: 0 },
-      validationErrors: [],
-      warnings: [],
-      repair: { changed: false, removedToolUses: [], removedToolResults: [], removedMessages: 0 },
-    });
-    const proposed = store.getState().getProposedMessages();
-    ws.validateContextEditor(revision, proposed, true);
+    store.getState().beginValidation();
+    const state = store.getState();
+    const proposed = state.getProposedMessages();
+    const removals = [
+      ...[...state.removeMessages].map((messageIndex) => ({ messageIndex })),
+      ...state.removeRanges,
+    ];
+    ws.validateContextEditor(revision, proposed, removals, true);
   }, [revision, store]);
 
   const handleApply = useCallback(() => {
     const ws = getWSClient();
     if (!ws?.send || !revision) return;
-    const proposed = store.getState().getProposedMessages();
-    store.getState().setValidation({
-      ok: false,
-      before: { messages: 0, blocks: 0, messageTokens: 0, fullRequestTokens: 0 },
-      validationErrors: [],
-      warnings: [],
-      repair: { changed: false, removedToolUses: [], removedToolResults: [], removedMessages: 0 },
-    });
-    void store.getState();
-    ws.applyContextEditor(revision, proposed, true);
+    const state = store.getState();
+    const proposed = state.getProposedMessages();
+    const removals = [
+      ...[...state.removeMessages].map((messageIndex) => ({ messageIndex })),
+      ...state.removeRanges,
+    ];
+    store.getState().beginApply();
+    ws.applyContextEditor(revision, proposed, removals, true);
   }, [revision, store]);
 
   if (!open) return null;
 
   const isBusy = phase === 'applying' || phase === 'validating';
-  const hasRemovals = removeMessages.size > 0;
+  const hasRemovals = removeMessages.size > 0 || removeRanges.length > 0;
   const canApply = phase === 'validated' && !isLoading;
   const canValidate = hasRemovals && !isBusy && !isLoading;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[4dvh] bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t('activity:ctxEditor.contextWindowEditor')}
-        className="w-full max-w-4xl max-h-[92dvh] overflow-hidden rounded-xl border bg-card shadow-2xl flex flex-col"
+        className="m-6 flex max-h-[calc(100dvh-3rem)] w-full max-w-4xl flex-col overflow-hidden rounded-lg border bg-card shadow-sm"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
@@ -332,18 +449,28 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
 
         {/* Message list */}
         {phase !== 'loading_snapshot' && messageBreakdown.length > 0 && (
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-contain bg-muted/10 p-4">
             {messageBreakdown.map((entry) => (
               <MessageRow
                 key={entry.index}
                 index={entry.index}
                 role={entry.role}
                 tokens={entry.tokens}
-                preview={entry.preview}
+                content={messages[entry.index]?.content ?? ''}
                 blockCount={entry.blockCount}
                 warnings={entry.warnings}
                 markedForRemoval={removeMessages.has(entry.index)}
+                markedRanges={removeRanges.filter((range) => range.messageIndex === entry.index)}
+                disabled={isBusy}
                 onToggle={() => store.getState().toggleRemoveMessage(entry.index)}
+                onMarkRange={(blockIndex, start, end) =>
+                  store.getState().markRangeForRemoval({
+                    messageIndex: entry.index,
+                    ...(blockIndex === undefined ? {} : { blockIndex }),
+                    start,
+                    end,
+                  })
+                }
               />
             ))}
           </div>
@@ -387,7 +514,10 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
             {hasRemovals && (
               <>
                 <Trash2 className="h-3 w-3 text-destructive" />
-                <span>{removeMessages.size} marked for removal</span>
+                <span>
+                  {removeMessages.size} message{removeMessages.size === 1 ? '' : 's'} and{' '}
+                  {removeRanges.length} range{removeRanges.length === 1 ? '' : 's'} marked
+                </span>
               </>
             )}
             {isLoading && (

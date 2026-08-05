@@ -383,6 +383,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
         messages: payload['messages'],
+        removals: payload['removals'],
         allowRepair: payload['allowRepair'] === true,
         runActive: ctx.isRunActive?.() === true,
       });
@@ -399,6 +400,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
         messages: payload['messages'],
+        removals: payload['removals'],
         allowRepair: payload['allowRepair'] === true,
         runActive: ctx.isRunActive?.() === true,
       });

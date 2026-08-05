@@ -20,7 +20,7 @@ import type {
   WSUserMessageImage,
 } from '../types';
 import type { ProviderCustomModelWire } from '../types/client-message';
-import type { ContextEditorMessage } from '../types/runtime';
+import type { ContextEditorMessage, ContextEditorRemoval } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
 import type { WSSendOptions } from './ws-client-contracts';
@@ -1003,18 +1003,24 @@ class WrongStackWebSocketClientBase {
   validateContextEditor(
     baseRevision: string,
     messages: ContextEditorMessage[],
+    removals: ContextEditorRemoval[],
     allowRepair: boolean,
   ) {
     this.send({
       type: 'context.editor.validate',
-      payload: this.withSession({ baseRevision, messages, allowRepair }),
+      payload: this.withSession({ baseRevision, messages, removals, allowRepair }),
     });
   }
 
-  applyContextEditor(baseRevision: string, messages: ContextEditorMessage[], allowRepair: boolean) {
+  applyContextEditor(
+    baseRevision: string,
+    messages: ContextEditorMessage[],
+    removals: ContextEditorRemoval[],
+    allowRepair: boolean,
+  ) {
     this.send({
       type: 'context.editor.apply',
-      payload: this.withSession({ baseRevision, messages, allowRepair }),
+      payload: this.withSession({ baseRevision, messages, removals, allowRepair }),
     });
   }
 

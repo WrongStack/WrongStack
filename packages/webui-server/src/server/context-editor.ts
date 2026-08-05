@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import net from 'node:net';
 import type { Context } from '@wrongstack/core/agent';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { ContentBlock, Message } from '@wrongstack/core/types';
@@ -7,8 +6,6 @@ import {
   ALLOWED_IMAGE_MEDIA_TYPES,
   base64DecodedBytes,
   isAllowedImageMediaType,
-  isPrivateIPv4,
-  isPrivateIPv6,
   isValidImageBase64,
   MAX_INCOMING_IMAGE_BYTES,
   repairToolUseAdjacency,
@@ -21,6 +18,13 @@ export interface ContextEditorMessage {
   role: Message['role'];
   content: string | ContextEditorBlock[];
   ts?: string | undefined;
+}
+
+export interface ContextEditorRemoval {
+  messageIndex: number;
+  blockIndex?: number | undefined;
+  start?: number | undefined;
+  end?: number | undefined;
 }
 
 export interface ContextEditorMetrics {
@@ -109,6 +113,7 @@ export interface ContextEditorSnapshot {
     preview: string;
     blockCount: number | null;
     warnings: ContextEditorWarning[];
+    pairedAssistantIndices: number[];
   }>;
   diagnostics: ContextEditorDiagnostics;
 }
@@ -117,75 +122,7 @@ const REVISION_PREFIX = 'wrongstack-context-editor-v1\0';
 const MAX_MESSAGE_COUNT_GROWTH = 10;
 const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 const MAX_STRING_LENGTH = 8 * 1024 * 1024;
-
-/** Upper bound on an `image.source.url`, well past any real image URL. */
-const MAX_IMAGE_URL_LENGTH = 2048;
-
-/**
- * Reason `url` is unacceptable as an `image.source.url`, or `undefined` if it
- * passes (WS-032).
- *
- * Both the OpenAI and Responses wires forward `source.url` to the provider
- * verbatim, and the provider fetches it server-side. The runtime's SSRF guard
- * for image URLs (`routeImagesForModel` → `assertNotPrivateHost`) covers the
- * new-message path only; edited history is written straight into `messages[]`
- * and never passes through it.
- *
- * SCOPE, deliberately stated rather than implied: this validator is
- * synchronous, so it cannot do the DNS resolution `assertNotPrivateHost`
- * performs. It rejects the direct forms — non-https schemes (`file:`, `data:`,
- * `gopher:`), embedded credentials, and literal private / loopback / link-local
- * addresses including the cloud metadata endpoint. A public hostname that
- * *resolves* to a private address is NOT caught here; that remains the
- * runtime guard's job. Closing that gap means routing replayed history through
- * the async guard, which is a change to the send path, not to this validator.
- */
-function imageUrlRejectionReason(url: string): string | undefined {
-  if (url.length > MAX_IMAGE_URL_LENGTH) {
-    return `image.source.url exceeds ${MAX_IMAGE_URL_LENGTH} characters.`;
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return 'image.source.url must be an absolute URL.';
-  }
-  if (parsed.protocol !== 'https:') {
-    return `image.source.url must use https (got "${parsed.protocol}").`;
-  }
-  if (parsed.username !== '' || parsed.password !== '') {
-    return 'image.source.url must not embed credentials.';
-  }
-  // `new URL` keeps IPv6 literals bracketed; the guards want the bare address.
-  const host =
-    parsed.hostname.startsWith('[') && parsed.hostname.endsWith(']')
-      ? parsed.hostname.slice(1, -1)
-      : parsed.hostname;
-  // Strip a trailing dot (e.g. "localhost.") so the loopback/private checks
-  // below match regardless of the FQDN dot suffix — without this, exact
-  // equality on "localhost" is bypassed by one character.
-  const bareHost = host.endsWith('.') ? host.slice(0, -1) : host;
-  // Unreachable while the scheme gate above is https-only: https is a WHATWG
-  // "special scheme", so an empty host either throws in `new URL` ("https://")
-  // or is normalized away ("https:///etc/passwd" parses as host "etc"). Kept
-  // deliberately — it is the check that must already be in place if the scheme
-  // allowlist ever widens to a non-special scheme, where an empty host would
-  // otherwise reach the address guards below and pass them.
-  if (bareHost === '') {
-    return 'image.source.url must include a hostname.';
-  }
-  if (bareHost === 'localhost' || bareHost.endsWith('.localhost')) {
-    return 'image.source.url must not target localhost.';
-  }
-  const family = net.isIP(bareHost);
-  if (family === 4 && isPrivateIPv4(bareHost)) {
-    return `image.source.url must not target a private or loopback address ("${bareHost}").`;
-  }
-  if (family === 6 && isPrivateIPv6(bareHost)) {
-    return `image.source.url must not target a private or loopback address ("${bareHost}").`;
-  }
-  return undefined;
-}
+const MAX_REMOVAL_COUNT = 4096;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -196,7 +133,7 @@ function canonicalize(value: unknown): unknown {
   if (isRecord(value)) {
     const sorted: Record<string, unknown> = {};
     for (const key of Object.keys(value).sort()) {
-      if (key === '_estTokens') continue;
+      if (key === '_estTokens' || key === '_toolErrorInfo') continue;
       const item = value[key];
       if (item === undefined) continue;
       sorted[key] = canonicalize(item);
@@ -236,6 +173,13 @@ function isMessageRole(value: unknown): value is Message['role'] {
 
 function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
   return isRecord(value);
+}
+
+function splitsSurrogatePair(text: string, offset: number): boolean {
+  if (offset <= 0 || offset >= text.length) return false;
+  const previous = text.charCodeAt(offset - 1);
+  const next = text.charCodeAt(offset);
+  return previous >= 0xd800 && previous <= 0xdbff && next >= 0xdc00 && next <= 0xdfff;
 }
 
 function validateCacheControl(
@@ -488,19 +432,13 @@ function validateBlock(
         );
         return undefined;
       }
-      const urlError = imageUrlRejectionReason(url);
-      if (urlError !== undefined) {
-        error(errors, `${path}/source/url`, 'UNSAFE_IMAGE_URL', urlError);
-        return undefined;
-      }
-      return {
-        type: 'image',
-        source: {
-          type: 'url',
-          ...(typeof mediaType === 'string' ? { media_type: mediaType } : {}),
-          url,
-        },
-      };
+      error(
+        errors,
+        `${path}/source/url`,
+        'UNSAFE_IMAGE_URL',
+        'URL image sources are not allowed in context editor proposals; use an ingested base64 image.',
+      );
+      return undefined;
     }
     case 'thinking': {
       const thinking = value['thinking'];
@@ -699,6 +637,26 @@ function metricFor(
   };
 }
 
+function isToolResultMessage(message: Message | undefined): boolean {
+  return Boolean(
+    message?.role === 'user' &&
+      Array.isArray(message.content) &&
+      message.content.length > 0 &&
+      message.content.every((block) => block.type === 'tool_result'),
+  );
+}
+
+function pairedAssistantIndices(messages: readonly Message[], userIndex: number): number[] {
+  if (messages[userIndex]?.role !== 'user' || isToolResultMessage(messages[userIndex])) return [];
+  const paired: number[] = [];
+  for (let index = userIndex + 1; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (message?.role === 'user' && !isToolResultMessage(message)) break;
+    if (message?.role === 'assistant') paired.push(index);
+  }
+  return paired;
+}
+
 export function buildContextEditorSnapshot(
   ctx: Context,
   tools: ReturnType<ToolRegistry['list']> | undefined,
@@ -732,9 +690,156 @@ export function buildContextEditorSnapshot(
       preview: breakdown.messages.breakdown[index]?.preview ?? '',
       blockCount: Array.isArray(message.content) ? message.content.length : null,
       warnings: warningsForMessage(message, index),
+      pairedAssistantIndices: pairedAssistantIndices(ctx.messages, index),
     })),
     diagnostics: toolDiagnostics(ctx.messages),
   };
+}
+
+function validateRemovalPlan(
+  value: unknown,
+  originalMessages: readonly Message[],
+  proposedMessages: readonly Message[],
+): { errors: ContextEditorValidationError[]; messages?: Message[] | undefined } {
+  const errors: ContextEditorValidationError[] = [];
+  if (value === undefined) {
+    error(
+      errors,
+      '/removals',
+      'REMOVAL_PLAN_REQUIRED',
+      'A removal plan is required for every context editor proposal.',
+    );
+    return { errors };
+  }
+  if (!Array.isArray(value)) {
+    error(errors, '/removals', 'INVALID_REMOVALS', 'removals must be an array.');
+    return { errors };
+  }
+  if (value.length > MAX_REMOVAL_COUNT) {
+    error(
+      errors,
+      '/removals',
+      'TOO_MANY_REMOVALS',
+      `removals must contain at most ${MAX_REMOVAL_COUNT} entries.`,
+    );
+    return { errors };
+  }
+  const wholeMessages = new Set<number>();
+  const touchedUsers = new Set<number>();
+  const ranges: ContextEditorRemoval[] = [];
+  for (const [removalIndex, raw] of value.entries()) {
+    const path = `/removals/${removalIndex}`;
+    if (!isRecord(raw) || !Number.isInteger(raw['messageIndex'])) {
+      error(errors, path, 'INVALID_REMOVAL', 'Removal must include an integer messageIndex.');
+      continue;
+    }
+    const messageIndex = raw['messageIndex'] as number;
+    const original = originalMessages[messageIndex];
+    if (!original) {
+      error(errors, `${path}/messageIndex`, 'INVALID_MESSAGE_INDEX', 'Removal messageIndex is out of range.');
+      continue;
+    }
+    const start = raw['start'];
+    const end = raw['end'];
+    const blockIndex = raw['blockIndex'];
+    if (start === undefined && end === undefined && blockIndex === undefined) {
+      wholeMessages.add(messageIndex);
+      if (original.role === 'user') touchedUsers.add(messageIndex);
+      continue;
+    }
+    if (!Number.isInteger(start) || !Number.isInteger(end) || (start as number) < 0 || (end as number) <= (start as number)) {
+      error(errors, path, 'INVALID_RANGE', 'Range removal requires integer start/end with 0 <= start < end.');
+      continue;
+    }
+    let text: string | undefined;
+    if (blockIndex === undefined && typeof original.content === 'string') text = original.content;
+    if (Number.isInteger(blockIndex) && Array.isArray(original.content)) {
+      const block = original.content[blockIndex as number];
+      if (block?.type === 'text') text = block.text;
+    }
+    if (text === undefined || (end as number) > text.length) {
+      error(errors, path, 'INVALID_RANGE_TARGET', 'Range must target existing string or text-block content.');
+      continue;
+    }
+    if (splitsSurrogatePair(text, start as number) || splitsSurrogatePair(text, end as number)) {
+      error(
+        errors,
+        path,
+        'INVALID_UNICODE_RANGE',
+        'Range boundaries must not split a Unicode surrogate pair.',
+      );
+      continue;
+    }
+    ranges.push({
+      messageIndex,
+      ...(blockIndex === undefined ? {} : { blockIndex: blockIndex as number }),
+      start: start as number,
+      end: end as number,
+    });
+    if (original.role === 'user') touchedUsers.add(messageIndex);
+  }
+  const rangesByTarget = new Map<string, ContextEditorRemoval[]>();
+  for (const range of ranges) {
+    const key = `${range.messageIndex}:${range.blockIndex ?? 'string'}`;
+    const targetRanges = rangesByTarget.get(key) ?? [];
+    targetRanges.push(range);
+    rangesByTarget.set(key, targetRanges);
+  }
+  for (const targetRanges of rangesByTarget.values()) {
+    targetRanges.sort((left, right) => (left.start ?? 0) - (right.start ?? 0));
+    for (let index = 1; index < targetRanges.length; index += 1) {
+      const previous = targetRanges[index - 1];
+      const current = targetRanges[index];
+      if (
+        previous?.end !== undefined &&
+        current?.start !== undefined &&
+        current.start < previous.end
+      ) {
+        error(
+          errors,
+          '/removals',
+          'OVERLAPPING_RANGES',
+          'Removal ranges targeting the same text must not overlap.',
+        );
+        break;
+      }
+    }
+  }
+  for (const userIndex of touchedUsers) {
+    for (const assistantIndex of pairedAssistantIndices(originalMessages, userIndex)) {
+      if (wholeMessages.has(assistantIndex)) continue;
+      error(
+        errors,
+        '/removals',
+        'MISSING_ASSISTANT_PAIR',
+        `Editing user message ${userIndex} must also remove assistant message ${assistantIndex}.`,
+      );
+    }
+  }
+  const expectedMessages = structuredClone(originalMessages) as Message[];
+  for (const removal of ranges.sort((left, right) => (right.start ?? 0) - (left.start ?? 0))) {
+    const message = expectedMessages[removal.messageIndex];
+    if (!message || removal.start === undefined || removal.end === undefined) continue;
+    if (removal.blockIndex === undefined && typeof message.content === 'string') {
+      message.content = message.content.slice(0, removal.start) + message.content.slice(removal.end);
+      continue;
+    }
+    if (!Array.isArray(message.content) || removal.blockIndex === undefined) continue;
+    const block = message.content[removal.blockIndex];
+    if (block?.type === 'text' && typeof block.text === 'string') {
+      block.text = block.text.slice(0, removal.start) + block.text.slice(removal.end);
+    }
+  }
+  const expectedProposal = expectedMessages.filter((_, index) => !wholeMessages.has(index));
+  if (JSON.stringify(canonicalize(expectedProposal)) !== JSON.stringify(canonicalize(proposedMessages))) {
+    error(
+      errors,
+      '/messages',
+      'REMOVAL_PLAN_MISMATCH',
+      'Submitted messages do not exactly match the declared removal plan.',
+    );
+  }
+  return errors.length > 0 ? { errors } : { errors, messages: expectedProposal };
 }
 
 export function validateContextEditorProposal(input: {
@@ -742,6 +847,7 @@ export function validateContextEditorProposal(input: {
   tools?: ReturnType<ToolRegistry['list']> | undefined;
   baseRevision: string;
   messages: unknown;
+  removals: unknown;
   allowRepair: boolean;
   runActive?: boolean | undefined;
 }): ContextEditorValidationResult {
@@ -795,7 +901,23 @@ export function validateContextEditorProposal(input: {
       repair: emptyRepair,
     };
   }
-  const repaired = repairToolUseAdjacency(parsed.messages);
+  const removalPlan = validateRemovalPlan(
+    input.removals,
+    input.ctx.messages,
+    parsed.messages,
+  );
+  if (removalPlan.errors.length > 0 || !removalPlan.messages) {
+    return {
+      ok: false,
+      baseRevision: input.baseRevision,
+      currentRevision,
+      before,
+      validationErrors: removalPlan.errors,
+      warnings: [],
+      repair: emptyRepair,
+    };
+  }
+  const repaired = repairToolUseAdjacency(removalPlan.messages);
   const repair: ContextEditorRepairPreview = {
     changed: repaired.report.changed,
     removedToolUses: repaired.report.removedToolUses,
@@ -835,6 +957,7 @@ export async function applyContextEditorProposal(input: {
   tools?: ReturnType<ToolRegistry['list']> | undefined;
   baseRevision: string;
   messages: unknown;
+  removals: unknown;
   allowRepair: boolean;
   runActive?: boolean | undefined;
 }): Promise<ContextEditorValidationResult | ContextEditorAppliedResult> {

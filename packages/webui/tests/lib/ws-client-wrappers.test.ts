@@ -231,10 +231,16 @@ describe('context management', () => {
     ['applyContextEditor', 'context.editor.apply'],
   ] as Array<[keyof WrongStackWebSocketClient, string]>)('%s carries the edit set', (method, type) => {
     const messages = [{ role: 'user', content: 'hi' }] as never;
-    (client[method] as (a: string, b: unknown, c: boolean) => void)('rev-1', messages, true);
+    const removals: never[] = [];
+    (client[method] as (a: string, b: unknown, c: unknown[], d: boolean) => void)(
+      'rev-1',
+      messages,
+      removals,
+      true,
+    );
     expect(frame()).toMatchObject({
       type,
-      payload: { baseRevision: 'rev-1', messages, allowRepair: true },
+      payload: { baseRevision: 'rev-1', messages, removals, allowRepair: true },
     });
   });
 

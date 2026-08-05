@@ -1,7 +1,9 @@
 import type { Context } from '@wrongstack/core/agent';
-import type { Message } from '@wrongstack/core/types';
+import { type Message, ToolErrorCategory } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
+  applyContextEditorProposal,
+  buildContextEditorSnapshot,
   contextEditorRevision,
   validateContextEditorMessages,
   validateContextEditorProposal,
@@ -154,6 +156,96 @@ describe('validateContextEditorMessages', () => {
     expect(result.messages.at(0)?._estTokens).toBeUndefined();
   });
 
+  it('accepts an allowed, valid base64 image source', () => {
+    const result = validateContextEditorMessages([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: 'aGVsbG8=' },
+          },
+        ],
+      },
+    ]);
+
+    expect(result.errors).toEqual([]);
+    expect(result.messages).toHaveLength(1);
+  });
+
+  it('rejects invalid and oversized base64 image data', () => {
+    const invalid = validateContextEditorMessages([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: 'not base64!' },
+          },
+        ],
+      },
+    ]);
+    expect(invalid.errors).toEqual([expect.objectContaining({ code: 'INVALID_IMAGE_DATA' })]);
+
+    const oversizedData = 'A'.repeat(Math.ceil((8 * 1024 * 1024 + 1) / 3) * 4);
+    const oversized = validateContextEditorMessages([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: oversizedData },
+          },
+        ],
+      },
+    ]);
+    expect(oversized.errors).toEqual([expect.objectContaining({ code: 'IMAGE_TOO_LARGE' })]);
+  });
+
+  it('rejects unsupported image media types', () => {
+    const result = validateContextEditorMessages([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/svg+xml', data: 'aGVsbG8=' },
+          },
+        ],
+      },
+    ]);
+
+    expect(result.errors).toEqual([
+      expect.objectContaining({ code: 'UNSUPPORTED_IMAGE_MEDIA_TYPE' }),
+    ]);
+  });
+
+  it.each([
+    'https://example.com/image.png',
+    'https://localhost/image.png',
+    'https://127.0.0.1/image.png',
+    'https://169.254.169.254/latest/meta-data',
+    'http://example.com/image.png',
+    'https://user:password@example.com/image.png',
+  ])('rejects URL image source %s without throwing', (url) => {
+    expect(() =>
+      validateContextEditorMessages([
+        {
+          role: 'user',
+          content: [{ type: 'image', source: { type: 'url', url } }],
+        },
+      ]),
+    ).not.toThrow();
+
+    const result = validateContextEditorMessages([
+      {
+        role: 'user',
+        content: [{ type: 'image', source: { type: 'url', url } }],
+      },
+    ]);
+    expect(result.errors).toEqual([expect.objectContaining({ code: 'UNSAFE_IMAGE_URL' })]);
+  });
+
   it('flags signed thinking blocks present in the proposal', () => {
     const ctx = mockContext([
       {
@@ -170,6 +262,7 @@ describe('validateContextEditorMessages', () => {
           content: [{ type: 'thinking', thinking: 'reasoning', signature: 'sig123' }],
         },
       ],
+      removals: [],
       allowRepair: true,
     });
     expect(result.ok).toBe(true);
@@ -185,12 +278,80 @@ describe('validateContextEditorMessages', () => {
 });
 
 describe('validateContextEditorProposal', () => {
+  it('preserves retained tool error metadata through validation and apply', async () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'tu-error', name: 'read', input: { path: 'x' } }],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tu-error',
+            content: 'Permission denied: blocked',
+            is_error: true,
+            _toolErrorInfo: {
+              category: ToolErrorCategory.PERMISSION,
+              retryable: false,
+              userMessage: 'blocked',
+            },
+          },
+        ],
+      },
+      { role: 'system', content: 'remove this' },
+    ];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: messages.slice(0, 2),
+      removals: [{ messageIndex: 2 }],
+      allowRepair: true,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.validationErrors).toHaveLength(0);
+    expect(result.messages?.[1]?.content).toEqual(messages[1]?.content);
+
+    const applied = await applyContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: messages.slice(0, 2),
+      removals: [{ messageIndex: 2 }],
+      allowRepair: true,
+    });
+    expect('revision' in applied).toBe(true);
+    expect(ctx.messages[1]?.content).toEqual(messages[1]?.content);
+  });
+
+  it('rejects removal plans above the bounded entry limit', () => {
+    const messages: Message[] = [{ role: 'assistant', content: 'keep' }];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages,
+      removals: Array.from({ length: 4097 }, () => ({ messageIndex: 0 })),
+      allowRepair: true,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors).toContainEqual({
+      path: '/removals',
+      code: 'TOO_MANY_REMOVALS',
+      message: 'removals must contain at most 4096 entries.',
+    });
+  });
+
   it('rejects with revision conflict when baseRevision mismatches', () => {
     const ctx = mockContext([{ role: 'user', content: 'hello' }]);
     const result = validateContextEditorProposal({
       ctx,
       baseRevision: 'stale-revision',
       messages: [{ role: 'user', content: 'hello' }],
+      removals: [],
       allowRepair: true,
     });
     expect(result.ok).toBe(false);
@@ -203,6 +364,7 @@ describe('validateContextEditorProposal', () => {
       ctx,
       baseRevision: contextEditorRevision(ctx.messages),
       messages: [{ role: 'user', content: 'hello' }],
+      removals: [],
       allowRepair: true,
       runActive: true,
     });
@@ -232,6 +394,7 @@ describe('validateContextEditorProposal', () => {
           content: [{ type: 'tool_use', id: 'tu1', name: 'read', input: { path: 'x' } }],
         },
       ],
+      removals: [{ messageIndex: 1 }],
       allowRepair: true,
     });
     expect(result.ok).toBe(true);
@@ -258,6 +421,7 @@ describe('validateContextEditorProposal', () => {
       messages: [
         { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu2', content: 'ok' }] },
       ],
+      removals: [{ messageIndex: 0 }],
       allowRepair: true,
     });
     expect(result.ok).toBe(true);
@@ -283,10 +447,166 @@ describe('validateContextEditorProposal', () => {
       messages: [
         { role: 'assistant', content: [{ type: 'tool_use', id: 'tu3', name: 'read', input: {} }] },
       ],
+      removals: [{ messageIndex: 1 }],
       allowRepair: false,
     });
     expect(result.ok).toBe(false);
     expect(result.repair.changed).toBe(true);
+  });
+
+  it('pairs every assistant in a tool-mediated turn through the terminal response', () => {
+    const messages: Message[] = [
+      { role: 'user', content: 'read the file' },
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'tu4', name: 'read', input: { path: 'x' } }],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'tu4', content: 'contents' }],
+      },
+      { role: 'assistant', content: 'final response from contents' },
+      { role: 'user', content: 'keep this turn' },
+      { role: 'assistant', content: 'kept response' },
+    ];
+    const ctx = mockContext(messages);
+    const snapshot = buildContextEditorSnapshot(ctx, undefined);
+    expect(snapshot.messageBreakdown[0]?.pairedAssistantIndices).toEqual([1, 3]);
+
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: messages.slice(2),
+      removals: [{ messageIndex: 0 }, { messageIndex: 1 }],
+      allowRepair: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'MISSING_ASSISTANT_PAIR',
+          message: 'Editing user message 0 must also remove assistant message 3.',
+        }),
+      ]),
+    );
+  });
+
+  it('requires the paired assistant when a user range is removed', () => {
+    const messages: Message[] = [
+      { role: 'user', content: 'remove secret' },
+      { role: 'assistant', content: 'reply' },
+    ];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [
+        { role: 'user', content: 'remove ' },
+        { role: 'assistant', content: 'reply' },
+      ],
+      removals: [{ messageIndex: 0, start: 7, end: 13 }],
+      allowRepair: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors.some((item) => item.code === 'MISSING_ASSISTANT_PAIR')).toBe(
+      true,
+    );
+  });
+
+  it('validates a user range and its automatically removed assistant as one pair', () => {
+    const messages: Message[] = [
+      { role: 'user', content: 'remove secret' },
+      { role: 'assistant', content: 'reply' },
+      { role: 'user', content: 'keep' },
+    ];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [
+        { role: 'user', content: 'remove ' },
+        { role: 'user', content: 'keep' },
+      ],
+      removals: [{ messageIndex: 0, start: 7, end: 13 }, { messageIndex: 1 }],
+      allowRepair: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.messages).toEqual([
+      { role: 'user', content: 'remove ' },
+      { role: 'user', content: 'keep' },
+    ]);
+  });
+
+  it('rejects removal ranges that split a Unicode surrogate pair', () => {
+    const messages: Message[] = [{ role: 'assistant', content: 'A😀B' }];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [{ role: 'assistant', content: 'A\ude00B' }],
+      removals: [{ messageIndex: 0, start: 1, end: 2 }],
+      allowRepair: true,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'INVALID_UNICODE_RANGE' }),
+      ]),
+    );
+  });
+
+  it('rejects a proposal that does not match its declared character range', () => {
+    const messages: Message[] = [{ role: 'assistant', content: 'abcdef' }];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [{ role: 'assistant', content: 'wrong' }],
+      removals: [{ messageIndex: 0, start: 1, end: 3 }],
+      allowRepair: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors.some((item) => item.code === 'REMOVAL_PLAN_MISMATCH')).toBe(
+      true,
+    );
+  });
+
+  it('rejects overlapping character ranges on the same target', () => {
+    const messages: Message[] = [{ role: 'assistant', content: 'abcdefgh' }];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [{ role: 'assistant', content: 'afgh' }],
+      removals: [
+        { messageIndex: 0, start: 1, end: 4 },
+        { messageIndex: 0, start: 3, end: 5 },
+      ],
+      allowRepair: true,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors.some((item) => item.code === 'OVERLAPPING_RANGES')).toBe(true);
+  });
+
+  it('rejects a changed proposal when the removal plan is missing', () => {
+    const messages: Message[] = [{ role: 'assistant', content: 'before' }];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [{ role: 'assistant', content: 'after' }],
+      removals: undefined,
+      allowRepair: true,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationErrors).toContainEqual({
+      path: '/removals',
+      code: 'REMOVAL_PLAN_REQUIRED',
+      message: 'A removal plan is required for every context editor proposal.',
+    });
   });
 
   it('passes cleanly for valid deletion of plain text messages', () => {
@@ -303,6 +623,7 @@ describe('validateContextEditorProposal', () => {
         { role: 'user', content: 'msg1' },
         { role: 'user', content: 'msg2' },
       ],
+      removals: [{ messageIndex: 1 }],
       allowRepair: true,
     });
     expect(result.ok).toBe(true);

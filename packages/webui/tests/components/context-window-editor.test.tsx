@@ -3,12 +3,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextWindowEditor } from '../../src/components/context-editor/ContextWindowEditor';
 import { useContextEditorStore } from '../../src/stores/context-editor-store';
 
+const wsMock = vi.hoisted(() => {
+  const handlers = new Map<string, (message: { type: string; payload?: unknown }) => void>();
+  return {
+    handlers,
+    send: vi.fn(),
+    openContextEditor: vi.fn(),
+    on: vi.fn((event: string, handler: (message: { type: string; payload?: unknown }) => void) => {
+      handlers.set(event, handler);
+    }),
+    off: vi.fn((event: string) => {
+      handlers.delete(event);
+    }),
+  };
+});
+
 // Mock the WS client
 vi.mock('../../src/lib/ws-client', () => ({
   getWSClient: () => ({
-    send: vi.fn(),
-    on: vi.fn(() => vi.fn()), // returns unsubscribe
-    off: vi.fn(),
+    send: wsMock.send,
+    openContextEditor: wsMock.openContextEditor,
+    on: wsMock.on,
+    off: wsMock.off,
     withSession: (payload: Record<string, unknown>) => ({ ...payload, sessionId: 'test-session' }),
   }),
 }));
@@ -71,6 +87,8 @@ function loadSnapshot(
         signedThinkingBlocks: 0,
       },
       removeMessages: new Set(),
+      explicitRemoveMessages: new Set(),
+      removeRanges: [],
       validation: null,
       appliedResult: null,
       errorMessage: null,
@@ -81,6 +99,11 @@ function loadSnapshot(
 
 describe('ContextWindowEditor', () => {
   beforeEach(() => {
+    wsMock.handlers.clear();
+    wsMock.send.mockClear();
+    wsMock.openContextEditor.mockClear();
+    wsMock.on.mockClear();
+    wsMock.off.mockClear();
     useContextEditorStore.setState({
       phase: 'closed',
       revision: null,
@@ -89,6 +112,8 @@ describe('ContextWindowEditor', () => {
       messageBreakdown: [],
       diagnostics: null,
       removeMessages: new Set(),
+      explicitRemoveMessages: new Set(),
+      removeRanges: [],
       validation: null,
       appliedResult: null,
       errorMessage: null,
@@ -123,6 +148,46 @@ describe('ContextWindowEditor', () => {
       expect(screen.getByText('Hello world')).toBeTruthy();
     });
     expect(screen.getByText('Hi there')).toBeTruthy();
+  });
+
+  it('reveals the range-removal action after keyboard text selection', async () => {
+    const { rerender } = render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    loadSnapshot({
+      messages: [{ role: 'user', content: 'Select with keyboard' }],
+      messageBreakdown: [
+        {
+          index: 0,
+          role: 'user',
+          tokens: 100,
+          preview: 'Select with keyboard',
+          blockCount: null,
+          warnings: [],
+        },
+      ],
+    });
+    rerender(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+
+    const content = await screen.findByText('Select with keyboard');
+    const textNode = content.firstChild;
+    expect(textNode).not.toBeNull();
+    if (!textNode) throw new Error('Expected selectable text content');
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 6);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.keyUp(content, { key: 'Shift' });
+
+    const markRangeButton = await screen.findByText('Mark for removal', { selector: 'button' });
+    const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    markRangeButton.dispatchEvent(mouseDown);
+    expect(mouseDown.defaultPrevented).toBe(true);
+
+    fireEvent.click(markRangeButton);
+    expect(useContextEditorStore.getState().removeRanges).toEqual([
+      { messageIndex: 0, start: 0, end: 6 },
+    ]);
   });
 
   it('marks a message for removal when toggled', async () => {
@@ -183,6 +248,7 @@ describe('ContextWindowEditor', () => {
       messageBreakdown: [],
       diagnostics: null,
       removeMessages: new Set([0, 2]),
+      explicitRemoveMessages: new Set([0, 2]),
       validation: null,
       appliedResult: null,
       errorMessage: null,
@@ -191,6 +257,263 @@ describe('ContextWindowEditor', () => {
     const proposed = useContextEditorStore.getState().getProposedMessages();
     expect(proposed).toHaveLength(1);
     expect(proposed[0].content).toBe('msg2');
+  });
+
+  it('keeps an auto-paired assistant removed while its user range remains active', () => {
+    useContextEditorStore.setState({
+      phase: 'dirty',
+      revision: 'abc',
+      messages: [
+        { role: 'user', content: 'remove secret' },
+        { role: 'assistant', content: 'reply' },
+      ],
+      readonlyContext: null,
+      messageBreakdown: [],
+      diagnostics: null,
+      removeMessages: new Set([1]),
+      explicitRemoveMessages: new Set(),
+      removeRanges: [{ messageIndex: 0, start: 7, end: 13 }],
+      validation: null,
+      appliedResult: null,
+      errorMessage: null,
+    });
+
+    useContextEditorStore.getState().toggleRemoveMessage(1);
+
+    expect(useContextEditorStore.getState().removeMessages.has(1)).toBe(true);
+    expect(useContextEditorStore.getState().removeRanges).toEqual([
+      { messageIndex: 0, start: 7, end: 13 },
+    ]);
+  });
+
+  it('preserves an explicitly selected assistant when its paired user is unmarked', () => {
+    useContextEditorStore.setState({
+      phase: 'clean_snapshot',
+      revision: 'abc',
+      messages: [
+        { role: 'user', content: 'request' },
+        { role: 'assistant', content: 'response' },
+      ],
+      readonlyContext: null,
+      messageBreakdown: [],
+      diagnostics: null,
+      removeMessages: new Set(),
+      explicitRemoveMessages: new Set(),
+      removeRanges: [],
+      validation: null,
+      appliedResult: null,
+      errorMessage: null,
+    });
+
+    useContextEditorStore.getState().toggleRemoveMessage(1);
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+
+    expect(useContextEditorStore.getState().removeMessages).toEqual(new Set([1]));
+    expect(useContextEditorStore.getState().explicitRemoveMessages).toEqual(new Set([1]));
+  });
+
+  it('uses server-provided assistant pairing metadata', () => {
+    useContextEditorStore.setState({
+      phase: 'clean_snapshot',
+      revision: 'abc',
+      messages: [
+        { role: 'user', content: 'request' },
+        { role: 'assistant', content: 'first response' },
+        { role: 'assistant', content: 'server-paired response' },
+      ],
+      readonlyContext: null,
+      messageBreakdown: [
+        {
+          index: 0,
+          role: 'user',
+          tokens: 1,
+          preview: 'request',
+          blockCount: null,
+          warnings: [],
+          pairedAssistantIndices: [2],
+        },
+      ],
+      diagnostics: null,
+      removeMessages: new Set(),
+      explicitRemoveMessages: new Set(),
+      removeRanges: [],
+      validation: null,
+      appliedResult: null,
+      errorMessage: null,
+    });
+
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+
+    expect(useContextEditorStore.getState().removeMessages).toEqual(new Set([0, 2]));
+  });
+
+  it('preserves explicit assistant selection while it is required by a paired user', () => {
+    loadSnapshot();
+
+    useContextEditorStore.getState().toggleRemoveMessage(1);
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+    useContextEditorStore.getState().toggleRemoveMessage(1);
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+
+    expect(useContextEditorStore.getState().removeMessages).toEqual(new Set([1]));
+    expect(useContextEditorStore.getState().explicitRemoveMessages).toEqual(new Set([1]));
+  });
+
+  it('preserves granular ranges across whole-message toggle cycles', () => {
+    loadSnapshot();
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+    expect(useContextEditorStore.getState().removeMessages.has(0)).toBe(true);
+    expect(useContextEditorStore.getState().removeRanges).toEqual([
+      { messageIndex: 0, start: 0, end: 5 },
+    ]);
+
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+    expect(useContextEditorStore.getState().removeMessages.has(0)).toBe(false);
+    expect(useContextEditorStore.getState().removeRanges).toEqual([
+      { messageIndex: 0, start: 0, end: 5 },
+    ]);
+  });
+
+  it('rejects granular ranges that split a Unicode surrogate pair', () => {
+    loadSnapshot({
+      messages: [{ role: 'assistant', content: 'A😀B' }],
+      messageBreakdown: [
+        {
+          index: 0,
+          role: 'assistant',
+          tokens: 2,
+          preview: 'A😀B',
+          blockCount: null,
+          warnings: [],
+          pairedAssistantIndices: [],
+        },
+      ],
+    });
+
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 0, start: 2, end: 3 });
+
+    expect(useContextEditorStore.getState().removeRanges).toEqual([]);
+    expect(useContextEditorStore.getState().phase).toBe('clean_snapshot');
+  });
+
+  it('ignores new granular ranges while a whole-message removal is active', () => {
+    loadSnapshot();
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+
+    expect(useContextEditorStore.getState().removeRanges).toEqual([]);
+  });
+
+  it('enters validating and applying phases explicitly', () => {
+    loadSnapshot();
+    useContextEditorStore.getState().toggleRemoveMessage(1);
+
+    useContextEditorStore.getState().beginValidation();
+    expect(useContextEditorStore.getState().phase).toBe('validating');
+    expect(useContextEditorStore.getState().validation).toBeNull();
+
+    useContextEditorStore.getState().beginApply();
+    expect(useContextEditorStore.getState().phase).toBe('applying');
+  });
+
+  it('blocks removal mutations while validation or apply is in flight', () => {
+    loadSnapshot();
+    useContextEditorStore.getState().beginValidation();
+
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+    expect(useContextEditorStore.getState().removeMessages).toEqual(new Set());
+    expect(useContextEditorStore.getState().removeRanges).toEqual([]);
+    expect(useContextEditorStore.getState().phase).toBe('validating');
+
+    useContextEditorStore.getState().beginApply();
+    useContextEditorStore.getState().toggleRemoveMessage(0);
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+    expect(useContextEditorStore.getState().removeMessages).toEqual(new Set());
+    expect(useContextEditorStore.getState().removeRanges).toEqual([]);
+    expect(useContextEditorStore.getState().phase).toBe('applying');
+  });
+
+  it('rejects ranges that do not target current text content', () => {
+    loadSnapshot();
+
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 999 });
+    useContextEditorStore
+      .getState()
+      .markRangeForRemoval({ messageIndex: 99, start: 0, end: 1 });
+
+    expect(useContextEditorStore.getState().removeRanges).toEqual([]);
+    expect(useContextEditorStore.getState().phase).toBe('clean_snapshot');
+  });
+
+  it('refreshes the snapshot after an applied response', () => {
+    render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    const appliedHandler = wsMock.handlers.get('context.editor.applied');
+    expect(appliedHandler).toBeDefined();
+
+    act(() => {
+      appliedHandler?.({
+        type: 'context.editor.applied',
+        payload: {
+          before: { messages: 2, blocks: 0, messageTokens: 2, fullRequestTokens: 2 },
+          after: { messages: 1, blocks: 0, messageTokens: 1, fullRequestTokens: 1 },
+          removed: {
+            messages: 1,
+            blocks: 0,
+            toolUses: [],
+            toolResults: [],
+            emptyMessages: 0,
+          },
+          warnings: [],
+        },
+      });
+    });
+
+    expect(wsMock.openContextEditor).toHaveBeenCalledTimes(1);
+    expect(useContextEditorStore.getState().phase).toBe('applied_success');
+
+    act(() => {
+      useContextEditorStore.getState().loadSnapshot({
+        revision: 'fresh-revision',
+        messages: [{ role: 'user', content: 'remaining message' }],
+        readonlyContext: {
+          systemPromptTokens: 1,
+          toolSchemaTokens: 1,
+          toolCount: 1,
+          totalTokens: 3,
+          messageTokens: 1,
+        },
+        messageBreakdown: [],
+        diagnostics: {
+          hasToolAdjacencyIssues: false,
+          orphanToolUses: [],
+          orphanToolResults: [],
+          emptyMessages: 0,
+          thinkingBlocks: 0,
+          signedThinkingBlocks: 0,
+        },
+      });
+    });
+
+    expect(useContextEditorStore.getState().revision).toBe('fresh-revision');
+    expect(useContextEditorStore.getState().phase).toBe('applied_success');
+    expect(useContextEditorStore.getState().appliedResult).not.toBeNull();
   });
 
   it('toggles removal on and off through the store', () => {
@@ -202,6 +525,8 @@ describe('ContextWindowEditor', () => {
       messageBreakdown: [],
       diagnostics: null,
       removeMessages: new Set(),
+      explicitRemoveMessages: new Set(),
+      removeRanges: [],
       validation: null,
       appliedResult: null,
       errorMessage: null,
@@ -227,6 +552,7 @@ describe('ContextWindowEditor', () => {
       messageBreakdown: [],
       diagnostics: null,
       removeMessages: new Set([0]),
+      explicitRemoveMessages: new Set([0]),
       validation: null,
       appliedResult: null,
       errorMessage: null,

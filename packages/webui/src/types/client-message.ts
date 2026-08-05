@@ -11,7 +11,12 @@ import type {
   WSCollabResume,
 } from './collab.js';
 import type { SessionScopedPayload, WSUserMessage } from './protocol-core.js';
-import type { ContextEditorMessage, WSModelSwitch, WSToolConfirmResult } from './runtime.js';
+import type {
+  ContextEditorMessage,
+  ContextEditorRemoval,
+  WSModelSwitch,
+  WSToolConfirmResult,
+} from './runtime.js';
 import type { SageAnchor, SageScope, SageStatus, WSMemorySageForFileRequest } from './sage.js';
 import type { OAuthKind, WSCompletionRequest } from './system.js';
 
@@ -213,6 +218,7 @@ export type WSClientMessageCore =
       payload: SessionScopedPayload & {
         baseRevision: string;
         messages: ContextEditorMessage[];
+        removals: ContextEditorRemoval[];
         allowRepair: boolean;
       };
     }
@@ -221,6 +227,7 @@ export type WSClientMessageCore =
       payload: SessionScopedPayload & {
         baseRevision: string;
         messages: ContextEditorMessage[];
+        removals: ContextEditorRemoval[];
         allowRepair: boolean;
       };
     }

@@ -126,6 +126,14 @@ export interface ContextEditorMessage {
   ts?: string | undefined;
 }
 
+/** A whole-message removal, or a character range in string/text-block content. blockIndex only identifies a text block; it is not a whole-block deletion. */
+export interface ContextEditorRemoval {
+  messageIndex: number;
+  blockIndex?: number | undefined;
+  start?: number | undefined;
+  end?: number | undefined;
+}
+
 export interface ContextEditorMetrics {
   messages: number;
   blocks: number;
@@ -187,6 +195,7 @@ export interface WSContextEditorSnapshot {
       preview: string;
       blockCount: number | null;
       warnings: ContextEditorWarning[];
+      pairedAssistantIndices: number[];
     }>;
     diagnostics: ContextEditorDiagnostics;
   };

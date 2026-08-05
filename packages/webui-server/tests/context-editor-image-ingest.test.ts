@@ -147,18 +147,14 @@ describe('context editor url image source (WS-032)', () => {
     expect(validateImage({ type: 'url', media_type: 'image/png' }).accepted).toBe(false);
   });
 
-  it('accepts an ordinary https image URL', () => {
-    const out = rejected('https://example.com/photo.png');
-    expect(out.accepted).toBe(true);
-    expect(out.codes).toEqual([]);
-  });
-
-  it('does NOT claim to catch DNS rebinding — that stays the runtime guard', () => {
-    // This validator is synchronous and cannot resolve. A public hostname that
-    // resolves to a private address passes here by design; `assertNotPrivateHost`
-    // in the runtime is what covers it. Pinned so the limitation is a recorded
-    // decision rather than an assumption someone later relies on.
-    const out = rejected('https://internal.example.com/a.png');
-    expect(out.accepted).toBe(true);
+  it('rejects public URL sources because provider-side fetches cannot be DNS-pinned here', () => {
+    for (const url of [
+      'https://example.com/photo.png',
+      'https://internal.example.com/a.png',
+    ]) {
+      const out = rejected(url);
+      expect(out.accepted, url).toBe(false);
+      expect(out.codes, url).toContain('UNSAFE_IMAGE_URL');
+    }
   });
 });
