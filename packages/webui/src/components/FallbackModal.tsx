@@ -97,22 +97,22 @@ export function FallbackModal() {
       aria-label="Model fallback"
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60"
     >
-      <div className="w-full max-w-md rounded-xl border border-amber-500/50 bg-zinc-900 p-5 shadow-2xl">
+      <div className="w-full max-w-md rounded-xl border border-warning/50 bg-card p-5 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-amber-400">⚠ MODEL FALLBACK</h2>
-          <span className="text-xs text-amber-400">{remaining}s</span>
+          <h2 className="text-sm font-bold text-warning">⚠ MODEL FALLBACK</h2>
+          <span className="text-xs text-warning">{remaining}s</span>
         </div>
 
         {/* Failed model */}
-        <p className="mt-2 text-xs text-zinc-400">
-          <span className="font-mono text-zinc-300">{fromLabel}</span> returned{' '}
-          <span className="font-mono text-amber-400">{pending.status}</span>
+        <p className="mt-2 text-xs text-muted-foreground">
+          <span className="font-mono text-card-foreground">{fromLabel}</span> returned{' '}
+          <span className="font-mono text-warning">{pending.status}</span>
         </p>
 
         {/* Candidate list */}
         <div className="mt-4 space-y-1">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Select a fallback model (↑/↓ to move, Enter to pick, Esc for auto):
           </p>
           {pending.candidates.map((c, i) => {
@@ -131,11 +131,11 @@ export function FallbackModal() {
                 onMouseEnter={() => useFallbackStore.getState().setSelected(i)}
                 className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors ${
                   isSel
-                    ? 'bg-amber-500/15 text-zinc-100 ring-1 ring-amber-500/50'
-                    : 'text-zinc-400 hover:bg-zinc-800'
+                    ? 'bg-warning/15 text-card-foreground ring-1 ring-warning/50'
+                    : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
-                <span className={isSel ? 'text-amber-400' : 'text-transparent'}>▸</span>
+                <span className={isSel ? 'text-warning' : 'text-transparent'}>▸</span>
                 <span className="font-mono">{label}</span>
               </button>
             );
@@ -143,7 +143,7 @@ export function FallbackModal() {
         </div>
 
         {/* Footer */}
-        <p className="mt-4 text-[10px] text-zinc-600">
+        <p className="mt-4 text-[10px] text-muted-foreground">
           Enter picks · Esc auto-switches · countdown picks highlighted entry
         </p>
       </div>
