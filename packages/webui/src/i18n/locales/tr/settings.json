@@ -312,7 +312,10 @@
     "paletteSignal": "Sinyal",
     "paletteEmeraldGold": "Zümrüt & Altın",
     "paletteBlueNavy": "Lacivert",
-    "palettePurplePink": "Mor & Pembe"
+    "palettePurplePink": "Mor & Pembe",
+    "paletteCyanTeal": "Camgöbeği & Deniz Mavisi",
+    "paletteRoseCopper": "Gül & Bakır",
+    "paletteIndigoAmber": "Çivit Mavisi & Kehribar"
   },
   "agent": {
     "autonomyHeading": "Otonomi ve Davranış",

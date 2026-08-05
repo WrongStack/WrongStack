@@ -312,7 +312,10 @@
     "paletteSignal": "Sinal",
     "paletteEmeraldGold": "Esmeralda e dourado",
     "paletteBlueNavy": "Azul-marinho",
-    "palettePurplePink": "Roxo e rosa"
+    "palettePurplePink": "Roxo e rosa",
+    "paletteCyanTeal": "Ciano e verde-azulado",
+    "paletteRoseCopper": "Rosa e cobre",
+    "paletteIndigoAmber": "Índigo e âmbar"
   },
   "agent": {
     "autonomyHeading": "Autonomia e Comportamento",

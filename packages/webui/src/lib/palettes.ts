@@ -12,7 +12,7 @@
  * the same order), and an i18n label key in all 7 locale files. The default
  * "signal" palette needs no CSS block — it is the base token set.
  */
-export type PaletteId = 'signal' | 'emerald-gold' | 'blue-navy' | 'purple-pink';
+export type PaletteId = 'signal' | 'emerald-gold' | 'blue-navy' | 'purple-pink' | 'cyan-teal' | 'rose-copper' | 'indigo-amber';
 
 export interface PaletteDefinition {
   id: PaletteId;
@@ -53,6 +53,24 @@ export const PALETTES: readonly PaletteDefinition[] = [
     labelKey: 'settings:general.palettePurplePink',
     swatch: 'hsl(263 82% 66%)',
     swatchSecondary: 'hsl(332 94% 62%)',
+  },
+  {
+    id: 'cyan-teal',
+    labelKey: 'settings:general.paletteCyanTeal',
+    swatch: 'hsl(180 76% 46%)',
+    swatchSecondary: 'hsl(36 96% 54%)',
+  },
+  {
+    id: 'rose-copper',
+    labelKey: 'settings:general.paletteRoseCopper',
+    swatch: 'hsl(14 82% 56%)',
+    swatchSecondary: 'hsl(34 96% 54%)',
+  },
+  {
+    id: 'indigo-amber',
+    labelKey: 'settings:general.paletteIndigoAmber',
+    swatch: 'hsl(233 74% 58%)',
+    swatchSecondary: 'hsl(38 96% 54%)',
   },
 ] as const satisfies readonly PaletteDefinition[];
 

@@ -72,7 +72,10 @@
     "paletteSignal": "Signal",
     "paletteEmeraldGold": "Emerald & Gold",
     "paletteBlueNavy": "Blue Navy",
-    "palettePurplePink": "Purple & Pink"
+    "palettePurplePink": "Purple & Pink",
+    "paletteCyanTeal": "Cyan & Teal",
+    "paletteRoseCopper": "Rose & Copper",
+    "paletteIndigoAmber": "Indigo & Amber"
   },
   "model": {
     "heading": "Model",

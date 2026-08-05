@@ -690,6 +690,47 @@
   --desk-aura: hsl(var(--muted-foreground) / 0.044);
 }
 
+/* Dark theme: the wall/floor/aura tints above are calibrated for light
+   backgrounds (~92-96% lightness). On dark surfaces (~10-16% lightness) the
+   same low-alpha values are imperceptible, collapsing the scene's spatial
+   depth and the identity panel's role-colored aura to a single flat color.
+   Bump the alpha for dark mode so each desk retains its visual structure. */
+.dark .agent-office__lane {
+  --desk-wall: hsl(var(--info) / 0.16);
+  --desk-floor: hsl(var(--warning) / 0.16);
+  --desk-aura: hsl(var(--warning) / 0.14);
+}
+
+.dark .agent-office__lane.is-desk-mint {
+  --desk-wall: hsl(var(--success) / 0.18);
+  --desk-floor: hsl(var(--info) / 0.14);
+  --desk-aura: hsl(var(--success) / 0.16);
+}
+
+.dark .agent-office__lane.is-desk-ocean {
+  --desk-wall: hsl(var(--info) / 0.2);
+  --desk-floor: hsl(var(--primary) / 0.14);
+  --desk-aura: hsl(var(--info) / 0.16);
+}
+
+.dark .agent-office__lane.is-desk-plum {
+  --desk-wall: hsl(var(--primary) / 0.18);
+  --desk-floor: hsl(var(--warning) / 0.14);
+  --desk-aura: hsl(var(--primary) / 0.16);
+}
+
+.dark .agent-office__lane.is-desk-rose {
+  --desk-wall: hsl(var(--destructive) / 0.16);
+  --desk-floor: hsl(var(--warning) / 0.14);
+  --desk-aura: hsl(var(--destructive) / 0.14);
+}
+
+.dark .agent-office__lane.is-desk-graphite {
+  --desk-wall: hsl(var(--muted-foreground) / 0.14);
+  --desk-floor: hsl(var(--foreground) / 0.1);
+  --desk-aura: hsl(var(--muted-foreground) / 0.12);
+}
+
 .agent-office__lane:hover {
   transform: translateY(-1px);
   box-shadow: 0 13px 34px hsl(var(--shadow-color) / 0.1);

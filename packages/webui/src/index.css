@@ -199,6 +199,63 @@
     --accent-foreground: 332 92% 74%;
     --brand-orange: 332 94% 62%;
   }
+
+  :root[data-palette='cyan-teal'] {
+    --primary: 178 82% 27%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 178 82% 27%;
+    --running: 178 82% 27%;
+    --accent: 172 58% 88%;
+    --accent-foreground: 175 80% 22%;
+    --brand-orange: 32 94% 42%;
+  }
+  .dark[data-palette='cyan-teal'] {
+    --primary: 180 76% 46%;
+    --primary-foreground: 184 40% 8%;
+    --ring: 180 76% 46%;
+    --running: 180 76% 46%;
+    --accent: 174 40% 18%;
+    --accent-foreground: 176 80% 62%;
+    --brand-orange: 36 96% 54%;
+  }
+
+  :root[data-palette='rose-copper'] {
+    --primary: 12 78% 44%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 12 78% 44%;
+    --running: 12 78% 44%;
+    --accent: 25 70% 90%;
+    --accent-foreground: 18 85% 28%;
+    --brand-orange: 32 86% 46%;
+  }
+  .dark[data-palette='rose-copper'] {
+    --primary: 14 82% 56%;
+    --primary-foreground: 14 42% 7%;
+    --ring: 14 82% 56%;
+    --running: 14 82% 56%;
+    --accent: 24 38% 18%;
+    --accent-foreground: 28 84% 60%;
+    --brand-orange: 34 96% 54%;
+  }
+
+  :root[data-palette='indigo-amber'] {
+    --primary: 235 70% 48%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 235 70% 48%;
+    --running: 235 70% 48%;
+    --accent: 42 64% 89%;
+    --accent-foreground: 38 82% 26%;
+    --brand-orange: 38 90% 44%;
+  }
+  .dark[data-palette='indigo-amber'] {
+    --primary: 233 74% 58%;
+    --primary-foreground: 235 42% 8%;
+    --ring: 233 74% 58%;
+    --running: 233 74% 58%;
+    --accent: 40 40% 18%;
+    --accent-foreground: 40 90% 60%;
+    --brand-orange: 38 96% 54%;
+  }
 }
 
 @layer base {
