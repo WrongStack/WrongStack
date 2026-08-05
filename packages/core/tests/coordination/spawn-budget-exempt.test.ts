@@ -16,32 +16,24 @@ import { Director, FleetSpawnBudgetError } from '../../src/coordination/director
 import { FleetManager } from '../../src/coordination/fleet-manager.js';
 import type {
   MultiAgentConfig,
+  SubagentRunOutcome,
   SubagentRunner,
-  TaskResult,
-  TaskSpec,
 } from '../../src/types/multi-agent.js';
 
 function makeConfig(): MultiAgentConfig {
   return {
-    maxSpawnDepth: 2,
-    spawnDepth: 0,
+    coordinatorId: 'spawn-budget-exempt',
     doneCondition: { type: 'all_tasks_done' },
-  } as MultiAgentConfig;
+  };
 }
 
+/** These tests only spawn and terminate, so the runner is never invoked. */
 function makeRunner(): SubagentRunner {
-  return {
-    async run(spec: TaskSpec): Promise<TaskResult> {
-      return {
-        taskId: spec.taskId,
-        status: 'success',
-        result: 'done',
-        iterations: 1,
-        toolCalls: 0,
-        durationMs: 1,
-      };
-    },
-  };
+  return async (): Promise<SubagentRunOutcome> => ({
+    result: 'done',
+    iterations: 1,
+    toolCalls: 0,
+  });
 }
 
 /** A full reviewer-ladder exhaustion: 4 exempt rungs, each terminated. */
