@@ -12,12 +12,48 @@ import {
 } from '@wrongstack/webui-server/protocol';
 import type { ServerMessage } from '../types.js';
 
+/**
+ * localStorage key for the shared auth token — the same credential carried by
+ * `?token=`. Persisting it lets F5 / tab restarts keep working: on every load
+ * the token is re-attached to the WS URL and re-exchanged for the HttpOnly
+ * cookie via `/ws-auth`, so a restarted server still authenticates.
+ */
+const TOKEN_STORAGE_KEY = 'wrongstack.simpleui.token.v1';
+
+function storedToken(): string | null {
+  try {
+    const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    return token !== null && token.length > 0 ? token : null;
+  } catch {
+    return null; // storage disabled / strict private mode
+  }
+}
+
+function persistToken(token: string): boolean {
+  try {
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearStoredToken(): void {
+  try {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    /* best-effort */
+  }
+}
+
 function pageToken(): string | null {
   try {
-    return new URLSearchParams(window.location.search).get('token');
+    const urlToken = new URLSearchParams(window.location.search).get('token');
+    if (urlToken !== null && urlToken.length > 0) return urlToken;
   } catch {
-    return null;
+    /* fall through to the stored token */
   }
+  return storedToken();
 }
 
 function configuredWsUrl(): string | null {
@@ -51,10 +87,12 @@ export function defaultWsUrl(): URL {
   return url;
 }
 
-function scrubPageToken(): void {
+/** Remove a specific `?token=` from the page URL (address-bar hygiene). */
+function scrubUrlTokenFromPage(token: string | null): void {
+  if (token === null) return;
   try {
     const url = new URL(window.location.href);
-    if (!url.searchParams.has('token')) return;
+    if (url.searchParams.get('token') !== token) return;
     url.searchParams.delete('token');
     window.history.replaceState(window.history.state, document.title, url.toString());
   } catch {
@@ -62,18 +100,76 @@ function scrubPageToken(): void {
   }
 }
 
-async function exchangeAuthCookie(url: URL): Promise<URL> {
+export function scrubPageToken(): void {
+  try {
+    const urlToken = new URL(window.location.href).searchParams.get('token');
+    if (urlToken === null) return;
+    // Only scrub when the token survives in localStorage — otherwise the URL
+    // is the only copy and scrubbing would lose the credential on reload.
+    if (storedToken() !== urlToken) return;
+    scrubUrlTokenFromPage(urlToken);
+  } catch {
+    // Best-effort URL hygiene only.
+  }
+}
+
+export async function exchangeAuthCookie(url: URL): Promise<URL> {
   const token = url.searchParams.get('token') ?? pageToken();
   if (!token) return url;
+  // sameHost gates the URL mutations and the persist: the /ws-auth exchange
+  // always hits the page origin, but the WS URL may be a separate public
+  // tunnel host. A cross-host credential must never be persisted into (or
+  // replaced by) page-origin storage — it belongs to a different server.
+  // (clearStoredToken is NOT gated: the stored token lives in page-origin
+  // storage and a 401 from the page-origin /ws-auth legitimately invalidates
+  // it regardless of which host the socket targets.)
+  const sameHost = url.hostname === window.location.hostname;
   try {
     const response = await fetch(`/ws-auth?token=${encodeURIComponent(token)}`, {
       credentials: 'same-origin',
       cache: 'no-store',
     });
-    if (!response.ok) return url;
-    const sameHost = url.hostname === window.location.hostname;
-    if (sameHost) url.searchParams.delete('token');
-    scrubPageToken();
+    if (!response.ok) {
+      // Explicit auth rejection (bad/revoked token) must not replay from
+      // localStorage forever. Transient failures (404 on older servers, 5xx,
+      // network) keep the token — a blip is not a revocation.
+      if (response.status === 401 || response.status === 403) {
+        const urlToken = url.searchParams.get('token');
+        const stored = storedToken();
+        if (stored === token) {
+          // The rejected token IS the stored one — stop replaying it. Also
+          // strip it from the page URL and the WS URL, or every reconnect
+          // would re-attach the dead credential (the browser URL-token path
+          // is rejected anyway; loopback recovers tokenless).
+          clearStoredToken();
+          if (sameHost) {
+            url.searchParams.delete('token');
+            scrubUrlTokenFromPage(token);
+          }
+        } else if (sameHost && urlToken !== null && stored !== null) {
+          // A rejected URL token while a different (valid) stored token
+          // exists: drop the stale URL token and switch to the stored
+          // credential instead of looping on the rejected one forever.
+          url.searchParams.delete('token');
+          url.searchParams.set('token', stored);
+          scrubUrlTokenFromPage(urlToken);
+        } else if (sameHost && urlToken !== null) {
+          // Rejected URL token with no stored fallback — replaying it can
+          // only loop; strip it and let the tokenless loopback path (or a
+          // fresh startup URL) take over.
+          url.searchParams.delete('token');
+          scrubUrlTokenFromPage(urlToken);
+        }
+      }
+      return url;
+    }
+    if (sameHost) {
+      // Only persist a token the server actually accepted — a stale `?token=`
+      // from an old link must not outlive its page load.
+      persistToken(token);
+      url.searchParams.delete('token');
+      scrubPageToken();
+    }
   } catch {
     // The WS query-token path remains as a compatibility fallback.
   }

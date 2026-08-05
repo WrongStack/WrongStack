@@ -30,12 +30,12 @@ if (container !== null) {
   void exchangeBootstrapIfNeeded().finally(() => {
     scrubTokenFromUrl();
 
-    // WS-065: legacy `?token=` URLs and manual token entry leave the raw token
-    // in sessionStorage. Trade it for the HttpOnly cookie and delete the copy.
+    // WS-065: mint the HttpOnly session cookie for any stored token. The
+    // stored copy is deliberately KEPT — it is the reload-survival fallback
+    // when the server's in-memory session is gone (restart, idle eviction).
     // Deliberately not awaited — it must not delay first paint, and both
     // orderings are correct: a WS URL built before the swap still carries a
-    // valid token, one built after rides the cookie. A no-op after a successful
-    // bootstrap exchange, which already cleared storage.
+    // valid token, one built after rides the cookie.
     void upgradeStoredTokenToCookie();
 
     const client = getHqClient({

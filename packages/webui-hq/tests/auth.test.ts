@@ -13,6 +13,7 @@ import {
   authHeaders,
   authorizedFetch,
   clearHqToken,
+  exchangeBootstrapIfNeeded,
   loginWithHqToken,
   normalizeHqTokenInput,
   resolveHqToken,
@@ -37,10 +38,10 @@ describe('resolveHqToken', () => {
     expect(resolveHqToken()).toBeNull();
   });
 
-  it('reads ?token= from the URL and persists it to sessionStorage', () => {
+  it('reads ?token= from the URL and persists it to localStorage', () => {
     setUrl('/?token=tok-from-url');
     expect(resolveHqToken()).toBe('tok-from-url');
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-from-url');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-from-url');
   });
 
   it('falls back to the persisted token when the URL carries no query', () => {
@@ -48,11 +49,86 @@ describe('resolveHqToken', () => {
     expect(resolveHqToken()).toBe('tok-persisted');
   });
 
+  it('migrates a legacy sessionStorage token into localStorage on first read', () => {
+    // Pre-F5-persistence builds kept the token in sessionStorage under the
+    // same key. Upgrading the SPA must not log anyone out: the copy is moved
+    // to localStorage and the session-scoped duplicate removed.
+    window.sessionStorage.setItem(__test__.STORAGE_KEY, 'tok-legacy-session');
+    expect(resolveHqToken()).toBe('tok-legacy-session');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy-session');
+    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBeNull();
+  });
+
+  it('keeps the legacy sessionStorage copy when localStorage is unavailable', () => {
+    // If the localStorage write fails (private mode / quota), the session
+    // copy is the ONLY credential — deleting it would log the user out on
+    // the next reload.
+    window.sessionStorage.setItem(__test__.STORAGE_KEY, 'tok-keep-session');
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage disabled');
+      },
+    });
+    try {
+      expect(resolveHqToken()).toBe('tok-keep-session');
+      expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-keep-session');
+    } finally {
+      if (original) Object.defineProperty(window, 'localStorage', original);
+    }
+  });
+
+  it('keeps the legacy sessionStorage copy when localStorage silently no-ops writes', () => {
+    // Some storages accept setItem without persisting anything (older Safari
+    // private mode, embedded webviews). The read-back guard must catch that
+    // and leave the session copy alone — it is the only surviving credential.
+    window.sessionStorage.setItem(__test__.STORAGE_KEY, 'tok-noop-storage');
+    const origDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
+    const noopStorage = {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+      get length() {
+        return 0;
+      },
+      key: () => null,
+      clear: () => {},
+    };
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: noopStorage });
+    try {
+      expect(resolveHqToken()).toBe('tok-noop-storage');
+      expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-noop-storage');
+    } finally {
+      Object.defineProperty(window, 'localStorage', origDescriptor);
+    }
+  });
+
   it('URL token wins over a previously persisted one and replaces it', () => {
     setHqToken('tok-old');
     setUrl('/?token=tok-new');
     expect(resolveHqToken()).toBe('tok-new');
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-new');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-new');
+  });
+
+  it('clears a stored token when a bootstrap exchange succeeds', async () => {
+    // The bootstrap flow is the tokenless identity-refresh path. The server
+    // authenticates Bearer BEFORE the cookie, so a still-valid legacy stored
+    // token would shadow the fresh cookie's identity — it must be cleared.
+    setHqToken('tok-legacy');
+    setUrl('/#bootstrap=one-time-code');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ loggedIn: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    await expect(exchangeBootstrapIfNeeded()).resolves.toBe(true);
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBeNull();
+    expect(window.location.hash).toBe(''); // one-time fragment scrubbed
   });
 
   it('ignores an empty ?token= value', () => {
@@ -71,7 +147,7 @@ describe('scrubTokenFromUrl', () => {
   it('persists the URL token, then strips it from the address bar', () => {
     setUrl('/?token=tok-scrub&view=fleet#frag');
     scrubTokenFromUrl();
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-scrub');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-scrub');
     expect(window.location.search).toBe('?view=fleet');
     expect(window.location.hash).toBe('#frag');
     expect(resolveHqToken()).toBe('tok-scrub');
@@ -81,13 +157,13 @@ describe('scrubTokenFromUrl', () => {
     setUrl('/?view=fleet');
     scrubTokenFromUrl();
     expect(window.location.search).toBe('?view=fleet');
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBeNull();
   });
 
-  it('keeps the token in the URL when sessionStorage is unavailable', () => {
+  it('keeps the token in the URL when localStorage is unavailable', () => {
     setUrl('/?token=tok-keep');
-    const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
-    Object.defineProperty(window, 'sessionStorage', {
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
       configurable: true,
       get() {
         throw new Error('storage disabled');
@@ -98,7 +174,7 @@ describe('scrubTokenFromUrl', () => {
       // The URL is the only surviving token source — it must NOT be stripped.
       expect(window.location.search).toBe('?token=tok-keep');
     } finally {
-      if (original) Object.defineProperty(window, 'sessionStorage', original);
+      if (original) Object.defineProperty(window, 'localStorage', original);
     }
   });
 });
@@ -163,9 +239,9 @@ describe('manual token login', () => {
     );
   });
 
-  it('exchanges the submitted token directly for a cookie without sessionStorage', async () => {
-    const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
-    Object.defineProperty(window, 'sessionStorage', {
+  it('exchanges the submitted token directly for a cookie without localStorage', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
       configurable: true,
       get() {
         throw new Error('storage disabled');
@@ -187,8 +263,24 @@ describe('manual token login', () => {
         signal: expect.any(AbortSignal),
       });
     } finally {
-      if (original) Object.defineProperty(window, 'sessionStorage', original);
+      if (original) Object.defineProperty(window, 'localStorage', original);
     }
+  });
+
+  it('persists the submitted token on success so reloads keep working', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ loggedIn: true, upgraded: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    await expect(loginWithHqToken('manual-token')).resolves.toEqual({ ok: true });
+    // The cookie alone dies with the server's in-memory session table on
+    // restart / idle eviction — the stored token is what survives F5.
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('manual-token');
   });
 
   it('returns the server rejection instead of triggering a silent reload loop', async () => {
@@ -210,15 +302,15 @@ describe('manual token login', () => {
 });
 
 describe('storage() null-fallback and SSR guard', () => {
-  it('storage() returns null via ?? fallback when sessionStorage is null', () => {
-    // Make window.sessionStorage null so that `null ?? null` in storage()
+  it('storage() returns null via ?? fallback when localStorage is null', () => {
+    // Make window.localStorage null so that `null ?? null` in storage()
     // returns null, causing resolveHqToken to skip stored-token lookup.
-    const orig = Object.getOwnPropertyDescriptor(window, 'sessionStorage')!;
-    Object.defineProperty(window, 'sessionStorage', { configurable: true, value: null });
+    const orig = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: null });
     try {
       expect(resolveHqToken()).toBeNull();
     } finally {
-      Object.defineProperty(window, 'sessionStorage', orig);
+      Object.defineProperty(window, 'localStorage', orig);
     }
   });
 
@@ -262,9 +354,9 @@ describe('error-path catch blocks', () => {
 
   it('readStoredToken catch: returns null when getItem throws', () => {
     setHqToken('stored-tok');
-    // Replace sessionStorage with a mock where getItem throws, so the
+    // Replace localStorage with a mock where getItem throws, so the
     // try-catch in readStoredToken fires and returns null.
-    const origDescriptor = Object.getOwnPropertyDescriptor(window, 'sessionStorage')!;
+    const origDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
     const mockStorage = {
       getItem: () => {
         throw new Error('quota exceeded');
@@ -281,7 +373,7 @@ describe('error-path catch blocks', () => {
       key: () => null,
       clear: () => {},
     };
-    Object.defineProperty(window, 'sessionStorage', {
+    Object.defineProperty(window, 'localStorage', {
       configurable: true,
       value: mockStorage,
     });
@@ -291,7 +383,7 @@ describe('error-path catch blocks', () => {
       setUrl('/');
       expect(resolveHqToken()).toBeNull();
     } finally {
-      Object.defineProperty(window, 'sessionStorage', origDescriptor);
+      Object.defineProperty(window, 'localStorage', origDescriptor);
     }
   });
 });
@@ -319,7 +411,7 @@ describe('upgradeStoredTokenToCookie (WS-065)', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('sends the stored token as Bearer and clears storage on success', async () => {
+  it('sends the stored token as Bearer and KEEPS it as the reload fallback on success', async () => {
     setHqToken('tok-legacy');
     const { calls } = stubFetch({ ok: true, body: { loggedIn: true, upgraded: true } });
 
@@ -331,7 +423,9 @@ describe('upgradeStoredTokenToCookie (WS-065)', () => {
     expect(headers?.Authorization).toBe('Bearer tok-legacy');
     // Cookie must be accepted from the response, so the request has to opt in.
     expect(calls[0]?.[1]?.credentials).toBe('same-origin');
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBeNull();
+    // The cookie upgrade must NOT delete the stored copy — it is the
+    // reload-survival fallback when the server session is gone.
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
   });
 
   it('KEEPS the stored token when the server rejects', async () => {
@@ -341,7 +435,7 @@ describe('upgradeStoredTokenToCookie (WS-065)', () => {
     setHqToken('tok-legacy');
     stubFetch({ ok: false });
     await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
   });
 
   it('KEEPS the stored token when the server is too old to know the route', async () => {
@@ -350,22 +444,25 @@ describe('upgradeStoredTokenToCookie (WS-065)', () => {
     setHqToken('tok-legacy');
     stubFetch({ ok: true, body: { notWhatWeExpect: true } });
     await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
   });
 
   it('KEEPS the stored token when the request throws', async () => {
     setHqToken('tok-legacy');
     stubFetch(new Error('network down'));
     await expect(upgradeStoredTokenToCookie()).resolves.toBe(false);
-    expect(window.sessionStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
+    expect(window.localStorage.getItem(__test__.STORAGE_KEY)).toBe('tok-legacy');
   });
 
-  it('leaves nothing for resolveHqToken to find after a successful upgrade', () => {
-    // The end state the finding asks for: no readable credential on the origin.
+  it('keeps the stored token findable after a successful upgrade', async () => {
+    // F5 survival: even after the cookie exchange succeeds, the token must
+    // still resolve — it is the credential that keeps the dashboard alive
+    // when the in-memory server session is evicted or the server restarts.
     setHqToken('tok-legacy');
-    clearHqToken();
+    stubFetch({ ok: true, body: { loggedIn: true } });
+    await expect(upgradeStoredTokenToCookie()).resolves.toBe(true);
     setUrl('/');
-    expect(resolveHqToken()).toBeNull();
-    expect(authHeaders()).toEqual({});
+    expect(resolveHqToken()).toBe('tok-legacy');
+    expect(authHeaders()).toEqual({ Authorization: 'Bearer tok-legacy' });
   });
 });

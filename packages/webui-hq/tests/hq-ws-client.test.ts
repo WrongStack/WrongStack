@@ -496,6 +496,67 @@ describe('HqWsClient', () => {
     noUrlClient.close();
   });
 
+  it('attaches ?token= to the WS URL on a loopback origin with a stored token', () => {
+    vi.stubGlobal('window', {
+      location: {
+        host: '127.0.0.1:3599',
+        protocol: 'http:',
+        hostname: '127.0.0.1',
+        search: '',
+      },
+      localStorage: {
+        getItem: (key: string) => (key === 'wrongstack.hq.token.v1' ? 'ws-loopback-token' : null),
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        get length() {
+          return 0;
+        },
+      },
+    });
+    try {
+      const noUrlClient = new HqWsClient();
+      const url = (noUrlClient as unknown as { url: string }).url;
+      expect(url).toBe('ws://127.0.0.1:3599/ws/browser?token=ws-loopback-token');
+      noUrlClient.close();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps ?token= out of the WS URL on a non-loopback origin even with a stored token', () => {
+    // The server refuses browser query-string tokens off-loopback (WS-009),
+    // so carrying one would only leak it into the upgrade request line.
+    vi.stubGlobal('window', {
+      location: {
+        host: 'hq.example.com:3599',
+        protocol: 'http:',
+        hostname: 'hq.example.com',
+        search: '',
+      },
+      localStorage: {
+        getItem: (key: string) => (key === 'wrongstack.hq.token.v1' ? 'ws-remote-token' : null),
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        get length() {
+          return 0;
+        },
+      },
+    });
+    try {
+      const noUrlClient = new HqWsClient();
+      const url = (noUrlClient as unknown as { url: string }).url;
+      expect(url).toBe('ws://hq.example.com:3599/ws/browser');
+      expect(url).not.toContain('?token=');
+      noUrlClient.close();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('isHeartbeatTimedOut returns true when ws is null', () => {
     // Before connect(), ws is null → isHeartbeatTimedOut should be true.
     expect(client.isHeartbeatTimedOut).toBe(true);

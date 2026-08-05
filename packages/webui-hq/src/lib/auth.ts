@@ -6,18 +6,22 @@
  * `/api/auth/bootstrap`, and receives an HttpOnly session cookie. The code
  * is consumed atomically and never persisted client-side.
  *
- * Legacy fallback: `?token=` URLs and sessionStorage remain supported for
- * backward compatibility with older startup URLs and manual token entry.
- * HTTP requests attach the token as `Authorization: Bearer`.
+ * Reload-survival credential: after token login (`?token=` URLs, manual token
+ * entry, or the gate), the raw token is persisted in localStorage under
+ * `wrongstack.hq.token.v1` and re-attached as `Authorization: Bearer` on every
+ * request. The HttpOnly cookie is defense-in-depth, but server sessions are
+ * in-memory — idle-evicted after 30 minutes and wiped by any server restart —
+ * so the stored token is what keeps the dashboard alive across F5. It is
+ * removed by explicit logout, when the operator logs in through the
+ * password/TOTP flow (which authenticates with the cookie, not a token), or
+ * when a fresh bootstrap exchange succeeds (that flow is the tokenless
+ * identity-refresh path — a legacy stored token must not shadow the new
+ * cookie's identity); a revoked token surfaces as a rejected-token gate,
+ * not as a silent lockout.
  *
- * WS-065: those legacy paths left the raw token in `sessionStorage`, readable
- * by any script on the origin. They can't simply be deleted — an old `?token=`
- * URL and manual token entry are the only credential those users have, and
- * dropping storage would break reload survival for them. Instead
- * `upgradeStoredTokenToCookie` finishes the migration at runtime: authenticate
- * once with the stored token, take the HttpOnly cookie, delete the copy. Only
- * on a confirmed upgrade — a failed exchange leaves storage untouched, because
- * a token the user cannot recover is worse than one a script could read.
+ * Legacy: older builds stored the token in sessionStorage under the same key.
+ * `readStoredToken` migrates any surviving copy into localStorage on first
+ * read, so upgrading the SPA does not log anyone out.
  */
 
 const STORAGE_KEY = 'wrongstack.hq.token.v1';
@@ -33,11 +37,26 @@ function readUrlToken(): string | null {
 }
 
 /**
- * sessionStorage, or null when unavailable. Even ACCESSING the property can
+ * localStorage, or null when unavailable. Even ACCESSING the property can
  * throw (SecurityError with storage disabled / strict private modes), so the
  * read itself is guarded — not just the getItem/setItem calls.
+ *
+ * localStorage (not sessionStorage) is the reload-survival store: it survives
+ * F5, tab restarts, and browser restarts, which is exactly the durability the
+ * dashboard needs because the server-side session cookie alone is wiped by
+ * HQ restarts and idle eviction.
  */
 function storage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Guarded sessionStorage access — used only for the legacy-token migration. */
+function legacySessionStorage(): Storage | null {
   if (typeof window === 'undefined') return null;
   try {
     return window.sessionStorage ?? null;
@@ -49,7 +68,50 @@ function storage(): Storage | null {
 function readStoredToken(): string | null {
   try {
     const token = storage()?.getItem(STORAGE_KEY) ?? null;
-    return token !== null && token.length > 0 ? token : null;
+    if (token !== null && token.length > 0) return token;
+  } catch {
+    /* fall through — try the legacy sessionStorage copy below */
+  }
+  return migrateLegacySessionToken();
+}
+
+/**
+ * One-time migration: builds before the F5-persistence fix stored the token
+ * in sessionStorage under the same key. Move any surviving copy into
+ * localStorage so reload survival keeps working after the SPA upgrade, then
+ * delete the session-scoped duplicate — but ONLY when the localStorage write
+ * verifiably succeeded (checked by read-back). If storage is unavailable
+ * (private mode) or silently no-ops, the sessionStorage copy is the sole
+ * credential and must not be destroyed; the migration then retries
+ * harmlessly on the next read.
+ */
+function migrateLegacySessionToken(): string | null {
+  try {
+    const legacy = legacySessionStorage()?.getItem(STORAGE_KEY) ?? null;
+    if (legacy === null || legacy.length === 0) return null;
+    // saved must only become true when the value can be READ BACK after the
+    // write. `storage()` returns null (not throws) when the property access
+    // fails, and some storages silently no-op setItem (older Safari private
+    // mode, embedded webviews) — without the read-back, the session copy
+    // would be destroyed even though nothing was persisted.
+    let saved = false;
+    try {
+      const store = storage();
+      if (store !== null) {
+        store.setItem(STORAGE_KEY, legacy);
+        saved = store.getItem(STORAGE_KEY) === legacy;
+      }
+    } catch {
+      /* leave saved = false — the write did not verifiably succeed */
+    }
+    if (saved) {
+      try {
+        legacySessionStorage()?.removeItem(STORAGE_KEY);
+      } catch {
+        /* best-effort */
+      }
+    }
+    return legacy;
   } catch {
     return null; // private mode / storage disabled
   }
@@ -70,6 +132,11 @@ export function clearHqToken(): void {
   } catch {
     /* best-effort */
   }
+  try {
+    legacySessionStorage()?.removeItem(STORAGE_KEY);
+  } catch {
+    /* best-effort — legacy copy, if any */
+  }
 }
 
 /**
@@ -89,7 +156,7 @@ export function resolveHqToken(): string | null {
  * Persist a URL-supplied token, then remove `?token=` from the address bar
  * (history.replaceState) so the credential stops living in browser history,
  * screenshots, and copied links. Deliberately a no-op when the token cannot
- * be read back from sessionStorage (private mode / storage disabled) — in
+ * be read back from localStorage (private mode / storage disabled) — in
  * that case the URL is the only place the token survives a re-render.
  */
 export function scrubTokenFromUrl(): void {
@@ -181,7 +248,11 @@ export async function loginWithHqToken(input: string): Promise<HqTokenLoginResul
     }
 
     if (res.ok && body.loggedIn === true) {
-      clearHqToken();
+      // Keep the stored token — it is the reload-survival fallback. The
+      // HttpOnly cookie alone dies with the server's in-memory session table
+      // on restart or idle eviction, which is exactly when F5 must keep
+      // working. Only explicit logout clears it.
+      setHqToken(token);
       return { ok: true };
     }
 
@@ -239,8 +310,12 @@ function scrubBootstrapFromUrl(): void {
 /**
  * Extract the bootstrap code from the URL fragment, POST it to
  * `/api/auth/bootstrap`, and scrub the fragment on success. The server
- * atomically consumes the code and returns an HttpOnly session cookie —
- * no persistent client-side credential is stored.
+ * atomically consumes the code and returns an HttpOnly session cookie.
+ *
+ * On success any stored token is cleared: the bootstrap flow is the
+ * tokenless identity-refresh path, and the server authenticates Bearer
+ * BEFORE the cookie — a still-valid legacy stored token would otherwise
+ * shadow the fresh cookie's identity and capabilities on every request.
  *
  * Returns true when the exchange succeeded (or was already done and the
  * server reports a valid cookie session).
@@ -268,19 +343,18 @@ export async function exchangeBootstrapIfNeeded(): Promise<boolean> {
 }
 
 /**
- * WS-065 — trade a stored browser token for an HttpOnly session cookie and
- * delete the stored copy.
+ * WS-065 — mint the HttpOnly session cookie for a stored browser token.
  *
- * Returns true when storage no longer holds a token *because* the exchange
- * succeeded. Every other outcome — nothing stored, server too old to know the
+ * Returns true when the server confirmed a cookie session. The stored token
+ * is deliberately NOT deleted on success: it is the reload-survival fallback
+ * that keeps the dashboard alive when the server's in-memory session is gone
+ * (restart, 30-minute idle eviction). The cookie is defense-in-depth —
+ * strictly stronger (HttpOnly, same-origin, server-expiring) — but it must
+ * not be the only credential the tab holds.
+ *
+ * Every non-success outcome — nothing stored, server too old to know the
  * route, network failure, a token with no server-side record — returns false
- * and leaves storage exactly as it was. That asymmetry is the whole safety
- * argument: the only way to lose the fallback credential is to have provably
- * gained the stronger one.
- *
- * A cookie-authenticated caller gets `upgraded: false` from the server and no
- * new session, but the stored token is still cleared here — the cookie already
- * covers every request, so the copy is pure exposure.
+ * and leaves storage exactly as it was.
  */
 export async function upgradeStoredTokenToCookie(): Promise<boolean> {
   const token = readStoredToken();
@@ -290,7 +364,6 @@ export async function upgradeStoredTokenToCookie(): Promise<boolean> {
     if (!res.ok) return false;
     const body = (await res.json()) as { loggedIn?: unknown };
     if (body.loggedIn !== true) return false;
-    clearHqToken();
     return true;
   } catch {
     return false;

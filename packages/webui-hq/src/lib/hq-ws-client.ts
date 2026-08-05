@@ -54,6 +54,31 @@ const DEFAULT_HEARTBEAT_TIMEOUT = 10_000;
 const DEFAULT_MAX_BACKOFF = 30_000;
 const MAX_RESUME_FRAMES = 32;
 
+/**
+ * Browser-safe loopback classification, mirroring the server's browser-origin
+ * gate (webui-server ws-auth.ts isLoopbackHostname). Deliberately avoids
+ * `@wrongstack/core/hq`'s isLoopbackHost — that helper uses node:net and would
+ * break the SPA bundle. Covers: `localhost`, the 127.0.0.0/8 block, ::1 (with
+ * or without brackets, as WHATWG serializes IPv6 hostnames), and the DECIMAL
+ * IPv4-mapped `::ffff:127.x.x.x` form. Browsers emit the hex form
+ * (`[::ffff:7f00:1]`) for IPv4-mapped literals — both this client and the
+ * server consistently treat that as non-loopback.
+ */
+function isLoopbackBrowserOrigin(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[(.*)\]$/, '$1');
+  if (host === 'localhost') return true;
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    if (v4[1] !== '127') return false;
+    for (const octet of v4.slice(1)) {
+      if (Number(octet) > 255) return false;
+    }
+    return true;
+  }
+  if (host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
+  return host.startsWith('::ffff:127.');
+}
+
 export { HQ_BROWSER_PEER_RESUME_CLIENT_ID };
 
 function normalizeResumeSeq(seq: number): number {
@@ -94,15 +119,22 @@ export class HqWsClient {
       const loc =
         typeof window !== 'undefined'
           ? window.location
-          : { host: '127.0.0.1:3499', protocol: 'http:' };
+          : { host: '127.0.0.1:3499', protocol: 'http:', hostname: '127.0.0.1' };
       const wsProto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
       // Cookie-first: the browser sends the HttpOnly session cookie
-      // automatically on the WS upgrade. The URL token remains as a
-      // legacy fallback for backward compatibility with older startup
-      // URLs that carried ?token= in the query string.
+      // automatically on the WS upgrade. The URL token is appended only for
+      // loopback origins — the server refuses query-string tokens off-loopback
+      // (WS-009), so carrying one there would only leak it into the upgrade
+      // request line (proxy / access logs) without authenticating anything.
+      // The check mirrors the server's browser-origin gate (ws-auth.ts) but
+      // stays browser-safe (no node:net): localhost, 127.0.0.0/8, ::1 and the
+      // IPv4-mapped form. Brackets are stripped because WHATWG serializes IPv6
+      // hostnames as `[::1]` in a browser.
       const token = resolveHqToken();
+      const isLoopback = isLoopbackBrowserOrigin(loc.hostname);
       const base = `${wsProto}//${loc.host}/ws/browser`;
-      this._url = token !== null ? `${base}?token=${encodeURIComponent(token)}` : base;
+      this._url =
+        token !== null && isLoopback ? `${base}?token=${encodeURIComponent(token)}` : base;
     }
   }
 
