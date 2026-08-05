@@ -90,6 +90,15 @@ export function handleMailboxAgentRegistered(_msg: WSServerMessage) {
   debouncedRefresh();
 }
 
+export function handleMailboxAgentDeregistered(msg: WSServerMessage) {
+  const p = msg.payload as { agentId?: string } | undefined;
+  if (!p?.agentId) return;
+  // Immediate removal — the server already deleted the registration row, so
+  // a refresh would also drop it, but waiting for the next unrelated mailbox
+  // event is what leaves dead reviewers visible in the roster for minutes.
+  useMailboxStore.getState().removeAgent(p.agentId);
+}
+
 export function handleMailboxCleared(_msg: WSServerMessage) {
   useMailboxStore.getState().setMessages([]);
   queryMailbox();
@@ -139,6 +148,7 @@ export const filesMailboxHandlerMap: Partial<Record<string, (msg: WSServerMessag
   'mailbox.agents': handleMailboxAgents,
   'mailbox.received': handleMailboxReceived,
   'mailbox.agent_registered': handleMailboxAgentRegistered,
+  'mailbox.agent_deregistered': handleMailboxAgentDeregistered,
   'mailbox.cleared': handleMailboxCleared,
   'mailbox.purged': handleMailboxPurged,
   'mailbox.compacted': handleMailboxCompacted,

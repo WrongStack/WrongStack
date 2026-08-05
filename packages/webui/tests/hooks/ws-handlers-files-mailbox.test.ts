@@ -19,6 +19,7 @@ const {
   handleFilesTree,
   handleFilesWritten,
   handleMailboxAgentRegistered,
+  handleMailboxAgentDeregistered,
   handleMailboxAgents,
   handleMailboxActionResult,
   handleMailboxCleared,
@@ -71,6 +72,7 @@ describe('files + mailbox ws-handler map', () => {
         'files.tree',
         'files.written',
         'mailbox.agent_registered',
+        'mailbox.agent_deregistered',
         'mailbox.agents',
         'mailbox.action_result',
         'mailbox.cleared',
@@ -93,9 +95,56 @@ describe('files + mailbox ws-handler map', () => {
     expect(filesMailboxHandlerMap['mailbox.action_result']).toBe(handleMailboxActionResult);
     expect(filesMailboxHandlerMap['mailbox.received']).toBe(handleMailboxReceived);
     expect(filesMailboxHandlerMap['mailbox.agent_registered']).toBe(handleMailboxAgentRegistered);
+    expect(filesMailboxHandlerMap['mailbox.agent_deregistered']).toBe(
+      handleMailboxAgentDeregistered,
+    );
     expect(filesMailboxHandlerMap['mailbox.cleared']).toBe(handleMailboxCleared);
     expect(filesMailboxHandlerMap['mailbox.purged']).toBe(handleMailboxPurged);
     expect(filesMailboxHandlerMap['mailbox.compacted']).toBe(handleMailboxCompacted);
+  });
+
+  // ── mailbox.agent_deregistered ────────────────────────────────────────────
+
+  describe('mailbox.agent_deregistered', () => {
+    function seedAgents() {
+      useMailboxStore.getState().setAgents([
+        {
+          agentId: 'a1',
+          name: 'Alpha',
+          sessionId: 's1',
+          status: 'idle',
+          lastSeenAt: new Date().toISOString(),
+          online: true,
+        },
+        {
+          agentId: 'a2',
+          name: 'Beta',
+          sessionId: 's1',
+          status: 'idle',
+          lastSeenAt: new Date().toISOString(),
+          online: true,
+        },
+      ]);
+    }
+
+    it('removes exactly the deregistered agent from the roster', () => {
+      seedAgents();
+      handleMailboxAgentDeregistered(msg('mailbox.agent_deregistered', { agentId: 'a1' }));
+      expect(useMailboxStore.getState().agents.map((a) => a.agentId)).toEqual(['a2']);
+    });
+
+    it('is a no-op when the payload lacks an agentId', () => {
+      seedAgents();
+      handleMailboxAgentDeregistered(msg('mailbox.agent_deregistered', {}));
+      handleMailboxAgentDeregistered(msg('mailbox.agent_deregistered', undefined));
+      expect(useMailboxStore.getState().agents).toHaveLength(2);
+    });
+
+    it('removing an unknown agent is a safe no-op', () => {
+      seedAgents();
+      handleMailboxAgentDeregistered(msg('mailbox.agent_deregistered', { agentId: 'ghost' }));
+      expect(useMailboxStore.getState().agents).toHaveLength(2);
+    });
   });
 
   // ── queryMailbox ──────────────────────────────────────────────────────────

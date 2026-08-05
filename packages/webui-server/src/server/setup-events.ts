@@ -698,6 +698,15 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         payload,
       } as never as WSServerMessage);
     }),
+    // Deregistration (subagent retirement) must reach the browser too —
+    // otherwise dead agents linger in the client roster until an unrelated
+    // refresh. Emitted by sqlite-mailbox.deregisterAgent with { agentId }.
+    events.onPattern('mailbox.agent_deregistered', (_e, payload) => {
+      broadcast(clients, {
+        type: 'mailbox.agent_deregistered',
+        payload,
+      } as never as WSServerMessage);
+    }),
   );
 
   // Subagent fleet lifecycle

@@ -371,6 +371,7 @@ export type WSServerMessage =
   | { type: 'mailbox.event'; payload: Record<string, unknown> & { event: string } }
   | { type: 'mailbox.received'; payload: Record<string, unknown> }
   | { type: 'mailbox.agent_registered'; payload: Record<string, unknown> }
+  | { type: 'mailbox.agent_deregistered'; payload: Record<string, unknown> }
   // Server replies to the client's mailbox.messages / mailbox.agents
   // requests. Handled via the string-keyed dispatch map today, but they must
   // be in this union so typed `.on()` / useWsHandlers narrowing can express

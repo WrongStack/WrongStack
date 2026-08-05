@@ -71,6 +71,7 @@ export const SERVER_COLLABORATION_MESSAGE_TYPES = [
   'collab.state',
   'mailbox.action_result',
   'mailbox.agent_registered',
+  'mailbox.agent_deregistered',
   'mailbox.agents',
   'mailbox.cleared',
   'mailbox.compacted',

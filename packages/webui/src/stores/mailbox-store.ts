@@ -105,6 +105,8 @@ interface MailboxState {
   setMessages: (messages: MailboxMessage[]) => void;
   setAgents: (agents: MailboxAgent[]) => void;
   setLastCompaction: (result: MailboxCompactionResult | null) => void;
+  /** Drop one agent by id (mailbox.agent_deregistered push). */
+  removeAgent: (agentId: string) => void;
 }
 
 export const useMailboxStore = create<MailboxState>()((set) => ({
@@ -145,6 +147,10 @@ export const useMailboxStore = create<MailboxState>()((set) => ({
       return { agents: sorted.slice(0, MAX_MAILBOX_AGENTS) };
     }),
   setLastCompaction: (lastCompaction) => set({ lastCompaction }),
+  removeAgent: (agentId) =>
+    set((state) => ({
+      agents: state.agents.filter((agent) => agent.agentId !== agentId),
+    })),
 }));
 
 /** Incomplete messages where no agent has acted yet (readByCount === 0).
