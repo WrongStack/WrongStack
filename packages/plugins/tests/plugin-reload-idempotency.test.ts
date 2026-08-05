@@ -15,7 +15,30 @@
  * This walks every official plugin rather than spot-checking, so a new
  * plugin (or a new hook in an existing one) cannot reintroduce it quietly.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// test-runner-gate's setup() probes for real test runners with
+// `npx <runner> --version` — a process spawn per setup() pass, up to three
+// runners × 5s probe timeout each. This suite only measures registration
+// bookkeeping, and the real probes made it both slow (four setup() passes
+// per plugin) and machine-dependent: probe cost grew past the case timeout
+// outright once npx slowed down on the host. Fail the probe instantly
+// instead — detectRunner() resolves to null and the plugin takes its
+// normal "no runner found" path, which registers the same hooks and tools.
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return {
+    ...actual,
+    execFile: ((...args: unknown[]) => {
+      const cb = args[args.length - 1];
+      if (typeof cb === 'function') {
+        (cb as (err: Error) => void)(new Error('child processes are disabled in this suite'));
+      }
+      return { on() {}, kill() {} };
+    }) as unknown as typeof actual.execFile,
+  };
+});
+
 import { OFFICIAL_PLUGIN_SPECIFIERS } from '../src/factories/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,11 +128,10 @@ const plugins = await Promise.all(
 );
 
 describe('setup() is idempotent for every official plugin', () => {
-  // The reload case runs four setup() passes per plugin (60+ plugins), and
-  // the test-runner-gate plugin spawns a process per pass — ~3.5s in
-  // isolation, routinely over the 5s default when the workspace suite runs
-  // packages in parallel. The extra headroom prevents a deterministic test
-  // from flaking under load (verified: passes in isolation every time).
+  // Headroom over the 5s default: the reload case runs four setup() passes
+  // per plugin across the whole official roster (60+ plugins), and the
+  // workspace suite runs packages in parallel. Runner probes are mocked out
+  // above, so this covers bookkeeping cost only.
   it.each(plugins)(
     '%s does not stack registrations across reloads',
     { timeout: 15_000 },
@@ -129,9 +151,7 @@ describe('setup() is idempotent for every official plugin', () => {
     },
   );
 
-  // Same parallel-load headroom as the reload case: setup+teardown spawns a
-  // process per plugin (test-runner-gate etc.) and the default 5s can be
-  // exceeded when the workspace suite runs packages concurrently.
+  // Same parallel-load headroom as the reload case.
   it.each(plugins)(
     '%s releases its own registrations on teardown',
     { timeout: 15_000 },

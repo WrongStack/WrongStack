@@ -72,6 +72,7 @@ function loadSnapshot(
           preview: 'Hello world',
           blockCount: null,
           warnings: [],
+          pairedAssistantIndices: [1],
         },
         {
           index: 1,
@@ -80,6 +81,7 @@ function loadSnapshot(
           preview: 'Hi there',
           blockCount: null,
           warnings: [],
+          pairedAssistantIndices: [],
         },
       ],
       diagnostics: {

@@ -1208,7 +1208,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1747
+      "sourceLines": 1753
     },
     {
       "directory": "plugins",

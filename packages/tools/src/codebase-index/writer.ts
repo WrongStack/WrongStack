@@ -191,6 +191,51 @@ export class IndexStore {
     insert.run('', LANG_FAMILY_WILDCARD);
   }
 
+  /**
+   * Add any column the current schema expects but the on-disk table lacks.
+   *
+   * `CREATE TABLE IF NOT EXISTS` silently keeps an existing table's old shape,
+   * and the version check above only rebuilds on a version *mismatch*. That
+   * leaves a real gap: several wstack processes share this database, and while
+   * a version upgrade is rolling out one of them may still be running the
+   * previous build. That older process sees the newer version number, drops the
+   * tables, and recreates them from *its* DDL — without the newer columns —
+   * while the metadata row still reads the new version. Every later query for
+   * one of those columns then fails with `no such column`, and no amount of
+   * reindexing fixes it, because the version numbers already agree.
+   *
+   * Repairing column-by-column makes the schema self-healing from any of those
+   * states. Table and column names are compile-time literals from this module,
+   * never user input.
+   */
+  private repairMissingColumns(): void {
+    const expected: ReadonlyArray<{ table: string; columns: ReadonlyArray<[string, string]> }> = [
+      { table: 'files', columns: [['package', "TEXT NOT NULL DEFAULT ''"]] },
+      {
+        table: 'refs',
+        columns: [
+          ['lang', "TEXT NOT NULL DEFAULT ''"],
+          ['module', 'TEXT'],
+          ['to_file', 'TEXT'],
+        ],
+      },
+    ];
+
+    for (const { table, columns } of expected) {
+      const present = new Set(
+        (this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name?: unknown }>).flatMap(
+          (row) => (typeof row.name === 'string' ? [row.name] : []),
+        ),
+      );
+      // An empty result means the table does not exist; CREATE TABLE owns that.
+      if (present.size === 0) continue;
+      for (const [name, type] of columns) {
+        if (present.has(name)) continue;
+        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+      }
+    }
+  }
+
   private initSchema(): void {
     this.db.exec(METADATA_TABLE_SQL);
 
@@ -220,9 +265,11 @@ export class IndexStore {
     }
 
     this.db.exec(CORE_TABLES_SQL);
+    this.db.exec(REFS_TABLE_SQL);
+    // Must precede the index SQL below, which references the added columns.
+    this.repairMissingColumns();
     for (const sql of FILE_INDEX_SQL) this.db.exec(sql);
     for (const sql of SYMBOL_INDEX_SQL) this.db.exec(sql);
-    this.db.exec(REFS_TABLE_SQL);
     for (const sql of REFS_INDEX_SQL) this.db.exec(sql);
     this.db.exec(LANG_FAMILY_TABLE_SQL);
     this.seedLangFamilies();

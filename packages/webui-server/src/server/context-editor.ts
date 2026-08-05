@@ -603,6 +603,15 @@ function warningsForMessage(message: Message, index: number): ContextEditorWarni
           'This block contains provider replay metadata and should only be removed with the whole turn if no longer needed.',
       });
     }
+    if (block.type === 'image' && block.source.type === 'url') {
+      warnings.push({
+        path: `/messages/${index}/content/${blockIndex}/source/url`,
+        code: 'UNSAFE_IMAGE_URL',
+        severity: 'danger',
+        message:
+          'URL image sources cannot be retained in context editor proposals; remove the whole message before applying other edits.',
+      });
+    }
     if (block.type === 'tool_result' && block.content.length > 20_000) {
       warnings.push({
         path: `/messages/${index}/content/${blockIndex}`,
@@ -817,17 +826,33 @@ function validateRemovalPlan(
     }
   }
   const expectedMessages = structuredClone(originalMessages) as Message[];
-  for (const removal of ranges.sort((left, right) => (right.start ?? 0) - (left.start ?? 0))) {
-    const message = expectedMessages[removal.messageIndex];
-    if (!message || removal.start === undefined || removal.end === undefined) continue;
-    if (removal.blockIndex === undefined && typeof message.content === 'string') {
-      message.content = message.content.slice(0, removal.start) + message.content.slice(removal.end);
-      continue;
+  for (const targetRanges of rangesByTarget.values()) {
+    const first = targetRanges[0];
+    if (!first) continue;
+    const message = expectedMessages[first.messageIndex];
+    if (!message) continue;
+    let text: string | undefined;
+    if (first.blockIndex === undefined && typeof message.content === 'string') {
+      text = message.content;
+    } else if (first.blockIndex !== undefined && Array.isArray(message.content)) {
+      const block = message.content[first.blockIndex];
+      if (block?.type === 'text') text = block.text;
     }
-    if (!Array.isArray(message.content) || removal.blockIndex === undefined) continue;
-    const block = message.content[removal.blockIndex];
-    if (block?.type === 'text' && typeof block.text === 'string') {
-      block.text = block.text.slice(0, removal.start) + block.text.slice(removal.end);
+    if (text === undefined) continue;
+    const pieces: string[] = [];
+    let cursor = 0;
+    for (const range of targetRanges) {
+      if (range.start === undefined || range.end === undefined) continue;
+      pieces.push(text.slice(cursor, range.start));
+      cursor = range.end;
+    }
+    pieces.push(text.slice(cursor));
+    const nextText = pieces.join('');
+    if (first.blockIndex === undefined && typeof message.content === 'string') {
+      message.content = nextText;
+    } else if (first.blockIndex !== undefined && Array.isArray(message.content)) {
+      const block = message.content[first.blockIndex];
+      if (block?.type === 'text') block.text = nextText;
     }
   }
   const expectedProposal = expectedMessages.filter((_, index) => !wholeMessages.has(index));

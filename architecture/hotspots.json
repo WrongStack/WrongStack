@@ -134,6 +134,10 @@
       "lines": 870,
       "relativeImports": 13
     },
+    "packages/core/src/core/fallback-model.ts": {
+      "lines": 833,
+      "relativeImports": 14
+    },
     "packages/core/src/execution/autonomy-brain.ts": {
       "lines": 990,
       "relativeImports": 8
@@ -283,12 +287,12 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 911,
-      "relativeImports": 15
+      "lines": 952,
+      "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 976,
-      "relativeImports": 52
+      "lines": 1017,
+      "relativeImports": 54
     },
     "packages/telegram/src/bot.ts": {
       "lines": 821,
@@ -311,8 +315,8 @@
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1245,
-      "relativeImports": 15
+      "lines": 1484,
+      "relativeImports": 16
     },
     "packages/tools/src/kanban.ts": {
       "lines": 944,
@@ -327,12 +331,12 @@
       "relativeImports": 17
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 829,
+      "lines": 843,
       "relativeImports": 12
     },
     "packages/tui/src/app-view.tsx": {
-      "lines": 910,
-      "relativeImports": 48
+      "lines": 949,
+      "relativeImports": 49
     },
     "packages/tui/src/app.tsx": {
       "lines": 1073,
@@ -383,7 +387,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 942,
+      "lines": 945,
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {
@@ -419,7 +423,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/components/CodeMap.tsx": {
-      "lines": 928,
+      "lines": 936,
       "relativeImports": 12
     },
     "packages/webui/src/components/ContextDashboard.tsx": {
@@ -475,7 +479,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1045,
+      "lines": 1083,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -483,7 +487,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1145,
+      "lines": 1151,
       "relativeImports": 9
     },
     "packages/webui/src/stores/chat-store.ts": {
@@ -495,7 +499,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 864,
+      "lines": 866,
       "relativeImports": 10
     },
     "packages/webui-hq/src/views/settings.tsx": {
@@ -511,7 +515,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/context-editor.ts": {
-      "lines": 872,
+      "lines": 1020,
       "relativeImports": 1
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
@@ -527,11 +531,11 @@
       "relativeImports": 8
     },
     "packages/webui-server/src/server/provider-handlers.ts": {
-      "lines": 801,
+      "lines": 803,
       "relativeImports": 6
     },
     "packages/webui-server/src/server/setup-events.ts": {
-      "lines": 1020,
+      "lines": 1036,
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
@@ -539,7 +543,7 @@
       "relativeImports": 18
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
-      "lines": 894,
+      "lines": 949,
       "relativeImports": 1
     },
     "apps/desktop/src/main/runtime-manager.ts": {

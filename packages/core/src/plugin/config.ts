@@ -105,7 +105,13 @@ export interface ResolvePluginEnablementInput {
    * Omitted behaves like `'inactive'`.
    */
   defaultState?: 'active' | 'inactive' | undefined;
-  config?: Partial<Pick<Config, 'plugins' | 'extensions' | 'features'>> | undefined;
+  // `features` is partial because callers may hold a raw config slice that
+  // hasn't been through default-merging; only `features.plugins` is read here.
+  config?:
+    | (Partial<Pick<Config, 'plugins' | 'extensions'>> & {
+        features?: Partial<Config['features']> | undefined;
+      })
+    | undefined;
   /**
    * Overrides how a `config.plugins` entry name is matched against this
    * plugin. Surfaces normalize specs differently (the loader maps

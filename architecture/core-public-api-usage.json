@@ -145,8 +145,8 @@
     },
     "@wrongstack/core/types": {
       "files": 852,
-      "typeOnly": 811,
-      "runtimeOrMixed": 214
+      "typeOnly": 810,
+      "runtimeOrMixed": 215
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -12827,8 +12827,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/context-editor.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

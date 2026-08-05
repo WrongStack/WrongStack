@@ -228,10 +228,12 @@ describe('IndexStore refs', () => {
   it('scopes name resolution to the ref language family across collisions', () => {
     // Same name in two families: the ts ref must bind to the TS symbol, the
     // go ref to the Go symbol — never cross-family.
-    const [tsConfig, goConfig] = store.insertSymbols([
+    const inserted = store.insertSymbols([
       sym({ name: 'Config', lang: 'ts', file: '/p/ts-config.ts' }),
       sym({ name: 'Config', lang: 'go', file: '/p/go-config.go' }),
     ]);
+    const tsConfig = inserted[0]!;
+    const goConfig = inserted[1]!;
     store.insertRefs(callerId, [
       { fromId: callerId, toName: 'Config', callType: 'type_ref', line: 5, lang: 'ts' },
       { fromId: callerId, toName: 'Config', callType: 'call', line: 6, lang: 'go' },
@@ -249,10 +251,10 @@ describe('IndexStore refs', () => {
     // A ref without a lang hits the ('', '*') wildcard row and matches every
     // family. Both the UPDATE-FROM fast path and the <3.33 fallback must agree
     // on global MIN(id) — assert the id of the first-inserted symbol.
-    const [tsConfig] = store.insertSymbols([
+    const tsConfig = store.insertSymbols([
       sym({ name: 'Config', lang: 'ts', file: '/p/ts-config.ts' }),
       sym({ name: 'Config', lang: 'go', file: '/p/go-config.go' }),
-    ]);
+    ])[0]!;
     store.insertRefs(callerId, [
       { fromId: callerId, toName: 'Config', callType: 'call', line: 7 },
     ]);

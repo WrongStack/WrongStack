@@ -9,9 +9,11 @@
  * for the graphs the WebUI asks for.
  */
 
+import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import type { Context } from '@wrongstack/core/agent';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { extractImports } from '../src/codebase-index/import-extractor.js';
@@ -244,6 +246,73 @@ describe('module resolution', () => {
     expect(resolver.resolve(at('go/cmd/main.go'), 'go', 'fmt')).toBeUndefined();
     expect(resolver.resolve(at('go/cmd/main.go'), 'go', 'github.com/other/pkg')).toBeUndefined();
     expect(resolver.resolve(at('py/src/demo/api.py'), 'py', 'os.path')).toBeUndefined();
+  });
+});
+
+describe('schema self-repair', () => {
+  /** Tables in the shape an older build creates, with no v4 columns. */
+  const LEGACY_TABLES = [
+    'CREATE TABLE files (file TEXT PRIMARY KEY, lang TEXT NOT NULL, mtime_ms INTEGER NOT NULL, symbol_count INTEGER NOT NULL DEFAULT 0, last_indexed INTEGER NOT NULL)',
+    "CREATE TABLE symbols (id INTEGER PRIMARY KEY, lang TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, file TEXT NOT NULL, line INTEGER NOT NULL, col INTEGER NOT NULL, signature TEXT NOT NULL DEFAULT '', doc_comment TEXT NOT NULL DEFAULT '', scope TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', file_fk TEXT NOT NULL)",
+    'CREATE TABLE refs (id INTEGER PRIMARY KEY, from_id INTEGER NOT NULL, to_name TEXT NOT NULL, to_id INTEGER, call_type TEXT NOT NULL, line INTEGER NOT NULL)',
+  ];
+
+  function legacyIndex(version: string | null): { projectRoot: string; indexDir: string } {
+    const projectRoot = mkdtempSync(path.join(os.tmpdir(), 'ws-legacy-'));
+    const indexDir = path.join(projectRoot, '.idx');
+    mkdirSync(indexDir, { recursive: true });
+    const db = new DatabaseSync(path.join(indexDir, 'index.db'));
+    db.exec('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    if (version !== null) {
+      db.prepare('INSERT INTO metadata(key, value) VALUES (?, ?)').run('version', version);
+    }
+    for (const sql of LEGACY_TABLES) db.exec(sql);
+    db.close();
+    return { projectRoot, indexDir };
+  }
+
+  // Regression: several wstack processes share one index database. During a
+  // version rollout an older build can drop and recreate the tables from its
+  // own DDL while the metadata version already reads the new number, so the
+  // version check never fires again and every query for a new column fails
+  // with `no such column: package` — permanently, reindexing included.
+  it.each([
+    ['the stored version already matches', '4'],
+    ['the stored version is missing entirely', null],
+  ])('adds columns an older build left out when %s', (_label, version) => {
+    const { projectRoot, indexDir } = legacyIndex(version);
+    const store = new IndexStore(projectRoot, { indexDir });
+    try {
+      expect(() => store.getFilePackages()).not.toThrow();
+      expect(() => store.getPackageGraph()).not.toThrow();
+      expect(() => store.resolveRefs()).not.toThrow();
+      expect(() => store.getUnresolvedImports()).not.toThrow();
+    } finally {
+      store.close();
+    }
+    expect(existsSync(path.join(indexDir, 'index.db'))).toBe(true);
+  });
+
+  it('preserves existing rows rather than rebuilding the index', () => {
+    const { projectRoot, indexDir } = legacyIndex('4');
+    const db = new DatabaseSync(path.join(indexDir, 'index.db'));
+    db.prepare('INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed) VALUES (?,?,?,?,?)').run(
+      '/repo/a.ts',
+      'ts',
+      1,
+      0,
+      1,
+    );
+    db.close();
+
+    const store = new IndexStore(projectRoot, { indexDir });
+    try {
+      expect(store.getAllFileMetas().map((meta) => meta.file)).toEqual(['/repo/a.ts']);
+      // The added column starts blank; the next index run fills it in.
+      expect(store.getFilePackages().size).toBe(0);
+    } finally {
+      store.close();
+    }
   });
 });
 

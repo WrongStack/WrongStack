@@ -246,6 +246,30 @@ describe('validateContextEditorMessages', () => {
     expect(result.errors).toEqual([expect.objectContaining({ code: 'UNSAFE_IMAGE_URL' })]);
   });
 
+  it('warns in the snapshot when an existing URL image blocks retaining that message', () => {
+    const ctx = mockContext([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'url', url: 'https://example.com/existing.png' },
+          },
+        ],
+      },
+    ]);
+
+    const snapshot = buildContextEditorSnapshot(ctx, undefined);
+
+    expect(snapshot.messageBreakdown[0]?.warnings).toContainEqual({
+      path: '/messages/0/content/0/source/url',
+      code: 'UNSAFE_IMAGE_URL',
+      severity: 'danger',
+      message:
+        'URL image sources cannot be retained in context editor proposals; remove the whole message before applying other edits.',
+    });
+  });
+
   it('flags signed thinking blocks present in the proposal', () => {
     const ctx = mockContext([
       {
@@ -535,6 +559,24 @@ describe('validateContextEditorProposal', () => {
       { role: 'user', content: 'remove ' },
       { role: 'user', content: 'keep' },
     ]);
+  });
+
+  it('applies multiple non-overlapping ranges on one text target in one proposal', () => {
+    const messages: Message[] = [{ role: 'assistant', content: '0123456789' }];
+    const ctx = mockContext(messages);
+    const result = validateContextEditorProposal({
+      ctx,
+      baseRevision: contextEditorRevision(ctx.messages),
+      messages: [{ role: 'assistant', content: '034789' }],
+      removals: [
+        { messageIndex: 0, start: 1, end: 3 },
+        { messageIndex: 0, start: 5, end: 7 },
+      ],
+      allowRepair: true,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.messages).toEqual([{ role: 'assistant', content: '034789' }]);
   });
 
   it('rejects removal ranges that split a Unicode surrogate pair', () => {
