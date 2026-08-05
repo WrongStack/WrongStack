@@ -83,19 +83,35 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('scrub-me');
   });
 
-  it('clears a dead stored token after consecutive 401s', async () => {
-    // A token revoked between sessions 401s from the first exchange; N
-    // consecutive rejections with no success interleaved clear it (the
-    // /ws-auth route only 401s on a token mismatch).
+  it('clears a stored token after a proven cookie path and consecutive 401s', async () => {
+    // Mid-session revocation in a normal deployment: once the exchange has
+    // succeeded, 3 consecutive 401s with no success interleaved clear the
+    // dead stored token.
     window.localStorage.setItem(TOKEN_STORAGE_KEY, 'revoked-token');
     window.history.replaceState(null, '', '/chat');
 
+    stubWsAuth(200);
+    await exchangeAuthCookie(defaultWsUrl()); // proves the cookie path
     stubWsAuth(401);
     await exchangeAuthCookie(defaultWsUrl());
     await exchangeAuthCookie(defaultWsUrl());
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('revoked-token'); // 2 < 3
     await exchangeAuthCookie(defaultWsUrl());
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
+  it('preserves a stored token through repeated 401s when the cookie path never succeeded', async () => {
+    // enableWsCookie:false deployments 401 a VALID token at the generic gate
+    // (the /ws-auth route does not exist, so no success can ever prove it).
+    // Repeated rejections must not destroy the credential.
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'valid-token');
+    window.history.replaceState(null, '', '/chat');
+
+    stubWsAuth(401);
+    await exchangeAuthCookie(defaultWsUrl());
+    await exchangeAuthCookie(defaultWsUrl());
+    await exchangeAuthCookie(defaultWsUrl());
+    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('valid-token');
   });
 
   it('resets the 401 streak on a successful exchange', async () => {
@@ -106,7 +122,7 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     stubWsAuth(401);
     await exchangeAuthCookie(defaultWsUrl()); // streak 1
     stubWsAuth(200);
-    await exchangeAuthCookie(defaultWsUrl()); // streak reset
+    await exchangeAuthCookie(defaultWsUrl()); // streak reset + path proven
     stubWsAuth(401);
     await exchangeAuthCookie(defaultWsUrl());
     await exchangeAuthCookie(defaultWsUrl());
@@ -138,14 +154,17 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
   });
 
-  it('does not treat 403 as a revocation (origin/CSRF guard, not token validity)', async () => {
+  it('does not treat 403 as a revocation or trigger the URL swap (origin/CSRF guard)', async () => {
+    // A 403 means the token was never evaluated — neither the stored clear
+    // nor the URL-token swap may fire, even with a different stored token.
     window.localStorage.setItem(TOKEN_STORAGE_KEY, 'good-token');
-    window.history.replaceState(null, '', '/chat');
+    window.history.replaceState(null, '', '/chat?token=url-token');
 
     stubWsAuth(403);
     const exchanged = await exchangeAuthCookie(defaultWsUrl());
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('good-token');
-    expect(exchanged.searchParams.get('token')).toBe('good-token');
+    expect(exchanged.searchParams.get('token')).toBe('url-token'); // no swap
+    expect(window.location.search).toBe('?token=url-token'); // page untouched
   });
 
   it('switches to a valid stored token when a different URL token is rejected', async () => {
