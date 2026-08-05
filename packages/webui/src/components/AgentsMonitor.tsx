@@ -1,7 +1,7 @@
 /**
- * AgentsMonitor — right-side sliding sidebar per-agent monitor.
+ * AgentCard — shared live-agent detail card used by the inspector drawer.
  *
- * Shows every agent in a card view with:
+ * Shows one agent with:
  * - Activity sparkline
  * - Context fill bar with token count
  * - Budget warning indicators
@@ -9,14 +9,12 @@
  * - Streaming output tail (partialText)
  * - Tool execution log
  *
- * Slides in from the right as a non-intrusive overlay, preserving the
- * main chat interface underneath. Dismisses on Escape / backdrop click.
- *
- * Keyboard: ↑↓ navigate agents, ←→ flip pages per agent, Esc close.
+ * The old full-screen `AgentsMonitor` overlay was removed; the fleet list,
+ * per-agent navigation and the Sheet shell now live in the global
+ * InspectorPanel, which reuses this card for the "Agents" tab.
  */
 
-import { Bot, ChevronLeft, ChevronRight, Cpu, Crown, Loader2, Wrench, X, Zap } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Crown, Cpu, Loader2, Wrench, Zap } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 import { ContextBar } from '@/components/ContextBar';
 import { AgentTranscript } from '@/components/AgentTranscript';
@@ -24,22 +22,11 @@ import { SparklineChart } from '@/components/ui/sparkline';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import { EMPTY_AGENT_TRANSCRIPT, useFleetStore } from '@/stores';
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from './ui/sheet';
-
-export interface AgentsMonitorProps {
-  onClose: () => void;
-}
 
 function fmtCost(v: number): string {
   if (v <= 0) return '$0';
   if (v >= 0.01) return `$${v.toFixed(3)}`;
   return `$${v.toFixed(5)}`.replace(/0+$/, '').replace(/\.$/, '');
-}
-
-function _fmtTok(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }
 
 function fmtDuration(ms: number): string {
@@ -272,169 +259,5 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
         </div>
       )}
     </div>
-  );
-}
-
-export function AgentsMonitor({ onClose }: AgentsMonitorProps) {
-  const fleetAgents = useFleetStore((s) => s.agents);
-  const { t } = useAppTranslation();
-  const leaderId = useFleetStore((s) => s.leaderId);
-
-  const [selectedIdx, setSelectedIdx] = useState(0);
-
-  const fleetList = useMemo(() => {
-    const arr = Array.from(fleetAgents.values());
-    arr.sort((x, y) => {
-      if (x.id === leaderId) return -1;
-      if (y.id === leaderId) return 1;
-      const xa = x.status === 'running' ? 0 : 1;
-      const ya = y.status === 'running' ? 0 : 1;
-      if (xa !== ya) return xa - ya;
-      return x.startedAt - y.startedAt;
-    });
-    return arr;
-  }, [fleetAgents, leaderId]);
-  // Agents are bounded (active fleet), show all without pagination.
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIdx((i) => Math.min(i + 1, fleetList.length - 1));
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIdx((i) => Math.max(i - 1, 0));
-        return;
-      }
-    },
-    [fleetList.length, onClose],
-  );
-
-  // Escape-on-close is handled by Radix Dialog (Sheet) now. The ArrowUp/
-  // ArrowDown/Enter agent navigation is panel-scoped via onKeyDown below.
-
-  const selectedAgent = fleetList[selectedIdx] ?? null;
-
-  return (
-    <Sheet
-      open
-      onOpenChange={(v) => {
-        if (!v) onClose();
-      }}
-    >
-      <SheetContent
-        side="right"
-        className="w-[600px] max-w-[90vw] sm:max-w-[90vw] flex flex-col p-0 gap-0"
-        onKeyDown={handleKeyDown}
-        tabIndex={-1}
-      >
-        <SheetTitle className="sr-only">{t('activity:agentsMonitor.heading')}</SheetTitle>
-        <SheetDescription className="sr-only">
-          {t('activity:agentsMonitor.heading')}
-        </SheetDescription>
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-card/80 backdrop-blur shrink-0">
-          <div className="flex items-center gap-3">
-            <Bot className="h-5 w-5 text-primary" />
-            <h2 className="text-sm font-semibold">{t('activity:agentsMonitor.heading')}</h2>
-            <span className="text-xs text-muted-foreground">
-              {t('activity:agents.totalCount', { count: fleetList.length })}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedIdx((i) => Math.max(i - 1, 0))}
-              className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-30"
-              disabled={selectedIdx === 0}
-              aria-label={t('activity:agentsMonitor.prevAgent')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="text-xs tabular-nums text-muted-foreground font-mono">
-              {fleetList.length > 0 ? `${selectedIdx + 1}/${fleetList.length}` : '0/0'}
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedIdx((i) => Math.min(i + 1, fleetList.length - 1))}
-              className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-30"
-              disabled={selectedIdx >= fleetList.length - 1}
-              aria-label={t('activity:agentsMonitor.nextAgent')}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-md hover:bg-muted transition-colors ml-2"
-              aria-label={t('activity:agentsMonitor.closeAria')}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Main content */}
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4">
-          {fleetList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Bot className="h-12 w-12 mb-3 opacity-20" />
-              <p className="text-sm font-medium">{t('activity:inspector.noAgentsActive')}</p>
-            </div>
-          ) : selectedAgent ? (
-            <div className="max-w-2xl mx-auto">
-              <AgentCard agent={selectedAgent} isLeader={selectedAgent.id === leaderId} />
-            </div>
-          ) : null}
-        </div>
-
-        {/* Agent selector strip */}
-        {fleetList.length > 0 && (
-          <div className="border-t bg-card/80 backdrop-blur shrink-0">
-            <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
-              {fleetList.map((agent, i) => {
-                const globalIndex = i;
-                return (
-                <button
-                  key={agent.id}
-                  type="button"
-                  onClick={() => setSelectedIdx(globalIndex)}
-                  className={cn(
-                    'shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] transition-colors',
-                    globalIndex === selectedIdx
-                      ? 'bg-primary/15 text-primary ring-1 ring-primary/40'
-                      : 'hover:bg-accent text-muted-foreground',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'led',
-                      STATUS_META[agent.status].led,
-                      STATUS_META[agent.status].pulse && 'led-pulse',
-                      'shrink-0',
-                    )}
-                  />
-                  <span>{agent.name}</span>
-                  {agent.id === leaderId && (
-                    <Crown className="h-2.5 w-2.5 text-warning shrink-0" />
-                  )}
-                </button>
-                );
-              })}
-            </div>
-            <div className="px-4 py-1.5 border-t text-[10px] text-muted-foreground flex items-center gap-4">
-              <span>{t('activity:agentsMonitor.hintNavigate')}</span>
-              <span>{t('activity:agentsMonitor.hintEsc')}</span>
-            </div>
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
   );
 }

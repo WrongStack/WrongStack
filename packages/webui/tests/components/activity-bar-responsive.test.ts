@@ -36,8 +36,9 @@ describe('ActivityBar desktop responsive overflow (compact / desktop shell)', ()
     const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(520, true));
 
     expect(split.overflowPanelIds).toEqual([]);
-    // At 520px compact: 10 slots → 8 panels + 2 views fit (settings + sddhub)
+    // At 520px compact: 10 slots → 8 panels + 2 views fit (settings + roster)
     expect(split.visibleViewIds).toContain('settings');
+    expect(split.visibleViewIds).toContain('roster');
     expect(split.overflowViewIds).toContain('kanban');
   });
 
@@ -73,6 +74,9 @@ describe('ActivityBar responsive overflow (full / browser WebUI)', () => {
     // 8 panels (agents and history removed) + remaining slots go to views
     expect(split.overflowPanelIds).toEqual([]);
     expect(split.visibleViewIds.length).toBeGreaterThanOrEqual(2);
+    // Agent Roster is a primary surface — it must stay visible, not fall
+    // into the "…" overflow menu (regression guard for the VIEWS reorder).
+    expect(split.visibleViewIds).toContain('roster');
     expect(split.visibleViewIds).toContain('sddhub');
     expect(split.visibleViewIds).toContain('kanban');
   });

@@ -163,22 +163,23 @@ describe('useGlobalKeyboardShortcuts', () => {
     expect(nav.openPanel).not.toHaveBeenCalled();
   });
 
-  it('routes the agents shortcut to the inspector rather than a side panel', () => {
+  it('routes a mapped agents shortcut to the Agents sidebar panel', () => {
     nav.ACTIVITY_SHORTCUT_BY_KEY['3'] = 'agents';
     mount();
     press('3', { ctrlKey: true });
-    expect(ui().setInspectorTab).toHaveBeenCalledWith('agents');
-    expect(ui().setInspectorOpen).toHaveBeenCalledWith(true);
-    expect(nav.openPanel).not.toHaveBeenCalled();
+    expect(nav.openPanel).toHaveBeenCalledWith('agents');
+    expect(ui().setInspectorTab).not.toHaveBeenCalled();
+    expect(ui().setInspectorOpen).not.toHaveBeenCalled();
     delete nav.ACTIVITY_SHORTCUT_BY_KEY['3'];
   });
 
-  it('closes the inspector when the agents shortcut repeats on the agents tab', () => {
+  it('does not mutate the inspector when a mapped agents shortcut repeats', () => {
     nav.ACTIVITY_SHORTCUT_BY_KEY['3'] = 'agents';
     useUIStore.setState({ inspectorOpen: true, inspectorTab: 'agents' } as never);
     mount();
     press('3', { ctrlKey: true });
-    expect(ui().setInspectorOpen).toHaveBeenCalledWith(false);
+    expect(nav.openPanel).toHaveBeenCalledWith('agents');
+    expect(ui().setInspectorOpen).not.toHaveBeenCalled();
     delete nav.ACTIVITY_SHORTCUT_BY_KEY['3'];
   });
 

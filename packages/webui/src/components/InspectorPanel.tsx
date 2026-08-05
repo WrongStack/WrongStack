@@ -81,6 +81,7 @@ export function InspectorTrigger(): React.ReactElement {
       type="button"
       data-testid="inspector-trigger"
       aria-expanded={agentsSidebarActive}
+      aria-label={t('activity:inspector.openAgentsPanel')}
       onClick={() => openPanel('agents')}
       className={cn(
         'relative inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition-colors',
@@ -88,7 +89,7 @@ export function InspectorTrigger(): React.ReactElement {
           ? 'border-primary/40 bg-primary/10 text-primary'
           : 'border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground',
       )}
-      title={t('activity:inspector.showPanel')}
+      title={t('activity:inspector.openAgentsPanel')}
     >
       <Bot className="h-3.5 w-3.5" />
       <span className="hidden lg:inline">{t('activity:nav.agents')}</span>

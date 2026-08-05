@@ -58,18 +58,7 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
         const activity = ACTIVITY_SHORTCUT_BY_KEY[e.key];
         if (activity) {
           e.preventDefault();
-          if (activity === 'agents') {
-            // Agents icon opens the inspector sidebar, not the side panel
-            const ui = useUIStore.getState();
-            if (ui.inspectorOpen && ui.inspectorTab === 'agents') {
-              ui.setInspectorOpen(false);
-            } else {
-              ui.setInspectorTab('agents');
-              ui.setInspectorOpen(true);
-            }
-          } else {
-            openPanel(activity);
-          }
+          openPanel(activity);
           return;
         }
       }

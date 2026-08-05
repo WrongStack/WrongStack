@@ -85,6 +85,10 @@ const PANELS: PanelDef[] = [
 
 const VIEWS: ViewDef[] = [
   { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings' },
+  // Agent Roster is a primary surface — it must stay visible on typical
+  // viewports instead of silently falling into the "…" overflow menu (it
+  // used to be last in this list, so it overflowed on most laptops).
+  { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
   { id: 'sddhub', icon: <Wand2 size={16} />, label: 'SDD' },
   { id: 'kanban', icon: <Columns3 size={16} />, label: 'Kanban' },
   { id: 'goal', icon: <Rocket size={16} />, label: 'Goal' },
@@ -93,7 +97,6 @@ const VIEWS: ViewDef[] = [
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
   { id: 'intake', icon: <ClipboardList size={16} />, label: 'Requirements' },
   { id: 'memory', icon: <BrainCircuit size={16} />, label: 'Memory' },
-  { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
 ];
 
 const DESKTOP_CORE_PANEL_IDS: readonly Activity[] = ['chat', 'files', 'changes', 'mailbox'];
