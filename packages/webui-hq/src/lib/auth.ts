@@ -126,6 +126,80 @@ export function authorizedFetch(input: string, init?: RequestInit): Promise<Resp
   return fetch(input, { ...init, headers });
 }
 
+export interface HqTokenLoginResult {
+  ok: boolean;
+  message?: string;
+}
+
+/**
+ * Accept either the raw browser token or a complete legacy HQ URL containing
+ * `?token=...`. Operators commonly copy the whole startup URL, so treating it
+ * as a token verbatim would otherwise produce a confusing authentication
+ * failure.
+ */
+export function normalizeHqTokenInput(input: string): string {
+  const value = input.trim();
+  if (!/[?&]token=/.test(value)) return value;
+  try {
+    const base = typeof window === 'undefined' ? 'http://127.0.0.1/' : window.location.href;
+    return new URL(value, base).searchParams.get('token')?.trim() || value;
+  } catch {
+    return value;
+  }
+}
+
+async function requestTokenCookieUpgrade(token: string): Promise<Response> {
+  return fetch('/api/auth/upgrade', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'same-origin',
+    signal: AbortSignal.timeout(10_000),
+  });
+}
+
+/**
+ * Authenticate a manually entered browser token before reloading the SPA.
+ *
+ * The old token-gate flow wrote to sessionStorage and immediately reloaded.
+ * When storage was unavailable (privacy mode, embedded browser policy, or a
+ * quota/security error), the token disappeared during that reload and the
+ * gate simply returned. Exchanging the submitted token directly for the
+ * server's HttpOnly session cookie makes the current tab authoritative and
+ * removes the need to open a separate `?token=` URL.
+ */
+export async function loginWithHqToken(input: string): Promise<HqTokenLoginResult> {
+  const token = normalizeHqTokenInput(input);
+  if (token.length === 0) return { ok: false, message: 'Enter a browser token.' };
+
+  try {
+    const res = await requestTokenCookieUpgrade(token);
+    let body: { loggedIn?: unknown; error?: { message?: unknown } | string } = {};
+    try {
+      body = (await res.json()) as typeof body;
+    } catch {
+      /* A status-specific fallback below is clearer than a JSON parse error. */
+    }
+
+    if (res.ok && body.loggedIn === true) {
+      clearHqToken();
+      return { ok: true };
+    }
+
+    const serverError = body.error;
+    const message =
+      typeof serverError === 'string'
+        ? serverError
+        : typeof serverError?.message === 'string'
+          ? serverError.message
+          : res.status === 401
+            ? 'The browser token was rejected. It may be invalid, expired, or revoked.'
+            : 'HQ could not start a browser session with this token.';
+    return { ok: false, message };
+  } catch {
+    return { ok: false, message: 'Could not reach the HQ server. Try again.' };
+  }
+}
+
 // ── Bootstrap exchange ──────────────────────────────────────────────────────
 
 /**
@@ -209,14 +283,10 @@ export async function exchangeBootstrapIfNeeded(): Promise<boolean> {
  * covers every request, so the copy is pure exposure.
  */
 export async function upgradeStoredTokenToCookie(): Promise<boolean> {
-  if (readStoredToken() === null) return false;
+  const token = readStoredToken();
+  if (token === null) return false;
   try {
-    const res = await fetch('/api/auth/upgrade', {
-      method: 'POST',
-      headers: authHeaders(),
-      credentials: 'same-origin',
-      signal: AbortSignal.timeout(10_000),
-    });
+    const res = await requestTokenCookieUpgrade(token);
     if (!res.ok) return false;
     const body = (await res.json()) as { loggedIn?: unknown };
     if (body.loggedIn !== true) return false;

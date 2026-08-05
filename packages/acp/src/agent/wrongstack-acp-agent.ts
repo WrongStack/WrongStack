@@ -25,6 +25,7 @@
  * `legacyStartupMarker`, but ACP clients should rely on v1 initialize.
  */
 
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
@@ -160,10 +161,30 @@ export class WrongStackACPServer {
       // query parameter (the latter for browser clients).
       if (authToken) {
         const url = new URL(requestPath(req.url), `http://${host}:${port}`);
-        const queryToken = url.searchParams.get('token');
         const bearerToken = headerValue(req.headers.authorization)?.replace(/^Bearer\s+/i, '');
-        const supplied = queryToken ?? bearerToken ?? '';
-        if (supplied !== authToken) {
+        // WS-109: `?token=` was accepted on any bind. That is the query-string
+        // exposure class (C-598) the WebUI and HQ surfaces already close: the
+        // token reaches browser history, `Referer` headers sent to third-party
+        // origins, and reverse-proxy access logs — and this endpoint drives
+        // `runTurn`, i.e. real tool and command execution. It stays available on
+        // loopback, where those channels are local, and for non-browser clients
+        // that legitimately cannot hold a header.
+        //
+        // Both sources are checked and EITHER may satisfy the gate. Picking one
+        // (`queryToken ?? bearerToken`) meant a wrong `?token=` shadowed a valid
+        // `Authorization` header and 401'd a caller that had presented a good
+        // credential — a footgun with no upside.
+        const queryToken = url.searchParams.get('token');
+        const queryOk =
+          queryToken !== null &&
+          isLoopbackPeer(req) &&
+          timingSafeTokenEqual(queryToken, authToken);
+        // WS-110: this was `supplied !== authToken`. Every sibling auth surface
+        // in this repo compares credentials in constant time (HQ's
+        // `timingSafeTokenMatch`, the WebUI's `tokenMatches`, the mailbox and
+        // governance credential stores); this one did not, on the one transport
+        // that is reachable off-loopback by design.
+        if (!queryOk && !timingSafeTokenEqual(bearerToken ?? '', authToken)) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: { code: -32001, message: 'Unauthorized' } }));
           return;
@@ -320,6 +341,26 @@ export class WrongStackACPServer {
 const defaultEchoRunTurn: RunTurn = async (_input, _emit): Promise<RunTurnResult> => {
   return { stopReason: 'end_turn' };
 };
+
+/**
+ * Constant-time credential comparison. A length mismatch short-circuits —
+ * lengths are not secret — and equal-length inputs go through
+ * `timingSafeEqual`, so the token cannot be recovered byte-by-byte from
+ * response timing. Mirrors `tokenMatches` in the WebUI server.
+ */
+function timingSafeTokenEqual(supplied: string, expected: string): boolean {
+  if (!supplied || !expected) return false;
+  const a = Buffer.from(supplied);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+/** True when the request's actual TCP peer is this machine. */
+function isLoopbackPeer(req: { socket: { remoteAddress?: string | undefined } }): boolean {
+  const address = req.socket.remoteAddress?.replace(/^::ffff:/i, '');
+  return address !== undefined && isLoopbackHost(address);
+}
 
 function headerValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;

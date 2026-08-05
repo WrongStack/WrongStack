@@ -330,7 +330,11 @@ const plugin: Plugin = {
             `A command failed with this error:\n${errorLine ?? '(no error line)'}\n` +
               (frames.length > 0 ? `Top stack frames: ${frames.join(', ')}\n` : '') +
               'Reply with ONE short sentence suggesting the most likely fix. No preamble.',
-            { system: 'You are a terse debugging assistant.', maxTokens: 100 },
+            {
+              system: 'You are a terse debugging assistant.',
+              role: 'reviewer',
+              maxTokens: 100,
+            },
           );
           const text = hint.text.trim();
           if (text) {

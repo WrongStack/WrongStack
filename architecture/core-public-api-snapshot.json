@@ -261,7 +261,7 @@
         "export type { InstalledPromptEntry, ManifestValidation, PromptManifestData, PromptRegistryManifest, PromptRegistryRef, RegistryDiff } from './prompt-registry.js';",
         "export type { JSONSchema, Permission, RiskTier, Tool, ToolCallContext, ToolErrorInfo, ToolFinalEvent, ToolIconId, ToolProgressEvent, ToolStreamEvent } from './tool.js';",
         "export type { LogLevel, Logger } from './logger.js';",
-        "export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginDependency, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView } from './plugin.js';",
+        "export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginCouncilOptions, PluginDependency, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView } from './plugin.js';",
         "export type { MemoryCapability, MemoryClearedPayload, MemoryConsolidatedPayload, MemoryEntry, MemoryForgottenPayload, MemoryHealth, MemoryPort, MemoryPriority, MemoryRelevanceContext, MemoryRememberedPayload, MemoryScope, MemoryStore, MemoryType, ScoredEntry } from './memory.js';",
         "export type { Message, MessageRole } from './messages.js';",
         "export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';",
@@ -786,7 +786,7 @@
         "export { ERROR_DETAIL_MAX, sanitizeApiError, scrubErrorDetail, scrubErrorText, } from './error-sanitize.js';",
         "export { ReadOnlyPermissionPolicy } from './readonly-permission-policy.js';",
         "export { TRUST_POLICY_JSON_SCHEMA, TRUST_POLICY_LIMITS, TRUST_POLICY_SCHEMA_VERSION, type TrustPolicyDiagnostic, type TrustPolicyDiagnosticCode, type TrustPolicyValidationResult, validateTrustPolicy, } from './permission-policy-schema.js';",
-        "export { base32Decode, base32Encode, buildOtpAuthUri, generateRecoveryCodes, generateTotpSecret, generateTotp, hashRecoveryCode, verifyRecoveryCode, verifyTotp, } from './totp.js';",
+        "export { base32Decode, base32Encode, buildOtpAuthUri, generateRecoveryCodes, generateTotpSecret, generateTotp, hashRecoveryCode, verifyRecoveryCode, verifyTotp, verifyTotpCounter, } from './totp.js';",
         "export { clampSubagentCapabilities, DANGEROUS_FOR_SUBAGENTS, getDangerousCapabilities, hasCapability, hasDangerousCapabilityForSubagents, ToolCapabilities, type ToolCapability, WIDE_SUBAGENT_CAPABILITIES, } from './capabilities.js';",
         "export { createCompatibilityTrustBoundary, decodeTrustBoundaryDecision, decodeTrustBoundaryRequest, isTrustDecisionAllowed, TRUST_BOUNDARY_VERSION, } from './trust-boundary.js';",
         "export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';",
@@ -1103,7 +1103,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 144,
-      "sourceLines": 42720
+      "sourceLines": 42774
     },
     {
       "directory": "core",
@@ -1159,7 +1159,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8666
+      "sourceLines": 8671
     },
     {
       "directory": "infrastructure",
@@ -1208,14 +1208,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1536
+      "sourceLines": 1643
     },
     {
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 17,
-      "sourceLines": 6488
+      "sourceLines": 6496
     },
     {
       "directory": "prompts",
@@ -1243,7 +1243,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 5950
+      "sourceLines": 5976
     },
     {
       "directory": "skills",
@@ -1278,7 +1278,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9686
+      "sourceLines": 9733
     },
     {
       "directory": "utils",

@@ -48,7 +48,7 @@
 | token-throttle | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/token-throttle` | Rolling-window tokens/min budget that delays provider calls to stay under a rate limit (wrapProviderRunner). Opt-in; delay capped by maxDelayMs. |
 | plugin-stack-observer | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/plugin-stack-observer` | Observes the wrapProviderRunner stack and exposes it to operators (plugin_stack_status) and, optionally, to the LLM (system-prompt contributor). |
 | dependency-vulnerability-gate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/dependency-vulnerability-gate` | PostToolUse hook that runs npm/pnpm audit after dependency installs and blocks or warns on vulnerabilities above a severity threshold |
-| migration-planner | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/migration-planner` | Builds evidence-backed migration checklists with optional host-routed LLM risk analysis |
+| migration-planner | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/migration-planner` | Builds evidence-backed migration checklists with optional Council-reviewed risk analysis |
 | semantic-search-indexer | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/semantic-search-indexer` | Builds an in-memory keyword index over project source files and answers ranked search queries |
 | auto-i18n-extractor | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/auto-i18n-extractor` | Detects hardcoded user-facing strings in UI source files and suggests translation keys |
 | doc-sync-guard | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/doc-sync-guard` | PostToolUse hook that tracks changed public source files and warns when README/docs edits omit them |

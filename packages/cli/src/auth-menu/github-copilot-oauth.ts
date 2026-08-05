@@ -12,7 +12,6 @@
  * refresh token; the provider mints fresh Copilot tokens from it transparently.
  */
 
-import { spawn } from 'node:child_process';
 import { color } from '@wrongstack/core/utils';
 import { FetchError, ParseError, type ProviderApiKey, type ProviderConfig } from '@wrongstack/core/types';
 import { copilotBaseUrlFromToken, refreshCopilotToken } from '@wrongstack/providers';
@@ -22,6 +21,7 @@ import {
   nowIso,
   writeKeysBack,
 } from '../provider-config-utils.js';
+import { openBrowser } from './loopback-server.js';
 import type { AuthMenuDeps } from './types.js';
 
 const CLIENT_ID = 'Iv1.b507a08c87ecfe98';
@@ -44,22 +44,6 @@ interface DeviceCode {
   expires_in: number;
 }
 
-function openBrowser(url: string): void {
-  try {
-    const platform = process.platform;
-    const { command, args } =
-      platform === 'win32'
-        ? { command: 'cmd', args: ['/c', 'start', '', url] }
-        : platform === 'darwin'
-          ? { command: 'open', args: [url] }
-          : { command: 'xdg-open', args: [url] };
-    const child = spawn(command, args, { stdio: 'ignore', windowsHide: true });
-    child.on('error', () => {});
-    child.unref();
-  } catch {
-    /* best-effort */
-  }
-}
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {

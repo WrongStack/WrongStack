@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/core/coordination';
+import { CouncilOrchestrator, OneShotOrchestrator } from '@wrongstack/core/execution';
 import { countShellHooks, HookRegistry, HookRunner, shellHooksEqual } from '@wrongstack/core/hooks';
 import { allServers } from '@wrongstack/core/infrastructure';
 import { TOKENS } from '@wrongstack/core/kernel';
@@ -48,6 +49,7 @@ import type { HqPublisherRef } from './hq-telemetry.js';
 import { registerMcpObservability } from './metrics.js';
 import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
+import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -360,6 +362,24 @@ export async function setupLifecycleAndPlugins(
     () => hqPublisherRef.current,
   );
   const notifier = new NotifierImpl();
+  const getLiveConfig = (): Config => configStore.get();
+  const fallbackProfileManager = container.resolve(TOKENS.FallbackProfileManager);
+  const statusTracker = container.resolve(TOKENS.ProviderModelStatusTracker);
+  const buildUtilityProvider = (providerId: string): Provider =>
+    buildProviderForIdRuntimeFn({ config: getLiveConfig(), providerRegistry }, providerId);
+  const pluginOneShot = new OneShotOrchestrator({
+    buildProvider: buildUtilityProvider,
+    getConfig: getLiveConfig,
+    fallbackProfileManager,
+    statusTracker,
+    modelRouter: createLiveModelRouter(getLiveConfig),
+    logger,
+  });
+  const pluginCouncil = new CouncilOrchestrator({
+    caller: pluginOneShot,
+    fallbackProfileManager,
+    ...buildCouncilRegistries(getLiveConfig().tools?.council),
+  });
 
   const pluginHost = await setupPlugins({
     config,
@@ -403,6 +423,8 @@ export async function setupLifecycleAndPlugins(
       getModel: () => context.model,
       createProvider: (name: string) =>
         buildProviderForIdRuntimeFn({ config: configStore.get(), providerRegistry }, name),
+      oneShot: (input) => pluginOneShot.call(input),
+      council: (question) => pluginCouncil.ask(question),
     },
   });
 

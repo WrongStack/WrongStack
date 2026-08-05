@@ -91,6 +91,23 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     tokenTtlMs = parsed.value;
   }
 
+  // WS-106: opt-in `X-Forwarded-For` trust for the login backoff. Absent or 0
+  // means "ignore the header", which is the correct default for a direct bind
+  // and the only safe one for an unknown topology.
+  const rawHops =
+    typeof flags['hq-trusted-proxy-hops'] === 'string' ? flags['hq-trusted-proxy-hops'] : undefined;
+  let trustedProxyHops: number | undefined;
+  if (rawHops !== undefined && rawHops.length > 0) {
+    const parsed = Number.parseInt(rawHops, 10);
+    if (!Number.isFinite(parsed) || parsed < 0 || String(parsed) !== rawHops.trim()) {
+      deps.renderer.writeError(
+        '--hq-trusted-proxy-hops must be a non-negative integer (0 = ignore X-Forwarded-For).\n',
+      );
+      return 1;
+    }
+    trustedProxyHops = parsed;
+  }
+
   if (password !== undefined && password.length < 8) {
     deps.renderer.writeError('HQ password must be at least 8 characters.\n');
     return 1;
@@ -106,6 +123,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       allowInsecureOpen,
       ...(password !== undefined ? { password } : {}),
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
+      ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
     });
   } catch (err) {
     // A refusal is operator-actionable guidance, not a crash — print the
@@ -616,6 +634,11 @@ function printHelp(deps: SubcommandDeps): void {
   deps.renderer.write(`  --port <n>          Bind port (default 3499).\n`);
   deps.renderer.write(`  --strict-port       Fail if port is in use.\n`);
   deps.renderer.write(`  --hq-token-ttl <dur>  Stamp an expiresAt on first-run tokens (e.g. 1h, 7d, 3600s).\n`);
+  deps.renderer.write(
+    `  --hq-trusted-proxy-hops <n>  Trust the rightmost n X-Forwarded-For entries when rate-limiting logins.\n` +
+      `                        Default 0 (ignore the header). Set to the real hop count behind a tunnel,\n` +
+      `                        otherwise every user shares one backoff bucket. Never guess high.\n`,
+  );
   deps.renderer.write(`  --open              Open the dashboard in the default browser.\n`);
   deps.renderer.write(`  --client, -c        Operate on client tokens instead of browser tokens.\n`);
   deps.renderer.write(`  --capabilities <csv>  Token grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`);

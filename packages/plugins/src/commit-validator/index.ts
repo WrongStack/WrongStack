@@ -478,6 +478,7 @@ const plugin: Plugin = {
             {
               system:
                 'You rewrite commit subjects to follow the conventional-commits format. Reply tersely, no preamble, no quotes.',
+              role: 'reviewer',
               maxTokens: 120,
             },
           );

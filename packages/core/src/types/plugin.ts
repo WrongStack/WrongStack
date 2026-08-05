@@ -1,6 +1,8 @@
 import type { Mailbox } from '../coordination/mailbox-types.js';
 import type { Notifier } from '../notifications/notifier.js';
+
 export type { Notifier };
+
 import type { ToolCallPipelinePayload } from '../core/agent.js';
 import type { Context } from '../core/context.js';
 import type { ExtensionRegistry } from '../extension/registry.js';
@@ -102,6 +104,12 @@ export interface PluginLLMOptions {
   responseFormat?: 'text' | 'json' | undefined;
   /** Abort signal — plugins should pass one for cancellable work. */
   signal?: AbortSignal | undefined;
+  /** Model-matrix role hint used by the host One Shot router. */
+  role?: string | undefined;
+  /** Explicit fallback model references for this call. */
+  fallbackModels?: string[] | undefined;
+  /** Hard timeout in milliseconds. Defaults to the host One Shot timeout. */
+  timeoutMs?: number | undefined;
 }
 
 export interface PluginLLMResult {
@@ -113,6 +121,24 @@ export interface PluginLLMResult {
   provider: string;
   usage: { input: number; output: number };
   stopReason: string;
+  /** True when the host served the completion through a fallback target. */
+  fromFallback?: boolean | undefined;
+  /** Provider invocations made by the One Shot fallback ladder. */
+  attempts?: number | undefined;
+  /** End-to-end completion duration when reported by the host. */
+  durationMs?: number | undefined;
+}
+
+/** Options for a bounded, read-only plugin Council request. */
+export interface PluginCouncilOptions {
+  /** Evidence and constraints supplied separately from the question. */
+  context?: string | undefined;
+  /** Registered Council profile or an ad-hoc profile. */
+  profile?: string | import('./council.js').CouncilProfileConfig | undefined;
+  /** Optional closed set of choices. Omit for an open synthesis. */
+  options?: readonly import('./council.js').CouncilOption[] | undefined;
+  /** Abort signal propagated to every Council seat and judge. */
+  signal?: AbortSignal | undefined;
 }
 
 /**
@@ -133,6 +159,14 @@ export interface PluginLLM {
   defaults(): { provider: string; model: string };
   /** One-shot completion. Throws on provider errors. */
   complete(prompt: string, opts?: PluginLLMOptions): Promise<PluginLLMResult>;
+  /**
+   * Multi-model Council deliberation. Present only when the host wires the
+   * Council runtime; plugins must retain a One Shot or deterministic fallback.
+   */
+  council?(
+    question: string,
+    opts?: PluginCouncilOptions,
+  ): Promise<import('./council.js').CouncilResult>;
 }
 
 export interface PluginPipelines {
@@ -404,7 +438,20 @@ export interface PluginRuntime {
   /** Stable identifier for diagnostics and listing (e.g. "typescript"). */
   language: string;
   /** Default package manager launcher (e.g. "pnpm"). "none" for bare-binary use. */
-  packageManager: 'none' | 'npm' | 'pnpm' | 'yarn' | 'bun' | 'pip' | 'poetry' | 'go' | 'cargo' | 'gem' | 'maven' | 'gradle' | 'dotnet';
+  packageManager:
+    | 'none'
+    | 'npm'
+    | 'pnpm'
+    | 'yarn'
+    | 'bun'
+    | 'pip'
+    | 'poetry'
+    | 'go'
+    | 'cargo'
+    | 'gem'
+    | 'maven'
+    | 'gradle'
+    | 'dotnet';
   /** Runner executable token, e.g. "tsc", "vitest", "pytest", "test" (cargo), "test" (go). */
   executable: string;
   /**

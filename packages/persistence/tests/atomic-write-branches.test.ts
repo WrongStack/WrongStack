@@ -256,6 +256,58 @@ describe('persistence primitive edge branches', () => {
     expect(doubles.fs.utimes).toHaveBeenCalled();
   });
 
+  // Regression: both of these used to `continue` back to `fs.open` without
+  // consulting the deadline and without yielding. Because every double here
+  // settles synchronously, that was a pure-microtask loop — it starved the
+  // event loop outright, so the call never returned and no timer could fire.
+  it('times out instead of spinning when a stale lock can never be unlinked', async () => {
+    doubles.fs.open.mockRejectedValue(errorWithCode('EEXIST'));
+    doubles.fs.stat.mockResolvedValue({ mtimeMs: 0 });
+    doubles.fs.unlink.mockRejectedValue(errorWithCode('EPERM'));
+    const primitives = createPersistencePrimitives();
+
+    await expect(
+      primitives.withFileLock('/tmp/state.json', async () => 'never', {
+        timeoutMs: 60,
+        staleMs: 10,
+      }),
+    ).rejects.toThrow(/Timed out waiting for file lock/);
+    expect(doubles.fs.open.mock.calls.length).toBeLessThan(50);
+  });
+
+  it('times out instead of spinning when the lock stat keeps failing', async () => {
+    doubles.fs.open.mockRejectedValue(errorWithCode('EPERM'));
+    doubles.fs.stat.mockRejectedValue(errorWithCode('EACCES'));
+    const primitives = createPersistencePrimitives();
+
+    await expect(
+      primitives.withFileLock('/tmp/state.json', async () => 'never', { timeoutMs: 50 }),
+    ).rejects.toThrow(PersistenceFsError);
+    expect(doubles.fs.open.mock.calls.length).toBeLessThan(50);
+  });
+
+  it('still acquires with a zero timeout when only the lock directory was missing', async () => {
+    doubles.fs.open
+      .mockRejectedValueOnce(errorWithCode('ENOENT'))
+      .mockResolvedValueOnce(doubles.lockHandle);
+    const primitives = createPersistencePrimitives();
+
+    await expect(
+      primitives.withFileLock('/tmp/nested/state.json', async () => 'done', { timeoutMs: 0 }),
+    ).resolves.toBe('done');
+    expect(doubles.fs.mkdir).toHaveBeenCalledWith('/tmp/nested', { recursive: true });
+  });
+
+  it('gives up when the lock directory keeps vanishing underneath the retry', async () => {
+    doubles.fs.open.mockRejectedValue(errorWithCode('ENOENT'));
+    const primitives = createPersistencePrimitives();
+
+    await expect(
+      primitives.withFileLock('/tmp/state.json', async () => 'never', { timeoutMs: 40 }),
+    ).rejects.toThrow(/Timed out waiting for file lock/);
+    expect(doubles.fs.open.mock.calls.length).toBeLessThan(50);
+  });
+
   it('wakes a contended lock through access and ignores a duplicate watcher event', async () => {
     let onWatch: ((eventType: string, filename: string | Buffer | null) => void) | undefined;
     const watcher = { close: vi.fn() };

@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   parseLlmJsonObject,
+  runOptionalPluginCouncil,
   runOptionalPluginLlm,
   stripOuterMarkdownFence,
 } from '../src/runtime/llm.js';
 
-function makeApi(complete?: ReturnType<typeof vi.fn>) {
+function makeApi(complete?: ReturnType<typeof vi.fn>, council?: ReturnType<typeof vi.fn>) {
   return {
-    llm: complete ? { complete } : undefined,
+    llm: complete || council ? { complete, council } : undefined,
     log: { warn: vi.fn() },
   };
 }
@@ -88,5 +89,40 @@ describe('plugin LLM runtime helpers', () => {
     });
     expect(result.fallbackReason).toBe('cancelled');
     expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('uses Council for consequential analysis and falls back to One Shot on invalid output', async () => {
+    const council = vi.fn().mockResolvedValue({
+      status: 'decided',
+      answer: '{"answer":42}',
+      resolution: 'judge',
+      usage: { inputTokens: 10, outputTokens: 5 },
+    });
+    const complete = vi.fn().mockResolvedValue({ text: '{"answer":7}' });
+    const result = await runOptionalPluginCouncil({
+      requested: true,
+      api: makeApi(complete, council) as never,
+      label: 'test',
+      profile: 'risk-review',
+      prompt: 'assess risk',
+      parse: parseLlmJsonObject,
+    });
+    expect(result.value).toEqual({ answer: 42 });
+    expect(council).toHaveBeenCalledWith(
+      'assess risk',
+      expect.objectContaining({ profile: 'risk-review' }),
+    );
+    expect(complete).not.toHaveBeenCalled();
+
+    council.mockResolvedValueOnce({ status: 'failed', resolution: 'none', usage: {} });
+    const fallback = await runOptionalPluginCouncil({
+      requested: true,
+      api: makeApi(complete, council) as never,
+      label: 'test',
+      prompt: 'assess risk',
+      parse: parseLlmJsonObject,
+    });
+    expect(fallback.value).toEqual({ answer: 7 });
+    expect(complete).toHaveBeenCalled();
   });
 });

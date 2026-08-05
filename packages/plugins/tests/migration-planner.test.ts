@@ -20,13 +20,19 @@ interface MockApi {
     counter: ReturnType<typeof vi.fn>;
   };
   registerHook: ReturnType<typeof vi.fn>;
-  llm?: { complete: ReturnType<typeof vi.fn> };
+  llm?: {
+    complete: ReturnType<typeof vi.fn>;
+    council?: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makeApi(
   overrides: {
     extensions?: Record<string, unknown>;
-    llm?: { complete: ReturnType<typeof vi.fn> };
+    llm?: {
+      complete: ReturnType<typeof vi.fn>;
+      council?: ReturnType<typeof vi.fn>;
+    };
   } = {},
 ): MockApi {
   return {
@@ -181,7 +187,10 @@ describe('migration-planner plugin', () => {
     const api = makeApi({ llm: { complete } });
     migrationPlannerPlugin.setup(api as never);
 
-    const result = (await getTool(api, 'migration_plan')({
+    const result = (await getTool(
+      api,
+      'migration_plan',
+    )({
       packageName: 'my-pkg',
       fromVersion: '1.0.0',
       toVersion: '2.0.0',
@@ -202,6 +211,42 @@ describe('migration-planner plugin', () => {
     );
   });
 
+  it('prefers the risk-review Council when the host exposes it', async () => {
+    vi.mocked(existsSync).mockReturnValue(false);
+    const complete = vi.fn();
+    const council = vi.fn().mockResolvedValue({
+      status: 'decided',
+      answer: JSON.stringify({
+        summary: 'Evidence is incomplete; verify before upgrading.',
+        riskLevel: 'unknown',
+        risks: ['No local changelog was found.'],
+        additionalSteps: [],
+        verificationSteps: ['Check the upstream release notes.'],
+      }),
+      resolution: 'judge',
+    });
+    const api = makeApi({ llm: { complete, council } });
+    migrationPlannerPlugin.setup(api as never);
+
+    const result = (await getTool(
+      api,
+      'migration_plan',
+    )({
+      packageName: 'unknown',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+      use_llm: true,
+    })) as { aiAnalysis: { riskLevel: string }; llm: { used: boolean } };
+
+    expect(result.aiAnalysis.riskLevel).toBe('unknown');
+    expect(result.llm.used).toBe(true);
+    expect(council).toHaveBeenCalledWith(
+      expect.stringContaining('Assess the migration'),
+      expect.objectContaining({ profile: 'risk-review' }),
+    );
+    expect(complete).not.toHaveBeenCalled();
+  });
+
   it('keeps the deterministic plan when optional LLM JSON is invalid', async () => {
     vi.mocked(existsSync).mockReturnValue(false);
     const api = makeApi({
@@ -209,7 +254,10 @@ describe('migration-planner plugin', () => {
     });
     migrationPlannerPlugin.setup(api as never);
 
-    const result = (await getTool(api, 'migration_plan')({
+    const result = (await getTool(
+      api,
+      'migration_plan',
+    )({
       packageName: 'unknown',
       fromVersion: '1.0.0',
       toVersion: '2.0.0',

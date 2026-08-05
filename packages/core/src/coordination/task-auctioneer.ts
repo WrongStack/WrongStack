@@ -90,6 +90,17 @@ export interface TaskAuctionOptions {
 
 // ── TaskAuctioneer ──────────────────────────────────────────────────────
 
+/**
+ * A goal that has reached `done` or `failed` is finished for good — the same
+ * two states `KnowledgeGraph._isTerminal` treats as terminal when it prunes.
+ * `KnowledgeGraph.update` merges patches without consulting the current state,
+ * so the absorbing rule has to be enforced by the caller that owns the
+ * transition.
+ */
+function isTerminalGoalStatus(status: GoalStatus): boolean {
+  return status === 'done' || status === 'failed';
+}
+
 export class TaskAuctioneer {
   private readonly graph: KnowledgeGraph;
   private readonly fleet?: FleetBus | undefined;
@@ -356,6 +367,12 @@ export class TaskAuctioneer {
   async complete(taskId: string, _result?: string): Promise<void> {
     const goal = this.graph.get(taskId) as GoalNode | undefined;
     if (!goal) return;
+    // Terminal states are absorbing: the first outcome wins. `KnowledgeGraph`
+    // applies patches blindly, so without this a repeated or late report would
+    // decrement the agent's in-flight count a second time — and because the
+    // counter floors at zero rather than going negative, the agent would look
+    // idler than it is and could be awarded past `maxTasksPerAgent`.
+    if (isTerminalGoalStatus(goal.status)) return;
 
     const agentId = goal.assignee ?? 'unknown';
     this.agentTaskCount(agentId, -1);
@@ -407,6 +424,10 @@ export class TaskAuctioneer {
   async fail(taskId: string, error: string): Promise<void> {
     const goal = this.graph.get(taskId) as GoalNode | undefined;
     if (!goal) return;
+    // Same absorbing rule as `complete`, and here it also protects the record
+    // itself: a late failure report arriving after a genuine completion used to
+    // rewrite a `done` task to `failed` and replace its result with the error.
+    if (isTerminalGoalStatus(goal.status)) return;
 
     const agentId = goal.assignee ?? 'unknown';
     this.agentTaskCount(agentId, -1);

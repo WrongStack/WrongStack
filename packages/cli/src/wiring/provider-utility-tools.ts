@@ -58,7 +58,7 @@ export async function adoptResumedProvider(input: {
  * call keeps role routing consistent with what the user last configured; the
  * router itself does no I/O, so this is a plain object construction.
  */
-function createLiveModelRouter(getConfig: () => Config): OneShotModelRouter {
+export function createLiveModelRouter(getConfig: () => Config): OneShotModelRouter {
   return {
     pickForTask(role, description) {
       const config = getConfig();
@@ -84,7 +84,7 @@ function createLiveModelRouter(getConfig: () => Config): OneShotModelRouter {
  * the whole tool registration down with it — a bad panel definition degrades to
  * the built-ins and is reported, exactly like an unresolvable Brain pool entry.
  */
-function buildCouncilRegistries(cfg: CouncilToolConfig | undefined): {
+export function buildCouncilRegistries(cfg: CouncilToolConfig | undefined): {
   personas?: CouncilPersonaRegistry | undefined;
   profiles?: CouncilProfileRegistry | undefined;
   defaultProfile?: string | undefined;

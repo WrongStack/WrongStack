@@ -232,36 +232,45 @@ export async function beginCopilotLogin(
     async waitForCompletion(waitSignal?: AbortSignal): Promise<OAuthLoginOutcome | null> {
       const ac = new AbortController();
       const upstream = waitSignal ?? signal;
+      // Named + detached in `finally`: `{ once: true }` fires at most once but
+      // does NOT unregister when the flow completes normally, and the device
+      // poll can run for minutes against a caller-owned, long-lived signal.
+      // An inline arrow here pinned this controller for the signal's lifetime.
+      const onUpstreamAbort = (): void => ac.abort();
       if (upstream) {
         if (upstream.aborted) ac.abort();
-        else upstream.addEventListener('abort', () => ac.abort(), { once: true });
+        else upstream.addEventListener('abort', onUpstreamAbort, { once: true });
       }
-      let githubToken: string;
       try {
-        githubToken = await pollForGitHubToken(device, ac.signal);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return null;
-        throw err;
+        let githubToken: string;
+        try {
+          githubToken = await pollForGitHubToken(device, ac.signal);
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') return null;
+          throw err;
+        }
+        const copilot = await refreshCopilotToken(githubToken, ac.signal);
+        const fetched = await fetchCopilotModels(copilot.token, ac.signal);
+        const models = fetched.length > 0 ? fetched : DEFAULT_COPILOT_MODELS;
+        const apiKey: ProviderApiKey = {
+          label: 'oauth-default',
+          apiKey: copilot.token,
+          createdAt: new Date().toISOString(),
+          authMethod: 'oauth',
+          expiresAt: new Date(copilot.expires).toISOString(),
+          refreshToken: githubToken,
+          tokenType: 'bearer',
+        };
+        return {
+          providerId: COPILOT_PROVIDER_ID,
+          family: 'github-copilot',
+          baseUrl: copilotBaseUrlFromToken(copilot.token),
+          models,
+          apiKey,
+        };
+      } finally {
+        upstream?.removeEventListener('abort', onUpstreamAbort);
       }
-      const copilot = await refreshCopilotToken(githubToken, ac.signal);
-      const fetched = await fetchCopilotModels(copilot.token, ac.signal);
-      const models = fetched.length > 0 ? fetched : DEFAULT_COPILOT_MODELS;
-      const apiKey: ProviderApiKey = {
-        label: 'oauth-default',
-        apiKey: copilot.token,
-        createdAt: new Date().toISOString(),
-        authMethod: 'oauth',
-        expiresAt: new Date(copilot.expires).toISOString(),
-        refreshToken: githubToken,
-        tokenType: 'bearer',
-      };
-      return {
-        providerId: COPILOT_PROVIDER_ID,
-        family: 'github-copilot',
-        baseUrl: copilotBaseUrlFromToken(copilot.token),
-        models,
-        apiKey,
-      };
     },
     completeWithCode(): Promise<OAuthLoginOutcome> {
       return Promise.reject(

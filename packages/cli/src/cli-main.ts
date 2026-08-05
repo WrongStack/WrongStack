@@ -619,11 +619,22 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     for (const tool of director.tools(FLEET_ROSTER)) {
       toolRegistry.register(tool);
     }
-    renderer.writeInfo(`Director mode enabled. Roster: ${Object.keys(FLEET_ROSTER).join(', ')}`);
-    renderer.writeInfo(`  fleet root → ${fleetRoot}`);
-    renderer.writeInfo(`  manifest   → ${manifestPath}`);
-    renderer.writeInfo(`  scratchpad → ${sharedScratchpadPath}`);
-    renderer.writeInfo(`  subagents  → ${subagentSessionsRoot}`);
+    // When a browser surface owns the UI, this terminal is only a server
+    // host — collapse the roster dump (70+ role names) and the four path
+    // lines into one. The full listing stays for CLI/TUI runs, where it is
+    // the only place the fleet layout is visible.
+    const browserSurface = flags.webui === true || flags.simpleui === true;
+    if (browserSurface) {
+      renderer.writeInfo(
+        `Director mode enabled (${Object.keys(FLEET_ROSTER).length} roles) → ${fleetRoot}`,
+      );
+    } else {
+      renderer.writeInfo(`Director mode enabled. Roster: ${Object.keys(FLEET_ROSTER).join(', ')}`);
+      renderer.writeInfo(`  fleet root → ${fleetRoot}`);
+      renderer.writeInfo(`  manifest   → ${manifestPath}`);
+      renderer.writeInfo(`  scratchpad → ${sharedScratchpadPath}`);
+      renderer.writeInfo(`  subagents  → ${subagentSessionsRoot}`);
+    }
     if (priorFleetState) {
       const budget = multiAgentHost.budgetView();
       const fmt = (n: number) => (Number.isFinite(n) ? String(n) : '∞');

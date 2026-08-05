@@ -209,25 +209,42 @@ const eventLogState = new Map<string, KanbanEventLogState>();
  * opportunistically inside `trimKanbanEventLog` and drops entries whose backing
  * events file no longer exists on disk.
  */
-const EVENT_LOG_MAX_CACHE_ENTRIES = 128;
+export const EVENT_LOG_MAX_CACHE_ENTRIES = 128;
 
 /**
- * Evict stale entries from the global `eventLogState` map. Drops any entry whose
- * backing events file has been deleted (ENOENT). Called opportunistically during
- * event-log trimming so a long-lived multi-project CLI process does not leak one
- * cache entry per (project, board) for the lifetime of the process.
+ * Record event-log state, keeping the cache bounded by least-recent use.
+ *
+ * This replaces an eviction pass that dropped only entries whose backing file
+ * had been deleted. That could not achieve what it was written for: boards are
+ * created roughly one per session and nothing removes them, so in the ordinary
+ * case every cached file still exists, nothing was evictable, and the map grew
+ * without limit anyway. Worse, the sweep ran on *every* event append once the
+ * map passed the limit, and it `stat`ed every entry sequentially while the
+ * cross-process file lock was held — measured at 14 ms for 256 cached boards,
+ * 51 ms for 1024, evicting nothing each time.
+ *
+ * A `Map` iterates in insertion order, so re-inserting on write makes that order
+ * a recency order and eviction becomes a bounded drop from the front. No
+ * filesystem work at all, and the bound now actually holds. Dropping a live
+ * entry is harmless: the next append for that board simply recomputes its line
+ * count the same way a cold process would.
  */
-async function evictStaleEventLogCache(): Promise<void> {
-  if (eventLogState.size <= EVENT_LOG_MAX_CACHE_ENTRIES) return;
-  for (const key of eventLogState.keys()) {
-    try {
-      await fs.stat(key);
-    } catch (err) {
-      if (isEnoent(err)) {
-        eventLogState.delete(key);
-      }
-    }
-    if (eventLogState.size <= EVENT_LOG_MAX_CACHE_ENTRIES) return;
+/**
+ * Test-only view of the event-log cache size, so the bound below can be
+ * asserted directly. `index.ts` exports storage by explicit name, so this stays
+ * out of the package's public API.
+ */
+export function eventLogCacheSizeForTests(): number {
+  return eventLogState.size;
+}
+
+function rememberEventLogState(filePath: string, state: KanbanEventLogState): void {
+  eventLogState.delete(filePath);
+  eventLogState.set(filePath, state);
+  while (eventLogState.size > EVENT_LOG_MAX_CACHE_ENTRIES) {
+    const oldest = eventLogState.keys().next();
+    if (oldest.done) break;
+    eventLogState.delete(oldest.value);
   }
 }
 
@@ -271,11 +288,10 @@ async function trimKanbanEventLog(filePath: string, appendedBytes: number): Prom
     }
 
     if (lineCount === undefined || lineCount <= EVENT_LOG_MAX_ENTRIES) {
-      eventLogState.set(filePath, {
+      rememberEventLogState(filePath, {
         size: stat.size,
         ...(lineCount !== undefined ? { lineCount } : {}),
       });
-      await evictStaleEventLogCache();
       return;
     }
     if (!lines) {
@@ -285,11 +301,10 @@ async function trimKanbanEventLog(filePath: string, appendedBytes: number): Prom
     const trimmed = lines.slice(-EVENT_LOG_TRIM_TO);
     const body = `${trimmed.join('\n')}\n`;
     await atomicWrite(filePath, body, { encoding: 'utf8' });
-    eventLogState.set(filePath, {
+    rememberEventLogState(filePath, {
       size: Buffer.byteLength(body),
       lineCount: trimmed.length,
     });
-    await evictStaleEventLogCache();
   } catch {
     eventLogState.delete(filePath);
     // Best-effort only: log-space management must never interrupt event recording.

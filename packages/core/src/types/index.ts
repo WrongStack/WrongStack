@@ -70,7 +70,7 @@ export type { Renderer } from './renderer.js';
 // ── input-reader (2 symbols) ──
 export type { InputReader, PromptOption } from './input-reader.js';
 // ── plugin (20 symbols) ──
-export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginDependency, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView } from './plugin.js';
+export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginCouncilOptions, PluginDependency, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView } from './plugin.js';
 // ── errors (27 symbols) ──
 export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, WrongStackError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, toWrongStackError } from './errors.js';
 export type { ErrorCode, ErrorSeverity, ErrorSubsystem } from './errors.js';

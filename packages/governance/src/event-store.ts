@@ -78,6 +78,22 @@ export const GOVERNANCE_OBSERVATION_CATEGORIES = [
 
 export type GovernanceObservationCategory = (typeof GOVERNANCE_OBSERVATION_CATEGORIES)[number];
 
+export const GOVERNANCE_OBSERVATION_DEFAULT_PAGE_SIZE = 50;
+export const GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE = 100;
+
+export interface ReadGovernanceObservationsPageOptions {
+  readonly projectId: string;
+  readonly taskId?: string | undefined;
+  /**
+   * Exact set of categories to return. Callers pass the closed enum subset they
+   * are entitled to rather than filtering after the fact, so the database never
+   * hands back rows that are about to be discarded.
+   */
+  readonly categories: readonly GovernanceObservationCategory[];
+  readonly afterSequence: number;
+  readonly limit: number;
+}
+
 export interface GovernanceObservation {
   readonly observationId: string;
   readonly projectId: string;
@@ -137,7 +153,9 @@ export interface GovernanceEventStore {
   readEvents(taskId: string): readonly GovernanceEvent[];
   readReceipt(commandId: string): GovernanceCommandReceipt | null;
   appendObservation(observation: GovernanceObservation): AppendGovernanceObservationResult;
-  readObservations(projectId: string, taskId?: string): readonly StoredGovernanceObservation[];
+  readObservationsPage(
+    options: ReadGovernanceObservationsPageOptions,
+  ): readonly StoredGovernanceObservation[];
   readEvidenceCandidateObservations(
     projectId: string,
     taskId: string,
@@ -396,27 +414,60 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
     }
   }
 
-  readObservations(projectId: string, taskId?: string): readonly StoredGovernanceObservation[] {
+  /**
+   * Paginated, category-filtered observation read.
+   *
+   * The observations table is append-only — its UPDATE and DELETE triggers say
+   * so — and therefore grows without bound for the lifetime of a project. The
+   * previous unpaginated read loaded every row a project had ever recorded and
+   * left the caller to filter in JavaScript, which cost 148 MB and 400 ms at
+   * 100 000 rows and produced a 8.9 MB response: already past the 8 MB IPC
+   * frame cap, so the endpoint could not succeed at all past that point. Both
+   * the category filter and the page window belong in SQL, matching what
+   * `readEvidenceCandidateObservations` already does.
+   */
+  readObservationsPage(
+    options: ReadGovernanceObservationsPageOptions,
+  ): readonly StoredGovernanceObservation[] {
     this.assertOpen();
-    const rows = (taskId === undefined
-      ? this.db
-          .prepare(
-            `SELECT sequence, observation_id, project_id, task_id, source, category,
-                    observation_json, observation_hash, observed_at, recorded_at
-             FROM governance_observations
-             WHERE project_id = ?
-             ORDER BY sequence`,
-          )
-          .all(projectId)
-      : this.db
-          .prepare(
-            `SELECT sequence, observation_id, project_id, task_id, source, category,
-                    observation_json, observation_hash, observed_at, recorded_at
-             FROM governance_observations
-             WHERE project_id = ? AND task_id = ?
-             ORDER BY sequence`,
-          )
-          .all(projectId, taskId)) as unknown as ObservationRow[];
+    if (!Number.isSafeInteger(options.afterSequence) || options.afterSequence < 0) {
+      throw new Error('Observation cursor must be a non-negative safe integer.');
+    }
+    if (
+      !Number.isSafeInteger(options.limit) ||
+      options.limit < 1 ||
+      options.limit > GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE + 1
+    ) {
+      throw new Error(
+        `Observation query limit must be between 1 and ${GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE + 1}.`,
+      );
+    }
+    if (options.categories.length === 0) return Object.freeze([]);
+
+    const parameters: (string | number)[] = [options.projectId];
+    let where = 'project_id = ?';
+    if (options.taskId !== undefined) {
+      where += ' AND task_id = ?';
+      parameters.push(options.taskId);
+    }
+    // The categories are a closed enum, so an IN list is exact. A LIKE on the
+    // `capability_grant_`/`daemon_` prefixes would need escaping — `_` is a
+    // single-character wildcard in LIKE — and would silently widen the match.
+    where += ` AND category IN (${options.categories.map(() => '?').join(',')})`;
+    parameters.push(...options.categories);
+    where += ' AND sequence > ?';
+    parameters.push(options.afterSequence, options.limit);
+
+    const rows = this.db
+      .prepare(
+        `SELECT sequence, observation_id, project_id, task_id, source, category,
+                observation_json, observation_hash, observed_at, recorded_at
+         FROM governance_observations
+         WHERE ${where}
+         ORDER BY sequence
+         LIMIT ?`,
+      )
+      .all(...parameters) as unknown as ObservationRow[];
     return Object.freeze(rows.map((row) => this.observationFromRow(row)));
   }
 

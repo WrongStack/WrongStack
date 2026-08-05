@@ -5,17 +5,16 @@ import { OFFICIAL_PLUGIN_SPECIFIERS } from '@wrongstack/plugins/factories';
 import { OFFICIAL_PLUGIN_MANIFEST } from '@wrongstack/plugins/manifest';
 import { describe, expect, it } from 'vitest';
 import { PLUGIN_AUDIT_ENTRIES } from '../src/plugin-management.js';
+import { BUILTIN_PLUGIN_FACTORIES } from '../src/wiring/plugins.js';
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginsRoot = path.resolve(testDir, '..', '..', 'plugins');
 const NON_PACKAGE_AUDIT_NAMES = new Set([
   'wstack-prompts',
   'wstack-sync',
-  'wstack-git',
-  'wstack-observability',
   'wstack-chimera',
+  'wstack-auto-review',
   'wstack-skills',
-  'wstack-plan',
   '@wrongstack/plug-lsp',
   'telegram',
 ]);
@@ -76,6 +75,19 @@ function expectSameNames(surface: string, expected: string[], actual: Iterable<s
 }
 
 describe('@wrongstack/plugins registration parity', () => {
+  it('keeps host-owned runtime factories and audit rows in sync', async () => {
+    const official = new Set(OFFICIAL_PLUGIN_MANIFEST.map((entry) => entry.name));
+    const runtimeHostNames = (
+      await Promise.all(BUILTIN_PLUGIN_FACTORIES.map((factory) => factory()))
+    )
+      .map((plugin) => plugin.name)
+      .filter((name) => !official.has(name));
+    const auditHostNames = PLUGIN_AUDIT_ENTRIES.map((entry) => entry.name).filter(
+      (name) => !official.has(name),
+    );
+    expectSameNames('host plugin audit rows', runtimeHostNames.sort(), auditHostNames);
+  });
+
   it('keeps source, package, build, export, catalog, and CLI factory surfaces in sync', async () => {
     const expected = OFFICIAL_PLUGIN_MANIFEST.map((entry) => entry.name).sort();
     const sourceNames = await bundledPluginNames();

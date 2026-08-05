@@ -68,7 +68,15 @@ export interface GovernanceCredentialLeaseControllerOptions {
 
 const defaultScheduler: GovernanceCredentialLeaseScheduler = {
   schedule(callback, delayMs) {
-    return setTimeout(callback, delayMs);
+    const handle = setTimeout(callback, delayMs);
+    // A renewal is pending for most of the credential's lifetime — with the
+    // default 60 min TTL and 5 min renew window, ~55 min of it. A referenced
+    // timer would make that the reason the process cannot exit, so a host that
+    // finished its work would hang until the renewal fired. Renewing a lease is
+    // never a reason to keep a process alive; the sibling attachment-broker
+    // scheduler already takes the same position.
+    handle.unref();
+    return handle;
   },
   cancel(handle) {
     clearTimeout(handle as ReturnType<typeof setTimeout>);
@@ -358,7 +366,14 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
     this.timer = this.scheduler.schedule(() => {
       this.timer = undefined;
       this.nextActionAtMs = undefined;
-      void this.rotateNow();
+      // `rotateOnce` handles request and validation failures itself, but the
+      // work it does before its own try block — the injected `requestIdFactory`
+      // and `now` — can still throw, and so can an injected scheduler on the
+      // retry path. Without this catch that becomes an unhandled rejection from
+      // a timer callback, which takes the whole process down. The failure is
+      // already recorded in the snapshot, so there is nothing further to do
+      // with it here.
+      void this.rotateNow().catch(() => undefined);
     }, delayMs);
   }
 

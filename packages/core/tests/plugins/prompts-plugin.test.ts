@@ -12,7 +12,7 @@ import type { SlashCommand } from '../../src/index.js';
 let dir: string;
 let store: DefaultPromptStore;
 
-function makeApi() {
+function makeApi(llm?: unknown) {
   const registered: SlashCommand[] = [];
   const unregister = vi.fn();
   return {
@@ -20,6 +20,7 @@ function makeApi() {
       config: {},
       slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister },
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+      llm,
     } as never,
     registered,
     unregister,
@@ -37,8 +38,8 @@ afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-async function withCommand(): Promise<{ cmd: SlashCommand; unregister: ReturnType<typeof vi.fn>; plugin: ReturnType<typeof createPromptsPlugin> }> {
-  const { api, registered, unregister } = makeApi();
+async function withCommand(llm?: unknown): Promise<{ cmd: SlashCommand; unregister: ReturnType<typeof vi.fn>; plugin: ReturnType<typeof createPromptsPlugin> }> {
+  const { api, registered, unregister } = makeApi(llm);
   const plugin = createPromptsPlugin({ store });
   plugin.setup!(api);
   return { cmd: registered[0]!, unregister, plugin };
@@ -130,13 +131,36 @@ describe('/prompts command verbs', () => {
     expect((await runCmd(cmd, 'extend', ctx())).message).toContain('Usage');
     expect((await runCmd(cmd, "extend 'Ghost' make it better", ctx())).message).toContain('No prompt matching');
     await store.save(store.createNew('Letter', 'Dear team'));
-    // no provider.complete ('title' single-quote form → parseTitleContent strips quotes)
-    expect((await runCmd(cmd, "extend 'Letter' be formal", ctx({ provider: {} }))).message).toContain('LLM not available');
-    // with provider
-    const provider = { complete: vi.fn(async () => '  Dear esteemed team  ') };
-    const out = await runCmd(cmd, "extend 'Letter' be formal", ctx({ provider }));
+    expect((await runCmd(cmd, "extend 'Letter' be formal", ctx())).message).toContain('LLM not available');
+    const { cmd: failingLlmCmd } = await withCommand({
+      defaults: () => ({ provider: 'test-provider', model: 'test-model' }),
+      complete: vi.fn().mockRejectedValue(new Error('provider offline')),
+    });
+    expect((await runCmd(failingLlmCmd, "extend 'Letter' be formal", ctx())).message).toContain(
+      'not changed',
+    );
+    expect((await store.find('Letter'))[0]?.content).toBe('Dear team');
+    const complete = vi.fn(async () => ({
+      text: '  Dear esteemed team  ',
+      model: 'test-model',
+      provider: 'test-provider',
+      usage: { input: 1, output: 1 },
+      stopReason: 'end_turn',
+    }));
+    const { cmd: llmCmd } = await withCommand({
+      defaults: () => ({ provider: 'test-provider', model: 'test-model' }),
+      complete,
+    });
+    const out = await runCmd(llmCmd, "extend 'Letter' be formal", ctx());
     expect(out.message).toContain('Extended "Letter"');
-    expect(provider.complete).toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledWith(
+      expect.stringContaining('Dear team'),
+      {
+        system: 'You improve reusable prompts while preserving their intent and variables.',
+        role: 'prompt-refiner',
+        maxTokens: 2_048,
+      },
+    );
     expect((await store.find('Letter'))[0]?.content).toBe('Dear esteemed team');
   });
 

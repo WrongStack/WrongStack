@@ -250,6 +250,28 @@ export function parseCookieHeader(cookieHeader: string | undefined): Record<stri
   return out;
 }
 
+/**
+ * Read the HQ session cookie, preferring the `__Host-`-prefixed name.
+ *
+ * WS-103: every reader open-coded `cookies[HQ_SESSION_COOKIE] ??
+ * cookies['__Host-hq.session']`, which prefers the UNPREFIXED name. The whole
+ * point of the `__Host-` prefix is that a browser refuses to accept such a
+ * cookie unless it is Secure, Path=/, and Domain-less — guarantees a plain
+ * `hq.session` set by a sibling subdomain does not carry. Reading the weak name
+ * first hands that injected value precedence over the hardened one on exactly
+ * the deployments (`secure`) where the prefix was doing work.
+ *
+ * Signature verification still stands behind this, so a forged cookie needs
+ * `cookieSecret` — but preference order is the layer whose only job is to stop
+ * the attacker-controlled name from winning, so it should not be inverted.
+ */
+export function readHqSessionCookie(
+  cookieHeader: string | undefined,
+): string | undefined {
+  const cookies = parseCookieHeader(cookieHeader);
+  return cookies[HQ_SESSION_COOKIE_SECURE] ?? cookies[HQ_SESSION_COOKIE];
+}
+
 export function setHqSessionCookie(
   res: http.ServerResponse,
   value: string,
@@ -431,10 +453,10 @@ export function authenticateBrowserRequest(
     }
   }
   if (mutableAuth.cookieSecret) {
-    const cookies = parseCookieHeader(req.headers.cookie);
     // Check both cookie names: __Host-hq.session (secure) and hq.session
-    // (loopback). The browser only sends the one that was set.
-    const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
+    // (loopback). The browser only sends the one that was set; when both are
+    // present the hardened name wins — see `readHqSessionCookie`.
+    const raw = readHqSessionCookie(req.headers.cookie);
     if (raw) {
       const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret);
       // Server-side session expiry: reject and evict entries past Max-Age

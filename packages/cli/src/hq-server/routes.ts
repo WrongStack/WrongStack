@@ -29,6 +29,8 @@ import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
 import {
+  type ApplyHqAuthFile,
+  callerCanAdministerAuth,
   handleApiAuthAudit,
   handleApiAuthStatus,
   handleApiAuthSessions,
@@ -144,6 +146,18 @@ export interface HqRouterDeps {
   getTokenStats?: (() => HqSnapshot['totals']['tokenStats'] | undefined) | undefined;
   /** One-time bootstrap code store for token-to-cookie exchange. */
   bootstrapStore?: import('@wrongstack/core/hq').HqBootstrapCodeStore | undefined;
+  /**
+   * Applies a freshly-persisted `auth.json` to live server state. Bound to
+   * `HqAuthState.apply` so the in-process mutation routes share one projection
+   * — and one WS-010 exposure re-assessment — with the reload watcher.
+   */
+  applyAuthFile: ApplyHqAuthFile;
+  /**
+   * How many trusted reverse proxies sit in front of this server. Only used to
+   * resolve the address the login backoff keys on — see `client-address.ts`.
+   * Defaults to 0, which ignores `X-Forwarded-For` entirely.
+   */
+  trustedProxyHops?: number | undefined;
 }
 
 // ── Route handler factory ──────────────────────────────────────────────────
@@ -181,6 +195,8 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
     getTokenStats,
     trustBoundary,
     bootstrapStore,
+    applyAuthFile,
+    trustedProxyHops = 0,
   } = deps;
 
   return async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
@@ -253,6 +269,31 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         return;
       }
 
+      // WS-102: the account-security surface (session list/revoke, auth audit,
+      // TOTP enrollment) is gated on `auth.admin`, not merely on "authenticated".
+      // The gate above proves a credential; this proves the credential is
+      // allowed to change how HQ authenticates.
+      if (
+        (url.pathname === '/api/auth/audit' && req.method === 'GET') ||
+        (url.pathname.startsWith('/api/auth/sessions') &&
+          (req.method === 'GET' || req.method === 'DELETE')) ||
+        (url.pathname.startsWith('/api/auth/totp/') && req.method === 'POST')
+      ) {
+        const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
+        if (auth !== undefined && !callerCanAdministerAuth(auth)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: {
+                code: 'AUTH_ADMIN_REQUIRED',
+                message: "This endpoint requires the 'auth.admin' capability.",
+              },
+            }),
+          );
+          return;
+        }
+      }
+
       if (url.pathname === '/api/auth/audit' && req.method === 'GET') {
         handleApiAuthAudit(req, res, dataDir);
         return;
@@ -269,7 +310,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       }
 
       if (url.pathname === '/api/login' && req.method === 'POST') {
-        await handleApiLogin(req, res, mutableAuth, sessions, loginAttempts, secureCookies);
+        await handleApiLogin(req, res, mutableAuth, sessions, loginAttempts, secureCookies, trustedProxyHops);
         return;
       }
 
@@ -303,27 +344,27 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       }
 
       if (url.pathname === '/api/login/verify' && req.method === 'POST') {
-        await handleApiLoginVerify(req, res, url, mutableAuth, sessions, loginAttempts, dataDir, secureCookies);
+        await handleApiLoginVerify(req, res, url, mutableAuth, sessions, loginAttempts, dataDir, secureCookies, applyAuthFile, trustedProxyHops);
         return;
       }
 
       if (url.pathname === '/api/auth/totp/setup' && req.method === 'POST') {
-        await handleApiTotpSetup(req, res, mutableAuth, sessions, dataDir);
+        await handleApiTotpSetup(req, res, mutableAuth, sessions, dataDir, applyAuthFile);
         return;
       }
 
       if (url.pathname === '/api/auth/totp/enable' && req.method === 'POST') {
-        await handleApiTotpEnable(req, res, mutableAuth, sessions, dataDir);
+        await handleApiTotpEnable(req, res, mutableAuth, sessions, dataDir, applyAuthFile);
         return;
       }
 
       if (url.pathname === '/api/auth/totp/disable' && req.method === 'POST') {
-        await handleApiTotpDisable(req, res, mutableAuth, sessions, loginAttempts, dataDir);
+        await handleApiTotpDisable(req, res, mutableAuth, sessions, loginAttempts, dataDir, applyAuthFile, trustedProxyHops);
         return;
       }
 
       if (url.pathname === '/api/auth/password' && (req.method === 'POST' || req.method === 'DELETE')) {
-        await handleApiPassword(req, res, mutableAuth, sessions, dataDir, secureCookies, requireBrowserAuth);
+        await handleApiPassword(req, res, mutableAuth, sessions, dataDir, secureCookies, requireBrowserAuth, applyAuthFile);
         return;
       }
 

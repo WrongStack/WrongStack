@@ -140,17 +140,42 @@ export function verifyTotp(
   stepSeconds: number = DEFAULT_STEP_SECONDS,
   digits: number = DEFAULT_DIGITS,
 ): boolean {
-  if (typeof code !== 'string' || code.length !== digits) return false;
+  return verifyTotpCounter(code, secretBase32, atMs, window, stepSeconds, digits) !== undefined;
+}
+
+/**
+ * Like {@link verifyTotp}, but returns the time-step counter the code matched
+ * so the caller can enforce single use.
+ *
+ * RFC 6238 §5.2 requires that a code be accepted only once: the validation
+ * window is ±1 step by default, so a code observed in transit stays
+ * arithmetically valid for up to ~90 seconds. Recording the matched counter and
+ * refusing anything at or below it turns that window into one-shot. HQ's
+ * `/api/login/verify` does this against `mutableAuth.totpLastUsedCounter`.
+ *
+ * @returns the matched counter, or `undefined` when no step in the window
+ *   matches.
+ */
+export function verifyTotpCounter(
+  code: string,
+  secretBase32: string,
+  atMs: number = Date.now(),
+  window: number = DEFAULT_WINDOW,
+  stepSeconds: number = DEFAULT_STEP_SECONDS,
+  digits: number = DEFAULT_DIGITS,
+): number | undefined {
+  if (typeof code !== 'string' || code.length !== digits) return undefined;
   const secret = base32Decode(secretBase32);
   const currentCounter = totpCounter(Math.floor(atMs / 1000), stepSeconds);
 
   for (let offset = -window; offset <= window; offset++) {
-    const expected = hotp(secret, currentCounter + offset, digits);
+    const counter = currentCounter + offset;
+    const expected = hotp(secret, counter, digits);
     if (timingSafeEqual(Buffer.from(expected), Buffer.from(code))) {
-      return true;
+      return counter;
     }
   }
-  return false;
+  return undefined;
 }
 
 /**

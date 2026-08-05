@@ -627,6 +627,8 @@ describe('DefaultPluginAPI.llm', () => {
       extensions?: Record<string, Record<string, unknown>>;
       createProvider?: (name: string, model?: string) => import('../../src/index.js').Provider;
       withConfigStore?: boolean;
+      oneShot?: NonNullable<NonNullable<Parameters<typeof DefaultPluginAPI>[0]['llm']>['oneShot']>;
+      council?: NonNullable<NonNullable<Parameters<typeof DefaultPluginAPI>[0]['llm']>['council']>;
     } = {},
   ) {
     const { provider, calls } = fakeProvider('default-prov');
@@ -666,6 +668,8 @@ describe('DefaultPluginAPI.llm', () => {
         getProvider: () => liveProvider,
         getModel: () => liveModel,
         createProvider: opts.createProvider,
+        oneShot: opts.oneShot,
+        council: opts.council,
       },
     });
     const pushConfig = (next: Partial<Config>) => {
@@ -692,6 +696,75 @@ describe('DefaultPluginAPI.llm', () => {
     expect(calls[0]!.model).toBe('default-model');
     expect(calls[0]!.maxTokens).toBe(2048);
     expect(api.llm!.defaults()).toEqual({ provider: 'default-prov', model: 'default-model' });
+  });
+
+  it('prefers the host One Shot runtime and preserves fallback metadata', async () => {
+    const oneShot = vi.fn(async () => ({
+      text: 'from fallback',
+      provider: 'backup-provider',
+      model: 'backup-model',
+      tokens: { input: 12, output: 7, total: 19 },
+      durationMs: 42,
+      fromFallback: true,
+      attempts: 2,
+      stopReason: 'end_turn',
+    }));
+    const { api, calls } = mkApiWithLLM({ oneShot });
+
+    const result = await api.llm!.complete('hello', {
+      system: 'be exact',
+      role: 'reviewer',
+      fallbackModels: ['backup-provider/backup-model'],
+      timeoutMs: 45_000,
+    });
+
+    expect(calls).toHaveLength(0);
+    expect(oneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: 'hello',
+        providerId: 'default-prov',
+        model: 'default-model',
+        role: 'reviewer',
+        fallbackModels: ['backup-provider/backup-model'],
+        timeoutMs: 45_000,
+      }),
+    );
+    expect(result).toMatchObject({
+      text: 'from fallback',
+      provider: 'backup-provider',
+      model: 'backup-model',
+      fromFallback: true,
+      attempts: 2,
+      durationMs: 42,
+    });
+  });
+
+  it('exposes the host Council runtime without silently accepting failed calls', async () => {
+    const council = vi.fn(async () => ({
+      status: 'decided' as const,
+      answer: 'Ship with safeguards.',
+      resolution: 'judge' as const,
+      votes: [],
+      configuredSeatCount: 3,
+      validVoteCount: 3,
+      distinctTargetCount: 3,
+      judgeUsed: true,
+      usage: { calls: 4, inputTokens: 100, outputTokens: 50, totalTokens: 150, durationMs: 10 },
+    }));
+    const { api } = mkApiWithLLM({ council });
+
+    const result = await api.llm!.council!('Should this migration proceed?', {
+      profile: 'risk-review',
+      context: 'Tests pass; one deprecation remains.',
+    });
+
+    expect(result.answer).toBe('Ship with safeguards.');
+    expect(council).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question: 'Should this migration proceed?',
+        profile: 'risk-review',
+      }),
+    );
   });
 
   it('uses the current host provider and model after a runtime switch', async () => {
@@ -758,7 +831,9 @@ describe('DefaultPluginAPI.llm', () => {
     const createProvider = vi.fn(() => other.provider);
     const { api, pushConfig } = mkApiWithLLM({ withConfigStore: true, createProvider });
     await api.llm!.complete('a', { provider: 'other-prov' });
-    pushConfig({ providers: { 'other-prov': { type: 'openai', apiKey: 'new-key' } } } as Partial<Config>);
+    pushConfig({
+      providers: { 'other-prov': { type: 'openai', apiKey: 'new-key' } },
+    } as Partial<Config>);
     await api.llm!.complete('b', { provider: 'other-prov' });
     expect(createProvider).toHaveBeenCalledTimes(2);
   });

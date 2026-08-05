@@ -13,6 +13,8 @@ import {
   authHeaders,
   authorizedFetch,
   clearHqToken,
+  loginWithHqToken,
+  normalizeHqTokenInput,
   resolveHqToken,
   scrubTokenFromUrl,
   setHqToken,
@@ -153,6 +155,60 @@ describe('authorizedFetch', () => {
   });
 });
 
+describe('manual token login', () => {
+  it('accepts a raw token or extracts it from a complete HQ URL', () => {
+    expect(normalizeHqTokenInput('  raw-browser-token  ')).toBe('raw-browser-token');
+    expect(normalizeHqTokenInput('http://127.0.0.1:3499/?view=fleet&token=url-token#frag')).toBe(
+      'url-token',
+    );
+  });
+
+  it('exchanges the submitted token directly for a cookie without sessionStorage', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage disabled');
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ loggedIn: true, upgraded: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      await expect(loginWithHqToken('manual-token')).resolves.toEqual({ ok: true });
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/upgrade', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer manual-token' },
+        credentials: 'same-origin',
+        signal: expect.any(AbortSignal),
+      });
+    } finally {
+      if (original) Object.defineProperty(window, 'sessionStorage', original);
+    }
+  });
+
+  it('returns the server rejection instead of triggering a silent reload loop', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { message: 'Token revoked.' } }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+
+    await expect(loginWithHqToken('revoked-token')).resolves.toEqual({
+      ok: false,
+      message: 'Token revoked.',
+    });
+  });
+});
+
 describe('storage() null-fallback and SSR guard', () => {
   it('storage() returns null via ?? fallback when sessionStorage is null', () => {
     // Make window.sessionStorage null so that `null ?? null` in storage()
@@ -188,12 +244,16 @@ describe('error-path catch blocks', () => {
     const OrigURLSearchParams = globalThis.URLSearchParams;
     // @ts-expect-error: assigning a throwing stub
     globalThis.URLSearchParams = class {
-      constructor() { throw new Error('parse fail'); }
-      get() { return null; }
+      constructor() {
+        throw new Error('parse fail');
+      }
+      get() {
+        return null;
+      }
     };
     try {
       // Re-import fresh to exercise the catch inside readUrlToken
-      const { resolveHqToken: resolveAgain } = (await import('../src/lib/auth.js'));
+      const { resolveHqToken: resolveAgain } = await import('../src/lib/auth.js');
       expect(resolveAgain()).toBeNull();
     } finally {
       globalThis.URLSearchParams = OrigURLSearchParams;
@@ -206,10 +266,18 @@ describe('error-path catch blocks', () => {
     // try-catch in readStoredToken fires and returns null.
     const origDescriptor = Object.getOwnPropertyDescriptor(window, 'sessionStorage')!;
     const mockStorage = {
-      getItem: () => { throw new Error('quota exceeded'); },
-      setItem: () => { throw new Error('readonly'); },
-      removeItem: () => { throw new Error('readonly'); },
-      get length() { return 0; },
+      getItem: () => {
+        throw new Error('quota exceeded');
+      },
+      setItem: () => {
+        throw new Error('readonly');
+      },
+      removeItem: () => {
+        throw new Error('readonly');
+      },
+      get length() {
+        return 0;
+      },
       key: () => null,
       clear: () => {},
     };
@@ -230,9 +298,9 @@ describe('error-path catch blocks', () => {
 
 describe('upgradeStoredTokenToCookie (WS-065)', () => {
   /** A fetch stub that records the request and replies with `body`. */
-  function stubFetch(
-    reply: { ok: boolean; body?: unknown } | Error,
-  ): { calls: Array<[string, RequestInit | undefined]> } {
+  function stubFetch(reply: { ok: boolean; body?: unknown } | Error): {
+    calls: Array<[string, RequestInit | undefined]>;
+  } {
     const calls: Array<[string, RequestInit | undefined]> = [];
     vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
       calls.push([input, init]);

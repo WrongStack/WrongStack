@@ -59,6 +59,102 @@ describe('HQ token gate', () => {
     expect(container.querySelector<HTMLInputElement>('input')?.autocomplete).toBe('off');
   });
 
+  it('authenticates a pasted token before reloading the current tab', async () => {
+    const onAuthenticated = vi.fn();
+    const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/auth/status')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ tokenMode: true, passwordMode: false, loggedIn: false }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.includes('/api/auth/upgrade') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ loggedIn: true, upgraded: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(TokenGate, { hadToken: false, onAuthenticated }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const input = container.querySelector<HTMLInputElement>('input');
+    await act(async () => {
+      setInput(input!, 'manual-browser-token');
+      input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onAuthenticated).toHaveBeenCalledOnce();
+    const upgradeCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/api/auth/upgrade'),
+    );
+    expect((upgradeCall?.[1]?.headers as Record<string, string> | undefined)?.Authorization).toBe(
+      'Bearer manual-browser-token',
+    );
+  });
+
+  it('shows a rejected-token error and stays on the gate', async () => {
+    const onAuthenticated = vi.fn();
+    const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/auth/status')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ tokenMode: true, passwordMode: false, loggedIn: false }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.includes('/api/auth/upgrade') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { message: 'Token expired.' } }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(TokenGate, { hadToken: false, onAuthenticated }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const input = container.querySelector<HTMLInputElement>('input');
+    await act(async () => {
+      setInput(input!, 'expired-browser-token');
+      input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('Token expired.');
+    expect(onAuthenticated).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLButtonElement>('.hq-token-submit')?.disabled).toBe(false);
+  });
+
   it('prefers password login when password and token modes are both enabled', async () => {
     vi.stubGlobal(
       'fetch',
@@ -121,7 +217,9 @@ describe('HQ token gate', () => {
       passwordInput!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     });
 
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login'))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login'))).toHaveLength(
+      1,
+    );
 
     await act(async () => {
       resolveLogin?.(
@@ -183,8 +281,8 @@ describe('HQ token gate', () => {
       await loginPromise;
     });
 
-    const totpInput = await waitForElement(() =>
-      container?.querySelector<HTMLInputElement>('#hq-totp-code') ?? null,
+    const totpInput = await waitForElement(
+      () => container?.querySelector<HTMLInputElement>('#hq-totp-code') ?? null,
     );
     await act(async () => {
       setInput(totpInput, '123456');
@@ -192,7 +290,9 @@ describe('HQ token gate', () => {
       totpInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     });
 
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login/verify'))).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login/verify')),
+    ).toHaveLength(1);
 
     await act(async () => {
       resolveVerify?.(
@@ -254,7 +354,9 @@ describe('HQ token gate', () => {
       await Promise.resolve();
     });
 
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login'))).toHaveLength(2);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login'))).toHaveLength(
+      2,
+    );
   });
 
   it('allows TOTP retry after a failed verification', async () => {
@@ -272,10 +374,15 @@ describe('HQ token gate', () => {
       if (url.includes('/api/login/verify') && init?.method === 'POST') {
         verifyAttempts++;
         return Promise.resolve(
-          new Response(JSON.stringify(verifyAttempts === 1 ? { error: { message: 'Bad code.' } } : { loggedIn: true }), {
-            status: verifyAttempts === 1 ? 401 : 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
+          new Response(
+            JSON.stringify(
+              verifyAttempts === 1 ? { error: { message: 'Bad code.' } } : { loggedIn: true },
+            ),
+            {
+              status: verifyAttempts === 1 ? 401 : 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
         );
       }
       if (url.includes('/api/login') && init?.method === 'POST') {
@@ -306,8 +413,8 @@ describe('HQ token gate', () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    const totpInput = await waitForElement(() =>
-      container?.querySelector<HTMLInputElement>('#hq-totp-code') ?? null,
+    const totpInput = await waitForElement(
+      () => container?.querySelector<HTMLInputElement>('#hq-totp-code') ?? null,
     );
 
     await act(async () => {
@@ -322,7 +429,9 @@ describe('HQ token gate', () => {
       await Promise.resolve();
     });
 
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login/verify'))).toHaveLength(2);
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login/verify')),
+    ).toHaveLength(2);
   });
 
   it('focuses the authenticator code after password login requires TOTP', async () => {
@@ -371,8 +480,8 @@ describe('HQ token gate', () => {
       login?.click();
     });
 
-    const totpInput = await waitForElement(() =>
-      container?.querySelector<HTMLInputElement>('#hq-totp-code') ?? null,
+    const totpInput = await waitForElement(
+      () => container?.querySelector<HTMLInputElement>('#hq-totp-code') ?? null,
     );
     expect(document.activeElement).toBe(totpInput);
   });

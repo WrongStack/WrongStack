@@ -347,7 +347,7 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     name: 'migration-planner',
     risk: 'low',
     summary:
-      'Builds evidence-backed migration checklists with optional host-routed LLM risk analysis',
+      'Builds evidence-backed migration checklists with optional Council-reviewed risk analysis',
     defaultState: 'inactive',
     canDisable: true,
   },

@@ -271,12 +271,23 @@ export class GovernanceProjectServer {
   }
 
   private accept(socket: net.Socket): void {
-    let buffer = Buffer.alloc(0);
+    // Chunks are held and joined once, at the frame delimiter. Re-concatenating
+    // the whole buffer on every `data` event made framing quadratic in the
+    // frame size: an 8 MB request arriving in 64 KB reads copied ~524 MB before
+    // the size check could even reject it, so a client could burn a core by
+    // repeatedly sending junk it knew would be refused. The delimiter is a
+    // single byte, so it can never straddle a chunk boundary and each chunk can
+    // be searched on its own.
+    const chunks: Buffer[] = [];
+    let size = 0;
     let handled = false;
     socket.on('data', (chunk: Buffer) => {
       if (handled) return;
-      buffer = Buffer.concat([buffer, chunk]);
-      if (buffer.byteLength > GOVERNANCE_IPC_MAX_FRAME_BYTES) {
+      const newline = chunk.indexOf(0x0a);
+      // The cap applies to the frame itself, not to whatever the peer happened
+      // to pack in after the delimiter.
+      const frameBytes = size + (newline < 0 ? chunk.byteLength : newline);
+      if (frameBytes > GOVERNANCE_IPC_MAX_FRAME_BYTES) {
         handled = true;
         this.send(
           socket,
@@ -284,10 +295,14 @@ export class GovernanceProjectServer {
         );
         return;
       }
-      const newline = buffer.indexOf(0x0a);
-      if (newline < 0) return;
+      if (newline < 0) {
+        chunks.push(chunk);
+        size = frameBytes;
+        return;
+      }
       handled = true;
-      const line = buffer.subarray(0, newline).toString('utf8').replace(/\r$/, '');
+      chunks.push(chunk.subarray(0, newline));
+      const line = Buffer.concat(chunks).toString('utf8').replace(/\r$/, '');
       this.handleLine(socket, line);
     });
   }

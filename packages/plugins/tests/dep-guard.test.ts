@@ -17,15 +17,22 @@ interface MockApi {
     gauge: ReturnType<typeof vi.fn>;
   };
   registerHook: ReturnType<typeof vi.fn>;
+  llm?: {
+    complete: ReturnType<typeof vi.fn>;
+    council?: ReturnType<typeof vi.fn>;
+  };
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; llm?: MockApi['llm'] } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: { extensions: overrides.extensions ?? {} },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     registerHook: vi.fn(() => vi.fn()),
+    llm: overrides.llm,
   };
 }
 
@@ -121,10 +128,13 @@ describe('dep-guard plugin', () => {
     });
     depGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    expect((await hook({ toolName: 'bash', toolInput: { command: 'pnpm add @evil/pkg' } }))?.decision).toBe(
-      'block',
-    );
-    const allowed = await hook({ toolName: 'bash', toolInput: { command: 'pnpm add @evil/but-fine' } });
+    expect(
+      (await hook({ toolName: 'bash', toolInput: { command: 'pnpm add @evil/pkg' } }))?.decision,
+    ).toBe('block');
+    const allowed = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'pnpm add @evil/but-fine' },
+    });
     expect(allowed?.decision).not.toBe('block');
   });
 
@@ -144,6 +154,33 @@ describe('dep-guard plugin', () => {
     const result = await hook({ toolName: 'bash', toolInput: { command: 'npm i lodahs' } });
     expect(result?.decision).toBe('allow');
     expect(result?.additionalContext).toContain('typosquat');
+  });
+
+  it('uses the risk-review Council for opt-in typosquat confirmation', async () => {
+    const council = vi.fn().mockResolvedValue({
+      status: 'decided',
+      optionId: 'uncertain',
+      answer: 'Insufficient evidence',
+      reason: 'Edit distance alone cannot establish package provenance.',
+    });
+    const complete = vi.fn();
+    const api = makeApi({
+      extensions: { 'dep-guard': { confirmTyposquatsWithLlm: true } },
+      llm: { complete, council },
+    });
+    depGuardPlugin.setup(api as never);
+
+    const result = await getHook(api)({
+      toolName: 'bash',
+      toolInput: { command: 'npm i lodahs' },
+    });
+
+    expect(result?.additionalContext).toContain('UNCERTAIN:');
+    expect(council).toHaveBeenCalledWith(
+      expect.stringContaining('lodahs'),
+      expect.objectContaining({ profile: 'risk-review' }),
+    );
+    expect(complete).not.toHaveBeenCalled();
   });
 
   it('warnOnUnpinned flags versionless installs', async () => {
@@ -169,7 +206,9 @@ describe('dep-guard plugin', () => {
     const api = makeApi({ extensions: { 'dep-guard': { enabled: false, deny: ['left-pad'] } } });
     depGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    expect(await hook({ toolName: 'bash', toolInput: { command: 'npm i left-pad' } })).toBeUndefined();
+    expect(
+      await hook({ toolName: 'bash', toolInput: { command: 'npm i left-pad' } }),
+    ).toBeUndefined();
   });
 
   it('teardown zeros counters and logs', async () => {

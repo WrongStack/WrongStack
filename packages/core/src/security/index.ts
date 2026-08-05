@@ -69,6 +69,7 @@ export {
   hashRecoveryCode,
   verifyRecoveryCode,
   verifyTotp,
+  verifyTotpCounter,
 } from './totp.js';
 export {
   DefaultSecretVault,

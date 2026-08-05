@@ -45,14 +45,23 @@ export type GovernanceServiceRequest = GovernanceServiceRequestMetadata &
     | { readonly type: 'read_task'; readonly taskId: string }
     | { readonly type: 'read_events'; readonly taskId: string }
     | { readonly type: 'read_receipt'; readonly commandId: string }
-    | { readonly type: 'read_observations'; readonly taskId?: string | undefined }
+    | {
+        readonly type: 'read_observations';
+        readonly taskId?: string | undefined;
+        readonly afterSequence?: number | undefined;
+        readonly limit?: number | undefined;
+      }
     | {
         readonly type: 'read_evidence_candidates';
         readonly taskId: string;
         readonly afterSequence?: number | undefined;
         readonly limit?: number | undefined;
       }
-    | { readonly type: 'read_audit_observations' }
+    | {
+        readonly type: 'read_audit_observations';
+        readonly afterSequence?: number | undefined;
+        readonly limit?: number | undefined;
+      }
     | { readonly type: 'read_own_capability_grant' }
     | { readonly type: 'read_daemon_status' }
     | {

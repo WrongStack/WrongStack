@@ -189,30 +189,45 @@ function findCycle(
 
   const visiting = new Set<string>();
   const visited = new Set<string>();
-  const stack: string[] = [];
+  const path: string[] = [];
 
-  const visit = (stepId: string): readonly string[] | null => {
-    if (visiting.has(stepId)) {
-      const cycleStart = stack.indexOf(stepId);
-      return [...stack.slice(cycleStart), stepId];
-    }
-    if (visited.has(stepId)) return null;
-
-    visiting.add(stepId);
-    stack.push(stepId);
-    for (const next of adjacency.get(stepId) ?? []) {
-      const cycle = visit(next);
-      if (cycle) return cycle;
-    }
-    stack.pop();
-    visiting.delete(stepId);
-    visited.add(stepId);
-    return null;
-  };
+  // Depth-first search over an explicit frame stack rather than the call stack.
+  // The recursive form descended once per edge, so a plan shaped as a single
+  // chain recursed as deep as it had steps — and the protocol decoder accepts up
+  // to 10 000 steps, which overflows the call stack outright. A plan the
+  // protocol accepted could therefore not be validated at all; it surfaced as an
+  // unrelated `store_failure` from the server's catch-all rather than as a
+  // validation issue. Colouring is unchanged: `visiting` is grey, `visited` is
+  // black, and `path` is the grey chain a back edge closes.
+  interface Frame {
+    readonly id: string;
+    readonly next: readonly string[];
+    index: number;
+  }
 
   for (const step of steps) {
-    const cycle = visit(step.id);
-    if (cycle) return cycle;
+    if (visited.has(step.id)) continue;
+    visiting.add(step.id);
+    path.push(step.id);
+    const frames: Frame[] = [{ id: step.id, next: adjacency.get(step.id) ?? [], index: 0 }];
+
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1]!;
+      if (frame.index < frame.next.length) {
+        const next = frame.next[frame.index]!;
+        frame.index += 1;
+        if (visiting.has(next)) return [...path.slice(path.indexOf(next)), next];
+        if (visited.has(next)) continue;
+        visiting.add(next);
+        path.push(next);
+        frames.push({ id: next, next: adjacency.get(next) ?? [], index: 0 });
+        continue;
+      }
+      frames.pop();
+      path.pop();
+      visiting.delete(frame.id);
+      visited.add(frame.id);
+    }
   }
   return null;
 }

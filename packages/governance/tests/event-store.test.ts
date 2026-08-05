@@ -266,9 +266,80 @@ describe('SQLite governance event store', () => {
     first.close();
 
     const reopened = SqliteGovernanceEventStore.open(path);
-    expect(reopened.readObservations('project-1', 'legacy-task-1')).toMatchObject([
+    expect(
+      reopened.readObservationsPage({
+        projectId: 'project-1',
+        taskId: 'legacy-task-1',
+        categories: ['status_changed'],
+        afterSequence: 0,
+        limit: 10,
+      }),
+    ).toMatchObject([
       { sequence: 1, category: 'status_changed', payload: { status: 'completed' } },
     ]);
     reopened.close();
+  });
+
+  // The observations table is append-only, so an unwindowed read grows with the
+  // project forever. These pin that the window and the category filter are both
+  // applied by the query rather than by the caller.
+  it('windows observation reads by category and cursor', () => {
+    const store = SqliteGovernanceEventStore.open(databasePath());
+    const categories = ['status_changed', 'capability_grant_issued', 'tool_invoked'] as const;
+    for (let index = 0; index < 12; index += 1) {
+      const category = categories[index % categories.length]!;
+      expect(
+        store.appendObservation({
+          observationId: `obs-${index}`,
+          projectId: 'project-1',
+          taskId: 'task-1',
+          source: 'legacy-director',
+          category,
+          observedAt: '2026-08-01T13:05:00.000Z',
+          payload: { index },
+        }),
+      ).toMatchObject({ handled: true });
+    }
+
+    const read = (options: { afterSequence: number; limit: number }) =>
+      store.readObservationsPage({
+        projectId: 'project-1',
+        taskId: 'task-1',
+        categories: ['status_changed', 'tool_invoked'],
+        ...options,
+      });
+
+    const first = read({ afterSequence: 0, limit: 3 });
+    expect(first).toHaveLength(3);
+    // Only the two requested categories come back — the interleaved
+    // capability_grant_issued rows never leave SQLite.
+    expect(first.every((row) => row.category !== 'capability_grant_issued')).toBe(true);
+
+    const second = read({ afterSequence: first.at(-1)!.sequence, limit: 3 });
+    expect(second).toHaveLength(3);
+    expect(second[0]!.sequence).toBeGreaterThan(first.at(-1)!.sequence);
+    // Pages are disjoint and ordered.
+    expect(new Set([...first, ...second].map((row) => row.sequence)).size).toBe(6);
+
+    const remaining = read({ afterSequence: second.at(-1)!.sequence, limit: 50 });
+    expect(first.length + second.length + remaining.length).toBe(8);
+
+    expect(
+      store.readObservationsPage({
+        projectId: 'project-1',
+        categories: [],
+        afterSequence: 0,
+        limit: 10,
+      }),
+    ).toEqual([]);
+    expect(() =>
+      store.readObservationsPage({
+        projectId: 'project-1',
+        categories: ['tool_invoked'],
+        afterSequence: 0,
+        limit: 0,
+      }),
+    ).toThrow(/limit must be between/);
+    store.close();
   });
 });

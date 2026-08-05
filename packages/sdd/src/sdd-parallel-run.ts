@@ -293,6 +293,14 @@ export class SddParallelRun {
   async cancelTask(taskId: string): Promise<boolean> {
     const node = this.opts.tracker.getNode(taskId);
     if (!node) return false;
+    // Completed is terminal: the work shipped and its dependents were already
+    // unblocked. `updateNodeStatus` applies transitions blindly, so without
+    // this guard a cancel racing the task's completion — the user clicks
+    // cancel just as it finishes — rewrote `completed` to `failed`, showed
+    // finished work as "Cancelled" on the board, and undercounted the run's
+    // completed total. Cancelling a *failed* task stays allowed: its cancelled
+    // marker is what blocks the end-of-run retry sweep from requeueing it.
+    if (node.status === 'completed') return false;
     this.cancelledTasks.add(taskId);
     // Terminal failed + cancel marker: failed keeps dependents un-deadlocked,
     // the marker drives the "Cancelled" board look and blocks retry/auto-redispatch.

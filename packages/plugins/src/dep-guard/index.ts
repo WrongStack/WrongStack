@@ -77,9 +77,10 @@ interface DepGuardConfig {
   warnOnUnpinned: boolean;
   typosquatCheck: boolean;
   /**
-   * When true (default OFF), the plugin asks the host LLM
-   * (`api.llm`) to confirm whether a flagged typosquat candidate is
-   * actually a real (but obscure) package or genuinely a typo.
+   * When true (default OFF), the plugin asks the host Council
+   * (`api.llm.council`) to confirm whether a flagged typosquat candidate
+   * is actually a real (but obscure) package or genuinely a typo. Hosts
+   * without Council support fall back to a One Shot LLM request.
    * The LLM's verdict is appended to the warn context, never used
    * to upgrade a warn into a block. Off by default because LLM
    * calls aren't free and the Levenshtein-1 heuristic is already a
@@ -300,7 +301,7 @@ const plugin: Plugin = {
         type: 'boolean',
         default: false,
         description:
-          'Ask the host LLM to confirm whether a flagged typosquat is real-but-obscure or genuinely a typo. Appended to the warn context, never escalates to a block. Off by default.',
+          'Ask the risk-review Council to assess a flagged typosquat, with One Shot fallback. Appended to the warn context, never escalates to a block. Off by default.',
       },
     },
   },
@@ -368,15 +369,36 @@ const plugin: Plugin = {
             const baseNote = `"${pkg.name}" is one edit away from the well-known package "${lookalike}" — possible typosquat. Verify the name before installing.`;
             if (cfg.confirmTyposquatsWithLlm && api.llm) {
               try {
-                const verdict = await api.llm.complete(
-                  `A user is installing the npm package "${pkg.name}" which is 1 edit away from the well-known "${lookalike}". Is "${pkg.name}" likely a typo of "${lookalike}" or a real-but-obscure package? Reply with ONE sentence starting with "TYPO:" or "REAL:".`,
-                  {
-                    system:
-                      'You are a supply-chain security assistant. Reply tersely with a single TYPO: or REAL: verdict.',
-                    maxTokens: 80,
-                  },
-                );
-                const t = verdict.text.trim();
+                const question = `Classify whether npm package "${pkg.name}" is likely a typo or typosquat of "${lookalike}".`;
+                const council = api.llm.council
+                  ? await api.llm.council(question, {
+                      context:
+                        'The only supplied evidence is that the names have edit distance 1. Do not invent registry, download, ownership, or provenance facts.',
+                      profile: 'risk-review',
+                      options: [
+                        { id: 'typo', label: 'Likely typo or typosquat' },
+                        { id: 'real', label: 'Likely distinct real package' },
+                        { id: 'uncertain', label: 'Insufficient evidence' },
+                      ],
+                    })
+                  : null;
+                const councilVerdict =
+                  council?.status === 'decided' && council.optionId
+                    ? `${council.optionId.toUpperCase()}: ${council.reason ?? council.answer ?? 'no rationale'}`
+                    : null;
+                const t = councilVerdict
+                  ? councilVerdict
+                  : (
+                      await api.llm.complete(
+                        `${question} Reply with ONE sentence starting with "TYPO:", "REAL:", or "UNCERTAIN:".`,
+                        {
+                          system:
+                            'You are a supply-chain security assistant. Use only supplied evidence and preserve uncertainty.',
+                          role: 'security-reviewer',
+                          maxTokens: 100,
+                        },
+                      )
+                    ).text.trim();
                 if (t) {
                   state.llmConfirmCount += 1;
                   api.metrics.counter('llm_confirm');

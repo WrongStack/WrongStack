@@ -372,7 +372,16 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
       })
       .catch((err) => {
         renderer.setSilent(false);
-        console.debug(`[execution] webui error: ${err}`);
+        // Report through the renderer, not console: `runWebUI` installs a
+        // quiet console for the interactive surface, and a `console.debug`
+        // here would be filtered out — a failed start would print nothing.
+        renderer.writeInfo(
+          color.red(
+            `  ✗ ${isSimpleUi ? 'SimpleUI' : 'WebUI'} failed to start: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
         resolve(1);
       });
   });

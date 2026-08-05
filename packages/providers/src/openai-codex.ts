@@ -13,17 +13,17 @@
  * 401 — using the stored refresh token, then invokes `onRefresh` so the CLI
  * can persist the rotated tokens back to the vault.
  *
- * The refresh endpoint + client id are duplicated here (rather than imported
- * from the CLI) to respect the package layering: `providers` must not depend
- * on `cli`. They are tiny constants that match the CLI login module.
+ * The refresh endpoint + client id used to be duplicated here, with a comment
+ * explaining that `providers` must not depend on `cli`. The layering was right;
+ * the conclusion was not — the constants now live in `./oauth/codex-protocol.js`,
+ * below both, so the CLI login flow, the headless WebUI flow, and this refresh
+ * path share one definition instead of three that had to be kept in step by hand.
  */
 
 import {
   type Capabilities,
   classifyProviderError,
-  FetchError,
   isRetryableKind,
-  ParseError,
   ProviderError,
   type ReasoningEffort,
   type Request,
@@ -41,6 +41,11 @@ import {
   scrubProviderErrorBody,
 } from './error-parse.js';
 import { extractAccountId } from './openai-codex-account.js';
+import {
+  CODEX_BASE_URL,
+  type CodexTokens,
+  refreshCodexTokens,
+} from './oauth/codex-protocol.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
@@ -49,64 +54,30 @@ import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-res
 import type { BuildBodyContext } from './model-output-limits.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
-// ── OAuth refresh constants (mirror packages/cli auth-menu/openai-codex-oauth) ─
+// ── OAuth refresh (shared protocol — see ./oauth/codex-protocol.ts) ──────────
 
-const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
-const TOKEN_URL = 'https://auth.openai.com/oauth/token';
-const DEFAULT_CODEX_BASE = 'https://chatgpt.com/backend-api';
+const DEFAULT_CODEX_BASE = CODEX_BASE_URL;
 
-export interface CodexOAuthTokens {
-  access: string;
-  refresh: string;
-  /** Absolute expiry in epoch milliseconds. */
-  expires: number;
-}
+/**
+ * Token shape returned by a refresh. Structurally the shared
+ * {@link CodexTokens}; kept as a named alias because it is part of this
+ * package's published surface.
+ */
+export type CodexOAuthTokens = CodexTokens;
 
-/** Refresh an expired Codex access token using its refresh token. */
-export async function refreshCodexAccessToken(
+/**
+ * Refresh an expired Codex access token using its refresh token.
+ *
+ * Thin alias over the shared {@link refreshCodexTokens} — the endpoint, client
+ * id, body shape, and response validation are defined once in
+ * `./oauth/codex-protocol.js`. The name is kept because it is exported from
+ * this package's index and wired as the adapter's default `refreshFn`.
+ */
+export function refreshCodexAccessToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<CodexOAuthTokens> {
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: CLIENT_ID,
-      refresh_token: refreshToken,
-    }).toString(),
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(30_000)])
-      : AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    // Preserve the real status: FetchError derives `recoverable` from it
-    // (429/5xx → true). Hardcoding 401 marked every transient blip (503, 429)
-    // as a non-recoverable auth failure, so callers dropped credentials and
-    // forced a re-login instead of retrying.
-    throw new FetchError({
-      message: `Codex token refresh failed (${res.status}): ${text || res.statusText}`,
-      status: res.status,
-      context: { provider: 'openai-codex' },
-    });
-  }
-  const json = (await res.json()) as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-  } | null;
-  if (!json?.access_token || !json.refresh_token || typeof json.expires_in !== 'number') {
-    throw new ParseError({
-      message: 'Codex token refresh response missing fields',
-      source: 'openai-codex',
-    });
-  }
-  return {
-    access: json.access_token,
-    refresh: json.refresh_token,
-    expires: Date.now() + json.expires_in * 1000,
-  };
+  return refreshCodexTokens(refreshToken, signal);
 }
 
 // extractAccountId lives in openai-codex-account.ts so the oauth entry can

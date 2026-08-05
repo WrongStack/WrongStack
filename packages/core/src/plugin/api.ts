@@ -8,15 +8,18 @@ import type { ProviderRegistry } from '../registry/provider-registry.js';
 import type { SlashCommandRegistry } from '../registry/slash-command-registry.js';
 import type { ToolRegistry, ToolWrapper } from '../registry/tool-registry.js';
 import type { Config } from '../types/config.js';
+import type { CouncilQuestion, CouncilResult } from '../types/council.js';
 import type { HookEvent, HookMatcher, InProcessHook } from '../types/hooks.js';
 import type { Logger } from '../types/logger.js';
 import type { ModelsRegistry } from '../types/models-registry.js';
+import type { OneShotLLMInput, OneShotLLMResult } from '../types/one-shot-llm.js';
 import type {
   MCPRegistryView,
   MetricsSinkView,
   Notifier,
   PluginAPI,
   PluginCapabilities,
+  PluginCouncilOptions,
   PluginDependency,
   PluginLLM,
   PluginLLMOptions,
@@ -111,6 +114,10 @@ export interface PluginAPIInit {
         getProvider?: (() => Provider) | undefined;
         getModel?: (() => string) | undefined;
         createProvider?: ((name: string, model?: string) => Provider) | undefined;
+        /** Preferred production path: shared One Shot runtime with fallbacks. */
+        oneShot?: ((input: OneShotLLMInput) => Promise<OneShotLLMResult>) | undefined;
+        /** Optional shared multi-model Council runtime. */
+        council?: ((question: CouncilQuestion) => Promise<CouncilResult>) | undefined;
       }
     | undefined;
   config: Config;
@@ -392,6 +399,8 @@ function makePluginLLM(
     getProvider?: (() => Provider) | undefined;
     getModel?: (() => string) | undefined;
     createProvider?: ((name: string, model?: string) => Provider) | undefined;
+    oneShot?: ((input: OneShotLLMInput) => Promise<OneShotLLMResult>) | undefined;
+    council?: ((question: CouncilQuestion) => Promise<CouncilResult>) | undefined;
   },
   providerRegistry: ProviderRegistry,
   config: Config,
@@ -409,12 +418,18 @@ function makePluginLLM(
   // an effectively unbounded generation on the user's bill.
   const DEFAULT_MAX_TOKENS = 2_048;
   const HARD_MAX_TOKENS = 32_768;
+  const DEFAULT_TIMEOUT_MS = 30_000;
+  const HARD_TIMEOUT_MS = 120_000;
 
   const pluginDefaults = (): {
     provider?: string;
     model?: string;
     maxTokens?: number;
     temperature?: number;
+    role?: string;
+    fallbackModels?: string[];
+    timeoutMs?: number;
+    councilProfile?: string;
   } => {
     // Once a ConfigStore update has been observed, the live extensions
     // map REPLACES the setup-time snapshot — so a cleared override falls
@@ -428,6 +443,15 @@ function makePluginLLM(
       ...(typeof r['model'] === 'string' && r['model'] ? { model: r['model'] } : {}),
       ...(typeof r['maxTokens'] === 'number' ? { maxTokens: r['maxTokens'] } : {}),
       ...(typeof r['temperature'] === 'number' ? { temperature: r['temperature'] } : {}),
+      ...(typeof r['role'] === 'string' && r['role'] ? { role: r['role'] } : {}),
+      ...(Array.isArray(r['fallbackModels']) &&
+      r['fallbackModels'].every((v) => typeof v === 'string')
+        ? { fallbackModels: [...r['fallbackModels']] as string[] }
+        : {}),
+      ...(typeof r['timeoutMs'] === 'number' ? { timeoutMs: r['timeoutMs'] } : {}),
+      ...(typeof r['councilProfile'] === 'string' && r['councilProfile']
+        ? { councilProfile: r['councilProfile'] }
+        : {}),
     };
   };
 
@@ -471,7 +495,7 @@ function makePluginLLM(
     return { provider: created, providerName };
   };
 
-  return {
+  const pluginLlm: PluginLLM = {
     defaults() {
       const d = pluginDefaults();
       return {
@@ -482,12 +506,57 @@ function makePluginLLM(
     async complete(prompt: string, opts?: PluginLLMOptions): Promise<PluginLLMResult> {
       const defaults = pluginDefaults();
       const model = opts?.model ?? defaults.model ?? currentModel();
-      const { provider, providerName } = resolveProvider(opts?.provider, model);
+      const providerName = opts?.provider ?? defaults.provider ?? currentProvider().id;
       const maxTokens = Math.min(
         HARD_MAX_TOKENS,
         opts?.maxTokens ?? defaults.maxTokens ?? DEFAULT_MAX_TOKENS,
       );
       const temperature = opts?.temperature ?? defaults.temperature;
+      const timeoutMs = Math.min(
+        HARD_TIMEOUT_MS,
+        Math.max(1, opts?.timeoutMs ?? defaults.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+      );
+
+      if (hostLLM.oneShot) {
+        metrics.counter('llm.calls', 1, { provider: providerName, model, engine: 'one-shot' });
+        const result = await hostLLM.oneShot({
+          userPrompt: prompt,
+          providerId: providerName,
+          model,
+          maxTokens,
+          timeoutMs,
+          ...(temperature !== undefined ? { temperature } : {}),
+          ...(opts?.system ? { system: opts.system } : {}),
+          ...(opts?.responseFormat === 'json'
+            ? { responseFormat: { type: 'json_object' as const } }
+            : {}),
+          ...(opts?.signal ? { signal: opts.signal } : {}),
+          ...((opts?.role ?? defaults.role) ? { role: opts?.role ?? defaults.role } : {}),
+          ...((opts?.fallbackModels ?? defaults.fallbackModels)
+            ? { fallbackModels: [...(opts?.fallbackModels ?? defaults.fallbackModels ?? [])] }
+            : {}),
+        });
+        if (result.error) {
+          metrics.counter('llm.errors', 1, { provider: result.provider, model: result.model });
+          throw new Error(result.error);
+        }
+        metrics.counter('llm.tokens_in', result.tokens.input);
+        metrics.counter('llm.tokens_out', result.tokens.output);
+        return {
+          text: result.text,
+          model: result.model,
+          provider: result.provider,
+          usage: { input: result.tokens.input, output: result.tokens.output },
+          stopReason: result.stopReason ?? 'end_turn',
+          fromFallback: result.fromFallback,
+          attempts: result.attempts,
+          durationMs: result.durationMs,
+        };
+      }
+
+      // Compatibility path for minimal hosts and focused unit tests that wire
+      // only a Provider. The CLI always supplies the One Shot runtime above.
+      const { provider } = resolveProvider(providerName, model);
       const request: Request = {
         model,
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
@@ -498,7 +567,8 @@ function makePluginLLM(
           ? { responseFormat: { type: 'json_object' as const } }
           : {}),
       };
-      const signal = opts?.signal ?? new AbortController().signal;
+      const timeoutSignal = AbortSignal.timeout(timeoutMs);
+      const signal = opts?.signal ? AbortSignal.any([opts.signal, timeoutSignal]) : timeoutSignal;
       metrics.counter('llm.calls', 1, { provider: providerName, model });
       try {
         const response = await provider.complete(request, { signal });
@@ -526,6 +596,40 @@ function makePluginLLM(
       }
     },
   };
+
+  const council = hostLLM.council;
+  if (council) {
+    pluginLlm.council = async (
+      question: string,
+      opts?: PluginCouncilOptions,
+    ): Promise<CouncilResult> => {
+      const trimmed = question.trim();
+      if (!trimmed) throw new Error('Plugin Council question must not be empty.');
+      if (trimmed.length > 20_000) {
+        throw new Error('Plugin Council question must not exceed 20000 characters.');
+      }
+      if ((opts?.context?.length ?? 0) > 80_000) {
+        throw new Error('Plugin Council context must not exceed 80000 characters.');
+      }
+      const defaults = pluginDefaults();
+      metrics.counter('llm.council.calls', 1, { plugin: owner });
+      const result = await council({
+        question: trimmed,
+        ...(opts?.context ? { context: opts.context } : {}),
+        ...(opts?.options ? { options: opts.options } : {}),
+        ...((opts?.profile ?? defaults.councilProfile)
+          ? { profile: opts?.profile ?? defaults.councilProfile }
+          : {}),
+        ...(opts?.signal ? { signal: opts.signal } : {}),
+      });
+      metrics.counter('llm.tokens_in', result.usage.inputTokens);
+      metrics.counter('llm.tokens_out', result.usage.outputTokens);
+      if (result.status === 'failed') metrics.counter('llm.errors', 1, { provider: 'council' });
+      return result;
+    };
+  }
+
+  return pluginLlm;
 }
 
 /**

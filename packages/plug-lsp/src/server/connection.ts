@@ -17,11 +17,39 @@ interface Pending {
   reject(err: unknown): void;
 }
 
+/**
+ * Header-block byte cap. LSP header blocks are two short lines; anything past
+ * this without a blank-line terminator is a stream that is not speaking LSP.
+ */
+const MAX_HEADER_BYTES = 64 * 1024;
+/** Body byte cap — a Content-Length above this is treated as malformed. */
+const MAX_BODY_BYTES = 16 * 1024 * 1024;
+const EMPTY = Buffer.alloc(0);
+
 export class Connection {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
   private readonly events = new EventEmitter();
-  private buffer = Buffer.alloc(0);
+  /**
+   * Receive state is a two-phase machine instead of one growing buffer.
+   *
+   * The old shape — `buffer = Buffer.concat([buffer, chunk])` per 'data'
+   * event until the full message arrived — is quadratic in the message size:
+   * a 16 MiB response (workspace symbols on a large repository) delivered in
+   * 64 KiB reads re-copies the accumulated buffer every read, ~2 GiB of
+   * copying for that one message, on the hot path of every LSP round trip.
+   *
+   * Headers still accumulate by concat, because the `\r\n\r\n` terminator can
+   * straddle a chunk boundary — but a header block is bounded by
+   * `MAX_HEADER_BYTES`, so that concat is trivially cheap. The body's length
+   * is known from Content-Length before its first byte arrives, so body
+   * chunks are held in an array and joined exactly once, at the boundary.
+   */
+  private headerBuffer: Buffer = EMPTY;
+  private bodyParts: Buffer[] = [];
+  private bodyReceived = 0;
+  /** Expected body byte count; -1 while parsing headers. */
+  private bodyExpected = -1;
   private closed = false;
   private readonly onStdoutData = (chunk: Buffer): void => this.onData(chunk);
   private readonly onStdoutClose = (): void => this.close();
@@ -95,47 +123,84 @@ export class Connection {
     this.stdout.off('close', this.onStdoutClose);
     this.stdout.off('error', this.onStdoutError);
     this.stdin.off('error', this.onStdinError);
-    this.buffer = Buffer.alloc(0);
+    this.headerBuffer = EMPTY;
+    this.bodyParts = [];
+    this.bodyReceived = 0;
+    this.bodyExpected = -1;
     this.failAll(err);
     this.events.emit('close');
     this.events.removeAllListeners();
   }
 
   private onData(chunk: Buffer): void {
-    // Cap the receive buffer so a misbehaving server that floods data
-    // without proper Content-Length headers can't exhaust memory.
-    const MAX_BUFFER = 16 * 1024 * 1024; // 16 MiB
-    if (this.buffer.length + chunk.length > MAX_BUFFER) {
-      this.close();
-      return;
+    let rest = chunk;
+    while (rest.length > 0 && !this.closed) {
+      if (this.bodyExpected >= 0) {
+        // Body phase: hold chunks, join once when the known length is in.
+        const take = Math.min(rest.length, this.bodyExpected - this.bodyReceived);
+        this.bodyParts.push(rest.subarray(0, take));
+        this.bodyReceived += take;
+        rest = rest.subarray(take);
+        if (this.bodyReceived < this.bodyExpected) return;
+        const body = Buffer.concat(this.bodyParts, this.bodyExpected).toString('utf8');
+        this.bodyParts = [];
+        this.bodyReceived = 0;
+        this.bodyExpected = -1;
+        this.dispatchBody(body);
+        continue;
+      }
+      // Header phase. The concat here is bounded by MAX_HEADER_BYTES — a
+      // stream that produces this much without a blank-line terminator is
+      // not speaking LSP, so it is closed rather than buffered.
+      if (this.headerBuffer.length + rest.length > MAX_HEADER_BYTES) {
+        this.close();
+        return;
+      }
+      this.headerBuffer =
+        this.headerBuffer.length === 0 ? rest : Buffer.concat([this.headerBuffer, rest]);
+      rest = EMPTY;
+      for (;;) {
+        const sep = this.headerBuffer.indexOf('\r\n\r\n');
+        if (sep === -1) break;
+        const header = this.headerBuffer.subarray(0, sep).toString('ascii');
+        const after = this.headerBuffer.subarray(sep + 4);
+        const match = /Content-Length:\s*(\d+)/i.exec(header);
+        if (!match) {
+          this.headerBuffer = after;
+          continue;
+        }
+        const length = Number(match[1]);
+        // Reject NaN, negative, or absurd lengths. Without this a
+        // Content-Length: abc slips past as NaN and permanently stalls
+        // the message parser.
+        if (!Number.isFinite(length) || length < 0 || length > MAX_BODY_BYTES) {
+          this.headerBuffer = after;
+          continue;
+        }
+        if (length === 0) {
+          // Zero-length body: dispatch immediately (JSON.parse('') is
+          // swallowed like any other malformed body) and keep scanning.
+          this.headerBuffer = after;
+          this.dispatchBody('');
+          continue;
+        }
+        this.bodyExpected = length;
+        this.bodyReceived = 0;
+        this.bodyParts = [];
+        this.headerBuffer = EMPTY;
+        // Whatever followed the header block is body bytes — feed it back
+        // through the outer loop's body phase.
+        rest = after;
+        break;
+      }
     }
-    this.buffer = Buffer.concat([this.buffer, chunk]);
-    for (;;) {
-      const sep = this.buffer.indexOf('\r\n\r\n');
-      if (sep === -1) return;
-      const header = this.buffer.subarray(0, sep).toString('ascii');
-      const match = /Content-Length:\s*(\d+)/i.exec(header);
-      if (!match) {
-        this.buffer = this.buffer.subarray(sep + 4);
-        continue;
-      }
-      const length = Number(match[1]);
-      // Reject NaN, negative, or absurd lengths. Without this a
-      // Content-Length: abc slips past as NaN and permanently stalls
-      // the message parser.
-      if (!Number.isFinite(length) || length < 0 || length > MAX_BUFFER) {
-        this.buffer = this.buffer.subarray(sep + 4);
-        continue;
-      }
-      const total = sep + 4 + length;
-      if (this.buffer.length < total) return;
-      const body = this.buffer.subarray(sep + 4, total).toString('utf8');
-      this.buffer = this.buffer.subarray(total);
-      try {
-        this.handleMessage(JSON.parse(body) as JsonRpcMessage);
-      } catch {
-        // Malformed server output should not take down the agent.
-      }
+  }
+
+  private dispatchBody(body: string): void {
+    try {
+      this.handleMessage(JSON.parse(body) as JsonRpcMessage);
+    } catch {
+      // Malformed server output should not take down the agent.
     }
   }
 

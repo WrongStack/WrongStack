@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import type { AgentPipelines } from '@wrongstack/core/agent';
 import type { Config, HealthRegistry, Logger, MetricsRuntimeStatus, MetricsSinkView, ModelsRegistry, Plugin, PromptLoader, SkillLoader } from '@wrongstack/core/types';
 import type { ExtensionRegistry } from '@wrongstack/core/extension';
-import type { PluginHostHandle } from '@wrongstack/core/plugin';
+import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
 import type { ConfigStore, SessionWriter } from '@wrongstack/core/types';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { ProviderRegistry, SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
@@ -139,17 +139,7 @@ export interface PluginsWiringDeps {
    * default model, and a factory for named-provider overrides. Optional —
    * minimal hosts omit it and plugins see `api.llm === undefined`.
    */
-  llm?:
-    | {
-        provider: import('@wrongstack/core/types').Provider;
-        model: string;
-        getProvider?: (() => import('@wrongstack/core/types').Provider) | undefined;
-        getModel?: (() => string) | undefined;
-        createProvider?:
-          | ((name: string, model?: string) => import('@wrongstack/core/types').Provider)
-          | undefined;
-      }
-    | undefined;
+  llm?: PluginAPIInit['llm'];
   /** Health registry — injected so the observability built-in can run /health. */
   healthRegistry?: HealthRegistry | undefined;
   /** Skill loader — injected so the skills built-in can list/read skills. */
@@ -276,7 +266,7 @@ export async function setupPlugins(
           const spec = typeof entry === 'string' ? entry : entry.name;
           if (typeof entry === 'object' && entry.enabled === false) return false;
           return (builtinPluginNameFromSpec(spec) ?? spec) === plugin.name;
-        });
+        }) || config.extensions?.[plugin.name]?.['enabled'] === true;
         if (auditEntry?.defaultState === 'inactive' && !explicitlyEnabled) {
           continue;
         }

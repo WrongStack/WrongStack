@@ -123,6 +123,39 @@ describe('TaskDAG', () => {
       expect(dag.getNode('task1')!.result).toEqual({ result: 'ok' });
     });
 
+    // The DAG is shared across sessions — `autonomous-coordinator` folds in
+    // "completed/failed by another session" goal updates — so duplicated and
+    // late terminal reports are ordinary traffic. Terminal states must be
+    // absorbing: `fail()` after `complete()` used to flip `done` to `failed`,
+    // erase the result, and re-emit lifecycle events.
+    it('keeps the first terminal outcome when a late fail() arrives', () => {
+      const dag = new TaskDAG();
+      dag.addNode('task1', 'Task');
+      dag.start('task1', 'agent-1');
+      dag.complete('task1', { result: 'ok' });
+
+      dag.fail('task1', 'late timeout report');
+
+      const node = dag.getNode('task1')!;
+      expect(node.status).toBe('done');
+      expect(node.result).toEqual({ result: 'ok' });
+      expect(node.error).toBeUndefined();
+    });
+
+    it('keeps a failed node failed when a late complete() arrives', () => {
+      const dag = new TaskDAG();
+      dag.addNode('task1', 'Task');
+      dag.start('task1', 'agent-1');
+      dag.fail('task1', 'boom');
+
+      dag.complete('task1', { result: 'too late' });
+      dag.skip('task1', 'also too late');
+
+      const node = dag.getNode('task1')!;
+      expect(node.status).toBe('failed');
+      expect(node.error).toBe('boom');
+    });
+
     it('unblocks dependent nodes', () => {
       const dag = new TaskDAG();
       dag.addNode('task1', 'Task 1');

@@ -254,14 +254,16 @@ describe('Plugin capability runtime check', () => {
     expect(all).toMatch(/mcp/);
   });
 
-  it('warns on api.llm.complete when capabilities.llm=false', async () => {
+  it('warns on every api.llm operation when capabilities.llm=false', async () => {
     const warnSpy = vi.fn();
     const complete = vi.fn().mockResolvedValue({ text: 'ok' });
+    const council = vi.fn().mockResolvedValue({ status: 'decided', answer: 'ok' });
     const api = {
       ...makeMockApi(),
       llm: {
         defaults: () => ({ provider: 'test', model: 'test' }),
         complete,
+        council,
       },
     } as PluginAPI;
 
@@ -272,13 +274,18 @@ describe('Plugin capability runtime check', () => {
           capabilities: { llm: false },
           setup: async (a) => {
             await a.llm?.complete('hello');
+            await a.llm?.council?.('review this');
           },
         }),
       ],
       { apiFactory: () => api, log: makeStubLog(warnSpy) },
     );
 
-    expect(warnSpy.mock.calls[0]![0]).toMatch(/capabilities\.llm/);
+    const warnings = warnSpy.mock.calls.map((call) => call[0]).join('\n');
+    expect(warnings).toMatch(/capabilities\.llm/);
+    expect(warnings).toMatch(/complete\(5 chars\)/);
+    expect(warnings).toMatch(/council\(11 chars\)/);
     expect(complete).toHaveBeenCalledWith('hello');
+    expect(council).toHaveBeenCalledWith('review this');
   });
 });

@@ -29,7 +29,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
 import { releaseHandle, withinProject } from '../runtime/index.js';
-import { parseLlmJsonObject, runOptionalPluginLlm } from '../runtime/llm.js';
+import { parseLlmJsonObject, runOptionalPluginCouncil } from '../runtime/llm.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -357,7 +357,7 @@ const plugin: Plugin = {
   name: 'migration-planner',
   version: '0.2.0',
   description:
-    'Builds evidence-backed migration checklists with optional host-routed LLM risk analysis',
+    'Builds evidence-backed migration checklists with optional Council-reviewed risk analysis',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true, llm: true },
   defaultConfig: { ...DEFAULTS },
@@ -386,7 +386,7 @@ const plugin: Plugin = {
         type: 'boolean',
         default: false,
         description:
-          'Add a separate, evidence-bounded risk analysis through api.llm; deterministic changelog extraction remains authoritative.',
+          'Add evidence-bounded risk analysis through the risk-review Council profile, with One Shot and deterministic fallbacks.',
       },
       maxLlmChars: {
         type: 'number',
@@ -437,7 +437,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- migration_plan ---
     api.tools.register({
@@ -465,7 +467,8 @@ const plugin: Plugin = {
           },
           use_llm: {
             type: 'boolean',
-            description: 'Add evidence-bounded LLM risk analysis. Overrides useLlm for this call.',
+            description:
+              'Add evidence-bounded Council risk analysis with One Shot fallback. Overrides useLlm for this call.',
           },
         },
         required: ['packageName', 'fromVersion', 'toVersion'],
@@ -518,10 +521,11 @@ const plugin: Plugin = {
 
         execOpts?.signal?.throwIfAborted();
         const requested = input.use_llm ?? cfg.useLlm;
-        const llm = await runOptionalPluginLlm({
+        const llm = await runOptionalPluginCouncil({
           requested,
           api,
           label: 'migration-planner',
+          profile: 'risk-review',
           prompt: buildMigrationLlmPrompt({
             packageName,
             fromVersion,
@@ -535,6 +539,7 @@ const plugin: Plugin = {
           options: {
             system:
               'You assess software migrations only from supplied evidence. Return one JSON object and clearly preserve uncertainty.',
+            role: 'planner',
             responseFormat: 'json',
             maxTokens: 2_048,
             temperature: 0.1,

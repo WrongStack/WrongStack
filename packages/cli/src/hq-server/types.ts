@@ -116,6 +116,16 @@ export interface HqRouterMutableAuth {
   totpPendingSecret?: string | undefined;
   /** SHA-256 hashes of single-use recovery codes (live-reloaded from auth.json). */
   totpRecoveryCodes?: string[] | undefined;
+  /**
+   * Highest TOTP time-step counter already spent on a successful login
+   * (RFC 6238 §5.2 single-use). The ±1-step validation window keeps a code
+   * arithmetically valid for ~90s, so without this a code captured in transit
+   * — shoulder-surfed, read off a notification, replayed from a proxy log —
+   * authenticates a second time. Deliberately process-local and NOT persisted
+   * to auth.json: a code cannot outlive its own window, so a restart losing
+   * the marker costs at most the tail of one step.
+   */
+  totpLastUsedCounter?: number | undefined;
   alertRules: HqAlertRuleConfig | undefined;
   /**
    * WS-010: set when the live bind would become unauthenticated and

@@ -94,12 +94,18 @@ import { createSessionStartPayloadBuilder } from './webui-server/session-start-p
 import { createSetupEvents } from './webui-server/setup-events.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import { createStreamCoalescer } from './webui-server/stream-coalescer.js';
-import { startBoundedTerminalLogView } from './webui-server/terminal-log-view.js';
+import { startQuietSurfaceConsole } from './webui-server/terminal-log-view.js';
 
 import type { CliWebUIOptions } from './webui-server-options.js';
 
 export type { CliWebUIOptions } from './webui-server-options.js';
 export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
+  // Installed before any startup logging: the browser owns the UI from here
+  // on, so this terminal only needs the "open this URL" banner (written via
+  // the renderer, not console) plus warnings and errors. Must be first —
+  // port binding and listener setup below log through `console.log`, and a
+  // filter installed after them would let exactly those lines through.
+  const terminalLogView = startQuietSurfaceConsole();
   const trustBoundary =
     opts.trustBoundary ??
     createCompatibilityTrustBoundary({ policyId: 'cli-webui-trusted-host-compat-v1' });
@@ -891,7 +897,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     statusTracker: opts.statusTracker,
   });
 
-  const terminalLogView = startBoundedTerminalLogView();
   const stopped = new Promise<void>((resolve) => {
     let listeningAnnounced = false;
     const announceListening = () => {
@@ -1039,8 +1044,15 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       pid: process.pid,
       registryBaseDir,
       onStopped: () => {
-        terminalLogView.redraw();
+        // Restore the real console first so the summary below is not itself
+        // swallowed by the quiet filter it is describing.
+        const muted = terminalLogView.mutedCount;
         terminalLogView.stop();
+        if (muted > 0) {
+          console.log(
+            `[WebUI] ${muted} progress line(s) kept out of this terminal — set WEBUI_VERBOSE=1 to see them.`,
+          );
+        }
         opts.onExit?.();
         resolve();
       },

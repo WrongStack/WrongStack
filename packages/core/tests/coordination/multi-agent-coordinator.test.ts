@@ -54,6 +54,28 @@ describe('DefaultMultiAgentCoordinator', () => {
     expect(agent?.status).toBe('stopped');
   });
 
+  // `emitPendingAborted` pushes its synthetic result directly — it must bypass
+  // `recordCompletion` for inFlight accounting, but it used to bypass the
+  // MAX_COMPLETED_RESULTS cap along with it. A coordinator whose fleet has died
+  // synthetic-completes every task the caller keeps assigning, and with no real
+  // completion ever running the trim, the results array grew without bound.
+  it('caps completedResults on the synthetic dead-fleet path too', async () => {
+    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    await coord.spawn({ id: 'a1', name: 'A1' });
+    await coord.stop('a1');
+
+    const total = 10_050; // MAX_COMPLETED_RESULTS is 10_000
+    for (let i = 0; i < total; i++) {
+      await coord.assign({ id: `dead-task-${i}` });
+    }
+
+    const results = coord.results();
+    expect(results.length).toBeLessThanOrEqual(10_000);
+    // The newest results are the ones kept.
+    expect(results.at(-1)?.taskId).toBe(`dead-task-${total - 1}`);
+    expect(results.at(-1)?.status).toBe('stopped');
+  });
+
   it('stopAll stops all subagents', async () => {
     const coord = new DefaultMultiAgentCoordinator(makeConfig());
     await coord.spawn({ id: 'a1', name: 'A1' });

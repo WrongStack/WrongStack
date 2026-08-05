@@ -251,6 +251,57 @@ describe('verifyTaskCompletion', () => {
     expect(result.report.subtasks!.completed).toBe(1);
   });
 
+  // Nothing upstream guarantees `childTaskIds` is acyclic: `splitTask` is safe
+  // because it mints fresh ids, but `syncTaskGraphIntoBoard` copies
+  // `node.children` straight through and a board file is ordinary project data.
+  // A cycle used to recurse forever — and being `async`, it did not even fail
+  // fast with a stack overflow, it just re-read the board on every hop.
+  it('rejects a cyclic parent/child task graph instead of recursing forever', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'kanban-verify-cycle-'));
+    roots.push(root);
+    const { createBoard, addTask, updateTask } = await import('../../src/manager.js');
+
+    const board = await createBoard(root, { title: 'Test' });
+    const a = await addTask(root, board.id, { title: 'A', atomic: true });
+    const b = await addTask(root, board.id, { title: 'B', atomic: true });
+    if (!a || !b) throw new Error('Failed to add tasks');
+    await updateTask(root, board.id, a.task.id, { childTaskIds: [b.task.id] });
+    await updateTask(root, board.id, b.task.id, { childTaskIds: [a.task.id] });
+
+    const registry = new VerifierRegistry().register(new FakePassPlugin());
+    await expect(
+      verifyTaskCompletion(root, board.id, a.task.id, { registry, persist: false }),
+    ).rejects.toThrow(/Cyclic parent\/child task graph/);
+  });
+
+  // The guard is scoped to the current descent path, not to the whole run, so a
+  // task legitimately reachable through two parents is not mistaken for a cycle.
+  it('verifies a task reachable through two parents without reporting a cycle', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'kanban-verify-diamond-'));
+    roots.push(root);
+    const { createBoard, addTask, updateTask } = await import('../../src/manager.js');
+
+    const board = await createBoard(root, { title: 'Test' });
+    const top = await addTask(root, board.id, { title: 'Top', atomic: true });
+    const left = await addTask(root, board.id, { title: 'Left', atomic: true });
+    const right = await addTask(root, board.id, { title: 'Right', atomic: true });
+    const shared = await addTask(root, board.id, { title: 'Shared' });
+    if (!top || !left || !right || !shared) throw new Error('Failed to add tasks');
+
+    await updateTask(root, board.id, top.task.id, {
+      childTaskIds: [left.task.id, right.task.id],
+    });
+    await updateTask(root, board.id, left.task.id, { childTaskIds: [shared.task.id] });
+    await updateTask(root, board.id, right.task.id, { childTaskIds: [shared.task.id] });
+
+    const registry = new VerifierRegistry().register(new FakePassPlugin());
+    const result = await verifyTaskCompletion(root, board.id, top.task.id, {
+      registry,
+      persist: false,
+    });
+    expect(result.report.subtasks?.children).toHaveLength(2);
+  });
+
   it('handles mix of passed and failed criteria', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-mixed-'));
     roots.push(root);

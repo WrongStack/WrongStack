@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 51,
+      "files": 52,
       "typeOnly": 20,
-      "runtimeOrMixed": 52
+      "runtimeOrMixed": 53
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/hq": {
-      "files": 107,
+      "files": 108,
       "typeOnly": 74,
-      "runtimeOrMixed": 61
+      "runtimeOrMixed": 62
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 29,
+      "files": 28,
       "typeOnly": 9,
-      "runtimeOrMixed": 21
+      "runtimeOrMixed": 20
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 118,
+      "files": 119,
       "typeOnly": 20,
-      "runtimeOrMixed": 101
+      "runtimeOrMixed": 102
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 849,
-      "typeOnly": 809,
-      "runtimeOrMixed": 216
+      "files": 851,
+      "typeOnly": 811,
+      "runtimeOrMixed": 213
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -2914,6 +2914,12 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/wiring/pipeline.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -3455,6 +3461,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-audit-verify.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-auth-admin-capability.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5410,12 +5422,6 @@
     },
     {
       "specifier": "@wrongstack/core/models",
-      "file": "packages/cli/src/auth-menu/openai-codex-oauth.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/models",
       "file": "packages/cli/src/boot.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5482,7 +5488,7 @@
     },
     {
       "specifier": "@wrongstack/core/models",
-      "file": "packages/providers/src/oauth/chatgpt.ts",
+      "file": "packages/providers/src/oauth/codex-models.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6701,6 +6707,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/fleet-shadow-pass.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/hq-auth-admin-capability.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7925,8 +7937,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/auth-menu/openai-codex-oauth.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -9078,7 +9090,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/plugins.ts",
       "typeOnly": 2,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10463,6 +10475,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/oauth/claude.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/oauth/codex-models.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/oauth/codex-protocol.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -271,7 +271,75 @@ describe('project-scoped governance service', () => {
       ),
     ).toMatchObject({
       ok: true,
-      result: { observations: [{ category: 'completion_claimed' }] },
+      result: { observations: [{ category: 'completion_claimed' }], nextAfterSequence: null },
+    });
+    service.close();
+  });
+
+  // Both observation reads used to return every row a project had ever
+  // recorded, filtering the wrong half out in JavaScript afterwards. They are
+  // windowed now, and the window has to be reported honestly so a caller can
+  // tell a full answer from a first page.
+  it('pages observation reads and keeps the audit split server-side', () => {
+    const service = openService();
+    const shadow = shadowAdapter(service, 'legacy-director');
+    for (let index = 0; index < 5; index += 1) {
+      expect(
+        shadow.observe({
+          observationId: `legacy-event-${index}`,
+          taskId: 'legacy-task-1',
+          category: 'completion_claimed',
+          observedAt: '2026-08-01T12:01:00.000Z',
+          payload: { index },
+        }),
+      ).toMatchObject({ observed: true });
+    }
+
+    const page = service.handle(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-observations-page',
+        type: 'read_observations',
+        taskId: 'legacy-task-1',
+        limit: 2,
+      },
+      client('task_read'),
+    );
+    expect(page).toMatchObject({ ok: true });
+    if (!page.ok || page.result.type !== 'observations') throw new Error('expected a page');
+    expect(page.result.observations).toHaveLength(2);
+    expect(page.result.nextAfterSequence).toBe(page.result.observations.at(-1)?.sequence);
+
+    const rest = service.handle(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-observations-rest',
+        type: 'read_observations',
+        taskId: 'legacy-task-1',
+        afterSequence: page.result.nextAfterSequence ?? 0,
+        limit: 50,
+      },
+      client('task_read'),
+    );
+    expect(rest).toMatchObject({ ok: true });
+    if (!rest.ok || rest.result.type !== 'observations') throw new Error('expected a page');
+    expect(rest.result.observations).toHaveLength(3);
+    expect(rest.result.nextAfterSequence).toBeNull();
+
+    // A shadow observer cannot write reserved categories, so the audit feed is
+    // empty here — the point is that it is scoped by category rather than by
+    // filtering a full-table read.
+    const audit = service.handle(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-audit-observations',
+        type: 'read_audit_observations',
+      },
+      client('audit_read'),
+    );
+    expect(audit).toMatchObject({
+      ok: true,
+      result: { type: 'observations', observations: [], nextAfterSequence: null },
     });
     service.close();
   });

@@ -160,6 +160,55 @@ describe('BrainMonitor — agent stall signal', () => {
     expect(emitted[0]?.kind).toBe('agent_stall');
   });
 
+  // `Agent.run`'s catch path emits `agent.run.error` and then, unconditionally,
+  // `agent.run.completed` (core/agent.ts:302 then :310). Treating both as
+  // terminators subtracted two for a single failed run, and the `Math.max(0, …)`
+  // clamp hid it — so with a second run still live the counter reached zero and
+  // the watchdog stopped watching.
+  const runFailed = () => {
+    events.emit('agent.run.error', {
+      ctx: {} as never,
+      err: new Error('boom'),
+      at: new Date().toISOString(),
+      durationMs: 1,
+    });
+    events.emit('agent.run.completed', {
+      ctx: {} as never,
+      status: 'failed',
+      iterations: 0,
+      at: new Date().toISOString(),
+      durationMs: 1,
+    });
+  };
+
+  it('keeps watching the surviving run after a concurrent run fails', async () => {
+    const emitted: EventMap['brain.intervention'][] = [];
+    events.on('brain.intervention', (e) => emitted.push(e));
+    monitor();
+
+    runStarted();
+    runStarted();
+    runFailed();
+
+    await vi.advanceTimersByTimeAsync(70_000);
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]?.kind).toBe('agent_stall');
+  });
+
+  it('stops watching once every run has ended', async () => {
+    const emitted: EventMap['brain.intervention'][] = [];
+    events.on('brain.intervention', (e) => emitted.push(e));
+    monitor();
+
+    runStarted();
+    runFailed();
+
+    await vi.advanceTimersByTimeAsync(70_000);
+
+    expect(emitted).toHaveLength(0);
+  });
+
   it('stays quiet while tool activity keeps arriving', async () => {
     const emitted: EventMap['brain.intervention'][] = [];
     events.on('brain.intervention', (e) => emitted.push(e));

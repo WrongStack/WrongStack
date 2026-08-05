@@ -42,7 +42,7 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
     version: '1.0.0',
     description: 'Prompt library with 100+ builtin prompts, search, and AI authoring',
     apiVersion: '^0.1',
-    capabilities: { slashCommands: true },
+    capabilities: { slashCommands: true, llm: true },
     defaultConfig: {},
 
     setup(api) {
@@ -61,7 +61,7 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
 
       usage = opts?.usage ?? (paths ? new PromptUsageStore(paths.promptUsage) : null);
 
-      api.slashCommands.register(buildPromptsCommand(() => store, () => loader));
+      api.slashCommands.register(buildPromptsCommand(() => store, () => loader, () => api.llm));
       api.slashCommands.register(buildPromptSearchCommand(() => loader, () => usage));
       api.slashCommands.register(buildPromptGenCommand(() => loader));
       api.log.info('[prompts] loaded — /prompts, /prompt, /prompt-gen available');
@@ -85,6 +85,7 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
 function buildPromptsCommand(
   getStore: () => DefaultPromptStore | null,
   getLoader: () => PromptLoader | null,
+  getLlm: () => import('../types/plugin.js').PluginLLM | undefined,
 ): SlashCommand {
   return {
     name: 'prompts',
@@ -197,20 +198,27 @@ function buildPromptsCommand(
             matches.find((m) => m.title.toLowerCase() === parsed.title?.toLowerCase()) ??
             expectDefined(matches[0]);
 
-          const prov = ctx.provider as never as {
-            complete?: (model: string | undefined, text: string) => Promise<string>;
-          };
-          if (!prov?.complete) return { message: 'LLM not available. Configure a provider first.' };
+          const llm = getLlm();
+          if (!llm) return { message: 'LLM not available. Configure a provider first.' };
 
-          const enhanced = await prov.complete(
-            ctx.model,
-            renderInstructionTemplate(readBundledInstructionText('llm/prompt-extend.md'), {
-              existingPrompt: exact.content,
-              additionalInstructions: parsed.content,
-            }),
-          );
+          let enhanced: Awaited<ReturnType<typeof llm.complete>>;
+          try {
+            enhanced = await llm.complete(
+              renderInstructionTemplate(readBundledInstructionText('llm/prompt-extend.md'), {
+                existingPrompt: exact.content,
+                additionalInstructions: parsed.content,
+              }),
+              {
+                system: 'You improve reusable prompts while preserving their intent and variables.',
+                role: 'prompt-refiner',
+                maxTokens: 2_048,
+              },
+            );
+          } catch {
+            return { message: 'LLM enhancement failed. The saved prompt was not changed.' };
+          }
 
-          exact.content = enhanced.trim();
+          exact.content = enhanced.text.trim();
           exact.updatedAt = new Date().toISOString();
           await store.save(exact);
           getLoader()?.invalidateCache();

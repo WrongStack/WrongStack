@@ -136,21 +136,29 @@ export function extractToken(url: string): string | undefined {
 export function extractTokenFromCookie(cookieHeader: string | string[] | undefined): string | undefined {
   if (!cookieHeader) return undefined;
   const raw = Array.isArray(cookieHeader) ? cookieHeader.join('; ') : cookieHeader;
+  let plain: string | undefined;
   for (const part of raw.split(';')) {
     const eq = part.indexOf('=');
     if (eq < 0) continue;
     const name = part.slice(0, eq).trim();
-    if (name === 'ws_token') {
-      // Cookie values are url-encoded in spec; decode for the constant-time
-      // compare downstream. Trim trailing whitespace defensively.
-      try {
-        return decodeURIComponent(part.slice(eq + 1).trim());
-      } catch {
-        return part.slice(eq + 1).trim();
-      }
+    if (name !== 'ws_token' && name !== '__Host-ws_token') continue;
+    // Cookie values are url-encoded in spec; decode for the constant-time
+    // compare downstream. Trim trailing whitespace defensively.
+    let value: string;
+    try {
+      value = decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      value = part.slice(eq + 1).trim();
     }
+    // WS-107: on an HTTPS-fronted deployment the cookie is `__Host-`-prefixed,
+    // a name a browser only accepts when it is Secure, Path=/, and Domain-less.
+    // Prefer it outright — reading the plain name first would let a cookie
+    // injected under the weaker name take precedence over the hardened one,
+    // which is the single thing the prefix exists to prevent.
+    if (name === '__Host-ws_token') return value;
+    plain ??= value;
   }
-  return undefined;
+  return plain;
 }
 
 /**

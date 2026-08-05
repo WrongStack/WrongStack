@@ -64,17 +64,29 @@ export function assessAtomicity(
     };
   }
 
-  const ruleSet = buildDefaultRuleSet(config);
-  const criteria = ruleSet.map((criterion) => {
-    const { score, reason } = criterion.evaluate(candidate);
-    return { id: criterion.id as string, score, weight: criterion.weight, reason };
-  });
+  const scoreAgainst = (ruleSetConfig: AtomicityRuleSetConfig | undefined) =>
+    buildDefaultRuleSet(ruleSetConfig).map((criterion) => {
+      const { score, reason } = criterion.evaluate(candidate);
+      return { id: criterion.id as string, score, weight: criterion.weight, reason };
+    });
 
-  const totalWeight = criteria.reduce((sum, entry) => sum + entry.weight, 0);
-  const score =
-    totalWeight > 0
-      ? criteria.reduce((sum, entry) => sum + entry.score * entry.weight, 0) / totalWeight
-      : 1;
+  let criteria = scoreAgainst(config);
+  let totalWeight = criteria.reduce((sum, entry) => sum + entry.weight, 0);
+  if (totalWeight === 0) {
+    // Every criterion weight was overridden to zero. Scoring 1 here — which is
+    // what the previous `totalWeight > 0 ? … : 1` fallback did — returned the
+    // most permissive verdict, 'atomic', meaning "do not decompose". A config
+    // that expresses no opinion at all would therefore silently switch
+    // decomposition off, and it would do so in the direction that looks fine.
+    //
+    // Zeroing a subset is a supported and tested way to score on one axis, but
+    // zeroing *all* of them is indistinguishable from supplying no weights, so
+    // fall back to the built-in ones and produce a real assessment. Those are
+    // all positive, so this cannot recurse into the same state.
+    criteria = scoreAgainst({ ...config, weights: {} });
+    totalWeight = criteria.reduce((sum, entry) => sum + entry.weight, 0);
+  }
+  const score = criteria.reduce((sum, entry) => sum + entry.score * entry.weight, 0) / totalWeight;
 
   let verdict: AtomicityVerdict;
   if (score >= resolved.atomicThreshold) verdict = 'atomic';

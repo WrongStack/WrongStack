@@ -75,28 +75,45 @@ export class LoginAttemptStore {
   }
 
   /**
-   * Compound rate-limit key for public-relay mode: IP + SHA-256(password).
-   * Limits how often the SAME password can be tried from different IPs,
-   * so a rotating-IP attacker can't bypass per-IP backoff.
+   * Rate-limit key for a *candidate password*, independent of source IP.
+   *
+   * WS-104: this used to be `cred:${ip}:${hash}`. Embedding the IP made the
+   * documented purpose — "limit how often the SAME password can be tried from
+   * different IPs" — structurally impossible, because a rotating-IP attacker
+   * got a fresh counter with every hop, exactly the case the key exists for.
+   * The IP-scoped counter is already kept separately under the bare `ip` key.
+   *
+   * Backoff caps at 16s (see {@link recordFailure}), so a global per-password
+   * counter throttles guessing without becoming a lockout an attacker could
+   * aim at the operator.
    */
-  static credentialKey(ip: string, password: string): string {
+  static credentialKey(password: string): string {
     const hash = createHash('sha256').update(password, 'utf8').digest('hex').slice(0, 16);
-    return `cred:${ip}:${hash}`;
+    return `cred:${hash}`;
   }
 
   /**
-   * Check both IP and credential keys; return the stricter (later blockedUntil).
+   * Check the IP key and — when a candidate password is supplied — the
+   * credential key too, returning the stricter (later `blockedUntil`).
+   *
+   * WS-104: `handleApiLogin` called this with `''` before parsing the request
+   * body ("we don't have the password yet") and never called it again, so the
+   * credential entries {@link recordFailure} wrote were only ever *written*.
+   * Callers now re-check once the password is known; passing no password (or
+   * an empty one) means "IP scope only".
    */
-  checkBlocked(ip: string, password: string): { blocked: boolean; retryAfter: number } {
-    const ipEntry = this.store.get(ip);
-    const credKey = LoginAttemptStore.credentialKey(ip, password);
-    const credEntry = this.store.get(credKey);
+  checkBlocked(ip: string, password?: string): { blocked: boolean; retryAfter: number } {
     const now = Date.now();
-
+    const ipEntry = this.store.get(ip);
     const ipBlocked = ipEntry && ipEntry.blockedUntil > now ? ipEntry.blockedUntil : 0;
-    const credBlocked = credEntry && credEntry.blockedUntil > now ? credEntry.blockedUntil : 0;
-    const blockedUntil = Math.max(ipBlocked, credBlocked);
 
+    let credBlocked = 0;
+    if (password !== undefined && password.length > 0) {
+      const credEntry = this.store.get(LoginAttemptStore.credentialKey(password));
+      credBlocked = credEntry && credEntry.blockedUntil > now ? credEntry.blockedUntil : 0;
+    }
+
+    const blockedUntil = Math.max(ipBlocked, credBlocked);
     if (blockedUntil > now) {
       return { blocked: true, retryAfter: Math.ceil((blockedUntil - now) / 1000) };
     }
@@ -104,12 +121,16 @@ export class LoginAttemptStore {
   }
 
   /**
-   * Record a failed attempt on both IP and credential keys.
+   * Record a failed attempt on the IP key, and on the credential key when a
+   * candidate password is supplied. Omit the password for flows that have no
+   * one (2FA verification, TOTP disable) so they do not accumulate a
+   * meaningless `cred:sha256("")` counter shared by every such flow.
+   *
    * Returns the updated IP entry (for the response Retry-After header).
    */
   recordFailure(
     ip: string,
-    password: string,
+    password?: string,
     maxBackoffMs = 16_000,
   ): LoginAttemptEntry {
     const backoff = (prev: LoginAttemptEntry | undefined): LoginAttemptEntry => {
@@ -122,18 +143,23 @@ export class LoginAttemptStore {
     };
 
     this.set(ip, backoff(this.store.get(ip)));
-    const credKey = LoginAttemptStore.credentialKey(ip, password);
-    this.set(credKey, backoff(this.store.get(credKey)));
+    if (password !== undefined && password.length > 0) {
+      const credKey = LoginAttemptStore.credentialKey(password);
+      this.set(credKey, backoff(this.store.get(credKey)));
+    }
 
     return this.store.get(ip)!;
   }
 
   /**
-   * Clear both IP and credential entries on successful login.
+   * Clear the IP entry — and the credential entry when a password is given —
+   * on successful login.
    */
-  clearOnSuccess(ip: string, password: string): void {
+  clearOnSuccess(ip: string, password?: string): void {
     this.delete(ip);
-    this.delete(LoginAttemptStore.credentialKey(ip, password));
+    if (password !== undefined && password.length > 0) {
+      this.delete(LoginAttemptStore.credentialKey(password));
+    }
   }
 
   /** Number of tracked entries (for diagnostics). */

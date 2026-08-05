@@ -757,6 +757,30 @@ describe('SddParallelRun — task controls (model / cancel / delete)', () => {
     expect(await run.cancelTask('nope')).toBe(false);
   });
 
+  // `updateNodeStatus` applies transitions blindly, so a cancel racing the
+  // task's completion — the user clicks cancel just as it finishes — used to
+  // rewrite `completed` to `failed` and show finished work as "Cancelled".
+  it('cancelTask refuses a completed task instead of rewriting it to failed', async () => {
+    const { run, tracker, t1 } = await makeHarness();
+    tracker.updateNodeStatus(t1.id, 'completed');
+
+    expect(await run.cancelTask(t1.id)).toBe(false);
+
+    const n = tracker.getNode(t1.id)!;
+    expect(n.status).toBe('completed');
+    expect(n.metadata?.cancelled).toBeUndefined();
+  });
+
+  // Cancelling a failed task stays allowed — its cancelled marker is what
+  // blocks the end-of-run retry sweep from requeueing it.
+  it('cancelTask still marks a failed task cancelled', async () => {
+    const { run, tracker, t1 } = await makeHarness();
+    tracker.updateNodeStatus(t1.id, 'failed', 'boom');
+
+    expect(await run.cancelTask(t1.id)).toBe(true);
+    expect(tracker.getNode(t1.id)?.metadata?.cancelled).toBe(true);
+  });
+
   it('retryTask clears the cancel marker and re-queues to pending', async () => {
     const { run, tracker, t1 } = await makeHarness();
     await run.cancelTask(t1.id);

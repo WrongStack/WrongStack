@@ -80,11 +80,7 @@ async function runGit(
             message?: string;
             stderr?: string;
           };
-          rejectPromise(
-            new Error(
-              `git command failed: ${e.message ?? e.stderr ?? String(err)}`,
-            ),
-          );
+          rejectPromise(new Error(`git command failed: ${e.message ?? e.stderr ?? String(err)}`));
           return;
         }
         resolvePromise(stdout.trim());
@@ -270,9 +266,7 @@ async function simultaneousEditWarning(cwd?: string): Promise<string | null> {
 }
 
 /** Run git diff --cached and return both stat and full diff. */
-async function getStagedDiff(
-  cwd?: string,
-): Promise<{ stat: string; diff: string }> {
+async function getStagedDiff(cwd?: string): Promise<{ stat: string; diff: string }> {
   try {
     const stat = await runGit(['diff', '--cached', '--stat'], cwd);
     // Limit full diff to prevent blowing up tool output
@@ -373,6 +367,7 @@ async function generateCommitFromDiff(
       {
         system:
           'You are a precise release engineer writing Conventional Commits. Output only JSON.',
+        role: 'document',
         maxTokens: 400,
         responseFormat: 'json',
       },

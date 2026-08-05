@@ -1,14 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
 import {
-  DEFAULT_HQ_REDACTION_POLICY,
-  type HqAlertRuleConfig,
-  type HqRedactionPolicy,
-  type HqToken,
+  type HqAuthFile,
   hashHqPassword,
-  hqTokenKey,
   isLoopbackHost,
-  isTokenExpired,
   mintHqCookieSecret,
   mutateHqAuthFile,
   verifyHqPassword,
@@ -20,25 +15,116 @@ import {
   hashRecoveryCode,
   verifyRecoveryCode,
   verifyTotp,
+  verifyTotpCounter,
 } from '@wrongstack/core/security';
 import {
   authenticateBrowserRequest,
   clearHqSessionCookie,
-  HQ_SESSION_COOKIE,
+  type HqBrowserAuthResult,
   isCookieAuth,
   isTokenAuth,
-  parseCookieHeader,
   parseHqSessionCookie,
+  readHqSessionCookie,
   serializeHqSessionCookie,
   setHqSessionCookie,
 } from '../auth.js';
 import type { LoginAttemptStore } from '../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../types.js';
+import { resolveClientAddress } from '../client-address.js';
 import { readRequestBody, writeInvalidBody } from '../utils.js';
 
+/**
+ * True when the request's ACTUAL peer is on this machine.
+ *
+ * Deliberately reads `req.socket.remoteAddress` and never the resolved client
+ * address: this is a trust decision (it authorizes the open-mode password
+ * bootstrap), and a forwarded header must never be able to claim loopback.
+ * Rate limiting is the opposite case — see {@link resolveClientAddress}.
+ */
 function isLoopbackRequest(req: http.IncomingMessage): boolean {
   const address = req.socket.remoteAddress?.replace(/^::ffff:/, '');
   return address !== undefined && isLoopbackHost(address);
+}
+
+/**
+ * Capability required to operate the account-security surface: enrolling or
+ * removing 2FA, changing the password without knowing it, listing and revoking
+ * browser sessions, and reading the auth audit log.
+ *
+ * WS-102: these routes used to gate on `if (!auth)` alone, so ANY authenticated
+ * principal could reach them — including the least-privileged token HQ mints on
+ * first run (`capabilities: ['control.enqueue']`). That token could
+ * `POST /api/auth/totp/setup` → `/enable`, receive the recovery codes, and take
+ * the `sessions.clear()` that enrollment performs. The operator was then held
+ * at `totpRequired: true` on every password login with no authenticator and no
+ * recovery codes, and `/totp/disable` demands auth they could no longer obtain:
+ * a one-request, unrecoverable lockout from a token scoped to enqueueing
+ * commands. Editing `auth.json` by hand was the only way back.
+ */
+export const HQ_AUTH_ADMIN_CAPABILITY = 'auth.admin';
+
+/**
+ * True when `auth` may operate the account-security surface.
+ *
+ * - Password-origin cookie sessions (`kind: 'cookie'` with no `tokenId`) are
+ *   the operator themselves — always allowed.
+ * - A token with no `capabilities` field is unrestricted by the documented
+ *   contract in `HqToken.capabilities`, so it is allowed.
+ * - A capability-scoped token must list {@link HQ_AUTH_ADMIN_CAPABILITY}.
+ *
+ * Token-origin cookie sessions resolve their capabilities from the LIVE token
+ * record on every request (see `authenticateBrowserRequest`), so upgrading a
+ * token to a cookie never widens what it can do here.
+ */
+export function callerCanAdministerAuth(auth: HqBrowserAuthResult): boolean {
+  if (auth === undefined) return false;
+  if (auth.kind === 'cookie' && auth.tokenId === undefined) return true;
+  if (auth.capabilities === undefined) return true;
+  return auth.capabilities.includes(HQ_AUTH_ADMIN_CAPABILITY);
+}
+
+/** Shared 403 for a caller that authenticated but lacks `auth.admin`. */
+function writeAuthAdminRequired(res: http.ServerResponse): void {
+  res.writeHead(403, { 'Content-Type': 'application/json' });
+  res.end(
+    JSON.stringify({
+      error: {
+        code: 'AUTH_ADMIN_REQUIRED',
+        message: `This endpoint requires the '${HQ_AUTH_ADMIN_CAPABILITY}' capability.`,
+      },
+    }),
+  );
+}
+
+/**
+ * Authenticate + authorize an account-security request in one step. Returns
+ * the auth context on success, or `undefined` after having already written the
+ * 401/403 response.
+ */
+function authorizeAuthAdmin(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  mutableAuth: HqRouterMutableAuth,
+  sessions: Map<string, HqSessionEntry>,
+): HqBrowserAuthResult {
+  const auth = authenticateBrowserRequest(
+    req,
+    new URL(req.url ?? '/', 'http://localhost'),
+    mutableAuth,
+    sessions,
+  );
+  if (!auth) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } }),
+    );
+    return undefined;
+  }
+  if (!callerCanAdministerAuth(auth)) {
+    writeAuthAdminRequired(res);
+    return undefined;
+  }
+  return auth;
 }
 
 export async function handleApiAuthStatus(
@@ -87,6 +173,7 @@ export async function handleApiLogin(
   sessions: Map<string, HqSessionEntry>,
   loginAttempts: LoginAttemptStore,
   secureCookies: boolean | undefined,
+  trustedProxyHops: number,
 ): Promise<void> {
   if (!mutableAuth.passwordHash) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -101,10 +188,8 @@ export async function handleApiLogin(
     return;
   }
 
-  const clientIp = req.socket.remoteAddress ?? 'unknown';
-  // Pre-parse rate-limit check (IP only — we don't have the password yet).
-  const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp, '');
-  if (blocked) {
+  const clientIp = resolveClientAddress(req, trustedProxyHops);
+  const writeRateLimited = (retryAfter: number): void => {
     res.writeHead(429, {
       'Content-Type': 'application/json',
       'Retry-After': String(retryAfter),
@@ -117,6 +202,13 @@ export async function handleApiLogin(
         },
       }),
     );
+  };
+
+  // Pre-parse rate-limit check (IP scope only — we don't have the password
+  // yet). Runs first so a blocked IP never gets its body read.
+  const ipCheck = loginAttempts.checkBlocked(clientIp);
+  if (ipCheck.blocked) {
+    writeRateLimited(ipCheck.retryAfter);
     return;
   }
 
@@ -131,6 +223,16 @@ export async function handleApiLogin(
   if (typeof body.password !== 'string' || body.password.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'password is required' } }));
+    return;
+  }
+
+  // WS-104: now that the candidate password is known, apply the credential-
+  // scoped backoff. This is the check that makes a rotating-IP attacker pay
+  // for repeating the same guess — the pre-parse check above can only see the
+  // IP, which is precisely what such an attacker rotates.
+  const credCheck = loginAttempts.checkBlocked(clientIp, body.password);
+  if (credCheck.blocked) {
+    writeRateLimited(credCheck.retryAfter);
     return;
   }
 
@@ -190,8 +292,7 @@ export async function handleApiLogout(
     sessions,
   );
   if (isCookieAuth(auth)) {
-    const cookies = parseCookieHeader(req.headers.cookie);
-    const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
+    const raw = readHqSessionCookie(req.headers.cookie);
     if (raw) {
       const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret ?? '');
       if (sessionId) sessions.delete(sessionId);
@@ -210,6 +311,7 @@ export async function handleApiPassword(
   dataDir: string,
   secureCookies: boolean | undefined,
   requireBrowserAuth: boolean | undefined,
+  applyAuthFile: ApplyHqAuthFile,
 ): Promise<void> {
   const auth = authenticateBrowserRequest(
     req,
@@ -324,7 +426,7 @@ export async function handleApiPassword(
       delete updated.totpRecoveryCodes;
       return updated;
     });
-    applyAuthFile(mutableAuth, next);
+    applyAuthFile(next);
     sessions.clear();
     clearHqSessionCookie(res, secureCookies);
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -359,7 +461,7 @@ export async function handleApiPassword(
     passwordHash,
     cookieSecret,
   }));
-  applyAuthFile(mutableAuth, next);
+  applyAuthFile(next);
   sessions.clear();
 
   if (isCookieAuth(auth) || localOpenBootstrap) {
@@ -377,58 +479,23 @@ export async function handleApiPassword(
   );
 }
 
-export function applyAuthFile(
-  mutableAuth: HqRouterMutableAuth,
-  next: {
-    browserTokens?: Array<{
-      token: string;
-      id: string;
-      capabilities?: string[];
-      expiresAt?: string;
-    }>;
-    clientTokens?: Array<HqToken>;
-    redactionPolicy?: Partial<HqRedactionPolicy>;
-    passwordHash?: string;
-    cookieSecret?: string;
-    alertRules?: HqAlertRuleConfig;
-    totpSecret?: string;
-    totpPendingSecret?: string;
-    totpRecoveryCodes?: string[];
-  },
-): void {
-  mutableAuth.operatorPolicy = {
-    ...DEFAULT_HQ_REDACTION_POLICY,
-    ...(next.redactionPolicy ?? {}),
-  };
-  mutableAuth.operatorPolicyOverride = next.redactionPolicy;
-  // WS-011: reload rebuilt the live sets from the raw file without filtering
-  // expired entries and without carrying `expiresAt` forward, so an expired
-  // token was re-admitted on every reload and could never be re-checked.
-  const liveBrowserTokens = (next.browserTokens ?? []).filter((t) => !isTokenExpired(t));
-  // WS-044: keyed on the verifier, so a hashed file and a legacy cleartext
-  // one both authenticate through `hqTokenKey`.
-  mutableAuth.browserTokens = new Set(liveBrowserTokens.map(hqTokenKey));
-  mutableAuth.clientTokens = new Set((next.clientTokens ?? []).map(hqTokenKey));
-  mutableAuth.browserTokenObjs = new Map(
-    liveBrowserTokens.map((t) => [
-      hqTokenKey(t),
-      {
-        id: t.id,
-        ...(t.capabilities !== undefined ? { capabilities: t.capabilities } : {}),
-        ...(t.expiresAt !== undefined ? { expiresAt: t.expiresAt } : {}),
-      },
-    ]),
-  );
-  mutableAuth.clientTokenObjs = new Map(
-    (next.clientTokens ?? []).map((token: HqToken) => [hqTokenKey(token), token]),
-  );
-  mutableAuth.passwordHash = next.passwordHash;
-  mutableAuth.cookieSecret = next.cookieSecret;
-  mutableAuth.alertRules = next.alertRules;
-  mutableAuth.totpSecret = next.totpSecret;
-  mutableAuth.totpPendingSecret = next.totpPendingSecret;
-  mutableAuth.totpRecoveryCodes = next.totpRecoveryCodes;
-}
+/**
+ * Applies a freshly-persisted `auth.json` to the live server state.
+ *
+ * WS-101: this used to be a second, hand-rolled copy of the projection in
+ * `hq-server/auth-state.ts`. The two drifted in exactly the ways duplicated
+ * security code drifts: this copy skipped the expired-token filter on the
+ * CLIENT scope (re-admitting expired `/ws/client` tokens, where the upgrade
+ * gate does no expiry check of its own), never refreshed the raw token lists
+ * behind `tokenStats()`, and — worst — never re-ran the WS-010 exposure
+ * assessment, so `DELETE /api/auth/password` on a non-loopback bind dropped
+ * every gate into open mode until the `fs.watch` debounce happened to fire.
+ *
+ * It is now a function type supplied by the server, bound to
+ * `HqAuthState.apply`, so the mutation routes and the reload watcher share one
+ * projection and one floor evaluation.
+ */
+export type ApplyHqAuthFile = (next: HqAuthFile) => void;
 
 // ── Bootstrap exchange ──────────────────────────────────────────────────────
 
@@ -639,7 +706,7 @@ function recordVerifyFailure(
 ): number {
   const prev = loginAttempts.get(clientIp);
   const count = (prev?.count ?? 0) + 1;
-  loginAttempts.recordFailure(clientIp, '');
+  loginAttempts.recordFailure(clientIp);
   return count;
 }
 
@@ -658,6 +725,8 @@ export async function handleApiLoginVerify(
   loginAttempts: LoginAttemptStore,
   dataDir: string,
   secureCookies: boolean | undefined,
+  applyAuthFile: ApplyHqAuthFile,
+  trustedProxyHops: number,
 ): Promise<void> {
   if (!mutableAuth.cookieSecret) {
     res.writeHead(503, { 'Content-Type': 'application/json' });
@@ -667,8 +736,8 @@ export async function handleApiLoginVerify(
 
   // Rate-limit: reuse the loginAttempts per-IP backoff so a stolen password
   // cannot brute-force the 6-digit TOTP at network speed.
-  const clientIp = req.socket.remoteAddress ?? 'unknown';
-  const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp, '');
+  const clientIp = resolveClientAddress(req, trustedProxyHops);
+  const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp);
   if (blocked) {
     res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) });
     res.end(JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } }));
@@ -676,8 +745,7 @@ export async function handleApiLoginVerify(
   }
 
   // Extract the pending-2FA session from the cookie.
-  const cookies = parseCookieHeader(req.headers.cookie);
-  const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
+  const raw = readHqSessionCookie(req.headers.cookie);
   const sessionId = raw ? parseHqSessionCookie(raw, mutableAuth.cookieSecret) : undefined;
   if (!sessionId) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -714,16 +782,34 @@ export async function handleApiLoginVerify(
       res.end(JSON.stringify({ error: { code: 'TOTP_NOT_ENABLED', message: '2FA is not configured.' } }));
       return;
     }
-    if (!verifyTotp(body.code, mutableAuth.totpSecret)) {
+    const matchedCounter = verifyTotpCounter(body.code, mutableAuth.totpSecret);
+    // RFC 6238 §5.2: a code is single-use. The ±1-step window keeps it valid
+    // for ~90s, so a replay of an already-spent code must be refused even
+    // though it still verifies arithmetically.
+    const replayed =
+      matchedCounter !== undefined &&
+      mutableAuth.totpLastUsedCounter !== undefined &&
+      matchedCounter <= mutableAuth.totpLastUsedCounter;
+    if (matchedCounter === undefined || replayed) {
       if (recordVerifyFailure(loginAttempts, clientIp) >= MAX_2FA_VERIFY_FAILURES) {
         sessions.delete(sessionId);
       }
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { code: 'INVALID_TOTP', message: 'Invalid authenticator code.' } }));
+      res.end(
+        JSON.stringify({
+          error: {
+            code: replayed ? 'TOTP_ALREADY_USED' : 'INVALID_TOTP',
+            message: replayed
+              ? 'That authenticator code has already been used. Wait for the next one.'
+              : 'Invalid authenticator code.',
+          },
+        }),
+      );
       return;
     }
+    mutableAuth.totpLastUsedCounter = matchedCounter;
     // Upgrade to full session and reset the failure history.
-    loginAttempts.clearOnSuccess(clientIp, '');
+    loginAttempts.clearOnSuccess(clientIp);
     sessions.delete(sessionId);
     const fullSessionId = randomUUID();
     sessions.set(fullSessionId, { createdAt: Date.now(), kind: 'password', lastSeenAt: Date.now() });
@@ -785,12 +871,12 @@ export async function handleApiLoginVerify(
         res.end(JSON.stringify({ error: { code: 'RECOVERY_CODE_ALREADY_USED', message: 'This recovery code has already been used.' } }));
         return;
       }
-      applyAuthFile(mutableAuth, next);
+      applyAuthFile(next);
     } finally {
       releaseLock();
     }
     // Upgrade to full session and reset the failure history.
-    loginAttempts.clearOnSuccess(clientIp, '');
+    loginAttempts.clearOnSuccess(clientIp);
     sessions.delete(sessionId);
     const fullSessionId = randomUUID();
     sessions.set(fullSessionId, { createdAt: Date.now(), kind: 'password', lastSeenAt: Date.now() });
@@ -825,18 +911,9 @@ export async function handleApiTotpSetup(
   mutableAuth: HqRouterMutableAuth,
   sessions: Map<string, HqSessionEntry>,
   dataDir: string,
+  applyAuthFile: ApplyHqAuthFile,
 ): Promise<void> {
-  const auth = authenticateBrowserRequest(
-    req,
-    new URL(req.url ?? '/', 'http://localhost'),
-    mutableAuth,
-    sessions,
-  );
-  if (!auth) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } }));
-    return;
-  }
+  if (!authorizeAuthAdmin(req, res, mutableAuth, sessions)) return;
 
   // Reject if 2FA is already active — re-rolling requires disable first so a
   // stolen cookie can't silently migrate 2FA to the attacker's authenticator.
@@ -858,7 +935,7 @@ export async function handleApiTotpSetup(
     ...current,
     totpPendingSecret: secret,
   }));
-  applyAuthFile(mutableAuth, next);
+  applyAuthFile(next);
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ secret, uri, enabled: false }));
@@ -876,18 +953,9 @@ export async function handleApiTotpEnable(
   mutableAuth: HqRouterMutableAuth,
   sessions: Map<string, HqSessionEntry>,
   dataDir: string,
+  applyAuthFile: ApplyHqAuthFile,
 ): Promise<void> {
-  const auth = authenticateBrowserRequest(
-    req,
-    new URL(req.url ?? '/', 'http://localhost'),
-    mutableAuth,
-    sessions,
-  );
-  if (!auth) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } }));
-    return;
-  }
+  if (!authorizeAuthAdmin(req, res, mutableAuth, sessions)) return;
 
   // Reject if 2FA is already active — mirrors the setup handler's guard.
   // Without this, a double-submit or network retry during the
@@ -947,7 +1015,7 @@ export async function handleApiTotpEnable(
     updated.totpRecoveryCodes = recoveryHashes;
     return updated;
   });
-  applyAuthFile(mutableAuth, next);
+  applyAuthFile(next);
 
   // Clear all sessions — every active session must now re-authenticate
   // through the 2FA flow. The operator's current browser session is
@@ -969,21 +1037,13 @@ export async function handleApiTotpDisable(
   sessions: Map<string, HqSessionEntry>,
   loginAttempts: LoginAttemptStore,
   dataDir: string,
+  applyAuthFile: ApplyHqAuthFile,
+  trustedProxyHops: number,
 ): Promise<void> {
-  const auth = authenticateBrowserRequest(
-    req,
-    new URL(req.url ?? '/', 'http://localhost'),
-    mutableAuth,
-    sessions,
-  );
-  if (!auth) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } }));
-    return;
-  }
+  if (!authorizeAuthAdmin(req, res, mutableAuth, sessions)) return;
 
-  const clientIp = req.socket.remoteAddress ?? 'unknown';
-  const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp, '');
+  const clientIp = resolveClientAddress(req, trustedProxyHops);
+  const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp);
   if (blocked) {
     res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) });
     res.end(JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } }));
@@ -1024,7 +1084,7 @@ export async function handleApiTotpDisable(
     delete updated.totpRecoveryCodes;
     return updated;
   });
-  applyAuthFile(mutableAuth, next);
+  applyAuthFile(next);
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ enabled: false }));
@@ -1034,9 +1094,17 @@ export async function handleApiTotpDisable(
 
 /**
  * GET `/api/auth/sessions` — list all active browser sessions for the
- * session-management UI. Returns each session's kind, creation time,
- * last-seen time, and a truncated ID (never the full session ID — that
- * would allow cookie forgery since the session ID IS the cookie value).
+ * session-management UI.
+ *
+ * The full session ID is returned because the revoke endpoint below is keyed
+ * on it. That is safe on its own — the cookie value is `<id>.<HMAC>` and the
+ * HMAC needs `cookieSecret` — but it does hand every reader a working revoke
+ * handle for every other session, so the route is gated on `auth.admin`
+ * (WS-102) rather than on "is authenticated" as it was.
+ *
+ * The previous docstring claimed the full ID was never returned while the code
+ * returned it; the code was right about what the UI needs, the docstring was
+ * right about it deserving a gate.
  */
 export function handleApiAuthSessions(
   _req: http.IncomingMessage,
@@ -1047,10 +1115,10 @@ export function handleApiAuthSessions(
   const now = Date.now();
   const list = [];
   for (const [id, session] of sessions) {
-    // Never expose pending-2FA sessions or the full session ID.
+    // Never expose pending-2FA sessions.
     if (session.pending2fa) continue;
     list.push({
-      // Truncated for display only — the client sends the full ID to revoke.
+      // The client sends the full ID back to revoke; `shortId` is for display.
       id,
       shortId: id.slice(0, 8),
       kind: session.kind,

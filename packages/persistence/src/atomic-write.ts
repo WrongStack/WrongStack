@@ -205,6 +205,29 @@ export function createPersistencePrimitives(
     const staleMs = opts.staleMs ?? 30_000;
     const started = Date.now();
     let handle: fs.FileHandle | undefined;
+    let attempt = 0;
+    let mkdirRetries = 0;
+
+    // Every retry path funnels through here. Two of them used to `continue`
+    // straight back to `fs.open` without consulting the deadline and without
+    // yielding, which turned this loop into an unbounded 100%-CPU spin that
+    // could never time out:
+    //
+    //  - a stale lock whose `unlink` keeps failing (Windows EPERM: the file is
+    //    still open by a crashed holder, an AV scanner, or another user), and
+    //  - a lock whose `stat` keeps failing (EPERM/EACCES on the lock file).
+    //
+    // Both are reachable in normal Windows operation, and every caller behind
+    // this lock — chronicle journal, metrics store, knowledge graph, the HQ
+    // event log, the review and annotation stores — hung forever with a core
+    // pinned. Retries are now deadline-checked and backed off.
+    const retryAfterBackoff = async (): Promise<void> => {
+      const elapsed = Date.now() - started;
+      if (elapsed >= timeoutMs) throw createLockTimeoutError({ targetPath, timeoutMs });
+      const backoffMs = Math.min(2 ** attempt, 100, timeoutMs - elapsed);
+      attempt++;
+      if (backoffMs > 0) await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    };
 
     for (;;) {
       try {
@@ -221,6 +244,13 @@ export function createPersistencePrimitives(
         const code = (error as NodeJS.ErrnoException).code;
         if (code === 'ENOENT') {
           await fs.mkdir(dir, { recursive: true });
+          // Creating the missing directory is forward progress, not contention,
+          // so the first retry stays immediate and deadline-free — a caller
+          // that passes `timeoutMs: 0` against a fresh directory must still be
+          // able to acquire. A *repeated* ENOENT means something keeps removing
+          // the directory underneath us, so every later retry is backed off.
+          if (mkdirRetries++ === 0) continue;
+          await retryAfterBackoff();
           continue;
         }
         if (code !== 'EEXIST' && code !== 'EPERM') throw error;
@@ -240,9 +270,11 @@ export function createPersistencePrimitives(
             ) {
               await fs.unlink(lockPath).catch(() => undefined);
             }
+            await retryAfterBackoff();
             continue;
           }
         } catch {
+          await retryAfterBackoff();
           continue;
         }
 

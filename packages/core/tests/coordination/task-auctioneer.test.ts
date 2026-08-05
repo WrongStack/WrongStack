@@ -256,6 +256,23 @@ describe('TaskAuctioneer', () => {
       // Should not throw
       await expect(auctioneer.complete('nonexistent')).resolves.not.toThrow();
     });
+
+    // `KnowledgeGraph.update` merges patches without consulting the current
+    // state, so a repeated terminal report used to run the whole transition
+    // again — including a second decrement of the agent's in-flight count,
+    // which floors at zero and so made the agent look idler than it was.
+    it('ignores a repeated completion instead of applying it twice', async () => {
+      await auctioneer.publishTask({ title: 'Task', description: 'Desc' });
+      await auctioneer.complete('goal_1');
+      const updatesAfterFirst = (graph.update as unknown as { mock: { calls: unknown[] } }).mock
+        .calls.length;
+
+      await auctioneer.complete('goal_1');
+
+      expect(
+        (graph.update as unknown as { mock: { calls: unknown[] } }).mock.calls.length,
+      ).toBe(updatesAfterFirst);
+    });
   });
 
   describe('fail', () => {
@@ -271,6 +288,19 @@ describe('TaskAuctioneer', () => {
           result: 'Timeout error',
         }),
       );
+    });
+
+    // A late failure report arriving after a genuine completion used to rewrite
+    // the finished task to `failed` and replace its result with the error.
+    it('cannot rewrite an already completed task to failed', async () => {
+      await auctioneer.publishTask({ title: 'Task', description: 'Desc' });
+      await auctioneer.complete('goal_1', 'shipped');
+
+      await auctioneer.fail('goal_1', 'late timeout report');
+
+      const goal = graph.get('goal_1') as GoalNode;
+      expect(goal.status).toBe('done');
+      expect(goal.result).toBe('shipped');
     });
   });
 

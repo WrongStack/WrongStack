@@ -238,11 +238,22 @@ export class GovernanceCompatibilityRuntime {
       .then((response) => {
         if (response.ok && response.result.type === 'capability_grant_revoked') {
           this.#closed = true;
-          adminSession.stop();
         }
         return response;
       })
       .finally(() => {
+        // Local teardown is unconditional, and deliberately not tied to whether
+        // the *remote* revoke succeeded. Stopping only on success meant that the
+        // most likely failure — closing when the daemon is already gone, so the
+        // revoke request errors — left the admin lease renewing a
+        // capability_admin credential forever, with its timer still armed in a
+        // process that was trying to exit.
+        //
+        // Stopping the lease only stops renewal; the credential already held
+        // stays valid until its own TTL, so a prompt retry of `close()` can
+        // still authenticate, and an abandoned runtime now expires on its own.
+        // `#closed` still reflects the remote outcome rather than the local one.
+        adminSession.stop();
         this.#closePromise = undefined;
       });
     return this.#closePromise;

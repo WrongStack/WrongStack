@@ -108,7 +108,7 @@ distributes extensions from unknown third parties.
 | `api.extensions` | Register lifecycle hooks (beforeRun, afterRun, onError, etc.) |
 | `api.session` | Append custom events to the JSONL session log |
 | `api.metrics` | Record scoped counters/histograms/gauges → Prometheus/OTLP |
-| `api.llm` | LLM completions through the host's provider layer (optional — guard for `undefined`) |
+| `api.llm` | Host-routed One Shot completions and optional Council deliberation (guard for `undefined`) |
 
 Use `onEvent` instead of `events.on(...)` when you want the listener to
 disappear with the plugin. Use raw `events.on` only when you need to
@@ -116,8 +116,9 @@ explicitly unsubscribe yourself in `teardown`.
 
 ### `api.llm` — LLM access for plugins
 
-Plugins can call the LLM without ever touching API keys — completions
-are routed through the host session's provider layer:
+Plugins can call the LLM without ever touching API keys. Production CLI
+completions run through the shared One Shot orchestrator, including live model
+routing, provider health tracking, timeout enforcement, and fallback chains:
 
 ```ts
 async setup(api) {
@@ -125,41 +126,65 @@ async setup(api) {
 
   const result = await api.llm.complete('Summarize: …', {
     system: 'You are terse.',
+    role: 'document',             // model-matrix routing hint
+    fallbackModels: ['openai/gpt-5-mini'],
+    timeoutMs: 30_000,            // hard-capped at 120 seconds
     maxTokens: 200,              // default 2048, hard-capped at 32768
     responseFormat: 'json',      // optional: ask for a JSON object
   });
-  api.log.info(result.text, { model: result.model, usage: result.usage });
+  api.log.info(result.text, {
+    model: result.model,
+    usage: result.usage,
+    fromFallback: result.fromFallback,
+    attempts: result.attempts,
+  });
 }
 ```
 
 Provider/model resolution, per call:
 
-1. `complete(prompt, { provider, model })` — per-call override
-2. `config.extensions['<plugin>'].llm = { provider, model }` — per-plugin
+1. A configured model-matrix entry for `role` — explicit user routing intent
+2. `complete(prompt, { provider, model })` — per-call target
+3. `config.extensions['<plugin>'].llm = { provider, model }` — per-plugin
    default the USER configures (any key of `config.providers`, e.g. a
    cheap local `omniroute` model for background chores)
-3. the host session's active provider/model
+4. the host session's active provider/model
 
 `api.llm.defaults()` returns the effective per-plugin `{ provider, model }`.
 Calls are metered under `plugin.<name>.llm.*` (calls, tokens_in,
-tokens_out, errors).
+tokens_out, errors). Minimal hosts may supply only a provider; that compatibility
+path remains bounded but does not provide the production fallback ladder.
+
+Consequential analysis can prefer the optional Council API:
+
+```ts
+const result = await api.llm.council?.('Which migration risk is most urgent?', {
+  profile: 'risk-review',
+  context: boundedEvidence,
+});
+```
+
+Council is deliberately optional. A plugin using it must degrade to
+`api.llm.complete()` and then to a deterministic result when Council is absent,
+cancelled, fails, or returns an invalid answer.
 
 Built-in consumers (all opt-in, all fall back to non-LLM behavior on any
 failure):
 
-| Plugin | Flag | What the LLM does |
-|---|---|---|
-| `auto-doc` | `useLlm` / `use_llm` | Writes real doc-comment prose instead of `TODO:` placeholders |
-| `git-autocommit` | `generate` / `useLlm` | Writes the conventional commit message from the staged diff |
-| `session-recap` | `aiSummary` | Prepends a natural-language session summary to the recap |
-| `error-lens` | `aiHints` | One-line fix hint on each new failure digest |
-| `changelog-writer` | `polish` | Rewrites entries into user-facing release-notes wording |
-| `commit-validator` | `suggestFix` | Suggests a corrected conventional-commit subject after deterministic validation |
-| `dep-guard` | `confirmTyposquatsWithLlm` | Reviews a package name already flagged by deterministic similarity checks |
-| `migration-planner` | `useLlm` / `use_llm` | Adds separate evidence-bounded risk and verification analysis |
-| `pr-drafter` | `aiSummary` | Writes a PR title and narrative from session facts |
-| `release-notes-generator` | `useLlm` / `use_llm` | Polishes wording only when every short commit hash is preserved |
-| `test-generator` | `useLlm` / `use_llm` | Authors behavior-focused tests from bounded source context |
+| Plugin | Flag | Engine | What it does |
+|---|---|---|---|
+| `auto-doc` | `useLlm` / `use_llm` | One Shot | Writes real doc-comment prose instead of `TODO:` placeholders |
+| `git-autocommit` | `generate` / `useLlm` | One Shot | Writes the conventional commit message from the staged diff |
+| `session-recap` | `aiSummary` | One Shot | Prepends a natural-language session summary to the recap |
+| `error-lens` | `aiHints` | One Shot | Produces a one-line fix hint on each new failure digest |
+| `changelog-writer` | `polish` | One Shot | Rewrites entries into user-facing release-notes wording |
+| `commit-validator` | `suggestFix` | One Shot | Suggests a corrected conventional-commit subject after deterministic validation |
+| `dep-guard` | `confirmTyposquatsWithLlm` | Council → One Shot | Reviews a package name already flagged by deterministic similarity checks |
+| `migration-planner` | `useLlm` / `use_llm` | Council → One Shot | Adds separate evidence-bounded risk and verification analysis |
+| `pr-drafter` | `aiSummary` | One Shot | Writes a PR title and narrative from session facts |
+| `release-notes-generator` | `useLlm` / `use_llm` | One Shot | Polishes wording only when every short commit hash is preserved |
+| `test-generator` | `useLlm` / `use_llm` | One Shot | Authors behavior-focused tests from bounded source context |
+| `wstack-prompts` | `/prompts extend` | One Shot | Extends a saved prompt through the scoped plugin LLM API |
 
 Every consumer is guarded on `api.llm` and honors the per-plugin
 `extensions[<name>].llm` provider/model override. Plugins that expose

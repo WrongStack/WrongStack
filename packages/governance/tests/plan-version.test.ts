@@ -196,6 +196,47 @@ describe('PlanVersion v1', () => {
     });
   });
 
+  // The protocol decoder accepts up to 10 000 steps and 10 000 edges, and cycle
+  // detection used to recurse once per edge — so a plan shaped as a single chain
+  // recursed as deep as it had steps and overflowed the call stack. A plan the
+  // protocol accepts has to be answerable, whether the answer is "valid" or a
+  // list of issues.
+  it('walks a plan as deep as the protocol allows without exhausting the stack', () => {
+    const depth = 10_000;
+    const steps = Array.from({ length: depth }, (_, index) => ({
+      id: `step-${index}`,
+      title: `Step ${index}`,
+      description: 'Chained step.',
+      operations: ['repository_read'] as const,
+      expectedPaths: [],
+      requirementIds: ['req-1'],
+      acceptanceCriteriaIds: ['ac-1'],
+      requiredCheckIds: [],
+    }));
+    const edges = Array.from({ length: depth - 1 }, (_, index) => ({
+      fromStepId: `step-${index}`,
+      toStepId: `step-${index + 1}`,
+    }));
+
+    const acyclic = plan({ steps: [...steps], edges: [...edges] });
+    expect(() => validatePlanVersionV1(acyclic, taskContract())).not.toThrow();
+    const acyclicResult = validatePlanVersionV1(acyclic, taskContract());
+    if (!acyclicResult.valid) {
+      expect(acyclicResult.issues.map((issue) => issue.code)).not.toContain('cycle_detected');
+    }
+
+    // A back edge from the far end still has to be found at that depth.
+    const cyclic = plan({
+      steps: [...steps],
+      edges: [...edges, { fromStepId: `step-${depth - 1}`, toStepId: 'step-0' }],
+    });
+    const cyclicResult = validatePlanVersionV1(cyclic, taskContract());
+    expect(cyclicResult).toMatchObject({ valid: false });
+    if (!cyclicResult.valid) {
+      expect(cyclicResult.issues.map((issue) => issue.code)).toContain('cycle_detected');
+    }
+  });
+
   it('rejects cycles, duplicate steps, self edges, and unknown edge endpoints', () => {
     const base = plan();
     const invalid = plan({

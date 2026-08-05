@@ -58,13 +58,11 @@ import {
   buildHttpUrl,
   createHqRouter,
   decodePathSegment,
-  HQ_SESSION_COOKIE,
   type HqRouterDeps,
   type HqRouterMailboxGateway,
   hasTrustedBrowserOrigin,
   isCookieAuth,
   isTokenAuth,
-  parseCookieHeader,
   parseHqSessionCookie,
   readLocalSubagentTranscript,
   sanitizeApiError,
@@ -140,6 +138,25 @@ export interface HqServerOptions {
    * `--hq-token-ttl-ms` CLI flag.
    */
   tokenTtlMs?: number;
+  /**
+   * How many trusted reverse proxies sit between a browser and this server.
+   * Controls which address the login backoff keys on (WS-106).
+   *
+   * Default `0`: `X-Forwarded-For` is ignored entirely and the socket peer is
+   * used — correct for a direct bind, and the only safe default, because the
+   * header is client-supplied and honouring it unasked would let an attacker
+   * mint a fresh rate-limit identity per request.
+   *
+   * Set it to the real hop count when HQ runs behind a tunnel or relay
+   * (`--hq-public-url`, `--hq-require-browser-auth`). Without it every request
+   * arrives from the tunnel's own address, so all users share one backoff
+   * bucket: one attacker locks out everyone, and a distributed attacker is not
+   * limited per-source at all. `1` covers the common single-tunnel case.
+   *
+   * Only the rightmost `n` forwarded entries are ever read — see
+   * `hq-server/client-address.ts`. Set via `--hq-trusted-proxy-hops`.
+   */
+  trustedProxyHops?: number;
 }
 
 export interface HqStartupConnectionInfo {
@@ -187,7 +204,45 @@ async function startHqServerWithAuth(
     createCompatibilityTrustBoundary({ policyId: 'hq-trusted-host-compat-v1' });
   const authFile = firstRunAuth.authFile;
 
-  const authState = createHqAuthState(authFile, dataDir);
+  // WS-010 / WS-101: `assessHqExposure` runs once at startup, so removing the
+  // last credential on a live non-loopback bind silently opened HQ — including
+  // POST /api/command — to the whole network. Re-assess after EVERY change to
+  // the live credential set and latch an auth floor when the verdict is a
+  // refusal, so the surface fails closed rather than opening.
+  //
+  // This hook is why `HqAuthState.apply` is the only projection: the reload
+  // watcher and the in-process mutation routes (`DELETE /api/auth/password`,
+  // the TOTP endpoints) both go through it, so neither can remove a credential
+  // without the floor being re-evaluated in the same tick. The mutation routes
+  // used to run their own copy of the projection and never touched the floor.
+  const reassessExposureFloor = (live: typeof mutableAuth): void => {
+    const exposure = assessHqExposure({
+      host,
+      hasBrowserTokens: live.browserTokens.size > 0,
+      hasPassword: live.passwordHash !== undefined,
+      allowInsecure: options.allowInsecureOpen,
+    });
+    const previousFloor = live.requireAuthFloor === true;
+    live.requireAuthFloor = exposure.kind === 'refuse';
+    if (live.requireAuthFloor && !previousFloor) {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          event: 'hq.auth.open_mode_refused',
+          message:
+            'Last HQ credential removed while bound to a non-loopback address. ' +
+            'Refusing to serve unauthenticated: requests will return 401 until a ' +
+            'token or password is configured, or HQ is restarted with --host 127.0.0.1.',
+          host,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+  };
+
+  const authState = createHqAuthState(authFile, dataDir, {
+    onApplied: (live) => reassessExposureFloor(live),
+  });
   const { mutableAuth } = authState;
 
   // Provision a cookie-signing secret for token-only mode so bootstrap
@@ -198,7 +253,12 @@ async function startHqServerWithAuth(
       ...current,
       cookieSecret: secret,
     }));
-    mutableAuth.cookieSecret = next.cookieSecret;
+    // Through `apply`, not a direct field write. Nothing here changes the
+    // credential set, so the floor verdict cannot move — but this is the one
+    // remaining place that persists auth.json outside the route handlers, and
+    // leaving it as the single exception to "every mutation goes through the
+    // projection" is how the second projection got written in the first place.
+    authState.apply(next);
     console.warn(
       JSON.stringify({
         level: 'info',
@@ -586,6 +646,10 @@ async function startHqServerWithAuth(
       authorizeMailboxGateway,
       getMailboxGateway,
       getTokenStats: () => authState.tokenStats(),
+      // Single projection + single floor evaluation, shared with the reload
+      // watcher below. See `createHqAuthState`'s `onApplied` hook.
+      applyAuthFile: (next) => authState.apply(next),
+      trustedProxyHops: options.trustedProxyHops ?? 0,
       bootstrapStore,
     };
     const handleRequest = createHqRouter(routerDeps);
@@ -682,8 +746,7 @@ async function startHqServerWithAuth(
           pathname === '/ws/browser' &&
           mutableAuth.cookieSecret !== undefined &&
           (() => {
-            const cookies = parseCookieHeader(req.headers.cookie);
-            const raw = cookies[HQ_SESSION_COOKIE] ?? cookies['__Host-hq.session'];
+            const raw = HqServerAuth.readHqSessionCookie(req.headers.cookie);
             if (!raw) return false;
             const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret!);
             if (sessionId === undefined) return false;
@@ -763,36 +826,10 @@ async function startHqServerWithAuth(
     const authWatcher = watchHqAuthFile(
       dataDir,
       (next) => {
+        // `apply` re-latches `requireAuthFloor` through the `onApplied` hook
+        // installed above — the operator can restore service by minting a
+        // token or setting a password; both clear it on the next apply.
         authState.apply(next);
-        // WS-010: assessHqExposure runs once at startup, so revoking the last
-        // credential on a live non-loopback bind silently opened HQ — including
-        // POST /api/command — to the whole network. Re-assess on every auth
-        // reload and, when the verdict is a refusal, latch an auth floor so the
-        // surface fails closed rather than opening. The operator can restore
-        // service by minting a token or setting a password; both clear it on
-        // the next reload.
-        const exposure = assessHqExposure({
-          host,
-          hasBrowserTokens: mutableAuth.browserTokens.size > 0,
-          hasPassword: mutableAuth.passwordHash !== undefined,
-          allowInsecure: options.allowInsecureOpen,
-        });
-        const previousFloor = mutableAuth.requireAuthFloor === true;
-        mutableAuth.requireAuthFloor = exposure.kind === 'refuse';
-        if (mutableAuth.requireAuthFloor && !previousFloor) {
-          console.error(
-            JSON.stringify({
-              level: 'error',
-              event: 'hq.auth.open_mode_refused',
-              message:
-                'Last HQ credential removed while bound to a non-loopback address. ' +
-                'Refusing to serve unauthenticated: requests will return 401 until a ' +
-                'token or password is configured, or HQ is restarted with --host 127.0.0.1.',
-              host,
-              timestamp: new Date().toISOString(),
-            }),
-          );
-        }
         if (
           (options.requireBrowserAuth || mutableAuth.requireAuthFloor) &&
           mutableAuth.browserTokens.size === 0 &&

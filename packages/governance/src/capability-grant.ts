@@ -467,16 +467,24 @@ export class GovernanceCapabilityGrantRegistry {
     return remaining > 0 ? remaining : null;
   }
 
+  /**
+   * Ordering is deliberately byte-wise rather than locale-aware. Both keys are
+   * ASCII by construction — `issuedAt` is an ISO-8601 timestamp and `grantId`
+   * matches `^[A-Za-z0-9_-]{1,128}$` — so the two orders are identical, but
+   * `localeCompare` would make the order depend on the host's default locale.
+   * This list backs the `list_capability_grants` cursor, and a cursor is only
+   * sound while the order it walks is stable across the requests that walk it.
+   */
   listGrants(): readonly GovernanceCapabilityGrant[] {
     const now = this.now();
     return Object.freeze(
       [...this.records.values()]
         .map((record) => this.describe(record, now))
-        .sort(
-          (left, right) =>
-            left.issuedAt.localeCompare(right.issuedAt) ||
-            left.grantId.localeCompare(right.grantId),
-        ),
+        .sort((left, right) => {
+          if (left.issuedAt !== right.issuedAt) return left.issuedAt < right.issuedAt ? -1 : 1;
+          if (left.grantId === right.grantId) return 0;
+          return left.grantId < right.grantId ? -1 : 1;
+        }),
     );
   }
 

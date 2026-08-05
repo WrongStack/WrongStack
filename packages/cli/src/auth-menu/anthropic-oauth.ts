@@ -216,9 +216,15 @@ export async function runClaudeOAuthLogin(
   const ac = new AbortController();
   const onSig = () => ac.abort();
   const external = opts.signal;
+  // Named, not an inline arrow: `{ once: true }` fires at most once but never
+  // unregisters on the NORMAL completion path, and the TUI hands the same
+  // long-lived signal to every login attempt. An unremovable inline listener
+  // meant each attempt permanently pinned this flow's AbortController and its
+  // closure. The `finally` below detaches it.
+  const onExternalAbort = (): void => ac.abort();
   if (external) {
     if (external.aborted) ac.abort();
-    else external.addEventListener('abort', () => ac.abort(), { once: true });
+    else external.addEventListener('abort', onExternalAbort, { once: true });
   } else {
     process.on('SIGINT', onSig);
   }
@@ -314,7 +320,8 @@ export async function runClaudeOAuthLogin(
     return 1;
   } finally {
     server.close();
-    if (!external) process.off('SIGINT', onSig);
+    if (external) external.removeEventListener('abort', onExternalAbort);
+    else process.off('SIGINT', onSig);
   }
 }
 

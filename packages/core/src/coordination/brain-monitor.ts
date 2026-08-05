@@ -342,12 +342,17 @@ export class BrainMonitor {
           this.activeRuns += 1;
           this.lastProgressAt = Date.now();
         }),
+        // `agent.run.completed` is the only terminator. `Agent.run` emits it on
+        // every exit path — the success path and, unconditionally, the catch
+        // path — and emits `agent.run.error` *in addition* when a run fails
+        // (`core/agent.ts:302` then `:310`). Decrementing on both meant one
+        // failed run subtracted two, and the `Math.max(0, …)` clamp hid it
+        // instead of letting the counter go visibly negative.
+        //
+        // The effect was that the watchdog below stopped watching: with two
+        // concurrent runs where one fails, `activeRuns` reaches 0 while a run
+        // is still live, and the stall check returns early on every tick.
         this.opts.events.on('agent.run.completed', (e) => {
-          const lsid = this.resolveLeaderSessionId();
-          if (lsid && e.sessionId && e.sessionId !== lsid) return;
-          this.activeRuns = Math.max(0, this.activeRuns - 1);
-        }),
-        this.opts.events.on('agent.run.error', (e) => {
           const lsid = this.resolveLeaderSessionId();
           if (lsid && e.sessionId && e.sessionId !== lsid) return;
           this.activeRuns = Math.max(0, this.activeRuns - 1);

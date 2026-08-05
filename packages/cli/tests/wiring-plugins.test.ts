@@ -444,6 +444,17 @@ describe('setupPlugins', () => {
     expect(names).not.toContain('telegram');
   });
 
+  it('loads a default-inactive built-in when enabled through extensions', async () => {
+    const deps = {
+      ...baseDeps({ extensions: { 'wstack-auto-review': { enabled: true } } as never }),
+      paths: fakePaths(),
+    };
+    await setupPlugins(deps as never);
+    const [plugins] = loadPluginsMock.mock.calls[0]!;
+    const names = (plugins as Array<{ name: string }>).map((plugin) => plugin.name);
+    expect(names).toContain('wstack-auto-review');
+  });
+
   it('injects the host vault into built-in plugin config', async () => {
     const vault = { encrypt: vi.fn((value: string) => `enc:${value}`) };
     const deps = { ...baseDeps(), paths: fakePaths(), vault };

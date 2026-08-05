@@ -601,7 +601,22 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       durationMs: 0,
     };
     this.completedResults.push(synthetic);
+    // Bypassing `recordCompletion` must not also bypass its result cap. A
+    // coordinator whose fleet has died synthetic-completes every task the
+    // caller keeps assigning, and with no real completion ever running the
+    // trim again, these were the one path that could grow `completedResults`
+    // past MAX_COMPLETED_RESULTS without bound.
+    this.trimCompletedResults();
     this.emit('task.completed', { task, result: synthetic });
+  }
+
+  private trimCompletedResults(): void {
+    if (this.completedResults.length > DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS) {
+      this.completedResults.splice(
+        0,
+        this.completedResults.length - DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS,
+      );
+    }
   }
 
   private async runDispatched(subagentId: string, task: TaskSpec): Promise<void> {
@@ -797,12 +812,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     this.completedResults.push(result);
     // Trim oldest entries when the cap is exceeded — keep the most recent
     // results so /fleet and roll_up still have data to work with.
-    if (this.completedResults.length > DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS) {
-      this.completedResults.splice(
-        0,
-        this.completedResults.length - DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS,
-      );
-    }
+    this.trimCompletedResults();
     this.totalIterations += result.iterations;
     if (this.inFlight > 0) {
       this.inFlight--;

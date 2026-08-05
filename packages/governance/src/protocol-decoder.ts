@@ -1,5 +1,8 @@
 import { AUTONOMY_TIERS, GOVERNED_OPERATIONS } from './autonomy-envelope.js';
-import { GOVERNANCE_OBSERVATION_CATEGORIES } from './event-store.js';
+import {
+  GOVERNANCE_OBSERVATION_CATEGORIES,
+  GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE,
+} from './event-store.js';
 import { GOVERNANCE_EVIDENCE_CANDIDATE_MAX_PAGE_SIZE } from './evidence-candidate.js';
 import { PLAN_VERSION_SCHEMA_VERSION } from './plan-version.js';
 import {
@@ -26,6 +29,21 @@ const MAX_NESTING_DEPTH = 32;
 const MAX_ARRAY_ITEMS = 10_000;
 const MAX_OBJECT_KEYS = 1_000;
 const MAX_STRING_LENGTH = 1_000_000;
+
+/**
+ * Hard ceiling on reported issues. The decoder runs on the untrusted side of
+ * the IPC boundary and its issue list is serialized straight into the error
+ * response, so an input that is *wrong in many places at once* used to cost
+ * far more memory than the input itself: one 8 MB frame carrying a two-million
+ * entry `capabilities` array produced roughly four million issue objects (an
+ * `invalid_value` and a duplicate report per entry), each holding its own path
+ * and message string.
+ *
+ * A caller only ever acts on the first few issues, so the list is truncated
+ * with an explicit marker instead of being allowed to outgrow its input. Every
+ * issue is created through `issue()`, which makes this the single choke point.
+ */
+const MAX_ISSUES = 100;
 
 export type GovernanceProtocolDecodeIssueCode =
   | 'expected_object'
@@ -54,6 +72,16 @@ function issue(
   path: string,
   message: string,
 ): void {
+  if (issues.length >= MAX_ISSUES) {
+    if (issues.length === MAX_ISSUES) {
+      issues.push({
+        code: 'resource_limit',
+        path: '$',
+        message: `Validation stopped after ${MAX_ISSUES} issues.`,
+      });
+    }
+    return;
+  }
   issues.push({ code, path, message });
 }
 
@@ -189,23 +217,38 @@ function enumArray(
   );
 }
 
-function capabilityArray(value: unknown, path: string, issues: MutableIssues): void {
+/**
+ * Shared body for the two capability arrays. Both are enumerations of a fixed,
+ * tiny allowed set, so an array longer than that set is already rejected — and
+ * once it is rejected there is nothing to learn from walking it. Returning here
+ * (the way {@link arrayValue} already does for its own limit) is what keeps a
+ * multi-million entry array from being iterated at all, which in turn keeps the
+ * per-entry `enumValue` reports and the `seen` set from being built.
+ */
+function boundedCapabilityArray(
+  value: unknown,
+  allowed: readonly string[],
+  noun: string,
+  path: string,
+  issues: MutableIssues,
+): void {
   if (!Array.isArray(value)) {
     issue(issues, 'expected_array', path, `${path} must be an array.`);
     return;
   }
-  if (value.length === 0 || value.length > GOVERNANCE_SERVICE_CAPABILITIES.length) {
+  if (value.length === 0 || value.length > allowed.length) {
     issue(
       issues,
       'resource_limit',
       path,
-      `${path} must contain between 1 and ${GOVERNANCE_SERVICE_CAPABILITIES.length} capabilities.`,
+      `${path} must contain between 1 and ${allowed.length} ${noun}.`,
     );
+    return;
   }
   const seen = new Set<string>();
   for (let index = 0; index < value.length; index += 1) {
     const entryPath = `${path}[${index}]`;
-    enumValue(value[index], GOVERNANCE_SERVICE_CAPABILITIES, entryPath, issues);
+    enumValue(value[index], allowed, entryPath, issues);
     if (typeof value[index] === 'string') {
       if (seen.has(value[index])) {
         issue(issues, 'semantic_invalid', entryPath, `${entryPath} duplicates a capability.`);
@@ -215,30 +258,18 @@ function capabilityArray(value: unknown, path: string, issues: MutableIssues): v
   }
 }
 
+function capabilityArray(value: unknown, path: string, issues: MutableIssues): void {
+  boundedCapabilityArray(value, GOVERNANCE_SERVICE_CAPABILITIES, 'capabilities', path, issues);
+}
+
 function runtimeModelCapabilityArray(value: unknown, path: string, issues: MutableIssues): void {
-  if (!Array.isArray(value)) {
-    issue(issues, 'expected_array', path, `${path} must be an array.`);
-    return;
-  }
-  if (value.length === 0 || value.length > GOVERNANCE_RUNTIME_MODEL_CAPABILITIES.length) {
-    issue(
-      issues,
-      'resource_limit',
-      path,
-      `${path} must contain between 1 and ${GOVERNANCE_RUNTIME_MODEL_CAPABILITIES.length} model-safe capabilities.`,
-    );
-  }
-  const seen = new Set<string>();
-  for (let index = 0; index < value.length; index += 1) {
-    const entryPath = `${path}[${index}]`;
-    enumValue(value[index], GOVERNANCE_RUNTIME_MODEL_CAPABILITIES, entryPath, issues);
-    if (typeof value[index] === 'string') {
-      if (seen.has(value[index])) {
-        issue(issues, 'semantic_invalid', entryPath, `${entryPath} duplicates a capability.`);
-      }
-      seen.add(value[index]);
-    }
-  }
+  boundedCapabilityArray(
+    value,
+    GOVERNANCE_RUNTIME_MODEL_CAPABILITIES,
+    'model-safe capabilities',
+    path,
+    issues,
+  );
 }
 
 function jsonValue(value: unknown, path: string, issues: MutableIssues, depth = 0): void {
@@ -560,6 +591,27 @@ function validateObservation(value: unknown, path: string, issues: MutableIssues
   if (payload) jsonValue(payload, `${path}.payload`, issues);
 }
 
+/**
+ * Shared cursor/page validation for the two observation reads. Same shape and
+ * bounds as `read_evidence_candidates`, so every paginated read on this
+ * protocol accepts the same window.
+ */
+function observationPageWindow(record: JsonRecord, issues: MutableIssues): void {
+  if (record.afterSequence !== undefined) {
+    integerValue(record.afterSequence, '$.afterSequence', issues);
+  }
+  if (record.limit === undefined) return;
+  integerValue(record.limit, '$.limit', issues, 1);
+  if (typeof record.limit === 'number' && record.limit > GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE) {
+    issue(
+      issues,
+      'resource_limit',
+      '$.limit',
+      `$.limit must not exceed ${GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE}.`,
+    );
+  }
+}
+
 function deepFreeze<T>(value: T): T {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
   for (const nested of Object.values(value)) deepFreeze(nested);
@@ -597,8 +649,14 @@ export function decodeGovernanceServiceRequest(
       stringValue(record.commandId, '$.commandId', issues);
       break;
     case 'read_observations':
-      exactKeys(record, ['protocolVersion', 'requestId', 'type', 'taskId'], '$', issues);
+      exactKeys(
+        record,
+        ['protocolVersion', 'requestId', 'type', 'taskId', 'afterSequence', 'limit'],
+        '$',
+        issues,
+      );
       if (record.taskId !== undefined) stringValue(record.taskId, '$.taskId', issues);
+      observationPageWindow(record, issues);
       break;
     case 'read_evidence_candidates':
       exactKeys(
@@ -627,6 +685,14 @@ export function decodeGovernanceServiceRequest(
       }
       break;
     case 'read_audit_observations':
+      exactKeys(
+        record,
+        ['protocolVersion', 'requestId', 'type', 'afterSequence', 'limit'],
+        '$',
+        issues,
+      );
+      observationPageWindow(record, issues);
+      break;
     case 'read_own_capability_grant':
     case 'read_daemon_status':
       exactKeys(record, ['protocolVersion', 'requestId', 'type'], '$', issues);

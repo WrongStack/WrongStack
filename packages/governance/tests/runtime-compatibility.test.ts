@@ -223,6 +223,38 @@ describe('governance runtime compatibility factory', () => {
     await waitForGracefulStop(root, pid);
   });
 
+  // Every other test here runs with `startLease: false`, so the admin lease
+  // lifecycle was never exercised. Closing used to stop the lease only when the
+  // revoke succeeded, which meant the most ordinary shutdown order — daemon
+  // already gone, so the revoke cannot be delivered — left the lease renewing a
+  // capability_admin credential with its timer still armed.
+  it('stops the admin lease even when the closing revoke cannot reach the daemon', async () => {
+    const root = projectRoot();
+    const prepared = await prepareGovernanceCompatibilityRuntimeWithAdapters(
+      {
+        ...options(root),
+        // Renew inside the grant's own 60 s lifetime, so the lease schedules a
+        // real future renewal instead of firing immediately.
+        adminLease: { rotationTtlMs: 60_000, renewBeforeMs: 30_000 },
+      },
+      adapters,
+    );
+    if (prepared.mode !== 'governed') throw new Error(prepared.message);
+    expect(prepared.runtime.snapshot().admin?.lease.state).toBe('scheduled');
+
+    await stopDaemon(prepared.runtime.snapshot().daemon.pid);
+    // The revoke cannot be delivered — the daemon's pipe is gone — so `close()`
+    // rejects. Local teardown must happen anyway.
+    await expect(prepared.runtime.close()).rejects.toThrow();
+
+    const lease = prepared.runtime.snapshot().admin?.lease;
+    expect(lease?.state).toBe('stopped');
+    expect(lease?.stopReason).toBe('stopped_by_owner');
+    // The remote grant was not revoked, and the snapshot must keep saying so
+    // rather than claiming a clean close.
+    expect(prepared.runtime.snapshot().closed).toBe(false);
+  });
+
   it('keeps one daemon owner while a second runtime attaches and detaches independently', async () => {
     const root = projectRoot();
     const owner = await prepareGovernanceCompatibilityRuntimeWithAdapters(options(root), adapters);

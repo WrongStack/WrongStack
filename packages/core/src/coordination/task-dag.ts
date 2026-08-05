@@ -36,6 +36,11 @@ export interface DAGNode {
 
 export type DAGNodeStatus = 'pending' | 'ready' | 'running' | 'done' | 'failed' | 'skipped';
 
+/** The three settled states; a node that reached one never leaves it. */
+function isTerminalDagStatus(status: DAGNodeStatus): boolean {
+  return status === 'done' || status === 'failed' || status === 'skipped';
+}
+
 /** Event emitted by the DAG on state changes. */
 export type DAGEdgeEvent =
   | { type: 'node:ready'; nodeId: string; deps: string[] }
@@ -163,6 +168,15 @@ export class TaskDAG {
   complete(id: string, result: unknown): void {
     const node = this.nodes.get(id);
     if (!node) return;
+    // Terminal states are absorbing — first outcome wins. `claim()` already
+    // guards its transition; these did not, and the DAG is shared across
+    // sessions (`autonomous-coordinator` folds in "completed/failed by
+    // another session" goal updates), so a duplicated or late cross-session
+    // report could rewrite a settled node — `fail()` after `complete()`
+    // flipped `done` to `failed` and re-emitted lifecycle events. Dependents
+    // were already safe (`_transition` checks its from-state); the node's own
+    // record was not.
+    if (isTerminalDagStatus(node.status)) return;
     node.status = 'done';
     node.result = result;
     node.completedAt = new Date().toISOString();
@@ -195,6 +209,8 @@ export class TaskDAG {
   fail(id: string, error: string): void {
     const node = this.nodes.get(id);
     if (!node) return;
+    // Same absorbing rule as `complete` — see the comment there.
+    if (isTerminalDagStatus(node.status)) return;
     node.status = 'failed';
     node.error = error;
     node.completedAt = new Date().toISOString();
@@ -230,6 +246,8 @@ export class TaskDAG {
   skip(id: string, reason: string): void {
     const node = this.nodes.get(id);
     if (!node) return;
+    // Same absorbing rule as `complete` — see the comment there.
+    if (isTerminalDagStatus(node.status)) return;
     node.status = 'skipped';
     node.completedAt = new Date().toISOString();
     this.invalidateCache();

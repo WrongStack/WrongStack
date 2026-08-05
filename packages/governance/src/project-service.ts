@@ -1,11 +1,14 @@
 import type { GovernanceAttachmentBrokerControllerSnapshot } from './attachment-broker-controller.js';
 import type { GovernanceCapabilityGrant, GovernanceServiceCredential } from './capability-grant.js';
-import type {
-  AppendGovernanceObservationResult,
-  GovernanceCommandExecution,
-  GovernanceCommandReceipt,
-  GovernanceEventStore,
-  StoredGovernanceObservation,
+import {
+  type AppendGovernanceObservationResult,
+  GOVERNANCE_OBSERVATION_CATEGORIES,
+  GOVERNANCE_OBSERVATION_DEFAULT_PAGE_SIZE,
+  type GovernanceCommandExecution,
+  type GovernanceCommandReceipt,
+  type GovernanceEventStore,
+  type GovernanceObservationCategory,
+  type StoredGovernanceObservation,
 } from './event-store.js';
 import {
   evaluateGovernanceEvidenceCandidateObservation,
@@ -50,6 +53,7 @@ export type GovernanceServiceResult =
   | {
       readonly type: 'observations';
       readonly observations: readonly StoredGovernanceObservation[];
+      readonly nextAfterSequence: number | null;
     }
   | {
       readonly type: 'evidence_candidates';
@@ -188,6 +192,19 @@ function fail(
 function reservedAuditCategory(category: string): boolean {
   return category.startsWith('capability_grant_') || category.startsWith('daemon_');
 }
+
+/**
+ * The audit/non-audit split, resolved once against the closed category enum.
+ * Both read endpoints used to fetch every observation a project had and then
+ * apply `reservedAuditCategory` in JavaScript, discarding most of what they had
+ * just parsed; passing the exact set to the store keeps that work in SQL.
+ */
+const AUDIT_OBSERVATION_CATEGORIES = Object.freeze(
+  GOVERNANCE_OBSERVATION_CATEGORIES.filter((category) => reservedAuditCategory(category)),
+);
+const TASK_OBSERVATION_CATEGORIES = Object.freeze(
+  GOVERNANCE_OBSERVATION_CATEGORIES.filter((category) => !reservedAuditCategory(category)),
+);
 
 export type GovernanceDecisionContextProvider = (
   command: GovernanceCommand,
@@ -333,16 +350,13 @@ export class GovernanceProjectService {
         };
       }
       case 'read_observations':
-        return {
-          ok: true,
+        return this.observationPage(
           requestId,
-          result: {
-            type: 'observations',
-            observations: this.store
-              .readObservations(this.projectId, request.taskId)
-              .filter((observation) => !reservedAuditCategory(observation.category)),
-          },
-        };
+          TASK_OBSERVATION_CATEGORIES,
+          request.taskId,
+          request.afterSequence,
+          request.limit,
+        );
       case 'read_evidence_candidates': {
         const limit = request.limit ?? GOVERNANCE_EVIDENCE_CANDIDATE_DEFAULT_PAGE_SIZE;
         const rows = this.store.readEvidenceCandidateObservations(this.projectId, request.taskId, {
@@ -367,16 +381,13 @@ export class GovernanceProjectService {
         };
       }
       case 'read_audit_observations':
-        return {
-          ok: true,
+        return this.observationPage(
           requestId,
-          result: {
-            type: 'observations',
-            observations: this.store
-              .readObservations(this.projectId)
-              .filter((observation) => reservedAuditCategory(observation.category)),
-          },
-        };
+          AUDIT_OBSERVATION_CATEGORIES,
+          undefined,
+          request.afterSequence,
+          request.limit,
+        );
       case 'submit_command': {
         if (!this.commandBelongsToProject(request.command)) {
           return fail(
@@ -437,6 +448,39 @@ export class GovernanceProjectService {
           'Capability administration is available only through the authenticated facade.',
         );
     }
+  }
+
+  /**
+   * Shared body for both observation reads. Fetches one row past the page so
+   * the presence of a further page is known without a second query — the same
+   * convention `read_evidence_candidates` uses.
+   */
+  private observationPage(
+    requestId: string,
+    categories: readonly GovernanceObservationCategory[],
+    taskId: string | undefined,
+    afterSequence: number | undefined,
+    limit: number | undefined,
+  ): GovernanceServiceResponse {
+    const pageSize = limit ?? GOVERNANCE_OBSERVATION_DEFAULT_PAGE_SIZE;
+    const rows = this.store.readObservationsPage({
+      projectId: this.projectId,
+      ...(taskId === undefined ? {} : { taskId }),
+      categories,
+      afterSequence: afterSequence ?? 0,
+      limit: pageSize + 1,
+    });
+    const page = rows.slice(0, pageSize);
+    return {
+      ok: true,
+      requestId,
+      result: {
+        type: 'observations',
+        observations: page,
+        nextAfterSequence:
+          rows.length > pageSize && page.length > 0 ? (page.at(-1)?.sequence ?? null) : null,
+      },
+    };
   }
 
   private commandBelongsToProject(command: GovernanceCommand): boolean {

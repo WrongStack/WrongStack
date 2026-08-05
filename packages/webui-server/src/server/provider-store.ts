@@ -4,6 +4,10 @@ import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/sec
 import { atomicWrite } from '@wrongstack/core/utils';
 import type { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
+// One masking policy per package. This file used to carry a byte-identical
+// private copy of `maskedKey`, so a change to how much of a secret is shown
+// had to be made twice to take effect on every surface.
+import { maskedKey } from './provider-keys.js';
 export interface ProviderStoreDeps {
   /** Active profile config path. */
   profileConfigPath: string;
@@ -93,12 +97,6 @@ export function createProviderStore(deps: ProviderStoreDeps): ProviderStore {
     if (!cfg.activeKey || !keys.some((k) => k.label === cfg.activeKey)) {
       cfg.activeKey = active.label;
     }
-  }
-
-  function maskedKey(key: string | undefined): string {
-    if (!key) return '—';
-    if (key.length <= 8) return '•'.repeat(key.length);
-    return `${key.slice(0, 4)}…${key.slice(-4)}`;
   }
 
   return {

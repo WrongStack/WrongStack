@@ -126,6 +126,19 @@ export interface CreateHttpServerOptions {
    */
   enableWsCookie?: boolean | undefined;
   /**
+   * Mark the `ws_token` cookie `Secure` and give it the `__Host-` prefix.
+   *
+   * Inferred from a `wss://` {@link CreateHttpServerOptions.publicWsUrl} when
+   * omitted, which covers the tunnel deployments this server documents. Set it
+   * explicitly when TLS is terminated in front of the server by something that
+   * does not surface through `publicWsUrl` (e.g. an nginx `proxy_pass` with a
+   * separately configured WS origin).
+   *
+   * Must stay false on a plain-HTTP loopback bind: browsers do not send a
+   * `Secure` cookie over HTTP, so enabling it there breaks the WS handshake.
+   */
+  secureCookies?: boolean | undefined;
+  /**
    * Optional file watcher metrics object. When provided, the
    * /debug/watcher-metrics endpoint will be enabled to expose these metrics.
    */
@@ -199,12 +212,39 @@ function firstHeader(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function wsTokenCookie(token: string): string {
-  return `ws_token=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600`;
+/**
+ * WS-107: the auth cookie never carried `Secure`, on the stated grounds that
+ * "the dev server is plain HTTP on loopback". True for the default bind — and
+ * wrong for the deployment this server explicitly supports, where a tunnel
+ * terminates TLS in front of it (`publicWsUrl: wss://…`). There the browser is
+ * on HTTPS, so a cookie set without `Secure` is one the browser will also
+ * attach to a plaintext request to the same host: a downgrade or a stray
+ * `http://` link leaks the token that authenticates the whole control plane.
+ *
+ * So the flag follows the deployment. On an HTTPS-fronted server the cookie is
+ * additionally `__Host-`-prefixed, which browsers only accept when it is
+ * Secure, Path=/, and Domain-less — the same hardening the HQ server adopted.
+ * On loopback HTTP neither is usable (a `Secure` cookie would simply not be
+ * sent), so the plain name is kept there.
+ */
+export const WS_TOKEN_COOKIE = 'ws_token';
+export const WS_TOKEN_COOKIE_SECURE = '__Host-ws_token';
+
+function wsTokenCookie(token: string, secure: boolean): string {
+  const name = secure ? WS_TOKEN_COOKIE_SECURE : WS_TOKEN_COOKIE;
+  const parts = [
+    `${name}=${encodeURIComponent(token)}`,
+    'HttpOnly',
+    'SameSite=Strict',
+    'Path=/',
+    'Max-Age=3600',
+  ];
+  if (secure) parts.push('Secure');
+  return parts.join('; ');
 }
 
-function setAuthCookieHeaders(res: http.ServerResponse, token: string): void {
-  res.setHeader('Set-Cookie', wsTokenCookie(token));
+function setAuthCookieHeaders(res: http.ServerResponse, token: string, secure: boolean): void {
+  res.setHeader('Set-Cookie', wsTokenCookie(token, secure));
   res.setHeader('Cache-Control', 'no-store');
 }
 
@@ -214,12 +254,38 @@ function setStaticSecurityHeaders(res: http.ServerResponse): void {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
-function requestToken(req: http.IncomingMessage, url: URL): string | undefined {
-  return (
-    url.searchParams.get('token') ??
-    firstHeader(req.headers['x-ws-token']) ??
-    extractTokenFromCookie(req.headers.cookie)
-  );
+/**
+ * Resolve the access token presented on an HTTP request.
+ *
+ * WS-108: the `?token=` query source was accepted on EVERY route regardless of
+ * bind. On a tunnel that is the C-598 exposure the WS path already closed —
+ * the token reaches reverse-proxy access logs, browser history, and any
+ * `Referer` the page emits to a third-party origin. The header and cookie
+ * sources have none of those channels.
+ *
+ * `allowQuery` is therefore opt-in and reserved for the two places the token
+ * legitimately rides the URL: `/ws-auth`, whose entire job is to exchange it
+ * for the cookie, and the HTML page load the operator opens from the printed
+ * access URL. Everywhere else it is refused off-loopback — and when refused,
+ * resolution falls through to the header and cookie rather than returning
+ * early, so a client that sent both still authenticates.
+ */
+export function requestToken(
+  req: http.IncomingMessage,
+  url: URL,
+  opts: { allowQuery?: boolean } = {},
+): string | undefined {
+  const queryToken = url.searchParams.get('token') ?? undefined;
+  if (queryToken !== undefined && (opts.allowQuery === true || isLoopbackPeer(req))) {
+    return queryToken;
+  }
+  return firstHeader(req.headers['x-ws-token']) ?? extractTokenFromCookie(req.headers.cookie);
+}
+
+/** True when the request's actual TCP peer is this machine. */
+function isLoopbackPeer(req: http.IncomingMessage): boolean {
+  const address = req.socket.remoteAddress?.replace(/^::ffff:/i, '');
+  return address !== undefined && isLoopbackHostname(address);
 }
 
 function formatCspHostname(hostname: string): string {
@@ -413,6 +479,11 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
   // session files directly without the API at all. What it stops is an
   // unprivileged or differently-scoped local process reaching the control plane.
   const requireAccessToken = true;
+  // WS-107: `Secure` (and the `__Host-` prefix) follow the deployment. An
+  // operator-supplied `wss://` public URL means a TLS terminator sits in front
+  // of this server, so the browser is on HTTPS even though this socket is not.
+  const secureCookies =
+    opts.secureCookies ?? (opts.publicWsUrl?.trim().toLowerCase().startsWith('wss:') ?? false);
   // Hostnames the CSRF/DNS-rebinding guard accepts beyond loopback: whatever the
   // operator registered, plus the tunnel hostname implied by `publicWsUrl`.
   const trustedHostnames: readonly string[] = (() => {
@@ -467,6 +538,8 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
       const providedAccessToken = requestToken(req, url);
       const accessTokenOk =
         Boolean(opts.apiToken) && tokenMatches(providedAccessToken, opts.apiToken ?? '');
+      // The page load from the operator's printed access URL is the one place a
+      // query token is expected outside /ws-auth — it is what seeds the cookie.
       const shouldSetAuthCookie =
         Boolean(opts.apiToken) &&
         tokenMatches(url.searchParams.get('token') ?? undefined, opts.apiToken ?? '');
@@ -481,7 +554,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
         // Accept the token from `?token=` query (browser navigation
         // from the server-printed URL) OR the `X-WS-Token` header
         // (scripted client).
-        const provided = requestToken(req, url);
+        const provided = requestToken(req, url, { allowQuery: true });
         if (!provided || !opts.apiToken || !tokenMatches(provided, opts.apiToken)) {
           res.writeHead(401, { 'Content-Type': 'text/plain' });
           res.end('Unauthorized');
@@ -492,7 +565,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
         // (Strict blocks cross-site), and is scoped to this origin only.
         // No `Secure` flag: the dev server is plain HTTP on loopback,
         // and a Secure cookie over HTTP would not be sent by the browser.
-        setAuthCookieHeaders(res, opts.apiToken);
+        setAuthCookieHeaders(res, opts.apiToken, secureCookies);
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('ok');
         return;
@@ -508,7 +581,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
       }
 
       if (shouldSetAuthCookie && opts.apiToken) {
-        setAuthCookieHeaders(res, opts.apiToken);
+        setAuthCookieHeaders(res, opts.apiToken, secureCookies);
       }
 
       // /api/fleet/ping — push-on-write nudge from a same-project TUI/REPL.

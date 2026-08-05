@@ -67,6 +67,37 @@ describe('Connection protocol completion coverage', () => {
     expect(received).toHaveBeenCalledWith(2);
   });
 
+  // Regression for the quadratic receive path: a large message arriving in
+  // small reads must be reassembled without per-chunk re-copying, and two
+  // messages packed into one chunk must both dispatch. This exercises the
+  // header/body phase boundary in every alignment: header split mid-\r\n\r\n,
+  // body split across many chunks, and body immediately followed by the next
+  // header in the same chunk.
+  it('reassembles chunked large bodies and back-to-back frames in one chunk', () => {
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    const connection = new Connection(stdin, stdout);
+    const received = vi.fn();
+    connection.onNotification('big', received);
+    connection.onNotification('small', received);
+
+    const bigParams = 'x'.repeat(2 * 1024 * 1024); // 2 MiB body
+    const big = frame({ jsonrpc: '2.0', method: 'big', params: bigParams });
+    const small = frame({ jsonrpc: '2.0', method: 'small', params: 7 });
+
+    // Deliver the big frame in 64 KiB slices, with the LAST slice also
+    // carrying the entire small frame appended.
+    const joined = Buffer.concat([big, small]);
+    const CHUNK = 64 * 1024;
+    for (let offset = 0; offset < joined.length; offset += CHUNK) {
+      stdout.write(joined.subarray(offset, Math.min(offset + CHUNK, joined.length)));
+    }
+
+    expect(received).toHaveBeenCalledTimes(2);
+    expect(received).toHaveBeenCalledWith(bigParams);
+    expect(received).toHaveBeenCalledWith(7);
+  });
+
   it('closes on receive overflow and keeps close and unsubscription idempotent', () => {
     const stdin = new PassThrough();
     const stdout = new PassThrough();
@@ -75,8 +106,14 @@ describe('Connection protocol completion coverage', () => {
     const unsubscribe = connection.onClose(closed);
     stdout.write(Buffer.alloc(16 * 1024 * 1024 + 1));
     expect(closed).toHaveBeenCalledOnce();
-    const internal = connection as unknown as { buffer: Buffer };
-    expect(internal.buffer).toHaveLength(0);
+    const internal = connection as unknown as {
+      headerBuffer: Buffer;
+      bodyParts: Buffer[];
+      bodyReceived: number;
+    };
+    expect(internal.headerBuffer).toHaveLength(0);
+    expect(internal.bodyParts).toHaveLength(0);
+    expect(internal.bodyReceived).toBe(0);
     expect(stdout.listenerCount('data')).toBe(0);
     expect(stdout.listenerCount('close')).toBe(0);
     expect(stdout.listenerCount('error')).toBe(0);

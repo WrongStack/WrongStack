@@ -71,6 +71,56 @@ export async function verifyTaskCompletion(
   taskId: string,
   options: VerifyTaskCompletionOptions = {},
 ): Promise<VerifyTaskCompletionResult> {
+  return verifyTaskCompletionGuarded(projectRoot, boardId, taskId, options, new Set());
+}
+
+/**
+ * Cycle guard for the parent/child recursion below.
+ *
+ * `verifyTaskCompletion` descends into `childTaskIds`, and nothing upstream
+ * guarantees that relation is acyclic: `splitTask` is safe because it mints
+ * fresh child ids, but `syncTaskGraphIntoBoard` copies `node.children` straight
+ * through, and a board file is ordinary project data that other tools can
+ * write. A cycle made this recurse forever — and because the recursion is
+ * `async`, it does not even fail fast with a stack overflow: it re-reads the
+ * board on every hop and keeps going.
+ *
+ * The set is scoped to the current descent path, added on entry and removed on
+ * exit, so a task legitimately reachable through two different parents (a
+ * diamond) is not mistaken for a cycle.
+ *
+ * A cyclic graph is corrupt structure rather than a verification outcome, so it
+ * throws — the same way this function already throws for a missing board or a
+ * missing task — instead of returning a verdict that could be read as a pass.
+ */
+async function verifyTaskCompletionGuarded(
+  projectRoot: string,
+  boardId: string,
+  taskId: string,
+  options: VerifyTaskCompletionOptions,
+  path: Set<string>,
+): Promise<VerifyTaskCompletionResult> {
+  const key = `${boardId}::${taskId}`;
+  if (path.has(key)) {
+    throw new Error(
+      `Cyclic parent/child task graph: task ${taskId} on board ${boardId} is its own descendant.`,
+    );
+  }
+  path.add(key);
+  try {
+    return await runVerifyTaskCompletion(projectRoot, boardId, taskId, options, path);
+  } finally {
+    path.delete(key);
+  }
+}
+
+async function runVerifyTaskCompletion(
+  projectRoot: string,
+  boardId: string,
+  taskId: string,
+  options: VerifyTaskCompletionOptions,
+  path: Set<string>,
+): Promise<VerifyTaskCompletionResult> {
   const registry = options.registry ?? createDefaultRegistry();
 
   // Load the board (we'll mutate it to persist the report)
@@ -88,7 +138,7 @@ export async function verifyTaskCompletion(
   // Phase 1: Recursively verify subtasks (when atomic)
   let subtaskReport: KanbanVerificationSubtasks | undefined;
   if (task.atomic && task.childTaskIds?.length) {
-    subtaskReport = await verifySubtasks(projectRoot, board, task, registry, options);
+    subtaskReport = await verifySubtasks(projectRoot, board, task, registry, options, path);
     // If any child failed, we can still run parent checks but the
     // overall verdict will reflect it.
   }
@@ -177,6 +227,7 @@ async function verifySubtasks(
   parentTask: KanbanTask,
   registry: VerifierRegistry,
   options: VerifyTaskCompletionOptions,
+  path: Set<string>,
 ): Promise<KanbanVerificationSubtasks> {
   const childIds = parentTask.childTaskIds ?? [];
   const children: KanbanTask[] = [];
@@ -199,7 +250,13 @@ async function verifySubtasks(
       report = child.verificationReport;
     } else if (child.atomic && child.childTaskIds?.length) {
       // Nested atomic — recurse
-      const childResult = await verifyTaskCompletion(projectRoot, board.id, child.id, options);
+      const childResult = await verifyTaskCompletionGuarded(
+        projectRoot,
+        board.id,
+        child.id,
+        options,
+        path,
+      );
       report = childResult.report;
     } else {
       // Simple child — run checks

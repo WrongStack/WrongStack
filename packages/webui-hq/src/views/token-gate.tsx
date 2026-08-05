@@ -7,14 +7,13 @@
  * endless "reconnecting…". The shell is now served publicly; every byte of
  * telemetry still flows through the gated `/api/*` + `/ws/*` channels.
  *
- * Submitting persists the token to sessionStorage (see `lib/auth.ts`) and
- * reloads so the WS singleton and all views restart authenticated. Password
- * login sets an HttpOnly session cookie on the server; the reload sends it
- * automatically for both HTTP and WebSocket requests.
+ * Submitting verifies the token and exchanges it for an HttpOnly session
+ * cookie before reloading, so storage-disabled and embedded browsers work in
+ * the current tab too. Password login uses the same cookie boundary.
  */
 import { useEffect, useRef, useState } from 'react';
-import { clearHqToken, setHqToken } from '../lib/auth.js';
 import { PasswordInput } from '../components/password-input.js';
+import { clearHqToken, loginWithHqToken } from '../lib/auth.js';
 
 interface AuthStatus {
   tokenMode: boolean;
@@ -22,7 +21,13 @@ interface AuthStatus {
   loggedIn: boolean;
 }
 
-export function TokenGate({ hadToken }: { hadToken: boolean }): React.ReactElement {
+export function TokenGate({
+  hadToken,
+  onAuthenticated = () => window.location.reload(),
+}: {
+  hadToken: boolean;
+  onAuthenticated?: () => void;
+}): React.ReactElement {
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
@@ -88,25 +93,46 @@ export function TokenGate({ hadToken }: { hadToken: boolean }): React.ReactEleme
             </button>
           </div>
         ) : null}
-        {activeTab === 'token' || !showPassword ? <TokenForm hadToken={hadToken} /> : <PasswordForm />}
+        {activeTab === 'token' || !showPassword ? (
+          <TokenForm hadToken={hadToken} onAuthenticated={onAuthenticated} />
+        ) : (
+          <PasswordForm />
+        )}
       </div>
     </div>
   );
 }
 
-function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
+function TokenForm({
+  hadToken,
+  onAuthenticated,
+}: {
+  hadToken: boolean;
+  onAuthenticated: () => void;
+}): React.ReactElement {
   const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const loginInFlightRef = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const submit = (): void => {
-    const token = value.trim();
-    if (token.length === 0) return;
-    setHqToken(token);
-    window.location.reload();
+  const submit = async (): Promise<void> => {
+    if (busy || loginInFlightRef.current || value.trim().length === 0) return;
+    loginInFlightRef.current = true;
+    setBusy(true);
+    setError(null);
+    const result = await loginWithHqToken(value);
+    if (result.ok) {
+      onAuthenticated();
+      return;
+    }
+    setError(result.message ?? 'The browser token was rejected.');
+    loginInFlightRef.current = false;
+    setBusy(false);
   };
 
   return (
@@ -115,14 +141,15 @@ function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
       <p className="hq-token-text">
         {hadToken
           ? 'The saved token was rejected — it may have been revoked or the server was reset. Paste a current browser token.'
-          : 'This HQ server runs in token mode. Paste the browser token printed at startup (the ?token= value in the URL wstack --hq shows).'}
+          : 'This HQ server runs in token mode. Paste the browser token from wstack hq token create. A complete legacy ?token= URL also works.'}
       </p>
+      {error ? <p className="hq-token-error">{error}</p> : null}
       <PasswordInput
         inputRef={inputRef}
         value={value}
         onChange={setValue}
         onKeyDown={(ev) => {
-          if (ev.key === 'Enter') submit();
+          if (ev.key === 'Enter') void submit();
         }}
         placeholder="browser token"
         autoComplete="off"
@@ -130,10 +157,10 @@ function TokenForm({ hadToken }: { hadToken: boolean }): React.ReactElement {
       <button
         type="button"
         className="hq-token-submit"
-        onClick={submit}
-        disabled={value.trim().length === 0}
+        onClick={() => void submit()}
+        disabled={value.trim().length === 0 || busy}
       >
-        Connect
+        {busy ? 'Connecting…' : 'Connect'}
       </button>
       <p className="hq-token-hint">
         Manage tokens with <code>wstack hq token list</code> / <code>wstack hq token create</code> —
@@ -216,10 +243,9 @@ function PasswordForm(): React.ReactElement {
     setError(null);
     try {
       // Recovery codes contain a hyphen; TOTP codes are pure digits.
-      const payload =
-        rawCode.includes('-')
-          ? { recoveryCode: rawCode }
-          : { code: rawCode.replace(/\D/g, '').slice(0, 6) };
+      const payload = rawCode.includes('-')
+        ? { recoveryCode: rawCode }
+        : { code: rawCode.replace(/\D/g, '').slice(0, 6) };
       const res = await fetch('/api/login/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

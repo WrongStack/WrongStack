@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { startBoundedTerminalLogView } from '../../src/webui-server/terminal-log-view.js';
+import { startQuietSurfaceConsole } from '../../src/webui-server/terminal-log-view.js';
 
 function fakeConsole() {
   return {
@@ -12,75 +12,110 @@ function fakeConsole() {
 }
 
 afterEach(() => {
-  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
-describe('startBoundedTerminalLogView', () => {
+describe('startQuietSurfaceConsole', () => {
   it('leaves non-TTY console output untouched', () => {
     const target = fakeConsole();
     const originalLog = target.log;
-    const write = vi.fn();
 
-    const view = startBoundedTerminalLogView({
-      isTTY: false,
-      consoleTarget: target,
-      write,
-    });
+    const view = startQuietSurfaceConsole({ isTTY: false, consoleTarget: target });
 
     expect(view.enabled).toBe(false);
     expect(target.log).toBe(originalLog);
     target.log('kept by the normal sink');
-    view.redraw();
     expect(originalLog).toHaveBeenCalledWith('kept by the normal sink');
-    expect(write).not.toHaveBeenCalled();
+    expect(view.mutedCount).toBe(0);
   });
 
-  it('periodically clears and redraws only the newest five physical lines', () => {
-    vi.useFakeTimers();
-    const target = fakeConsole();
-    const originalLog = target.log;
-    const originalWarn = target.warn;
-    const write = vi.fn();
-    const view = startBoundedTerminalLogView({
-      isTTY: true,
-      consoleTarget: target,
-      write,
-      refreshMs: 1_000,
-    });
-
-    target.log('line 1');
-    target.info('line 2\nline 3');
-    target.warn('line %d', 4);
-    target.error('line 5');
-    target.debug('line 6');
-
-    vi.advanceTimersByTime(1_000);
-
-    expect(write).toHaveBeenCalledOnce();
-    expect(write).toHaveBeenLastCalledWith('\x1b[2J\x1b[Hline 2\nline 3\nline 4\nline 5\nline 6\n');
-    expect(originalLog).toHaveBeenCalledWith('line 1');
-    expect(originalWarn).toHaveBeenCalledWith('line %d', 4);
-    view.stop();
-  });
-
-  it('stops the timer and restores every wrapped console method', () => {
-    vi.useFakeTimers();
+  it('leaves the console untouched when verbose is requested', () => {
     const target = fakeConsole();
     const originals = { ...target };
-    const write = vi.fn();
-    const view = startBoundedTerminalLogView({
+
+    const view = startQuietSurfaceConsole({ isTTY: true, verbose: true, consoleTarget: target });
+
+    expect(view.enabled).toBe(false);
+    expect(target).toEqual(originals);
+  });
+
+  it('drops log/info/debug chatter but forwards warn/error', () => {
+    const target = fakeConsole();
+    const originals = { ...target };
+
+    const view = startQuietSurfaceConsole({ isTTY: true, consoleTarget: target });
+
+    target.log('[WebUI] Tool registry loaded');
+    target.info('[WebUI] Session created');
+    target.debug('[WebUI] Failed to load replay');
+    target.warn('provider auto-discovery failed');
+    target.error('boom');
+
+    expect(originals.log).not.toHaveBeenCalled();
+    expect(originals.info).not.toHaveBeenCalled();
+    expect(originals.debug).not.toHaveBeenCalled();
+    expect(originals.warn).toHaveBeenCalledWith('provider auto-discovery failed');
+    expect(originals.error).toHaveBeenCalledWith('boom');
+    expect(view.mutedCount).toBe(3);
+    expect(view.recent()).toEqual([
+      '[WebUI] Tool registry loaded',
+      '[WebUI] Session created',
+      '[WebUI] Failed to load replay',
+    ]);
+    view.stop();
+  });
+
+  it('bounds the muted ring buffer while still counting every dropped line', () => {
+    const target = fakeConsole();
+    const view = startQuietSurfaceConsole({
       isTTY: true,
       consoleTarget: target,
-      write,
-      refreshMs: 1_000,
+      bufferLines: 2,
     });
 
-    target.log('last line');
-    view.stop();
-    vi.advanceTimersByTime(2_000);
+    target.log('one');
+    target.log('two');
+    target.log('three');
 
-    expect(write).not.toHaveBeenCalled();
+    expect(view.mutedCount).toBe(3);
+    expect(view.recent()).toEqual(['two', 'three']);
+    view.stop();
+  });
+
+  it('collapses a repeated warning into a single trailing notice', () => {
+    const target = fakeConsole();
+    const originalWarn = target.warn;
+
+    const view = startQuietSurfaceConsole({ isTTY: true, consoleTarget: target });
+
+    target.warn('watcher restart failed');
+    target.warn('watcher restart failed');
+    target.warn('watcher restart failed');
+    expect(originalWarn).toHaveBeenCalledTimes(1);
+
+    target.warn('a different problem');
+
+    expect(originalWarn).toHaveBeenNthCalledWith(1, 'watcher restart failed');
+    expect(originalWarn).toHaveBeenNthCalledWith(2, '  ↑ previous line repeated 2×');
+    expect(originalWarn).toHaveBeenNthCalledWith(3, 'a different problem');
+    view.stop();
+  });
+
+  it('flushes a pending repeat notice on stop and restores every wrapped method', () => {
+    const target = fakeConsole();
+    const originals = { ...target };
+    const originalError = target.error;
+
+    const view = startQuietSurfaceConsole({ isTTY: true, consoleTarget: target });
+    target.error('the same failure');
+    target.error('the same failure');
+    view.stop();
+
+    expect(originalError).toHaveBeenNthCalledWith(2, '  ↑ previous line repeated 1×');
     expect(target).toEqual(originals);
+
+    // Idempotent: a second stop neither re-flushes nor re-wraps.
+    view.stop();
+    expect(originalError).toHaveBeenCalledTimes(2);
   });
 });

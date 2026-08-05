@@ -35,8 +35,10 @@ import { basename, extname, isAbsolute, relative, resolve } from 'node:path';
 
 export {
   parseLlmJsonObject,
+  runOptionalPluginCouncil,
   runOptionalPluginLlm,
   stripOuterMarkdownFence,
+  type OptionalCouncilRequest,
   type OptionalLlmRequest,
   type OptionalLlmResult,
 } from './llm.js';

@@ -526,6 +526,30 @@ describe('appendKanbanEvent', () => {
     vi.doUnmock('node:fs/promises');
   });
 
+  // The previous eviction pass dropped only entries whose backing file had been
+  // deleted, so in the ordinary case — boards accumulate roughly one per session
+  // and nothing removes them — it evicted nothing and the map grew without
+  // limit, while `stat`ing every entry on every append under the file lock.
+  it('keeps the event-log cache bounded when every cached board still exists', async () => {
+    const { appendKanbanEvent, eventLogCacheSizeForTests, EVENT_LOG_MAX_CACHE_ENTRIES } =
+      await import('../src/storage.js');
+
+    const boards = EVENT_LOG_MAX_CACHE_ENTRIES + 72;
+    for (let index = 0; index < boards; index += 1) {
+      await appendKanbanEvent(tmpDir, `bounded-${index}`, moveEvent(`bounded-${index}`, 't1'));
+    }
+
+    expect(eventLogCacheSizeForTests()).toBe(EVENT_LOG_MAX_CACHE_ENTRIES);
+
+    // And it holds: further appends, to both new and already-cached boards,
+    // must not push it past the bound.
+    for (let index = 0; index < 40; index += 1) {
+      await appendKanbanEvent(tmpDir, `bounded-extra-${index}`, moveEvent('extra', 't1'));
+      await appendKanbanEvent(tmpDir, `bounded-${boards - 1}`, moveEvent('recent', 't1'));
+    }
+    expect(eventLogCacheSizeForTests()).toBe(EVENT_LOG_MAX_CACHE_ENTRIES);
+  });
+
   it('invalidates the cache and re-reads when an external rewrite changes the file size', async () => {
     const { appendKanbanEvent } = await import('../src/storage.js');
     const board = await makeBoard();

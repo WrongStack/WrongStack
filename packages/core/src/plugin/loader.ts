@@ -585,11 +585,14 @@ function wrapApiForCapabilityCheck(
       ? api.llm
       : new Proxy(api.llm, {
           get(target, prop, receiver) {
-            if (prop === 'complete') {
+            if (prop === 'complete' || prop === 'council') {
               return (prompt: string, options?: unknown) => {
-                violate('llm', `complete(${prompt.length} chars)`);
-                const complete = target.complete as (p: string, o?: unknown) => unknown;
-                return options === undefined ? complete(prompt) : complete(prompt, options);
+                violate('llm', `${String(prop)}(${prompt.length} chars)`);
+                const method = target[prop] as ((p: string, o?: unknown) => unknown) | undefined;
+                if (!method) return undefined;
+                return options === undefined
+                  ? method.call(target, prompt)
+                  : method.call(target, prompt, options);
               };
             }
             return Reflect.get(target, prop, receiver);

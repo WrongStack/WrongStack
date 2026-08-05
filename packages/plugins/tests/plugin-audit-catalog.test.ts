@@ -54,7 +54,13 @@ describe('plugin audit catalog', () => {
 
   it('includes the host-owned plugins the WebUI settings panel must show', () => {
     const names = new Set(PLUGIN_AUDIT_ENTRIES.map((e) => e.name));
-    for (const host of ['wstack-chimera', 'wstack-skills', 'wstack-prompts', 'telegram']) {
+    for (const host of [
+      'wstack-chimera',
+      'wstack-auto-review',
+      'wstack-skills',
+      'wstack-prompts',
+      'telegram',
+    ]) {
       expect(names.has(host), `catalog is missing host plugin ${host}`).toBe(true);
     }
   });

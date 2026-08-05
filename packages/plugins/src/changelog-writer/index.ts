@@ -320,7 +320,11 @@ const plugin: Plugin = {
             'Keep the EXACT markdown structure: the same "### Section" headings, one "- " bullet per entry, ' +
             'no entries added or removed. Output ONLY the markdown block.\n\n' +
             block,
-          { system: 'You are a precise technical release-notes editor.', maxTokens: 1_500 },
+          {
+            system: 'You are a precise technical release-notes editor.',
+            role: 'document',
+            maxTokens: 1_500,
+          },
         );
         const text = result.text.trim();
         if (!text.startsWith('###')) return block;

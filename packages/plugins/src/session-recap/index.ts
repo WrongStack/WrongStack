@@ -530,7 +530,11 @@ const plugin: Plugin = {
                     .join(' | ')
                     .slice(0, 500)}`
                 : ''),
-            { system: 'You write concise engineering session recaps.', maxTokens: 200 },
+            {
+              system: 'You write concise engineering session recaps.',
+              role: 'document',
+              maxTokens: 200,
+            },
           );
           const text = result.text.trim();
           if (text) {

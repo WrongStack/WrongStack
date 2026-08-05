@@ -601,4 +601,67 @@ describe('governance service protocol decoder', () => {
       issues: [expect.objectContaining({ code: 'resource_limit' })],
     });
   });
+
+  // The decoder sits on the untrusted side of the IPC boundary and its issue
+  // list is serialized straight back into the error response, so the cost of
+  // rejecting an input must stay proportional to that input. These pin the two
+  // places where it previously was not.
+  describe('rejection cost stays bounded', () => {
+    it('rejects an oversized capability array without walking it', () => {
+      const decoded = decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-capability-flood',
+        type: 'issue_capability_grant',
+        clientId: 'model-reader',
+        capabilities: Array.from({ length: 50_000 }, () => 'not-a-capability'),
+        ttlMs: 30_000,
+      });
+
+      expect(decoded.decoded).toBe(false);
+      if (decoded.decoded) return;
+      // One resource_limit for the array length — and crucially no per-entry
+      // `invalid_value`/`semantic_invalid` reports, which is what proves the
+      // 50 000 entries were never iterated.
+      expect(decoded.issues).toEqual([
+        expect.objectContaining({ code: 'resource_limit', path: '$.capabilities' }),
+      ]);
+    });
+
+    it('rejects an oversized model capability array without walking it', () => {
+      const decoded = decodeGovernanceServiceRequest({
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-model-capability-flood',
+        type: 'claim_runtime_attachment',
+        controlClientId: 'control',
+        modelClientId: 'model',
+        modelCapabilities: Array.from({ length: 50_000 }, () => 'not-a-capability'),
+        ttlMs: 30_000,
+      });
+
+      expect(decoded.decoded).toBe(false);
+      if (decoded.decoded) return;
+      expect(decoded.issues).toEqual([
+        expect.objectContaining({ code: 'resource_limit', path: '$.modelCapabilities' }),
+      ]);
+    });
+
+    it('truncates the issue list instead of reporting one issue per bad field', () => {
+      const flooded: Record<string, unknown> = {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'request-field-flood',
+        type: 'health',
+      };
+      for (let index = 0; index < 20_000; index += 1) flooded[`junk-${index}`] = index;
+
+      const decoded = decodeGovernanceServiceRequest(flooded);
+
+      expect(decoded.decoded).toBe(false);
+      if (decoded.decoded) return;
+      expect(decoded.issues.length).toBeLessThanOrEqual(101);
+      expect(decoded.issues.at(-1)).toMatchObject({
+        code: 'resource_limit',
+        message: expect.stringContaining('Validation stopped after'),
+      });
+    });
+  });
 });

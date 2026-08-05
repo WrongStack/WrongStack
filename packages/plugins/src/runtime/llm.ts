@@ -7,7 +7,7 @@
  * deterministic fallback when no provider is wired or generation fails.
  */
 
-import type { PluginAPI, PluginLLMOptions } from '@wrongstack/core/types';
+import type { CouncilOption, PluginAPI, PluginLLMOptions } from '@wrongstack/core/types';
 
 export interface OptionalLlmResult<T> {
   used: boolean;
@@ -28,6 +28,12 @@ export interface OptionalLlmRequest<T> {
   parse(text: string): T | null;
   api: Pick<PluginAPI, 'llm' | 'log'>;
   label: string;
+}
+
+export interface OptionalCouncilRequest<T> extends OptionalLlmRequest<T> {
+  context?: string | undefined;
+  profile?: string | undefined;
+  councilOptions?: readonly CouncilOption[] | undefined;
 }
 
 /** Remove one outer Markdown fence without modifying inner code fences. */
@@ -87,4 +93,51 @@ export async function runOptionalPluginLlm<T>(
       fallbackReason: cancelled ? 'cancelled' : 'provider-error',
     };
   }
+}
+
+/**
+ * Prefer the host Council for consequential analysis, then degrade through the
+ * same One Shot helper and finally the caller's deterministic result. Council
+ * outages therefore never turn an optional enrichment into a tool failure.
+ */
+export async function runOptionalPluginCouncil<T>(
+  request: OptionalCouncilRequest<T>,
+): Promise<OptionalLlmResult<T>> {
+  if (!request.requested) {
+    return { used: false, value: null, fallbackReason: 'not-requested' };
+  }
+  if (request.options?.signal?.aborted) {
+    return { used: false, value: null, fallbackReason: 'cancelled' };
+  }
+  const council = request.api.llm?.council;
+  if (council) {
+    try {
+      const result = await council(request.prompt, {
+        ...(request.context ? { context: request.context } : {}),
+        ...(request.profile ? { profile: request.profile } : {}),
+        ...(request.councilOptions ? { options: request.councilOptions } : {}),
+        ...(request.options?.signal ? { signal: request.options.signal } : {}),
+      });
+      if (result.status === 'cancelled') {
+        return { used: false, value: null, fallbackReason: 'cancelled' };
+      }
+      const parsed = result.status === 'decided' ? request.parse(result.answer ?? '') : null;
+      if (parsed !== null) return { used: true, value: parsed, fallbackReason: null };
+      request.api.log.warn(
+        `${request.label}: Council did not return a valid answer; trying One Shot`,
+        {
+          status: result.status,
+          resolution: result.resolution,
+        },
+      );
+    } catch (error) {
+      if (request.options?.signal?.aborted) {
+        return { used: false, value: null, fallbackReason: 'cancelled' };
+      }
+      request.api.log.warn(`${request.label}: Council failed; trying One Shot`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return runOptionalPluginLlm(request);
 }

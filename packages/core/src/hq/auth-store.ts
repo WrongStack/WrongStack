@@ -15,9 +15,15 @@
  *   <dataDir>/snapshot.json — persisted latest snapshot (cache)
  *
  * The file is written atomically (tmp + rename) with mode 0o600 so a
- * shared host cannot read issued tokens or the redaction policy. Reads
- * are lenient: a missing file yields an empty document; a corrupt file
- * yields an empty document plus a warning so the operator can recover.
+ * shared host cannot read issued tokens or the redaction policy.
+ *
+ * Reads fail CLOSED, with one exception. A missing file (ENOENT) yields an
+ * empty document — that is a fresh install, and open mode is the intended
+ * first-run state. Everything else (EACCES, EIO, malformed JSON, an
+ * unsupported schema version) throws. This docblock used to promise that a
+ * corrupt file "yields an empty document plus a warning"; it never did, and
+ * it must not — an unreadable auth file that degraded to "no credentials
+ * configured" would turn a permissions accident into an open server.
  *
  * @module hq/auth-store
  */
@@ -794,7 +800,10 @@ export function watchHqAuthFile(
 
   // Without a listener an FSWatcher 'error' event is an uncaught exception
   // (Windows emits transient EPERMs on dir churn). Degrade to "no watcher" —
-  // same as the creation-failure path above.
+  // same as the creation-failure path above. Exactly one handler: a second
+  // one used to be registered after the 'change' listener, so every error
+  // warned twice and the second warning always described a watcher the first
+  // handler had already closed.
   watcher.on('error', (err: Error) => {
     opts.warn?.(`HQ auth watcher error: ${err.message}`);
     try {
@@ -812,10 +821,6 @@ export function watchHqAuthFile(
         trigger();
       }
     }
-  });
-
-  watcher.on('error', (err: Error) => {
-    opts.warn?.(`HQ auth watcher error: ${err.message}`);
   });
 
   return {

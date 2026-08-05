@@ -75,7 +75,10 @@ export class GovernanceProjectClient {
     return new Promise((resolve, reject) => {
       const socket = net.createConnection(this.endpoint);
       let settled = false;
-      let buffer = Buffer.alloc(0);
+      // Same framing rule as the server: hold the chunks and join once at the
+      // delimiter, so a large response is not re-copied on every `data` event.
+      const chunks: Buffer[] = [];
+      let size = 0;
       const finish = (error?: Error, response?: GovernanceServiceResponse): void => {
         if (settled) return;
         settled = true;
@@ -89,15 +92,21 @@ export class GovernanceProjectClient {
       }, this.timeoutMs);
       socket.once('connect', () => socket.write(frame));
       socket.on('data', (chunk: Buffer) => {
-        buffer = Buffer.concat([buffer, chunk]);
-        if (buffer.byteLength > GOVERNANCE_IPC_MAX_FRAME_BYTES) {
+        if (settled) return;
+        const newline = chunk.indexOf(0x0a);
+        const frameBytes = size + (newline < 0 ? chunk.byteLength : newline);
+        if (frameBytes > GOVERNANCE_IPC_MAX_FRAME_BYTES) {
           finish(new Error('Governance IPC response exceeded the frame limit.'));
           return;
         }
-        const newline = buffer.indexOf(0x0a);
-        if (newline < 0) return;
+        if (newline < 0) {
+          chunks.push(chunk);
+          size = frameBytes;
+          return;
+        }
+        chunks.push(chunk.subarray(0, newline));
         try {
-          const parsed = JSON.parse(buffer.subarray(0, newline).toString('utf8')) as unknown;
+          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
           const response = decodeGovernanceIpcResponse(parsed);
           const expectedRequestId =
             request &&

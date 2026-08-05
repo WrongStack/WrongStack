@@ -174,7 +174,11 @@ async function buildDraft(
         'Write a concise PR title and one-paragraph summary for the changes below. ' +
           'Format exactly as:\nTITLE: <title>\nSUMMARY: <summary>\n\n' +
           context,
-        { system: 'You write terse engineering PR descriptions.', maxTokens: 250 },
+        {
+          system: 'You write terse engineering PR descriptions.',
+          role: 'document',
+          maxTokens: 250,
+        },
       );
       const text = result.text.trim();
       const titleMatch = /TITLE:\s*(.+)/i.exec(text);

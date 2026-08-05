@@ -1,20 +1,31 @@
 /**
  * ChatGPT — "Sign in with ChatGPT" OAuth (Authorization Code + PKCE).
  *
- * Headless port of the CLI's `openai-codex-oauth.ts` terminal flow. Drives the
- * loopback authorization-code exchange and returns a persistence-agnostic
- * {@link OAuthLoginOutcome}. See the CLI module's header for the protocol
- * rationale (ChatGPT backend, JWT account-id claim, etc.).
+ * The headless half of the flow: drives the loopback authorization-code
+ * exchange and returns a persistence-agnostic {@link OAuthLoginOutcome}, so
+ * both WebUI servers can sign in over a WebSocket with no terminal IO.
+ *
+ * The wire protocol itself (client id, endpoints, request bodies, response
+ * validation) lives in `./codex-protocol.js` and model discovery in
+ * `./codex-models.js` — shared with the CLI terminal flow and the runtime
+ * provider's refresh path, which used to keep their own copies.
  */
 
-import { CODEX_MODELS } from '@wrongstack/core/models';
-import {
-  FetchError,
-  type ModelsRegistry,
-  ParseError,
-  type ProviderApiKey,
-} from '@wrongstack/core/types';
+import { ParseError, type ProviderApiKey } from '@wrongstack/core/types';
 import { extractAccountId } from '../openai-codex-account.js';
+import { resolveCodexModels } from './codex-models.js';
+import {
+  buildCodexAuthorizeUrl,
+  CODEX_BASE_URL,
+  CODEX_FALLBACK_REDIRECT_PORT,
+  CODEX_PROVIDER_ID,
+  CODEX_REDIRECT_HOST,
+  CODEX_REDIRECT_PATH,
+  CODEX_REDIRECT_PORT,
+  CODEX_SCOPE,
+  type CodexTokens,
+  exchangeCodexAuthorizationCode,
+} from './codex-protocol.js';
 import {
   createState,
   generatePkce,
@@ -24,194 +35,8 @@ import {
 } from './shared.js';
 import type { BeginOAuthDeps, OAuthLoginOutcome, OAuthSession } from './types.js';
 
-// ── Codex OAuth constants (verified against the real Codex CLI) ─────────────
-
-const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
-const AUTH_BASE_URL = 'https://auth.openai.com';
-const AUTHORIZE_URL = `${AUTH_BASE_URL}/oauth/authorize`;
-const TOKEN_URL = `${AUTH_BASE_URL}/oauth/token`;
-const REDIRECT_PORT = 1455;
-const FALLBACK_REDIRECT_PORT = 1457;
-const REDIRECT_HOST = '127.0.0.1';
-const REDIRECT_PATH = '/auth/callback';
-const SCOPE = 'openid profile email offline_access api.connectors.read api.connectors.invoke';
-const ORIGINATOR = 'wrongstack';
-export const CODEX_PROVIDER_ID = 'openai-codex';
-export const CODEX_BASE_URL = 'https://chatgpt.com/backend-api';
-
-interface CodexTokens {
-  access: string;
-  refresh: string;
-  /** Absolute expiry in epoch milliseconds. */
-  expires: number;
-  idToken?: string | undefined;
-}
-
-interface TokenEndpointResponse {
-  access_token?: string;
-  refresh_token?: string;
-  expires_in?: number;
-  id_token?: string;
-}
-
-function redirectUri(port: number): string {
-  return `http://localhost:${port}${REDIRECT_PATH}`;
-}
-
-/** Build the full authorize URL with all Codex-required query params. */
-export function buildCodexAuthorizeUrl(challenge: string, state: string, port = REDIRECT_PORT): string {
-  const url = new URL(AUTHORIZE_URL);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('client_id', CLIENT_ID);
-  url.searchParams.set('redirect_uri', redirectUri(port));
-  url.searchParams.set('scope', SCOPE);
-  url.searchParams.set('code_challenge', challenge);
-  url.searchParams.set('code_challenge_method', 'S256');
-  url.searchParams.set('state', state);
-  url.searchParams.set('id_token_add_organizations', 'true');
-  url.searchParams.set('codex_cli_simplified_flow', 'true');
-  url.searchParams.set('originator', ORIGINATOR);
-  return url.toString();
-}
-
-// ── Model discovery (live backend → catalog → inline fallback) ────────────────
-
-const FALLBACK_CODEX_MODELS: ReadonlyArray<{ id: string; name: string }> = CODEX_MODELS.map(
-  (m) => ({
-    id: m.id,
-    name: m.name,
-  }),
-);
-const CODEX_CATALOG_FAMILIES = new Set(['gpt-codex', 'gpt-codex-spark']);
-
-export function filterCurrentCodexModelIds(ids: Iterable<string>): string[] {
-  const available = new Set(ids);
-  return FALLBACK_CODEX_MODELS.map((m) => m.id).filter((id) => available.has(id));
-}
-
-async function fetchCodexModels(
-  accessToken: string,
-  baseUrl?: string | undefined,
-  signal?: AbortSignal,
-): Promise<string[]> {
-  const url = `${(baseUrl ?? CODEX_BASE_URL).replace(/\/+$/, '')}/models`;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-        authorization: `Bearer ${accessToken}`,
-        originator: 'wrongstack',
-        'OpenAI-Beta': 'responses=experimental',
-      },
-      signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(8_000)])
-        : AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as
-      | { data?: Array<{ id?: string }> }
-      | { models?: Array<{ id?: string }> }
-      | null;
-    if (!json) return [];
-    const rawList: unknown[] =
-      'data' in json && Array.isArray(json.data)
-        ? (json.data as unknown[])
-        : 'models' in json && Array.isArray(json.models)
-          ? (json.models as unknown[])
-          : [];
-    const ids: string[] = [];
-    for (const entry of rawList) {
-      if (!entry || typeof entry !== 'object') continue;
-      const id = (entry as Record<string, unknown>).id;
-      if (typeof id === 'string' && id.length > 0) ids.push(id);
-    }
-    return ids;
-  } catch {
-    return [];
-  }
-}
-
-async function resolveCodexModels(
-  modelsRegistry: ModelsRegistry | undefined,
-  accessToken: string,
-  signal?: AbortSignal,
-): Promise<string[]> {
-  // Tier 1 — live backend
-  const live = filterCurrentCodexModelIds(
-    await fetchCodexModels(accessToken, CODEX_BASE_URL, signal),
-  );
-  if (live.length > 0) return live;
-
-  // Tier 2 — models.dev catalog (best-effort; registry is optional)
-  if (modelsRegistry) {
-    try {
-      const openaiProvider = await modelsRegistry.getProvider('openai');
-      if (openaiProvider) {
-        const catalog = openaiProvider.models
-          .filter((m) => typeof m.family === 'string' && CODEX_CATALOG_FAMILIES.has(m.family))
-          .map((m) => m.id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0);
-        const currentCatalog = filterCurrentCodexModelIds(catalog);
-        if (currentCatalog.length > 0) return currentCatalog;
-      }
-    } catch {
-      /* catalog unavailable — fall through */
-    }
-  }
-
-  // Tier 3 — inline fallback
-  return FALLBACK_CODEX_MODELS.map((m) => m.id);
-}
-
-// ── Token exchange ────────────────────────────────────────────────────────────
-
-async function readTokens(res: Response, op: string): Promise<CodexTokens> {
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new FetchError({
-      message: `Codex token ${op} failed (${res.status}): ${text || res.statusText}`,
-      status: res.status,
-      context: { provider: 'openai-codex', op, url: TOKEN_URL },
-    });
-  }
-  const json = (await res.json()) as TokenEndpointResponse | null;
-  if (!json?.access_token || !json.refresh_token || typeof json.expires_in !== 'number') {
-    throw new ParseError({
-      message: `Codex token ${op} response missing fields`,
-      source: 'openai-codex-token-response',
-      context: { op },
-    });
-  }
-  return {
-    access: json.access_token,
-    refresh: json.refresh_token,
-    expires: Date.now() + json.expires_in * 1000,
-    idToken: json.id_token,
-  };
-}
-
-async function exchangeAuthorizationCode(
-  code: string,
-  verifier: string,
-  signal?: AbortSignal,
-  port = REDIRECT_PORT,
-): Promise<CodexTokens> {
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: CLIENT_ID,
-      code,
-      code_verifier: verifier,
-      redirect_uri: redirectUri(port),
-    }).toString(),
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(30_000)])
-      : AbortSignal.timeout(30_000),
-  });
-  return readTokens(res, 'exchange');
-}
+export { buildCodexAuthorizeUrl, CODEX_BASE_URL, CODEX_PROVIDER_ID } from './codex-protocol.js';
+export { filterCurrentCodexModelIds } from './codex-models.js';
 
 // ── Outcome assembly ──────────────────────────────────────────────────────────
 
@@ -220,7 +45,8 @@ async function buildOutcome(
   tokens: CodexTokens,
   signal?: AbortSignal,
 ): Promise<OAuthLoginOutcome> {
-  const accountId = extractAccountId(tokens.access) ?? (tokens.idToken ? extractAccountId(tokens.idToken) : null);
+  const accountId =
+    extractAccountId(tokens.access) ?? (tokens.idToken ? extractAccountId(tokens.idToken) : null);
   if (!accountId) {
     throw new ParseError({
       message:
@@ -228,7 +54,12 @@ async function buildOutcome(
       source: 'openai-codex-token-response',
     });
   }
-  const models = await resolveCodexModels(deps?.modelsRegistry, tokens.access, signal);
+  const models = await resolveCodexModels(
+    deps?.modelsRegistry,
+    tokens.access,
+    CODEX_BASE_URL,
+    signal,
+  );
   const apiKey: ProviderApiKey = {
     label: 'oauth-default',
     apiKey: tokens.access,
@@ -237,7 +68,7 @@ async function buildOutcome(
     expiresAt: new Date(tokens.expires).toISOString(),
     refreshToken: tokens.refresh,
     tokenType: 'bearer',
-    scope: SCOPE,
+    scope: CODEX_SCOPE,
     accountId,
   };
   return {
@@ -259,10 +90,10 @@ export async function beginChatGPTLogin(
   const state = createState();
 
   const server: LoopbackServer = await startLoopbackServer({
-    port: REDIRECT_PORT,
-    fallbackPorts: [FALLBACK_REDIRECT_PORT],
-    host: REDIRECT_HOST,
-    path: REDIRECT_PATH,
+    port: CODEX_REDIRECT_PORT,
+    fallbackPorts: [CODEX_FALLBACK_REDIRECT_PORT],
+    host: CODEX_REDIRECT_HOST,
+    path: CODEX_REDIRECT_PATH,
     expectedState: state,
     signal,
   });
@@ -277,7 +108,12 @@ export async function beginChatGPTLogin(
       if (!server.bound) return null;
       const got = await server.waitForCode();
       if (!got?.code) return null;
-      const tokens = await exchangeAuthorizationCode(got.code, pkce.verifier, waitSignal ?? signal, server.port);
+      const tokens = await exchangeCodexAuthorizationCode(
+        got.code,
+        pkce.verifier,
+        waitSignal ?? signal,
+        server.port,
+      );
       return buildOutcome(deps, tokens, waitSignal ?? signal);
     },
     async completeWithCode(input: string, codeSignal?: AbortSignal): Promise<OAuthLoginOutcome> {
@@ -286,7 +122,7 @@ export async function beginChatGPTLogin(
         throw new Error('State mismatch — please restart the login flow.');
       }
       if (!parsed.code) throw new Error('No authorization code found in the pasted value.');
-      const tokens = await exchangeAuthorizationCode(
+      const tokens = await exchangeCodexAuthorizationCode(
         parsed.code,
         pkce.verifier,
         codeSignal ?? signal,

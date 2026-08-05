@@ -102,6 +102,22 @@ describe('assessAtomicity', () => {
       },
     });
     expect(effortOnly.verdict).toBe('needs_decomposition');
+
+    // Zeroing every weight expresses no opinion at all. It must not collapse to
+    // the most permissive verdict — that would silently switch decomposition
+    // off for an obviously over-sized task.
+    const allZero = assessAtomicity(candidate({ estimatedHours: 40 }), {
+      weights: {
+        effort: 0,
+        'file-scope': 0,
+        'dependency-fan-in': 0,
+        'single-verifiable-output': 0,
+        'description-scope': 0,
+      },
+    });
+    expect(allZero.verdict).toBe(assessAtomicity(candidate({ estimatedHours: 40 })).verdict);
+    expect(allZero.verdict).not.toBe('atomic');
+    expect(Number.isFinite(allZero.score)).toBe(true);
   });
 
   it('penalizes effort above the ceiling but stays atomic at the boundary', () => {
