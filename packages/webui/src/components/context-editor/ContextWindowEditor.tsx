@@ -85,6 +85,10 @@ function SelectableContent({
     if (element) setSelection(selectedOffsets(element));
   }, [disabled]);
 
+  useEffect(() => {
+    setSelection(null);
+  }, [text]);
+
   return (
     <div className={cn('rounded-md border bg-background p-3', marked && 'border-destructive/40 bg-destructive/5')}>
       <p

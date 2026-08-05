@@ -9,6 +9,8 @@ const wsMock = vi.hoisted(() => {
     handlers,
     send: vi.fn(),
     openContextEditor: vi.fn(),
+    validateContextEditor: vi.fn(),
+    applyContextEditor: vi.fn(),
     on: vi.fn((event: string, handler: (message: { type: string; payload?: unknown }) => void) => {
       handlers.set(event, handler);
     }),
@@ -23,6 +25,8 @@ vi.mock('../../src/lib/ws-client', () => ({
   getWSClient: () => ({
     send: wsMock.send,
     openContextEditor: wsMock.openContextEditor,
+    validateContextEditor: wsMock.validateContextEditor,
+    applyContextEditor: wsMock.applyContextEditor,
     on: wsMock.on,
     off: wsMock.off,
     withSession: (payload: Record<string, unknown>) => ({ ...payload, sessionId: 'test-session' }),
