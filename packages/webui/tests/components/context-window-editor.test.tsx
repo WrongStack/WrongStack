@@ -106,6 +106,8 @@ describe('ContextWindowEditor', () => {
     wsMock.handlers.clear();
     wsMock.send.mockClear();
     wsMock.openContextEditor.mockClear();
+    wsMock.validateContextEditor.mockClear();
+    wsMock.applyContextEditor.mockClear();
     wsMock.on.mockClear();
     wsMock.off.mockClear();
     useContextEditorStore.setState({
@@ -192,6 +194,58 @@ describe('ContextWindowEditor', () => {
     expect(useContextEditorStore.getState().removeRanges).toEqual([
       { messageIndex: 0, start: 0, end: 6 },
     ]);
+  });
+
+  it('clears the Mark for removal button when message text changes via loadSnapshot', async () => {
+    const { rerender } = render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    loadSnapshot({
+      messages: [{ role: 'user', content: 'Select with keyboard' }],
+      messageBreakdown: [
+        {
+          index: 0,
+          role: 'user',
+          tokens: 100,
+          preview: 'Select with keyboard',
+          blockCount: null,
+          warnings: [],
+        },
+      ],
+    });
+    rerender(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+
+    const content = await screen.findByText('Select with keyboard');
+    const textNode = content.firstChild;
+    if (!textNode) throw new Error('Expected selectable text content');
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 6);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.keyUp(content, { key: 'Shift' });
+
+    expect(await screen.findByText('Mark for removal', { selector: 'button' })).toBeTruthy();
+
+    // Simulate a server snapshot refresh with different text content.
+    // This triggers the [text] useEffect that clears stale selection state.
+    loadSnapshot({
+      messages: [{ role: 'user', content: 'Updated content after edit' }],
+      messageBreakdown: [
+        {
+          index: 0,
+          role: 'user',
+          tokens: 80,
+          preview: 'Updated content after edit',
+          blockCount: null,
+          warnings: [],
+        },
+      ],
+    });
+    rerender(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Mark for removal', { selector: 'button' })).toBeNull();
+    });
   });
 
   it('marks a message for removal when toggled', async () => {
