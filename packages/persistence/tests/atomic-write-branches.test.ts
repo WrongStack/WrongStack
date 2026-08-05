@@ -122,6 +122,35 @@ describe('persistence primitive edge branches', () => {
     expect(doubles.fs.rename).toHaveBeenCalledTimes(1);
   });
 
+  it('retries Windows rename on ENOENT when the source still exists', async () => {
+    usePlatform('win32');
+    // commitTemp's stat(target) rejects (new file); the retry's stat(from)
+    // resolves — the temp is only momentarily invisible to MoveFileEx.
+    doubles.fs.stat.mockImplementation(async (p: string) => {
+      if (String(p).includes('.tmp')) return { mode: 0o100600 };
+      throw errorWithCode('ENOENT');
+    });
+    doubles.fs.rename
+      .mockRejectedValueOnce(errorWithCode('ENOENT'))
+      .mockResolvedValueOnce(undefined);
+    const primitives = createPersistencePrimitives();
+
+    await expect(primitives.atomicWrite('C:\\tmp\\value.txt', 'value')).resolves.toBe(undefined);
+    expect(doubles.fs.rename).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails fast on Windows rename ENOENT when the source is gone', async () => {
+    usePlatform('win32');
+    // Both commitTemp's stat(target) and the retry's stat(from) reject
+    // (ENOENT default) — a genuinely deleted temp cannot be healed by waiting.
+    const renameError = errorWithCode('ENOENT');
+    doubles.fs.rename.mockRejectedValue(renameError);
+    const primitives = createPersistencePrimitives();
+
+    await expect(primitives.atomicWrite('C:\\tmp\\value.txt', 'value')).rejects.toBe(renameError);
+    expect(doubles.fs.rename).toHaveBeenCalledTimes(1);
+  });
+
   it('stops retrying Windows rename after the extended transient window', async () => {
     usePlatform('win32');
     const renameError = errorWithCode('EBUSY');

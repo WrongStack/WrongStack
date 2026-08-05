@@ -339,7 +339,22 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
       return;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (!code || !TRANSIENT_RENAME_CODES.has(code) || attempt === delays.length) {
+      let transient = code !== undefined && TRANSIENT_RENAME_CODES.has(code);
+      if (code === 'ENOENT') {
+        // The temp was fsynced and chmod'd a moment before this rename, so
+        // the source existed — an ENOENT here is a Windows AV/filter-driver
+        // visibility race (the file is momentarily invisible to MoveFileEx),
+        // not a deletion. Verify the source still exists: if it does, retry
+        // like EPERM/EBUSY; if it is genuinely gone (concurrent cleanup),
+        // waiting cannot heal it, so fail fast.
+        try {
+          await fs.stat(from);
+          transient = true;
+        } catch {
+          transient = false;
+        }
+      }
+      if (!transient || attempt === delays.length) {
         // All retries exhausted — emit a diagnostic warning so operators
         // know the atomic write was skipped (the caller self-heals).
         if (attempt === delays.length) {
