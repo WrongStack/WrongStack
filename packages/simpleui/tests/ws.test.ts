@@ -114,6 +114,21 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('valid-token');
   });
 
+  it('clears a dead stored token on a fresh load when the cookie path was proven in a previous session', async () => {
+    // The proven marker persists in localStorage across sessions, so a token
+    // already dead at page load (e.g. a rotated secret between visits) can be
+    // cleared on a fresh load — no in-session 200 required.
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'dead-token');
+    window.localStorage.setItem('wrongstack.simpleui.cookie-proven.v1', '1');
+    window.history.replaceState(null, '', '/chat');
+
+    stubWsAuth(401);
+    await exchangeAuthCookie(defaultWsUrl());
+    await exchangeAuthCookie(defaultWsUrl());
+    await exchangeAuthCookie(defaultWsUrl());
+    expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
   it('resets the 401 streak on a successful exchange', async () => {
     // A blip followed by a success must not accumulate toward revocation.
     window.localStorage.setItem(TOKEN_STORAGE_KEY, 'healthy-token');

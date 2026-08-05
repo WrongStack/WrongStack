@@ -46,23 +46,44 @@ function clearStoredToken(): void {
   }
 }
 
-// Consecutive /ws-auth 401s since the last success (or since page load),
-// plus whether the cookie path has EVER succeeded in this page session.
-// A 401 only clears a stored token when BOTH hold: the route has proven to
-// exist (a success happened, so this 401 is genuinely about the token — the
-// /ws-auth route 401s only on a token mismatch), AND the streak reached N.
-// Without the success precondition, enableWsCookie:false deployments (the
-// route does not exist; the generic gate 401s a VALID token) would destroy a
-// good credential after N rejections — locking out a working user.
+// Consecutive /ws-auth 401s since the last success (or since page load).
+// A 401 only clears a stored token when the cookie path has PROVEN to work —
+// /ws-auth 401s only on a token mismatch once the route exists — AND the
+// streak reached N. "Proven" is persisted to localStorage, not kept as a
+// per-session boolean: a token already dead at page load (e.g. rotated
+// secret between visits) can then be cleared on a fresh load, while
+// enableWsCookie:false deployments (the route does not exist; the generic
+// gate 401s a VALID token) never get a 200, never write the marker, and
+// their valid credentials are never destroyed.
+const COOKIE_PROVEN_KEY = 'wrongstack.simpleui.cookie-proven.v1';
 let consecutive401s = 0;
-let cookieExchangeEverSucceeded = false;
 const MAX_CONSECUTIVE_401S = 3;
+
+function isCookiePathProven(): boolean {
+  try {
+    return window.localStorage.getItem(COOKIE_PROVEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markCookiePathProven(): void {
+  try {
+    window.localStorage.setItem(COOKIE_PROVEN_KEY, '1');
+  } catch {
+    /* best-effort */
+  }
+}
 
 /** Test seam — reset the module-level auth state between tests. */
 export const __test__ = {
   resetCookieExchangeState: (): void => {
     consecutive401s = 0;
-    cookieExchangeEverSucceeded = false;
+    try {
+      window.localStorage.removeItem(COOKIE_PROVEN_KEY);
+    } catch {
+      /* best-effort */
+    }
   },
 };
 
@@ -169,7 +190,7 @@ export async function exchangeAuthCookie(url: URL): Promise<URL> {
       if (response.status === 401) {
         consecutive401s += 1;
         if (
-          cookieExchangeEverSucceeded &&
+          isCookiePathProven() &&
           consecutive401s >= MAX_CONSECUTIVE_401S &&
           stored === token
         ) {
@@ -192,7 +213,7 @@ export async function exchangeAuthCookie(url: URL): Promise<URL> {
       return url;
     }
     consecutive401s = 0;
-    cookieExchangeEverSucceeded = true;
+    markCookiePathProven();
     if (sameHost) {
       // Only persist a token the server actually accepted — a stale `?token=`
       // from an old link must not outlive its page load.
