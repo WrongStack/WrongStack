@@ -138,3 +138,118 @@ export function detectLang(file: string): SymbolLang | null {
 export function isIndexablePath(file: string): boolean {
   return detectLang(file) !== null;
 }
+
+// ─── Language families ────────────────────────────────────────────────────────
+
+/**
+ * A group of {@link SymbolLang}s whose symbols may legitimately reference each
+ * other by bare name.
+ *
+ * Ref resolution matches `to_name` against `symbols.name`. Done globally that
+ * is actively wrong once more than one language is indexed: `main`, `New`,
+ * `Get`, `String`, `__init__`, `Parse` and `Config` all exist in half a dozen
+ * languages at once, so a Go call would resolve to a TypeScript declaration and
+ * draw a Code Atlas edge between files that have nothing to do with each other.
+ * Scoping resolution to a family keeps cross-language noise out while still
+ * letting genuinely mixed families (`.ts`/`.tsx` + the script block of a
+ * `.vue`/`.svelte` file, `.java`/`.kt` on the JVM) resolve into one another.
+ */
+export type LangFamily =
+  | 'js'
+  | 'go'
+  | 'py'
+  | 'rs'
+  | 'jvm'
+  | 'dotnet'
+  | 'c'
+  | 'ruby'
+  | 'php'
+  | 'swift'
+  | 'dart'
+  | 'elixir'
+  | 'haskell'
+  | 'zig'
+  | 'lua'
+  | 'r'
+  | 'shell'
+  | 'sql'
+  | 'data'
+  | 'web'
+  | 'proto'
+  | 'graphql'
+  | 'other';
+
+const LANG_FAMILY: Readonly<Record<SymbolLang, LangFamily>> = {
+  // Single-compilation-unit family: a .vue/.svelte script block is JS/TS and
+  // imports from — and is imported by — plain .ts files.
+  ts: 'js',
+  tsx: 'js',
+  js: 'js',
+  jsx: 'js',
+  vue: 'js',
+  svelte: 'js',
+
+  go: 'go',
+  py: 'py',
+  rs: 'rs',
+
+  // The JVM resolves across languages: Kotlin and Scala call Java directly.
+  java: 'jvm',
+  kotlin: 'jvm',
+  scala: 'jvm',
+
+  csharp: 'dotnet',
+
+  // A .h header is consumed by both C and C++ translation units.
+  c: 'c',
+  cpp: 'c',
+
+  ruby: 'ruby',
+  php: 'php',
+  swift: 'swift',
+  dart: 'dart',
+  elixir: 'elixir',
+  haskell: 'haskell',
+  zig: 'zig',
+  lua: 'lua',
+  r: 'r',
+  shell: 'shell',
+  sql: 'sql',
+
+  json: 'data',
+  yaml: 'data',
+  toml: 'data',
+
+  html: 'web',
+  css: 'web',
+
+  proto: 'proto',
+  graphql: 'graphql',
+
+  md: 'other',
+  other: 'other',
+};
+
+/**
+ * `(lang, family)` pairs, for mirroring the mapping into SQLite so ref
+ * resolution can join on it instead of expanding a family into an IN-list of
+ * placeholders on every statement.
+ */
+export const LANG_FAMILY_ENTRIES: ReadonlyArray<readonly [SymbolLang, LangFamily]> = Object.freeze(
+  (Object.entries(LANG_FAMILY) as Array<[SymbolLang, LangFamily]>).map(
+    ([lang, family]) => Object.freeze([lang, family]) as readonly [SymbolLang, LangFamily],
+  ),
+);
+
+/** Family a language resolves within. */
+export function languageFamily(lang: SymbolLang): LangFamily {
+  return LANG_FAMILY[lang] ?? 'other';
+}
+
+/** Every language in the same resolution family as `lang`, including itself. */
+export function familyMembers(lang: SymbolLang): SymbolLang[] {
+  const family = languageFamily(lang);
+  return (Object.keys(LANG_FAMILY) as SymbolLang[]).filter(
+    (candidate) => LANG_FAMILY[candidate] === family,
+  );
+}

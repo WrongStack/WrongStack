@@ -1,42 +1,44 @@
-import * as path from 'node:path';
+import { derivePackageFromLayout } from './module-roots.js';
 import type { CallType, GraphEdge, GraphNode, SymbolKind, SymbolLang } from './schema.js';
 
 /**
  * Derive a monorepo package name from an absolute file path.
  * Handles both `packages/<name>/...` and `apps/<name>/...` layouts.
+ *
+ * This is the fallback only. The authoritative grouping is computed at index
+ * time from each ecosystem's own manifests and stored on `files.package` —
+ * see {@link createPackageLabeller}. A path-shape guess is all that is left
+ * for a repo with no manifest at all.
  */
 export function derivePackage(filePath: string): string | undefined {
-  const f = filePath.replace(/\\/g, '/');
-  const pkgsIdx = f.indexOf('/packages/');
-  if (pkgsIdx !== -1) {
-    const rest = f.slice(pkgsIdx + '/packages/'.length);
-    const seg = rest.split('/')[0];
-    return seg ? `@wrongstack/${seg}` : undefined;
-  }
-  const appsIdx = f.indexOf('/apps/');
-  if (appsIdx !== -1) {
-    const rest = f.slice(appsIdx + '/apps/'.length);
-    const seg = rest.split('/')[0];
-    return seg ? `app:${seg}` : undefined;
-  }
-  return undefined;
+  return derivePackageFromLayout(filePath);
 }
 
-export function packageFromImport(moduleName: string): string | undefined {
-  if (!moduleName.startsWith('@wrongstack/')) return undefined;
-  const parts = moduleName.split('/');
-  return parts[1] ? `@wrongstack/${parts[1]}` : undefined;
+/**
+ * Build the `file → package` lookup the graph readers group by.
+ *
+ * `stored` comes from `files.package`, which the indexer filled from `go.mod`,
+ * `Cargo.toml`, `package.json`, `pom.xml` and friends. Files missing a stored
+ * label (indexed by an older run, or outside any manifest) fall back to the
+ * path-shape heuristic and finally to `(root)`.
+ */
+export function createPackageLabeller(
+  stored: ReadonlyMap<string, string>,
+): (file: string) => string {
+  return (file: string): string =>
+    stored.get(file) ?? derivePackageFromLayout(file) ?? '(root)';
 }
 
 export function buildPackageGraphNodes(
   fileCounts: Array<{ file: string; n: number }>,
   files: Array<{ file: string }>,
+  packageOf: (file: string) => string,
 ): { pkgNodes: Map<string, GraphNode>; fileToPkg: Map<string, string> } {
   const pkgNodes = new Map<string, GraphNode>();
   const fileToPkg = new Map<string, string>();
 
   for (const { file, n } of fileCounts) {
-    const pkg = derivePackage(file) ?? '(root)';
+    const pkg = packageOf(file);
     fileToPkg.set(file, pkg);
     const node = pkgNodes.get(pkg);
     if (node) {
@@ -54,7 +56,7 @@ export function buildPackageGraphNodes(
   }
 
   for (const { file } of files) {
-    const pkg = derivePackage(file) ?? '(root)';
+    const pkg = packageOf(file);
     fileToPkg.set(file, pkg);
     const node = pkgNodes.get(pkg);
     if (node) {
@@ -86,6 +88,7 @@ export type WriterFileGraphSymbolRow = {
 export function buildFileGraphNodeState(
   pkgSyms: WriterFileGraphSymbolRow[],
   localFiles: Set<string>,
+  packageOf: (file: string) => string,
 ): {
   fileNodes: Map<string, GraphNode>;
   symToFile: Map<number, string>;
@@ -111,7 +114,7 @@ export function buildFileGraphNodeState(
       id: `file:${file}`,
       label: file.replace(/\\/g, '/').split('/').pop() ?? file,
       kind: 'file',
-      package: derivePackage(file) ?? '(root)',
+      package: packageOf(file),
       file,
       symbolCount: stats?.count ?? 0,
       lang: stats?.lang,
@@ -139,6 +142,7 @@ export function buildSymbolGraphNodes(
   symById: Map<number, WriterSymbolGraphRow>,
   relatedIds: Set<number>,
   fileFilter: string,
+  packageOf: (file: string) => string,
 ): GraphNode[] {
   return [...relatedIds]
     .map((id) => symById.get(id))
@@ -155,41 +159,13 @@ export function buildSymbolGraphNodes(
       symbolId: s.id,
       symbolKind: s.kind as SymbolKind,
       file: s.file,
-      package: derivePackage(s.file) ?? '(root)',
+      package: packageOf(s.file),
       lang: s.lang as SymbolLang,
       line: s.line,
       signature: s.signature,
       scope: s.scope,
       external: s.file !== fileFilter,
     }));
-}
-
-export function resolveRelativeImport(
-  fromFile: string,
-  moduleName: string,
-  indexedFiles: Set<string>,
-): string | undefined {
-  if (!moduleName.startsWith('.')) return undefined;
-  const normalizedFrom = fromFile.replace(/\\/g, '/');
-  const absolute = path.posix.normalize(
-    path.posix.join(path.posix.dirname(normalizedFrom), moduleName),
-  );
-  const extension = path.posix.extname(absolute);
-  const base = extension ? absolute.slice(0, -extension.length) : absolute;
-  const candidates = [
-    absolute,
-    ...['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts'].map((ext) => `${base}${ext}`),
-    ...['.ts', '.tsx', '.js', '.jsx'].map((ext) => path.posix.join(absolute, `index${ext}`)),
-    ...['.ts', '.tsx', '.js', '.jsx'].map((ext) => path.posix.join(base, `index${ext}`)),
-  ];
-  const indexedByPortablePath = new Map(
-    [...indexedFiles].map((file) => [file.replace(/\\/g, '/').toLocaleLowerCase(), file]),
-  );
-  for (const candidate of candidates) {
-    const indexed = indexedByPortablePath.get(candidate.toLocaleLowerCase());
-    if (indexed) return indexed;
-  }
-  return undefined;
 }
 
 export type WeightedEdgeAccumulator = {

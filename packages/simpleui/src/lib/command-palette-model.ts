@@ -12,7 +12,8 @@ export type CommandPaletteAction =
   | 'open-prompts'
   | 'open-brain'
   | 'open-health'
-  | 'compact-context';
+  | 'compact-context'
+  | 'open-context-breakdown';
 
 export interface CommandPaletteItem {
   id: CommandPaletteAction;
@@ -49,6 +50,12 @@ const BASE_ITEMS: Array<Omit<CommandPaletteItem, 'disabled'>> = [
     title: 'Compact context',
     section: 'Session',
     keywords: ['tokens', 'context', 'summarize'],
+  },
+  {
+    id: 'open-context-breakdown',
+    title: 'Context breakdown',
+    section: 'Session',
+    keywords: ['tokens', 'context', 'details', 'allocation', 'distribution'],
   },
   {
     id: 'open-health',
@@ -124,7 +131,8 @@ export function commandPaletteItems(context: CommandPaletteContext): CommandPale
     disabled:
       (item.id === 'new-session' && (!context.hasSession || context.running)) ||
       (item.id === 'focus-composer' && !context.canCompose) ||
-      (item.id === 'compact-context' && !context.canCompact),
+      (item.id === 'compact-context' && !context.canCompact) ||
+      (item.id === 'open-context-breakdown' && !context.hasSession),
   }));
 }
 

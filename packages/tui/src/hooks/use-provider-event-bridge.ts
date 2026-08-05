@@ -280,6 +280,37 @@ export function useProviderEventBridge({
         },
       });
     });
+    // Fallback gate — BEFORE the chain iterates, the gate emits
+    // provider.fallback_pending so the UI can show a modal with a
+    // countdown and manual model selection. The overlay dispatches
+    // fallbackOverlayOpen; when the user picks a model or the countdown
+    // expires, app-view emits provider.fallback_choice on the EventBus
+    // and the gate resolves.
+    const offFallbackPending = events.on('provider.fallback_pending', (e) => {
+      // Session guard — don't open the overlay for events from other sessions.
+      const eventSessionId = (e as { sessionId?: unknown }).sessionId;
+      if (typeof eventSessionId === 'string' && eventSessionId !== agent.ctx.session.id) return;
+      const candidates = Array.isArray(e.candidates)
+        ? e.candidates.map((c) => ({
+            providerId: String(c.providerId ?? ''),
+            model: String(c.model ?? ''),
+          }))
+        : [];
+      dispatch({
+        type: 'fallbackOverlayOpen',
+        info: {
+          requestId: String(e.requestId ?? ''),
+          from: {
+            providerId: String(e.from?.providerId ?? ''),
+            model: String(e.from?.model ?? ''),
+          },
+          status: typeof e.status === 'number' ? e.status : 0,
+          candidates,
+          autoSwitchSeconds: typeof e.autoSwitchSeconds === 'number' ? e.autoSwitchSeconds : 7,
+          selected: 0,
+        },
+      });
+    });
     // Per-iteration text flush. Without this, the entire run buffers all text
     // deltas in the live tail box and dumps them into history as ONE assistant
     // entry only after `agent.run()` returns. Tool results, in contrast, land
@@ -569,6 +600,7 @@ export function useProviderEventBridge({
       offRetry();
       offProvErr();
       offFallback();
+      offFallbackPending();
       offProvResp();
       offConfirmNeeded();
       offTrustPersisted();

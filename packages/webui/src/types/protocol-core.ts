@@ -250,6 +250,20 @@ export interface WSProviderFallback {
     to: { providerId: string; model: string };
     status: number;
     providerSwitched: boolean;
+    /** Gate correlation id — present when a fallback gate mediated the switch. */
+    requestId?: string | undefined;
+  };
+}
+
+export interface WSProviderFallbackPending {
+  type: 'provider.fallback_pending';
+  payload: SessionScopedPayload & {
+    from: { providerId: string; model: string };
+    status: number;
+    candidates: Array<{ providerId: string; model: string }>;
+    autoSwitchSeconds: number;
+    requestId: string;
+    timestamp: number;
   };
 }
 

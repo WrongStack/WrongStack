@@ -346,6 +346,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     exitConfirm: null,
     slashConfirm: null,
     escConfirm: null,
+    fallbackOverlay: null,
     sendModePicker: null,
     contextChipVersion: 0,
     fleet: {},

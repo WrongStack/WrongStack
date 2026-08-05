@@ -66,6 +66,7 @@ import type { BrainRouteHandlers } from './brain-routes.js';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { handleConfigDoctor } from './config-doctor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
+import { emitFallbackChoice } from './fallback-choice.js';
 import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
 import type { GoalRouteHandlers } from './goal-routes.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
@@ -117,7 +118,10 @@ import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { ConnectedClient } from './types.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
-import { validateGitDiffPayload, validateShellOpenPayload } from './ws-payload-validation.js';
+import {
+  validateGitDiffPayload,
+  validateShellOpenPayload,
+} from './ws-payload-validation.js';
 import { broadcast, send, sendResult } from './ws-utils.js';
 
 /**
@@ -384,6 +388,15 @@ export function buildRoutes(
         ws,
         msg.payload as import('./model-operations.js').ModelRefinePayload,
       ),
+    fallbackChoice: async (ws, msg) => {
+      const result = emitFallbackChoice(deps.events, msg);
+      if (!result.ok) {
+        send(ws, {
+          type: 'error',
+          payload: { phase: 'invalid_request', message: result.message },
+        });
+      }
+    },
   };
 
   const sessionRoutes: SessionRouteHandlers = createSessionHandlers({

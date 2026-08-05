@@ -6,6 +6,7 @@ export const CLIENT_CONVERSATION_MESSAGE_TYPES = [
   'completion.request',
   'model.switch',
   'model.refine',
+  'model.fallback_choice',
   'autonomy.switch',
   'context.clear',
   'context.compact',

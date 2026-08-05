@@ -21,6 +21,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
+import { LANG_FAMILY_ENTRIES } from './languages.js';
 import { lspKindToInternalKind } from './lsp-kind.js';
 import type {
   CallSite,
@@ -62,6 +63,9 @@ import { assignRefsToSymbols, escapeLike, resolveIndexDir } from './writer-helpe
 import { applyIndexStorePragmas } from './writer-pragmas.js';
 import {
   CORE_TABLES_SQL,
+  FILE_INDEX_SQL,
+  LANG_FAMILY_TABLE_SQL,
+  LANG_FAMILY_WILDCARD,
   METADATA_TABLE_SQL,
   REFS_INDEX_SQL,
   REFS_TABLE_SQL,
@@ -173,6 +177,20 @@ export class IndexStore {
     return runSqliteWithRetry(fn);
   }
 
+  /**
+   * Mirror the in-process language→family map into SQLite.
+   *
+   * Rewritten on every open rather than only on schema bumps: the mapping is
+   * static lookup data, so a code-side change (a new language, a language
+   * moving families) must take effect without forcing a full reindex.
+   */
+  private seedLangFamilies(): void {
+    const insert = this.stmt('INSERT OR REPLACE INTO lang_family(lang, family) VALUES (?, ?)');
+    for (const [lang, family] of LANG_FAMILY_ENTRIES) insert.run(lang, family);
+    // Refs written without a language resolve against every family.
+    insert.run('', LANG_FAMILY_WILDCARD);
+  }
+
   private initSchema(): void {
     this.db.exec(METADATA_TABLE_SQL);
 
@@ -202,9 +220,12 @@ export class IndexStore {
     }
 
     this.db.exec(CORE_TABLES_SQL);
+    for (const sql of FILE_INDEX_SQL) this.db.exec(sql);
     for (const sql of SYMBOL_INDEX_SQL) this.db.exec(sql);
     this.db.exec(REFS_TABLE_SQL);
     for (const sql of REFS_INDEX_SQL) this.db.exec(sql);
+    this.db.exec(LANG_FAMILY_TABLE_SQL);
+    this.seedLangFamilies();
 
     // FTS5 full-text index over the camelCase-split symbol text; rowid is the
     // symbol id. Replaces the old `LIKE '%token%'` full-table scan + per-query
@@ -259,6 +280,19 @@ export class IndexStore {
   private static readonly NEXT_SYMBOL_ID_KEY = 'next_symbol_id';
   /** Stay under typical SQLite SQLITE_MAX_VARIABLE_NUMBER (often 999). */
   private static readonly MAX_SQL_VARS = 900;
+
+  /**
+   * Correlated predicate: the ref in `refs` and the candidate symbol aliased
+   * `sym` belong to the same language family — or the ref carries no language,
+   * in which case the wildcard bind matches everything.
+   *
+   * Each textual occurrence consumes one `?` bind of {@link LANG_FAMILY_WILDCARD}.
+   */
+  private static readonly FAMILY_MATCH_SQL = `(
+    (SELECT family FROM lang_family WHERE lang = refs.lang) = ?
+    OR (SELECT family FROM lang_family WHERE lang = sym.lang)
+       = (SELECT family FROM lang_family WHERE lang = refs.lang)
+  )`;
 
   /**
    * Ensure `metadata.next_symbol_id` exists. Safe to call outside a write
@@ -330,9 +364,12 @@ export class IndexStore {
       const placeholders = chunk.map(() => '?').join(',');
       const result = this.stmt(
         `UPDATE refs
-         SET to_id = (SELECT MIN(id) FROM symbols WHERE name = refs.to_name)
+         SET to_id = (
+           SELECT MIN(sym.id) FROM symbols sym
+            WHERE sym.name = refs.to_name AND ${IndexStore.FAMILY_MATCH_SQL}
+         )
          WHERE to_name IN (${placeholders})`,
-      ).run(...chunk) as { changes?: number };
+      ).run(LANG_FAMILY_WILDCARD, ...chunk) as { changes?: number };
       changes += result.changes ?? 0;
     }
     return changes;
@@ -469,6 +506,138 @@ export class IndexStore {
 
   getAllFileMetas(): FileMeta[] {
     return getAllFileMetasWithStatement((sql) => this.stmt(sql));
+  }
+
+  // ─── Project structure & module resolution ──────────────────────────────────
+
+  /** Store the Code Atlas grouping label for each indexed file. */
+  setFilePackages(entries: ReadonlyMap<string, string>): void {
+    if (entries.size === 0) return;
+    this.runWithRetry(() => {
+      const update = this.stmt('UPDATE files SET package = ? WHERE file = ?');
+      for (const [file, label] of entries) update.run(label, file);
+    });
+  }
+
+  /**
+   * Every indexed `namespace`/`module` declaration, for ecosystems whose import
+   * specifiers name a namespace rather than a path (C#, PHP, Elixir, Haskell).
+   * Ordered so the resolver's choice among duplicate declarations is stable.
+   */
+  getNamespaceDeclarations(): Array<{ name: string; file: string }> {
+    return this.stmt(
+      `SELECT name, file FROM symbols WHERE kind = 'namespace' ORDER BY file, id`,
+    ).all() as Array<{ name: string; file: string }>;
+  }
+
+  /** `file → package` for every indexed file that has a label. */
+  getFilePackages(): Map<string, string> {
+    const rows = this.stmt("SELECT file, package FROM files WHERE package != ''").all() as Array<{
+      file: string;
+      package: string;
+    }>;
+    return new Map(rows.map((row) => [row.file, row.package]));
+  }
+
+  /**
+   * Distinct `(fromFile, lang, module)` triples needing module resolution.
+   *
+   * Distinct rather than per-ref because resolution depends only on these three
+   * values: a file importing the same module twenty times resolves it once.
+   */
+  getUnresolvedImports(onlyFiles?: readonly string[]): Array<{
+    fromFile: string;
+    lang: string;
+    module: string;
+  }> {
+    const base = `SELECT DISTINCT s.file AS fromFile, r.lang AS lang, r.module AS module
+                    FROM refs r
+                    JOIN symbols s ON s.id = r.from_id
+                   WHERE r.call_type = 'import' AND r.module IS NOT NULL`;
+    if (!onlyFiles?.length) {
+      return this.stmt(base).all() as Array<{ fromFile: string; lang: string; module: string }>;
+    }
+    const out: Array<{ fromFile: string; lang: string; module: string }> = [];
+    for (let i = 0; i < onlyFiles.length; i += IndexStore.MAX_SQL_VARS) {
+      const chunk = onlyFiles.slice(i, i + IndexStore.MAX_SQL_VARS);
+      const placeholders = chunk.map(() => '?').join(',');
+      out.push(
+        ...(this.stmt(`${base} AND s.file IN (${placeholders})`).all(...chunk) as Array<{
+          fromFile: string;
+          lang: string;
+          module: string;
+        }>),
+      );
+    }
+    return out;
+  }
+
+  /**
+   * Write resolved import targets back onto `refs.to_file`.
+   *
+   * Applied through a temp table and a single UPDATE: one statement per
+   * resolution would mean thousands of round-trips on a first index.
+   */
+  applyImportResolutions(
+    resolutions: ReadonlyArray<{ fromFile: string; lang: string; module: string; toFile: string }>,
+  ): number {
+    if (resolutions.length === 0) return 0;
+    return this.runWithRetry(() => {
+      this.db.exec('DROP TABLE IF EXISTS temp.import_resolution');
+      this.db.exec(
+        `CREATE TEMP TABLE import_resolution (
+           from_file TEXT NOT NULL,
+           lang TEXT NOT NULL,
+           module TEXT NOT NULL,
+           to_file TEXT NOT NULL
+         )`,
+      );
+      const chunkSize = Math.max(1, Math.floor(IndexStore.MAX_SQL_VARS / 4));
+      for (let i = 0; i < resolutions.length; i += chunkSize) {
+        const chunk = resolutions.slice(i, i + chunkSize);
+        const placeholders = chunk.map(() => '(?, ?, ?, ?)').join(', ');
+        const binds: string[] = [];
+        for (const entry of chunk) {
+          binds.push(entry.fromFile, entry.lang, entry.module, entry.toFile);
+        }
+        this.stmt(
+          `INSERT INTO temp.import_resolution(from_file, lang, module, to_file)
+           VALUES ${placeholders}`,
+        ).run(...binds);
+      }
+      this.db.exec(
+        `CREATE INDEX IF NOT EXISTS temp.idx_ir
+           ON import_resolution(module, lang, from_file)`,
+      );
+
+      // The EXISTS guard keeps this incremental-safe: an import the caller did
+      // not re-resolve this round keeps whatever target it already had, instead
+      // of being reset to NULL by a subquery that found no row.
+      const result = this.stmt(
+        `UPDATE refs
+            SET to_file = (
+              SELECT ir.to_file
+                FROM temp.import_resolution ir
+                JOIN symbols s ON s.id = refs.from_id
+               WHERE ir.module = refs.module
+                 AND ir.lang = refs.lang
+                 AND ir.from_file = s.file
+               LIMIT 1
+            )
+          WHERE refs.call_type = 'import'
+            AND refs.module IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+                FROM temp.import_resolution ir
+                JOIN symbols s ON s.id = refs.from_id
+               WHERE ir.module = refs.module
+                 AND ir.lang = refs.lang
+                 AND ir.from_file = s.file
+            )`,
+      ).run() as { changes?: number };
+      this.db.exec('DROP TABLE IF EXISTS temp.import_resolution');
+      return result.changes ?? 0;
+    });
   }
 
   // ─── Search ──────────────────────────────────────────────────────────────────
@@ -967,35 +1136,58 @@ export class IndexStore {
    * Resolve `to_name` → `to_id` for all refs that have a name but no id.
    * Call this after all symbols have been inserted to fill in cross-references.
    *
-   * Single statement: the `to_name IN (SELECT name FROM symbols)` guard restricts
-   * the UPDATE to refs that will actually resolve, so `.changes` counts only refs
-   * that found a target — matching the previous per-row loop's return value.
+   * A match additionally requires the referencing ref and the target symbol to
+   * be in the same {@link LangFamily}. Without that guard a name match is a
+   * cross-language accident waiting to happen — `main`, `New`, `Parse` and
+   * `Config` are declared in most languages at once, and each collision draws a
+   * Code Atlas edge between files that never reference each other. Refs stored
+   * without a language keep the old global behaviour via the `'*'` wildcard row.
    */
   resolveRefs(): number {
     return this.runWithRetry(() => {
-      // Prefer UPDATE-FROM with a pre-aggregated name→id map (SQLite ≥ 3.33).
-      // One hash join instead of a correlated subquery per unresolved row.
-      // MIN(id) matches the previous LIMIT 1 / arbitrary-first semantics when
-      // multiple symbols share a name.
+      // Prefer UPDATE-FROM with a pre-aggregated (name, family)→id map
+      // (SQLite ≥ 3.33). One hash join instead of a correlated subquery per
+      // unresolved row. MIN(id) keeps duplicates deterministic within a family.
+      // Language-less refs match the UNIONed wildcard rows (family '*') and
+      // resolve to the global MIN(id) per name — the same answer as the <3.33
+      // fallback, so the two paths cannot disagree on identical data.
       try {
         const result = this.stmt(
           `UPDATE refs
            SET to_id = s.id
            FROM (
-             SELECT name, MIN(id) AS id FROM symbols GROUP BY name
-           ) AS s
+                 SELECT sym.name AS name, lf.family AS family, MIN(sym.id) AS id
+                   FROM symbols sym
+                   JOIN lang_family lf ON lf.lang = sym.lang
+                  GROUP BY sym.name, lf.family
+                 UNION ALL
+                 SELECT sym.name AS name, '${LANG_FAMILY_WILDCARD}' AS family, MIN(sym.id) AS id
+                   FROM symbols sym
+                  GROUP BY sym.name
+               ) AS s,
+               lang_family AS rf
            WHERE refs.to_id IS NULL
              AND refs.to_name IS NOT NULL
-             AND refs.to_name = s.name`,
+             AND rf.lang = refs.lang
+             AND s.name = refs.to_name
+             AND s.family = rf.family`,
         ).run() as { changes?: number };
         return result.changes ?? 0;
       } catch {
+        // SQLite < 3.33 has no UPDATE-FROM. The EXISTS guard mirrors the
+        // subquery's family condition so `.changes` still counts only refs that
+        // actually found a target, rather than rows rewritten from NULL to NULL.
         const result = this.stmt(
           `UPDATE refs SET to_id = (
-             SELECT id FROM symbols WHERE name = refs.to_name LIMIT 1
+             SELECT sym.id FROM symbols sym
+              WHERE sym.name = refs.to_name AND ${IndexStore.FAMILY_MATCH_SQL}
+              ORDER BY sym.id LIMIT 1
            ) WHERE to_id IS NULL AND to_name IS NOT NULL
-             AND to_name IN (SELECT name FROM symbols)`,
-        ).run() as { changes?: number };
+             AND EXISTS (
+               SELECT 1 FROM symbols sym
+                WHERE sym.name = refs.to_name AND ${IndexStore.FAMILY_MATCH_SQL}
+             )`,
+        ).run(LANG_FAMILY_WILDCARD, LANG_FAMILY_WILDCARD) as { changes?: number };
         return result.changes ?? 0;
       }
     });

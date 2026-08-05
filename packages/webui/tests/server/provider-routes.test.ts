@@ -35,6 +35,7 @@ function routes(): ProviderRouteHandlers {
     listProviderModels: vi.fn(async () => undefined),
     switchModel: vi.fn(async () => undefined),
     refineModel: vi.fn(async () => undefined),
+    fallbackChoice: vi.fn(async () => undefined),
     searchProviderModels: vi.fn(async () => undefined),
     adoptDefaultProviderIfUnset: vi.fn(async () => undefined),
     providerHandlers: {

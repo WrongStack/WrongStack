@@ -567,6 +567,20 @@ export type State = {
     snapshot: NonNullable<State['steerSnapshot']>;
   } | null;
   /**
+   * Fallback model overlay — shown when `provider.fallback_pending` fires.
+   * The overlay displays a countdown and the candidate model list, letting
+   * the user manually pick a model or wait for auto-switch. Null when no
+   * fallback gate is pending.
+   */
+  fallbackOverlay: {
+    requestId: string;
+    from: { providerId: string; model: string };
+    status: number;
+    candidates: Array<{ providerId: string; model: string }>;
+    autoSwitchSeconds: number;
+    selected: number;
+  } | null;
+  /**
    * Mid-run send-mode picker. Set when the user submits a plain message while
    * the agent is busy and `midRunSendPicker` is enabled — the picker asks how
    * to deliver the text (queue / by-the-way / steer). The `resolve` callback

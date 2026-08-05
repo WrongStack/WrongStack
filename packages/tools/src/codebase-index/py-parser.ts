@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import { resolveWin32Command } from '../_win32-resolve.js';
 import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { parseGeneric } from './generic-parser.js';
+import { parseParserOutput } from './parser-output.js';
 import { withSpawnGate } from './spawn-gate.js';
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -106,7 +107,18 @@ class Sym:
 def is_private(name):
     return name.startswith("__") and not name.endswith("__")
 
+def leaf_name(node):
+    # Declared name of the callee: \`join\` of \`os.path.join\`. Matches how the
+    # TypeScript and Go extractors record call refs, so resolution behaves the
+    # same across languages.
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Name):
+        return node.id
+    return get_name(node).split(".")[-1]
+
 syms = []
+refs = []
 errors = []
 
 try:
@@ -114,7 +126,7 @@ try:
     tree = ast.parse(source, filename=sys.argv[1])
 except Exception as e:
     errors.append(str(e))
-    print("[]")
+    print(json.dumps({"symbols": [], "refs": []}))
     sys.exit(0)
 
 # Module-level scope
@@ -248,7 +260,42 @@ class ModuleVisitor(ast.NodeVisitor):
 visitor = ModuleVisitor()
 visitor.visit(tree)
 
-print(json.dumps([s.to_dict() for s in syms]))
+# Refs need a separate full walk: ModuleVisitor deliberately does not descend
+# into function bodies (it would index locals as symbols), but that is exactly
+# where the calls are.
+for node in ast.walk(tree):
+    if isinstance(node, ast.Call):
+        name = leaf_name(node.func)
+        if name:
+            refs.append({"toName": name, "callType": "call", "line": node.lineno})
+    elif isinstance(node, ast.Import):
+        for alias in node.names:
+            refs.append({
+                "toName": alias.name.split(".")[-1],
+                "callType": "import",
+                "line": node.lineno,
+                "module": alias.name,
+            })
+    elif isinstance(node, ast.ImportFrom):
+        # PEP 328: node.level is the number of leading dots. Preserving them is
+        # what lets the resolver walk up from the importing file's package —
+        # dropping them made \`from .foo import X\` indistinguishable from an
+        # absolute \`foo\`.
+        module = ("." * (node.level or 0)) + (node.module or "")
+        for alias in node.names:
+            refs.append({
+                "toName": alias.name,
+                "callType": "import",
+                "line": node.lineno,
+                "module": module,
+            })
+    elif isinstance(node, ast.ClassDef):
+        for base in node.bases:
+            name = leaf_name(base)
+            if name:
+                refs.append({"toName": name, "callType": "inherit", "line": node.lineno})
+
+print(json.dumps({"symbols": [s.to_dict() for s in syms], "refs": refs}))
 `;
 
 // ─── Synchronous Python parse via child process ─────────────────────────────
@@ -408,14 +455,7 @@ async function syncPyParse(
 			return { file: filePath, lang, symbols: [], mtimeMs: Date.now() };
 		}
 
-		const raw = JSON.parse(stdout.trim()) as Array<{
-			name: string;
-			kind: string;
-			line: number;
-			col: number;
-			signature: string;
-			scope: string;
-		}>;
+		const { symbols: raw, refs } = parseParserOutput(stdout, lang);
 		const symbols: IndexSymbol[] = raw.map((s) => ({
 			id: 0,
 			lang,
@@ -429,7 +469,7 @@ async function syncPyParse(
 			scope: s.scope ?? '',
 			text: `${s.name} ${s.signature ?? ''}`.trim(),
 		}));
-		return { file: filePath, lang, symbols, mtimeMs: Date.now() };
+		return { file: filePath, lang, symbols, refs, mtimeMs: Date.now() };
 	} catch {
 		// Spawn/IO failure → generic fallback.
 		return null;

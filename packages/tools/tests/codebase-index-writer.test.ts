@@ -225,6 +225,42 @@ describe('IndexStore refs', () => {
     expect(store.findRefsFrom(callerId)[0]?.toId).toBe(inserted[0]?.id);
   });
 
+  it('scopes name resolution to the ref language family across collisions', () => {
+    // Same name in two families: the ts ref must bind to the TS symbol, the
+    // go ref to the Go symbol — never cross-family.
+    const [tsConfig, goConfig] = store.insertSymbols([
+      sym({ name: 'Config', lang: 'ts', file: '/p/ts-config.ts' }),
+      sym({ name: 'Config', lang: 'go', file: '/p/go-config.go' }),
+    ]);
+    store.insertRefs(callerId, [
+      { fromId: callerId, toName: 'Config', callType: 'type_ref', line: 5, lang: 'ts' },
+      { fromId: callerId, toName: 'Config', callType: 'call', line: 6, lang: 'go' },
+    ]);
+    store.resolveRefs();
+
+    const byTs = store.findRefsFrom(callerId).find((r) => r.line === 5)!;
+    const byGo = store.findRefsFrom(callerId).find((r) => r.line === 6)!;
+    expect(byTs.toId).toBe(tsConfig.id);
+    expect(byGo.toId).toBe(goConfig.id);
+    expect(tsConfig.id).not.toBe(goConfig.id);
+  });
+
+  it('resolves a language-less ref deterministically to the global minimum id', () => {
+    // A ref without a lang hits the ('', '*') wildcard row and matches every
+    // family. Both the UPDATE-FROM fast path and the <3.33 fallback must agree
+    // on global MIN(id) — assert the id of the first-inserted symbol.
+    const [tsConfig] = store.insertSymbols([
+      sym({ name: 'Config', lang: 'ts', file: '/p/ts-config.ts' }),
+      sym({ name: 'Config', lang: 'go', file: '/p/go-config.go' }),
+    ]);
+    store.insertRefs(callerId, [
+      { fromId: callerId, toName: 'Config', callType: 'call', line: 7 },
+    ]);
+    store.resolveRefs();
+
+    expect(store.findRefsFrom(callerId)[0]?.toId).toBe(tsConfig.id);
+  });
+
   it('deleteRefsForFile removes refs originating in that file', () => {
     store.insertRefs(callerId, [{ fromId: callerId, toName: 'callee', callType: 'call', line: 1 }]);
     store.deleteRefsForFile('/p/a.ts');
@@ -257,10 +293,30 @@ describe('IndexStore CodeMap graphs', () => {
     );
     const all = store.search('', {});
     const callerId = all.find((symbol) => symbol.name === 'runAgent')!.id;
+    // Import refs carry the specifier in `module` and its resolved target in
+    // `toFile`. `toName` holds the imported *symbol*, not the module path —
+    // the indexer's module-resolution pass is what fills `toFile`, so a store
+    // test supplies it directly rather than expecting the store to re-derive it.
     store.insertRefs(callerId, [
-      { fromId: callerId, toName: 'readFile', callType: 'call', line: 11 },
-      { fromId: callerId, toName: './sibling.js', callType: 'import', line: 1 },
-      { fromId: callerId, toName: '@wrongstack/tools', callType: 'import', line: 2 },
+      { fromId: callerId, toName: 'readFile', callType: 'call', line: 11, lang: 'ts' },
+      {
+        fromId: callerId,
+        toName: 'sibling',
+        callType: 'import',
+        line: 1,
+        lang: 'ts',
+        module: './sibling.js',
+        toFile: siblingFile,
+      },
+      {
+        fromId: callerId,
+        toName: 'readFile',
+        callType: 'import',
+        line: 2,
+        lang: 'ts',
+        module: '@wrongstack/tools',
+        toFile: toolsFile,
+      },
     ]);
     store.resolveRefs();
   });
@@ -286,7 +342,7 @@ describe('IndexStore CodeMap graphs', () => {
     );
   });
 
-  it('builds package edges directly from unresolved workspace imports', () => {
+  it('builds package edges from resolved cross-package imports', () => {
     const graph = store.getPackageGraph();
     expect(graph.edges).toEqual(
       expect.arrayContaining([
@@ -312,8 +368,12 @@ describe('IndexStore CodeMap graphs', () => {
         external: true,
       }),
     );
-    expect(graph.edges).toHaveLength(1);
-    expect(graph.nodes.some((node) => node.id === graph.edges[0]?.target)).toBe(true);
+    // `import { readFile } … ` followed by a `readFile()` call is two distinct
+    // relations to the same symbol, so the symbol graph carries both.
+    expect(graph.edges.map((edge) => edge.refType).sort()).toEqual(['call', 'import']);
+    expect(
+      graph.edges.every((edge) => graph.nodes.some((node) => node.id === edge.target)),
+    ).toBe(true);
   });
 });
 

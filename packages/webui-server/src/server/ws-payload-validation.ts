@@ -43,6 +43,61 @@ export function validateModelSwitchPayload(
   };
 }
 
+export interface ModelFallbackChoicePayload {
+  requestId: string;
+  providerId?: string | undefined;
+  model?: string | undefined;
+  autoSwitch?: boolean | undefined;
+}
+
+export function validateModelFallbackChoicePayload(
+  payload: unknown,
+): PayloadValidationResult<ModelFallbackChoicePayload> {
+  if (!isRecord(payload)) {
+    return {
+      ok: false,
+      message: 'model.fallback_choice payload must be an object',
+    };
+  }
+  const requestId = payload['requestId'];
+  if (typeof requestId !== 'string' || requestId.trim().length === 0) {
+    return {
+      ok: false,
+      message: 'model.fallback_choice payload.requestId must be a non-empty string',
+    };
+  }
+  const providerId = payload['providerId'];
+  const model = payload['model'];
+  const autoSwitch = payload['autoSwitch'];
+  if (providerId !== undefined && typeof providerId !== 'string') {
+    return {
+      ok: false,
+      message: 'model.fallback_choice payload.providerId must be a string when provided',
+    };
+  }
+  if (model !== undefined && typeof model !== 'string') {
+    return {
+      ok: false,
+      message: 'model.fallback_choice payload.model must be a string when provided',
+    };
+  }
+  if (autoSwitch !== undefined && typeof autoSwitch !== 'boolean') {
+    return {
+      ok: false,
+      message: 'model.fallback_choice payload.autoSwitch must be a boolean when provided',
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      requestId: requestId.trim(),
+      ...(typeof providerId === 'string' ? { providerId } : {}),
+      ...(typeof model === 'string' ? { model } : {}),
+      ...(typeof autoSwitch === 'boolean' ? { autoSwitch } : {}),
+    },
+  };
+}
+
 const AUTONOMY_VALUES = new Set(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel']);
 
 interface MailboxMessagesPayload {

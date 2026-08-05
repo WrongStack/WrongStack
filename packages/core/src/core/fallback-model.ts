@@ -12,6 +12,7 @@
  * runtime light factory can wire fallbacks for SDD worker subagents.
  */
 
+import { randomUUID } from 'node:crypto';
 import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
 import type { AgentExtension } from '../extension/extension-points.js';
 import type { EventBus } from '../kernel/events.js';
@@ -101,7 +102,47 @@ export interface FallbackModelDeps {
    * the fallback chain.
    */
   statusTracker?: ProviderModelStatusTracker | undefined;
+  /**
+   * When set, the fallback chain pauses BEFORE attempting any fallback entry
+   * and emits `provider.fallback_pending`. The gate waits for a choice
+   * (manual pick or auto-countdown) before proceeding. This lets the UI show
+   * a modal with a countdown and manual model selection on every fallback hop.
+   *
+   * Returns the chosen model reference, or `null` to auto-switch to the next
+   * candidate (countdown expired or user accepted the default).
+   */
+  fallbackGate?: FallbackGateFn | undefined;
+  /**
+   * Seconds the UI counts down before auto-switching. Default: 7.
+   */
+  fallbackGateSeconds?: number | undefined;
 }
+
+/**
+ * Gate function invoked when the fallback chain is about to engage. It should
+ * emit `provider.fallback_pending` on the supplied `events` bus — carrying a
+ * unique `requestId` and a `timestamp` in the payload — wait for the UI's
+ * `provider.fallback_choice` emission echoing that `requestId` (or the
+ * countdown), and resolve with the selected model or `null` to accept the
+ * default next. See `createFallbackGate` in the CLI wiring for a reference
+ * implementation.
+ */
+export type FallbackGateFn = (params: {
+  events: EventBus;
+  sessionId: string | undefined;
+  from: { providerId: string; model: string };
+  status: number;
+  candidates: Array<{ providerId: string; model: string }>;
+  autoSwitchSeconds: number;
+  /**
+   * Correlation id owned by the caller (the fallback-model extension). The
+   * gate MUST echo it in `provider.fallback_pending` so the UI's choice
+   * reply and the eventual `provider.fallback` completion event share the
+   * same id — clients use it to match the modal to the right gate when
+   * parallel requests fail on the same primary.
+   */
+  requestId: string;
+}) => Promise<{ providerId: string; model: string } | null>;
 
 export function fallbackProfileChain(config: Config, profileName: string | undefined): string[] {
   if (!profileName) return [];
@@ -534,6 +575,15 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           ? chain.filter((e) => tracker.isAvailable(e.providerId, e.model))
           : chain;
 
+        // Drop calendar-blocked entries up front. The execution loop below
+        // deterministically skips them (`!evaluateModelCalendar(...).allowed`
+        // → continue), so the fallback-gate modal must not offer models whose
+        // pick would be silently ignored — and the last-working-fallback
+        // re-order must not front-load one either.
+        usableChain = usableChain.filter(
+          (e) => evaluateModelCalendar(cfg.modelAvailabilitySchedule, e.providerId, e.model).allowed,
+        );
+
         // ── Last-working-fallback prioritization ──────────────────────
         // If a prior turn found a model that worked, move it to the front
         // of the chain so we don't re-traverse flaky entries that already
@@ -589,6 +639,63 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // triggering error decides whether we fall back at all.
         const status = shouldFallback(firstErr_);
         if (status === null) throw firstErr_; // not a fallback-worthy error
+
+        // ── Fallback gate (countdown + manual pick modal) ──────────────
+        // When a gate function is configured, pause BEFORE iterating the
+        // chain and let the UI show a modal. The gate emits
+        // `provider.fallback_pending`, waits for the user's choice or the
+        // countdown timer, then returns the selected model or null to accept
+        // the default (chain head). If a specific model is chosen, we
+        // reorder usableChain to front-load it.
+        //
+        // The requestId is generated HERE (not inside the gate) so the
+        // `provider.fallback` completion event can carry it — clients match
+        // the modal to the right gate when parallel requests fail on the
+        // same primary.
+        let gateRequestId: string | undefined;
+        if (deps.fallbackGate && usableChain.length > 0) {
+          gateRequestId = randomUUID();
+          const autoSwitchSeconds = Math.max(1, deps.fallbackGateSeconds ?? 7);
+          const gateCandidates = usableChain.map((e) => ({
+            providerId: e.providerId,
+            model: e.model,
+          }));
+          try {
+            const choice = await deps.fallbackGate({
+              events: deps.events,
+              sessionId: resolveEventSessionId(ctx_),
+              from: {
+                providerId: ctx_.provider.id,
+                model: ctx_.model,
+              },
+              status,
+              candidates: gateCandidates,
+              autoSwitchSeconds,
+              requestId: gateRequestId,
+            });
+            if (choice) {
+              const chosen = usableChain.find(
+                (e) => e.providerId === choice.providerId && e.model === choice.model,
+              );
+              if (chosen) {
+                usableChain = [
+                  chosen,
+                  ...usableChain.filter(
+                    (e) => !(e.providerId === choice.providerId && e.model === choice.model),
+                  ),
+                ];
+              }
+            }
+          } catch (gateErr) {
+            // Gate errors never block the fallback chain — proceed with
+            // the default ordering.
+            deps.logger?.warn(
+              `fallback-model: gate error — proceeding with default chain: ${
+                gateErr instanceof Error ? gateErr.message : String(gateErr)
+              }`,
+            );
+          }
+        }
 
         for (const entry of usableChain) {
           if (
@@ -678,6 +785,10 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             },
             status,
             providerSwitched,
+            // Correlate this completion with the gate that paused for the
+            // user's pick — clients clear the fallback modal only when the
+            // requestId matches the pending request.
+            ...(gateRequestId ? { requestId: gateRequestId } : {}),
             ...(warning ? { contextWindowWarning: warning } : {}),
           });
 

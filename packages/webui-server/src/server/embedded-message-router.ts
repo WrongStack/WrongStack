@@ -37,6 +37,7 @@ import {
   type EmbeddedProviderContext,
   type EmbeddedSessionContext,
 } from './embedded-host-adapters.js';
+import { emitFallbackChoice } from './fallback-choice.js';
 import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
 import type { GoalRouteHandlers } from './goal-routes.js';
 import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
@@ -312,6 +313,15 @@ export function createEmbeddedMessageRouter(
       providerOperations.handleProviderModelsSearch(ws, query, limit),
     switchModel: (ws, msg) => modelOperations.switchModel(ws, msg.payload),
     refineModel: (ws, msg) => modelOperations.refineModel(ws, msg.payload as never),
+    fallbackChoice: async (ws, msg) => {
+      const result = emitFallbackChoice(deps.sessionCtx.opts.events, msg);
+      if (!result.ok) {
+        send(ws, {
+          type: 'error',
+          payload: { phase: 'invalid_request', message: result.message },
+        });
+      }
+    },
     adoptDefaultProviderIfUnset: providerOperations.adoptDefaultProviderIfUnset,
     providerHandlers: providerOperations,
     statusTracker: deps.statusTracker,

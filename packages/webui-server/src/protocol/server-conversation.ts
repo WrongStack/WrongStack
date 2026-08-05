@@ -29,6 +29,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'provider.active_blocked',
   'provider.error',
   'provider.fallback',
+  'provider.fallback_pending',
   'provider.response',
   'provider.retry',
   'provider.status_changed',

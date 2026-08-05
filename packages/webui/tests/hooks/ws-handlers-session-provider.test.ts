@@ -16,6 +16,7 @@ const { useChatStore, useFleetStore, useSessionStore } = await import(
   '../../src/stores'
 );
 const { useProviderStatusStore } = await import('../../src/stores/provider-status-store');
+const { useFallbackStore } = await import('../../src/stores/fallback-store');
 const { useVizStore } = await import('../../src/stores/viz-store');
 const {
   handleCheckpointWritten,
@@ -64,6 +65,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
     useChatStore.setState({ messages: [], isLoading: false } as never);
     useSessionStore.setState({ session: null } as never);
     useVizStore.setState({ events: [], isActive: false } as never);
+    useFallbackStore.setState({ pending: null, selected: 0 });
   });
 
   it('registers each handler under its wire type', () => {
@@ -199,6 +201,72 @@ describe('session ws-handlers — provider / delegate / context', () => {
         }),
       );
       expect(chat()).toContain('with provider change.');
+    });
+
+    it('clears a pending modal when the fallback requestId matches', () => {
+      useFallbackStore.getState().setPending({
+        requestId: 'req-a',
+        from: { providerId: 'anthropic', model: 'opus' },
+        status: 429,
+        candidates: [{ providerId: 'openai', model: 'gpt-5' }],
+        autoSwitchSeconds: 7,
+        timestamp: 1_700_000_000_000,
+      });
+      handleProviderFallback(
+        msg('provider.fallback', {
+          from: { providerId: 'anthropic', model: 'opus' },
+          to: { providerId: 'openai', model: 'gpt-5' },
+          status: 429,
+          providerSwitched: true,
+          requestId: 'req-a',
+        }),
+      );
+      expect(useFallbackStore.getState().pending).toBeNull();
+    });
+
+    it('keeps a NEWER pending modal when the fallback carries an older requestId', () => {
+      // Request B failed on the same primary after A; A's completion must
+      // not clear B's modal (parallel-request race).
+      useFallbackStore.getState().setPending({
+        requestId: 'req-b',
+        from: { providerId: 'anthropic', model: 'opus' },
+        status: 429,
+        candidates: [{ providerId: 'openai', model: 'gpt-5' }],
+        autoSwitchSeconds: 7,
+        timestamp: 1_700_000_000_000,
+      });
+      handleProviderFallback(
+        msg('provider.fallback', {
+          from: { providerId: 'anthropic', model: 'opus' },
+          to: { providerId: 'openai', model: 'gpt-5' },
+          status: 429,
+          providerSwitched: true,
+          requestId: 'req-a',
+        }),
+      );
+      expect(useFallbackStore.getState().pending?.requestId).toBe('req-b');
+    });
+
+    it('clears a pending modal by from-match when the fallback carries no requestId', () => {
+      // Gate-less fallback path: no modal was shown for this completion, so
+      // matching on `from` remains the fallback behavior.
+      useFallbackStore.getState().setPending({
+        requestId: 'req-a',
+        from: { providerId: 'anthropic', model: 'opus' },
+        status: 429,
+        candidates: [{ providerId: 'openai', model: 'gpt-5' }],
+        autoSwitchSeconds: 7,
+        timestamp: 1_700_000_000_000,
+      });
+      handleProviderFallback(
+        msg('provider.fallback', {
+          from: { providerId: 'anthropic', model: 'opus' },
+          to: { providerId: 'openai', model: 'gpt-5' },
+          status: 429,
+          providerSwitched: true,
+        }),
+      );
+      expect(useFallbackStore.getState().pending).toBeNull();
     });
   });
 

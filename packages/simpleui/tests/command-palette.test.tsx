@@ -102,4 +102,26 @@ describe('CommandPalette', () => {
     act(() => key(search as HTMLInputElement, { key: 'Enter' }));
     expect(onRun).toHaveBeenCalledWith('focus-composer');
   });
+
+  it('runs the context breakdown command from the search results', () => {
+    const { host, onRun, onClose } = renderPalette();
+    const search = host.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
+
+    act(() => input(search as HTMLInputElement, 'breakdown'));
+    expect(host.textContent).toContain('Context breakdown');
+    act(() => key(search as HTMLInputElement, { key: 'Enter' }));
+    expect(onRun).toHaveBeenCalledWith('open-context-breakdown');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the context breakdown command without a session', () => {
+    const { host, onRun } = renderPalette({ context: { hasSession: false } });
+    const search = host.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
+
+    act(() => input(search as HTMLInputElement, 'breakdown'));
+    const item = host.querySelector<HTMLButtonElement>('.command-palette-item:disabled');
+    expect(item?.textContent).toContain('Context breakdown');
+    act(() => key(search as HTMLInputElement, { key: 'Enter' }));
+    expect(onRun).not.toHaveBeenCalled();
+  });
 });

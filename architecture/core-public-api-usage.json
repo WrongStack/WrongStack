@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 241,
-      "typeOnly": 195,
-      "runtimeOrMixed": 66
+      "files": 244,
+      "typeOnly": 197,
+      "runtimeOrMixed": 68
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 200,
-      "typeOnly": 106,
-      "runtimeOrMixed": 104
+      "files": 204,
+      "typeOnly": 108,
+      "runtimeOrMixed": 106
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/plugin": {
-      "files": 18,
+      "files": 21,
       "typeOnly": 14,
-      "runtimeOrMixed": 14
+      "runtimeOrMixed": 17
     },
     "@wrongstack/core/registry": {
       "files": 96,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 851,
+      "files": 852,
       "typeOnly": 811,
-      "runtimeOrMixed": 213
+      "runtimeOrMixed": 214
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 471,
+      "files": 472,
       "typeOnly": 51,
-      "runtimeOrMixed": 476
+      "runtimeOrMixed": 477
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -538,6 +538,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/wiring/fallback-gate.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/pipeline.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -643,6 +649,12 @@
       "file": "packages/cli/tests/chimera-subagent-rate-limit-smoke.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/fallback-gate-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1133,6 +1145,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/codebase-index-indexer.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/codebase-index-multilang-relations.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4462,6 +4480,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/fallback-gate.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/fleet-command-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4607,6 +4631,18 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/cli-eternal-flag.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/fallback-gate-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/fallback-gate.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5212,6 +5248,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/src/server/fallback-choice.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5692,6 +5734,12 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/plugin-management.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5767,6 +5815,18 @@
       "file": "packages/telegram/tests/integration/startup-selftest.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/context-meta.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/pref-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -9325,6 +9385,12 @@
       "file": "packages/cli/tests/fake-memory-store.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/fallback-gate-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15653,6 +15719,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/context-editor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/context-meta.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

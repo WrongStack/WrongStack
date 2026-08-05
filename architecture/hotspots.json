@@ -35,7 +35,7 @@
       "relativeImports": 3
     },
     "packages/cli/src/hq-server.ts": {
-      "lines": 1005,
+      "lines": 1010,
       "relativeImports": 10
     },
     "packages/cli/src/picker.ts": {
@@ -119,7 +119,7 @@
       "relativeImports": 3
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 962,
+      "lines": 972,
       "relativeImports": 10
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
@@ -275,7 +275,7 @@
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
-      "lines": 1018,
+      "lines": 1026,
       "relativeImports": 5
     },
     "packages/security-scanner/src/orchestrator.ts": {
@@ -411,7 +411,7 @@
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
-      "lines": 1120,
+      "lines": 1123,
       "relativeImports": 19
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
@@ -447,7 +447,7 @@
       "relativeImports": 9
     },
     "packages/webui/src/components/SettingsPanel/BrainSection.tsx": {
-      "lines": 959,
+      "lines": 960,
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
@@ -471,7 +471,7 @@
       "relativeImports": 3
     },
     "packages/webui/src/components/TechStackView/index.tsx": {
-      "lines": 811,
+      "lines": 812,
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {

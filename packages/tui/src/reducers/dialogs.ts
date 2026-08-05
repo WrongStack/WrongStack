@@ -59,6 +59,9 @@ const dialogActionTypes = [
   'slashConfirmClose',
   'escConfirmOpen',
   'escConfirmClose',
+  'fallbackOverlayOpen',
+  'fallbackOverlayMove',
+  'fallbackOverlayClose',
   'sendModePickerOpen',
   'sendModePickerMove',
   'sendModePickerClose',
@@ -309,6 +312,17 @@ export function reduceDialogs(state: State, action: DialogAction): State {
       return { ...state, escConfirm: { snapshot: action.snapshot } };
     case 'escConfirmClose':
       return { ...state, escConfirm: null };
+    case 'fallbackOverlayOpen':
+      return { ...state, fallbackOverlay: action.info };
+    case 'fallbackOverlayMove': {
+      if (!state.fallbackOverlay) return state;
+      const n = state.fallbackOverlay.candidates.length;
+      if (n === 0) return state;
+      const next = (state.fallbackOverlay.selected + action.delta + n) % n;
+      return { ...state, fallbackOverlay: { ...state.fallbackOverlay, selected: next } };
+    }
+    case 'fallbackOverlayClose':
+      return { ...state, fallbackOverlay: null };
     case 'sendModePickerOpen':
       return { ...state, sendModePicker: action.info };
     case 'sendModePickerMove': {

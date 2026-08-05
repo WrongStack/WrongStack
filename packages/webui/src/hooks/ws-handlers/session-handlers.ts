@@ -14,6 +14,7 @@ import {
   resetUiNavigationToHome,
   useChatStore,
   useConfigStore,
+  useFallbackStore,
   useFileStore,
   useFleetStore,
   useHistoryStore,
@@ -678,6 +679,7 @@ export function handleProviderFallback(msg: WSServerMessage) {
     to: { providerId: string; model: string };
     status: number;
     providerSwitched: boolean;
+    requestId?: string | undefined;
   };
   const from = `${payload.from.providerId}/${payload.from.model}`;
   const to = `${payload.to.providerId}/${payload.to.model}`;
@@ -686,6 +688,41 @@ export function handleProviderFallback(msg: WSServerMessage) {
     content: `Provider fallback: \`${from}\` returned ${payload.status}; switching to \`${to}\`${payload.providerSwitched ? ' with provider change' : ''}.`,
   });
   toast.warn(`Fallback to ${to}`);
+  // Clear the pending fallback modal ONLY when the completion correlates
+  // with the active pending request. Gate-mediated fallbacks carry the
+  // gate's requestId — match on it so an older completion for the same
+  // failed primary cannot clear a NEWER pending modal (parallel-request
+  // race). Gate-less fallbacks (no modal was ever shown) carry no
+  // requestId and match on `from`.
+  const pending = useFallbackStore.getState().pending;
+  if (!pending) return;
+  const sameFrom =
+    pending.from.providerId === payload.from.providerId &&
+    pending.from.model === payload.from.model;
+  if (!sameFrom) return;
+  if (typeof payload.requestId === 'string' && payload.requestId.length > 0) {
+    if (pending.requestId !== payload.requestId) return;
+  }
+  useFallbackStore.getState().clear();
+}
+
+export function handleProviderFallbackPending(msg: WSServerMessage) {
+  if (!isActiveSessionMessage(msg)) return;
+  const payload = msg.payload as {
+    from: { providerId: string; model: string };
+    status: number;
+    candidates: Array<{ providerId: string; model: string }>;
+    autoSwitchSeconds: number;
+    requestId: string;
+  };
+  useFallbackStore.getState().setPending({
+    requestId: payload.requestId,
+    from: payload.from,
+    status: payload.status,
+    candidates: payload.candidates,
+    autoSwitchSeconds: payload.autoSwitchSeconds,
+    timestamp: Date.now(),
+  });
 }
 
 export function handleProviderStatusChanged(msg: WSServerMessage) {
@@ -1018,6 +1055,7 @@ export const sessionHandlerMap: Partial<Record<string, (msg: WSServerMessage) =>
   'provider.retry': handleProviderRetry,
   'provider.error': handleProviderError,
   'provider.fallback': handleProviderFallback,
+  'provider.fallback_pending': handleProviderFallbackPending,
   'provider.status_changed': handleProviderStatusChanged,
   'provider.active_blocked': handleProviderActiveBlocked,
   'provider.stream_error': handleProviderStreamError,

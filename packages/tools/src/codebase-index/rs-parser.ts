@@ -2,18 +2,28 @@ import { expectDefined } from '@wrongstack/core/utils';
 /**
  * Rust source symbol extraction.
  *
- * Tries to use the native `syn` crate via a cargo subproject (tools/syn-parser/).
- * Falls back to a robust regex-based extractor when cargo/syn is not available.
+ * Extracts fn, struct, enum, trait, impl, type, const, static and mod with
+ * line-anchored regexes. Dependency edges do not come from here — `use` and
+ * `mod` declarations are read by `import-extractor.ts` and resolved against the
+ * crate's `Cargo.toml` by `module-resolver.ts`.
  *
- * The regex fallback extracts: fn, struct, enum, trait, impl, type, const, static, mod
+ * ### Why there is no native `syn` parser
+ *
+ * There used to be a path that shelled out to a cargo subproject for real AST
+ * parsing. It resolved that subproject relative to `process.cwd()` — the
+ * *indexed project*, not the wstack installation — and the crate has never
+ * existed in this repository. So the branch was unreachable except in the one
+ * case where it must never fire: an indexed repository that happens to contain
+ * `tools/Cargo.toml`, where indexing would have run `cargo run` inside the
+ * user's checkout and written to `tools/syn-parser/src/input.rs`.
+ *
+ * Indexing reads a repository; it does not execute its build or write to its
+ * working tree. Reinstating native parsing means shipping the crate inside the
+ * wstack installation and resolving it from there — never from the scan target.
  */
 
-import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import { resolveWin32Command } from '../_win32-resolve.js';
 import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
-import { withSpawnGate } from './spawn-gate.js';
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 export async function parseSymbols(opts: {
@@ -22,131 +32,10 @@ export async function parseSymbols(opts: {
   lang: SymbolLang;
 }): Promise<FileSymbols> {
   const { file, content, lang } = opts;
-
-  // Try native parser first, fall back to regex
-  const nativeAvailable = await checkNativeParser();
-  if (nativeAvailable) {
-    const result = await withSpawnGate(() => tryNativeParse(file, content));
-    if (result) return result;
-  }
-
   return regexParse({ file, content, lang });
 }
 
 export { detectLang } from './languages.js';
-
-// ─── Native parser (syn) ─────────────────────────────────────────────────────
-
-// Cache the native-parser availability check so we don't spawn `rustc` and
-// `cargo metadata` on every file. The result is constant for the process
-// lifetime — the toolchain either exists or it doesn't.
-let nativeParserAvailability: Promise<boolean> | undefined;
-
-function probe(command: string, args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: 10_000, windowsHide: true }, (error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-}
-
-function checkNativeParser(): Promise<boolean> {
-  nativeParserAvailability ??= (async () => {
-    try {
-      await probe('rustc', ['--version']);
-      // Check if our syn-parser crate is available. argv-array form (no shell)
-      // so a cwd path containing spaces or shell metacharacters can't break out.
-      const toolsDir = path.join(process.cwd(), 'tools');
-      await probe(
-        'cargo',
-        [
-          'metadata',
-          '--no-deps',
-          '--format-version',
-          '1',
-          '--manifest-path',
-          path.join(toolsDir, 'Cargo.toml'),
-        ],
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  })();
-  return nativeParserAvailability;
-}
-
-async function tryNativeParse(file: string, content: string): Promise<FileSymbols | null> {
-  try {
-    const toolsDir = path.join(process.cwd(), 'tools');
-    const crateDir = path.join(toolsDir, 'syn-parser');
-
-    // Write source to temp file for cargo to read (async — non-blocking)
-    const tmpFile = path.join(crateDir, 'src', 'input.rs');
-    await fs.writeFile(tmpFile, content, 'utf8');
-
-    // Use spawn for full async control with timeout via Promise.race + setTimeout kill
-    // Resolve via PATHEXT on Windows so ENOENT is impossible (cargo is a .cmd wrapper).
-    const cargoBinary = resolveWin32Command('cargo');
-
-    const result = await new Promise<{ code: number | null; stdout: string }>(
-      (resolve, reject) => {
-        let settled = false;
-
-        const proc: ChildProcessWithoutNullStreams = spawn(
-          cargoBinary,
-          ['run', '--manifest-path', path.join(toolsDir, 'Cargo.toml')],
-          {
-            cwd: process.cwd(),
-            stdio: ['pipe', 'pipe', 'pipe'],
-            windowsHide: true,
-          },
-        );
-
-        proc.on('error', (err) => {
-          if (settled) return;
-          settled = true;
-          reject(err);
-        });
-
-        let stdout = '';
-        proc.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-        proc.stderr?.resume();
-
-        const timer = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          proc.kill('SIGKILL');
-          reject(new Error('timeout'));
-        }, 15_000);
-        timer.unref?.();
-
-        proc.on('close', (c: number | null) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve({ code: c, stdout });
-        });
-      },
-    );
-
-    const { code, stdout } = result;
-
-    if (code === 0 && stdout.trim()) {
-      const symbols: IndexSymbol[] = JSON.parse(stdout.trim());
-      return {
-        file,
-        lang: 'rs',
-        symbols: symbols.map((s) => ({ ...s, id: 0, lang: 'rs' as SymbolLang })),
-        mtimeMs: Date.now(),
-      };
-    }
-  } catch {
-    // Fall through to regex
-  }
-  return null;
-}
 
 // ─── Regex fallback parser ───────────────────────────────────────────────────
 

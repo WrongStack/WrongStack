@@ -50,6 +50,7 @@ import {
   updateSubagents,
 } from './chat-model.js';
 import type { FileMention } from './file-mention.js';
+import { projectFallbackPending } from '../fallback-modal.js';
 import {
   parseCatalogProviders,
   parseSavedProviderIds,
@@ -137,6 +138,19 @@ export interface MessageHandlerDeps {
   setFileRefs: React.Dispatch<React.SetStateAction<string[]>>;
   setFileMention: React.Dispatch<React.SetStateAction<FileMention | null>>;
   setNotice: React.Dispatch<React.SetStateAction<(StatusNoticeProjection & { id: string }) | null>>;
+  /** Show/dismiss the fallback model modal. */
+  setFallbackPending?: React.Dispatch<
+    React.SetStateAction<
+      | {
+          requestId: string;
+          from: { providerId: string; model: string };
+          status: number;
+          candidates: Array<{ providerId: string; model: string }>;
+          autoSwitchSeconds: number;
+        }
+      | null
+    >
+  >;
   setQueue: React.Dispatch<React.SetStateAction<QueuedItem[]>>;
   setRefineState: React.Dispatch<React.SetStateAction<RefineState | null>>;
   setPendingConfirm: React.Dispatch<React.SetStateAction<PendingConfirm | null>>;
@@ -594,6 +608,15 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         );
         break;
       case 'provider.fallback': {
+        // The server broadcasts fallback events to every connected client.
+        // Only react to the session this tab is viewing — otherwise one
+        // session's resolution would clear another tab's pending modal.
+        if (
+          typeof payload['sessionId'] === 'string' &&
+          payload['sessionId'] !== sessionIdRef.current
+        ) {
+          break;
+        }
         const target =
           payload['to'] && typeof payload['to'] === 'object'
             ? (payload['to'] as Record<string, unknown>)
@@ -601,6 +624,24 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const fallbackModel = typeof target?.['model'] === 'string' ? target['model'] : '';
         setRunning(true);
         setActivity(fallbackModel ? `Fallback · ${fallbackModel}` : 'Switching fallback model');
+        // Clear any pending fallback modal — the switch happened.
+        deps.setFallbackPending?.(null);
+        break;
+      }
+      case 'provider.fallback_pending': {
+        // Server broadcasts reach every tab; only show the modal for the
+        // session this tab is viewing.
+        if (
+          typeof payload['sessionId'] === 'string' &&
+          payload['sessionId'] !== sessionIdRef.current
+        ) {
+          break;
+        }
+        // Show the fallback modal with countdown + manual pick.
+        const projected = projectFallbackPending(message);
+        if (projected) {
+          deps.setFallbackPending?.(projected);
+        }
         break;
       }
       case 'context.compacted':

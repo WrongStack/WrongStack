@@ -103,6 +103,32 @@ describe('codemap model', () => {
     expect(first.directories[0]?.directories[0]?.name).toBe('nested');
   });
 
+  it('anchors a non-npm package on the directory its files actually share', () => {
+    // A Go package label is an import path, not a folder, so the npm anchor
+    // cannot apply. Truncating to the last few segments used to merge distinct
+    // directories; the shared prefix keeps them apart.
+    const nodes: CodeMapGraphResponse['nodes'] = [
+      {
+        id: 'file:main',
+        label: 'main.go',
+        kind: 'file',
+        package: 'example.com/demo/cmd',
+        file: '/repo/go/cmd/app/main.go',
+      },
+      {
+        id: 'file:util',
+        label: 'util.go',
+        kind: 'file',
+        package: 'example.com/demo/cmd',
+        file: '/repo/go/cmd/worker/util.go',
+      },
+    ];
+
+    const tree = buildDirectoryTree(nodes);
+    expect(tree.directories.map((entry) => entry.name).sort()).toEqual(['app', 'worker']);
+    expect(tree.directories.find((entry) => entry.name === 'app')?.files[0]?.label).toBe('main.go');
+  });
+
   it('smartCanvasGraph caps nodes and edges while preserving the selection neighbourhood', () => {
     const nodes = Array.from({ length: 200 }, (_, index) => graphNode(index));
     const edges: GraphEdgeData[] = [];

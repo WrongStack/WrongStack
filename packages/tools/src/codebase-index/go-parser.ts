@@ -12,6 +12,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { resolveWin32Command } from '../_win32-resolve.js';
+import { parseParserOutput } from './parser-output.js';
 import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { withSpawnGate } from './spawn-gate.js';
 
@@ -30,7 +31,10 @@ export async function parseSymbols(opts: {
     if (parsed.symbols.length > 0) {
       return parsed;
     }
-    return fallbackParse(file, content, lang);
+    // No symbols means the toolchain is missing or the file failed to parse.
+    // Keep any refs the run did produce rather than discarding them with it.
+    const fallback = fallbackParse(file, content, lang);
+    return parsed.refs?.length ? { ...fallback, refs: parsed.refs } : fallback;
   } catch {
     /* v8 ignore next -- syncGoParse has its own catch; this outer guard is defensive. */
     return fallbackParse(file, content, lang);
@@ -128,6 +132,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -140,16 +145,34 @@ type Sym struct {
 	Scope     string \`json:"scope"\`
 }
 
+// Ref is a cross-reference emitted alongside the symbols, so one \`go run\`
+// yields both. Module is the import path for CallType "import", else empty.
+type Ref struct {
+	ToName   string \`json:"toName"\`
+	CallType string \`json:"callType"\`
+	Line     int    \`json:"line"\`
+	Module   string \`json:"module"\`
+}
+
+type Result struct {
+	Symbols []Sym \`json:"symbols"\`
+	Refs    []Ref \`json:"refs"\`
+}
+
+func emptyResult() string {
+	return "{\\"symbols\\":[],\\"refs\\":[]}"
+}
+
 func main() {
 	src, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		fmt.Print("[]")
+		fmt.Print(emptyResult())
 		return
 	}
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "src.go", src, 0)
 	if err != nil {
-		fmt.Print("[]")
+		fmt.Print(emptyResult())
 		return
 	}
 
@@ -213,9 +236,43 @@ func main() {
 		}
 	}
 
-	data, err := json.Marshal(syms)
+	refs := []Ref{}
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch expr := n.(type) {
+		case *ast.CallExpr:
+			line := fset.Position(expr.Pos()).Line
+			switch fun := expr.Fun.(type) {
+			case *ast.Ident:
+				refs = append(refs, Ref{ToName: fun.Name, CallType: "call", Line: line})
+			case *ast.SelectorExpr:
+				// Record the selected name (\`Join\` of \`filepath.Join\`): it is the
+				// declared symbol name, so it resolves the same way the TypeScript
+				// and Python extractors' call refs do.
+				refs = append(refs, Ref{ToName: fun.Sel.Name, CallType: "call", Line: line})
+			}
+		case *ast.ImportSpec:
+			if expr.Path != nil {
+				if importPath, uerr := strconv.Unquote(expr.Path.Value); uerr == nil {
+					line := fset.Position(expr.Pos()).Line
+					// A Go import names a package, not a symbol; the package's
+					// last path segment is the name it is referenced by.
+					name := importPath
+					if idx := strings.LastIndex(importPath, "/"); idx >= 0 {
+						name = importPath[idx+1:]
+					}
+					refs = append(refs, Ref{ToName: name, CallType: "import", Line: line, Module: importPath})
+				}
+			}
+		}
+		return true
+	})
+
+	if syms == nil {
+		syms = []Sym{}
+	}
+	data, err := json.Marshal(Result{Symbols: syms, Refs: refs})
 	if err != nil {
-		fmt.Print("[]")
+		fmt.Print(emptyResult())
 		return
 	}
 	fmt.Print(string(data))
@@ -432,15 +489,8 @@ async function syncGoParse(
       return { file: filePath, lang, symbols: [], mtimeMs: Date.now() };
     }
 
-    const raw = JSON.parse(stdout.trim()) as Array<{
-      name: string;
-      kind: string;
-      line: number;
-      col: number;
-      signature: string;
-      scope: string;
-    }>;
-    const symbols: IndexSymbol[] = raw.map((s) => ({
+    const { symbols: rawSymbols, refs } = parseParserOutput(stdout, lang);
+    const symbols: IndexSymbol[] = rawSymbols.map((s) => ({
       id: 0,
       lang,
       kind: s.kind as IndexSymbol['kind'],
@@ -453,7 +503,7 @@ async function syncGoParse(
       scope: s.scope ?? '',
       text: `${s.name} ${s.signature ?? ''}`.trim(),
     }));
-    return { file: filePath, lang, symbols, mtimeMs: Date.now() };
+    return { file: filePath, lang, symbols, refs, mtimeMs: Date.now() };
   } catch {
     return { file: filePath, lang, symbols: [], mtimeMs: Date.now() };
   }

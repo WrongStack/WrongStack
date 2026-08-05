@@ -17,6 +17,7 @@ import { DesignPicker } from './components/design-picker.js';
 import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { ExitConfirmPanel } from './components/exit-confirm-panel.js';
+import { FallbackOverlay } from './components/fallback-overlay.js';
 import { FKeyPicker } from './components/f-key-picker.js';
 import { FilePicker } from './components/file-picker.js';
 import { HelpPanel } from './components/help-panel.js';
@@ -643,6 +644,44 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   dispatch({ type: 'escConfirmClose' });
                 }}
               />
+            </Box>
+          ) : null}
+          {state.fallbackOverlay ? (
+            <Box flexDirection="column" marginY={1} flexShrink={0}>
+              {(() => {
+                const ov = state.fallbackOverlay;
+                let resolved = false;
+                const finish = (choice: { providerId: string; model: string } | null) => {
+                  if (resolved) return;
+                  resolved = true;
+                  if (choice) {
+                    events.emit('provider.fallback_choice', {
+                      requestId: ov.requestId,
+                      providerId: choice.providerId,
+                      model: choice.model,
+                    });
+                  } else {
+                    // Esc or countdown expiry with null → auto-switch.
+                    events.emit('provider.fallback_choice', {
+                      requestId: ov.requestId,
+                      autoSwitch: true,
+                    });
+                  }
+                  dispatch({ type: 'fallbackOverlayClose' });
+                };
+                return (
+                  <FallbackOverlay
+                    requestId={ov.requestId}
+                    from={ov.from}
+                    status={ov.status}
+                    candidates={ov.candidates}
+                    autoSwitchSeconds={ov.autoSwitchSeconds}
+                    selected={ov.selected}
+                    onChoose={finish}
+                    onMove={(delta) => dispatch({ type: 'fallbackOverlayMove', delta })}
+                  />
+                );
+              })()}
             </Box>
           ) : null}
           {state.sendModePicker

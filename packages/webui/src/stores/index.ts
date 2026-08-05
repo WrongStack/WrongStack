@@ -52,6 +52,8 @@ export {
   type ProviderHealthState,
   useProviderStatusStore,
 } from './provider-status-store.js';
+export { useFallbackStore } from './fallback-store.js';
+export type { FallbackCandidate, FallbackPendingState } from './fallback-store.js';
 export {
   type SddBoardFeedEntry,
   type SddBoardSnapshotUI,

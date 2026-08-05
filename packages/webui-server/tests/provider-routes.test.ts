@@ -42,6 +42,7 @@ function routes(): ProviderRouteHandlers {
     searchProviderModels: vi.fn(async () => undefined),
     switchModel: vi.fn(async () => undefined),
     refineModel: vi.fn(async () => undefined),
+    fallbackChoice: vi.fn(async () => undefined),
     adoptDefaultProviderIfUnset: vi.fn(async () => undefined),
     providerHandlers: {
       loadConfigProviders: vi.fn(async () => ({})),
@@ -232,6 +233,66 @@ describe('handleProviderRoute malformed payload characterization', () => {
       { providerId: '__proto__', modelId: 'custom/model' },
       'handleCustomModelRemove',
     ],
+    [
+      'provider.add',
+      { id: '__proto__', family: 'openai-compatible' },
+      'handleProviderAdd',
+    ],
+    [
+      'provider.add',
+      { id: 'constructor', family: 'openai-compatible' },
+      'handleProviderAdd',
+    ],
+    [
+      'provider.update',
+      { id: '__proto__', models: ['x'] },
+      'handleProviderUpdate',
+    ],
+    [
+      'provider.update',
+      { id: 'prototype' },
+      'handleProviderUpdate',
+    ],
+    [
+      'key.add',
+      { providerId: '__proto__', label: 'main', apiKey: 'sk-test' },
+      'handleKeyUpsert',
+    ],
+    [
+      'key.update',
+      { providerId: 'constructor', label: 'main', apiKey: 'sk-test' },
+      'handleKeyUpsert',
+    ],
+    [
+      'key.delete',
+      { providerId: '__proto__', label: 'main' },
+      'handleKeyDelete',
+    ],
+    [
+      'key.set_active',
+      { providerId: '__proto__', label: 'main' },
+      'handleKeySetActive',
+    ],
+    [
+      'provider.remove',
+      { providerId: '__proto__' },
+      'handleProviderRemove',
+    ],
+    [
+      'provider.clear_models',
+      { providerId: 'constructor' },
+      'handleProviderClearModels',
+    ],
+    [
+      'provider.undo_clear',
+      { providerId: '__proto__', previousModels: [] },
+      'handleProviderUndoClear',
+    ],
+    [
+      'provider.probe',
+      { providerId: '__proto__' },
+      'handleProviderProbe',
+    ],
   ])('rejects malformed %s payloads before dispatch', async (type, payload, handlerName) => {
     const ws = mockWs();
     const deps = routes();
@@ -247,6 +308,38 @@ describe('handleProviderRoute malformed payload characterization', () => {
     expect(
       deps.providerHandlers[handlerName as keyof typeof deps.providerHandlers],
     ).not.toHaveBeenCalled();
+  });
+
+  it('adopts the default provider only after a successful provider.add', async () => {
+    const ws = mockWs();
+    const deps = routes();
+    vi.mocked(deps.providerHandlers.handleProviderAdd).mockResolvedValue(true);
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        { type: 'provider.add', payload: { id: 'custom', family: 'openai-compatible' } },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    expect(deps.adoptDefaultProviderIfUnset).toHaveBeenCalledWith('custom');
+  });
+
+  it('skips default adoption when provider.add fails', async () => {
+    const ws = mockWs();
+    const deps = routes();
+    vi.mocked(deps.providerHandlers.handleProviderAdd).mockResolvedValue(false);
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        { type: 'provider.add', payload: { id: 'custom', family: 'openai-compatible' } },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    expect(deps.adoptDefaultProviderIfUnset).not.toHaveBeenCalled();
   });
 
   it('dispatches validated custom model definitions to provider.custom_models.set', async () => {
@@ -310,6 +403,28 @@ describe('handleProviderRoute malformed payload characterization', () => {
       'chatgpt',
       'custom-openai',
     );
+  });
+
+  it('dispatches model.fallback_choice to the fallbackChoice handler', async () => {
+    const ws = mockWs();
+    const deps = routes();
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        {
+          type: 'model.fallback_choice',
+          payload: { requestId: 'req-1', providerId: 'anthropic', model: 'claude-x' },
+        },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    expect(deps.fallbackChoice).toHaveBeenCalledWith(
+      ws,
+      expect.objectContaining({ type: 'model.fallback_choice' }),
+    );
+    expect(ws.send).not.toHaveBeenCalled();
   });
 });
 

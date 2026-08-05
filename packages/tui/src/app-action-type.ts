@@ -375,6 +375,12 @@ export type Action =
   | { type: 'escConfirmOpen'; snapshot: NonNullable<State['steerSnapshot']> }
   /** Dismiss the ESC-interrupt confirmation (user cancelled). */
   | { type: 'escConfirmClose' }
+  /** Open the fallback model overlay (provider.fallback_pending received). */
+  | { type: 'fallbackOverlayOpen'; info: NonNullable<State['fallbackOverlay']> }
+  /** Move the fallback overlay selection (wraps). */
+  | { type: 'fallbackOverlayMove'; delta: number }
+  /** Close the fallback overlay (choice made or auto-switched). */
+  | { type: 'fallbackOverlayClose' }
   /** Open the mid-run send-mode picker with the resolved message + resolver. */
   | { type: 'sendModePickerOpen'; info: NonNullable<State['sendModePicker']> }
   /** Move the send-mode highlight (wraps). */

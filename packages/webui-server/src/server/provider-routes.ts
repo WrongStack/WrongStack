@@ -26,7 +26,7 @@ export interface ProviderMutationHandlers {
       models?: string[] | undefined;
       customModels?: ProviderConfig['customModels'] | undefined;
     },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   handleProviderRemove: (ws: WebSocket, providerId: string) => Promise<void>;
   handleProviderClearModels: (ws: WebSocket, providerId: string) => Promise<void>;
   handleCustomModelSet: (
@@ -73,6 +73,8 @@ export interface ProviderRouteHandlers {
   searchProviderModels: (ws: WebSocket, query: string, limit?: number | undefined) => Promise<void>;
   switchModel: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   refineModel: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  /** Forward a model.fallback_choice client message to the EventBus. */
+  fallbackChoice: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   /** Adopt a just-added provider as the live default when no model is active. */
   adoptDefaultProviderIfUnset: (providerId: string) => Promise<void>;
   providerHandlers: ProviderMutationHandlers;
@@ -258,6 +260,9 @@ export async function handleProviderRoute(
     case 'model.refine':
       await routes.refineModel(ws, msg);
       return true;
+    case 'model.fallback_choice':
+      await routes.fallbackChoice(ws, msg);
+      return true;
 
     case 'key.add':
     case 'key.update': {
@@ -265,7 +270,8 @@ export async function handleProviderRoute(
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const label = payload ? requiredString(payload, 'label') : null;
       const apiKey = payload ? requiredString(payload, 'apiKey') : null;
-      if (!providerId || !label || !apiKey) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || !label || !apiKey)
+        return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleKeyUpsert(ws, providerId, label, apiKey);
       return true;
     }
@@ -274,7 +280,8 @@ export async function handleProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const label = payload ? requiredString(payload, 'label') : null;
-      if (!providerId || !label) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || !label)
+        return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleKeyDelete(ws, providerId, label);
       return true;
     }
@@ -283,7 +290,8 @@ export async function handleProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const label = payload ? requiredString(payload, 'label') : null;
-      if (!providerId || !label) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || !label)
+        return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleKeySetActive(ws, providerId, label);
       return true;
     }
@@ -296,11 +304,11 @@ export async function handleProviderRoute(
       const apiKey = payload?.['apiKey'];
       const models = payload ? optionalStringArray(payload, 'models') : null;
       const customModels = payload ? optionalCustomModels(payload) : null;
-      if (!id || !family) return invalidPayload(ws, msg.type);
+      if (!id || !SAFE_CONFIG_KEY.test(id) || !family) return invalidPayload(ws, msg.type);
       if (baseUrl !== undefined && typeof baseUrl !== 'string') return invalidPayload(ws, msg.type);
       if (apiKey !== undefined && typeof apiKey !== 'string') return invalidPayload(ws, msg.type);
       if (models === null || customModels === null) return invalidPayload(ws, msg.type);
-      await routes.providerHandlers.handleProviderAdd(ws, {
+      const added = await routes.providerHandlers.handleProviderAdd(ws, {
         id,
         family,
         baseUrl: baseUrl as string | undefined,
@@ -310,14 +318,19 @@ export async function handleProviderRoute(
       });
       // Adopt the just-added provider as the live default when nothing is
       // active yet — parity with the boot auto-select (immediately usable).
-      await routes.adoptDefaultProviderIfUnset(id);
+      // Only when the add actually succeeded, and fire-and-forget so the
+      // adoption probe cannot stall this connection's sequential message
+      // handler. Best-effort: a failed adoption must not surface here.
+      if (added) {
+        void routes.adoptDefaultProviderIfUnset(id).catch(() => undefined);
+      }
       return true;
     }
 
     case 'provider.remove': {
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
-      if (!providerId) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId)) return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderRemove(ws, providerId);
       return true;
     }
@@ -325,7 +338,7 @@ export async function handleProviderRoute(
     case 'provider.clear_models': {
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
-      if (!providerId) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId)) return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderClearModels(ws, providerId);
       return true;
     }
@@ -373,7 +386,8 @@ export async function handleProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const previousModels = payload ? optionalStringArray(payload, 'previousModels') : null;
-      if (!providerId || !previousModels) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || !previousModels)
+        return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderUndoClear(ws, providerId, previousModels);
       return true;
     }
@@ -384,7 +398,7 @@ export async function handleProviderRoute(
       const envVars = payload ? optionalStringArray(payload, 'envVars') : null;
       const models = payload ? optionalStringArray(payload, 'models') : null;
       const customModels = payload ? optionalCustomModels(payload) : null;
-      if (!payload || !id || envVars === null || models === null || customModels === null)
+      if (!payload || !id || !SAFE_CONFIG_KEY.test(id) || envVars === null || models === null || customModels === null)
         return invalidPayload(ws, msg.type);
       for (const key of ['family', 'baseUrl'] as const) {
         if (payload[key] !== undefined && typeof payload[key] !== 'string')
@@ -405,7 +419,8 @@ export async function handleProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const timeoutMs = payload ? optionalNumber(payload, 'timeoutMs') : null;
-      if (!providerId || timeoutMs === null) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || timeoutMs === null)
+        return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderProbe(ws, providerId, timeoutMs);
       return true;
     }
@@ -415,7 +430,10 @@ export async function handleProviderRoute(
       const kind = oauthKind(payload);
       const providerId = payload?.['providerId'];
       if (!kind) return invalidPayload(ws, msg.type);
-      if (providerId !== undefined && typeof providerId !== 'string') {
+      if (
+        providerId !== undefined &&
+        (typeof providerId !== 'string' || !SAFE_CONFIG_KEY.test(providerId))
+      ) {
         return invalidPayload(ws, msg.type);
       }
       await routes.providerHandlers.handleOAuthStart(ws, kind, providerId);
@@ -458,7 +476,8 @@ export async function handleProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const model = payload ? requiredString(payload, 'model') : null;
-      if (!providerId || !model) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || !model)
+        return invalidPayload(ws, msg.type);
       const released = routes.statusTracker.retryNow(providerId, model);
       sendResult(
         ws,
@@ -478,7 +497,8 @@ export async function handleProviderRoute(
       const payload = asPayloadRecord(msg);
       const providerId = payload ? requiredString(payload, 'providerId') : null;
       const model = payload ? requiredString(payload, 'model') : null;
-      if (!providerId || !model) return invalidPayload(ws, msg.type);
+      if (!providerId || !SAFE_CONFIG_KEY.test(providerId) || !model)
+        return invalidPayload(ws, msg.type);
       routes.statusTracker.clear(providerId, model);
       sendResult(ws, true, `Cleared tracking for ${providerId}/${model}.`);
       return true;

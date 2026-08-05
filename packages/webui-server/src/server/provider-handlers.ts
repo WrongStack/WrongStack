@@ -374,7 +374,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       models?: string[] | undefined;
       customModels?: ProviderConfig['customModels'] | undefined;
     },
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       const providers = await loadConfigProviders();
       const result = addProviderRecord(providers, payload, new Date().toISOString());
@@ -386,8 +386,10 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       if (result.ok) {
         deps.log?.(`[WebUI] Provider "${payload.id}" added via provider.add`);
       }
+      return result.ok;
     } catch (err) {
       sendOperationResult(ws, false, errMessage(err));
+      return false;
     }
   }
 

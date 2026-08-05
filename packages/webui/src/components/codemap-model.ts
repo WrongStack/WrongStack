@@ -364,7 +364,35 @@ export function smartCanvasGraph(
   };
 }
 
-export function relativeFilePath(node: GraphNodeData): string {
+/**
+ * Directories that conventionally mark the top of a source tree.
+ *
+ * Used to shorten an absolute path for display when nothing better is known.
+ * `/src/` alone only ever matched npm, Cargo and Maven layouts — a Go module
+ * (`cmd/`, `internal/`, `pkg/`) or a Ruby gem (`lib/`) fell through to a blind
+ * "last three segments", which drops the part of the path that identifies the
+ * file.
+ */
+const SOURCE_ROOT_MARKERS = [
+  '/src/main/java/',
+  '/src/main/kotlin/',
+  '/src/',
+  '/lib/',
+  '/internal/',
+  '/cmd/',
+  '/pkg/',
+  '/app/',
+];
+
+/**
+ * Path relative to the node's npm-workspace package directory, or `undefined`
+ * when the package label does not name one.
+ *
+ * Only `@wrongstack/…` and `app:…` labels can be turned back into a directory:
+ * a Cargo crate, Maven artifact or Go module path need not match the folder
+ * they live in.
+ */
+function workspaceRelativePath(node: GraphNodeData): string | undefined {
   const normalized = (node.file ?? node.label).replace(/\\/g, '/');
   const packageName = node.package ?? '';
   const packageSegment = packageName.startsWith('@wrongstack/')
@@ -372,13 +400,47 @@ export function relativeFilePath(node: GraphNodeData): string {
     : packageName.startsWith('app:')
       ? `/apps/${packageName.slice('app:'.length)}/`
       : undefined;
-  if (packageSegment) {
-    const index = normalized.indexOf(packageSegment);
-    if (index >= 0) return normalized.slice(index + packageSegment.length);
+  if (!packageSegment) return undefined;
+  const index = normalized.indexOf(packageSegment);
+  return index >= 0 ? normalized.slice(index + packageSegment.length) : undefined;
+}
+
+export function relativeFilePath(node: GraphNodeData): string {
+  const normalized = (node.file ?? node.label).replace(/\\/g, '/');
+  const workspaceRelative = workspaceRelativePath(node);
+  if (workspaceRelative !== undefined) return workspaceRelative;
+  // Deepest marker wins, so `repo/src/x/internal/y.go` keeps `internal/y.go`
+  // rather than the whole `src/…` tail.
+  let best = -1;
+  let bestEnd = 0;
+  for (const marker of SOURCE_ROOT_MARKERS) {
+    const index = normalized.lastIndexOf(marker);
+    if (index > best) {
+      best = index;
+      bestEnd = index + marker.length;
+    }
   }
-  const srcIndex = normalized.lastIndexOf('/src/');
-  if (srcIndex >= 0) return normalized.slice(srcIndex + 1);
+  if (best >= 0) return normalized.slice(bestEnd);
   return normalized.split('/').slice(-3).join('/');
+}
+
+/**
+ * Longest directory path shared by every file, as a prefix ending in `/`.
+ * Empty when the files have no common directory (or there are fewer than two).
+ */
+function commonDirectoryPrefix(paths: string[]): string {
+  if (paths.length === 0) return '';
+  const split = paths.map((value) => value.split('/'));
+  const first = split[0] ?? [];
+  let shared = 0;
+  // Stop one short of the filename: a lone file must not have its own name
+  // consumed as a directory.
+  while (shared < first.length - 1) {
+    const segment = first[shared];
+    if (!split.every((parts) => parts.length - 1 > shared && parts[shared] === segment)) break;
+    shared++;
+  }
+  return shared === 0 ? '' : `${first.slice(0, shared).join('/')}/`;
 }
 
 const directoryTreeCache = new WeakMap<GraphNodeData[], DirectoryNode>();
@@ -387,10 +449,27 @@ export function buildDirectoryTree(nodes: GraphNodeData[]): DirectoryNode {
   const cached = directoryTreeCache.get(nodes);
   if (cached) return cached;
   const root: DirectoryNode = { name: '', path: '', directories: [], files: [] };
-  for (const node of nodes.filter(
-    (candidate) => candidate.kind === 'file' && !candidate.external,
-  )) {
-    const parts = relativeFilePath(node).split('/').filter(Boolean);
+  const local = nodes.filter((candidate) => candidate.kind === 'file' && !candidate.external);
+  // An npm workspace package anchors on its own directory, which keeps the
+  // familiar `src/…` shape. Every other ecosystem gets the exact shared prefix
+  // of the files the package actually contains: no layout has to be guessed
+  // at, and two files in different directories can never collapse onto one
+  // tree node the way a fixed-depth truncation allows.
+  const workspaceRelatives = local.map(workspaceRelativePath);
+  const allAnchored = workspaceRelatives.every((value) => value !== undefined);
+  const prefix = allAnchored
+    ? ''
+    : commonDirectoryPrefix(local.map((node) => (node.file ?? node.label).replace(/\\/g, '/')));
+
+  for (const [index, node] of local.entries()) {
+    const normalized = (node.file ?? node.label).replace(/\\/g, '/');
+    const anchored = workspaceRelatives[index];
+    const relative = allAnchored
+      ? (anchored ?? relativeFilePath(node))
+      : prefix && normalized.startsWith(prefix)
+        ? normalized.slice(prefix.length)
+        : relativeFilePath(node);
+    const parts = relative.split('/').filter(Boolean);
     const fileName = parts.pop() ?? node.label;
     let cursor = root;
     for (const part of parts) {

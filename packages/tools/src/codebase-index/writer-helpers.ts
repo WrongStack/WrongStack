@@ -18,7 +18,9 @@ export function assignRefsToSymbols(refs: Ref[], symbols: IndexSymbol[]): Ref[] 
     }
     if (!owner && ref.callType === 'import') owner = ordered[0];
     if (!owner || owner.id <= 0) continue;
-    const key = `${owner.id}:${ref.toName}:${ref.callType}`;
+    // The module is part of the identity: same-name imports from different
+    // modules are distinct dependencies (mirrors ts-parser's deduplicateRefs).
+    const key = `${owner.id}:${ref.toName}:${ref.callType}:${ref.module ?? ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
     assigned.push({ ...ref, fromId: owner.id });

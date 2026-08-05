@@ -161,6 +161,29 @@ export interface Ref {
   toId?: number | undefined; // resolved target symbol id (filled after index resolution)
   callType: CallType; // kind of reference
   line: number; // source line where the reference occurs
+  /**
+   * Language of the *referencing* file. Name resolution (`toName` → `toId`) is
+   * scoped to the referencing language's family, because a global name match
+   * links unrelated declarations across languages: `New`/`Get`/`String` in Go,
+   * `main`/`__init__` in Python and TS all collide otherwise.
+   */
+  lang?: SymbolLang | undefined;
+  /**
+   * Module specifier for `import` refs, verbatim as written in the source
+   * (`./foo.js`, `github.com/org/repo/pkg`, `os.path`, `crate::parser`,
+   * `com.example.Thing`). `undefined` for every other ref kind.
+   *
+   * This is deliberately separate from {@link toName}: TS/JS import refs put
+   * the imported *symbol* name in `toName` so the dead-code BFS can traverse
+   * module boundaries, which means `toName` cannot also carry the module path.
+   */
+  module?: string | undefined;
+  /**
+   * Target file an `import` ref resolves to, filled by the post-index module
+   * resolution pass. Absolute path, or `undefined` for external/unresolvable
+   * modules (stdlib, third-party dependencies).
+   */
+  toFile?: string | undefined;
 }
 
 /**
@@ -239,7 +262,11 @@ export interface CodeMapGraph {
 // v2: added the symbols_fts FTS5 table (ranked search moved into SQLite).
 // v3: parser/search format update (navigable TS declarations, valid ref owners,
 //     acronym/digit token splitting). Derived data must be rebuilt.
+// v4: multi-language relations — refs gained `lang` (scopes name resolution to
+//     one language family), `module` (import specifier, kept apart from the
+//     symbol name TS stores in to_name) and `to_file` (module resolution result,
+//     computed once at index time so graph readers stay language-agnostic).
 // A version mismatch on open drops & rebuilds the index (it is derived data).
 // Non-structural CodeMap relation migrations use `relation_graph_version`
 // metadata so older running processes sharing the DB cannot downgrade it.
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;

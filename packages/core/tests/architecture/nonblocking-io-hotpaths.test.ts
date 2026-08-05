@@ -37,7 +37,6 @@ const PROCESS_HOT_PATHS = [
   'packages/plugins/src/pr-drafter/index.ts',
   'packages/plugins/src/release-notes-generator/index.ts',
   'packages/plugins/src/semver-bump/index.ts',
-  'packages/tools/src/codebase-index/refs-extractor.ts',
   'packages/tools/src/codebase-index/rs-parser.ts',
   'packages/tools/src/codebase-index/py-parser.ts',
   'packages/cli/src/simpleui-dist.ts',

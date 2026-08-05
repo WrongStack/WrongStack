@@ -23,6 +23,8 @@ import {
 } from '@wrongstack/core/utils';
 import { type IgnoreMatcher, loadGitignoreMatcher } from './gitignore.js';
 import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
+import { ModuleResolver } from './module-resolver.js';
+import { assignPackageLabels, detectModuleRoots } from './module-roots.js';
 import { parseFileContent } from './parser-dispatch.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
 import { IndexStore } from './writer.js';
@@ -287,12 +289,75 @@ function assignRefsToSymbols(refs: Ref[], symbols: IndexSymbol[]): Ref[] {
     // edge without inventing an invalid owner id 0.
     if (!owner && ref.callType === 'import') owner = ordered[0];
     if (!owner || owner.id <= 0) continue;
-    const key = `${owner.id}:${ref.toName}:${ref.callType}`;
+    // The module is part of the identity: same-name imports from different
+    // modules are distinct dependencies (mirrors ts-parser's deduplicateRefs).
+    const key = `${owner.id}:${ref.toName}:${ref.callType}:${ref.module ?? ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
     assigned.push({ ...ref, fromId: owner.id });
   }
   return assigned;
+}
+
+/**
+ * Post-index pass: derive the project's ecosystem structure, label every file
+ * with its Code Atlas package, and resolve import specifiers to target files.
+ *
+ * This runs after indexing rather than during it for two reasons. Resolution
+ * needs the *complete* file set — a file cannot resolve an import to a module
+ * that has not been discovered yet — and the evidence it depends on (`go.mod`,
+ * `Cargo.toml`, `package.json`) lives on disk, not in the database, so doing it
+ * here is what allows the graph readers to stay purely SQL and language-blind.
+ *
+ * Failures are recorded and swallowed: a repo with an unreadable manifest still
+ * gets a usable index, just with coarser grouping.
+ */
+async function resolveProjectRelations(
+  store: IndexStore,
+  projectRoot: string,
+  opts: {
+    onlyFiles?: readonly string[] | undefined;
+    errors: string[];
+    signal?: AbortSignal | undefined;
+  },
+): Promise<void> {
+  // An aborted run skips the pass rather than throwing: the indexer's contract
+  // is to return partial results with errors recorded, and turning a graceful
+  // return into a rejection here would change that for every caller.
+  if (opts.signal?.aborted) return;
+  try {
+    const indexedFiles = store.getAllFileMetas().map((meta) => meta.file);
+    if (indexedFiles.length === 0) return;
+
+    const structure = await detectModuleRoots(projectRoot, indexedFiles);
+    if (opts.signal?.aborted) return;
+
+    store.setFilePackages(assignPackageLabels(structure, indexedFiles));
+
+    const resolver = new ModuleResolver(
+      structure,
+      indexedFiles,
+      store.getNamespaceDeclarations(),
+    );
+    const pending = store.getUnresolvedImports(opts.onlyFiles);
+    const resolutions: Array<{
+      fromFile: string;
+      lang: string;
+      module: string;
+      toFile: string;
+    }> = [];
+    for (const entry of pending) {
+      const toFile = resolver.resolve(entry.fromFile, entry.lang as SymbolLang, entry.module);
+      // Self-imports (a barrel re-exporting its own directory) are not edges.
+      if (toFile && toFile !== entry.fromFile) {
+        resolutions.push({ ...entry, toFile });
+      }
+    }
+    if (opts.signal?.aborted) return;
+    store.applyImportResolutions(resolutions);
+  } catch (err) {
+    opts.errors.push(`relation resolution: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /** Run a full or incremental index and return statistics. */
@@ -664,6 +729,14 @@ export async function runIndexerWithStore(
   // get one global repair pass when this contract version changes; subsequent
   // single-file watcher runs avoid rebuilding the full symbol-name map.
   if (needsFullRefResolution) store.resolveRefs();
+  await resolveProjectRelations(store, projectRoot, {
+    // A watcher run re-resolves only what it touched; a full run (or a contract
+    // bump) re-resolves everything, because a newly indexed file can be the
+    // target of imports written long before it.
+    onlyFiles: needsFullRefResolution ? undefined : opts.files,
+    errors,
+    signal,
+  });
   store.setMetadata('ref_resolution_version', refResolutionVersion);
   store.setMetadata('relation_graph_version', relationGraphVersion);
   // Planner refresh belongs to full/bulk runs, not the edit watcher hot path.

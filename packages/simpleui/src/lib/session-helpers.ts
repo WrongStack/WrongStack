@@ -40,3 +40,13 @@ export function isIncomingMailboxPayload(payload: Record<string, unknown> | unde
     from: payloadText(payload, 'from'),
   });
 }
+
+/** Format an elapsed duration as a compact uptime string (`1h 23m`). */
+export function formatUptime(ms: number): string {
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ${secs % 60}s`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ${mins % 60}m`;
+}

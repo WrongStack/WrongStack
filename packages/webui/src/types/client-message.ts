@@ -687,6 +687,16 @@ export type WSClientMessageCore =
   | { type: `kanban.${string}`; payload?: Record<string, unknown> | undefined }
   // ── Misc client messages ─────────────────────────────────────────────────────
   | { type: 'plan.template_use'; payload: { template: string } }
+  | {
+      type: 'model.fallback_choice';
+      payload: {
+        requestId: string;
+        providerId?: string | undefined;
+        model?: string | undefined;
+        /** When true, auto-switch to the next candidate (countdown expired or Esc). */
+        autoSwitch?: boolean | undefined;
+      };
+    }
   | { type: 'webui.shutdown' };
 
 export type WSClientMessage = WSClientMessageCore;

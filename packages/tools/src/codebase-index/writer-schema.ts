@@ -11,7 +11,11 @@ export const CORE_TABLES_SQL = `
     lang TEXT NOT NULL,
     mtime_ms INTEGER NOT NULL,
     symbol_count INTEGER NOT NULL DEFAULT 0,
-    last_indexed INTEGER NOT NULL
+    last_indexed INTEGER NOT NULL,
+    -- Code Atlas grouping label, computed at index time from the ecosystem's
+    -- own manifests (package.json, go.mod, Cargo.toml, …). Stored rather than
+    -- re-derived per query because the evidence lives on disk, not in the DB.
+    package TEXT NOT NULL DEFAULT ''
   );
   CREATE TABLE IF NOT EXISTS symbols (
     id INTEGER PRIMARY KEY,
@@ -28,6 +32,10 @@ export const CORE_TABLES_SQL = `
     file_fk TEXT NOT NULL
   );
 `;
+
+export const FILE_INDEX_SQL = [
+  'CREATE INDEX IF NOT EXISTS idx_f_package ON files(package)',
+] as const;
 
 export const SYMBOL_INDEX_SQL = [
   'CREATE INDEX IF NOT EXISTS idx_s_name ON symbols(name)',
@@ -46,7 +54,10 @@ export const REFS_TABLE_SQL = `
     to_name TEXT NOT NULL,
     to_id INTEGER,
     call_type TEXT NOT NULL,
-    line INTEGER NOT NULL
+    line INTEGER NOT NULL,
+    lang TEXT NOT NULL DEFAULT '',
+    module TEXT,
+    to_file TEXT
   );
 `;
 
@@ -55,7 +66,32 @@ export const REFS_INDEX_SQL = [
   'CREATE INDEX IF NOT EXISTS idx_r_to_id ON refs(to_id)',
   'CREATE INDEX IF NOT EXISTS idx_r_to_name ON refs(to_name)',
   'CREATE INDEX IF NOT EXISTS idx_r_call_type ON refs(call_type)',
+  // Name resolution matches (to_name, lang) pairs; the composite keeps the
+  // language-scoped UPDATE from degrading into a scan of every same-named row.
+  'CREATE INDEX IF NOT EXISTS idx_r_to_name_lang ON refs(to_name, lang)',
+  // The post-index module resolution pass groups unresolved import refs by
+  // (module, lang); graph readers then read to_file back.
+  'CREATE INDEX IF NOT EXISTS idx_r_module ON refs(module)',
+  'CREATE INDEX IF NOT EXISTS idx_r_to_file ON refs(to_file)',
 ] as const;
+
+/**
+ * Static `lang → family` mirror of {@link LANG_FAMILY_ENTRIES}, so ref
+ * resolution can scope a match to one language family with a join rather than
+ * binding a per-family IN-list into every statement.
+ *
+ * Row `('', '*')` is the wildcard for refs written without a language (older
+ * rows, and tests that construct refs by hand): they keep resolving globally.
+ */
+export const LANG_FAMILY_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS lang_family (
+    lang TEXT PRIMARY KEY,
+    family TEXT NOT NULL
+  );
+`;
+
+/** Family value that matches every symbol family, used by language-less refs. */
+export const LANG_FAMILY_WILDCARD = '*';
 
 export const SYMBOLS_FTS_SQL =
   "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(text, tokenize = 'unicode61')";

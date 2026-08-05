@@ -36,6 +36,19 @@ import type {
   ToolCallInfo,
 } from '../src/types.js';
 
+/**
+ * State shape stored via the optional `setFallbackPending` dep — mirrors the
+ * inline type in `MessageHandlerDeps` (`message-handler.ts`) so the harness
+ * can hold and assert the projected fallback modal.
+ */
+interface FallbackPendingState {
+  requestId: string;
+  from: { providerId: string; model: string };
+  status: number;
+  candidates: Array<{ providerId: string; model: string }>;
+  autoSwitchSeconds: number;
+}
+
 interface Harness {
   /**
    * Streaming text deltas are coalesced onto an animation frame, so a test that
@@ -81,6 +94,7 @@ interface Harness {
     readonly copiedMessageId: string | null;
     readonly providerLabels: Record<string, string>;
     readonly diffFiles: FileEditMeta[] | null;
+    readonly fallbackPending: FallbackPendingState | null;
     /**
      * How many times `setMessages` has been dispatched. Streaming coalescing is
      * a claim about update *count*, which the resulting text cannot show.
@@ -179,6 +193,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
   const copiedMessageId = makeHolder<string | null>(null);
   const providerLabels = makeHolder<Record<string, string>>({});
   const diffFiles = makeHolder<FileEditMeta[] | null>(null);
+  const fallbackPending = makeHolder<FallbackPendingState | null>(null);
 
   const prefsRef = makeRef<SimplePrefs>({ ...DEFAULT_PREFS });
   const draftRef = makeRef<string>('');
@@ -259,6 +274,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
     setCopiedMessageId: copiedMessageId,
     setProviderLabels: providerLabels,
     setDiffFiles: diffFiles,
+    setFallbackPending: fallbackPending,
     resetAgentNameCache,
     onChime,
     dispatchUserMessage,
@@ -368,6 +384,9 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
       },
       get diffFiles() {
         return diffFiles.latest.current;
+      },
+      get fallbackPending() {
+        return fallbackPending.latest.current;
       },
     },
     refs: {
@@ -726,6 +745,97 @@ describe('provider streaming', () => {
 
     harness.handler({ type: 'provider.fallback', payload: {} });
     expect(harness.state.activity).toBe('Switching fallback model');
+  });
+
+  it('projects provider.fallback_pending into the fallback modal state', () => {
+    harness.mutableRefs.sessionIdRef.current = 'sess-1';
+    harness.handler({
+      type: 'provider.fallback_pending',
+      payload: {
+        sessionId: 'sess-1',
+        requestId: 'req-42',
+        from: { providerId: 'openai', model: 'gpt-4o' },
+        status: 429,
+        candidates: [
+          { providerId: 'anthropic', model: 'claude-haiku' },
+          { providerId: 'openai', model: 'gpt-4o-mini' },
+        ],
+        autoSwitchSeconds: 7,
+      },
+    });
+    expect(harness.state.fallbackPending).toEqual({
+      requestId: 'req-42',
+      from: { providerId: 'openai', model: 'gpt-4o' },
+      status: 429,
+      candidates: [
+        { providerId: 'anthropic', model: 'claude-haiku' },
+        { providerId: 'openai', model: 'gpt-4o-mini' },
+      ],
+      autoSwitchSeconds: 7,
+    });
+  });
+
+  it('ignores provider.fallback_pending for a different session', () => {
+    harness.mutableRefs.sessionIdRef.current = 'sess-1';
+    harness.handler({
+      type: 'provider.fallback_pending',
+      payload: {
+        sessionId: 'sess-other',
+        requestId: 'req-42',
+        from: { providerId: 'openai', model: 'gpt-4o' },
+        status: 429,
+        candidates: [],
+        autoSwitchSeconds: 7,
+      },
+    });
+    expect(harness.state.fallbackPending).toBeNull();
+  });
+
+  it('does not clear the fallback modal on provider.fallback for a different session', () => {
+    harness.mutableRefs.sessionIdRef.current = 'sess-1';
+    harness.handler({
+      type: 'provider.fallback_pending',
+      payload: {
+        sessionId: 'sess-1',
+        requestId: 'req-42',
+        from: { providerId: 'openai', model: 'gpt-4o' },
+        status: 429,
+        candidates: [],
+        autoSwitchSeconds: 7,
+      },
+    });
+    expect(harness.state.fallbackPending).not.toBeNull();
+
+    // Another session's fallback resolves — our modal must survive.
+    harness.handler({
+      type: 'provider.fallback',
+      payload: { sessionId: 'sess-other', to: { model: 'claude-haiku' } },
+    });
+    expect(harness.state.fallbackPending).not.toBeNull();
+    expect(harness.state.activity).toBe('');
+  });
+
+  it('clears the fallback modal when this session resolves the fallback', () => {
+    harness.mutableRefs.sessionIdRef.current = 'sess-1';
+    harness.handler({
+      type: 'provider.fallback_pending',
+      payload: {
+        sessionId: 'sess-1',
+        requestId: 'req-42',
+        from: { providerId: 'openai', model: 'gpt-4o' },
+        status: 429,
+        candidates: [],
+        autoSwitchSeconds: 7,
+      },
+    });
+    expect(harness.state.fallbackPending).not.toBeNull();
+
+    harness.handler({
+      type: 'provider.fallback',
+      payload: { sessionId: 'sess-1', to: { model: 'gpt-4o-mini' } },
+    });
+    expect(harness.state.fallbackPending).toBeNull();
+    expect(harness.state.activity).toBe('Fallback · gpt-4o-mini');
   });
 });
 

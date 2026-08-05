@@ -39,6 +39,8 @@ export {
 export {
   createFallbackModelExtension,
   effectiveFallbackChain,
+  type FallbackGateFn,
+  type FallbackModelDeps,
   fallbackProfileChain,
   smartDefaultFallbackChain,
 } from './fallback-model.js';

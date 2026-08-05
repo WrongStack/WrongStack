@@ -294,11 +294,13 @@ function getTypeName(name: TS.EntityName): string {
   return '';
 }
 
-/** Remove duplicate refs (same toName, callType, line). fromId is always 0 at this stage. */
+/** Remove duplicate refs (same target, kind, line). fromId is always 0 at this stage. */
 function deduplicateRefs(refs: Ref[]): Ref[] {
   const seen = new Set<string>();
   return refs.filter((r) => {
-    const key = `${r.toName}:${r.callType}:${r.line}`;
+    // The module is part of the identity: two imports of the same name from
+    // different modules on one line are distinct dependencies.
+    const key = `${r.toName}:${r.callType}:${r.line}:${r.module ?? ''}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -329,13 +331,23 @@ function getImportSpecifierName(spec: TS.ImportSpecifier): string {
  *   import 'M'                       → no refs (side-effect only)
  */
 function emitImportSpecifierRefs(node: TS.ImportDeclaration, refs: Ref[], lineNum: number): void {
+  const module = moduleSpecifierOf(node.moduleSpecifier);
   const clause = node.importClause;
-  if (!clause) return; // side-effect import: import 'foo'
+
+  if (!clause) {
+    // Side-effect import: `import './polyfill.js'`. There is no symbol to name,
+    // but it is a genuine file dependency — recorded module-only so the Code
+    // Atlas still draws the edge.
+    if (module) {
+      refs.push({ fromId: 0, toName: module, callType: 'import', line: lineNum, module });
+    }
+    return;
+  }
 
   // Default import: import X from 'M'  (may coexist with named bindings
   // e.g. import React, { useState } from 'react')
   if (clause.name) {
-    refs.push({ fromId: 0, toName: clause.name.text, callType: 'import', line: lineNum });
+    refs.push({ fromId: 0, toName: clause.name.text, callType: 'import', line: lineNum, module });
   }
 
   // Named imports: import { X, Y } from 'M'
@@ -349,12 +361,24 @@ function emitImportSpecifierRefs(node: TS.ImportDeclaration, refs: Ref[], lineNu
         toName: getImportSpecifierName(element),
         callType: 'import',
         line: lineNum,
+        module,
       });
     }
   } else if (ts.isNamespaceImport(bindings)) {
     // import * as X from 'M'
-    refs.push({ fromId: 0, toName: bindings.name.text, callType: 'import', line: lineNum });
+    refs.push({
+      fromId: 0,
+      toName: bindings.name.text,
+      callType: 'import',
+      line: lineNum,
+      module,
+    });
   }
+}
+
+/** Literal text of a module specifier, or `undefined` if it is not a literal. */
+function moduleSpecifierOf(node: TS.Expression | undefined): string | undefined {
+  return node && ts.isStringLiteral(node) ? node.text : undefined;
 }
 
 /**
@@ -366,15 +390,16 @@ function emitImportSpecifierRefs(node: TS.ImportDeclaration, refs: Ref[], lineNu
  *   export { X } from 'M'           → ref toName: 'X'
  *   export { X as Y } from 'M'      → ref toName: 'X'  (original name)
  *   export * as X from 'M'          → ref toName: 'X'  (namespace)
- *   export * from 'M'               → NO ref (wildcard — handled via
- *                                      file-level graph in dead-code-scan)
+ *   export * from 'M'               → module-only ref (no symbol to name, but
+ *                                      still a real file dependency)
  */
 function emitExportSpecifierRefs(node: TS.ExportDeclaration, refs: Ref[], lineNum: number): void {
+  const module = moduleSpecifierOf(node.moduleSpecifier);
   const clause = node.exportClause;
 
   if (clause && ts.isNamespaceExport(clause)) {
     // export * as X from 'M' — NamespaceExport has a .name
-    refs.push({ fromId: 0, toName: clause.name.text, callType: 'import', line: lineNum });
+    refs.push({ fromId: 0, toName: clause.name.text, callType: 'import', line: lineNum, module });
     return;
   }
 
@@ -384,13 +409,17 @@ function emitExportSpecifierRefs(node: TS.ExportDeclaration, refs: Ref[], lineNu
       // export { X as Y } → propertyName is 'X' (original), name is 'Y' (exported)
       // export { X } → propertyName is undefined, name is 'X'
       const originalName = element.propertyName?.text ?? element.name.text;
-      refs.push({ fromId: 0, toName: originalName, callType: 'import', line: lineNum });
+      refs.push({ fromId: 0, toName: originalName, callType: 'import', line: lineNum, module });
     }
     return;
   }
 
-  // export * from 'M' — no clause (wildcard).  No per-symbol ref is
-  // possible; the dead-code-scan handles this via file-level graph.
+  // export * from 'M' — no clause (wildcard). No per-symbol ref is possible,
+  // but the module edge is: barrel files are almost entirely wildcard
+  // re-exports, and without this they contribute no dependencies at all.
+  if (module) {
+    refs.push({ fromId: 0, toName: module, callType: 'import', line: lineNum, module });
+  }
 }
 
 /** Detect SymbolLang from a file path — re-exported from the central map. */

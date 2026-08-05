@@ -1,23 +1,22 @@
-import { Activity, Clock, Cpu, X } from 'lucide-react';
+import { Activity, ChevronRight, Clock, Cpu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { formatUptime } from './lib/session-helpers.js';
 import type { ChatMessage, ContextInfo } from './types.js';
 
 interface SessionHealthPanelProps {
   context: ContextInfo;
   messages: ChatMessage[];
   sessionStart: number | null;
+  /** Drill into the token breakdown modal from any of the stat rows. */
+  onOpenContextBreakdown: () => void;
 }
 
-function formatUptime(ms: number): string {
-  const secs = Math.floor(ms / 1000);
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ${secs % 60}s`;
-  const hrs = Math.floor(mins / 60);
-  return `${hrs}h ${mins % 60}m`;
-}
-
-export function SessionHealthPanel({ context, messages, sessionStart }: SessionHealthPanelProps) {
+export function SessionHealthPanel({
+  context,
+  messages,
+  sessionStart,
+  onOpenContextBreakdown,
+}: SessionHealthPanelProps) {
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -38,6 +37,12 @@ export function SessionHealthPanel({ context, messages, sessionStart }: SessionH
   }, []);
 
   const ctxPct = context.maxContext > 0 ? Math.round((context.tokens / context.maxContext) * 100) : 0;
+
+  const drillIntoBreakdown = () => {
+    // Close the panel so the centered details modal is unobstructed.
+    setOpen(false);
+    onOpenContextBreakdown();
+  };
 
   if (!open) {
     return (
@@ -72,27 +77,48 @@ export function SessionHealthPanel({ context, messages, sessionStart }: SessionH
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>
         </header>
         <div className="health-panel-body">
-          <div className="health-stat">
+          <button
+            type="button"
+            className="health-stat health-stat-action"
+            onClick={drillIntoBreakdown}
+            title="View session uptime details"
+            aria-label="Open session uptime details"
+          >
             <Clock size={14} aria-hidden="true" />
             <div>
               <strong>Uptime</strong>
               <span>{formatUptime(uptime)}</span>
             </div>
-          </div>
-          <div className="health-stat">
+            <ChevronRight size={12} className="health-stat-chevron" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="health-stat health-stat-action"
+            onClick={drillIntoBreakdown}
+            title="View token breakdown"
+            aria-label="Open context breakdown"
+          >
             <Cpu size={14} aria-hidden="true" />
             <div>
               <strong>Context</strong>
               <span>{(context.tokens ?? 0).toLocaleString()} / {(context.maxContext ?? 0).toLocaleString()} tokens ({ctxPct}%)</span>
             </div>
-          </div>
-          <div className="health-stat">
+            <ChevronRight size={12} className="health-stat-chevron" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="health-stat health-stat-action"
+            onClick={drillIntoBreakdown}
+            title="View message breakdown"
+            aria-label="Open message breakdown"
+          >
             <Activity size={14} aria-hidden="true" />
             <div>
               <strong>Messages</strong>
               <span>{userMsgs} user · {assistantMsgs} assistant · {thinkingMsgs} thinking</span>
             </div>
-          </div>
+            <ChevronRight size={12} className="health-stat-chevron" aria-hidden="true" />
+          </button>
         </div>
       </aside>
     </>

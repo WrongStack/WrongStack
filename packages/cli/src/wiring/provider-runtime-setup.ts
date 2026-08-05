@@ -19,6 +19,7 @@ import type {
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { withCatalogCapabilities } from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
+import { createFallbackGate } from './fallback-gate.js';
 import { patchConfig } from '../utils.js';
 
 export function serializeProviderRuntimeSnapshot(snapshot: unknown): string {
@@ -168,6 +169,12 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       events,
       logger,
       statusTracker,
+      // Fallback gate — shows a modal with countdown + manual pick in every
+      // UI surface (TUI/WebUI/SimpleUI) before switching models. The gate
+      // emits provider.fallback_pending and waits for provider.fallback_choice
+      // or the auto-switch countdown.
+      fallbackGate: createFallbackGate(events),
+      fallbackGateSeconds: 7,
       ...(cfg.fallbackStickiness?.primaryProbeInterval !== undefined
         ? { primaryCooldownMs: cfg.fallbackStickiness.primaryProbeInterval }
         : {}),

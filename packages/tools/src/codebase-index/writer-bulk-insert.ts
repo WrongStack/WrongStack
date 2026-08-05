@@ -77,16 +77,26 @@ export function bulkInsertRefsWithStatement(
   refs: Ref[],
 ): void {
   if (refs.length === 0) return;
-  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 5));
+  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 8));
   for (let i = 0; i < refs.length; i += chunkSize) {
     const chunk = refs.slice(i, i + chunkSize);
-    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
     const insert = stmt(
-      `INSERT INTO refs(from_id, to_name, to_id, call_type, line) VALUES ${placeholders}`,
+      `INSERT INTO refs(from_id, to_name, to_id, call_type, line, lang, module, to_file)
+       VALUES ${placeholders}`,
     );
     const binds: (string | number | null)[] = [];
     for (const ref of chunk) {
-      binds.push(ref.fromId, ref.toName, ref.toId ?? null, ref.callType, ref.line);
+      binds.push(
+        ref.fromId,
+        ref.toName,
+        ref.toId ?? null,
+        ref.callType,
+        ref.line,
+        ref.lang ?? '',
+        ref.module ?? null,
+        ref.toFile ?? null,
+      );
     }
     insert.run(...binds);
   }

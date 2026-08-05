@@ -41,7 +41,7 @@ export interface SessionTopbarProps {
   onCreateSession: () => void;
   onResumeSession: (id: string) => void;
   onRefreshSessions: () => void;
-  onCompactContext: () => void;
+  onOpenContextBreakdown: () => void;
   onOpenCommandPalette: () => void;
   onToggleTheme: () => void;
   onToggleMailbox: () => void;
@@ -75,7 +75,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
     onCreateSession,
     onResumeSession,
     onRefreshSessions,
-    onCompactContext,
+    onOpenContextBreakdown,
     onOpenCommandPalette,
     onToggleTheme,
     onToggleMailbox,
@@ -129,9 +129,9 @@ export function SessionTopbar(props: SessionTopbarProps) {
         <button
           type="button"
           className="context-meter"
-          title={`${contextTokens} / ${contextMaxContext} tokens — Click to compact`}
-          disabled={!session || running}
-          onClick={onCompactContext}
+          title={`${contextTokens} / ${contextMaxContext} tokens — Click for token breakdown`}
+          disabled={!session}
+          onClick={onOpenContextBreakdown}
         >
           <div className="context-copy">
             <span>CONTEXT</span>
@@ -149,7 +149,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
           <small>
             {compactTokens(contextTokens)} / {compactTokens(contextMaxContext)}
           </small>
-          <span className="context-compact-hint">COMPACT</span>
+          <span className="context-details-hint">DETAILS</span>
         </button>
         <button
           type="button"

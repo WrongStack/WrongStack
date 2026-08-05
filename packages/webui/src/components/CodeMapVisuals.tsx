@@ -65,11 +65,21 @@ export function agentTrailColor(key: string): string {
   return `hsl(${Math.abs(hash) % 360} 82% 58%)`;
 }
 
+/**
+ * Workspace directories that make a good display anchor, widest-first.
+ *
+ * `packages/` and `apps/` are the npm-monorepo pair this started with; the
+ * rest let a Go module, Cargo workspace or Maven project anchor somewhere
+ * meaningful instead of falling back to a blind last-three-segments cut.
+ */
+const PATH_ANCHORS = ['/packages/', '/apps/', '/crates/', '/cmd/', '/internal/', '/pkg/', '/src/'];
+
 export function shortPath(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/');
-  const packageIndex = normalized.lastIndexOf('/packages/');
-  const appIndex = normalized.lastIndexOf('/apps/');
-  const start = Math.max(packageIndex, appIndex);
+  const start = PATH_ANCHORS.reduce(
+    (best, anchor) => Math.max(best, normalized.lastIndexOf(anchor)),
+    -1,
+  );
   return start >= 0 ? normalized.slice(start + 1) : normalized.split('/').slice(-3).join('/');
 }
 

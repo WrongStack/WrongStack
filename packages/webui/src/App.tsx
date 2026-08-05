@@ -32,6 +32,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { InspectorPanel, } from './components/InspectorPanel';
 import { PromptLibraryModal } from './components/PromptLibraryModal';
 import { QuickModelSwitcher } from './components/QuickModelSwitcher';
+import { FallbackModal } from './components/FallbackModal';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { SidePanel } from './components/SidePanel';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
@@ -409,6 +410,7 @@ function AppInner() {
       <CommandPalette />
       <ShortcutsOverlay />
       <QuickModelSwitcher />
+      <FallbackModal />
       <Toaster />
     </div>
   );

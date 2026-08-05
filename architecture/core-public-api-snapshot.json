@@ -194,7 +194,7 @@
         "export { InputBuilder, type InputBuilderEvent, type InputBuilderOptions, } from './input-builder.js';",
         "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './btw.js';",
         "export { createDefaultPipelines, type AgentInit, type AgentInput, type AgentPipelines, type ToolCallPipelinePayload, } from './agent-types.js';",
-        "export { createFallbackModelExtension, effectiveFallbackChain, fallbackProfileChain, smartDefaultFallbackChain, } from './fallback-model.js';",
+        "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackGateFn, type FallbackModelDeps, fallbackProfileChain, smartDefaultFallbackChain, } from './fallback-model.js';",
         "export { formatModelRef, normalizeModelRef, parseModelRef, type ModelRef, } from './model-ref.js';",
         "export { runProviderWithRetry } from './provider-runner.js';",
         "export { setQueuedMessagesSnapshot } from './queued-messages.js';",
@@ -708,7 +708,7 @@
         "export { createPromptsPlugin } from '../plugins/prompts-plugin.js';",
         "export { createSkillsPlugin } from '../plugins/skills-plugin.js';",
         "export { createSyncPlugin } from '../plugins/sync-plugin.js';",
-        "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type ResolvePluginConfigInput, type ResolvedPluginConfig, redactPluginConfig, resolvePluginConfig, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
+        "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type PluginEnablementSource, pluginEntryMatchesName, type ResolvePluginConfigInput, type ResolvePluginEnablementInput, type ResolvedPluginConfig, type ResolvedPluginEnablement, redactPluginConfig, resolvePluginConfig, resolvePluginEnablement, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
         "export { emitReviewIfChanged, recordCompletedReview, recordStartedReview, } from '../plugins/review-claim-registry.js';",
         "export { maybeCompactReviewStores, type ReviewStoreMaintenanceResult, } from '../plugins/review-store-maintenance.js';",
         "export { persistReviewReport, type ReportIntegrationResult, } from '../plugins/review-report-integration.js';",
@@ -1110,7 +1110,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 39,
-      "sourceLines": 9142
+      "sourceLines": 9255
     },
     {
       "directory": "defaults",
@@ -1152,7 +1152,7 @@
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
       "sourceFiles": 6,
-      "sourceLines": 1251
+      "sourceLines": 1267
     },
     {
       "directory": "hq",
@@ -1173,7 +1173,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3455
+      "sourceLines": 3493
     },
     {
       "directory": "middleware",
@@ -1208,7 +1208,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1643
+      "sourceLines": 1747
     },
     {
       "directory": "plugins",
@@ -1271,7 +1271,7 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 3118
+      "sourceLines": 3127
     },
     {
       "directory": "types",

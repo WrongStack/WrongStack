@@ -5,7 +5,9 @@ import { BrainPanel } from './brain-panel.js';
 import { ChatMessageList } from './chat-message-list.js';
 import { CommandPalette } from './command-palette.js';
 import { Composer } from './composer.js';
+import { ContextBreakdownModal } from './context-breakdown-modal.js';
 import { ErrorBoundary } from './error-boundary.js';
+import { FallbackModal } from './fallback-modal.js';
 import { FileChangesButton } from './file-changes-button.js';
 import { FileDiffPanel } from './file-diff-panel.js';
 import { FileExplorer } from './file-explorer.js';
@@ -85,9 +87,17 @@ export function SimpleUiSession() {
   const [modes, setModes] = useState<AgentMode[]>([]);
   const [activeModeId, setActiveModeId] = useState('default');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [contextBreakdownOpen, setContextBreakdownOpen] = useState(false);
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [refineState, setRefineState] = useState<RefineState | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [fallbackPending, setFallbackPending] = useState<{
+    requestId: string;
+    from: { providerId: string; model: string };
+    status: number;
+    candidates: Array<{ providerId: string; model: string }>;
+    autoSwitchSeconds: number;
+  } | null>(null);
   const [draft, setDraft] = useState('');
   const [fileRefs, setFileRefs] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
@@ -469,6 +479,7 @@ export function SimpleUiSession() {
     setFileRefs,
     setFileMention,
     setNotice,
+    setFallbackPending,
     setQueue,
     setRefineState,
     setPendingConfirm,
@@ -662,6 +673,9 @@ export function SimpleUiSession() {
         case 'open-health':
           window.dispatchEvent(new Event('simpleui:open-session-health'));
           return;
+        case 'open-context-breakdown':
+          setContextBreakdownOpen(true);
+          return;
         case 'compact-context':
           if (sessionIdRef.current && !runningRef.current) {
             socketRef.current?.send('context.compact', {
@@ -722,15 +736,7 @@ export function SimpleUiSession() {
             });
           }
         }}
-        onCompactContext={() => {
-          if (sessionIdRef.current) {
-            socketRef.current?.send('context.compact', {
-              sessionId: sessionIdRef.current,
-              aggressive: false,
-            });
-            setActivity('Compacting context');
-          }
-        }}
+        onOpenContextBreakdown={() => setContextBreakdownOpen(true)}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onToggleTheme={toggleTheme}
         onToggleMailbox={() => {
@@ -892,7 +898,42 @@ export function SimpleUiSession() {
         }}
       />
       <BrainPanel socketRef={socketRef} />
-      <SessionHealthPanel context={context} messages={messages} sessionStart={sessionStart} />
+      <SessionHealthPanel
+        context={context}
+        messages={messages}
+        sessionStart={sessionStart}
+        onOpenContextBreakdown={() => setContextBreakdownOpen(true)}
+      />
+
+      <ErrorBoundary>
+        <ContextBreakdownModal
+          open={contextBreakdownOpen}
+          onClose={() => setContextBreakdownOpen(false)}
+          socketRef={socketRef}
+          context={context}
+          sessionId={sessionIdRef.current}
+          sessionStart={sessionStart}
+          running={running}
+          onCompact={() => {
+            if (sessionIdRef.current) {
+              socketRef.current?.send('context.compact', {
+                sessionId: sessionIdRef.current,
+                aggressive: false,
+              });
+              setActivity('Compacting context');
+            }
+            setContextBreakdownOpen(false);
+          }}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary>
+        <FallbackModal
+          info={fallbackPending}
+          socketRef={socketRef}
+          onClose={() => setFallbackPending(null)}
+        />
+      </ErrorBoundary>
 
       {leaderSelected && showJumpToLatest && (
         <button type="button" className="jump-to-latest" onClick={jumpToLatest}>

@@ -147,6 +147,8 @@ export interface ProviderEventMap {
     to: { providerId: string; model: string };
     status: number;
     providerSwitched: boolean;
+    /** Gate correlation id — set when a fallback gate mediated the switch. */
+    requestId?: string | undefined;
     contextWindowWarning?:
       | {
           fromMaxContext: number;
@@ -156,7 +158,30 @@ export interface ProviderEventMap {
       | undefined;
   };
   /**
-   * Fired whenever a (providerId, model) pair transitions between
+   * Fired by the fallback gate function (supplied to the fallback-model
+   * extension via `FallbackModelDeps.fallbackGate`) when the chain is about
+   * to engage, BEFORE attempting any fallback entry. Carries the full
+   * candidate list so the UI can show a modal with a countdown and manual
+   * pick. The gate waits for a `provider.fallback_choice` event bus emission
+   * (or the countdown timer) before proceeding with the chosen model or
+   * auto-switching to the next candidate.
+   */
+  'provider.fallback_pending': {
+    sessionId?: string | undefined;
+    from: { providerId: string; model: string };
+    status: number;
+    candidates: Array<{
+      providerId: string;
+      model: string;
+    }>;
+    /** Seconds the UI should count down before auto-switching to the next model. */
+    autoSwitchSeconds: number;
+    /** Unique request id — the UI echoes this back in the choice message. */
+    requestId: string;
+    timestamp: number;
+  };
+  /**
+   * Fired when a (providerId, model) pair transitions between
    * healthy/degraded/blocked states. The tracker emits this so the
    * CLI/TUI/WebUI can render a live status indicator.
    */
@@ -168,6 +193,19 @@ export interface ProviderEventMap {
     reason: string;
     timestamp: number;
     stateExpiresAt?: number | undefined;
+  };
+  /**
+   * Fired by the UI when the user manually picks a model from the
+   * fallback modal. The fallback gate listens for this event (matched
+   * by `requestId`) to resolve with the chosen model instead of waiting
+   * for the countdown.
+   */
+  'provider.fallback_choice': {
+    requestId: string;
+    providerId?: string | undefined;
+    model?: string | undefined;
+    /** When true, auto-switch to the next candidate (countdown expired or Esc). */
+    autoSwitch?: boolean | undefined;
   };
   /**
    * Fired when the agent's actively selected (primary, not fallback)

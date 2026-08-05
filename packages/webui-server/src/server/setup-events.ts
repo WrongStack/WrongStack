@@ -600,6 +600,22 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         to: e.to,
         status: e.status,
         providerSwitched: e.providerSwitched,
+        ...(e.requestId ? { requestId: e.requestId } : {}),
+      }),
+    });
+  });
+
+  on('provider.fallback_pending', (e) => {
+    broadcast(clients, {
+      type: 'provider.fallback_pending',
+      payload: sessionPayload({
+        sessionId: e.sessionId,
+        from: e.from,
+        status: e.status,
+        candidates: e.candidates,
+        autoSwitchSeconds: e.autoSwitchSeconds,
+        requestId: e.requestId,
+        timestamp: e.timestamp,
       }),
     });
   });

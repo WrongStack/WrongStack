@@ -277,7 +277,8 @@ export function validateAction(action: {
     case 'fKeyPickerMove':
     case 'sessionsPanelMove':
     case 'rewindOverlayMove':
-    case 'sendModePickerMove': {
+    case 'sendModePickerMove':
+    case 'fallbackOverlayMove': {
       const delta = Number(action.delta);
       if (!Number.isInteger(delta) || delta < -1 || delta > 1) {
         return { valid: false, error: `${type}.delta: ${action.delta} is not -1, 0, or 1.` };
@@ -511,7 +512,8 @@ export function validateAction(action: {
     case 'exitConfirmOpen':
     case 'slashConfirmOpen':
     case 'escConfirmOpen':
-    case 'enhanceConfirmOpen': {
+    case 'enhanceConfirmOpen':
+    case 'fallbackOverlayOpen': {
       const info = action.info;
       if (!info || typeof info !== 'object') {
         return { valid: false, error: `${type}.info: missing or non-object.` };
@@ -803,6 +805,7 @@ export function validateAction(action: {
     case 'exitConfirmClose':
     case 'slashConfirmClose':
     case 'escConfirmClose':
+    case 'fallbackOverlayClose':
     case 'sendModePickerClose':
     case 'enhanceClose':
     case 'enhanceBusy':

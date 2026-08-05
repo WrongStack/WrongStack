@@ -144,9 +144,13 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
   ],
   elixir: [
     { re: /\bdef(?:p|macro|macrop)?\s+([A-Za-z_]\w*[!?]?)/g, kind: 'function' },
-    { re: /\bdefmodule\s+([A-Za-z_.]\w*)/g, kind: 'namespace' },
+    // Dotted module names must be captured whole: `alias Foo.Bar` resolves
+    // against this symbol, and a `Foo`-only capture never matches it.
+    { re: /\bdefmodule\s+([A-Z][\w.]*)/g, kind: 'namespace' },
   ],
   haskell: [
+    // Target of `import Data.List`.
+    { re: /^module\s+([A-Z][\w.]*)/gm, kind: 'namespace' },
     { re: /^([A-Za-z_]\w*)\s*::/gm, kind: 'function' },
     { re: /\bdata\s+([A-Za-z_]\w*)/g, kind: 'type' },
     { re: /\btype\s+(?:family\s+)?([A-Za-z_]\w*)/g, kind: 'type' },
