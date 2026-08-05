@@ -656,6 +656,36 @@ describe('getKanbanQueueHealth', () => {
       ),
     ).toBe(true);
   });
+  it('classifies a non-atomic managed leaf without childTaskIds as claimable', async () => {
+    const b = await makeBoard(managedLifecycle());
+    const created = await addTask(tmpDir, b.id, {
+      title: 'Managed leaf',
+      description: 'A leaf task that can be worked directly.',
+      dueDate: '2026-08-01',
+      assignee: 'kanban-agent',
+      labels: ['managed'],
+      successCriteria: [
+        { id: 'criteria-1', description: 'Acceptance criteria exists', type: 'manual' as const, status: 'pending' as const },
+      ],
+    });
+
+    await transitionTask(tmpDir, b.id, created!.task.id, {
+      to: 'todo',
+      actor: 'kanban-agent',
+      comment: 'Leaf task has required details.',
+    });
+
+    const health = await getKanbanQueueHealth(tmpDir, { boardId: b.id });
+
+    expect(health.classifications.counts.claimable).toBe(1);
+    expect(health.classifications.counts.detail_incomplete).toBe(0);
+    expect(health.classifications.diagnostics).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ taskId: created!.task.id, bucket: 'detail_incomplete' }),
+      ]),
+    );
+  });
+
   it('surfaces classifier diagnostics for stale and status-only running tasks', async () => {
     const b = await makeBoard();
     const stale = await addTask(tmpDir, b.id, { title: 'Stale' });

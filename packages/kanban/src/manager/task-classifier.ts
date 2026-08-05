@@ -146,7 +146,7 @@ function missingManagedDispatchDetails(task: KanbanTask): string[] {
   }
   if (!hasText(task.dueDate) || !Number.isFinite(Date.parse(task.dueDate))) missing.push('dueDate');
   if (!task.labels?.some(hasText)) missing.push('labels');
-  if (!task.childTaskIds?.some(hasText)) missing.push('childTaskIds');
+  if (task.atomic && !task.childTaskIds?.some(hasText)) missing.push('childTaskIds');
   if (!task.successCriteria?.length || task.successCriteria.some((check) => !hasText(check.description))) {
     missing.push('successCriteria');
   }
