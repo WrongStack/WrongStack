@@ -60,6 +60,31 @@ describe('SidebarContent agent rows — 2-line format', () => {
     expect(plannerLine1).toContain('8%');
   });
 
+  it('hides the swarm summary and agent rows outside sidebar mode', () => {
+    const entries = {
+      leader: makeEntry('leader', 'Leader Agent', 'running', {
+        ctxPct: 0.42,
+        currentTool: { name: 'read' } as never,
+      }),
+    };
+
+    const { lastFrame } = render(
+      React.createElement(SidebarContent, {
+        contextWindow: { used: 1000, max: 10000 },
+        entries,
+        fleetCounts: { running: 1, idle: 0, pending: 0, completed: 0 },
+        width: WIDTH,
+        showSwarmSection: false,
+      }),
+    );
+
+    const frame = lastFrame() ?? '';
+    expect(frame).not.toContain('AGENT SWARM');
+    expect(frame).not.toContain('Leader Agent');
+    expect(frame).not.toContain('1 LIVE');
+    expect(frame).not.toContain('running · read');
+  });
+
   it('shows +N more when agents exceed the cap', () => {
     const entries: Record<string, FleetEntry> = {};
     const leader = makeEntry('leader', 'Leader Agent', 'running');
@@ -74,6 +99,7 @@ describe('SidebarContent agent rows — 2-line format', () => {
         entries,
         fleetCounts: { running: 15, idle: 0, pending: 0, completed: 0 },
         width: WIDTH,
+        showSwarmSection: true,
       }),
     );
 

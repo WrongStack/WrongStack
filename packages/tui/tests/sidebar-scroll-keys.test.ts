@@ -5,7 +5,7 @@ import { createTestState } from './helpers/create-test-state.js';
 describe('Sidebar focus + scroll key routing', () => {
   /** Create a state with enough fleet entries to allow scrolling. */
   function createStateWithContent() {
-    return createTestState({
+    const state = createTestState({
       fleet: (() => {
         const f: Record<string, { id: string; name: string; status: 'running' }> = {};
         f['leader'] = { id: 'leader', name: 'Leader Agent', status: 'running' };
@@ -14,6 +14,10 @@ describe('Sidebar focus + scroll key routing', () => {
         }
         return f;
       })(),
+    });
+    return reducer(state, {
+      type: 'settingsValueSet',
+      patch: { showAgentSwarmPanel: 'sidebar' },
     });
   }
 
@@ -77,14 +81,17 @@ describe('Sidebar focus + scroll key routing', () => {
     for (let i = 1; i <= 14; i++) {
       fleet[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
     }
-    s = { ...s, fleet: fleet as never };
+    s = reducer({ ...s, fleet: fleet as never }, {
+      type: 'settingsValueSet',
+      patch: { showAgentSwarmPanel: 'sidebar' },
+    });
     for (let i = 0; i < 100; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // Mirrors the card layout (content rows + card margins + overflow):
-    // context 4 + model 3 + fleet card 2 + agent rows (12×2 + overflow 1
-    // + margin 1 = 26) = 35 total, minus 20 viewport = 15 max
-    expect(s.sidebarScrollOffset).toBe(15);
+    // Sidebar mode reserves both the grouped swarm card and the mission queue's
+    // worst-case wrapped height: context/model 7 + swarm 28 + missions 83 =
+    // 118 total, minus the 20-row viewport = 98 max.
+    expect(s.sidebarScrollOffset).toBe(98);
   });
 
   it('sidebarScrollReset sets offset to 0', () => {

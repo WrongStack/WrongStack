@@ -63,8 +63,8 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
     expect(frame).toContain('+1 more');
 
     // Verify: each visible agent has a status line
-    const statusLines = frame.split('\n').filter((l) => l.trim().startsWith('running'));
-    // 1 leader + 11 subagents = 12 status lines
+    const statusLines = frame.split('\n').filter((l) => l.includes('▎   running'));
+    // 1 leader + 11 subagents = 12 aligned, accent-railed status lines
     expect(statusLines.length).toBe(12);
   });
 
@@ -83,6 +83,7 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
         entries,
         fleetCounts: { running: 20, idle: 0, pending: 0, completed: 0 },
         width: WIDTH,
+        showSwarmSection: true,
       }),
     );
 
@@ -114,6 +115,7 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
         entries,
         fleetCounts: { running: 14, idle: 0, pending: 0, completed: 0 },
         width: WIDTH,
+        showSwarmSection: true,
       }),
     );
 

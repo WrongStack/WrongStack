@@ -380,52 +380,44 @@ export function SidebarContent({
         </Card>
       ) : null}
 
-      {/* ── Agent Swarm card ── */}
-      <Card innerWidth={innerWidth} marginBottom={shownAgents.length > 0 ? 0 : 1}>
-        <SectionHeader
-          glyph={glyphs.fleet}
-          label="AGENT SWARM"
-          color={theme.monitor.fleet}
-          badge={running > 0 ? `${running} LIVE` : 'IDLE'}
-          badgeColor={running > 0 ? theme.success : theme.textMuted}
-          innerWidth={innerWidth}
-        />
-        {running > 0 ? (
+      {/* ── Agent Swarm: one gated, raised surface for summary + rows ── */}
+      {showSwarmSection ? (
+        <Card innerWidth={innerWidth}>
+          <SectionHeader
+            glyph={glyphs.fleet}
+            label="AGENT SWARM"
+            color={theme.monitor.fleet}
+            badge={running > 0 ? `${running} LIVE` : 'IDLE'}
+            badgeColor={running > 0 ? theme.success : theme.textMuted}
+            innerWidth={innerWidth}
+          />
           <Box>
-            <Text color={theme.success}>{glyphs.running}</Text>
-            <Text color={theme.textSecondary} wrap="truncate">
-              {' '}
-              {running} running
+            <Text color={running > 0 ? theme.success : theme.textMuted}>▎</Text>
+            <Text
+              color={running > 0 ? theme.textSecondary : theme.textMuted}
+              wrap="truncate"
+            >
+              {running > 0 ? ` ${running} running` : ' idle'}
             </Text>
           </Box>
-        ) : (
-          <Box>
-            <Text color={theme.textMuted}>{glyphs.pending}</Text>
-            <Text color={theme.textMuted}> idle</Text>
-          </Box>
-        )}
-      </Card>
-
-      {/* ── Agent rows (2-line format: name+ctx% / status+tool) ── */}
-      {shownAgents.length > 0 ? (
-        <Box flexDirection="column" width={innerWidth} marginBottom={1}>
           {shownAgents.map((entry) => {
             const { icon, color } = statusGlyph(entry);
             const isRunning = entry.status === 'running';
-            const name = trunc(entry.name || entry.id, innerWidth - 6);
+            const name = trunc(entry.name || entry.id, innerWidth - 8);
             const ctxPctAgent =
               entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
             const statusLabel = entry.status === 'running' ? 'running'
               : entry.status === 'idle' ? 'idle'
               : entry.status;
             const tool = entry.currentTool?.name
-              ? trunc(entry.currentTool.name, innerWidth - statusLabel.length - 4)
+              ? trunc(entry.currentTool.name, innerWidth - statusLabel.length - 6)
               : '';
             return (
-              <Box key={entry.id} flexDirection="column" marginBottom={0}>
-                {/* Line 1: icon + name + ctx% */}
+              <Box key={entry.id} flexDirection="column">
+                {/* Line 1: accent rail + identity + context telemetry. */}
                 <Box flexDirection="row">
-                  <Text color={color}>{icon} </Text>
+                  <Text color={color}>▎</Text>
+                  <Text color={color}> {icon} </Text>
                   <Text
                     color={isRunning ? theme.textPrimary : theme.textSecondary}
                     bold={isRunning}
@@ -433,23 +425,18 @@ export function SidebarContent({
                   >
                     {name}
                   </Text>
+                  <Box flexGrow={1} />
                   {ctxPctAgent ? (
-                    <Text
-                      color={
-                        entry.ctxPct != null
-                          ? contextBarColor(entry.ctxPct)
-                          : theme.textMuted
-                      }
-                    >
-                      {' '}
+                    <Text color={contextBarColor(entry.ctxPct ?? 0)}>
                       {ctxPctAgent}
                     </Text>
                   ) : null}
                 </Box>
-                {/* Line 2: status + current tool (indented under the name) */}
+                {/* Line 2: status + current tool, aligned beneath identity. */}
                 <Box flexDirection="row">
-                  <Text color={color}>  </Text>
+                  <Text color={color}>▎</Text>
                   <Text color={theme.textMuted} wrap="truncate">
+                    {'   '}
                     {statusLabel}
                     {tool ? ` · ${tool}` : ''}
                   </Text>
@@ -458,9 +445,9 @@ export function SidebarContent({
             );
           })}
           {hiddenAgentCount > 0 ? (
-            <Text color={theme.textMuted}> +{hiddenAgentCount} more</Text>
+            <Text color={theme.textMuted}>▎ +{hiddenAgentCount} more</Text>
           ) : null}
-        </Box>
+        </Card>
       ) : null}
 
       {/* ── Mission Queue card (longer board than the bottom panel) ── */}

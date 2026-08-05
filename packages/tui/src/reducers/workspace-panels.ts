@@ -78,23 +78,27 @@ function computeMaxSidebarScroll(
   // Model card: header + value (2) + marginBottom (1) — treated as always present
   contentHeight += 3;
 
-  // Fleet card + agent rows
-  const fleetEntries = Object.values(state.fleet);
-  const leader = fleetEntries.find(
-    (e) => e.id === 'leader' || e.name === 'Leader Agent',
-  );
-  const runningSubagents = fleetEntries
-    .filter((e) => e !== leader)
-    .filter((e) => e.status === 'running');
-  const agentCap = leader ? 11 : 12;
-  const shownAgents = (leader ? 1 : 0) + Math.min(runningSubagents.length, agentCap);
-  const hasAgents = shownAgents > 0;
-  // Fleet card: header + summary (2). marginBottom is 0 when agent rows follow,
-  // otherwise 1.
-  contentHeight += 2 + (hasAgents ? 0 : 1);
-  if (hasAgents) {
-    // Agent rows: 2 lines each, + "+N more" overflow row, + marginBottom (1)
-    contentHeight += shownAgents * 2;
+  // The effective source for swarm-panel-on-sidebar is dual:
+  //   - while the picker is open, the renderer reads the picker draft;
+  //   - while the picker is closed, the caller threads the persisted mode.
+  const swarmOnSidebar =
+    effectiveSwarmOnSidebar ?? (state.settingsPicker.showAgentSwarmPanel === 'sidebar');
+
+  // Fleet card + agent rows (only when the swarm panel is on the sidebar).
+  if (swarmOnSidebar) {
+    const fleetEntries = Object.values(state.fleet);
+    const leader = fleetEntries.find(
+      (e) => e.id === 'leader' || e.name === 'Leader Agent',
+    );
+    const runningSubagents = fleetEntries
+      .filter((e) => e !== leader)
+      .filter((e) => e.status === 'running');
+    const agentCap = leader ? 11 : 12;
+    const shownAgents = (leader ? 1 : 0) + Math.min(runningSubagents.length, agentCap);
+
+    // One raised card: header + summary + 2 rows per agent, optional overflow,
+    // and marginBottom (1).
+    contentHeight += 2 + shownAgents * 2;
     if (runningSubagents.length > agentCap) contentHeight += 1;
     contentHeight += 1;
   }
@@ -106,19 +110,6 @@ function computeMaxSidebarScroll(
   // onto multiple rows at narrow widths (see sidebar-content.tsx — labels pass
   // through unmodified), so the scroll budget must account for that expansion.
   //
-  // The effective source for swarm-panel-on-sidebar is dual:
-  //   - while the picker is open, the renderer reads
-  //     `state.settingsPicker.showAgentSwarmPanel` (the picker draft);
-  //   - while the picker is closed, the renderer reads
-  //     `liveSettings?.panelPositions.fleet === 'sidebar'` (the persisted
-  //     config, which the reducer cannot see).
-  // The caller of computeMaxSidebarScroll threads the resolved boolean
-  // through the `effectiveSwarmOnSidebar` action field; when it's omitted
-  // we fall back to the picker draft, which is exact while the picker is
-  // open and under-reserves the mission queue when a config-only 'sidebar'
-  // swarm mode is persisted but the picker has never been opened.
-  const swarmOnSidebar =
-    effectiveSwarmOnSidebar ?? (state.settingsPicker.showAgentSwarmPanel === 'sidebar');
   if (swarmOnSidebar) {
     contentHeight += 1 + SIDEBAR_MISSION_ROWS * SIDEBAR_MISSION_MAX_WRAP_LINES + 1 + 1;
   }
