@@ -222,7 +222,7 @@ export class FleetManager implements IFleetManager {
    * which cap was exceeded. Does NOT throw — the caller decides
    * how to surface the rejection.
    */
-  canSpawn(_config: SubagentConfig): {
+  canSpawn(config: SubagentConfig): {
     kind:
       | 'max_spawns'
       | 'max_spawn_depth'
@@ -235,7 +235,10 @@ export class FleetManager implements IFleetManager {
     if (this.spawnDepth >= this.maxSpawnDepth) {
       return { kind: 'max_spawn_depth', limit: this.maxSpawnDepth, observed: this.spawnDepth };
     }
-    if (this.spawnCount >= this.maxSpawns) {
+    // Budget-exempt spawns (Chimera reviewers, cascade agents) bypass the
+    // lifetime spawn cap — background review traffic must not be able to
+    // brick the leader's own delegation budget, and vice versa.
+    if (!config.spawnBudgetExempt && this.spawnCount >= this.maxSpawns) {
       return { kind: 'max_spawns', limit: this.maxSpawns, observed: this.spawnCount + 1 };
     }
     if (this.maxFleetCostUsd < Number.POSITIVE_INFINITY) {
@@ -356,8 +359,10 @@ export class FleetManager implements IFleetManager {
   }
 
   /**
-   * Records a spawn: increments counter, stores metadata, updates state checkpoint,
-   * and schedules a debounced manifest write. Call AFTER the coordinator
+   * Records a spawn: stores metadata, updates state checkpoint, and schedules
+   * a debounced manifest write. Increments the lifetime spawn counter UNLESS
+   * the config is `spawnBudgetExempt` (ephemeral Chimera reviewer/cascade
+   * spawns do not consume the leader's budget). Call AFTER the coordinator
    * has successfully spawned the subagent.
    *
    * @param subagentId The subagent's id (from coordinator.spawn result)
@@ -377,7 +382,11 @@ export class FleetManager implements IFleetManager {
     // New fleet activity after a stop lifts the teardown freeze so manifest
     // writes resume.
     this.closing = false;
-    this.spawnCount += 1;
+    // Budget-exempt spawns (Chimera reviewers, cascade agents) do not consume
+    // the leader's lifetime spawn budget — the counter stays leader-only.
+    if (!config.spawnBudgetExempt) {
+      this.spawnCount += 1;
+    }
     this.subagentMeta.set(subagentId, {
       provider: config.provider,
       model: config.model,

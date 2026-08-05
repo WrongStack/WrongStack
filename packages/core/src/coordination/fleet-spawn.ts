@@ -163,7 +163,7 @@ export async function spawn(
     if (host.spawnDepth >= maxSpawnDepth) {
       throw new FleetSpawnBudgetError('max_spawn_depth', maxSpawnDepth, host.spawnDepth);
     }
-    if (host.spawnCount >= host.maxSpawns) {
+    if (host.spawnCount >= host.maxSpawns && !config.spawnBudgetExempt) {
       throw new FleetSpawnBudgetError('max_spawns', host.maxSpawns, host.spawnCount + 1);
     }
     if (host.maxFleetCostUsd < Number.POSITIVE_INFINITY) {
@@ -234,7 +234,10 @@ export async function spawn(
         ? {
             remainingSpawns: Math.max(
               0,
-              (budget?.remainingSpawns ?? host.maxSpawns - host.spawnCount) - 1,
+              // Exempt spawns don't consume leader budget, so the reported
+              // headroom is not decremented for them.
+              (budget?.remainingSpawns ?? host.maxSpawns - host.spawnCount) -
+                (config.spawnBudgetExempt ? 0 : 1),
             ),
           }
         : {}),
@@ -250,7 +253,11 @@ export async function spawn(
     // Always record the spawn with the real subagentId so the manifest is keyed correctly.
     host.fleetManager.recordSpawn(result.subagentId, config, priceLookup);
   } else {
-    host.spawnCount += 1;
+    // Budget-exempt spawns (Chimera reviewers, cascade agents) do not consume
+    // the leader's lifetime spawn budget.
+    if (!config.spawnBudgetExempt) {
+      host.spawnCount += 1;
+    }
     host.subagentMeta.set(result.subagentId, {
       provider: config.provider,
       model: config.model,

@@ -214,6 +214,9 @@ export function installChimeraReviewHandler({
                 provider: attempt.provider,
                 model: attempt.model,
                 fallbackModels: attempt.fallbackModels,
+                // Reviewers are ephemeral background infrastructure: they must
+                // not consume the leader's lifetime maxSpawns budget.
+                spawnBudgetExempt: true,
               }),
             // The reviewer is read-only, so a retry re-runs the task verbatim.
             buildTask: () => taskDesc,

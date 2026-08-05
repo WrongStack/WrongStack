@@ -87,6 +87,9 @@ export function installChimeraCascadeHandler({
               maxIterations: 40,
               maxToolCalls: 200,
               timeoutMs,
+              // Cascade agents are ephemeral infrastructure: like reviewers,
+              // they must not consume the leader's lifetime maxSpawns budget.
+              spawnBudgetExempt: true,
               // Rung 0 stays unpinned so the role model matrix still decides;
               // later rungs pin a model precisely because it just failed.
               ...(attempt.tier === 'inherit'

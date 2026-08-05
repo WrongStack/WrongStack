@@ -69,6 +69,17 @@ export interface SubagentConfig {
   priority?: number | undefined;
 
   /**
+   * Exempt this spawn from the director's lifetime `maxSpawns` budget.
+   * Ephemeral infrastructure agents (Chimera reviewers, cascade agents) set
+   * this so background review traffic cannot exhaust the leader's
+   * deliberate-delegation budget: the `max_spawns` admission check is skipped
+   * and the lifetime spawn counter is NOT incremented. All other caps
+   * (spawn depth, fleet cost/tokens, leader context load) still apply.
+   * Deliberate leader spawns must leave this unset.
+   */
+  spawnBudgetExempt?: boolean | undefined;
+
+  /**
    * Director-authored recursion/budget inheritance. Director.spawn overwrites
    * caller input so a model cannot forge a shallower depth or larger budget.
    */
