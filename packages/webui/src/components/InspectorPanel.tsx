@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { openPanel } from '@/components/activity-bar/nav';
 import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
 import { useCouncilLogStore, useFleetStore, useSideEffectStore, useUIStore } from '@/stores';
-import { AgentCard } from './AgentsMonitor';
+import { AgentCard } from './AgentCard';
 import { FleetAgentRow } from '@/components/ui/fleet-agent-row';
 import { CouncilLogTimeline } from './CouncilLogTimeline';
 import { SideEffectTimeline } from './SideEffectTimeline';

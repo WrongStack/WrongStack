@@ -137,7 +137,7 @@ export function AgentDetail({
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/25 text-xs">
               <Zap className="h-3.5 w-3.5 text-warning shrink-0" />
               <span className="text-warning">
-                {t('activity:fleet.budgetWarning', { kind: agent.budgetWarning.kind, used: agent.budgetWarning.used, limit: agent.budgetWarning.limit })}
+                {t('activity:fleet.hittingLimitTitle', { kind: agent.budgetWarning.kind, used: agent.budgetWarning.used, limit: agent.budgetWarning.limit })}
               </span>
             </div>
           )}
@@ -290,9 +290,11 @@ export function AgentDetail({
   );
 }
 
-// ── Agent card (clickable) ────────────────────────────────────────────
+// ── Agent mini card (clickable) ───────────────────────────────────────
+// Named AgentMiniCard to avoid colliding with the shared exported
+// AgentCard in ./AgentCard (different props: `a`/`onClick` here).
 
-function AgentCard({
+function AgentMiniCard({
   a,
   onClick,
 }: {
@@ -469,7 +471,7 @@ export function FleetPanel({
           <div>
             <div className="flex gap-2 overflow-x-auto px-2 pb-2 min-h-0">
             {list.map((a) => (
-              <AgentCard
+              <AgentMiniCard
                 key={a.id}
                 a={a}
                 onClick={() => setSelectedId(selectedId === a.id ? null : a.id)}

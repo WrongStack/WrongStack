@@ -15,26 +15,15 @@
  */
 
 import { Crown, Cpu, Loader2, Wrench, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { ContextBar } from '@/components/ContextBar';
 import { AgentTranscript } from '@/components/AgentTranscript';
 import { SparklineChart } from '@/components/ui/sparkline';
+import { computeAgentStats } from '@/lib/agent-status';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import { EMPTY_AGENT_TRANSCRIPT, useFleetStore } from '@/stores';
-
-function fmtCost(v: number): string {
-  if (v <= 0) return '$0';
-  if (v >= 0.01) return `$${v.toFixed(3)}`;
-  return `$${v.toFixed(5)}`.replace(/0+$/, '').replace(/\.$/, '');
-}
-
-function fmtDuration(ms: number): string {
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return `${sec}s`;
-  const min = Math.floor(sec / 60);
-  return `${min}m ${sec % 60}s`;
-}
 
 const STATUS_META: Record<SubagentView['status'], { led: string; pulse: boolean; badge: string }> =
   {
@@ -61,7 +50,16 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
   const meta = STATUS_META[agent.status];
   const { t } = useAppTranslation();
   const active = agent.status === 'running';
-  const elapsed = Date.now() - agent.startedAt;
+  // Self-ticking clock so elapsed ticks live while running (mirrors
+  // AgentRosterCard); terminal agents freeze at their completedAt.
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (agent.status !== 'running') return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [agent.status]);
+  const stats = computeAgentStats(agent, now);
   const transcript = useFleetStore(
     (s) => s.agentTranscripts.get(agent.id) ?? EMPTY_AGENT_TRANSCRIPT,
   );
@@ -127,7 +125,7 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/25 text-xs">
           <Zap className="h-3.5 w-3.5 text-warning shrink-0" />
           <span className="text-warning">
-            {t('activity:fleet.budgetWarning', {
+            {t('activity:fleet.hittingLimitTitle', {
               kind: agent.budgetWarning.kind,
               used: agent.budgetWarning.used,
               limit: agent.budgetWarning.limit,
@@ -160,12 +158,12 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
         <div className="rounded-lg border bg-muted/30 px-2 py-1.5 text-center">
           <div className="text-[10px] text-muted-foreground">{t('activity:fleet.cost')}</div>
           <div className="text-xs font-mono font-semibold tabular-nums">
-            {fmtCost(agent.costUsd)}
+            {stats.cost}
           </div>
         </div>
         <div className="rounded-lg border bg-muted/30 px-2 py-1.5 text-center">
           <div className="text-[10px] text-muted-foreground">{t('activity:fleet.elapsed')}</div>
-          <div className="text-xs font-mono font-semibold tabular-nums">{fmtDuration(elapsed)}</div>
+          <div className="text-xs font-mono font-semibold tabular-nums">{stats.elapsed}</div>
         </div>
       </div>
 

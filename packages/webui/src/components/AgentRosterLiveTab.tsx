@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { openPanel } from '@/components/activity-bar/nav';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import { useFleetStore, useUIStore } from '@/stores';
@@ -177,6 +178,15 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
             </button>
           ))}
           <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => openPanel('agents')}
+            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            title={t('activity:agentRoster.openAgentsPanel')}
+          >
+            <Bot className="h-3 w-3" />
+            {t('activity:agentRoster.openAgentsPanel')}
+          </button>
           {counts.completed + counts.failed > 0 && (
             <button
               type="button"
