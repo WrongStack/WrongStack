@@ -129,12 +129,19 @@ describe('setup() is idempotent for every official plugin', () => {
     },
   );
 
-  it.each(plugins)('%s releases its own registrations on teardown', async (_name, plugin) => {
-    const api = makeApi();
-    await plugin.setup(api, { signal: new AbortController().signal });
-    await plugin.teardown?.(api, { signal: new AbortController().signal });
-    expect(liveOwnedCount(api)).toBe(0);
-  });
+  // Same parallel-load headroom as the reload case: setup+teardown spawns a
+  // process per plugin (test-runner-gate etc.) and the default 5s can be
+  // exceeded when the workspace suite runs packages concurrently.
+  it.each(plugins)(
+    '%s releases its own registrations on teardown',
+    { timeout: 15_000 },
+    async (_name, plugin) => {
+      const api = makeApi();
+      await plugin.setup(api, { signal: new AbortController().signal });
+      await plugin.teardown?.(api, { signal: new AbortController().signal });
+      expect(liveOwnedCount(api)).toBe(0);
+    },
+  );
 
   it('covers the whole official roster', () => {
     // Guard against the list silently shrinking.
