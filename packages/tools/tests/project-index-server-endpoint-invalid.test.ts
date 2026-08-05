@@ -24,8 +24,21 @@ import * as os from 'node:os';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const checkUnixSocketPathMock = vi.hoisted(() => vi.fn());
+// The endpoint-length integration test below resets modules and re-imports
+// the resolver expecting the REAL length guard (it stubs TMPDIR deep so the
+// real check fails). vi.mock registrations persist across vi.resetModules(),
+// so the mock must DELEGATE to the real implementation by default — a bare
+// `vi.fn()` would return undefined and crash `!check.ok` at the call site.
+const realCheckUnixSocketPath = vi.hoisted<{
+  fn?: (socketPath: string, platform?: NodeJS.Platform) => {
+    ok: boolean;
+    byteLength: number;
+    maxBytes: number;
+  };
+}>(() => ({}));
 vi.mock('@wrongstack/core/utils', async (orig) => {
   const actual = await orig<typeof import('@wrongstack/core/utils')>();
+  realCheckUnixSocketPath.fn = actual.checkUnixSocketPath;
   return {
     ...actual,
     checkUnixSocketPath: checkUnixSocketPathMock,
@@ -87,7 +100,13 @@ function setEnv(name: string, value: string | undefined): () => void {
 }
 
 beforeEach(() => {
+  // Default: the REAL length guard (used by the TMPDIR-depth integration
+  // test). Tests that need a synthetic result override with mockReturnValue
+  // after this. mockReset() first so a prior test's override is cleared.
   checkUnixSocketPathMock.mockReset();
+  checkUnixSocketPathMock.mockImplementation((path: string, platform?: NodeJS.Platform) =>
+    realCheckUnixSocketPath.fn!(path, platform),
+  );
   indexServiceMock.mockReset();
   indexServiceMock.mockResolvedValue(OK_RESULT);
   resetIndexStateForTesting();
