@@ -166,9 +166,13 @@ export class DefaultModelsRegistry implements ModelsRegistry {
   async load(opts: { force?: boolean | undefined } = {}): Promise<ModelsDevPayload> {
     if (this.payload && !opts.force) return this.payload;
     // A `seed` is treated as the complete, final payload — used for offline
-    // scenarios and tests. It bypasses both the base fetch and the overlay.
+    // scenarios and tests. It bypasses the base fetch and the CURATED overlay,
+    // but NOT `extraOverlay`: that carries runtime-discovered providers, which
+    // are orthogonal to where the catalog came from. Dropping it here silently
+    // lost every auto-discovered model whenever `mergeOverlay` ran before the
+    // first `load()` — the exact ordering a local gateway hits offline.
     if (this.seed) {
-      this.payload = this.seed;
+      this.payload = this.withExtraOverlay(this.seed);
       this.fetchedAt = new Date();
       return this.payload;
     }

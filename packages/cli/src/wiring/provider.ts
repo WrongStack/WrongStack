@@ -3,6 +3,7 @@ import { ConfigError, type Config, type Logger, type ModelsRegistry } from '@wro
 import { ProviderRegistry } from '@wrongstack/core/registry';
 import {
   buildProviderFactoriesFromRegistry,
+  createAiGatewayProviderFactory,
   installCatalogModelOutputLimits,
   makeProviderFromConfig,
   withCatalogCapabilities,
@@ -112,8 +113,10 @@ export async function setupProvider(params: {
     });
   }
 
-  // Provider registry — populated dynamically from models.dev catalog.
+  // Provider registry — essential built-ins exist even when the optional
+  // models.dev catalog is disabled; catalog factories are layered on top.
   const providerRegistry = new ProviderRegistry();
+  providerRegistry.register(createAiGatewayProviderFactory());
   if (config.features.modelsRegistry) {
     try {
       const factories = await buildProviderFactoriesFromRegistry({
@@ -133,7 +136,8 @@ export async function setupProvider(params: {
     }
   }
 
-  // Provider instance — registry-driven by default, falls through to config-only.
+  // Provider instance — resolve the user-visible id separately from the
+  // factory lookup key so saved aliases behave the same at boot and at runtime.
   const providerConfig = config.providers?.[config.provider] ?? {
     type: config.provider,
     apiKey: config.apiKey,
@@ -141,11 +145,12 @@ export async function setupProvider(params: {
   };
   let provider: ReturnType<ProviderRegistry['create']>;
   try {
+    const factoryType = providerConfig.type ?? config.provider;
     const cfgWithType = { ...providerConfig, type: config.provider };
-    if (config.features.modelsRegistry && providerRegistry.has(config.provider)) {
-      provider = providerRegistry.create(cfgWithType);
+    if (providerRegistry.has(factoryType)) {
+      provider = providerRegistry.create(cfgWithType, factoryType);
     } else {
-      provider = makeProviderFromConfig(config.provider, cfgWithType);
+      provider = makeProviderFromConfig(config.provider, { ...cfgWithType, type: factoryType });
     }
   } catch (err) {
     throw new ConfigError({

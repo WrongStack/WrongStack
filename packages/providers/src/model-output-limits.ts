@@ -33,7 +33,11 @@ import type {
   ProviderConfig,
   Request,
 } from '@wrongstack/core/types';
-import { FAMILY_BY_PROVIDER_ID, SIBLING_CATALOG_BY_FAMILY } from './capabilities.js';
+import {
+  CATALOG_ALIAS_BY_PROVIDER_TYPE,
+  FAMILY_BY_PROVIDER_ID,
+  SIBLING_CATALOG_BY_FAMILY,
+} from './capabilities.js';
 
 /**
  * The ONLY hardcoded output number left in the codebase, and it exists solely
@@ -214,6 +218,12 @@ function catalogIdsFor(config: Config | undefined, providerId: string): string[]
   const family = cfg?.family ?? FAMILY_BY_PROVIDER_ID[providerId];
   const sibling = family ? SIBLING_CATALOG_BY_FAMILY[family] : undefined;
   if (sibling && !ids.includes(sibling)) ids.push(sibling);
+  // Gateways publish under a models.dev id of their own (`ai-gateway` →
+  // `vercel`). Keyed on the config TYPE too, so a user alias resolves as well.
+  for (const key of [providerId, cfg?.type]) {
+    const alias = key ? CATALOG_ALIAS_BY_PROVIDER_TYPE[key] : undefined;
+    if (alias && !ids.includes(alias)) ids.push(alias);
+  }
   return ids;
 }
 
@@ -256,6 +266,27 @@ export async function installCatalogModelOutputLimits(
     WRAPPED_REFRESH.add(registry);
   }
 
+  // Runtime-discovered models carry real `limit.output` values, but they arrive
+  // through `mergeOverlay`, which never rebuilt this index — so a discovered
+  // model's ceiling stayed invisible until the next refresh and every request
+  // fell through to the 8192 last resort. Index the overlay payload directly:
+  // it is the exact delta, so this stays synchronous and needs no reload.
+  const overlayHolder = registry as {
+    mergeOverlay?: (payload: ModelsDevPayload) => void;
+  };
+  if (typeof overlayHolder.mergeOverlay === 'function' && !WRAPPED_OVERLAY.has(registry)) {
+    const originalMerge = overlayHolder.mergeOverlay.bind(registry);
+    overlayHolder.mergeOverlay = (payload: ModelsDevPayload) => {
+      originalMerge(payload);
+      for (const [catalogId, models] of indexPayload(payload)) {
+        const existing = index.get(catalogId);
+        if (existing) for (const [id, limit] of models) existing.set(id, limit);
+        else index.set(catalogId, models);
+      }
+    };
+    WRAPPED_OVERLAY.add(registry);
+  }
+
   setModelOutputLimitResolver((providerId, modelId) => {
     if (!providerId) return undefined;
     const config = getConfig?.();
@@ -270,3 +301,4 @@ export async function installCatalogModelOutputLimits(
 }
 
 const WRAPPED_REFRESH = new WeakSet<ModelsRegistry>();
+const WRAPPED_OVERLAY = new WeakSet<ModelsRegistry>();

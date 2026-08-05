@@ -171,6 +171,21 @@ export async function createPreContextServices(
     }
   }
 
+  // Discovery FIRST, matching the CLI boot order: it injects runtime-discovered
+  // models into the catalog, and the output-limit index below is built from
+  // that catalog. Running it the other way round leaves every discovered
+  // model's ceiling out of the index.
+  try {
+    await discoverAndMergeWebuiProviders({
+      config,
+      registry: modelsRegistry,
+      cacheDir: path.dirname(wpaths.modelsCache),
+      logger,
+    });
+  } catch (err) {
+    logger.debug(`provider auto-discovery skipped: ${toErrorMessage(err)}`);
+  }
+
   // Same per-request output-ceiling index the CLI installs. Without it every
   // wire body falls back to the adapters' 8192 literal whenever the provider
   // instance wasn't built for the model being requested.
@@ -182,17 +197,6 @@ export async function createPreContextServices(
     });
   } catch (err) {
     logger.debug(`model output-limit index skipped: ${toErrorMessage(err)}`);
-  }
-
-  try {
-    await discoverAndMergeWebuiProviders({
-      config,
-      registry: modelsRegistry,
-      cacheDir: path.dirname(wpaths.modelsCache),
-      logger,
-    });
-  } catch (err) {
-    logger.debug(`provider auto-discovery skipped: ${toErrorMessage(err)}`);
   }
 
   const events = opts.services?.events ?? new EventBus();

@@ -12,7 +12,8 @@ import type {
   WireFamily,
 } from '@wrongstack/core/types';
 import { ERROR_CODES, WrongStackError } from '@wrongstack/core/types';
-import { capabilitiesFor } from './capabilities.js';
+import { AiGatewayProvider, createAiGatewayProviderFactory } from './ai-gateway.js';
+import { CATALOG_ALIAS_BY_PROVIDER_TYPE, capabilitiesFor } from './capabilities.js';
 import { AnthropicProvider } from './anthropic.js';
 import { AnthropicOAuthProvider } from './anthropic-oauth.js';
 import { GitHubCopilotProvider } from './github-copilot.js';
@@ -32,6 +33,17 @@ import { mistralWireFormat } from './presets/mistral.js';
 import { ollamaWireFormat, vllmWireFormat, lmstudioWireFormat } from './presets/local-llm.js';
 export { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';
 export { OpenAIProvider, type OpenAIProviderOptions } from './openai.js';
+export {
+  AiGatewayProvider,
+  createAiGatewayProviderFactory,
+  convertAiSdkStreamPart,
+  convertMessages as convertMessagesToAiSdk,
+  convertTools as convertToolsToAiSdk,
+  convertUsage as convertAiSdkUsage,
+  toProviderError as convertAiSdkProviderError,
+  type AiGatewayFactoryOptions,
+  type AiGatewayProviderOptions,
+} from './ai-gateway.js';
 export { MiniMaxProvider, type MiniMaxProviderOptions } from './minimax.js';
 export { OpenCodeGoProvider, type OpenCodeGoProviderOptions } from './opencode-go.js';
 export {
@@ -99,7 +111,11 @@ export { ANTHROPIC_MAX_BREAKPOINTS, capAnthropicCacheBreakpoints } from './cache
 export { openaiWireFormat } from './presets/openai.js';
 export { googleWireFormat } from './presets/google.js';
 export { ollamaWireFormat, vllmWireFormat, lmstudioWireFormat } from './presets/local-llm.js';
-export { capabilitiesFor } from './capabilities.js';
+export {
+  capabilitiesFor,
+  catalogProviderIdFor,
+  CATALOG_ALIAS_BY_PROVIDER_TYPE,
+} from './capabilities.js';
 export {
   type BuildBodyContext,
   clearModelOutputLimitResolver,
@@ -144,7 +160,9 @@ export { contentFromOpenAI, type OpenAIChoice } from './tool-format/from-openai.
 export {
   discoverOpenAICompatibleModels,
   mapCompatibleModel,
+  resolveDiscoveryTargets,
   type DiscoverOptions,
+  type DiscoveryTarget,
 } from './auto-discover.js';
 
 /**
@@ -232,7 +250,22 @@ export async function withCatalogCapabilities(
   log?: Logger,
 ): Promise<Provider> {
   try {
-    const resolved = await capabilitiesFor(registry, providerId, cfg.model ?? '', cfg.customModels);
+    // Gateway transports are absent from models.dev under their own id; their
+    // per-model facts live under the upstream provider named in the model id.
+    // Detect from the instance, not from config, so user-chosen aliases
+    // ("gateway-work") resolve the same way as the canonical id.
+    const isGateway = provider instanceof AiGatewayProvider;
+    const resolved = await capabilitiesFor(registry, providerId, cfg.model ?? '', cfg.customModels, {
+      // No wire family describes a gateway, so read its facts from the
+      // catalog id that does publish them and overlay onto what the transport
+      // declared about itself rather than a family default.
+      ...(isGateway
+        ? {
+            catalogProviderId: CATALOG_ALIAS_BY_PROVIDER_TYPE['ai-gateway'],
+            baseCapabilities: provider.capabilities,
+          }
+        : {}),
+    });
     // `Provider.capabilities` is `readonly`; the property descriptor was
     // set with `writable: false` at construction time. Redefine it so
     // the catalog overlay lands cleanly.
@@ -276,6 +309,9 @@ export async function buildProviderFactoriesFromRegistry(
       create: (cfg: ProviderConfig) => makeProvider(p, cfg),
     });
   }
+
+  // AI SDK 7 transport for Vercel AI Gateway model ids (`provider/model`).
+  factories.push(createAiGatewayProviderFactory());
 
   // Generic factories so users can hand-roll a provider not in models.dev.
   factories.push({
@@ -517,6 +553,9 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
  * Used for user-defined providers and offline operation.
  */
 export function makeProviderFromConfig(id: string, cfg: ProviderConfig): Provider {
+  if (cfg.type === 'ai-gateway' || id === 'ai-gateway') {
+    return createAiGatewayProviderFactory().create({ ...cfg, type: id });
+  }
   if (!cfg.family) {
     throw new ConfigError({
       message: `Provider "${id}" needs an explicit family ("anthropic" | "openai" | "openai-compatible" | "google") when not in the models.dev catalog.`,

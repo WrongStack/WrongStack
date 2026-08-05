@@ -392,9 +392,9 @@ describe('OpenAICompatibleProvider', () => {
   it('trims tools to maxTools limit on the wire', async () => {
     const { spy, getBody } = captureBodySpy();
     const p = new OpenAICompatibleProvider({
-      id: 'zyloo',
+      id: 'capped-proxy',
       apiKey: 'k',
-      baseUrl: 'https://api.zyloo.io/v1',
+      baseUrl: 'https://proxy.example.test/v1',
       quirks: { maxTools: 3 },
       fetchImpl: spy,
     });
@@ -419,9 +419,9 @@ describe('OpenAICompatibleProvider', () => {
   it('preserves all tools when under maxTools limit', async () => {
     const { spy, getBody } = captureBodySpy();
     const p = new OpenAICompatibleProvider({
-      id: 'zyloo',
+      id: 'capped-proxy',
       apiKey: 'k',
-      baseUrl: 'https://api.zyloo.io/v1',
+      baseUrl: 'https://proxy.example.test/v1',
       quirks: { maxTools: 128 },
       fetchImpl: spy,
     });
@@ -442,9 +442,9 @@ describe('OpenAICompatibleProvider', () => {
   it('falls back to auto tool_choice when the chosen tool is filtered out', async () => {
     const { spy, getBody } = captureBodySpy();
     const p = new OpenAICompatibleProvider({
-      id: 'zyloo',
+      id: 'capped-proxy',
       apiKey: 'k',
-      baseUrl: 'https://api.zyloo.io/v1',
+      baseUrl: 'https://proxy.example.test/v1',
       quirks: { maxTools: 1 },
       fetchImpl: spy,
     });
@@ -468,9 +468,9 @@ describe('OpenAICompatibleProvider', () => {
   it('keeps tool_choice when the chosen tool survives filtering', async () => {
     const { spy, getBody } = captureBodySpy();
     const p = new OpenAICompatibleProvider({
-      id: 'zyloo',
+      id: 'capped-proxy',
       apiKey: 'k',
-      baseUrl: 'https://api.zyloo.io/v1',
+      baseUrl: 'https://proxy.example.test/v1',
       quirks: { maxTools: 2 },
       fetchImpl: spy,
     });

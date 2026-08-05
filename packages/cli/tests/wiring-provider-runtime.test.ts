@@ -197,6 +197,29 @@ describe('buildProviderForId', () => {
     expect(makeProviderFromConfig).not.toHaveBeenCalled();
   });
 
+  it('catalog-disabled ai-gateway alias preserves the factory type for config-only construction', () => {
+    const cfg = fakeConfig({
+      features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true },
+      providers: {
+        'gateway-work': {
+          type: 'ai-gateway',
+          envVars: ['AI_GATEWAY_API_KEY'],
+          models: ['openai/gpt-5.4'],
+        },
+      },
+    });
+    const registry = new ProviderRegistry();
+    makeProviderFromConfig.mockReturnValue(fakeProvider('gateway-work'));
+
+    const provider = buildProviderForId({ config: cfg, providerRegistry: registry }, 'gateway-work');
+
+    expect(provider.id).toBe('gateway-work');
+    expect(makeProviderFromConfig).toHaveBeenCalledWith(
+      'gateway-work',
+      expect.objectContaining({ type: 'ai-gateway' }),
+    );
+  });
+
   it('catalog disabled: falls through to makeProviderFromConfig regardless of factory availability', () => {
     // `features.modelsRegistry === false` disables the registry path.
     const cfg = fakeConfig({

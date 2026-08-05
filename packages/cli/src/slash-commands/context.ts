@@ -259,6 +259,9 @@ function cacheMechanismLabel(providerId: string, cacheControl: string | undefine
   if (id.includes('google') || id.includes('gemini')) {
     return 'implicit (auto) + explicit cachedContents (opt-in)';
   }
+  // AI Gateway caches with its own `caching: "auto"` request flag and picks the
+  // mechanism per routed upstream — it never sends a prompt_cache_key.
+  if (id.includes('gateway')) return 'automatic (Gateway-managed, per routed upstream)';
   if (cacheControl === 'auto') return 'automatic + prompt_cache_key routing';
   return 'none / provider-managed';
 }

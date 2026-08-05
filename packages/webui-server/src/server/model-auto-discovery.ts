@@ -5,9 +5,8 @@ import type {
   Logger,
   ModelsDevPayload,
   ModelsDevProvider,
-  ProviderConfig,
 } from '@wrongstack/core/types';
-import { COMPATIBLE_PRESETS, discoverOpenAICompatibleModels } from '@wrongstack/providers';
+import { discoverOpenAICompatibleModels, resolveDiscoveryTargets } from '@wrongstack/providers';
 
 interface DiscoverCacheEntry {
   fetchedAt: string;
@@ -22,31 +21,6 @@ interface OverlayRegistry {
 
 function isOverlayRegistry(value: unknown): value is OverlayRegistry {
   return !!value && typeof value === 'object' && typeof (value as OverlayRegistry).mergeOverlay === 'function';
-}
-
-function resolveKey(cfg: ProviderConfig): string | undefined {
-  if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
-    const active = cfg.activeKey
-      ? cfg.apiKeys.find((key) => key.label === cfg.activeKey)
-      : undefined;
-    return (active ?? cfg.apiKeys[0])?.apiKey;
-  }
-  return cfg.apiKey && cfg.apiKey.length > 0 ? cfg.apiKey : undefined;
-}
-
-function eligibleProviders(
-  config: Config,
-): Array<{ id: string; cfg: ProviderConfig; baseUrl: string; apiKey?: string | undefined }> {
-  const out: Array<{ id: string; cfg: ProviderConfig; baseUrl: string; apiKey?: string | undefined }> = [];
-  for (const [id, cfg] of Object.entries(config.providers ?? {})) {
-    const preset = COMPATIBLE_PRESETS[id];
-    const enabled = cfg.autoDiscoverModels ?? preset?.autoDiscover ?? false;
-    if (!enabled) continue;
-    const baseUrl = cfg.baseUrl ?? preset?.defaultBaseUrl;
-    if (!baseUrl) continue;
-    out.push({ id, cfg, baseUrl, apiKey: resolveKey(cfg) });
-  }
-  return out;
 }
 
 async function readCache(file: string): Promise<DiscoverCache> {
@@ -66,7 +40,7 @@ export async function discoverAndMergeWebuiProviders(opts: {
 }): Promise<void> {
   const registry = opts.registry;
   if (!isOverlayRegistry(registry)) return;
-  const targets = eligibleProviders(opts.config);
+  const targets = resolveDiscoveryTargets(opts.config);
   if (targets.length === 0) return;
 
   const cacheFile = path.join(opts.cacheDir, 'discovered-models-cache.json');
@@ -74,8 +48,7 @@ export async function discoverAndMergeWebuiProviders(opts: {
   let cacheDirty = false;
 
   await Promise.all(
-    targets.map(async ({ id, cfg, baseUrl, apiKey }) => {
-      const cacheKey = `${id}\u0000${baseUrl}`;
+    targets.map(async ({ id, cfg, baseUrl, apiKey, cacheKey }) => {
       const provider = await discoverOpenAICompatibleModels(id, {
         baseUrl,
         apiKey,

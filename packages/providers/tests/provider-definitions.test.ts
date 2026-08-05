@@ -63,23 +63,10 @@ describe('canonical ProviderDefinition projections', () => {
       defaultBaseUrl: 'https://openrouter.ai/api/v1',
       autoDiscover: true,
     });
-  });
-
-  it('registers Zyloo with maxTools: 128 and auto-discovery', () => {
-    const def = PROVIDER_DEFINITIONS['zyloo'];
-    expect(def).toBeDefined();
-    if (!def) throw new Error('Zyloo provider definition is missing');
-    expect(def.family).toBe('openai-compatible');
-    expect(def.baseUrl).toBe('https://api.zyloo.io/v1');
-    expect(def.quirks?.maxTools).toBe(128);
-    expect(def.autoDiscover).toBe(true);
-    expect(def.envVars).toContain('ZYLOO_API_KEY');
-
-    // Verify quirks flow through the compatible-presets projection.
-    const presets = projectCompatibleProviderPresets();
-    expect(presets.zyloo).toEqual({
-      defaultBaseUrl: 'https://api.zyloo.io/v1',
-      quirks: { maxTools: 128 },
+    // The gateway's preset base URL is its MODEL-LIST endpoint; the AI SDK
+    // reaches the wire on its own `/v4/ai` default.
+    expect(presets['ai-gateway']).toEqual({
+      defaultBaseUrl: 'https://ai-gateway.vercel.sh/v1',
       autoDiscover: true,
     });
   });

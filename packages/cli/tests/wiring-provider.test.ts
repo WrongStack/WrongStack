@@ -13,6 +13,11 @@ vi.mock('@wrongstack/providers', async (importOriginal) => {
   return {
     ...actual,
     buildProviderFactoriesFromRegistry: vi.fn(),
+    createAiGatewayProviderFactory: vi.fn(() => ({
+      type: 'ai-gateway',
+      family: 'openai-compatible',
+      create: (cfg: { type: string }) => ({ id: cfg.type }),
+    })),
     makeProviderFromConfig: vi.fn(),
   };
 });
@@ -82,6 +87,27 @@ describe('setupProvider', () => {
     // Registry path used — makeProviderFromConfig should NOT be called.
     expect(makeProviderFromConfig).not.toHaveBeenCalled();
     expect(out.provider).toBeDefined();
+  });
+
+  it('boots an ai-gateway alias through the saved factory type', async () => {
+    const out = await setupProvider({
+      config: fakeConfig({
+        provider: 'gateway-work',
+        model: 'openai/gpt-5.4',
+        providers: {
+          'gateway-work': {
+            type: 'ai-gateway',
+            apiKey: 'gateway-key',
+            models: ['openai/gpt-5.4'],
+          },
+        },
+      }),
+      modelsRegistry: fakeModelsRegistry(),
+      logger: fakeLogger(),
+    });
+
+    expect(out.provider).toMatchObject({ id: 'gateway-work' });
+    expect(makeProviderFromConfig).not.toHaveBeenCalled();
   });
 
   it('falls back to savedProviderCfg.type when primary lookup misses', async () => {

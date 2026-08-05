@@ -13,6 +13,7 @@
  *    authorize URL the renderer logs, so the test can fire a valid callback.
  */
 import * as fs from 'node:fs/promises';
+import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -150,6 +151,20 @@ const ACCOUNT_JWT = jwt({
 });
 
 /** Fire a real loopback callback and return the server's HTTP response body. */
+/** Poll until `port` can actually be bound again, or the deadline passes. */
+async function waitForPortRelease(port: number, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const free = await new Promise<boolean>((resolve) => {
+      const probe = net.createServer();
+      probe.once('error', () => resolve(false));
+      probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+    });
+    if (free || Date.now() >= deadline) return;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
 async function fireCallback(port: number, callbackPath: string, query: string): Promise<number> {
   const res = await fetch(`http://127.0.0.1:${port}${callbackPath}?${query}`);
   await res.arrayBuffer(); // drain
@@ -484,6 +499,11 @@ describe('openai-codex-oauth.ts — runCodexOAuthLogin flow', () => {
     } finally {
       dummy1455.close();
       dummy1457.close();
+      // `LoopbackServer.close()` is fire-and-forget, so the OS may still hold
+      // 1455/1457 when the NEXT test binds the same hardcoded pair. That test
+      // would then silently take the paste-fallback path with no server
+      // listening, and its `fireCallback` would fail with ECONNREFUSED.
+      await Promise.all([waitForPortRelease(1455), waitForPortRelease(1457)]);
     }
   });
 

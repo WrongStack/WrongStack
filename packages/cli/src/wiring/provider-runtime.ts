@@ -80,5 +80,8 @@ export function buildProviderForId(
   const useRegistry = !!args.config.features.modelsRegistry && args.providerRegistry.has(factoryType);
   return useRegistry
     ? args.providerRegistry.create(cfg, factoryType)
-    : makeProviderFromConfig(providerId, cfg);
+    : makeProviderFromConfig(
+        providerId,
+        factoryType === 'ai-gateway' ? { ...cfg, type: factoryType } : cfg,
+      );
 }

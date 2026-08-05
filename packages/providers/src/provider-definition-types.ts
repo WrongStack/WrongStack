@@ -41,6 +41,14 @@ export interface ProviderDefinition {
   name: string;
   family: WireFamily;
   baseUrl?: string;
+  /**
+   * `baseUrl` addresses this provider's MODEL-LIST endpoint only, not the
+   * endpoint its transport talks to. Setup flows must therefore not offer it as
+   * the saved `providers.<id>.baseUrl`; auto-discovery still reads it straight
+   * off the definition. Set for the AI Gateway, whose two protocols live on
+   * different paths.
+   */
+  discoveryOnlyBaseUrl?: boolean;
   envVars: readonly string[];
   models: readonly string[];
   usage: ProviderUsage;

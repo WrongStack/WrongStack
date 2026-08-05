@@ -119,21 +119,30 @@ const CORE_PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     requestPolicy: 'xai',
   },
   {
-    id: 'zyloo',
-    name: 'Zyloo',
+    id: 'ai-gateway',
+    name: 'Vercel AI Gateway',
+    // Cosmetic, and deliberately so: `makeProviderFromConfig` routes on
+    // `cfg.type === 'ai-gateway'` BEFORE the family switch, so the real
+    // transport is always AiGatewayProvider (AI SDK 7). Declaring
+    // `openai-compatible` is what keeps this entry inside
+    // `projectCompatibleProviderPresets`, which is the gate for auto-discovery.
     family: 'openai-compatible',
-    baseUrl: 'https://api.zyloo.io/v1',
-    envVars: ['ZYLOO_API_KEY'],
+    // The MODEL-LIST endpoint, not the wire endpoint. AI SDK talks to the
+    // Gateway's own protocol at `/v4/ai` and supplies that default itself, so
+    // leaving `providers.<id>.baseUrl` unset keeps the two independent —
+    // `discoveryOnlyBaseUrl` is what holds the setup flows to that.
+    baseUrl: 'https://ai-gateway.vercel.sh/v1',
+    discoveryOnlyBaseUrl: true,
+    envVars: ['AI_GATEWAY_API_KEY'],
     models: [],
     usage: 'metered-api',
-    docsUrl: 'https://docs.zyloo.io/',
+    docsUrl: 'https://vercel.com/docs/ai-gateway',
     autoDiscover: true,
-    quirks: { maxTools: 128 },
     catalog: {
-      description: 'Zyloo API — OpenAI-compatible with a 128-tool limit per request',
-      icon: '🚀',
-      color: 'from-accent/12 to-accent/5 border-accent/30 hover:border-accent/50',
-      keyPlaceholder: 'zy-...',
+      description: 'Every model behind one key — routed by Vercel AI Gateway',
+      icon: '▲',
+      color: 'from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50',
+      keyPlaceholder: 'vck_...',
     },
   },
 ] as const;

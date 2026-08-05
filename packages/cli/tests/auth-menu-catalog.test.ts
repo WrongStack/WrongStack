@@ -163,7 +163,7 @@ describe('addFromCatalog — interactive picker path', () => {
     answers.push('', '', '', 'default', 'sk-c-1234567890');
     expect(await addFromCatalog(deps)).toBe(true);
     expect(pickerMock.runLiveProviderPicker).toHaveBeenCalledTimes(1);
-    expect(logs.some((l) => l.includes('Catalog: 1 providers'))).toBe(true);
+    expect(logs.some((l) => /Catalog: \d+ providers/.test(l))).toBe(true);
     const providers = await readProviders(configPath);
     expect(providers['anthropic']).toMatchObject({
       type: 'anthropic',
@@ -180,7 +180,41 @@ describe('addFromCatalog — interactive picker path', () => {
     pickerMock.runLiveProviderPicker.mockResolvedValue(CATALOG_ROW);
     answers.push('', '', '', 'default', 'sk-c-1234567890');
     expect(await addFromCatalog(deps)).toBe(true);
-    expect(pickerMock.runLiveProviderPicker.mock.calls[0]![0]).toHaveLength(1);
+    const offered = pickerMock.runLiveProviderPicker.mock.calls[0]![0] as Array<{ id: string }>;
+    expect(offered.map((p) => p.id)).not.toContain('legacy');
+  });
+
+  it('offers providers we define but models.dev does not list', async () => {
+    // models.dev files the Vercel AI Gateway under `vercel`, so `ai-gateway`
+    // — the id our AI SDK transport routes on — never appears in the catalog.
+    // Without this the only way to reach it is a hand-rolled custom entry.
+    const { deps, answers } = await setup({ listProviders: async () => [CATALOG_ROW] });
+    pickerMock.runLiveProviderPicker.mockResolvedValue(CATALOG_ROW);
+    answers.push('', '', '', 'default', 'sk-c-1234567890');
+
+    await addFromCatalog(deps);
+
+    const offered = pickerMock.runLiveProviderPicker.mock.calls[0]![0] as Array<{
+      id: string;
+      apiBase?: string;
+    }>;
+    const gateway = offered.find((p) => p.id === 'ai-gateway');
+    expect(gateway).toBeDefined();
+    // …but WITHOUT an apiBase. The definition's base URL is the Gateway's
+    // model-list endpoint (`/v1`), which auto-discovery reads off the definition
+    // directly. Offering it here made it the Base URL prompt's default, so it
+    // landed in `providers.ai-gateway.baseUrl` and overrode the AI SDK's wire
+    // base — every request then 404'd on `/v1/language-model`.
+    expect(gateway?.apiBase).toBeUndefined();
+  });
+
+  it('still falls back to manual entry when the catalog is empty', async () => {
+    // Augmenting an EMPTY list would silently retire that fallback.
+    const { deps, answers } = await setup({ listProviders: async () => [] });
+    answers.push('my-provider', 'openai-compatible', 'https://example.test/v1', 'default', 'sk-1234567890');
+
+    expect(await addFromCatalog(deps)).toBe(true);
+    expect(pickerMock.runLiveProviderPicker).not.toHaveBeenCalled();
   });
 
   it('offers OAuth after a cancelled pick and quits on q', async () => {

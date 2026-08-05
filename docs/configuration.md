@@ -213,6 +213,16 @@ A map of provider id → provider config. Each entry can declare its own API key
       "apiKey": "enc:v1:...",
       "model": "claude-opus-4-7"
     },
+    "ai-gateway": {
+      "type": "ai-gateway",
+      "envVars": ["AI_GATEWAY_API_KEY"],
+      "model": "anthropic/claude-sonnet-5",
+      "models": [
+        "anthropic/claude-sonnet-5",
+        "anthropic/claude-opus-5",
+        "openai/gpt-5.6-sol"
+      ]
+    },
     "groq": {
       "type": "openai-compatible",
       "apiKey": "enc:v1:...",
@@ -228,6 +238,18 @@ A map of provider id → provider config. Each entry can declare its own API key
 }
 ```
 
+The `ai-gateway` entry uses Vercel AI Gateway through AI SDK 7. Model ids use
+`provider/model` form, and the credential is read from `AI_GATEWAY_API_KEY`; do
+not place the plaintext key in project configuration.
+
+Per-model facts (context window, output ceiling, vision, reasoning) are resolved
+from the models.dev entry of the provider named in the model id — so
+`anthropic/claude-sonnet-4.6` inherits the catalog's `anthropic` facts. Sampling
+settings, `responseFormat` and prompt caching are forwarded through AI SDK's
+unified call settings. `logprobs`/`topLogprobs` and `candidateCount` have no
+unified equivalent and are not sent; the provider reports them as unsupported
+rather than dropping them silently.
+
 ### ProviderConfig fields
 
 | Field | Type | Default | Description |
@@ -241,10 +263,35 @@ A map of provider id → provider config. Each entry can declare its own API key
 | `model` | `string` | — | Default model for this provider. |
 | `family` | `string` | auto-detected | Wire family override (`anthropic`, `openai`, `openai-compatible`, `google`). Required for offline/custom endpoints. |
 | `envVars` | `string[]` | provider default | Custom env var names to probe for API keys. |
-| `models` | `string[]` or inline model objects | — | Restrict visible models for this provider. Accepts plain model id strings (`["gpt-4o", "claude-sonnet-4"]`) or full models.dev-style objects with all schema fields (limits, cost, modalities, capabilities). See [Model configuration](#model-configuration-models--custommodels) below. |
+| `models` | `string[]` or inline model objects | — | Models to surface **in addition to** the catalog, listed first. **Additive, never subtractive** — naming a model here does not hide the others, so this cannot be used as an allowlist. Accepts plain model id strings (`["gpt-4o", "claude-sonnet-4"]`) or full models.dev-style objects with all schema fields (limits, cost, modalities, capabilities). See [Model configuration](#model-configuration-models--custommodels) below. |
+| `autoDiscoverModels` | `boolean` | provider default | Fetch `{baseUrl}/v1/models` at startup and merge the result into the catalog. On by default for gateway-style providers (`ai-gateway`, `openrouter`, `omniroute`). See [Model discovery](#model-discovery) below. |
 | `customModels` | `Record<string, CustomModelDefinition>` | — | Per-model metadata overrides. Keys are model ids. Each entry can carry `name`, `maxOutput`, `capabilities`, and `modelsDev` (full models.dev schema payload). See [Model configuration](#model-configuration-models--custommodels) below. |
 | `quirks` | `Record<string, unknown>` | — | Provider-specific behavior flags. See [CompatibilityQuirks](#compatibility-quirks) below. |
 | `capabilities` | `Record<string, unknown>` | — | Override reported capabilities (e.g. `maxContext`, `vision`). |
+
+### Model discovery
+
+Gateway-style providers front hundreds of models and add new ones continuously,
+so their model list is **discovered at runtime, not read from models.dev**. At
+startup each provider with `autoDiscoverModels` enabled and a resolvable base
+URL has its `/v1/models` endpoint fetched; the result is merged into the
+in-memory catalog under that provider's own id. Every surface that reads the
+catalog — the startup picker, `/model`, `/setmodel`, the WebUI selector and its
+search — picks the models up automatically. Nothing is written to config.
+
+The last successful fetch is cached, so a provider that is briefly unreachable
+keeps its models across a restart. A failed fetch with no cache is a logged
+no-op: startup never breaks because a gateway was down.
+
+models.dev stays in the loop as an **enrichment** layer, not a gate. It supplies
+context/output limits and pricing where it knows the model, and a model it has
+never heard of is still fully usable — a capability the endpoint does not state
+is treated as *unknown*, which inherits the transport's own baseline rather than
+being read as *unsupported*. An endpoint that enumerates its supported
+parameters and omits one is making a statement, and that IS honoured.
+
+Set `autoDiscoverModels: false` to opt a provider out, or `true` (with a
+`baseUrl`) to opt an arbitrary OpenAI-compatible endpoint in.
 
 ### Model configuration (`models` + `customModels`)
 
@@ -365,10 +412,10 @@ Wire-level behavior flags for OpenAI-compatible and family-overridden providers.
 ```jsonc
 {
   "providers": {
-    "zyloo": {
+    "my-proxy": {
       "type": "openai-compatible",
-      "apiKey": "zy-...",
-      "baseUrl": "https://api.zyloo.io/v1",
+      "apiKey": "sk-...",
+      "baseUrl": "https://proxy.example.com/v1",
       "quirks": { "maxTools": 128 }
     }
   }
@@ -924,6 +971,42 @@ You can increase verbosity for debugging:
 
 ---
 
+## `fleet.budget` — Lifetime spawn / token / cost ceilings
+
+```jsonc
+{
+  "fleet": {
+    "budget": {
+      "maxSpawns": 64,
+      "maxTokens": 2_000_000,
+      "maxCostUsd": 25
+    }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `maxSpawns` | `number` | `64` | **Lifetime** subagent spawn cap for a director run (not concurrency). Scoped to the current director run: a resumed/restarted session starts with a fresh budget — the historical used count is NOT restored from the checkpoint. |
+| `maxTokens` | `number` | unlimited | Fleet-wide input+output token ceiling; new spawns refuse at the cap. |
+| `maxCostUsd` | `number` | unlimited | Fleet-wide cost ceiling (USD); new spawns refuse at the cap. |
+
+### Overrides (highest wins)
+
+| Ceiling | CLI flag | Environment | Config |
+|---------|----------|-------------|--------|
+| Concurrent agents | `--max-concurrent <n>` | `WRONGSTACK_MAX_CONCURRENT` | top-level `maxConcurrent` |
+| Lifetime spawns | `--max-spawns <n>` | `WRONGSTACK_MAX_SPAWNS` | `fleet.budget.maxSpawns` |
+
+Inspect the **live** used/remaining values with `/fleet status` (Budget block),
+the WebUI Agents summary bar, or HQ cockpit when a client publishes
+`fleet.snapshot`. Static configured values only: `system_config_view({ section: "fleet" })`.
+
+**Security:** `fleet` is stripped from in-project config. Configure budgets under
+the active profile or project-private `config.local.json`.
+
+---
+
 ## `fleet.lifecycle` — Subagent cleanup
 
 ```jsonc
@@ -1380,6 +1463,8 @@ When unset, git's own configuration applies (default behavior). Manage at runtim
 | `WRONGSTACK_CHILD_ENV_PASSTHROUGH` | Set `1` to opt back to old child-process env behavior. |
 | `WRONGSTACK_SHELL` | Windows only. Force the shell the `bash` tool uses: `cmd`/`cmd.exe`, `powershell`/`powershell.exe`, or `pwsh`/`pwsh.exe`. When unset, WrongStack pins one shell for the session at boot — **PowerShell by default** (pwsh 7+ if present, else Windows PowerShell 5.1) — and tells the model to write that shell's syntax. Set `WRONGSTACK_SHELL=cmd` to opt back into cmd.exe. See [Windows shell selection](#windows-shell-selection-wrongstack_shell). |
 | `WRONGSTACK_INDEX_QUESTION_THRESHOLD` | File-count threshold for the "Run codebase indexing now?" pre-launch prompt. Default `500`. Set to a high number to suppress the question. |
+| `WRONGSTACK_MAX_CONCURRENT` | Max concurrent subagents (default `4`). Overridden by `--max-concurrent`. Profile alternative: top-level `maxConcurrent`. |
+| `WRONGSTACK_MAX_SPAWNS` | Lifetime director spawn cap (default `64`). Overridden by `--max-spawns`. Profile alternative: `fleet.budget.maxSpawns`. Live used/remaining: `/fleet status`. |
 | `WRONGSTACK_HQ_URL` | HQ command center URL for telemetry publishing (e.g. `http://localhost:3499`). When set, CLI/REPL/TUI/WebUI/SimpleUI hosts connect to this HQ and publish mailbox events, fleet snapshots, and client lifecycle telemetry. See [HQ Command Center Plan](./plans/hq-command-center-2026-06.md). |
 | `WRONGSTACK_HQ_TOKEN` | Client enrollment token for HQ authentication. Required for non-loopback HQ servers. Passed as `?token=` on the outbound `/ws/client` WebSocket. |
 | `WRONGSTACK_HQ_ENABLED` | Set `1` to force HQ publishing even when `WRONGSTACK_HQ_URL` is unset (defaults to `http://localhost:3499`). Set `0` to explicitly disable when `WRONGSTACK_HQ_URL` is set. |

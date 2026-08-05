@@ -4,6 +4,7 @@
  * one place so the logic doesn't drift between call sites.
  */
 import type { Config, ModelsRegistry, ProviderConfig, ResolvedProvider } from '@wrongstack/core/types';
+import { catalogProviderIdFor } from '@wrongstack/providers';
 
 // (Removed) CATALOG_REFRESHABLE_MODEL_PROVIDERS — a four-entry hand-list that
 // decided whose models were allowed to come from models.dev. See visibleModelIds.
@@ -143,8 +144,11 @@ export async function buildPickableProviders(
   for (const [id, cfg] of Object.entries(overlay)) {
     if (!isSelectable(id)) continue;
     seen.add(id);
-    const catalogType = cfg.type && cfg.type !== id ? cfg.type : id;
-    const inherited = catalogById.get(catalogType);
+    // Shared resolution, so a gateway saved as `ai-gateway` reads its facts
+    // from the models.dev id that actually publishes them (`vercel`). Computing
+    // the key inline here meant the picker offered zero catalog models for it.
+    const catalogType = catalogProviderIdFor(id, cfg.type);
+    const inherited = catalogById.get(catalogType) ?? catalogById.get(cfg.type ?? id);
     const family = cfg.family ?? inherited?.family ?? 'unsupported';
     if (family === 'unsupported') continue;
     const models = visibleModelIds(id, config, (inherited?.models ?? []).map((m) => m.id), cfg);

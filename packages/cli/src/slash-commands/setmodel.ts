@@ -7,7 +7,43 @@ import { fallbackProfileChain } from '@wrongstack/core/agent';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
 import { MATRIX_PHASE_KEYS, matrixKeyKind, phaseForRole, resolveModelMatrix, resolveModelTargetFromEntry } from '@wrongstack/core/coordination';
 import { parseModelRef } from '@wrongstack/core/agent';
+import { catalogProviderIdFor } from '@wrongstack/providers';
+import { visibleModelIds } from '../provider-helpers.js';
 import type { SlashCommandContext } from './command-context.js';
+
+/**
+ * Catalog model ids per provider, resolved through the same alias rules as the
+ * capability overlay so a gateway saved as `ai-gateway` reads the models.dev id
+ * that actually publishes it. Includes anything auto-discovery merged into the
+ * registry at boot. Best-effort: a missing or failing registry yields an empty
+ * map and callers fall back to the saved list.
+ */
+async function resolveCatalogModelIds(
+  registry: import('@wrongstack/core/types').ModelsRegistry | undefined,
+  config: import('@wrongstack/core/types').Config,
+  providerIds: string[],
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (!registry) return out;
+  await Promise.all(
+    providerIds.map(async (id) => {
+      try {
+        const catalogId = catalogProviderIdFor(id, config.providers?.[id]?.type);
+        const provider = await registry.getProvider(catalogId);
+        if (provider) out.set(id, provider.models.map((m) => m.id));
+      } catch {
+        // Best-effort — an unreachable catalog must not break the command.
+      }
+    }),
+  );
+  return out;
+}
+
+/** Keep a 300-model gateway list readable in a terminal. */
+function summarizeModelIds(ids: string[], limit = 8): string {
+  if (ids.length <= limit) return ids.join(', ');
+  return `${ids.slice(0, limit).join(', ')} ${color.dim(`… +${ids.length - limit} more`)}`;
+}
 
 /** A provider is selectable when it has a stored key, a key list, or a
  *  populated env var. Mirrors `hasApiKey` but config-only (no registry). */
@@ -276,9 +312,14 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
       const matrix = (config.modelMatrix ?? {}) as Record<string, ModelMatrixEntry>;
 
       if (sub === 'list') {
+        // The saved `models` array is an ADDITIVE allowlist, not the whole
+        // truth: runtime-discovered gateway models live in the registry and
+        // never touch config. Reading config alone made a provider with 300+
+        // reachable models look like it had six.
+        const catalogModels = await resolveCatalogModelIds(opts.modelsRegistry, config, keyed);
         const provLines = keyed.map((id) => {
-          const models = config.providers?.[id]?.models ?? [];
-          const ms = models.length ? models.join(', ') : color.dim('(any model id accepted)');
+          const models = visibleModelIds(id, config, catalogModels.get(id) ?? []);
+          const ms = models.length ? summarizeModelIds(models) : color.dim('(any model id accepted)');
           return `    ${color.cyan(id.padEnd(16))} ${ms}`;
         });
         const roles = Object.keys(AGENT_CATALOG).sort();
@@ -374,6 +415,11 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
       if (sub === 'doctor') {
         const issues: string[] = [];
         const warnings: string[] = [];
+        const doctorCatalogModels = await resolveCatalogModelIds(
+          opts.modelsRegistry,
+          config,
+          keyed,
+        );
 
         for (const [key, entry] of Object.entries(matrix)) {
           // 1. Check key validity
@@ -398,13 +444,21 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
             }
           }
 
-          // 3. Check model is in provider's model list (if list is defined)
+          // 3. Check model is reachable for the provider. The saved list is
+          //    additive, so a model discovered at runtime is legitimate even
+          //    though it never appears in config — warn only when BOTH the
+          //    saved list and the catalog fail to account for it.
           const effectiveProvider = entry.provider ?? config.provider;
           const provCfg = config.providers?.[effectiveProvider];
           if (entry.model && provCfg?.models && provCfg.models.length > 0) {
-            if (!provCfg.models.includes(entry.model)) {
+            const reachable = visibleModelIds(
+              effectiveProvider,
+              config,
+              doctorCatalogModels.get(effectiveProvider) ?? [],
+            );
+            if (!reachable.includes(entry.model)) {
               warnings.push(
-                `${color.amber('⚠')} ${color.amber(key)}: model "${entry.model}" not in ${effectiveProvider}'s model list (${provCfg.models.join(', ')})`,
+                `${color.amber('⚠')} ${color.amber(key)}: model "${entry.model}" not in ${effectiveProvider}'s model list (${summarizeModelIds(reachable)})`,
               );
             }
           }

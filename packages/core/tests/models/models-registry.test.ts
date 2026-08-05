@@ -205,6 +205,28 @@ describe('DefaultModelsRegistry', () => {
     expect(model?.capabilities.maxOutput).toBe(128_000);
   });
 
+  it('keeps a discovered provider when mergeOverlay runs before the first load()', async () => {
+    // The seed path returned the seed verbatim, dropping `extraOverlay`, so a
+    // discovery that landed before anything called load() vanished. The test
+    // above happens to call load() first and so never exercised this. It is the
+    // ordering an offline local gateway hits.
+    const reg = new DefaultModelsRegistry({ cacheFile, seed: SAMPLE });
+    reg.mergeOverlay({
+      omniroute: {
+        id: 'omniroute',
+        name: 'OmniRoute',
+        npm: '@ai-sdk/openai-compatible',
+        api: 'http://localhost:20128/v1',
+        models: {
+          'cc/model': { id: 'cc/model', name: 'cc/model', limit: { context: 1000, output: 100 } },
+        },
+      },
+    });
+
+    expect((await reg.listProviders()).map((p) => p.id)).toContain('omniroute');
+    expect(await reg.getModel('omniroute', 'cc/model')).toBeDefined();
+  });
+
   it('mergeOverlay survives a refresh()', async () => {
     const fetchImpl = vi.fn(
       async () =>

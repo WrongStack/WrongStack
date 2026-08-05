@@ -45,14 +45,14 @@
     }
   },
   {
-    "id": "zyloo",
-    "name": "Zyloo",
+    "id": "ai-gateway",
+    "name": "Vercel AI Gateway",
     "family": "openai-compatible",
-    "description": "Zyloo API — OpenAI-compatible with a 128-tool limit per request",
-    "icon": "🚀",
-    "color": "from-accent/12 to-accent/5 border-accent/30 hover:border-accent/50",
-    "keyPlaceholder": "zy-...",
-    "docsUrl": "https://docs.zyloo.io/"
+    "description": "Every model behind one key — routed by Vercel AI Gateway",
+    "icon": "▲",
+    "color": "from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50",
+    "keyPlaceholder": "vck_...",
+    "docsUrl": "https://vercel.com/docs/ai-gateway"
   },
   {
     "id": "openrouter",

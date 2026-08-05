@@ -1,5 +1,6 @@
 import type { ProviderConfig, ResolvedProvider, WireFamily } from '@wrongstack/core/types';
 import { atomicWrite, color } from '@wrongstack/core/utils';
+import { catalogProviderIdFor, PROVIDER_DEFINITIONS } from '@wrongstack/providers';
 import {
   mutateConfigProviders,
   normalizeKeys,
@@ -21,6 +22,29 @@ import type { AuthMenuDeps } from './types.js';
 /*  Add from catalog — pick a known provider from models.dev            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Providers WrongStack defines itself but models.dev does not list under that
+ * id — the AI Gateway, which models.dev files as `vercel`. Without this they
+ * are unreachable from the catalog picker and the user has to hand-roll a
+ * custom entry to use them.
+ */
+function ownDefinitionsAsCatalog(known: Set<string>): ResolvedProvider[] {
+  return Object.values(PROVIDER_DEFINITIONS)
+    .filter((d) => !known.has(d.id) && d.family !== 'unsupported' && d.usage !== 'local')
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      family: d.family,
+      envVars: [...d.envVars],
+      models: [],
+      // `discoveryOnlyBaseUrl` definitions keep their model-list URL out of the
+      // Base URL prompt: offering it as a default persists it as the provider's
+      // wire base, which is a different endpoint (see the AI Gateway entry).
+      ...(d.baseUrl && !d.discoveryOnlyBaseUrl ? { apiBase: d.baseUrl } : {}),
+      ...(d.docsUrl ? { doc: d.docsUrl } : {}),
+    }));
+}
+
 export async function addFromCatalog(deps: AuthMenuDeps): Promise<boolean> {
   let catalog: ResolvedProvider[] = [];
   try {
@@ -30,8 +54,11 @@ export async function addFromCatalog(deps: AuthMenuDeps): Promise<boolean> {
   }
 
   if (catalog.length === 0) {
+    // An unreachable catalog still means manual entry — augmenting an EMPTY
+    // list would silently retire that fallback.
     return addManualEntry(deps);
   }
+  catalog = [...catalog, ...ownDefinitionsAsCatalog(new Set(catalog.map((p) => p.id)))];
 
   const saved = new Set(Object.keys(await loadProviders(deps)));
   deps.renderer.write(
@@ -334,7 +361,10 @@ async function resolveDefaultModelId(
   template: Partial<ProviderConfig>,
 ): Promise<string | undefined> {
   if (template.models && template.models.length > 0) return template.models[0];
-  const catalogId = template.type && template.type !== providerId ? template.type : providerId;
+  // Gateways publish under a models.dev id of their own (`ai-gateway` →
+  // `vercel`); without the alias the lookup misses and the provider is added
+  // with no default model at all.
+  const catalogId = catalogProviderIdFor(providerId, template.type);
   const provider = await deps.modelsRegistry.getProvider(catalogId).catch(() => undefined);
   return provider?.models?.[0]?.id;
 }

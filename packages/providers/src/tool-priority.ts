@@ -1,8 +1,9 @@
 /**
  * Priority-based tool filtering for providers with tool-count limits.
  *
- * Some providers (e.g. Zyloo) impose a hard limit on the number of tool
- * definitions accepted in a single request. When the registered tool count
+ * Some providers impose a hard limit on the number of tool definitions
+ * accepted in a single request (configured per provider via the `maxTools`
+ * compatibility quirk). When the registered tool count
  * exceeds this limit, {@link filterToolsByMaxCount} drops the lowest-priority
  * tools so the provider never receives more tools than it can handle.
  *
