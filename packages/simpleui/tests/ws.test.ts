@@ -127,6 +127,10 @@ describe('SimpleUI token persistence (F5 survival)', () => {
     await exchangeAuthCookie(defaultWsUrl());
     await exchangeAuthCookie(defaultWsUrl());
     expect(window.localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
+    // The token clear invalidates the attestation: a stale marker must not
+    // enable a second destruction after a deployment change (cookie-enabled
+    // → enableWsCookie:false).
+    expect(window.localStorage.getItem('wrongstack.simpleui.cookie-proven.v1')).toBeNull();
   });
 
   it('resets the 401 streak on a successful exchange', async () => {

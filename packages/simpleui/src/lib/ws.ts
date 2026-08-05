@@ -41,6 +41,11 @@ function persistToken(token: string): boolean {
 function clearStoredToken(): void {
   try {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    // The proven marker attests to the deployment's cookie path. A token
+    // clear is the one lifecycle event that correlates with deployment
+    // uncertainty (config flips, secret rotation) — drop the attestation so
+    // a stale marker cannot enable a second destruction on the next visit.
+    window.localStorage.removeItem(COOKIE_PROVEN_KEY);
   } catch {
     /* best-effort */
   }
@@ -171,16 +176,16 @@ export async function exchangeAuthCookie(url: URL): Promise<URL> {
       cache: 'no-store',
     });
     if (!response.ok) {
-      // Preservation-first failure handling, with a success-proven escalation
+      // Preservation-first failure handling, with a marker-proven escalation
       // and one non-destructive recovery:
       //  - 403 comes from the origin/CSRF guard, never from token validity.
       //  - a single 401 is ambiguous (origin-guard blip, config reload,
       //    enableWsCookie:false generic-gate) — never clears on one.
-      //  - a stored token clears only after the cookie path has PROVEN to
-      //    work (a success happened in this page session — /ws-auth 401s only
-      //    on a token mismatch once the route exists) AND the streak reached
-      //    N. Without the success precondition, enableWsCookie:false
-      //    deployments would destroy a valid credential after N rejections.
+      //  - a stored token clears only when the cookie path has PROVEN to
+      //    work (a 200 happened in this page session, or the persisted
+      //    marker was written by a previous session) AND the streak reached
+      //    N. The marker is invalidated on every token clear, so a stale
+      //    attestation cannot chain a second destruction.
       //  - A rejected URL token with a DIFFERENT valid stored token switches
       //    the socket to the stored credential and drops the dead URL token
       //    from the address bar, so a stale access URL cannot shadow the
