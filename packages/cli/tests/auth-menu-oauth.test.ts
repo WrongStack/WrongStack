@@ -50,7 +50,6 @@ import {
 import {
   buildAuthorizeUrl as buildClaudeAuthorizeUrl,
   exchangeAuthorizationCode as exchangeClaude,
-  generatePkce as generateClaudePkce,
   parseAuthorizationInput as parseClaudeInput,
   runClaudeOAuthLogin,
 } from '../src/auth-menu/anthropic-oauth.js';
@@ -171,7 +170,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function stubFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+async function stubFetch(input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
   for (const r of routes) {
     if (r.matcher(url)) return r.response();
@@ -695,7 +694,7 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     expect(await flow).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown>>)['anthropic-oauth'].family,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['anthropic-oauth']?.family,
     ).toBe('anthropic-oauth');
   });
 
@@ -908,10 +907,32 @@ describe('github-copilot-oauth.ts — pure helpers', () => {
       /Device code expired/,
     );
   });
+
+  it('pollForGitHubToken rejects immediately on an already-aborted signal', async () => {
+    const device = { device_code: 'dc', interval: 0, expires_in: 900 } as never;
+    const ac = new AbortController();
+    ac.abort();
+    await expect(pollForGitHubToken(device, ac.signal)).rejects.toThrow(/Aborted/);
+  });
+
+  it('pollForGitHubToken reports unknown errors from the poll response', async () => {
+    routes = [];
+    // A 200 with an unparseable body → res.json() rejects → treated as unknown.
+    route('github.com/login/oauth/access_token', () => new Response(null, { status: 200 }));
+    const device = { device_code: 'dc', interval: 0, expires_in: 900 } as never;
+    await expect(pollForGitHubToken(device, new AbortController().signal)).rejects.toThrow(
+      /Device flow failed: unknown error/,
+    );
+  });
 });
 
 describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
-  function copilotRoutes(models: unknown = { data: [{ id: 'gpt-4o', capabilities: { type: 'chat', supports: { tool_calls: true } } }] }): void {
+  function copilotRoutes(
+    models: unknown = {
+      data: [{ id: 'gpt-4o', capabilities: { type: 'chat', supports: { tool_calls: true } } }],
+    },
+    modelsFactory?: () => Response,
+  ): void {
     route('github.com/login/device/code', () =>
       jsonResponse({
         device_code: 'dc',
@@ -925,7 +946,7 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     route('api.github.com/copilot_internal/v2/token', () =>
       jsonResponse({ token: 'copilot-tok', expires_at: 9_999_999_999 }),
     );
-    route('/models', () => jsonResponse(models));
+    route('/models', () => (modelsFactory ?? (() => jsonResponse(models)))());
   }
 
   it('signs in via the device flow and saves OAuth tokens + models', async () => {
@@ -953,7 +974,7 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown>>)['github-copilot'].models,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
     ).toEqual(['gpt-4o']);
   });
 
@@ -1003,5 +1024,101 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     ac.abort();
     expect(await flow).toBe(1);
     expect(logs.some((l) => l.includes('Login cancelled.'))).toBe(true);
+  });
+
+  it('handles a 500 models response (empty list → gpt-4o fallback)', async () => {
+    copilotRoutes(undefined, () => new Response(null, { status: 500 }));
+    const { configPath, vault, registry } = await setup();
+    const { deps } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+    ).toEqual(['gpt-4o']);
+  });
+
+  it('handles a non-array models payload (empty list → gpt-4o fallback)', async () => {
+    copilotRoutes({ foo: 1 });
+    const { configPath, vault, registry } = await setup();
+    const { deps } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+    ).toEqual(['gpt-4o']);
+  });
+
+  it('handles the models fetch throwing (empty list → gpt-4o fallback)', async () => {
+    copilotRoutes(undefined, () => {
+      throw new Error('net down');
+    });
+    const { configPath, vault, registry } = await setup();
+    const { deps } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+    ).toEqual(['gpt-4o']);
+  });
+
+  it('floats the default/fallback chat models to the front of the saved list', async () => {
+    copilotRoutes({
+      data: [
+        { id: 'plain', capabilities: { type: 'chat', supports: { tool_calls: true } } },
+        {
+          id: 'fb-model',
+          capabilities: { type: 'chat', supports: { tool_calls: true } },
+          is_chat_fallback: true,
+        },
+        {
+          id: 'def-model',
+          capabilities: { type: 'chat', supports: { tool_calls: true } },
+          is_chat_default: true,
+        },
+      ],
+    });
+    const { configPath, vault, registry } = await setup();
+    const { deps } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+    ).toEqual(['def-model', 'fb-model', 'plain']);
+  });
+
+  it('runs without an external signal (SIGINT wiring is installed and removed)', async () => {
+    copilotRoutes();
+    const { configPath, vault, registry } = await setup();
+    const { deps } = depsFor(configPath, vault, registry);
+    expect(await runCopilotOAuthLogin(deps)).toBe(0); // no signal → own SIGINT handler
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    expect(
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.family,
+    ).toBe('github-copilot');
+  });
+
+  it('cancels immediately when the external signal is already aborted', async () => {
+    copilotRoutes();
+    const { configPath, vault, registry } = await setup();
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    ac.abort();
+    expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(1);
+    expect(logs.some((l) => l.includes('Login cancelled.'))).toBe(true);
+  });
+
+  it('reports a token-save failure', async () => {
+    copilotRoutes();
+    const { tmpDir, vault, registry } = await setup();
+    const configPath = path.join(tmpDir, 'not-a-file');
+    await fs.mkdir(configPath, { recursive: true });
+    const { deps, logs } = depsFor(configPath, vault, registry);
+    const ac = new AbortController();
+    expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(1);
+    expect(logs.some((l) => l.includes('Failed to save tokens'))).toBe(true);
   });
 });

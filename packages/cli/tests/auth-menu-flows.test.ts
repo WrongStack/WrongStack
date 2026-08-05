@@ -82,8 +82,8 @@ async function setup(
   return { host, registry, configPath, tmpDir, vault };
 }
 
-/** Scripted AuthFlowIo: each prompt consumes the next answer (Error → reject). */
-function makeIo(answers: Array<string | Error> = []) {
+/** Scripted AuthFlowIo: each prompt consumes the next answer (Error → reject; Promise → deferred). */
+function makeIo(answers: Array<string | Error | Promise<string>> = []) {
   const log: string[] = [];
   const prompts: Array<{ question: string; secret: boolean }> = [];
   let i = 0;
@@ -94,7 +94,7 @@ function makeIo(answers: Array<string | Error> = []) {
       const answer = answers[i++];
       if (answer === undefined) throw new Error(`unexpected prompt: ${question}`);
       if (answer instanceof Error) throw answer;
-      return answer;
+      return (await answer) ?? '';
     },
     signal: new AbortController().signal,
   };
@@ -166,7 +166,7 @@ const ANTHROPIC_CATALOG: Partial<ResolvedProvider>[] = [
     family: 'anthropic',
     apiBase: 'https://api.anthropic.com',
     envVars: ['ANTHROPIC_API_KEY'],
-    models: [{ id: 'claude-sonnet-4-6' }],
+    models: [{ id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' }],
   },
 ];
 
@@ -288,14 +288,14 @@ describe('panel host — addCatalogProvider flow', () => {
   });
 
   it('q at the family prompt aborts before saving', async () => {
-    const { host, configPath } = await setup({ catalog: ANTHROPIC_CATALOG });
+    const { host, configPath: abortConfigPath } = await setup({ catalog: ANTHROPIC_CATALOG });
     const { io } = makeIo(['q']);
     expect((await host.addCatalogProvider('anthropic', io)).ok).toBe(false);
-    expect(await readProviders(configPath)).toEqual({});
+    expect(await readProviders(abortConfigPath)).toEqual({});
   });
 
   it('refuses an alias that conflicts on family/baseUrl', async () => {
-    const { host, configPath } = await setup({
+    const { host } = await setup({
       catalog: ANTHROPIC_CATALOG,
       preExisting: {
         providers: {
@@ -701,5 +701,162 @@ describe('add-provider.ts — addKeyForProvider merge + adoption edges', () => {
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(raw.provider).toBeUndefined(); // no adoption, no default write
     expect(registry).toBeDefined();
+  });
+});
+
+// ── panel-service.ts: defensive + error branches ───────────────────────────
+describe('panel-service.ts — defensive + error branches', () => {
+  it('listProviders skips null entries in the config', async () => {
+    const { host } = await setup({
+      preExisting: {
+        providers: { broken: null, openai: { type: 'openai', family: 'openai' } },
+      },
+    });
+    const rows = await host.listProviders();
+    expect(rows.map((r) => r.id)).toEqual(['openai']);
+  });
+
+  it('setActiveKey reports a missing key label', async () => {
+    const { host } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    expect(await host.setActiveKey('anthropic', 'ghost')).toMatch(/Key "ghost" not found\./);
+  });
+
+  it('deleteKey reports a vanished provider', async () => {
+    const { host } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    expect(await host.deleteKey('ghost', 'default')).toMatch(/no longer in config/);
+  });
+
+  it('updateKey reports a missing key label', async () => {
+    const { host } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    const { io, log } = makeIo(['sk-x']);
+    expect((await host.updateKey('anthropic', 'ghost', io)).ok).toBe(false);
+    expect(log.some((l) => l.includes('Key "ghost" not found.'))).toBe(true);
+  });
+
+  it('runFlow surfaces a generic prompt error as the result message', async () => {
+    const { host } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    const { io } = makeIo([new Error('boom')]);
+    await expect(host.addKey('anthropic', io)).resolves.toEqual({ ok: false, message: 'boom' });
+  });
+
+  it('mutate returns a message when the config file cannot be written', async () => {
+    const { tmpDir, vault, registry } = await setup();
+    const configPath = path.join(tmpDir, 'not-a-file');
+    await fs.mkdir(configPath, { recursive: true });
+    const host = createAuthPanelHost({
+      vault,
+      modelsRegistry: registry,
+      profileConfigPath: configPath,
+    });
+    const err = await host.setActiveKey('x', 'y');
+    expect(err).toMatch(/Refusing to mutate|EISDIR|ENOTDIR|EACCES/);
+  });
+
+  it('editField family: provider vanishes mid-flow → mutate error', async () => {
+    const { host, configPath } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    let resolveAnswer!: (v: string) => void;
+    const deferred = new Promise<string>((r) => {
+      resolveAnswer = r;
+    });
+    const { io, log } = makeIo([deferred]);
+    const flow = host.editField('anthropic', 'family', io);
+    // Remove the provider from disk while the prompt is pending.
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    delete (raw.providers as Record<string, unknown>).anthropic;
+    await fs.writeFile(configPath, JSON.stringify(raw), { mode: 0o600 });
+    resolveAnswer('anthropic');
+    const result = await flow;
+    expect(result.ok).toBe(false);
+    expect(log.some((l) => l.includes('Provider "anthropic" no longer in config.'))).toBe(true);
+  });
+
+  it('editField baseUrl: provider vanishes mid-flow → mutate error', async () => {
+    const { host, configPath } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    let resolveAnswer!: (v: string) => void;
+    const deferred = new Promise<string>((r) => {
+      resolveAnswer = r;
+    });
+    const { io, log } = makeIo([deferred]);
+    const flow = host.editField('anthropic', 'baseUrl', io);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    delete (raw.providers as Record<string, unknown>).anthropic;
+    await fs.writeFile(configPath, JSON.stringify(raw), { mode: 0o600 });
+    resolveAnswer('http://x');
+    const result = await flow;
+    expect(result.ok).toBe(false);
+    expect(log.some((l) => l.includes('Provider "anthropic" no longer in config.'))).toBe(true);
+  });
+
+  it('editField models: provider vanishes mid-flow → mutate error', async () => {
+    const { host, configPath } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    let resolveAnswer!: (v: string) => void;
+    const deferred = new Promise<string>((r) => {
+      resolveAnswer = r;
+    });
+    const { io, log } = makeIo([deferred]);
+    const flow = host.editField('anthropic', 'models', io);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    delete (raw.providers as Record<string, unknown>).anthropic;
+    await fs.writeFile(configPath, JSON.stringify(raw), { mode: 0o600 });
+    resolveAnswer('a, b');
+    const result = await flow;
+    expect(result.ok).toBe(false);
+    expect(log.some((l) => l.includes('Provider "anthropic" no longer in config.'))).toBe(true);
+  });
+
+  it('editModelDetails: provider vanishes mid-flow → mutate error', async () => {
+    const { host, configPath } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    let resolveAnswer!: (v: string) => void;
+    const deferred = new Promise<string>((r) => {
+      resolveAnswer = r;
+    });
+    const { io, log } = makeIo([deferred, '', '', '', '']);
+    const flow = host.editModelDetails('anthropic', 'claude-sonnet-4-6', io);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    delete (raw.providers as Record<string, unknown>).anthropic;
+    await fs.writeFile(configPath, JSON.stringify(raw), { mode: 0o600 });
+    resolveAnswer('New name');
+    const result = await flow;
+    expect(result.ok).toBe(false);
+    expect(log.some((l) => l.includes('Provider "anthropic" no longer in config.'))).toBe(true);
+  });
+
+  it('addModel: provider vanishes mid-flow → mutate error', async () => {
+    const { host, configPath } = await setup({ preExisting: ANTHROPIC_ONE_KEY });
+    let resolveAnswer!: (v: string) => void;
+    const deferred = new Promise<string>((r) => {
+      resolveAnswer = r;
+    });
+    const { io, log } = makeIo([deferred]);
+    const flow = host.addModel('anthropic', io);
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+    delete (raw.providers as Record<string, unknown>).anthropic;
+    await fs.writeFile(configPath, JSON.stringify(raw), { mode: 0o600 });
+    resolveAnswer('m9');
+    const result = await flow;
+    expect(result.ok).toBe(false);
+    expect(log.some((l) => l.includes('Provider "anthropic" no longer in config.'))).toBe(true);
+  });
+
+  it('addLocal: label collision on a re-save is reported via writeInfo', async () => {
+    const { host, configPath } = await setup({
+      preExisting: {
+        providers: {
+          ollama: {
+            type: 'ollama',
+            family: 'openai-compatible',
+            baseUrl: 'http://localhost:11434/v1',
+            apiKeys: [{ label: 'default', apiKey: 'sk-old', createdAt: '2026-01-01' }],
+            activeKey: 'default',
+          },
+        },
+      },
+    });
+    const { io } = makeIo(['']);
+    expect((await host.addLocal('ollama', io)).ok).toBe(true);
+    const providers = await readProviders(configPath);
+    const keys = (providers['ollama'] as { apiKeys?: Array<{ label: string }> }).apiKeys;
+    // No key was saved (ollama is noAuth) but the collision note still fired.
+    expect(keys).toHaveLength(1);
   });
 });
