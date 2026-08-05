@@ -12,6 +12,7 @@ import {
   createBoard,
   createBoardFromTaskGraph,
   createBoardsFromPhaseGraph,
+  classifyTaskForQueue,
   duplicateBoard,
   exportBoardToTaskGraph,
   getBoard,
@@ -687,6 +688,41 @@ describe('getKanbanQueueHealth', () => {
         expect.objectContaining({ taskId: created!.task.id, bucket: 'detail_incomplete' }),
       ]),
     );
+  });
+
+  it('classifies an atomic managed task without childTaskIds as detail-incomplete', async () => {
+    const b = await makeBoard(managedLifecycle());
+    const created = await addTask(tmpDir, b.id, {
+      title: 'Atomic managed task',
+      description: 'An atomic composite task that still needs persisted children.',
+      dueDate: '2026-08-01',
+      assignee: 'kanban-agent',
+      labels: ['managed'],
+      atomic: true,
+      successCriteria: [
+        { id: 'criteria-1', description: 'Acceptance criteria exists', type: 'manual' as const, status: 'pending' as const },
+      ],
+    });
+
+    const task = {
+      ...created!.task,
+      columnId: 'todo',
+      status: 'ready' as const,
+      lifecycle: {
+        currentStage: 'todo' as const,
+        stageEnteredAt: created!.task.updatedAt,
+        history: [{ to: 'todo' as const, at: created!.task.updatedAt, actor: 'test' }],
+      },
+    };
+
+    const classification = classifyTaskForQueue(b, task);
+
+    expect(classification).toMatchObject({
+      bucket: 'detail_incomplete',
+      claimable: false,
+      managedStage: 'todo',
+      reasons: expect.arrayContaining([expect.stringContaining('childTaskIds')]),
+    });
   });
 
   it('surfaces classifier diagnostics for stale and status-only running tasks', async () => {
