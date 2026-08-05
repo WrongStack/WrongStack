@@ -658,7 +658,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
             ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
           };
           const oldMax = opts.agent.ctx.provider.capabilities?.maxContext;
-          const prov = makeProviderFromConfig(activeId, { ...newCfg, type: activeId });
+          // Keep the saved factory type (e.g. "ai-gateway") so a credential
+          // hot-reload rebuilds the same transport instead of downgrading an
+          // alias to a generic config-only provider.
+          const prov = makeProviderFromConfig(activeId, {
+            ...newCfg,
+            type: newCfg.type ?? activeId,
+          });
           // Key-only change keeps the same model/context window — preserve the
           // resolved maxContext instead of falling back to the family default.
           if (oldMax != null && prov.capabilities) prov.capabilities.maxContext = oldMax;
