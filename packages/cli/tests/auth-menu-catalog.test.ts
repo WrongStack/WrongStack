@@ -23,6 +23,27 @@ vi.mock('../src/picker.js', async (orig) => ({
   runLiveProviderPicker: pickerMock.runLiveProviderPicker,
 }));
 
+// The OAuth offer after a cancelled pick routes into the real login modules;
+// stub them so the addFromCatalog branch is covered hermetically.
+const oauthMocks = vi.hoisted(() => ({
+  runCodexOAuthLogin: vi.fn(async () => 0),
+  runClaudeOAuthLogin: vi.fn(async () => 0),
+  runCopilotOAuthLogin: vi.fn(async () => 0),
+}));
+
+vi.mock('../src/auth-menu/openai-codex-oauth.js', async (orig) => ({
+  ...(await orig<typeof import('../src/auth-menu/openai-codex-oauth.js')>()),
+  runCodexOAuthLogin: oauthMocks.runCodexOAuthLogin,
+}));
+vi.mock('../src/auth-menu/anthropic-oauth.js', async (orig) => ({
+  ...(await orig<typeof import('../src/auth-menu/anthropic-oauth.js')>()),
+  runClaudeOAuthLogin: oauthMocks.runClaudeOAuthLogin,
+}));
+vi.mock('../src/auth-menu/github-copilot-oauth.js', async (orig) => ({
+  ...(await orig<typeof import('../src/auth-menu/github-copilot-oauth.js')>()),
+  runCopilotOAuthLogin: oauthMocks.runCopilotOAuthLogin,
+}));
+
 const CATALOG_ROW: ResolvedProvider = {
   id: 'anthropic',
   name: 'Anthropic',
@@ -170,5 +191,36 @@ describe('addFromCatalog — interactive picker path', () => {
     answers.push('q');
     expect(await addFromCatalog(deps)).toBe(false);
     expect(logs.some((l) => l.includes('OAuth login options:'))).toBe(true);
+  });
+
+  it.each(['chatgpt', 'claude', 'copilot'] as const)(
+    'completes via the OAuth offer for %s',
+    async (kind) => {
+      const { deps, answers } = await setup({ listProviders: async () => [CATALOG_ROW] });
+      pickerMock.runLiveProviderPicker.mockResolvedValue(null);
+      answers.push(kind);
+      expect(await addFromCatalog(deps)).toBe(true);
+      const calls: Record<string, unknown> = {
+        chatgpt: oauthMocks.runCodexOAuthLogin,
+        claude: oauthMocks.runClaudeOAuthLogin,
+        copilot: oauthMocks.runCopilotOAuthLogin,
+      };
+      expect(calls[kind]).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('rejects an unknown OAuth answer after a cancelled pick', async () => {
+    const { deps, answers } = await setup({ listProviders: async () => [CATALOG_ROW] });
+    pickerMock.runLiveProviderPicker.mockResolvedValue(null);
+    answers.push('bogus');
+    expect(await addFromCatalog(deps)).toBe(false);
+    expect(oauthMocks.runCodexOAuthLogin).not.toHaveBeenCalled();
+  });
+
+  it('treats an empty OAuth answer as cancel', async () => {
+    const { deps, answers } = await setup({ listProviders: async () => [CATALOG_ROW] });
+    pickerMock.runLiveProviderPicker.mockResolvedValue(null);
+    answers.push('');
+    expect(await addFromCatalog(deps)).toBe(false);
   });
 });
