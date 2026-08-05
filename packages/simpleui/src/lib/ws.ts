@@ -46,18 +46,20 @@ function clearStoredToken(): void {
   }
 }
 
-// Set once a /ws-auth exchange has EVER succeeded in this page session. It
-// proves the cookie route exists on this deployment, so a later 401 is a
-// genuine token rejection. Before the first success a 401 is ambiguous: the
-// route may not exist at all (enableWsCookie:false deployments run the
-// URL-token flow and 401 a valid token at the generic gate), so the token
-// must be preserved, not destroyed.
-let cookieExchangeEverSucceeded = false;
+// Consecutive /ws-auth 401s since the last success (or since page load). The
+// /ws-auth route 401s ONLY when the presented token does not match, so N
+// consecutive rejections with no success interleaved are a genuine revocation.
+// The counter is harmless in enableWsCookie:false deployments (the route does
+// not exist, so nothing is ever persisted there and the clear below guards on
+// `stored === token` — no stored token, no clear), and a single ambiguous 401
+// (origin-guard blip, config reload) never clears.
+let consecutive401s = 0;
+const MAX_CONSECUTIVE_401S = 3;
 
-/** Test seam — reset the module-level exchange-proven flag between tests. */
+/** Test seam — reset the module-level 401 counter between tests. */
 export const __test__ = {
   resetCookieExchangeState: (): void => {
-    cookieExchangeEverSucceeded = false;
+    consecutive401s = 0;
   },
 };
 
@@ -145,22 +147,39 @@ export async function exchangeAuthCookie(url: URL): Promise<URL> {
       cache: 'no-store',
     });
     if (!response.ok) {
-      // Preservation-first failure handling. A token is only destroyed on a
-      // PROVEN revocation:
+      // Preservation-first failure handling, with a consecutive-401 escalation
+      // and one non-destructive recovery:
       //  - 403 comes from the origin/CSRF guard, never from token validity.
-      //  - a 401 before any successful exchange is ambiguous — the route may
-      //    not exist (enableWsCookie:false / URL-token deployments 401 a valid
-      //    token at the generic gate). Destroying the credential there would
-      //    lock out a valid user.
-      // Every other outcome preserves the token and the URL; a genuinely dead
-      // token surfaces as 401s on the real data plane, where the user
-      // re-authenticates instead of being silently logged out.
-      if (response.status === 401 && cookieExchangeEverSucceeded) {
-        if (storedToken() === token) clearStoredToken();
+      //  - a single 401 is ambiguous (origin-guard blip, config reload,
+      //    enableWsCookie:false generic-gate) — never clears on one.
+      //  - N consecutive 401s with no success interleaved are a genuine
+      //    revocation: the /ws-auth route only 401s on a token mismatch.
+      //  - A rejected URL token with a DIFFERENT valid stored token switches
+      //    the socket to the stored credential and drops the dead URL token
+      //    from the address bar, so a stale access URL cannot shadow the
+      //    stored credential across reloads. Nothing is cleared from storage.
+      const urlToken = url.searchParams.get('token');
+      const stored = storedToken();
+      if (response.status === 401) {
+        consecutive401s += 1;
+        if (consecutive401s >= MAX_CONSECUTIVE_401S && stored === token) {
+          clearStoredToken();
+        }
+      }
+      if (
+        (response.status === 401 || response.status === 403) &&
+        sameHost &&
+        urlToken !== null &&
+        stored !== null &&
+        stored !== token
+      ) {
+        url.searchParams.delete('token');
+        url.searchParams.set('token', stored);
+        scrubUrlTokenFromPage(urlToken);
       }
       return url;
     }
-    cookieExchangeEverSucceeded = true;
+    consecutive401s = 0;
     if (sameHost) {
       // Only persist a token the server actually accepted — a stale `?token=`
       // from an old link must not outlive its page load.
