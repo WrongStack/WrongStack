@@ -182,14 +182,16 @@ export class WorktreeManager {
       : ['merge', '--no-ff', handle.branch];
     const merged = await this.runGit(mergeArgs, this.projectRoot);
 
-    if (merged.code !== 0) {
-      // Prefer the conflicted paths git prints to stdout ("CONFLICT (...):
-      // Merge conflict in <path>") — deterministic across platforms — and
-      // union with the index probe, since `git diff --diff-filter=U` can come
-      // back empty on some runners after a `--squash` conflict.
-      const fromOutput = parseConflictPaths(`${merged.stdout}\n${merged.stderr}`);
-      const fromIndex = await this.unmergedFiles();
-      const conflictFiles = [...new Set([...fromOutput, ...fromIndex])];
+    // Detect conflicts from BOTH the exit code AND the index/output probes.
+    // Some git versions exit 0 on a --squash conflict (when core.whitespace
+    // or merge.conflictStyle differ from defaults), leaving markers in the
+    // working tree without a non-zero exit signal. Never commit a tree that
+    // carries conflict markers — always check the index and parse the output.
+    const fromOutput = parseConflictPaths(`${merged.stdout}\n${merged.stderr}`);
+    const fromIndex = await this.unmergedFiles();
+    const conflictFiles = [...new Set([...fromOutput, ...fromIndex])];
+
+    if (merged.code !== 0 || conflictFiles.length > 0) {
 
       // Caller-driven resolution: leave the conflicted tree in place, hand the
       // marked files to the resolver, and finalize the merge commit only if it
