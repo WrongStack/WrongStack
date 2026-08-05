@@ -105,20 +105,29 @@ const plugins = await Promise.all(
 );
 
 describe('setup() is idempotent for every official plugin', () => {
-  it.each(plugins)('%s does not stack registrations across reloads', async (_name, plugin) => {
-    const api = makeApi();
+  // The reload case runs four setup() passes per plugin (60+ plugins), and
+  // the test-runner-gate plugin spawns a process per pass — ~3.5s in
+  // isolation, routinely over the 5s default when the workspace suite runs
+  // packages in parallel. The extra headroom prevents a deterministic test
+  // from flaking under load (verified: passes in isolation every time).
+  it.each(plugins)(
+    '%s does not stack registrations across reloads',
+    { timeout: 15_000 },
+    async (_name, plugin) => {
+      const api = makeApi();
 
-    await plugin.setup(api, { signal: new AbortController().signal });
-    const afterFirst = liveOwnedCount(api);
-
-    // Three more reloads without an intervening teardown.
-    for (let i = 0; i < 3; i++) {
       await plugin.setup(api, { signal: new AbortController().signal });
-    }
+      const afterFirst = liveOwnedCount(api);
 
-    expect(liveOwnedCount(api)).toBe(afterFirst);
-    await plugin.teardown?.(api, { signal: new AbortController().signal });
-  });
+      // Three more reloads without an intervening teardown.
+      for (let i = 0; i < 3; i++) {
+        await plugin.setup(api, { signal: new AbortController().signal });
+      }
+
+      expect(liveOwnedCount(api)).toBe(afterFirst);
+      await plugin.teardown?.(api, { signal: new AbortController().signal });
+    },
+  );
 
   it.each(plugins)('%s releases its own registrations on teardown', async (_name, plugin) => {
     const api = makeApi();
