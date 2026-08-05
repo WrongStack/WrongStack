@@ -95,12 +95,14 @@
     "title": "Algo salió mal",
     "body": "Ocurrió un error de renderizado. Tu sesión sigue activa en el servidor — recargar continuará donde lo dejaste.",
     "reload": "Recargar página",
-    "tryAgain": "Reintentar"
+    "tryAgain": "Reintentar",
+    "panelTitle": "{{name}} encontró un error"
   },
   "sparkline": {
     "noActivity": "Sin actividad",
     "noActivityYet": "Aún sin actividad",
     "activityMax": "Sparkline de actividad: máx {{count}} eventos",
     "activityPeak": "Sparkline de actividad — pico {{count}} eventos/intervalo"
-  }
+  },
+  "loadingNamed": "Cargando {{name}}…"
 }

@@ -95,12 +95,14 @@
     "title": "Algo deu errado",
     "body": "Ocorreu um erro de renderização. Sua sessão ainda está ativa no servidor — recarregar continuará de onde você parou.",
     "reload": "Recarregar página",
-    "tryAgain": "Tentar novamente"
+    "tryAgain": "Tentar novamente",
+    "panelTitle": "{{name}} encontrou um erro"
   },
   "sparkline": {
     "noActivity": "Sem atividade",
     "noActivityYet": "Sem atividade ainda",
     "activityMax": "Sparkline de atividade: máx {{count}} eventos",
     "activityPeak": "Sparkline de atividade — pico {{count}} eventos/intervalo"
-  }
+  },
+  "loadingNamed": "Carregando {{name}}…"
 }

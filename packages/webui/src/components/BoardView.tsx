@@ -12,12 +12,12 @@ type BoardLayout = 'phase' | 'status';
 
 type BoardTask = TaskItem & { phaseId: string };
 
-const STATUS_COLUMNS: Array<{ key: TaskItem['status']; label: string; match: TaskItem['status'][] }> = [
-  { key: 'pending', label: 'Pending', match: ['pending', 'blocked'] },
-  { key: 'in_progress', label: 'In Progress', match: ['in_progress'] },
-  { key: 'review', label: 'Review', match: ['review'] },
-  { key: 'failed', label: 'Failed', match: ['failed'] },
-  { key: 'completed', label: 'Done', match: ['completed'] },
+const STATUS_COLUMNS: Array<{ key: TaskItem['status']; match: TaskItem['status'][] }> = [
+  { key: 'pending', match: ['pending', 'blocked'] },
+  { key: 'in_progress', match: ['in_progress'] },
+  { key: 'review', match: ['review'] },
+  { key: 'failed', match: ['failed'] },
+  { key: 'completed', match: ['completed'] },
 ];
 
 const PHASE_STATUS_BADGE: Record<PhaseItem['status'], string> = {

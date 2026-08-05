@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useAppTranslation } from '@/i18n';
 import {
   SLASH_CATEGORY_ORDER,
   type SlashCommandDef,
@@ -15,6 +16,7 @@ export function SlashCommandPopup({
   onSelectIndex: (index: number) => void;
   onRun: (name: string) => void;
 }) {
+  const { t } = useAppTranslation();
   if (suggestions.length === 0) return null;
   const byCategory: Record<string, Array<{ cmd: SlashCommandDef; idx: number }>> = {};
   suggestions.forEach((cmd, idx) => {
@@ -26,7 +28,7 @@ export function SlashCommandPopup({
   return (
     <div className="absolute bottom-full left-0 right-0 mb-2 max-h-72 overflow-auto rounded-lg border border-border/70 bg-popover p-1 text-sm shadow-xl">
       <div className="mb-1 border-b px-3 py-1 text-[10px] uppercase text-muted-foreground">
-        ↑/↓ select · Tab complete · Enter dispatch · Esc dismiss
+        {t('activity:slashpopup.selectTabCompleteEnterDispatchEsc')}
       </div>
       {orderedCategories.map((category) => (
         <div key={category} className="mb-1">

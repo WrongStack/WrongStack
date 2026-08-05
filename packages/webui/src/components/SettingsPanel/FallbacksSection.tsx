@@ -253,7 +253,7 @@ export function FallbacksSection({
           <Input
             value={newFallbackProfileName}
             onChange={(e) => setNewFallbackProfileName(e.target.value)}
-            placeholder="fallback1"
+            placeholder={t('activity:fallbacksSection.fallback1')}
             className="font-mono text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Enter') addFallbackProfile();

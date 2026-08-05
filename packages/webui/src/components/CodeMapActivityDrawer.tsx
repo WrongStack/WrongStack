@@ -1,6 +1,7 @@
 import { Activity as ActivityIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FileActivity } from '@/stores/codemap-activity-store';
+import { useAppTranslation } from '@/i18n';
 
 interface CodeMapActivityDrawerProps {
   historyFile: string;
@@ -13,6 +14,7 @@ export function CodeMapActivityDrawer({
   fileHistory,
   onClose,
 }: CodeMapActivityDrawerProps): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <div className="absolute right-0 top-0 z-50 flex h-full w-[390px] max-w-[90%] flex-col border-l bg-card shadow-2xl">
       <div className="flex h-12 items-center justify-between border-b px-4">
@@ -26,7 +28,7 @@ export function CodeMapActivityDrawer({
           type="button"
           onClick={onClose}
           className="flex h-7 w-7 items-center justify-center border text-muted-foreground hover:bg-muted"
-          aria-label="Close activity"
+          aria-label={t('activity:codeMap.closeActivity')}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -34,7 +36,7 @@ export function CodeMapActivityDrawer({
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {fileHistory.length === 0 ? (
           <p className="py-12 text-center text-[10px] text-muted-foreground">
-            No activity recorded for this file yet.
+            {t('activity:codeMap.noActivityRecordedForThisFile')}
           </p>
         ) : (
           fileHistory.map((activity, index) => (
@@ -90,7 +92,7 @@ export function CodeMapActivityDrawer({
                   <span>{activity.status ?? 'observed'}</span>
                   <span>{activity.source ?? 'legacy'}</span>
                   {activity.durationMs !== undefined && <span>{activity.durationMs}ms</span>}
-                  {activity.watcherConfirmed && <span className="text-success">fs verified</span>}
+                  {activity.watcherConfirmed && <span className="text-success">{t('activity:codeMap.fsVerified')}</span>}
                 </div>
               </div>
             </div>

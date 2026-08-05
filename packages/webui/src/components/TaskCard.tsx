@@ -22,14 +22,14 @@ export interface TaskItem {
 // Token-driven so every state reads correctly in both light and dark.
 export const TASK_STATUS_CONFIG: Record<
   TaskItem['status'],
-  { icon: React.ReactNode; color: string; label: string }
+  { icon: React.ReactNode; color: string }
 > = {
-  pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground', label: 'Pending' },
-  in_progress: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-primary', label: 'In Progress' },
-  blocked: { icon: <Pause className="w-4 h-4" />, color: 'text-warning', label: 'Blocked' },
-  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-destructive', label: 'Failed' },
-  review: { icon: <RotateCcw className="w-4 h-4" />, color: 'text-info', label: 'Review' },
-  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success', label: 'Done' },
+  pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground' },
+  in_progress: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-primary' },
+  blocked: { icon: <Pause className="w-4 h-4" />, color: 'text-warning' },
+  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-destructive' },
+  review: { icon: <RotateCcw className="w-4 h-4" />, color: 'text-info' },
+  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success' },
 };
 
 export const PRIORITY_BADGE: Record<TaskItem['priority'], string> = {

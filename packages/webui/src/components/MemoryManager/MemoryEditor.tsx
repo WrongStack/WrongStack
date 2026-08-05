@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import {
   AlertTriangle,
   Link2,
@@ -46,6 +47,7 @@ export function MemoryEditor({
   onCancel,
   onSubmit,
 }: MemoryEditorProps) {
+  const { t } = useAppTranslation();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [agentRoles, setAgentRoles] = useState<string[]>([]);
   useEffect(() => {
@@ -86,18 +88,18 @@ export function MemoryEditor({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">
-              {mode === 'create' ? 'Capture a memory' : 'Edit memory'}
+              {mode === 'create' ? t('activity:memoryManager.captureMemory') : t('activity:memoryManager.editMemory')}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {mode === 'create'
-                ? 'Add durable knowledge with retrieval metadata.'
-                : 'Update content without losing provenance.'}
+                ? t('activity:memoryManager.editorCreateHint')
+                : t('activity:memoryManager.editorEditHint')}
             </p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-            <X className="size-3.5" /> Cancel
+            <X className="size-3.5" /> {t('common:action.cancel')}
           </Button>
           <Button type="submit" size="sm" disabled={busy || !draft.text.trim()}>
             {busy ? (
@@ -107,7 +109,7 @@ export function MemoryEditor({
             ) : (
               <Save className="size-3.5" />
             )}
-            {busy ? 'Saving…' : mode === 'create' ? 'Create memory' : 'Save changes'}
+            {busy ? t('common:action.saving') : mode === 'create' ? t('activity:memoryManager.createMemory') : t('activity:memoryManager.saveChanges')}
           </Button>
         </div>
       </div>
@@ -127,17 +129,17 @@ export function MemoryEditor({
           <section className="border border-border/75 bg-card/45 p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">Knowledge</h3>
+                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">{t('activity:memoryManager.editorKnowledge')}</h3>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Write the durable fact or decision in complete, searchable language.
+                  {t('activity:memEditor.writeTheDurableFactOrDecision')}
                 </p>
               </div>
               <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                {draft.text.length} chars
+                {t('activity:memoryManager.editorCharCount', { count: draft.text.length })}
               </span>
             </div>
             <label htmlFor="memory-text" className="sr-only">
-              Memory content
+              {t('activity:memoryManager.editorContentLabel')}
             </label>
             <textarea
               ref={textRef}
@@ -146,7 +148,7 @@ export function MemoryEditor({
               onChange={(event) => set('text', event.target.value)}
               rows={7}
               required
-              placeholder="Example: WebUI state is owned by Zustand stores; server messages update those stores through singleton WebSocket handlers."
+              placeholder={t('activity:memoryManager.editorContentPlaceholder')}
               className="min-h-36 w-full resize-y border border-input bg-background/75 px-3 py-3 text-sm leading-6 text-foreground shadow-inner placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </section>
@@ -157,7 +159,7 @@ export function MemoryEditor({
                 htmlFor="memory-kind"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Kind
+                {t('activity:memoryManager.editorKind')}
               </label>
               <select
                 id="memory-kind"
@@ -178,7 +180,7 @@ export function MemoryEditor({
                   htmlFor="memory-scope"
                   className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
                 >
-                  Scope
+                  {t('activity:memoryManager.editorScope')}
                 </label>
                 <select
                   id="memory-scope"
@@ -199,7 +201,7 @@ export function MemoryEditor({
                   htmlFor="memory-status"
                   className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
                 >
-                  Lifecycle status
+                  {t('activity:memoryManager.editorLifecycleStatus')}
                 </label>
                 <select
                   id="memory-status"
@@ -220,13 +222,13 @@ export function MemoryEditor({
                 htmlFor="memory-tags"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Tags
+                {t('activity:memoryManager.tagsLabel')}
               </label>
               <Input
                 id="memory-tags"
                 value={draft.tags}
                 onChange={(event) => set('tags', event.target.value)}
-                placeholder="architecture, webui, workflow"
+                placeholder={t('activity:memEditor.architectureWebuiWorkflow')}
                 className="h-10 bg-background"
               />
             </div>
@@ -235,19 +237,19 @@ export function MemoryEditor({
           <section className="grid gap-3 sm:grid-cols-3">
             <RangeField
               id="memory-importance"
-              label="Importance"
+              label={t('activity:memoryManager.editorImportance')}
               value={draft.importance}
               onChange={(value) => set('importance', value)}
             />
             <RangeField
               id="memory-confidence"
-              label="Confidence"
+              label={t('activity:memoryManager.editorConfidence')}
               value={draft.confidence}
               onChange={(value) => set('confidence', value)}
             />
             <RangeField
               id="memory-freshness"
-              label="Freshness"
+              label={t('activity:memoryManager.editorFreshness')}
               value={draft.freshness}
               onChange={(value) => set('freshness', value)}
             />
@@ -256,13 +258,13 @@ export function MemoryEditor({
           <section className="border border-border/75 bg-card/45 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">Anchors</h3>
+                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">{t('activity:memoryManager.editorAnchors')}</h3>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Bind knowledge to files, symbols, packages, tests, Git paths, or commands.
+                  {t('activity:memEditor.bindKnowledgeToFilesSymbolsPackages')}
                 </p>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={addAnchor}>
-                <Plus className="size-3.5" /> Add anchor
+                <Plus className="size-3.5" /> {t('activity:memoryManager.addAnchor')}
               </Button>
             </div>
             {draft.anchors.length === 0 ? (
@@ -271,7 +273,7 @@ export function MemoryEditor({
                 onClick={addAnchor}
                 className="mt-4 flex w-full items-center justify-center gap-2 border border-dashed border-border px-4 py-7 text-xs text-muted-foreground transition-colors hover:border-info/50 hover:bg-info/5 hover:text-info"
               >
-                <Link2 className="size-4" /> No anchors yet — add one to improve retrieval precision
+                <Link2 className="size-4" /> {t('activity:memoryManager.noAnchors')}
               </button>
             ) : (
               <div className="mt-4 space-y-2">
@@ -353,7 +355,7 @@ export function MemoryEditor({
                               );
                               set('anchors', anchors);
                             }}
-                            placeholder="Symbol name"
+                            placeholder={t('activity:memoryManager.editorSymbolPlaceholder')}
                             className="h-10 bg-background font-mono text-xs"
                           />
                         </>
@@ -386,10 +388,9 @@ export function MemoryEditor({
 
           <section className="grid gap-3 border border-border/75 bg-card/45 p-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.14em]">Relationships</h3>
+              <h3 className="text-xs font-bold uppercase tracking-[0.14em]">{t('activity:memoryManager.editorRelationships')}</h3>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Reference exact memory IDs. Relationships are validated and graph edges are rebuilt
-                by SAGE.
+                {t('activity:memoryManager.editorRelationshipsHint')}
               </p>
             </div>
             <div>
@@ -397,13 +398,13 @@ export function MemoryEditor({
                 htmlFor="memory-supersedes"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Supersedes
+                {t('activity:memoryManager.editorSupersedes')}
               </label>
               <Input
                 id="memory-supersedes"
                 value={draft.supersedes}
                 onChange={(event) => set('supersedes', event.target.value)}
-                placeholder="mem_id, mem_id"
+                placeholder={t('activity:memEditor.memIdMemId')}
                 className="h-10 bg-background font-mono text-xs"
               />
             </div>
@@ -412,36 +413,36 @@ export function MemoryEditor({
                 htmlFor="memory-contradicts"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Contradicts
+                {t('activity:memoryManager.editorContradicts')}
               </label>
               <Input
                 id="memory-contradicts"
                 value={draft.contradicts}
                 onChange={(event) => set('contradicts', event.target.value)}
-                placeholder="mem_id, mem_id"
+                placeholder={t('activity:memEditor.memIdMemId')}
                 className="h-10 bg-background font-mono text-xs"
               />
             </div>
           </section>
           <section className="space-y-2">
             <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              Audience (Optional)
+              {t('activity:memEditor.audienceOptional')}
             </h3>
             <p className="text-[10px] text-muted-foreground/70">
-              Target this memory to specific agent types. Leave empty for general project memory.
+              {t('activity:memEditor.targetThisMemoryToSpecificAgent')}
             </p>
             <div>
               <label
                 htmlFor="memory-audience-roles"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Roles
+                {t('activity:memEditor.roles')}
               </label>
               <Input
                 id="memory-audience-roles"
                 value={draft.audienceRoles}
                 onChange={(event) => set('audienceRoles', event.target.value)}
-                placeholder="reviewer, refactor-planner"
+                placeholder={t('activity:memEditor.reviewerRefactorPlanner')}
                 className="h-9 bg-background font-mono text-xs"
               />
             </div>
@@ -450,13 +451,13 @@ export function MemoryEditor({
                 htmlFor="memory-audience-task-types"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Task types
+                {t('activity:memoryManager.editorTaskTypes')}
               </label>
               <Input
                 id="memory-audience-task-types"
                 value={draft.audienceTaskTypes}
                 onChange={(event) => set('audienceTaskTypes', event.target.value)}
-                placeholder="review, refactor, bugfix"
+                placeholder={t('activity:memEditor.reviewRefactorBugfix')}
                 className="h-9 bg-background font-mono text-xs"
               />
             </div>
@@ -465,13 +466,13 @@ export function MemoryEditor({
                 htmlFor="memory-audience-modes"
                 className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               >
-                Modes
+                {t('activity:memEditor.modes')}
               </label>
               <Input
                 id="memory-audience-modes"
                 value={draft.audienceModes}
                 onChange={(event) => set('audienceModes', event.target.value)}
-                placeholder="teach, code-review"
+                placeholder={t('activity:memEditor.teachCodeReview')}
                 className="h-9 bg-background font-mono text-xs"
               />
             </div>

@@ -34,6 +34,7 @@ import type {
 } from '@/types';
 import { ChroniclePipelineStrip } from './ChroniclePipelineStrip';
 import { Pagination } from './ui/pagination';
+import { useAppTranslation } from '@/i18n';
 
 const facetFields = ['eventType', 'providerId', 'modelId', 'outcome', 'resourceKind'] as const;
 const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -43,16 +44,17 @@ function defaultQuery(): ChronicleQuery {
   return { limit: 300, order: 'desc', from: new Date(Date.now() - DEFAULT_LOOKBACK_MS).toISOString() };
 }
 type Signal = 'all' | 'llm' | 'agents' | 'tools' | 'files' | 'failures';
-const signals: Array<{ id: Signal; label: string; icon: React.ReactNode }> = [
-  { id: 'all', label: 'All signals', icon: <Activity /> },
-  { id: 'llm', label: 'LLM', icon: <BrainCircuit /> },
-  { id: 'agents', label: 'Agents', icon: <Bot /> },
-  { id: 'tools', label: 'Tools', icon: <TerminalSquare /> },
-  { id: 'files', label: 'Files', icon: <FileCode2 /> },
-  { id: 'failures', label: 'Failures', icon: <TriangleAlert /> },
+const signals: Array<{ id: Signal; labelKey: string; icon: React.ReactNode }> = [
+  { id: 'all', labelKey: 'activity:chronicle.signalAllSignals', icon: <Activity /> },
+  { id: 'llm', labelKey: 'activity:chronicle.signalLlm', icon: <BrainCircuit /> },
+  { id: 'agents', labelKey: 'activity:chronicle.signalAgents', icon: <Bot /> },
+  { id: 'tools', labelKey: 'activity:chronicle.signalTools', icon: <TerminalSquare /> },
+  { id: 'files', labelKey: 'activity:chronicle.signalFiles', icon: <FileCode2 /> },
+  { id: 'failures', labelKey: 'activity:chronicle.signalFailures', icon: <TriangleAlert /> },
 ];
 
 export function ChronicleDashboard() {
+  const { t } = useAppTranslation();
   const client = getWSClient();
   const [events, setEvents] = useState<ChronicleEventView[]>([]);
   const [selected, setSelected] = useState<ChronicleEventView | null>(null);
@@ -238,13 +240,13 @@ export function ChronicleDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <BrainCircuit className="h-5 w-5 text-primary" />
-                <h1 className="text-lg font-semibold tracking-tight">Coding Intelligence</h1>
+                <h1 className="text-lg font-semibold tracking-tight">{t('activity:chronicle.codingIntelligence')}</h1>
                 <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold tracking-wider text-primary">
-                  CHRONICLE
+                  {t('activity:chronicle.chronicle')}
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                LLM, agent, tool and file evidence — connected from decision to code change.
+                {t('activity:chronicle.llmAgentToolAndFileEvidence')}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -265,7 +267,7 @@ export function ChronicleDashboard() {
                   requestStatus();
                 }}
                 className="ml-2 rounded-md border border-border bg-card p-2 hover:bg-muted"
-                title="Refresh evidence"
+                title={t('activity:chronicle.refreshEvidence')}
               >
                 <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
               </button>
@@ -276,38 +278,38 @@ export function ChronicleDashboard() {
         <section className="grid grid-cols-2 border-b border-border/70 xl:grid-cols-6">
           <Insight
             icon={<BrainCircuit />}
-            label="LLM requests"
+            label={t('activity:chronicle.llmRequests')}
             value={summary.logicalRequests}
             detail={`${summary.modelAttempts} attempts · ${summary.providers} providers · ${summary.models} models`}
           />
           <Insight
             icon={<Bot />}
-            label="Agent work"
+            label={t('activity:chronicle.agentWork')}
             value={summary.agentEvents}
             detail={`${summary.uniqueAgents} correlated agents · ${summary.decisions} decisions`}
           />
           <Insight
             icon={<TerminalSquare />}
-            label="Tool calls"
+            label={t('activity:chronicle.toolCalls')}
             value={summary.toolCalls}
             detail={`${summary.failedTools} failed · ${summary.processes} processes`}
           />
           <Insight
             icon={<FileCode2 />}
-            label="File evidence"
+            label={t('activity:chronicle.fileEvidence')}
             value={summary.fileEvents}
             detail={`${summary.uniqueFiles} unique paths`}
           />
           <Insight
             icon={<RotateCcw />}
-            label="Retries"
+            label={t('activity:chronicle.retries')}
             value={summary.scheduledRetries}
             detail={`${summary.failures} failures · ${summary.fallbacks} fallbacks`}
             tone={summary.failures ? 'danger' : 'normal'}
           />
           <Insight
             icon={<Clock3 />}
-            label="Provider p95"
+            label={t('activity:chronicle.providerP95')}
             value={formatMilliseconds(summary.providerP95DurationMs)}
             detail={`${formatMilliseconds(summary.providerAvgDurationMs)} average · all matches`}
           />
@@ -315,33 +317,33 @@ export function ChronicleDashboard() {
 
         <section className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border/60 bg-primary/[0.018] px-4 py-1.5 font-mono text-[9px] text-muted-foreground">
           <span className="font-sans font-semibold uppercase tracking-wider text-primary">
-            Token economics
+            {t('activity:chronicle.tokenEconomics')}
           </span>
           <span>
-            fresh input <b className="text-foreground">{summary.inputTokens.toLocaleString()}</b>
+            {t('activity:chronicle.freshInput')} <b className="text-foreground">{summary.inputTokens.toLocaleString()}</b>
           </span>
           <span>
             output <b className="text-foreground">{summary.outputTokens.toLocaleString()}</b>
           </span>
           <span>
-            cache read <b className="text-foreground">{summary.cacheReadTokens.toLocaleString()}</b>
+            {t('activity:chronicle.cacheRead')} <b className="text-foreground">{summary.cacheReadTokens.toLocaleString()}</b>
           </span>
           <span>
             cache write{' '}
             <b className="text-foreground">{summary.cacheWriteTokens.toLocaleString()}</b>
           </span>
           <span>
-            cache hit <b className="text-foreground">{cacheRatio(summary).toFixed(1)}%</b>
+            {t('activity:chronicle.cacheHit')} <b className="text-foreground">{cacheRatio(summary).toFixed(1)}%</b>
           </span>
           <span>
-            estimated cost <b className="text-foreground">${summary.estimatedCostUsd.toFixed(4)}</b>
+            {t('activity:chronicle.estimatedCost')} <b className="text-foreground">${summary.estimatedCostUsd.toFixed(4)}</b>
           </span>
         </section>
 
         {providerDaily.length > 0 && (
           <section className="flex items-center gap-3 overflow-x-auto border-b border-border/60 bg-muted/[0.14] px-4 py-1.5">
             <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Model reliability
+              {t('activity:chronicle.modelReliability')}
             </span>
             {providerDaily.slice(0, 6).map((row) => {
               const terminal = row.completed + row.failed;
@@ -373,7 +375,7 @@ export function ChronicleDashboard() {
           <section className="flex items-center gap-3 overflow-x-auto border-b border-border/60 bg-muted/[0.10] px-4 py-1.5">
             <span className="flex shrink-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
               <ListChecks className="h-3 w-3" />
-              Task outcomes
+              {t('activity:chronicle.taskOutcomes')}
             </span>
             <span
               className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-2.5 py-0.5 font-mono text-[9px]"
@@ -448,31 +450,31 @@ export function ChronicleDashboard() {
           <div className="grid grid-cols-2 gap-2 xl:grid-cols-[1.35fr_1fr_1fr_1fr_1fr_auto]">
             <Field
               icon={<Search />}
-              placeholder="Search event evidence"
+              placeholder={t('activity:chronicle.searchEventEvidence')}
               value={draft.text}
               onChange={(text) => setDraft((v) => ({ ...v, text }))}
               onEnter={apply}
             />
             <Field
-              placeholder="File or directory"
+              placeholder={t('activity:chronicle.fileOrDirectory')}
               value={draft.path}
               onChange={(path) => setDraft((v) => ({ ...v, path }))}
               onEnter={apply}
             />
             <Field
-              placeholder="Provider"
+              placeholder={t('activity:chronicle.provider')}
               value={draft.providerId}
               onChange={(providerId) => setDraft((v) => ({ ...v, providerId }))}
               onEnter={apply}
             />
             <Field
-              placeholder="Model"
+              placeholder={t('activity:chronicle.model')}
               value={draft.modelId}
               onChange={(modelId) => setDraft((v) => ({ ...v, modelId }))}
               onEnter={apply}
             />
             <Field
-              placeholder="Session"
+              placeholder={t('activity:chronicle.session')}
               value={draft.sessionId}
               onChange={(sessionId) => setDraft((v) => ({ ...v, sessionId }))}
               onEnter={apply}
@@ -484,14 +486,14 @@ export function ChronicleDashboard() {
                 className="rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground"
               >
                 <Filter className="mr-1 inline h-3 w-3" />
-                Apply
+                {t('activity:chronicle.apply')}
               </button>
               <button
                 type="button"
                 onClick={clear}
                 className="rounded-md border border-border px-2.5 text-xs hover:bg-muted"
               >
-                Clear
+                {t('activity:chronicle.clear')}
               </button>
             </div>
           </div>
@@ -511,7 +513,7 @@ export function ChronicleDashboard() {
               )}
             >
               {item.icon}
-              {item.label}
+              {t(item.labelKey)}
               <span className="ml-1 rounded bg-background/70 px-1 font-mono text-[9px]">
                 {signalTotal(summary, item.id, meta.total)}
               </span>
@@ -549,11 +551,11 @@ export function ChronicleDashboard() {
         </section>
 
         <div className="grid grid-cols-[92px_minmax(190px,1.25fr)_110px_minmax(180px,1fr)_minmax(140px,.8fr)_24px] gap-3 border-b border-border/60 bg-muted/20 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <span>Time</span>
-          <span>Signal</span>
-          <span>Outcome</span>
-          <span>Model / agent</span>
-          <span>Resource</span>
+          <span>{t('activity:chronicle.time')}</span>
+          <span>{t('activity:chronicle.signal')}</span>
+          <span>{t('activity:chronicle.outcome')}</span>
+          <span>{t('activity:chronicle.modelAgent')}</span>
+          <span>{t('activity:chronicle.resource')}</span>
           <span />
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
@@ -586,7 +588,7 @@ export function ChronicleDashboard() {
         <aside className="w-[440px] max-w-[48vw] shrink-0 overflow-auto border-l border-border bg-card/60 shadow-[-12px_0_32px_hsl(var(--background)/.35)]">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
             <div>
-              <div className="text-xs font-semibold">Evidence & lineage</div>
+              <div className="text-xs font-semibold">{t('activity:chronicle.evidenceLineage')}</div>
               <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
                 #{selected.sequence} · {selected.eventId}
               </div>
@@ -755,10 +757,11 @@ function Insight({
   );
 }
 function RuntimeStrip({ health }: { health: Health }) {
+  const { t } = useAppTranslation();
   return (
     <section className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border/60 bg-success/[0.025] px-4 py-1.5 font-mono text-[9px] text-muted-foreground">
       <span className="font-sans font-semibold uppercase tracking-wider text-success">
-        Collector healthy
+        {t('activity:chronicle.collectorHealthy')}
       </span>
       <span>
         ELU{' '}
@@ -841,6 +844,7 @@ function Detail({
   event: ChronicleEventView;
   graph: ChronicleGraphResult | null;
 }) {
+  const { t } = useAppTranslation();
   const sections = useMemo(
     () =>
       [
@@ -875,8 +879,8 @@ function Detail({
         </div>
       </div>
       <div className="mb-4 grid grid-cols-2 gap-2">
-        <Badge icon={<ShieldCheck />} label="Evidence hash" value={event.hash.slice(0, 16)} />
-        <Badge icon={<Database />} label="Sequence" value={String(event.sequence)} />
+        <Badge icon={<ShieldCheck />} label={t('activity:chronicle.evidenceHash')} value={event.hash.slice(0, 16)} />
+        <Badge icon={<Database />} label={t('activity:chronicle.sequence')} value={String(event.sequence)} />
       </div>
       {graph && (
         <section className="mb-4">
@@ -911,7 +915,7 @@ function Detail({
             ))}
           </div>
           {graph.truncated && (
-            <p className="mt-1 text-[9px] text-warning">Lineage truncated at safety limit.</p>
+            <p className="mt-1 text-[9px] text-warning">{t('activity:chronicle.lineageTruncatedAtSafetyLimit')}</p>
           )}
         </section>
       )}

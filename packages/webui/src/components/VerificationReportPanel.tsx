@@ -25,6 +25,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 
 interface VerificationReportPanelProps {
   report: KanbanVerificationReport;
@@ -32,38 +33,38 @@ interface VerificationReportPanelProps {
 
 const VERDICT_CONFIG: Record<
   KanbanVerificationReport['verdict'],
-  { icon: typeof CheckCircle2; label: string; className: string }
+  { icon: typeof CheckCircle2; labelKey: string; className: string }
 > = {
   passed: {
     icon: CheckCircle2,
-    label: 'Passed',
+    labelKey: 'activity:verifyReport.verdictPassed',
     className: 'text-success',
   },
   failed: {
     icon: XCircle,
-    label: 'Failed',
+    labelKey: 'activity:verifyReport.verdictFailed',
     className: 'text-destructive',
   },
   needs_human: {
     icon: AlertTriangle,
-    label: 'Needs Review',
+    labelKey: 'activity:verifyReport.verdictNeedsHuman',
     className: 'text-warning',
   },
   incomplete: {
     icon: ShieldAlert,
-    label: 'Incomplete',
+    labelKey: 'activity:verifyReport.verdictIncomplete',
     className: 'text-muted-foreground',
   },
 };
 
 const CHECK_STATUS_CONFIG: Record<
   KanbanVerificationCheckResult['status'],
-  { label: string; className: string }
+  { labelKey: string; className: string }
 > = {
-  passed: { label: 'Passed', className: 'text-success' },
-  failed: { label: 'Failed', className: 'text-destructive' },
-  skipped: { label: 'Skipped', className: 'text-muted-foreground' },
-  error: { label: 'Error', className: 'text-warning' },
+  passed: { labelKey: 'activity:verifyReport.checkPassed', className: 'text-success' },
+  failed: { labelKey: 'activity:verifyReport.checkFailed', className: 'text-destructive' },
+  skipped: { labelKey: 'activity:verifyReport.checkSkipped', className: 'text-muted-foreground' },
+  error: { labelKey: 'activity:verifyReport.checkError', className: 'text-warning' },
 };
 
 function formatDuration(start: string, end: string): string {
@@ -75,12 +76,13 @@ function formatDuration(start: string, end: string): string {
 }
 
 function VerdictBadge({ verdict }: { verdict: KanbanVerificationReport['verdict'] }) {
+  const { t } = useAppTranslation();
   const cfg = VERDICT_CONFIG[verdict];
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.className}`}>
       <Icon size={13} />
-      {cfg.label}
+      {t(cfg.labelKey)}
     </span>
   );
 }
@@ -115,6 +117,7 @@ function CollapsibleSection({
 
 function CheckResultRow({ check }: { check: KanbanVerificationCheckResult }) {
   const cfg = CHECK_STATUS_CONFIG[check.status];
+  const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
   const hasDetail = check.error || check.backingRefs?.length;
 
@@ -123,7 +126,7 @@ function CheckResultRow({ check }: { check: KanbanVerificationCheckResult }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className={`font-medium ${cfg.className}`}>{cfg.label}</span>
+            <span className={`font-medium ${cfg.className}`}>{t(cfg.labelKey)}</span>
             <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">
               {check.type}
             </span>
@@ -162,14 +165,15 @@ function CheckResultRow({ check }: { check: KanbanVerificationCheckResult }) {
 }
 
 function FileScopeCard({ fileScope }: { fileScope: KanbanVerificationFileScope }) {
+  const { t } = useAppTranslation();
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-3 text-xs">
         <span className="text-muted-foreground">
-          Expected <strong>{fileScope.expectedChanges}</strong> changes
+          {t('activity:verifyReport.expected')} <strong>{fileScope.expectedChanges}</strong> changes
         </span>
         <span className="text-muted-foreground">
-          Actual <strong>{fileScope.actualChanges}</strong> changes
+          {t('activity:verifyReport.actual')} <strong>{fileScope.actualChanges}</strong> changes
         </span>
         <span className={fileScope.scopeMatches ? 'text-success' : 'text-destructive'}>
           {fileScope.scopeMatches ? '✅ Scope matches' : '❌ Scope mismatch'}
@@ -206,13 +210,14 @@ function FileScopeCard({ fileScope }: { fileScope: KanbanVerificationFileScope }
 }
 
 function SubtaskCard({ subtasks }: { subtasks: KanbanVerificationSubtasks }) {
+  const { t } = useAppTranslation();
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>Total <strong>{subtasks.total}</strong></span>
-        <span className="text-success">Completed <strong>{subtasks.completed}</strong></span>
+        <span>{t('activity:verifyReport.total')} <strong>{subtasks.total}</strong></span>
+        <span className="text-success">{t('activity:verifyReport.completed')} <strong>{subtasks.completed}</strong></span>
         {subtasks.failed > 0 && (
-          <span className="text-destructive">Failed <strong>{subtasks.failed}</strong></span>
+          <span className="text-destructive">{t('activity:verifyReport.failed')} <strong>{subtasks.failed}</strong></span>
         )}
       </div>
       <div className="space-y-1">
@@ -267,12 +272,13 @@ function AttachmentCard({ attachments }: { attachments: KanbanVerificationAttach
 }
 
 export function VerificationReportPanel({ report }: VerificationReportPanelProps) {
+  const { t } = useAppTranslation();
   return (
     <div className="mt-5 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="text-xs font-semibold uppercase text-muted-foreground">
-            Verification Report
+            {t('activity:verifyReport.verificationReport')}
           </div>
           <VerdictBadge verdict={report.verdict} />
         </div>
@@ -292,7 +298,7 @@ export function VerificationReportPanel({ report }: VerificationReportPanelProps
 
       {/* Per-Check Results */}
       {report.checks.length > 0 && (
-        <CollapsibleSection title="Check Results" icon={ListTree} defaultOpen={report.verdict !== 'passed'}>
+        <CollapsibleSection title={t('activity:verifyReport.checkResults')} icon={ListTree} defaultOpen={report.verdict !== 'passed'}>
           {report.checks.map((check) => (
             <CheckResultRow key={check.checkId} check={check} />
           ))}
@@ -301,14 +307,14 @@ export function VerificationReportPanel({ report }: VerificationReportPanelProps
 
       {/* File Scope */}
       {report.fileScope && (
-        <CollapsibleSection title="File Scope" icon={FileCode2} defaultOpen={!report.fileScope.scopeMatches}>
+        <CollapsibleSection title={t('activity:verifyReport.fileScope')} icon={FileCode2} defaultOpen={!report.fileScope.scopeMatches}>
           <FileScopeCard fileScope={report.fileScope} />
         </CollapsibleSection>
       )}
 
       {/* Sub-Task Aggregation */}
       {report.subtasks && (
-        <CollapsibleSection title="Sub-Tasks" icon={ListTree}>
+        <CollapsibleSection title={t('activity:verifyReport.subTasks')} icon={ListTree}>
           <SubtaskCard subtasks={report.subtasks} />
         </CollapsibleSection>
       )}

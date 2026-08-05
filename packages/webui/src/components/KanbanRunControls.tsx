@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { Check, Pause, Play, Rocket, RotateCcw, Square, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import type { ModelCandidate } from '@/hooks/useProviderModels';
@@ -17,6 +18,7 @@ export function RunControlBar({
   runLink: RunLink;
   sendRaw: (type: string, payload?: Record<string, unknown>) => void;
 }) {
+  const { t } = useAppTranslation();
   const isSdd = runLink.engine === 'sdd';
   const pfx = isSdd ? 'sdd.board' : 'goal';
   const setCurrentView = useUIStore((s) => s.setCurrentView);
@@ -27,23 +29,23 @@ export function RunControlBar({
       <span className="inline-flex items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
         <Rocket size={11} /> {runLink.engine}
       </span>
-      <span className="text-[11px] text-muted-foreground">Live run — steer it from here</span>
+      <span className="text-[11px] text-muted-foreground">{t('activity:kanban.liveRunSteer')}</span>
       {isSdd && (
         <button
           type="button"
           className={btn}
-          title="Open the live run view (SDD Hub)"
+          title={t('activity:kanban.openLiveRun')}
           onClick={() => setCurrentView('sddhub')}
         >
-          <Rocket size={12} /> Open live run
+          <Rocket size={12} /> {t('activity:kanban.openLiveRun')}
         </button>
       )}
       <div className="ml-auto flex items-center gap-1">
         <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.pause`)}>
-          <Pause size={12} /> Pause
+          <Pause size={12} /> {t('activity:kanban.actionPause')}
         </button>
         <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.resume`)}>
-          <Play size={12} /> Resume
+          <Play size={12} /> {t('activity:kanban.actionResume')}
         </button>
         {isSdd && (
           <button
@@ -51,7 +53,7 @@ export function RunControlBar({
             className={btn}
             onClick={() => sendRaw('sdd.board.retry_all_failed')}
           >
-            <RotateCcw size={12} /> Retry failed
+            <RotateCcw size={12} /> {t('activity:kanban.actionRetryFailed')}
           </button>
         )}
         <button
@@ -59,7 +61,7 @@ export function RunControlBar({
           className={cn(btn, 'text-destructive hover:bg-destructive/10')}
           onClick={() => sendRaw(`${pfx}.stop`)}
         >
-          <Square size={12} /> Stop
+          <Square size={12} /> {t('activity:kanban.actionStop')}
         </button>
       </div>
     </div>
@@ -73,26 +75,27 @@ export function StartAsBar({
   boardId: string;
   sendKanban: (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
 }) {
+  const { t } = useAppTranslation();
   const btn =
     'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10';
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/30 px-4 py-1.5">
       <Rocket size={13} className="text-primary" />
-      <span className="text-[11px] text-muted-foreground">Run this board as a live agent job:</span>
+      <span className="text-[11px] text-muted-foreground">{t('activity:kanban.runAsLiveJob')}</span>
       <div className="ml-auto flex items-center gap-1">
         <button
           type="button"
           className={btn}
           onClick={() => sendKanban('kanban.run.start', { boardId, engine: 'goal' })}
         >
-          Start as Goal
+          {t('activity:kanban.startAsGoal')}
         </button>
         <button
           type="button"
           className={btn}
           onClick={() => sendKanban('kanban.run.start', { boardId, engine: 'sdd' })}
         >
-          Start as SDD
+          {t('activity:kanban.startAsSdd')}
         </button>
       </div>
     </div>
@@ -111,6 +114,7 @@ export function RunTaskControls({
   modelCandidates: ModelCandidate[];
   sendRaw: (type: string, payload?: Record<string, unknown>) => void;
 }) {
+  const { t } = useAppTranslation();
   const isSdd = runLink.engine === 'sdd';
   const [reassigning, setReassigning] = useState(false);
   const [reassignName, setReassignName] = useState('');
@@ -129,14 +133,14 @@ export function RunTaskControls({
   return (
     <div className="mt-4 rounded-md border bg-primary/5 p-2.5">
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-primary">
-        Run controls
+        {t('activity:kanban.runControls')}
       </div>
       {isSdd && (
         <div className="mb-2">
-          <div className="mb-1 text-[10px] uppercase text-muted-foreground">Worker model</div>
+          <div className="mb-1 text-[10px] uppercase text-muted-foreground">{t('activity:kanban.workerModel')}</div>
           <ModelPicker
             candidates={modelCandidates}
-            placeholder="Set model for this task…"
+            placeholder={t('activity:kanban.setModelForTask')}
             onPick={(model, provider) =>
               sendRaw('sdd.board.set_task_model', { taskId: runTaskId, model, provider })
             }
@@ -152,7 +156,7 @@ export function RunTaskControls({
               if (e.key === 'Enter') submitReassign();
               if (e.key === 'Escape') setReassigning(false);
             }}
-            placeholder="New worker name"
+            placeholder={t('activity:kanban.newWorkerName')}
             className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
           />
           <button
@@ -179,10 +183,10 @@ export function RunTaskControls({
               sendRaw(isSdd ? 'sdd.board.retry' : 'goal.retryTask', { taskId: runTaskId })
             }
           >
-            <RotateCcw size={13} /> Retry
+            <RotateCcw size={13} /> {t('common:action.retry')}
           </button>
           <button type="button" className={btn} onClick={() => setReassigning(true)}>
-            <UserPlus size={13} /> Reassign
+            <UserPlus size={13} /> {t('activity:kanban.actionReassign')}
           </button>
           {isSdd ? (
             <button
@@ -190,7 +194,7 @@ export function RunTaskControls({
               className={cn(btn, 'text-destructive hover:bg-destructive/10')}
               onClick={() => sendRaw('sdd.board.cancel_task', { taskId: runTaskId })}
             >
-              <Square size={13} /> Cancel
+              <Square size={13} /> {t('common:action.cancel')}
             </button>
           ) : (
             <button
@@ -198,7 +202,7 @@ export function RunTaskControls({
               className={btn}
               onClick={() => sendRaw('goal.runTask', { taskId: runTaskId })}
             >
-              <Play size={13} /> Run now
+              <Play size={13} /> {t('activity:kanban.actionRunNow')}
             </button>
           )}
         </div>

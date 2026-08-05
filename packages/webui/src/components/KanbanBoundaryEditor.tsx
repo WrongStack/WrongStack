@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type {
   KanbanBoundaryAccess,
   KanbanBoundaryPolicy,
@@ -25,6 +26,7 @@ export function KanbanBoundaryEditor({
   inherited?: KanbanBoundaryPolicy | undefined;
   onSave: (policy: KanbanBoundaryPolicy | null) => void;
 }) {
+  const { t } = useAppTranslation();
   const [policy, setPolicy] = useState<KanbanBoundaryPolicy>(value ?? DEFAULT_POLICY);
   const [allowText, setAllowText] = useState(formatBoundarySelectors(value?.allow ?? []));
   const [denyText, setDenyText] = useState(formatBoundarySelectors(value?.deny ?? []));
@@ -41,7 +43,7 @@ export function KanbanBoundaryEditor({
     try {
       const allow = parseBoundarySelectors(allowText);
       const deny = parseBoundarySelectors(denyText);
-      onSave({ ...policy, allow, ...(deny.length ? { deny } : {}) });
+      onSave({ ...policy, allow, deny });
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -64,7 +66,7 @@ export function KanbanBoundaryEditor({
       <div className="space-y-2 border-t p-3 text-xs">
         {inherited?.enabled && (
           <div className="rounded border border-warning/25 bg-warning/10 px-2 py-1.5 text-muted-foreground">
-            Board policy remains authoritative. This task policy can only narrow that scope.
+            {t('activity:kanbanBoundaryEditor.boardPolicyRemainsAuthoritativeThisTask')}
           </div>
         )}
         <label className="flex items-center gap-2">
@@ -73,12 +75,12 @@ export function KanbanBoundaryEditor({
             checked={policy.enabled}
             onChange={(event) => setPolicy({ ...policy, enabled: event.target.checked })}
           />
-          Enable this boundary layer
+          {t('activity:kanban.enableLayer')}
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label>
             <span className="mb-1 block text-[10px] font-medium uppercase text-muted-foreground">
-              Outside scope
+              {t('activity:kanban.outsideScope')}
             </span>
             <select
               value={policy.enforcement}
@@ -90,13 +92,13 @@ export function KanbanBoundaryEditor({
               }
               className="h-8 w-full rounded border bg-background px-2"
             >
-              <option value="confirm">Ask permission</option>
-              <option value="block">Always block</option>
+              <option value="confirm">{t('activity:kanban.askPermission')}</option>
+              <option value="block">{t('activity:kanban.alwaysBlock')}</option>
             </select>
           </label>
           <label>
             <span className="mb-1 block text-[10px] font-medium uppercase text-muted-foreground">
-              Shell / opaque tools
+              {t('activity:kanbanBoundaryEditor.shellOpaqueTools')}
             </span>
             <select
               value={policy.shellAccess}
@@ -108,19 +110,18 @@ export function KanbanBoundaryEditor({
               }
               className="h-8 w-full rounded border bg-background px-2"
             >
-              <option value="confirm">Ask permission</option>
-              <option value="block">Always block</option>
-              <option value="allow">Allow</option>
+              <option value="confirm">{t('activity:kanban.askPermission')}</option>
+              <option value="block">{t('activity:kanban.alwaysBlock')}</option>
+              <option value="allow">{t('activity:kanban.allow')}</option>
             </select>
           </label>
         </div>
-        <BoundaryTextarea label="Allow selectors" value={allowText} onChange={setAllowText} />
-        <BoundaryTextarea label="Deny selectors" value={denyText} onChange={setDenyText} />
+        <BoundaryTextarea label={t('activity:kanban.allowSelectors')} value={allowText} onChange={setAllowText} />
+        <BoundaryTextarea label={t('activity:kanban.denySelectors')} value={denyText} onChange={setDenyText} />
         <div className="text-[10px] text-muted-foreground">
           One per line: kind:access:path — for example directory:read_write:packages/webui or
           file:read:README.md. Kinds: file, directory, package, glob. If an access type has no allow
-          selector, it remains unrestricted except for deny rules. Shell “Allow” is opaque and can
-          cross path selectors.
+          selector, it remains unrestricted except for deny rules. {t('activity:kanban.crossPathSelectors')}
         </div>
         {error && <div className="text-destructive">{error}</div>}
         <div className="flex gap-2">
@@ -129,7 +130,7 @@ export function KanbanBoundaryEditor({
             onClick={save}
             className="inline-flex h-8 flex-1 items-center justify-center gap-2 rounded bg-primary text-primary-foreground"
           >
-            <Save size={13} /> Save boundary
+            <Save size={13} /> {t('activity:kanbanBoundaryEditor.saveBoundary')}
           </button>
           {value && (
             <button
@@ -137,7 +138,7 @@ export function KanbanBoundaryEditor({
               onClick={() => onSave(null)}
               className="h-8 rounded border px-3 text-muted-foreground hover:bg-muted"
             >
-              Remove layer
+              {t('activity:kanban.removeLayer')}
             </button>
           )}
         </div>
@@ -192,6 +193,9 @@ export function parseBoundarySelectors(value: string): KanbanBoundarySelector[] 
       const kind = line.slice(0, first) as KanbanBoundarySelectorKind;
       const access = line.slice(first + 1, second) as KanbanBoundaryAccess;
       const selectorPath = line.slice(second + 1).trim();
+      if (!selectorPath) {
+        throw new Error(`Boundary line ${index + 1} must use kind:access:path.`);
+      }
       if (!kinds.has(kind)) throw new Error(`Boundary line ${index + 1} has unknown kind.`);
       if (!accesses.has(access)) throw new Error(`Boundary line ${index + 1} has unknown access.`);
       return { kind, access, path: selectorPath };

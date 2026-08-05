@@ -28,8 +28,9 @@ import {
 import { DependencyDetail } from './DependencyDetail';
 import { DependencyTable } from './DependencyTable';
 import { FindingsPanel } from './FindingsPanel';
-import { COVERAGE_META, ECOSYSTEM_META, EcosystemIcon, ecosystemMeta, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
+import { COVERAGE_META, ECOSYSTEM_META, EcosystemIcon, ecosystemLabel, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
 import { type DependencySort, TechStackToolbar } from './TechStackToolbar';
+import { useAppTranslation } from '@/i18n';
 
 interface SnapshotResponse {
   snapshot: TechStackSnapshot | null;
@@ -81,12 +82,12 @@ interface RemediationPlan {
   }>;
 }
 
-const TABS: ReadonlyArray<{ id: MainTab; label: string }> = [
-  { id: 'dependencies', label: 'Dependencies' },
-  { id: 'findings', label: 'Findings' },
-  { id: 'workspaces', label: 'Workspaces' },
-  { id: 'trends', label: 'Trends' },
-  { id: 'remediation', label: 'Remediation' },
+const TABS: ReadonlyArray<{ id: MainTab; labelKey: string }> = [
+  { id: 'dependencies', labelKey: 'activity:techStack.tabDependencies' },
+  { id: 'findings', labelKey: 'activity:techStack.tabFindings' },
+  { id: 'workspaces', labelKey: 'activity:techStack.tabWorkspaces' },
+  { id: 'trends', labelKey: 'activity:techStack.tabTrends' },
+  { id: 'remediation', labelKey: 'activity:techStack.tabRemediation' },
 ];
 
 /**
@@ -99,6 +100,7 @@ const TABS: ReadonlyArray<{ id: MainTab; label: string }> = [
 const AUTOMATED_REMEDIATION_ECOSYSTEMS = new Set(['npm', 'python', 'rust', 'go', 'php', 'dotnet']);
 
 export function TechStackView() {
+  const { t } = useAppTranslation();
   const snapshot = useTechStackStore((state) => state.snapshot);
   const stale = useTechStackStore((state) => state.stale);
   const loading = useTechStackStore((state) => state.loading);
@@ -341,13 +343,13 @@ export function TechStackView() {
         <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-bold sm:text-lg">TechStack</h1>
+              <h1 className="text-base font-bold sm:text-lg">{t('activity:techStack.techstack')}</h1>
               <span className="border border-info/35 bg-info/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-info">
                 {snapshot ? `${snapshot.workspaces.length} workspaces` : 'no scan yet'}
               </span>
               {stale && (
                 <span className="border border-warning/35 bg-warning/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-warning">
-                  stale &gt;24h
+                  {t('activity:techStack.staleGt24h')}
                 </span>
               )}
             </div>
@@ -364,26 +366,26 @@ export function TechStackView() {
               size="sm"
               onClick={() => void startJob('inventory')}
               disabled={jobRunning}
-              title="Offline: re-read manifests and lockfiles"
+              title={t('activity:techStack.offlineReReadManifestsAndLockfiles')}
             >
               <RefreshCw className={cn('size-3.5', jobRunning && 'animate-spin')} />
-              <span className="hidden sm:inline">Refresh</span>
+              <span className="hidden sm:inline">{t('activity:techStack.refresh')}</span>
             </Button>
             <Button
               size="sm"
               onClick={() => void startJob('analyze')}
               disabled={jobRunning}
-              title="Check registries and advisories, then interpret the results with the model"
+              title={t('activity:techStack.checkRegistriesAndAdvisoriesThenInterpretTheResultsWithTheModel')}
             >
               <Sparkles className="size-3.5" />
-              Analyze
+              {t('activity:techStack.analyze')}
             </Button>
             {jobRunning && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => void cancelJob()}
-                aria-label="Cancel job"
+                aria-label={t('activity:techStack.cancelJob')}
               >
                 <X className="size-4" />
               </Button>
@@ -393,8 +395,8 @@ export function TechStackView() {
               size="icon"
               onClick={() => snapshot && downloadSnapshot(snapshot)}
               disabled={!snapshot}
-              aria-label="Export snapshot as JSON"
-              title="Export snapshot as JSON"
+              aria-label={t('activity:techStack.exportSnapshotAsJson')}
+              title={t('activity:techStack.exportSnapshotAsJson')}
             >
               <Download className="size-4" />
             </Button>
@@ -406,24 +408,24 @@ export function TechStackView() {
       {snapshot && (
         <div className="grid shrink-0 grid-cols-2 gap-px border-b border-border/70 bg-border/60 sm:grid-cols-4">
           <MetricCard
-            label="Dependencies"
+            label={t('activity:techStack.dependencies')}
             value={dependencies.length}
             hint={`${visible.length} visible`}
           />
           <MetricCard
-            label="Outdated"
+            label={t('activity:techStack.outdated')}
             value={outdatedCount}
-            hint="majors behind"
+            hint={t('activity:techStack.majorsBehind')}
             tone={outdatedCount > 0 ? 'warning' : 'success'}
           />
           <MetricCard
-            label="Vulnerable"
+            label={t('activity:techStack.vulnerable')}
             value={vulnerableCount}
-            hint="known advisories"
+            hint={t('activity:techStack.knownAdvisories')}
             tone={vulnerableCount > 0 ? 'destructive' : 'success'}
           />
           <MetricCard
-            label="Findings"
+            label={t('activity:techStack.findings')}
             value={findings.length}
             hint={`${attentionCount} need attention`}
             tone={findings.length > 0 ? 'info' : 'default'}
@@ -449,7 +451,7 @@ export function TechStackView() {
             <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
               <span className="min-w-0 flex-1 truncate">{error}</span>
               <button type="button" onClick={() => void fetchSnapshot()} className="underline">
-                Retry
+                {t('activity:techStack.retry')}
               </button>
             </div>
           )}
@@ -477,7 +479,7 @@ export function TechStackView() {
                     : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >
-                {entry.label}
+                {t(entry.labelKey)}
                 {entry.id === 'findings' && findings.length > 0 && (
                   <span className="ml-1.5 font-mono text-[10px] tabular-nums text-muted-foreground">
                     {findings.length}
@@ -494,7 +496,7 @@ export function TechStackView() {
                   'min-h-0 border-r border-border/70',
                   selected ? 'hidden md:flex md:flex-col' : 'flex flex-col',
                 )}
-                aria-label="Dependency list"
+                aria-label={t('activity:techStack.dependencyList')}
               >
                 <TechStackToolbar
                   searchQuery={searchQuery}
@@ -524,7 +526,7 @@ export function TechStackView() {
               </section>
               <section
                 className={cn('min-h-0', selected ? 'flex flex-col' : 'hidden md:flex md:flex-col')}
-                aria-label="Dependency detail"
+                aria-label={t('activity:techStack.dependencyDetail')}
               >
                 {selected ? (
                   <DependencyDetail
@@ -538,7 +540,7 @@ export function TechStackView() {
                 ) : (
                   <div className="flex flex-1 items-center justify-center p-8 text-center">
                     <p className="max-w-xs text-xs text-muted-foreground">
-                      Select a dependency to see its versions, evidence, and findings.
+                      {t('activity:techStack.selectADependencyToSeeIts')}
                     </p>
                   </div>
                 )}
@@ -618,6 +620,7 @@ function RemediationPanel({
   onToggle: (name: string) => void;
   onApply: () => void;
 }) {
+  const { t } = useAppTranslation();
   if (!plan) return <LoadingState />;
   return (
     <div className="min-h-0 flex-1 overflow-auto p-3">
@@ -658,7 +661,7 @@ function RemediationPanel({
                 </span>
                 {manual && (
                   <span className="block text-[10px] text-warning">
-                    Requires a manual package choice.
+                    {t('activity:techStack.requiresAManualPackageChoice')}
                   </span>
                 )}
               </span>
@@ -666,7 +669,7 @@ function RemediationPanel({
           );
         })}
         {plan.items.length === 0 && (
-          <p className="p-8 text-center text-xs text-muted-foreground">No remediation needed.</p>
+          <p className="p-8 text-center text-xs text-muted-foreground">{t('activity:techStack.noRemediationNeeded')}</p>
         )}
       </div>
     </div>
@@ -676,6 +679,7 @@ function RemediationPanel({
 // ── Workspaces ────────────────────────────────────────────────────────────
 
 function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
+  const { t } = useAppTranslation();
   const counts = useMemo(() => {
     const map = new Map<string, number>();
     for (const dep of snapshot.dependencies) {
@@ -688,7 +692,7 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
   if (snapshot.workspaces.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-xs text-muted-foreground">No workspaces detected.</p>
+        <p className="text-xs text-muted-foreground">{t('activity:techStack.noWorkspacesDetected')}</p>
       </div>
     );
   }
@@ -707,7 +711,7 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
                   </p>
                   <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
                     <EcosystemIcon ecosystem={workspace.ecosystem} />
-                    <span>{ecosystemMeta(workspace.ecosystem).label}</span>
+                    <span>{ecosystemLabel(workspace.ecosystem, t)}</span>
                     {workspace.packageManager ? <><span aria-hidden="true">·</span><span>{workspace.packageManager}</span></> : null}
                     <span aria-hidden="true">·</span>
                     <span>{counts.get(workspace.id) ?? 0} deps</span>
@@ -719,7 +723,7 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
                     coverage.badge,
                   )}
                 >
-                  {coverage.label}
+                  {t(coverage.labelKey)}
                 </span>
               </div>
               {workspace.manifests.length > 0 && (
@@ -745,21 +749,24 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
 // ── States ────────────────────────────────────────────────────────────────
 
 function LoadingState() {
+  const { t } = useAppTranslation();
   return (
     <div className="flex flex-1 items-center justify-center">
       <div className="flex flex-col items-center gap-2">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Loading snapshot…</span>
+        <span className="text-xs text-muted-foreground">{t('activity:techStack.loadingSnapshot')}</span>
       </div>
     </div>
   );
 }
 
 function EmptyState({ onScan, disabled }: { onScan: () => void; disabled: boolean }) {
+  const { t } = useAppTranslation();
   const ecosystemList = useMemo(
     () =>
       Object.values(ECOSYSTEM_META)
-        .map((meta) => meta.label)
+        .map((meta) => meta.label ?? '')
+        .filter(Boolean)
         .join(', '),
     [],
   );
@@ -770,14 +777,14 @@ function EmptyState({ onScan, disabled }: { onScan: () => void; disabled: boolea
         <div className="flex size-14 items-center justify-center border border-info/25 bg-info/5 text-info">
           <Boxes className="size-6" />
         </div>
-        <h2 className="text-sm font-semibold">No inventory yet</h2>
+        <h2 className="text-sm font-semibold">{t('activity:techStack.noInventoryYet')}</h2>
         <p className="text-xs leading-relaxed text-muted-foreground">
           TechStack reads every manifest and lockfile in the open project — {ecosystemList} — and
           compares what you have against the upstream registries.
         </p>
         <Button size="sm" onClick={onScan} disabled={disabled}>
           <RefreshCw className={cn('size-3.5', disabled && 'animate-spin')} />
-          Scan this project
+          {t('activity:techStack.scanThisProject')}
         </Button>
       </div>
     </div>

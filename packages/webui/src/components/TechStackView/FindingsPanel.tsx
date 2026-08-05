@@ -12,6 +12,7 @@ import type { TechStackDependency, TechStackFinding } from '@/stores';
 import { cn } from '@/lib/utils';
 import { ACTION_LABELS, Badge, isInterpretation, SEVERITY_META, SEVERITY_ORDER } from './shared';
 import { Pagination } from '../ui/pagination';
+import { useAppTranslation } from '@/i18n';
 
 export interface FindingsPanelProps {
   findings: readonly TechStackFinding[];
@@ -24,13 +25,13 @@ export function FindingsPanel({
   dependenciesById,
   onSelectDependency,
 }: FindingsPanelProps) {
+  const { t } = useAppTranslation();
   const findingPage = usePagination(findings, 20);
   if (findings.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-center">
         <p className="max-w-sm text-xs text-muted-foreground">
-          No findings. Run <span className="font-mono text-foreground">Analyze</span> to check
-          versions and advisories against upstream registries, then interpret the results.
+          {t('activity:techStack.noFindingsRun')} <span className="font-mono text-foreground">{t('activity:techStack.analyze')}</span> {t('activity:techStack.toCheckVersionsAndAdvisoriesAgainst')}
         </p>
       </div>
     );
@@ -48,7 +49,7 @@ export function FindingsPanel({
           <section key={severity}>
             <div className="mb-1.5 flex items-center gap-2">
               <Badge className={SEVERITY_META[severity].badge}>
-                {SEVERITY_META[severity].label}
+                {t(SEVERITY_META[severity].labelKey)}
               </Badge>
               <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
                 {items.length}
@@ -82,6 +83,7 @@ function FindingCard({
   dependency: TechStackDependency | undefined;
   onSelectDependency: (dependencyId: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const interpreted = isInterpretation(finding);
 
   return (
@@ -95,7 +97,7 @@ function FindingCard({
           {dependency?.name ?? finding.dependencyId}
         </button>
         <Badge className="border-border/70 bg-muted text-muted-foreground">
-          {ACTION_LABELS[finding.action] ?? finding.action}
+          {ACTION_LABELS[finding.action] ? t(ACTION_LABELS[finding.action]) : finding.action}
         </Badge>
         {/* The fact/interpretation divide. Deterministic findings come from the
             registry and OSV; anything below confidence 1.0 is the LLM reading

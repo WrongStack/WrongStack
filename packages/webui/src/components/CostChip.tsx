@@ -102,16 +102,16 @@ export function CostChip() {
           {haveRates ? (
             <div className="text-[11px] text-muted-foreground font-mono mb-3 border-b pb-2">
               <div className="flex justify-between">
-                <span>input /1M</span>
+                <span>{t('activity:costChip.input1m')}</span>
                 <span>${inputCost.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>output /1M</span>
+                <span>{t('activity:costChip.output1m')}</span>
                 <span>${outputCost.toFixed(2)}</span>
               </div>
               {cacheReadCost > 0 && (
                 <div className="flex justify-between">
-                  <span>cache /1M</span>
+                  <span>{t('activity:costChip.cache1m')}</span>
                   <span>${cacheReadCost.toFixed(2)}</span>
                 </div>
               )}

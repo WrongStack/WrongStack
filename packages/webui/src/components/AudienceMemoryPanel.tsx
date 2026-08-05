@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { usePagination } from '@/hooks/usePagination';
 import {
   KIND_LABELS,
@@ -150,6 +151,7 @@ function uniqueAudienceValues(memories: SageEntry[], key: keyof MemoryAudience):
 }
 
 export function AudienceMemoryPanel() {
+  const { t } = useAppTranslation();
   const ws = useWebSocket();
   const [memories, setMemories] = useState<SageEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,7 +204,7 @@ export function AudienceMemoryPanel() {
         if (!payload.memory.audience) {
           setFeedback({
             tone: 'success',
-            text: 'Audience scope removed. The memory is now general.',
+            text: t('activity:audienceMem.scopeRemoved'),
           });
         }
       }
@@ -212,7 +214,7 @@ export function AudienceMemoryPanel() {
       const pendingId = deletingIdRef.current;
       if (payload.success && pendingId) {
         setMemories((current) => current.filter((memory) => memory.id !== pendingId));
-        setFeedback({ tone: 'success', text: 'Audience memory deleted.' });
+        setFeedback({ tone: 'success', text: t('activity:audienceMem.deleted') });
         setDeletingId(null);
         setDeleting(false);
         deletingIdRef.current = null;
@@ -284,12 +286,12 @@ export function AudienceMemoryPanel() {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
       setFeedback({
         tone: 'success',
-        text: `${data.length} audience memor${data.length === 1 ? 'y' : 'ies'} copied as JSON.`,
+        text: t('activity:audienceMem.copiedAsJson', { count: data.length }),
       });
     } catch (error) {
       setFeedback({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Failed to copy JSON to the clipboard.',
+        text: error instanceof Error ? error.message : t('activity:audienceMem.copyFailed'),
       });
     }
   };
@@ -317,7 +319,7 @@ export function AudienceMemoryPanel() {
       if (entries.length === 0) {
         setFeedback({
           tone: 'error',
-          text: 'No valid audience-scoped memories were found in the JSON.',
+          text: t('activity:audienceMem.noValidInJson'),
         });
         return false;
       }
@@ -326,14 +328,16 @@ export function AudienceMemoryPanel() {
       }
       setFeedback({
         tone: 'success',
-        text: `${entries.length} memor${entries.length === 1 ? 'y' : 'ies'} queued for import${skipped ? `; ${skipped} invalid ${skipped === 1 ? 'entry was' : 'entries were'} skipped` : ''}.`,
+        text:
+          t('activity:audienceMem.queuedForImport', { count: entries.length }) +
+          (skipped ? t('activity:audienceMem.skippedSuffix', { count: skipped }) : '.'),
       });
       setShowImport(false);
       return true;
     } catch (error) {
       setFeedback({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Invalid JSON.',
+        text: error instanceof Error ? error.message : t('activity:customRoster.invalidJson'),
       });
       return false;
     }
@@ -354,10 +358,10 @@ export function AudienceMemoryPanel() {
                 </span>
                 <div className="min-w-0">
                   <h2 id="audience-memory-title" className="truncate text-sm font-semibold">
-                    Audience Memory
+                    {t('activity:audienceMem.heading')}
                   </h2>
                   <p className="truncate text-[10px] text-muted-foreground">
-                    Guidance routed to matching agents
+                    {t('activity:audienceMem.subheading')}
                   </p>
                 </div>
               </div>
@@ -369,15 +373,15 @@ export function AudienceMemoryPanel() {
               onClick={() => setShowCreate(true)}
             >
               <Plus className="size-3" />
-              Add
+              {t('common:action.add')}
             </Button>
           </div>
 
           <div className="mt-3 grid grid-cols-4 gap-px overflow-hidden rounded-md border border-border/60 bg-border/60">
-            <AudienceStat value={scoped.length} label="Memories" />
-            <AudienceStat value={roles.length} label="Roles" />
-            <AudienceStat value={taskTypes.length} label="Tasks" />
-            <AudienceStat value={modes.length} label="Modes" />
+            <AudienceStat value={scoped.length} label={t('activity:audienceMem.statMemories')} />
+            <AudienceStat value={roles.length} label={t('activity:audienceMem.statRoles')} />
+            <AudienceStat value={taskTypes.length} label={t('activity:audienceMem.statTasks')} />
+            <AudienceStat value={modes.length} label={t('activity:audienceMem.statModes')} />
           </div>
 
           <div className="mt-3 flex items-center gap-1.5">
@@ -386,8 +390,8 @@ export function AudienceMemoryPanel() {
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search text, role, task or mode…"
-                aria-label="Search audience memories"
+                placeholder={t('activity:audienceMem.searchTextRoleTaskOrMode')}
+                aria-label={t('activity:audienceMem.searchAudienceMemories')}
                 className="h-8 pl-8 pr-8 text-xs"
               />
               {query && (
@@ -395,7 +399,7 @@ export function AudienceMemoryPanel() {
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
                   onClick={() => setQuery('')}
-                  aria-label="Clear audience memory search"
+                  aria-label={t('activity:audienceMem.clearAudienceMemorySearch')}
                 >
                   <X className="size-3" />
                 </button>
@@ -406,8 +410,8 @@ export function AudienceMemoryPanel() {
               size="icon"
               className="size-8 shrink-0"
               onClick={refresh}
-              aria-label="Refresh audience memories"
-              title="Refresh"
+              aria-label={t('activity:audienceMem.refreshAudienceMemories')}
+              title={t('activity:audienceMem.refresh')}
             >
               <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
             </Button>
@@ -416,8 +420,8 @@ export function AudienceMemoryPanel() {
               size="icon"
               className="size-8 shrink-0"
               onClick={() => setShowImport(true)}
-              aria-label="Import audience memories"
-              title="Import JSON"
+              aria-label={t('activity:audienceMem.importAudienceMemories')}
+              title={t('activity:audienceMem.importJson')}
             >
               <Upload className="size-3.5" />
             </Button>
@@ -426,8 +430,8 @@ export function AudienceMemoryPanel() {
               size="icon"
               className="size-8 shrink-0"
               onClick={() => void handleExport()}
-              aria-label="Copy audience memories as JSON"
-              title="Copy JSON"
+              aria-label={t('activity:audienceMem.copyAudienceMemoriesAsJson')}
+              title={t('activity:audienceMem.copyJson')}
               disabled={scoped.length === 0}
             >
               <Download className="size-3.5" />
@@ -450,7 +454,7 @@ export function AudienceMemoryPanel() {
               type="button"
               onClick={() => setFeedback(null)}
               className="shrink-0 rounded-sm opacity-70 hover:opacity-100"
-              aria-label="Dismiss message"
+              aria-label={t('activity:audienceMem.dismissMessage')}
             >
               <X className="size-3" />
             </button>
@@ -472,7 +476,7 @@ export function AudienceMemoryPanel() {
                   className="hover:text-foreground"
                   onClick={() => setQuery('')}
                 >
-                  Clear filter
+                  {t('activity:audienceMem.clearFilter')}
                 </button>
               )}
             </div>
@@ -486,9 +490,9 @@ export function AudienceMemoryPanel() {
             ) : filtered.length === 0 ? (
               <div className="flex h-full min-h-32 flex-col items-center justify-center px-4 text-center">
                 <Search className="mb-2 size-5 text-muted-foreground/60" />
-                <p className="text-xs font-medium">No matching memories</p>
+                <p className="text-xs font-medium">{t('activity:audienceMem.noMatching')}</p>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Try another role, task, mode, or phrase.
+                  {t('activity:audienceMem.noMatchingHint')}
                 </p>
                 <Button
                   variant="ghost"
@@ -496,7 +500,7 @@ export function AudienceMemoryPanel() {
                   className="mt-2 h-7 text-xs"
                   onClick={() => setQuery('')}
                 >
-                  Clear search
+                  {t('activity:audienceMemoryPanel.clearSearch')}
                 </Button>
               </div>
             ) : (
@@ -545,10 +549,9 @@ export function AudienceMemoryPanel() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete this audience memory?</DialogTitle>
+            <DialogTitle>{t('activity:audienceMem.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              This removes the memory from active use. To keep it as general project guidance,
-              cancel and use the un-scope action instead.
+              {t('activity:audienceMem.deleteBody')}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-border/70 bg-background/45 p-3 text-xs text-muted-foreground">
@@ -589,6 +592,7 @@ function AudienceMemoryCard({
   onClearScope: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <li className="group rounded-md border border-border/65 bg-card/55 p-2.5 transition-colors hover:border-border hover:bg-card/85">
       <p className="break-words text-xs leading-5">{memory.text}</p>
@@ -606,7 +610,7 @@ function AudienceMemoryCard({
             className="size-6"
             onClick={onClearScope}
             aria-label={`Remove audience scope from ${memoryPreview(memory.text, 42)}`}
-            title="Make general memory"
+            title={t('activity:audienceMem.makeGeneralMemory')}
           >
             <ShieldOff className="size-3" />
           </Button>
@@ -616,7 +620,7 @@ function AudienceMemoryCard({
             className="size-6 text-destructive hover:text-destructive"
             onClick={onDelete}
             aria-label={`Delete ${memoryPreview(memory.text, 42)}`}
-            title="Delete"
+            title={t('activity:audienceMem.delete')}
           >
             <Trash2 className="size-3" />
           </Button>
@@ -656,8 +660,9 @@ function AudienceBadges({
 }
 
 function AudienceMemorySkeleton() {
+  const { t } = useAppTranslation();
   return (
-    <div className="space-y-2 pt-3" role="status" aria-label="Loading audience memories">
+    <div className="space-y-2 pt-3" role="status" aria-label={t('activity:audienceMem.loadingAudienceMemories')}>
       {[0, 1, 2].map((item) => (
         <div key={item} className="animate-pulse rounded-md border border-border/50 p-3">
           <div className="h-2.5 w-full rounded bg-muted" />
@@ -670,19 +675,19 @@ function AudienceMemorySkeleton() {
 }
 
 function EmptyAudienceMemory({ onAdd }: { onAdd: () => void }) {
+  const { t } = useAppTranslation();
   return (
     <div className="flex h-full min-h-44 flex-col items-center justify-center px-5 text-center">
       <span className="mb-3 flex size-10 items-center justify-center rounded-full border border-dashed border-primary/35 bg-primary/5 text-primary">
         <Tag className="size-4" />
       </span>
-      <p className="text-xs font-medium">Route guidance to the right agents</p>
+      <p className="text-xs font-medium">{t('activity:audienceMem.emptyTitle')}</p>
       <p className="mt-1 max-w-52 text-[10px] leading-4 text-muted-foreground">
-        Scope a memory by role, task type, or operating mode. Matching agents receive it
-        automatically.
+        {t('activity:audienceMem.emptyBody')}
       </p>
       <Button variant="outline" size="sm" className="mt-3 h-7 gap-1 text-xs" onClick={onAdd}>
         <Plus className="size-3" />
-        Add scoped memory
+        {t('activity:audienceMem.addScoped')}
       </Button>
     </div>
   );
@@ -699,6 +704,7 @@ function CreateAudienceMemoryDialog({
   onOpenChange: (open: boolean) => void;
   onCreate: (entry: CreateEntry) => void;
 }) {
+  const { t } = useAppTranslation();
   const [text, setText] = useState('');
   const [kind, setKind] = useState('workflow');
   const [roles, setRoles] = useState('');
@@ -725,21 +731,21 @@ function CreateAudienceMemoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Add audience-scoped memory</DialogTitle>
+          <DialogTitle>{t('activity:audienceMem.createTitle')}</DialogTitle>
           <DialogDescription>
-            This guidance is injected only when an agent matches at least one supplied selector.
+            {t('activity:audienceMem.createBody')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
             <label htmlFor="audience-memory-text" className="mb-1.5 block text-xs font-medium">
-              Memory
+              {t('activity:audienceMem.fieldMemory')}
             </label>
             <textarea
               id="audience-memory-text"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder="What should matching agents remember?"
+              placeholder={t('activity:audienceMem.whatShouldMatchingAgentsRemember')}
               rows={4}
               autoFocus
               className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -747,7 +753,7 @@ function CreateAudienceMemoryDialog({
           </div>
           <div>
             <label htmlFor="audience-memory-kind" className="mb-1.5 block text-xs font-medium">
-              Kind
+              {t('activity:audienceMem.fieldKind')}
             </label>
             <select
               id="audience-memory-kind"
@@ -763,36 +769,36 @@ function CreateAudienceMemoryDialog({
             </select>
           </div>
           <fieldset className="space-y-3 rounded-md border border-border/70 bg-background/35 p-3">
-            <legend className="px-1 text-xs font-medium">Audience selectors</legend>
+            <legend className="px-1 text-xs font-medium">{t('activity:audienceMem.selectors')}</legend>
             <AudienceInput
               id="audience-memory-roles"
-              label="Roles"
+              label={t('activity:audienceMem.statRoles')}
               value={roles}
               onChange={setRoles}
-              placeholder="reviewer, refactor-planner"
+              placeholder={t('activity:audienceMem.reviewerRefactorPlanner')}
             />
             <AudienceInput
               id="audience-memory-task-types"
-              label="Task types"
+              label={t('activity:audienceMem.fieldTaskTypes')}
               value={taskTypes}
               onChange={setTaskTypes}
-              placeholder="review, refactor, bugfix"
+              placeholder={t('activity:audienceMem.reviewRefactorBugfix')}
             />
             <AudienceInput
               id="audience-memory-modes"
-              label="Modes"
+              label={t('activity:audienceMem.statModes')}
               value={modes}
               onChange={setModes}
-              placeholder="teach, code-review"
+              placeholder={t('activity:audienceMem.teachCodeReview')}
             />
             <p className="text-[10px] text-muted-foreground">
-              Comma-separate multiple values. At least one selector is required.
+              {t('activity:audienceMem.selectorsHint')}
             </p>
           </fieldset>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Cancel
+            {t('common:action.cancel')}
           </Button>
           <Button
             onClick={() =>
@@ -852,6 +858,7 @@ function ImportAudienceMemoryDialog({
   onOpenChange: (open: boolean) => void;
   onImport: (raw: string) => boolean;
 }) {
+  const { t } = useAppTranslation();
   const [raw, setRaw] = useState('');
 
   useEffect(() => {
@@ -862,15 +869,15 @@ function ImportAudienceMemoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Import audience memories</DialogTitle>
+          <DialogTitle>{t('activity:audienceMem.importTitle')}</DialogTitle>
           <DialogDescription>
-            Paste the JSON produced here or by <code>/memory audience export</code>. Entries without
-            a valid audience selector are skipped.
+            {t('activity:audienceMem.importBodyBefore')} <code>{t('activity:audienceMemoryPanel.memoryAudienceExport')}</code>.{' '}
+            {t('activity:audienceMem.importBodyAfter')}
           </DialogDescription>
         </DialogHeader>
         <div>
           <label htmlFor="audience-memory-import" className="mb-1.5 block text-xs font-medium">
-            JSON array
+            {t('activity:audienceMem.jsonArray')}
           </label>
           <textarea
             id="audience-memory-import"
@@ -885,11 +892,11 @@ function ImportAudienceMemoryDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('common:action.cancel')}
           </Button>
           <Button onClick={() => onImport(raw)} disabled={!raw.trim()}>
             <Upload className="size-4" />
-            Import memories
+            {t('activity:audienceMem.importAction')}
           </Button>
         </DialogFooter>
       </DialogContent>

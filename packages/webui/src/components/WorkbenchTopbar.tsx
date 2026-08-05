@@ -254,28 +254,28 @@ export function WorkbenchTopbar({
             type="button"
             onClick={onSearch}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background/60 px-2 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            title="Search chat"
+            title={t('activity:topbar.searchChat')}
           >
             <Search className="h-3.5 w-3.5" />
-            Search
+            {t('activity:topbar.search')}
           </button>
           <button
             type="button"
             onClick={onPalette}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background/60 px-2 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            title="Command palette"
+            title={t('activity:topbar.commandPalette')}
           >
             <Command className="h-3.5 w-3.5" />
-            Command
+            {t('activity:topbar.command')}
           </button>
           <button
             type="button"
             onClick={onModel}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background/60 px-2 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            title="Switch model"
+            title={t('activity:topbar.switchModel')}
           >
             <Cpu className="h-3.5 w-3.5" />
-            Model
+            {t('activity:topbar.model')}
           </button>
           <button
             type="button"
@@ -336,7 +336,7 @@ export function WorkbenchTopbar({
             type="button"
             onClick={onSettings}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            title="Settings"
+            title={t('activity:topbar.settings')}
           >
             <Settings className="h-3.5 w-3.5" />
           </button>

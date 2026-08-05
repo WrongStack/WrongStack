@@ -1,5 +1,6 @@
 import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { Check, Plus } from 'lucide-react';
+import { useAppTranslation } from '@/i18n';
 
 interface KanbanTaskCompletionChecksProps {
   board: KanbanBoard | null;
@@ -18,10 +19,11 @@ export function KanbanTaskCompletionChecks({
   onAddCheck,
   sendKanban,
 }: KanbanTaskCompletionChecksProps): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <div className="mt-5">
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-        Completion checks
+        {t('activity:kanbanTaskCompletionChecks.completionChecks')}
       </div>
       <div className="space-y-1.5">
         {(task.successCriteria ?? []).map((check) => (
@@ -59,7 +61,7 @@ export function KanbanTaskCompletionChecks({
             value={newCheck}
             onChange={(event) => onNewCheckChange(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && onAddCheck()}
-            placeholder="Add a verifiable completion check…"
+            placeholder={t('activity:kanbanTaskCompletionChecks.addAVerifiableCompletionCheck')}
             className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
           />
           <button type="button" onClick={onAddCheck} className="h-8 rounded-md border px-2 hover:bg-muted">

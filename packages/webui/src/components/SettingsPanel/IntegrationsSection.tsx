@@ -37,7 +37,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             <span className="text-sm font-medium">{t('settings:integrations.hqUrlLabel')}</span>
             <Input
               value={localPrefs.hqUrl}
-              placeholder="http://host:3499"
+              placeholder={t('activity:integrationsSection.httpHost3499')}
               onChange={(e) => syncPref('hqUrl', e.target.value)}
             />
             <p className="text-xs text-muted-foreground">{t('settings:integrations.hqUrlHint')}</p>
@@ -47,7 +47,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             <Input
               type="password"
               value={localPrefs.hqToken}
-              placeholder="Client token from wstack --hq"
+              placeholder={t('activity:integrationsSection.clientTokenFromWstackHq')}
               onChange={(e) => syncPref('hqToken', e.target.value)}
             />
           </div>
@@ -67,7 +67,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             <Server className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold">MCP Servers</h3>
+            <h3 className="text-sm font-semibold">{t('activity:integrationsSection.mcpServers')}</h3>
           </div>
         </div>
         {!localPrefs.featureMcp ? (

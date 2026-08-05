@@ -143,9 +143,9 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
   const categories = useMemo(() => {
     if (!data) return null;
     return [
-      { label: 'System Prompt', key: 'systemPrompt', value: data.systemPrompt, color: 'hsl(var(--info))' },
-      { label: 'Tools', key: 'tools', value: data.tools.total, color: 'hsl(var(--warning))' },
-      { label: 'Messages', key: 'messages', value: data.messages.total, color: 'hsl(var(--success))' },
+      { label: t('activity:ctxDash.systemPrompt'), key: 'systemPrompt', value: data.systemPrompt, color: 'hsl(var(--info))' },
+      { label: t('activity:ctxDash.tools'), key: 'tools', value: data.tools.total, color: 'hsl(var(--warning))' },
+      { label: t('activity:ctxDash.messages'), key: 'messages', value: data.messages.total, color: 'hsl(var(--success))' },
     ];
   }, [data]);
 
@@ -185,7 +185,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
               type="button"
               onClick={() => setRefreshGen((g) => g + 1)}
               className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-              title="Refresh"
+              title={t('activity:ctxBreakdown.refresh')}
             >
               <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
             </button>
@@ -224,14 +224,14 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                 <>
                   <SummaryCard
                     icon={Wrench}
-                    label="Tools registered"
+                    label={t('activity:ctxBreakdown.toolsRegistered')}
                     value={String(data.tools.count)}
                     sub={`${fmtTok(data.tools.total)} tokens`}
                     accent="default"
                   />
                   <SummaryCard
                     icon={MessageSquare}
-                    label="Messages"
+                    label={t('activity:ctxDash.messages')}
                     value={String(data.messages.count)}
                     sub={`${fmtTok(data.messages.total)} tokens`}
                     accent="default"
@@ -258,7 +258,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                   <div className="flex items-center gap-2 mb-2">
                     <BarChart3 className="h-4 w-4 text-primary" />
                     <span className="text-xs font-bold uppercase tracking-wider text-foreground/80">
-                      Token Allocation
+                      {t('activity:ctxBreakdown.tokenAllocation')}
                     </span>
                     <span className="text-[10px] text-muted-foreground ml-auto">
                       {fmtTok(data.total)} total
@@ -352,7 +352,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                     <div className="flex items-center gap-2 mb-2">
                       <Wrench className="h-4 w-4 text-warning" />
                       <span className="text-xs font-bold uppercase tracking-wider text-foreground/80">
-                        Tool Breakdown
+                        {t('activity:ctxBreakdown.toolBreakdown')}
                       </span>
                       <span className="text-[10px] text-muted-foreground ml-auto">
                         {data.tools.breakdown.length} tools · {fmtTok(data.tools.total)} tokens
@@ -389,7 +389,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                   <div className="flex items-center gap-2 mb-2">
                     <MessageSquare className="h-4 w-4 text-success" />
                     <span className="text-xs font-bold uppercase tracking-wider text-foreground/80">
-                      Message Breakdown
+                      {t('activity:ctxBreakdown.messageBreakdown')}
                     </span>
                     <span className="text-[10px] text-muted-foreground ml-auto">
                       {data.messages.count} messages · {fmtTok(data.messages.total)} tokens

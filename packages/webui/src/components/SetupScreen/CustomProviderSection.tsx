@@ -134,7 +134,7 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
                 {t('setup:screen.custom.providerId')}
               </span>
               <Input
-                placeholder="e.g. my-llm"
+                placeholder={t('activity:customProviderSection.eGMyLlm')}
                 value={providerId}
                 onChange={(e) => setProviderId(e.target.value)}
                 className="text-sm"
@@ -167,7 +167,7 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
               {t('setup:screen.custom.baseUrl')}
             </span>
             <Input
-              placeholder="e.g. http://localhost:11434/v1"
+              placeholder={t('activity:customProviderSection.eGHttpLocalhost11434V1')}
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               className="text-sm font-mono"

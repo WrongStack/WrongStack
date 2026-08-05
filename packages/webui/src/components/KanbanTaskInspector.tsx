@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type {
   KanbanBoard,
   KanbanBoardPresence,
@@ -74,6 +75,7 @@ export function KanbanTaskInspector({
   activitySessionId?: string | undefined;
   refreshActivity: () => void;
 }) {
+  const { t } = useAppTranslation();
   const [agentId, setAgentId] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
@@ -207,7 +209,10 @@ export function KanbanTaskInspector({
     retryPolicy,
     activityNote:
       changeReason.trim() ||
-      `${action === 'dispatch' ? 'Dispatched' : 'Assigned'} from WebUI to ${name.trim() || agentId.trim() || role.trim() || 'the configured agent route'}.`,
+      `${t('activity:kanban.activityNoteTemplate', {
+        action: action === 'dispatch' ? t('activity:kanban.dispatched') : t('activity:kanban.assigned'),
+        target: name.trim() || agentId.trim() || role.trim() || t('activity:kanban.configuredAgentRoute'),
+      })}`,
   });
 
   const saveDetails = () => {
@@ -333,7 +338,7 @@ export function KanbanTaskInspector({
 
   return (
     <aside
-      aria-label="Task inspector"
+      aria-label={t('activity:kanban.taskInspector')}
       data-expanded={expanded ? 'true' : 'false'}
       className={cn(
         'flex max-h-[42dvh] w-full shrink-0 flex-col border-t bg-card/40 transition-[width] duration-200 ease-out md:max-h-none md:border-l md:border-t-0',
@@ -344,13 +349,13 @@ export function KanbanTaskInspector({
     >
       <div className={cn('flex h-12 items-center gap-2 border-b px-3', expanded && 'px-5')}>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">Task</div>
+          <div className="truncate text-sm font-semibold">{t('activity:kanban.task')}</div>
           <div className="truncate text-[11px] text-muted-foreground">{task.id.slice(0, 8)}</div>
         </div>
         <button
           type="button"
-          title={expanded ? 'Collapse task details' : 'Expand task details'}
-          aria-label={expanded ? 'Collapse task details' : 'Expand task details'}
+          title={expanded ? t('activity:kanban.collapseDetails') : t('activity:kanban.expandDetails')}
+          aria-label={expanded ? t('activity:kanban.collapseDetails') : t('activity:kanban.expandDetails')}
           aria-pressed={expanded}
           onClick={() => setExpanded((value) => !value)}
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -359,7 +364,7 @@ export function KanbanTaskInspector({
         </button>
         <button
           type="button"
-          title="Close"
+          title={t('common:action.close')}
           onClick={() => {
             setExpanded(false);
             onClose();
@@ -379,7 +384,7 @@ export function KanbanTaskInspector({
         >
           <div className="space-y-3 rounded-md border bg-background p-2.5">
             <KanbanBoundaryEditor
-              title="Task boundary"
+              title={t('activity:kanban.taskBoundary')}
               value={task.boundary}
               inherited={board?.boundary}
               onSave={(boundary) => {
@@ -393,10 +398,10 @@ export function KanbanTaskInspector({
                 window.setTimeout(() => refreshBoard(board.id), 150);
               }}
             />
-            <Field label="Title" value={title} onChange={setTitle} />
+            <Field label={t('activity:kanban.title')} value={title} onChange={setTitle} />
             <label className="block">
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                Description / working context
+                {t('activity:kanbanInspector.descriptionWorkingContext')}
               </span>
               <textarea
                 value={description}
@@ -409,7 +414,7 @@ export function KanbanTaskInspector({
               {board?.lifecycle?.mode === 'managed' ? (
                 <div className="rounded-md border bg-muted/30 px-2 py-1.5">
                   <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Managed stage
+                    {t('activity:kanban.managedStage')}
                   </div>
                   <div className="mt-1 text-xs font-semibold capitalize">
                     {task.lifecycle?.currentStage ?? 'Backlog'}
@@ -417,7 +422,7 @@ export function KanbanTaskInspector({
                 </div>
               ) : (
                 <SelectField
-                  label="Status"
+                  label={t('activity:kanban.status')}
                   value={status}
                   options={[
                     'pending',
@@ -433,27 +438,27 @@ export function KanbanTaskInspector({
                 />
               )}
               <SelectField
-                label="Priority"
+                label={t('activity:kanban.priority')}
                 value={priority}
                 options={['critical', 'high', 'medium', 'low']}
                 onChange={(value) => setPriority(value as KanbanTask['priority'])}
               />
               <SelectField
-                label="Type"
+                label={t('activity:kanban.type')}
                 value={taskType}
                 options={['feature', 'bugfix', 'refactor', 'docs', 'test', 'chore']}
                 onChange={(value) => setTaskType(value as NonNullable<KanbanTask['type']>)}
               />
-              <Field label="Labels (comma separated)" value={labelsText} onChange={setLabelsText} />
+              <Field label={t('activity:kanban.labelsCommaSeparated')} value={labelsText} onChange={setLabelsText} />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Due date (ISO or YYYY-MM-DD)" value={dueDate} onChange={setDueDate} />
-              <Field label="Estimated hours" value={estimatedHours} onChange={setEstimatedHours} />
-              <Field label="Actual hours" value={actualHours} onChange={setActualHours} />
+              <Field label={t('activity:kanban.dueDatePlaceholder')} value={dueDate} onChange={setDueDate} />
+              <Field label={t('activity:kanban.estimatedHours')} value={estimatedHours} onChange={setEstimatedHours} />
+              <Field label={t('activity:kanban.actualHours')} value={actualHours} onChange={setActualHours} />
             </div>
             <div>
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                Dependencies
+                {t('activity:kanbanInspector.dependencies')}
               </span>
               <ChipMultiSelect
                 options={(board?.tasks ?? [])
@@ -465,12 +470,12 @@ export function KanbanTaskInspector({
                   }))}
                 selected={dependsOn}
                 onChange={setDependsOn}
-                placeholder="Select blocking tasks…"
+                placeholder={t('activity:kanban.selectBlockingTasks')}
               />
             </div>
             <div>
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                Task chain (selection order)
+                {t('activity:kanbanInspector.taskChainSelectionOrder')}
               </span>
               <ChipMultiSelect
                 options={(board?.tasks ?? []).map((candidate) => ({
@@ -482,7 +487,7 @@ export function KanbanTaskInspector({
                 onChange={(next) =>
                   setChainMembers(next.includes(task.id) ? next : [task.id, ...next])
                 }
-                placeholder="Add tasks to a sequential chain…"
+                placeholder={t('activity:kanban.selectSequentialChain')}
               />
               <label className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
                 <input
@@ -490,11 +495,11 @@ export function KanbanTaskInspector({
                   checked={enforceChainDependencies}
                   onChange={(event) => setEnforceChainDependencies(event.target.checked)}
                 />
-                Enforce chain order as dependencies
+                {t('activity:kanban.enforceChainOrder')}
               </label>
             </div>
             <Field
-              label="Change / assignment reason (persisted to activity)"
+              label={t('activity:kanban.assignmentReason')}
               value={changeReason}
               onChange={setChangeReason}
             />
@@ -503,17 +508,17 @@ export function KanbanTaskInspector({
               onClick={saveDetails}
               className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90"
             >
-              <Save size={15} /> Save task contract
+              <Save size={15} /> {t('activity:kanbanInspector.saveTaskContract')}
             </button>
             {board?.lifecycle?.mode === 'managed' && nextManagedStage && (
               <section
-                aria-label="Managed lifecycle transition"
+                aria-label={t('activity:kanban.managedLifecycle')}
                 className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-2.5"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                      Kanban Agent transition
+                      {t('activity:kanban.kanbanAgentTransition')}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {currentManagedStage} → {nextManagedStage}; no stages can be skipped.
@@ -522,17 +527,17 @@ export function KanbanTaskInspector({
                   <ShieldCheck size={16} className="text-primary" />
                 </div>
                 <Field
-                  label="Completed action / reviewer action"
+                  label={t('activity:kanban.completedAction')}
                   value={transitionAction}
                   onChange={setTransitionAction}
                 />
                 <Field
-                  label="Truthful progress comment (required)"
+                  label={t('activity:kanban.progressComment')}
                   value={transitionComment}
                   onChange={setTransitionComment}
                 />
                 <Field
-                  label="Evidence attachment URL"
+                  label={t('activity:kanban.evidenceUrl')}
                   value={transitionAttachmentUrl}
                   onChange={setTransitionAttachmentUrl}
                 />
@@ -568,10 +573,10 @@ export function KanbanTaskInspector({
             </>
           )}
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <Metric label="Source" value={task.origin?.system ?? 'manual'} />
-            <Metric label="Task ID" value={task.id.slice(0, 8)} />
-            <Metric label="Run" value={task.assignment?.status ?? 'unassigned'} />
-            <Metric label="Column" value={columnTitle(board, task.columnId)} />
+            <Metric label={t('activity:kanban.source')} value={task.origin?.system ?? 'manual'} />
+            <Metric label={t('activity:kanban.taskId')} value={task.id.slice(0, 8)} />
+            <Metric label={t('activity:kanban.run')} value={task.assignment?.status ?? 'unassigned'} />
+            <Metric label={t('activity:kanban.column')} value={columnTitle(board, task.columnId)} />
           </div>
 
           {task.assignment && <AgentRunPanel assignment={task.assignment} />}
@@ -589,7 +594,7 @@ export function KanbanTaskInspector({
             <>
               <div className="mt-4 space-y-3">
                 <SelectField
-                  label="Primary model source"
+                  label={t('activity:kanban.primaryModelSource')}
                   value={routingMode}
                   options={['session', 'fixed', 'fallback_profile']}
                   onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
@@ -603,13 +608,13 @@ export function KanbanTaskInspector({
                 {routingMode === 'fixed' && (
                   <div>
                     <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                      Fixed provider / model
+                      {t('activity:kanbanInspector.fixedProviderModel')}
                     </span>
                     <ModelPicker
                       value={model || undefined}
                       provider={provider || undefined}
                       candidates={modelCandidates}
-                      placeholder="Select exact provider / model…"
+                      placeholder={t('activity:kanban.selectProviderModel')}
                       onPick={(nextModel, nextProvider) => {
                         setModel(nextModel);
                         setProvider(nextProvider);
@@ -619,10 +624,10 @@ export function KanbanTaskInspector({
                 )}
                 {routingMode === 'fallback_profile' && (
                   <SelectField
-                    label="Fallback profile (first model is primary)"
+                    label={t('activity:kanban.fallbackProfile')}
                     value={fallbackProfile}
                     options={Object.keys(meta.fallbackProfiles)}
-                    placeholder="Select configured profile…"
+                    placeholder={t('activity:kanban.selectProfile')}
                     onChange={setFallbackProfile}
                   />
                 )}
@@ -630,7 +635,7 @@ export function KanbanTaskInspector({
                 {/* Fallback models — real multi-pick from the same live catalogue. */}
                 <div>
                   <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                    Fallback models
+                    {t('activity:kanban.fallbackModels')}
                   </span>
                   <ChipMultiSelect
                     options={modelCandidates.map((c) => ({
@@ -641,23 +646,23 @@ export function KanbanTaskInspector({
                     }))}
                     selected={fallbackModels}
                     onChange={setFallbackModels}
-                    placeholder="Add fallback model…"
+                    placeholder={t('activity:kanban.addFallbackModel')}
                     emptyLabel="No models — add a provider in Settings"
                   />
                 </div>
 
                 <SelectField
-                  label="Role"
+                  label={t('activity:kanban.role')}
                   value={role}
                   options={KNOWN_ROLES}
-                  placeholder="Select a role…"
+                  placeholder={t('activity:kanban.selectRole')}
                   onChange={setRole}
                 />
 
                 <div>
                   <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                     Agentic skills{' '}
-                    <span className="text-muted-foreground/70">· force-loaded into the worker</span>
+                    <span className="text-muted-foreground/70">{t('activity:kanbanInspector.forceLoadedIntoTheWorker')}</span>
                   </span>
                   <ChipMultiSelect
                     options={meta.skills.map((skill) => ({
@@ -668,7 +673,7 @@ export function KanbanTaskInspector({
                     }))}
                     selected={skills}
                     onChange={setSkills}
-                    placeholder="Assign required skills…"
+                    placeholder={t('activity:kanban.assignSkills')}
                     emptyLabel="No skills registered"
                   />
                 </div>
@@ -677,7 +682,7 @@ export function KanbanTaskInspector({
                 <div>
                   <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                     Tools{' '}
-                    <span className="text-muted-foreground/70">· blank = full default toolset</span>
+                    <span className="text-muted-foreground/70">{t('activity:kanbanInspector.blankFullDefaultToolset')}</span>
                   </span>
                   <ChipMultiSelect
                     options={meta.tools.map((tool) => ({
@@ -687,7 +692,7 @@ export function KanbanTaskInspector({
                     }))}
                     selected={tools}
                     onChange={setTools}
-                    placeholder="Restrict to specific tools…"
+                    placeholder={t('activity:kanban.restrictTools')}
                     emptyLabel="Tool list unavailable on this server"
                   />
                 </div>
@@ -699,7 +704,7 @@ export function KanbanTaskInspector({
                     onClick={() => setShowAdvanced((v) => !v)}
                     className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
                   >
-                    Advanced
+                    {t('activity:kanbanInspector.advanced')}
                     <ChevronDown
                       size={13}
                       className={cn('transition-transform', showAdvanced && 'rotate-180')}
@@ -707,19 +712,19 @@ export function KanbanTaskInspector({
                   </button>
                   {showAdvanced && (
                     <div className="space-y-3 border-t p-2">
-                      <Field label="Agent name (optional)" value={name} onChange={setName} />
+                      <Field label={t('activity:kanban.agentNameOptional')} value={name} onChange={setName} />
                       <div className="grid grid-cols-2 gap-2">
                         <SelectField
-                          label="Retry policy"
+                          label={t('activity:kanban.retryPolicy')}
                           value={retryPolicy}
                           options={['off', 'incremental', 'exponential']}
                           onChange={(value) =>
                             setRetryPolicy(value as NonNullable<KanbanTask['retryPolicy']>)
                           }
                         />
-                        <Field label="Max attempts" value={maxAttempts} onChange={setMaxAttempts} />
+                        <Field label={t('activity:kanban.maxAttempts')} value={maxAttempts} onChange={setMaxAttempts} />
                         <Field
-                          label="Cost ceiling USD"
+                          label={t('activity:kanban.costCeilingUsd')}
                           value={costCeilingUsd}
                           onChange={setCostCeilingUsd}
                         />
@@ -727,13 +732,13 @@ export function KanbanTaskInspector({
                       <div>
                         <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                           Capabilities{' '}
-                          <span className="text-muted-foreground/70">· blank = safe defaults</span>
+                          <span className="text-muted-foreground/70">{t('activity:kanbanInspector.blankSafeDefaults')}</span>
                         </span>
                         <ChipMultiSelect
                           options={KNOWN_CAPABILITIES}
                           selected={allowedCapabilities}
                           onChange={setAllowedCapabilities}
-                          placeholder="Grant a capability…"
+                          placeholder={t('activity:kanban.grantCapability')}
                         />
                       </div>
                     </div>
@@ -748,7 +753,7 @@ export function KanbanTaskInspector({
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted"
                 >
                   <UserPlus size={15} />
-                  Assign
+                  {t('activity:kanbanInspector.assign')}
                 </button>
                 <button
                   type="button"
@@ -756,7 +761,7 @@ export function KanbanTaskInspector({
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90"
                 >
                   <Send size={15} />
-                  Dispatch
+                  {t('activity:kanbanInspector.dispatch')}
                 </button>
               </div>
             </>
@@ -766,7 +771,7 @@ export function KanbanTaskInspector({
             <div className="mt-4 space-y-2 rounded-md border bg-background p-2">
               <label className="block">
                 <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Target board
+                  {t('activity:kanban.targetBoard')}
                 </span>
                 <select
                   value={targetBoardId}
@@ -790,7 +795,7 @@ export function KanbanTaskInspector({
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
                 >
                   <Copy size={15} />
-                  Copy
+                  {t('activity:kanbanInspector.copy')}
                 </button>
                 <button
                   type="button"
@@ -799,7 +804,7 @@ export function KanbanTaskInspector({
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
                 >
                   <MoveRight size={15} />
-                  Transfer
+                  {t('activity:kanbanInspector.transfer')}
                 </button>
               </div>
             </div>

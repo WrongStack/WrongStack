@@ -18,6 +18,7 @@
  * Both panels keep their own data fetching, list state, and modal flows.
  * Nothing in this file reaches into their internals.
  */
+import { useAppTranslation } from '@/i18n';
 import { type BrainCircuit, ListFilter, Users2 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -51,11 +52,12 @@ const SAGE_TABS: ReadonlyArray<{
   hint: string;
   Icon: typeof BrainCircuit;
 }> = [
-  { value: 'all', label: 'All memories', hint: 'Inspect, curate, retire', Icon: ListFilter },
-  { value: 'audience', label: 'Audience-scoped', hint: 'Guidance routed to agents', Icon: Users2 },
+  { value: 'all', label: 'activity:memoryManager.tabAllMemories', hint: 'activity:memoryManager.tabAllMemoriesHint', Icon: ListFilter },
+  { value: 'audience', label: 'activity:memoryManager.tabAudience', hint: 'activity:memoryManager.tabAudienceHint', Icon: Users2 },
 ];
 
 export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue } = {}) {
+  const { t } = useAppTranslation();
   return (
     <Tabs
       defaultValue={defaultValue}
@@ -66,7 +68,7 @@ export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue
         role="presentation"
       >
         <TabsList
-          aria-label="SAGE memory lenses"
+          aria-label={t('activity:memoryManager.lensesAria')}
           className="h-9 bg-muted/40 p-1 shadow-none"
         >
           {SAGE_TABS.map(({ value, label, hint, Icon }) => (
@@ -80,9 +82,9 @@ export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue
               )}
             >
               <Icon className="size-3.5" />
-              <span>{label}</span>
+              <span>{t(label)}</span>
               <span className="hidden font-mono text-[9px] font-normal normal-case text-muted-foreground sm:inline">
-                {hint}
+                {t(hint)}
               </span>
             </TabsTrigger>
           ))}
@@ -93,7 +95,7 @@ export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue
         value="all"
         className="mt-0 flex-1 overflow-hidden ring-offset-0 focus-visible:ring-0"
       >
-        <Suspense fallback={<TabFallback label="Loading SAGE" />}>
+        <Suspense fallback={<TabFallback label={t('activity:memoryManager.loadingSage')} />}>
           <MemoryManager />
         </Suspense>
       </TabsContent>
@@ -102,7 +104,7 @@ export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue
         value="audience"
         className="mt-0 flex-1 overflow-hidden ring-offset-0 focus-visible:ring-0"
       >
-        <Suspense fallback={<TabFallback label="Loading audience memories" />}>
+        <Suspense fallback={<TabFallback label={t('activity:memoryManager.loadingAudience')} />}>
           <AudienceMemoryPanel />
         </Suspense>
       </TabsContent>

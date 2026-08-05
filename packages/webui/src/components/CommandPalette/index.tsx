@@ -130,7 +130,7 @@ export function CommandPalette() {
       {
         id: 'context',
         category: 'Command',
-        label: 'Context Dashboard',
+        label: t('activity:panels.contextDashboard'),
         icon: BarChart3,
         keywords: ['context', 'window', 'tokens', 'pressure', 'telemetry'],
         run: () => useUIStore.getState().setCurrentView('context'),

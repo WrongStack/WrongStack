@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { FallbackEditor } from '@/components/FallbackEditor';
 import { ModelPicker } from '@/components/ModelPicker';
 import { useProviderModels } from '@/hooks/useProviderModels';
+import { useAppTranslation } from '@/i18n';
 
 type ModelTarget = { provider: string; model: string };
 type RuntimePolicy = Record<string, unknown> & {
@@ -74,6 +75,7 @@ export function AgentRuntimePolicyEditor({
   onSave: (config: Record<string, unknown>) => void;
   onCancel: () => void;
 }): React.ReactElement {
+  const { t } = useAppTranslation();
   const [config, setConfig] = useState<RuntimePolicy>(() => structuredClone(initialConfig));
   const candidates = useProviderModels(true);
   const modelPolicy = config.modelPolicy;
@@ -139,20 +141,18 @@ export function AgentRuntimePolicyEditor({
         <div className="flex gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
           <span>
-            Protected system agent: required tools and capabilities are retained, minimum budgets
-            are enforced, working hours remain advisory, and emergency model recovery stays enabled
-            so core operations cannot be disabled.
+            {t('activity:runtimePolicy.protectedSystemAgentRequiredToolsAnd')}
           </span>
         </div>
       )}
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold">Provider and model policy</h4>
+        <h4 className="text-xs font-semibold">{t('activity:runtimePolicy.providerAndModelPolicy')}</h4>
         <ModelPicker
           candidates={candidates}
           provider={config.provider}
           value={config.model}
-          placeholder="Use project default model"
+          placeholder={t('activity:runtimePolicy.useProjectDefaultModel')}
           resetLabel="Use project default"
           onReset={() => {
             setConfig((current) => {
@@ -190,27 +190,27 @@ export function AgentRuntimePolicyEditor({
               }
             }}
           />
-          Restrict this agent to an explicit model allowlist
+          {t('activity:runtimePolicy.restrictThisAgentToAnExplicit')}
         </label>
         {modelPolicy && (
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <span className="text-[10px] font-medium">Allowed models</span>
+              <span className="text-[10px] font-medium">{t('activity:runtimePolicy.allowedModels')}</span>
               <FallbackEditor
                 value={allowedRefs}
                 candidates={candidates}
                 onChange={setAllowed}
-                placeholder="Add allowed model"
+                placeholder={t('activity:runtimePolicy.addAllowedModel')}
                 emptyHint="At least one model is required"
               />
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] font-medium">Ordered fallback chain</span>
+              <span className="text-[10px] font-medium">{t('activity:runtimePolicy.orderedFallbackChain')}</span>
               <FallbackEditor
                 value={fallbackRefs}
                 candidates={candidates}
                 onChange={setFallbacks}
-                placeholder="Add fallback model"
+                placeholder={t('activity:runtimePolicy.addFallbackModel')}
                 emptyHint="No fallback; primary failure stops the task"
               />
             </div>
@@ -239,19 +239,19 @@ export function AgentRuntimePolicyEditor({
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold">Workspace and isolation</h4>
+        <h4 className="text-xs font-semibold">{t('activity:runtimePolicy.workspaceAndIsolation')}</h4>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-[10px]">
-            <span>Project-relative working directory</span>
+            <span>{t('activity:runtimePolicy.projectRelativeWorkingDirectory')}</span>
             <input
               value={config.cwd ?? ''}
               onChange={(event) => patch({ cwd: event.target.value || undefined })}
-              placeholder="packages/webui"
+              placeholder={t('activity:runtimePolicy.packagesWebui')}
               className="h-8 w-full rounded border border-border bg-background px-2 font-mono"
             />
           </label>
           <label className="space-y-1 text-[10px]">
-            <span>Git worktree isolation</span>
+            <span>{t('activity:runtimePolicy.gitWorktreeIsolation')}</span>
             <select
               value={String(config.worktree ?? 'auto')}
               onChange={(event) =>
@@ -259,16 +259,16 @@ export function AgentRuntimePolicyEditor({
               }
               className="h-8 w-full rounded border border-border bg-background px-2"
             >
-              <option value="auto">Automatic</option>
-              <option value="required">Required</option>
-              <option value="off">Off</option>
+              <option value="auto">{t('activity:runtimePolicy.automatic')}</option>
+              <option value="required">{t('activity:runtimePolicy.required')}</option>
+              <option value="off">{t('activity:runtimePolicy.off')}</option>
             </select>
           </label>
         </div>
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold">Limits</h4>
+        <h4 className="text-xs font-semibold">{t('activity:runtimePolicy.limits')}</h4>
         <div className="grid gap-2 sm:grid-cols-3">
           {BUDGETS.map(([field, label]) => (
             <label key={field} className="space-y-1 text-[10px]">
@@ -311,7 +311,7 @@ export function AgentRuntimePolicyEditor({
               }
             }}
           />
-          Working hours
+          {t('activity:runtimePolicy.workingHours')}
         </label>
         {config.availability && (
           <div className="space-y-2 rounded border border-border p-2">
@@ -340,7 +340,7 @@ export function AgentRuntimePolicyEditor({
                 onChange={(event) =>
                   patch({ availability: { ...config.availability!, timezone: event.target.value } })
                 }
-                placeholder="Europe/Kiev"
+                placeholder={t('activity:runtimePolicy.europeKiev')}
                 className="h-8 rounded border border-border bg-background px-2 text-[10px]"
               />
               <input
@@ -372,8 +372,8 @@ export function AgentRuntimePolicyEditor({
                 }
                 className="h-8 rounded border border-border bg-background px-2 text-[10px]"
               >
-                <option value="enforce">Enforce</option>
-                <option value="advisory">Advisory</option>
+                <option value="enforce">{t('activity:runtimePolicy.enforce')}</option>
+                <option value="advisory">{t('activity:runtimePolicy.advisory')}</option>
               </select>
             </div>
           </div>
@@ -394,7 +394,7 @@ export function AgentRuntimePolicyEditor({
           onClick={onCancel}
           className="rounded border border-border px-3 py-1.5 text-xs hover:bg-accent"
         >
-          Cancel
+          {t('activity:runtimePolicy.cancel')}
         </button>
       </div>
     </div>

@@ -23,7 +23,7 @@ export function FleetSection({ syncPref }: FleetSectionProps) {
           <div>
             <h3 className="text-sm font-semibold">{t('settings:fleet.heading')}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Configure how subagents and fleet operations behave.
+              {t('activity:fleetSection.configureHowSubagentsAndFleetOperations')}
             </p>
           </div>
         </div>

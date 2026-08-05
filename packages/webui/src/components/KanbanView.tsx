@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type { KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { Columns3, Copy, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -32,6 +33,7 @@ const BOARD_PAGE_SIZE = 12;
 export { deriveTaskCardIntelligence, type TaskCardIntelligence } from './KanbanColumnView';
 
 export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) {
+  const { t } = useAppTranslation();
   const wsUrl = useConfigStore((s) => s.wsUrl);
   const sessionId = useSessionStore((s) => s.session?.id ?? null);
   const fleetAgents = useFleetStore((s) => s.agents);
@@ -369,12 +371,12 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') createTask();
                 }}
-                placeholder="New task"
+                placeholder={t('activity:kanban.newTask')}
                 className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-56"
               />
               <button
                 type="button"
-                title="Add task"
+                title={t('activity:kanban.addTask')}
                 onClick={createTask}
                 className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
               >
@@ -386,12 +388,12 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') createColumn();
                 }}
-                placeholder="New column"
+                placeholder={t('activity:kanban.newColumn')}
                 className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-44"
               />
               <button
                 type="button"
-                title="Add column"
+                title={t('activity:kanban.addColumn')}
                 onClick={createColumn}
                 className="hidden h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
               >
@@ -399,7 +401,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
               </button>
               <button
                 type="button"
-                title="Duplicate board"
+                title={t('activity:kanban.duplicateBoard')}
                 onClick={duplicateBoard}
                 className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
@@ -407,7 +409,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
               </button>
               <button
                 type="button"
-                title="Delete board"
+                title={t('activity:kanban.deleteBoard')}
                 onClick={deleteBoard}
                 className="hidden h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:flex"
               >
@@ -421,7 +423,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         {activeBoard && (
           <div className="shrink-0 border-b px-3 py-2 sm:px-4">
             <KanbanBoundaryEditor
-              title="Board boundary"
+              title={t('activity:kanban.boardBoundary')}
               value={activeBoard.boundary}
               onSave={(boundary) => {
                 sendKanban('kanban.update', { boardId: activeBoard.id, boundary });
@@ -500,7 +502,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
             </>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              No kanban board selected.
+              {t('activity:kanban.noBoardSelected')}
             </div>
           )}
         </div>

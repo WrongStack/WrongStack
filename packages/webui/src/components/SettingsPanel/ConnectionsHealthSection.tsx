@@ -122,7 +122,7 @@ export function ConnectionsHealthSection() {
     return [
       {
         id: 'webui',
-        label: 'WebUI transport',
+        label: t('settings:connection.webuiTransport'),
         status: wsConnected ? 'degraded' : 'error',
         required: true,
         mode: wsConnected ? 'legacy-backend' : 'disconnected',

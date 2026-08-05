@@ -590,13 +590,13 @@ export function ProviderSection({
                 ref={addProviderNav.setFieldRef(1)}
                 onKeyDown={(e) => addProviderNav.handleKeyDown(e, 1)}
               >
-                <option value="anthropic">Anthropic</option>
-                <option value="openai">OpenAI</option>
-                <option value="openai-compatible">OpenAI Compatible</option>
-                <option value="google">Google</option>
+                <option value="anthropic">{t('activity:provider.anthropic')}</option>
+                <option value="openai">{t('activity:provider.openai')}</option>
+                <option value="openai-compatible">{t('activity:provider.openaiCompatible')}</option>
+                <option value="google">{t('activity:provider.google')}</option>
               </select>
               <Input
-                placeholder="Base URL (optional, e.g. http://localhost:11434/v1)"
+                placeholder={t('activity:provider.baseUrlOptionalEGHttpLocalhost11434V1')}
                 value={newProviderBaseUrl}
                 onChange={(e) => setNewProviderBaseUrl(e.target.value)}
                 ref={addProviderNav.setFieldRef(2)}

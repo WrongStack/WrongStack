@@ -4,6 +4,7 @@ import { type ModelCandidate, useProviderModels } from '@/hooks/useProviderModel
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { PickerCardList } from './ui/PickerCardList';
+import { useAppTranslation } from '@/i18n';
 
 /**
  * What the dialog lets the user pick: provider/model, fallback profile, or both.
@@ -55,6 +56,7 @@ export function ModelSelectDialog({
   onClose,
   clearLabel = 'Clear',
 }: ModelSelectDialogProps): ReactElement {
+  const { t } = useAppTranslation();
   const candidates = useProviderModels(open && mode !== 'fallback');
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -154,7 +156,7 @@ export function ModelSelectDialog({
               )}
             >
               <Layers className="h-3 w-3 inline mr-1" />
-              Fallback Profiles
+              {t('activity:modelSelectDialog.fallbackProfiles')}
             </button>
             <button
               type="button"
@@ -194,7 +196,7 @@ export function ModelSelectDialog({
               />
             ) : (
               <p className="py-4 text-center text-xs text-muted-foreground">
-                No fallback profiles configured.
+                {t('activity:modelSelectDialog.noFallbackProfilesConfigured')}
               </p>
             )}
           </div>

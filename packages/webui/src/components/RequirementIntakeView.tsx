@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useAppTranslation } from '@/i18n';
 
 interface IntakeRecord {
   id: string;
@@ -66,6 +67,7 @@ function relativeTime(timestamp: number): string {
 }
 
 export function RequirementIntakeView(): React.ReactElement {
+  const { t } = useAppTranslation();
   const [projectId, setProjectId] = useState<string | null>(null);
   const [intakes, setIntakes] = useState<IntakeRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,9 +167,9 @@ export function RequirementIntakeView(): React.ReactElement {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="border-b border-border/70 px-5 py-3">
-        <div className="text-sm font-semibold text-foreground">Requirements Intake</div>
+        <div className="text-sm font-semibold text-foreground">{t('activity:reqIntake.requirementsIntake')}</div>
         <div className="mt-0.5 text-[11px] text-muted-foreground">
-          Collect and preserve software development requests as structured intake records
+          {t('activity:reqIntake.collectAndPreserveSoftwareDevelopmentRequests')}
         </div>
       </header>
 
@@ -183,29 +185,29 @@ export function RequirementIntakeView(): React.ReactElement {
               className="ml-2 underline underline-offset-2"
               onClick={() => void load()}
             >
-              Retry
+              {t('activity:reqIntake.retry')}
             </button>
           </div>
         ) : null}
 
         {/* Create form */}
         <section
-          aria-label="File a new intake"
+          aria-label={t('activity:reqIntake.fileANewIntake')}
           className="mb-6 rounded-lg border border-border/70 bg-card/60 p-4"
         >
           <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            File a new request
+            {t('activity:reqIntake.fileANewRequest')}
           </div>
           <div className="space-y-3">
             <div>
               <label htmlFor="intake-request" className="mb-1 block text-xs text-foreground">
-                Request text <span className="text-destructive">*</span>
+                {t('activity:reqIntake.requestText')} <span className="text-destructive">*</span>
               </label>
               <textarea
                 id="intake-request"
                 value={request}
                 onChange={(event) => setRequest(event.target.value)}
-                placeholder="Describe the feature, bug fix, refactor, or change…"
+                placeholder={t('activity:reqIntake.describeTheFeatureBugFixRefactorOrChange')}
                 rows={4}
                 className={cn(
                   'w-full resize-y rounded-md border border-border/70 bg-background px-3 py-2',
@@ -214,24 +216,24 @@ export function RequirementIntakeView(): React.ReactElement {
                 )}
               />
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Stored verbatim as the record&apos;s original request — never rewritten.
+                {t('activity:reqIntake.storedVerbatimAsTheRecordApos')}
               </p>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label htmlFor="intake-title" className="mb-1 block text-xs text-foreground">
-                  Title (optional)
+                  {t('activity:reqIntake.titleOptional')}
                 </label>
                 <Input
                   id="intake-title"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Short display title"
+                  placeholder={t('activity:reqIntake.shortDisplayTitle')}
                 />
               </div>
               <div>
                 <label htmlFor="intake-type" className="mb-1 block text-xs text-foreground">
-                  Type
+                  {t('activity:reqIntake.type')}
                 </label>
                 <select
                   id="intake-type"
@@ -251,7 +253,7 @@ export function RequirementIntakeView(): React.ReactElement {
               </div>
               <div>
                 <label htmlFor="intake-priority" className="mb-1 block text-xs text-foreground">
-                  Priority
+                  {t('activity:reqIntake.priority')}
                 </label>
                 <select
                   id="intake-priority"
@@ -297,7 +299,7 @@ export function RequirementIntakeView(): React.ReactElement {
                   setFormNotice(null);
                 }}
               >
-                Clear
+                {t('activity:reqIntake.clear')}
               </Button>
               <Button
                 size="sm"
@@ -311,18 +313,18 @@ export function RequirementIntakeView(): React.ReactElement {
         </section>
 
         {/* List */}
-        <section aria-label="Intake records" className="space-y-2">
+        <section aria-label={t('activity:reqIntake.intakeRecords')} className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Records
+              {t('activity:reqIntake.records')}
             </div>
             <div className="text-[11px] text-muted-foreground">{intakes.length} total</div>
           </div>
           {loading ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">Loading…</div>
+            <div className="py-8 text-center text-xs text-muted-foreground">{t('activity:reqIntake.loading')}</div>
           ) : intakes.length === 0 ? (
             <div className="rounded-md border border-dashed border-border/70 py-10 text-center text-xs text-muted-foreground">
-              No intake records yet — file the first one above.
+              {t('activity:reqIntake.noIntakeRecordsYetFileThe')}
             </div>
           ) : (
             <ul className="space-y-2">

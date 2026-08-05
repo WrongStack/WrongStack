@@ -46,7 +46,9 @@
     "steerRunningTitle": "steer — interrompre l'agent en cours et rediriger",
     "steerIdleTitle": "steer — envoyer (pas de cible d'interruption au repos)",
     "addQueueTitle": "ajouter file — attendre la fin du run en cours",
-    "openPromptLibrary": "Ouvrir la bibliothèque de prompts — parcourir les prompts prêts à l'emploi et sauvegardés"
+    "openPromptLibrary": "Ouvrir la bibliothèque de prompts — parcourir les prompts prêts à l'emploi et sauvegardés",
+    "expandInput": "Agrandir la saisie",
+    "collapseInput": "Réduire"
   },
   "header": {
     "openSidebarTitle": "Ouvrir la barre latérale (Ctrl+\\)",

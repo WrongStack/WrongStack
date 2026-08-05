@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from '@/components/Toaster';
+import { useAppTranslation } from '@/i18n';
 import { sendRosterMessage } from '@/lib/roster-ws';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -23,6 +24,7 @@ export function SelfLearningTab({
   customStats: CustomRosterStats[];
   onRefresh: () => void;
 }) {
+  const { t } = useAppTranslation();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [reviewEntries, setReviewEntries] = useState<string[] | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<number, 'keep' | 'drop'>>({});
@@ -87,14 +89,14 @@ export function SelfLearningTab({
         content,
       })) as { success: boolean };
       if (data.success) {
-        setTeachFeedback({ ok: true, msg: 'Saved to learned.md' });
+        setTeachFeedback({ ok: true, msg: t('activity:customRoster.behaviorSaved') });
         setTeachInput('');
         onRefresh();
       } else {
-        setTeachFeedback({ ok: false, msg: 'Save failed' });
+        setTeachFeedback({ ok: false, msg: t('activity:agentRoster.saveFailed') });
       }
     } catch (err) {
-      setTeachFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed' });
+      setTeachFeedback({ ok: false, msg: err instanceof Error ? err.message : t('activity:agentRoster.failed') });
     }
     setSaving(false);
   }, [onRefresh, selectedRole, teachInput]);
@@ -111,13 +113,15 @@ export function SelfLearningTab({
         if (result.error) throw new Error(result.error);
         setTeachFeedback({
           ok: true,
-          msg: enabled ? 'Automatic learning resumed' : 'Automatic learning paused',
+          msg: enabled
+            ? t('activity:agentRoster.learningResumed')
+            : t('activity:agentRoster.autoLearningPaused'),
         });
         onRefresh();
       } catch (error) {
         setTeachFeedback({
           ok: false,
-          msg: error instanceof Error ? error.message : 'Policy update failed',
+          msg: error instanceof Error ? error.message : t('activity:agentRoster.policyUpdateFailed'),
         });
       } finally {
         setSaving(false);
@@ -160,7 +164,7 @@ export function SelfLearningTab({
         };
         if (data.error) throw new Error(data.error);
         if (data.rawEntryCount === 0) {
-          setTeachFeedback({ ok: false, msg: 'No raw entries to optimize yet.' });
+          setTeachFeedback({ ok: false, msg: t('activity:agentRoster.noRawEntries') });
           return;
         }
 
@@ -173,9 +177,11 @@ export function SelfLearningTab({
           // so gating on a possibly-stale `selectedRole` closure is unnecessary and
           // could leave the freshly-optimized document out of sync.
           await loadConsolidated(role);
-          setTeachFeedback({ ok: true, msg: 'Optimized. Consolidated knowledge updated.' });
+          setTeachFeedback({ ok: true, msg: t('activity:agentRoster.optimizedOk') });
           toast.success(
-            data.model ? `Learnings consolidated with ${data.model}.` : 'Learnings consolidated.',
+            data.model
+              ? t('activity:agentRoster.consolidatedWithModel', { model: data.model })
+              : t('activity:agentRoster.consolidatedPlain'),
           );
           return;
         }
@@ -185,9 +191,9 @@ export function SelfLearningTab({
         if (data.emptySynthesis) {
           setTeachFeedback({
             ok: false,
-            msg: 'The model returned an empty result. Nothing was changed — try again.',
+            msg: t('activity:agentRoster.emptySynthesis'),
           });
-          toast.error('Optimization produced an empty result. Try again.');
+          toast.error(t('activity:agentRoster.optimizationEmptyToast'));
           return;
         }
 
@@ -204,15 +210,15 @@ export function SelfLearningTab({
         ui.setCurrentView('chat');
         setTeachFeedback({
           ok: true,
-          msg: 'No active model on server — optimization sent to chat agent instead.',
+          msg: t('activity:agentRoster.noActiveModelMsg'),
         });
-        toast.info('No active model on server. Optimization sent to the chat agent.');
+        toast.info(t('activity:agentRoster.noActiveModelToast'));
       } catch (err) {
         setTeachFeedback({
           ok: false,
-          msg: err instanceof Error ? err.message : 'Optimization failed',
+          msg: err instanceof Error ? err.message : t('activity:agentRoster.optimizationFailed'),
         });
-        toast.error(err instanceof Error ? err.message : 'Optimization failed');
+        toast.error(err instanceof Error ? err.message : t('activity:agentRoster.optimizationFailed'));
       } finally {
         setOptimizing(false);
       }
@@ -337,9 +343,9 @@ export function SelfLearningTab({
       } catch (err) {
         setTeachFeedback({
           ok: false,
-          msg: err instanceof Error ? err.message : 'Bulk optimization failed',
+          msg: err instanceof Error ? err.message : t('activity:agentRoster.bulkOptimizationFailed'),
         });
-        toast.error(err instanceof Error ? err.message : 'Bulk optimization failed');
+        toast.error(err instanceof Error ? err.message : t('activity:agentRoster.bulkOptimizationFailed'));
       } finally {
         setBulkOptimizing(false);
       }
@@ -352,9 +358,9 @@ export function SelfLearningTab({
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         <div className="text-center space-y-3">
           <Database className="h-10 w-10 mx-auto opacity-30" />
-          <p className="text-sm">No self-learning data yet</p>
+          <p className="text-sm">{t('activity:agentRoster.noSelfLearningDataYet')}</p>
           <p className="text-xs text-muted-foreground/70">
-            Learning entries appear when agents capture output
+            {t('activity:agentRoster.learningsEmpty')}
           </p>
         </div>
       </div>
@@ -373,7 +379,7 @@ export function SelfLearningTab({
         <div className="shrink-0 px-3 py-2 border-b border-border/50">
           <h3 className="text-xs font-semibold flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5 text-brand-2" />
-            All Roster Agents
+            {t('activity:agentRoster.allRosterAgents')}
           </h3>
           {(() => {
             const needsOpt = populated.filter((s) => s.needsSummarization);
@@ -398,7 +404,7 @@ export function SelfLearningTab({
                     }}
                     className="ml-auto text-[9px] text-warning underline hover:text-warning/80 shrink-0"
                   >
-                    review →
+                    {t('activity:agentRoster.review')}
                   </button>
                 </div>
                 <button
@@ -412,7 +418,9 @@ export function SelfLearningTab({
                   ) : (
                     <Zap className="h-3 w-3" />
                   )}
-                  {bulkOptimizing ? 'Optimizing…' : `Optimize All (${needsOpt.length})`}
+                  {bulkOptimizing
+                    ? t('activity:agentRoster.optimizing')
+                    : t('activity:agentRoster.optimizeAll', { count: needsOpt.length })}
                 </button>
               </div>
             );
@@ -444,7 +452,9 @@ export function SelfLearningTab({
                     stat.learningEnabled ? 'text-success' : 'text-muted-foreground',
                   )}
                 >
-                  {stat.learningEnabled ? 'learning' : 'paused'}
+                  {stat.learningEnabled
+                    ? t('activity:agentRoster.learning')
+                    : t('activity:agentRoster.paused')}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-1 text-[9px] text-muted-foreground">
@@ -477,7 +487,7 @@ export function SelfLearningTab({
       <div className="flex-1 min-h-0 min-w-0 overflow-y-auto p-4">
         {!selectedRole && (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            Select an agent to view learning details
+            {t('activity:agentRoster.selectAnAgentToViewLearning')}
           </div>
         )}
         {selectedRole && selectedStats && (
@@ -498,7 +508,9 @@ export function SelfLearningTab({
                   )}
                 >
                   <Database className="h-3 w-3" />{' '}
-                  {selectedStats.learningEnabled ? 'Learning on' : 'Learning paused'}
+                  {selectedStats.learningEnabled
+                    ? t('activity:agentRoster.learningOn')
+                    : t('activity:agentRoster.learningPaused')}
                 </button>
               </div>
             </div>
@@ -507,7 +519,7 @@ export function SelfLearningTab({
             <div className="grid grid-cols-4 gap-2">
               <div className="rounded-lg border bg-card p-2">
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                  Entries
+                  {t('activity:agentRoster.entries')}
                 </span>
                 <div className="text-lg font-mono font-semibold mt-0.5">
                   {selectedStats.entryCount}
@@ -515,7 +527,7 @@ export function SelfLearningTab({
               </div>
               <div className="rounded-lg border bg-card p-2">
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                  Size
+                  {t('activity:agentRoster.size')}
                 </span>
                 <div className="text-lg font-mono font-semibold mt-0.5">
                   {selectedStats.totalBytes}B
@@ -523,7 +535,7 @@ export function SelfLearningTab({
               </div>
               <div className="rounded-lg border bg-card p-2">
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                  Last Capture
+                  {t('activity:agentRoster.lastCapture')}
                 </span>
                 <div className="text-lg font-mono font-semibold mt-0.5">
                   {selectedStats.lastCapture
@@ -533,7 +545,7 @@ export function SelfLearningTab({
               </div>
               <div className="rounded-lg border bg-card p-2">
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                  Lifetime Captures
+                  {t('activity:agentRoster.lifetimeCaptures')}
                 </span>
                 <div className="text-lg font-mono font-semibold mt-0.5">
                   {selectedStats.lifetimeCaptureCount}
@@ -546,9 +558,7 @@ export function SelfLearningTab({
               <div className="flex items-center gap-3 text-xs text-warning bg-warning/10 rounded-lg px-3 py-2.5">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span className="flex-1">
-                  Learned data exceeds soft limit ({selectedStats.totalBytes.toLocaleString()}B /
-                  8,192B). Optimize to synthesize raw entries into a consolidated document and
-                  reduce context volume.
+                  {t('activity:agentRoster.learningsLimitExceeded', { bytes: selectedStats.totalBytes.toLocaleString() })}
                 </span>
                 <button
                   type="button"
@@ -561,7 +571,7 @@ export function SelfLearningTab({
                   ) : (
                     <Zap className="h-3 w-3" />
                   )}
-                  {optimizing ? 'Optimizing…' : 'Optimize Now'}
+                  {optimizing ? t('activity:agentRoster.optimizing') : 'Optimize Now'}
                 </button>
               </div>
             )}
@@ -571,7 +581,7 @@ export function SelfLearningTab({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold">Optimize Learnings</span>
+                  <span className="text-xs font-semibold">{t('activity:agentRoster.optimizeLearnings')}</span>
                 </div>
                 <button
                   type="button"
@@ -589,7 +599,7 @@ export function SelfLearningTab({
                   ) : (
                     <Zap className="h-3.5 w-3.5" />
                   )}
-                  {optimizing ? 'Optimizing…' : 'Optimize'}
+                  {optimizing ? t('activity:agentRoster.optimizing') : 'Optimize'}
                 </button>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -609,7 +619,7 @@ export function SelfLearningTab({
                     {selectedStats.consolidation.sourceEntryCount < selectedStats.entryCount && (
                       <span className="text-warning ml-1">
                         · {selectedStats.entryCount - selectedStats.consolidation.sourceEntryCount}{' '}
-                        new pending
+                        {t('activity:agentRoster.newPending')}
                       </span>
                     )}
                   </span>
@@ -624,7 +634,7 @@ export function SelfLearningTab({
                     }}
                     className="ml-auto underline text-primary hover:text-primary/80"
                   >
-                    {consolidatedContent === null ? 'View' : 'Hide'}
+                    {consolidatedContent === null ? t('activity:agentRoster.viewAction') : 'Hide'}
                   </button>
                 </div>
               )}
@@ -675,7 +685,7 @@ export function SelfLearningTab({
                           disabled={saving}
                           className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] text-primary-foreground hover:bg-primary/90 transition-colors"
                         >
-                          {saving ? 'Applying…' : 'Apply Selection'}
+                          {saving ? t('activity:agentRoster.applying') : 'Apply Selection'}
                         </button>
                         <button
                           type="button"
@@ -685,7 +695,7 @@ export function SelfLearningTab({
                           }}
                           className="inline-flex items-center gap-1 rounded border border-border/50 px-2 py-1 text-[10px] hover:bg-accent transition-colors"
                         >
-                          Cancel
+                          {t('activity:agentRoster.cancel')}
                         </button>
                       </div>
                     </div>
@@ -718,7 +728,7 @@ export function SelfLearningTab({
                                       : 'bg-muted text-muted-foreground',
                                   )}
                                 >
-                                  Keep
+                                  {t('activity:agentRoster.keep')}
                                 </button>
                                 <button
                                   type="button"
@@ -730,7 +740,7 @@ export function SelfLearningTab({
                                       : 'bg-muted text-muted-foreground',
                                   )}
                                 >
-                                  Drop
+                                  {t('activity:agentRoster.drop')}
                                 </button>
                               </div>
                             </div>
@@ -746,16 +756,16 @@ export function SelfLearningTab({
             {/* Teach section */}
             <div className="space-y-2 pt-4 border-t border-border">
               <div className="flex items-center gap-1 text-sm font-medium">
-                <BookOpen className="h-4 w-4 text-brand-2" /> Teach this agent
+                <BookOpen className="h-4 w-4 text-brand-2" /> {t('activity:agentRoster.teachThisAgent')}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Describe a command, pattern, or behavior you want this agent to remember.
+                {t('activity:agentRoster.describeACommandPatternOrBehavior')}
               </p>
               <textarea
                 className="w-full h-20 text-xs p-2 bg-card border border-border rounded resize-y"
                 value={teachInput}
                 onChange={(e) => setTeachInput(e.target.value)}
-                placeholder="e.g. Always use pnpm for this project"
+                placeholder={t('activity:agentRoster.eGAlwaysUsePnpmForThisProject')}
               />
               <div className="flex justify-between items-center">
                 <button
@@ -764,7 +774,7 @@ export function SelfLearningTab({
                   disabled={!teachInput.trim() || saving}
                   className="inline-flex items-center gap-1 rounded bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  <BookOpen className="h-3.5 w-3.5" /> Teach
+                  <BookOpen className="h-3.5 w-3.5" /> {t('activity:agentRoster.teach')}
                 </button>
                 {teachFeedback && (
                   <span

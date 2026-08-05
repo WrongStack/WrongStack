@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 // ── Status presentation ───────────────────────────────────────────────────
 
 export interface StatusMeta {
-  readonly label: string;
+  readonly labelKey: string;
   /** Full literal class strings. */
   readonly badge: string;
   readonly dot: string;
@@ -49,79 +49,79 @@ export interface StatusMeta {
  */
 export const STATUS_META: Record<string, StatusMeta> = {
   current: {
-    label: 'Current',
+    labelKey: 'activity:techStackStatus.current',
     badge: 'border-success/35 bg-success/10 text-success',
     dot: 'bg-success',
     weight: 0,
   },
   update_available_safe: {
-    label: 'Update available',
+    labelKey: 'activity:techStackStatus.update_available_safe',
     badge: 'border-info/35 bg-info/10 text-info',
     dot: 'bg-info',
     weight: 30,
   },
   update_available_breaking: {
-    label: 'Major update',
+    labelKey: 'activity:techStackStatus.update_available_breaking',
     badge: 'border-warning/35 bg-warning/10 text-warning',
     dot: 'bg-warning',
     weight: 50,
   },
   vulnerable: {
-    label: 'Vulnerable',
+    labelKey: 'activity:techStackStatus.vulnerable',
     badge: 'border-destructive/45 bg-destructive/15 text-destructive',
     dot: 'bg-destructive',
     weight: 100,
   },
   deprecated: {
-    label: 'Deprecated',
+    labelKey: 'activity:techStackStatus.deprecated',
     badge: 'border-destructive/35 bg-destructive/10 text-destructive',
     dot: 'bg-destructive',
     weight: 70,
   },
   yanked: {
-    label: 'Yanked',
+    labelKey: 'activity:techStackStatus.yanked',
     badge: 'border-destructive/45 bg-destructive/15 text-destructive',
     dot: 'bg-destructive',
     weight: 80,
   },
   unmaintained_suspected: {
-    label: 'Unmaintained?',
+    labelKey: 'activity:techStackStatus.unmaintained_suspected',
     badge: 'border-warning/35 bg-warning/10 text-warning',
     dot: 'bg-warning',
     weight: 60,
   },
   blocked_by_constraints: {
-    label: 'Blocked',
+    labelKey: 'activity:techStackStatus.blocked_by_constraints',
     badge: 'border-warning/30 bg-warning/5 text-warning',
     dot: 'bg-warning',
     weight: 40,
   },
   private_or_unresolved: {
-    label: 'Private',
+    labelKey: 'activity:techStackStatus.private_or_unresolved',
     badge: 'border-border/70 bg-muted text-muted-foreground',
     dot: 'bg-muted-foreground',
     weight: 10,
   },
   local_path: {
-    label: 'Local path',
+    labelKey: 'activity:techStackStatus.local_path',
     badge: 'border-border/70 bg-muted text-muted-foreground',
     dot: 'bg-muted-foreground',
     weight: 5,
   },
   git_dependency: {
-    label: 'Git',
+    labelKey: 'activity:techStackStatus.git_dependency',
     badge: 'border-border/70 bg-muted text-muted-foreground',
     dot: 'bg-muted-foreground',
     weight: 5,
   },
   unsupported: {
-    label: 'Unsupported',
+    labelKey: 'activity:techStackStatus.unsupported',
     badge: 'border-border/70 bg-muted text-muted-foreground',
     dot: 'bg-muted-foreground',
     weight: 5,
   },
   unknown: {
-    label: 'Unknown',
+    labelKey: 'activity:techStackStatus.unknown',
     badge: 'border-border/70 bg-muted text-muted-foreground',
     dot: 'bg-muted-foreground',
     weight: 20,
@@ -129,7 +129,7 @@ export const STATUS_META: Record<string, StatusMeta> = {
 };
 
 const FALLBACK_STATUS: StatusMeta = {
-  label: 'Unknown',
+  labelKey: 'activity:techStackStatus.unknown',
   badge: 'border-border/70 bg-muted text-muted-foreground',
   dot: 'bg-muted-foreground',
   weight: 0,
@@ -142,8 +142,11 @@ export function statusMeta(status: string): StatusMeta {
 // ── Ecosystem presentation ───────────────────────────────────────────────
 
 export interface EcosystemMeta {
-  /** Human-readable display name for the ecosystem. */
-  readonly label: string;
+  /** Human-readable display name — a proper noun (npm, Python, Rust…), so it
+   *  is NOT translated. The unknown-ecosystem fallback uses `labelKey`. */
+  readonly label?: string | undefined;
+  /** i18n key, set only where the label is real display copy. */
+  readonly labelKey?: string | undefined;
   /** Optional lucide-react icon component for visual identification. */
   readonly icon?: ComponentType<{ className?: string }> | undefined;
 }
@@ -172,7 +175,15 @@ export const ECOSYSTEM_META: Record<string, EcosystemMeta> = {
   cpp:     { label: 'C / C++',       icon: Code },
 };
 
-const FALLBACK_ECOSYSTEM: EcosystemMeta = { label: 'Unknown' };
+// Real ecosystems are proper nouns (npm, Python, Rust…) and stay untranslated;
+// only the unknown-ecosystem fallback is display copy, so it carries a key.
+const FALLBACK_ECOSYSTEM: EcosystemMeta = { labelKey: 'activity:techStackStatus.unknown' };
+
+/** Display name for an ecosystem: proper noun as-is, fallback via the catalog. */
+export function ecosystemLabel(ecosystem: string, t: (key: string) => string): string {
+  const meta = ecosystemMeta(ecosystem);
+  return meta.labelKey ? t(meta.labelKey) : (meta.label ?? ecosystem);
+}
 
 export function ecosystemMeta(ecosystem: string): EcosystemMeta {
   return ECOSYSTEM_META[ecosystem] ?? FALLBACK_ECOSYSTEM;
@@ -211,44 +222,44 @@ export const SEVERITY_ORDER: readonly TechStackFindingSeverity[] = [
   'info',
 ];
 
-export const SEVERITY_META: Record<TechStackFindingSeverity, { label: string; badge: string }> = {
-  critical: { label: 'Critical', badge: 'border-destructive/45 bg-destructive/15 text-destructive' },
-  high: { label: 'High', badge: 'border-destructive/35 bg-destructive/10 text-destructive' },
-  medium: { label: 'Medium', badge: 'border-warning/35 bg-warning/10 text-warning' },
-  low: { label: 'Low', badge: 'border-info/35 bg-info/10 text-info' },
-  info: { label: 'Info', badge: 'border-border/70 bg-muted text-muted-foreground' },
+export const SEVERITY_META: Record<TechStackFindingSeverity, { labelKey: string; badge: string }> = {
+  critical: { labelKey: 'activity:techStackSeverity.critical', badge: 'border-destructive/45 bg-destructive/15 text-destructive' },
+  high: { labelKey: 'activity:techStackSeverity.high', badge: 'border-destructive/35 bg-destructive/10 text-destructive' },
+  medium: { labelKey: 'activity:techStackSeverity.medium', badge: 'border-warning/35 bg-warning/10 text-warning' },
+  low: { labelKey: 'activity:techStackSeverity.low', badge: 'border-info/35 bg-info/10 text-info' },
+  info: { labelKey: 'activity:techStackSeverity.info', badge: 'border-border/70 bg-muted text-muted-foreground' },
 };
 
 export const ACTION_LABELS: Record<string, string> = {
-  none: 'No action',
-  upgrade_patch: 'Patch upgrade',
-  upgrade_minor: 'Minor upgrade',
-  upgrade_major: 'Major upgrade',
-  replace: 'Replace',
-  remove: 'Remove',
-  investigate: 'Investigate',
+  none: 'activity:techStackAction.none',
+  upgrade_patch: 'activity:techStackAction.upgrade_patch',
+  upgrade_minor: 'activity:techStackAction.upgrade_minor',
+  upgrade_major: 'activity:techStackAction.upgrade_major',
+  replace: 'activity:techStackAction.replace',
+  remove: 'activity:techStackAction.remove',
+  investigate: 'activity:techStackAction.investigate',
 };
 
 // ── Coverage ──────────────────────────────────────────────────────────────
 
 export interface CoverageMeta {
-  readonly label: string;
+  readonly labelKey: string;
   readonly badge: string;
   /** Short inline text for the dependency row subtitle (e.g. "limited", "best-effort"). */
-  readonly note: string | undefined;
+  readonly noteKey: string | undefined;
 }
 
 export const COVERAGE_META: Record<TechStackCoverage, CoverageMeta> = {
-  full: { label: 'Full', badge: 'border-success/35 bg-success/10 text-success', note: undefined },
+  full: { labelKey: 'activity:techStackCoverage.full', badge: 'border-success/35 bg-success/10 text-success', noteKey: undefined },
   partial: {
-    label: 'Partial',
+    labelKey: 'activity:techStackCoverage.partial',
     badge: 'border-warning/35 bg-warning/10 text-warning',
-    note: 'limited',
+    noteKey: 'activity:techStackCoverage.partialNote',
   },
   unsupported: {
-    label: 'Unsupported',
+    labelKey: 'activity:techStackCoverage.unsupported',
     badge: 'border-border/70 bg-muted text-muted-foreground',
-    note: 'best-effort',
+    noteKey: 'activity:techStackCoverage.unsupportedNote',
   },
 };
 

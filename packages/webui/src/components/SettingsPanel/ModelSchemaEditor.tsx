@@ -138,13 +138,13 @@ export function buildPayload(
   return out;
 }
 
-const CAPABILITY_FIELDS: Array<{ key: keyof FormState; label: string }> = [
-  { key: 'toolCall', label: 'Tool call' },
-  { key: 'reasoning', label: 'Reasoning' },
-  { key: 'temperature', label: 'Temperature' },
-  { key: 'attachment', label: 'Attachment' },
-  { key: 'structuredOutput', label: 'Structured output' },
-  { key: 'openWeights', label: 'Open weights' },
+const CAPABILITY_FIELDS: Array<{ key: keyof FormState; labelKey: string }> = [
+  { key: 'toolCall', labelKey: 'settings:modelSchema.capToolCall' },
+  { key: 'reasoning', labelKey: 'settings:modelSchema.capReasoning' },
+  { key: 'temperature', labelKey: 'settings:modelSchema.capTemperature' },
+  { key: 'attachment', labelKey: 'settings:modelSchema.capAttachment' },
+  { key: 'structuredOutput', labelKey: 'settings:modelSchema.capStructuredOutput' },
+  { key: 'openWeights', labelKey: 'settings:modelSchema.capOpenWeights' },
 ];
 
 export function ModelSchemaEditor({
@@ -257,7 +257,7 @@ export function ModelSchemaEditor({
                   className={inputStyle}
                   value={form.id}
                   onChange={(e) => update('id', e.target.value)}
-                  placeholder="model-id"
+                  placeholder={t('activity:modelSchema.modelId')}
                 />
               </div>
             )}
@@ -372,7 +372,7 @@ export function ModelSchemaEditor({
               {t('settings:providerModels.sectionCapabilities')}
             </legend>
             <div className="grid grid-cols-2 gap-2">
-              {CAPABILITY_FIELDS.map(({ key, label }) => (
+              {CAPABILITY_FIELDS.map(({ key, labelKey }) => (
                 <label key={String(key)} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -380,7 +380,7 @@ export function ModelSchemaEditor({
                     checked={form[key] as boolean}
                     onChange={(e) => update(key, e.target.checked as never)}
                   />
-                  {label}
+                  {t(labelKey)}
                 </label>
               ))}
             </div>
@@ -430,7 +430,7 @@ export function ModelSchemaEditor({
       <div className="flex items-center justify-end gap-2 border-t border-border/50 pt-3">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="h-8 gap-1.5 text-xs">
           <X className="h-3.5 w-3.5" />
-          {t('common:cancel')}
+          {t('common:action.cancel')}
         </Button>
         <Button
           type="button"
@@ -439,7 +439,7 @@ export function ModelSchemaEditor({
           className="h-8 gap-1.5 text-xs"
         >
           <Check className="h-3.5 w-3.5" />
-          {t('common:save')}
+          {t('common:action.save')}
         </Button>
       </div>
     </div>

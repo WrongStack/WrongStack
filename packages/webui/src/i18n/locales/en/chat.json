@@ -46,7 +46,9 @@
     "steerRunningTitle": "steer — interrupt the running agent and redirect",
     "steerIdleTitle": "steer — send (no interrupt target while idle)",
     "addQueueTitle": "add queue — hold until the current run completes",
-    "openPromptLibrary": "Open prompt library — browse ready-made and saved prompts"
+    "openPromptLibrary": "Open prompt library — browse ready-made and saved prompts",
+    "expandInput": "Expand input",
+    "collapseInput": "Collapse"
   },
   "header": {
     "openSidebarTitle": "Open sidebar (Ctrl+\\)",

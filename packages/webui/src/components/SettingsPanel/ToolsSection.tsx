@@ -6,6 +6,7 @@ import type { WSServerMessage } from '@/types';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { useAppTranslation } from '@/i18n';
 
 export interface ToolInfo {
   name: string;
@@ -37,6 +38,7 @@ function ToolRow({
   onToggle: () => void;
   busy: boolean;
 }) {
+  const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -92,7 +94,7 @@ function ToolRow({
         <div className="space-y-1 border-t border-border/60 pt-2 text-xs text-muted-foreground sm:ml-4">
           <p>{tool.description}</p>
           {tool.params.length > 0 && (
-            <p>Params: <code className="break-all font-mono">{tool.params.join(', ')}</code></p>
+            <p>{t('activity:toolsSec.params')} <code className="break-all font-mono">{tool.params.join(', ')}</code></p>
           )}
         </div>
       )}
@@ -101,6 +103,7 @@ function ToolRow({
 }
 
 export function ToolsSection(): ReactElement {
+  const { t } = useAppTranslation();
   const { client } = useWebSocket();
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +176,7 @@ export function ToolsSection(): ReactElement {
         <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
           <Wrench className="h-5 w-5" />
         </span>
-        <h3 className="text-base font-semibold">Tools</h3>
+        <h3 className="text-base font-semibold">{t('activity:toolsSec.tools')}</h3>
         </div>
         {!loading && (
           <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:ml-auto">
@@ -185,7 +188,7 @@ export function ToolsSection(): ReactElement {
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Filter tools by name or owner…"
+          placeholder={t('activity:toolsSec.filterToolsByNameOrOwner')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="pl-8 h-9 text-sm"
@@ -195,7 +198,7 @@ export function ToolsSection(): ReactElement {
       {loading ? (
         <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading tools…
+          {t('activity:toolsSec.loadingTools')}
         </div>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">
@@ -205,7 +208,7 @@ export function ToolsSection(): ReactElement {
         <div className="relative overflow-hidden rounded-lg border border-border/70 bg-background/35 shadow-inner">
           <ul
             className="max-h-[min(58dvh,660px)] space-y-2 overflow-y-scroll p-2 pr-3 [scrollbar-gutter:stable]"
-            aria-label="Tools list"
+            aria-label={t('activity:toolsSec.toolsList')}
           >
             {filtered.map((tool) => (
               <li key={tool.name}>

@@ -144,7 +144,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
                   type="button"
                   onClick={clear}
                   className="rounded-md px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  title="Clear all traces"
+                  title={t('activity:memoryManager.clearTracesTitle')}
                 >
                   Clear
                 </button>
@@ -153,7 +153,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
                 type="button"
                 onClick={onClose}
                 className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                title="Close panel"
+                title={t('activity:memoryManager.closePanelTitle')}
               >
                 <PanelRightClose className="size-4" />
               </button>
@@ -167,24 +167,24 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
                 <span className="flex items-center gap-1">
                   <Activity className="size-3 text-muted-foreground" />
                   <span className="font-mono text-foreground">{latest.candidates}</span>
-                  <span className="text-muted-foreground">matched</span>
+                  <span className="text-muted-foreground">{t('activity:memoryManager.traceMatched')}</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="font-mono text-success">{latest.injected.length}</span>
-                  <span className="text-muted-foreground">injected</span>
+                  <span className="text-muted-foreground">{t('activity:memoryManager.traceInjected')}</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="font-mono text-warning">{filteredTotal}</span>
-                  <span className="text-muted-foreground">filtered</span>
+                  <span className="text-muted-foreground">{t('activity:memoryManager.traceFiltered')}</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="font-mono text-ring">{activeRecords.length}</span>
-                  <span className="text-muted-foreground">active</span>
+                  <span className="text-muted-foreground">{t('activity:memoryManager.traceActive')}</span>
                 </span>
                 {exitedCount > 0 && (
                   <span className="flex items-center gap-1">
                     <span className="font-mono text-muted-foreground">{exitedCount}</span>
-                    <span className="text-muted-foreground">exited</span>
+                    <span className="text-muted-foreground">{t('activity:memoryManager.traceExited')}</span>
                   </span>
                 )}
               </div>
@@ -211,7 +211,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
             {activeRecords.length > 0 ? (
               <div className="space-y-0">
                 <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
-                  Active in context
+                  {t('activity:memoryManager.injectorActiveInContext')}
                 </div>
                 {activeRecords.map((memory) => (
                   <div
@@ -248,7 +248,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground/70">
                       <span className="font-mono">{memory.id.slice(0, 16)}…</span>
                       <span className="flex items-center gap-0.5">
-                        <span className="opacity-60">score</span>
+                        <span className="opacity-60">{t('activity:memoryManager.traceScore')}</span>
                         <span className="font-mono text-foreground/60">
                           {memory.score.toFixed(2)}
                         </span>
@@ -291,7 +291,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
             {traces.length > 0 && (
               <div>
                 <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-t border-border/40 border-b">
-                  Injection history
+                  {t('activity:memoryManager.injectorInjectionHistory')}
                 </div>
                 {traces.slice(0, 20).map((trace) => {
                   const traceFiltered = Object.values(trace.rejected).reduce(
@@ -321,7 +321,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
                         <span>{trace.candidates} candidates</span>
                         <span>ctx {Math.round(trace.contextPressure * 100)}%</span>
                         {trace.outcome === 'error' && (
-                          <span className="text-destructive">error</span>
+                          <span className="text-destructive">{t('activity:memoryManager.traceError')}</span>
                         )}
                       </div>
                     </div>
@@ -334,7 +334,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
             {transitions.length > 0 && (
               <div>
                 <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-t border-border/40 border-b">
-                  Context transitions
+                  {t('activity:memoryManager.injectorContextTransitions')}
                 </div>
                 {transitions.slice(0, 15).map((tr) => (
                   <div

@@ -631,7 +631,7 @@ export function SettingsPanel() {
                         ) : localPrefs.refinerProvider ? (
                           <span className="text-xs font-mono">
                             {localPrefs.refinerProvider} /{' '}
-                            <span className="text-muted-foreground">(session model)</span>
+                            <span className="text-muted-foreground">{t('activity:index.sessionModel')}</span>
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">

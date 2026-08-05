@@ -1,6 +1,7 @@
 import { X, ArrowUpCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSessionStore } from '@/stores';
+import { useAppTranslation } from '@/i18n';
 
 /**
  * Prominent "Update available" banner shown at the top of the WebUI when
@@ -9,6 +10,7 @@ import { useSessionStore } from '@/stores';
  * the next `session.start` with version info (F5, reconnect).
  */
 export function UpdateBanner() {
+  const { t } = useAppTranslation();
   const appVersion = useSessionStore((s) => s.appVersion);
   const latestVersion = useSessionStore((s) => s.latestVersion);
   const updateAvailable = useSessionStore((s) => s.updateAvailable);
@@ -29,14 +31,14 @@ export function UpdateBanner() {
           Update available: v{appVersion || '?'} → v{latestVersion}
         </span>
         <span className="ml-2 text-xs opacity-80">
-          Run <code className="font-mono text-[inherit]">wstack update</code> (or your package manager) to upgrade.
+          {t('activity:updateBanner.run')} <code className="font-mono text-[inherit]">{t('activity:updateBanner.wstackUpdate')}</code> {t('activity:updateBanner.orYourPackageManagerToUpgrade')}
         </span>
       </div>
       <button
         type="button"
         onClick={() => setDismissed(true)}
         className="text-current/60 hover:text-current shrink-0 p-0.5 rounded"
-        title="Dismiss"
+        title={t('activity:updateBanner.dismiss')}
       >
         <X className="h-4 w-4" />
       </button>

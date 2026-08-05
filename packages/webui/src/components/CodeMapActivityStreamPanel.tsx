@@ -1,6 +1,7 @@
 import { Activity as ActivityIcon, GitBranch, Radio } from 'lucide-react';
 import type { FileActivity } from '@/stores/codemap-activity-store';
 import { LiveOperationRow } from './CodeMapLiveOverlay';
+import { useAppTranslation } from '@/i18n';
 
 export type CodeMapActivityStreamPanelProps = {
   activeOperations: FileActivity[];
@@ -15,13 +16,14 @@ export function CodeMapActivityStreamPanel({
   activityTotalCount,
   onLocate,
 }: CodeMapActivityStreamPanelProps) {
+  const { t } = useAppTranslation();
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       {activeOperations.length > 0 && (
         <section className="border-b">
           <div className="flex h-9 items-center gap-2 border-b bg-success/5 px-3">
             <Radio className="h-3 w-3 animate-pulse text-success" />
-            <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">Active now</h3>
+            <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">{t('activity:codeMap.activeNow')}</h3>
             <span className="ml-auto font-mono text-[9px] text-success">
               {activeOperations.length}
             </span>
@@ -39,7 +41,7 @@ export function CodeMapActivityStreamPanel({
       <section>
         <div className="flex h-9 items-center gap-2 border-b px-3">
           <ActivityIcon className="h-3 w-3 text-muted-foreground" />
-          <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">Event stream</h3>
+          <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">{t('activity:codeMap.eventStream')}</h3>
           <span className="ml-auto font-mono text-[8px] text-muted-foreground">
             {activityTotalCount} total
           </span>
@@ -58,10 +60,9 @@ export function CodeMapActivityStreamPanel({
             <span className="mb-4 flex h-12 w-12 items-center justify-center border bg-muted text-muted-foreground">
               <GitBranch className="h-5 w-5" />
             </span>
-            <h3 className="text-xs font-semibold">Select a node or wait for an agent</h3>
+            <h3 className="text-xs font-semibold">{t('activity:codeMap.selectANodeOrWaitFor')}</h3>
             <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-              Relations appear on selection. Tool calls and external filesystem touches stream here
-              live.
+              {t('activity:codeMap.relationsAppearOnSelectionToolCalls')}
             </p>
           </div>
         )}

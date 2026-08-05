@@ -84,7 +84,7 @@ export function FilePicker({ query, onPick, onClose }: FilePickerProps) {
     <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border bg-popover shadow-md p-1 text-sm max-h-72 overflow-auto">
       <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground border-b mb-1 flex items-center justify-between">
         <span>{t('activity:filePicker.heading')} {query && `· "${query}"`}</span>
-        <span>↑/↓ select · ↵ insert · Esc dismiss</span>
+        <span>{t('activity:filePicker.selectInsertEscDismiss')}</span>
       </div>
       {files.length === 0 ? (
         <div className="px-3 py-2 text-xs text-muted-foreground italic">

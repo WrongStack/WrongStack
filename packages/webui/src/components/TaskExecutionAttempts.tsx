@@ -3,6 +3,7 @@ import { Bot, ChevronDown, History, Route, Timer } from 'lucide-react';
 import { buildTaskActivity } from './TaskActivityTimeline';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from './ui/pagination';
+import { useAppTranslation } from '@/i18n';
 
 export interface TaskExecutionAttempt {
   attempt: number;
@@ -175,6 +176,7 @@ export function TaskExecutionAttempts({
   events: KanbanEvent[];
   sessionId?: string | undefined;
 }) {
+  const { t } = useAppTranslation();
   const attempts = buildTaskExecutionAttempts(task, events, sessionId);
   const attemptPage = usePagination(attempts, 8, task.id);
   if (!attempts.length) return null;
@@ -182,7 +184,7 @@ export function TaskExecutionAttempts({
     <details open className="mt-3 rounded-md border border-border/70 bg-muted/15">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <History className="size-4 text-primary" />
-        <span className="text-xs font-semibold">Execution attempts</span>
+        <span className="text-xs font-semibold">{t('activity:taskExecutionAttempts.executionAttempts')}</span>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
           {attempts.length} total
         </span>
@@ -234,12 +236,12 @@ export function TaskExecutionAttempts({
             )}
             {attempt.error && (
               <p className="mt-2 whitespace-pre-wrap rounded border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[10px] text-destructive">
-                <strong>Error:</strong> {attempt.error}
+                <strong>{t('activity:taskExecutionAttempts.error')}</strong> {attempt.error}
               </p>
             )}
             {attempt.result && (
               <p className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap rounded border border-success/30 bg-success/5 px-2 py-1.5 text-[10px] text-success">
-                <strong>Result:</strong> {attempt.result}
+                <strong>{t('activity:taskExecutionAttempts.result')}</strong> {attempt.result}
               </p>
             )}
           </section>

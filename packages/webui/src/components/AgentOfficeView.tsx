@@ -258,26 +258,26 @@ function ClientOfficeHeader({ office, now }: { office: ClientOfficeModel; now: n
           </span>
         </div>
       </div>
-      <fieldset className="agent-office__client-stats" aria-label="Session activity totals">
-        <span title="Unique files touched">
-          <FolderOpen /> <strong>{stats.files}</strong> FILES
+      <fieldset className="agent-office__client-stats" aria-label={t('activity:agentOffice.sessionActivityTotals')}>
+        <span title={t('activity:agentOffice.uniqueFilesTouched')}>
+          <FolderOpen /> <strong>{stats.files}</strong> {t('activity:agentOffice.files')}
         </span>
-        <span title="File reads">
-          <Search /> <strong>{stats.reads}</strong> READ
+        <span title={t('activity:agentOffice.fileReads')}>
+          <Search /> <strong>{stats.reads}</strong> {t('activity:agentOffice.read')}
         </span>
-        <span title="Files written">
-          <FilePenLine /> <strong>{stats.writes}</strong> WRITE
+        <span title={t('activity:agentOffice.filesWritten')}>
+          <FilePenLine /> <strong>{stats.writes}</strong> {t('activity:agentOffice.write')}
         </span>
-        <span title="Files edited">
-          <FilePenLine /> <strong>{stats.edits}</strong> EDIT
+        <span title={t('activity:agentOffice.filesEdited')}>
+          <FilePenLine /> <strong>{stats.edits}</strong> {t('activity:agentOffice.edit')}
         </span>
-        <span className="agent-office__client-delta" title="Lines added and removed">
+        <span className="agent-office__client-delta" title={t('activity:agentOffice.linesAddedAndRemoved')}>
           <strong>+{stats.linesAdded}</strong> / <b>−{stats.linesRemoved}</b>
         </span>
-        <span title="Terminal commands">
-          <TerminalSquare /> <strong>{stats.terminalCalls}</strong> TERM
+        <span title={t('activity:agentOffice.terminalCommands')}>
+          <TerminalSquare /> <strong>{stats.terminalCalls}</strong> {t('activity:agentOffice.term')}
         </span>
-        <span title="Incoming and outgoing mail">
+        <span title={t('activity:agentOffice.incomingAndOutgoingMail')}>
           <Mail /> <strong>{stats.incomingMail}</strong>↓ <strong>{stats.outgoingMail}</strong>↑
         </span>
       </fieldset>
@@ -347,7 +347,7 @@ function OfficeBriefing({
         </span>
         {instructionActive && (
           <span className="agent-office__instruction-live">
-            <i aria-hidden="true" /> LIVE
+            <i aria-hidden="true" /> {t('activity:agentOffice.live')}
           </span>
         )}
         {client.latestPromptAt !== undefined && (
@@ -840,7 +840,7 @@ export function AgentOfficeView() {
         </div>
 
         <div className="agent-office__live-pill">
-          <span /> LIVE
+          <span /> {t('activity:agentOffice.live')}
         </div>
 
         <div className="agent-office__summary">
@@ -954,7 +954,7 @@ export function AgentOfficeView() {
             type="button"
             className="agent-office__detail-backdrop"
             onClick={() => setSelected(null)}
-            aria-label="Close tool details"
+            aria-label={t('activity:agentOffice.closeToolDetails')}
           />
           <ActionDetail selected={selected} onClose={() => setSelected(null)} />
         </>

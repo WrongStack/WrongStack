@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,7 @@ export function DeleteMemoryDialog({
   onConfirm,
   onOpenChange,
 }: DeleteMemoryDialogProps) {
+  const { t } = useAppTranslation();
   return (
     <Dialog open={Boolean(deletingId)} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -35,10 +37,9 @@ export function DeleteMemoryDialog({
           <span className="mb-2 flex size-10 items-center justify-center border border-destructive/35 bg-destructive/10 text-destructive">
             <Trash2 className="size-4" />
           </span>
-          <DialogTitle>Delete this memory?</DialogTitle>
+          <DialogTitle>{t('activity:memoryManager.deleteTitle')}</DialogTitle>
           <DialogDescription className="leading-6">
-            SAGE will mark the record deleted, remove graph edges, and clean references from related
-            memories. The record remains in the audit trail but cannot be restored from this page.
+            {t('activity:deleteMemoryDialog.sageWillMarkTheRecordDeleted')}
           </DialogDescription>
         </DialogHeader>
         <div className="border border-border/70 bg-background/45 p-3 text-xs text-muted-foreground">
@@ -46,7 +47,7 @@ export function DeleteMemoryDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={busyAction === 'delete'}>
-            Cancel
+            {t('common:action.cancel')}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={busyAction === 'delete'}>
             {busyAction === 'delete' ? (
@@ -54,7 +55,7 @@ export function DeleteMemoryDialog({
             ) : (
               <Trash2 className="size-4" />
             )}
-            {busyAction === 'delete' ? 'Deleting…' : 'Delete memory'}
+            {busyAction === 'delete' ? t('activity:memoryManager.deletingLabel') : t('activity:memoryManager.actionDeleteMemory')}
           </Button>
         </DialogFooter>
       </DialogContent>

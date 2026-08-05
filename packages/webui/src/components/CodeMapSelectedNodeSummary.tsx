@@ -5,6 +5,7 @@ import {
   relativeFilePath,
 } from './codemap-model';
 import { NODE_STYLE } from './CodeMapVisuals';
+import { useAppTranslation } from '@/i18n';
 
 export type CodeMapSelectedNodeSummaryProps = {
   node: GraphNodeData;
@@ -21,6 +22,7 @@ export function CodeMapSelectedNodeSummary({
   onOpenNode,
   onOpenActivity,
 }: CodeMapSelectedNodeSummaryProps) {
+  const { t } = useAppTranslation();
   const Icon = NODE_STYLE[node.kind].icon;
   return (
     <div className="border-b bg-muted/25 p-3">
@@ -52,8 +54,8 @@ export function CodeMapSelectedNodeSummary({
         </pre>
       )}
       <div className="mt-3 grid grid-cols-3 border">
-        <Metric value={incomingCount} label="incoming" className="border-r text-info" />
-        <Metric value={outgoingCount} label="outgoing" className="border-r text-primary" />
+        <Metric value={incomingCount} label={t('activity:codeMap.incoming')} className="border-r text-info" />
+        <Metric value={outgoingCount} label={t('activity:codeMap.outgoing')} className="border-r text-primary" />
         <Metric
           value={node.symbolCount ?? node.fileCount ?? node.line ?? '—'}
           label={node.kind === 'package' ? 'files' : node.kind === 'file' ? 'symbols' : 'line'}
@@ -75,7 +77,7 @@ export function CodeMapSelectedNodeSummary({
             className="flex h-7 items-center justify-center gap-1.5 border px-2 text-[9px] uppercase text-muted-foreground hover:bg-muted"
             onClick={() => onOpenActivity(node.file!)}
           >
-            <ActivityIcon className="h-3 w-3" /> Activity
+            <ActivityIcon className="h-3 w-3" /> {t('activity:codeMap.activity')}
           </button>
         )}
       </div>

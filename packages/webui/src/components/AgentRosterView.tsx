@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AgentRuntimePolicyEditor } from '@/components/AgentRuntimePolicyEditor';
+import { useAppTranslation } from '@/i18n';
 import { sendRosterMessage } from '@/lib/roster-ws';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -56,6 +57,7 @@ function CustomizationTab({
   catalog: RosterAgentEntry[];
   onRefresh: () => void;
 }) {
+  const { t } = useAppTranslation();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<'identity' | 'learned' | 'config' | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -96,7 +98,7 @@ function CustomizationTab({
       setEditMode(mode);
       setRuntimeConfig(null);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'Failed to load customization');
+      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.loadCustomizationFailed'));
     } finally {
       setSaving(false);
     }
@@ -113,7 +115,7 @@ function CustomizationTab({
       setRuntimeConfig(data.config ?? {});
       setEditMode(null);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'Failed to load runtime policy');
+      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.loadRuntimePolicyFailed'));
     } finally {
       setSaving(false);
     }
@@ -129,7 +131,7 @@ function CustomizationTab({
         setRuntimeConfig(null);
         onRefresh();
       } catch (error) {
-        setEditError(error instanceof Error ? error.message : 'Runtime policy save failed');
+        setEditError(error instanceof Error ? error.message : t('activity:agentRoster.runtimePolicySaveFailed'));
       } finally {
         setSaving(false);
       }
@@ -163,7 +165,7 @@ function CustomizationTab({
       setEditError(null);
       onRefresh();
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'Save failed');
+      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.saveFailed'));
     }
     setSaving(false);
   }, [selectedRole, editMode, editContent, onRefresh]);
@@ -184,13 +186,13 @@ function CustomizationTab({
       ui.setSidebarOpen(false);
       ui.setCurrentView('chat');
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'LLM improvement failed');
+      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.llmImprovementFailed'));
     }
   }, [selectedRole]);
 
   const runReset = useCallback(
     async (role: string) => {
-      if (!window.confirm(`Reset all project-specific data for agent "${role}"?`)) return;
+      if (!window.confirm(t('activity:agentRoster.resetConfirm', { role }))) return;
       try {
         await sendRosterMessage('agent-roster.reset', { role });
         setSelectedRole(null);
@@ -222,7 +224,7 @@ function CustomizationTab({
       setSelectedRole(data.role);
       onRefresh();
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'Agent creation failed');
+      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.agentCreationFailed'));
     } finally {
       setSaving(false);
     }
@@ -246,7 +248,7 @@ function CustomizationTab({
           <div className="flex items-center justify-between gap-2">
             <h3 className="flex items-center gap-1.5 text-xs font-semibold">
               <Settings className="h-3.5 w-3.5" />
-              Project Agents
+              {t('activity:agentRoster.projectAgents')}
             </h3>
             <button
               type="button"
@@ -258,7 +260,7 @@ function CustomizationTab({
               }}
               className="rounded border border-primary/40 px-1.5 py-1 text-[9px] text-primary hover:bg-primary/10"
             >
-              + Clone
+              {t('activity:agentRoster.clone')}
             </button>
           </div>
         </div>
@@ -289,7 +291,7 @@ function CustomizationTab({
           ))}
           {sorted.length === 0 && (
             <div className="text-[10px] text-muted-foreground text-center py-4">
-              No customizations yet
+              {t('activity:agentRoster.noCustomizations')}
             </div>
           )}
         </div>
@@ -300,14 +302,13 @@ function CustomizationTab({
         {createOpen && (
           <div className="max-w-2xl space-y-4">
             <div>
-              <h3 className="text-base font-semibold">Create or Clone Project Agent</h3>
+              <h3 className="text-base font-semibold">{t('activity:agentRoster.createOrCloneTitle')}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Inherit any roster agent as a template, then develop an independent identity,
-                runtime policy and learned history.
+                {t('activity:agentRoster.createOrCloneHint')}
               </p>
             </div>
             <label className="block space-y-1 text-xs">
-              <span className="font-medium">Clone from roster role</span>
+              <span className="font-medium">{t('activity:agentRoster.cloneFromRole')}</span>
               <select
                 value={createDraft.baseRole}
                 onChange={(event) =>
@@ -324,53 +325,52 @@ function CustomizationTab({
                   ))}
               </select>
               <p className="text-[10px] text-muted-foreground">
-                Prompt, tools, skills and defaults are inherited. Learning and later edits remain
-                isolated to the new agent.
+                {t('activity:agentRoster.cloneHint')}
               </p>
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-xs">
-                <span className="font-medium">Display name</span>
+                <span className="font-medium">{t('activity:agentRoster.displayName')}</span>
                 <input
                   value={createDraft.name}
                   onChange={(event) =>
                     setCreateDraft((draft) => ({ ...draft, name: event.target.value }))
                   }
-                  placeholder="ABC"
+                  placeholder={t('activity:agentRoster.abc')}
                   className="h-9 w-full rounded border border-border bg-card px-2"
                 />
               </label>
               <label className="space-y-1 text-xs">
-                <span className="font-medium">Role id (optional)</span>
+                <span className="font-medium">{t('activity:agentRoster.roleIdOptional')}</span>
                 <input
                   value={createDraft.role}
                   onChange={(event) =>
                     setCreateDraft((draft) => ({ ...draft, role: event.target.value }))
                   }
-                  placeholder="abc (generated from name)"
+                  placeholder={t('activity:agentRoster.abcGeneratedFromName')}
                   className="h-9 w-full rounded border border-border bg-card px-2 font-mono"
                 />
               </label>
             </div>
             <label className="block space-y-1 text-xs">
-              <span className="font-medium">Purpose</span>
+              <span className="font-medium">{t('activity:agentRoster.purpose')}</span>
               <textarea
                 value={createDraft.purpose}
                 onChange={(event) =>
                   setCreateDraft((draft) => ({ ...draft, purpose: event.target.value }))
                 }
-                placeholder="Own X, Y and Z workflows for this project and verify their results."
+                placeholder={t('activity:agentRoster.descriptionPlaceholder')}
                 className="h-24 w-full resize-y rounded border border-border bg-card p-2"
               />
             </label>
             <label className="block space-y-1 text-xs">
-              <span className="font-medium">Task types (comma or one per line)</span>
+              <span className="font-medium">{t('activity:agentRoster.taskTypesCommaOrOnePer')}</span>
               <textarea
                 value={createDraft.taskTypes}
                 onChange={(event) =>
                   setCreateDraft((draft) => ({ ...draft, taskTypes: event.target.value }))
                 }
-                placeholder={'X workflow\nY analysis\nZ verification'}
+                placeholder={t('activity:agentRoster.taskTypesPlaceholder')}
                 className="h-24 w-full resize-y rounded border border-border bg-card p-2"
               />
             </label>
@@ -387,21 +387,21 @@ function CustomizationTab({
                 }
                 className="rounded bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50"
               >
-                {saving ? 'Creating…' : 'Clone Agent'}
+                {saving ? t('activity:agentRoster.creating') : 'Clone Agent'}
               </button>
               <button
                 type="button"
                 onClick={() => setCreateOpen(false)}
                 className="rounded border border-border px-3 py-1.5 text-xs hover:bg-accent"
               >
-                Cancel
+                {t('activity:agentRoster.cancel')}
               </button>
             </div>
           </div>
         )}
         {!createOpen && !selectedRole && (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            Select an agent to edit customizations
+            {t('activity:agentRoster.selectAnAgentToEditCustomizations')}
           </div>
         )}
         {!createOpen && selectedRole && selectedStats && (
@@ -414,14 +414,14 @@ function CustomizationTab({
                   onClick={runImprove}
                   className="inline-flex items-center gap-1 rounded border border-border/50 px-2 py-1 text-[10px] hover:bg-accent transition-colors"
                 >
-                  <Sparkles className="h-3 w-3 text-brand-2" /> LLM Improve
+                  <Sparkles className="h-3 w-3 text-brand-2" /> {t('activity:agentRoster.llmImprove')}
                 </button>
                 <button
                   type="button"
                   onClick={() => runReset(selectedRole)}
                   className="inline-flex items-center gap-1 rounded border border-destructive/30 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/10 transition-colors"
                 >
-                  <Trash2 className="h-3 w-3" /> Reset
+                  <Trash2 className="h-3 w-3" /> {t('activity:agentRoster.reset')}
                 </button>
               </div>
             </div>
@@ -457,28 +457,28 @@ function CustomizationTab({
                 onClick={() => startEdit(selectedRole, 'identity')}
                 className="inline-flex items-center gap-1 rounded border border-border/50 px-3 py-1.5 text-xs hover:bg-accent transition-colors"
               >
-                <FileText className="h-3.5 w-3.5" /> Edit identity.md
+                <FileText className="h-3.5 w-3.5" /> {t('activity:agentRoster.editIdentityMd')}
               </button>
               <button
                 type="button"
                 onClick={() => startEdit(selectedRole, 'learned')}
                 className="inline-flex items-center gap-1 rounded border border-border/50 px-3 py-1.5 text-xs hover:bg-accent transition-colors"
               >
-                <Bookmark className="h-3.5 w-3.5" /> Edit learned.md
+                <Bookmark className="h-3.5 w-3.5" /> {t('activity:agentRoster.editLearnedMd')}
               </button>
               <button
                 type="button"
                 onClick={() => startRuntimeEdit(selectedRole)}
                 className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors"
               >
-                <ShieldCheck className="h-3.5 w-3.5" /> Runtime policy
+                <ShieldCheck className="h-3.5 w-3.5" /> {t('activity:agentRoster.runtimePolicy')}
               </button>
               <button
                 type="button"
                 onClick={() => startEdit(selectedRole, 'config')}
                 className="inline-flex items-center gap-1 rounded border border-border/50 px-3 py-1.5 text-xs hover:bg-accent transition-colors"
               >
-                <Settings className="h-3.5 w-3.5" /> Edit config.json
+                <Settings className="h-3.5 w-3.5" /> {t('activity:agentRoster.editConfigJson')}
               </button>
             </div>
 
@@ -509,14 +509,14 @@ function CustomizationTab({
                       disabled={saving}
                       className="inline-flex items-center gap-1 rounded bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                     >
-                      {saving ? 'Saving…' : 'Save'}
+                      {saving ? t('activity:agentRoster.saving') : t('common:action.save')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditMode(null)}
                       className="inline-flex items-center gap-1 rounded border border-border/50 px-3 py-1.5 text-xs hover:bg-accent transition-colors"
                     >
-                      Cancel
+                      {t('activity:agentRoster.cancel')}
                     </button>
                   </div>
                 </div>
@@ -544,6 +544,7 @@ function CustomizationTab({
 // ══════════════════════════════════════════════════════════════════════
 
 export function AgentRosterView({ className }: { className?: string | undefined }) {
+  const { t } = useAppTranslation();
   const [activeTab, setActiveTab] = useState<RosterTab>('live');
   const [nowTick, setNowTick] = useState(Date.now());
   const { customStats, catalog, rosterLoading, rosterError, loadRoster } = useAgentRosterData();
@@ -572,7 +573,7 @@ export function AgentRosterView({ className }: { className?: string | undefined 
             <AlertTriangle className="h-4 w-4" />
             {rosterError}
             <button type="button" onClick={loadRoster} className="underline">
-              Retry
+              {t('activity:agentRoster.retry')}
             </button>
           </div>
         )}

@@ -497,7 +497,7 @@ export function ChatView() {
   const runningStatus = useMemo(() => {
     const last = messages[messages.length - 1];
     const runningTools = messages.filter((m) => m.role === 'tool' && m.toolResult === undefined);
-    let label = 'Thinking…';
+    let label = t('activity:chatView.thinking');
     if (runningTools.length > 0) {
       const names = Array.from(
         new Set(runningTools.map((t) => t.toolName).filter(Boolean) as string[]),
@@ -506,12 +506,15 @@ export function ChatView() {
       const more = names.length > 2 ? ` +${names.length - 2}` : '';
       label =
         runningTools.length === 1
-          ? `Running ${preview || 'tool'}…`
-          : `Running ${runningTools.length} tools (${preview}${more})…`;
+          ? t('activity:chatView.runningTool', { tool: preview || t('activity:chatView.toolWord') })
+          : t('activity:chatView.runningTools', {
+              count: runningTools.length,
+              preview: `${preview}${more}`,
+            });
     } else if (last?.role === 'assistant' && last.content) {
-      label = 'Writing reply…';
+      label = t('activity:chatView.writingReply');
     } else if (last?.role === 'tool' && last.toolResult !== undefined) {
-      label = 'Thinking about the next step…';
+      label = t('activity:chatView.thinkingNextStep');
     }
     const elapsedSec = runStartedAt ? Math.max(0, Math.floor((nowTick - runStartedAt) / 1000)) : 0;
     const elapsed =
@@ -806,10 +809,10 @@ export function ChatView() {
                 type="button"
                 onClick={() => setEditorOpen(true)}
                 className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] text-muted-foreground/70 hover:text-foreground hover:bg-accent transition-colors shrink-0"
-                title="Edit context window"
+                title={t('activity:chatView.editContextWindow')}
               >
                 <Wand2 className="h-3 w-3" />
-                <span>Edit</span>
+                <span>{t('activity:chatView.edit')}</span>
               </button>
               {totalTokens.input > 0 && (
                 <>
@@ -887,7 +890,7 @@ export function ChatView() {
             )}
           >
             <ArrowUp className="h-3 w-3" />
-            <span>Top</span>
+            <span>{t('activity:chatView.top')}</span>
           </button>
         )}
         {rows.length === 0 && !isLoading ? (
@@ -902,7 +905,7 @@ export function ChatView() {
             className="h-full"
             onScroll={handleScroll}
             role="log"
-            aria-label="Chat transcript"
+            aria-label={t('activity:chatView.chatTranscript')}
             aria-live="polite"
           >
             {rows.map((row, i) => (
@@ -989,7 +992,7 @@ export function ChatView() {
               )}
             </button>
             <ToggleSwitch
-              label="↕️ Auto-collapse"
+              label={t('activity:chatView.autoCollapse')}
               value={autoCollapseInput}
               onChange={handleToggleAutoCollapse}
             />
@@ -1013,7 +1016,7 @@ export function ChatView() {
             <div className="ws-display-toggles flex max-w-6xl mx-auto px-2 pb-1.5 items-center gap-3 text-[11px] text-muted-foreground/75 select-none overflow-x-auto min-h-[1.75rem]">
               <div className="flex items-center gap-2 shrink-0">
                 <ToggleSwitch
-                  label="🧠 Reasoning"
+                  label={t('activity:chatView.reasoning')}
                   value={showThinkingLogs}
                   onChange={() => {
                     useLocalPrefs
@@ -1023,7 +1026,7 @@ export function ChatView() {
                 />
                 <span className="opacity-30">|</span>
                 <ToggleSwitch
-                  label="🔧 Group Tools"
+                  label={t('activity:chatView.groupTools')}
                   value={groupToolCallsPref}
                   onChange={() => {
                     useLocalPrefs
@@ -1033,13 +1036,13 @@ export function ChatView() {
                 />
                 <span className="opacity-30">|</span>
                 <ToggleSwitch
-                  label="📦 Compact"
+                  label={t('activity:chatView.compact')}
                   value={compactMode}
                   onChange={() => useUIStore.getState().toggleCompactMode()}
                 />
                 <span className="opacity-30">|</span>
                 <ToggleSwitch
-                  label="↕️ Auto-collapse"
+                  label={t('activity:chatView.autoCollapse')}
                   value={autoCollapseInput}
                   onChange={handleToggleAutoCollapse}
                 />
@@ -1071,7 +1074,7 @@ export function ChatView() {
                       </span>
                     )}
                     {rows.length > 0 && (
-                      <span className="flex items-center gap-1" title="Messages">
+                      <span className="flex items-center gap-1" title={t('activity:chatView.messages')}>
                         <span className="font-medium text-foreground/80">{rows.length}</span>
                         <span className="text-[9px]">msgs</span>
                       </span>
@@ -1079,7 +1082,7 @@ export function ChatView() {
                     {iteration?.index && (
                       <span
                         className="flex items-center gap-1 text-primary/70"
-                        title="Current iteration"
+                        title={t('activity:chatView.currentIteration')}
                       >
                         <span className="font-medium">{iteration.index}</span>
                         <span className="text-[9px]">iter</span>

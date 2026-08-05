@@ -240,14 +240,14 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Context Window Editor"
+        aria-label={t('activity:ctxEditor.contextWindowEditor')}
         className="w-full max-w-4xl max-h-[92dvh] overflow-hidden rounded-xl border bg-card shadow-2xl flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Context Window Editor</h3>
+            <h3 className="text-sm font-semibold">{t('activity:ctxEditor.contextWindowEditor')}</h3>
             {revision && (
               <span className="text-[10px] font-mono text-muted-foreground/60 ml-2">
                 rev {revision.slice(0, 8)}…
@@ -269,7 +269,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
         {readonlyContext && (
           <div className="grid grid-cols-4 gap-2 px-4 py-2 border-b bg-muted/20 text-[11px] shrink-0">
             <div className="flex flex-col">
-              <span className="text-muted-foreground/60">System</span>
+              <span className="text-muted-foreground/60">{t('activity:ctxEditor.system')}</span>
               <span className="font-mono font-medium">{fmtTok(readonlyContext.systemPromptTokens)}</span>
             </div>
             <div className="flex flex-col">
@@ -277,11 +277,11 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
               <span className="font-mono font-medium">{fmtTok(readonlyContext.toolSchemaTokens)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-muted-foreground/60">Messages</span>
+              <span className="text-muted-foreground/60">{t('activity:ctxEditor.messages')}</span>
               <span className="font-mono font-medium">{fmtTok(readonlyContext.messageTokens)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-muted-foreground/60">Total</span>
+              <span className="text-muted-foreground/60">{t('activity:ctxEditor.total')}</span>
               <span className="font-mono font-medium text-primary">{fmtTok(readonlyContext.totalTokens)}</span>
             </div>
           </div>
@@ -291,7 +291,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
         {phase === 'loading_snapshot' && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading context snapshot…
+            {t('activity:ctxEditor.loadingContextSnapshot')}
           </div>
         )}
 
@@ -367,7 +367,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
           <div className="border-t px-4 py-2 bg-warning/5 shrink-0">
             <div className="flex items-center gap-1.5 text-[11px] text-warning">
               <Zap className="h-3 w-3" />
-              <span>Repair preview: will remove</span>
+              <span>{t('activity:ctxEditor.repairPreviewWillRemove')}</span>
               {validation.repair.removedToolUses.length > 0 && (
                 <span>{validation.repair.removedToolUses.length} orphan tool_use(s)</span>
               )}
@@ -393,7 +393,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
             {isLoading && (
               <span className="flex items-center gap-1 text-warning">
                 <Clock className="h-3 w-3" />
-                Agent running — apply disabled
+                {t('activity:ctxEditor.agentRunningApplyDisabled')}
               </span>
             )}
           </div>
@@ -405,7 +405,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
                 className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                 disabled={isBusy}
               >
-                Clear
+                {t('activity:ctxEditor.clear')}
               </button>
             )}
             <button

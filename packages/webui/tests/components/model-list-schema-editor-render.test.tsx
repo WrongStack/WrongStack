@@ -107,7 +107,7 @@ describe('ModelListEditor rendered actions', () => {
     fireEvent.change(screen.getByLabelText('settings:providerModels.fieldName'), {
       target: { value: 'Renamed model' },
     });
-    fireEvent.click(screen.getByText('common:save'));
+    fireEvent.click(screen.getByText('common:action.save'));
 
     expect(client.setCustomModel).toHaveBeenCalledWith('openai', 'model-a', {
       modelsDev: expect.objectContaining({ name: 'Renamed model' }),
@@ -133,7 +133,7 @@ describe('ModelSchemaEditor rendered form and raw JSON paths', () => {
     });
     fireEvent.click(screen.getAllByText('image')[0]!);
     fireEvent.click(screen.getAllByRole('checkbox')[0]!);
-    fireEvent.click(screen.getByText('common:save'));
+    fireEvent.click(screen.getByText('common:action.save'));
 
     expect(onSave).toHaveBeenCalledWith(
       'model-a',
@@ -160,11 +160,11 @@ describe('ModelSchemaEditor rendered form and raw JSON paths', () => {
     fireEvent.click(screen.getByText('settings:providerModels.tabRawJson'));
     const raw = screen.getByRole('textbox');
     fireEvent.change(raw, { target: { value: '{' } });
-    fireEvent.click(screen.getByText('common:save'));
+    fireEvent.click(screen.getByText('common:action.save'));
     expect(screen.getByText(/JSON/)).toBeTruthy();
 
     fireEvent.change(raw, { target: { value: '{"id":"raw-model","name":"Raw model"}' } });
-    fireEvent.click(screen.getByText('common:save'));
+    fireEvent.click(screen.getByText('common:action.save'));
     expect(onSave).toHaveBeenCalledWith('raw-model', { name: 'Raw model' });
   });
 });

@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { BrainCircuit, ChevronRight, Database, FilterX, Plus } from 'lucide-react';
 import type { RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -29,6 +30,7 @@ export function MemoryList({
   onOpenCreate,
   onClearFilters,
 }: MemoryListProps) {
+  const { t } = useAppTranslation();
   const useVirtual = filteredMemories.length > VIRTUALIZE_THRESHOLD;
 
   const virtualizer = useVirtualizer({
@@ -43,15 +45,15 @@ export function MemoryList({
     <>
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
         <span>
-          {filteredMemories.length} of {memories.length} memories
+          {t('activity:memoryManager.memoryCountSummary', { shown: filteredMemories.length, total: memories.length })}
         </span>
-        <span className="font-mono uppercase">updated ↓</span>
+        <span className="font-mono uppercase">{t('activity:memoryManager.updatedSortLabel')}</span>
       </div>
 
       <section
         ref={memoryListRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-        aria-label="Memories"
+        aria-label={t('activity:memoryManager.listAria')}
       >
         {filteredMemories.length === 0 ? (
           <MemoryListEmpty
@@ -114,18 +116,19 @@ interface MemoryListEmptyProps {
 }
 
 function MemoryListEmpty({ hasMemories, onOpenCreate, onClearFilters }: MemoryListEmptyProps) {
+  const { t } = useAppTranslation();
   return (
     <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
       <span className="flex size-12 items-center justify-center border border-dashed border-border text-muted-foreground">
         <Database className="size-5" />
       </span>
       <h2 className="mt-4 text-sm font-bold">
-        {hasMemories ? 'No matching memories' : 'Build your memory graph'}
+        {hasMemories ? t('activity:memoryManager.noMatching') : t('activity:memoryManager.buildGraph')}
       </h2>
       <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
         {hasMemories
-          ? 'Change the filters or clear the search query.'
-          : 'Capture durable facts, decisions, conventions, and file-bound notes for every agent.'}
+          ? t('activity:memoryManager.emptyFiltered')
+          : t('activity:memoryManager.emptyCapture')}
       </p>
       <Button
         className="mt-4"
@@ -134,7 +137,7 @@ function MemoryListEmpty({ hasMemories, onOpenCreate, onClearFilters }: MemoryLi
         onClick={hasMemories ? onClearFilters : onOpenCreate}
       >
         {hasMemories ? <FilterX className="size-3.5" /> : <Plus className="size-3.5" />}
-        {hasMemories ? 'Clear filters' : 'Create first memory'}
+        {hasMemories ? t('activity:memoryManager.clearFilters') : t('activity:memoryManager.createFirst')}
       </Button>
     </div>
   );

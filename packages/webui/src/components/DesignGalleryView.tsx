@@ -51,6 +51,8 @@ function applyOv(base: Tokens, overrides: Tokens, theme: ThemeName): Tokens {
 
 /** A small fake UI rendered purely from a kit's token set. */
 function KitPreview({ t, label }: { t: Tokens; label: string }) {
+  // `t` here is the kit's design-TOKEN set; alias the translator to `tr`.
+  const { t: tr } = useAppTranslation();
   const bg = t.bg ?? '#fff';
   const surface = t.surface ?? bg;
   const fg = t.fg ?? '#111';
@@ -80,36 +82,36 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
         className="flex min-w-0 flex-col gap-2 p-3"
       >
         <div style={{ fontFamily: fontDisplay }} className="text-base font-bold leading-tight">
-          Aa Heading
+          {tr('activity:designStudio.aaHeading')}
         </div>
         <div className="text-[11px] leading-snug" style={{ color: muted }}>
-          The quick brown fox jumps over the lazy dog.
+          {tr('activity:designStudio.theQuickBrownFoxJumpsOver')}
         </div>
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           <span
             style={{ background: primary, color: bg, borderRadius: radius }}
             className="shrink-0 px-2.5 py-1 text-[10px] font-semibold"
           >
-            Primary
+            {tr('activity:designStudio.primary')}
           </span>
           <span
             style={{ border: `1px solid ${border}`, color: fg, borderRadius: radius }}
             className="shrink-0 px-2 py-1 text-[10px]"
           >
-            Ghost
+            {tr('activity:designStudio.ghost')}
           </span>
           <span
             style={{ background: accent, color: bg, borderRadius: '999px' }}
             className="ml-auto shrink-0 px-2 py-0.5 text-[9px] font-semibold"
           >
-            Badge
+            {tr('activity:designStudio.badge')}
           </span>
         </div>
         <div
           style={{ border: `1px solid ${border}`, borderRadius: radius, color: muted }}
           className="text-[10px] px-2 py-1.5 mt-1"
         >
-          Input field…
+          {tr('activity:designStudio.inputField')}
         </div>
       </div>
     </div>
@@ -175,6 +177,7 @@ function ColorEditor({
 
 /** High-level knob editor for the active kit — sends `design.tune`. */
 function TuneEditor({ onTune }: { onTune: (tune: Record<string, string>) => void }) {
+  const { t } = useAppTranslation();
   const [font, setFont] = useState('');
   const Row = ({ label, knob, values }: { label: string; knob: string; values: string[] }) => (
     <div className="flex items-center gap-1.5">
@@ -195,19 +198,19 @@ function TuneEditor({ onTune }: { onTune: (tune: Record<string, string>) => void
   );
   return (
     <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
-      <span className="text-[10px] font-semibold uppercase text-muted-foreground">Tune</span>
-      <Row label="Radius" knob="radius" values={['none', 'sm', 'md', 'lg', 'xl', 'full']} />
-      <Row label="Density" knob="density" values={['compact', 'cozy', 'comfortable']} />
-      <Row label="Motion" knob="motion" values={['snappy', 'smooth', 'none']} />
+      <span className="text-[10px] font-semibold uppercase text-muted-foreground">{t('activity:designStudio.tune')}</span>
+      <Row label={t('activity:designStudio.radius')} knob="radius" values={['none', 'sm', 'md', 'lg', 'xl', 'full']} />
+      <Row label={t('activity:designStudio.density')} knob="density" values={['compact', 'cozy', 'comfortable']} />
+      <Row label={t('activity:designStudio.motion')} knob="motion" values={['snappy', 'smooth', 'none']} />
       <div className="flex items-center gap-1.5">
-        <span className="w-16 shrink-0 text-[9px] uppercase text-muted-foreground">Font</span>
+        <span className="w-16 shrink-0 text-[9px] uppercase text-muted-foreground">{t('activity:designStudio.font')}</span>
         <input
           value={font}
           onChange={(e) => setFont(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && font.trim()) onTune({ font: font.trim() });
           }}
-          placeholder="Space Grotesk…"
+          placeholder={t('activity:designStudio.spaceGrotesk')}
           className="h-6 min-w-0 flex-1 rounded border border-border/60 bg-background/70 px-1.5 text-[10px]"
         />
         <button
@@ -215,7 +218,7 @@ function TuneEditor({ onTune }: { onTune: (tune: Record<string, string>) => void
           onClick={() => font.trim() && onTune({ font: font.trim() })}
           className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] hover:bg-muted"
         >
-          Set
+          {t('activity:designStudio.set')}
         </button>
       </div>
     </div>

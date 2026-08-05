@@ -1,6 +1,7 @@
 import { Layers, Orbit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CodeMapLayout, GraphRefType } from './codemap-model';
+import { useAppTranslation } from '@/i18n';
 
 export function CodeMapCanvasToolbar({
   layout,
@@ -21,6 +22,7 @@ export function CodeMapCanvasToolbar({
   onCanvasModeChange: (mode: 'smart' | 'all') => void;
   onEdgeFilterChange: (filter: 'all' | GraphRefType) => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center gap-2">
       <div className="pointer-events-auto flex border bg-card/95 shadow-md backdrop-blur">
@@ -34,7 +36,7 @@ export function CodeMapCanvasToolbar({
           )}
           onClick={() => onLayoutChange('layers')}
         >
-          <Layers className="h-3 w-3" /> Layers
+          <Layers className="h-3 w-3" /> {t('activity:codeMap.layers')}
         </button>
         <button
           type="button"
@@ -46,7 +48,7 @@ export function CodeMapCanvasToolbar({
           )}
           onClick={() => onLayoutChange('orbit')}
         >
-          <Orbit className="h-3 w-3" /> Relations
+          <Orbit className="h-3 w-3" /> {t('activity:codeMap.relations')}
         </button>
       </div>
       <div className="pointer-events-auto flex border bg-card/95 shadow-md backdrop-blur">
@@ -59,7 +61,7 @@ export function CodeMapCanvasToolbar({
               : 'text-muted-foreground hover:bg-muted',
           )}
           onClick={() => onCanvasModeChange('smart')}
-          title="Keep the full tree, show the strongest relations and selected neighbourhood"
+          title={t('activity:codeMap.keepTheFullTreeShowTheStrongestRelationsAndSelectedNeighbourhood')}
         >
           SMART {canvasNodeCount}/{graphNodeCount}
         </button>
@@ -72,9 +74,9 @@ export function CodeMapCanvasToolbar({
               : 'text-muted-foreground hover:bg-muted',
           )}
           onClick={() => onCanvasModeChange('all')}
-          title="Render every node and relation in this scope"
+          title={t('activity:codeMap.renderEveryNodeAndRelationInThisScope')}
         >
-          ALL
+          {t('activity:codeMap.all')}
         </button>
       </div>
       <div className="pointer-events-auto ml-auto flex max-w-[60%] overflow-x-auto border bg-card/95 shadow-md backdrop-blur">

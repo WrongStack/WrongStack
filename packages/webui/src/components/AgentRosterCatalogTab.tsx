@@ -1,5 +1,6 @@
 import { Activity, Bot, ChevronDown, Database, FileText, Search, Settings, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { CustomRosterStats, RosterAgentEntry } from './agent-roster-data.js';
 
@@ -10,6 +11,18 @@ export function RosterCatalogTab({
   customStats: CustomRosterStats[];
   catalog: RosterAgentEntry[];
 }) {
+  const { t } = useAppTranslation();
+  // Built-in roster roles get localized copy keyed on the stable role id;
+  // server-supplied custom roles fall back to whatever the server sent.
+  const roleName = useCallback(
+    (r: RosterAgentEntry) => t(`activity:rosterRoles.${r.role}.name`, { defaultValue: r.name }),
+    [t],
+  );
+  const roleSummary = useCallback(
+    (r: RosterAgentEntry) =>
+      t(`activity:rosterRoles.${r.role}.summary`, { defaultValue: r.summary }),
+    [t],
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
   const customRoles = useMemo(
@@ -28,10 +41,10 @@ export function RosterCatalogTab({
     return catalog.filter(
       (r) =>
         r.role.includes(q) ||
-        r.name.toLowerCase().includes(q) ||
-        r.summary.toLowerCase().includes(q),
+        roleName(r).toLowerCase().includes(q) ||
+        roleSummary(r).toLowerCase().includes(q),
     );
-  }, [catalog, searchQuery]);
+  }, [catalog, searchQuery, roleName, roleSummary]);
 
   const customRoleStats = useCallback(
     (role: string) => customStats.find((s) => s.role === role),
@@ -50,7 +63,7 @@ export function RosterCatalogTab({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search agents by name, role, or description…"
+            placeholder={t('activity:agentRoster.searchPlaceholder')}
             className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
           />
           {searchQuery && (
@@ -91,7 +104,7 @@ export function RosterCatalogTab({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Bot className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="text-sm font-semibold truncate">{role.name}</span>
+                      <span className="text-sm font-semibold truncate">{roleName(role)}</span>
                       <code className="text-[9px] text-muted-foreground font-mono shrink-0">
                         @{role.role}
                       </code>
@@ -104,24 +117,30 @@ export function RosterCatalogTab({
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                    {role.summary}
+                    {roleSummary(role)}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="text-[9px] text-muted-foreground tabular-nums">
-                      {role.tools} tools
+                      {t('activity:agentRoster.toolsCount', { count: role.tools })}
                     </span>
                     {role.budget.maxIterations && (
                       <span className="text-[9px] text-muted-foreground tabular-nums">
-                        {role.budget.maxIterations.toLocaleString()} max it
+                        {t('activity:agentRoster.maxItShort', {
+                          count: role.budget.maxIterations,
+                          value: role.budget.maxIterations.toLocaleString(),
+                        })}
                       </span>
                     )}
                     {isCustom && (
                       <span className="inline-flex items-center gap-0.5 rounded bg-brand-2/10 px-1 py-0.5 text-[8px] text-brand-2 font-medium">
-                        <FileText className="h-2.5 w-2.5" /> Customized
+                        <FileText className="h-2.5 w-2.5" />{' '}
+                        {t('activity:agentRoster.customizedBadge')}
                       </span>
                     )}
                     {stats?.needsSummarization && (
-                      <span className="text-[9px] text-warning">⚠ Needs summary</span>
+                      <span className="text-[9px] text-warning">
+                        {t('activity:agentRoster.needsSummary')}
+                      </span>
                     )}
                   </div>
                 </button>
@@ -132,7 +151,7 @@ export function RosterCatalogTab({
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded bg-muted/30 p-1.5">
                         <span className="text-[8px] text-muted-foreground uppercase tracking-wider">
-                          Max Iterations
+                          {t('activity:agentRoster.maxIterations')}
                         </span>
                         <div className="text-xs font-mono mt-0.5">
                           {role.budget.maxIterations?.toLocaleString() ?? '—'}
@@ -140,7 +159,7 @@ export function RosterCatalogTab({
                       </div>
                       <div className="rounded bg-muted/30 p-1.5">
                         <span className="text-[8px] text-muted-foreground uppercase tracking-wider">
-                          Timeout
+                          {t('activity:agentRoster.timeout')}
                         </span>
                         <div className="text-xs font-mono mt-0.5">
                           {role.budget.timeoutMs
@@ -150,7 +169,7 @@ export function RosterCatalogTab({
                       </div>
                       <div className="rounded bg-muted/30 p-1.5">
                         <span className="text-[8px] text-muted-foreground uppercase tracking-wider">
-                          Max Tool Calls
+                          {t('activity:agentRoster.maxToolCalls')}
                         </span>
                         <div className="text-xs font-mono mt-0.5">
                           {role.budget.maxToolCalls?.toLocaleString() ?? '—'}
@@ -158,16 +177,18 @@ export function RosterCatalogTab({
                       </div>
                       <div className="rounded bg-muted/30 p-1.5">
                         <span className="text-[8px] text-muted-foreground uppercase tracking-wider">
-                          Customized
+                          {t('activity:agentRoster.customizedBadge')}
                         </span>
-                        <div className="text-xs font-mono mt-0.5">{isCustom ? 'Yes' : 'No'}</div>
+                        <div className="text-xs font-mono mt-0.5">
+                          {isCustom ? t('common:action.yes') : t('common:action.no')}
+                        </div>
                       </div>
                     </div>
 
                     {isCustom && stats && (
                       <div className="rounded bg-accent/30 p-2 space-y-1">
                         <span className="text-[9px] font-medium text-muted-foreground">
-                          Project Customizations
+                          {t('activity:agentRoster.projectCustomizations')}
                         </span>
                         <div className="flex flex-wrap gap-2 text-[9px]">
                           {stats.hasIdentity && (
@@ -177,8 +198,10 @@ export function RosterCatalogTab({
                           )}
                           {stats.entryCount > 0 && (
                             <span className="inline-flex items-center gap-0.5">
-                              <Database className="h-2.5 w-2.5 text-brand-2" /> {stats.entryCount}{' '}
-                              learned entries
+                              <Database className="h-2.5 w-2.5 text-brand-2" />{' '}
+                              {t('activity:agentRoster.learnedEntriesCount', {
+                                count: stats.entryCount,
+                              })}
                             </span>
                           )}
                           {stats.hasConfig && (
@@ -189,7 +212,9 @@ export function RosterCatalogTab({
                           {stats.sessionCaptureCount > 0 && (
                             <span className="inline-flex items-center gap-0.5">
                               <Activity className="h-2.5 w-2.5 text-success" />{' '}
-                              {stats.sessionCaptureCount} session captures
+                              {t('activity:agentRoster.sessionCapturesCount', {
+                                count: stats.sessionCaptureCount,
+                              })}
                             </span>
                           )}
                         </div>
@@ -205,24 +230,32 @@ export function RosterCatalogTab({
         {roleList.length === 0 && (
           <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
             <Search className="h-8 w-8 mb-2 opacity-30" />
-            <p className="text-sm">No agents match "{searchQuery}"</p>
+            <p className="text-sm">
+              {t('activity:agentRoster.noAgentsMatch', { query: searchQuery })}
+            </p>
           </div>
         )}
       </div>
 
       {/* Footer stats */}
       <div className="shrink-0 border-t border-border/50 px-3 py-2 text-[10px] text-muted-foreground flex items-center gap-2">
+        {/* Count stays outside t() so the <strong> emphasis survives; every
+            shipped locale renders these stats number-first. */}
         <span>
-          <strong>{catalog.length}</strong> roster roles
+          <strong>{catalog.length}</strong>{' '}
+          {t('activity:agentRoster.footerRosterRoles', { count: catalog.length })}
         </span>
         <span className="text-muted-foreground/50">·</span>
         <span className="text-brand-2">
-          <strong>{customRoles.size}</strong> customized
+          <strong>{customRoles.size}</strong>{' '}
+          {t('activity:agentRoster.footerCustomized', { count: customRoles.size })}
         </span>
         <span className="text-muted-foreground/50">·</span>
         <span>
-          <strong>{customStats.reduce((sum, s) => sum + s.entryCount, 0)}</strong> total learned
-          entries
+          <strong>{customStats.reduce((sum, s) => sum + s.entryCount, 0)}</strong>{' '}
+          {t('activity:agentRoster.footerTotalLearned', {
+            count: customStats.reduce((sum, s) => sum + s.entryCount, 0),
+          })}
         </span>
       </div>
     </div>

@@ -130,12 +130,13 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
 }
 
 export function Toaster() {
+  const { t } = useAppTranslation();
   const toasts = useToastStore((s) => s.toasts);
   if (toasts.length === 0) return null;
   return (
     <section
       className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-auto"
-      aria-label="Notifications"
+      aria-label={t('activity:toaster.notifications')}
       aria-live="polite"
     >
       {toasts.map((t) => (

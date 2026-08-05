@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type { KanbanBoard, KanbanColumn, KanbanTask } from '@wrongstack/kanban';
 import { Trash2 } from 'lucide-react';
 import { kanbanMetadataText } from '@/lib/kanban-metadata';
@@ -107,6 +108,7 @@ export function KanbanColumnView({
   onDeleteTask: (task: KanbanTask) => void;
   onMoveTask: (taskId: string, columnId: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const verificationActivity = useKanbanStore((state) => state.verificationActivity);
   const tasks = board.tasks
     .filter((task) => task.columnId === column.id)
@@ -201,8 +203,8 @@ export function KanbanColumnView({
                 </div>
                 <button
                   type="button"
-                  title="Delete task"
-                  aria-label={`Delete task: ${task.title}`}
+                  title={t('activity:kanban.deleteTask')}
+                  aria-label={t('activity:kanban.deleteTaskAria', { title: task.title })}
                   onClick={() => onDeleteTask(task)}
                   className="pointer-events-auto relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 >
@@ -246,7 +248,7 @@ export function KanbanColumnView({
                 )}
                 {intelligence.failed && (
                   <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
-                    run failed
+                    {t('activity:kanban.runFailed')}
                   </span>
                 )}
                 {intelligence.criticalRisks > 0 && (
@@ -295,7 +297,7 @@ export function KanbanColumnView({
                 )}
                 {intelligence.pendingDecomposition && (
                   <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
-                    split pending approval
+                    {t('activity:kanban.splitPendingApproval')}
                   </span>
                 )}
               </div>

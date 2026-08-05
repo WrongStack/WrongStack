@@ -95,12 +95,14 @@
     "title": "Qualcosa è andato storto",
     "body": "Si è verificato un errore di rendering. La tua sessione è ancora attiva sul server — ricaricare riprenderà da dove eri rimasto.",
     "reload": "Ricarica pagina",
-    "tryAgain": "Riprova"
+    "tryAgain": "Riprova",
+    "panelTitle": "{{name}} ha riscontrato un errore"
   },
   "sparkline": {
     "noActivity": "Nessuna attività",
     "noActivityYet": "Nessuna attività ancora",
     "activityMax": "Sparkline attività: max {{count}} eventi",
     "activityPeak": "Sparkline attività — picco {{count}} eventi/intervallo"
-  }
+  },
+  "loadingNamed": "Caricamento di {{name}}…"
 }

@@ -4,6 +4,7 @@
  * atomicity debt (tasks needing decomposition, pending proposals).
  * Every row clicks through to the task inspector.
  */
+import { useAppTranslation } from '@/i18n';
 import type { KanbanBoard } from '@wrongstack/kanban';
 import { AlertTriangle, ShieldCheck, ShieldQuestion, ShieldX, Scissors } from 'lucide-react';
 import { useMemo } from 'react';
@@ -88,6 +89,7 @@ export function KanbanVerificationDashboard({
   board: KanbanBoard;
   onSelectTask: (id: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const summary = useMemo(() => selectVerificationSummary(board), [board]);
   const verifiedPct = summary.gradedTasks
     ? (summary.passed / summary.gradedTasks) * 100
@@ -98,7 +100,7 @@ export function KanbanVerificationDashboard({
       <div className="flex items-center gap-4 rounded-md border bg-background p-4">
         <ProgressRing pct={verifiedPct} />
         <div>
-          <div className="text-sm font-semibold">Definition of Done</div>
+          <div className="text-sm font-semibold">{t('activity:kanban.definitionOfDone')}</div>
           <div className="text-xs text-muted-foreground">
             {summary.passed} of {summary.gradedTasks} graded tasks verified passed ·{' '}
             {summary.totalTasks} tasks total
@@ -109,13 +111,13 @@ export function KanbanVerificationDashboard({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <Stat label="verified" value={summary.passed} tone="success" />
         <Stat label="failed" value={summary.failed} tone="destructive" />
-        <Stat label="needs human" value={summary.needsHuman} tone="warning" />
+        <Stat label={t('activity:verifyReport.verdictNeedsHuman')} value={summary.needsHuman} tone="warning" />
         <Stat label="incomplete" value={summary.incomplete} tone="warning" />
         <Stat label="unverified" value={summary.unverified} tone="muted" />
       </div>
 
       <TaskRowList
-        title="Failing checks"
+        title={t('activity:kanban.failingChecks')}
         icon={ShieldX}
         tone="text-destructive"
         onSelectTask={onSelectTask}
@@ -128,7 +130,7 @@ export function KanbanVerificationDashboard({
       />
 
       <TaskRowList
-        title="Evidence missing (agent/council checks without backing refs)"
+        title={t('activity:kanban.evidenceMissing')}
         icon={AlertTriangle}
         tone="text-warning"
         onSelectTask={onSelectTask}
@@ -141,7 +143,7 @@ export function KanbanVerificationDashboard({
       />
 
       <TaskRowList
-        title="Needs decomposition"
+        title={t('activity:kanban.needsDecomposition')}
         icon={Scissors}
         tone="text-warning"
         onSelectTask={onSelectTask}
@@ -154,7 +156,7 @@ export function KanbanVerificationDashboard({
       />
 
       <TaskRowList
-        title="Decomposition proposals awaiting approval"
+        title={t('activity:kanban.decompositionPending')}
         icon={ShieldQuestion}
         tone="text-info"
         onSelectTask={onSelectTask}
@@ -172,7 +174,7 @@ export function KanbanVerificationDashboard({
         summary.pendingProposals.length === 0 && (
           <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/5 p-3 text-xs text-success">
             <ShieldCheck size={14} />
-            No outstanding verification or decomposition issues on this board.
+            {t('activity:kanban.noOutstanding')}
           </div>
         )}
     </div>

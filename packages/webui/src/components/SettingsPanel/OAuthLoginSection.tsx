@@ -246,7 +246,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                     {showPaste === meta.kind && (
                       <div className="mt-2 flex gap-2">
                         <Input
-                          placeholder="http://localhost:.../callback?code=…"
+                          placeholder={t('activity:oauth.httpLocalhostCallbackCode')}
                           value={pasteValue}
                           onChange={(e) => setPasteValue(e.target.value)}
                           className="font-mono text-xs"

@@ -17,25 +17,25 @@ import type React from 'react';
 /** FORGE-style status presentation (Completed/Running/Queued/Blocked/Pending/Failed). */
 const STATUS: Record<
   BoardTaskStatus,
-  { icon: React.ReactNode; label: string; text: string; ring: string }
+  { icon: React.ReactNode; text: string; ring: string }
 > = {
-  completed: { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: 'Completed', text: 'text-success', ring: 'border-success/35' },
-  in_progress: { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, label: 'Running', text: 'text-primary', ring: 'border-primary/45' },
-  queued: { icon: <Clock className="h-3.5 w-3.5" />, label: 'Queued', text: 'text-warning', ring: 'border-warning/35' },
-  blocked: { icon: <Lock className="h-3.5 w-3.5" />, label: 'Blocked', text: 'text-destructive', ring: 'border-destructive/30' },
-  pending: { icon: <Circle className="h-3.5 w-3.5" />, label: 'Pending', text: 'text-muted-foreground', ring: 'border-border/70' },
-  review: { icon: <RotateCcw className="h-3.5 w-3.5" />, label: 'Review', text: 'text-primary', ring: 'border-primary/35' },
-  failed: { icon: <XCircle className="h-3.5 w-3.5" />, label: 'Failed', text: 'text-destructive', ring: 'border-destructive/45' },
-  cancelled: { icon: <Ban className="h-3.5 w-3.5" />, label: 'Cancelled', text: 'text-muted-foreground', ring: 'border-border/70' },
+  completed: { icon: <CheckCircle2 className="h-3.5 w-3.5" />, text: 'text-success', ring: 'border-success/35' },
+  in_progress: { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, text: 'text-primary', ring: 'border-primary/45' },
+  queued: { icon: <Clock className="h-3.5 w-3.5" />, text: 'text-warning', ring: 'border-warning/35' },
+  blocked: { icon: <Lock className="h-3.5 w-3.5" />, text: 'text-destructive', ring: 'border-destructive/30' },
+  pending: { icon: <Circle className="h-3.5 w-3.5" />, text: 'text-muted-foreground', ring: 'border-border/70' },
+  review: { icon: <RotateCcw className="h-3.5 w-3.5" />, text: 'text-primary', ring: 'border-primary/35' },
+  failed: { icon: <XCircle className="h-3.5 w-3.5" />, text: 'text-destructive', ring: 'border-destructive/45' },
+  cancelled: { icon: <Ban className="h-3.5 w-3.5" />, text: 'text-muted-foreground', ring: 'border-border/70' },
 };
 
 const LEGEND: BoardTaskStatus[] = ['completed', 'in_progress', 'queued', 'blocked', 'pending', 'failed'];
 
-const PRIORITY: Record<BoardTaskItem['priority'], { label: string; cls: string }> = {
-  critical: { label: 'Crit', cls: 'bg-destructive/10 text-destructive' },
-  high: { label: 'High', cls: 'bg-destructive/10 text-destructive' },
-  medium: { label: 'Med', cls: 'bg-warning/12 text-warning' },
-  low: { label: 'Low', cls: 'bg-success/12 text-success' },
+const PRIORITY: Record<BoardTaskItem['priority'], { labelKey: string; cls: string }> = {
+  critical: { labelKey: 'activity:depGraph.prioCrit', cls: 'bg-destructive/10 text-destructive' },
+  high: { labelKey: 'activity:depGraph.prioHigh', cls: 'bg-destructive/10 text-destructive' },
+  medium: { labelKey: 'activity:depGraph.prioMed', cls: 'bg-warning/12 text-warning' },
+  low: { labelKey: 'activity:depGraph.prioLow', cls: 'bg-success/12 text-success' },
 };
 
 export interface DependencyGraphProps {
@@ -122,7 +122,9 @@ function TaskNodeCard({
           {s.icon}
           <span className="font-mono text-foreground">{task.shortId}</span>
         </span>
-        <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', prio.cls)}>{prio.label}</span>
+        <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', prio.cls)}>
+          {t(prio.labelKey)}
+        </span>
       </div>
       <p className="mt-1.5 text-xs text-foreground">{task.title}</p>
       {task.deps.length > 0 && (

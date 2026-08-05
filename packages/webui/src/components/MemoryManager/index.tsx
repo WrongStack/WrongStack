@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -38,6 +39,7 @@ import { MemoryManagerEmpty } from './MemoryManagerEmpty';
 import { collectMemoryTags, filterMemories, selectRelatedMemories } from './selectors';
 
 export function MemoryManager() {
+  const { t } = useAppTranslation();
   const {
     client,
     listSageMemoriesPage,
@@ -91,8 +93,6 @@ export function MemoryManager() {
   // memories without forcing the MemoryManager to know about file context.
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
-  const [cursorLineStart, _setCursorLineStart] = useState<number | undefined>(undefined);
-  const [cursorLineEnd, _setCursorLineEnd] = useState<number | undefined>(undefined);
 
   const hasLoadedRef = useRef(false);
   const mountedRef = useRef(true);
@@ -296,15 +296,29 @@ export function MemoryManager() {
     [confirmDiscard],
   );
 
-  const openEdit = useCallback(() => {
-    if (!selectedMemory || selectedMemory.status === 'deleted') return;
-    const next = draftFromMemory(selectedMemory);
-    setDraft(next);
-    setBaselineDraft(next);
-    setEditing(true);
-    setCreating(false);
-    setMutationError(null);
-  }, [selectedMemory]);
+  const openEdit = useCallback(
+    (id?: string) => {
+      // When an explicit id is given (drawer "Update"), resolve the target
+      // record directly instead of reading `selectedMemory` from this
+      // closure — the previous code called `setSelectedId(id)` and then
+      // `openEdit()` in the same tick, so the editor drafted the *old*
+      // selection and `submitUpdate` later wrote that draft to the *new*
+      // record's id (silent wrong-record overwrite).
+      const target =
+        id !== undefined
+          ? (memories.find((memory) => memory.id === id) ?? null)
+          : selectedMemory;
+      if (!target || target.status === 'deleted') return;
+      if (id !== undefined) setSelectedId(id);
+      const next = draftFromMemory(target);
+      setDraft(next);
+      setBaselineDraft(next);
+      setEditing(true);
+      setCreating(false);
+      setMutationError(null);
+    },
+    [memories, selectedMemory],
+  );
 
   const cancelEditor = useCallback(() => {
     if (!confirmDiscard()) return;
@@ -361,7 +375,7 @@ export function MemoryManager() {
         setSelectedId(saved.id);
         setCreating(false);
         setEditing(false);
-        setNotice(action === 'create' ? 'Memory captured.' : 'Memory updated.');
+        setNotice(action === 'create' ? t('activity:memoryManager.memoryCaptured') : t('activity:memoryManager.memoryUpdated'));
         loadMemories();
       };
 
@@ -375,13 +389,18 @@ export function MemoryManager() {
         cleanup();
         setBusyAction(null);
         setMutationError(
-          `${action === 'create' ? 'Create' : 'Save'} timed out. Your draft is still here.`,
+          t('activity:memoryManager.mutationTimeout', {
+            verb:
+              action === 'create'
+                ? t('activity:memoryManager.createAction')
+                : t('common:action.save'),
+          }),
         );
       }, 20_000);
       mutationCleanupRef.current = cleanup;
       send();
     },
-    [client, draft.text, loadMemories],
+    [client, draft.text, loadMemories, t],
   );
 
   const submitCreate = useCallback(() => {
@@ -499,6 +518,58 @@ export function MemoryManager() {
     deleteSage(deletingId, 'Deleted from the WebUI Memory Manager.');
   }, [client, deleteSage, deletingId, loadMemories]);
 
+  /**
+   * Settle a fire-and-forget WS action from the server's acknowledgement
+   * instead of a fixed timer. `updateSage`/`resolveMemoryCandidate`/
+   * `recoverSage` all return `void` (they only send), so `await`-ing them
+   * can never observe a server error. This registers a typed response
+   * listener guarded by the mutation generation counter; the listener is
+   * removed on response, timeout, or unmount (via `mutationCleanupRef`).
+   */
+  const sendWithAck = useCallback(
+    (
+      type: 'memory.sage.candidateResolve' | 'memory.sage.recover' | 'memory.sage.update',
+      send: () => void,
+      onResponse: (payload: { error?: string | undefined; memory?: SageEntry | undefined }) => void,
+    ) => {
+      const generation = ++mutationGenerationRef.current;
+      mutationCleanupRef.current?.();
+      setMutationError(null);
+
+      let off = () => {};
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      let settled = false;
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        if (timeout !== null) clearTimeout(timeout);
+        off();
+        if (mutationCleanupRef.current === cleanup) mutationCleanupRef.current = null;
+      };
+
+      off = client.on(type, (message) => {
+        if (generation !== mutationGenerationRef.current || !mountedRef.current) {
+          cleanup();
+          return;
+        }
+        cleanup();
+        onResponse(message.payload);
+      });
+
+      timeout = setTimeout(() => {
+        if (generation !== mutationGenerationRef.current || !mountedRef.current) return;
+        cleanup();
+        setMutationError(
+          'The memory store did not respond. Check the WebSocket connection and try again.',
+        );
+      }, 20_000);
+
+      mutationCleanupRef.current = cleanup;
+      send();
+    },
+    [client],
+  );
+
   const filteredMemories = useMemo(
     () =>
       filterMemories(memories, {
@@ -554,7 +625,7 @@ export function MemoryManager() {
           </div>
         </div>
         <span className="sr-only" role="status">
-          Loading SAGE content
+          {t('activity:memoryManager.loadingSageContent')}
         </span>
       </div>
     );
@@ -567,14 +638,14 @@ export function MemoryManager() {
           <span className="flex size-11 items-center justify-center border border-destructive/35 bg-destructive/10 text-destructive">
             <AlertTriangle className="size-5" />
           </span>
-          <h2 className="mt-4 text-lg font-bold">Memory store unavailable</h2>
+          <h2 className="mt-4 text-lg font-bold">{t('activity:memoryManager.storeUnavailable')}</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{loadError}</p>
           <div className="mt-5 flex gap-2">
             <Button onClick={loadMemories}>
-              <RefreshCw className="size-4" /> Retry
+              <RefreshCw className="size-4" /> {t('common:action.retry')}
             </Button>
             <Button variant="outline" onClick={() => setCurrentView('chat')}>
-              <ArrowLeft className="size-4" /> Back to chat
+              <ArrowLeft className="size-4" /> {t('activity:memoryManager.backToChat')}
             </Button>
           </div>
         </div>
@@ -591,8 +662,8 @@ export function MemoryManager() {
             variant="ghost"
             size="icon"
             onClick={() => setCurrentView('chat')}
-            aria-label="Back to chat"
-            title="Back to chat"
+            aria-label={t('activity:memoryManager.backToChat')}
+            title={t('activity:memoryManager.backToChat')}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -601,13 +672,13 @@ export function MemoryManager() {
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-bold sm:text-lg">SAGE</h1>
+              <h1 className="text-base font-bold sm:text-lg">{t('activity:memoryManager.sageHeading')}</h1>
               <span className="border border-success/35 bg-success/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-success">
-                project knowledge
+                {t('activity:memoryManager.projectKnowledge')}
               </span>
             </div>
             <p className="mt-0.5 max-w-2xl text-[10px] text-muted-foreground sm:text-xs">
-              Inspect, connect, curate, and retire durable context used across agent sessions.
+              {t('activity:memoryManager.sageSubtitle')}
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -617,20 +688,20 @@ export function MemoryManager() {
                 wsConnected ? 'border-success/30 text-success' : 'border-warning/30 text-warning',
               )}
             >
-              <span className="size-1.5 bg-current" /> {wsConnected ? 'live store' : 'reconnecting'}
+              <span className="size-1.5 bg-current" /> {wsConnected ? t('activity:memoryManager.liveStore') : t('activity:memoryManager.reconnecting')}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={loadMemories}
               disabled={refreshing}
-              aria-label="Refresh memories"
+              aria-label={t('activity:memoryManager.refreshAria')}
             >
               <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
-              <span className="hidden sm:inline">Refresh</span>
+              <span className="hidden sm:inline">{t('common:action.refresh')}</span>
             </Button>
             <Button size="sm" onClick={openCreate}>
-              <Plus className="size-3.5" /> New memory
+              <Plus className="size-3.5" /> {t('activity:memoryManager.newMemory')}
             </Button>
           </div>
         </div>
@@ -638,12 +709,12 @@ export function MemoryManager() {
 
       <div className="grid shrink-0 grid-cols-2 gap-px border-b border-border/70 bg-border/60 sm:grid-cols-4">
         <MetricCard
-          label="Memories"
+          label={t('activity:memoryManager.tabMemories')}
           value={stats?.total ?? memories.length}
           hint={`${filteredMemories.length} visible`}
         />
         <MetricCard
-          label="Active"
+          label={t('activity:memoryManager.tabActive')}
           value={
             stats?.byStatus.active ?? memories.filter((memory) => memory.status === 'active').length
           }
@@ -651,14 +722,14 @@ export function MemoryManager() {
           tone="success"
         />
         <MetricCard
-          label="Needs review"
+          label={t('activity:memoryManager.tabNeedsReview')}
           value={(stats?.byStatus.stale ?? 0) + (stats?.byStatus.contradicted ?? 0)}
-          hint="stale + conflicts"
+          hint={t('activity:memoryManager.staleConflicts')}
           tone="warning"
         />
         <div className="hidden sm:block">
           <MetricCard
-            label="Graph edges"
+            label={t('activity:memoryManager.tabGraphEdges')}
             value={stats?.edges ?? 0}
             hint={`${allTags.length} tags`}
             tone="info"
@@ -717,14 +788,14 @@ export function MemoryManager() {
             'min-h-0 border-r border-border/70 bg-card/25',
             detailOpen ? 'hidden md:flex md:flex-col' : 'flex flex-col',
           )}
-          aria-label="Memory library"
+          aria-label={t('activity:memoryManager.libraryAria')}
         >
           {/* Active / Deleted view tabs. The Deleted tab is a separate paginated
               query so the soft-delete audit trail never floods the main list. */}
           <div
             className="flex shrink-0 items-center gap-1 border-b border-border/60 px-3 pt-1"
             role="tablist"
-            aria-label="Memory view"
+            aria-label={t('activity:memoryManager.viewAria')}
           >
             <Button
               type="button"
@@ -743,7 +814,7 @@ export function MemoryManager() {
                   : 'border-transparent text-muted-foreground',
               )}
             >
-              Active
+              {t('activity:memoryManager.tabActive')}
             </Button>
             <Button
               type="button"
@@ -762,7 +833,7 @@ export function MemoryManager() {
                   : 'border-transparent text-muted-foreground',
               )}
             >
-              Deleted
+              {t('activity:memoryManager.tabDeleted')}
               {typeof statusCounts['deleted'] === 'number' ? ` (${statusCounts['deleted']})` : ''}
             </Button>
           </div>
@@ -802,7 +873,7 @@ export function MemoryManager() {
                 disabled={loadingMore}
                 className="h-7 w-full text-[11px]"
               >
-                {loadingMore ? 'Loading…' : `Load more (${memories.length} loaded)`}
+                {loadingMore ? t('common:action.loading') : `Load more (${memories.length} loaded)`}
               </Button>
             </div>
           ) : null}
@@ -813,7 +884,7 @@ export function MemoryManager() {
             'min-h-0 bg-background',
             detailOpen ? 'flex flex-col' : 'hidden md:flex md:flex-col',
           )}
-          aria-label="Memory detail"
+          aria-label={t('activity:memoryManager.detailAria')}
         >
           {/* File drawer toolbar — lives in the right rail so it doesn't
               consume vertical space in the memory list above. Only rendered
@@ -824,7 +895,7 @@ export function MemoryManager() {
           ) && (
             <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-card/30 px-3 py-1.5">
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                File drawer
+                {t('activity:memoryManager.fileDrawerLabel')}
               </span>
               <select
                 value={currentFilePath ?? ''}
@@ -834,10 +905,10 @@ export function MemoryManager() {
                   if (next) setDrawerOpen(true);
                 }}
                 className="min-w-0 max-w-[260px] flex-1 truncate rounded-sm border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-mono"
-                aria-label="File for memory drawer"
+                aria-label={t('activity:memoryManager.fileForDrawerAria')}
                 data-testid="memory-drawer-file-select"
               >
-                <option value="">— select a file —</option>
+                <option value="">{t('activity:memoryManager.selectFilePlaceholder')}</option>
                 {memories
                   .flatMap((memory) => memory.anchors ?? [])
                   .filter((anchor) => anchor.type === 'file' && anchor.path)
@@ -862,14 +933,14 @@ export function MemoryManager() {
                 disabled={!currentFilePath}
                 className="h-7 shrink-0 gap-1 px-2 text-[11px]"
                 aria-pressed={drawerActive}
-                title={drawerActive ? 'Hide file memory drawer' : 'Show file memory drawer'}
+                title={drawerActive ? t('activity:memoryManager.hideFileDrawer') : t('activity:memoryManager.showFileDrawer')}
               >
                 {drawerActive ? (
                   <PanelRightOpen className="size-3" />
                 ) : (
                   <PanelRight className="size-3" />
                 )}
-                {drawerActive ? 'Hide' : 'Show'} drawer
+                {drawerActive ? t('activity:memoryManager.hideDrawer') : t('activity:memoryManager.showDrawer')}
               </Button>
             </div>
           )}
@@ -897,62 +968,93 @@ export function MemoryManager() {
             ) : drawerActive ? (
               <MemoryDrawer
                 filePath={currentFilePath}
-                lineStart={cursorLineStart}
-                lineEnd={cursorLineEnd}
                 open={drawerActive}
                 onClose={() => setDrawerOpen(false)}
                 onShowMemory={(id) => setSelectedId(id)}
-                onAcceptDeletion={async (candidateId, memoryId) => {
+                onAcceptDeletion={(candidateId, memoryId) => {
                   // PR #1: resolve candidate as accept → server deletes the
                   // source memory + marks the candidate accepted (audit-logged).
-                  resolveMemoryCandidate({ candidateId, action: 'accept' });
-                  setNotice(
-                    `Accepted hygiene review for ${memoryId.slice(0, 12)}… ` +
-                      `(candidate ${candidateId.slice(0, 12)}…).`,
+                  // Settle on the server ack (not a fixed timer) so failures
+                  // surface in the panel and the reload can't race the write.
+                  sendWithAck(
+                    'memory.sage.candidateResolve',
+                    () => resolveMemoryCandidate({ candidateId, action: 'accept' }),
+                    (payload) => {
+                      if (payload.error) {
+                        setMutationError(payload.error);
+                        return;
+                      }
+                      setNotice(
+                        `Accepted hygiene review for ${memoryId.slice(0, 12)}… ` +
+                          `(candidate ${candidateId.slice(0, 12)}…).`,
+                      );
+                      loadMemories();
+                    },
                   );
-                  // The server emits memory.deleted in response; refetch to
-                  // pick up the new state. Fallback timeout ensures the UI
-                  // doesn't hang if the server is slow.
-                  setTimeout(() => {
-                    void loadMemories();
-                  }, 500);
                 }}
-                onKeep={async (candidateId, memoryId) => {
+                onKeep={(candidateId, memoryId) => {
                   // PR #1: reject candidate → server keeps the memory and
-                  // marks the candidate rejected.
-                  resolveMemoryCandidate({ candidateId, action: 'reject' });
-                  setNotice(
-                    `Kept ${memoryId.slice(0, 12)}… ` +
-                      `(candidate ${candidateId.slice(0, 12)}… rejected).`,
+                  // marks the candidate rejected. Reload after the ack so
+                  // the list reflects the resolved candidate.
+                  sendWithAck(
+                    'memory.sage.candidateResolve',
+                    () => resolveMemoryCandidate({ candidateId, action: 'reject' }),
+                    (payload) => {
+                      if (payload.error) {
+                        setMutationError(payload.error);
+                        return;
+                      }
+                      setNotice(
+                        `Kept ${memoryId.slice(0, 12)}… ` +
+                          `(candidate ${candidateId.slice(0, 12)}… rejected).`,
+                      );
+                      loadMemories();
+                    },
                   );
                 }}
                 onUpdate={(memoryId) => {
-                  // Re-use the existing memory-editor flow by selecting
-                  // the memory first; the editor renders via `editing`.
-                  setSelectedId(memoryId);
-                  openEdit();
+                  // Re-use the existing memory-editor flow. Passing the id
+                  // lets `openEdit` draft from the target record instead of
+                  // the pre-commit `selectedMemory` closure.
+                  openEdit(memoryId);
                 }}
-                onMarkPermanent={async (memoryId) => {
-                  setBusyAction('update');
-                  try {
-                    await updateSage(memoryId, { persistence: 'permanent' });
-                    setNotice(`Memory ${memoryId.slice(0, 12)}… promoted to permanent.`);
-                    await loadMemories();
-                  } catch (err) {
-                    setMutationError(err instanceof Error ? err.message : String(err));
-                  } finally {
-                    setBusyAction(null);
-                  }
+                onMarkPermanent={(memoryId) => {
+                  // `updateSage` is a fire-and-forget send; the server
+                  // replies on `memory.sage.update`. Settle on that ack so
+                  // a failed promote shows an error instead of a false
+                  // success notice.
+                  sendWithAck(
+                    'memory.sage.update',
+                    () => updateSage(memoryId, { persistence: 'permanent' }),
+                    (payload) => {
+                      if (payload.error || !payload.memory) {
+                        setMutationError(
+                          payload.error ?? 'The server returned no memory record.',
+                        );
+                        return;
+                      }
+                      setNotice(`Memory ${memoryId.slice(0, 12)}… promoted to permanent.`);
+                      loadMemories();
+                    },
+                  );
                 }}
-                onRecover={async (memoryId) => {
+                onRecover={(memoryId) => {
                   // PR #1: restore `deleted` memory to active status. The
                   // server replies with `memory.sage.recover` carrying the
-                  // restored entry (or `noop: true` if it was already active).
-                  recoverSage({ id: memoryId, reason: 'recovered via file drawer' });
-                  setNotice(`Recovered ${memoryId.slice(0, 12)}…`);
-                  setTimeout(() => {
-                    void loadMemories();
-                  }, 500);
+                  // restored entry (or `noop: true` if it was already
+                  // active). Settle on that ack, then reload.
+                  sendWithAck(
+                    'memory.sage.recover',
+                    () => recoverSage({ id: memoryId, reason: 'recovered via file drawer' }),
+                    (payload) => {
+                      if (payload.error) {
+                        setMutationError(payload.error);
+                        return;
+                      }
+                      setNotice(`Recovered ${memoryId.slice(0, 12)}…`);
+                      loadMemories();
+                    },
+                  );
                 }}
               />
             ) : (

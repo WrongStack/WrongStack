@@ -2,6 +2,7 @@ import { ExternalLink, Pause, Play, Radio, ShieldCheck, Target } from 'lucide-re
 import { cn } from '@/lib/utils';
 import type { FileActivity, LiveAgentPresence } from '@/stores/codemap-activity-store';
 import { agentColor, agentInitials, shortPath } from './CodeMapVisuals';
+import { useAppTranslation } from '@/i18n';
 
 export function OperationBadge({ activity }: { activity: FileActivity }): React.ReactElement {
   return (
@@ -31,6 +32,7 @@ export function LiveOperationRow({
   onLocate: (activity: FileActivity) => void;
   showAgent?: boolean;
 }): React.ReactElement {
+  const { t } = useAppTranslation();
   const name = activity.agentName ?? activity.agent ?? 'External process';
   const key = `${activity.sessionId ?? 'none'}:${activity.agentId ?? name}`;
   return (
@@ -56,21 +58,21 @@ export function LiveOperationRow({
           {showAgent && <span className="truncate text-[9px] font-semibold">{name}</span>}
           {activity.status === 'active' && (
             <span className="ml-auto flex items-center gap-1 font-mono text-[8px] font-bold text-success">
-              <span className="h-1.5 w-1.5 animate-pulse bg-success" /> LIVE
+              <span className="h-1.5 w-1.5 animate-pulse bg-success" /> {t('activity:codeMap.live')}
             </span>
           )}
           {activity.watcherConfirmed && (
             <ShieldCheck
               className="ml-auto h-3 w-3 text-success"
-              aria-label="Filesystem confirmed"
+              aria-label={t('activity:codeMap.filesystemConfirmed')}
             />
           )}
           {activity.attribution === 'correlated' && !activity.watcherConfirmed && (
             <span
               className="ml-auto font-mono text-[7px] uppercase text-warning"
-              title="Correlated from the only active tool"
+              title={t('activity:codeMap.correlatedFromTheOnlyActiveTool')}
             >
-              ~ correlated
+              {t('activity:codeMap.correlated')}
             </span>
           )}
           {activity.attribution === 'external' && (
@@ -124,12 +126,13 @@ export function LiveAgentsHud({
   presences: LiveAgentPresence[];
   onLocate: (activity: FileActivity) => void;
 }): React.ReactElement | null {
+  const { t } = useAppTranslation();
   if (presences.length === 0) return null;
   return (
     <section className="pointer-events-auto absolute left-3 top-14 z-20 w-[304px] border bg-card/95 shadow-xl backdrop-blur">
       <div className="flex h-9 items-center gap-2 border-b px-3">
         <Radio className="h-3.5 w-3.5 animate-pulse text-success" />
-        <h2 className="text-[9px] font-black uppercase tracking-[0.18em]">Live agent operations</h2>
+        <h2 className="text-[9px] font-black uppercase tracking-[0.18em]">{t('activity:codeMap.liveAgentOperations')}</h2>
         <span className="ml-auto bg-success px-1.5 py-0.5 font-mono text-[8px] font-bold text-success-foreground">
           {presences.length} ONLINE
         </span>
@@ -187,6 +190,7 @@ export function LiveControlBar({
   onToggleFollow: () => void;
   onAgentFilter: (key: string) => void;
 }): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <div className="pointer-events-auto absolute right-3 top-14 z-20 flex h-9 items-center border bg-card/95 shadow-lg backdrop-blur">
       <button
@@ -198,9 +202,9 @@ export function LiveControlBar({
             : 'text-muted-foreground hover:bg-muted',
         )}
         onClick={onToggleFollow}
-        title="Automatically enter the file/function used by the newest visible agent"
+        title={t('activity:codeMap.automaticallyEnterTheFileFunctionUsedByTheNewestVisibleAgent')}
       >
-        <Target className="h-3 w-3" /> Follow
+        <Target className="h-3 w-3" /> {t('activity:codeMap.follow')}
       </button>
       <button
         type="button"
@@ -215,14 +219,14 @@ export function LiveControlBar({
         {paused ? 'Resume' : 'Live'}
       </button>
       <label className="flex h-full items-center gap-1.5 px-2 text-[8px] uppercase text-muted-foreground">
-        Agent
+        {t('activity:codeMap.agent')}
         <select
-          aria-label="Filter CodeMap by agent and session"
+          aria-label={t('activity:codeMap.filterCodemapByAgentAndSession')}
           className="h-6 max-w-[170px] border bg-background px-1.5 font-mono text-[8px] text-foreground outline-none focus:border-primary"
           value={agentFilter}
           onChange={(event) => onAgentFilter(event.target.value)}
         >
-          <option value="all">ALL AGENTS</option>
+          <option value="all">{t('activity:codeMap.allAgents')}</option>
           {agents.map((agent) => (
             <option key={agent.key} value={agent.key}>
               {agent.agentName} · {agent.sessionId.slice(0, 10)}

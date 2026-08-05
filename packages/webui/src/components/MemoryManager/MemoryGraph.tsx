@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import {
   Background,
   BackgroundVariant,
@@ -118,14 +119,14 @@ const nodeTypes = {
   anchorNode: AnchorNodeCard,
 };
 
-function missingMemory(id: string): SageEntry {
+function missingMemory(id: string, t: (key: string) => string): SageEntry {
   return {
     id,
     revision: 0,
     scope: 'project',
     kind: 'fact',
     status: 'deleted',
-    text: 'Memory is unavailable or has been removed.',
+    text: t('activity:memoryManager.memoryUnavailable'),
     importance: 0,
     confidence: 0,
     freshness: 0,
@@ -181,6 +182,7 @@ export function MemoryGraph({
   loading = false,
   error = null,
 }: MemoryGraphProps) {
+  const { t } = useAppTranslation();
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const centerNode = `mem:${centerMemory.id}`;
   const directMemoryEdges = useMemo(
@@ -234,7 +236,7 @@ export function MemoryGraph({
 
     const startX = centerX - ((related.length - 1) * 220) / 2;
     related.forEach((item, index) => {
-      const entry = memoryById.get(item.id) ?? missingMemory(item.id);
+      const entry = memoryById.get(item.id) ?? missingMemory(item.id, t);
       const above = item.relation === 'superseded by';
       const nodeY = above ? 0 : 280 + Math.floor(index / 3) * 130;
       const nodeX = above ? centerX - NODE_WIDTH / 2 : startX + index * 220 - NODE_WIDTH / 2;
@@ -298,12 +300,12 @@ export function MemoryGraph({
   return (
     <section
       className="overflow-hidden border border-border/75 bg-background/35"
-      aria-label="Memory relationship graph"
+      aria-label={t('activity:memoryManager.graphAria')}
     >
       <div className="flex items-center justify-between border-b border-border/70 bg-card/55 px-3 py-2">
         <div className="flex items-center gap-2">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            Relationship map
+            {t('activity:memoryManager.graphHeading')}
           </p>
           {nodes.length > 1 && (
             <Button
@@ -311,15 +313,15 @@ export function MemoryGraph({
               size="sm"
               onClick={() => setFullscreenOpen(true)}
               className="h-6 gap-1 px-2 text-[9px] font-bold uppercase tracking-[0.12em]"
-              aria-label="Open full screen graph"
+              aria-label={t('activity:memoryManager.graphFullscreenAria')}
             >
               <Expand className="size-3" />
-              Open full screen
+              {t('activity:memoryManager.graphOpenFullscreen')}
             </Button>
           )}
         </div>
         <span className="font-mono text-[10px] text-muted-foreground">
-          {loading ? 'loading real graph…' : `${nodes.length} nodes · ${edges.length} edges`}
+          {loading ? t('activity:memoryManager.loadingGraph') : t('activity:memoryManager.graphStats', { nodes: nodes.length, edges: edges.length })}
         </span>
       </div>
       {error && (
@@ -353,7 +355,7 @@ export function MemoryGraph({
           >
             <div className="flex items-center justify-between border-b border-border/70 bg-card/55 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                Relationship map — {centerMemory.id}
+                {t('activity:memoryManager.graphHeadingFull', { id: centerMemory.id })}
               </p>
               <Button
                 variant="ghost"
@@ -361,7 +363,7 @@ export function MemoryGraph({
                 onClick={() => setFullscreenOpen(false)}
                 className="h-7 gap-1 px-2 text-[10px]"
               >
-                Close
+                {t('common:action.close')}
               </Button>
             </div>
             <div className="min-h-0 flex-1 px-4 pb-4">

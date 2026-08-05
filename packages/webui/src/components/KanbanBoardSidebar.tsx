@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type { KanbanBoardSummary } from '@wrongstack/kanban';
 import { ArrowLeft, Columns3, Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,12 +41,13 @@ export function KanbanBoardSidebar({
   onBoardSelect,
   onBoardPageChange,
 }: KanbanBoardSidebarProps) {
+  const { t } = useAppTranslation();
   return (
     <aside className="flex max-h-[45dvh] w-full shrink-0 flex-col border-b bg-card/40 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
       <div className="flex h-12 items-center gap-2 border-b px-3">
         <button
           type="button"
-          title="Back"
+          title={t('common:action.back')}
           onClick={onClose}
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
@@ -53,14 +55,14 @@ export function KanbanBoardSidebar({
         </button>
         <Columns3 size={17} className="text-primary" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">Kanban</div>
+          <div className="truncate text-sm font-semibold">{t('activity:kanban.kanban')}</div>
           <div className="truncate text-[11px] text-muted-foreground">
             {boardTotal} boards · {activeBoardTotal} active · {orphanedBoardTotal} orphaned
           </div>
         </div>
         <button
           type="button"
-          title="Refresh"
+          title={t('common:action.refresh')}
           onClick={onRefresh}
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
@@ -75,12 +77,12 @@ export function KanbanBoardSidebar({
           onKeyDown={(event) => {
             if (event.key === 'Enter') onCreateBoard();
           }}
-          placeholder="New board"
+          placeholder={t('activity:kanban.newBoard')}
           className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
         />
         <button
           type="button"
-          title="Create board"
+          title={t('activity:kanban.createBoard')}
           onClick={onCreateBoard}
           className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
         >

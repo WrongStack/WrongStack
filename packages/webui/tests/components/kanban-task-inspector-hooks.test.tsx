@@ -72,9 +72,11 @@ vi.mock('@/lib/ws-client', () => ({
   }),
 }));
 
-vi.mock('@/i18n', () => ({
-  useAppTranslation: () => ({ t: (k: string) => k }),
-}));
+// No i18n mock: the real module bundles the English catalog inline and
+// initialises on first import, so `t()` resolves synchronously. The assertions
+// below match on rendered English copy ("Task inspector"), which is what a user
+// actually sees — a key-returning stub would silently pass even if the key were
+// wrong or missing.
 
 // Minimal task + board fixtures
 function makeTask(overrides: Partial<KanbanTask> = {}): KanbanTask {

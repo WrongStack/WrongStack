@@ -930,7 +930,7 @@ export function ChatInput({
           title={t('chat:input.openPromptLibrary')}
         >
           <BookOpen className="h-3.5 w-3.5" />
-          Prompt library
+          {t('activity:chatInput.promptLibrary')}
         </button>
       </div>
 

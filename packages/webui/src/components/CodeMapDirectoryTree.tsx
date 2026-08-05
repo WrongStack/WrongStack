@@ -10,6 +10,7 @@ import {
   Radio,
 } from 'lucide-react';
 import { memo } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { CodeMapGraphResponse, DirectoryNode, GraphNodeData } from './codemap-model';
 import { normalizedPath, scopeKey } from './codemap-model';
@@ -50,6 +51,7 @@ function filePathIsLive(filePath: string | undefined, activeFileNorms: Set<strin
 export const DirectoryBranch = memo(function DirectoryBranch(
   props: DirectoryBranchProps,
 ): React.ReactElement {
+  const { t } = useAppTranslation();
   const {
     directory,
     packageName,
@@ -153,7 +155,7 @@ export const DirectoryBranch = memo(function DirectoryBranch(
                 {fileLive && (
                   <span
                     className="h-1.5 w-1.5 shrink-0 animate-pulse bg-success"
-                    title="Live operation"
+                    title={t('activity:codeMap.liveOperation')}
                   />
                 )}
                 <span className="truncate font-mono" title={file.file}>
@@ -167,7 +169,7 @@ export const DirectoryBranch = memo(function DirectoryBranch(
                 type="button"
                 className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
                 onClick={() => onOpenFile(file)}
-                title="Open symbol map"
+                title={t('activity:codeMap.openSymbolMap')}
                 aria-label={`Open ${file.label} map`}
               >
                 <ExternalLink className="h-3 w-3" />

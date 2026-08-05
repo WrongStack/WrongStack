@@ -263,7 +263,7 @@ export function NextStepsBar({
       {hasSelection && onBatchSubmit && batchTexts.length > 0 && (
         <div className="flex items-center justify-end gap-2 px-3.5 py-1.5 border-b border-primary/10 bg-primary/[0.06]">
           <span className="text-xs text-muted-foreground">
-            {t('activity:nextSteps.nSelected', '{{n}} selected', { n: batchTexts.length })}
+            {t('activity:nextSteps.nSelected', { count: batchTexts.length })}
           </span>
           <button
             type="button"
@@ -274,7 +274,7 @@ export function NextStepsBar({
             className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <ArrowRight className="h-3 w-3" />
-            {t('activity:nextSteps.submitN', 'Submit {{n}}', { n: batchTexts.length })}
+            {t('activity:nextSteps.submitN', { count: batchTexts.length })}
           </button>
         </div>
       )}

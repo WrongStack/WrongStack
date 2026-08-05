@@ -1,8 +1,10 @@
 import { ArrowDownToLine, ArrowUpFromLine, BrainCircuit, Clock3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
+import { useAppTranslation } from '@/i18n';
 
 export function ContextMemoryMonitor() {
+  const { t } = useAppTranslation();
   const memories = useMemoryInjectorTraceStore((state) => state.contextMemories);
   const transitions = useMemoryInjectorTraceStore((state) => state.transitions);
   const records = Object.values(memories).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
@@ -13,12 +15,12 @@ export function ContextMemoryMonitor() {
   return (
     <section
       className="rounded-md border border-primary/20 bg-primary/[0.025]"
-      aria-label="Context Memory Monitor"
+      aria-label={t('activity:ctxMonitor.contextMemoryMonitor')}
     >
       <header className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
         <BrainCircuit className="size-4 text-primary" />
-        <h2 className="text-xs font-semibold">Context Memory Monitor</h2>
-        <span className="text-[10px] text-muted-foreground">exact provider-bound presence</span>
+        <h2 className="text-xs font-semibold">{t('activity:ctxMonitor.contextMemoryMonitor')}</h2>
+        <span className="text-[10px] text-muted-foreground">{t('activity:ctxMonitor.exactProviderBoundPresence')}</span>
         <div className="ml-auto flex gap-2 font-mono text-[10px]">
           <span className="text-success">{active.length} ctx</span>
           <span className="text-warning">{pending.length} pending</span>
@@ -28,13 +30,13 @@ export function ContextMemoryMonitor() {
 
       {records.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
-          No SAGE has entered this session context yet.
+          {t('activity:ctxMonitor.noSageHasEnteredThisSession')}
         </p>
       ) : (
         <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              Memory presence
+              {t('activity:ctxMonitor.memoryPresence')}
             </p>
             {records.slice(0, 20).map((memory) => (
               <article
@@ -86,7 +88,7 @@ export function ContextMemoryMonitor() {
 
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              Came / went
+              {t('activity:ctxMonitor.cameWent')}
             </p>
             {transitions.slice(0, 30).map((transition) => (
               <div

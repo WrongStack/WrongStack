@@ -46,7 +46,9 @@
     "steerRunningTitle": "steer — çalışan ajanı böl ve yeniden yönlendir",
     "steerIdleTitle": "steer — gönder (boştayken bölme hedefi yok)",
     "addQueueTitle": "kuyruğa ekle — mevcut çalışma bitene kadar bekle",
-    "openPromptLibrary": "İstek kütüphanesini aç — hazır ve kayıtlı isteklere göz at"
+    "openPromptLibrary": "İstek kütüphanesini aç — hazır ve kayıtlı isteklere göz at",
+    "expandInput": "Girişi genişlet",
+    "collapseInput": "Daralt"
   },
   "header": {
     "openSidebarTitle": "Kenar çubuğunu aç (Ctrl+\\)",

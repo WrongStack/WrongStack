@@ -21,6 +21,7 @@
  * real tool calls.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/pagination';
 import {
@@ -144,6 +145,7 @@ function MemoryCard({
   onRecover?: MemoryDrawerProps['onRecover'];
   pendingAction?: string;
 }) {
+  const { t } = useAppTranslation();
   const isDeleted = match.memory.status === 'deleted';
   const isSuperseded = match.memory.status === 'superseded';
   const review = match.pendingReview;
@@ -175,24 +177,27 @@ function MemoryCard({
             {isCursorMatch && (
               <span
                 className="flex items-center gap-0.5 rounded-sm bg-primary/15 px-1 py-0.5 font-mono text-primary"
-                title="Cursor line range matches this memory's anchor"
+                title={t('activity:memoryManager.anchorCursorHint')}
               >
-                <Pin className="size-2.5" /> cursor
+                <Pin className="size-2.5" /> {t('activity:memoryManager.cursorLabel')}
               </span>
             )}
             {review && (
               <span
                 className="flex items-center gap-0.5 rounded-sm bg-warning/15 px-1 py-0.5 font-mono text-warning"
-                title={`Hygiene review: ${review.reason} (${review.ageDays}d old)`}
+                title={t('activity:memoryManager.hygieneReviewTitle', {
+                  reason: review.reason,
+                  days: review.ageDays,
+                })}
               >
-                <AlertTriangle className="size-2.5" /> review
+                <AlertTriangle className="size-2.5" /> {t('activity:memoryManager.reviewLabel')}
               </span>
             )}
             {isDeleted && (
-              <span className="font-mono text-destructive">deleted</span>
+              <span className="font-mono text-destructive">{t('activity:memoryManager.statusDeleted')}</span>
             )}
             {isSuperseded && !isDeleted && (
-              <span className="font-mono text-muted-foreground">superseded</span>
+              <span className="font-mono text-muted-foreground">{t('activity:memoryManager.statusSuperseded')}</span>
             )}
           </div>
           <p className="mt-1 text-foreground/90">
@@ -200,7 +205,9 @@ function MemoryCard({
           </p>
           <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
             <StatusBadge status={match.memory.status} />
-            <span>updated {relativeDate(match.memory.updatedAt)}</span>
+            <span>
+              {t('activity:memoryManager.updatedSuffix', { date: relativeDate(match.memory.updatedAt) })}
+            </span>
           </div>
         </div>
       </header>
@@ -215,9 +222,9 @@ function MemoryCard({
             disabled={disabled}
             onClick={() => onRecover(match.memory.id)}
             className="h-7 gap-1 border-primary/40 px-2 text-[11px] text-primary hover:bg-primary/10"
-            title="Restore this memory to active status (PR #1: memory_recover)"
+            title={t('activity:memoryManager.restoreTitle')}
           >
-            <RefreshCw className="size-3" /> Recover
+            <RefreshCw className="size-3" /> {t('activity:memoryManager.actionRecover')}
           </Button>
         )}
 
@@ -230,9 +237,9 @@ function MemoryCard({
             disabled={disabled}
             onClick={() => onShowMemory(match.supersededByActiveId!)}
             className="h-7 gap-1 px-2 text-[11px]"
-            title="This version is superseded — jump to the active version"
+            title={t('activity:memoryManager.supersededJumpTitle')}
           >
-            <GitMerge className="size-3" /> Go to active
+            <GitMerge className="size-3" /> {t('activity:memoryManager.actionGoToActive')}
           </Button>
         )}
 
@@ -247,9 +254,9 @@ function MemoryCard({
                 disabled={disabled}
                 onClick={() => onAcceptDeletion?.(review.candidateId, match.memory.id)}
                 className="h-7 gap-1 px-2 text-[11px]"
-                title="Accept hygiene's deletion suggestion — memory will be forgotten"
+                title={t('activity:memoryManager.acceptSuggestionTitle')}
               >
-                <Check className="size-3" /> Accept Deletion
+                <Check className="size-3" /> {t('activity:memoryManager.actionAcceptDeletion')}
               </Button>
             )}
             <Button
@@ -259,9 +266,9 @@ function MemoryCard({
               disabled={disabled}
               onClick={() => onKeep?.(review.candidateId, match.memory.id)}
               className="h-7 gap-1 px-2 text-[11px]"
-              title="Reject the suggestion — memory stays as-is and may be re-suggested later"
+              title={t('activity:memoryManager.rejectSuggestionTitle')}
             >
-              <X className="size-3" /> Keep
+              <X className="size-3" /> {t('activity:memoryManager.actionKeep')}
             </Button>
             <Button
               type="button"
@@ -270,9 +277,9 @@ function MemoryCard({
               disabled={disabled}
               onClick={() => onUpdate?.(match.memory.id)}
               className="h-7 gap-1 px-2 text-[11px]"
-              title="Update the memory's content — versioning creates a new active record"
+              title={t('activity:memoryManager.updateTitle')}
             >
-              <Sparkles className="size-3" /> Update
+              <Sparkles className="size-3" /> {t('activity:memoryManager.actionUpdate')}
             </Button>
             {onMarkPermanent && (
               <Button
@@ -282,9 +289,9 @@ function MemoryCard({
                 disabled={disabled}
                 onClick={() => onMarkPermanent(match.memory.id)}
                 className="h-7 gap-1 border-warning/40 px-2 text-[11px] text-warning hover:bg-warning/10"
-                title="Promote to `permanent` — hygiene will never surface this again"
+                title={t('activity:memoryManager.promoteTitle')}
               >
-                <Pin className="size-3" /> Mark as Permanent
+                <Pin className="size-3" /> {t('activity:memoryManager.actionMarkPermanent')}
               </Button>
             )}
           </>
@@ -299,9 +306,9 @@ function MemoryCard({
             disabled={disabled}
             onClick={() => onShowMemory(match.memory.id)}
             className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-            title="Open the full record in MemoryManager"
+            title={t('activity:memoryManager.openRecordTitle')}
           >
-            <Eye className="size-3" /> Show full
+            <Eye className="size-3" /> {t('activity:memoryManager.actionShowFull')}
           </Button>
         )}
 
@@ -323,6 +330,7 @@ function Section({
   cursorBoosted = false,
   ...handlers
 }: SectionProps) {
+  const { t } = useAppTranslation();
   const memoryPage = usePagination(matches, 10);
   if (matches.length === 0) return null;
   return (
@@ -333,7 +341,7 @@ function Section({
         <span className="font-mono">({count})</span>
         {cursorBoosted && (
           <span className="ml-auto flex items-center gap-0.5 font-mono text-[9px] text-primary">
-            <Pin className="size-2.5" /> cursor boost
+            <Pin className="size-2.5" /> {t('activity:memoryManager.cursorBoostTitle')}
           </span>
         )}
       </h3>
@@ -354,7 +362,7 @@ function Section({
         totalItems={memoryPage.totalItems}
         onPageChange={memoryPage.setPage}
         compact
-        itemLabel="memories"
+        itemLabel={t('activity:memoryManager.itemLabel')}
       />
     </section>
   );
@@ -373,8 +381,16 @@ export function MemoryDrawer({
   onMarkPermanent,
   onRecover,
 }: MemoryDrawerProps) {
+  const { t } = useAppTranslation();
   const [showDeleted, setShowDeleted] = useState(false);
   const [pendingActionById, setPendingAction] = useState<Map<string, string>>(new Map());
+  const pendingLabels = {
+    accepting: t('activity:memoryManager.pendingAccepting'),
+    keeping: t('activity:memoryManager.pendingKeeping'),
+    updating: t('activity:memoryManager.pendingUpdating'),
+    marking: t('activity:memoryManager.pendingMarking'),
+    recovering: t('activity:memoryManager.pendingRecovering'),
+  };
 
   const { data, loading, error, refetch } = useMemoryForFile({
     filePath,
@@ -426,7 +442,7 @@ export function MemoryDrawer({
   return (
     <aside
       className="flex h-full min-h-0 w-full flex-col border-l border-border/70 bg-card/15"
-      aria-label="File memory drawer"
+      aria-label={t('activity:memoryManager.fileDrawerAria')}
       data-file-path={filePath ?? ''}
     >
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
@@ -434,20 +450,22 @@ export function MemoryDrawer({
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
             <FileText className="size-3" />
             <span className="truncate font-mono" title={filePath ?? ''}>
-              {filePath ?? '(no file)'}
+              {filePath ?? t('activity:memoryManager.noFile')}
             </span>
           </div>
           <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-            <span className="font-mono">{totalCount} memories</span>
+            <span className="font-mono">
+              {t('activity:memoryManager.memoriesCount', { count: totalCount })}
+            </span>
             {response && response.reviewPendingCount > 0 && (
               <span className="flex items-center gap-0.5 font-mono text-warning">
                 <AlertTriangle className="size-3" />
-                {response.reviewPendingCount} pending review
+                {t('activity:memoryManager.pendingReviewCount', { count: response.reviewPendingCount })}
               </span>
             )}
             {response && response.supersededCount > 0 && (
               <span className="font-mono">
-                {response.supersededCount} superseded
+                {t('activity:memoryManager.supersededCount', { count: response.supersededCount })}
               </span>
             )}
           </div>
@@ -460,8 +478,8 @@ export function MemoryDrawer({
             onClick={() => refetch()}
             disabled={loading || !filePath}
             className="h-7 w-7 p-0"
-            aria-label="Refresh"
-            title="Re-query for this file"
+            aria-label={t('common:action.refresh')}
+            title={t('activity:memoryManager.requeryTitle')}
           >
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
           </Button>
@@ -471,8 +489,8 @@ export function MemoryDrawer({
             variant="ghost"
             onClick={onClose}
             className="h-7 w-7 p-0"
-            aria-label="Close drawer"
-            title="Close memory drawer"
+            aria-label={t('activity:memoryManager.closeDrawerAria')}
+            title={t('activity:memoryManager.closeDrawerTitle')}
           >
             <CircleX className="size-3.5" />
           </Button>
@@ -494,65 +512,66 @@ export function MemoryDrawer({
           ) : (
             <EyeOff className="size-3" />
           )}
-          <span>Show recoverable (deleted)</span>
+          <span>{t('activity:memoryManager.showRecoverable')}</span>
         </label>
         {cursorBoostedBucket && (
           <span className="ml-auto flex items-center gap-1 font-mono text-[10px] text-primary">
-            <Pin className="size-3" /> lines {lineStart}–{lineEnd}
+            <Pin className="size-3" />{' '}
+            {t('activity:memoryManager.linesRange', { start: lineStart, end: lineEnd })}
           </span>
         )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
         {!filePath ? (
-          <EmptyState message="Open a file to see its memories." />
+          <EmptyState message={t('activity:memoryManager.emptyOpenFile')} />
         ) : loading && !response ? (
-          <EmptyState loading message="Loading memories…" />
+          <EmptyState loading message={t('activity:memoryManager.loadingMemories')} />
         ) : error ? (
-          <EmptyState tone="error" message={`Error: ${error}`} />
+          <EmptyState tone="error" message={t('activity:memoryManager.errorPrefix', { message: error })} />
         ) : !response || totalCount === 0 ? (
-          <EmptyState message={`No memories attached to ${filePath} yet.`} />
+          <EmptyState message={t('activity:memoryManager.emptyNoMemories', { file: filePath })} />
         ) : (
           <div className="flex flex-col gap-3">
             <Section
               icon={Pin}
-              title="Cursor boost"
+              title={t('activity:memoryManager.cursorBoostTitle')}
               count={response.symbolMatches.length}
               cursorBoosted={cursorBoostedBucket}
               matches={response.symbolMatches}
               pendingActionById={pendingActionById}
               onShowMemory={onShowMemory}
-              onAcceptDeletion={(cId, mId) => runAction(mId, 'accepting…', () => onAcceptDeletion?.(cId, mId))}
-              onKeep={(cId, mId) => runAction(mId, 'keeping…', () => onKeep?.(cId, mId))}
-              onUpdate={(mId) => runAction(mId, 'updating…', () => onUpdate?.(mId))}
-              onMarkPermanent={(mId) => runAction(mId, 'marking…', () => onMarkPermanent?.(mId))}
-              onRecover={(mId) => runAction(mId, 'recovering…', () => onRecover?.(mId))}
+              onAcceptDeletion={(cId, mId) => runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))}
+              onKeep={(cId, mId) => runAction(mId, pendingLabels.keeping, () => onKeep?.(cId, mId))}
+              onUpdate={(mId) => runAction(mId, pendingLabels.updating, () => onUpdate?.(mId))}
+              onMarkPermanent={(mId) => runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))}
+              onRecover={(mId) => runAction(mId, pendingLabels.recovering, () => onRecover?.(mId))}
             />
             <Section
               icon={FileText}
-              title="File-scoped"
+              title={t('activity:memoryManager.fileScopedTitle')}
               count={response.primaryMatches.length}
               matches={response.primaryMatches}
               pendingActionById={pendingActionById}
               onShowMemory={onShowMemory}
-              onAcceptDeletion={(cId, mId) => runAction(mId, 'accepting…', () => onAcceptDeletion?.(cId, mId))}
-              onKeep={(cId, mId) => runAction(mId, 'keeping…', () => onKeep?.(cId, mId))}
-              onUpdate={(mId) => runAction(mId, 'updating…', () => onUpdate?.(mId))}
-              onMarkPermanent={(mId) => runAction(mId, 'marking…', () => onMarkPermanent?.(mId))}
-              onRecover={(mId) => runAction(mId, 'recovering…', () => onRecover?.(mId))}
+              onAcceptDeletion={(cId, mId) => runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))}
+              onKeep={(cId, mId) => runAction(mId, pendingLabels.keeping, () => onKeep?.(cId, mId))}
+              onUpdate={(mId) => runAction(mId, pendingLabels.updating, () => onUpdate?.(mId))}
+              onMarkPermanent={(mId) => runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))}
+              onRecover={(mId) => runAction(mId, pendingLabels.recovering, () => onRecover?.(mId))}
             />
             <Section
               icon={Eye}
-              title="Mentioned in"
+              title={t('activity:memoryManager.mentionedInTitle')}
               count={response.relatedMatches.length}
               matches={response.relatedMatches}
               pendingActionById={pendingActionById}
               onShowMemory={onShowMemory}
-              onAcceptDeletion={(cId, mId) => runAction(mId, 'accepting…', () => onAcceptDeletion?.(cId, mId))}
-              onKeep={(cId, mId) => runAction(mId, 'keeping…', () => onKeep?.(cId, mId))}
-              onUpdate={(mId) => runAction(mId, 'updating…', () => onUpdate?.(mId))}
-              onMarkPermanent={(mId) => runAction(mId, 'marking…', () => onMarkPermanent?.(mId))}
-              onRecover={(mId) => runAction(mId, 'recovering…', () => onRecover?.(mId))}
+              onAcceptDeletion={(cId, mId) => runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))}
+              onKeep={(cId, mId) => runAction(mId, pendingLabels.keeping, () => onKeep?.(cId, mId))}
+              onUpdate={(mId) => runAction(mId, pendingLabels.updating, () => onUpdate?.(mId))}
+              onMarkPermanent={(mId) => runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))}
+              onRecover={(mId) => runAction(mId, pendingLabels.recovering, () => onRecover?.(mId))}
             />
           </div>
         )}

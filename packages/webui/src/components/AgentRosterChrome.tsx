@@ -1,4 +1,5 @@
 import { Library, Loader2, RefreshCw } from 'lucide-react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { CustomRosterStats, RosterTab } from './agent-roster-data';
 import { TABS } from './agent-roster-data';
@@ -12,6 +13,7 @@ export function AgentRosterHeader({
   rosterLoading: boolean;
   onRefresh: () => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <div className="shrink-0 border-b border-border/70 bg-card/80 px-4 py-2.5">
       <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0">
@@ -20,14 +22,16 @@ export function AgentRosterHeader({
             <Library className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h1 className="text-sm font-semibold truncate">Agent Roster</h1>
+            <h1 className="text-sm font-semibold truncate">
+              {t('activity:agentRoster.heading')}
+            </h1>
             <p className="text-[10px] text-muted-foreground truncate">
-              {
-                customStats.filter(
+              {t('activity:agentRoster.headerSummary', {
+                customized: customStats.filter(
                   (s) => s.exists || s.hasIdentity || s.hasConfig || s.hasKnowledge,
-                ).length
-              }{' '}
-              customized · {customStats.reduce((sum, s) => sum + s.entryCount, 0)} learned entries
+                ).length,
+                entries: customStats.reduce((sum, s) => sum + s.entryCount, 0),
+              })}
             </p>
           </div>
         </div>
@@ -39,9 +43,9 @@ export function AgentRosterHeader({
             type="button"
             onClick={onRefresh}
             className="inline-flex items-center gap-1 rounded border border-border/50 px-2 py-1 text-[10px] hover:bg-accent transition-colors shrink-0 whitespace-nowrap"
-            title="Refresh roster data"
+            title={t('activity:agentRoster.refreshRosterData')}
           >
-            <RefreshCw className="h-3 w-3" /> Refresh
+            <RefreshCw className="h-3 w-3" /> {t('common:action.refresh')}
           </button>
         </div>
       </div>
@@ -56,6 +60,7 @@ export function AgentRosterTabs({
   activeTab: RosterTab;
   onTabChange: (tab: RosterTab) => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <div className="shrink-0 border-b border-border/50 bg-muted/20 px-3 flex gap-0">
       {TABS.map((tab) => (
@@ -71,7 +76,7 @@ export function AgentRosterTabs({
           )}
         >
           {tab.icon}
-          {tab.label}
+          {t(tab.labelKey)}
         </button>
       ))}
     </div>

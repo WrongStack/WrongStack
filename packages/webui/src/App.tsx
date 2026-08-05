@@ -38,6 +38,7 @@ import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { Toaster } from './components/Toaster';
 import { WorkspaceDockInspector } from './components/WorkspaceDock';
 import { ViewRouter } from './components/ViewRouter';
+import { useAppTranslation } from '@/i18n';
 
 // ── Lazy-loaded views ──────────────────────────────────────────────────────
 // These pull heavy libraries (Monaco ~4MB, @xyflow, xterm) or are themselves
@@ -115,6 +116,7 @@ const _TerminalPanel = lazy(() =>
 
 
 function AppInner() {
+  const { t } = useAppTranslation();
   const { theme } = useTheme();
   const desktopShell = isDesktopShell();
   // Subscribe with a shallow selector, NOT the bare store: AppInner is the
@@ -306,7 +308,7 @@ function AppInner() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:rounded-md focus:bg-background focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:shadow-lg focus:ring-2 focus:ring-primary"
       >
-        Skip to content
+        {t('activity:app.skipToContent')}
       </a>
 
       {/* ── Activity Bar — hidden during setup ── */}
@@ -346,11 +348,11 @@ function AppInner() {
           selected; the global Fleet/Agents/Audit inspector remains separate. */}
       {currentView !== 'setup' && (
         <>
-          <ErrorBoundary level="panel" name="Inspector">
+          <ErrorBoundary level="panel" name={t('activity:panels.inspector')}>
             <InspectorPanel />
           </ErrorBoundary>
           {sessionId && currentView === 'chat' && (
-            <ErrorBoundary level="panel" name="Workspace Inspector">
+            <ErrorBoundary level="panel" name={t('activity:panels.workspaceInspector')}>
               <WorkspaceDockInspector sessionId={sessionId} />
             </ErrorBoundary>
           )}
@@ -359,7 +361,7 @@ function AppInner() {
 
       {/* Process Monitor overlay — triggered by /kill */}
       {processMonitorOpen && (
-        <ErrorBoundary level="panel" name="Process Monitor">
+        <ErrorBoundary level="panel" name={t('activity:panels.processMonitor')}>
           <Suspense fallback={null}>
             <ProcessMonitor
               open={processMonitorOpen}
@@ -371,7 +373,7 @@ function AppInner() {
 
       {/* Queue Panel overlay — triggered by /queue */}
       {queuePanelOpen && (
-        <ErrorBoundary level="panel" name="Queue">
+        <ErrorBoundary level="panel" name={t('activity:panels.queue')}>
           <Suspense fallback={null}>
             <QueuePanel open={queuePanelOpen} onClose={() => setQueuePanelOpen(false)} />
           </Suspense>
@@ -380,7 +382,7 @@ function AppInner() {
 
       {/* Cron Jobs overlay — triggered by /cron */}
       {cronJobsOpen && (
-        <ErrorBoundary level="panel" name="Cron Jobs">
+        <ErrorBoundary level="panel" name={t('activity:panels.cronJobs')}>
           <Suspense fallback={null}>
             <CronJobsPanel open={cronJobsOpen} onClose={() => setCronJobsOpen(false)} />
           </Suspense>

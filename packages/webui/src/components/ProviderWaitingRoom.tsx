@@ -4,6 +4,7 @@ import { blockingCalendarRules, ruleTarget } from '@/lib/model-calendar';
 import { getWSClient } from '@/lib/ws-client';
 import { useProviderStatusStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
+import { useAppTranslation } from '@/i18n';
 
 function remaining(expiresAt: number | undefined, now: number): string {
   if (!expiresAt) return 'reset time unknown';
@@ -25,6 +26,7 @@ function formatAgo(ts: number | null | undefined, now: number): string {
 }
 
 export function ProviderWaitingRoom() {
+  const { t } = useAppTranslation();
   const entriesByKey = useProviderStatusStore((state) => state.entries);
   const _summary = useProviderStatusStore((state) => state.summary);
   const removeEntry = useProviderStatusStore((state) => state.removeEntry);
@@ -91,7 +93,7 @@ export function ProviderWaitingRoom() {
         aria-expanded={expanded}
       >
         <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-        <span className="font-medium text-foreground">Provider/model availability</span>
+        <span className="font-medium text-foreground">{t('activity:providerWait.providerModelAvailability')}</span>
         <span className="text-muted-foreground">
           {blocked} blocked · {degraded} degraded · {activeRules.length} scheduled
         </span>
@@ -102,7 +104,7 @@ export function ProviderWaitingRoom() {
             e.stopPropagation();
             refresh();
           }}
-          title="Refresh status"
+          title={t('activity:providerWait.refreshStatus')}
         >
           <RefreshCw className="h-3 w-3" />
         </button>
@@ -142,7 +144,7 @@ export function ProviderWaitingRoom() {
                   <div className="ml-6 mb-2 rounded border border-border/50 bg-background/50 p-2">
                     {entry.lastErrorMessage && (
                       <div className="mb-1.5 text-destructive">
-                        <span className="text-muted-foreground">Last error: </span>
+                        <span className="text-muted-foreground">{t('activity:providerWait.lastError')} </span>
                         {entry.lastErrorMessage.slice(0, 300)}
                       </div>
                     )}
@@ -201,7 +203,7 @@ export function ProviderWaitingRoom() {
                         onClick={() => handleRetry(entry.providerId, entry.model)}
                       >
                         <RotateCcw className="h-3 w-3" />
-                        Reopen (half-open probe)
+                        {t('activity:providerWait.reopenHalfOpenProbe')}
                       </button>
                       <button
                         type="button"
@@ -209,7 +211,7 @@ export function ProviderWaitingRoom() {
                         onClick={() => handleClear(entry.providerId, entry.model)}
                       >
                         <Trash2 className="h-3 w-3" />
-                        Clear tracking
+                        {t('activity:providerWait.clearTracking')}
                       </button>
                     </div>
                   </div>
@@ -229,9 +231,7 @@ export function ProviderWaitingRoom() {
             </div>
           ))}
           <div className="mt-1 text-[11px] text-muted-foreground">
-            WrongStack routes around active schedules and unhealthy models automatically, then
-            restores recovered routes on their next eligible use. Click an entry for details and
-            manual controls.
+            {t('activity:providerWait.wrongstackRoutesAroundActiveSchedulesAnd')}
           </div>
         </div>
       )}

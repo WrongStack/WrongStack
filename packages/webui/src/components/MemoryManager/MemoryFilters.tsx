@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { BrainCircuit, ChevronDown, FilterX, Search, Tag, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ export function MemoryFilters({
   onTagFilterChange,
   onClearFilters,
 }: MemoryFiltersProps) {
+  const { t } = useAppTranslation();
   // The tag-chip row is the largest filter-area consumer. We collapse it by
   // default so the memory list gets the vertical space on first paint, but
   // auto-expand it when a tag is currently active (so the user can see and
@@ -53,16 +55,16 @@ export function MemoryFilters({
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            aria-label="Search memories"
+            aria-label={t('activity:memoryManager.searchAria')}
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search content, IDs, tags, anchors…"
+            placeholder={t('activity:memoryManager.searchPlaceholder')}
             className="h-10 min-w-0 bg-background pl-9 pr-8 text-xs"
           />
           {searchQuery && (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label={t('activity:memoryManager.clearSearchAria')}
               onClick={() => onSearchChange('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
             >
@@ -74,8 +76,8 @@ export function MemoryFilters({
           variant={audienceOnly ? 'default' : 'ghost'}
           size="icon"
           onClick={onToggleAudienceOnly}
-          aria-label="Filter audience-scoped only"
-          title="Show only audience-scoped memories"
+          aria-label={t('activity:memoryManager.audienceFilterAria')}
+          title={t('activity:memoryManager.audienceFilterTitle')}
           className="shrink-0"
         >
           <BrainCircuit className="size-4" />
@@ -85,8 +87,8 @@ export function MemoryFilters({
             variant="ghost"
             size="icon"
             onClick={onClearFilters}
-            aria-label="Clear all filters"
-            title="Clear all filters"
+            aria-label={t('activity:memoryManager.clearFiltersAria')}
+            title={t('activity:memoryManager.clearFiltersTitle')}
           >
             <FilterX className="size-4" />
           </Button>
@@ -94,7 +96,7 @@ export function MemoryFilters({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="sr-only" htmlFor="memory-status-filter">
-          Filter by status
+          {t('activity:memoryManager.filterByStatus')}
         </label>
         <select
           id="memory-status-filter"
@@ -104,7 +106,7 @@ export function MemoryFilters({
           }
           className="h-9 min-w-0 border border-input bg-background px-2 text-xs"
         >
-          <option value="all">All statuses</option>
+          <option value="all">{t('activity:memoryManager.allStatuses')}</option>
           {MEMORY_STATUSES.map((status) => (
             <option key={status} value={status}>
               {status} · {stats?.byStatus[status] ?? 0}
@@ -112,7 +114,7 @@ export function MemoryFilters({
           ))}
         </select>
         <label className="sr-only" htmlFor="memory-kind-filter">
-          Filter by kind
+          {t('activity:memoryManager.filterByKind')}
         </label>
         <select
           id="memory-kind-filter"
@@ -120,7 +122,7 @@ export function MemoryFilters({
           onChange={(event) => onKindFilterChange(event.target.value)}
           className="h-9 min-w-0 border border-input bg-background px-2 text-xs"
         >
-          <option value="all">All kinds</option>
+          <option value="all">{t('activity:memoryManager.allKinds')}</option>
           {MEMORY_KINDS.map((kind) => (
             <option key={kind} value={kind}>
               {KIND_LABELS[kind]} · {stats?.byKind[kind] ?? 0}
@@ -164,7 +166,7 @@ export function MemoryFilters({
               )}
             />
             <Tag className="size-3" />
-            <span className="font-semibold">Tags</span>
+            <span className="font-semibold">{t('activity:memoryManager.tagsLabel')}</span>
             <span className="font-mono text-[9px] text-muted-foreground">
               {allTags.length}
             </span>
@@ -188,7 +190,7 @@ export function MemoryFilters({
           id="memory-tags-panel"
           className="min-w-0 border-0 p-0"
         >
-          <legend className="sr-only">Popular tags</legend>
+          <legend className="sr-only">{t('activity:memoryManager.popularTags')}</legend>
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5">
             {allTags.slice(0, 18).map(([tagName, count]) => (
               <button

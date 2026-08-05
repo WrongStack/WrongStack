@@ -25,21 +25,22 @@ import {
 } from '@/lib/kanban-verification';
 import { cn } from '@/lib/utils';
 import { useKanbanStore } from '@/stores';
+import { useAppTranslation } from '@/i18n';
 
 const VERIFICATION_CHIP: Record<
   TaskVerificationState,
-  { label: string; className: string; icon: typeof ShieldCheck }
+  { labelKey: string; className: string; icon: typeof ShieldCheck }
 > = {
   unverified: {
-    label: 'unverified',
+    labelKey: 'activity:kanbanTree.verifyUnverified',
     className: 'bg-muted text-muted-foreground',
     icon: ShieldQuestion,
   },
-  running: { label: 'verifying…', className: 'bg-info/10 text-info', icon: Loader2 },
-  passed: { label: 'verified', className: 'bg-success/10 text-success', icon: ShieldCheck },
-  failed: { label: 'verification failed', className: 'bg-destructive/10 text-destructive', icon: ShieldX },
-  needs_human: { label: 'needs review', className: 'bg-warning/10 text-warning', icon: AlertTriangle },
-  incomplete: { label: 'incomplete', className: 'bg-warning/10 text-warning', icon: AlertTriangle },
+  running: { labelKey: 'activity:kanbanTree.verifyVerifying', className: 'bg-info/10 text-info', icon: Loader2 },
+  passed: { labelKey: 'activity:kanbanTree.verifyVerified', className: 'bg-success/10 text-success', icon: ShieldCheck },
+  failed: { labelKey: 'activity:kanbanTree.verifyFailed', className: 'bg-destructive/10 text-destructive', icon: ShieldX },
+  needs_human: { labelKey: 'activity:kanbanTree.verifyNeedsReview', className: 'bg-warning/10 text-warning', icon: AlertTriangle },
+  incomplete: { labelKey: 'activity:kanbanTree.verifyIncomplete', className: 'bg-warning/10 text-warning', icon: AlertTriangle },
 };
 
 function StatusIcon({ task }: { task: KanbanTask }) {
@@ -59,13 +60,14 @@ export function KanbanTaskTree({
   selectedTaskId: string | null;
   onSelectTask: (id: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const verificationActivity = useKanbanStore((state) => state.verificationActivity);
   const rows = useMemo(() => flattenTaskTree(buildTaskTree(board)), [board]);
 
   if (!rows.length) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        No tasks on this board yet.
+        {t('activity:kanbanTree.noTasksOnThisBoardYet')}
       </div>
     );
   }
@@ -74,10 +76,11 @@ export function KanbanTaskTree({
     <div className="h-full overflow-y-auto p-4">
       <ul className="space-y-0.5">
         {rows.map(({ task, depth, children }) => {
-          const verification =
-            VERIFICATION_CHIP[
-              verificationStateOf(task, verificationActivity[`${board.id}:${task.id}`])
-            ];
+          const verificationState = verificationStateOf(
+            task,
+            verificationActivity[`${board.id}:${task.id}`],
+          );
+          const verification = VERIFICATION_CHIP[verificationState];
           const VerificationIcon = verification.icon;
           const verdict = task.atomicityAssessment?.verdict;
           return (
@@ -121,7 +124,7 @@ export function KanbanTaskTree({
                 )}
                 {task.decomposition?.status === 'proposed' && (
                   <span className="shrink-0 rounded bg-warning/10 px-1 py-0.5 text-[10px] text-warning">
-                    proposal pending
+                    {t('activity:kanbanTree.proposalPending')}
                   </span>
                 )}
                 <span
@@ -132,9 +135,9 @@ export function KanbanTaskTree({
                 >
                   <VerificationIcon
                     size={11}
-                    className={verification.label === 'verifying…' ? 'animate-spin' : undefined}
+                    className={verificationState === 'running' ? 'animate-spin' : undefined}
                   />
-                  {verification.label}
+                  {t(verification.labelKey)}
                 </span>
               </button>
             </li>

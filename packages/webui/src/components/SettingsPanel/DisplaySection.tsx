@@ -37,11 +37,11 @@ interface DisplaySectionProps {
 // that edge case (no NaN, no crash, no UI jank).
 const DEFAULT_SAGE_THRESHOLD = '0.85';
 const SAGE_THRESHOLD_OPTIONS = [
-  { value: '0.72', label: '0.72 (relaxed)' },
-  { value: '0.75', label: '0.75' },
-  { value: DEFAULT_SAGE_THRESHOLD, label: '0.85 (default)' },
-  { value: '0.90', label: '0.90' },
-  { value: '0.95', label: '0.95 (strict)' },
+  { value: '0.72', labelKey: 'settings:display.sageRelaxed' },
+  { value: '0.75', labelKey: '' },
+  { value: DEFAULT_SAGE_THRESHOLD, labelKey: 'settings:display.sageDefault' },
+  { value: '0.90', labelKey: '' },
+  { value: '0.95', labelKey: 'settings:display.sageStrict' },
 ] as const;
 
 // TUI parity: matches `PRE_REFINE_SECONDS_PRESETS` in settings-picker-model.ts.
@@ -155,7 +155,7 @@ export function DisplaySection({ syncPref }: DisplaySectionProps) {
               maxLength={32}
               onChange={(e) => setThinkingWord(e.target.value)}
               className="font-mono text-sm"
-              placeholder="thinking"
+              placeholder={t('activity:displaySection.thinking')}
             />
           </div>
           {/* TUI field 34 — statuslineMode */}
@@ -309,7 +309,7 @@ export function DisplaySection({ syncPref }: DisplaySectionProps) {
               }
               options={SAGE_THRESHOLD_OPTIONS.map((o) => ({
                 value: o.value,
-                label: o.label,
+                label: o.labelKey ? t(o.labelKey) : o.value,
               }))}
               onChange={(v) => syncPref('sageMemoryInjectThreshold', Number.parseFloat(v))}
             />

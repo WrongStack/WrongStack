@@ -119,7 +119,7 @@ export function ModelCatalogPicker({ ws, onSelect, onClose }: ModelCatalogPicker
         type="button"
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
-        aria-label={t('common:close')}
+        aria-label={t('common:action.close')}
       />
       <div className="relative max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg">
         <div className="mb-3 flex items-center justify-between">

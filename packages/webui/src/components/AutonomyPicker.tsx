@@ -16,8 +16,8 @@ export type AutonomyMode = 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-par
 export interface AutonomyOption {
   mode: AutonomyMode;
   /** Display label — left verbatim (autonomy mode names are domain terms). */
-  label: string;
   /** i18n key under activity:autonomy.* for the description. */
+  labelKey: string;
   descKey: string;
   icon: React.ReactNode;
 }
@@ -25,31 +25,31 @@ export interface AutonomyOption {
 const AUTONOMY_OPTIONS: AutonomyOption[] = [
   {
     mode: 'off',
-    label: 'Off',
+    labelKey: 'labelOff',
     descKey: 'descOff',
     icon: <Pause className="h-3.5 w-3.5" />,
   },
   {
     mode: 'suggest',
-    label: 'Suggest',
+    labelKey: 'labelSuggest',
     descKey: 'descSuggest',
     icon: <ArrowRightLeft className="h-3.5 w-3.5" />,
   },
   {
     mode: 'auto',
-    label: 'Auto',
+    labelKey: 'labelAuto',
     descKey: 'descAuto',
     icon: <Play className="h-3.5 w-3.5" />,
   },
   {
     mode: 'eternal',
-    label: 'Eternal',
+    labelKey: 'labelEternal',
     descKey: 'descEternal',
     icon: <Activity className="h-3.5 w-3.5" />,
   },
   {
     mode: 'eternal-parallel',
-    label: 'Eternal Parallel',
+    labelKey: 'labelEternalParallel',
     descKey: 'descEternalParallel',
     icon: <Activity className="h-3.5 w-3.5" />,
   },
@@ -119,10 +119,16 @@ export function AutonomyPicker({
           tone,
           className,
         )}
-        title={t('activity:autonomy.titlePrefix', { label: current?.label ?? value })}
+        title={t('activity:autonomy.titlePrefix', {
+          label: current ? t(`activity:autonomy.${current.labelKey}`) : value,
+        })}
       >
         {current?.icon}
-        {!compact && <span className="truncate max-w-[7rem]">{current?.label ?? value}</span>}
+        {!compact && (
+          <span className="truncate max-w-[7rem]">
+            {current ? t(`activity:autonomy.${current.labelKey}`) : value}
+          </span>
+        )}
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
 
@@ -148,7 +154,9 @@ export function AutonomyPicker({
             >
               <span className="mt-0.5 text-muted-foreground">{opt.icon}</span>
               <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium">{opt.label}</span>
+                <span className="text-sm font-medium">
+                  {t(`activity:autonomy.${opt.labelKey}`)}
+                </span>
                 <p className="text-[10px] text-muted-foreground leading-snug">{t(`activity:autonomy.${opt.descKey}`)}</p>
               </div>
               {value === opt.mode && (

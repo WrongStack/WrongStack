@@ -565,7 +565,7 @@ export function SessionList({
           </div>
 
           <fieldset className="flex min-w-0 overflow-x-auto border border-border/75">
-            <legend className="sr-only">History filters</legend>
+            <legend className="sr-only">{t('activity:sessionList.historyFilters')}</legend>
             {filterOptions.map((option) => (
               <button
                 key={option.id}

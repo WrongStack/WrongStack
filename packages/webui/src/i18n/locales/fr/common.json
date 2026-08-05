@@ -95,12 +95,14 @@
     "title": "Une erreur est survenue",
     "body": "Une erreur de rendu s'est produite. Votre session est toujours active sur le serveur — recharger reprendra là où vous étiez.",
     "reload": "Recharger la page",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "panelTitle": "{{name}} a rencontré une erreur"
   },
   "sparkline": {
     "noActivity": "Aucune activité",
     "noActivityYet": "Pas encore d'activité",
     "activityMax": "Sparkline d'activité : max {{count}} événements",
     "activityPeak": "Sparkline d'activité — pic {{count}} événements/intervalle"
-  }
+  },
+  "loadingNamed": "Chargement de {{name}}…"
 }

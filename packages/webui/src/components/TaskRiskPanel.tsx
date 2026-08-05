@@ -2,16 +2,24 @@ import type { KanbanBoard, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { AlertTriangle, CheckCircle2, ChevronDown, Database, ShieldAlert } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from './ui/pagination';
+import { useAppTranslation } from '@/i18n';
 
 export type TaskRiskSeverity = 'critical' | 'warning' | 'info';
 
+/**
+ * A finding carries i18n KEYS, not prose: `analyzeTaskRisk` is a pure function
+ * used outside React (KanbanColumnView calls it for badge counts), so it must
+ * not depend on a translator. The panel resolves the keys at render time and
+ * feeds `detailParams` into the interpolation.
+ */
 export interface TaskRiskFinding {
   id: string;
   severity: TaskRiskSeverity;
   category: 'operational' | 'audit';
-  title: string;
-  detail: string;
-  remediation: string;
+  titleKey: string;
+  detailKey: string;
+  detailParams?: Record<string, string | number>;
+  remediationKey: string;
 }
 
 export interface TaskRiskAssessment {
@@ -75,9 +83,10 @@ export function analyzeTaskRisk(
       id: 'overdue',
       severity: 'critical',
       category: 'operational',
-      title: 'Task is overdue',
-      detail: `Due date ${task.dueDate} has passed while status is ${task.status}.`,
-      remediation: 'Re-plan the due date or record the blocker and owner response.',
+      titleKey: 'activity:taskRisk.overdueTitle',
+      detailKey: 'activity:taskRisk.overdueDetail',
+      detailParams: { dueDate: String(task.dueDate), status: String(task.status) },
+      remediationKey: 'activity:taskRisk.overdueFix',
     });
   }
 
@@ -89,9 +98,10 @@ export function analyzeTaskRisk(
       id: 'missing-dependency',
       severity: 'critical',
       category: 'operational',
-      title: 'Dependency references are broken',
-      detail: `${missingDependencies.length} dependency task${missingDependencies.length === 1 ? '' : 's'} cannot be found.`,
-      remediation: 'Repair or remove the missing dependency IDs before dispatch.',
+      titleKey: 'activity:taskRisk.missingDependencyTitle',
+      detailKey: 'activity:taskRisk.missingDependencyDetail',
+      detailParams: { count: missingDependencies.length },
+      remediationKey: 'activity:taskRisk.missingDependencyFix',
     });
   }
   const unresolvedDependencies = (task.dependsOn ?? []).filter((id) => {
@@ -103,9 +113,10 @@ export function analyzeTaskRisk(
       id: 'unresolved-dependency',
       severity: 'warning',
       category: 'operational',
-      title: 'Dependencies are unresolved',
-      detail: `${unresolvedDependencies.length} dependency task${unresolvedDependencies.length === 1 ? '' : 's'} still block execution.`,
-      remediation: 'Complete dependencies or explicitly waive them with a decision event.',
+      titleKey: 'activity:taskRisk.unresolvedDependencyTitle',
+      detailKey: 'activity:taskRisk.unresolvedDependencyDetail',
+      detailParams: { count: unresolvedDependencies.length },
+      remediationKey: 'activity:taskRisk.unresolvedDependencyFix',
     });
   }
 
@@ -114,10 +125,19 @@ export function analyzeTaskRisk(
       id: 'assignment-failed',
       severity: 'critical',
       category: 'operational',
-      title: 'Latest agent run failed',
-      detail: assignment.error ?? assignment.lastFailureKind ?? 'Assignment status is failed.',
-      remediation:
-        'Review the failed attempt evidence, adjust routing, then retry or block the task.',
+      titleKey: 'activity:taskRisk.assignmentFailedTitle',
+      // The server's error text is DATA, not UI copy — surface it verbatim and
+      // only translate the wrapper. With no reason at all, fall back to a
+      // fully-translated sentence.
+      ...(assignment.error ?? assignment.lastFailureKind
+        ? {
+            detailKey: 'activity:taskRisk.assignmentFailedDetail',
+            detailParams: {
+              reason: String(assignment.error ?? assignment.lastFailureKind),
+            },
+          }
+        : { detailKey: 'activity:taskRisk.assignmentFailedDetailGeneric' }),
+      remediationKey: 'activity:taskRisk.assignmentFailedFix',
     });
   }
   if (
@@ -129,9 +149,10 @@ export function analyzeTaskRisk(
       id: 'retry-exhausted',
       severity: 'critical',
       category: 'operational',
-      title: 'Retry budget is exhausted',
-      detail: `${assignment.attempt ?? 0}/${assignment.maxAttempts} attempts have been consumed.`,
-      remediation: 'Escalate for a new route or explicitly increase the attempt budget.',
+      titleKey: 'activity:taskRisk.retryExhaustedTitle',
+      detailKey: 'activity:taskRisk.retryExhaustedDetail',
+      detailParams: { used: assignment.attempt ?? 0, max: String(assignment.maxAttempts) },
+      remediationKey: 'activity:taskRisk.retryExhaustedFix',
     });
   }
   if (
@@ -144,9 +165,10 @@ export function analyzeTaskRisk(
       id: 'lease-expired',
       severity: 'critical',
       category: 'operational',
-      title: 'Assignment lease has expired',
-      detail: `Lease expired at ${assignment.leaseExpiresAt} while run status is ${assignment.status}.`,
-      remediation: 'Recover, release, or retry the stale assignment.',
+      titleKey: 'activity:taskRisk.leaseExpiredTitle',
+      detailKey: 'activity:taskRisk.leaseExpiredDetail',
+      detailParams: { expiresAt: String(assignment.leaseExpiresAt), status: String(assignment.status) },
+      remediationKey: 'activity:taskRisk.leaseExpiredFix',
     });
   }
   if (
@@ -158,9 +180,10 @@ export function analyzeTaskRisk(
       id: 'heartbeat-stale',
       severity: 'warning',
       category: 'operational',
-      title: 'Agent heartbeat is stale',
-      detail: `No heartbeat has been recorded since ${assignment.heartbeatAt}.`,
-      remediation: 'Inspect the subagent/run and recover the assignment if it is no longer alive.',
+      titleKey: 'activity:taskRisk.staleHeartbeatTitle',
+      detailKey: 'activity:taskRisk.staleHeartbeatDetail',
+      detailParams: { since: String(assignment.heartbeatAt) },
+      remediationKey: 'activity:taskRisk.staleHeartbeatFix',
     });
   }
   if (task.status === 'in_progress' && !assignment) {
@@ -168,9 +191,9 @@ export function analyzeTaskRisk(
       id: 'unowned-in-progress',
       severity: 'warning',
       category: 'operational',
-      title: 'In-progress task has no assignment',
-      detail: 'The task claims active work but has no inspectable agent assignment.',
-      remediation: 'Assign an agent or return the task to ready/blocked.',
+      titleKey: 'activity:taskRisk.noAssignmentTitle',
+      detailKey: 'activity:taskRisk.noAssignmentDetail',
+      remediationKey: 'activity:taskRisk.noAssignmentFix',
     });
   }
 
@@ -181,9 +204,10 @@ export function analyzeTaskRisk(
       id: 'failed-checks',
       severity: task.status === 'completed' ? 'critical' : 'warning',
       category: 'operational',
-      title: 'Acceptance checks failed',
-      detail: `${failedChecks.length} completion check${failedChecks.length === 1 ? '' : 's'} failed.`,
-      remediation: 'Resolve or explicitly waive failed acceptance evidence.',
+      titleKey: 'activity:taskRisk.failedChecksTitle',
+      detailKey: 'activity:taskRisk.failedChecksDetail',
+      detailParams: { count: failedChecks.length },
+      remediationKey: 'activity:taskRisk.failedChecksFix',
     });
   }
   if (task.status === 'completed' && pendingChecks.length) {
@@ -191,9 +215,10 @@ export function analyzeTaskRisk(
       id: 'completed-with-pending-checks',
       severity: 'critical',
       category: 'operational',
-      title: 'Completed task still has pending checks',
-      detail: `${pendingChecks.length} acceptance check${pendingChecks.length === 1 ? '' : 's'} remain pending.`,
-      remediation: 'Move the task back to review or complete the missing checks.',
+      titleKey: 'activity:taskRisk.pendingChecksTitle',
+      detailKey: 'activity:taskRisk.pendingChecksDetail',
+      detailParams: { count: pendingChecks.length },
+      remediationKey: 'activity:taskRisk.pendingChecksFix',
     });
   }
 
@@ -203,9 +228,9 @@ export function analyzeTaskRisk(
         id: 'no-durable-events',
         severity: 'critical',
         category: 'audit',
-        title: 'No durable activity events loaded',
-        detail: 'Current state cannot be traced to an append-only task event.',
-        remediation: 'Refresh activity; migrate legacy state or record an observation event.',
+        titleKey: 'activity:taskRisk.noEventsTitle',
+        detailKey: 'activity:taskRisk.noEventsDetail',
+        remediationKey: 'activity:taskRisk.noEventsFix',
       },
       25,
     );
@@ -215,9 +240,9 @@ export function analyzeTaskRisk(
         id: 'missing-creation-event',
         severity: 'warning',
         category: 'audit',
-        title: 'Creation provenance is missing',
-        detail: 'The loaded event range does not contain task.created.',
-        remediation: 'Load deeper history or record the legacy origin explicitly.',
+        titleKey: 'activity:taskRisk.noProvenanceTitle',
+        detailKey: 'activity:taskRisk.noProvenanceDetail',
+        remediationKey: 'activity:taskRisk.noProvenanceFix',
       },
       10,
     );
@@ -238,9 +263,10 @@ export function analyzeTaskRisk(
         id: 'actor-coverage',
         severity: 'warning',
         category: 'audit',
-        title: 'Some mutations have no actor',
-        detail: `Actor coverage is ${actorPercent}%.`,
-        remediation: 'Ensure every route/tool mutation supplies agent or operator identity.',
+        titleKey: 'activity:taskRisk.actorCoverageTitle',
+        detailKey: 'activity:taskRisk.actorCoverageDetail',
+        detailParams: { percent: actorPercent },
+        remediationKey: 'activity:taskRisk.actorCoverageFix',
       },
       10,
     );
@@ -251,9 +277,10 @@ export function analyzeTaskRisk(
         id: 'session-coverage',
         severity: 'warning',
         category: 'audit',
-        title: 'Some mutations have no session',
-        detail: `Session coverage is ${sessionPercent}%.`,
-        remediation: 'Propagate session identity into all task event contexts.',
+        titleKey: 'activity:taskRisk.sessionCoverageTitle',
+        detailKey: 'activity:taskRisk.sessionCoverageDetail',
+        detailParams: { percent: sessionPercent },
+        remediationKey: 'activity:taskRisk.sessionCoverageFix',
       },
       10,
     );
@@ -264,9 +291,10 @@ export function analyzeTaskRisk(
         id: 'reason-coverage',
         severity: 'info',
         category: 'audit',
-        title: 'Decision rationale is sparse',
-        detail: `Only ${reasonPercent}% of mutations include a reason or outcome.`,
-        remediation: 'Use the change-reason and decision/outcome fields for meaningful mutations.',
+        titleKey: 'activity:taskRisk.reasonCoverageTitle',
+        detailKey: 'activity:taskRisk.reasonCoverageDetail',
+        detailParams: { percent: reasonPercent },
+        remediationKey: 'activity:taskRisk.reasonCoverageFix',
       },
       10,
     );
@@ -285,9 +313,9 @@ export function analyzeTaskRisk(
         id: 'missing-route',
         severity: 'warning',
         category: 'audit',
-        title: 'Execution route is not inspectable',
-        detail: 'Assignment has no routing mode, provider, or model.',
-        remediation: 'Reassign with explicit session/fixed/fallback routing metadata.',
+        titleKey: 'activity:taskRisk.noRouteTitle',
+        detailKey: 'activity:taskRisk.noRouteDetail',
+        remediationKey: 'activity:taskRisk.noRouteFix',
       },
       10,
     );
@@ -306,9 +334,10 @@ export function analyzeTaskRisk(
         id: 'missing-terminal-evidence',
         severity: 'critical',
         category: 'audit',
-        title: 'Terminal run has no result or error evidence',
-        detail: `Assignment ended as ${assignment?.status} without an inspectable output.`,
-        remediation: 'Record the final result/error and supporting evidence.',
+        titleKey: 'activity:taskRisk.missingTerminalEvidenceTitle',
+        detailKey: 'activity:taskRisk.missingTerminalEvidenceDetail',
+        detailParams: { status: String(assignment?.status) },
+        remediationKey: 'activity:taskRisk.missingTerminalEvidenceFix',
       },
       15,
     );
@@ -349,21 +378,22 @@ export function TaskRiskPanel({
   task: KanbanTask;
   events: KanbanEvent[];
 }) {
+  const { t } = useAppTranslation();
   const assessment = analyzeTaskRisk(board, task, events);
   const findingPage = usePagination(assessment.findings, 8, task.id);
   return (
     <details open className="mt-3 rounded-md border border-border/70 bg-muted/10">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <ShieldAlert className="size-4 text-primary" />
-        <span className="text-xs font-semibold">Risk & audit quality</span>
+        <span className="text-xs font-semibold">{t('activity:taskRisk.riskAuditQuality')}</span>
         <span
           className={`rounded px-1.5 py-0.5 text-[9px] ${assessment.score >= 90 ? 'bg-success/10 text-success' : assessment.score >= 70 ? 'bg-warning/10 text-warning' : 'bg-destructive/10 text-destructive'}`}
         >
-          audit {assessment.score}/100
+          {t('activity:taskRisk.auditScore', { score: assessment.score })}
         </span>
         {assessment.critical > 0 && (
           <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] text-destructive">
-            {assessment.critical} critical
+            {t('activity:taskRisk.criticalCount', { count: assessment.critical })}
           </span>
         )}
         <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
@@ -371,12 +401,20 @@ export function TaskRiskPanel({
       <div className="space-y-2 border-t border-border/60 p-2.5">
         <div className="grid grid-cols-3 gap-1 text-center sm:grid-cols-6">
           {[
-            ['Events', assessment.coverage.durableEvents],
-            ['Actor', `${assessment.coverage.actorPercent}%`],
-            ['Session', `${assessment.coverage.sessionPercent}%`],
-            ['Reasons', `${assessment.coverage.reasonPercent}%`],
-            ['Route', assessment.coverage.hasExecutionRoute ? 'yes' : 'no'],
-            ['Outcome', assessment.coverage.hasTerminalEvidence ? 'yes' : 'no'],
+            [t('activity:taskRisk.covEvents'), assessment.coverage.durableEvents],
+            [t('activity:taskRisk.covActor'), `${assessment.coverage.actorPercent}%`],
+            [t('activity:taskRisk.covSession'), `${assessment.coverage.sessionPercent}%`],
+            [t('activity:taskRisk.covReasons'), `${assessment.coverage.reasonPercent}%`],
+            [
+              t('activity:taskRisk.covRoute'),
+              assessment.coverage.hasExecutionRoute ? t('common:action.yes') : t('common:action.no'),
+            ],
+            [
+              t('activity:taskRisk.covOutcome'),
+              assessment.coverage.hasTerminalEvidence
+                ? t('common:action.yes')
+                : t('common:action.no'),
+            ],
           ].map(([label, value]) => (
             <div key={String(label)} className="rounded border bg-background/70 px-1 py-1.5">
               <div className="text-[11px] font-semibold">{value}</div>
@@ -386,7 +424,7 @@ export function TaskRiskPanel({
         </div>
         {assessment.findings.length === 0 ? (
           <div className="flex items-center gap-2 rounded border border-success/30 bg-success/5 px-2.5 py-2 text-[11px] text-success">
-            <CheckCircle2 className="size-4" /> No deterministic task risks detected.
+            <CheckCircle2 className="size-4" /> {t('activity:taskRisk.noDeterministicTaskRisksDetected')}
           </div>
         ) : (
           <div className="space-y-1.5">
@@ -401,14 +439,17 @@ export function TaskRiskPanel({
                   ) : (
                     <AlertTriangle className="size-3.5" />
                   )}
-                  {finding.title}
+                  {t(finding.titleKey)}
                   <span className="ml-auto text-[8px] uppercase opacity-75">
-                    {finding.category} · {finding.severity}
+                    {t(`activity:taskRisk.cat.${finding.category}`)} ·{' '}
+                    {t(`activity:taskRisk.sev.${finding.severity}`)}
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] leading-4 opacity-90">{finding.detail}</p>
+                <p className="mt-1 text-[10px] leading-4 opacity-90">
+                  {t(finding.detailKey, finding.detailParams ?? {})}
+                </p>
                 <p className="mt-1 text-[9px] leading-4 opacity-75">
-                  <strong>Next:</strong> {finding.remediation}
+                  <strong>{t('activity:taskRisk.next')}</strong> {t(finding.remediationKey)}
                 </p>
               </section>
             ))}
@@ -418,7 +459,7 @@ export function TaskRiskPanel({
               totalItems={findingPage.totalItems}
               onPageChange={findingPage.setPage}
               compact
-              itemLabel="risk findings"
+              itemLabel={t('activity:taskRisk.itemLabel')}
             />
           </div>
         )}

@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type {
   KanbanBoard,
   KanbanBoardPresence,
@@ -34,14 +35,15 @@ function fmtElapsed(fromIso?: string, toIso?: string): string | null {
 }
 
 export function BoardPresence({ presence = [] }: { presence?: KanbanBoardPresence[] | undefined }) {
+  const { t } = useAppTranslation();
   if (presence.length === 0) return null;
   return (
     <section
-      aria-label="Board presence"
+      aria-label={t('activity:kanban.boardPresence')}
       className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card/50 px-4 py-2"
     >
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Live board users
+        {t('activity:kanban.liveBoardUsers')}
       </span>
       {presence.map((entry) => (
         <span
@@ -79,6 +81,7 @@ export function SupervisorBar({
   snapshot: KanbanSupervisorSnapshot | null;
   sendKanban: (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
 }) {
+  const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const [mode, setMode] = useState<'deterministic' | 'agentic'>('deterministic');
@@ -103,7 +106,10 @@ export function SupervisorBar({
     setFallbackModels(config?.routing?.fallbackModels ?? []);
     setSkills(config?.skills ?? []);
     setIntervalSeconds(Math.max(2, Math.round((config?.intervalMs ?? 10_000) / 1000)));
-  }, [board.id, board.supervisor]);
+    // Key on the serialized value, not the object reference: the kanban store
+    // replaces `activeBoard` wholesale on broadcasts, so a reference dep would
+    // re-fire mid-edit and discard unsaved form changes.
+  }, [board.id, JSON.stringify(board.supervisor)]);
 
   const save = () => {
     const routing = {
@@ -135,7 +141,7 @@ export function SupervisorBar({
         className="flex w-full items-center gap-2 px-4 py-1.5 text-left text-[11px] hover:bg-muted/40"
       >
         <ShieldCheck size={13} className={status === 'healthy' ? 'text-success' : 'text-warning'} />
-        <span className="font-semibold">Kanban Agent</span>
+        <span className="font-semibold">{t('activity:kanban.kanbanAgent')}</span>
         <span className="rounded bg-muted px-1.5 py-0.5 capitalize text-muted-foreground">
           {mode} · {status}
         </span>
@@ -144,8 +150,8 @@ export function SupervisorBar({
         )}
         <span className="ml-auto text-muted-foreground">
           {snapshot?.lastAuditAt
-            ? `checked ${fmtElapsed(snapshot.lastAuditAt)} ago`
-            : 'not checked'}
+            ? t('activity:kanban.checkedAgo', { ago: fmtElapsed(snapshot.lastAuditAt) })
+            : t('activity:kanban.notChecked')}
         </span>
         <ChevronDown size={13} className={cn('transition-transform', expanded && 'rotate-180')} />
       </button>
@@ -157,17 +163,17 @@ export function SupervisorBar({
               checked={enabled}
               onChange={(event) => setEnabled(event.target.checked)}
             />
-            <span>Watch this board</span>
+            <span>{t('activity:kanban.watchThisBoard')}</span>
           </label>
           <SelectField
-            label="Supervisor engine"
+            label={t('activity:kanban.supervisorEngine')}
             value={mode}
             options={['deterministic', 'agentic']}
             onChange={(value) => setMode(value as 'deterministic' | 'agentic')}
           />
           <label className="block">
             <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-              Audit interval (seconds)
+              {t('activity:kanban.auditInterval')}
             </span>
             <input
               type="number"
@@ -183,25 +189,24 @@ export function SupervisorBar({
               onClick={save}
               className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-primary-foreground"
             >
-              <Save size={13} /> Save
+              <Save size={13} /> {t('activity:boardChrome.save')}
             </button>
             <button
               type="button"
               onClick={() => sendKanban('kanban.supervisor.audit', { boardId: board.id })}
               className="inline-flex h-8 items-center gap-1 rounded-md border px-3 hover:bg-muted"
             >
-              <Activity size={13} /> Audit now
+              <Activity size={13} /> {t('activity:boardChrome.auditNow')}
             </button>
           </div>
           {mode === 'deterministic' ? (
             <div className="lg:col-span-4 rounded-md border border-success/20 bg-success/5 px-3 py-2 text-muted-foreground">
-              Deterministic mode uses no provider, model, token, or billing. It repairs
-              assignment/status/column drift and recovers expired leases.
+              {t('activity:boardChrome.deterministicModeUsesNoProviderModel')}
             </div>
           ) : (
             <div className="grid gap-3 lg:col-span-4 lg:grid-cols-2">
               <SelectField
-                label="Kanban Agent model source"
+                label={t('activity:kanban.kanbanAgentModelSource')}
                 value={routingMode}
                 options={['session', 'fixed', 'fallback_profile']}
                 onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
@@ -209,13 +214,13 @@ export function SupervisorBar({
               {routingMode === 'fixed' && (
                 <div>
                   <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                    Fixed provider / model
+                    {t('activity:boardChrome.fixedProviderModel')}
                   </span>
                   <ModelPicker
                     value={model || undefined}
                     provider={provider || undefined}
                     candidates={modelCandidates}
-                    placeholder="Select exact provider / model…"
+                    placeholder={t('activity:kanban.selectProviderModel')}
                     onPick={(nextModel, nextProvider) => {
                       setModel(nextModel);
                       setProvider(nextProvider);
@@ -225,16 +230,16 @@ export function SupervisorBar({
               )}
               {routingMode === 'fallback_profile' && (
                 <SelectField
-                  label="Fallback profile (first model is primary)"
+                  label={t('activity:kanban.fallbackProfile')}
                   value={fallbackProfile}
                   options={Object.keys(meta.fallbackProfiles)}
-                  placeholder="Select configured profile…"
+                  placeholder={t('activity:kanban.selectProfile')}
                   onChange={setFallbackProfile}
                 />
               )}
               <div>
                 <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Supervisor skills
+                  {t('activity:kanban.supervisorSkills')}
                 </span>
                 <ChipMultiSelect
                   options={meta.skills.map((skill) => ({
@@ -245,12 +250,12 @@ export function SupervisorBar({
                   }))}
                   selected={skills}
                   onChange={setSkills}
-                  placeholder="Force-load agentic skills…"
+                  placeholder={t('activity:kanban.forceLoadSkills')}
                 />
               </div>
               <div>
                 <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Extra fallback models
+                  {t('activity:kanban.extraFallbackModels')}
                 </span>
                 <ChipMultiSelect
                   options={modelCandidates.map((candidate) => ({
@@ -260,7 +265,7 @@ export function SupervisorBar({
                   }))}
                   selected={fallbackModels}
                   onChange={setFallbackModels}
-                  placeholder="Optional ordered fallbacks…"
+                  placeholder={t('activity:kanban.optionalFallbacks')}
                 />
               </div>
             </div>

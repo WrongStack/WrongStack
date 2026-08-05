@@ -1,14 +1,16 @@
 import { cn } from '@/lib/utils';
 import type { ChronicleStatus } from '@/types/chronicle';
+import { useAppTranslation } from '@/i18n';
 
 export function ChroniclePipelineStrip({ status }: { status: ChronicleStatus }) {
+  const { t } = useAppTranslation();
   return (
     <section
       className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border/60 bg-primary/[0.025] px-4 py-1.5 font-mono text-[9px] text-muted-foreground"
       title={status.chronicleDirectory}
     >
       <span className="font-sans font-semibold uppercase tracking-wider text-primary">
-        Chronicle ownership
+        {t('activity:chroniclePipelineStrip.chronicleOwnership')}
       </span>
       <span>
         collect <b className="text-foreground">{status.pipeline.collection}</b>
@@ -33,7 +35,7 @@ export function ChroniclePipelineStrip({ status }: { status: ChronicleStatus }) 
         store <b className="text-foreground">{shortPath(status.pipeline.storage)}</b>
       </span>
       {status.mode === 'inline' && (
-        <span className="font-sans font-semibold text-warning">INLINE FALLBACK</span>
+        <span className="font-sans font-semibold text-warning">{t('activity:chroniclePipelineStrip.inlineFallback')}</span>
       )}
     </section>
   );

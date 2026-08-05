@@ -18,6 +18,7 @@ import {
 } from './CodeMapVisuals';
 import { MINIMAP_NODE_LIMIT } from './CodeMapConfig';
 import type { CodeMapGraphResponse, GraphRefType } from './codemap-model';
+import { useAppTranslation } from '@/i18n';
 
 export function CodeMapCanvasSurface({
   loading,
@@ -40,13 +41,14 @@ export function CodeMapCanvasSurface({
   onEdgesChange: OnEdgesChange<Edge>;
   agentTrailCount: number;
 }): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <>
       {loading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-sm">
           <Loader2 className="h-7 w-7 animate-spin text-primary" />
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Mapping relationships
+            {t('activity:codeMap.mappingRelationships')}
           </span>
         </div>
       )}
@@ -56,24 +58,23 @@ export function CodeMapCanvasSurface({
           <p className="font-mono text-sm text-destructive">{error}</p>
           <p className="max-w-md text-xs text-muted-foreground">
             The map needs a codebase index. Run{' '}
-            <code className="border bg-muted px-1.5 py-0.5">codebase-index</code> once, then
-            reopen this view.
+            <code className="border bg-muted px-1.5 py-0.5">codebase-index</code> {t('activity:codeMap.onceThenReopenThisView')}
           </p>
         </div>
       )}
       {!loading && !error && graph.nodes.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
           <Network className="h-8 w-8 opacity-40" />
-          <p className="text-xs">No indexed nodes at this level.</p>
+          <p className="text-xs">{t('activity:codeMap.noIndexedNodesAtThisLevel')}</p>
         </div>
       )}
       {!loading && !error && graph.nodes.length > 1 && graph.edges.length === 0 && (
         <div className="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2 border border-warning/40 bg-warning/10 px-3 py-2 text-center shadow backdrop-blur">
           <div className="font-mono text-[9px] font-bold uppercase tracking-wider text-warning">
-            No resolved relations in this scope
+            {t('activity:codeMap.noResolvedRelationsInThisScope')}
           </div>
           <div className="mt-0.5 text-[8px] text-muted-foreground">
-            The upgraded index will rebuild and resolve call/import/type links automatically.
+            {t('activity:codeMap.theUpgradedIndexWillRebuildAnd')}
           </div>
         </div>
       )}

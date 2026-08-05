@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { Activity, GitBranch, LogIn, LogOut, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -7,21 +8,22 @@ import {
 } from '@/stores/memory-lifecycle-store';
 
 export function MemoryLifecycleTrace() {
+  const { t } = useAppTranslation();
   const items = useMemoryLifecycleStore((state) => state.items);
   const clear = useMemoryLifecycleStore((state) => state.clear);
 
   return (
     <section
       className="shrink-0 border-b border-border/60 bg-info/[0.025]"
-      aria-label="Memory lifecycle live ledger"
+      aria-label={t('activity:memoryManager.lifecycleAria')}
     >
       <div className="flex h-8 items-center gap-2 px-4">
         <Activity className="size-3.5 text-info" />
         <span className="text-[10px] font-bold uppercase tracking-wide text-info">
-          Memory lifecycle
+          {t('activity:memoryManager.lifecycleHeading')}
         </span>
         <span className="text-[10px] text-muted-foreground">
-          {items.length === 0 ? 'waiting' : `live · ${items.length}/100`}
+          {items.length === 0 ? t('activity:memoryManager.statusWaiting') : t('activity:memoryManager.statusLive', { count: items.length })}
         </span>
         {items.length > 0 && (
           <Button
@@ -31,7 +33,7 @@ export function MemoryLifecycleTrace() {
             className="ml-auto h-6 px-2 text-[10px]"
             onClick={clear}
           >
-            <Trash2 className="size-3" /> Clear
+            <Trash2 className="size-3" /> {t('common:action.clear')}
           </Button>
         )}
       </div>

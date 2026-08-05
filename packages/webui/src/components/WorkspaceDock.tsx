@@ -190,7 +190,7 @@ export function WorkspaceDock() {
           <DockChip
             section="goal"
             icon={<Rocket className="h-3 w-3" />}
-            label="Goal"
+            label={t('activity:dock.goal')}
             value={`${overallPercent}%`}
             active={false}
             pulse={activePhaseId != null}
@@ -203,7 +203,7 @@ export function WorkspaceDock() {
           <DockChip
             section="goal-state"
             icon={<Target className="h-3 w-3" />}
-            label="Goal State"
+            label={t('activity:dock.goalState')}
             value={`${goalState.progress}%`}
             active={open === 'goal-state'}
             pulse={goalState.goalState === 'active'}
@@ -214,7 +214,7 @@ export function WorkspaceDock() {
           <DockChip
             section="fleet"
             icon={<Bot className="h-3 w-3" />}
-            label="Fleet"
+            label={t('activity:dock.fleet')}
             value={`${fleetRunning}/${fleetTotal}`}
             active={open === 'fleet'}
             pulse={fleetRunning > 0}
@@ -224,7 +224,7 @@ export function WorkspaceDock() {
         <DockChip
           section="work"
           icon={<ListTodo className="h-3 w-3" />}
-          label="Work"
+          label={t('activity:dock.work')}
           value={todos.length > 0 ? `${todosDone}/${todos.length}` : undefined}
           active={open === 'work'}
           pulse={todosActive}
@@ -234,7 +234,7 @@ export function WorkspaceDock() {
           <DockChip
             section="worktrees"
             icon={<GitBranch className="h-3 w-3" />}
-            label="Worktrees"
+            label={t('activity:dock.worktrees')}
             value={String(worktrees.length)}
             active={open === 'worktrees'}
             onClick={() => toggleDockSection('worktrees')}
@@ -283,7 +283,7 @@ export function WorkspaceDock() {
         <DockChip
           section="collab"
           icon={<Users className="h-3 w-3" />}
-          label="Collab"
+          label={t('activity:dock.collab')}
           active={open === 'collab'}
           onClick={() => toggleDockSection('collab')}
         />
@@ -319,12 +319,22 @@ export function WorkspaceDock() {
   );
 }
 
-const DOCK_INSPECTOR_META: Record<Exclude<DockSection, 'goal'>, { title: string; detail: string }> = {
-  'goal-state': { title: 'Goal State', detail: 'Active objective and progress' },
-  fleet: { title: 'Fleet', detail: 'Live agent roster and activity' },
-  work: { title: 'Work', detail: 'Todos, tasks, and plan' },
-  worktrees: { title: 'Worktrees', detail: 'Parallel branches and lanes' },
-  collab: { title: 'Collab', detail: 'Session participants and controls' },
+/** Hook-free constant: the inspector resolves these keys when it renders. */
+const DOCK_INSPECTOR_META: Record<
+  Exclude<DockSection, 'goal'>,
+  { titleKey: string; detailKey: string }
+> = {
+  'goal-state': {
+    titleKey: 'activity:dock.goalState',
+    detailKey: 'activity:dock.goalStateDetail',
+  },
+  fleet: { titleKey: 'activity:dock.fleet', detailKey: 'activity:dock.fleetDetail' },
+  work: { titleKey: 'activity:dock.work', detailKey: 'activity:dock.workDetail' },
+  worktrees: {
+    titleKey: 'activity:dock.worktrees',
+    detailKey: 'activity:dock.worktreesDetail',
+  },
+  collab: { titleKey: 'activity:dock.collab', detailKey: 'activity:dock.collabDetail' },
 };
 
 export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): React.ReactElement {
@@ -363,7 +373,11 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
       data-testid={open ? 'workspace-dock-inspector' : undefined}
       aria-hidden={!open}
       inert={!open || undefined}
-      aria-label={meta ? `${meta.title} workspace inspector` : 'Workspace inspector'}
+      aria-label={
+        meta
+          ? t('activity:dock.inspectorNamed', { name: t(meta.titleKey) })
+          : t('activity:dock.inspector')
+      }
       className={cn(
         'fixed inset-y-0 right-0 z-40 flex w-[calc(100vw-3rem)] max-w-none flex-col overflow-hidden border-l border-border/80 bg-card/96 shadow-[-24px_0_64px_-36px_hsl(var(--shadow-color)/0.65)] backdrop-blur-xl transition-transform duration-200 sm:w-[min(680px,48vw)] sm:max-w-[680px]',
         stackedOffset,
@@ -373,16 +387,18 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
       <header className="relative shrink-0 border-b border-border/70 bg-muted/20 px-4 py-3 pr-12">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <PanelRightOpen className="h-4 w-4 text-primary" />
-          {meta?.title ?? 'Workspace'}
+          {meta ? t(meta.titleKey) : t('activity:dock.workspace')}
         </div>
-        <p className="mt-1 text-[11px] text-muted-foreground">{meta?.detail ?? 'Workspace details'}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {meta ? t(meta.detailKey) : t('activity:dock.workspaceDetails')}
+        </p>
         <button
           type="button"
           data-testid="workspace-dock-inspector-close"
           onClick={() => setDockSection(null)}
           className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Close workspace inspector"
-          title="Close workspace inspector"
+          aria-label={t('activity:dock.closeWorkspaceInspector')}
+          title={t('activity:dock.closeWorkspaceInspector')}
         >
           <X className="h-4 w-4" />
         </button>

@@ -56,21 +56,21 @@ export function StatsHUD() {
           {clientCounts.tui > 0 && (
             <span className="flex items-center gap-1">
               <Terminal className="h-2.5 w-2.5 text-success" />
-              <span className="text-muted-foreground">TUI</span>
+              <span className="text-muted-foreground">{t('activity:hud.tui')}</span>
               <span className="font-mono text-success">{clientCounts.tui}</span>
             </span>
           )}
           {clientCounts.webui > 0 && (
             <span className="flex items-center gap-1">
               <Monitor className="h-2.5 w-2.5 text-primary" />
-              <span className="text-muted-foreground">WebUI</span>
+              <span className="text-muted-foreground">{t('activity:hud.webui')}</span>
               <span className="font-mono text-primary">{clientCounts.webui}</span>
             </span>
           )}
           {clientCounts.repl > 0 && (
             <span className="flex items-center gap-1">
               <Terminal className="h-2.5 w-2.5 text-warning" />
-              <span className="text-muted-foreground">REPL</span>
+              <span className="text-muted-foreground">{t('activity:hud.repl')}</span>
               <span className="font-mono text-warning">{clientCounts.repl}</span>
             </span>
           )}
@@ -143,7 +143,7 @@ export function StatsHUD() {
           </div>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5">
-              <span className="text-[8px] text-muted-foreground">OUT</span>
+              <span className="text-[8px] text-muted-foreground">{t('activity:hud.out')}</span>
               <span className="text-muted-foreground">{t('activity:office.output')}</span>
             </div>
             <span className="font-mono text-[9px] text-foreground">

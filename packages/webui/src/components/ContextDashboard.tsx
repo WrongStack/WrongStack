@@ -59,7 +59,7 @@ interface ContextDebugPayload {
 }
 
 interface ZoneConfig {
-  label: string;
+  labelKey: string;
   emoji: string;
   color: string;
   bg: string;
@@ -67,14 +67,14 @@ interface ZoneConfig {
   cssColor: string;
   from: number;
   to: number;
-  desc: string;
+  descKey: string;
 }
 
 const ZONES: ZoneConfig[] = [
-  { label: 'Safe', emoji: '🟢', color: 'text-success', bg: 'bg-success/10', text: 'text-success', cssColor: 'hsl(var(--success))', from: 0, to: 60, desc: 'normal operation' },
-  { label: 'Warning', emoji: '🟡', color: 'text-warning', bg: 'bg-warning/10', text: 'text-warning', cssColor: 'hsl(var(--warning))', from: 60, to: 85, desc: 'compaction advised' },
-  { label: 'Critical', emoji: '🔴', color: 'text-destructive', bg: 'bg-destructive/10', text: 'text-destructive', cssColor: 'hsl(var(--destructive))', from: 85, to: 95, desc: 'compact now' },
-  { label: 'Danger', emoji: '⚫', color: 'text-brand-orange', bg: 'bg-brand-orange/15', text: 'text-brand-orange', cssColor: 'hsl(var(--brand-orange))', from: 95, to: 100, desc: 'context nearly full' },
+  { labelKey: 'activity:ctxDash.zoneSafe', emoji: '🟢', color: 'text-success', bg: 'bg-success/10', text: 'text-success', cssColor: 'hsl(var(--success))', from: 0, to: 60, descKey: 'activity:ctxDash.zoneSafeDesc' },
+  { labelKey: 'activity:ctxDash.zoneWarning', emoji: '🟡', color: 'text-warning', bg: 'bg-warning/10', text: 'text-warning', cssColor: 'hsl(var(--warning))', from: 60, to: 85, descKey: 'activity:ctxDash.zoneWarningDesc' },
+  { labelKey: 'activity:ctxDash.zoneCritical', emoji: '🔴', color: 'text-destructive', bg: 'bg-destructive/10', text: 'text-destructive', cssColor: 'hsl(var(--destructive))', from: 85, to: 95, descKey: 'activity:ctxDash.zoneCriticalDesc' },
+  { labelKey: 'activity:ctxDash.zoneDanger', emoji: '⚫', color: 'text-brand-orange', bg: 'bg-brand-orange/15', text: 'text-brand-orange', cssColor: 'hsl(var(--brand-orange))', from: 95, to: 100, descKey: 'activity:ctxDash.zoneDangerDesc' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -274,12 +274,13 @@ function PressureSection({
   tokens: number;
   maxTokens: number;
 }) {
+  const { t } = useAppTranslation();
   const zone = zoneFor(pct);
   const accent =
     pct > 85 ? 'danger' : pct > 60 ? 'warning' : 'success';
 
   return (
-    <SectionCard title="Context Pressure" icon={Gauge} accent={accent}>
+    <SectionCard title={t('activity:ctxDash.contextPressure')} icon={Gauge} accent={accent}>
       <div className="flex flex-col sm:flex-row items-center gap-4">
         {/* Donut gauge */}
         <div className={cn(
@@ -301,19 +302,19 @@ function PressureSection({
           {/* Token counts with animation */}
           <div className="grid grid-cols-3 gap-1 text-[10px] font-mono tabular-nums">
             <div className="rounded bg-muted/30 px-2 py-1 text-center">
-              <span className="text-muted-foreground block text-[9px]">Used</span>
+              <span className="text-muted-foreground block text-[9px]">{t('activity:ctxDash.used')}</span>
               <span className={cn('font-bold', zone.color)}>
                 <AnimatedCounter value={tokens} />
               </span>
             </div>
             <div className="rounded bg-muted/30 px-2 py-1 text-center">
-              <span className="text-muted-foreground block text-[9px]">Free</span>
+              <span className="text-muted-foreground block text-[9px]">{t('activity:ctxDash.free')}</span>
               <span className="font-bold text-muted-foreground/80">
                 <AnimatedCounter value={Math.max(0, maxTokens - tokens)} />
               </span>
             </div>
             <div className="rounded bg-muted/30 px-2 py-1 text-center">
-              <span className="text-muted-foreground block text-[9px]">Capacity</span>
+              <span className="text-muted-foreground block text-[9px]">{t('activity:ctxDash.capacity')}</span>
               <span className="font-bold text-muted-foreground/80">
                 <AnimatedCounter value={maxTokens} />
               </span>
@@ -329,7 +330,7 @@ function PressureSection({
             const width = ((z.to - z.from) / 100) * 100;
             return (
               <div
-                key={z.label}
+                key={t(z.labelKey)}
                 className="h-full first:rounded-l-full last:rounded-r-full opacity-60"
                 style={{ width: `${width}%`, backgroundColor: z.cssColor }}
               />
@@ -366,34 +367,35 @@ function PressureSection({
 }
 
 function CompositionSection({ data, loading }: { data: ContextDebugPayload | null; loading: boolean }) {
+  const { t } = useAppTranslation();
   if (loading) {
     return (
-      <SectionCard title="Context Composition" icon={Layers}>
+      <SectionCard title={t('activity:ctxDash.contextComposition')} icon={Layers}>
         <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
           <RefreshCw className="h-3 w-3 animate-spin" />
-          Fetching composition data...
+          {t('activity:ctxDash.fetchingCompositionData')}
         </div>
       </SectionCard>
     );
   }
   if (!data || data.total <= 0) {
     return (
-      <SectionCard title="Context Composition" icon={Layers}>
+      <SectionCard title={t('activity:ctxDash.contextComposition')} icon={Layers}>
         <div className="text-xs text-muted-foreground py-1">
-          No composition data available yet. Run an agent iteration to populate.
+          {t('activity:ctxDash.noCompositionDataAvailableYetRun')}
         </div>
       </SectionCard>
     );
   }
 
   const items = [
-    { icon: FileText, label: 'System Prompt', value: data.systemPrompt, className: 'bg-info' },
-    { icon: Wrench, label: 'Tools', value: data.tools.total, className: 'bg-warning' },
-    { icon: MessageSquare, label: 'Messages', value: data.messages.total, className: 'bg-success' },
+    { icon: FileText, label: t('activity:ctxDash.systemPrompt'), value: data.systemPrompt, className: 'bg-info' },
+    { icon: Wrench, label: t('activity:ctxDash.tools'), value: data.tools.total, className: 'bg-warning' },
+    { icon: MessageSquare, label: t('activity:ctxDash.messages'), value: data.messages.total, className: 'bg-success' },
   ];
 
   return (
-    <SectionCard title="Context Composition" icon={Layers}>
+    <SectionCard title={t('activity:ctxDash.contextComposition')} icon={Layers}>
       {/* Visual bar */}
       <div className="h-3 w-full overflow-hidden rounded-full bg-muted flex">
         {items.map((item) => {
@@ -427,7 +429,7 @@ function CompositionSection({ data, loading }: { data: ContextDebugPayload | nul
       {data.tools.breakdown.length > 0 && (
         <div className="pt-1 border-t border-border/50">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Tool breakdown
+            {t('activity:ctxDash.toolBreakdown')}
           </span>
           <div className="mt-1 space-y-0.5">
             {data.tools.breakdown.slice(0, 5).map((t) => (
@@ -444,13 +446,14 @@ function CompositionSection({ data, loading }: { data: ContextDebugPayload | nul
 }
 
 function ThresholdSection({ pct }: { pct: number }) {
+  const { t } = useAppTranslation();
   return (
-    <SectionCard title="Threshold Map" icon={AlertTriangle}>
+    <SectionCard title={t('activity:ctxDash.thresholdMap')} icon={AlertTriangle}>
       {/* Zone strip */}
       <div className="flex h-2 rounded-full overflow-hidden">
         {ZONES.map((z) => (
           <div
-            key={z.label}
+            key={t(z.labelKey)}
             className="h-full first:rounded-l-full last:rounded-r-full opacity-80"
             style={{
               width: `${((z.to - z.from) / 100) * 100}%`,
@@ -466,7 +469,7 @@ function ThresholdSection({ pct }: { pct: number }) {
           const active = pct >= z.from && pct < z.to;
           return (
             <div
-              key={z.label}
+              key={t(z.labelKey)}
               className={cn(
                 'flex items-center px-2 py-1 rounded',
                 active ? z.bg : '',
@@ -474,10 +477,10 @@ function ThresholdSection({ pct }: { pct: number }) {
             >
               <span className="w-5">{z.emoji}</span>
               <span className={cn('w-20 font-medium', active ? z.text : 'text-muted-foreground')}>
-                {z.label}
+                {t(z.labelKey)}
               </span>
               <span className="w-16 text-muted-foreground">{z.from}%–{z.to}%</span>
-              <span className="flex-1 text-muted-foreground">{z.desc}</span>
+              <span className="flex-1 text-muted-foreground">{t(z.descKey)}</span>
               {active && <span className="text-xs font-mono">◀</span>}
             </div>
           );
@@ -485,35 +488,36 @@ function ThresholdSection({ pct }: { pct: number }) {
       </div>
 
       <MetricRow
-        label="Current position"
-        value={`${pct.toFixed(1)}% → ${zoneFor(pct).emoji} ${zoneFor(pct).label}`}
+        label={t('activity:ctxDash.currentPosition')}
+        value={`${pct.toFixed(1)}% → ${zoneFor(pct).emoji} ${t(zoneFor(pct).labelKey)}`}
         color={zoneFor(pct).color}
       />
-      <MetricRow label="Compact trigger" value="85%" />
-      <MetricRow label="Hard limit" value="100%" />
+      <MetricRow label={t('activity:ctxDash.compactTrigger')} value="85%" />
+      <MetricRow label={t('activity:ctxDash.hardLimit')} value="100%" />
     </SectionCard>
   );
 }
 
 function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number }) {
+  const { t } = useAppTranslation();
   const recoveryEst = Math.round(maxTokens * 0.18);
   const triggerAt = Math.round(maxTokens * 0.85);
   const needsCompact = pct > 65;
   const compactPct = maxTokens > 0 ? (pct / 100) : 0;
 
   return (
-    <SectionCard title="Compaction Engine" icon={HardDrive} accent={needsCompact ? 'warning' : 'success'}>
+    <SectionCard title={t('activity:ctxDash.compactionEngine')} icon={HardDrive} accent={needsCompact ? 'warning' : 'success'}>
       <div className="space-y-2 text-xs">
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Strategy</span>
+          <span className="text-muted-foreground">{t('activity:ctxDash.strategy')}</span>
           <span className="font-semibold text-foreground/90">hybrid</span>
-          <span className="text-success bg-success/10 px-1.5 rounded text-[9px] font-semibold">auto ✓</span>
+          <span className="text-success bg-success/10 px-1.5 rounded text-[9px] font-semibold">{t('activity:ctxDash.auto')}</span>
         </div>
 
         {/* Visual trigger meter */}
         <div className="space-y-0.5">
           <div className="flex justify-between text-[9px] text-muted-foreground">
-            <span>Current</span>
+            <span>{t('activity:ctxDash.current')}</span>
             <span>Trigger ({fmtTok(triggerAt)})</span>
           </div>
           <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted/50 ring-1 ring-inset ring-border/20">
@@ -537,17 +541,17 @@ function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number 
         </div>
 
         <MetricRow
-          label="Next trigger"
+          label={t('activity:ctxDash.nextTrigger')}
           value={`${fmtTok(triggerAt)} (85%)`}
         />
         <div className="flex items-center justify-between text-xs py-0.5">
-          <span className="text-muted-foreground">Est. recovery</span>
+          <span className="text-muted-foreground">{t('activity:ctxDash.estRecovery')}</span>
           <span className="tabular-nums font-mono font-semibold px-1.5 py-0.5 rounded text-success bg-success/10">
             ~{fmtTok(recoveryEst)}
           </span>
         </div>
         <MetricRow
-          label="Recommendation"
+          label={t('activity:ctxDash.recommendation')}
           value={needsCompact ? '⚠️ Compact now' : '✅ No compaction needed'}
           color={needsCompact ? 'text-warning' : 'text-success'}
         />
@@ -562,12 +566,13 @@ function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number 
 }
 
 function AgentFootprintSection({ agents }: { agents: SubagentView[] }) {
+  const { t } = useAppTranslation();
   const agentsWithCtx = agents.filter((a) => a.ctxPct != null && a.ctxPct > 0);
   // Agent footprints are bounded (active agents), show all without pagination.
   if (agentsWithCtx.length === 0) return null;
 
   return (
-    <SectionCard title="Per-Agent Footprint" icon={Users}>
+    <SectionCard title={t('activity:ctxDash.perAgentFootprint')} icon={Users}>
       <div className="space-y-2">
         {agentsWithCtx.map((agent) => {
           const zone = zoneFor(agent.ctxPct);
@@ -619,27 +624,28 @@ function MetricsSection({
   iteration: string;
   contextMode: string;
 }) {
+  const { t } = useAppTranslation();
   const free = maxTokens - tokens;
   const freePct = maxTokens > 0 ? ((free / maxTokens) * 100).toFixed(1) : '0.0';
 
   return (
-    <SectionCard title="Token Metrics" icon={BarChart3}>
+    <SectionCard title={t('activity:ctxDash.tokenMetrics')} icon={BarChart3}>
       <div className="space-y-1 text-xs">
-        <MetricRow label="Used" value={fmtTok(tokens)} />
-        <MetricRow label="Free" value={`${fmtTok(free)} (${freePct}%)`} />
-        <MetricRow label="Capacity" value={fmtTok(maxTokens)} />
+        <MetricRow label={t('activity:ctxDash.used')} value={fmtTok(tokens)} />
+        <MetricRow label={t('activity:ctxDash.free')} value={`${fmtTok(free)} (${freePct}%)`} />
+        <MetricRow label={t('activity:ctxDash.capacity')} value={fmtTok(maxTokens)} />
         <div className="flex items-center gap-2 pt-1">
-          <span className="text-muted-foreground text-xs">Utilization</span>
+          <span className="text-muted-foreground text-xs">{t('activity:ctxDash.utilization')}</span>
           <div className="flex-1 max-w-[200px]">
             <ContextFillBar pct={Math.round(pct)} tokens={tokens} maxTokens={maxTokens} />
           </div>
         </div>
         <div className="border-t border-border/50 pt-1 mt-1" />
-        <MetricRow label="Model" value={`${model} · ${provider}`} />
-        <MetricRow label="Mode" value={mode} />
-        <MetricRow label="Context mode" value={contextMode} />
-        <MetricRow label="Iteration" value={iteration} />
-        <MetricRow label="Uptime" value={uptime} />
+        <MetricRow label={t('activity:ctxDash.model')} value={`${model} · ${provider}`} />
+        <MetricRow label={t('activity:ctxDash.mode')} value={mode} />
+        <MetricRow label={t('activity:ctxDash.contextMode')} value={contextMode} />
+        <MetricRow label={t('activity:ctxDash.iteration')} value={iteration} />
+        <MetricRow label={t('activity:ctxDash.uptime')} value={uptime} />
       </div>
     </SectionCard>
   );
@@ -662,15 +668,16 @@ function SessionSection({
   cwd: string;
   contextMode: string;
 }) {
+  const { t } = useAppTranslation();
   return (
-    <SectionCard title="Session" icon={Cpu}>
+    <SectionCard title={t('activity:ctxDash.session')} icon={Cpu}>
       <div className="space-y-1 text-xs">
-        <MetricRow label="Provider" value={provider} />
-        <MetricRow label="Model" value={model} />
-        <MetricRow label="Mode" value={mode} />
-        <MetricRow label="Context mode" value={contextMode} />
-        <MetricRow label="Project" value={projectName || cwd} />
-        <MetricRow label="Uptime" value={uptime} />
+        <MetricRow label={t('activity:ctxDash.provider')} value={provider} />
+        <MetricRow label={t('activity:ctxDash.model')} value={model} />
+        <MetricRow label={t('activity:ctxDash.mode')} value={mode} />
+        <MetricRow label={t('activity:ctxDash.contextMode')} value={contextMode} />
+        <MetricRow label={t('activity:ctxDash.project')} value={projectName || cwd} />
+        <MetricRow label={t('activity:ctxDash.uptime')} value={uptime} />
       </div>
     </SectionCard>
   );
@@ -805,9 +812,9 @@ export function ContextDashboard() {
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">{zone.emoji}</span>
           <Sparkles className="h-3.5 w-3.5 text-primary/60" />
-          <h1 className="text-sm font-semibold">Context Dashboard</h1>
+          <h1 className="text-sm font-semibold">{t('activity:ctxDash.contextDashboard')}</h1>
           <span className={cn('text-[10px] font-mono px-1.5 py-0.5 rounded-full', zone.bg, zone.text)}>
-            {zone.label}
+            {t(zone.labelKey)}
           </span>
         </div>
         <div className="flex-1" />
@@ -815,7 +822,7 @@ export function ContextDashboard() {
           type="button"
           onClick={fetchDebug}
           className="p-1 rounded hover:bg-accent transition-colors"
-          title="Refresh debug data"
+          title={t('activity:ctxDash.refreshDebugData')}
         >
           <RefreshCw className={cn('h-3.5 w-3.5 text-muted-foreground', loading && 'animate-spin')} />
         </button>

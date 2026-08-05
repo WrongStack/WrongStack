@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextWindowEditor } from '../../src/components/context-editor/ContextWindowEditor';
 import { useContextEditorStore } from '../../src/stores/context-editor-store';
 
@@ -13,11 +13,10 @@ vi.mock('../../src/lib/ws-client', () => ({
   }),
 }));
 
-// Mock i18n
-vi.mock('../../src/i18n', () => ({
-  useAppTranslation: () => ({ t: (key: string) => key }),
-  i18n: { t: (key: string) => key },
-}));
+// No i18n mock: the real module bundles the English catalog inline and
+// initialises on first import, so `t()` resolves synchronously. Asserting on
+// rendered English ("Loading context snapshot…") is what the user actually
+// sees — a key-returning stub passes even when the key is wrong or missing.
 
 // Mock useChatStore
 vi.mock('../../src/stores', () => ({
@@ -27,7 +26,9 @@ vi.mock('../../src/stores', () => ({
   ),
 }));
 
-function loadSnapshot(overrides: Partial<Parameters<typeof useContextEditorStore.setState>[0]> = {}) {
+function loadSnapshot(
+  overrides: Partial<Parameters<typeof useContextEditorStore.setState>[0]> = {},
+) {
   act(() => {
     useContextEditorStore.setState({
       phase: 'clean_snapshot',
@@ -44,8 +45,22 @@ function loadSnapshot(overrides: Partial<Parameters<typeof useContextEditorStore
         messageTokens: 1500,
       },
       messageBreakdown: [
-        { index: 0, role: 'user', tokens: 500, preview: 'Hello world', blockCount: null, warnings: [] },
-        { index: 1, role: 'assistant', tokens: 1000, preview: 'Hi there', blockCount: null, warnings: [] },
+        {
+          index: 0,
+          role: 'user',
+          tokens: 500,
+          preview: 'Hello world',
+          blockCount: null,
+          warnings: [],
+        },
+        {
+          index: 1,
+          role: 'assistant',
+          tokens: 1000,
+          preview: 'Hi there',
+          blockCount: null,
+          warnings: [],
+        },
       ],
       diagnostics: {
         hasToolAdjacencyIssues: false,
@@ -85,16 +100,14 @@ describe('ContextWindowEditor', () => {
   });
 
   it('renders nothing when closed', () => {
-    const { container } = render(
-      <ContextWindowEditor open={false} onClose={vi.fn()} />,
-    );
+    const { container } = render(<ContextWindowEditor open={false} onClose={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders loading state when open with no snapshot', () => {
+  it('renders loading state when open with no snapshot', async () => {
     render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText(/Loading context snapshot/i)).toBeTruthy();
+    expect(await screen.findByText(/Loading context snapshot/i)).toBeTruthy();
   });
 
   it('renders message list after snapshot loads', async () => {
@@ -119,7 +132,14 @@ describe('ContextWindowEditor', () => {
     loadSnapshot({
       messages: [{ role: 'user', content: 'Remove me' }],
       messageBreakdown: [
-        { index: 0, role: 'user', tokens: 200, preview: 'Remove me', blockCount: null, warnings: [] },
+        {
+          index: 0,
+          role: 'user',
+          tokens: 200,
+          preview: 'Remove me',
+          blockCount: null,
+          warnings: [],
+        },
       ],
     });
 

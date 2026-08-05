@@ -3,6 +3,7 @@ import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { type ModelCandidate, useProviderModels } from '@/hooks/useProviderModels';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { useAppTranslation } from '@/i18n';
 
 export type { ModelCandidate } from '@/hooks/useProviderModels';
 
@@ -31,6 +32,7 @@ export function ModelPickDialog({
   onPick,
   onClose,
 }: ModelPickDialogProps): ReactElement {
+  const { t } = useAppTranslation();
   const candidates = useProviderModels(open);
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -129,7 +131,7 @@ export function ModelPickDialog({
             })
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground">↑/↓ navigate · Enter select · Esc close</p>
+        <p className="text-[10px] text-muted-foreground">{t('activity:modelPickDialog.navigateEnterSelectEscClose')}</p>
       </DialogContent>
     </Dialog>
   );

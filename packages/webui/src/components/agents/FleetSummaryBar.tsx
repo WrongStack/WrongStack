@@ -170,7 +170,7 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
       {!hasActivity && (
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-muted-foreground italic">
-            Fleet idle
+            {t('activity:fleetSummaryBar.fleetIdle')}
           </span>
         </div>
       )}

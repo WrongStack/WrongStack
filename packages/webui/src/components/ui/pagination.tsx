@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppTranslation } from '@/i18n';
 
 interface PaginationProps {
   page: number;
@@ -20,6 +21,7 @@ export function Pagination({
   compact = false,
   itemLabel = 'items',
 }: PaginationProps) {
+  const { t } = useAppTranslation();
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
   if (totalItems <= pageSize) return null;
@@ -37,25 +39,25 @@ export function Pagination({
     >
       <button
         type="button"
-        aria-label="Previous page"
+        aria-label={t('activity:pagination.previousPage')}
         disabled={safePage <= 1}
         onClick={() => onPageChange(safePage - 1)}
         className="inline-flex h-8 items-center gap-1 border border-border/75 px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
       >
         <ChevronLeft className="h-3.5 w-3.5" />
-        {!compact && <span>Previous</span>}
+        {!compact && <span>{t('activity:pagination.previous')}</span>}
       </button>
       <span className="min-w-0 truncate text-center font-mono text-[10px] tabular-nums text-muted-foreground">
         {compact ? `${safePage} / ${totalPages}` : `${first}–${last} of ${totalItems} ${itemLabel}`}
       </span>
       <button
         type="button"
-        aria-label="Next page"
+        aria-label={t('activity:pagination.nextPage')}
         disabled={safePage >= totalPages}
         onClick={() => onPageChange(safePage + 1)}
         className="inline-flex h-8 items-center gap-1 border border-border/75 px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
       >
-        {!compact && <span>Next</span>}
+        {!compact && <span>{t('activity:pagination.next')}</span>}
         <ChevronRight className="h-3.5 w-3.5" />
       </button>
     </nav>

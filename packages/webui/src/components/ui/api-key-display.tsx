@@ -9,6 +9,7 @@
 import { Check, Copy } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAppTranslation } from '@/i18n';
 
 interface ApiKeyDisplayProps {
   maskedKey: string;
@@ -16,6 +17,7 @@ interface ApiKeyDisplayProps {
 }
 
 export function ApiKeyDisplay({ maskedKey, className }: ApiKeyDisplayProps) {
+  const { t } = useAppTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -38,7 +40,7 @@ export function ApiKeyDisplay({ maskedKey, className }: ApiKeyDisplayProps) {
         onClick={handleCopy}
         className="shrink-0 rounded p-0.5 text-muted-foreground/50 opacity-0 transition-all hover:text-foreground group-hover:opacity-100 focus:opacity-100"
         title={copied ? 'Copied' : 'Copy key preview'}
-        aria-label="Copy API key to clipboard"
+        aria-label={t('activity:apikeydisplay.copyApiKeyToClipboard')}
       >
         {copied ? (
           <Check className="h-3 w-3 text-success" />

@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, ExternalLink, Loader2, Package, Search, X } 
 import { cn } from '@/lib/utils';
 import { CodeMapSearchResultRow } from './CodeMapSearchResults';
 import { DirectoryBranch } from './CodeMapDirectoryTree';
+import { useAppTranslation } from '@/i18n';
 import {
   buildDirectoryTree,
   scopeKey,
@@ -77,11 +78,12 @@ export function CodeMapTreeSidebar({
   onSearchInputChange,
   onSearchChange,
 }: CodeMapTreeSidebarProps): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <aside className="flex w-[286px] shrink-0 flex-col border-r bg-card/70">
       <div className="border-b p-3">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">Code tree</h2>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">{t('activity:codeMapTree.codeTree')}</h2>
           <span className="font-mono text-[9px] text-muted-foreground">
             {rootGraph.nodes.length} roots
           </span>
@@ -92,7 +94,7 @@ export function CodeMapTreeSidebar({
             className="min-w-0 flex-1 bg-transparent font-mono text-[10px] outline-none placeholder:text-muted-foreground"
             value={searchInput}
             onChange={(event) => onSearchInputChange(event.target.value)}
-            placeholder="Find package, file, symbol…"
+            placeholder={t('activity:codeMapTree.findPackageFileSymbol')}
           />
           {searchInput && (
             <button
@@ -101,7 +103,7 @@ export function CodeMapTreeSidebar({
                 onSearchInputChange('');
                 onSearchChange('');
               }}
-              aria-label="Clear search"
+              aria-label={t('activity:codeMapTree.clearSearch')}
             >
               <X className="h-3 w-3 text-muted-foreground" />
             </button>
@@ -116,9 +118,9 @@ export function CodeMapTreeSidebar({
             </div>
             {searchResults.length === 0 ? (
               <p className="px-3 py-8 text-center text-[10px] text-muted-foreground">
-                No match in loaded branches.
+                {t('activity:codeMapTree.noMatchInLoadedBranches')}
                 <br />
-                Expand a package to search its files.
+                {t('activity:codeMapTree.expandAPackageToSearchIts')}
               </p>
             ) : virtualizeSearch ? (
               <div
@@ -198,7 +200,7 @@ export function CodeMapTreeSidebar({
                     type="button"
                     className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
                     onClick={() => navigate({ level: 'files', package: packageName })}
-                    title="Open file map"
+                    title={t('activity:codeMapTree.openFileMap')}
                     aria-label={`Open ${packageName} map`}
                   >
                     <ExternalLink className="h-3 w-3" />
@@ -231,9 +233,9 @@ export function CodeMapTreeSidebar({
         )}
       </div>
       <div className="border-t px-3 py-2 text-[9px] leading-relaxed text-muted-foreground">
-        Click to focus · double-click to enter
+        {t('activity:codeMapTree.clickToFocusDoubleClickTo')}
         <br />
-        Branches stay open while the map changes
+        {t('activity:codeMapTree.branchesStayOpenWhileTheMap')}
       </div>
     </aside>
   );

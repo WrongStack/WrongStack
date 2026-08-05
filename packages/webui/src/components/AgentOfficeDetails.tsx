@@ -100,7 +100,7 @@ function ToolActionDetail({
           <span>{t('activity:agentOffice.toolCall')}</span>
           <h2>{call.toolName}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close details">
+        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeDetails')}>
           <X />
         </button>
       </div>
@@ -223,7 +223,7 @@ function MailActionDetail({
           <span>{mail.direction === 'incoming' ? 'INCOMING MAIL' : 'OUTGOING MAIL'}</span>
           <h2>{mail.subject}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close mail details">
+        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeMailDetails')}>
           <X />
         </button>
       </div>
@@ -248,8 +248,8 @@ function MailActionDetail({
           label={t('activity:agentOffice.started')}
           value={new Date(mail.timestampMs).toLocaleTimeString()}
         />
-        <DetailRow label="Priority" value={mail.priority} />
-        <DetailRow label="Route" value={`${mail.from} → ${mail.to}`} />
+        <DetailRow label={t('activity:agentOffice.priority')} value={mail.priority} />
+        <DetailRow label={t('activity:agentOffice.route')} value={`${mail.from} → ${mail.to}`} />
       </section>
 
       <section className="agent-office__detail-section">
@@ -278,7 +278,7 @@ function TaskActionDetail({
           <span>{t('activity:agentOffice.currentTask')}</span>
           <h2>{selected.agentName}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close task details">
+        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeTaskDetails')}>
           <X />
         </button>
       </div>
@@ -315,7 +315,7 @@ function OfficeBriefingDetail({
           </span>
           <h2>{selected.officeLabel}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close office briefing">
+        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeOfficeBriefing')}>
           <X />
         </button>
       </div>

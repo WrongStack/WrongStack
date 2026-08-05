@@ -248,7 +248,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
             {snapshot && (
               <button
                 type="button"
-                title="Open the mirrored kanban board(s) for this run (one per dependency wave)"
+                title={t('activity:sddBoardView.openTheMirroredKanbanBoardSForThisRunOnePerDependencyWave')}
                 onClick={() => {
                   const runTag = `run:${snapshot.runId}`;
                   const boards = useKanbanStore

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from './ui/pagination';
+import { useAppTranslation } from '@/i18n';
 
 interface TaskActivityTimelineProps {
   task: KanbanTask;
@@ -412,6 +413,7 @@ export function TaskActivityTimeline({
   error,
   onRefresh,
 }: TaskActivityTimelineProps) {
+  const { t } = useAppTranslation();
   const [filter, setFilter] = useState<TaskActivityFilter>('all');
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState(false);
@@ -485,10 +487,10 @@ export function TaskActivityTimeline({
   };
 
   return (
-    <section aria-label="Task activity" className="mt-5">
+    <section aria-label={t('activity:taskTimeline.taskActivity')} className="mt-5">
       <div className="mb-2 flex items-center gap-2">
         <Activity className="size-3.5 text-primary" />
-        <h3 className="text-xs font-semibold uppercase text-muted-foreground">Activity ledger</h3>
+        <h3 className="text-xs font-semibold uppercase text-muted-foreground">{t('activity:taskTimeline.activityLedger')}</h3>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
           {visible.length}/{activity.length}
         </span>
@@ -497,8 +499,8 @@ export function TaskActivityTimeline({
             type="button"
             onClick={copyVisibleActivity}
             className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Copy visible task activity JSON"
-            title="Copy filtered activity JSON"
+            aria-label={t('activity:taskTimeline.copyVisibleTaskActivityJson')}
+            title={t('activity:taskTimeline.copyFilteredActivityJson')}
           >
             {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
           </button>
@@ -506,8 +508,8 @@ export function TaskActivityTimeline({
             type="button"
             onClick={downloadFullActivity}
             className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Download full task activity JSON"
-            title="Download full activity JSON"
+            aria-label={t('activity:taskTimeline.downloadFullTaskActivityJson')}
+            title={t('activity:taskTimeline.downloadFullActivityJson')}
           >
             <Download className="size-3" />
           </button>
@@ -516,7 +518,7 @@ export function TaskActivityTimeline({
               type="button"
               onClick={onRefresh}
               className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Refresh task activity"
+              aria-label={t('activity:taskTimeline.refreshTaskActivity')}
             >
               <RefreshCw className={cn('size-3', loading && 'animate-spin')} />
             </button>
@@ -563,15 +565,15 @@ export function TaskActivityTimeline({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          aria-label="Search task activity"
-          placeholder="Search agent, session, model, result, field…"
+          aria-label={t('activity:taskTimeline.searchTaskActivity')}
+          placeholder={t('activity:taskTimeline.searchAgentSessionModelResultField')}
           className="h-8 w-full rounded-md border bg-background pl-7 pr-7 text-[11px] outline-none focus:border-primary"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery('')}
-            aria-label="Clear task activity search"
+            aria-label={t('activity:taskTimeline.clearTaskActivitySearch')}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <X className="size-3" />
@@ -587,7 +589,7 @@ export function TaskActivityTimeline({
 
       {visible.length === 0 ? (
         <div className="rounded-md border border-dashed px-3 py-6 text-center text-[11px] text-muted-foreground">
-          No activity matches this filter.
+          {t('activity:taskTimeline.noActivityMatchesThisFilter')}
         </div>
       ) : (
         <>
@@ -709,7 +711,7 @@ export function TaskActivityTimeline({
                   )}
                   <details className="mt-1.5 text-[9px] text-muted-foreground">
                     <summary className="cursor-pointer hover:text-foreground">
-                      Full event payload
+                      {t('activity:taskTimeline.fullEventPayload')}
                     </summary>
                     <pre className="mt-1 max-h-64 overflow-auto rounded border bg-muted/30 p-2 text-[9px] leading-4 text-foreground">
                       {JSON.stringify(event, null, 2)}

@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type { KanbanTask } from '@wrongstack/kanban';
 import type { ReactNode } from 'react';
 import { kanbanMetadataText } from '@/lib/kanban-metadata';
@@ -32,6 +33,7 @@ export function AgentRunPanel({
 }: {
   assignment: NonNullable<KanbanTask['assignment']>;
 }) {
+  const { t } = useAppTranslation();
   const running = assignment.status === 'running';
   const elapsed = fmtElapsed(assignment.dispatchedAt, assignment.completedAt);
   const agentName = kanbanMetadataText(assignment.name) ?? kanbanMetadataText(assignment.agentId);
@@ -39,12 +41,12 @@ export function AgentRunPanel({
   const provider = kanbanMetadataText(assignment.provider);
   const model = kanbanMetadataText(assignment.model);
   const rows: Array<{ label: string; value: ReactNode }> = [];
-  if (agentName) rows.push({ label: 'Agent', value: agentName });
-  if (role) rows.push({ label: 'Role', value: role });
-  if (assignment.modelRouting) rows.push({ label: 'Model source', value: assignment.modelRouting });
+  if (agentName) rows.push({ label: t('activity:kanbanRun.agent'), value: agentName });
+  if (role) rows.push({ label: t('activity:kanbanRun.role'), value: role });
+  if (assignment.modelRouting) rows.push({ label: t('activity:kanbanRun.modelSource'), value: assignment.modelRouting });
   if (provider || model) {
     rows.push({
-      label: 'Model',
+      label: t('activity:kanbanRun.model'),
       value: (
         <span className="font-mono text-[11px]">
           {provider ? `${provider}/` : ''}
@@ -55,34 +57,34 @@ export function AgentRunPanel({
   }
   if (assignment.subagentId) {
     rows.push({
-      label: 'Subagent',
+      label: t('activity:kanban.subagent'),
       value: <span className="font-mono text-[11px]">{assignment.subagentId}</span>,
     });
   }
   if (elapsed) {
-    rows.push({ label: assignment.completedAt ? 'Duration' : 'Elapsed', value: elapsed });
+    rows.push({ label: assignment.completedAt ? t('activity:kanban.duration') : t('activity:kanban.elapsed'), value: elapsed });
   }
   if (typeof assignment.attempt === 'number') {
     rows.push({
-      label: 'Attempt',
+      label: t('activity:kanbanRun.attempt'),
       value: `${assignment.attempt}${assignment.maxAttempts ? ` / ${assignment.maxAttempts}` : ''}`,
     });
   }
   if (assignment.costCeilingUsd) {
-    rows.push({ label: 'Cost ceiling', value: `$${assignment.costCeilingUsd.toFixed(2)}` });
+    rows.push({ label: t('activity:kanbanRun.costCeiling'), value: `$${assignment.costCeilingUsd.toFixed(2)}` });
   }
   if (assignment.fallbackProfile) {
-    rows.push({ label: 'Fallback profile', value: assignment.fallbackProfile });
+    rows.push({ label: t('activity:kanbanRun.fallbackProfile'), value: assignment.fallbackProfile });
   }
   if (assignment.fallbackModels?.length) {
-    rows.push({ label: 'Fallbacks', value: assignment.fallbackModels.join(' → ') });
+    rows.push({ label: t('activity:kanbanRun.fallbacks'), value: assignment.fallbackModels.join(' → ') });
   }
   if (assignment.skills?.length)
-    rows.push({ label: 'Skills', value: assignment.skills.join(', ') });
-  if (assignment.tools?.length) rows.push({ label: 'Tools', value: assignment.tools.join(', ') });
+    rows.push({ label: t('activity:kanbanRun.skills'), value: assignment.skills.join(', ') });
+  if (assignment.tools?.length) rows.push({ label: t('activity:kanbanRun.tools'), value: assignment.tools.join(', ') });
   if (assignment.leaseExpiresAt) {
     rows.push({
-      label: 'Lease expires',
+      label: t('activity:kanbanRun.leaseExpires'),
       value: new Date(assignment.leaseExpiresAt).toLocaleString(),
     });
   }
@@ -91,7 +93,7 @@ export function AgentRunPanel({
     <div className="mt-4 rounded-md border bg-background p-2.5">
       <div className="mb-2 flex items-center gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Live run
+          {t('activity:kanban.liveRun')}
         </span>
         <span
           className={cn(
@@ -117,7 +119,7 @@ export function AgentRunPanel({
       )}
       {assignment.lastResult && (
         <div className="mt-2">
-          <div className="mb-1 text-[10px] uppercase text-muted-foreground">Last result</div>
+          <div className="mb-1 text-[10px] uppercase text-muted-foreground">{t('activity:kanban.lastResult')}</div>
           <div className="max-h-24 overflow-y-auto whitespace-pre-wrap rounded bg-muted px-2 py-1 text-[11px] leading-relaxed text-foreground">
             {assignment.lastResult}
           </div>

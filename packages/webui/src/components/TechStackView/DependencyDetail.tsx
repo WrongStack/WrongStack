@@ -10,11 +10,12 @@ import { ArrowLeft, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 import type { TechStackDependency, TechStackFinding } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAppTranslation } from '@/i18n';
 import {
   ACTION_LABELS,
   Badge,
   coverageMeta,
-  ecosystemMeta,
+  ecosystemLabel,
   installedVersion,
   isInterpretation,
   SEVERITY_META,
@@ -39,10 +40,11 @@ export function DependencyDetail({
   onBack,
   coverage,
 }: DependencyDetailProps) {
+  const { t } = useAppTranslation();
   const meta = statusMeta(dependency.status);
   const installed = installedVersion(dependency);
   const drift = versionDrift(dependency);
-  const depCoverageNote = coverage ? coverageMeta(coverage).note : undefined;
+  const depCoverageNoteKey = coverage ? coverageMeta(coverage).noteKey : undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -52,7 +54,7 @@ export function DependencyDetail({
             variant="ghost"
             size="icon"
             onClick={onBack}
-            aria-label="Back to dependency list"
+            aria-label={t('activity:techStack.backToDependencyList')}
             className="shrink-0 md:hidden"
           >
             <ArrowLeft className="size-4" />
@@ -62,16 +64,16 @@ export function DependencyDetail({
               <h2 className="min-w-0 truncate font-mono text-sm font-bold text-foreground">
                 {dependency.name}
               </h2>
-              <Badge className={meta.badge}>{meta.label}</Badge>
+              <Badge className={meta.badge}>{t(meta.labelKey)}</Badge>
             </div>
             <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-              {ecosystemMeta(dependency.ecosystem).label} ·{' '}
+              {ecosystemLabel(dependency.ecosystem, t)} ·{' '}
               {dependency.direct ? 'direct' : 'transitive'} · {dependency.scope} ·{' '}
               {dependency.sourceType}
-              {depCoverageNote && (
+              {depCoverageNoteKey && (
                 <>
                   <span aria-hidden="true"> · </span>
-                  <span className="text-warning">{depCoverageNote}</span>
+                  <span className="text-warning">{t(depCoverageNoteKey)}</span>
                 </>
               )}
             </p>
@@ -92,15 +94,15 @@ export function DependencyDetail({
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <dl className="grid grid-cols-2 gap-px border border-border/70 bg-border/60">
-          <Field label="Constraint" value={dependency.requested ?? '—'} mono />
-          <Field label="Locked" value={dependency.locked ?? '—'} mono />
-          <Field label="Latest stable" value={dependency.latestStable ?? '—'} mono />
-          <Field label="License" value={dependency.license ?? '—'} />
-          {dependency.wanted && <Field label="Wanted" value={dependency.wanted} mono />}
-          {dependency.resolvable && <Field label="Resolvable" value={dependency.resolvable} mono />}
-          {dependency.purl && <Field label="PURL" value={dependency.purl} mono />}
+          <Field label={t('activity:techStack.constraint')} value={dependency.requested ?? '—'} mono />
+          <Field label={t('activity:techStack.locked')} value={dependency.locked ?? '—'} mono />
+          <Field label={t('activity:techStack.latestStable')} value={dependency.latestStable ?? '—'} mono />
+          <Field label={t('activity:techStack.license')} value={dependency.license ?? '—'} />
+          {dependency.wanted && <Field label={t('activity:techStack.wanted')} value={dependency.wanted} mono />}
+          {dependency.resolvable && <Field label={t('activity:techStack.resolvable')} value={dependency.resolvable} mono />}
+          {dependency.purl && <Field label={t('activity:techStack.purl')} value={dependency.purl} mono />}
           <Field
-            label="Registry flags"
+            label={t('activity:techStack.registryFlags')}
             value={
               [dependency.deprecated && 'deprecated', dependency.yanked && 'yanked']
                 .filter(Boolean)
@@ -113,7 +115,7 @@ export function DependencyDetail({
         <section className="mt-4">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-              Findings
+              {t('activity:techStack.findings')}
             </h3>
             <Button
               variant="outline"
@@ -139,8 +141,7 @@ export function DependencyDetail({
 
           {findings.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">
-              Nothing flagged. Run a deep dive to have the model research this package against the
-              web.
+              {t('activity:techStack.nothingFlaggedRunADeepDive')}
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">
@@ -148,10 +149,10 @@ export function DependencyDetail({
                 <div key={finding.id} className="border border-border/70 bg-card/40 p-2">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge className={SEVERITY_META[finding.severity].badge}>
-                      {SEVERITY_META[finding.severity].label}
+                      {t(SEVERITY_META[finding.severity].labelKey)}
                     </Badge>
                     <Badge className="border-border/70 bg-muted text-muted-foreground">
-                      {ACTION_LABELS[finding.action] ?? finding.action}
+                      {ACTION_LABELS[finding.action] ? t(ACTION_LABELS[finding.action]) : finding.action}
                     </Badge>
                     {isInterpretation(finding) && (
                       <Badge className="border-info/35 bg-info/10 text-info">
@@ -177,10 +178,10 @@ export function DependencyDetail({
         {/* Evidence — every fact on this page traces back to one of these. */}
         <section className="mt-4">
           <h3 className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            Evidence
+            {t('activity:techStack.evidence')}
           </h3>
           {dependency.evidence.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground">No evidence recorded.</p>
+            <p className="text-[11px] text-muted-foreground">{t('activity:techStack.noEvidenceRecorded')}</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {dependency.evidence.map((evidence, index) => (

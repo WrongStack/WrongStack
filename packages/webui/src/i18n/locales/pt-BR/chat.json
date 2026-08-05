@@ -46,7 +46,9 @@
     "steerRunningTitle": "steer — interromper o agente em execução e redirecionar",
     "steerIdleTitle": "steer — enviar (sem alvo de interrupção em repouso)",
     "addQueueTitle": "adicionar fila — reter até o run atual terminar",
-    "openPromptLibrary": "Abrir biblioteca de prompts — navegar por prompts prontos e salvos"
+    "openPromptLibrary": "Abrir biblioteca de prompts — navegar por prompts prontos e salvos",
+    "expandInput": "Expandir a entrada",
+    "collapseInput": "Recolher"
   },
   "header": {
     "openSidebarTitle": "Abrir barra lateral (Ctrl+\\)",

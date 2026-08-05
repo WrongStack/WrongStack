@@ -10,6 +10,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import { useFleetStore, useUIStore } from '@/stores';
@@ -83,6 +84,7 @@ function fmtCost(n: number | undefined | null): string {
 // ══════════════════════════════════════════════════════════════════════
 
 export function LiveFleetTab({ nowTick }: { nowTick: number }) {
+  const { t } = useAppTranslation();
   const fleetAgents = useFleetStore((s) => s.agents);
   const leaderId = useFleetStore((s) => s.leaderId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -136,9 +138,9 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         <div className="text-center space-y-3">
           <Bot className="h-10 w-10 mx-auto opacity-30" />
-          <p className="text-sm">No active fleet agents</p>
+          <p className="text-sm">{t('activity:agentRoster.noActiveFleetAgents')}</p>
           <p className="text-xs text-muted-foreground/70">
-            Agents appear here when subagents spawn
+            {t('activity:agentRoster.liveEmpty')}
           </p>
         </div>
       </div>
@@ -168,10 +170,10 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
               )}
             >
-              {f === 'all' && `All (${counts.total})`}
-              {f === 'running' && `Running (${counts.running})`}
-              {f === 'done' && `Done (${counts.completed})`}
-              {f === 'failed' && `Failed (${counts.failed})`}
+              {f === 'all' && t('activity:agentRoster.filterAll', { count: counts.total })}
+              {f === 'running' && t('activity:agentRoster.filterRunning', { count: counts.running })}
+              {f === 'done' && t('activity:agentRoster.filterDone', { count: counts.completed })}
+              {f === 'failed' && t('activity:agentRoster.filterFailed', { count: counts.failed })}
             </button>
           ))}
           <span className="flex-1" />
@@ -181,7 +183,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
               onClick={clearFinished}
               className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
-              <Trash2 className="h-2.5 w-2.5" /> Clear
+              <Trash2 className="h-2.5 w-2.5" /> {t('activity:agentRoster.clear')}
             </button>
           )}
         </div>
@@ -250,7 +252,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
 
         {/* Bottom bar */}
         <div className="shrink-0 border-t border-border/50 px-3 py-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-          <span className="font-medium tabular-nums">{counts.total}</span> agents total
+          <span className="font-medium tabular-nums">{counts.total}</span> {t('activity:agentRoster.agentsTotal')}
           <span className="text-muted-foreground/50">·</span>
           <span className="text-success tabular-nums">{counts.running}</span> running
           <span className="text-muted-foreground/50">·</span>
@@ -268,7 +270,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
             className="inline-flex items-center gap-1 rounded border border-border/50 px-2 py-1 hover:bg-accent transition-colors"
           >
             <LayoutGrid className="h-3 w-3" />
-            Fleet Inspector
+            {t('activity:agentRoster.fleetInspector')}
           </button>
         </div>
       </div>
@@ -284,6 +286,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
 }
 
 function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: number }) {
+  const { t } = useAppTranslation();
   const elapsed =
     agent.status === 'running'
       ? fmtElapsed(nowTick - agent.startedAt)
@@ -306,7 +309,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
             <span className="text-base font-semibold">{agent.name}</span>
             {agent.id === leaderId && (
               <span className="inline-flex items-center gap-1 rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[9px] font-medium text-warning">
-                <Crown className="h-2.5 w-2.5" /> Leader
+                <Crown className="h-2.5 w-2.5" /> {t('activity:agentRoster.leader')}
               </span>
             )}
           </div>
@@ -333,24 +336,24 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
       <div className="grid grid-cols-4 gap-2">
         <div className="rounded-lg border bg-card p-2">
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-            Iterations
+            {t('activity:agentRoster.iterations')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5">{agent.iteration}</div>
         </div>
         <div className="rounded-lg border bg-card p-2">
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-            Tool Calls
+            {t('activity:agentRoster.toolCalls')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5">{agent.toolCalls}</div>
         </div>
         <div className="rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Cost</span>
+          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('activity:agentRoster.cost')}</span>
           <div className="text-lg font-mono font-semibold mt-0.5 text-success">
             {fmtCost(agent.costUsd)}
           </div>
         </div>
         <div className="rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Context</span>
+          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('activity:agentRoster.context')}</span>
           <div className="text-lg font-mono font-semibold mt-0.5">{ctxPct}%</div>
         </div>
       </div>
@@ -359,7 +362,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
       {agent.maxContext > 0 && (
         <div className="space-y-1">
           <div className="flex justify-between text-[10px]">
-            <span className="text-muted-foreground">Context Window</span>
+            <span className="text-muted-foreground">{t('activity:agentRoster.contextWindow')}</span>
             <span
               className={cn(
                 'tabular font-medium',
@@ -399,7 +402,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
           />
           <span className="text-sm font-mono">{agent.currentTool ?? agent.lastTool}</span>
           <span className="text-[10px] text-muted-foreground ml-auto">
-            {agent.currentTool ? 'Running' : 'Last tool'}
+            {agent.currentTool ? t('activity:agentRoster.running') : 'Last tool'}
           </span>
         </div>
       )}
@@ -408,7 +411,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
       {agent.error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
           <span className="text-[10px] font-semibold text-destructive uppercase tracking-wider">
-            Error
+            {t('activity:agentRoster.error')}
           </span>
           <p className="text-xs text-destructive/90 mt-1">{agent.error.message}</p>
         </div>

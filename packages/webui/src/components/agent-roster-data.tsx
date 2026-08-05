@@ -64,17 +64,36 @@ export type RosterTab = 'live' | 'catalog' | 'learning' | 'customize';
 interface TabDef {
   id: RosterTab;
   icon: React.ReactNode;
-  label: string;
+  /** i18n key resolved at render time — this module is hook-free by design. */
+  labelKey: string;
 }
 
 export const TABS: TabDef[] = [
-  { id: 'live', icon: <Activity className="h-4 w-4" />, label: 'Live Fleet' },
-  { id: 'catalog', icon: <Bookmark className="h-4 w-4" />, label: 'Roster Catalog' },
-  { id: 'learning', icon: <BookOpen className="h-4 w-4" />, label: 'Self-Learning' },
-  { id: 'customize', icon: <Settings className="h-4 w-4" />, label: 'Customization' },
+  { id: 'live', icon: <Activity className="h-4 w-4" />, labelKey: 'activity:agentRoster.tabLive' },
+  {
+    id: 'catalog',
+    icon: <Bookmark className="h-4 w-4" />,
+    labelKey: 'activity:agentRoster.tabCatalog',
+  },
+  {
+    id: 'learning',
+    icon: <BookOpen className="h-4 w-4" />,
+    labelKey: 'activity:agentRoster.tabLearning',
+  },
+  {
+    id: 'customize',
+    icon: <Settings className="h-4 w-4" />,
+    labelKey: 'activity:agentRoster.tabCustomize',
+  },
 ];
 
 // ── Known roster roles (mirrors FLEET_ROSTER from core) ────────────────
+//
+// `name`/`summary` below are the ENGLISH SOURCE, not display copy: this module
+// is deliberately hook-free, so it cannot call `t()`. Render sites localize via
+// `activity:rosterRoles.<role>.{name,summary}` and pass these strings as
+// `defaultValue`, which also covers custom roles the server sends that have no
+// catalog entry. Keep both in sync when a role is added.
 
 export const KNOWN_ROLES: RosterAgentEntry[] = [
   {

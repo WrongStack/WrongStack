@@ -1,6 +1,7 @@
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAppTranslation } from '@/i18n';
 
 export interface ChipOption {
   value: string;
@@ -28,6 +29,7 @@ export function ChipMultiSelect({
   placeholder?: string;
   emptyLabel?: string;
 }): React.ReactElement {
+  const { t } = useAppTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -98,7 +100,7 @@ export function ChipMultiSelect({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter…"
+              placeholder={t('activity:chipMultiSelect.filter')}
               className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
             {query && (

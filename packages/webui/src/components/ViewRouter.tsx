@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { useShallow } from 'zustand/react/shallow';
 import { showPanel } from './activity-bar/nav';
 import { ChatView } from './ChatView';
@@ -76,6 +77,7 @@ export function ViewRouter({
   sessionId: string | null;
   desktopShell: boolean;
 }): React.ReactElement {
+  const { t } = useAppTranslation();
   const { currentView, terminalOpen, setTerminalOpen } = useUIStore(
     useShallow((s) => ({
       currentView: s.currentView,
@@ -95,28 +97,28 @@ export function ViewRouter({
               <WorkspaceDock />
             </div>
           )}
-          <ErrorBoundary level="panel" name="Chat">
+          <ErrorBoundary level="panel" name={t('activity:panels.chat')}>
             <ChatView />
           </ErrorBoundary>
         </>
       )}
       {currentView === 'settings' && (
-        <ErrorBoundary level="panel" name="Settings">
+        <ErrorBoundary level="panel" name={t('activity:panels.settings')}>
           <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
             <SettingsPanel />
           </div>
         </ErrorBoundary>
       )}
       {currentView === 'memory' && (
-        <ErrorBoundary level="panel" name="SAGE Memory">
-          <Suspense fallback={<PanelSuspense label="Loading SAGE…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.sageMemory')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.sageMemory') })} />}>
             <SageTabs />
           </Suspense>
         </ErrorBoundary>
       )}
       {currentView === 'roster' && (
-        <ErrorBoundary level="panel" name="Agent Roster">
-          <Suspense fallback={<PanelSuspense label="Loading agent roster…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.agentRoster')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.agentRoster') })} />}>
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
               <AgentRosterView />
             </div>
@@ -124,12 +126,12 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'context' && (
-        <ErrorBoundary level="panel" name="Context Dashboard">
+        <ErrorBoundary level="panel" name={t('activity:panels.contextDashboard')}>
           <ContextDashboard />
         </ErrorBoundary>
       )}
       {currentView === 'setup' && (
-        <ErrorBoundary level="panel" name="Setup">
+        <ErrorBoundary level="panel" name={t('activity:panels.setup')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SetupScreen />
@@ -138,7 +140,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'goal' && (
-        <ErrorBoundary level="panel" name="Goal">
+        <ErrorBoundary level="panel" name={t('activity:panels.goal')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <GoalView onClose={() => showPanel('chat')} />
@@ -147,7 +149,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'sddhub' && (
-        <ErrorBoundary level="panel" name="SDD Hub">
+        <ErrorBoundary level="panel" name={t('activity:panels.sddHub')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SddHub />
@@ -156,7 +158,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'kanban' && (
-        <ErrorBoundary level="panel" name="Kanban">
+        <ErrorBoundary level="panel" name={t('activity:panels.kanban')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <KanbanView onClose={() => showPanel('chat')} />
@@ -165,7 +167,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'sessions' && (
-        <ErrorBoundary level="panel" name="Sessions">
+        <ErrorBoundary level="panel" name={t('activity:panels.sessions')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SessionsDashboard />
@@ -174,8 +176,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'session-inspect' && (
-        <ErrorBoundary level="panel" name="Session Inspect">
-          <Suspense fallback={<PanelSuspense label="Loading inspection…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.sessionInspect')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.sessionInspect') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SessionInspectView />
             </div>
@@ -183,7 +185,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'chronicle' && (
-        <ErrorBoundary level="panel" name="Chronicle">
+        <ErrorBoundary level="panel" name={t('activity:panels.chronicle')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <ChronicleDashboard />
@@ -192,7 +194,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'intake' && (
-        <ErrorBoundary level="panel" name="Requirements Intake">
+        <ErrorBoundary level="panel" name={t('activity:panels.requirementsIntake')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <RequirementIntakeView />
@@ -201,7 +203,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'debug' && (
-        <ErrorBoundary level="panel" name="Debug Dashboard">
+        <ErrorBoundary level="panel" name={t('activity:panels.debugDashboard')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <DebugDashboard />
@@ -210,7 +212,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'refresh-debug' && (
-        <ErrorBoundary level="panel" name="Refresh Debug">
+        <ErrorBoundary level="panel" name={t('activity:panels.refreshDebug')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <RefreshDebugView />
@@ -219,8 +221,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'files' && (
-        <ErrorBoundary level="panel" name="Editor">
-          <Suspense fallback={<PanelSuspense label="Loading editor…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.editor')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.editor') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <CodeEditor />
             </div>
@@ -228,8 +230,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'changes' && (
-        <ErrorBoundary level="panel" name="Changes">
-          <Suspense fallback={<PanelSuspense label="Loading diff…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.changes')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.changes') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <ChangesView className="h-full min-h-0" />
             </div>
@@ -237,7 +239,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'mailbox' && (
-        <ErrorBoundary level="panel" name="Mailbox">
+        <ErrorBoundary level="panel" name={t('activity:panels.mailbox')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <MailboxDetailView className="h-full min-h-0" />
@@ -246,7 +248,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'design-gallery' && (
-        <ErrorBoundary level="panel" name="Design Gallery">
+        <ErrorBoundary level="panel" name={t('activity:panels.designGallery')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <DesignGalleryView className="h-full" />
@@ -255,7 +257,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'skill' && (
-        <ErrorBoundary level="panel" name="Skill">
+        <ErrorBoundary level="panel" name={t('activity:panels.skill')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SkillDetailView className="h-full" />
@@ -264,8 +266,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'officemap' && (
-        <ErrorBoundary level="panel" name="Office Map">
-          <Suspense fallback={<PanelSuspense label="Loading map…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.officeMap')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.officeMap') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <OfficeMapPanel />
             </div>
@@ -273,7 +275,7 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'analytics' && (
-        <ErrorBoundary level="panel" name="Analytics">
+        <ErrorBoundary level="panel" name={t('activity:panels.analytics')}>
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <AnalyticsDashboard />
@@ -282,8 +284,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'codemap' && (
-        <ErrorBoundary level="panel" name="CodeMap">
-          <Suspense fallback={<PanelSuspense label="Loading CodeMap…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.codemap')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.codemap') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <CodeMap />
             </div>
@@ -291,8 +293,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'techstack' && (
-        <ErrorBoundary level="panel" name="TechStack">
-          <Suspense fallback={<PanelSuspense label="Loading TechStack…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.techstack')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.techstack') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <TechStackView />
             </div>
@@ -300,8 +302,8 @@ export function ViewRouter({
         </ErrorBoundary>
       )}
       {currentView === 'deadcode' && (
-        <ErrorBoundary level="panel" name="DeadCode">
-          <Suspense fallback={<PanelSuspense label="Loading Dead Code Scan…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.deadcode')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.deadcode') })} />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-y-auto">
               <DeadCodeScanPanel />
             </div>
@@ -311,8 +313,8 @@ export function ViewRouter({
 
       {/* Terminal bottom dock */}
       {terminalOpen && (
-        <ErrorBoundary level="panel" name="Terminal">
-          <Suspense fallback={<PanelSuspense label="Loading terminal…" />}>
+        <ErrorBoundary level="panel" name={t('activity:panels.terminal')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.terminal') })} />}>
             <TerminalPanelLazy desktopShell={desktopShell} onClose={() => setTerminalOpen(false)} />
           </Suspense>
         </ErrorBoundary>

@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import type {
   DeadCodeScanOutput,
   DeadFile,
@@ -77,6 +78,7 @@ async function safeJsonParse<T>(res: Response): Promise<T> {
 }
 
 export function DeadCodeScanPanel() {
+  const { t } = useAppTranslation();
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
   const [planPhase, setPlanPhase] = useState<PlanPhase>('idle');
   const [scanResult, setScanResult] = useState<DeadCodeScanOutput | null>(null);
@@ -189,7 +191,7 @@ export function DeadCodeScanPanel() {
           color: 'hsl(var(--foreground))',
         }}
       >
-        🔍 Dead-Code Scan
+        {t('activity:deadCode.deadCodeScan')}
       </h2>
 
       {/* Scan button */}
@@ -250,9 +252,9 @@ export function DeadCodeScanPanel() {
       {scanResult && (
         <div style={{ marginTop: '16px' }}>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-            <StatCard label="Total Symbols" value={scanResult.stats.totalSymbols} token="info" />
-            <StatCard label="Alive" value={scanResult.stats.alive} token="success" />
-            <StatCard label="Dead" value={scanResult.stats.dead} token="destructive" />
+            <StatCard label={t('activity:deadCode.totalSymbols')} value={scanResult.stats.totalSymbols} token="info" />
+            <StatCard label={t('activity:deadCode.alive')} value={scanResult.stats.alive} token="success" />
+            <StatCard label={t('activity:deadCode.dead')} value={scanResult.stats.dead} token="destructive" />
           </div>
 
           {scanResult.deadPackages.length > 0 && (
@@ -340,7 +342,7 @@ export function DeadCodeScanPanel() {
               color: 'hsl(var(--card-foreground))',
             }}
           >
-            📋 Action Plan
+            {t('activity:deadCode.actionPlan')}
           </h3>
           <p
             style={{

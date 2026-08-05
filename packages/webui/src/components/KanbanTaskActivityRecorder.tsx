@@ -1,5 +1,6 @@
 import type { KanbanManualActivityKind, KanbanManualActivityOutcome } from '@wrongstack/kanban';
 import { Plus } from 'lucide-react';
+import { useAppTranslation } from '@/i18n';
 
 export type KanbanTaskActivityRecorderProps = {
   activityKind: KanbanManualActivityKind;
@@ -24,16 +25,17 @@ export function KanbanTaskActivityRecorder({
   onDetailsChange,
   onRecordActivity,
 }: KanbanTaskActivityRecorderProps) {
+  const { t } = useAppTranslation();
   return (
     <div className="mt-4">
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-        Record decision / outcome
+        {t('activity:kanbanRecorder.recordDecisionOutcome')}
       </div>
       <div className="mb-1.5 grid grid-cols-2 gap-1.5">
         <select
           value={activityKind}
           onChange={(event) => onActivityKindChange(event.target.value as KanbanManualActivityKind)}
-          aria-label="Task activity kind"
+          aria-label={t('activity:kanbanRecorder.taskActivityKind')}
           className="h-8 rounded-md border bg-background px-2 text-xs"
         >
           {['decision', 'attempt', 'result', 'blocker', 'observation'].map((value) => (
@@ -47,7 +49,7 @@ export function KanbanTaskActivityRecorder({
           onChange={(event) =>
             onActivityOutcomeChange(event.target.value as KanbanManualActivityOutcome)
           }
-          aria-label="Task activity outcome"
+          aria-label={t('activity:kanbanRecorder.taskActivityOutcome')}
           className="h-8 rounded-md border bg-background px-2 text-xs"
         >
           {['unknown', 'succeeded', 'failed', 'partial', 'skipped'].map((value) => (
@@ -62,14 +64,14 @@ export function KanbanTaskActivityRecorder({
           value={note}
           onChange={(event) => onNoteChange(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && onRecordActivity()}
-          placeholder="What was decided, attempted, or produced?"
+          placeholder={t('activity:kanbanRecorder.whatWasDecidedAttemptedOrProduced')}
           className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
         />
         <button
           type="button"
           onClick={onRecordActivity}
           className="h-8 rounded-md border px-2 hover:bg-muted"
-          aria-label="Record task decision or outcome"
+          aria-label={t('activity:kanbanRecorder.recordTaskDecisionOrOutcome')}
         >
           <Plus size={14} />
         </button>
@@ -77,8 +79,8 @@ export function KanbanTaskActivityRecorder({
       <input
         value={details}
         onChange={(event) => onDetailsChange(event.target.value)}
-        placeholder="Optional evidence, rationale, command, link, or failure detail…"
-        aria-label="Task activity details"
+        placeholder={t('activity:kanbanRecorder.optionalEvidenceRationaleCommandLinkOrFailureDetail')}
+        aria-label={t('activity:kanbanRecorder.taskActivityDetails')}
         className="mt-1.5 h-8 w-full rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
       />
     </div>

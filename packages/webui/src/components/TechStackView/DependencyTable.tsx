@@ -11,8 +11,9 @@ import { VList } from 'virtua';
 import { usePagination } from '@/hooks/usePagination';
 import type { TechStackDependency } from '@/stores';
 import { cn } from '@/lib/utils';
-import { Badge, coverageMeta, EcosystemIcon, ecosystemMeta, installedVersion, statusMeta, versionDrift } from './shared';
+import { Badge, coverageMeta, EcosystemIcon, ecosystemLabel, installedVersion, statusMeta, versionDrift } from './shared';
 import { Pagination } from '../ui/pagination';
+import { useAppTranslation } from '@/i18n';
 
 export interface DependencyTableProps {
   dependencies: readonly TechStackDependency[];
@@ -31,6 +32,7 @@ export function DependencyTable({
   coverageByWorkspaceId,
   onSelect,
 }: DependencyTableProps) {
+  const { t } = useAppTranslation();
   const dependencyPage = usePagination(dependencies, 30);
   if (dependencies.length === 0) {
     return (
@@ -52,15 +54,15 @@ export function DependencyTable({
           'shrink-0 border-b border-border/70 bg-card/45 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground',
         )}
       >
-        <span>Package</span>
-        <span>Installed → Latest</span>
-        <span>Status</span>
+        <span>{t('activity:techStack.package')}</span>
+        <span>{t('activity:techStack.installedLatest')}</span>
+        <span>{t('activity:techStack.status')}</span>
       </div>
       {/* No list/listitem roles: VList wraps each child in its own div, so the
           required list→listitem parent-child relationship can't hold through
           it. The rows are buttons — focusable and labelled by their content. */}
       <div className="min-h-0 flex-1">
-        <VList className="h-full" aria-label="Dependencies">
+        <VList className="h-full" aria-label={t('activity:techStack.dependencies')}>
           {dependencyPage.pageItems.map((dependency) => (
             <DependencyRow
               key={dependency.id}
@@ -94,10 +96,11 @@ function DependencyRow({
   coverage: string | undefined;
   onSelect: (dependency: TechStackDependency) => void;
 }) {
+  const { t } = useAppTranslation();
   const meta = statusMeta(dependency.status);
   const installed = installedVersion(dependency);
   const drift = versionDrift(dependency);
-  const depCoverageNote = coverage ? coverageMeta(coverage).note : undefined;
+  const depCoverageNoteKey = coverage ? coverageMeta(coverage).noteKey : undefined;
 
   return (
     <button
@@ -118,15 +121,15 @@ function DependencyRow({
         </div>
         <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
           <EcosystemIcon ecosystem={dependency.ecosystem} className="mr-0.5 inline-block size-3 align-text-bottom" />
-          {ecosystemMeta(dependency.ecosystem).label}
+          {ecosystemLabel(dependency.ecosystem, t)}
           {' · '}
           {dependency.direct ? 'direct' : 'transitive'}
           {' · '}
           {dependency.scope}
-          {depCoverageNote && (
+          {depCoverageNoteKey && (
             <>
               {' · '}
-              <span className="text-warning">{depCoverageNote}</span>
+              <span className="text-warning">{t(depCoverageNoteKey)}</span>
             </>
           )}
         </p>
@@ -156,7 +159,7 @@ function DependencyRow({
 
       {/* Status */}
       <div className="flex min-w-0 flex-wrap items-center gap-1">
-        <Badge className={meta.badge}>{meta.label}</Badge>
+        <Badge className={meta.badge}>{t(meta.labelKey)}</Badge>
         {dependency.deprecated && (
           <Badge className="border-destructive/35 bg-destructive/10 text-destructive">dep</Badge>
         )}

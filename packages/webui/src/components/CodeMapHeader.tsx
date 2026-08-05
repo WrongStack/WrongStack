@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import type { LiveAgentPresence } from '@/stores/codemap-activity-store';
 import type { CodeMapGraphResponse, CodeMapScope } from './codemap-model';
 import { relativeFilePath, } from './codemap-model';
+import { useAppTranslation } from '@/i18n';
 
 interface CodeMapHeaderProps {
   scope: CodeMapScope;
@@ -21,6 +22,7 @@ export function CodeMapHeader({
   connectedNodeCount,
   navigate,
 }: CodeMapHeaderProps): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <header className="flex h-[62px] shrink-0 items-center gap-4 border-b bg-card px-4">
       <div className="flex min-w-[220px] items-center gap-3">
@@ -28,15 +30,15 @@ export function CodeMapHeader({
           <Network className="h-4 w-4" />
         </span>
         <div>
-          <h1 className="font-display text-sm font-semibold tracking-tight">Code Atlas</h1>
+          <h1 className="font-display text-sm font-semibold tracking-tight">{t('activity:codeMap.codeAtlas')}</h1>
           <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-            Architecture intelligence
+            {t('activity:codeMap.architectureIntelligence')}
           </p>
         </div>
       </div>
       <nav
         className="flex min-w-0 flex-1 items-center gap-1 font-mono text-[10px]"
-        aria-label="Code map breadcrumb"
+        aria-label={t('activity:codeMap.codeMapBreadcrumb')}
       >
         {scope.level !== 'packages' && (
           <button
@@ -47,7 +49,7 @@ export function CodeMapHeader({
                 navigate({ level: 'files', package: scope.package ?? '(root)' });
               else navigate({ level: 'packages' });
             }}
-            aria-label="Back"
+            aria-label={t('activity:codeMap.back')}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
           </button>

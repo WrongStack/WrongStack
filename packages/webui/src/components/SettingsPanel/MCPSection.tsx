@@ -191,24 +191,24 @@ function ServerCard({
             )}
             {server.health && (
               <>
-                <span className="text-muted-foreground">Operational health</span>
+                <span className="text-muted-foreground">{t('activity:mCPSection.operationalHealth')}</span>
                 <span>{server.health.healthState}</span>
-                <span className="text-muted-foreground">Failures (transport/protocol/tool)</span>
+                <span className="text-muted-foreground">{t('activity:mCPSection.failuresTransportProtocolTool')}</span>
                 <span>
                   {server.health.failures.transport}/{server.health.failures.protocol}/
                   {server.health.failures.tool}
                 </span>
-                <span className="text-muted-foreground">Call latency p50/p95</span>
+                <span className="text-muted-foreground">{t('activity:mCPSection.callLatencyP50P95')}</span>
                 <span>
                   {server.health.callLatency.p50Ms ?? '-'}ms /{' '}
                   {server.health.callLatency.p95Ms ?? '-'}ms
                 </span>
-                <span className="text-muted-foreground">Reconnect / wake / sleep</span>
+                <span className="text-muted-foreground">{t('activity:mCPSection.reconnectWakeSleep')}</span>
                 <span>
                   {server.health.reconnectCount} / {server.health.wakeCount} /{' '}
                   {server.health.sleepCount}
                 </span>
-                <span className="text-muted-foreground">Calls in flight / peak</span>
+                <span className="text-muted-foreground">{t('activity:mCPSection.callsInFlightPeak')}</span>
                 <span>
                   {server.health.inFlightCalls} / {server.health.peakInFlightCalls}
                 </span>
@@ -383,7 +383,7 @@ function ServerDialog({
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://mcp.example.com/mcp"
+                placeholder={t('activity:mCPSection.httpsMcpExampleComMcp')}
                 disabled={isPrefill}
               />
             </div>

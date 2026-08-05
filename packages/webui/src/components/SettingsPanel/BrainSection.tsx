@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Brain, Loader2, Plus, X } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import type {
   BrainConfigPatchWire,
   BrainConfigWire,
@@ -35,11 +36,13 @@ import {
   councilPersonaOptions,
   entryLabel,
   optionalValue,
+  localizeOptions,
   withCurrent,
   type PickTarget,
   type RiskLevel,
 } from './brain-section-options';
 export function BrainSection(): ReactElement {
+  const { t } = useAppTranslation();
   const { client } = useWebSocket();
   const [config, setConfig] = useState<BrainConfigWire | null>(null);
   const [log, setLog] = useState<
@@ -77,7 +80,7 @@ export function BrainSection(): ReactElement {
     const offConfig = client.on('brain.config', (msg: WSServerMessage) => {
       const p = msg.payload as { config: BrainConfigWire; persisted: boolean; error?: string };
       setConfig(p.config);
-      setPersistError(p.persisted ? null : (p.error ?? 'Settings applied live but not saved.'));
+      setPersistError(p.persisted ? null : (p.error ?? t('settings:brain.persistError')));
       setBusy(false);
       setLoading(false);
     });
@@ -85,7 +88,7 @@ export function BrainSection(): ReactElement {
       offStatus();
       offConfig();
     };
-  }, [client]);
+  }, [client, t]);
 
   /** Every control funnels here: live-apply + persist on the server, reconcile on reply. */
   const sendPatch = useCallback(
@@ -162,8 +165,8 @@ export function BrainSection(): ReactElement {
       <ModelSelectDialog
         open={pickTarget !== null}
         mode="provider-model"
-        title={pickTarget ? PICK_TITLES[pickTarget].title : ''}
-        hint={pickTarget ? PICK_TITLES[pickTarget].hint : undefined}
+        title={pickTarget ? t(PICK_TITLES[pickTarget].title) : ''}
+        hint={pickTarget ? t(PICK_TITLES[pickTarget].hint) : undefined}
         onPick={(result) => {
           if (result.type !== 'provider-model') return;
           return handleModelPicked(result);
@@ -175,10 +178,9 @@ export function BrainSection(): ReactElement {
           <Brain className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-base font-semibold">Brain</h3>
+          <h3 className="text-base font-semibold">{t('settings:brain.heading')}</h3>
           <p className="text-xs text-muted-foreground">
-            Decision models, council, escalation and risk ceiling — applied live, saved to the
-            global config.
+            {t('settings:brain.headingHint')}
           </p>
         </div>
         {(loading || busy) && (
@@ -194,7 +196,7 @@ export function BrainSection(): ReactElement {
 
       {/* Risk ceiling */}
       <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
-        <span className="text-sm font-medium">Autonomy ceiling</span>
+        <span className="text-sm font-medium">{t('settings:brain.riskHeading')}</span>
         <div className="flex gap-2 flex-wrap">
           {RISK_LEVELS.map((level) => (
             <Button
@@ -210,60 +212,60 @@ export function BrainSection(): ReactElement {
             </Button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">{RISK_COPY[riskLevel]}</p>
+        <p className="text-xs text-muted-foreground">{t(RISK_COPY[riskLevel])}</p>
       </div>
 
       {config && (
         <>
           {/* Escalation */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
-            <span className="text-sm font-medium">Escalation</span>
+            <span className="text-sm font-medium">{t('settings:brain.escalationHeading')}</span>
             <PreferenceSelect
-              label="Mode"
-              hint="Headless: the Brain never blocks on a human — unanswered escalations resolve via the safe terminal policy. Applies to CLI/TUI sessions; the standalone WebUI Brain is always headless."
+              label={t('settings:brain.escalationModeLabel')}
+              hint={t('settings:brain.escalationModeHint')}
               value={config.mode}
               options={[
-                { value: 'interactive', label: 'Interactive (ask me)' },
-                { value: 'headless', label: 'Headless (never ask)' },
+                { value: 'interactive', label: t('settings:brain.optInteractive') },
+                { value: 'headless', label: t('settings:brain.optHeadless') },
               ]}
               onChange={(mode) => sendPatch({ mode })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Decision timeout"
-              hint="Per-LLM-call time budget for one Brain decision."
+              label={t('settings:brain.escalationDecisionTimeoutLabel')}
+              hint={t('settings:brain.escalationDecisionTimeoutHint')}
               value={config.decisionTimeoutMs ? String(config.decisionTimeoutMs) : 'default'}
-              options={DECISION_TIMEOUTS}
+              options={localizeOptions(DECISION_TIMEOUTS, t)}
               onChange={(v) =>
                 sendPatch({ decisionTimeoutMs: v === 'default' ? null : Number(v) })
               }
               disabled={busy}
             />
             <PreferenceSelect
-              label="Human answer timeout"
-              hint="Interactive mode: how long an escalation prompt may wait before the terminal policy resolves it."
+              label={t('settings:brain.escalationHumanTimeoutLabel')}
+              hint={t('settings:brain.escalationHumanTimeoutHint')}
               value={config.humanTimeoutMs ? String(config.humanTimeoutMs) : 'off'}
-              options={HUMAN_TIMEOUTS}
+              options={localizeOptions(HUMAN_TIMEOUTS, t)}
               onChange={(v) => sendPatch({ humanTimeoutMs: v === 'off' ? null : Number(v) })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Terminal policy"
-              hint="How a headless escalation resolves with no human available. Conservative accepts a recommended option at low/medium risk; deny-all never auto-accepts; continue-on-recommended accepts a recommended option at ANY risk."
+              label={t('settings:brain.escalationTerminalPolicyLabel')}
+              hint={t('settings:brain.escalationTerminalPolicyHint')}
               value={config.terminalPolicy}
               options={[
-                { value: 'conservative', label: 'Conservative (default)' },
-                { value: 'deny-all', label: 'Deny all' },
-                { value: 'continue-on-recommended', label: 'Continue on recommended' },
+                { value: 'conservative', label: t('settings:brain.optConservative') },
+                { value: 'deny-all', label: t('settings:brain.optDenyAll') },
+                { value: 'continue-on-recommended', label: t('settings:brain.optContinueRecommended') },
               ]}
               onChange={(terminalPolicy) => sendPatch({ terminalPolicy })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Decision log size"
-              hint="Rolling in-memory decision log kept for the status view."
+              label={t('settings:brain.escalationDecisionLogSizeLabel')}
+              hint={t('settings:brain.escalationDecisionLogSizeHint')}
               value={String(config.decisionLogMaxEntries)}
-              options={withCurrent(DECISION_LOG_SIZES, String(config.decisionLogMaxEntries))}
+              options={localizeOptions(withCurrent(DECISION_LOG_SIZES, String(config.decisionLogMaxEntries)), t)}
               onChange={(v) => sendPatch({ decisionLogMaxEntries: Number(v) })}
               disabled={busy}
             />
@@ -272,14 +274,13 @@ export function BrainSection(): ReactElement {
           {/* Deterministic rules (read-only) */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Deterministic rules</span>
+              <span className="text-sm font-medium">{t('settings:brain.rulesHeading')}</span>
               <Badge variant="outline" className="text-[10px]">
-                {config.rules.length} configured
+                {t('settings:brain.rulesConfigured', { count: config.rules.length })}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Evaluated before any provider call — first match wins. Edit them in the global config
-              file; this view is read-only.
+              {t('settings:brain.rulesBody')}
             </p>
             {config.rules.length > 0 && (
               <div className="space-y-1">
@@ -295,7 +296,7 @@ export function BrainSection(): ReactElement {
                     </Badge>
                     {rule.enabled === false && (
                       <Badge variant="outline" className="text-[10px] shrink-0">
-                        off
+                        {t('settings:brain.rulesOff')}
                       </Badge>
                     )}
                   </div>
@@ -305,7 +306,7 @@ export function BrainSection(): ReactElement {
             {config.ruleErrors.length > 0 && (
               <div className="space-y-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5">
                 <span className="text-xs font-medium text-warning">
-                  {config.ruleErrors.length} rule(s) dropped
+                  {t('settings:brain.rulesDropped', { count: config.ruleErrors.length })}
                 </span>
                 {config.ruleErrors.map((err) => (
                   <p key={err} className="text-xs text-warning">
@@ -318,14 +319,13 @@ export function BrainSection(): ReactElement {
 
           {/* Heuristics */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
-            <span className="text-sm font-medium">Heuristics</span>
+            <span className="text-sm font-medium">{t('settings:brain.heuristicsHeading')}</span>
             <p className="text-xs text-muted-foreground">
-              Free pattern guesses that settle a question before any model runs. All on by default —
-              turn one off when its guess is wrong for your workload.
+              {t('settings:brain.heuristicsBody')}
             </p>
             <PreferenceToggle
-              label="Low-risk auto-answer"
-              hint="Auto-answer low-risk requests that already carry a recommended option."
+              label={t('settings:brain.heuristicsLowRiskLabel')}
+              hint={t('settings:brain.heuristicsLowRiskHint')}
               value={config.heuristics.lowRiskAutoAnswer}
               onChange={() =>
                 sendPatch({
@@ -335,8 +335,8 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceToggle
-              label="Blocked-resolved"
-              hint="'blocked …' plus an explicit resolution marker in the context resolves to continue."
+              label={t('settings:brain.heuristicsBlockedLabel')}
+              hint={t('settings:brain.heuristicsBlockedHint')}
               value={config.heuristics.blockedResolved}
               onChange={() =>
                 sendPatch({ heuristics: { blockedResolved: !config.heuristics.blockedResolved } })
@@ -344,8 +344,8 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceToggle
-              label="Deadlock skip"
-              hint="'deadlock' plus failed work units in the context resolves to skip and continue."
+              label={t('settings:brain.heuristicsDeadlockLabel')}
+              hint={t('settings:brain.heuristicsDeadlockHint')}
               value={config.heuristics.deadlockSkip}
               onChange={() =>
                 sendPatch({ heuristics: { deadlockSkip: !config.heuristics.deadlockSkip } })
@@ -353,8 +353,8 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceToggle
-              label="Retry exhausted"
-              hint="'failed'/'retry' plus demonstrably exhausted retries marks the unit failed and moves on."
+              label={t('settings:brain.heuristicsRetryLabel')}
+              hint={t('settings:brain.heuristicsRetryHint')}
               value={config.heuristics.retryExhausted}
               onChange={() =>
                 sendPatch({ heuristics: { retryExhausted: !config.heuristics.retryExhausted } })
@@ -362,8 +362,8 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceToggle
-              label="Continue ping"
-              hint="A bare continue/proceed ping with no competing alternative resolves to continue."
+              label={t('settings:brain.heuristicsPingLabel')}
+              hint={t('settings:brain.heuristicsPingHint')}
               value={config.heuristics.continuePing}
               onChange={() =>
                 sendPatch({ heuristics: { continuePing: !config.heuristics.continuePing } })
@@ -373,7 +373,9 @@ export function BrainSection(): ReactElement {
             {config.heuristics.blockedResolvedMarkers &&
               config.heuristics.blockedResolvedMarkers.length > 0 && (
                 <p className="truncate text-xs text-muted-foreground">
-                  Markers: {config.heuristics.blockedResolvedMarkers.join(', ')}
+                  {t('settings:brain.heuristicsMarkers', {
+                    markers: config.heuristics.blockedResolvedMarkers.join(', '),
+                  })}
                 </p>
               )}
           </div>
@@ -381,47 +383,50 @@ export function BrainSection(): ReactElement {
           {/* LLM quality gate */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">LLM quality</span>
+              <span className="text-sm font-medium">{t('settings:brain.qualityHeading')}</span>
               {config.circuit && (
                 <Badge
                   variant={config.circuit.state === 'closed' ? 'outline' : 'default'}
                   className="text-[10px]"
                 >
-                  circuit {config.circuit.state} · {config.circuit.consecutiveFailures} fail
+                  {t('settings:brain.qualityCircuit', {
+                    state: config.circuit.state,
+                    count: config.circuit.consecutiveFailures,
+                  })}
                 </Badge>
               )}
             </div>
             <PreferenceSelect
-              label="Response budget"
-              hint="Output tokens per decision call. A Brain response is one decision plus a one-sentence rationale."
+              label={t('settings:brain.qualityResponseBudgetLabel')}
+              hint={t('settings:brain.qualityResponseBudgetHint')}
               value={String(config.llm.maxTokens)}
-              options={withCurrent(LLM_MAX_TOKENS, String(config.llm.maxTokens))}
+              options={localizeOptions(withCurrent(LLM_MAX_TOKENS, String(config.llm.maxTokens)), t)}
               onChange={(v) => sendPatch({ llm: { maxTokens: Number(v) } })}
               disabled={busy}
             />
             <PreferenceToggle
-              label="Reject uncertain answers"
-              hint="Treat a declined or empty response as 'this tier could not decide' instead of accepting it as an answer."
+              label={t('settings:brain.qualityRejectLabel')}
+              hint={t('settings:brain.qualityRejectHint')}
               value={config.llm.rejectUncertain}
               onChange={() => sendPatch({ llm: { rejectUncertain: !config.llm.rejectUncertain } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Minimum confidence"
-              hint="Reject answers whose self-reported confidence is below this. Responses reporting no confidence always pass."
+              label={t('settings:brain.qualityMinConfidenceLabel')}
+              hint={t('settings:brain.qualityMinConfidenceHint')}
               value={String(config.llm.minConfidence)}
-              options={withCurrent(MIN_CONFIDENCE, String(config.llm.minConfidence))}
+              options={localizeOptions(withCurrent(MIN_CONFIDENCE, String(config.llm.minConfidence)), t)}
               onChange={(v) => sendPatch({ llm: { minConfidence: Number(v) } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Deny is terminal"
-              hint="Whether a deny from the single-LLM tier ends the decision. 'when-decided' makes a genuine refusal terminal while infrastructure failures still escalate."
+              label={t('settings:brain.qualityDenyTerminalLabel')}
+              hint={t('settings:brain.qualityDenyTerminalHint')}
               value={config.llm.denyIsTerminal}
               options={[
-                { value: 'never', label: 'Never (default)' },
-                { value: 'when-decided', label: 'When decided' },
-                { value: 'always', label: 'Always' },
+                { value: 'never', label: t('settings:brain.optNeverDefault') },
+                { value: 'when-decided', label: t('settings:brain.optWhenDecided') },
+                { value: 'always', label: t('settings:brain.optAlways') },
               ]}
               onChange={(denyIsTerminal) => sendPatch({ llm: { denyIsTerminal } })}
               disabled={busy}
@@ -430,22 +435,22 @@ export function BrainSection(): ReactElement {
 
           {/* Replay trace */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
-            <span className="text-sm font-medium">Replay trace</span>
+            <span className="text-sm font-medium">{t('settings:brain.traceHeading')}</span>
             <PreferenceToggle
-              label="Record decision traces"
-              hint="Per-decision JSONL of every tier, pool target and council vote, with timings and token usage. Off by default — enabling it writes decision content to disk."
+              label={t('settings:brain.traceRecordLabel')}
+              hint={t('settings:brain.traceRecordHint')}
               value={config.trace.enabled}
               onChange={() => sendPatch({ trace: { enabled: !config.trace.enabled } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Trace content"
-              hint="'full' keeps question and context (needed to replay a decision); 'redacted' truncates free text; 'none' records metadata only."
+              label={t('settings:brain.traceContentLabel')}
+              hint={t('settings:brain.traceContentHint')}
               value={config.trace.content}
               options={[
-                { value: 'full', label: 'Full (default)' },
-                { value: 'redacted', label: 'Redacted' },
-                { value: 'none', label: 'Metadata only' },
+                { value: 'full', label: t('settings:brain.optFullDefault') },
+                { value: 'redacted', label: t('settings:brain.optRedacted') },
+                { value: 'none', label: t('settings:brain.optMetadataOnly') },
               ]}
               onChange={(content) => sendPatch({ trace: { content } })}
               disabled={busy}
@@ -458,31 +463,35 @@ export function BrainSection(): ReactElement {
           {/* Decision cache */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Decision cache</span>
+              <span className="text-sm font-medium">{t('settings:brain.cacheHeading')}</span>
               <Badge variant="outline" className="text-[10px]">
-                {config.cache.hits} hit / {config.cache.misses} miss · {config.cache.size} live
+                {t('settings:brain.cacheStats', {
+                  hits: config.cache.hits,
+                  misses: config.cache.misses,
+                  size: config.cache.size,
+                })}
               </Badge>
             </div>
             <PreferenceToggle
-              label="Replay identical verdicts"
-              hint="Reuse a previous council/LLM verdict for an identical repeated question. Deterministic tiers and ask-human are never cached; a decision the ledger observes to have failed is evicted."
+              label={t('settings:brain.cacheReplayLabel')}
+              hint={t('settings:brain.cacheReplayHint')}
               value={config.cache.enabled}
               onChange={() => sendPatch({ cache: { enabled: !config.cache.enabled } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Entry lifetime"
-              hint="How long a cached verdict stays replayable."
+              label={t('settings:brain.cacheLifetimeLabel')}
+              hint={t('settings:brain.cacheLifetimeHint')}
               value={String(config.cache.ttlMs)}
-              options={withCurrent(CACHE_TTLS, String(config.cache.ttlMs))}
+              options={localizeOptions(withCurrent(CACHE_TTLS, String(config.cache.ttlMs)), t)}
               onChange={(v) => sendPatch({ cache: { ttlMs: Number(v) } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Maximum entries"
-              hint="Cap on live cached verdicts."
+              label={t('settings:brain.cacheMaxEntriesLabel')}
+              hint={t('settings:brain.cacheMaxEntriesHint')}
               value={String(config.cache.maxEntries)}
-              options={withCurrent(CACHE_MAX_ENTRIES, String(config.cache.maxEntries))}
+              options={localizeOptions(withCurrent(CACHE_MAX_ENTRIES, String(config.cache.maxEntries)), t)}
               onChange={(v) => sendPatch({ cache: { maxEntries: Number(v) } })}
               disabled={busy}
             />
@@ -490,14 +499,13 @@ export function BrainSection(): ReactElement {
 
           {/* Monitor */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
-            <span className="text-sm font-medium">Monitor</span>
+            <span className="text-sm font-medium">{t('settings:brain.monitorHeading')}</span>
             <p className="text-xs text-muted-foreground">
-              Distress-signal self-activation. The monitor is built once at boot, so these apply to
-              the next session rather than live.
+              {t('settings:brain.monitorBody')}
             </p>
             <PreferenceToggle
-              label="Watch for distress signals"
-              hint="Tool-failure streaks, error storms, agent stalls and file churn engage the Brain on their own."
+              label={t('settings:brain.monitorWatchLabel')}
+              hint={t('settings:brain.monitorWatchHint')}
               value={config.monitor.enabled !== false}
               onChange={() =>
                 sendPatch({ monitor: { enabled: config.monitor.enabled === false } })
@@ -505,13 +513,13 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceSelect
-              label="Signal policy"
-              hint="How a detected signal resolves. 'llm' consults the Brain; 'steer' always intervenes and 'observe' never does — both without a provider call."
+              label={t('settings:brain.monitorPolicyLabel')}
+              hint={t('settings:brain.monitorPolicyHint')}
               value={config.monitor.policy ?? 'llm'}
               options={[
-                { value: 'llm', label: 'Consult the Brain (default)' },
-                { value: 'steer', label: 'Always steer' },
-                { value: 'observe', label: 'Observe only' },
+                { value: 'llm', label: t('settings:brain.optConsultBrain') },
+                { value: 'steer', label: t('settings:brain.optAlwaysSteer') },
+                { value: 'observe', label: t('settings:brain.optObserveOnly') },
               ]}
               onChange={(policy) => sendPatch({ monitor: { policy } })}
               disabled={busy}
@@ -521,16 +529,19 @@ export function BrainSection(): ReactElement {
           {/* Decision models */}
           <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Decision models</span>
+              <span className="text-sm font-medium">{t('settings:brain.modelsHeading')}</span>
               <Badge variant="outline" className="text-[10px]">
                 {config.usingSessionModel
-                  ? 'session model'
-                  : `${config.poolLabels.length}/${config.models.length} resolved`}
+                  ? t('settings:brain.modelsSessionBadge')
+                  : t('settings:brain.modelsResolvedBadge', {
+                      resolved: config.poolLabels.length,
+                      total: config.models.length,
+                    })}
               </Badge>
             </div>
             <PreferenceToggle
-              label="Use session model"
-              hint="Decide with whatever model the session is running. Turn off by adding models below."
+              label={t('settings:brain.modelsUseSessionLabel')}
+              hint={t('settings:brain.modelsUseSessionHint')}
               value={config.usingSessionModel}
               onChange={() => {
                 if (!config.usingSessionModel) sendPatch({ models: null });
@@ -597,16 +608,16 @@ export function BrainSection(): ReactElement {
               disabled={busy}
               onClick={() => setPickTarget('pool')}
             >
-              <Plus className="h-3.5 w-3.5" /> Add model
+              <Plus className="h-3.5 w-3.5" /> {t('settings:brain.modelsAddModel')}
             </Button>
             {config.models.length > 1 && (
               <PreferenceSelect
-                label="Pool strategy"
-                hint="Fallback: first model is primary, the rest are tried in order on failure. Round-robin: decisions rotate across the pool."
+                label={t('settings:brain.modelsPoolStrategyLabel')}
+                hint={t('settings:brain.modelsPoolStrategyHint')}
                 value={config.strategy}
                 options={[
-                  { value: 'fallback', label: 'Fallback' },
-                  { value: 'round-robin', label: 'Round-robin' },
+                  { value: 'fallback', label: t('settings:brain.optFallback') },
+                  { value: 'round-robin', label: t('settings:brain.optRoundRobin') },
                 ]}
                 onChange={(strategy) => sendPatch({ strategy })}
                 disabled={busy}
@@ -617,21 +628,25 @@ export function BrainSection(): ReactElement {
           {/* Council */}
           <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Council</span>
+              <span className="text-sm font-medium">{t('settings:brain.councilHeading')}</span>
               <Badge variant={config.council.enabled ? 'default' : 'outline'} className="text-[10px]">
-                {config.council.enabled ? 'convened' : 'disabled'}
+                {config.council.enabled
+                  ? t('settings:brain.councilConvened')
+                  : t('settings:brain.councilDisabled')}
               </Badge>
             </div>
             <PreferenceToggle
-              label="Enable multi-LLM council"
-              hint="High-stakes questions are voted on by independent seats (executor / skeptic-with-veto / auditor) instead of one model. Needs ≥2 resolvable voters (explicit seats below, or a ≥2-model pool)."
+              label={t('settings:brain.councilEnableLabel')}
+              hint={t('settings:brain.councilEnableHint')}
               value={config.council.enabled}
               onChange={() => sendPatch({ council: { enabled: !config.council.enabled } })}
               disabled={busy}
             />
             {config.council.enabled && config.councilLabels.length > 0 && voters.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Seats derived from the pool: {config.councilLabels.join(', ')}
+                {t('settings:brain.councilSeatsDerived', {
+                  seats: config.councilLabels.join(', '),
+                })}
               </p>
             )}
             {voters.length > 0 && (
@@ -652,7 +667,7 @@ export function BrainSection(): ReactElement {
                       className="h-6 rounded border bg-background px-1 text-[10px]"
                       title={
                         personaOptions.find((p) => p.id === voter.persona)?.description ??
-                        'Custom decision lens — sent to the seat verbatim.'
+                        t('settings:brain.councilCustomLens')
                       }
                     >
                       {personaOptions.map((p) => (
@@ -661,7 +676,9 @@ export function BrainSection(): ReactElement {
                         </option>
                       ))}
                       {voter.persona && !personaOptions.some((p) => p.id === voter.persona) && (
-                        <option value={voter.persona}>{voter.persona} (custom)</option>
+                        <option value={voter.persona}>
+                          {t('settings:brain.councilCustomOption', { persona: voter.persona })}
+                        </option>
                       )}
                     </select>
                     <Button
@@ -673,7 +690,7 @@ export function BrainSection(): ReactElement {
                         setVoters(voters.map((v, j) => (j === i ? { ...v, veto: !v.veto } : v)))
                       }
                     >
-                      veto
+                      {t('settings:brain.councilVeto')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -695,25 +712,25 @@ export function BrainSection(): ReactElement {
               disabled={busy}
               onClick={() => setPickTarget('voter')}
             >
-              <Plus className="h-3.5 w-3.5" /> Add voter
+              <Plus className="h-3.5 w-3.5" /> {t('settings:brain.councilAddVoter')}
             </Button>
             <PreferenceSelect
-              label="Risk floor"
-              hint="Minimum question risk that convenes the council instead of the single-model tier."
+              label={t('settings:brain.councilRiskFloorLabel')}
+              hint={t('settings:brain.councilRiskFloorHint')}
               value={config.council.minRisk}
               options={[
-                { value: 'medium', label: 'Medium+' },
-                { value: 'high', label: 'High+' },
-                { value: 'critical', label: 'Critical only' },
+                { value: 'medium', label: t('settings:brain.optMediumPlus') },
+                { value: 'high', label: t('settings:brain.optHighPlus') },
+                { value: 'critical', label: t('settings:brain.optCriticalOnly') },
               ]}
               onChange={(minRisk) => sendPatch({ council: { minRisk } })}
               disabled={busy}
             />
             <div className="flex items-start justify-between gap-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">Judge</div>
+                <div className="text-sm font-medium">{t('settings:brain.councilJudge')}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
-                  Tie-breaker model that sees every vote's rationale.
+                  {t('settings:brain.councilJudgeDesc')}
                 </div>
                 {/*
                   On 'auto' the judge is derived from the pool, and when the
@@ -724,16 +741,18 @@ export function BrainSection(): ReactElement {
                 */}
                 {!config.council.judge && config.judgeLabel && (
                   <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-                    resolved: {config.judgeLabel}
+                    {t('settings:brain.councilResolved', { model: config.judgeLabel })}
                     {config.judgeIsVoter && (
-                      <span className="ml-1 font-sans text-warning">⚠ also a voter</span>
+                      <span className="ml-1 font-sans text-warning">
+                        {t('settings:brain.councilAlsoVoter')}
+                      </span>
                     )}
                   </div>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <span className="max-w-[180px] truncate font-mono text-xs">
-                  {config.council.judge ? entryLabel(config.council.judge) : 'auto'}
+                  {config.council.judge ? entryLabel(config.council.judge) : t('settings:brain.councilAuto')}
                 </span>
                 <Button
                   variant="outline"
@@ -742,7 +761,7 @@ export function BrainSection(): ReactElement {
                   disabled={busy}
                   onClick={() => setPickTarget('judge')}
                 >
-                  Pick…
+                  {t('settings:brain.councilPick')}
                 </Button>
                 {config.council.judge && (
                   <Button
@@ -752,74 +771,74 @@ export function BrainSection(): ReactElement {
                     disabled={busy}
                     onClick={() => sendPatch({ council: { judge: null } })}
                   >
-                    Auto
+                    {t('settings:brain.councilAutoReset')}
                   </Button>
                 )}
               </div>
             </div>
             <PreferenceSelect
-              label="Quorum"
-              hint="Fraction of seats that must return a valid vote."
+              label={t('settings:brain.councilQuorumLabel')}
+              hint={t('settings:brain.councilQuorumHint')}
               value={config.council.quorum !== undefined ? String(config.council.quorum) : 'default'}
-              options={FRACTIONS}
+              options={localizeOptions(FRACTIONS, t)}
               onChange={(v) => sendPatch({ council: { quorum: v === 'default' ? null : Number(v) } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Approval"
-              hint="Fraction of cast vote weight the winning option must exceed."
+              label={t('settings:brain.councilApprovalLabel')}
+              hint={t('settings:brain.councilApprovalHint')}
               value={
                 config.council.approval !== undefined ? String(config.council.approval) : 'default'
               }
-              options={FRACTIONS}
+              options={localizeOptions(FRACTIONS, t)}
               onChange={(v) =>
                 sendPatch({ council: { approval: v === 'default' ? null : Number(v) } })
               }
               disabled={busy}
             />
             <PreferenceSelect
-              label="Per-seat timeout"
-              hint="Time budget for a single seat's vote. Slower than the decision timeout means one stalled seat holds up the vote."
+              label={t('settings:brain.councilPerSeatTimeoutLabel')}
+              hint={t('settings:brain.councilPerSeatTimeoutHint')}
               value={optionalValue(config.council.perCallTimeoutMs)}
-              options={withCurrent(
+              options={localizeOptions(withCurrent(
                 COUNCIL_CALL_TIMEOUTS,
                 optionalValue(config.council.perCallTimeoutMs),
-              )}
+              ), t)}
               onChange={(v) =>
                 sendPatch({ council: { perCallTimeoutMs: v === 'default' ? null : Number(v) } })
               }
               disabled={busy}
             />
             <PreferenceSelect
-              label="Max concurrency"
-              hint="How many seats vote in parallel. Lower this when the pool shares one rate-limited provider."
+              label={t('settings:brain.councilMaxConcurrencyLabel')}
+              hint={t('settings:brain.councilMaxConcurrencyHint')}
               value={optionalValue(config.council.maxConcurrency)}
-              options={withCurrent(
+              options={localizeOptions(withCurrent(
                 COUNCIL_CONCURRENCY,
                 optionalValue(config.council.maxConcurrency),
-              )}
+              ), t)}
               onChange={(v) =>
                 sendPatch({ council: { maxConcurrency: v === 'default' ? null : Number(v) } })
               }
               disabled={busy}
             />
             <PreferenceSelect
-              label="Seat distinctness"
-              hint="Reject duplicate seats: 'model' requires distinct models, 'provider' requires independent providers so one outage cannot sway the vote."
+              label={t('settings:brain.councilDistinctnessLabel')}
+              hint={t('settings:brain.councilDistinctnessHint')}
               value={config.council.distinctness}
               options={[
-                { value: 'none', label: 'None (default)' },
-                { value: 'model', label: 'Distinct models' },
-                { value: 'provider', label: 'Distinct providers' },
+                { value: 'none', label: t('settings:brain.optNoneDefault') },
+                { value: 'model', label: t('settings:brain.optDistinctModels') },
+                { value: 'provider', label: t('settings:brain.optDistinctProviders') },
               ]}
               onChange={(distinctness) => sendPatch({ council: { distinctness } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Judge response budget"
-              hint="Output tokens for the tie-breaking judge call."
+              label={t('settings:brain.councilJudgeBudgetLabel')}
+              hint={t('settings:brain.councilJudgeBudgetHint')}
               value={optionalValue(config.council.judgeMaxTokens)}
-              options={withCurrent(JUDGE_MAX_TOKENS, optionalValue(config.council.judgeMaxTokens))}
+              options={localizeOptions(withCurrent(JUDGE_MAX_TOKENS, optionalValue(config.council.judgeMaxTokens)), t)}
               onChange={(v) =>
                 sendPatch({ council: { judgeMaxTokens: v === 'default' ? null : Number(v) } })
               }
@@ -827,9 +846,13 @@ export function BrainSection(): ReactElement {
             />
             {config.council.seats.length > 0 && (
               <p className="truncate text-xs text-muted-foreground">
-                Seat template:{' '}
+                {t('settings:brain.councilSeatTemplate')}{' '}
                 {config.council.seats
-                  .map((seat) => (seat.veto ? `${seat.persona} (veto)` : seat.persona))
+                  .map((seat) =>
+                    seat.veto
+                      ? `${seat.persona} (${t('settings:brain.councilVeto')})`
+                      : seat.persona,
+                  )
                   .join(', ')}
               </p>
             )}
@@ -837,25 +860,25 @@ export function BrainSection(): ReactElement {
 
           {/* Ledger */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
-            <span className="text-sm font-medium">Decision ledger</span>
+            <span className="text-sm font-medium">{t('settings:brain.ledgerHeading')}</span>
             <PreferenceToggle
-              label="Record decisions + outcomes"
-              hint="Persists every decision and its observed outcome; similar past outcomes are fed back into future Brain prompts."
+              label={t('settings:brain.ledgerRecordLabel')}
+              hint={t('settings:brain.ledgerRecordHint')}
               value={config.ledger.enabled}
               onChange={() => sendPatch({ ledger: { enabled: !config.ledger.enabled } })}
               disabled={busy}
             />
             <PreferenceSelect
-              label="Auto-deny after failures"
-              hint="Deny deterministically (no LLM) once this many consecutive approvals of a decision group ended in observed failures."
+              label={t('settings:brain.ledgerAutoDenyLabel')}
+              hint={t('settings:brain.ledgerAutoDenyHint')}
               value={
                 config.ledger.autoDenyAfterFailures !== undefined
                   ? String(config.ledger.autoDenyAfterFailures)
                   : 'default'
               }
               options={[
-                { value: 'default', label: 'Default (3)' },
-                { value: '0', label: 'Off' },
+                { value: 'default', label: t('settings:brain.optDefault3') },
+                { value: '0', label: t('settings:brain.optOff') },
                 { value: '2', label: '2' },
                 { value: '3', label: '3' },
                 { value: '5', label: '5' },
@@ -868,26 +891,26 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceSelect
-              label="In-memory entries"
-              hint="Ring size held in memory, and the number of past entries seeded from disk at boot."
+              label={t('settings:brain.ledgerMemoryEntriesLabel')}
+              hint={t('settings:brain.ledgerMemoryEntriesHint')}
               value={optionalValue(config.ledger.maxMemoryEntries)}
-              options={withCurrent(
+              options={localizeOptions(withCurrent(
                 LEDGER_MEMORY_ENTRIES,
                 optionalValue(config.ledger.maxMemoryEntries),
-              )}
+              ), t)}
               onChange={(v) =>
                 sendPatch({ ledger: { maxMemoryEntries: v === 'default' ? null : Number(v) } })
               }
               disabled={busy}
             />
             <PreferenceSelect
-              label="Intervention retry window"
-              hint="A same-kind monitor intervention re-firing inside this window marks the previous steer as a failure."
+              label={t('settings:brain.ledgerRetryWindowLabel')}
+              hint={t('settings:brain.ledgerRetryWindowHint')}
               value={optionalValue(config.ledger.interventionRetryWindowMs)}
-              options={withCurrent(
+              options={localizeOptions(withCurrent(
                 INTERVENTION_WINDOWS,
                 optionalValue(config.ledger.interventionRetryWindowMs),
-              )}
+              ), t)}
               onChange={(v) =>
                 sendPatch({
                   ledger: { interventionRetryWindowMs: v === 'default' ? null : Number(v) },
@@ -904,11 +927,13 @@ export function BrainSection(): ReactElement {
 
       {/* Recent decisions */}
       <div className="space-y-2 rounded-md border border-border/70 bg-card/70 p-3">
-        <span className="text-sm font-medium">Recent decisions ({log.length})</span>
+        <span className="text-sm font-medium">
+          {t('settings:brain.recentHeading', { count: log.length })}
+        </span>
         <div className="space-y-1 max-h-[300px] overflow-y-auto">
           {log.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">
-              No decisions recorded yet this session.
+              {t('settings:brain.recentEmpty')}
             </p>
           ) : (
             log.map((entry) => (

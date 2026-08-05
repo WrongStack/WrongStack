@@ -95,12 +95,14 @@
     "title": "Bir şeyler ters gitti",
     "body": "Bir oluşturma hatası oluştu. Oturumunuz sunucuda hâlâ etkin — yeniden yüklemek kaldığınız yerden devam eder.",
     "reload": "Sayfayı yeniden yükle",
-    "tryAgain": "Tekrar dene"
+    "tryAgain": "Tekrar dene",
+    "panelTitle": "{{name}} bir hatayla karşılaştı"
   },
   "sparkline": {
     "noActivity": "Etkinlik yok",
     "noActivityYet": "Henüz etkinlik yok",
     "activityMax": "Etkinlik sparkline: en fazla {{count}} olay",
     "activityPeak": "Etkinlik sparkline — tepe {{count}} olay/kova"
-  }
+  },
+  "loadingNamed": "{{name}} yükleniyor…"
 }

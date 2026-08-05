@@ -16,6 +16,7 @@ import { Check, ChevronDown, ChevronRight, Scissors, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { type FlowTask, SddFlowGraph } from './SddFlowGraph';
+import { useAppTranslation } from '@/i18n';
 
 type SendKanban = (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
 
@@ -28,6 +29,7 @@ export function KanbanDecompositionApprovalCard({
   sendKanban: SendKanban;
   onSelectTask: (id: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const pending = board.tasks.filter((task) => task.decomposition?.status === 'proposed');
   if (!pending.length) return null;
@@ -68,7 +70,7 @@ export function KanbanDecompositionApprovalCard({
                 }
                 className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-[11px] font-medium text-success hover:bg-success/20"
               >
-                <Check size={12} /> Approve
+                <Check size={12} /> {t('activity:kanbanDecomp.approve')}
               </button>
               <button
                 type="button"
@@ -81,7 +83,7 @@ export function KanbanDecompositionApprovalCard({
                 }
                 className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/20"
               >
-                <X size={12} /> Reject
+                <X size={12} /> {t('activity:kanbanDecomp.reject')}
               </button>
             </li>
           ))}
@@ -113,6 +115,7 @@ export function KanbanDecompositionPanel({
   sendKanban: SendKanban;
   onSelectTask: (id: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const proposal = task.decomposition;
   const currentStage = stageIndex(task);
 
@@ -156,7 +159,7 @@ export function KanbanDecompositionPanel({
       }),
     ];
     const columns = [
-      { label: 'Parent', taskIds: ['parent'] },
+      { label: t('activity:kanbanDecomp.parent'), taskIds: ['parent'] },
       {
         label: proposal.status === 'applied' ? 'Subtasks' : 'Proposed subtasks',
         taskIds: proposal.proposedSubtasks.map((_, index) => `s${index}`),
@@ -171,7 +174,7 @@ export function KanbanDecompositionPanel({
     <div className="mt-4 rounded-md border p-3">
       <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
         <Scissors size={13} />
-        Decomposition
+        {t('activity:kanbanDecomp.decomposition')}
       </div>
 
       {/* Stage strip */}
@@ -203,7 +206,7 @@ export function KanbanDecompositionPanel({
       {/* Assessment reasons when a split is still needed */}
       {!proposal && task.atomicityAssessment?.verdict === 'needs_decomposition' && (
         <div className="rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-warning">
-          This task should be split before dispatch:
+          {t('activity:kanbanDecomp.thisTaskShouldBeSplitBefore')}
           <ul className="ml-4 mt-1 list-disc">
             {task.atomicityAssessment.criteria
               .filter((criterion) => criterion.score < 1)
@@ -253,7 +256,7 @@ export function KanbanDecompositionPanel({
                 }
                 className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success hover:bg-success/20"
               >
-                <Check size={13} /> Approve &amp; split
+                <Check size={13} /> {t('activity:kanbanDecomp.approveAmpSplit')}
               </button>
               <button
                 type="button"
@@ -266,7 +269,7 @@ export function KanbanDecompositionPanel({
                 }
                 className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/20"
               >
-                <X size={13} /> Reject
+                <X size={13} /> {t('activity:kanbanDecomp.reject')}
               </button>
             </div>
           )}

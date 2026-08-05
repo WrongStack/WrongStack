@@ -69,6 +69,7 @@ export function CouncilLogTimeline() {
 }
 
 function CouncilPanelRow({ panel }: { panel: CouncilPanelEntry }) {
+  const { t } = useAppTranslation();
   const voting = panel.phase === 'voting';
   // `distinctTargetCount < validVoteCount` is the correlated-panel signal the
   // server already computes; recomputing it here from display strings is how
@@ -102,12 +103,12 @@ function CouncilPanelRow({ panel }: { panel: CouncilPanelEntry }) {
               {summarizeCouncilPanel(panel)}
             </span>
             {panel.judgeUsed ? (
-              <Gavel className="h-3 w-3 shrink-0 text-info" aria-label="judge used" />
+              <Gavel className="h-3 w-3 shrink-0 text-info" aria-label={t('activity:councilLogTimeline.judgeUsed')} />
             ) : null}
             {correlated ? (
               <AlertTriangle
                 className="h-3 w-3 shrink-0 text-warning"
-                aria-label="panel not diverse"
+                aria-label={t('activity:councilLogTimeline.panelNotDiverse')}
               />
             ) : null}
           </div>
@@ -137,6 +138,7 @@ function CouncilPanelRow({ panel }: { panel: CouncilPanelEntry }) {
 }
 
 function CouncilSeatRow({ seat }: { seat: CouncilSeatVote }) {
+  const { t } = useAppTranslation();
   const failed = seat.status !== 'valid';
   const verdict = failed ? (seat.error ?? seat.status) : (seat.optionId ?? seat.stance ?? 'stance');
 
@@ -147,7 +149,7 @@ function CouncilSeatRow({ seat }: { seat: CouncilSeatVote }) {
       </span>
       <span className="shrink-0 text-muted-foreground">{seat.persona}</span>
       {seat.veto ? (
-        <ShieldAlert className="h-2.5 w-2.5 shrink-0 text-warning" aria-label="veto" />
+        <ShieldAlert className="h-2.5 w-2.5 shrink-0 text-warning" aria-label={t('activity:councilLogTimeline.veto')} />
       ) : null}
       <span className="text-muted-foreground/50">→</span>
       <span className={cn('truncate', failed ? 'text-destructive' : 'text-foreground')}>

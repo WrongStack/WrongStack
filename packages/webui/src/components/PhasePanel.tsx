@@ -41,15 +41,15 @@ export interface PhasePanelProps {
 
 const STATUS_CONFIG: Record<
   PhaseItem['status'],
-  { icon: React.ReactNode; color: string; bg: string; label: string }
+  { icon: React.ReactNode; color: string; bg: string }
 > = {
-  pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted', label: 'Pending' },
-  ready: { icon: <Play className="w-4 h-4" />, color: 'text-primary', bg: 'bg-primary/10', label: 'Ready' },
-  running: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-warning', bg: 'bg-warning/10', label: 'Running' },
-  paused: { icon: <Pause className="w-4 h-4" />, color: 'text-warning', bg: 'bg-warning/10', label: 'Paused' },
-  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success', bg: 'bg-success/10', label: 'Completed' },
-  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-destructive', bg: 'bg-destructive/10', label: 'Failed' },
-  skipped: { icon: <SkipForward className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted', label: 'Skipped' },
+  pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted' },
+  ready: { icon: <Play className="w-4 h-4" />, color: 'text-primary', bg: 'bg-primary/10' },
+  running: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-warning', bg: 'bg-warning/10' },
+  paused: { icon: <Pause className="w-4 h-4" />, color: 'text-warning', bg: 'bg-warning/10' },
+  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success', bg: 'bg-success/10' },
+  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-destructive', bg: 'bg-destructive/10' },
+  skipped: { icon: <SkipForward className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted' },
 };
 
 const PRIORITY_DOT: Record<PhaseItem['priority'], string> = {

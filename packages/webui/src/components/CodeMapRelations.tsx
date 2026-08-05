@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, GitBranch } from 'lucide-react';
 import type { CodeMapGraphResponse, GraphNodeData, RelationItem } from './codemap-model';
 import { relationItems } from './codemap-model';
+import { useAppTranslation } from '@/i18n';
 
 interface RelationSectionProps {
   title: string;
@@ -14,6 +15,7 @@ interface RelationSectionProps {
 }
 
 export function RelationSection(props: RelationSectionProps): React.ReactElement {
+  const { t } = useAppTranslation();
   const { title, subtitle, items, graph, selectedId, expanded, onToggle, onSelect } = props;
   return (
     <section className="border-b py-3">
@@ -26,7 +28,7 @@ export function RelationSection(props: RelationSectionProps): React.ReactElement
       </div>
       {items.length === 0 ? (
         <p className="px-3 py-2 text-[10px] text-muted-foreground">
-          No relationships in this view.
+          {t('activity:codeMap.noRelationshipsInThisView')}
         </p>
       ) : (
         items.map((item) => {

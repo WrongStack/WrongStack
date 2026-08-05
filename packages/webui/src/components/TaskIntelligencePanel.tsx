@@ -9,6 +9,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { kanbanMetadataText } from '@/lib/kanban-metadata';
 import { activityCategory, buildTaskActivity } from './TaskActivityTimeline';
 
@@ -242,7 +243,9 @@ function Group({ icon, title, children }: { icon: ReactNode; title: string; chil
 }
 
 function RelationList({ items }: { items: RelatedTask[] }) {
-  if (!items.length) return <span className="text-muted-foreground">None</span>;
+  const { t } = useAppTranslation();
+  if (!items.length)
+    return <span className="text-muted-foreground">{t('activity:taskIntel.none')}</span>;
   return (
     <span className="space-y-1">
       {items.map((item) => (
@@ -266,6 +269,7 @@ export function TaskIntelligencePanel({
   sessionProvider,
   sessionModel,
 }: TaskIntelligencePanelProps) {
+  const { t } = useAppTranslation();
   const intelligence = deriveTaskIntelligence(
     board,
     task,
@@ -293,12 +297,12 @@ export function TaskIntelligencePanel({
     <details open className="mt-3 rounded-md border border-primary/25 bg-primary/[0.025]">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <BrainCircuit className="size-4 text-primary" />
-        <span className="text-xs font-semibold">Task intelligence</span>
+        <span className="text-xs font-semibold">{t('activity:taskIntel.heading')}</span>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] uppercase text-muted-foreground">
           {task.status}
         </span>
         <span className="ml-auto text-[10px] text-muted-foreground">
-          {intelligence.eventCount} events
+          {t('activity:taskIntel.eventsCount', { count: intelligence.eventCount })}
         </span>
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </summary>
@@ -310,48 +314,56 @@ export function TaskIntelligencePanel({
               {intelligence.column}
             </span>
             <span className="rounded bg-muted px-1.5 py-0.5">
-              stage:{task.lifecycle?.currentStage ?? 'legacy'}
+              {t('activity:taskIntel.stagePrefix')}
+              {task.lifecycle?.currentStage ?? t('activity:taskIntel.legacyStage')}
             </span>
-            <span className="rounded bg-muted px-1.5 py-0.5">priority:{task.priority}</span>
-            <span className="rounded bg-muted px-1.5 py-0.5">type:{task.type ?? 'inferred'}</span>
+            <span className="rounded bg-muted px-1.5 py-0.5">
+              {t('activity:taskIntel.priorityPrefix')}
+              {task.priority}
+            </span>
+            <span className="rounded bg-muted px-1.5 py-0.5">
+              {t('activity:taskIntel.typePrefix')}
+              {task.type ?? t('activity:taskIntel.inferredType')}
+            </span>
           </div>
           <p className="mt-2 text-[11px] leading-4">
-            <strong>Why here:</strong> {intelligence.reason}
+            <strong>{t('activity:taskIntel.whyHere')}</strong> {intelligence.reason}
           </p>
           {intelligence.blockers.length > 0 && (
             <p className="mt-1 text-[10px] text-warning">
-              {intelligence.blockers.length} unresolved blocker
-              {intelligence.blockers.length === 1 ? '' : 's'}
+              {t('activity:taskIntel.unresolvedBlockers', {
+                count: intelligence.blockers.length,
+              })}
             </p>
           )}
         </section>
 
         <div className="grid gap-2 xl:grid-cols-2">
-          <Group icon={<Bot className="size-3" />} title="Ownership & runtime">
-            <InfoRow label="Owner" value={intelligence.owner} />
+          <Group icon={<Bot className="size-3" />} title={t('activity:taskIntel.ownershipRuntime')}>
+            <InfoRow label={t('activity:taskIntel.owner')} value={intelligence.owner} />
             <InfoRow
-              label="Assignee"
+              label={t('activity:taskIntel.assignee')}
               value={stringValue(task.assignee) ?? stringValue(task.assignedAgent) ?? '—'}
             />
-            <InfoRow label="Agent ID" value={stringValue(assignment?.agentId) ?? '—'} mono />
+            <InfoRow label={t('activity:taskIntel.agentId')} value={stringValue(assignment?.agentId) ?? '—'} mono />
             <InfoRow
-              label="Agent name / role"
+              label={t('activity:taskIntel.agentNameRole')}
               value={
                 [stringValue(assignment?.name), stringValue(assignment?.role)]
                   .filter(Boolean)
                   .join(' · ') || '—'
               }
             />
-            <InfoRow label="Run status" value={stringValue(assignment?.status) ?? 'unassigned'} />
-            <InfoRow label="Subagent" value={stringValue(assignment?.subagentId) ?? '—'} mono />
-            <InfoRow label="Run task" value={stringValue(assignment?.runTaskId) ?? '—'} mono />
+            <InfoRow label={t('activity:taskIntel.runStatus')} value={stringValue(assignment?.status) ?? 'unassigned'} />
+            <InfoRow label={t('activity:taskIntel.subagent')} value={stringValue(assignment?.subagentId) ?? '—'} mono />
+            <InfoRow label={t('activity:taskIntel.runTask')} value={stringValue(assignment?.runTaskId) ?? '—'} mono />
             <InfoRow
-              label="Session(s)"
+              label={t('activity:taskIntel.sessionS')}
               value={intelligence.sessions.join(', ') || 'Unknown'}
               mono
             />
             <InfoRow
-              label="Users / presence"
+              label={t('activity:taskIntel.usersPresence')}
               value={
                 intelligence.presence.length
                   ? intelligence.presence.join(', ')
@@ -360,24 +372,24 @@ export function TaskIntelligencePanel({
             />
           </Group>
 
-          <Group icon={<Route className="size-3" />} title="Model route & fallback">
-            <InfoRow label="Routing mode" value={intelligence.routingMode} />
-            <InfoRow label="Primary" value={intelligence.primaryModel} mono />
-            <InfoRow label="Provider" value={intelligence.provider ?? '—'} mono />
-            <InfoRow label="Model" value={intelligence.model ?? '—'} mono />
-            <InfoRow label="Fallback route" value={intelligence.fallbackRoute} mono />
+          <Group icon={<Route className="size-3" />} title={t('activity:taskIntel.modelRouteFallback')}>
+            <InfoRow label={t('activity:taskIntel.routingMode')} value={intelligence.routingMode} />
+            <InfoRow label={t('activity:taskIntel.primary')} value={intelligence.primaryModel} mono />
+            <InfoRow label={t('activity:taskIntel.provider')} value={intelligence.provider ?? '—'} mono />
+            <InfoRow label={t('activity:taskIntel.model')} value={intelligence.model ?? '—'} mono />
+            <InfoRow label={t('activity:taskIntel.fallbackRoute')} value={intelligence.fallbackRoute} mono />
             <InfoRow
-              label="Skills"
+              label={t('activity:taskIntel.skills')}
               value={assignment?.skills?.map(stringValue).filter(Boolean).join(', ') || 'Default'}
             />
             <InfoRow
-              label="Tools"
+              label={t('activity:taskIntel.tools')}
               value={
                 assignment?.tools?.map(stringValue).filter(Boolean).join(', ') || 'Default toolset'
               }
             />
             <InfoRow
-              label="Capabilities"
+              label={t('activity:taskIntel.capabilities')}
               value={
                 assignment?.allowedCapabilities?.map(stringValue).filter(Boolean).join(', ') ||
                 'Safe defaults'
@@ -386,17 +398,17 @@ export function TaskIntelligencePanel({
             />
           </Group>
 
-          <Group icon={<ShieldCheck className="size-3" />} title="Execution policy & outcome">
+          <Group icon={<ShieldCheck className="size-3" />} title={t('activity:taskIntel.executionPolicyOutcome')}>
             <InfoRow
-              label="Attempts"
+              label={t('activity:taskIntel.attempts')}
               value={`${intelligence.attempts}${assignment?.maxAttempts ? ` / ${assignment.maxAttempts}` : ''}`}
             />
             <InfoRow
-              label="Retry policy"
+              label={t('activity:taskIntel.retryPolicy')}
               value={assignment?.retryPolicy ?? task.retryPolicy ?? 'off'}
             />
             <InfoRow
-              label="Cost ceiling"
+              label={t('activity:taskIntel.costCeiling')}
               value={
                 (assignment?.costCeilingUsd ?? task.costCeilingUsd) != null
                   ? `$${(assignment?.costCeilingUsd ?? task.costCeilingUsd)!.toFixed(2)}`
@@ -404,53 +416,53 @@ export function TaskIntelligencePanel({
               }
             />
             <InfoRow
-              label="Failures / done"
+              label={t('activity:taskIntel.failuresDone')}
               value={`${intelligence.failures} / ${intelligence.completions}`}
             />
-            <InfoRow label="Checks" value={`${passedChecks} / ${checkCount} passed`} />
-            <InfoRow label="Last failure" value={intelligence.lastFailure ?? '—'} />
-            <InfoRow label="Result" value={intelligence.lastResult ?? 'No result recorded'} />
+            <InfoRow label={t('activity:taskIntel.checks')} value={`${passedChecks} / ${checkCount} passed`} />
+            <InfoRow label={t('activity:taskIntel.lastFailure')} value={intelligence.lastFailure ?? '—'} />
+            <InfoRow label={t('activity:taskIntel.result')} value={intelligence.lastResult ?? 'No result recorded'} />
           </Group>
 
-          <Group icon={<Activity className="size-3" />} title="Timing & audit coverage">
-            <InfoRow label="Created" value={displayDate(task.createdAt)} />
-            <InfoRow label="Updated" value={displayDate(task.updatedAt)} />
-            <InfoRow label="Due" value={displayDate(task.dueDate)} />
+          <Group icon={<Activity className="size-3" />} title={t('activity:taskIntel.timingAuditCoverage')}>
+            <InfoRow label={t('activity:taskIntel.created')} value={displayDate(task.createdAt)} />
+            <InfoRow label={t('activity:taskIntel.updated')} value={displayDate(task.updatedAt)} />
+            <InfoRow label={t('activity:taskIntel.due')} value={displayDate(task.dueDate)} />
             <InfoRow
-              label="Dispatched"
+              label={t('activity:taskIntel.dispatched')}
               value={displayDate(assignment?.dispatchedAt ?? assignment?.claimedAt)}
             />
             <InfoRow
-              label="Completed"
+              label={t('activity:taskIntel.completed')}
               value={displayDate(assignment?.completedAt ?? task.completedAt)}
             />
             <InfoRow
-              label="Duration"
+              label={t('activity:taskIntel.duration')}
               value={displayDuration(
                 assignment?.dispatchedAt ?? assignment?.claimedAt,
                 assignment?.completedAt,
               )}
             />
-            <InfoRow label="Heartbeat" value={displayDate(assignment?.heartbeatAt)} />
-            <InfoRow label="Lease expires" value={displayDate(assignment?.leaseExpiresAt)} />
-            <InfoRow label="Actors" value={intelligence.actors.join(', ') || 'Unknown'} mono />
+            <InfoRow label={t('activity:taskIntel.heartbeat')} value={displayDate(assignment?.heartbeatAt)} />
+            <InfoRow label={t('activity:taskIntel.leaseExpires')} value={displayDate(assignment?.leaseExpiresAt)} />
+            <InfoRow label={t('activity:taskIntel.actors')} value={intelligence.actors.join(', ') || 'Unknown'} mono />
           </Group>
         </div>
 
-        <Group icon={<GitBranch className="size-3" />} title="Dependencies, chain & provenance">
+        <Group icon={<GitBranch className="size-3" />} title={t('activity:taskIntel.dependenciesChainProvenance')}>
           <InfoRow
-            label="Dependencies"
+            label={t('activity:taskIntel.dependencies')}
             value={<RelationList items={intelligence.dependencies} />}
           />
-          <InfoRow label="Other relations" value={<RelationList items={relations} />} />
+          <InfoRow label={t('activity:taskIntel.otherRelations')} value={<RelationList items={relations} />} />
           <InfoRow
-            label="Chain"
+            label={t('activity:taskIntel.chain')}
             value={task.chain ? `${task.chain.chainId} · position ${task.chain.order}` : 'None'}
             mono
           />
-          <InfoRow label="Origin system" value={task.origin?.system ?? 'manual'} />
+          <InfoRow label={t('activity:taskIntel.originSystem')} value={task.origin?.system ?? 'manual'} />
           <InfoRow
-            label="Origin IDs"
+            label={t('activity:taskIntel.originIds')}
             value={
               task.origin
                 ? [task.origin.graphId, task.origin.phaseId, task.origin.taskId, task.origin.specId]
@@ -460,8 +472,8 @@ export function TaskIntelligencePanel({
             }
             mono
           />
-          <InfoRow label="Task ID" value={task.id} mono />
-          <InfoRow label="Board ID" value={board.id} mono />
+          <InfoRow label={t('activity:taskIntel.taskId')} value={task.id} mono />
+          <InfoRow label={t('activity:taskIntel.boardId')} value={board.id} mono />
         </Group>
       </div>
     </details>

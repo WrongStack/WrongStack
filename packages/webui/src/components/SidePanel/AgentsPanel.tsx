@@ -18,13 +18,12 @@ type AgentFilter = 'all' | 'running' | 'completed' | 'failed';
 
 const FILTER_OPTIONS: Array<{
   value: AgentFilter;
-  label: string;
   translationKey: `activity:agents.filter${string}`;
 }> = [
-  { value: 'all', label: 'All', translationKey: 'activity:agents.filterAll' },
-  { value: 'running', label: 'Running', translationKey: 'activity:agents.filterRunning' },
-  { value: 'completed', label: 'Done', translationKey: 'activity:agents.filterCompleted' },
-  { value: 'failed', label: 'Failed', translationKey: 'activity:agents.filterFailed' },
+  { value: 'all', translationKey: 'activity:agents.filterAll' },
+  { value: 'running', translationKey: 'activity:agents.filterRunning' },
+  { value: 'completed', translationKey: 'activity:agents.filterCompleted' },
+  { value: 'failed', translationKey: 'activity:agents.filterFailed' },
 ];
 
 export function AgentsPanel() {
@@ -247,7 +246,7 @@ export function AgentsPanel() {
       <div
         ref={rosterRef}
         role="listbox"
-        aria-label="Agent roster"
+        aria-label={t('activity:agentsPanel.agentRoster')}
         aria-activedescendant={focusedIndex >= 0 ? `agent-card-${filteredList[focusedIndex]?.id}` : undefined}
         tabIndex={0}
         onKeyDown={handleRosterKeyDown}

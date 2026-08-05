@@ -5,6 +5,7 @@ import { CodeMapSelectedNodeSummary } from './CodeMapSelectedNodeSummary';
 import { LiveOperationRow } from './CodeMapLiveOverlay';
 import { RelationSection } from './CodeMapRelations';
 import type { CodeMapGraphResponse, GraphNodeData, RelationItem } from './codemap-model';
+import { useAppTranslation } from '@/i18n';
 
 interface CodeMapRelationInspectorProps {
   selectedNode: GraphNodeData | undefined;
@@ -41,16 +42,17 @@ export function CodeMapRelationInspector({
   onToggleRelation,
   onSelectNode,
 }: CodeMapRelationInspectorProps): React.ReactElement {
+  const { t } = useAppTranslation();
   return (
     <aside className="flex w-[326px] shrink-0 flex-col border-l bg-card/80">
       <div className="flex h-10 items-center justify-between border-b px-3">
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">Relation inspector</h2>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">{t('activity:codeMap.relationInspector')}</h2>
         {selectedNode && (
           <button
             type="button"
             className="text-muted-foreground hover:text-foreground"
             onClick={onClearSelection}
-            aria-label="Clear selection"
+            aria-label={t('activity:codeMap.clearSelection')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -77,7 +79,7 @@ export function CodeMapRelationInspector({
               <div className="mb-1 flex items-center gap-2 px-3">
                 <Radio className="h-3 w-3 animate-pulse text-success" />
                 <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">
-                  Agents on this node
+                  {t('activity:codeMap.agentsOnThisNode')}
                 </h3>
                 <span className="ml-auto font-mono text-[9px] text-success">
                   {selectedActivities.length}
@@ -94,8 +96,8 @@ export function CodeMapRelationInspector({
             </section>
           )}
           <RelationSection
-            title="Incoming"
-            subtitle="Who depends on this"
+            title={t('activity:codeMap.incoming')}
+            subtitle={t('activity:codeMap.whoDependsOnThis')}
             items={incoming}
             graph={filteredGraph}
             selectedId={selectedNode.id}
@@ -104,8 +106,8 @@ export function CodeMapRelationInspector({
             onSelect={onSelectNode}
           />
           <RelationSection
-            title="Outgoing"
-            subtitle="What this depends on"
+            title={t('activity:codeMap.outgoing')}
+            subtitle={t('activity:codeMap.whatThisDependsOn')}
             items={outgoing}
             graph={filteredGraph}
             selectedId={selectedNode.id}

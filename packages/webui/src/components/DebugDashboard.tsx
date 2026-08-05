@@ -394,11 +394,11 @@ export function DebugDashboard() {
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Gauge className="h-4 w-4 text-primary" />
-            WebUI Server Process
+            {t('activity:debugDash.webuiServerProcess')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
-              title="Process RAM (RSS)"
+              title={t('activity:debugDash.processRamRss')}
               value={formatBytes(data.system?.memoryUsage?.rss ?? 0)}
               subtitle={data.system ? `PID ${data.system.pid}` : undefined}
               icon={Server}
@@ -419,16 +419,16 @@ export function DebugDashboard() {
               color="text-success"
             />
             <MetricCard
-              title="V8 Heap Limit"
+              title={t('activity:debugDash.v8HeapLimit')}
               value={formatBytes(data.system?.heapLimit ?? 0)}
-              subtitle="Configured old-space ceiling"
+              subtitle={t('activity:debugDash.oldSpaceCeiling')}
               icon={Gauge}
               color="text-warning"
             />
             <MetricCard
-              title="Server Uptime"
+              title={t('activity:debugDash.serverUptime')}
               value={formatUptime(data.system?.uptime ?? 0)}
-              subtitle="Since process start"
+              subtitle={t('activity:debugDash.sinceProcessStart')}
               icon={Clock}
               color="text-primary"
             />
@@ -439,18 +439,18 @@ export function DebugDashboard() {
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Activity className="h-4 w-4 text-primary" />
-            Live WrongStack Processes
+            {t('activity:debugDash.liveWrongstackProcesses')}
           </h2>
           <div className="overflow-x-auto rounded-xl border border-border/70 bg-card/75 shadow-sm">
             <table className="w-full min-w-[980px] text-left text-xs">
               <thead className="border-b border-border/70 bg-muted/35 text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Surface</th>
-                  <th className="px-3 py-2 font-medium">Memory</th>
-                  <th className="px-3 py-2 font-medium">Growth / signal</th>
-                  <th className="px-3 py-2 font-medium">Workload</th>
-                  <th className="px-3 py-2 font-medium">HQ offline queue</th>
-                  <th className="px-3 py-2 font-medium">Resources / hotspot</th>
+                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.surface')}</th>
+                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.memory')}</th>
+                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.growthSignal')}</th>
+                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.workload')}</th>
+                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.hqOfflineQueue')}</th>
+                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.resourcesHotspot')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -607,7 +607,7 @@ export function DebugDashboard() {
                 {(data.system?.processes?.length ?? 0) === 0 ? (
                   <tr>
                     <td className="px-3 py-5 text-muted-foreground" colSpan={6}>
-                      Waiting for heap flight-recorder samples…
+                      {t('activity:debugDash.waitingForHeapFlightRecorderSamples')}
                     </td>
                   </tr>
                 ) : null}
@@ -620,11 +620,11 @@ export function DebugDashboard() {
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Server className="h-4 w-4 text-primary" />
-            Codebase Index Server
+            {t('activity:debugDash.codebaseIndexServer')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
-              title="Connection"
+              title={t('activity:debugDash.connection')}
               value={
                 data.system?.codebaseIndexServer?.health?.status ??
                 data.system?.codebaseIndexServer?.status ??
@@ -646,21 +646,21 @@ export function DebugDashboard() {
               }
             />
             <MetricCard
-              title="Index RAM (RSS)"
+              title={t('activity:debugDash.indexRamRss')}
               value={formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.rss ?? 0)}
               subtitle={`Heap ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapUsed ?? 0)} / ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapTotal ?? 0)}`}
               icon={BarChart3}
               color="text-primary"
             />
             <MetricCard
-              title="Index Workload"
+              title={t('activity:debugDash.indexWorkload')}
               value={`${data.system?.codebaseIndexServer?.health?.server?.activeRequests ?? 0} requests`}
               subtitle={`${data.system?.codebaseIndexServer?.health?.server?.activeWrites ?? 0} writes · ${data.system?.codebaseIndexServer?.health?.server?.queuedWrites ?? 0} queued`}
               icon={Gauge}
               color="text-primary"
             />
             <MetricCard
-              title="Index Watcher"
+              title={t('activity:debugDash.indexWatcher')}
               value={
                 data.system?.codebaseIndexServer?.health?.server?.watchingExternal
                   ? 'Active'

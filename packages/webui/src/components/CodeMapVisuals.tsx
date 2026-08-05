@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { ActivityType, FileActivity } from '@/stores/codemap-activity-store';
 import type { GraphNodeData, GraphRefType } from './codemap-model';
 import { relativeFilePath } from './codemap-model';
+import { useAppTranslation } from '@/i18n';
 
 export const NODE_STYLE: Record<
   GraphNodeData['kind'],
@@ -93,6 +94,7 @@ export interface CodeMapNodeData extends Record<string, unknown> {
 }
 
 function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElement {
+  const { t } = useAppTranslation();
   const {
     graphNode,
     selected,
@@ -204,8 +206,8 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
           </div>
         </div>
         <div className="flex items-center gap-3 border-t bg-muted/30 px-3 py-1.5 font-mono text-[9px] text-muted-foreground">
-          <span title="Incoming relationships">← {incoming}</span>
-          <span title="Outgoing relationships">→ {outgoing}</span>
+          <span title={t('activity:codeMapVisuals.incomingRelationships')}>← {incoming}</span>
+          <span title={t('activity:codeMapVisuals.outgoingRelationships')}>→ {outgoing}</span>
           {graphNode.symbolCount !== undefined && graphNode.kind === 'file' && (
             <span className="ml-auto">{graphNode.symbolCount} sym</span>
           )}

@@ -9,6 +9,7 @@ import {
 } from '@/lib/model-calendar';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useAppTranslation } from '@/i18n';
 
 function logicalTarget(provider: string, model: string) {
   if (provider !== 'omniroute') return { providerId: provider, model };
@@ -27,6 +28,7 @@ export function AvailabilityCalendarEditor({
   candidates: ModelCandidate[];
   onChange: (rules: ModelBlackoutRule[]) => void;
 }) {
+  const { t } = useAppTranslation();
   const options = useMemo(() => {
     const refs = candidates.map((candidate) => {
       const logical = logicalTarget(candidate.provider, candidate.model);
@@ -140,7 +142,7 @@ export function AvailabilityCalendarEditor({
             <Input
               value={rule.timezone ?? timezone}
               onChange={(event) => patchRule(index, { timezone: event.target.value })}
-              placeholder="Europe/Kiev"
+              placeholder={t('activity:availability.europeKiev')}
             />
           </div>
           <select
@@ -150,8 +152,8 @@ export function AvailabilityCalendarEditor({
             }
             className="h-8 rounded-md border bg-background px-2 text-xs"
           >
-            <option value="blackout">Do not use inside this window</option>
-            <option value="allow_only">Use only inside this window</option>
+            <option value="blackout">{t('activity:availability.doNotUseInsideThisWindow')}</option>
+            <option value="allow_only">{t('activity:availability.useOnlyInsideThisWindow')}</option>
           </select>
         </div>
       ))}
@@ -174,15 +176,15 @@ export function AvailabilityCalendarEditor({
             checked={providerWide}
             onChange={(event) => setProviderWide(event.target.checked)}
           />
-          Apply this schedule to the whole provider
+          {t('activity:availability.applyThisScheduleToTheWhole')}
         </label>
         <select
           value={mode}
           onChange={(event) => setMode(event.target.value as 'blackout' | 'allow_only')}
           className="h-9 w-full rounded-md border bg-background px-2 text-xs"
         >
-          <option value="blackout">Do not use during selected times</option>
-          <option value="allow_only">Use only during selected times</option>
+          <option value="blackout">{t('activity:availability.doNotUseDuringSelectedTimes')}</option>
+          <option value="allow_only">{t('activity:availability.useOnlyDuringSelectedTimes')}</option>
         </select>
         <div className="flex flex-wrap gap-1">
           {DAYS.map((day, index) => (
@@ -212,7 +214,7 @@ export function AvailabilityCalendarEditor({
             onClick={add}
             disabled={!target || days.length === 0}
           >
-            <Plus className="mr-1 h-3.5 w-3.5" /> Add schedule
+            <Plus className="mr-1 h-3.5 w-3.5" /> {t('activity:availability.addSchedule')}
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground">

@@ -26,6 +26,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
 import { useConfigStore } from '@/stores/config-store';
 import { useUIStore } from '@/stores/ui-store';
+import { useAppTranslation } from '@/i18n';
 import {
   ensureInspectHandlerInstalled,
   useSessionInspectStore,
@@ -89,18 +90,21 @@ function eventColor(type: string): string {
   }
 }
 
-function outcomeBadge(outcome?: string): { label: string; cls: string } {
+function outcomeBadge(
+  outcome: string | undefined,
+  t: (key: string) => string,
+): { label: string; cls: string } {
   switch (outcome) {
     case 'completed':
-      return { label: 'Completed', cls: 'border-success/30 bg-success/10 text-success' };
+      return { label: t('activity:sessionInspect.outcomeCompleted'), cls: 'border-success/30 bg-success/10 text-success' };
     case 'error':
-      return { label: 'Error', cls: 'border-destructive/30 bg-destructive/10 text-destructive' };
+      return { label: t('activity:sessionInspect.outcomeError'), cls: 'border-destructive/30 bg-destructive/10 text-destructive' };
     case 'timeout':
-      return { label: 'Timed out', cls: 'border-warning/30 bg-warning/10 text-warning' };
+      return { label: t('activity:sessionInspect.outcomeTimeout'), cls: 'border-warning/30 bg-warning/10 text-warning' };
     case 'aborted':
-      return { label: 'Aborted', cls: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
+      return { label: t('activity:sessionInspect.outcomeAborted'), cls: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
     default:
-      return { label: 'Unknown', cls: 'border-border bg-muted text-muted-foreground' };
+      return { label: t('activity:sessionInspect.outcomeUnknown'), cls: 'border-border bg-muted text-muted-foreground' };
   }
 }
 
@@ -115,6 +119,7 @@ const operationLabel: Record<string, string> = {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function SessionInspectView() {
+  const { t } = useAppTranslation();
   const inspectSessionId = useUIStore((s) => s.inspectSessionId);
   const clearInspectSession = useUIStore((s) => s.clearInspectSession);
   const { inspectSession } = useWebSocket();
@@ -177,7 +182,7 @@ export function SessionInspectView() {
       <div className="flex h-full min-h-0 items-center justify-center bg-[hsl(var(--surface-2)/0.45)]">
         <div className="flex items-center gap-3 px-5 py-4 border border-border/60 bg-card text-sm text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          Loading session inspection…
+          {t('activity:sessionInspect.loadingSessionInspection')}
         </div>
       </div>
     );
@@ -195,7 +200,7 @@ export function SessionInspectView() {
           className="mt-2 inline-flex items-center gap-1.5 border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to sessions
+          {t('activity:sessionInspect.backToSessions')}
         </button>
       </div>
     );
@@ -207,9 +212,9 @@ export function SessionInspectView() {
       <div className="flex h-full min-h-0 items-center justify-center bg-[hsl(var(--surface-2)/0.45)]">
         <div className="flex max-w-sm flex-col items-center gap-3 p-6 text-center">
           <Search className="h-9 w-9 text-muted-foreground opacity-30" />
-          <p className="text-sm font-medium text-foreground">No session selected</p>
+          <p className="text-sm font-medium text-foreground">{t('activity:sessionInspect.noSessionSelected')}</p>
           <p className="text-xs text-muted-foreground">
-            Select a session from the Sessions dashboard or sidebar to inspect it.
+            {t('activity:sessionInspect.selectASessionFromTheSessions')}
           </p>
         </div>
       </div>
@@ -219,7 +224,7 @@ export function SessionInspectView() {
   if (!payload) return null;
 
   // ═══════════ DATA ══════════════════════════════════════════════════
-  const badge = outcomeBadge(payload.outcome);
+  const badge = outcomeBadge(payload.outcome, t);
   const displayName = payload.name || payload.title || 'Untitled';
 
   // ═══════════ RENDER ════════════════════════════════════════════════
@@ -235,7 +240,7 @@ export function SessionInspectView() {
               className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to sessions
+              {t('activity:sessionInspect.backToSessions')}
             </button>
             <div className="flex items-center gap-2">
               <h1 className="truncate text-lg font-semibold tracking-tight" title={displayName}>
@@ -288,10 +293,10 @@ export function SessionInspectView() {
             onClick={handleRefresh}
             disabled={!wsConnected}
             className="inline-flex h-8 items-center gap-1 border border-border/70 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted disabled:opacity-40"
-            title="Refresh"
+            title={t('activity:sessionInspect.refresh')}
           >
             <RotateCw className="h-3.5 w-3.5" />
-            Refresh
+            {t('activity:sessionInspect.refresh')}
           </button>
         </div>
       </header>
@@ -299,36 +304,36 @@ export function SessionInspectView() {
       <div className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
         {/* ── Stats grid ──────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-          <StatCard icon={Cpu} label="Tokens" value={formatCompactNumber(payload.tokenTotal)} />
+          <StatCard icon={Cpu} label={t('activity:sessionInspect.tokens')} value={formatCompactNumber(payload.tokenTotal)} />
           <StatCard
             icon={MessageSquareText}
-            label="Messages"
+            label={t('activity:sessionInspect.messages')}
             value={formatCompactNumber(payload.messageCount)}
           />
           <StatCard
             icon={Activity}
-            label="Iterations"
+            label={t('activity:sessionInspect.iterations')}
             value={formatCompactNumber(payload.iterationCount)}
           />
           <StatCard
             icon={Wrench}
-            label="Tool calls"
+            label={t('activity:sessionInspect.toolCalls')}
             value={formatCompactNumber(payload.toolCallCount)}
             errorCount={payload.toolErrorCount > 0 ? payload.toolErrorCount : undefined}
           />
           <StatCard
             icon={FileCode2}
-            label="Files"
+            label={t('activity:sessionInspect.files')}
             value={formatCompactNumber(payload.fileChangeCount)}
           />
           <StatCard
             icon={RotateCw}
-            label="Compactions"
+            label={t('activity:sessionInspect.compactions')}
             value={formatCompactNumber(payload.compactionCount)}
           />
           <StatCard
             icon={History}
-            label="Events"
+            label={t('activity:sessionInspect.events')}
             value={formatCompactNumber(payload.events.length)}
           />
         </div>
@@ -340,7 +345,7 @@ export function SessionInspectView() {
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold">Event timeline</h2>
+                <h2 className="text-sm font-semibold">{t('activity:sessionInspect.eventTimeline')}</h2>
                 <span className="font-mono text-[10px] text-muted-foreground">
                   {filteredEvents.length} / {payload.events.length}
                 </span>
@@ -352,7 +357,7 @@ export function SessionInspectView() {
                     type="search"
                     value={eventFilter}
                     onChange={(e) => setEventFilter(e.target.value)}
-                    placeholder="Filter events…"
+                    placeholder={t('activity:sessionInspect.filterEvents')}
                     className="h-7 w-36 border border-border/60 bg-background pl-7 pr-2 text-[11px] outline-none focus:border-primary"
                   />
                 </div>
@@ -369,7 +374,7 @@ export function SessionInspectView() {
               <div className="divide-y divide-border/60">
                 {filteredEvents.length === 0 ? (
                   <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No events match the filter.
+                    {t('activity:sessionInspect.noEventsMatchTheFilter')}
                   </div>
                 ) : (
                   filteredEvents.map((evt, idx) => {
@@ -412,7 +417,7 @@ export function SessionInspectView() {
               <section className="border border-border/70 bg-card/70">
                 <div className="flex items-center gap-2 border-b border-border/70 px-4 py-2.5">
                   <Wrench className="h-4 w-4 text-primary" />
-                  <h2 className="text-sm font-semibold">Tool breakdown</h2>
+                  <h2 className="text-sm font-semibold">{t('activity:sessionInspect.toolBreakdown')}</h2>
                 </div>
                 <div className="divide-y divide-border/60">
                   {sortedTools.map(([name, count]) => (
@@ -435,7 +440,7 @@ export function SessionInspectView() {
               <section className="border border-border/70 bg-card/70">
                 <div className="flex items-center gap-2 border-b border-border/70 px-4 py-2.5">
                   <FileCode2 className="h-4 w-4 text-success" />
-                  <h2 className="text-sm font-semibold">File changes</h2>
+                  <h2 className="text-sm font-semibold">{t('activity:sessionInspect.fileChanges')}</h2>
                   <span className="font-mono text-[10px] text-muted-foreground">
                     {payload.fileEvents.length}
                   </span>

@@ -95,12 +95,14 @@
     "title": "Something went wrong",
     "body": "A rendering error occurred. Your session is still active on the server — reloading will pick up where you left off.",
     "reload": "Reload page",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "panelTitle": "{{name}} hit an error"
   },
   "sparkline": {
     "noActivity": "No activity",
     "noActivityYet": "No activity yet",
     "activityMax": "Activity sparkline: max {{count}} events",
     "activityPeak": "Activity sparkline — peak {{count}} events/bucket"
-  }
+  },
+  "loadingNamed": "Loading {{name}}…"
 }

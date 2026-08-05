@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bot, FileText, RefreshCw, Settings, Sparkles, Trash2, AlertTriangle, Database, BookOpen } from 'lucide-react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 // ─── Types (mirror of ProjectAgentLearnStats from project-agent-identity.ts) ──
@@ -89,6 +90,7 @@ interface CustomRosterPanelProps {
 }
 
 export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
+  const { t } = useAppTranslation();
   const [roles, setRoles] = useState<ProjectAgentLearnStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       const data = await sendRosterMessage('agent-roster.list', { projectRoot }) as { roles: string[]; stats: ProjectAgentLearnStats[] };
       setRoles(data.stats ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load roster');
+      setError(err instanceof Error ? err.message : t('activity:customRoster.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -158,7 +160,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       };
       const payload: Record<string, unknown> = { role: selectedRole, projectRoot };
       if (editMode === 'config') {
-        try { payload.config = JSON.parse(editContent); } catch { throw new Error('Invalid JSON'); }
+        try { payload.config = JSON.parse(editContent); } catch { throw new Error(t('activity:customRoster.invalidJson')); }
       } else {
         payload.content = editContent;
       }
@@ -166,7 +168,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       setEditMode(null);
       loadRoster();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      setError(err instanceof Error ? err.message : t('activity:agentRoster.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -180,9 +182,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       const data = await sendRosterMessage('agent-roster.llm-improve', {
         role: selectedRole, prompt: improvePrompt, projectRoot,
       }) as { instruction: string };
-      setImproveResult(data.instruction ?? 'No improvement suggestion generated.');
+      setImproveResult(data.instruction ?? t('activity:customRoster.noImprovement'));
     } catch (err) {
-      setImproveResult(err instanceof Error ? err.message : 'LLM improve failed');
+      setImproveResult(err instanceof Error ? err.message : t('activity:customRoster.improveFailed'));
     }
   };
 
@@ -197,14 +199,14 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
         role: selectedRole, content, projectRoot,
       }) as { success: boolean; path: string };
       if (data.success) {
-        setTeachFeedback({ ok: true, msg: 'Behavior saved to learned.md' });
+        setTeachFeedback({ ok: true, msg: t('activity:customRoster.behaviorSaved') });
         setTeachInput('');
         loadRoster();
       } else {
-        setTeachFeedback({ ok: false, msg: 'Save failed - see server logs' });
+        setTeachFeedback({ ok: false, msg: t('activity:customRoster.saveFailedServer') });
       }
     } catch (err) {
-      setTeachFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Teach failed' });
+      setTeachFeedback({ ok: false, msg: err instanceof Error ? err.message : t('activity:agentRoster.teachFailed') });
     } finally {
       setSaving(false);
     }
@@ -258,7 +260,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       <div className="flex items-center justify-center h-full text-destructive">
         <AlertTriangle className="h-4 w-4 mr-2" />
         {error}
-        <button type="button" onClick={loadRoster} className="ml-2 underline">Retry</button>
+        <button type="button" onClick={loadRoster} className="ml-2 underline">{t('common:action.retry')}</button>
       </div>
     );
   }
@@ -267,7 +269,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-        Loading custom roster…
+        {t('activity:customRoster.loading')}
       </div>
     );
   }
@@ -276,9 +278,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4 p-8">
         <Bot className="h-12 w-12 opacity-30" />
-        <p className="text-lg font-medium">No Custom Roster Agents</p>
+        <p className="text-lg font-medium">{t('activity:customRoster.emptyTitle')}</p>
         <p className="text-sm text-center max-w-md">
-          Project-custom agents appear here when you create or edit files under
+          {t('activity:customRoster.emptyBody')}
           <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded">.wrongstack/agents/&lt;role&gt;/</code>
         </p>
         <button
@@ -286,7 +288,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
           onClick={() => { startEdit('executor', 'identity'); setSelectedRole('executor'); }}
           className="text-sm text-primary hover:underline mt-2"
         >
-          + Create executor identity
+          {t('activity:customRoster.createExecutorIdentity')}
         </button>
       </div>
     );
@@ -297,7 +299,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       {/* ── Role list sidebar ── */}
       <div className="w-64 border-r border-line shrink-0 overflow-y-auto">
         <div className="p-3 border-b border-line flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Custom Roster</h2>
+          <h2 className="text-sm font-semibold">{t('activity:customRoster.heading')}</h2>
           <button type="button" onClick={loadRoster} className="p-1 hover:bg-accent rounded">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
@@ -330,7 +332,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {!selectedRole && (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            Select a role to inspect or edit
+            {t('activity:agentRoster.selectRoleEmpty')}
           </div>
         )}
         {selectedRole && selectedStats && (
@@ -339,10 +341,10 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{selectedRole}</h3>
               <div className="flex gap-1">
-                <button type="button" onClick={() => runCapture(selectedRole)} className="btn-sm" title="Capture learned">
+                <button type="button" onClick={() => runCapture(selectedRole)} className="btn-sm" title={t('activity:agentRoster.captureLearned')}>
                   <Database className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => runReset(selectedRole)} className="btn-sm text-destructive" title="Reset">
+                <button type="button" onClick={() => runReset(selectedRole)} className="btn-sm text-destructive" title={t('common:action.reset')}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -351,15 +353,15 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             {/* Stats bar */}
             <div className="grid grid-cols-4 gap-3 text-xs">
               <div className="bg-card rounded-lg p-2 border border-line">
-                <div className="text-muted-foreground">Entries</div>
+                <div className="text-muted-foreground">{t('activity:customRoster.entries')}</div>
                 <div className="text-lg font-semibold">{selectedStats.entryCount}</div>
               </div>
               <div className="bg-card rounded-lg p-2 border border-line">
-                <div className="text-muted-foreground">Size</div>
+                <div className="text-muted-foreground">{t('activity:customRoster.size')}</div>
                 <div className="text-lg font-semibold">{selectedStats.totalBytes}B</div>
               </div>
               <div className="bg-card rounded-lg p-2 border border-line">
-                <div className="text-muted-foreground">Last Capture</div>
+                <div className="text-muted-foreground">{t('activity:agentRoster.lastCapture')}</div>
                 <div className="text-lg font-semibold">
                   {selectedStats.lastCapture
                     ? new Date(selectedStats.lastCapture).toLocaleDateString()
@@ -367,7 +369,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                 </div>
               </div>
               <div className="bg-card rounded-lg p-2 border border-line">
-                <div className="text-muted-foreground">Session Captures</div>
+                <div className="text-muted-foreground">{t('activity:customRoster.sessionCaptures')}</div>
                 <div className="text-lg font-semibold">{selectedStats.sessionCaptureCount}/3</div>
               </div>
             </div>
@@ -391,17 +393,18 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             {/* Edit buttons */}
             <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={() => startEdit(selectedRole, 'identity')} className="btn-sm">
-                <FileText className="h-3.5 w-3.5 mr-1" /> Edit identity.md
+                <FileText className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.editIdentity')}
               </button>
               <button type="button" onClick={() => startEdit(selectedRole, 'learned')} className="btn-sm">
-                <Database className="h-3.5 w-3.5 mr-1" /> Edit learned.md
+                <Database className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.editLearned')}
               </button>
               <button type="button" onClick={() => startEdit(selectedRole, 'config')} className="btn-sm">
-                <Settings className="h-3.5 w-3.5 mr-1" /> Edit config.json
+                <Settings className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.editConfig')}
               </button>
               {selectedStats.entryCount > 0 && !reviewEntries && (
                 <button type="button" onClick={() => loadReviewEntries(selectedRole)} className="btn-sm">
-                  <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Review entries ({selectedStats.entryCount})
+                  <AlertTriangle className="h-3.5 w-3.5 mr-1" />{' '}
+                  {t('activity:customRoster.reviewEntries', { count: selectedStats.entryCount })}
                 </button>
               )}
             </div>
@@ -411,14 +414,17 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
               <div className="space-y-2 border border-line rounded-lg p-3 bg-card">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
-                    Review learned entries ({reviewEntries.filter((_, i) => reviewDecisions[i] !== 'drop').length}/{reviewEntries.length} kept)
+                    {t('activity:customRoster.reviewLearnedEntries', {
+                      kept: reviewEntries.filter((_, i) => reviewDecisions[i] !== 'drop').length,
+                      total: reviewEntries.length,
+                    })}
                   </span>
                   <div className="flex gap-2">
                     <button type="button" onClick={applyReview} disabled={reviewBusy} className="btn-sm btn-primary">
-                      {reviewBusy ? 'Applying…' : 'Apply selection'}
+                      {reviewBusy ? t('activity:agentRoster.applying') : t('activity:customRoster.applySelection')}
                     </button>
                     <button type="button" onClick={() => { setReviewEntries(null); setReviewDecisions({}); }} className="btn-sm">
-                      Cancel
+                      {t('common:action.cancel')}
                     </button>
                   </div>
                 </div>
@@ -439,14 +445,14 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                               onClick={() => setReviewDecisions((p) => ({ ...p, [i]: 'keep' }))}
                               className={cn('px-2 py-1 text-[10px] rounded', decision === 'keep' ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground')}
                             >
-                              ✓ Keep
+                              {t('activity:customRoster.keep')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setReviewDecisions((p) => ({ ...p, [i]: 'drop' }))}
                               className={cn('px-2 py-1 text-[10px] rounded', decision === 'drop' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground')}
                             >
-                              ✗ Drop
+                              {t('activity:customRoster.drop')}
                             </button>
                           </div>
                         </div>
@@ -464,9 +470,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                   <span className="text-xs font-medium">{editMode}.md / {editMode}.json</span>
                   <div className="flex gap-1">
                     <button type="button" onClick={saveEdit} disabled={saving} className="btn-sm btn-primary">
-                      {saving ? 'Saving…' : 'Save'}
+                      {saving ? t('activity:agentRoster.saving') : t('common:action.save')}
                     </button>
-                    <button type="button" onClick={() => setEditMode(null)} className="btn-sm">Cancel</button>
+                    <button type="button" onClick={() => setEditMode(null)} className="btn-sm">{t('common:action.cancel')}</button>
                   </div>
                 </div>
                 {editMode === 'config' ? (
@@ -481,7 +487,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                     className="w-full h-48 font-mono text-xs p-2 bg-card border border-line rounded resize-y"
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    placeholder={`# Project identity for ${selectedRole}\n\nDescribe this agent's role in the project…`}
+                    placeholder={t('activity:customRoster.identityPlaceholder', {
+                      role: selectedRole,
+                    })}
                   />
                 )}
               </div>
@@ -491,17 +499,17 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             <div className="space-y-2 pt-4 border-t border-line">
               <div className="flex items-center gap-1 text-sm font-medium">
                 <BookOpen className="h-4 w-4 text-brand-2" />
-                Teach this agent
+                {t('activity:agentRoster.teachThisAgent')}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Describe a command, pattern, or behavior you want this agent to remember.
-                Saved to <code className="text-[10px]">.wrongstack/agents/{selectedRole}/learned.md</code>.
+                {t('activity:customRoster.teachHint')}{' '}
+                <code className="text-[10px]">.wrongstack/agents/{selectedRole}/learned.md</code>.
               </p>
               <textarea
                 className="w-full h-20 text-xs p-2 bg-card border border-line rounded resize-y"
                 value={teachInput}
                 onChange={(e) => setTeachInput(e.target.value)}
-                placeholder={`e.g. "Always use pnpm for this project"`}
+                placeholder={t('activity:customRoster.teachInputPlaceholder')}
               />
               <div className="flex justify-between items-center">
                 <button
@@ -510,7 +518,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                   disabled={!teachInput.trim() || saving}
                   className="btn-sm btn-primary"
                 >
-                  <BookOpen className="h-3.5 w-3.5 mr-1" /> Teach
+                  <BookOpen className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.teach')}
                 </button>
                 {teachFeedback && (
                   <span className={cn('text-xs', teachFeedback.ok ? 'text-success' : 'text-destructive')}>
@@ -524,13 +532,13 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             <div className="space-y-2 pt-4 border-t border-line">
               <div className="flex items-center gap-1 text-sm font-medium">
                 <Sparkles className="h-4 w-4 text-brand-2" />
-                LLM Improve
+                {t('activity:customRoster.llmImprove')}
               </div>
               <textarea
                 className="w-full h-20 text-xs p-2 bg-card border border-line rounded resize-y"
                 value={improvePrompt}
                 onChange={(e) => setImprovePrompt(e.target.value)}
-                placeholder="Describe what you want this agent to do better…&#10;e.g. 'This agent should always verify versions from npm before recommending'"
+                placeholder={t('activity:agentRoster.teachPlaceholder')}
               />
               <div className="flex justify-between items-center">
                 <button
@@ -539,7 +547,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                   disabled={!improvePrompt.trim()}
                   className="btn-sm btn-primary"
                 >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" /> Improve
+                  <Sparkles className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.improve')}
                 </button>
                 {improveResult && (
                   <button
@@ -547,7 +555,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                     onClick={() => setImproveResult(null)}
                     className="text-xs text-muted-foreground hover:text-fg"
                   >
-                    Dismiss
+                    {t('activity:customRoster.dismiss')}
                   </button>
                 )}
               </div>

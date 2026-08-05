@@ -317,9 +317,9 @@ export function ModelListEditor({
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex gap-1">
-                          {caps?.tools && <Wrench className="h-3.5 w-3.5 text-muted-foreground" aria-label="tools" />}
-                          {caps?.reasoning && <Brain className="h-3.5 w-3.5 text-muted-foreground" aria-label="reasoning" />}
-                          {caps?.vision && <Eye className="h-3.5 w-3.5 text-muted-foreground" aria-label="vision" />}
+                          {caps?.tools && <Wrench className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('activity:modelListEditor.tools')} />}
+                          {caps?.reasoning && <Brain className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('activity:modelListEditor.reasoning')} />}
+                          {caps?.vision && <Eye className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('activity:modelListEditor.vision')} />}
                         </div>
                       </td>
                       <td className="px-3 py-2">
@@ -422,7 +422,7 @@ export function ModelListEditor({
             type="button"
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowCustomEditor(false)}
-            aria-label={t('common:close')}
+            aria-label={t('common:action.close')}
           />
           <div className="relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between">

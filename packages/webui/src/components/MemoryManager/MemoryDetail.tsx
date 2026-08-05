@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import type { LucideIcon } from 'lucide-react';
 import {
   Archive,
@@ -59,6 +60,7 @@ export function MemoryDetail({
   onTagSelect,
   onNotice,
 }: MemoryDetailProps) {
+  const { t } = useAppTranslation();
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 bg-card/65 px-4 py-3 backdrop-blur-xl">
@@ -67,7 +69,7 @@ export function MemoryDetail({
           size="icon"
           className="md:hidden"
           onClick={onClose}
-          aria-label="Back to memory list"
+          aria-label={t('activity:memoryManager.backToList')}
         >
           <ArrowLeft className="size-4" />
         </Button>
@@ -96,11 +98,11 @@ export function MemoryDetail({
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Copy memory ID"
-            title="Copy memory ID"
+            aria-label={t('activity:memoryManager.copyId')}
+            title={t('activity:memoryManager.copyId')}
             onClick={() => {
               void navigator.clipboard?.writeText(memory.id);
-              onNotice('Memory ID copied.');
+              onNotice(t('activity:memoryManager.copiedNotice'));
             }}
           >
             <Clipboard className="size-4" />
@@ -111,7 +113,7 @@ export function MemoryDetail({
             onClick={onEdit}
             disabled={memory.status === 'deleted'}
           >
-            <Pencil className="size-3.5" /> Edit
+            <Pencil className="size-3.5" /> {t('common:action.edit')}
           </Button>
           <Button
             variant="destructive"
@@ -119,7 +121,7 @@ export function MemoryDetail({
             onClick={onDelete}
             disabled={memory.status === 'deleted'}
           >
-            <Trash2 className="size-3.5" /> Delete
+            <Trash2 className="size-3.5" /> {t('common:action.delete')}
           </Button>
         </div>
       </div>
@@ -155,6 +157,7 @@ export function MemoryDetail({
 }
 
 function MemoryBody({ memory }: { memory: SageEntry }) {
+  const { t } = useAppTranslation();
   return (
     <div className="relative overflow-hidden border border-border/75 bg-card/55 p-5 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.04)]">
       <div className="pointer-events-none absolute -right-10 -top-10 size-36 bg-[radial-gradient(circle,hsl(var(--info)/0.13),transparent_68%)]" />
@@ -171,7 +174,7 @@ function MemoryBody({ memory }: { memory: SageEntry }) {
           {memory.id}
         </code>
         <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-          revision {memory.revision}
+          {t('activity:memoryManager.revisionSuffix', { n: memory.revision })}
         </span>
       </div>
     </div>
@@ -179,10 +182,11 @@ function MemoryBody({ memory }: { memory: SageEntry }) {
 }
 
 function MemoryScoreRow({ memory }: { memory: SageEntry }) {
+  const { t } = useAppTranslation();
   const scores: Array<[string, number, LucideIcon]> = [
-    ['Importance', memory.importance, ShieldCheck],
-    ['Confidence', memory.confidence, CircleDot],
-    ['Freshness', memory.freshness, RefreshCw],
+    [t('activity:memoryManager.editorImportance'), memory.importance, ShieldCheck],
+    [t('activity:memoryManager.editorConfidence'), memory.confidence, CircleDot],
+    [t('activity:memoryManager.editorFreshness'), memory.freshness, RefreshCw],
   ];
   return (
     <div className="grid gap-px bg-border/60 sm:grid-cols-3">
@@ -213,10 +217,11 @@ function MemoryScoreRow({ memory }: { memory: SageEntry }) {
 }
 
 function MemoryTags({ tags, onTagSelect }: { tags: string[]; onTagSelect: (tag: string) => void }) {
+  const { t } = useAppTranslation();
   return (
     <section>
       <h3 className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        <Tag className="size-3.5 text-info" /> Tags
+        <Tag className="size-3.5 text-info" /> {t('activity:memoryManager.tagsLabel')}
       </h3>
       <div className="flex flex-wrap gap-1.5">
         {tags.map((tagName) => (
@@ -235,11 +240,12 @@ function MemoryTags({ tags, onTagSelect }: { tags: string[]; onTagSelect: (tag: 
 }
 
 function MemoryAnchors({ anchors }: { anchors: SageEntry['anchors'] }) {
+  const { t } = useAppTranslation();
   return (
     <section className="border border-border/75 bg-card/40">
       <div className="flex items-center justify-between border-b border-border/65 px-3 py-2.5">
         <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <FileCode2 className="size-3.5 text-info" /> Anchors
+          <FileCode2 className="size-3.5 text-info" /> {t('activity:memoryManager.editorAnchors')}
         </h3>
         <span className="font-mono text-[10px] text-muted-foreground">{anchors.length}</span>
       </div>
@@ -284,11 +290,12 @@ function MemoryRelationships({
   allMemories: SageEntry[];
   onOpenMemory: (id: string) => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <section className="border border-border/75 bg-card/40">
       <div className="flex items-center justify-between border-b border-border/65 px-3 py-2.5">
         <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <GitBranch className="size-3.5 text-info" /> Memory relationships
+          <GitBranch className="size-3.5 text-info" /> {t('activity:memoryManager.memoryRelationships')}
         </h3>
         <span className="font-mono text-[10px] text-muted-foreground">
           {relatedMemories.length}
@@ -314,7 +321,7 @@ function MemoryRelationships({
                   {relationship.relation}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-xs">
-                  {target ? memoryPreview(target.text, 95) : 'Referenced memory is unavailable'}
+                  {target ? memoryPreview(target.text, 95) : t('activity:memoryManager.referencedUnavailable')}
                 </span>
                 <code className="hidden max-w-32 truncate font-mono text-[9px] text-muted-foreground sm:block">
                   {relationship.id}
@@ -332,11 +339,12 @@ function MemoryRelationships({
 }
 
 function MemoryMeta({ memory }: { memory: SageEntry }) {
+  const { t } = useAppTranslation();
   const rows: Array<[string, string, LucideIcon]> = [
-    ['Created', formatDate(memory.createdAt), BookMarked],
-    ['Updated', formatDate(memory.updatedAt), RefreshCw],
-    ['Last accessed', formatDate(memory.lastAccessedAt), Network],
-    ['Last verified', formatDate(memory.lastVerifiedAt), ShieldCheck],
+    [t('activity:memoryManager.metaCreated'), formatDate(memory.createdAt), BookMarked],
+    [t('activity:memoryManager.metaUpdated'), formatDate(memory.updatedAt), RefreshCw],
+    [t('activity:memoryManager.metaLastAccessed'), formatDate(memory.lastAccessedAt), Network],
+    [t('activity:memoryManager.metaLastVerified'), formatDate(memory.lastVerifiedAt), ShieldCheck],
   ];
   return (
     <section className="grid gap-px bg-border/60 sm:grid-cols-2 lg:grid-cols-4">
@@ -357,15 +365,16 @@ function MemoryMeta({ memory }: { memory: SageEntry }) {
 }
 
 function DeletedMemoryNotice({ contextPolicy }: { contextPolicy?: 'eligible' | 'never' }) {
+  const { t } = useAppTranslation();
   return (
     <div className="flex items-start gap-3 border border-border bg-muted/50 p-4 text-xs text-muted-foreground">
       <Archive className="mt-0.5 size-4 shrink-0" />
       <div>
-        <p className="font-bold text-foreground">Deleted memory</p>
+        <p className="font-bold text-foreground">{t('activity:memoryManager.deletedMemory')}</p>
         <p className="mt-1 leading-5">
           {contextPolicy === 'never'
-            ? 'This record is audit-only and carries an absolute ban: it can never enter LLM context.'
-            : 'The record is inactive and cannot be edited, but remains eligible as historical evidence when retrieval finds it relevant.'}
+            ? t('activity:memoryManager.deletedNeverPolicy')
+            : t('activity:memoryManager.deletedEligiblePolicy')}
         </p>
       </div>
     </div>

@@ -46,7 +46,9 @@
     "steerRunningTitle": "steer — laufenden Agenten unterbrechen und umleiten",
     "steerIdleTitle": "steer — senden (kein Unterbrechungsziel im Leerlauf)",
     "addQueueTitle": "zur Warteschlange — halten bis der aktuelle Run endet",
-    "openPromptLibrary": "Prompt-Bibliothek öffnen — vorgefertigte und gespeicherte Prompts durchsuchen"
+    "openPromptLibrary": "Prompt-Bibliothek öffnen — vorgefertigte und gespeicherte Prompts durchsuchen",
+    "expandInput": "Eingabe erweitern",
+    "collapseInput": "Einklappen"
   },
   "header": {
     "openSidebarTitle": "Seitenleiste öffnen (Ctrl+\\)",
