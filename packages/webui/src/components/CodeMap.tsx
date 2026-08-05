@@ -194,8 +194,16 @@ function CodeMapInner(): React.ReactElement {
         touchClientGraphCache(cache.current, key, existing, MAX_CLIENT_GRAPH_CACHE);
         return existing;
       }
-      const response = await fetch(scopeUrl(targetScope));
+      // Same-origin fetch rides the HttpOnly ws_token cookie set by /ws-auth
+      // (requestToken in http-server.ts reads the cookie for /api/*);
+      // `credentials` is explicit to document the contract. A 401/403 means
+      // no valid session — which is NOT a missing index — so surface a
+      // truthful error instead of the misleading index guidance.
+      const response = await fetch(scopeUrl(targetScope), { credentials: 'same-origin' });
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Authentication required — open this dashboard from its token URL.');
+        }
         const body = await response.json().catch(() => ({ error: response.statusText }));
         throw new Error(body.error ?? `HTTP ${response.status}`);
       }

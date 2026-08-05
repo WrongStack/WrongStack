@@ -180,6 +180,23 @@ describe('CodeMap component', () => {
     expect(screen.getByText(/codebase-index/)).toBeDefined();
   });
 
+  it('shows an auth error instead of index guidance when credentials are rejected', async () => {
+    // A 401 is NOT a missing index — the view must say so instead of
+    // telling the operator to run codebase-index.
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({ error: 'Unauthorized' }),
+    } as Response);
+    render(<CodeMap />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Authentication required/)).toBeDefined(),
+    );
+    expect(screen.queryByText(/codebase-index/)).toBeNull();
+  });
+
   it('focuses a node on click and renders its incoming/outgoing relation tree', async () => {
     mockAllGraphs();
     render(<CodeMap />);

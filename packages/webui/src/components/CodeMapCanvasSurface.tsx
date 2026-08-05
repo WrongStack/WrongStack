@@ -20,6 +20,11 @@ import { MINIMAP_NODE_LIMIT } from './CodeMapConfig';
 import type { CodeMapGraphResponse, GraphRefType } from './codemap-model';
 import { useAppTranslation } from '@/i18n';
 
+/** A 401/403 surfaced by the fetch — an auth problem, not a missing index. */
+function isAuthError(message: string): boolean {
+  return /Authentication required|Unauthorized/i.test(message);
+}
+
 export function CodeMapCanvasSurface({
   loading,
   error,
@@ -56,10 +61,13 @@ export function CodeMapCanvasSurface({
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-8 text-center">
           <Network className="h-10 w-10 text-destructive" />
           <p className="font-mono text-sm text-destructive">{error}</p>
-          <p className="max-w-md text-xs text-muted-foreground">
-            The map needs a codebase index. Run{' '}
-            <code className="border bg-muted px-1.5 py-0.5">codebase-index</code> {t('activity:codeMap.onceThenReopenThisView')}
-          </p>
+          {!isAuthError(error) && (
+            <p className="max-w-md text-xs text-muted-foreground">
+              The map needs a codebase index. Run{' '}
+              <code className="border bg-muted px-1.5 py-0.5">codebase-index</code>{' '}
+              {t('activity:codeMap.onceThenReopenThisView')}
+            </p>
+          )}
         </div>
       )}
       {!loading && !error && graph.nodes.length === 0 && (
