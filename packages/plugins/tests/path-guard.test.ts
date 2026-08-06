@@ -109,6 +109,10 @@ describe('destructiveTargets', () => {
 
   it('extracts noclobber overrides and destructive raw Git targets', () => {
     expect(destructiveTargets('echo secret >| .env')).toContain('.env');
+    expect(destructiveTargets('sudo --user=root rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo --user root rm .env')).toContain('.env');
+    expect(destructiveTargets('env -u VAR rm .env')).toContain('.env');
+    expect(destructiveTargets("git rm 'dir)/.env'")).toContain('dir)/.env');
     expect(destructiveTargets('git rm .env')).toContain('.env');
     expect(destructiveTargets('git -C repo rm .env')).toContain('.env');
     expect(destructiveTargets('git -C "repo dir" rm .env')).toContain('.env');
@@ -344,21 +348,20 @@ describe('path-guard plugin', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks destructive command substitution inside double quotes at the hook level', () => {
+  it('blocks destructive command substitutions at the hook level', () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
-      toolName: 'bash',
-      toolInput: { command: 'echo "$(rm .env)"' },
-    });
-    expect(result?.decision).toBe('block');
-    expect(result?.reason).toContain('.env');
-    const nestedResult = getHook(api)({
-      toolName: 'bash',
-      toolInput: { command: 'echo "$( (rm .env) )"' },
-    });
-    expect(nestedResult?.decision).toBe('block');
-    expect(nestedResult?.reason).toContain('.env');
+    const hook = getHook(api);
+    for (const command of [
+      'echo "$(rm .env)"',
+      'echo "$( (rm .env) )"',
+      'echo "`rm .env`"',
+      'cat <<EOF\n$(rm .env)\nEOF',
+    ]) {
+      const result = hook({ toolName: 'bash', toolInput: { command } });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain('.env');
+    }
   });
 
   it('allows destructive-looking data in a path-qualified cat heredoc at the hook level', () => {

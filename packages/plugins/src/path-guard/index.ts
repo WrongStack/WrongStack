@@ -743,11 +743,11 @@ function stripTransparentLaunchers(command: string): string {
     previous = stripped;
     stripped = stripped
       .replace(
-        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+-u\s+\S+|\s+-[A-Za-z]|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+(?:--user(?:=\S+|\s+\S+)|--prompt(?:=\\S+|\s+\\S+)|-u\s+\S+|-(?:[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?|[A-Za-z]))|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
         '$1',
       )
       .replace(
-        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env(?:\s+(?:-[A-Za-z]+(?:=)?\S*|--|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env(?:\s+(?:-(?:[uSCA](?:\s+)?\S*|[A-Za-z]+)|--|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
         '$1',
       );
   } while (stripped !== previous);
@@ -1029,7 +1029,7 @@ export function destructiveTargets(command: string): string[] {
 
   // Git subcommands that mutate or remove working-tree files. Tokenize the
   // invocation so arbitrary boolean global options do not bypass detection.
-  const gitInvocation = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b([^;&|)`\r\n]*)/gi;
+  const gitInvocation = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b([^;&|`\r\n]*)/gi;
   const destructiveGitCommands = new Set([
     'clean',
     'rm',
