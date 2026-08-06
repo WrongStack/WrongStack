@@ -123,8 +123,10 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('env -u VAR rm .env')).toContain('.env');
     expect(destructiveTargets("git rm 'dir)/.env'")).toContain('dir)/.env');
     expect(destructiveTargets('git rm .env')).toContain('.env');
-    expect(destructiveTargets('git -C repo rm .env')).toContain('.env');
-    expect(destructiveTargets('git -C "repo dir" rm .env')).toContain('.env');
+    expect(destructiveTargets('git -C repo rm .env')).toContain('repo/.env');
+    expect(destructiveTargets('git -C "repo dir" rm .env')).toContain('repo dir/.env');
+    expect(destructiveTargets('git -C repo reset --hard')).toContain('repo');
+    expect(destructiveTargets('git --work-tree=repo clean -fd')).toContain('repo');
     expect(destructiveTargets('git --literal-pathspecs rm .env')).toContain('.env');
     expect(destructiveTargets('git --no-pager restore .env')).toContain('.env');
     expect(destructiveTargets('git --exec-path /tmp rm .env')).toContain('.env');
@@ -255,6 +257,10 @@ describe('destructiveTargets', () => {
       ['output.txt', 'notes.txt'],
     ],
     ["while read line <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt", ['notes.txt']],
+    ["cat <<'EOF' > output\nrm .env\nEOF", ['output']],
+    [String.raw`cat <<\EOF
+rm .env
+EOF`, []],
   ])(
     'ignores redirect-looking text inside non-executing heredoc bodies: %s',
     (command, expected) => {
@@ -262,10 +268,20 @@ describe('destructiveTargets', () => {
     },
   );
 
-  it('inspects substitutions in unquoted heredocs but keeps quoted heredocs inert', () => {
+  it('inspects executable heredoc consumers but keeps quoted data heredocs inert', () => {
     expect(destructiveTargets('cat <<EOF\n$(rm .env)\nEOF')).toContain('.env');
     expect(destructiveTargets("cat <<'EOF'\n$(rm .env)\nEOF")).toHaveLength(0);
-    expect(destructiveTargets('cat <<EOF | sh\nrm .env\nEOF')).toContain('.env');
+    expect(destructiveTargets("python <<'EOF'\nrm .env\nEOF")).toHaveLength(0);
+    expect(destructiveTargets('python <<EOF\n$(rm .env)\nEOF')).toContain('.env');
+    for (const interpreter of ['sh', 'bash', 'zsh', 'sh -c']) {
+      expect(destructiveTargets(`cat <<EOF | ${interpreter}\nrm .env\nEOF`)).toContain('.env');
+    }
+    expect(destructiveTargets('cat <<EOF > >(sh)\nrm .env\nEOF')).toContain('.env');
+    expect(destructiveTargets('cat <<EOF > fix.sh\nrm .env\nEOF\nbash fix.sh')).toContain('.env');
+  });
+
+  it('does not mistake a here-string for a heredoc', () => {
+    expect(destructiveTargets('cat <<< "x"\nrm .env')).toContain('.env');
   });
 
   it('applies tab-only terminator stripping for <<- heredocs', () => {
@@ -1533,20 +1549,24 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "cache.v1"');
   });
 
-  it('blocks an MCP move_file source that contains a protected subtree', () => {
-    const api = makeApi({
-      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
-    });
-    pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
-      toolName: 'mcp__filesystem__move_file',
-      toolInput: { source: 'db', destination: 'archive' },
-      toolCapabilities: ['mcp.proxy'],
-      toolMutating: true,
-    });
-    expect(result?.decision).toBe('block');
-    expect(result?.reason).toContain('write scope "db"');
-  });
+  it.each([
+    { source: 'db', protect: ['db/migrations/**'], expectedScope: 'db' },
+    { source: '*.env', protect: ['.env'], expectedScope: '*.env' },
+  ])(
+    'blocks an MCP move_file source scope that overlaps protected paths: $source',
+    ({ source, protect, expectedScope }) => {
+      const api = makeApi({ extensions: { 'path-guard': { protect } } });
+      pathGuardPlugin.setup(api as never);
+      const result = hookOf(api)({
+        toolName: 'mcp__filesystem__move_file',
+        toolInput: { source, destination: 'archive' },
+        toolCapabilities: ['mcp.proxy'],
+        toolMutating: true,
+      });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain(`write scope "${expectedScope}"`);
+    },
+  );
 
   it('blocks the protected source of move and rename tools', () => {
     const api = makeApi();
@@ -1909,8 +1929,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it.each(['echo secret >| .env', 'git rm .env', 'git checkout -- .env'])(
-    'blocks protected paths through shell parser hardening: %s',
+  it.each([
+    'echo secret >| .env',
+    'git rm .env',
+    'git checkout -- .env',
+    'cat <<EOF > fix.sh\nrm .env\nEOF\nbash fix.sh',
+  ])('blocks protected paths through shell parser hardening: %s',
     (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);

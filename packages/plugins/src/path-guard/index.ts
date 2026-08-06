@@ -742,14 +742,23 @@ function stripTransparentLaunchers(command: string): string {
     previous = stripped;
     stripped = stripped
       .replace(
-        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+(?:--user(?:=\S+|\s+\S+)|--prompt(?:=\S+|\s+\S+)|-u\s+\S+|-(?:[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?|[A-Za-z]))|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+(?:--user(?:=\S+|\s+\S+)|--prompt(?:=\S+|\s+\S+)|-u\s+\S+|--\S+|-(?:[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?|[A-Za-z]))|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
         '$1',
       )
       .replace(
-        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env(?:\s+(?:-(?:[uSCA](?:\s+)?\S*|[A-Za-z]+)|--|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env(?:\s+(?:-(?:[uCA](?:\s+)?\S*|[A-Za-z]+)|--|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
         '$1',
       );
   } while (stripped !== previous);
+  // `env -S 'cmd'` passes a shell command string — recursively scan it
+  // instead of treating it as an opaque value. Must check the ORIGINAL command
+  // because stripTransparentLaunchers consumes `env` prefix.
+  const sMatch = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env\s+-S\s+(['"])(.*?)\1/i.exec(
+    command,
+  );
+  if (sMatch?.[2]) {
+    return sMatch[2];
+  }
   return stripped;
 }
 
@@ -782,6 +791,10 @@ function commandRecursivelyDeletes(command: string): boolean {
     match = destructive.exec(stripped);
   }
   return false;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function quoteIsEscaped(command: string, index: number): boolean {
@@ -857,6 +870,74 @@ function executableCommandSubstitutions(command: string): string[] {
 
 const MAX_DESTRUCTIVE_TARGET_DEPTH = 64;
 
+interface HeredocDelimiter {
+  delimiter: string;
+  start: number;
+  end: number;
+  quoted: boolean;
+  stripTabs: boolean;
+}
+
+function heredocDelimiterOnLine(line: string): HeredocDelimiter | null {
+  let quote: "'" | '"' | null = null;
+  for (let index = 0; index < line.length - 1; index += 1) {
+    const char = line[index];
+    if (isQuoteBoundary(line, index, quote)) {
+      quote = quote === char ? null : char === "'" ? "'" : '"';
+      continue;
+    }
+    if (
+      quote !== null ||
+      quoteIsEscaped(line, index) ||
+      char !== '<' ||
+      line[index - 1] === '<' ||
+      line[index + 1] !== '<' ||
+      line[index + 2] === '<'
+    )
+      continue;
+
+    let cursor = index + 2;
+    const stripTabs = line[cursor] === '-';
+    if (stripTabs) cursor += 1;
+    while (line[cursor] === ' ' || line[cursor] === '\t') cursor += 1;
+
+    let delimiter = '';
+    let delimiterQuote: "'" | '"' | null = null;
+    let quoted = false;
+    for (; cursor < line.length; cursor += 1) {
+      const delimiterChar = line[cursor] ?? '';
+      if (delimiterQuote !== null) {
+        if (delimiterChar === delimiterQuote && !quoteIsEscaped(line, cursor)) {
+          delimiterQuote = null;
+          quoted = true;
+        } else if (delimiterChar === '\\' && delimiterQuote === '"' && cursor + 1 < line.length) {
+          quoted = true;
+          cursor += 1;
+          delimiter += line[cursor] ?? '';
+        } else {
+          delimiter += delimiterChar;
+        }
+        continue;
+      }
+      if (delimiterChar === "'" || delimiterChar === '"') {
+        delimiterQuote = delimiterChar;
+        quoted = true;
+        continue;
+      }
+      if (delimiterChar === '\\' && cursor + 1 < line.length) {
+        quoted = true;
+        cursor += 1;
+        delimiter += line[cursor] ?? '';
+        continue;
+      }
+      if (/\s|[;&|<>]/.test(delimiterChar)) break;
+      delimiter += delimiterChar;
+    }
+    return delimiter.length > 0 ? { delimiter, start: index, end: cursor, quoted, stripTabs } : null;
+  }
+  return null;
+}
+
 function maskNonExecutingHeredocBodies(command: string): string {
   const lines = command.split(/(?<=\n)/);
   let heredoc: { delimiter: string; quoted: boolean; stripTabs: boolean } | null = null;
@@ -876,23 +957,32 @@ function maskNonExecutingHeredocBodies(command: string): string {
       }
       continue;
     }
-    const marker = /<<(-?)(?!<)\s*(?:'([^']+)'|"([^"]+)"|([^\s;&|'"<>]+))/.exec(line);
+    const marker = heredocDelimiterOnLine(line);
     if (!marker) continue;
-    const prefix = line.slice(0, marker.index).trim();
-    const suffix = line.slice(marker.index + marker[0].length).trim();
-    const receivesDataWithoutExecuting =
-      /(?:^|\|)\s*(?:(?:sudo|env)(?:\s+[^;&|]+)*\s+)?(?:[^\s;&|]+[\\/])?(?:cat|tee)(?:\s|$)/i.test(
+    const prefix = line.slice(0, marker.start).trim();
+    const suffix = line.slice(marker.end).trim();
+    // A heredoc is stdin data for every command except a shell consuming its
+    // standard input. Quoted bodies are wholly inert to the invoking shell;
+    // unquoted bodies execute only their command substitutions. Restricting
+    // masking to cat/tee/read makes other data consumers (for example Python)
+    // look like they execute literal shell commands from their input.
+    const executesBodyAsShell =
+      /(?:^|[;&|]\s*|\(\s*)(?:(?:sudo|env)(?:\s+[^;&|]+)*\s+)?(?:[^\s;&|]+[\\/])?(?:ba|z|k)?sh(?:\s|$)/i.test(
         prefix,
-      ) || /^(?:while\s+)?read(?:\s|$)/i.test(prefix);
-    if (!receivesDataWithoutExecuting || /^(?:\||;|&|\(|\{)/.test(suffix)) continue;
-    const delimiter = marker[2] ?? marker[3] ?? marker[4];
-    if (delimiter) {
-      heredoc = {
-        delimiter,
-        quoted: marker[2] !== undefined || marker[3] !== undefined,
-        stripTabs: marker[1] === '-',
-      };
-    }
+      );
+    const receivesDataWithoutExecuting = !executesBodyAsShell;
+    const redirectedFile = /^>\s*("[^"]+"|'[^']+'|[^\s;&|<>]+)/.exec(suffix)?.[1]?.replace(/^['"]|['"]$/g, '');
+    const remainingCommand = lines.slice(index + 1).join('');
+    const executesRedirectedFile =
+      redirectedFile !== undefined &&
+      new RegExp(
+        `(?:^|[;&|\\r\\n]\\s*)(?:(?:ba|z|k)?sh|source|\\.)\\s+['"]?${escapeRegex(redirectedFile)}(?:['"]|\\s|$)`,
+        'i',
+      ).test(remainingCommand);
+    const executesBody =
+      /(?:^|[<>])>\s*>\s*\(|^(?:\||;|&|\(|\{)/.test(suffix) || executesRedirectedFile;
+    if (!receivesDataWithoutExecuting || executesBody) continue;
+    heredoc = marker;
   }
   return lines.join('');
 }
@@ -1109,6 +1199,8 @@ function destructiveTargetsAtDepth(command: string, depth: number): string[] {
       // `git clean -fdx > /dev/null` retain the implicit working-tree target.
       const invocationTokens = shellOperandTokens(g[1] ?? '');
       let commandIndex = -1;
+      let gitCwd = '';
+      let workTree: string | undefined;
       for (let index = 0; index < invocationTokens.length; index += 1) {
         const token = invocationTokens[index] ?? '';
         if (token === '--') continue;
@@ -1118,11 +1210,23 @@ function destructiveTargetsAtDepth(command: string, depth: number): string[] {
         }
         if (!token.startsWith('-')) break;
         const optionName = token.split('=', 1)[0] ?? token;
-        if (valueTakingGitOptions.has(optionName) && !token.includes('=')) index += 1;
+        let optionValue = token.includes('=') ? token.slice(token.indexOf('=') + 1) : undefined;
+        if (token.startsWith('-C') && token !== '-C') optionValue = token.slice(2);
+        if (valueTakingGitOptions.has(optionName) && optionValue === undefined) {
+          optionValue = invocationTokens[index + 1];
+          index += 1;
+        }
+        if (optionName === '-C' && optionValue) gitCwd = resolveTargetPath(optionValue, gitCwd || undefined);
+        if (optionName === '--work-tree' && optionValue) workTree = optionValue;
       }
       const subcommand =
         commandIndex >= 0 ? invocationTokens[commandIndex]?.toLowerCase() : undefined;
       const tokens = commandIndex >= 0 ? invocationTokens.slice(commandIndex + 1) : [];
+      const gitTreeRoot = workTree ? resolveTargetPath(workTree, gitCwd || undefined) : gitCwd;
+      const gitTarget = (target: string): string => {
+        const resolved = resolveTargetPath(target, gitTreeRoot || undefined);
+        return target.endsWith('/') && !resolved.endsWith('/') ? `${resolved}/` : resolved;
+      };
       if (subcommand === 'clean') {
         const dryRun = tokens.some((t) => t === '--dry-run' || /^-[^-]*n/.test(t));
         if (!dryRun) {
@@ -1142,25 +1246,27 @@ function destructiveTargetsAtDepth(command: string, depth: number): string[] {
               continue;
             operands.push(t);
           }
-          targets.push(...(operands.length ? operands : ['.']));
+          targets.push(...(operands.length ? operands : ['.']).map(gitTarget));
         }
       } else if (subcommand === 'rm') {
         const writes = !tokens.includes('--cached') || tokens.includes('--worktree');
         if (writes) {
           const recursive = tokens.some((t) => t === '--recursive' || /^-[^-]*r/.test(t));
           const operands = tokens.filter((t) => t !== '--' && !t.startsWith('-'));
-          targets.push(...operands.map((o) => (recursive ? `${o}/**` : o)));
+          targets.push(...operands.map((o) => gitTarget(recursive ? `${o}/**` : o)));
         }
       } else if (subcommand === 'restore') {
         const staged = tokens.includes('--staged') || tokens.some((t) => /^-[^-]*S/.test(t));
         const worktree = tokens.includes('--worktree') || tokens.some((t) => /^-[^-]*W/.test(t));
         if (!staged || worktree)
-          targets.push(...tokens.filter((t) => t !== '--' && !t.startsWith('-')));
+          targets.push(...tokens.filter((t) => t !== '--' && !t.startsWith('-')).map(gitTarget));
       } else if (subcommand === 'checkout' || subcommand === 'switch') {
         const separator = tokens.indexOf('--');
         if (separator >= 0) {
           const paths = tokens.slice(separator + 1);
-          targets.push(...paths.map((path) => (path.endsWith('/') ? `${path}**` : path)));
+          targets.push(
+            ...paths.map((path) => gitTarget(path.endsWith('/') ? `${path}**` : path)),
+          );
         } else {
           const createFlags =
             subcommand === 'checkout'
@@ -1171,13 +1277,13 @@ function destructiveTargetsAtDepth(command: string, depth: number): string[] {
           const operands = tokens.filter(
             (token, index) => !token.startsWith('-') && index !== branchNameIndex,
           );
-          if (operands.length > 0) targets.push('.');
+          if (operands.length > 0) targets.push(gitTarget('.'));
         }
       } else if (
         subcommand === 'reset' &&
         tokens.some((t) => t === '--hard' || t === '--merge' || t === '--keep')
       )
-        targets.push('.');
+        targets.push(gitTarget('.'));
     }
     g = gitInvocation.exec(normalizedCommand);
   }
@@ -1212,16 +1318,19 @@ function destructiveTargetsAtDepth(command: string, depth: number): string[] {
   // must not be classified as writes.
   const heredocBodyLines = new Set<number>();
   const commandLines = normalizedCommand.split(/\r?\n/);
-  let activeHeredoc: string | null = null;
+  let activeHeredoc: Pick<HeredocDelimiter, 'delimiter' | 'stripTabs'> | null = null;
   for (let lineIndex = 0; lineIndex < commandLines.length; lineIndex += 1) {
     const line = commandLines[lineIndex] ?? '';
     if (activeHeredoc !== null) {
       heredocBodyLines.add(lineIndex);
-      if (line.trim() === activeHeredoc) activeHeredoc = null;
+      const terminator = activeHeredoc.stripTabs ? line.replace(/^\t+/, '') : line;
+      if (terminator === activeHeredoc.delimiter) activeHeredoc = null;
       continue;
     }
-    const delimiter = /<<-?\s*(?:'([^']+)'|"([^"]+)"|([^\s;&|]+))/.exec(line);
-    activeHeredoc = delimiter?.[1] ?? delimiter?.[2] ?? delimiter?.[3] ?? null;
+    const delimiter = heredocDelimiterOnLine(line);
+    activeHeredoc = delimiter
+      ? { delimiter: delimiter.delimiter, stripTabs: delimiter.stripTabs }
+      : null;
   }
 
   let quote: "'" | '"' | null = null;
