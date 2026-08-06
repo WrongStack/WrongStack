@@ -295,6 +295,16 @@ describe('resolveAutoReviewConfig — empty/unknown fallbackProfile', () => {
     expect(resolved.maxCascadeDepth).toBe(2);
   });
 
+  it('defaults profile selection to round-robin and preserves random', () => {
+    expect(resolveAutoReviewConfig({ enabled: true }, sessionConfig()).modelSelection).toBe(
+      'round-robin',
+    );
+    expect(
+      resolveAutoReviewConfig({ enabled: true, modelSelection: 'random' }, sessionConfig())
+        .modelSelection,
+    ).toBe('random');
+  });
+
   // A minimal session Config with a healthy session provider/model but NO
   // fallbackProfiles map, so any profile name resolves to an empty chain.
   function sessionConfig(overrides: Partial<Config> = {}): Config {

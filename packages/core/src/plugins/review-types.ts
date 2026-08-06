@@ -58,6 +58,8 @@ export interface ReviewContextBundle {
    * Absent for ordinary Chimera and manual review triggers.
    */
   reviewFallbackModels?: string[] | undefined;
+  /** Selection policy for the resolved auto-review profile pool. */
+  reviewModelSelection?: 'round-robin' | 'random' | undefined;
   /**
    * Cascade severity threshold from the auto-review plugin config.
    * When the review subagent finds findings at or above this level, a

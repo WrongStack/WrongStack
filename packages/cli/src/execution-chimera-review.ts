@@ -19,7 +19,7 @@ import {
 } from './chimera-review-task.js';
 import {
   applyChimeraReviewerReadOnlyPolicy,
-  assignReviewerModelsRoundRobin,
+  assignReviewerModels,
   buildReviewerAttemptLadder,
   REVIEWER_LADDER_BUDGET_MS,
   resolveReviewerFallbackModels,
@@ -94,7 +94,9 @@ export function installChimeraReviewHandler({
   trackWork,
 }: InstallChimeraReviewHandlerOptions): void {
   events.onPattern('chimera.review_needed', (_event, payload) => {
-    const p = payload as ChimeraReviewNeededPayload;
+    const p = payload as ChimeraReviewNeededPayload & {
+      reviewModelSelection?: 'round-robin' | 'random' | undefined;
+    };
     const reviewSessionId = agent.ctx.activeRunSessionId ?? agent.ctx.session?.id ?? session.id;
     const dir = director;
     if (!dir) {
@@ -181,10 +183,11 @@ export function installChimeraReviewHandler({
           const baseFallbacks = p.reviewFallbackModels
             ? [...p.reviewFallbackModels]
             : resolveReviewerFallbackModels(undefined);
-          const assigned = assignReviewerModelsRoundRobin(
+          const assigned = assignReviewerModels(
             baseProvider,
             baseModel,
             baseFallbacks,
+            p.reviewModelSelection ?? 'round-robin',
             statusTracker,
           );
           // A dead model must never cost us the review. The first rung is the

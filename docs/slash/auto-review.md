@@ -4,7 +4,7 @@
 
 - whether auto-review is enabled;
 - the provider and model selected for review subagents;
-- the fallback model chain;
+- the fallback / round-robin model pool and its selection policy;
 - the debounce window, file cap, and parallelism limit;
 - the passive follow-up policy; and
 - how many reviews are currently in-flight.
@@ -36,7 +36,8 @@ iteration.completed
   → read file contents
   → buildReviewContext (diffs, siblings, commits, todos)
   → emit chimera.review_needed
-  → Director spawns review subagent (provider/model from config)
+  → Director selects the profile model (round-robin or random)
+  → Director spawns review subagent with the remaining pool as fallbacks
   → persist full report + mailbox result
   → emit chimera.review_complete
   → emit chimera.report_available to TUI, WebUI, and SimpleUI
@@ -61,7 +62,8 @@ Configuration is read from `extensions["wstack-auto-review"]`:
 | `enabled` | boolean | false | Master switch |
 | `provider` | string | session provider | LLM provider for review agents |
 | `model` | string | session model | LLM model for review agents |
-| `fallbackProfile` | string | — | Named fallback profile from `config.fallbackProfiles` |
+| `fallbackProfile` | string | — | Named profile from `config.fallbackProfiles`; its first valid entry supplies the primary provider/model when those are omitted, and its entries form the selection and retry pool |
+| `modelSelection` | `round-robin` \| `random` | `round-robin` | Choose each review's starting model in order or randomly; remaining entries stay available as fallbacks |
 | `debounceMs` | number | 15000 | Required file-quiet period before a mid-session review starts |
 | `maxFilesPerBatch` | number | 15 | Max files per review call |
 | `maxConcurrentReviews` | number | 2 | Parallel review subagent cap |
@@ -77,6 +79,8 @@ Example config:
       "enabled": true,
       "provider": "deepseek",
       "model": "deepseek-chat",
+      "fallbackProfile": "reliable",
+      "modelSelection": "round-robin",
       "debounceMs": 15000,
       "maxFilesPerBatch": 15
     }

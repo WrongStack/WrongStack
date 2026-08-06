@@ -207,6 +207,8 @@ export interface LocalPrefs {
   autoReviewModel: string;
   /** Named fallback profile (from `config.fallbackProfiles`) used to derive provider/model + fallback chain. */
   autoReviewFallbackProfile: string;
+  /** Starting-model policy for the selected auto-review profile. */
+  autoReviewModelSelection: 'round-robin' | 'random';
   /** Explicit fallback chain (derived when no fallbackProfile is set, surfaced for visibility). */
   autoReviewFallbackModels: string[];
   /** Debounce window in ms — wait for quiet before firing review (default 15000). */
@@ -313,6 +315,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   autoReviewProvider: '',
   autoReviewModel: '',
   autoReviewFallbackProfile: '',
+  autoReviewModelSelection: 'round-robin',
   autoReviewFallbackModels: [],
   autoReviewDebounceMs: 15_000,
   autoReviewMaxFilesPerBatch: 15,
@@ -472,6 +475,12 @@ export const useLocalPrefs = create<LocalPrefs>()(
         if (typeof p.autoReviewProvider !== 'string') p.autoReviewProvider = '';
         if (typeof p.autoReviewModel !== 'string') p.autoReviewModel = '';
         if (typeof p.autoReviewFallbackProfile !== 'string') p.autoReviewFallbackProfile = '';
+        if (
+          p.autoReviewModelSelection !== 'round-robin' &&
+          p.autoReviewModelSelection !== 'random'
+        ) {
+          p.autoReviewModelSelection = 'round-robin';
+        }
         if (!Array.isArray(p.autoReviewFallbackModels)) p.autoReviewFallbackModels = [];
         // autoReviewDebounceMs: must be a finite number AND >= 0 (0 is a
         // valid "no debounce" choice, so the bound is `>= 0` not `> 0`).

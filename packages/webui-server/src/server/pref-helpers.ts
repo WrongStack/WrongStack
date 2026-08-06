@@ -97,6 +97,7 @@ export const PREF_KEYS = [
   'autoReviewProvider',
   'autoReviewModel',
   'autoReviewFallbackProfile',
+  'autoReviewModelSelection',
   'autoReviewFallbackModels',
   'autoReviewDebounceMs',
   'autoReviewMaxFilesPerBatch',
@@ -612,6 +613,7 @@ export async function persistPrefsToConfig(
         typeof payload['autoReviewProvider'] === 'string' ||
         typeof payload['autoReviewModel'] === 'string' ||
         typeof payload['autoReviewFallbackProfile'] === 'string' ||
+        typeof payload['autoReviewModelSelection'] === 'string' ||
         Array.isArray(payload['autoReviewFallbackModels']) ||
         typeof payload['autoReviewDebounceMs'] === 'number' ||
         typeof payload['autoReviewMaxFilesPerBatch'] === 'number' ||
@@ -634,6 +636,12 @@ export async function persistPrefsToConfig(
           } else {
             ar['fallbackProfile'] = payload['autoReviewFallbackProfile'];
           }
+        }
+        if (
+          payload['autoReviewModelSelection'] === 'round-robin' ||
+          payload['autoReviewModelSelection'] === 'random'
+        ) {
+          ar['modelSelection'] = payload['autoReviewModelSelection'];
         }
         // Note: `autoReviewFallbackModels` is not a config input — it's
         // derived from `fallbackProfile` + `config.fallbackModels` by the

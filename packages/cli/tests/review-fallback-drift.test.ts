@@ -10,6 +10,7 @@ import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   __resetReviewerRoundRobinCursor,
+  assignReviewerModels,
   assignReviewerModelsRoundRobin,
   resolveReviewerFallbackModels,
 } from '../src/execution.js';
@@ -47,6 +48,40 @@ describe('reviewer fallback-chain drift guard', () => {
         'session-provider/session-model',
       ),
     ).toEqual(['alt-provider/alt-model', 'session-provider/session-model']);
+  });
+});
+
+describe('assignReviewerModels — selection policy', () => {
+  afterEach(() => {
+    __resetReviewerRoundRobinCursor(0);
+  });
+
+  it('selects deterministic random entries and rotates the remaining fallback chain', () => {
+    const fallbacks = ['alt/m1', 'alt/m2'];
+
+    expect(assignReviewerModels('base', 'm0', fallbacks, 'random', undefined, () => 0)).toEqual({
+      provider: 'base',
+      model: 'm0',
+      fallbackModels: ['alt/m1', 'alt/m2'],
+    });
+    expect(
+      assignReviewerModels('base', 'm0', fallbacks, 'random', undefined, () => 0.999999),
+    ).toEqual({
+      provider: 'alt',
+      model: 'm2',
+      fallbackModels: ['base/m0', 'alt/m1'],
+    });
+  });
+
+  it('does not advance the round-robin cursor when random selection is used', () => {
+    const fallbacks = ['alt/m1', 'alt/m2'];
+    assignReviewerModels('base', 'm0', fallbacks, 'random', undefined, () => 0.7);
+
+    expect(assignReviewerModels('base', 'm0', fallbacks, 'round-robin')).toEqual({
+      provider: 'base',
+      model: 'm0',
+      fallbackModels: ['alt/m1', 'alt/m2'],
+    });
   });
 });
 

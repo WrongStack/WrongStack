@@ -332,6 +332,19 @@ describe('WebUI payload validation', () => {
       ]);
     });
 
+    it('accepts Chimera round-robin/random selection and rejects invalid modes', () => {
+      expect(validatePrefsUpdatePayload({ autoReviewModelSelection: 'round-robin' })).toMatchObject({
+        ok: true,
+      });
+      expect(validatePrefsUpdatePayload({ autoReviewModelSelection: 'random' })).toMatchObject({
+        ok: true,
+      });
+      expectInvalid(validatePrefsUpdatePayload, [
+        { autoReviewModelSelection: 'fallback' },
+        { autoReviewModelSelection: true },
+      ]);
+    });
+
     it('accepts complete and runtime-only model matrix entries', () => {
       expect(
         validatePrefsUpdatePayload({

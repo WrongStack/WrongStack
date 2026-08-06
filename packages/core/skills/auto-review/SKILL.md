@@ -48,6 +48,7 @@ Enable it in your config:
       "provider": "deepseek",
       "model": "deepseek-chat",
       "fallbackProfile": "reliable",
+      "modelSelection": "round-robin",
       "debounceMs": 15000,
       "maxFilesPerBatch": 15
     }
@@ -69,7 +70,8 @@ Enable it in your config:
 | `enabled` | boolean | false | Master switch |
 | `provider` | string | session provider | LLM provider for review agents |
 | `model` | string | session model | LLM model for review agents |
-| `fallbackProfile` | string | effective fallback profile | Named profile from `fallbackProfiles`; its first valid entry supplies the primary provider/model when those are omitted |
+| `fallbackProfile` | string | effective fallback profile | Named profile from `fallbackProfiles`; its first valid entry supplies the primary provider/model when those are omitted, and its entries form the reviewer selection and retry pool |
+| `modelSelection` | `round-robin` \| `random` | `round-robin` | Choose each review's starting model in profile order or randomly; remaining entries stay available as fallbacks |
 | `debounceMs` | number | 15000 | Required file-quiet period before a mid-session review starts |
 | `maxFilesPerBatch` | number | 15 | Files per review call |
 | `maxConcurrentReviews` | number | 2 | Parallel review subagent cap |

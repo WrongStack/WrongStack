@@ -43,9 +43,10 @@ export function __resetReviewerRoundRobinCursor(value = 0): void {
 /**
  * Assign provider/model/fallbackModels for a Chimera reviewer spawn.
  *
- * Builds the pool from the configured primary + fallback chain, then picks
- * the next entry via round-robin. When the pool has <=1 usable entry the
- * original primary/fallbacks are returned unchanged.
+ * Builds the pool from the configured primary + fallback chain, then chooses
+ * either the next round-robin entry or a random starting entry. The injected
+ * random source keeps the random policy deterministic in tests. When the pool
+ * has <=1 usable entry the original primary/fallbacks are returned unchanged.
  *
  * When a {@link ProviderModelStatusTracker} is supplied, blocked entries
  * (waiting-room / token-reset-limit room) are filtered from both the pool
@@ -53,11 +54,13 @@ export function __resetReviewerRoundRobinCursor(value = 0): void {
  * a concurrent reviewer turn. Without the tracker, the legacy pre-waiting-
  * room behavior is preserved.
  */
-export function assignReviewerModelsRoundRobin(
+export function assignReviewerModels(
   provider: string,
   model: string,
   fallbackModels: readonly string[],
+  selection: 'round-robin' | 'random' = 'round-robin',
   statusTracker?: ProviderModelStatusTracker | undefined,
+  random: () => number = Math.random,
 ): { provider: string; model: string; fallbackModels: string[] } {
   const pool = buildReviewerModelPool(provider, model, fallbackModels, statusTracker);
   if (pool.length <= 1) {
@@ -67,19 +70,33 @@ export function assignReviewerModelsRoundRobin(
       fallbackModels: [...fallbackModels],
     };
   }
+  const cursor =
+    selection === 'random'
+      ? Math.min(pool.length - 1, Math.floor(Math.max(0, random()) * pool.length))
+      : reviewerRoundRobinCursor;
   const assignment = selectRoundRobinReviewerAssignment(
     pool,
-    reviewerRoundRobinCursor,
+    cursor,
     provider,
     model,
     statusTracker,
   );
-  reviewerRoundRobinCursor = assignment.nextCursor;
+  if (selection === 'round-robin') reviewerRoundRobinCursor = assignment.nextCursor;
   return {
     provider: assignment.provider,
     model: assignment.model,
     fallbackModels: assignment.fallbackModels,
   };
+}
+
+/** Backward-compatible round-robin entry point for existing callers. */
+export function assignReviewerModelsRoundRobin(
+  provider: string,
+  model: string,
+  fallbackModels: readonly string[],
+  statusTracker?: ProviderModelStatusTracker | undefined,
+): { provider: string; model: string; fallbackModels: string[] } {
+  return assignReviewerModels(provider, model, fallbackModels, 'round-robin', statusTracker);
 }
 
 /** One rung of the Chimera reviewer retry ladder. */

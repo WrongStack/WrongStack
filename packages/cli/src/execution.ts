@@ -58,6 +58,7 @@ import { CLI_VERSION } from './version.js';
 export {
   __resetReviewerRoundRobinCursor,
   applyChimeraReviewerReadOnlyPolicy,
+  assignReviewerModels,
   assignReviewerModelsRoundRobin,
   CHIMERA_REVIEW_READ_ONLY_TOOLS,
   resolveReviewerFallbackModels,

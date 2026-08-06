@@ -182,6 +182,7 @@ const ENUM_PREF_KEYS: Record<string, Set<string>> = {
   fsAccess: new Set(['unrestricted', 'project']),
   // Chimera autoFix + auto-review cascade threshold
   chimeraAutoFix: new Set(['off', 'ask', 'auto']),
+  autoReviewModelSelection: new Set(['round-robin', 'random']),
   autoReviewCascadeOn: new Set(['off', 'critical', 'high']),
   fleetChatVerbosity: new Set(['off', 'full']),
   showAgentSwarmPanel: new Set(['bottom', 'sidebar', 'off']),

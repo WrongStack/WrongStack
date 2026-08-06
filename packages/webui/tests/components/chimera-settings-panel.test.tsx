@@ -10,8 +10,8 @@
  * store), and the panel must emit the correct pref key on each interaction.
  *
  * No i18n mock is needed — the real i18n module initialises on first import,
- * and `t(key)` falls back to the key string when a translation is missing,
- * which is fine for tests that assert on `key`-based text.
+ * so interaction tests can query the rendered English labels from the bundled
+ * catalog and catch drift between component keys and user-visible copy.
  */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -58,6 +58,7 @@ describe('ChimeraSettingsPanel — typed contract', () => {
       'autoReviewProvider',
       'autoReviewModel',
       'autoReviewFallbackProfile',
+      'autoReviewModelSelection',
       'autoReviewDebounceMs',
       'autoReviewMaxFilesPerBatch',
       'autoReviewMaxConcurrentReviews',
@@ -101,6 +102,16 @@ describe('ChimeraSettingsPanel — toggle emissions', () => {
   });
 });
 
+describe('ChimeraSettingsPanel — profile selection', () => {
+  it('persists random selection through syncPref', () => {
+    const syncPref = vi.fn();
+    render(<ChimeraSettingsPanel syncPref={syncPref} />);
+
+    fireEvent.change(screen.getByLabelText('Profile selection'), { target: { value: 'random' } });
+    expect(syncPref).toHaveBeenCalledWith('autoReviewModelSelection', 'random');
+  });
+});
+
 describe('ChimeraSettingsPanel — model picker dialog opens', () => {
   it('opens the unified ModelSelectDialog when the chimera model picker row is activated', () => {
     render(
@@ -132,7 +143,7 @@ describe('ChimeraSettingsPanel — fallback chain display', () => {
       version: 9,
     });
     render(<ChimeraSettingsPanel syncPref={vi.fn()} />);
-    expect(screen.getByText('No fallback models configured')).toBeTruthy();
+    expect(screen.getByText('No fallback / round-robin models configured')).toBeTruthy();
   });
 
   it('surfaces the named profile chain when a fallback profile is selected', () => {

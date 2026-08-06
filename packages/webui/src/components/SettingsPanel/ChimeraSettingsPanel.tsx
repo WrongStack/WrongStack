@@ -209,6 +209,20 @@ export function ChimeraSettingsPanel({
           />
         </div>
 
+        <PreferenceSelect
+          label={t('settings:features.autoReviewModelSelectionLabel')}
+          hint={t('settings:features.autoReviewModelSelectionHint')}
+          value={localPrefs.autoReviewModelSelection}
+          options={[
+            {
+              value: 'round-robin',
+              label: t('settings:features.autoReviewModelSelectionRoundRobin'),
+            },
+            { value: 'random', label: t('settings:features.autoReviewModelSelectionRandom') },
+          ]}
+          onChange={(v) => syncPref('autoReviewModelSelection', v)}
+        />
+
         {/* Display the resolved chain (read-only). User edits the chain by
             editing the named profile or the global fallback chain. */}
         <div className="space-y-1">

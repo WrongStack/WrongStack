@@ -184,6 +184,8 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['autoReviewProvider'] = (autoReviewExt?.['provider'] as string) ?? '';
   meta['autoReviewModel'] = (autoReviewExt?.['model'] as string) ?? '';
   meta['autoReviewFallbackProfile'] = (autoReviewExt?.['fallbackProfile'] as string) ?? '';
+  meta['autoReviewModelSelection'] =
+    autoReviewExt?.['modelSelection'] === 'random' ? 'random' : 'round-robin';
   meta['autoReviewFallbackModels'] = Array.isArray(autoReviewExt?.['fallbackModels'])
     ? (autoReviewExt?.['fallbackModels'] as string[])
     : [];

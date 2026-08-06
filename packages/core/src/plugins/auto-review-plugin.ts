@@ -35,6 +35,8 @@ export interface AutoReviewConfig {
    * omitted), and the remaining entries form the fallback chain.
    */
   fallbackProfile?: string | undefined;
+  /** How each review chooses its starting model from the resolved profile pool. */
+  modelSelection?: 'round-robin' | 'random' | undefined;
   /** Debounce window in ms — wait for quiet before firing review (default 15000). */
   debounceMs?: number | undefined;
   /** Max files per review batch (default 15). */
@@ -61,6 +63,7 @@ export interface ResolvedAutoReviewConfig {
   provider: string;
   model: string;
   fallbackModels: string[];
+  modelSelection: 'round-robin' | 'random';
   debounceMs: number;
   maxFilesPerBatch: number;
   maxConcurrentReviews: number;
@@ -246,6 +249,7 @@ export function resolveAutoReviewConfig(
     provider: resolvedProvider,
     model: resolvedModel,
     fallbackModels,
+    modelSelection: cfg.modelSelection === 'random' ? 'random' : 'round-robin',
     debounceMs: cfg.debounceMs ?? DEFAULT_DEBOUNCE_MS,
     maxFilesPerBatch: cfg.maxFilesPerBatch ?? DEFAULT_MAX_FILES_PER_BATCH,
     maxConcurrentReviews: cfg.maxConcurrentReviews ?? DEFAULT_MAX_CONCURRENT_REVIEWS,
@@ -481,7 +485,7 @@ function buildAutoReviewCommand(
       '',
       'Continuous code review that fires on every change during a session.',
       'Detects git-tracked file edits and dispatches review subagents',
-      'with configurable provider/model/fallback.',
+      'with configurable provider/model/fallback and profile selection.',
       '',
       'Reports are persisted and shown as passive notifications.',
       'They never wake the leader or spawn mutating follow-up agents.',
@@ -496,6 +500,7 @@ function buildAutoReviewCommand(
       '  provider             provider id for review agents',
       '  model                model id for review agents',
       '  fallbackProfile      named profile from config.fallbackProfiles',
+      '  modelSelection       round-robin | random (default round-robin)',
       '  debounceMs           debounce window (default 15000)',
       '  maxFilesPerBatch     max files per review (default 15)',
       '  maxConcurrentReviews max parallel reviews (default 2)',
@@ -525,7 +530,8 @@ function buildAutoReviewCommand(
           '',
           `  Provider:       ${cfg.provider}`,
           `  Model:          ${cfg.model}`,
-          `  Fallback:       ${cfg.fallbackModels.length > 0 ? cfg.fallbackModels.join(', ') : '(none)'}`,
+          `  Fallback / RR:  ${cfg.fallbackModels.length > 0 ? cfg.fallbackModels.join(', ') : '(none)'}`,
+          `  Selection:      ${cfg.modelSelection}`,
           `  Debounce:       ${cfg.debounceMs} ms`,
           `  Max files:      ${cfg.maxFilesPerBatch}`,
           `  Max parallel:   ${cfg.maxConcurrentReviews}`,
@@ -820,6 +826,7 @@ export function createAutoReviewPlugin(): Plugin {
             maxCascadeDepth: cfg.maxCascadeDepth,
           });
           bundle.reviewFallbackModels = [...cfg.fallbackModels];
+          bundle.reviewModelSelection = cfg.modelSelection;
           const trackedChangedPaths = new Set(
             snapshots
               .filter((file) => !file.path.startsWith('.wrongstack/'))
@@ -957,6 +964,7 @@ export function createAutoReviewPlugin(): Plugin {
             maxCascadeDepth: cfg.maxCascadeDepth,
           });
           bundle.reviewFallbackModels = [...cfg.fallbackModels];
+          bundle.reviewModelSelection = cfg.modelSelection;
           const trackedChangedPaths = new Set(existing.map((file) => file.path));
           bundle.allChangedFiles = bundle.allChangedFiles?.filter((file) =>
             trackedChangedPaths.has(file.path),
