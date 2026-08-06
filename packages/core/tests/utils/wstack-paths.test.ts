@@ -64,6 +64,23 @@ describe('wstack-paths', () => {
     }
   });
 
+  it('keeps Git submodules distinct from their superproject identity', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-submodule-identity-'));
+    const main = path.join(tmp, 'main-repo');
+    const submodule = path.join(main, 'vendor', 'child');
+    const gitDir = path.join(main, '.git', 'modules', 'child');
+    try {
+      await fs.mkdir(gitDir, { recursive: true });
+      await fs.mkdir(submodule, { recursive: true });
+      await fs.writeFile(path.join(submodule, '.git'), `gitdir: ${gitDir}\n`);
+      await fs.writeFile(path.join(gitDir, 'commondir'), '../..\n');
+      expect(canonicalProjectRoot(submodule)).toBe(path.resolve(submodule));
+      expect(projectSlug(submodule)).not.toBe(projectSlug(main));
+    } finally {
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('resolves global + project dirs under user home', () => {
     const paths = resolveWstackPaths({
       userHome: '/home/dev',
@@ -111,6 +128,15 @@ describe('wstack-paths', () => {
     } finally {
       await fs.rm(tmp, { recursive: true, force: true });
     }
+  });
+
+  it('validates project status slugs before constructing a path', () => {
+    const paths = resolveWstackPaths({ userHome: '/home/dev', projectRoot: '/work/x' });
+    expect(paths.projectStatus('wrongstack-a1b2c3')).toBe(
+      path.join('/home/dev', '.wrongstack', 'projects', 'wrongstack-a1b2c3', 'status.json'),
+    );
+    expect(() => paths.projectStatus('../escape')).toThrow('Invalid project slug');
+    expect(() => paths.projectStatus(paths.projectHash)).toThrow('Invalid project slug');
   });
 
   it('only AGENTS.md and skills are project-local', () => {

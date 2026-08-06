@@ -15,7 +15,7 @@ import * as path from 'node:path';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
 import type { Config, ConfigStore, FleetChatVerbosity } from '@wrongstack/core/types';
 import { normalizeTokenSavingTier, resolveFleetChatVerbosity } from '@wrongstack/core/types';
-import { atomicWrite, type WstackPaths } from '@wrongstack/core/utils';
+import { atomicWrite, deepMerge, type WstackPaths } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { LiveSettingsInput } from '../live-settings-input.js';
 import {
@@ -515,7 +515,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
               string,
               unknown
             >;
-            mergedToWrite = { ...destDecrypted, ...decrypted };
+            mergedToWrite = deepMerge(destDecrypted, decrypted);
           } catch (err) {
             if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
               throw new Error(

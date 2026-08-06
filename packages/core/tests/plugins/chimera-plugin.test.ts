@@ -23,7 +23,7 @@ const commit = (dir: string, msg: string) => {
 };
 
 function makeApi(config: Record<string, unknown> = {}, sharedEventBus?: EventBus) {
-  const events: Record<string, () => Promise<void>> = {};
+  const events: Record<string, (event?: Record<string, unknown>) => Promise<void>> = {};
   const eventBus = sharedEventBus ?? new EventBus();
   const configChangeCbs: Array<() => void> = [];
   const registered: SlashCommand[] = [];
@@ -38,7 +38,7 @@ function makeApi(config: Record<string, unknown> = {}, sharedEventBus?: EventBus
     config: { provider: 'anthropic', model: 'claude', cwd: tmp, ...config },
     events: eventBus,
     onConfigChange: (cb: () => void) => configChangeCbs.push(cb),
-    onEvent: (type: string, h: () => Promise<void>) => {
+    onEvent: (type: string, h: (event?: Record<string, unknown>) => Promise<void>) => {
       events[type] = h;
     },
     onPattern,

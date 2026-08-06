@@ -378,7 +378,8 @@ function writesToDisk(input: {
   const capabilitiesUndeclared = !capabilities || capabilities.length === 0;
   const hasWriteCap =
     capabilities?.some((capability) => WRITE_CAPABILITIES.has(capability)) ?? false;
-  if (executesShell(input) && !hasWriteCap) return false;
+  const hasCommandString = typeof input.toolInput?.['command'] === 'string';
+  if (hasCommandString && executesShell(input) && !hasWriteCap) return false;
   if (!capabilitiesUndeclared) {
     if (capabilities.some((capability) => WRITE_CAPABILITIES.has(capability))) return true;
 
@@ -752,13 +753,18 @@ export function destructiveTargets(command: string): string[] {
     t = tee.exec(normalizedCommand);
   }
 
-  // dd uses an assignment-style output operand.
-  const ddOutput = /(?:^|\s)of=("[^"]*"|'[^']*'|[^\s;&|]+)/gi;
-  let d: RegExpExecArray | null = ddOutput.exec(normalizedCommand);
+  // dd uses an assignment-style output operand. Scope `of=` extraction to an
+  // actual dd command so benign command arguments such as `echo of=.env` do
+  // not become destructive targets.
+  const dd = /(?:^|[;&|]\s*)(?:sudo\s+)?(dd)\s+([^;&|]+)/gi;
+  let d: RegExpExecArray | null = dd.exec(normalizedCommand);
   while (d !== null) {
-    const output = d[1]?.replace(/^['"]|['"]$/g, '');
-    if (output && !tokenIsQuoted(d, 'of=')) targets.push(output);
-    d = ddOutput.exec(normalizedCommand);
+    if (!tokenIsQuoted(d, d[1] ?? '')) {
+      const outputMatch = /(?:^|\s)of=("[^"]*"|'[^']*'|[^\s]+)/i.exec(d[2] ?? '');
+      const output = outputMatch?.[1]?.replace(/^['"]|['"]$/g, '');
+      if (output) targets.push(output);
+    }
+    d = dd.exec(normalizedCommand);
   }
 
   // In-place sed overwrites every file operand after its script; forced links
@@ -964,12 +970,30 @@ const plugin: Plugin = {
       // Shell first: the target is inside a command string, not a path field,
       // and only DESTRUCTIVE commands are this plugin's business.
       const command = typeof ti['command'] === 'string' ? ti['command'] : '';
-      if (command && executesShell(input)) {
-        const shellTargets = destructiveTargets(command);
+      const commandArgs = Array.isArray(ti['args'])
+        ? ti['args'].filter((arg): arg is string => typeof arg === 'string')
+        : [];
+      // `exec` supplies operands as argv rather than embedding them in command.
+      // Preserve simple flags/paths verbatim and quote complex argv entries so
+      // shell metacharacters remain data while the target parser can see them.
+      const commandForInspection = [
+        command,
+        ...commandArgs.map((arg) => (/^[\w./:@%+=,-]+$/.test(arg) ? arg : JSON.stringify(arg))),
+      ].join(' ');
+      if (
+        command &&
+        executesShell({
+          toolName: input.toolName,
+          toolInput: ti,
+          toolCapabilities: input.toolCapabilities,
+          toolMutating: input.toolMutating,
+        })
+      ) {
+        const shellTargets = destructiveTargets(commandForInspection);
         const effectiveCwd = effectiveToolCwd(ti['cwd'], input.cwd);
         const recursivelyDeletes =
           /(?:^|[;&|]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(?:rm\s+(?:-[^\s]*[rR][^\s]*\s+)+|rmdir\b|del\s+\/[^\s]*[sS][^\s]*\s+)/i.test(
-            command,
+            commandForInspection,
           );
         for (const path of shellTargets) {
           const target: WriteTarget = {

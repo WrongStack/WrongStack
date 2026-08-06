@@ -30,7 +30,10 @@ function commitAll(dir: string, message: string): void {
 }
 
 function makeApi(autoReviewConfig: Record<string, unknown> = {}) {
-  const events: Record<string, (payload?: { ctx?: { todos?: never[] } }) => Promise<void>> = {};
+  const events: Record<
+    string,
+    (event?: Record<string, unknown> | undefined) => Promise<void>
+  > = {};
   const eventBus = new EventBus();
   const registered: SlashCommand[] = [];
   const emitCustom = vi.fn();

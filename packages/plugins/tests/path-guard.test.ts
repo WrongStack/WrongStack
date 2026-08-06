@@ -76,6 +76,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('cp src pnpm-lock.yaml')).toContain('pnpm-lock.yaml');
     expect(destructiveTargets('install -m 644 x .env')).toContain('.env');
     expect(destructiveTargets('dd if=src of=.env bs=4k')).toContain('.env');
+    expect(destructiveTargets('sudo dd if=src of=".env local" bs=4k')).toContain('.env local');
     expect(destructiveTargets("sed -i 's/old/new/' .env")).toContain('.env');
     expect(destructiveTargets("sed -i 's/old/new/' .env notes.txt")).toEqual(
       expect.arrayContaining(['.env', 'notes.txt']),
@@ -85,6 +86,12 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('printf .env | xargs rm')).toContain('.env');
     expect(destructiveTargets('xargs -0 rm .env')).toContain('.env');
     expect(destructiveTargets('xargs -r rm .env')).toContain('.env');
+  });
+
+  it('does not treat assignment-like of= arguments on benign commands as dd outputs', () => {
+    expect(destructiveTargets('echo see of=.env')).toHaveLength(0);
+    expect(destructiveTargets('ls of=.env')).toHaveLength(0);
+    expect(destructiveTargets("grep 'x' of=.env")).toHaveLength(0);
   });
 
   it('unwraps env launchers and honors copy target-directory options', () => {
@@ -201,6 +208,22 @@ describe('path-guard plugin', () => {
         toolName: 'exec',
         toolInput: { command: 'rm -f .env' },
         toolCapabilities: ['shell.restricted', 'fs.write'],
+        toolMutating: true,
+      })?.decision,
+    ).toBe('block');
+    expect(
+      hook({
+        toolName: 'exec',
+        toolInput: { command: 'rm', args: ['-f', '.env'] },
+        toolCapabilities: ['shell.restricted'],
+        toolMutating: true,
+      })?.decision,
+    ).toBe('block');
+    expect(
+      hook({
+        toolName: 'exec',
+        toolInput: { command: 'rm', args: ['-rf', '.'] },
+        toolCapabilities: ['shell.restricted'],
         toolMutating: true,
       })?.decision,
     ).toBe('block');

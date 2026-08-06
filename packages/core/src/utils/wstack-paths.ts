@@ -136,8 +136,8 @@ export interface WstackPaths {
   syncConfig: string;
   /** ~/.wrongstack/config-history — timestamped backups on every config write */
   configHistoryDir: string;
-  /** Function to get the status.json path for a project given its hash. */
-  projectStatus: (projectHash: string) => string;
+  /** Function to get the status.json path for a validated project slug. */
+  projectStatus: (projectSlug: string) => string;
 }
 
 /**
@@ -170,9 +170,11 @@ export function canonicalProjectRoot(absRoot: string): string {
     if (!fs.statSync(commonDirFile).isFile()) return checkoutRoot;
 
     const commonDir = path.resolve(gitDir, fs.readFileSync(commonDirFile, 'utf8').trim());
-    // Linked worktrees created by Git share the main checkout's `.git` dir.
-    // A submodule or --separate-git-dir layout may point elsewhere; do not
-    // guess a working-tree root for those shapes.
+    // Only linked worktrees live immediately below `<common>/.git/worktrees`.
+    // Submodules use `<common>/.git/modules/...` and retain their own identity.
+    const worktreesDir = path.dirname(gitDir);
+    if (path.basename(worktreesDir).toLowerCase() !== 'worktrees') return checkoutRoot;
+    if (path.resolve(worktreesDir, '..') !== commonDir) return checkoutRoot;
     if (path.basename(commonDir).toLowerCase() !== '.git') return checkoutRoot;
     return path.dirname(commonDir);
   } catch {
@@ -343,7 +345,11 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
     projectRequirementIntakes: path.join(projectDir, 'requirement-intakes'),
     syncConfig: path.join(profileDir, 'sync.json'),
     configHistoryDir: path.join(globalRoot, 'config-history'),
-    projectStatus: (projectHash: string) =>
-      path.join(globalRoot, 'projects', projectHash, 'status.json'),
+    projectStatus: (statusProjectSlug: string) => {
+      if (!/^[a-z0-9](?:[a-z0-9-]{0,39})-[a-f0-9]{6}$/.test(statusProjectSlug)) {
+        throw new Error(`Invalid project slug: ${statusProjectSlug}`);
+      }
+      return path.join(globalRoot, 'projects', statusProjectSlug, 'status.json');
+    },
   };
 }

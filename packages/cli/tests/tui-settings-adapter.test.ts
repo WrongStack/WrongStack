@@ -375,8 +375,14 @@ describe('TUI settings adapter', () => {
     expect(s['allowOutsideProjectRoot']).toBe(false);
   });
 
-  it('creates the project config when config scope changes to project', async () => {
+  it('deep-merges an existing project config when config scope changes to project', async () => {
     const { adapter, configStore, inProjectConfig } = makeAdapter();
+    mkdirSync(path.dirname(inProjectConfig), { recursive: true });
+    writeFileSync(
+      inProjectConfig,
+      JSON.stringify({ autonomy: { confirmExit: false }, features: { chime: true } }),
+      'utf8',
+    );
 
     const err = await adapter.saveSettings({
       mode: 'auto',
@@ -393,10 +399,12 @@ describe('TUI settings adapter', () => {
     const written = JSON.parse(readFileSync(inProjectConfig, 'utf8'));
     expect(written.configScope).toBe('project');
     expect(written.autonomy.defaultMode).toBe('auto');
+    expect(written.autonomy.confirmExit).toBe(false);
     expect(written.autonomy.autoProceedDelayMs).toBe(15_000);
     expect(written.autonomy.enhanceDelayMs).toBe(15_000);
     expect(written.autonomy.enhance).toBe(false);
     expect(written.context.mode).toBe('frugal');
+    expect(written.features.chime).toBe(true);
     expect(written.modelRuntime.reasoning.mode).toBe('on');
     expect(written.modelRuntime.cache.ttl).toBe('5m');
     expect(configStore.get().configScope).toBe('project');
