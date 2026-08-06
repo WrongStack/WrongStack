@@ -10,8 +10,12 @@
       "lines": 1046,
       "relativeImports": 17
     },
+    "packages/cli/src/boot.ts": {
+      "lines": 800,
+      "relativeImports": 17
+    },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1143,
+      "lines": 1172,
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
@@ -27,15 +31,15 @@
       "relativeImports": 6
     },
     "packages/cli/src/hq-server/routes.ts": {
-      "lines": 1075,
+      "lines": 1084,
       "relativeImports": 12
     },
     "packages/cli/src/hq-server/ws.ts": {
-      "lines": 1130,
+      "lines": 1136,
       "relativeImports": 3
     },
     "packages/cli/src/hq-server.ts": {
-      "lines": 1010,
+      "lines": 1023,
       "relativeImports": 10
     },
     "packages/cli/src/picker.ts": {
@@ -63,7 +67,7 @@
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings.ts": {
-      "lines": 1087,
+      "lines": 1106,
       "relativeImports": 4
     },
     "packages/cli/src/subcommands/handlers/modeldiag.ts": {
@@ -71,7 +75,7 @@
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1092,
+      "lines": 1093,
       "relativeImports": 19
     },
     "packages/core/src/chronicle/metrics-store.ts": {
@@ -127,8 +131,8 @@
       "relativeImports": 3
     },
     "packages/core/src/core/agent-loop.ts": {
-      "lines": 922,
-      "relativeImports": 24
+      "lines": 1105,
+      "relativeImports": 26
     },
     "packages/core/src/core/context.ts": {
       "lines": 870,
@@ -163,12 +167,12 @@
       "relativeImports": 8
     },
     "packages/core/src/execution/tool-executor.ts": {
-      "lines": 1018,
+      "lines": 1049,
       "relativeImports": 21
     },
     "packages/core/src/hq/auth-store.ts": {
-      "lines": 834,
-      "relativeImports": 6
+      "lines": 825,
+      "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
       "lines": 949,
@@ -179,8 +183,8 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 994,
-      "relativeImports": 149
+      "lines": 995,
+      "relativeImports": 150
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
       "lines": 1055,
@@ -251,7 +255,7 @@
       "relativeImports": 17
     },
     "packages/plugins/src/path-guard/index.ts": {
-      "lines": 1128,
+      "lines": 1250,
       "relativeImports": 0
     },
     "packages/plugins/src/secret-scanner/index.ts": {
@@ -291,7 +295,7 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 952,
+      "lines": 969,
       "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -331,19 +335,19 @@
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 933,
+      "lines": 998,
       "relativeImports": 17
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 843,
+      "lines": 845,
       "relativeImports": 12
     },
     "packages/tui/src/app-view.tsx": {
-      "lines": 949,
+      "lines": 962,
       "relativeImports": 49
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1073,
+      "lines": 1109,
       "relativeImports": 66
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -375,7 +379,7 @@
       "relativeImports": 22
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 987,
+      "lines": 992,
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-panels.tsx": {
@@ -383,8 +387,8 @@
       "relativeImports": 13
     },
     "packages/tui/src/components/status-bar.tsx": {
-      "lines": 1152,
-      "relativeImports": 16
+      "lines": 1142,
+      "relativeImports": 17
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
       "lines": 987,
@@ -415,7 +419,7 @@
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
-      "lines": 1123,
+      "lines": 1140,
       "relativeImports": 19
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
@@ -439,7 +443,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/components/KanbanTaskInspector.tsx": {
-      "lines": 860,
+      "lines": 863,
       "relativeImports": 15
     },
     "packages/webui/src/components/MemoryManager/index.tsx": {
@@ -479,7 +483,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1083,
+      "lines": 1117,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -487,15 +491,15 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1151,
+      "lines": 1175,
       "relativeImports": 9
     },
     "packages/webui/src/stores/chat-store.ts": {
-      "lines": 1090,
+      "lines": 1113,
       "relativeImports": 1
     },
     "packages/webui/src/stores/viz-store.ts": {
-      "lines": 879,
+      "lines": 917,
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
@@ -511,19 +515,19 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/connections-health-route.ts": {
-      "lines": 1109,
-      "relativeImports": 1
+      "lines": 1164,
+      "relativeImports": 2
     },
     "packages/webui-server/src/server/context-editor.ts": {
       "lines": 1020,
       "relativeImports": 1
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
-      "lines": 940,
+      "lines": 959,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 1157,
+      "lines": 1166,
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
@@ -531,7 +535,7 @@
       "relativeImports": 8
     },
     "packages/webui-server/src/server/provider-handlers.ts": {
-      "lines": 803,
+      "lines": 807,
       "relativeImports": 6
     },
     "packages/webui-server/src/server/setup-events.ts": {
@@ -539,7 +543,7 @@
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1061,
+      "lines": 1090,
       "relativeImports": 18
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 52,
+      "files": 53,
       "typeOnly": 20,
-      "runtimeOrMixed": 53
+      "runtimeOrMixed": 54
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -59,14 +59,14 @@
       "runtimeOrMixed": 20
     },
     "@wrongstack/core/hooks": {
-      "files": 5,
+      "files": 6,
       "typeOnly": 2,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     "@wrongstack/core/hq": {
-      "files": 108,
+      "files": 110,
       "typeOnly": 74,
-      "runtimeOrMixed": 62
+      "runtimeOrMixed": 64
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 28,
+      "files": 30,
       "typeOnly": 9,
-      "runtimeOrMixed": 20
+      "runtimeOrMixed": 22
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 854,
-      "typeOnly": 811,
-      "runtimeOrMixed": 215
+      "files": 856,
+      "typeOnly": 813,
+      "runtimeOrMixed": 217
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 474,
+      "files": 476,
       "typeOnly": 51,
-      "runtimeOrMixed": 479
+      "runtimeOrMixed": 482
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -3052,6 +3052,12 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/plugins/tests/path-guard.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/runtime/src/container.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -3333,6 +3339,12 @@
       "runtimeOrMixed": 0
     },
     {
+      "specifier": "@wrongstack/core/hooks",
+      "file": "packages/plugins/tests/path-guard.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/boot/launch-menu.ts",
       "typeOnly": 0,
@@ -3421,6 +3433,12 @@
       "file": "packages/cli/src/hq-server/snapshot.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/startup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -3594,6 +3612,12 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-resume-handler.test.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-runtime-marker-single-authority.test.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -5485,6 +5509,18 @@
       "file": "packages/cli/src/boot/auto-discover-providers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/src/provider-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/src/slash-commands/modelcaps.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/models",
@@ -8190,7 +8226,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/cli-main.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -9198,7 +9234,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/provider-utility-tools.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -9436,6 +9472,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/fleet-subagent-tool-visibility.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/github-copilot-oauth.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9581,6 +9623,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/preflight.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/profile-config-path.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -14554,6 +14602,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/profile-config-path.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/provider-status-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15653,6 +15707,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/hooks/use-terminal-render-lifecycle.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/hooks/use-terminal-size.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
