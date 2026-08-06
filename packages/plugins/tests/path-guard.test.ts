@@ -107,6 +107,15 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('echo "\\`rm .env\\`"')).toHaveLength(0);
   });
 
+  it('bounds deeply nested command substitution inspection', () => {
+    const nested = `${'echo $('.repeat(100)}rm .env${')'.repeat(100)}`;
+    expect(destructiveTargets(nested)).toContain('.');
+  });
+
+  it('terminates safely on deeply nested unclosed substitutions', () => {
+    expect(destructiveTargets('$('.repeat(2_000))).toHaveLength(0);
+  });
+
   it('extracts noclobber overrides and destructive raw Git targets', () => {
     expect(destructiveTargets('echo secret >| .env')).toContain('.env');
     expect(destructiveTargets('sudo --user=root rm .env')).toContain('.env');
@@ -238,10 +247,20 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets("echo 'foo\\' ; rm .env")).toContain('.env');
   });
 
-  it('ignores redirect-looking text inside quoted heredoc bodies', () => {
-    const command = "cat <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt";
-    expect(destructiveTargets(command)).toEqual(['notes.txt']);
-  });
+  it.each([
+    ["cat <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt", ['notes.txt']],
+    ["echo x | cat <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt", ['notes.txt']],
+    [
+      "tee output.txt <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt",
+      ['output.txt', 'notes.txt'],
+    ],
+    ["while read line <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt", ['notes.txt']],
+  ])(
+    'ignores redirect-looking text inside non-executing heredoc bodies: %s',
+    (command, expected) => {
+      expect(destructiveTargets(command)).toEqual(expected);
+    },
+  );
 
   it('inspects substitutions in unquoted heredocs but keeps quoted heredocs inert', () => {
     expect(destructiveTargets('cat <<EOF\n$(rm .env)\nEOF')).toContain('.env');
@@ -364,14 +383,22 @@ describe('path-guard plugin', () => {
     }
   });
 
-  it('allows destructive-looking data in a path-qualified cat heredoc at the hook level', () => {
+  it('allows destructive-looking data in non-executing heredocs at the hook level', () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
-      toolName: 'bash',
-      toolInput: { command: '/bin/cat <<EOF\nrm .env\nEOF' },
-    });
-    expect(result).toBeUndefined();
+    const hook = getHook(api);
+    expect(
+      hook({
+        toolName: 'bash',
+        toolInput: { command: '/bin/cat <<EOF\nrm .env\nEOF' },
+      }),
+    ).toBeUndefined();
+    expect(
+      hook({
+        toolName: 'bash',
+        toolInput: { command: "cat <<'EOF'\n$(rm .env)\nEOF" },
+      }),
+    ).toBeUndefined();
   });
 
   it('blocks destructive bash on protected paths, allows reads', () => {

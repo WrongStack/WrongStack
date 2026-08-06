@@ -742,7 +742,7 @@ function stripTransparentLaunchers(command: string): string {
     previous = stripped;
     stripped = stripped
       .replace(
-        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+(?:--user(?:=\S+|\s+\S+)|--prompt(?:=\\S+|\s+\\S+)|-u\s+\S+|-(?:[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?|[A-Za-z]))|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+(?:--user(?:=\S+|\s+\S+)|--prompt(?:=\S+|\s+\S+)|-u\s+\S+|-(?:[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?|[A-Za-z]))|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
         '$1',
       )
       .replace(
@@ -846,10 +846,16 @@ function executableCommandSubstitutions(command: string): string[] {
     if (depth === 0) {
       bodies.push(command.slice(index + 2, end));
       index = end;
+    } else {
+      // A later `$(` cannot close independently while this outer substitution
+      // remains open. Stop once instead of rescanning the same suffix O(n²).
+      break;
     }
   }
   return bodies;
 }
+
+const MAX_DESTRUCTIVE_TARGET_DEPTH = 64;
 
 function maskNonExecutingHeredocBodies(command: string): string {
   const lines = command.split(/(?<=\n)/);
@@ -874,12 +880,11 @@ function maskNonExecutingHeredocBodies(command: string): string {
     if (!marker) continue;
     const prefix = line.slice(0, marker.index).trim();
     const suffix = line.slice(marker.index + marker[0].length).trim();
-    if (
-      !/^(?:(?:sudo|env)(?:\s+[^;&|]+)*\s+)?(?:[^\s;&|]+[\\/])?cat(?:\s|$)/i.test(prefix) ||
-      /^(?:\||;|&|\(|\{)/.test(suffix)
-    ) {
-      continue;
-    }
+    const receivesDataWithoutExecuting =
+      /(?:^|\|)\s*(?:(?:sudo|env)(?:\s+[^;&|]+)*\s+)?(?:[^\s;&|]+[\\/])?(?:cat|tee)(?:\s|$)/i.test(
+        prefix,
+      ) || /^(?:while\s+)?read(?:\s|$)/i.test(prefix);
+    if (!receivesDataWithoutExecuting || /^(?:\||;|&|\(|\{)/.test(suffix)) continue;
     const delimiter = marker[2] ?? marker[3] ?? marker[4];
     if (delimiter) {
       heredoc = {
@@ -893,6 +898,12 @@ function maskNonExecutingHeredocBodies(command: string): string {
 }
 
 export function destructiveTargets(command: string): string[] {
+  return destructiveTargetsAtDepth(command, 0);
+}
+
+function destructiveTargetsAtDepth(command: string, depth: number): string[] {
+  if (depth >= MAX_DESTRUCTIVE_TARGET_DEPTH) return ['.'];
+
   // `env [opts] [NAME=value ...] command` and `sudo [opts] command` are
   // transparent launchers for the command being guarded; strip them before
   // applying the anchored command patterns. This must cover:
@@ -932,7 +943,7 @@ export function destructiveTargets(command: string): string[] {
     while (executableBody.startsWith('(') && executableBody.endsWith(')')) {
       executableBody = executableBody.slice(1, -1).trim();
     }
-    targets.push(...destructiveTargets(executableBody));
+    targets.push(...destructiveTargetsAtDepth(executableBody, depth + 1));
   }
 
   // rm/rmdir/del/unlink/truncate/mv/shred <args...>, including xargs wrappers.
@@ -1028,7 +1039,7 @@ export function destructiveTargets(command: string): string[] {
 
   // Git subcommands that mutate or remove working-tree files. Tokenize the
   // invocation so arbitrary boolean global options do not bypass detection.
-  const gitInvocation = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b([^;&|`\r\n]*)/gi;
+  const gitInvocation = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b((?:"[^"]*"|'[^']*'|[^;&|)`\r\n])*)/gi;
   const destructiveGitCommands = new Set([
     'clean',
     'rm',
@@ -1191,7 +1202,7 @@ export function destructiveTargets(command: string): string[] {
   let w: RegExpExecArray | null = shellWrapper.exec(normalizedCommand);
   while (w !== null) {
     if (w[2] && !tokenIsQuoted(w, w[0].split(/\s/)[0] ?? '')) {
-      targets.push(...destructiveTargets(w[2]));
+      targets.push(...destructiveTargetsAtDepth(w[2], depth + 1));
     }
     w = shellWrapper.exec(normalizedCommand);
   }
