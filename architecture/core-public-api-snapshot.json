@@ -1173,7 +1173,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3493
+      "sourceLines": 3510
     },
     {
       "directory": "middleware",
@@ -1215,7 +1215,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 17,
-      "sourceLines": 6496
+      "sourceLines": 6504
     },
     {
       "directory": "prompts",
@@ -1285,7 +1285,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 9886
+      "sourceLines": 9892
     },
     {
       "directory": "worktree",
