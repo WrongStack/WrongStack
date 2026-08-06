@@ -10,6 +10,7 @@ import {
   createChimeraPlugin,
   resolveChimeraConfig,
 } from '../../src/plugins/chimera-plugin.js';
+import { recordCompletedReview } from '../../src/plugins/review-claim-registry.js';
 
 let tmp: string;
 const gitInit = (dir: string) => {
@@ -174,6 +175,12 @@ describe('createChimeraPlugin lifecycle + command', () => {
     expect(firstBundle).toBeDefined();
 
     eventBus.emitCustom('chimera.review_complete', { bundle: firstBundle });
+    // The plugin's completion listeners release claims fire-and-forget; in the
+    // real host the CLI execution owner AWAITS recordCompletedReview before
+    // emitting review_complete (execution-chimera-review.ts), so the release is
+    // always durable before the next trigger. Await the canonical release here
+    // to mirror that ordering instead of racing the void'd plugin release.
+    await recordCompletedReview(eventBus as never, { bundle: firstBundle });
     await enabled.events['session.ended']!();
 
     const reviews = enabled.emitCustom.mock.calls.filter(

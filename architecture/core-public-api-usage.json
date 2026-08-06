@@ -104,9 +104,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/plugin": {
-      "files": 21,
-      "typeOnly": 14,
-      "runtimeOrMixed": 18
+      "files": 22,
+      "typeOnly": 15,
+      "runtimeOrMixed": 19
     },
     "@wrongstack/core/registry": {
       "files": 96,
@@ -5784,6 +5784,12 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/plugin-management.ts",
       "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/slash-commands/review.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {

@@ -845,7 +845,7 @@ export function createAutoReviewPlugin(): Plugin {
             `[auto-review] #${reviewCounter} emitting review_needed (${filesWithContent.length} files, provider=${cfg.provider} model=${cfg.model})`,
           );
 
-          const emittedBundle = emitReviewIfChanged(api, bundle);
+          const emittedBundle = await emitReviewIfChanged(api, bundle);
           if (!emittedBundle) {
             api.log.info(
               `[auto-review] #${reviewCounter} skipped — file content already has a review in progress`,
@@ -893,101 +893,101 @@ export function createAutoReviewPlugin(): Plugin {
       api.onEvent('session.ended', (event) => {
         const work = (async () => {
           sessionEnded = true;
-        const handedOffFiles = pendingFiles.size;
-        cancelPendingReviewTimer();
-        if (handedOffFiles > 0) {
-          api.log.info(
-            `[auto-review] session ended — handed ${handedOffFiles} pending mid-session file(s) to post-session review`,
-          );
-        }
-        // If the quiet timer already started reading, wait for that pass to
-        // observe sessionEnded and unwind before post-session claims the files.
-        await pendingReviewWork;
-        try {
-          const cfg = resolved;
-          if (!cfg.enabled) return;
-
-          const cwd = api.config.cwd ?? process.cwd();
-          if (!(await isGitRepo(cwd))) return;
-
-          const allChanged = await getChangedFiles(cwd);
-          const existing: ChangedFile[] = [];
-          for (const f of allChanged) {
-            if (f.path.startsWith('.wrongstack/')) continue;
-            try {
-              await fsp.access(path.join(cwd, f.path));
-              existing.push(f);
-            } catch {
-              /* deleted */
-            }
-          }
-
-          if (existing.length === 0) return;
-
-          const toReview = existing.slice(0, cfg.maxFilesPerBatch);
-
-          const filesWithContent: ChimeraReviewNeededPayload['files'] = [];
-          for (const f of toReview) {
-            try {
-              const absPath = path.join(cwd, f.path);
-              const content = await fsp.readFile(absPath, 'utf8');
-              filesWithContent.push({ path: f.path, status: f.status, content });
-            } catch {
-              /* skip */
-            }
-          }
-
-          if (filesWithContent.length === 0) return;
-
-          // Track in-flight (honors maxConcurrentReviews cap)
-          if (inFlight.length >= cfg.maxConcurrentReviews) {
+          const handedOffFiles = pendingFiles.size;
+          cancelPendingReviewTimer();
+          if (handedOffFiles > 0) {
             api.log.info(
-              `[auto-review] session end — at max concurrent (${cfg.maxConcurrentReviews}), skipping final review`,
+              `[auto-review] session ended — handed ${handedOffFiles} pending mid-session file(s) to post-session review`,
             );
-            return;
           }
+          // If the quiet timer already started reading, wait for that pass to
+          // observe sessionEnded and unwind before post-session claims the files.
+          await pendingReviewWork;
+          try {
+            const cfg = resolved;
+            if (!cfg.enabled) return;
 
-          // ── Build enriched review context (diffs, siblings, commits) ──
-          const bundle = await buildReviewContext({
-            cwd,
-            config: {
-              enabled: true,
-              provider: cfg.provider,
-              model: cfg.model,
-              maxFiles: cfg.maxFilesPerBatch,
-              autoFix: 'off',
-              cascadeOn: 'off',
-              maxCascadeDepth: 0,
-            },
-            files: filesWithContent,
-            cascadeOn: cfg.cascadeOn,
-            maxCascadeDepth: cfg.maxCascadeDepth,
-          });
-          bundle.reviewFallbackModels = [...cfg.fallbackModels];
-          bundle.reviewModelSelection = cfg.modelSelection;
-          const trackedChangedPaths = new Set(existing.map((file) => file.path));
-          bundle.allChangedFiles = bundle.allChangedFiles?.filter((file) =>
-            trackedChangedPaths.has(file.path),
-          );
+            const cwd = api.config.cwd ?? process.cwd();
+            if (!(await isGitRepo(cwd))) return;
 
-          const emittedBundle = emitReviewIfChanged(api, bundle);
-          if (!emittedBundle) {
+            const allChanged = await getChangedFiles(cwd);
+            const existing: ChangedFile[] = [];
+            for (const f of allChanged) {
+              if (f.path.startsWith('.wrongstack/')) continue;
+              try {
+                await fsp.access(path.join(cwd, f.path));
+                existing.push(f);
+              } catch {
+                /* deleted */
+              }
+            }
+
+            if (existing.length === 0) return;
+
+            const toReview = existing.slice(0, cfg.maxFilesPerBatch);
+
+            const filesWithContent: ChimeraReviewNeededPayload['files'] = [];
+            for (const f of toReview) {
+              try {
+                const absPath = path.join(cwd, f.path);
+                const content = await fsp.readFile(absPath, 'utf8');
+                filesWithContent.push({ path: f.path, status: f.status, content });
+              } catch {
+                /* skip */
+              }
+            }
+
+            if (filesWithContent.length === 0) return;
+
+            // Track in-flight (honors maxConcurrentReviews cap)
+            if (inFlight.length >= cfg.maxConcurrentReviews) {
+              api.log.info(
+                `[auto-review] session end — at max concurrent (${cfg.maxConcurrentReviews}), skipping final review`,
+              );
+              return;
+            }
+
+            // ── Build enriched review context (diffs, siblings, commits) ──
+            const bundle = await buildReviewContext({
+              cwd,
+              config: {
+                enabled: true,
+                provider: cfg.provider,
+                model: cfg.model,
+                maxFiles: cfg.maxFilesPerBatch,
+                autoFix: 'off',
+                cascadeOn: 'off',
+                maxCascadeDepth: 0,
+              },
+              files: filesWithContent,
+              cascadeOn: cfg.cascadeOn,
+              maxCascadeDepth: cfg.maxCascadeDepth,
+            });
+            bundle.reviewFallbackModels = [...cfg.fallbackModels];
+            bundle.reviewModelSelection = cfg.modelSelection;
+            const trackedChangedPaths = new Set(existing.map((file) => file.path));
+            bundle.allChangedFiles = bundle.allChangedFiles?.filter((file) =>
+              trackedChangedPaths.has(file.path),
+            );
+
+            const emittedBundle = await emitReviewIfChanged(api, bundle);
+            if (!emittedBundle) {
+              api.log.info(
+                '[auto-review] session end — unchanged files already have reviews in progress',
+              );
+              return;
+            }
+            const inflightEntry: InFlightReview = {
+              files: emittedBundle.files.map((file) => file.path),
+              startedAt: Date.now(),
+              subagentType: 'review',
+            };
+            inFlight.push(inflightEntry);
+            expireInFlight(inflightEntry);
+
             api.log.info(
-              '[auto-review] session end — unchanged files already have reviews in progress',
+              `[auto-review] session end — final review (${emittedBundle.files.length} files)`,
             );
-            return;
-          }
-          const inflightEntry: InFlightReview = {
-            files: emittedBundle.files.map((file) => file.path),
-            startedAt: Date.now(),
-            subagentType: 'review',
-          };
-          inFlight.push(inflightEntry);
-          expireInFlight(inflightEntry);
-
-          api.log.info(
-            `[auto-review] session end — final review (${emittedBundle.files.length} files)`,
-          );
           } catch (err) {
             api.log.warn(`[auto-review] session.ended handler failed: ${toErrorMessage(err)}`);
           }

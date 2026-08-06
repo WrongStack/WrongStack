@@ -216,7 +216,10 @@ function buildChimeraCommand(
           };
         }
         // Emit a custom event so the execution layer can update agent.ctx.meta in real time.
-        (events as never as { emit: (name: string, payload: { mode: string }) => void }).emit('chimera.set_autofix', { mode });
+        (events as never as { emit: (name: string, payload: { mode: string }) => void }).emit(
+          'chimera.set_autofix',
+          { mode },
+        );
         return {
           message: `✅ Chimera autoFix set to "${mode}" for this session (config file unchanged).`,
         };
@@ -310,10 +313,10 @@ export function createChimeraPlugin(): Plugin {
       // work. Keep it registered while disabled so config changes and reviews
       // emitted by other paths cannot leave stale in-flight claims behind.
       api.onPattern('chimera.review_needed', (_event, payload) => {
-        recordStartedReview(api.events, payload);
+        void recordStartedReview(api.events, payload).catch(() => undefined);
       });
       api.onPattern('chimera.review_complete', (_event, payload) => {
-        recordCompletedReview(api.events, payload);
+        void recordCompletedReview(api.events, payload).catch(() => undefined);
       });
 
       if (!resolved.enabled) {
@@ -335,74 +338,76 @@ export function createChimeraPlugin(): Plugin {
       api.onEvent('session.ended', (event) => {
         const work = (async () => {
           try {
-          const cfg = resolved;
-          if (!cfg.enabled) return;
+            const cfg = resolved;
+            if (!cfg.enabled) return;
 
-          const cwd = api.config.cwd ?? process.cwd();
-          if (!(await isGitRepo(cwd))) {
-            api.log.info('[chimera] skipped — not a git repo');
-            return;
-          }
-
-          const allChanged = await getChangedFiles(cwd);
-          const existing: ChangedFile[] = [];
-          for (const f of allChanged) {
-            if (f.path.startsWith('.wrongstack/')) continue;
-            try {
-              await fsp.access(path.join(cwd, f.path));
-              existing.push(f);
-            } catch {
-              /* deleted */
+            const cwd = api.config.cwd ?? process.cwd();
+            if (!(await isGitRepo(cwd))) {
+              api.log.info('[chimera] skipped — not a git repo');
+              return;
             }
-          }
 
-          if (existing.length === 0) {
-            api.log.info('[chimera] no changed files to review');
-            return;
-          }
-
-          const toReview = existing.slice(0, cfg.maxFiles);
-          if (existing.length > cfg.maxFiles) {
-            api.log.info(`[chimera] capping review at ${cfg.maxFiles} of ${existing.length} files`);
-          }
-
-          // Read file contents
-          const filesWithContent: ReviewFileEntry[] = [];
-          for (const f of toReview) {
-            try {
-              const absPath = path.join(cwd, f.path);
-              const content = await fsp.readFile(absPath, 'utf8');
-              filesWithContent.push({ path: f.path, status: f.status, content });
-            } catch {
-              /* skip */
+            const allChanged = await getChangedFiles(cwd);
+            const existing: ChangedFile[] = [];
+            for (const f of allChanged) {
+              if (f.path.startsWith('.wrongstack/')) continue;
+              try {
+                await fsp.access(path.join(cwd, f.path));
+                existing.push(f);
+              } catch {
+                /* deleted */
+              }
             }
-          }
 
-          if (filesWithContent.length === 0) {
-            api.log.info('[chimera] could not read changed files');
-            return;
-          }
+            if (existing.length === 0) {
+              api.log.info('[chimera] no changed files to review');
+              return;
+            }
 
-          // ── Build enriched review context (diffs, siblings, commits) ──
-          const bundle: ReviewContextBundle = await buildReviewContext({
-            cwd,
-            config: cfg,
-            files: filesWithContent,
-            cascadeOn: cfg.cascadeOn,
-            maxCascadeDepth: cfg.maxCascadeDepth,
-          });
+            const toReview = existing.slice(0, cfg.maxFiles);
+            if (existing.length > cfg.maxFiles) {
+              api.log.info(
+                `[chimera] capping review at ${cfg.maxFiles} of ${existing.length} files`,
+              );
+            }
 
-          // Atomically skip exact file content already claimed by a mid-session,
-          // manual, or competing post-session review.
-          const emittedBundle = emitReviewIfChanged(api, bundle);
-          if (!emittedBundle) {
-            api.log.info('[chimera] skipped — changed files already have reviews in progress');
-            return;
-          }
+            // Read file contents
+            const filesWithContent: ReviewFileEntry[] = [];
+            for (const f of toReview) {
+              try {
+                const absPath = path.join(cwd, f.path);
+                const content = await fsp.readFile(absPath, 'utf8');
+                filesWithContent.push({ path: f.path, status: f.status, content });
+              } catch {
+                /* skip */
+              }
+            }
 
-          api.log.info(
-            `[chimera] emitted review_needed event (${emittedBundle.files.length} files)`,
-          );
+            if (filesWithContent.length === 0) {
+              api.log.info('[chimera] could not read changed files');
+              return;
+            }
+
+            // ── Build enriched review context (diffs, siblings, commits) ──
+            const bundle: ReviewContextBundle = await buildReviewContext({
+              cwd,
+              config: cfg,
+              files: filesWithContent,
+              cascadeOn: cfg.cascadeOn,
+              maxCascadeDepth: cfg.maxCascadeDepth,
+            });
+
+            // Atomically skip exact file content already claimed by a mid-session,
+            // manual, or competing post-session review.
+            const emittedBundle = await emitReviewIfChanged(api, bundle);
+            if (!emittedBundle) {
+              api.log.info('[chimera] skipped — changed files already have reviews in progress');
+              return;
+            }
+
+            api.log.info(
+              `[chimera] emitted review_needed event (${emittedBundle.files.length} files)`,
+            );
           } catch (err) {
             api.log.warn(`[chimera] session.ended handler failed: ${toErrorMessage(err)}`);
           }

@@ -208,7 +208,7 @@ async function maybeReReviewCascade({
         // Use emitReviewIfChanged so content-fingerprint dedup protects
         // against re-reviewing files the fix agent didn't actually change.
         // emitCustom() is the safe passthrough the function needs.
-        const emitted = emitReviewIfChanged(
+        const emitted = await emitReviewIfChanged(
           { events, emitCustom: events.emitCustom.bind(events) },
           reReviewBundle,
         );

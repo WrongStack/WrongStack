@@ -34,7 +34,6 @@ type Mailbox = ExecuteDeps['session']['mailbox'];
 type Agent = ExecuteDeps['core']['agent'];
 type Config = ExecuteDeps['core']['config'];
 
-
 /**
  * Canonicalize a file path for citation gating. The reviewer can cite
  * absolute Windows paths (`D:\Codebox\...`) or mix casing on a
@@ -100,6 +99,9 @@ export function installChimeraReviewHandler({
     const reviewSessionId = agent.ctx.activeRunSessionId ?? agent.ctx.session?.id ?? session.id;
     const dir = director;
     if (!dir) {
+      // No Director — the review will never spawn. Release the claims made by
+      // the emitter so the file content is not blocked for other sessions.
+      void recordCompletedReview(events, { bundle: p }).catch(() => undefined);
       return;
     }
     if (p.files.length === 0) return;
@@ -161,7 +163,7 @@ export function installChimeraReviewHandler({
         // The optional post-session plugin previously owned this release.
         // Keep it in the always-installed execution owner so auto-review-only
         // sessions cannot retain content claims forever.
-        recordCompletedReview(events, completion);
+        await recordCompletedReview(events, completion);
         events.emitCustom('chimera.review_complete', completion);
       }
     };

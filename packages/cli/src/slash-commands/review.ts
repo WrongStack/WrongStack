@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
+import type { ReviewContextBundle } from '@wrongstack/core/plugin';
+import { emitReviewIfChanged } from '@wrongstack/core/plugin';
 import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
@@ -114,7 +116,10 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
         }
       }
 
-      // Emit custom event — execution.ts picks this up
+      // Emit custom event — execution.ts picks this up. Claims are installed
+      // in the shared ledger BEFORE the event fires (like the automatic
+      // paths), so a concurrent session cannot review the same content and the
+      // execution owner can release the claims if no Director is present.
       const payload = {
         config: {
           enabled: true,
@@ -124,9 +129,18 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
         },
         cwd,
         files: filesWithContent,
-      };
+      } as ReviewContextBundle;
 
-      opts.events.emitCustom('chimera.review_needed', payload);
+      const emitted = await emitReviewIfChanged(
+        { events: opts.events, emitCustom: opts.events.emitCustom.bind(opts.events) },
+        payload,
+      );
+      if (!emitted) {
+        return {
+          message:
+            '🦂 Chimera review skipped — this file content already has a review in progress.',
+        };
+      }
 
       const note = truncated
         ? `\n${existing.length - limit} more changed file(s) were not included — raise the cap with /review --limit ${existing.length}.`
