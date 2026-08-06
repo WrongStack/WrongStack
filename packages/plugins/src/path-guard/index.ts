@@ -729,10 +729,9 @@ function commandDeletesImplicitScope(command: string): boolean {
   // These Git forms can emit `.` as a synthetic target meaning the entire
   // working tree. A literal `.` emitted by cp/mv is only their destination and
   // must not be widened to every descendant in the repository.
-  return /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?(?:sudo|env)\s+.*\bgit\b[^;&|)`]*\b(?:clean|restore|checkout|switch|reset)\b/i.test(
-    command,
-  ) || /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b[^;&|)`]*\b(?:clean|restore|checkout|switch|reset)\b/i.test(
-    command,
+  const stripped = stripTransparentLaunchers(command);
+  return /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b[^;&|)`]*\b(?:clean|restore|checkout|switch|reset)\b/i.test(
+    stripped,
   );
 }
 
