@@ -2300,6 +2300,47 @@ button.agent-office__parcel:hover {
   background: hsl(var(--primary) / 0.09);
   border-color: hsl(var(--primary) / 0.24);
 }
+/* Dark surfaces need more chroma-bearing area than the light theme. Keep each
+   tool category on its semantic token so the default Signal palette does not
+   tint the whole menu primary red. */
+.dark .agent-office__tool-glyph {
+  border-color: hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.82);
+}
+
+.dark .agent-office__tool-glyph.is-read,
+.dark .agent-office__tool-glyph.is-web {
+  border-color: hsl(var(--info) / 0.38);
+  color: hsl(var(--info));
+  background: hsl(var(--info) / 0.18);
+}
+
+.dark .agent-office__tool-glyph.is-write,
+.dark .agent-office__tool-glyph.is-edit {
+  border-color: hsl(var(--warning) / 0.38);
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 0.18);
+}
+
+.dark .agent-office__tool-glyph.is-terminal {
+  border-color: hsl(var(--success) / 0.38);
+  color: hsl(var(--success));
+  background: hsl(var(--success) / 0.18);
+}
+
+.dark .agent-office__tool-glyph.is-search,
+.dark .agent-office__tool-glyph.is-memory {
+  border-color: hsl(var(--primary) / 0.38);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.17);
+}
+
+.dark .agent-office__monitor .agent-office__tool-glyph {
+  border: 0;
+  background: transparent;
+}
+
 .agent-office__tool-glyph.is-active::after {
   position: absolute;
   inset: -4px;
