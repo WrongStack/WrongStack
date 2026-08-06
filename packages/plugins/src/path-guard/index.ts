@@ -262,10 +262,14 @@ function scopesMayOverlap(left: string, right: string): boolean {
     const candidate = leftPrefix
       ? `${leftPrefix}/${globWitness(normalizedRight)}`
       : globWitness(normalizedRight);
-    return compilePathGlob(left).test(candidate);
+    if (compilePathGlob(left).test(candidate)) return true;
+    // A partial-segment writer glob can resolve to a directory scope. Its
+    // descendants may then contain any basename-protected file even when the
+    // scope expression itself does not directly match that filename.
+    return hasPartialSegmentWildcard(left);
   }
-  const leftPrefix = staticPrefix(left);
-  const rightPrefix = staticPrefix(right);
+  const leftPrefix = staticPrefix(left).toLowerCase();
+  const rightPrefix = staticPrefix(right).toLowerCase();
   // A leading wildcard can reach any directory, so an empty static prefix is
   // not evidence that two scopes are disjoint. Treat it conservatively as an
   // overlap; callers can exempt a fully allowed writer scope before this check.
@@ -330,6 +334,7 @@ function targetFullyAllowed(target: WriteTarget, allowTexts: string[], allowRes:
 
 /** Capabilities that mean "this call can change a file on disk". */
 const WRITE_CAPABILITIES = new Set(['fs.write', 'fs.write.outside-project']);
+const DISK_MUTATING_CAPABILITIES = new Set(['package.install']);
 const SHELL_CAPABILITIES = new Set(['shell.arbitrary', 'shell.restricted', 'shell.exec']);
 const LEGACY_SHELL_TOOLS = new Set(['bash', 'shell', 'exec']);
 
@@ -378,10 +383,12 @@ function writesToDisk(input: {
   const capabilitiesUndeclared = !capabilities || capabilities.length === 0;
   const hasWriteCap =
     capabilities?.some((capability) => WRITE_CAPABILITIES.has(capability)) ?? false;
+  const hasDiskMutatingCap =
+    capabilities?.some((capability) => DISK_MUTATING_CAPABILITIES.has(capability)) ?? false;
   const hasCommandString = typeof input.toolInput?.['command'] === 'string';
-  if (hasCommandString && executesShell(input) && !hasWriteCap) return false;
+  if (hasCommandString && executesShell(input) && !hasWriteCap && !hasDiskMutatingCap) return false;
   if (!capabilitiesUndeclared) {
-    if (capabilities.some((capability) => WRITE_CAPABILITIES.has(capability))) return true;
+    if (hasWriteCap || hasDiskMutatingCap) return true;
 
     // MCP mutability is inferred upstream from a deliberately small keyword
     // list. Filesystem servers commonly expose edit_file, appendFile, mkdir,
@@ -459,10 +466,19 @@ const PATH_LIST_FIELDS = ['files', 'paths'] as const;
 
 const SOURCE_PATH_FIELDS = ['source', 'from', 'src', 'input_path', 'inputPath', 'old_path', 'oldPath'] as const;
 const MOVE_TOOL_NAME = /(?:^|[_.-])(move|rename)(?:$|[_.-])/i;
+const DIRECTORY_DELETE_TOOL_NAME =
+  /(?:^|[_.-])(?:rmdir|(?:delete|remove)[_.-](?:dir|directory))(?:$|[_.-])/i;
+
+function segmentedToolName(toolName: string): string {
+  return toolName.replace(/([a-z0-9])([A-Z])/g, '$1_$2');
+}
 
 function isMoveToolName(toolName: string): boolean {
-  const segmented = toolName.replace(/([a-z0-9])([A-Z])/g, '$1_$2');
-  return MOVE_TOOL_NAME.test(segmented);
+  return MOVE_TOOL_NAME.test(segmentedToolName(toolName));
+}
+
+function isDirectoryDeleteToolName(toolName: string): boolean {
+  return DIRECTORY_DELETE_TOOL_NAME.test(segmentedToolName(toolName));
 }
 
 function cleanPatchPath(raw: string): string | null {
@@ -575,12 +591,17 @@ function pathsFromToolInput(
 ): WriteTarget[] {
   const targets: WriteTarget[] = [];
   const effectiveCwd = effectiveToolCwd(toolInput['cwd'], invocationCwd);
+  const directoryDelete = isDirectoryDeleteToolName(toolName);
   for (const field of PATH_FIELDS) {
     const value = toolInput[field];
     appendTarget(
       targets,
       value,
-      typeof value === 'string' && isUnresolvedPathScope(value) ? 'scope' : 'file',
+      directoryDelete
+        ? 'deletion-scope'
+        : typeof value === 'string' && isUnresolvedPathScope(value)
+          ? 'scope'
+          : 'file',
       effectiveCwd,
     );
   }
@@ -624,7 +645,7 @@ function pathsFromToolInput(
 
   if (isMoveToolName(toolName)) {
     for (const field of SOURCE_PATH_FIELDS) {
-      appendTarget(targets, toolInput[field], 'file', effectiveCwd);
+      appendTarget(targets, toolInput[field], 'deletion-scope', effectiveCwd);
     }
   }
 
@@ -678,21 +699,97 @@ function operationLabel(toolName: string): string {
  * grep …) never trigger the guard, even if they mention a protected
  * path.
  */
+function commandRecursivelyDeletes(command: string): boolean {
+  // Apply the same launcher stripping as destructiveTargets so env/sudo
+  // wrappers don't hide recursive flags from the detection below.
+  const stripped = command
+    .replace(
+      /(^|[;&|\r\n]\s*)(?:sudo)(?:\s+(?:-[A-Za-z]+(?:\s+\S+)?|--\s*|\S+))*\s+/gi,
+      '$1',
+    )
+    .replace(
+      /(^|[;&|\r\n]\s*)(?:env)(?:\s+(?:-[A-Za-z]+(?:=)?\S*|--\s*|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
+      '$1',
+    );
+  const destructive =
+    /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del)\s+([^;&|\r\n]+)/gi;
+  let match: RegExpExecArray | null = destructive.exec(stripped);
+  while (match !== null) {
+    const tool = match[1]?.toLowerCase();
+    if (tool === 'rmdir') return true;
+
+    const tokens =
+      (match[2]?.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((arg) =>
+        arg.replace(/^["']|["']$/g, ''),
+      );
+    let recursive = false;
+    for (const token of tokens) {
+      if (token === '--') break;
+      if (tool === 'rm') {
+        if (!token.startsWith('-')) break;
+        if (token === '--recursive' || /^-[^-]*[rR]/.test(token)) recursive = true;
+      } else {
+        if (!/^\/[a-z]+$/i.test(token)) break;
+        if (/^\/[a-z]*s[a-z]*$/i.test(token)) recursive = true;
+      }
+    }
+    if (recursive) return true;
+    match = destructive.exec(stripped);
+  }
+  return false;
+}
+
+function quoteIsEscaped(command: string, index: number): boolean {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && command[cursor] === '\\'; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
+
+function isQuoteBoundary(
+  command: string,
+  index: number,
+  activeQuote: "'" | '"' | null,
+): boolean {
+  const char = command[index];
+  if (char !== "'" && char !== '"') return false;
+  // POSIX backslashes remain literal inside single quotes, so `\\'` still
+  // closes a single-quoted span. Double quotes retain backslash escaping.
+  if (activeQuote === "'") return char === "'";
+  if (activeQuote !== null && char !== activeQuote) return false;
+  return !quoteIsEscaped(command, index);
+}
+
 export function destructiveTargets(command: string): string[] {
-  // `env [NAME=value ...] command` is a transparent launcher for the command
-  // being guarded; strip it before applying the anchored command patterns.
-  const normalizedCommand = command.replace(
-    /(^|[;&|]\s*)env(?:\s+[A-Za-z_][A-Za-z0-9_]*=[^\s;&|]+)*\s+/gi,
-    '$1',
-  );
+  // `env [opts] [NAME=value ...] command` and `sudo [opts] command` are
+  // transparent launchers for the command being guarded; strip them before
+  // applying the anchored command patterns. This must cover:
+  //  - `env NAME=value ...` (existing)
+  //  - `env -i`, `env -uVAR`, `env -C/tmp`, `env -S 'string'` (short opts)
+  //  - `env -- command` (explicit end-of-options)
+  //  - `sudo -i`, `sudo -E`, `sudo -u root`, `sudo --` (sudo opts)
+  const normalizedCommand = command
+    // sudo [opts] → strip sudo, its short options (`-x`, `-E`, `-i`),
+    // and `-u <user>` pairs. Consume the trailing space too so the
+    // remaining command starts cleanly at position 0.
+    .replace(
+      /(^|[;&|\r\n]\s*)(?:sudo)(?:\s+-u\s+\S+|\s+-[A-Za-z]|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s*/gi,
+      '$1',
+    )
+    // env [opts] [NAME=value ...] → strip env and its options/assignments
+    .replace(
+      /(^|[;&|\r\n]\s*)(?:env)(?:\s+(?:-[A-Za-z]+(?:=)?\S*|--\s*|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
+      '$1',
+    );
   const targets: string[] = [];
   const quotedIndexes = new Uint8Array(normalizedCommand.length);
   let activeQuote: "'" | '"' | null = null;
   for (let index = 0; index < normalizedCommand.length; index += 1) {
     const char = normalizedCommand[index];
-    if ((char === "'" || char === '"') && normalizedCommand[index - 1] !== '\\') {
+    if (isQuoteBoundary(normalizedCommand, index, activeQuote)) {
       quotedIndexes[index] = 1;
-      activeQuote = activeQuote === char ? null : activeQuote === null ? char : activeQuote;
+      activeQuote = activeQuote === char ? null : char === "'" ? "'" : '"';
     } else if (activeQuote !== null) {
       quotedIndexes[index] = 1;
     }
@@ -705,12 +802,17 @@ export function destructiveTargets(command: string): string[] {
     (raw.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((arg) =>
       arg.replace(/^['"]|['"]$/g, ''),
     );
+  const shellOperandTokens = (raw: string): string[] => {
+    const tokens = shellTokens(raw);
+    const redirectIndex = tokens.findIndex((token) => /^(?:\d*(?:<>|>>?|<)|&>>?)/.test(token));
+    return redirectIndex === -1 ? tokens : tokens.slice(0, redirectIndex);
+  };
   const shellArgs = (raw: string): string[] =>
-    shellTokens(raw).filter((arg) => arg.length > 0 && !arg.startsWith('-'));
+    shellOperandTokens(raw).filter((arg) => arg.length > 0 && !arg.startsWith('-'));
 
   // rm/rmdir/del/unlink/truncate/mv/shred <args...>, including xargs wrappers.
   const destructive =
-    /(?:^|[;&|]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+([^;&|]+)/gi;
+    /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+([^;&|\r\n]+)/gi;
   let m: RegExpExecArray | null = destructive.exec(normalizedCommand);
   while (m !== null) {
     // For `mv src dst` both sides are candidates (overwrite either way).
@@ -720,7 +822,7 @@ export function destructiveTargets(command: string): string[] {
 
   // Copy/install normally write their final non-option operand, but GNU's
   // target-directory options name the destination before the sources.
-  const copy = /(?:^|[;&|]\s*)(?:sudo\s+)?(cp|install)\s+([^;&|]+)/gi;
+  const copy = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(cp|install)\s+([^;&|\r\n]+)/gi;
   let c: RegExpExecArray | null = copy.exec(normalizedCommand);
   while (c !== null) {
     if (tokenIsQuoted(c, c[1] ?? '')) {
@@ -746,7 +848,7 @@ export function destructiveTargets(command: string): string[] {
   }
 
   // tee writes every file operand; stdin is not a path target.
-  const tee = /(?:^|[;&|]\s*)(?:sudo\s+)?(tee)\s+([^;&|]+)/gi;
+  const tee = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(tee)\s+([^;&|\r\n]+)/gi;
   let t: RegExpExecArray | null = tee.exec(normalizedCommand);
   while (t !== null) {
     if (!tokenIsQuoted(t, t[1] ?? '')) targets.push(...shellArgs(t[2] ?? ''));
@@ -756,7 +858,7 @@ export function destructiveTargets(command: string): string[] {
   // dd uses an assignment-style output operand. Scope `of=` extraction to an
   // actual dd command so benign command arguments such as `echo of=.env` do
   // not become destructive targets.
-  const dd = /(?:^|[;&|]\s*)(?:sudo\s+)?(dd)\s+([^;&|]+)/gi;
+  const dd = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(dd)\s+([^;&|\r\n]+)/gi;
   let d: RegExpExecArray | null = dd.exec(normalizedCommand);
   while (d !== null) {
     if (!tokenIsQuoted(d, d[1] ?? '')) {
@@ -769,7 +871,7 @@ export function destructiveTargets(command: string): string[] {
 
   // In-place sed overwrites every file operand after its script; forced links
   // overwrite their final destination operand.
-  const overwrite = /(?:^|[;&|]\s*)(?:sudo\s+)?(sed|ln)\s+([^;&|]+)/gi;
+  const overwrite = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(sed|ln)\s+([^;&|\r\n]+)/gi;
   let o: RegExpExecArray | null = overwrite.exec(normalizedCommand);
   while (o !== null) {
     const rawArgs = o[2] ?? '';
@@ -797,6 +899,29 @@ export function destructiveTargets(command: string): string[] {
   while (x !== null) {
     if (!tokenIsQuoted(x, 'xargs')) targets.push(...shellArgs(x[1] ?? ''));
     x = xargsPipeline.exec(normalizedCommand);
+  }
+
+  // Destructive commands whose targets are implicit in their working scope.
+  const gitClean = /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)git\s+clean\b([^;&|)`]*)/gi;
+  let g: RegExpExecArray | null = gitClean.exec(normalizedCommand);
+  while (g !== null) {
+    const operands = shellArgs(g[1] ?? '');
+    targets.push(...(operands.length > 0 ? operands : ['.']));
+    g = gitClean.exec(normalizedCommand);
+  }
+
+  const findDelete = /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)find\b([^;&|)`]*\s-delete(?:\s|$)[^;&|)`]*)/gi;
+  let f: RegExpExecArray | null = findDelete.exec(normalizedCommand);
+  while (f !== null) {
+    const tokens = shellTokens(f[1] ?? '');
+    const expressionIndex = tokens.findIndex(
+      (token) => token.startsWith('-') || token === '!' || token === '(',
+    );
+    const roots = (expressionIndex === -1 ? tokens : tokens.slice(0, expressionIndex)).filter(
+      (token) => token.length > 0,
+    );
+    targets.push(...(roots.length > 0 ? roots : ['.']));
+    f = findDelete.exec(normalizedCommand);
   }
 
   // Shell `-c` wrappers carry another command string inside quotes.
@@ -836,8 +961,8 @@ export function destructiveTargets(command: string): string[] {
       continue;
     }
     if (heredocBodyLines.has(lineIndex)) continue;
-    if ((char === "'" || char === '"') && command[index - 1] !== '\\') {
-      quote = quote === char ? null : quote === null ? char : quote;
+    if (isQuoteBoundary(command, index, quote)) {
+      quote = quote === char ? null : char === "'" ? "'" : '"';
       continue;
     }
     if (quote !== null || char !== '>') continue;
@@ -991,10 +1116,7 @@ const plugin: Plugin = {
       ) {
         const shellTargets = destructiveTargets(commandForInspection);
         const effectiveCwd = effectiveToolCwd(ti['cwd'], input.cwd);
-        const recursivelyDeletes =
-          /(?:^|[;&|]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(?:rm\s+(?:-[^\s]*[rR][^\s]*\s+)+|rmdir\b|del\s+\/[^\s]*[sS][^\s]*\s+)/i.test(
-            commandForInspection,
-          );
+        const recursivelyDeletes = commandRecursivelyDeletes(commandForInspection);
         for (const path of shellTargets) {
           const target: WriteTarget = {
             path: relativeToInvocationCwd(resolveTargetPath(path, effectiveCwd), input.cwd),
@@ -1044,7 +1166,7 @@ const plugin: Plugin = {
       for (const target of targets) {
         if (targetFullyAllowed(target, cfg.allow, allowRes)) continue;
         if (targetIntersectsPatterns(target, cfg.protect, protectRes)) {
-          return verdict(target.path, toolName, operationLabel(toolName), target.kind === 'scope');
+          return verdict(target.path, toolName, operationLabel(toolName), target.kind !== 'file');
         }
       }
       return;

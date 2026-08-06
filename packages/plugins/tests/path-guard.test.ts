@@ -1,3 +1,5 @@
+import { ToolExecutor } from '@wrongstack/core/execution';
+import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pathGuardPlugin = (await import('../src/path-guard')).default;
@@ -73,6 +75,9 @@ describe('destructiveTargets', () => {
 
   it('extracts common shell writer and wrapper targets', () => {
     expect(destructiveTargets('echo x | tee -a .env')).toContain('.env');
+    expect(destructiveTargets('git clean -fd')).toContain('.');
+    expect(destructiveTargets('find . -delete')).toContain('.');
+    expect(destructiveTargets('find src -type f -delete')).toContain('src');
     expect(destructiveTargets('cp src pnpm-lock.yaml')).toContain('pnpm-lock.yaml');
     expect(destructiveTargets('install -m 644 x .env')).toContain('.env');
     expect(destructiveTargets('dd if=src of=.env bs=4k')).toContain('.env');
@@ -100,6 +105,16 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('cp -t .git source')).toContain('.git');
     expect(destructiveTargets('cp --target-directory .git source')).toContain('.git');
     expect(destructiveTargets('install --target-directory=.git source')).toContain('.git');
+  });
+
+  it('strips env/sudo short-option launchers so recursive deletion is not hidden', () => {
+    expect(destructiveTargets('env -i rm .env')).toContain('.env');
+    expect(destructiveTargets('env -uFOO rm .env')).toContain('.env');
+    expect(destructiveTargets('env -C/tmp rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo -i rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo -E rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo -u root rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo FOO=bar rm -rf .git')).toContain('.git');
   });
 
   it('distinguishes file-form combined redirects from descriptor operations', () => {
@@ -136,6 +151,15 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('echo \'say "hi\' > .env')).toContain('.env');
   });
 
+  it('treats newlines as command boundaries for destructive writers', () => {
+    expect(destructiveTargets('echo ok\nrm .env')).toContain('.env');
+    expect(destructiveTargets('echo ok\r\ncp source .env')).toContain('.env');
+  });
+
+  it('does not treat a backslash as escaping a POSIX single quote', () => {
+    expect(destructiveTargets("echo 'foo\\' ; rm .env")).toContain('.env');
+  });
+
   it('ignores redirect-looking text inside heredoc bodies', () => {
     const command = "cat <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt";
     expect(destructiveTargets(command)).toEqual(['notes.txt']);
@@ -143,6 +167,68 @@ describe('destructiveTargets', () => {
 });
 
 describe('path-guard plugin', () => {
+  it(
+    'blocks an unknown fs.write tool through the real HookRunner and ToolExecutor path',
+    { timeout: 5_000 },
+    async () => {
+      const hookRegistry = new HookRegistry();
+      const api = makeApi();
+      api.registerHook.mockImplementation((event, matcher, hook, options) =>
+        hookRegistry.registerInProcess(event, matcher, hook, 'path-guard', options),
+      );
+      pathGuardPlugin.setup(api as never);
+
+      const execute = vi.fn().mockResolvedValue('must not run');
+      const writer = {
+        name: 'mcp__filesystem__write_file',
+        description: 'Unknown filesystem writer',
+        inputSchema: {
+          type: 'object',
+          properties: { path: { type: 'string' } },
+          required: ['path'],
+        },
+        permission: 'auto',
+        mutating: true,
+        capabilities: ['fs.write'],
+        execute,
+      } as const;
+      const executor = new ToolExecutor(
+        { get: (name) => (name === writer.name ? writer : undefined), list: () => [writer] },
+        {
+          permissionPolicy: {
+            evaluate: vi.fn().mockResolvedValue({ permission: 'auto', source: 'default' }),
+          } as never,
+          secretScrubber: { scrub: (value: string) => value } as never,
+          hookRunner: new HookRunner({ registry: hookRegistry }),
+        },
+      );
+      const ctx = {
+        cwd: 'D:\\repo',
+        projectRoot: 'D:\\repo',
+        signal: new AbortController().signal,
+        meta: {},
+      } as never;
+
+      const result = await executor.executeBatch(
+        [
+          {
+            type: 'tool_use',
+            id: 'unknown-writer',
+            name: writer.name,
+            input: { path: '.env' },
+          },
+        ],
+        ctx,
+        'sequential',
+      );
+
+      expect(result.outputs[0]?.result).toMatchObject({ is_error: true });
+      expect(result.outputs[0]?.result.content).toContain('path-guard');
+      expect(result.outputs[0]?.result.content).toContain('.env');
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
   it('registers a status tool and a PreToolUse hook for every tool', () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
@@ -266,6 +352,35 @@ describe('path-guard plugin', () => {
     pathGuardPlugin.setup(api as never);
     const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
     expect(result?.decision).toBe('block');
+  });
+
+  it.each([
+    'rm -f -r db',
+    'rm -r -f db',
+    'rm --recursive --force db',
+    'rm --force --recursive db',
+    'del /q /s db',
+    'del /s /q db',
+  ])('blocks recursive deletion with separate or reordered options: %s', (command) => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('write scope "db"');
+  });
+
+  it('does not treat recursion-like text after the first operand as an option', () => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = getHook(api)({
+      toolName: 'bash',
+      toolInput: { command: 'rm db --recursive' },
+    });
+    expect(result).toBeUndefined();
   });
 
   it('applies allow globs normally to concrete destructive-shell targets', () => {
@@ -632,6 +747,35 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
+  it('rebases relative writer targets under an absolute hook cwd', () => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['src/generated/**'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'format',
+      cwd: 'D:\\repo',
+      toolInput: { files: 'src', check: false },
+      toolCapabilities: ['fs.write'],
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('write scope "src" may include a protected path');
+  });
+
+  it('treats package installers as disk writers despite their shell capability', () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'install',
+      cwd: 'D:\\repo',
+      toolInput: { packages: 'example' },
+      toolCapabilities: ['package.install', 'shell.restricted'],
+      toolMutating: true,
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('write scope "." may include a protected path');
+  });
+
   it.each([
     { toolInput: { subagentId: 'worker-1' } },
     { toolInput: { path: '.env', subagentId: 'worker-1' } },
@@ -662,6 +806,36 @@ describe('path-guard covers any tool that declares a write', () => {
       expect(result?.decision).toBe('block');
     },
   );
+
+  it('blocks structured directory deletion above a protected subtree', () => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'mcp__filesystem__remove_directory',
+      toolInput: { path: 'db' },
+      toolCapabilities: ['mcp.proxy'],
+      toolMutating: true,
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('write scope "db"');
+  });
+
+  it('blocks a structured directory move whose source contains a protected subtree', () => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'mcp__filesystem__move_directory',
+      toolInput: { source: 'db', destination: 'archive' },
+      toolCapabilities: ['mcp.proxy'],
+      toolMutating: true,
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('write scope "db"');
+  });
 
   it('does not classify a filesystem MCP reader as a writer merely because it has a path', () => {
     const api = makeApi();
@@ -933,6 +1107,32 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
+  it('compares writer and protected scope prefixes case-insensitively', () => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['src/secrets/**'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'format',
+      toolInput: { files: 'SRC/**', check: false },
+      toolCapabilities: ['fs.write'],
+    });
+    expect(result?.decision).toBe('block');
+  });
+
+  it('blocks partial-segment directory scopes that can contain a protected basename', () => {
+    const api = makeApi({
+      extensions: { 'path-guard': { protect: ['.env*'] } },
+    });
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'format',
+      toolInput: { files: 'src/foo*', check: false },
+      toolCapabilities: ['fs.write'],
+    });
+    expect(result?.decision).toBe('block');
+  });
+
   it('blocks prefixed write globs that can reach an unrooted protected scope', () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['**/migrations/**'] } },
@@ -1156,6 +1356,19 @@ describe('path-guard covers any tool that declares a write', () => {
       toolCapabilities: ['fs.write'],
     });
     expect(result?.decision).toBe('block');
+  });
+
+  it('checks structured write targets after an unprotected destructive shell target', () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const result = hookOf(api)({
+      toolName: 'command_writer',
+      toolInput: { command: 'rm notes.txt', output_path: '.env' },
+      toolCapabilities: ['shell.exec', 'fs.write'],
+      toolMutating: true,
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('.env');
   });
 
   it.each(['bash', 'exec', 'shell'])(
