@@ -332,8 +332,9 @@ export function createChimeraPlugin(): Plugin {
       api.slashCommands.register(buildReviewCommand(() => resolved));
 
       // ── session.ended → emit review event ─────────────────────────
-      api.onEvent('session.ended', async () => {
-        try {
+      api.onEvent('session.ended', (event) => {
+        const work = (async () => {
+          try {
           const cfg = resolved;
           if (!cfg.enabled) return;
 
@@ -402,9 +403,12 @@ export function createChimeraPlugin(): Plugin {
           api.log.info(
             `[chimera] emitted review_needed event (${emittedBundle.files.length} files)`,
           );
-        } catch (err) {
-          api.log.warn(`[chimera] session.ended handler failed: ${toErrorMessage(err)}`);
-        }
+          } catch (err) {
+            api.log.warn(`[chimera] session.ended handler failed: ${toErrorMessage(err)}`);
+          }
+        })();
+        event?.waitUntil?.(work);
+        return work;
       });
     },
 

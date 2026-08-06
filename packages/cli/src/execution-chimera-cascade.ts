@@ -19,8 +19,6 @@ type Director = NonNullable<ExecuteDeps['fleet']['director']>;
 type Events = ExecuteDeps['core']['events'];
 type Session = ExecuteDeps['session']['session'];
 
-type PendingChimeraWork = Promise<void> | undefined;
-
 /** Per-attempt wall clock for a cascade agent (unchanged from before). */
 const CASCADE_ATTEMPT_TIMEOUT_MS = 600_000;
 /** Ladder budget per cascade agent — bounds how long shutdown can wait. */
@@ -30,8 +28,8 @@ export type InstallChimeraCascadeHandlerOptions = {
   events: Events;
   director: Director | null | undefined;
   session: Session;
-  getPendingWork: () => PendingChimeraWork;
-  setPendingWork: (work: PendingChimeraWork) => void;
+  getPendingWork: () => Promise<void> | undefined;
+  trackWork: (work: Promise<void>) => void;
   /**
    * Model ladder for cascade spawns. Supplied by the caller because only it
    * holds the live config. Omit to keep the single unpinned spawn.
@@ -48,7 +46,7 @@ export function installChimeraCascadeHandler({
   director,
   session,
   getPendingWork,
-  setPendingWork,
+  trackWork,
   buildLadder,
 }: InstallChimeraCascadeHandlerOptions): void {
   events.onPattern('chimera.cascade_needed', (_event, payload) => {
@@ -156,7 +154,7 @@ export function installChimeraCascadeHandler({
       await maybeReReviewCascade({ events, session, bundle: p.bundle });
     })();
 
-    setPendingWork(pendingWork);
+    trackWork(pendingWork);
   });
 }
 

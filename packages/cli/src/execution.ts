@@ -45,6 +45,7 @@ import { FleetStatusLine } from './fleet-statusline.js';
 
 export type { LiveSettingsInput } from './live-settings-input.js';
 
+import { createChimeraWorkRegistry } from './chimera-work-registry.js';
 import { installChimeraCascadeHandler } from './execution-chimera-cascade.js';
 import { installChimeraReviewHandler } from './execution-chimera-review.js';
 import { installStorageObservability } from './execution-storage-observability.js';
@@ -204,7 +205,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
 
   const offStorageObservability = installStorageObservability(events, context.traceId);
 
-  let pendingChimeraWork: Promise<void> | undefined;
+  const chimeraWork = createChimeraWorkRegistry();
 
   installChimeraReviewHandler({
     events,
@@ -219,8 +220,8 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     // this, a 429-stricken model is re-spawned on every concurrent reviewer
     // turn and burns the whole chain instead of staying quarantined.
     statusTracker,
-    setPendingWork: (work) => {
-      pendingChimeraWork = work;
+    trackWork: (work) => {
+      chimeraWork.track(work);
     },
   });
 
@@ -233,9 +234,9 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         profileChain: effectiveFallbackChain(config),
         session: { provider: config.provider, model: config.model },
       }),
-    getPendingWork: () => pendingChimeraWork,
-    setPendingWork: (work) => {
-      pendingChimeraWork = work;
+    getPendingWork: () => chimeraWork.pending(),
+    trackWork: (work) => {
+      chimeraWork.track(work);
     },
   });
 
@@ -705,7 +706,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       session,
       tokenCounter,
       events,
-      getPendingChimeraWork: () => pendingChimeraWork,
+      chimeraWork,
       director,
       reader,
     });

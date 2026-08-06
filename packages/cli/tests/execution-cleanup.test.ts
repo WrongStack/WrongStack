@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createChimeraWorkRegistry } from '../src/chimera-work-registry.js';
 import { finalizeExecutionCleanup } from '../src/execution-cleanup.js';
 
 afterEach(() => {
@@ -38,11 +39,11 @@ function cleanupInput(overrides: Record<string, unknown> = {}) {
 describe('finalizeExecutionCleanup', () => {
   it('runs the full cleanup sequence and finalizes the current resumed session', async () => {
     const active = session('resumed', { pendingToolUses: [{ id: 'tool-1' }] });
-    const pendingWork = vi.fn().mockResolvedValue(undefined);
+    const chimeraWork = { drainAndClose: vi.fn().mockResolvedValue(undefined) };
     const director = { terminateAll: vi.fn().mockResolvedValue(undefined) };
     const { result, startupSession } = cleanupInput({
       agent: { ctx: { session: active } },
-      getPendingChimeraWork: () => pendingWork(),
+      chimeraWork,
       director,
     });
 
@@ -65,10 +66,96 @@ describe('finalizeExecutionCleanup', () => {
       'session.ended',
       expect.objectContaining({ id: 'resumed' }),
     );
-    expect(pendingWork).toHaveBeenCalledOnce();
+    expect(chimeraWork.drainAndClose).toHaveBeenCalledOnce();
     expect(director.terminateAll).toHaveBeenCalledOnce();
     expect(active.close).toHaveBeenCalledOnce();
     expect(result.reader.close).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the session open until every overlapping Chimera review settles', async () => {
+    let finishFirst!: () => void;
+    let finishSecond!: () => void;
+    const first = new Promise<void>((resolve) => {
+      finishFirst = resolve;
+    });
+    const second = new Promise<void>((resolve) => {
+      finishSecond = resolve;
+    });
+    const registry = createChimeraWorkRegistry();
+    registry.track(first);
+    registry.track(second);
+    let signalDrainStarted!: () => void;
+    const drainStarted = new Promise<void>((resolve) => {
+      signalDrainStarted = resolve;
+    });
+    const chimeraWork = {
+      drainAndClose: vi.fn(() => {
+        signalDrainStarted();
+        return registry.drainAndClose();
+      }),
+    };
+    const active = session('active');
+    const { result } = cleanupInput({
+      agent: { ctx: { session: active } },
+      chimeraWork,
+    });
+
+    const cleanup = finalizeExecutionCleanup(result as never);
+    finishSecond();
+    const phase = await Promise.race([
+      cleanup.then(() => 'closed' as const),
+      drainStarted.then(() => 'draining' as const),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 1_000)),
+    ]);
+    expect(phase).toBe('draining');
+    expect(active.close).not.toHaveBeenCalled();
+
+    finishFirst();
+    await cleanup;
+    expect(active.close).toHaveBeenCalledOnce();
+  });
+
+  it('waits for delayed session-end producers before draining Chimera work and closing', async () => {
+    const order: string[] = [];
+    let releaseProducer!: () => void;
+    const producer = new Promise<void>((resolve) => {
+      releaseProducer = () => {
+        order.push('producer');
+        resolve();
+      };
+    });
+    const active = session('active', {
+      close: vi.fn(async () => {
+        order.push('close');
+      }),
+    });
+    let producerRegistered = false;
+    const events = {
+      emit: vi.fn((_name: string, payload: { waitUntil?: (work: Promise<void>) => void }) => {
+        payload.waitUntil?.(producer);
+        producerRegistered = true;
+      }),
+    };
+    const chimeraWork = {
+      drainAndClose: vi.fn(async () => {
+        order.push('drain');
+      }),
+    };
+    const { result } = cleanupInput({
+      agent: { ctx: { session: active } },
+      events,
+      chimeraWork,
+    });
+
+    const cleanup = finalizeExecutionCleanup(result as never);
+    await vi.waitFor(() => expect(producerRegistered).toBe(true));
+    expect(chimeraWork.drainAndClose).not.toHaveBeenCalled();
+    expect(active.close).not.toHaveBeenCalled();
+
+    releaseProducer();
+    await cleanup;
+
+    expect(order).toEqual(['producer', 'drain', 'close']);
   });
 
   it('continues through every guarded cleanup failure', async () => {
@@ -86,7 +173,7 @@ describe('finalizeExecutionCleanup', () => {
       detachTodosCheckpoint: vi.fn().mockRejectedValue('detach failed'),
       mcpRegistry: { stopAll: vi.fn().mockRejectedValue('mcp failed') },
       agent: { ctx: { session: active } },
-      getPendingChimeraWork: () => Promise.reject('chimera failed'),
+      chimeraWork: { drainAndClose: vi.fn().mockRejectedValue('chimera failed') },
       director: { terminateAll: vi.fn().mockRejectedValue('terminate failed') },
       reader: { close: vi.fn().mockRejectedValue('reader failed') },
     });

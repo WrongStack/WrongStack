@@ -5,7 +5,18 @@ import type { TrackedAgentSnapshot } from '../events.js';
 
 export interface SessionEventMap {
   'session.started': { id: string; sessionId?: string | undefined };
-  'session.ended': { id: string; sessionId?: string | undefined; usage: Usage };
+  'session.ended': {
+    id: string;
+    sessionId?: string | undefined;
+    usage: Usage;
+    /**
+     * Register asynchronous session-end producer work during the synchronous
+     * `session.ended` callback. Cleanup waits for every registered promise to
+     * settle (fulfilled or rejected) before draining review work and closing.
+     * Calls made after the callback returns are outside the join contract.
+     */
+    waitUntil?: ((work: Promise<void>) => void) | undefined;
+  };
   'session.damaged': { sessionId: string; detail: string };
   /**
    * Fired by AgentStatusTracker after every flush with the full agent list
@@ -55,6 +66,12 @@ export interface SessionEventMap {
     providerId: string;
     modelId: string;
     maxContext: number;
+    /** Previous positive limit when this event represents a live change. */
+    previousMaxContext?: number | undefined;
+    /** Whether the value came from static resolution or a live provider probe. */
+    source?: 'configured' | 'provider' | 'provider_overflow' | undefined;
+    /** True when the positive limit decreased and UI should surface a warning. */
+    decreased?: boolean | undefined;
   };
   'context.repaired': {
     sessionId?: string | undefined;

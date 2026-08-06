@@ -205,6 +205,22 @@ describe('session.ended review handler', () => {
     expect(log.info).toHaveBeenCalledWith(expect.stringContaining('not a git repo'));
   });
 
+  it('registers delayed session-end review production with waitUntil', async () => {
+    await fs.writeFile(path.join(tmp, 'a.ts'), 'export const a = 2;');
+    const { api, events } = makeApi();
+    createChimeraPlugin().setup!(api);
+    const waitUntil = vi.fn();
+
+    events['session.ended']?.({
+      id: 'session-1',
+      usage: { input: 0, output: 0 },
+      waitUntil,
+    });
+
+    expect(waitUntil).toHaveBeenCalledOnce();
+    await expect(waitUntil.mock.calls[0]![0]).resolves.toBeUndefined();
+  });
+
   it('emits review_needed with the changed file contents', async () => {
     gitInit(tmp);
     await fs.writeFile(path.join(tmp, 'a.ts'), 'export const a = 1;');

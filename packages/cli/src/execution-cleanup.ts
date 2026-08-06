@@ -1,4 +1,5 @@
 import type { Director } from '@wrongstack/core/coordination';
+import type { ChimeraWorkRegistry } from './chimera-work-registry.js';
 import type { ExecuteDeps } from './execute-deps.js';
 import type { FleetStatusLine } from './fleet-statusline.js';
 
@@ -14,8 +15,8 @@ export interface ExecutionCleanupInput {
   session: ExecuteDeps['session']['session'];
   tokenCounter: ExecuteDeps['core']['tokenCounter'];
   events: ExecuteDeps['core']['events'];
-  /** Getter for chimera's in-flight work promise — avoids stale captures. */
-  getPendingChimeraWork?: () => Promise<void> | undefined;
+  /** Session-scoped Chimera work tracker; drained before agent/session teardown. */
+  chimeraWork?: ChimeraWorkRegistry | undefined;
   /** Optional director reference for fleet cleanup at session end. */
   director?: Director | null | undefined;
   reader: ExecuteDeps['ui']['reader'];
@@ -34,7 +35,7 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
     session,
     tokenCounter,
     events,
-    getPendingChimeraWork,
+    chimeraWork,
     director,
     reader,
   } = input;
@@ -106,28 +107,39 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
         }),
       );
     });
-  events.emit('session.ended', {
-    id: activeSession.id,
-    sessionId: activeSession.id,
-    usage: tokenCounter.total(),
-  });
-  // Await chimera's in-flight work so the review result is written to the JSONL
-  // before we close - without this, session.close() races against the subagent
-  // and the review text is silently dropped because append returns early on closed.
-  if (getPendingChimeraWork) {
-    const chimeraWork = getPendingChimeraWork();
-    if (chimeraWork) {
-      await chimeraWork.catch((err) => {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'shutdown.chimera_work_failed',
-            message: `Pending chimera work failed: ${err instanceof Error ? err.message : String(err)}`,
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      });
+  const sessionEndProducers = new Set<Promise<void>>();
+  events.emit(
+    'session.ended',
+    {
+      id: activeSession.id,
+      sessionId: activeSession.id,
+      usage: tokenCounter.total(),
+      waitUntil: (work: Promise<void>) => {
+        const tracked = Promise.resolve(work).finally(() => sessionEndProducers.delete(tracked));
+        void tracked.catch(() => undefined);
+        sessionEndProducers.add(tracked);
+      },
+    },
+  );
+  // session.ended listeners are invoked synchronously but may start asynchronous
+  // Git/filesystem work before emitting review_needed. Join those producers
+  // first, then drain every review/cascade promise to a fixed point. This keeps
+  // overlapping reviews and synchronously-created cascade descendants alive
+  // until their transcript/report writes complete.
+  try {
+    while (sessionEndProducers.size > 0) {
+      await Promise.allSettled([...sessionEndProducers]);
     }
+    await chimeraWork?.drainAndClose();
+  } catch (err) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'shutdown.chimera_work_failed',
+        message: `Pending chimera work failed: ${err instanceof Error ? err.message : String(err)}`,
+        timestamp: new Date().toISOString(),
+      }),
+    );
   }
   // Safety net: terminate any remaining fleet subagents after chimera work
   // completes. Individual per-agent termination (reviewer, fix, cascade) runs

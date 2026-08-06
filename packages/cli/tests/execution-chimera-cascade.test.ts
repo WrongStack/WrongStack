@@ -26,7 +26,7 @@ function harness(director: Record<string, unknown> | null) {
     director: director as never,
     session: session as never,
     getPendingWork: () => pending,
-    setPendingWork: (work) => {
+    trackWork: (work) => {
       pending = work;
     },
   });

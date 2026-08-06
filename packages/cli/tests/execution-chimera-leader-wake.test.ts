@@ -72,7 +72,7 @@ function harness(
     ...(options.realPersistence
       ? {}
       : { persistReview: options.persistReview ?? vi.fn().mockResolvedValue(undefined) }),
-    setPendingWork: (work) => {
+    trackWork: (work) => {
       pending = work;
     },
   });

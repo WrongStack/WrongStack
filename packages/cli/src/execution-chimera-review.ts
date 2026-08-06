@@ -34,7 +34,6 @@ type Mailbox = ExecuteDeps['session']['mailbox'];
 type Agent = ExecuteDeps['core']['agent'];
 type Config = ExecuteDeps['core']['config'];
 
-type PendingChimeraWork = Promise<void> | undefined;
 
 /**
  * Canonicalize a file path for citation gating. The reviewer can cite
@@ -79,7 +78,7 @@ export type InstallChimeraReviewHandlerOptions = {
   persistReview?:
     | ((payload: ChimeraReviewCompletePayload, projectDir: string) => Promise<void>)
     | undefined;
-  setPendingWork: (work: PendingChimeraWork) => void;
+  trackWork: (work: Promise<void>) => void;
 };
 
 export function installChimeraReviewHandler({
@@ -92,7 +91,7 @@ export function installChimeraReviewHandler({
   projectDir,
   statusTracker,
   persistReview = persistChimeraReview,
-  setPendingWork,
+  trackWork,
 }: InstallChimeraReviewHandlerOptions): void {
   events.onPattern('chimera.review_needed', (_event, payload) => {
     const p = payload as ChimeraReviewNeededPayload;
@@ -165,7 +164,7 @@ export function installChimeraReviewHandler({
       }
     };
 
-    setPendingWork(
+    trackWork(
       (async () => {
         let subagentId: string | undefined;
         try {

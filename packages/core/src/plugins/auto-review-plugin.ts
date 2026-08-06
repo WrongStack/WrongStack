@@ -883,8 +883,9 @@ export function createAutoReviewPlugin(): Plugin {
       });
 
       // ── session.ended → final review of everything ───────────────
-      api.onEvent('session.ended', async () => {
-        sessionEnded = true;
+      api.onEvent('session.ended', (event) => {
+        const work = (async () => {
+          sessionEnded = true;
         const handedOffFiles = pendingFiles.size;
         cancelPendingReviewTimer();
         if (handedOffFiles > 0) {
@@ -979,9 +980,12 @@ export function createAutoReviewPlugin(): Plugin {
           api.log.info(
             `[auto-review] session end — final review (${emittedBundle.files.length} files)`,
           );
-        } catch (err) {
-          api.log.warn(`[auto-review] session.ended handler failed: ${toErrorMessage(err)}`);
-        }
+          } catch (err) {
+            api.log.warn(`[auto-review] session.ended handler failed: ${toErrorMessage(err)}`);
+          }
+        })();
+        event?.waitUntil?.(work);
+        return work;
       });
 
       // ── chimera.review_complete → parse severity → emit cascade_needed ──

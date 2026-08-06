@@ -171,6 +171,22 @@ describe('auto-review change detection', () => {
     expect(reviewPayloads(emitCustom)).toHaveLength(1);
   });
 
+  it('registers delayed final-review production with waitUntil', async () => {
+    const { api, events } = makeApi();
+    createAutoReviewPlugin().setup!(api);
+    await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n');
+    const waitUntil = vi.fn();
+
+    events['session.ended']?.({
+      id: 'session-1',
+      usage: { input: 0, output: 0 },
+      waitUntil,
+    });
+
+    expect(waitUntil).toHaveBeenCalledOnce();
+    await expect(waitUntil.mock.calls[0]![0]).resolves.toBeUndefined();
+  });
+
   it('hands a pending mid-session review to post-session when the session ends', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(100_000);
