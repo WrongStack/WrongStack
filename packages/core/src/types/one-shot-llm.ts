@@ -198,4 +198,28 @@ export interface OneShotOrchestratorOptions {
    * fallback chain.
    */
   statusTracker?: import('../coordination/provider-status-tracker.js').ProviderModelStatusTracker | undefined;
+
+  /**
+   * The host's composed `wrapProviderRunner` chain, if it has one.
+   *
+   * The agent loop runs every provider call through
+   * `extensions.wrapProviderRunner(...)`; this orchestrator called
+   * `provider.complete()` directly, so `api.llm`, the `one_shot_llm` tool and
+   * the council each reached a third-party provider with the chain skipped.
+   * That chain is where `prompt-firewall` redacts credentials, where
+   * `llm-cache` short-circuits, where `model-router` re-routes and where the
+   * token budgeter throttles — none of which applied to a plugin's own
+   * completions.
+   *
+   * Optional because a host may have no extension registry (focused tests,
+   * minimal embeddings). Absent, behaviour is exactly as before.
+   */
+  wrapProviderCall?:
+    | ((
+        request: import('./provider.js').Request,
+        inner: (
+          request: import('./provider.js').Request,
+        ) => Promise<import('./provider.js').Response>,
+      ) => Promise<import('./provider.js').Response>)
+    | undefined;
 }

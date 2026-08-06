@@ -99,6 +99,23 @@ export interface HqClientConfig {
 }
 
 /**
+ * Cloud config-sync settings for my.wrongstack.com (the account portal —
+ * distinct from the local HQ command center configured via `hq`). The full
+ * client contract, including which config sections sync and which stay
+ * local, is the server repo's docs/CLIENT_SYNC_CONTRACT.md.
+ */
+export interface CloudSyncConfig {
+  /** Enable background config synchronization. */
+  enabled?: boolean | undefined;
+  /** Portal base URL, e.g. https://my.wrongstack.com. */
+  url?: string | undefined;
+  /** Machine bearer token (wst_…). Stored encrypted by SecretVault when persisted. */
+  token?: string | undefined;
+  /** Seconds between background sync passes. Default 300, minimum 60. */
+  intervalSeconds?: number | undefined;
+}
+
+/**
  * Token-saving mode tier levels. Controls how aggressively the system prompt
  * is compacted to reduce per-request token consumption.
  *

@@ -119,6 +119,7 @@ describe('recovery strategies', () => {
     await eh.recover(provErr('context window exceeded', 400), ctx);
 
     expect(ctx.meta['effectiveMaxContext']).toBe(655_192);
+    expect(ctx.meta['providerOverflowMaxContext']).toBe(655_192);
     expect(ctx.meta['effectiveMaxContextSource']).toBe('provider_overflow');
   });
 

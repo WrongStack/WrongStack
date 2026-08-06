@@ -179,6 +179,7 @@ export class ToolExecutor {
       const start = Date.now();
       // `use` is rebindable because a PreToolUse hook may rewrite its input.
       let use = use0;
+      let preToolContext: { text: string; contextAs: 'inline' | 'separate' } | undefined;
       const tool = this.registry.get(use.name);
 
       // Fast path: unknown tool
@@ -252,11 +253,22 @@ export class ToolExecutor {
       // Runs before the permission check so a hook can veto a tool that the
       // trust policy would otherwise auto-allow.
       if (this.opts.hookRunner?.has('PreToolUse')) {
-        const pre = await this.opts.hookRunner.preToolUse(tool.name, use.input, ctx);
+        const pre = await this.opts.hookRunner.preToolUse(tool.name, use.input, ctx, {
+          // So a policy hook can ask what the tool DOES rather than matching a
+          // list of names it had to guess in advance.
+          capabilities: tool.capabilities,
+          mutating: tool.mutating,
+        });
         if (pre.block) {
           const result = blockedByHookResult(use, pre.reason);
           budget = this.budgetForString(result.content, budget);
           return { result, tool, durationMs: Date.now() - start };
+        }
+        if (pre.additionalContext) {
+          preToolContext = {
+            text: pre.additionalContext,
+            contextAs: pre.contextAs === 'separate' ? 'separate' : 'inline',
+          };
         }
         if (pre.input) {
           // P3 #19 (before-release.md): skip the re-validation when the hook
@@ -457,6 +469,7 @@ export class ToolExecutor {
             toolUseId: use.id,
             toolName: tool.name,
             input: use.input,
+            ...(preToolContext ? { preToolContext } : {}),
             suggestedPattern,
             decisionSource: decision.source,
             riskTier: decision.riskTier ?? tool.riskTier,
@@ -518,11 +531,19 @@ export class ToolExecutor {
         // reading the same stale starting budget (which let N parallel tools
         // pass N× the cap). Pass the current budget only as a spill-threshold
         // hint, not as the authoritative cap.
-        const producedText = await this.produceToolOutput(tool, use, ctx, budget);
+        let producedText = await this.produceToolOutput(tool, use, ctx, budget);
+        if (preToolContext?.contextAs === 'inline') {
+          producedText = `${producedText}\n\n${preToolContext.text}`;
+        }
         // ── Synchronous settle: no `await` between reading `budget` and
         //    writing it back, so two parallel tools can't interleave here.
         let { block: result, bytes } = this.settleToolOutput(tool, use, producedText, budget);
         budget -= bytes;
+        if (preToolContext?.contextAs === 'separate') {
+          ctx.pendingPostToolContext = ctx.pendingPostToolContext
+            ? `${ctx.pendingPostToolContext}\n\n${preToolContext.text}`
+            : preToolContext.text;
+        }
         // PostToolUse hooks: observe the result and optionally append
         // context (e.g. a linter note) that the model sees alongside the
         // tool output. Append the post-hook bytes to the budget spend
@@ -774,10 +795,20 @@ export class ToolExecutor {
     use: ToolUseBlock,
     ctx: Context,
     budget: number,
+    preToolContext?: { text: string; contextAs: 'inline' | 'separate' },
   ): Promise<{ block: ToolResultBlock; bytes: number }> {
     return this.withGovernedExecutionBridge(ctx, async () => {
-      const text = await this.produceToolOutput(tool, use, ctx, budget);
-      return this.settleToolOutput(tool, use, text, budget);
+      let text = await this.produceToolOutput(tool, use, ctx, budget);
+      if (preToolContext?.contextAs === 'inline') {
+        text = `${text}\n\n${preToolContext.text}`;
+      }
+      const settled = this.settleToolOutput(tool, use, text, budget);
+      if (preToolContext?.contextAs === 'separate') {
+        ctx.pendingPostToolContext = ctx.pendingPostToolContext
+          ? `${ctx.pendingPostToolContext}\n\n${preToolContext.text}`
+          : preToolContext.text;
+      }
+      return settled;
     });
   }
 

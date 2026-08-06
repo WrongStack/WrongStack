@@ -46,13 +46,18 @@ function makeExecutor(
   });
 }
 
-function tool(name: string, exec: Tool['execute'], schema?: object): Tool {
+function tool(
+  name: string,
+  exec: Tool['execute'],
+  schema?: object,
+  metadata: Pick<Tool, 'capabilities' | 'mutating'> = { mutating: false },
+): Tool {
   return {
     name,
     description: name,
     inputSchema: (schema as never) ?? { type: 'object' },
     permission: 'auto',
-    mutating: false,
+    ...metadata,
     execute: exec,
   };
 }
@@ -94,6 +99,144 @@ describe('ToolExecutor — PreToolUse hooks', () => {
       expect.anything(),
     );
     expect(confirmAwaiter).not.toHaveBeenCalled();
+  });
+
+  it('propagates the selected tool capabilities and mutating flag to policy hooks', async () => {
+    const reg = new HookRegistry();
+    let payload: unknown;
+    reg.registerInProcess(
+      'PreToolUse',
+      '*',
+      (input) => {
+        payload = input;
+        return { action: 'allow' };
+      },
+      'metadata-policy',
+      { stage: 'validate', policy: true },
+    );
+    const execute = vi.fn().mockResolvedValue({ ok: true });
+    const selected = tool('patch', execute, undefined, {
+      capabilities: ['fs.write'],
+      mutating: true,
+    });
+    // `fs.write` is a dangerous capability, so the executor downgrades an
+    // `auto` decision to `confirm` regardless of what the policy said (the
+    // post-policy blast-radius net). Without an awaiter the call would hang at
+    // the prompt and never execute — which is the whole point of that net, not
+    // a failure of this test's subject.
+    const confirmAwaiter = vi.fn().mockResolvedValue('yes');
+    const ex = makeExecutor([selected], new HookRunner({ registry: reg }), { confirmAwaiter });
+
+    await ex.executeBatch([use('patch', { path: 'src/index.ts' })], makeCtx(), 'sequential');
+
+    expect(payload).toMatchObject({
+      toolName: 'patch',
+      toolInput: { path: 'src/index.ts' },
+      toolCapabilities: ['fs.write'],
+      toolMutating: true,
+    });
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it('propagates explicit mutating:false instead of omitting it', async () => {
+    const reg = new HookRegistry();
+    let payload: unknown;
+    reg.registerInProcess('PreToolUse', '*', (input) => {
+      payload = input;
+    });
+    const ex = makeExecutor(
+      [tool('read', vi.fn().mockResolvedValue({ ok: true }), undefined, { mutating: false })],
+      new HookRunner({ registry: reg }),
+    );
+
+    await ex.executeBatch([use('read', { path: '.env' })], makeCtx(), 'sequential');
+
+    expect(payload).toHaveProperty('toolMutating', false);
+    expect(payload).not.toHaveProperty('toolCapabilities');
+  });
+
+  it('retains allowing PreToolUse context for the next model-visible message', async () => {
+    const reg = new HookRegistry();
+    reg.registerInProcess('PreToolUse', '*', () => ({
+      decision: 'allow',
+      additionalContext: 'path-guard warning',
+      contextAs: 'separate',
+    }));
+    const ctx = makeCtx();
+    const ex = makeExecutor(
+      [tool('read', vi.fn().mockResolvedValue({ ok: true }))],
+      new HookRunner({ registry: reg }),
+    );
+
+    await ex.executeBatch([use('read', { path: 'src/index.ts' })], ctx, 'sequential');
+
+    expect(ctx.pendingPostToolContext).toBe('path-guard warning');
+  });
+
+  it('appends default PreToolUse context inline with the tool result', async () => {
+    const reg = new HookRegistry();
+    reg.registerInProcess('PreToolUse', '*', () => ({
+      decision: 'allow',
+      additionalContext: 'path-guard warning',
+    }));
+    const ctx = makeCtx();
+    const ex = makeExecutor(
+      [tool('read', vi.fn().mockResolvedValue('done'))],
+      new HookRunner({ registry: reg }),
+    );
+
+    const out = await ex.executeBatch([use('read', { path: 'src/index.ts' })], ctx, 'sequential');
+    const result = out.outputs[0]!.result as ToolResultBlock;
+
+    expect(result.content).toContain('done');
+    expect(result.content).toContain('path-guard warning');
+    expect(ctx.pendingPostToolContext).toBeUndefined();
+  });
+
+  it('carries PreToolUse context in a pending confirmation without executor retention', async () => {
+    const reg = new HookRegistry();
+    reg.registerInProcess('PreToolUse', '*', () => ({
+      decision: 'allow',
+      additionalContext: 'confirm warning',
+      contextAs: 'separate',
+    }));
+    const confirmPolicy = {
+      evaluate: vi.fn().mockResolvedValue({ permission: 'confirm', source: 'default' }),
+    };
+    const ex = makeExecutor(
+      [tool('read', vi.fn().mockResolvedValue('done'))],
+      new HookRunner({ registry: reg }),
+      { permissionPolicy: confirmPolicy as never },
+    );
+
+    const out = await ex.executeBatch([use('read')], makeCtx(), 'sequential');
+
+    expect(out.outputs[0]?.result).toMatchObject({
+      type: 'tool_confirm_pending',
+      preToolContext: { text: 'confirm warning', contextAs: 'separate' },
+    });
+  });
+
+  it('does not leak PreToolUse context when permission denies execution', async () => {
+    const reg = new HookRegistry();
+    reg.registerInProcess('PreToolUse', '*', () => ({
+      decision: 'allow',
+      additionalContext: 'must not leak',
+      contextAs: 'separate',
+    }));
+    const denyPolicy = {
+      evaluate: vi.fn().mockResolvedValue({ permission: 'deny', source: 'default' }),
+    };
+    const ctx = makeCtx();
+    const ex = makeExecutor(
+      [tool('read', vi.fn().mockResolvedValue('done'))],
+      new HookRunner({ registry: reg }),
+      { permissionPolicy: denyPolicy as never },
+    );
+
+    await ex.executeBatch([use('read', { path: 'src/index.ts' })], ctx, 'sequential');
+
+    expect(ctx.pendingPostToolContext).toBeUndefined();
   });
 
   it('blocks a tool and never executes it', async () => {

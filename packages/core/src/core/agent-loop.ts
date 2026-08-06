@@ -25,6 +25,7 @@ import { resolveEventSessionId, type RunOptions } from './context.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { requestLimitExtension } from './iteration-limit.js';
 import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mailbox-loop.js';
+import { clearPendingNextSteps } from './next-steps-slot.js';
 import { runProviderWithRetry } from './provider-runner.js';
 import { buildQueuedMessagesBlock, consumeQueuedMessagesUpdate } from './queued-messages.js';
 import { providerBoundToRequest } from './request-provider-binding.js';
@@ -72,6 +73,158 @@ export function createAgentLoopHandler(
   const getFleetPulse = attachFleetPulse(a, fleetPulseCfg);
   const pulseEveryN = Math.max(1, fleetPulseCfg?.everyNIterations ?? 5);
   const backgroundCoordination = () => a.ctx.meta['coordinationContextMode'] === 'background';
+
+  async function refreshProviderContextLimit(
+    provider: import('../types/provider.js').Provider,
+    model: string,
+    opts: { probe?: boolean } = {},
+  ): Promise<void> {
+    a.ctx.meta ??= {};
+    const routeKey = `${provider.id}/${model}`;
+    const previousRouteKey = a.ctx.meta['contextLimitRouteKey'];
+    const routeChanged = previousRouteKey !== undefined && previousRouteKey !== routeKey;
+    const previousMaxContext = currentMaxContext();
+
+    // Route change (provider or model switch): clear all per-route limit state
+    // so the new route starts from its own capability baseline. This runs even
+    // when the new provider has no refreshContextLimit, so switching away from
+    // a probed Codex route does not leave a stale ceiling in force.
+    //
+    // We do NOT mutate provider.capabilities.maxContext (see below) so there is
+    // no cross-provider contamination to undo — meta cleanup alone resets the
+    // effective ceiling to the new provider's native capability.
+    if (routeChanged) {
+      delete a.ctx.meta['providerOverflowMaxContext'];
+      delete a.ctx.meta['contextLimitBaseline'];
+      delete a.ctx.meta['providerLimitEffectiveMaxContext'];
+      delete a.ctx.meta['effectiveMaxContext'];
+      delete a.ctx.meta['effectiveMaxContextSource'];
+      delete a.ctx.meta['contextLimitLastEmittedMaxContext'];
+      delete a.ctx.meta['contextLimitLastEmittedSource'];
+    }
+    a.ctx.meta['contextLimitRouteKey'] = routeKey;
+
+    // Read the new route's native capability only after clearing old route
+    // metadata. The pre-cleanup value is retained solely as event history.
+    //
+    // IMPORTANT: we read from the passed `provider` parameter, NOT from
+    // currentMaxContext() / a.ctx.provider. During a model transition the
+    // agent loop may swap a.ctx.provider to a different object; reading the
+    // wrong one would seed the baseline from the wrong provider's ceiling.
+    const routeMeta = a.ctx.meta['effectiveMaxContext'];
+    const routeProviderCap = provider.capabilities.maxContext;
+    const currentEffective =
+      typeof routeMeta === 'number' && routeMeta > 0
+        ? routeMeta
+        : typeof routeProviderCap === 'number' && routeProviderCap > 0
+          ? routeProviderCap
+          : 200_000;
+    const emitEffectiveLimit = (
+      effective: number,
+      source: 'configured' | 'provider' | 'provider_overflow',
+    ): void => {
+      const lastEmitted = a.ctx.meta['contextLimitLastEmittedMaxContext'];
+      const lastEmittedSource = a.ctx.meta['contextLimitLastEmittedSource'];
+      if (lastEmitted === effective && lastEmittedSource === source) return;
+
+      const eventPrevious =
+        typeof lastEmitted === 'number' && Number.isFinite(lastEmitted) && lastEmitted > 0
+          ? Math.floor(lastEmitted)
+          : previousMaxContext;
+      a.ctx.meta['contextLimitLastEmittedMaxContext'] = effective;
+      a.ctx.meta['contextLimitLastEmittedSource'] = source;
+      a.events.emit('ctx.max_context', {
+        sessionId: resolveEventSessionId(a.ctx),
+        providerId: provider.id,
+        modelId: model,
+        maxContext: effective,
+        ...(eventPrevious > 0 ? { previousMaxContext: eventPrevious } : {}),
+        source,
+        decreased: eventPrevious > 0 && effective < eventPrevious,
+      });
+    };
+    const emitNativeAfterRouteChange = (): void => {
+      if (routeChanged && currentEffective > 0) {
+        // Persist the native ceiling in meta so currentMaxContext() — which
+        // reads meta first — returns this value even if a.ctx.provider has not
+        // been swapped yet by the caller. Without this, the agent loop reads
+        // a stale effective from the old route until ctx.provider catches up.
+        a.ctx.meta['effectiveMaxContext'] = currentEffective;
+        a.ctx.meta['effectiveMaxContextSource'] = 'configured';
+        emitEffectiveLimit(currentEffective, 'configured');
+      }
+    };
+
+    const refresh = provider.refreshContextLimit;
+    if (opts.probe === false || !refresh) {
+      emitNativeAfterRouteChange();
+      return;
+    }
+
+    let discovered: Awaited<ReturnType<NonNullable<typeof refresh>>>;
+    try {
+      discovered = await refresh.call(provider, model, { signal: a.ctx.signal });
+    } catch {
+      // Capability discovery is advisory. The provider request remains usable
+      // when its metadata endpoint is temporarily unavailable.
+      emitNativeAfterRouteChange();
+      return;
+    }
+    const providerLimit = discovered?.maxContext;
+    if (typeof providerLimit !== 'number' || !Number.isFinite(providerLimit) || providerLimit <= 0) {
+      emitNativeAfterRouteChange();
+      return;
+    }
+    const providerLimitFloored = Math.floor(providerLimit);
+
+    const existingBaseline = a.ctx.meta['contextLimitBaseline'];
+    const lastApplied = a.ctx.meta['providerLimitEffectiveMaxContext'];
+    const existingOverflow = a.ctx.meta['providerOverflowMaxContext'];
+    const effectiveChangedOutsideProbe =
+      typeof lastApplied === 'number' &&
+      Number.isFinite(lastApplied) &&
+      currentEffective !== Math.floor(lastApplied) &&
+      currentEffective !== existingOverflow;
+    const baseline =
+      effectiveChangedOutsideProbe ||
+      typeof existingBaseline !== 'number' ||
+      !Number.isFinite(existingBaseline) ||
+      existingBaseline <= 0
+        ? currentEffective
+        : Math.floor(existingBaseline);
+    a.ctx.meta['contextLimitBaseline'] = baseline;
+
+    const overflowLimit = a.ctx.meta['providerOverflowMaxContext'];
+    const overflowFloored =
+      typeof overflowLimit === 'number' && Number.isFinite(overflowLimit) && overflowLimit > 0
+        ? Math.floor(overflowLimit)
+        : undefined;
+
+    const ceilings: number[] = [baseline, providerLimitFloored];
+    if (overflowFloored !== undefined) ceilings.push(overflowFloored);
+    const effective = Math.min(...ceilings.filter((limit) => limit > 0));
+
+    // Determine which ceiling actually won, so the source label is accurate.
+    let effectiveSource: 'configured' | 'provider' | 'provider_overflow';
+    if (overflowFloored !== undefined && effective === overflowFloored) {
+      effectiveSource = 'provider_overflow';
+    } else if (effective === providerLimitFloored) {
+      effectiveSource = 'provider';
+    } else {
+      effectiveSource = 'configured';
+    }
+
+    a.ctx.meta['effectiveMaxContext'] = effective;
+    a.ctx.meta['providerLimitEffectiveMaxContext'] = effective;
+    a.ctx.meta['effectiveMaxContextSource'] = effectiveSource;
+    // Deliberately do NOT mutate provider.capabilities.maxContext. The agent
+    // loop reads the effective ceiling via currentMaxContext(), which prefers
+    // ctx.meta['effectiveMaxContext']. Mutating the shared provider object
+    // would contaminate other models on the same provider and survive across
+    // route changes. The ctx.max_context event carries the new limit to all UI
+    // consumers (TUI activeMaxContext, WebUI session-store maxContext).
+    emitEffectiveLimit(effective, effectiveSource);
+  }
 
   async function compactContextIfNeeded(): Promise<boolean> {
     const msgCount = a.ctx.messages.length;
@@ -191,10 +344,31 @@ export function createAgentLoopHandler(
     let req = prepared.request;
     let preFlight = stashRequestTokens(req);
 
+    // Probe the provider's live context limit before each request build.
+    // Post-response compaction does NOT re-probe, avoiding a second metadata
+    // round-trip per iteration. If compaction triggers a route rebuild,
+    // re-probe the new route below.
+    let probedRouteKey = `${prepared.provider.id}/${req.model}`;
+    await refreshProviderContextLimit(prepared.provider, req.model);
+
     if (await compactContextIfNeeded()) {
       prepared = await handlers.response.buildAndRunRequestPipeline(opts);
       req = prepared.request;
       preFlight = stashRequestTokens(req);
+      // If compaction triggered a model/provider rebuild that changed the
+      // route, re-probe the new route so the effective ceiling matches.
+      const rebuiltRouteKey = `${prepared.provider.id}/${req.model}`;
+      if (rebuiltRouteKey !== probedRouteKey) {
+        probedRouteKey = rebuiltRouteKey;
+        await refreshProviderContextLimit(prepared.provider, req.model);
+        // The re-probe may have discovered a lower ceiling. Re-run compaction
+        // against that new limit so the outgoing request does not overflow.
+        if (await compactContextIfNeeded()) {
+          prepared = await handlers.response.buildAndRunRequestPipeline(opts);
+          req = prepared.request;
+          preFlight = stashRequestTokens(req);
+        }
+      }
     }
 
     return { req, provider: prepared.provider, preFlight };
@@ -416,6 +590,12 @@ export function createAgentLoopHandler(
     } catch (err) {
       (a.logger.debug ?? a.logger.warn)?.(`session boundary flush failed: ${toErrorMessage(err)}`);
     }
+
+    // Suggestions belong to the prompt that produced them. Clearing here means a
+    // `nextsteps` tool call from the previous turn can never attach its block to
+    // this turn's answer — including the auto-submitted turn that a suggestion
+    // itself kicked off, which arrives as a fresh `run()`.
+    clearPendingNextSteps(a.ctx);
 
     let finalText = '';
     let iterations = 0;
@@ -689,11 +869,12 @@ export function createAgentLoopHandler(
 
         clearEvaluatedMailboxBlocks();
 
-        const responseResult = await handlers.response.processResponse(
-          res,
-          req,
-          providerBoundToRequest(req) ?? requestProvider,
-        );
+        const responseProvider = providerBoundToRequest(req) ?? requestProvider;
+        const responseResult = await handlers.response.processResponse(res, req, responseProvider);
+        // Fallback may rebind this request after its one preflight metadata probe.
+        // Synchronize route-scoped limits before any post-response compaction,
+        // but do not perform a second provider metadata request.
+        await refreshProviderContextLimit(responseProvider, req.model, { probe: false });
         if (responseResult.aborted) {
           return {
             status: 'aborted',
@@ -846,6 +1027,8 @@ export function createAgentLoopHandler(
         }
 
         if (toolUses.length === 0) {
+          // Resolve the provider bound to this request at use time because
+          // fallback may have rebound it during response processing.
           await compactContextIfNeeded();
           emitContextPct();
           a.events.emit('iteration.completed', {

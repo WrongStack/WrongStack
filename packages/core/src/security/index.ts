@@ -57,7 +57,7 @@ export {
   type TrustPolicyValidationResult,
   validateTrustPolicy,
 } from './permission-policy-schema.js';
-export { ReadOnlyPermissionPolicy } from './readonly-permission-policy.js';
+export { ReadOnlyPermissionPolicy, toolMutates } from './readonly-permission-policy.js';
 export { DefaultSecretScrubber } from './secret-scrubber.js';
 export {
   base32Decode,

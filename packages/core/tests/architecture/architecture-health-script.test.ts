@@ -5,14 +5,18 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   __architectureHealthTestInternals,
   buildArchitectureHealth,
+  collectIdentifiers,
   collectModuleSpecifiers,
+  collectRuntimeExports,
   findNonCommandSlashImports,
+  findTestOnlyExports,
   globToRegExp,
   loadArchitectureInputs,
   parseTsConfigFiles,
   renderArchitectureHealthMarkdown,
   stronglyConnectedComponents,
   validateHotspotBaseline,
+  validateTestOnlyExportBaseline,
 } from '../../../../scripts/lib/architecture-health.mjs';
 import {
   parseVitestFileList,
@@ -639,5 +643,101 @@ describe('architecture health scanner', () => {
         unexpected: [],
       },
     ]);
+  });
+});
+
+/**
+ * Dead-but-covered code. The audit named six live examples — `viz-store`'s
+ * pruners, `useFleetPolling`, `tui/input-validation`, `privileged-actions.ts`,
+ * `settings-panel-reducers.ts`, `cli/config-history.ts` — all of them exported,
+ * all of them carrying green tests, none of them reached from production. A
+ * passing suite over an unreachable function reads exactly like a passing suite
+ * over a working feature, which is why nobody noticed.
+ *
+ * The check answers one question mechanically: does anything other than a test
+ * mention this export?
+ */
+describe('test-only export detection', () => {
+  it('collects runtime exports and skips types and re-exports', () => {
+    const names = collectRuntimeExports(`
+      export function alpha() {}
+      export const beta = 1;
+      export class Gamma {}
+      export enum Delta { A }
+      export interface Epsilon { a: string }
+      export type Zeta = string;
+      export { eta, theta as iota };
+      export { kappa } from './elsewhere.js';
+      export type { Lambda } from './elsewhere.js';
+    `);
+    expect([...names].sort()).toEqual(['Delta', 'Gamma', 'alpha', 'beta', 'eta', 'iota']);
+    // A barrel forwarding a name is not the name's definition; counting it as
+    // one would report the same symbol from every layer that passes it along.
+    expect(names.has('kappa')).toBe(false);
+    expect(names.has('Epsilon')).toBe(false);
+  });
+
+  it('ignores identifiers that appear only in comments', () => {
+    const identifiers = collectIdentifiers('// mentionsGhost\nconst real = 1;');
+    expect(identifiers.has('real')).toBe(true);
+    expect(identifiers.has('mentionsGhost')).toBe(false);
+  });
+
+  it('flags an export that only a test mentions', () => {
+    const found = findTestOnlyExports({
+      exportsByFile: new Map([['pkg/src/a.ts', new Set(['onlyTested', 'alsoUsed'])]]),
+      sourceIdentifiers: new Map([
+        ['onlyTested', { files: 1, firstFile: 'pkg/src/a.ts' }],
+        ['alsoUsed', { files: 2, firstFile: 'pkg/src/a.ts' }],
+      ]),
+      testIdentifiers: new Set(['onlyTested', 'alsoUsed']),
+    });
+    expect(found).toEqual([{ file: 'pkg/src/a.ts', name: 'onlyTested' }]);
+  });
+
+  it('does not flag an export nothing references at all', () => {
+    // Unreferenced everywhere is a different finding (plain dead code) and the
+    // name-matching heuristic is far weaker there — a symbol reached only
+    // through a dynamic lookup would be reported wrongly. This check is scoped
+    // to the shape it can prove: tests reference it, production does not.
+    const found = findTestOnlyExports({
+      exportsByFile: new Map([['pkg/src/a.ts', new Set(['orphan'])]]),
+      sourceIdentifiers: new Map([['orphan', { files: 1, firstFile: 'pkg/src/a.ts' }]]),
+      testIdentifiers: new Set(),
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('counts a single non-defining source file as real usage', () => {
+    const found = findTestOnlyExports({
+      exportsByFile: new Map([['pkg/src/a.ts', new Set(['shared'])]]),
+      // Seen once, in a file that is NOT the definer — a genuine consumer.
+      sourceIdentifiers: new Map([['shared', { files: 1, firstFile: 'pkg/src/b.ts' }]]),
+      testIdentifiers: new Set(['shared']),
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('ratchets: new entries fail, and stale baseline entries fail too', () => {
+    const baseline = { schemaVersion: 1, files: { 'pkg/src/a.ts': ['known'] } };
+
+    expect(
+      validateTestOnlyExportBaseline([{ file: 'pkg/src/a.ts', name: 'known' }], baseline).errors,
+    ).toEqual([]);
+
+    const withNew = validateTestOnlyExportBaseline(
+      [
+        { file: 'pkg/src/a.ts', name: 'known' },
+        { file: 'pkg/src/a.ts', name: 'fresh' },
+      ],
+      baseline,
+    );
+    expect(withNew.errors).toHaveLength(1);
+    expect(withNew.errors[0]).toContain('fresh');
+    expect(withNew.errors[0]).toContain('only tests reference it');
+
+    const nowWired = validateTestOnlyExportBaseline([], baseline);
+    expect(nowWired.errors).toHaveLength(1);
+    expect(nowWired.errors[0]).toContain('no longer test-only');
   });
 });

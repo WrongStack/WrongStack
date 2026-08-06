@@ -240,6 +240,11 @@ export async function openInEditor(
     stdio: 'ignore',
     detached: true,
     shell,
+    // `shell` routes through cmd.exe on win32, which flashes a console window
+    // before the editor appears. A GUI editor is unaffected by the flag; the
+    // shell wrapper is what it suppresses. Repo convention — see
+    // `core/tests/architecture/spawn-convention.test.ts`.
+    windowsHide: true,
   });
   child.unref();
 }

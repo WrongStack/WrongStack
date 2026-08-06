@@ -66,5 +66,15 @@ export {
   type InstructionTemplateContext,
   renderInstructionLayer,
 } from './instruction-template.js';
+export {
+  clearPendingNextSteps,
+  hasNextStepsTag,
+  MAX_PENDING_NEXT_STEPS,
+  maybeAppendPendingNextSteps,
+  type PendingNextStep,
+  readPendingNextSteps,
+  renderNextStepsBlock,
+  writePendingNextSteps,
+} from './next-steps-slot.js';
 export { setQueuedMessagesSnapshot } from './queued-messages.js';
 export { runProviderWithRetry } from './provider-runner.js';

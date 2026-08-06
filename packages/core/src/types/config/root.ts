@@ -21,7 +21,12 @@ import type {
   SageConfig,
 } from './mcp-features.js';
 import type { CustomModelDefinition, ModelMatrixEntry, ProviderConfig } from './providers.js';
-import type { HqClientConfig, ModelRuntimeConfig, SystemPromptConfig } from './runtime.js';
+import type {
+  CloudSyncConfig,
+  HqClientConfig,
+  ModelRuntimeConfig,
+  SystemPromptConfig,
+} from './runtime.js';
 import type { BrainConfig, FleetConfig, SkillsConfig } from './skills-fleet-brain.js';
 import type { ToolsConfig } from './tools.js';
 
@@ -248,6 +253,13 @@ export interface Config {
    * accidentally committing the GitHub token to project configs.
    */
   sync?: SyncConfig | undefined;
+  /**
+   * my.wrongstack.com config synchronization (namespaced sync API v1).
+   * SECURITY: in the in-project config DENY list — carries the machine
+   * bearer token credential and the portal endpoint URL. Only honoured
+   * from the user's active-profile config.
+   */
+  cloudSync?: CloudSyncConfig | undefined;
   /**
    * Git behavior overrides for agent-run git commands.
    *

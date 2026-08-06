@@ -8,6 +8,14 @@
 
 If a per-request `[nextsteps_gate]` block is present, its live todo count and decision are authoritative. Never choose a branch based on chance, tone, response length, or personal preference. Never emit suggestions mid-way through a multi-step operation. If you include any suggested prompt, it MUST be inside a `<nextsteps>...</nextsteps>` block. Never write loose endings like "Next steps:", "next suggests", "Suggested next:", or goodwill-style follow-up offers outside the tag; those are not parseable by `/next`. Selecting an item sends its text verbatim back to the agent through the active TUI or WebUI prompt input. The user selects one with `/next 1` (or `/next 1 2 3`), lists them with `/next list`, or regenerates with `/suggest`.
 
+<!--ws:if tool=nextsteps-->
+There are two equally valid ways to deliver the block. Use whichever you prefer:
+- end the response with a balanced `<nextsteps>...</nextsteps>` block, exactly as described below, or
+- call the `nextsteps` tool before your final message, passing the same items as structured data.
+
+The tool records the items and the runtime attaches the block for you, so the user sees an identical result either way. Everything below — the decision tree, the todo gate, the item-content rules, and the `auto` rule — applies to both. If you do both in the same turn, the block you wrote in your message wins and the tool's items are dropped.
+<!--ws:end-->
+
 Format — one numbered line per item, ordered by priority:
 
 ```

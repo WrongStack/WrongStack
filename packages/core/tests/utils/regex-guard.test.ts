@@ -34,14 +34,18 @@ describe('regex-guard / compileUserRegex', () => {
     if (!r.ok) expect(r.reason).toMatch(/string/);
   });
 
-  it('rejects oversized pattern (> 512 chars)', () => {
-    const r = compileUserRegex('a'.repeat(513), '');
+  // The cap was 512 here and 256 in the canonical guard
+  // (`tools/src/_regex.ts`), so a 300-character pattern this copy accepted was
+  // rejected by the other two. All three now agree on 256 — see
+  // `tools/tests/regex-guard-parity.test.ts`, which is what holds them there.
+  it('rejects oversized pattern (> 256 chars)', () => {
+    const r = compileUserRegex('a'.repeat(257), '');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toMatch(/512/);
+    if (!r.ok) expect(r.reason).toMatch(/256/);
   });
 
-  it('accepts pattern at exactly 512 chars', () => {
-    const r = compileUserRegex('a'.repeat(512), '');
+  it('accepts pattern at exactly 256 chars', () => {
+    const r = compileUserRegex('a'.repeat(256), '');
     expect(r.ok).toBe(true);
   });
 

@@ -393,10 +393,15 @@ export class OneShotOrchestrator {
     model?: string,
   ): Promise<CallAttempt> {
     try {
-      return {
-        response: await provider.complete(request, { signal }),
-        fallbackEligible: false,
-      };
+      // Through the host's extension chain when it has one — the same chain the
+      // agent loop uses. `prompt-firewall` lives there; without this, a plugin
+      // calling `api.llm` shipped unredacted context to a third-party provider
+      // while the firewall reported itself active.
+      const direct = (req: Request): Promise<Response> => provider.complete(req, { signal });
+      const response = this.opts.wrapProviderCall
+        ? await this.opts.wrapProviderCall(request, direct)
+        : await direct(request);
+      return { response, fallbackEligible: false };
     } catch (err) {
       // Record the failure in the tracker
       if (err instanceof ProviderError && providerId && model) {
@@ -411,8 +416,16 @@ export class OneShotOrchestrator {
       }
       return {
         error: err,
+        // Provider failures retain their normal fallback policy. A plain error
+        // thrown by the host wrapper is a local refusal (for example,
+        // prompt-firewall block mode), not evidence that another provider may
+        // succeed; retrying would only replay the same blocked request and
+        // misattribute the final error to the last fallback.
         fallbackEligible:
-          !signal.aborted && (!(err instanceof ProviderError) || isFallbackWorthy(err.kind)),
+          !signal.aborted &&
+          (err instanceof ProviderError
+            ? isFallbackWorthy(err.kind)
+            : this.opts.wrapProviderCall === undefined),
       };
     }
   }

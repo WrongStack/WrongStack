@@ -53,9 +53,32 @@ const MUTATION_CAPABILITIES = new Set<string>([
   ToolCapabilities.SUBAGENT_SPAWN,
 ]);
 
-function hasMutationCapability(tool: Tool): boolean {
+/**
+ * Does this tool change something?
+ *
+ * `capabilities` is the precise answer and stays authoritative — but it is
+ * OPT-IN metadata, and a repo-wide count found 154 tools declaring
+ * `mutating: true` of which 121 carried no mutation capability at all (28 of
+ * those at `permission: 'auto'`, including tools that write API keys and one
+ * that sends messages outbound). Read-only mode consulted only `capabilities`,
+ * so every one of them ran unblocked and unprompted, while
+ * `permission-policy.ts` was already answering the same question with
+ * `tool.mutating || …`.
+ *
+ * Trusting `mutating` here closes all 121 at once and makes the two policies
+ * agree. It fails in the safe direction: a tool that declares itself mutating
+ * is blocked in read-only mode even if its capability list is incomplete.
+ * Fixing the capability labels is still worth doing — it is what the finer
+ * grained gates key on — but it is no longer what stands between read-only
+ * mode and a write.
+ */
+export function toolMutates(tool: Tool): boolean {
+  if (tool.mutating === true) return true;
   return (tool.capabilities ?? []).some((c) => MUTATION_CAPABILITIES.has(c));
 }
+
+/** Local alias kept for readability at the call sites below. */
+const hasMutationCapability = toolMutates;
 
 /**
  * Check whether a tool input targets a `.md` file under `.temp_files/`.
@@ -114,13 +137,20 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
       return this.inner.evaluate(tool, input, ctx);
     }
 
+    // Name the reason the tool was blocked. A tool can qualify on its
+    // capability labels OR on `mutating: true` alone — the second case has no
+    // capabilities to list, and printing an empty `()` reads like a bug.
+    const matched = (tool.capabilities ?? []).filter((c) => MUTATION_CAPABILITIES.has(c));
+    const why =
+      matched.length > 0
+        ? `requires mutation capabilities (${matched.join(', ')})`
+        : 'is declared mutating';
     return {
       permission: 'deny',
       source: 'readonly_mode',
       reason:
-        `Session is in read-only mode: tool "${tool.name}" requires mutation ` +
-        `capabilities (${(tool.capabilities ?? []).filter((c) => MUTATION_CAPABILITIES.has(c)).join(', ')}) ` +
-        `which are not allowed. Only .md report files under .temp_files/ may be written.`,
+        `Session is in read-only mode: tool "${tool.name}" ${why}, ` +
+        `which is not allowed. Only .md report files under .temp_files/ may be written.`,
     };
   }
 

@@ -120,6 +120,21 @@ describe('HookRunner.preToolUse', () => {
     expect(r.input).toEqual({ command: 'ls', a: 1, b: 2 });
   });
 
+  it('preserves additional context from allowing hooks', async () => {
+    const reg = new HookRegistry();
+    reg.registerInProcess('PreToolUse', '*', () => ({
+      decision: 'allow',
+      additionalContext: 'path-guard warning',
+      contextAs: 'separate',
+    }));
+    const runner = new HookRunner({ registry: reg });
+
+    await expect(runner.preToolUse('write', { path: '.env' }, env)).resolves.toEqual({
+      additionalContext: 'path-guard warning',
+      contextAs: 'separate',
+    });
+  });
+
   it('returns {} when nothing matches', async () => {
     const runner = new HookRunner({ registry: new HookRegistry() });
     expect(await runner.preToolUse('bash', {}, env)).toEqual({});
@@ -527,5 +542,80 @@ describe('countShellHooks', () => {
         Stop: [{ command: 'c' }],
       }),
     ).toBe(1);
+  });
+});
+
+/**
+ * A hook's `matcher` is a list of tool NAMES, which is the only vocabulary a
+ * policy hook had for "tools that write". `path-guard` matched
+ * `write|edit|bash|exec`, so `patch`, `scaffold`, every plugin-registered
+ * writer and every MCP filesystem server wrote past it. Names cannot be
+ * enumerated ahead of a plugin that has not been written yet; what a tool
+ * DECLARES can.
+ */
+describe('HookRunner.preToolUse carries the tool declaration', () => {
+  it('passes capabilities and the mutating flag to mutators and validators', async () => {
+    const reg = new HookRegistry();
+    const seen: Array<Record<string, unknown>> = [];
+    reg.registerInProcess('PreToolUse', '*', async (input) => {
+      seen.push(input as unknown as Record<string, unknown>);
+      return { action: 'allow' };
+    });
+    reg.registerInProcess(
+      'PreToolUse',
+      '*',
+      async (input) => {
+        seen.push(input as unknown as Record<string, unknown>);
+        return { action: 'allow' };
+      },
+      'validator',
+      { stage: 'validate' },
+    );
+    const runner = new HookRunner({ registry: reg });
+
+    await runner.preToolUse('patch', { path: 'a.txt' }, env, {
+      capabilities: ['fs.write'],
+      mutating: true,
+    });
+
+    expect(seen).toHaveLength(2);
+    for (const payload of seen) {
+      expect(payload['toolCapabilities']).toEqual(['fs.write']);
+      expect(payload['toolMutating']).toBe(true);
+    }
+  });
+
+  it('omits both fields when the caller declares nothing', async () => {
+    // A hook must be able to tell "declared read-only" from "not declared" —
+    // path-guard falls back to its legacy tool-name list for the latter rather
+    // than becoming a no-op against an older host.
+    const reg = new HookRegistry();
+    let seen: Record<string, unknown> | undefined;
+    reg.registerInProcess('PreToolUse', '*', async (input) => {
+      seen = input as unknown as Record<string, unknown>;
+      return { action: 'allow' };
+    });
+    const runner = new HookRunner({ registry: reg });
+
+    await runner.preToolUse('write', { path: 'a.txt' }, env);
+
+    expect(seen).toBeDefined();
+    expect('toolCapabilities' in (seen ?? {})).toBe(false);
+    expect('toolMutating' in (seen ?? {})).toBe(false);
+  });
+
+  it('distinguishes a declared-empty capability list from an absent one', async () => {
+    const reg = new HookRegistry();
+    let seen: Record<string, unknown> | undefined;
+    reg.registerInProcess('PreToolUse', '*', async (input) => {
+      seen = input as unknown as Record<string, unknown>;
+      return { action: 'allow' };
+    });
+    const runner = new HookRunner({ registry: reg });
+
+    await runner.preToolUse('odd', {}, env, { capabilities: [], mutating: false });
+
+    expect(seen?.['toolCapabilities']).toEqual([]);
+    expect(seen?.['toolMutating']).toBe(false);
   });
 });

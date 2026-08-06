@@ -16,6 +16,7 @@ import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-i
 import type { AgentInternals } from './agent-internals.js';
 import { type Context, resolveEventSessionId, type RunOptions } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
+import { maybeAppendPendingNextSteps } from './next-steps-slot.js';
 import { bindRequestProvider } from './request-provider-binding.js';
 
 interface ProcessResponseResult {
@@ -45,7 +46,7 @@ const MAX_TODO_SNAPSHOT_CONTENT = 180;
  * final-response contract follow the live todo state on every iteration.
  */
 export function buildLiveNextStepsGateBlock(
-  ctx: Pick<Context, 'agentId' | 'todos'>,
+  ctx: Pick<Context, 'agentId' | 'todos'> & { tools?: readonly { name: string }[] | undefined },
 ): TextBlock | undefined {
   if (ctx.agentId !== 'leader') return undefined;
 
@@ -54,6 +55,12 @@ export function buildLiveNextStepsGateBlock(
   );
 
   if (openTodos.length === 0) {
+    // The opt-in `nextsteps` tool is a second way to satisfy branch 1. Mention
+    // it only when it is actually registered, so a request without the tool
+    // never carries a line pointing at something the model cannot call.
+    const toolRoute = ctx.tools?.some((t) => t.name === 'nextsteps')
+      ? ['Calling the `nextsteps` tool with the same items satisfies branch 1 as well; if you both call it and write the block, the block wins.']
+      : [];
     return {
       type: 'text',
       text: [
@@ -62,6 +69,7 @@ export function buildLiveNextStepsGateBlock(
         'On the final response, you MUST take exactly one branch:',
         '1. If at least one genuinely useful follow-on action exists, include a balanced <nextsteps> block containing 1-4 exact prompt messages that can be submitted back to you through the current TUI or WebUI input.',
         'Every item must ask the agent to perform work. Never put a human-only chore or an instruction addressed to the user inside <nextsteps>; natural-language agent-directed imperatives are valid and need not be shell commands.',
+        ...toolRoute,
         '2. If no useful follow-on action truly exists, omit <nextsteps> and explicitly tell the user in normal prose that no further steps are needed for this task.',
         'Silently omitting both is invalid. Do not decide by chance, tone, or response length, and do not invent filler suggestions.',
         '[/nextsteps_gate]',
@@ -187,6 +195,11 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
   ): Promise<ProcessResponseResult> {
     let res = raw;
     res = await a.pipelines.response.run(res);
+    // Fold in any `<nextsteps>` block parked by the `nextsteps` tool before the
+    // response is observed by anyone. This single point feeds the event, the
+    // session journal, the conversation history, and `finalText` at once, so
+    // tool-produced suggestions travel the same path as model-typed ones.
+    res = maybeAppendPendingNextSteps(a.ctx, res);
     a.events.emit('provider.response', {
       sessionId: resolveEventSessionId(a.ctx),
       ctx: a.ctx,

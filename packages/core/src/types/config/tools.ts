@@ -76,6 +76,23 @@ export interface ToolsConfig {
    * defaults (see DEFAULT_TOOLS_CONFIG.loopDetection).
    */
   loopDetection?: LoopDetectionConfig | undefined;
+  /**
+   * Opt-in `nextsteps` tool — a structured alternative to typing a
+   * `<nextsteps>` block into the final message. Both routes stay valid and
+   * produce identical results; the tool merely lets the schema enforce the
+   * shape. Disabled by default, so the prompt contract and every suggestion
+   * surface behave exactly as before unless the user turns it on.
+   *
+   * Registered for the leader only, and read at boot — a change takes effect
+   * in the next session (same as `features.tokenSavingMode`).
+   */
+  nextsteps?: NextStepsToolConfig | undefined;
+}
+
+/** Opt-in switch for the agent-callable `nextsteps` tool (`tools.nextsteps`). */
+export interface NextStepsToolConfig {
+  /** Register the tool for the leader agent. Default: false. */
+  enabled?: boolean | undefined;
 }
 
 /** Tuning for the agent-loop repetition detector (`tools.loopDetection`). */

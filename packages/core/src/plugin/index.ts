@@ -64,3 +64,4 @@ export {
 } from '../plugins/review-store-maintenance.js';
 export { createSkillsPlugin } from '../plugins/skills-plugin.js';
 export { createSyncPlugin } from '../plugins/sync-plugin.js';
+export { createCloudConfigSyncPlugin } from '../plugins/cloud-config-sync-plugin.js';

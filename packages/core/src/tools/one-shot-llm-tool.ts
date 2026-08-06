@@ -21,6 +21,7 @@ export interface CreateOneShotLLMToolOptions {
   fallbackProfileManager: OneShotOrchestratorOptions['fallbackProfileManager'];
   modelRouter?: OneShotOrchestratorOptions['modelRouter'];
   logger?: OneShotOrchestratorOptions['logger'];
+  wrapProviderCall?: OneShotOrchestratorOptions['wrapProviderCall'];
   /**
    * Default provider to use when the caller doesn't specify one.
    * When absent, callers MUST provide `providerId` explicitly.
@@ -144,6 +145,7 @@ export function createOneShotLLMTool(opts: CreateOneShotLLMToolOptions): Tool<On
     fallbackProfileManager: opts.fallbackProfileManager,
     modelRouter: opts.modelRouter,
     logger: opts.logger,
+    wrapProviderCall: opts.wrapProviderCall,
   });
 
   return {

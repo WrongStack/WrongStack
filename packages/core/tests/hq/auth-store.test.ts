@@ -431,6 +431,21 @@ describe('HQ auth-store — hqRuntimeFilePath + writeHqRuntimeFile + readHqRunti
       expect(readHqRuntimeFileSync(dir)).toBeUndefined();
     });
   });
+
+  it('readHqRuntimeFileSync treats EPERM as a live cross-user process', async () => {
+    await withTempDir(async (dir) => {
+      const pid = 999_998;
+      await writeHqRuntimeFile(dir, { url: 'http://localhost:7788', pid });
+      const kill = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+      });
+      try {
+        expect(readHqRuntimeFileSync(dir)?.pid).toBe(pid);
+      } finally {
+        kill.mockRestore();
+      }
+    });
+  });
 });
 
 describe('HQ auth-store — mintHqToken (underlying)', () => {

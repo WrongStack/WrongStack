@@ -1,6 +1,7 @@
 import { type PluginEnablementSource, resolvePluginEnablement } from '../plugin/config.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
 import { ToolCapabilities } from '../security/capabilities.js';
+import { toolMutates } from '../security/readonly-permission-policy.js';
 import type { Config, PluginConfig } from '../types/config.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import { validateAgainstSchema } from '../utils/json-schema-validate.js';
@@ -283,6 +284,21 @@ export function createPluginManagerTool(opts: CreatePluginManagerToolOptions): T
           message:
             `Tool "${tool.name}" requires the normal permission path (${tool.permission}, risk=${tool.riskTier ?? 'standard'}). ` +
             'Call it directly so WrongStack can apply its own approval and policy checks.',
+          directCall: { tool: tool.name, input: input.input ?? {}, inputSchema: tool.inputSchema },
+        };
+      }
+      // Read-only mode is enforced by `ReadOnlyPermissionPolicy`, which sits on
+      // the direct-call path only. `execute()` below is a direct invocation, so
+      // without this check a plugin tool at `permission: 'auto'` that mutates
+      // would run in a read-only session — the one place the session's hardest
+      // guarantee could be walked around. `toolMutates` is imported from the
+      // policy rather than restated so the two cannot drift.
+      if (ctx.meta['readOnly'] === true && toolMutates(tool)) {
+        return {
+          status: 'needs_direct_call',
+          message:
+            `Session is in read-only mode and "${tool.name}" mutates. ` +
+            'Call it directly so read-only mode can rule on it.',
           directCall: { tool: tool.name, input: input.input ?? {}, inputSchema: tool.inputSchema },
         };
       }

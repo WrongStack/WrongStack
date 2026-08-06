@@ -210,10 +210,19 @@ export class ExtensionRegistry {
    * Build a composed provider runner. Extensions with `wrapProviderRunner`
    * form a middleware-style chain: the innermost extension wraps the
    * default runner, each subsequent wrapper wraps the previous.
+   *
+   * Utility calls may exclude agent-loop-only middleware (notably
+   * `fallback-model`) while retaining request-safety wrappers such as the
+   * prompt firewall. One-shot orchestration owns its provider and fallback
+   * route, so an agent-loop fallback wrapper cannot safely run against it.
    */
-  wrapProviderRunner(inner: ProviderRunnerFn): ProviderRunnerFn {
+  wrapProviderRunner(
+    inner: ProviderRunnerFn,
+    options?: { exclude?: readonly string[] | undefined },
+  ): ProviderRunnerFn {
+    const excluded = new Set(options?.exclude);
     const wrappers = this.extensions
-      .filter((e) => e.wrapProviderRunner)
+      .filter((e) => e.wrapProviderRunner && !excluded.has(e.name))
       .map((e) => ({ name: e.name, wrap: expectDefined(e.wrapProviderRunner) }));
 
     if (wrappers.length === 0) return inner;

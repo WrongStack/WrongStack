@@ -45,6 +45,19 @@ describe('clampSubagentCapabilities', () => {
     );
   });
 
+  it('drops session.nextsteps — after-task suggestions are leader-only', () => {
+    // The wide ceiling grants `session.todo` but not this one: a recorded
+    // block is only ever folded into a LEADER turn, so a subagent holding the
+    // capability could write to a slot nothing will ever read.
+    const { granted, dropped } = clampSubagentCapabilities([
+      ToolCapabilities.SESSION_TODO,
+      ToolCapabilities.SESSION_NEXTSTEPS,
+    ]);
+
+    expect(granted).toEqual([ToolCapabilities.SESSION_TODO]);
+    expect(dropped).toContain(ToolCapabilities.SESSION_NEXTSTEPS);
+  });
+
   it('preserves a narrower grant untouched', () => {
     const requested = [ToolCapabilities.FS_READ, ToolCapabilities.NET_OUTBOUND];
     const { granted, dropped } = clampSubagentCapabilities(requested);

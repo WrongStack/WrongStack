@@ -34,6 +34,7 @@ import * as path from 'node:path';
 
 import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
+import { isPidAlive } from '../utils/pid.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 import type { HqAlertRuleConfig } from './alerts.js';
 import { logHqAuthAudit } from './auth-audit.js';
@@ -367,23 +368,13 @@ export async function writeHqRuntimeFile(
   await restrictFilePermissions(target, { label: 'hq-runtime' });
 }
 
-function isProcessAlive(pid: number): boolean {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function readHqRuntimeFileSync(dataDir: string): HqRuntimeFile | undefined {
   try {
     const parsed = JSON.parse(
       syncFs.readFileSync(hqRuntimeFilePath(dataDir), 'utf8'),
     ) as Partial<HqRuntimeFile>;
     if (typeof parsed.url !== 'string' || parsed.url.trim().length === 0) return undefined;
-    if (typeof parsed.pid === 'number' && !isProcessAlive(parsed.pid)) return undefined;
+    if (typeof parsed.pid === 'number' && !isPidAlive(parsed.pid)) return undefined;
     return {
       url: parsed.url,
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : '',

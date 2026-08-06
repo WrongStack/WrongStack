@@ -31,8 +31,12 @@ function config(overrides: Partial<Config> = {}): Config {
   } as Config;
 }
 
-function execute(tool: Tool, input: Record<string, unknown>): Promise<unknown> {
-  return tool.execute(input, {} as never, { signal: new AbortController().signal });
+function execute(
+  tool: Tool,
+  input: Record<string, unknown>,
+  meta: Record<string, unknown> = {},
+): Promise<unknown> {
+  return tool.execute(input, { meta } as never, { signal: new AbortController().signal });
 }
 
 describe('plugin_manager', () => {
@@ -261,5 +265,107 @@ describe('plugin_manager', () => {
         directCall: expect.objectContaining({ tool: 'alpha_write' }),
       }),
     );
+  });
+});
+
+/**
+ * `plugin_manager action:'use'` calls `tool.execute()` itself. That is a
+ * DIRECT invocation: it does not pass through `PermissionPolicy`, so
+ * `ReadOnlyPermissionPolicy` — which is what a read-only session is — never
+ * sees it. The existing `permission !== 'auto'` guard did not cover this,
+ * because a plugin tool at `permission: 'auto'` with `mutating: true` is
+ * exactly the shape that slips through: allowed by the guard, blocked by
+ * read-only mode, executed anyway.
+ */
+describe('plugin_manager honours read-only mode on the use path', () => {
+  function registryWithAutoWriter(run: () => unknown): ToolRegistry {
+    const registry = new ToolRegistry();
+    registry.register(
+      {
+        name: 'alpha_autowrite',
+        description: 'Writes a file without asking.',
+        inputSchema: { type: 'object', properties: {} },
+        permission: 'auto',
+        mutating: true,
+        execute: run as never,
+      },
+      'alpha-plugin',
+    );
+    return registry;
+  }
+
+  it('refuses to run a mutating plugin tool when the session is read-only', async () => {
+    const run = vi.fn();
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registryWithAutoWriter(run),
+      setEnabled: vi.fn(),
+    });
+
+    const result = await execute(
+      tool,
+      { action: 'use', plugin: 'alpha-plugin', tool: 'alpha_autowrite', input: {} },
+      { readOnly: true },
+    );
+
+    expect(run, 'read-only mode was walked around via plugin_manager').not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'needs_direct_call',
+        directCall: expect.objectContaining({ tool: 'alpha_autowrite' }),
+      }),
+    );
+    expect((result as { message: string }).message).toContain('read-only');
+  });
+
+  it('runs the same tool when the session is not read-only', async () => {
+    const run = vi.fn().mockResolvedValue({ wrote: true });
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registryWithAutoWriter(run),
+      setEnabled: vi.fn(),
+    });
+
+    const result = await execute(tool, {
+      action: 'use',
+      plugin: 'alpha-plugin',
+      tool: 'alpha_autowrite',
+      input: {},
+    });
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(expect.objectContaining({ status: 'ok', tool: 'alpha_autowrite' }));
+  });
+
+  it('still runs a NON-mutating plugin tool in a read-only session', async () => {
+    const run = vi.fn().mockResolvedValue({ read: true });
+    const registry = new ToolRegistry();
+    registry.register(
+      {
+        name: 'alpha_read',
+        description: 'Reads something.',
+        inputSchema: { type: 'object', properties: {} },
+        permission: 'auto',
+        execute: run as never,
+      },
+      'alpha-plugin',
+    );
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registry,
+      setEnabled: vi.fn(),
+    });
+
+    const result = await execute(
+      tool,
+      { action: 'use', plugin: 'alpha-plugin', tool: 'alpha_read', input: {} },
+      { readOnly: true },
+    );
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(expect.objectContaining({ status: 'ok' }));
   });
 });

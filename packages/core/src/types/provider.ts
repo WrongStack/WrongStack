@@ -275,9 +275,27 @@ export type StreamEvent =
   | { type: 'thinking_stop' }
   | { type: 'message_stop'; stopReason: StopReason; usage: Usage };
 
+export interface ProviderContextLimit {
+  /** Provider-authoritative context ceiling for the selected route/model. */
+  maxContext: number;
+  /** Origin of the live value, surfaced in diagnostics and UI warnings. */
+  source: 'provider';
+}
+
 export interface Provider {
   readonly id: string;
   readonly capabilities: Capabilities;
+  /**
+   * Optional live capability probe. The agent calls this at request boundaries
+   * before context-window middleware runs, allowing a provider-side limit
+   * decrease to trigger compaction before the oversized request is sent.
+   * Implementations must fail open (return undefined) on transient discovery
+   * failures and retain their last verified value locally.
+   */
+  refreshContextLimit?(
+    model: string,
+    opts: { signal: AbortSignal },
+  ): Promise<ProviderContextLimit | undefined>;
   /** Canonical streaming entry point. `complete()` defaults to a wrapper that
    * aggregates this stream — providers may override for non-streaming wires. */
   stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent>;

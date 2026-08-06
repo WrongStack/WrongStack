@@ -238,6 +238,36 @@ describe('ExtensionRegistry — wrapProviderRunner', () => {
     expect(order).toEqual(['outer-pre', 'inner-pre', 'runner', 'inner-post', 'outer-post']);
   });
 
+  it('can exclude agent-loop-only wrappers while preserving the remaining chain', async () => {
+    const reg = new ExtensionRegistry();
+    const order: string[] = [];
+    reg.register({
+      name: 'prompt-firewall',
+      wrapProviderRunner: async (ctx, req, next) => {
+        order.push('firewall');
+        return next(ctx, req);
+      },
+    });
+    reg.register({
+      name: 'fallback-model',
+      wrapProviderRunner: async (ctx, req, next) => {
+        order.push('fallback');
+        return next(ctx, req);
+      },
+    });
+
+    const composed = reg.wrapProviderRunner(
+      async () => {
+        order.push('runner');
+        return 'ok' as never;
+      },
+      { exclude: ['fallback-model'] },
+    );
+
+    await composed({} as never, {} as never);
+    expect(order).toEqual(['firewall', 'runner']);
+  });
+
   it('propagates errors from wrappers and logs them', async () => {
     const reg = new ExtensionRegistry();
     const log = noopLogger();

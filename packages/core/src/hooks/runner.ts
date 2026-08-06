@@ -54,26 +54,44 @@ export interface PreToolUseResult {
   reason?: string | undefined;
   /** Present only when a hook replaced the tool input. */
   input?: Record<string, unknown>;
+  additionalContext?: string | undefined;
+  contextAs?: 'inline' | 'separate' | undefined;
 }
 
-type NormalizedPreToolOutcome =
-  | { action: 'allow' }
-  | { action: 'deny'; reason: string }
-  | { action: 'mutate'; input: Record<string, unknown>; reason?: string | undefined };
+type PreToolContext = Pick<PreToolUseResult, 'additionalContext' | 'contextAs'>;
+type NormalizedPreToolOutcome = PreToolContext &
+  (
+    | { action: 'allow' }
+    | { action: 'deny'; reason: string }
+    | { action: 'mutate'; input: Record<string, unknown>; reason?: string | undefined }
+  );
+
+function contextFromOutcome(outcome: AnyHookOutcome): PreToolContext {
+  return {
+    ...(outcome.additionalContext ? { additionalContext: outcome.additionalContext } : {}),
+    ...(outcome.contextAs ? { contextAs: outcome.contextAs } : {}),
+  };
+}
 
 function normalizePreToolOutcome(outcome: AnyHookOutcome): NormalizedPreToolOutcome {
-  if ('action' in outcome) return outcome;
+  const context = contextFromOutcome(outcome);
+  if ('action' in outcome) return { ...outcome, ...context };
   if (outcome.decision === 'block') {
-    return { action: 'deny', reason: outcome.reason?.trim() || 'blocked by PreToolUse hook' };
+    return {
+      action: 'deny',
+      reason: outcome.reason?.trim() || 'blocked by PreToolUse hook',
+      ...context,
+    };
   }
   if (outcome.modifiedInput && typeof outcome.modifiedInput === 'object') {
     return {
       action: 'mutate',
       input: outcome.modifiedInput,
       ...(outcome.reason ? { reason: outcome.reason } : {}),
+      ...context,
     };
   }
-  return { action: 'allow' };
+  return { action: 'allow', ...context };
 }
 
 function malformedOutcome(outcome: AnyHookOutcome): string | undefined {
@@ -129,11 +147,32 @@ export class HookRunner {
     toolName: string,
     toolInput: Record<string, unknown>,
     env: HookRunEnv,
+    /**
+     * What the tool declares about itself. Optional so existing callers (and
+     * tests) keep working, but the executor always passes it — a policy hook
+     * that keys on capability instead of tool name needs it to be there.
+     */
+    toolMeta?: { capabilities?: readonly string[] | undefined; mutating?: boolean | undefined },
   ): Promise<PreToolUseResult> {
     const entries = this.matching('PreToolUse', toolName);
     if (entries.length === 0) return {};
+    const declared: Pick<HookInput, 'toolCapabilities' | 'toolMutating'> = {
+      ...(toolMeta?.capabilities ? { toolCapabilities: toolMeta.capabilities } : {}),
+      ...(toolMeta?.mutating === undefined ? {} : { toolMutating: toolMeta.mutating }),
+    };
     let current = toolInput;
     let mutated = false;
+    const contexts: string[] = [];
+    let contextAs: 'inline' | 'separate' | undefined;
+    const collectContext = (outcome: NormalizedPreToolOutcome): void => {
+      if (outcome.additionalContext) contexts.push(outcome.additionalContext);
+      if (outcome.contextAs === 'separate') contextAs = 'separate';
+      else if (outcome.contextAs === 'inline' && contextAs === undefined) contextAs = 'inline';
+    };
+    const resultContext = (): PreToolContext => ({
+      ...(contexts.length > 0 ? { additionalContext: contexts.join('\n') } : {}),
+      ...(contextAs ? { contextAs } : {}),
+    });
     const mutators = entries.filter((entry) => entry.stage === 'mutate');
     const validators = entries.filter((entry) => entry.stage === 'validate');
 
@@ -144,13 +183,15 @@ export class HookRunner {
         event: 'PreToolUse',
         toolName,
         toolInput: current,
+        ...declared,
         ...this.base(env),
       };
       const outcome = await this.invoke(entry, payload, env);
       if (!outcome) continue;
       const normalized = normalizePreToolOutcome(outcome);
+      collectContext(normalized);
       if (normalized.action === 'deny') {
-        return { block: true, reason: normalized.reason };
+        return { block: true, reason: normalized.reason, ...resultContext() };
       }
       if (normalized.action === 'mutate') {
         current = normalized.input;
@@ -165,21 +206,25 @@ export class HookRunner {
         event: 'PreToolUse',
         toolName,
         toolInput: current,
+        ...declared,
         ...this.base(env),
       };
       const outcome = await this.invoke(entry, payload, env);
       if (!outcome) continue;
       const normalized = normalizePreToolOutcome(outcome);
+      collectContext(normalized);
       if (normalized.action === 'deny') {
-        return { block: true, reason: normalized.reason };
+        return { block: true, reason: normalized.reason, ...resultContext() };
       }
       if (normalized.action === 'mutate') {
         const reason = `PreToolUse validator "${entry.name}" attempted to mutate tool arguments`;
         this.opts.logger?.warn?.(reason);
-        if (entry.failurePolicy === 'closed') return { block: true, reason };
+        if (entry.failurePolicy === 'closed') {
+          return { block: true, reason, ...resultContext() };
+        }
       }
     }
-    return mutated ? { input: current } : {};
+    return { ...(mutated ? { input: current } : {}), ...resultContext() };
   }
 
   async postToolUse(

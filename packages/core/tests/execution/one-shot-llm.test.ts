@@ -718,3 +718,80 @@ describe('OneShotOrchestrator — role routing priority', () => {
     expect(result.model).toBe('guessed-model');
   });
 });
+
+/**
+ * The agent loop runs every provider call through
+ * `extensions.wrapProviderRunner(...)`. This orchestrator called
+ * `provider.complete()` directly, so `api.llm` (plugins), the `one_shot_llm`
+ * tool and the council each reached a third-party provider with that chain
+ * skipped — including `prompt-firewall`, whose entire job is redacting
+ * credentials before context leaves the machine. It reported itself active the
+ * whole time.
+ */
+describe('OneShotOrchestrator honours the host provider-call chain', () => {
+  it('routes the request through wrapProviderCall', async () => {
+    const provider = fakeProvider('test-provider');
+    const cfg = makeConfig();
+    const seen: Request[] = [];
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(cfg, async () => provider),
+      wrapProviderCall: async (request, inner) => {
+        seen.push(request);
+        return inner(request);
+      },
+    });
+
+    const result = await orch.call({ userPrompt: 'Say hello.' });
+
+    expect(seen).toHaveLength(1);
+    expect(result.error).toBeUndefined();
+    expect(provider.complete).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the chain rewrite the request the provider actually receives', async () => {
+    // This is the redaction case: prompt-firewall replaces the secret in a
+    // CLONE of the request, and the provider must see the clone.
+    const provider = fakeProvider('test-provider');
+    const cfg = makeConfig();
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(cfg, async () => provider),
+      wrapProviderCall: async (request, inner) =>
+        inner({ ...request, system: '[REDACTED]' }),
+    });
+
+    await orch.call({ system: 'sk-live-abc123', userPrompt: 'Say hello.' });
+
+    const sent = (provider.complete as unknown as { mock: { calls: Request[][] } }).mock.calls[0]![0];
+    expect(sent.system).toBe('[REDACTED]');
+  });
+
+  it('surfaces a chain refusal as an orchestrator error rather than a call', async () => {
+    // `mode: 'block'` throws before the request is sent. The orchestrator never
+    // throws by contract, so the refusal has to arrive as `result.error`.
+    const provider = fakeProvider('test-provider');
+    const cfg = makeConfig();
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(cfg, async () => provider),
+      wrapProviderCall: async () => {
+        throw new Error('prompt-firewall: credential detected, request blocked');
+      },
+    });
+
+    const result = await orch.call({ userPrompt: 'Say hello.' });
+
+    expect(provider.complete).not.toHaveBeenCalled();
+    expect(result.error).toContain('prompt-firewall');
+    expect(result.text).toBe('');
+  });
+
+  it('behaves exactly as before when no chain is supplied', async () => {
+    const provider = fakeProvider('test-provider');
+    const cfg = makeConfig();
+    const orch = new OneShotOrchestrator(makeOneShotOpts(cfg, async () => provider));
+
+    const result = await orch.call({ userPrompt: 'Say hello.' });
+
+    expect(result.error).toBeUndefined();
+    expect(provider.complete).toHaveBeenCalledTimes(1);
+  });
+});

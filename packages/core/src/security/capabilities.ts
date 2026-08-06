@@ -53,6 +53,9 @@ export const ToolCapabilities = {
   /** Can mutate in-memory session todos only. */
   SESSION_TODO: 'session.todo',
 
+  /** Can park after-task `<nextsteps>` suggestions for the current turn. */
+  SESSION_NEXTSTEPS: 'session.nextsteps',
+
   /** Can mutate in-memory session mode only. */
   SESSION_MODE: 'session.mode',
 

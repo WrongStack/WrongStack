@@ -40,6 +40,7 @@ export interface AgentToolHandler {
   executeSingleWithDecision(
     tool: Tool,
     use: { id: string; name: string; input: unknown },
+    preToolContext?: { text: string; contextAs: 'inline' | 'separate' },
   ): Promise<{ result: ToolResultBlock; durationMs: number }>;
 }
 
@@ -47,6 +48,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
   async function executeSingleWithDecision(
     tool: Tool,
     use: { id: string; name: string; input: unknown },
+    preToolContext?: { text: string; contextAs: 'inline' | 'separate' },
   ): Promise<{ result: ToolResultBlock; durationMs: number }> {
     const start = Date.now();
     try {
@@ -65,6 +67,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         },
         a.ctx,
         a.perIterationOutputCapBytes,
+        preToolContext,
       );
       // H2: `result` is now { block, bytes }. The executeTools caller
       // gets the block; the `bytes` field is for budget accounting
@@ -271,11 +274,15 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
 
         const reRunResult =
           decision === 'yes' || decision === 'always'
-            ? await executeSingleWithDecision(tool, {
-                id: result.toolUseId,
-                name: tool.name,
-                input: result.input,
-              })
+            ? await executeSingleWithDecision(
+                tool,
+                {
+                  id: result.toolUseId,
+                  name: tool.name,
+                  input: result.input,
+                },
+                result.preToolContext,
+              )
             : {
                 result: {
                   type: 'tool_result' as const,

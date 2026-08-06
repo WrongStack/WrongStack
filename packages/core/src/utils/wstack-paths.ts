@@ -232,8 +232,16 @@ export function safeProfileName(name: string | undefined): string {
 /**
  * Resolve the selected profile from ~/.wrongstack/config.json. The root file
  * is bootstrap metadata only; a missing/corrupt bootstrap selects `default`.
+ *
+ * Named for its SOURCE, not its meaning. This used to be `activeProfileName`,
+ * the same name `cli/src/profile-config-path.ts` exports for a function that
+ * reads the LIVE `Config` object instead of the bootstrap file on disk. Two
+ * functions, one name, two sources that can disagree — the settings menu
+ * writes `activeProfile` into the profile's own config, while `/profile use`
+ * writes the bootstrap and demands a restart. A caller autocompleting the
+ * wrong one gets a plausible answer about a different profile.
  */
-export function activeProfileName(globalRoot: string): string {
+export function bootstrapProfileName(globalRoot: string): string {
   try {
     const parsed = JSON.parse(fs.readFileSync(path.join(globalRoot, 'config.json'), 'utf8')) as {
       activeProfile?: unknown;
@@ -275,7 +283,7 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
   // Claude skills live in their real home, but tests pass `userHome` to keep
   // both `.wrongstack` and `.claude` under a temp dir.
   const homeDir = opts.userHome ?? os.homedir();
-  const profileName = safeProfileName(opts.profileName ?? activeProfileName(globalRoot));
+  const profileName = safeProfileName(opts.profileName ?? bootstrapProfileName(globalRoot));
   const profileDir = path.join(globalRoot, 'profiles', profileName);
   const hash = projectHash(opts.projectRoot);
   const slug = projectSlug(opts.projectRoot);

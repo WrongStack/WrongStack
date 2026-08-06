@@ -784,6 +784,7 @@ export {
 export { createPromptsPlugin } from './plugins/prompts-plugin.js';
 export { createSkillsPlugin } from './plugins/skills-plugin.js';
 export { createSyncPlugin } from './plugins/sync-plugin.js';
+export { createCloudConfigSyncPlugin } from './plugins/cloud-config-sync-plugin.js';
 export * from './prompts/index.js';
 export { type ProviderFactory, ProviderRegistry } from './registry/provider-registry.js';
 export {

@@ -287,6 +287,33 @@ describe('ToolExecutor — additional coverage', () => {
       expect(tool.execute).not.toHaveBeenCalled();
     });
 
+    it('tells the hook what the tool declares, not just its name', async () => {
+      // `path-guard` matched `write|edit|bash|exec` because a tool NAME was all
+      // a PreToolUse hook could see, so `patch`, `scaffold`, plugin writers and
+      // MCP filesystem servers wrote past it. The executor holds the tool
+      // object; passing its declaration through is what lets a policy hook key
+      // on what the call DOES.
+      const tool = makeTool({
+        name: 'patch',
+        capabilities: ['fs.write'],
+        mutating: true,
+        execute: vi.fn().mockResolvedValue('ok'),
+      });
+      const hookRunner = {
+        has: vi.fn((name: string) => name === 'PreToolUse'),
+        preToolUse: vi.fn().mockResolvedValue({}),
+      };
+      const executor = makeExecutor([tool], { hookRunner: hookRunner as never });
+      await executor.executeBatch([makeUse('patch', { path: 'a.ts' })], makeCtx(), 'sequential');
+
+      expect(hookRunner.preToolUse).toHaveBeenCalledWith(
+        'patch',
+        { path: 'a.ts' },
+        expect.anything(),
+        { capabilities: ['fs.write'], mutating: true },
+      );
+    });
+
     it('rewrites input when PreToolUse hook returns new input', async () => {
       const tool = makeTool({
         name: 'read',

@@ -56,3 +56,10 @@ export {
   type RouterCosts,
   type ModelIntelligenceEntry,
 } from './model-router.js';
+export {
+  hasProviderCredential,
+  hasProviderKeyInConfig,
+  hasProviderKeyInEnv,
+  type ProviderCredentialConfig,
+  type ProviderCredentialSubject,
+} from './provider-credentials.js';

@@ -249,6 +249,7 @@ export function learnEffectiveContextLimitFromOverflow(ctx: Context): number | u
 
   ctx.meta ??= {};
   ctx.meta['effectiveMaxContext'] = learned;
+  ctx.meta['providerOverflowMaxContext'] = learned;
   ctx.meta['effectiveMaxContextSource'] = 'provider_overflow';
   return learned;
 }

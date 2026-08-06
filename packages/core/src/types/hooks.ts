@@ -76,6 +76,20 @@ export interface HookInput {
   toolName?: string | undefined;
   /** Tool arguments (PreToolUse / PostToolUse). */
   toolInput?: unknown | undefined;
+  /**
+   * The tool's declared capabilities (PreToolUse), so a policy hook can key on
+   * WHAT a tool does instead of what it is called.
+   *
+   * `matcher` is a list of tool names, which is the only vocabulary a hook had
+   * for "tools that write". `path-guard` matched `write|edit|bash|exec` and
+   * therefore never saw `patch`, `scaffold`, or any plugin- or MCP-registered
+   * writer — a protected path was guarded through four doors and open through
+   * the rest. Names cannot be enumerated ahead of a plugin that has not been
+   * written yet; capabilities can.
+   */
+  toolCapabilities?: readonly string[] | undefined;
+  /** The tool's `mutating` flag (PreToolUse). See `toolCapabilities`. */
+  toolMutating?: boolean | undefined;
   /** Tool result preview (PostToolUse only). */
   toolResult?: { content: string; isError: boolean };
   /** The submitted user text (UserPromptSubmit only). */

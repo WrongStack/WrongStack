@@ -52,6 +52,10 @@ const KNOWN_DENIED_IN_PROJECT: ReadonlyArray<{ key: string; reason: string }> = 
     reason: 'Controls which plugin boot states the LLM may mutate; user-owned trust policy.',
   },
   { key: 'sync', reason: 'Carries githubToken credential and target repo.' },
+  {
+    key: 'cloudSync',
+    reason: 'Carries the my.wrongstack.com machine token credential and endpoint URL.',
+  },
   { key: 'yolo', reason: 'Disables all permission confirmation prompts.' },
   { key: 'extensions', reason: 'Per-plugin config can carry command/credential fields.' },
   { key: 'hq', reason: 'Carries HQ client token credential and endpoint URL.' },
@@ -118,6 +122,7 @@ const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'modelRuntime',
   'hq',
   'sync',
+  'cloudSync',
   'extensions',
   'acp',
   'fleet',

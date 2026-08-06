@@ -229,6 +229,19 @@ export {
   type SyncResult,
   ALL_SYNC_CATEGORIES,
 } from './cloud-sync.js';
+export {
+  applyNamespacePayload,
+  buildNamespacePayloads,
+  CLOUD_SYNC_CONTRACT,
+  CLOUD_SYNC_NAMESPACES,
+  CloudConfigSync,
+  type CloudConfigSyncDeps,
+  type CloudConfigSyncSettings,
+  type CloudSyncPassSummary,
+  LOCAL_ONLY_TOP_LEVEL,
+  NAMESPACE_SCHEMA_VERSIONS,
+  stripSecretMaterial,
+} from './cloud-config-sync.js';
 
 export {
   createSessionEventBridge,

@@ -120,6 +120,7 @@ export interface ToolConfirmPendingResult {
   toolUseId: string;
   toolName: string;
   input: unknown;
+  preToolContext?: { text: string; contextAs: 'inline' | 'separate' } | undefined;
   suggestedPattern: string;
   decisionSource?: import('./permission.js').PermissionDecision['source'] | undefined;
   riskTier?: import('./tool.js').RiskTier | undefined;
@@ -170,5 +171,6 @@ export interface ToolExecutorLike {
     use: ToolUseBlock,
     ctx: import('../core/context.js').Context,
     budget: number,
+    preToolContext?: { text: string; contextAs: 'inline' | 'separate' },
   ): Promise<{ block: ToolResultBlock; bytes: number }>;
 }
