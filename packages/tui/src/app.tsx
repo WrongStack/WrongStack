@@ -404,6 +404,32 @@ export function App(props: AppProps): React.ReactElement {
     async (checkpointIndex: number) => {
       const sessionId = agent.ctx.session.id;
       if (!sessionId) return;
+
+      // Invalidate late output before stopping every producer that can mutate
+      // the session: the foreground leader, autonomy/SDD drivers, and fleet.
+      sessionGenerationRef.current++;
+      interruptController?.abortLeader();
+
+      const cleanup: Promise<unknown>[] = [];
+      if (interruptController?.waitForIdle) {
+        cleanup.push(interruptController.waitForIdle().catch(() => undefined));
+      }
+      const rewindDir = liveDirector();
+      if (rewindDir) cleanup.push(rewindDir.terminateAll().catch(() => undefined));
+
+      if (cleanup.length > 0) {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        const cap = new Promise<void>((resolve) => {
+          timeout = setTimeout(resolve, 1500);
+          timeout.unref?.();
+        });
+        try {
+          await Promise.race([Promise.allSettled(cleanup).then(() => undefined), cap]);
+        } finally {
+          if (timeout) clearTimeout(timeout);
+        }
+      }
+
       const rewinder = new DefaultSessionRewinder(
         sessionsDir ?? '',
         agent.ctx.projectRoot ?? agent.ctx.cwd,
@@ -423,7 +449,15 @@ export function App(props: AppProps): React.ReactElement {
         revertedFiles: reverted.revertedFiles,
       });
     },
-    [agent.ctx.session, sessionsDir, agent.ctx.projectRoot, agent.ctx.cwd],
+    [
+      agent.ctx.session,
+      sessionsDir,
+      agent.ctx.projectRoot,
+      agent.ctx.cwd,
+      interruptController,
+      liveDirector,
+      sessionGenerationRef,
+    ],
   );
 
   const setDraft = (buffer: string, cursor: number): void => {
@@ -857,6 +891,8 @@ export function App(props: AppProps): React.ReactElement {
     terminalColumns: stdout?.columns ?? 80,
     terminalRows: stdout?.rows ?? 24,
     mainColumnWidth: sidebarLayout.mainColumnWidth,
+    // The authoritative value — the same one `useMouseTracking` already gets.
+    overlayOpen: sidebarLayout.overlayOpen,
     effectiveSwarmOnSidebar: sidebarLayout.effectiveSwarmOnSidebar,
     sidebarTwinRowCount: sidebarLayout.sidebarTwinRowCount,
     statusBarWrapRef,

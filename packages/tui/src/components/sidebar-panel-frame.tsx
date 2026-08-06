@@ -11,8 +11,8 @@
 // `SidebarContent`; the outer shell clips their combined stack.
 
 import type React from 'react';
-import { useEffect, useState } from 'react';
-import { Box, Text, useStdout } from '../ink.js';
+import { Box, Text } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
 
@@ -182,18 +182,8 @@ export function SidebarPanelFrame({
  * minus a small safety margin for the focus indicator row.
  */
 export function useSidebarPanelSize(): { width: number; height: number } {
-  const { stdout } = useStdout();
-  const [size, setSize] = useState({
-    columns: stdout?.columns ?? 100,
-    rows: stdout?.rows ?? 32,
-  });
-  useEffect(() => {
-    const update = () => setSize({ columns: stdout?.columns ?? 100, rows: stdout?.rows ?? 32 });
-    update();
-    process.stdout.on('resize', update);
-    return () => {
-      process.stdout.off('resize', update);
-    };
-  }, [stdout]);
+  // Wider fallbacks than the other panels on purpose: the sidebar frame is
+  // only meaningful at a size where a sidebar fits at all.
+  const size = useTerminalSize({ fallbackColumns: 100, fallbackRows: 32 });
   return { width: size.columns, height: size.rows };
 }

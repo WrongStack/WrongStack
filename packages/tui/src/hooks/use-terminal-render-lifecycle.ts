@@ -1,6 +1,7 @@
 import { writeOut } from '@wrongstack/core/utils';
 import React, { useCallback, useEffect, useInsertionEffect, useRef } from 'react';
 import type { State } from '../app-state.js';
+import { onResize } from '@wrongstack/core/utils';
 
 /** Owns terminal live-region cleanup around overlay/entry/stream transitions. */
 export function useTerminalRenderLifecycle(state: State): void {
@@ -159,13 +160,10 @@ export function useTerminalRenderLifecycle(state: State): void {
   // installs the same erase after Ink's own resize handler; this one runs
   // for renders driven by React state updates in the same burst).
   useEffect(() => {
-    const handleResize = () => {
-      eraseLiveRegion();
-    };
-    process.stdout.on('resize', handleResize);
-    return () => {
-      process.stdout.off('resize', handleResize);
-    };
+    // Not a size READ — a side effect on resize — so it uses core's
+    // `onResize` directly rather than `useTerminalSize`, which exists to hand
+    // out dimensions. Same subscriber either way.
+    return onResize(() => eraseLiveRegion());
   }, [eraseLiveRegion]);
 
   // While the prompt-refinement flow is active, the EnhancePanel's countdown

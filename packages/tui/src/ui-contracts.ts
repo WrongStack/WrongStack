@@ -12,13 +12,13 @@ import type { StatuslineItem as StatuslineItemSource } from './components/status
 export const SIDEBAR_MISSION_ROWS = 8;
 
 /**
- * Field index where the per-panel-position rows begin. The first 45
- * indices (0–44) are the legacy auto-rebuilt Settings surface; rows 45+
+ * Field index where the per-panel-position rows begin. The first 46
+ * indices (0–45) are the legacy auto-rebuilt Settings surface; rows 46+
  * are the per-panel position rows (one per PanelId in PANEL_IDS order).
  * Centralized so the reducer, label array, sections, and tests stay in
  * lock-step when a new panel id is added.
  */
-export const PANEL_POSITION_FIELD_START = 45;
+export const PANEL_POSITION_FIELD_START = 46;
 
 /**
  * Maximum number of sidebar panel slots. When more than this many panels
@@ -58,7 +58,7 @@ export const PANEL_IDS = Object.freeze([
 
 export type PanelId = (typeof PANEL_IDS)[number];
 
-/** Total field count = legacy 45 + per-panel positions. Derived at
+/** Total field count = legacy 46 + per-panel positions. Derived at
  *  runtime from `PANEL_IDS.length` to keep the surface in sync. */
 export const TOTAL_SETTINGS_FIELD_COUNT = PANEL_POSITION_FIELD_START + PANEL_IDS.length;
 

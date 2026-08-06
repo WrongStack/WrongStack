@@ -180,7 +180,13 @@ describe('<History /> native scrollback commits', () => {
     screen.frames.length = 0;
     screen.stdout.columns = 72;
 
-    process.stdout.emit('resize');
+    // Emit on the stream the component READS. This used to emit on
+    // `process.stdout` while setting the width on Ink's stream — which worked
+    // only because <History /> subscribed to one and measured the other. That
+    // split is the bug `useTerminalSize` exists to close (see
+    // `hooks/use-terminal-size.ts`), and a real resize fires on the stream Ink
+    // holds. `helpers/real-tty.tsx` already does it this way.
+    screen.stdout.emit('resize');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(count(screen.frames.join('\n'), 'native-resize-history-marker')).toBe(1);

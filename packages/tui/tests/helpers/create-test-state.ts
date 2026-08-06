@@ -157,6 +157,7 @@ export function createTestState(
       showSageMemoryInject: false,
       sageMemoryInjectThreshold: 0.85,
       readSymbols: false,
+      nextStepsTool: false,
       panelPositions: DEFAULT_PANEL_POSITIONS,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },

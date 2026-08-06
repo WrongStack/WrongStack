@@ -183,7 +183,7 @@ export const MODE_DESC: Record<SettingsMode, string> = {
 };
 
 /** Total number of settings rows (used for wrap-around navigation).
- *  Indices 0–44 are the legacy auto-rebuilt Settings surface; 45..44+PANEL_IDS.length
+ *  Indices 0–45 are the legacy auto-rebuilt Settings surface; 46..45+PANEL_IDS.length
  *  are the per-panel position rows (one per PanelId in PANEL_IDS order)
  *  added when the showAgentSwarmPanel tri-state was generalized into the
  *  per-panel PanelPositionMap. Derived from PANEL_IDS.length so adding
@@ -325,19 +325,20 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Read symbols', // 42
   'Show SAGE Memory Inject', // 43
   'SAGE Memory Inject threshold', // 44
-  'Project switcher placement', // 45 (P panel id index 0)
-  'Fleet placement', // 46 (P panel id index 1)
-  'Agents placement', // 47 (P panel id index 2)
-  'Worktree placement', // 48 (P panel id index 3)
-  'Plan placement', // 49 (P panel id index 4)
-  'Todos placement', // 50 (P panel id index 5)
-  'Queue placement', // 51 (P panel id index 6)
-  'Process list placement', // 52 (P panel id index 7)
-  'Goal placement', // 53 (P panel id index 8)
-  'Sessions placement', // 54 (P panel id index 9)
-  'Coordinator placement', // 55 (P panel id index 10)
-  'Kanban placement', // 56 (P panel id index 11)
-  'Connections placement', // 57 (P panel id index 12)
+  'Nextsteps tool', // 45
+  'Project switcher placement', // 46 (P panel id index 0)
+  'Fleet placement', // 47 (P panel id index 1)
+  'Agents placement', // 48 (P panel id index 2)
+  'Worktree placement', // 49 (P panel id index 3)
+  'Plan placement', // 50 (P panel id index 4)
+  'Todos placement', // 51 (P panel id index 5)
+  'Queue placement', // 52 (P panel id index 6)
+  'Process list placement', // 53 (P panel id index 7)
+  'Goal placement', // 54 (P panel id index 8)
+  'Sessions placement', // 55 (P panel id index 9)
+  'Coordinator placement', // 56 (P panel id index 10)
+  'Kanban placement', // 57 (P panel id index 11)
+  'Connections placement', // 58 (P panel id index 12)
 ];
 
 /**
@@ -388,6 +389,7 @@ export function resolveSettingsFieldValue(
     // [40, 'showAgentSwarmPanel'] — now an enum, see ENUM_FIELDS below
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
+    [45, 'nextStepsTool'],
   ]);
   const boolKey = BOOL_FIELDS.get(field);
   if (boolKey) {
@@ -651,6 +653,7 @@ export function getSettingsFieldValue(
     // [40, 'showAgentSwarmPanel'] — now an enum, see ENUM_KEYS below
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
+    [45, 'nextStepsTool'],
   ];
   for (const [f, key] of BOOL_KEYS) {
     if (field !== f) continue;
@@ -748,7 +751,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Tools',
-    fields: [15, 16, 17, 18, 19, 20, 21, 22, 42],
+    fields: [15, 16, 17, 18, 19, 20, 21, 22, 42, 45],
   },
   {
     name: 'Reasoning',
@@ -780,7 +783,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Panels',
-    fields: [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
+    fields: [46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58],
   },
 ];
 
@@ -878,6 +881,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   readSymbols: false,
   showSageMemoryInject: false,
   sageMemoryInjectThreshold: 0.85,
+  nextStepsTool: false,
 } as const);
 
 /**
@@ -951,6 +955,7 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
     [44, 'sageMemoryInjectThreshold'],
+    [45, 'nextStepsTool'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

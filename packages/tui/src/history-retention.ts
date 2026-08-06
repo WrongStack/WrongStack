@@ -21,13 +21,34 @@ function omittedCount(entry: HistoryEntry): number | null {
   return Number.isSafeInteger(count) && count > 0 ? count : null;
 }
 
+/**
+ * Serialized size per entry, memoized on the entry object.
+ *
+ * `retainTuiHistory` runs on EVERY `addEntry`, `replaceHistory` and
+ * `compactHistory` dispatch, and it called this twice per retained entry —
+ * once from `retainTuiHistoryEntry`'s budget check and once from the
+ * keep-window loop below. Measured on a saturated history (400 entries /
+ * ~1 MB): 1.35 ms and ~2 MB of transient JSON string per dispatch, on the
+ * render thread inside the reducer. A tool-heavy turn firing 150
+ * `tool.executed` re-serialized the whole transcript 300 times.
+ *
+ * A `HistoryEntry` is immutable once committed, so its size is too — and a
+ * WeakMap keeps no entry alive past its own retention.
+ */
+const entryBytesCache = new WeakMap<HistoryEntry, number>();
+
 function entryBytes(entry: HistoryEntry): number {
+  const cached = entryBytesCache.get(entry);
+  if (cached !== undefined) return cached;
+  let bytes: number;
   try {
-    return Buffer.byteLength(JSON.stringify(entry), 'utf8');
+    bytes = Buffer.byteLength(JSON.stringify(entry), 'utf8');
   } catch {
     // A non-serializable tool payload must never disable retention.
-    return TUI_HISTORY_MAX_BYTES + 1;
+    bytes = TUI_HISTORY_MAX_BYTES + 1;
   }
+  entryBytesCache.set(entry, bytes);
+  return bytes;
 }
 
 function oversizedEntryMarker(entry: HistoryEntry): HistoryEntry {

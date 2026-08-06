@@ -20,10 +20,14 @@ export function useHistoryViewportSync(input: {
   const [termRows, setTermRows] = useState(stdoutRows ?? 24);
 
   useEffect(() => {
-    const onResize = () => setTermRows(process.stdout.rows ?? 24);
-    process.stdout.prependListener('resize', onResize);
+    // Deliberately NOT `useTerminalSize`. This one uses `prependListener`: the
+    // viewport measurement has to see the new row count before the panels that
+    // lay out inside it react, and the shared hook subscribes with `on`.
+    // Ordering is the reason this copy exists.
+    const handleResize = () => setTermRows(process.stdout.rows ?? 24);
+    process.stdout.prependListener('resize', handleResize);
     return () => {
-      process.stdout.off('resize', onResize);
+      process.stdout.off('resize', handleResize);
     };
   }, []);
 

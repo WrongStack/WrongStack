@@ -1,8 +1,8 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type React from 'react';
-import { useEffect, useState } from 'react';
 import type { FleetEntry } from '../app-state.js';
-import { Box, Text, useStdout } from '../ink.js';
+import { Box, Text } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
@@ -369,23 +369,7 @@ export function FleetPanel({
   collabSession,
   maxWidth,
 }: FleetPanelProps): React.ReactElement | null {
-  const { stdout } = useStdout();
-  const capColumns = (raw: number): number => (maxWidth ? Math.min(raw, maxWidth) : raw);
-  const [terminal, setTerminal] = useState({
-    columns: capColumns(stdout?.columns ?? 90),
-    rows: stdout?.rows ?? 24,
-  });
-  useEffect(() => {
-    const handleResize = () => {
-      setTerminal({ columns: capColumns(stdout?.columns ?? 90), rows: stdout?.rows ?? 24 });
-    };
-    handleResize();
-    process.stdout.on('resize', handleResize);
-    return () => {
-      process.stdout.off('resize', handleResize);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stdout, maxWidth]);
+  const terminal = useTerminalSize({ maxWidth, fallbackColumns: 90 });
 
   const list = Object.values(entries);
   const leader = list.find(isLeaderEntry);

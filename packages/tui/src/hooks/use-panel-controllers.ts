@@ -214,6 +214,7 @@ export function usePanelControllers({
       }),
       showSageMemoryInject: s.showSageMemoryInject ?? false,
       sageMemoryInjectThreshold: s.sageMemoryInjectThreshold ?? 0.85,
+      nextStepsTool: s.nextStepsTool ?? false,
       readSymbols: s.readSymbols ?? false,
     });
   }, [getSettings]);

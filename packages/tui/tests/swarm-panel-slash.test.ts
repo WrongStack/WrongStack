@@ -51,6 +51,7 @@ const baseValues: SettingsPickerValues = {
   showSageMemoryInject: false,
   sageMemoryInjectThreshold: 0.85,
   readSymbols: true,
+  nextStepsTool: false,
   panelPositions: {
     projectPicker: 'bottom',
     fleet: 'bottom',

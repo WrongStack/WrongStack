@@ -14,7 +14,40 @@ import { renderHook } from '@testing-library/react';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from '../src/app-reducer.js';
-import { useSubagentEvents } from '../src/hooks/use-subagent-events.js';
+import {
+  providerContextLimitHistoryEntry,
+  useSubagentEvents,
+} from '../src/hooks/use-subagent-events.js';
+
+describe('providerContextLimitHistoryEntry', () => {
+  it('formats only live provider decreases as warnings', () => {
+    expect(
+      providerContextLimitHistoryEntry({
+        providerId: 'openai-codex',
+        modelId: 'gpt-5.6-sol',
+        previousMaxContext: 1_050_000,
+        maxContext: 272_000,
+        source: 'provider',
+        decreased: true,
+      }),
+    ).toEqual({
+      kind: 'warn',
+      text:
+        '⚠ provider context limit changed: 1,050,000 → 272,000 tokens ' +
+        '(openai-codex/gpt-5.6-sol). Preflight recovery now uses the lower limit.',
+    });
+    expect(
+      providerContextLimitHistoryEntry({
+        providerId: 'openai-codex',
+        modelId: 'gpt-5.6-sol',
+        previousMaxContext: 272_000,
+        maxContext: 1_050_000,
+        source: 'provider',
+        decreased: false,
+      }),
+    ).toBeNull();
+  });
+});
 
 /** Minimal EventBus: records handlers so the test can emit synchronously. */
 function makeBus(): EventBus & { fire: (name: string, payload: unknown) => void } {

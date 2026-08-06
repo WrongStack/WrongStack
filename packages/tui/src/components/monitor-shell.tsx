@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { Box, Text, useStdout } from '../ink.js';
+import { Box, Text } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { theme } from '../theme.js';
 
 export interface MonitorSize {
@@ -13,22 +13,7 @@ export interface MonitorSize {
 }
 
 export function useMonitorSize(): MonitorSize {
-  const { stdout } = useStdout();
-  const [size, setSize] = useState({
-    columns: stdout?.columns ?? 90,
-    rows: stdout?.rows ?? 24,
-  });
-
-  useEffect(() => {
-    const update = () => {
-      setSize({ columns: stdout?.columns ?? 90, rows: stdout?.rows ?? 24 });
-    };
-    update();
-    process.stdout.on('resize', update);
-    return () => {
-      process.stdout.off('resize', update);
-    };
-  }, [stdout]);
+  const size = useTerminalSize({ fallbackColumns: 90 });
 
   return {
     ...size,

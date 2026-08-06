@@ -81,6 +81,7 @@ export function useSettingsAutoSave(
         panelPositions: sp.panelPositions,
         showSageMemoryInject: sp.showSageMemoryInject,
         sageMemoryInjectThreshold: sp.sageMemoryInjectThreshold,
+        nextStepsTool: sp.nextStepsTool,
         readSymbols: sp.readSymbols,
       }),
     ).then((err: string | null) => {
@@ -133,6 +134,7 @@ export function useSettingsAutoSave(
     state.settingsPicker.panelPositions,
     state.settingsPicker.showSageMemoryInject,
     state.settingsPicker.sageMemoryInjectThreshold,
+    state.settingsPicker.nextStepsTool,
     state.settingsPicker.readSymbols,
     saveSettings,
   ]);

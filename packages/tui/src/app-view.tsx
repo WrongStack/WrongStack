@@ -1,4 +1,4 @@
-import { expectDefined } from '@wrongstack/core/utils';
+import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import type React from 'react';
 import { AppStatusRegion } from './app-status-region.js';
 import type { AppViewProps } from './app-view-contract.js';
@@ -419,6 +419,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               showAgentSwarmPanel={state.settingsPicker.showAgentSwarmPanel}
               showSageMemoryInject={state.settingsPicker.showSageMemoryInject}
               sageMemoryInjectThreshold={state.settingsPicker.sageMemoryInjectThreshold}
+              nextStepsTool={state.settingsPicker.nextStepsTool}
               readSymbols={state.settingsPicker.readSymbols}
               panelPositions={state.settingsPicker.panelPositions}
               filter={state.settingsPicker.filter}
@@ -513,7 +514,19 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                     }
                     onConfirm={(i) => {
                       const checkpoint = overlay.checkpoints[i];
-                      if (checkpoint) handleRewindTo(checkpoint.promptIndex);
+                      // `rewindToCheckpoint` throws SessionError for an unknown
+                      // index (pruned git objects, EBUSY on a network share).
+                      // Un-awaited and un-caught here, that rejection killed the
+                      // process; the slash path already guards
+                      // (use-core-tui-commands.ts:295).
+                      if (checkpoint) {
+                        void handleRewindTo(checkpoint.promptIndex).catch((err: unknown) => {
+                          dispatch({
+                            type: 'addEntry',
+                            entry: { kind: 'error', text: `Rewind failed: ${toErrorMessage(err)}` },
+                          });
+                        });
+                      }
                     }}
                     onClose={() => dispatch({ type: 'rewindOverlayClose' })}
                   />

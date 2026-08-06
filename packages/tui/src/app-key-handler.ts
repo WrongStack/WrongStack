@@ -1,4 +1,5 @@
 import type { Director } from '@wrongstack/core/coordination';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Action } from './app-action-type.js';
 import type { AppProps } from './app-props.js';
@@ -72,6 +73,20 @@ interface AppKeyHandlerOptions {
    *  scrollbar hit-tests use this instead of terminalColumns so the scrollbar
    *  track is correctly positioned to the left of the sidebar. */
   mainColumnWidth: number;
+  /**
+   * Whether a full-width overlay owns the screen.
+   *
+   * Passed in rather than derived. The old proxy —
+   * `mainColumnWidth >= stdout.columns` — is true whenever the sidebar is
+   * ZERO wide, and `computeSidebarWidth` returns 0 for any terminal under
+   * `SIDEBAR_MIN_TERMINAL` (64 columns). So on a narrow terminal the flag was
+   * permanently true with nothing open, and the whole `if (!overlayOpen)`
+   * block below — wheel scrolling, scrollbar drag, drag-select, copy icons,
+   * every status-bar chip click, PageUp/PageDown — silently stopped working,
+   * along with Shift+Tab, `?` help, and (via `routeInputKey`) up/down input
+   * history. `app.tsx` already hands the real value to `useMouseTracking`.
+   */
+  overlayOpen: boolean;
   /**
    * Effective swarm-on-sidebar read: `panelPositions.fleet === 'sidebar'`
    * OR the legacy `showAgentSwarmPanel === 'sidebar'` flag from
@@ -168,6 +183,7 @@ export function createAppKeyHandler(
     terminalColumns,
     terminalRows,
     mainColumnWidth,
+    overlayOpen,
     effectiveSwarmOnSidebar,
     sidebarTwinRowCount,
     statusBarWrapRef,
@@ -198,6 +214,31 @@ export function createAppKeyHandler(
   /** Effective width of the history area (terminal minus sidebar).
    *  Used for scrollbar/hit-test geometry so clicks land on the correct track. */
   const historyWidth = mainColumnWidth > 0 ? mainColumnWidth : (stdout?.columns ?? 80);
+
+  /**
+   * Run a detached promise from a key handler without risking the process.
+   *
+   * `void fn()` is the default idiom in this file, and most call sites were
+   * only safe because the callee happened to try/catch internally — incidental,
+   * not enforced. The ones that did not (paste commit on the 500 ms timer
+   * stack, the SDD lifecycle ops, the clipboard write, `/goal` dispatch) each
+   * turned a routine failure into an unhandled rejection, which Node 22's
+   * default `--unhandled-rejections=throw` escalates to process death. That
+   * violates the project's "no error may kill the process" rule, and a key
+   * handler is the last place a user can afford to lose the session.
+   *
+   * The failure surfaces as an error entry, the same way `submit-controller`
+   * reports a failed slash dispatch.
+   */
+  const detach = (work: Promise<unknown> | undefined, what: string): void => {
+    void Promise.resolve(work).catch((err: unknown) => {
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'error', text: `${what} failed: ${toErrorMessage(err)}` },
+      });
+    });
+  };
+
   const handleKey = async (input: string, key: KeyEvent) => {
     // ── Ctrl+C: THE unconditional escape hatch ────────────────────────
     // Raw-mode terminals (ConPTY/Windows, and any tty in raw mode) deliver
@@ -294,7 +335,10 @@ export function createAppKeyHandler(
           pasteFlushTimerRef.current = null;
           const full = pasteAccumRef.current;
           pasteAccumRef.current = null;
-          if (typeof full === 'string' && full) void commitPaste(full);
+          // Runs on the TIMER stack, where nothing above can catch it — unlike
+          // the other `commitPaste` call sites, which are awaited inside
+          // `handleKey` (and so covered by `useStableKeyHandler`'s catch).
+          if (typeof full === 'string' && full) detach(commitPaste(full), 'Paste');
         }, 500);
         return;
       }
@@ -468,15 +512,22 @@ export function createAppKeyHandler(
         const run = getSddRun?.();
         if (op !== 'destroy' && run) {
           const fn = op === 'cleanup_worktrees' ? run.cleanupWorktrees() : run.rollback();
-          void Promise.resolve(fn).then((r) => {
-            dispatch({ type: 'addEntry', entry: sddLifecycleEntry(op, r) });
-          });
+          // A locked worktree or dirty index rejects here.
+          detach(
+            Promise.resolve(fn).then((r) => {
+              dispatch({ type: 'addEntry', entry: sddLifecycleEntry(op, r) });
+            }),
+            `SDD ${op}`,
+          );
           return;
         }
         if (onSddLifecycle) {
-          void onSddLifecycle(op).then((r) => {
-            dispatch({ type: 'addEntry', entry: sddLifecycleEntry(op, r) });
-          });
+          detach(
+            onSddLifecycle(op).then((r) => {
+              dispatch({ type: 'addEntry', entry: sddLifecycleEntry(op, r) });
+            }),
+            `SDD ${op}`,
+          );
         } else {
           dispatch({
             type: 'addEntry',
@@ -502,7 +553,6 @@ export function createAppKeyHandler(
     // bottom-routed panel/overlay. Sidebar-routed panels must not suppress
     // sidebar focus or history hit-testing, so this shares AppView's
     // routing-aware layout decision via mainColumnWidth.
-    const overlayOpen = mainColumnWidth >= (stdout?.columns ?? 80);
 
     // ── Sidebar focus + scroll ───────────────────────────────────────
     // Shift+Tab on an empty draft toggles keyboard focus between the
@@ -600,7 +650,13 @@ export function createAppKeyHandler(
       const now = Date.now();
       if (now - lastEnterAtRef.current < 50) return;
       lastEnterAtRef.current = now;
-      void submit();
+      // `submit` is typed `() => void` at the wiring site, so TS silently
+      // discarded the promise it actually returns — and its non-slash branch
+      // has no top-level try/catch (an `@file` chip whose file was deleted
+      // between attach and send rejects while resolving attachments).
+      // `useStableKeyHandler` only covers the promise `handleKey` itself
+      // returns; `void submit()` detached from that chain.
+      detach(Promise.resolve(submit()), 'Send');
       return;
     }
 
@@ -630,9 +686,13 @@ export function createAppKeyHandler(
           key.mouse.y,
         );
         if (region?.kind === 'history' && key.mouse.x <= historyWidth - SCROLLBAR_HIT_WIDTH) {
-          void historyScrollRef.current?.commitSelection().then((copied) => {
-            if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
-          });
+          // Clipboard write — fails with no `xclip` / `clip.exe` on PATH.
+          detach(
+            historyScrollRef.current?.commitSelection().then((copied) => {
+              if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
+            }),
+            'Copy',
+          );
           return;
         }
         // Right-press outside the card area (gutter, bottom region, outside
@@ -919,10 +979,15 @@ export function createAppKeyHandler(
       if (state.goalRun) dispatch({ type: 'goalRunMonitorToggle' });
       else {
         // No active Goal — treat as a command alias for /goal status
-        slashRegistry.dispatch('/goal', agent.ctx).then((res) => {
-          if (res?.message)
-            dispatch({ type: 'addEntry', entry: { kind: 'info', text: res.message } });
-        });
+        // `submit-controller` wraps the identical dispatch in try/catch and
+        // reports an error entry; this Ctrl+P alias did not.
+        detach(
+          slashRegistry.dispatch('/goal', agent.ctx).then((res) => {
+            if (res?.message)
+              dispatch({ type: 'addEntry', entry: { kind: 'info', text: res.message } });
+          }),
+          '/goal',
+        );
       }
       return;
     }

@@ -77,4 +77,11 @@ export type SettingsPickerPatch = Partial<{
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
   sageMemoryInjectThreshold: number;
+  /**
+   * Register the agent-callable `nextsteps` tool for the leader, alongside the
+   * `<nextsteps>` block it can already write. Persisted to
+   * `tools.nextsteps.enabled`; the registry is built at boot, so a change takes
+   * effect in the next session. Default: false.
+   */
+  nextStepsTool: boolean;
 }>;

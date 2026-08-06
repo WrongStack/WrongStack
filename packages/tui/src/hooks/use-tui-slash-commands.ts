@@ -318,9 +318,18 @@ export function useTuiSlashCommands({
                 ...rest,
                 ...(tokenSavingTier !== undefined ? { featureTokenSaving: tokenSavingTier } : {}),
               }),
-            ).then((err: string | null) => {
-              if (err) dispatch({ type: 'settingsHint', text: err });
-            });
+            )
+              .then((err: string | null) => {
+                if (err) dispatch({ type: 'settingsHint', text: err });
+              })
+              // The `.then` arm only handles the resolved-with-error-string
+              // contract; a REJECTION (Windows EBUSY when a second wstack in
+              // the same project holds the config, or the credential
+              // hot-reload watcher mid-write) escaped and killed the TUI.
+              // Siblings guard: submit-controller.ts:317, use-queue-manager.ts:130.
+              .catch(() => {
+                dispatch({ type: 'settingsHint', text: 'Could not save settings.' });
+              });
           }
           return { message: `↺ ${result.label} reset to ${result.displayValue}` };
         }
@@ -368,9 +377,13 @@ export function useTuiSlashCommands({
               ...rest,
               ...(tokenSavingTier !== undefined ? { featureTokenSaving: tokenSavingTier } : {}),
             };
-            Promise.resolve(saveSettings(updated)).then((err: string | null) => {
-              if (err) dispatch({ type: 'settingsHint', text: err });
-            });
+            Promise.resolve(saveSettings(updated))
+              .then((err: string | null) => {
+                if (err) dispatch({ type: 'settingsHint', text: err });
+              })
+              .catch(() => {
+                dispatch({ type: 'settingsHint', text: 'Could not save settings.' });
+              });
           }
 
           return { message: `✓ ${result.label} → ${result.displayValue}` };

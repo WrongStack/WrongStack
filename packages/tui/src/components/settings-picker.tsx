@@ -128,6 +128,8 @@ export interface SettingsPickerProps {
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
   sageMemoryInjectThreshold: number;
+  /** Register the leader's agent-callable `nextsteps` tool. Default: false. */
+  nextStepsTool: boolean;
   // ── Tools ──
   /** When true, read tool includes codebase-index symbols alongside file content. */
   readSymbols: boolean;
@@ -210,6 +212,7 @@ export function SettingsPicker({
   showAgentSwarmPanel,
   showSageMemoryInject,
   sageMemoryInjectThreshold,
+  nextStepsTool,
   readSymbols,
   panelPositions,
   hint,
@@ -464,11 +467,16 @@ export function SettingsPicker({
       value: formatSageThreshold(sageMemoryInjectThreshold),
       detail: 'Min relation strength for injection (0.72–0.95)',
     },
-    // ── Panels (fields 45–57) ─────────────────────────────────────────────
+    {
+      label: 'Nextsteps tool',
+      value: boolVal(nextStepsTool),
+      detail: 'Let the agent record <nextsteps> via a tool call (next session)',
+    },
+    // ── Panels (fields 46–58) ─────────────────────────────────────────────
     // One row per PanelId in PANEL_IDS order. SETTINGS_FIELD_LABELS indexes
-    // 45..57 must stay in lock-step with PANEL_IDS — the resolveSettingsFieldValue
+    // 46..58 must stay in lock-step with PANEL_IDS — the resolveSettingsFieldValue
     // switch and the reducer's settingsValueChange arrow-key path both
-    // index `PANEL_IDS[field - 45]` for these rows. ←/→ cycles the value
+    // index `PANEL_IDS[field - PANEL_POSITION_FIELD_START]` for these rows. ←/→ cycles the value
     // between 'bottom' (F-key) and 'sidebar' (right sidebar) — the
     // renderer (sidebar.tsx + overlay-key-router) reads `panelPositions`
     // at render time to decide where each panel surfaces.

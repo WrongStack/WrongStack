@@ -94,6 +94,7 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           panelPositions: coercePanelPositionMap(action.panelPositions),
           showSageMemoryInject: action.showSageMemoryInject,
           sageMemoryInjectThreshold: action.sageMemoryInjectThreshold,
+          nextStepsTool: action.nextStepsTool,
           readSymbols: action.readSymbols,
           hint: undefined,
         },

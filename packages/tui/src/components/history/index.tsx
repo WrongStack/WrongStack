@@ -1,8 +1,9 @@
 import type React from 'react';
-import { memo, useEffect, useRef, useState } from 'react';
-import { Box, Static, useStdout } from '../../ink.js';
+import { memo, useRef } from 'react';
+import { Box, Static } from '../../ink.js';
 import { Entry } from './entry.js';
 import type { HistoryProps } from './types.js';
+import { useTerminalSize } from '../../hooks/use-terminal-size.js';
 
 // ── Re-exports ──
 
@@ -91,20 +92,7 @@ export const History = memo(function History({
   showModelReasoning,
   showSageMemoryInject,
 }: HistoryProps): React.ReactElement {
-  const { stdout } = useStdout();
-  const [termSize, setTermSize] = useState({
-    columns: stdout?.columns ?? 80,
-    rows: stdout?.rows ?? 24,
-  });
-  useEffect(() => {
-    const handleResize = () => {
-      setTermSize({ columns: stdout?.columns ?? 80, rows: stdout?.rows ?? 24 });
-    };
-    process.stdout.on('resize', handleResize);
-    return () => {
-      process.stdout.off('resize', handleResize);
-    };
-  }, [stdout]);
+  const termSize = useTerminalSize();
   const termWidth = termSize.columns;
 
   const presentationKey = `w${termWidth}-mr${showModelReasoning}`;

@@ -1,6 +1,7 @@
 import type React from 'react';
-import { useEffect, useRef, useState } from 'react';
-import { Box, Text, useInput, useStdout } from '../ink.js';
+import { useEffect, useRef } from 'react';
+import { Box, Text, useInput } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
@@ -105,17 +106,7 @@ export function wrapRefinementPreview(text: string, width: number, maxLines: num
 }
 
 function useTerminalColumns(): number {
-  const { stdout } = useStdout();
-  const [columns, setColumns] = useState(stdout?.columns ?? 90);
-  useEffect(() => {
-    const handleResize = () => setColumns(stdout?.columns ?? 90);
-    handleResize();
-    process.stdout.on('resize', handleResize);
-    return () => {
-      process.stdout.off('resize', handleResize);
-    };
-  }, [stdout]);
-  return columns;
+  return useTerminalSize({ fallbackColumns: 90 }).columns;
 }
 
 function PreviewBlock({

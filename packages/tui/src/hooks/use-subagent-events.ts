@@ -19,6 +19,31 @@ interface CompactionHistoryEvent {
   };
 }
 
+export function providerContextLimitHistoryEntry(event: {
+  providerId: string;
+  modelId: string;
+  maxContext: number;
+  previousMaxContext?: number | undefined;
+  source?: 'configured' | 'provider' | 'provider_overflow' | undefined;
+  decreased?: boolean | undefined;
+}): { kind: 'warn'; text: string } | null {
+  if (
+    event.source !== 'provider' ||
+    event.decreased !== true ||
+    typeof event.previousMaxContext !== 'number' ||
+    event.previousMaxContext <= event.maxContext
+  ) {
+    return null;
+  }
+  return {
+    kind: 'warn',
+    text:
+      `⚠ provider context limit changed: ${event.previousMaxContext.toLocaleString('en-US')} → ` +
+      `${event.maxContext.toLocaleString('en-US')} tokens (${event.providerId}/${event.modelId}). ` +
+      'Preflight recovery now uses the lower limit.',
+  };
+}
+
 export function compactionHistoryEntry(
   event: CompactionHistoryEvent,
   currentSessionId?: string | undefined,
@@ -424,6 +449,8 @@ export function useSubagentEvents(
     const offLeaderMaxContext = events.on('ctx.max_context', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (e.maxContext > 0) setActiveMaxContext(e.maxContext);
+      const warning = providerContextLimitHistoryEntry(e);
+      if (warning) dispatch({ type: 'addEntry', entry: warning });
     });
 
     const offCompactionFired = events.on('compaction.fired', (e) => {

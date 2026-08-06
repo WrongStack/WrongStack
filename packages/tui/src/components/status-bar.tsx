@@ -1,13 +1,14 @@
 import { expectDefined } from '@wrongstack/core/utils';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   computeTokenFingerprint,
   useChipStalenessGuard,
 } from '../hooks/use-chip-staleness-guard.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
-import { Box, Text, useAnimation, useStdout } from '../ink.js';
+import { Box, Text, useAnimation } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { activeMemoryContextCount } from '../memory-context-monitor.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -214,18 +215,7 @@ export function StatusBar({
   // Track terminal width so we can adapt layout on narrow terminals.
   // We snapshot into state so that renders are stable — we don't want
   // the live-region to churn on every resize event during active streaming.
-  const { stdout } = useStdout();
-  const capWidth = (raw: number): number => (maxWidth ? Math.min(raw, maxWidth) : raw);
-  const [termWidth, setTermWidth] = useState(capWidth(stdout?.columns ?? 90));
-  useEffect(() => {
-    const handleResize = () => setTermWidth(capWidth(stdout?.columns ?? 90));
-    handleResize(); // snapshot immediately
-    process.stdout.on('resize', handleResize);
-    return () => {
-      process.stdout.off('resize', handleResize);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stdout, maxWidth]);
+  const { columns: termWidth } = useTerminalSize({ maxWidth, fallbackColumns: 90 });
 
   const isCompact = termWidth < COMPACT_THRESHOLD;
   const isComfortable = termWidth >= COMFORTABLE_THRESHOLD;

@@ -1,7 +1,7 @@
 import type React from 'react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { fnKey } from '../fn-keys.js';
-import { Box, Text, useInput, useStdin, useStdout } from '../ink.js';
+import { Box, Text, useInput, useStdin } from '../ink.js';
 import { type InputCell, layoutInputRows } from '../input-tokens.js';
 import { isLeakedMouseInput, type MouseEventInfo, parseMouseEvents } from '../mouse.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
@@ -15,6 +15,7 @@ import {
   composerStatusReservedWidth,
 } from './composer-status-chip.js';
 import { fmtElapsed } from './status-bar.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 
 export const DEFAULT_INPUT_PROMPT = `${glyphs.prompt} `;
 
@@ -491,23 +492,9 @@ export const Input = memo(function Input({
 
   // Track terminal width so the input wraps at the real column count and the
   // box grows to exactly the number of visual rows the content needs.
-  const { stdout } = useStdout();
-  const [cols, setCols] = useState(() => {
-    const raw = stdout?.columns ?? 80;
-    return maxWidth ? Math.min(raw, maxWidth) : raw;
-  });
-  useEffect(() => {
-    if (!stdout) return;
-    const onResize = () => {
-      const raw = stdout.columns ?? 80;
-      setCols(maxWidth ? Math.min(raw, maxWidth) : raw);
-    };
-    onResize();
-    stdout.on('resize', onResize);
-    return () => {
-      stdout.off('resize', onResize);
-    };
-  }, [stdout, maxWidth]);
+  // The one site that already subscribed to the SAME stream it read; the hook
+  // makes that the rule instead of the exception.
+  const { columns: cols } = useTerminalSize({ maxWidth });
 
   // Disabled (aborting an iteration) is the only signal that needs a
   // hard visual cue — paint the prompt red.

@@ -325,6 +325,7 @@ export function routeSettingsOverlayKey(
     }),
     showSageMemoryInject: config.showSageMemoryInject ?? false,
     sageMemoryInjectThreshold: config.sageMemoryInjectThreshold ?? 0.85,
+    nextStepsTool: config.nextStepsTool ?? false,
     readSymbols: config.readSymbols ?? false,
   });
   return true;

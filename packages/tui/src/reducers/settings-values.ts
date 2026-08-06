@@ -556,9 +556,15 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           },
         };
       }
+      // Field 45: nextStepsTool (boolean toggle)
+      if (f === 45)
+        return {
+          ...state,
+          settingsPicker: { ...sp, nextStepsTool: !sp.nextStepsTool, hint: undefined },
+        };
       // Fields PANEL_POSITION_FIELD_START..PANEL_POSITION_FIELD_START+PANEL_IDS.length:
       // per-panel position (cycle 'bottom' → 'sidebar'). One field index
-      // per PanelId, in PANEL_IDS order. The first 45 indices (0–44) are
+      // per PanelId, in PANEL_IDS order. The first 46 indices (0–45) are
       // preserved because jumps, persisted lastSettingsField, and several
       // tests rely on stable indices. The bounds check guarantees
       // PANEL_IDS[f - PANEL_POSITION_FIELD_START] is defined; the map is

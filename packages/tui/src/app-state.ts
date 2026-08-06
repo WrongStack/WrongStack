@@ -326,6 +326,8 @@ export type State = {
     showSageMemoryInject: boolean;
     /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
     sageMemoryInjectThreshold: number;
+    /** Register the leader's agent-callable `nextsteps` tool. Default: false. */
+    nextStepsTool: boolean;
     /** When true, read tool includes codebase-index symbols alongside file content. */
     readSymbols: boolean;
     /** Prompt cache TTL. */

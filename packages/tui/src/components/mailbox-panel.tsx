@@ -1,6 +1,6 @@
-import { Box, Text, useStdout } from '../ink.js';
+import { Box, Text } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import type React from 'react';
-import { useEffect, useState } from 'react';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -81,14 +81,7 @@ export function MailboxPanel({
   unreadCount,
   open,
 }: MailboxPanelProps): React.ReactElement | null {
-  const { stdout } = useStdout();
-  const [termWidth, setTermWidth] = useState(stdout?.columns ?? 90);
-  useEffect(() => {
-    const handleResize = () => setTermWidth(stdout?.columns ?? 90);
-    handleResize();
-    process.stdout.on('resize', handleResize);
-    return () => { process.stdout.off('resize', handleResize); };
-  }, [stdout]);
+  const { columns: termWidth } = useTerminalSize({ fallbackColumns: 90 });
 
   if (!open) return null;
 

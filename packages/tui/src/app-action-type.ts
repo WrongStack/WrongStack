@@ -215,6 +215,7 @@ export type Action =
       readSymbols: boolean;
       showSageMemoryInject: boolean;
       sageMemoryInjectThreshold: number;
+      nextStepsTool: boolean;
     }
   | { type: 'settingsClose' }
   | { type: 'settingsFieldMove'; delta: number }

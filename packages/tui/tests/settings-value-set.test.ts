@@ -219,8 +219,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 58 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(58);
+    it('SETTINGS_FIELD_LABELS has 59 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(59);
     });
 
     it('trims whitespace from input', () => {
@@ -308,6 +308,7 @@ describe('getSettingsFieldValue', () => {
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     readSymbols: true,
+    nextStepsTool: false,
     panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
@@ -469,6 +470,7 @@ describe('formatAllSettingsSummary', () => {
     showSageMemoryInject: false,
     sageMemoryInjectThreshold: 0.85,
     readSymbols: false,
+    nextStepsTool: false,
     panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
@@ -493,10 +495,10 @@ describe('formatAllSettingsSummary', () => {
     }
   });
 
-  it('renders exactly 58 value lines (one per field)', () => {
+  it('renders exactly 59 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(58);
+    expect(fieldLines).toHaveLength(59);
   });
 
   it('includes the thinking word value', () => {
@@ -578,8 +580,8 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 46 keys (45 legacy + panelPositions)', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(46);
+  it('SETTINGS_DEFAULTS has all 47 keys (46 legacy + panelPositions)', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(47);
   });
 
   it('every field 0-57 can be reset', () => {

@@ -110,6 +110,8 @@ export type Settings = {
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
   sageMemoryInjectThreshold: number;
+  /** Register the leader's agent-callable `nextsteps` tool. Default: false. */
+  nextStepsTool: boolean;
   /** Prompt cache TTL. */
   cacheTtl: CacheTtl;
   /** Where to persist settings: 'global' or 'project'. */

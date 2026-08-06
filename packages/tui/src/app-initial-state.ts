@@ -288,6 +288,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       panelPositions: DEFAULT_PANEL_POSITIONS,
       showSageMemoryInject: false,
       sageMemoryInjectThreshold: 0.85,
+      nextStepsTool: false,
       readSymbols: false,
     },
     statuslinePicker: {
